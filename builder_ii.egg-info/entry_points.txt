@@ -1,2 +1,0 @@
-[console_scripts]
-core-agent = core_agent.cli:app
