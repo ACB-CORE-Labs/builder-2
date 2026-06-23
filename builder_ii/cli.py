@@ -23,6 +23,7 @@ from builder_ii.goose_setup import run_full_setup, validate_recipes
 from builder_ii.harness import format_verify_report, run_verification
 from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT, estimate_tokens
 from builder_ii.model_router import SESSION_MODES, plan_session
+from builder_ii.models import model_status_report
 
 app = typer.Typer(
     name="builder",
@@ -74,15 +75,19 @@ def setup() -> None:
 
 
 @app.command("pull")
-def pull() -> None:
-    """Pre-download Gemma models (Rapid-MLX)."""
+def pull(
+    tier: str = typer.Option("fast", "--tier", "-t", help="fast|primary|all"),
+) -> None:
+    """Pre-download Gemma models (resumable — re-run after library throttle)."""
     settings = load_settings()
+    script = settings.project_root / "scripts" / "pull-models-resumable.sh"
+    if script.exists():
+        console.print(f"Pulling tier={tier} via resumable script...")
+        proc = subprocess.run(["bash", str(script), tier])
+        raise typer.Exit(proc.returncode)
     console.print(f"Pulling models for backend={settings.backend}...")
-    lines = pull_models(settings)
-    for line in lines:
+    for line in pull_models(settings):
         console.print(line)
-    if not lines:
-        console.print("No pull commands run (requires rapid-mlx backend).")
 
 
 @app.command("start")
@@ -185,6 +190,10 @@ def status() -> None:
     validations = validate_recipes(settings)
     ok_count = sum(1 for _p, ok, _m in validations if ok)
     console.print(f"recipes: {ok_count}/{len(validations)} valid")
+    for m in model_status_report(settings):
+        flag = "COMPLETE" if m.likely_complete else ("PARTIAL" if m.cache_dir else "MISSING")
+        inc = " (incomplete blobs)" if m.has_incomplete else ""
+        console.print(f"model {m.alias}: {flag} {m.size_gb}GB{inc}")
 
 
 @app.command("config")

@@ -62,12 +62,12 @@ def load_settings(project_root: Path | None = None) -> Settings:
         backend=backend,
         model_tier=tier,
         model_primary=os.getenv("CORE_AGENT_MODEL_PRIMARY", "gemma-4-12b-4bit"),
-        model_fast=os.getenv("CORE_AGENT_MODEL_FAST", "gemma-4-4b-4bit"),
+        model_fast=os.getenv("CORE_AGENT_MODEL_FAST", "gemma-4-e4b-4bit"),
         mlx_model_primary=os.getenv(
-            "CORE_AGENT_MLX_MODEL_PRIMARY", "mlx-community/gemma-3-12b-it-4bit"
+            "CORE_AGENT_MLX_MODEL_PRIMARY", "mlx-community/gemma-4-12B-it-4bit"
         ),
         mlx_model_fast=os.getenv(
-            "CORE_AGENT_MLX_MODEL_FAST", "mlx-community/gemma-3-2b-it-4bit"
+            "CORE_AGENT_MLX_MODEL_FAST", "mlx-community/gemma-4-e4b-it-4bit"
         ),
         base_url=os.getenv("CORE_AGENT_BASE_URL", "http://127.0.0.1:8080/v1"),
         host=os.getenv("CORE_AGENT_HOST", "127.0.0.1"),
