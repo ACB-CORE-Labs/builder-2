@@ -1,0 +1,24 @@
+version: "1.0.0"
+title: "CORE Explore"
+description: "Read-only codebase exploration: trace symbols, read governance files, answer from actual files."
+instructions: |
+  Explore the CORE repo without editing. Read AGENTS.md, GROK.md, docs/runtime_contracts.md.
+  Trace call sites from actual files. Answer from reality, not training assumptions.
+  Use core-pre-edit-sweep skill before suggesting any change.
+  temperature 0. Label any suggestions [SPECULATIVE].
+prompt: |
+  Explore {{ focus }}. Read actual files. Report findings with paths and line references.
+parameters:
+  - key: focus
+    input_type: string
+    requirement: optional
+    default: "versor_apply and cga_inner call graph"
+    description: "What to explore"
+settings:
+  temperature: 0.0
+  max_turns: 30
+extensions:
+  - type: builtin
+    name: developer
+    bundled: true
+    timeout: 300

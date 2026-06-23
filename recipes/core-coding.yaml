@@ -24,6 +24,7 @@ instructions: |
   3. Read before write; trace call sites from actual files.
   4. Label new code [SPECULATIVE] until verification PASS.
   5. Run: builder verify <module> — diagnose upstream on failure.
+  6. Subagents available via /platform recipe: core_explore, core_implement, core_review, core_verify, core_handoff.
   6. End non-trivial sessions with HANDOFF using docs/handoff_template.md.
 
   ROUTING: algebra/->algebra, field/->algebra, generate/->cognition, vault/->teaching,

@@ -1,89 +1,100 @@
-# CORE Agent Platform Manual
+# Builder Platform Manual
 
-Local AI coding for [CORE](https://github.com/assetoverflow/core): **Codename Goose** + **Gemma 4** via MLX on M1 16GB.
+Local CORE coding on M1 16GB: **Codename Goose** + **Gemma 4** via **Rapid-MLX**.
 
-## Prerequisites
-
-1. **Python 3.12+** and `uv` (project venv in `.venv`)
-2. **Codename Goose CLI** — the real agent from [AAIF/block-goose](https://goose-docs.ai), **not** the PyPI `goose-ai` stub:
+## First-time setup
 
 ```bash
-brew install block-goose-cli
-# or: ./scripts/install-goose.sh
-goose --version   # expect 1.38.x+
+brew install block-goose-cli    # real Goose (NOT pip goose-ai)
+cd builder-II && uv sync
+cp .env.example .env
+builder setup                   # Goose config, skills, hints, validate recipes
+builder pull                    # download Gemma weights (~7–11 GB first time)
+builder start                   # backend + orchestrated Goose session
 ```
 
-3. **CORE repo** at `CORE_REPO_PATH` (default `../core`)
+## Goose capabilities wired in
 
-## Quick start
+| Feature | How |
+|---------|-----|
+| **Orchestrator recipe** | `recipes/core-platform.yaml` — main session with 5 subrecipes |
+| **Subagents** | `core_explore`, `core_implement`, `core_review`, `core_verify`, `core_handoff` via summon/delegate |
+| **Slash commands** | `/explore` `/implement` `/review` `/verify` `/handoff` `/platform` `/coding` |
+| **Skills** | `.agents/skills/` → copied to CORE on `builder setup` |
+| **Plan mode** | `/plan` in Goose CLI (planner shares same local model on 16GB) |
+| **MOIM context** | Auto-injects `.builder/session-context.md` every turn |
+| **`.goosehints`** | Written to CORE repo root on setup |
+| **Developer MCP** | File + shell tools for edit-test-fix |
+| **Summon platform** | Subrecipe delegation |
+
+## Session modes (`builder start --mode`)
+
+| Mode | Model tier | Recipe | Use |
+|------|------------|--------|-----|
+| `orchestrator` (default) | primary 12B | core-platform.yaml | Full subagent stack |
+| `quick` | fast 4B | core-platform.yaml | Explain, search, read |
+| `deep` | primary 12B | core-platform.yaml | Write, fix, test |
+| `coding` | primary 12B | core-coding.yaml | Simple single-recipe session |
+
+One model loaded at a time on 16GB. Switch tier:
 
 ```bash
-cd builder-II
-uv sync
-cp .env.example .env   # edit if needed
-builder start
+builder switch-model fast    # edit .env, restart
+builder start --mode quick
 ```
 
-This starts the MLX backend (if down), then launches `goose session --recipe recipes/core-coding.yaml` in the CORE repo with governed instructions.
+## Skills (auto-discovered in CORE repo)
 
-## Inference backends
+- `core-governed-coding` — invariants + workflow
+- `core-verify-loop` — edit → `builder verify` → fix
+- `core-pre-edit-sweep` — trace before edit
+- `core-handoff` — session continuity doc
 
-Set `CORE_AGENT_BACKEND` in `.env`:
-
-| Backend | Command | Notes |
-|---------|---------|-------|
-| `rapid-mlx` (default) | `rapid-mlx serve <alias>` | Best TTFT/tool-calling on M1 |
-| `mlx-lm` | `mlx_lm.server --model <hf>` | 15–30% faster than Ollama, lower RAM |
-| `ollama` | `ollama serve` | Fallback |
-
-Switch model tier:
-
-```bash
-builder switch-model fast      # E4B (~5–6 GB)
-builder switch-model primary   # 12B (~10–11 GB)
-```
-
-One model at a time on 16 GB.
-
-## Goose + local MLX wiring
-
-Goose talks to Rapid-MLX/mlx-lm via the **OpenAI provider**:
-
-```
-GOOSE_PROVIDER=openai
-OPENAI_HOST=http://127.0.0.1:8080/v1
-OPENAI_API_KEY=not-needed
-GOOSE_MODEL=default
-GOOSE_TEMPERATURE=0.0
-```
-
-For Ollama backend, Goose uses `GOOSE_PROVIDER=ollama` and `OLLAMA_HOST`.
-
-Config file (shared CLI/Desktop): `~/.config/goose/config.yaml`
+Load explicitly: `/skills core-governed-coding core-verify-loop`
 
 ## Commands
 
-| Command | Purpose |
-|---------|---------|
-| `builder start` | Backend + Goose session with CORE recipe |
-| `builder verify algebra/versor.py` | Run CORE test suite for module |
-| `builder benchmark` | TTFT, tool-call, compliance, memory report |
-| `builder switch-model <tier>` | Show env for model swap |
-| `builder status` | Health + goose + compliance |
-| `builder init-prompt` | Print governed system prompt |
+```bash
+builder setup          # config + skills + hints + recipe validation
+builder pull           # pre-download models
+builder start          # one-command morning startup
+builder start -m quick -n my-session
+builder verify algebra/versor.py
+builder benchmark -o scratch/report.txt
+builder status
+builder config         # dump setup JSON
+```
 
-## Verification harness
+## Inference backends
 
-Maps module paths to CORE CLI suites (`core test --suite <name> -q`). Invokes `core` on PATH, else `uv run --project $CORE_REPO python -m core.cli`.
+`CORE_AGENT_BACKEND` in `.env`: `rapid-mlx` (default) | `mlx-lm` | `ollama`
 
-## Recipes
+Goose wiring:
+- rapid-mlx/mlx-lm → `GOOSE_PROVIDER=openai` + `OPENAI_HOST`
+- ollama → `GOOSE_PROVIDER=ollama` + `OLLAMA_HOST`
 
-`recipes/core-coding.yaml` — Goose recipe with CORE invariants, routing table, developer extension for edit-test-fix.
+Config: `~/.config/goose/config.yaml` (merged on `builder setup`)
 
-Validate: `goose recipe validate recipes/core-coding.yaml`
+## In-session workflow
+
+```
+/plan Add test for near-null versor_condition     # plan first
+/explore versor_apply call sites                  # read-only subagent
+/implement add test in tests/test_versor...       # write + verify subagent
+/verify algebra/versor.py                         # harness only
+/review cosine similarity in vault proposal       # should REFUSE
+/handoff                                          # end-of-session doc
+```
+
+## M1 memory notes
+
+- Primary (~10–11 GB) + OS overhead ≈ tight on 16GB — close heavy apps
+- Use `--mode quick` / `fast` tier for exploration
+- Only one Rapid-MLX model loaded; swap requires backend restart
 
 ## Troubleshooting
 
-- **`goose: command not found`** → `brew install block-goose-cli`
-- **Backend OOM** → `builder switch-model fast`
-- **Wrong package** → Do not `pip install goose-ai` (unrelated stub)
+- `goose not found` → `brew install block-goose-cli`
+- Backend DOWN after start → model still downloading; wait or run `builder pull`
+- Subrecipe fails → `goose recipe validate recipes/core-platform.yaml`
+- Skills missing in CORE → re-run `builder setup`

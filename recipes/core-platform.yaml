@@ -1,0 +1,70 @@
+version: "1.0.0"
+title: "CORE Platform Agent"
+description: >
+  Orchestrated CORE coding on M1: governed invariants, subagents for explore/implement/review/verify/handoff.
+  temperature 0. One model at a time (12B deep / 4B fast via builder switch-model).
+instructions: |
+  You orchestrate CORE development on Apple M1 16GB with Codename Goose + local Gemma 4 MLX.
+
+  Load skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep.
+
+  HARD INVARIANTS — refuse by name:
+  - versor_condition(F) < 1e-6
+  - cga_inner exact recall only — no cosine, ANN, HNSW
+  - Normalization ONLY at listed sites; NO hot-path repair in generate/stream.py, field/propagate.py, vault/store.py
+  - Proposals SPECULATIVE until builder verify PASS
+  - answer all 5 PR questions before finalizing; produce HANDOFF for non-trivial work
+
+  Use subrecipe tools:
+  - core_explore: read/trace before writing
+  - core_implement: write + verify loop
+  - core_review: compliance check
+  - core_verify: run test harness only
+  - core_handoff: session handoff doc
+
+  For non-trivial changes use /plan first. Read governance files on start.
+
+  Model tiers (one loaded): primary=12B deep reasoning, fast=4B quick tasks.
+  Switch: builder switch-model fast|primary then restart session.
+
+prompt: |
+  Session ready. CORE repo at {{ core_repo }}.
+  Git: {{ git_summary }}
+  Begin governed work. Read AGENTS.md and recent HANDOFF if present.
+
+sub_recipes:
+  - name: core_explore
+    path: "./subrecipes/explore.yaml"
+  - name: core_implement
+    path: "./subrecipes/implement.yaml"
+  - name: core_review
+    path: "./subrecipes/review.yaml"
+  - name: core_verify
+    path: "./subrecipes/verify.yaml"
+  - name: core_handoff
+    path: "./subrecipes/handoff.yaml"
+
+parameters:
+  - key: core_repo
+    input_type: string
+    requirement: optional
+    default: "."
+    description: "CORE repository path"
+  - key: git_summary
+    input_type: string
+    requirement: optional
+    default: "run git status"
+    description: "Brief git state"
+
+settings:
+  temperature: 0.0
+  goose_mode: auto
+  max_turns: 100
+
+extensions:
+  - type: builtin
+    name: developer
+    bundled: true
+    timeout: 600
+  - type: platform
+    name: summon

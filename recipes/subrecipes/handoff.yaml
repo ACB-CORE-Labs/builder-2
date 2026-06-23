@@ -1,0 +1,16 @@
+version: "1.0.0"
+title: "CORE Handoff"
+description: "Write HANDOFF doc from docs/handoff_template.md with exact state."
+instructions: |
+  Use core-handoff skill. Write HANDOFF-grok43-YYYY-MM-DD.md with exact test output,
+  files touched, invariants verified, specific next steps. No placeholders.
+prompt: |
+  Write a complete handoff document for this session.
+settings:
+  temperature: 0.0
+  max_turns: 15
+extensions:
+  - type: builtin
+    name: developer
+    bundled: true
+    timeout: 300

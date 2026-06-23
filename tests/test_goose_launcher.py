@@ -19,3 +19,10 @@ def test_goose_env_openai_provider():
 def test_recipe_exists():
     settings = load_settings()
     assert recipe_path(settings).exists()
+
+
+def test_platform_recipe_exists():
+    from builder_ii.model_router import plan_session
+
+    settings = load_settings()
+    assert recipe_path(settings, plan_session("orchestrator")).exists()
