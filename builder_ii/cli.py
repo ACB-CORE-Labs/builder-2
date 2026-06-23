@@ -76,16 +76,26 @@ def setup() -> None:
 
 @app.command("pull")
 def pull(
-    tier: str = typer.Option("fast", "--tier", "-t", help="fast|primary|all"),
+    tier: str = typer.Option("fast", "--tier", "-t", help="fast|primary|all|status|weights|small"),
 ) -> None:
-    """Pre-download Gemma models (resumable — re-run after library throttle)."""
+    """Phased resumable download — re-run same command after library throttle."""
     settings = load_settings()
+    phased = settings.project_root / "scripts" / "pull-phased.sh"
+    if phased.exists() and tier in ("fast", "status", "weights", "small"):
+        mapping = {
+            "fast": "weights",
+            "small": "small",
+            "weights": "weights",
+            "status": "status",
+        }
+        phase = mapping[tier]
+        console.print(f"[bold]Phased pull[/] phase={phase} (safe to re-run)")
+        proc = subprocess.run(["bash", str(phased), phase])
+        raise typer.Exit(proc.returncode)
     script = settings.project_root / "scripts" / "pull-models-resumable.sh"
-    if script.exists():
-        console.print(f"Pulling tier={tier} via resumable script...")
+    if script.exists() and tier in ("primary", "all"):
         proc = subprocess.run(["bash", str(script), tier])
         raise typer.Exit(proc.returncode)
-    console.print(f"Pulling models for backend={settings.backend}...")
     for line in pull_models(settings):
         console.print(line)
 
@@ -192,8 +202,10 @@ def status() -> None:
     console.print(f"recipes: {ok_count}/{len(validations)} valid")
     for m in model_status_report(settings):
         flag = "COMPLETE" if m.likely_complete else ("PARTIAL" if m.cache_dir else "MISSING")
-        inc = " (incomplete blobs)" if m.has_incomplete else ""
+        inc = " (resumable)" if m.has_incomplete else ""
         console.print(f"model {m.alias}: {flag} {m.size_gb}GB{inc}")
+        if not m.likely_complete:
+            console.print(f"  → {m.resume_hint}")
 
 
 @app.command("config")

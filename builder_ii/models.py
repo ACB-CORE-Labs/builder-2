@@ -6,6 +6,13 @@ from pathlib import Path
 
 from builder_ii.config import Settings
 
+# Expected complete sizes (GB) for cache heuristics.
+_EXPECTED_GB: dict[str, float] = {
+    "gemma-4-e4b": 4.8,
+    "gemma-4-12b": 6.5,
+    "qwen3.5-4b": 2.9,
+}
+
 
 @dataclass(frozen=True)
 class ModelCacheStatus:
@@ -14,7 +21,9 @@ class ModelCacheStatus:
     cache_dir: Path | None
     size_gb: float
     has_incomplete: bool
+    weights_on_disk: bool
     likely_complete: bool
+    resume_hint: str
 
 
 def _hf_cache_dir(hf_repo: str) -> Path:
@@ -22,29 +31,59 @@ def _hf_cache_dir(hf_repo: str) -> Path:
     return Path.home() / ".cache" / "huggingface" / "hub" / slug
 
 
+def _expected_gb(hf_repo: str) -> float:
+    lower = hf_repo.lower()
+    for key, gb in _EXPECTED_GB.items():
+        if key.replace("-", "") in lower.replace("-", "").replace("_", ""):
+            return gb
+        if key in lower:
+            return gb
+    return 2.0 if "e4b" in lower or "4b" in lower else 6.0
+
+
 def inspect_model_cache(hf_repo: str, alias: str) -> ModelCacheStatus:
     cache = _hf_cache_dir(hf_repo)
     incomplete = list(cache.rglob("*.incomplete")) if cache.exists() else []
+    weights_files = list(cache.rglob("model.safetensors")) if cache.exists() else []
+    weights_complete = any(
+        f.is_file() and not str(f).endswith(".incomplete") and f.stat().st_size > 1_000_000_000
+        for f in weights_files
+    )
     size = 0
     if cache.exists():
-        proc = subprocess.run(
-            ["du", "-sk", str(cache)],
-            capture_output=True,
-            text=True,
-        )
+        proc = subprocess.run(["du", "-sk", str(cache)], capture_output=True, text=True)
         if proc.returncode == 0:
             size = int(proc.stdout.split()[0]) * 1024
     size_gb = round(size / (1024**3), 2)
-    # Heuristic: 12B 4bit ~6-8GB, e4b ~2-3GB complete
-    min_complete = 2.0 if "e4b" in hf_repo.lower() else 6.0
-    likely = cache.exists() and not incomplete and size_gb >= min_complete
+    expected = _expected_gb(hf_repo)
+
+    if weights_complete and not incomplete:
+        likely = True
+        hint = "ready — run: builder start --mode quick"
+    elif incomplete:
+        likely = False
+        hint = f"resume — run: builder pull --tier fast  (or: ./scripts/pull-phased.sh weights)"
+    elif cache.exists() and not weights_complete:
+        has_meta = any(cache.rglob("config.json"))
+        likely = False
+        hint = (
+            "metadata done — run: ./scripts/pull-phased.sh weights"
+            if has_meta
+            else "start — run: ./scripts/pull-phased.sh small"
+        )
+    else:
+        likely = False
+        hint = "start — run: ./scripts/pull-phased.sh small"
+
     return ModelCacheStatus(
         alias=alias,
         hf_repo=hf_repo,
         cache_dir=cache if cache.exists() else None,
         size_gb=size_gb,
         has_incomplete=bool(incomplete),
+        weights_on_disk=weights_complete,
         likely_complete=likely,
+        resume_hint=hint,
     )
 
 
