@@ -8,16 +8,16 @@ from typing import Optional
 import typer
 from rich.console import Console
 
-from core_agent.backends import check_health, list_start_command, start_backend_process
-from core_agent.benchmark import format_benchmark_report, run_benchmark, write_benchmark_report
-from core_agent.compliance import run_compliance_checks
-from core_agent.config import BACKENDS, MODEL_TIERS, load_settings
-from core_agent.goose_launcher import goose_status, launch_goose_session
-from core_agent.harness import format_verify_report, run_verification
-from core_agent.init_content import CORE_INIT_SYSTEM_PROMPT, estimate_tokens
+from builder_ii.backends import check_health, list_start_command, start_backend_process
+from builder_ii.benchmark import format_benchmark_report, run_benchmark, write_benchmark_report
+from builder_ii.compliance import run_compliance_checks
+from builder_ii.config import BACKENDS, MODEL_TIERS, load_settings
+from builder_ii.goose_launcher import goose_status, launch_goose_session
+from builder_ii.harness import format_verify_report, run_verification
+from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT, estimate_tokens
 
 app = typer.Typer(
-    name="core-agent",
+    name="builder",
     help="Local CORE coding agent: Goose + Gemma 4 MLX",
     no_args_is_help=True,
 )
@@ -101,7 +101,7 @@ def switch_model(
     lines = [f"CORE_AGENT_MODEL_TIER={tier}"]
     if backend:
         lines.append(f"CORE_AGENT_BACKEND={backend}")
-    lines.append("# Restart: core-agent start")
+    lines.append("# Restart: builder start")
     console.print("\n".join(lines))
 
 

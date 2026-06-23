@@ -23,7 +23,7 @@ instructions: |
   2. Answer all 5 PR questions before finalizing proposals.
   3. Read before write; trace call sites from actual files.
   4. Label new code [SPECULATIVE] until verification PASS.
-  5. Run: core-agent verify <module> — diagnose upstream on failure.
+  5. Run: builder verify <module> — diagnose upstream on failure.
   6. End non-trivial sessions with HANDOFF using docs/handoff_template.md.
 
   ROUTING: algebra/->algebra, field/->algebra, generate/->cognition, vault/->teaching,

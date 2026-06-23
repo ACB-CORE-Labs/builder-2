@@ -7,7 +7,7 @@ Local AI coding platform for the CORE deterministic engine.
 ```bash
 brew install block-goose-cli   # real Goose — NOT pip goose-ai
 uv sync
-core-agent start
+builder start
 ```
 
 See [docs/manual.md](docs/manual.md) for full setup, backends, and troubleshooting.

@@ -1,4 +1,4 @@
-from core_agent.harness import parse_pytest_summary
+from builder_ii.harness import parse_pytest_summary
 
 
 def test_parse_pass_summary():

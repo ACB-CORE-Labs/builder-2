@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from core_agent.init_content import CORE_INIT_SYSTEM_PROMPT, REQUIRED_INIT_LITERALS
+from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT, REQUIRED_INIT_LITERALS
 
 
 FORBIDDEN_PROPOSAL_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (

@@ -4,8 +4,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from core_agent.config import Settings
-from core_agent.init_content import CORE_INIT_SYSTEM_PROMPT
+from builder_ii.config import Settings
+from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT
 
 
 GOVERNANCE_FILES: tuple[str, ...] = (

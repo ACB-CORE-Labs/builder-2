@@ -21,7 +21,7 @@ goose --version   # expect 1.38.x+
 cd builder-II
 uv sync
 cp .env.example .env   # edit if needed
-core-agent start
+builder start
 ```
 
 This starts the MLX backend (if down), then launches `goose session --recipe recipes/core-coding.yaml` in the CORE repo with governed instructions.
@@ -39,8 +39,8 @@ Set `CORE_AGENT_BACKEND` in `.env`:
 Switch model tier:
 
 ```bash
-core-agent switch-model fast      # E4B (~5–6 GB)
-core-agent switch-model primary   # 12B (~10–11 GB)
+builder switch-model fast      # E4B (~5–6 GB)
+builder switch-model primary   # 12B (~10–11 GB)
 ```
 
 One model at a time on 16 GB.
@@ -65,12 +65,12 @@ Config file (shared CLI/Desktop): `~/.config/goose/config.yaml`
 
 | Command | Purpose |
 |---------|---------|
-| `core-agent start` | Backend + Goose session with CORE recipe |
-| `core-agent verify algebra/versor.py` | Run CORE test suite for module |
-| `core-agent benchmark` | TTFT, tool-call, compliance, memory report |
-| `core-agent switch-model <tier>` | Show env for model swap |
-| `core-agent status` | Health + goose + compliance |
-| `core-agent init-prompt` | Print governed system prompt |
+| `builder start` | Backend + Goose session with CORE recipe |
+| `builder verify algebra/versor.py` | Run CORE test suite for module |
+| `builder benchmark` | TTFT, tool-call, compliance, memory report |
+| `builder switch-model <tier>` | Show env for model swap |
+| `builder status` | Health + goose + compliance |
+| `builder init-prompt` | Print governed system prompt |
 
 ## Verification harness
 
@@ -85,5 +85,5 @@ Validate: `goose recipe validate recipes/core-coding.yaml`
 ## Troubleshooting
 
 - **`goose: command not found`** → `brew install block-goose-cli`
-- **Backend OOM** → `core-agent switch-model fast`
+- **Backend OOM** → `builder switch-model fast`
 - **Wrong package** → Do not `pip install goose-ai` (unrelated stub)

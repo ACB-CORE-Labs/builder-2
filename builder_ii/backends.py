@@ -7,7 +7,7 @@ from typing import Sequence
 
 import httpx
 
-from core_agent.config import Settings
+from builder_ii.config import Settings
 
 
 @dataclass(frozen=True)

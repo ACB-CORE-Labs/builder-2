@@ -1,5 +1,5 @@
-from core_agent.compliance import check_init_artifact, refusal_response_for, run_compliance_checks
-from core_agent.init_content import CORE_INIT_SYSTEM_PROMPT
+from builder_ii.compliance import check_init_artifact, refusal_response_for, run_compliance_checks
+from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT
 
 
 def test_init_literals_present():

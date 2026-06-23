@@ -1,5 +1,5 @@
-from core_agent.config import load_settings
-from core_agent.goose_launcher import find_goose_binary, goose_env, recipe_path
+from builder_ii.config import load_settings
+from builder_ii.goose_launcher import find_goose_binary, goose_env, recipe_path
 
 
 def test_goose_installed():

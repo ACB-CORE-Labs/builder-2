@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.scripts]
-core-agent = "core_agent.cli:app"
+builder = "builder_ii.cli:app"
 
 [dependency-groups]
 dev = [
@@ -30,7 +30,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["core_agent*"]
+include = ["builder_ii*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

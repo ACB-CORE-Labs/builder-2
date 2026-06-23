@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core_agent.routing import routing_table_text
+from builder_ii.routing import routing_table_text
 
 # Single source of truth for CORE agent initialization (<700 tokens target).
 CORE_INIT_SYSTEM_PROMPT = f"""You are the CORE local coding agent. temperature 0 everywhere.
@@ -30,7 +30,7 @@ GOVERNANCE FILES (read on session start): AGENTS.md, GROK.md, docs/runtime_contr
 
 {routing_table_text()}
 
-VERIFY: core-agent verify <module>  OR  core test --suite <suite> -q
+VERIFY: builder verify <module>  OR  core test --suite <suite> -q
 """
 
 

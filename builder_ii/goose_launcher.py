@@ -5,8 +5,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from core_agent.config import Settings
-from core_agent.context import load_session_context
+from builder_ii.config import Settings
+from builder_ii.context import load_session_context
 
 
 def find_goose_binary() -> str | None:

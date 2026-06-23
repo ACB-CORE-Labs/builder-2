@@ -6,8 +6,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from core_agent.config import Settings
-from core_agent.routing import suite_for_module
+from builder_ii.config import Settings
+from builder_ii.routing import suite_for_module
 
 
 @dataclass(frozen=True)

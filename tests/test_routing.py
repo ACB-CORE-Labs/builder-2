@@ -1,4 +1,4 @@
-from core_agent.routing import suite_for_module
+from builder_ii.routing import suite_for_module
 
 
 def test_algebra_routes_to_algebra():

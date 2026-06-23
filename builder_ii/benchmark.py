@@ -8,9 +8,9 @@ from pathlib import Path
 import httpx
 import psutil
 
-from core_agent.backends import check_health
-from core_agent.compliance import run_compliance_checks
-from core_agent.config import Settings
+from builder_ii.backends import check_health
+from builder_ii.compliance import run_compliance_checks
+from builder_ii.config import Settings
 
 
 @dataclass(frozen=True)
