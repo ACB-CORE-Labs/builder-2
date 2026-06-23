@@ -1,0 +1,28 @@
+Metadata-Version: 2.4
+Name: builder-ii
+Version: 0.1.0
+Summary: Local AI coding platform: Goose + Gemma 4 MLX for CORE development
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: httpx>=0.28.0
+Requires-Dist: mlx-lm>=0.31.3
+Requires-Dist: psutil>=7.2.2
+Requires-Dist: python-dotenv>=1.2.2
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: rapid-mlx>=0.8.12
+Requires-Dist: rich>=15.0.0
+Requires-Dist: typer>=0.25.1
+
+# builder-II
+
+Local AI coding platform for the CORE deterministic engine.
+
+**Stack:** [Codename Goose](https://goose-docs.ai) (agent) + Gemma 4 via [Rapid-MLX](https://github.com/raullenchai/Rapid-MLX) (inference) on M1 16GB.
+
+```bash
+brew install block-goose-cli   # real Goose — NOT pip goose-ai
+uv sync
+core-agent start
+```
+
+See [docs/manual.md](docs/manual.md) for full setup, backends, and troubleshooting.
