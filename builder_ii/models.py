@@ -44,11 +44,20 @@ def _expected_gb(hf_repo: str) -> float:
 def inspect_model_cache(hf_repo: str, alias: str) -> ModelCacheStatus:
     cache = _hf_cache_dir(hf_repo)
     incomplete = list(cache.rglob("*.incomplete")) if cache.exists() else []
-    weights_files = list(cache.rglob("model.safetensors")) if cache.exists() else []
-    weights_complete = any(
-        f.is_file() and not str(f).endswith(".incomplete") and f.stat().st_size > 1_000_000_000
+    weights_files = list(cache.rglob("*.safetensors")) if cache.exists() else []
+    complete_weights = [
+        f
         for f in weights_files
-    )
+        if f.is_file()
+        and ".incomplete" not in str(f)
+        and f.stat().st_size > 500_000_000
+    ]
+    # E4B: single file. 12B: two shards both required.
+    if "12b" in hf_repo.lower():
+        names = {f.name for f in complete_weights}
+        weights_complete = {"model-00001-of-00002.safetensors", "model-00002-of-00002.safetensors"} <= names
+    else:
+        weights_complete = any(f.name == "model.safetensors" for f in complete_weights)
     size = 0
     if cache.exists():
         proc = subprocess.run(["du", "-sk", str(cache)], capture_output=True, text=True)

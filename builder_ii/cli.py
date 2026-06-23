@@ -80,21 +80,10 @@ def pull(
 ) -> None:
     """Phased resumable download — re-run same command after library throttle."""
     settings = load_settings()
-    phased = settings.project_root / "scripts" / "pull-phased.sh"
-    if phased.exists() and tier in ("fast", "status", "weights", "small"):
-        mapping = {
-            "fast": "weights",
-            "small": "small",
-            "weights": "weights",
-            "status": "status",
-        }
-        phase = mapping[tier]
-        console.print(f"[bold]Phased pull[/] phase={phase} (safe to re-run)")
-        proc = subprocess.run(["bash", str(phased), phase])
-        raise typer.Exit(proc.returncode)
-    script = settings.project_root / "scripts" / "pull-models-resumable.sh"
-    if script.exists() and tier in ("primary", "all"):
-        proc = subprocess.run(["bash", str(script), tier])
+    script = settings.project_root / "scripts" / "download-both.sh"
+    if script.exists():
+        console.print("[bold]Downloading both models[/] (re-run if library cuts out)")
+        proc = subprocess.run(["bash", str(script)])
         raise typer.Exit(proc.returncode)
     for line in pull_models(settings):
         console.print(line)
