@@ -21,6 +21,8 @@ Alternates: `gemma-fast`, `gemma-primary`, and `llama`.
 
 Explicit opt-in candidate lanes: `codegeex`, `qwen-coder-14b`, `qwen3-coder-heavy`, and `deepseek`.
 
+See [`docs/model_role_matrix.md`](docs/model_role_matrix.md) for the canonical operating matrix covering each alias, runtime, role, recommended use, and avoid boundary.
+
 ## Current validation boundary
 
 Validated on the M1 `mlx-lm` lane:
@@ -28,8 +30,8 @@ Validated on the M1 `mlx-lm` lane:
 - `builder doctor` configuration/compliance checks.
 - MLX-LM backend startup.
 - Health probe at `http://127.0.0.1:8080/v1/models`.
-- Goose 1.38 session launch without the removed `--recipe` flag.
 - OpenAI-compatible chat transport at `http://127.0.0.1:8080/v1/chat/completions`.
+- Direct local ask through `builder ask`.
 - Text-only audit/planning responses through `qwen-coder`.
 
 Not yet validated:
@@ -99,6 +101,7 @@ Manual model override:
 builder switch-model phi-reasoning
 builder switch-model qwen-coder
 builder switch-model llama
+builder-runtime reset
 builder start --model phi-reasoning --task "review this proposal"
 ```
 
@@ -108,6 +111,7 @@ builder start --model phi-reasoning --task "review this proposal"
 git -C ../core status --short --branch
 builder status
 builder doctor
+builder-runtime status
 builder start --task "<specific CORE task>"
 ```
 
@@ -122,6 +126,16 @@ Inside Goose, prefer the governed recipes and skills. Local `mlx-lm` sessions sh
 ```
 
 Use `/implement` only after the local provider's tool execution path is explicitly validated.
+
+## Direct local ask
+
+Use `builder ask` for small local questions that do not need a Goose session.
+
+```bash
+builder-runtime reset
+builder ask --model phi-reasoning --prompt "Summarize this failure."
+builder ask --model qwen-coder --prompt "Draft a small patch plan."
+```
 
 ## Verification
 
@@ -156,6 +170,7 @@ Run these first:
 builder doctor
 builder status
 builder models
+builder-runtime status
 bash scripts/pull-roster.sh status
 ```
 
@@ -177,12 +192,15 @@ builder setup
 builder doctor
 builder models
 builder pull
+builder ask --model qwen-coder --prompt "..."
 builder start --task "..."
 builder start --model llama --task "..."
 builder switch-model qwen-coder
 builder verify <module>
 builder benchmark -o scratch/benchmark.txt
 builder status
+builder-runtime status
+builder-runtime reset
 builder config
 builder init-prompt
 ```

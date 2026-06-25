@@ -2,10 +2,16 @@ from pathlib import Path
 
 from builder_ii.backends import check_health, check_serves_active_model, ensure_backend_supports_model
 from builder_ii.config import Settings
-from builder_ii.model_policy import can_launch_with_backend, launch_block_reason, runtime_for_alias
+from builder_ii.model_policy import (
+    can_launch_with_backend,
+    launch_block_reason,
+    operating_profiles,
+    runtime_for_alias,
+)
+from builder_ii.models import model_definitions
 
 
-def settings_stub(alias: str) -> Settings:
+def settings_stub(alias: str = "qwen-coder") -> Settings:
     return Settings(
         core_repo=Path("/tmp/core"),
         backend="mlx-lm",
@@ -30,6 +36,25 @@ def settings_stub(alias: str) -> Settings:
     )
 
 
+def test_every_configured_model_has_operating_profile() -> None:
+    settings = settings_stub()
+    aliases = {definition.alias for definition in model_definitions(settings)}
+    profile_aliases = {profile.alias for profile in operating_profiles(settings)}
+
+    assert profile_aliases == aliases
+
+
+def test_profile_fields_are_public_operator_guidance() -> None:
+    profiles = operating_profiles(settings_stub())
+
+    for profile in profiles:
+        assert profile.runtime
+        assert profile.role
+        assert profile.launch_policy
+        assert profile.recommended_for
+        assert profile.avoid_for
+
+
 def test_qwen_coder_is_normal_mlx_lm_runtime() -> None:
     assert runtime_for_alias("qwen-coder") == "mlx-lm"
     assert can_launch_with_backend("qwen-coder", "mlx-lm") is True
@@ -40,6 +65,14 @@ def test_gemma_fast_is_sidecar_not_mlx_lm_launch_target() -> None:
     assert runtime_for_alias("gemma-fast") == "mlx-vlm-sidecar"
     assert can_launch_with_backend("gemma-fast", "mlx-lm") is False
     assert "mlx-vlm-sidecar" in launch_block_reason("gemma-fast", "mlx-lm")
+
+
+def test_heavy_lanes_remain_explicit_opt_in() -> None:
+    profiles = {profile.alias: profile for profile in operating_profiles(settings_stub())}
+
+    for alias in {"qwen-coder-14b", "qwen3-coder-heavy", "deepseek"}:
+        assert profiles[alias].runtime == "mlx-lm-heavy"
+        assert "explicit opt-in" in profiles[alias].launch_policy
 
 
 def test_backend_support_gate_blocks_gemma_sidecar_on_mlx_lm() -> None:
