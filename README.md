@@ -4,6 +4,24 @@
 
 The design goal is not to pretend a small local model is a frontier cloud system. The goal is to place the local model inside strong rails: exact context injection, model memory discipline, read-before-write workflow, deterministic verification, and handoff continuity.
 
+---
+
+## Sponsoring the CORE Research Program
+
+CORE is an independent deterministic AI architecture — inspectable, replayable, and evidence-governed. It is not an LLM wrapper. It is a coherence-first cognitive substrate built in Rust and Zig with zero-allocation execution paths, versor-based geometric algebra, and a formal claim-lifecycle governance model.
+
+**Provisional Patent No. 64/080,054** · U.S. Patent and Trademark Office
+
+Coherence is algebraic by construction — not monitored, not corrected.
+
+If you are an institutional backer, AI safety researcher, or technical sponsor evaluating CORE, the full capitalization manifesto — including tier structure, capital efficiency metrics, and parallel funding paths — is at:
+
+📄 **[docs/sponsors.md](docs/sponsors.md)**
+
+👉 **[Sponsor AssetOverflow on GitHub](https://github.com/sponsors/AssetOverflow)**
+
+---
+
 ## Hardware target
 
 Primary target: Apple Silicon MacBook Pro M1 with 16GB unified memory.
