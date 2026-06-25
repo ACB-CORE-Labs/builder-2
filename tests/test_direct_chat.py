@@ -55,6 +55,7 @@ def test_direct_chat_payload_has_no_tool_fields() -> None:
     assert payload["messages"][1]["content"] == "summarize this failure"
     assert payload["max_tokens"] == 256
     assert "stop" in payload
+    assert "<|im_end|>" in payload["stop"]
     assert "tools" not in payload
     assert "tool_choice" not in payload
     assert "functions" not in payload
@@ -92,6 +93,6 @@ def test_direct_chat_returns_public_message_when_sanitized_empty(monkeypatch) ->
 
 
 def test_sanitize_direct_output_removes_think_blocks_and_stop_markers() -> None:
-    raw = "<think>private scratchpad</think>Final answer.<|end|><|assistant|>more"
+    raw = "<think>private scratchpad</think>Final answer.<|im_end|><|assistant|>more"
 
     assert sanitize_direct_output(raw) == "Final answer."

@@ -22,7 +22,7 @@ EMPTY_SANITIZED_OUTPUT_MESSAGE = (
     "Retry with a more explicit prompt or use qwen-coder for this direct ask."
 )
 
-_DIRECT_STOP_TOKENS = ("<|end|>", "<|assistant|>", "<|user|>", "</s>")
+_DIRECT_STOP_TOKENS = ("<|end|>", "<|assistant|>", "<|user|>", "<|im_end|>", "</s>")
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
 
