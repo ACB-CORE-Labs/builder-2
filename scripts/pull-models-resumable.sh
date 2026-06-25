@@ -198,8 +198,10 @@ pull_repo() {
         done
 
         if [[ "$intercept_detected" -eq 0 ]]; then
-            wait "$hf_pid" 2>/dev/null || true
+            set +e
+            wait "$hf_pid" 2>/dev/null
             hf_exit_code=$?
+            set -e
         else
             hf_exit_code=1
         fi
