@@ -59,6 +59,23 @@ def recipe_path(settings: Settings, session: SessionPlan | None = None) -> Path:
     return settings.project_root / "recipes" / name
 
 
+def _goose_session_help(goose: str) -> str:
+    try:
+        proc = subprocess.run(
+            [goose, "session", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return (proc.stdout or "") + "\n" + (proc.stderr or "")
+
+
+def _supports_flag(help_text: str, flag: str) -> bool:
+    return flag in help_text
+
+
 def launch_goose_session(
     settings: Settings,
     *,
@@ -83,13 +100,23 @@ def launch_goose_session(
     load_session_context(settings)
     env = goose_env(settings, session=plan)
 
-    argv = [goose, "session", "--recipe", str(recipe)]
-    if name:
+    help_text = _goose_session_help(goose)
+    argv = [goose, "session"]
+
+    # Goose 1.38 rejects `goose session --recipe`. Older builds accepted it.
+    # Detect support from help text instead of assuming one CLI shape.
+    if _supports_flag(help_text, "--recipe"):
+        argv.extend(["--recipe", str(recipe)])
+    else:
+        env["BUILDER_RECIPE_PATH"] = str(recipe)
+
+    if name and _supports_flag(help_text, "--name"):
         argv.extend(["--name", name])
-    if resume:
+    if resume and _supports_flag(help_text, "--resume"):
         argv.append("--resume")
 
-    argv.extend(["--with-builtin", "developer,skills,summon"])
+    if _supports_flag(help_text, "--with-builtin"):
+        argv.extend(["--with-builtin", "developer,skills,summon"])
 
     return subprocess.Popen(argv, cwd=workdir, env=env)
 
