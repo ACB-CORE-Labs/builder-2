@@ -15,20 +15,29 @@ def find_goose_binary() -> str | None:
     return shutil.which("goose")
 
 
+def _server_root_url(base_url: str) -> str:
+    """Return provider host root without a trailing OpenAI /v1 path.
+
+    Goose's OpenAI provider appends `/v1/chat/completions` itself. Passing a
+    host that already ends in `/v1` produces `/v1/v1/chat/completions`.
+    """
+    base = base_url.rstrip("/")
+    if base.endswith("/v1"):
+        return base[: -len("/v1")]
+    return base
+
+
 def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict[str, str]:
     env = os.environ.copy()
-    base = settings.base_url.rstrip("/")
-    if not base.endswith("/v1"):
-        base = f"{base}/v1"
 
     if settings.backend == "ollama":
-        host = settings.base_url.rstrip("/v1").rstrip("/")
+        host = _server_root_url(settings.base_url)
         env["GOOSE_PROVIDER"] = "ollama"
         env["OLLAMA_HOST"] = host
     else:
         env["GOOSE_PROVIDER"] = "openai"
         env["OPENAI_API_KEY"] = env.get("OPENAI_API_KEY", "not-needed")
-        env["OPENAI_HOST"] = base
+        env["OPENAI_HOST"] = _server_root_url(settings.base_url)
 
     env["GOOSE_MODEL"] = settings.active_model_id
     env["GOOSE_TEMPERATURE"] = str(settings.temperature)
