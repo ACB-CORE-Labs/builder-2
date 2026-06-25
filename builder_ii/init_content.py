@@ -28,6 +28,8 @@ REFUSAL EXAMPLE: cosine similarity in vault/store.py → REFUSE. Name versor_con
 
 GOVERNANCE FILES (read on session start): AGENTS.md, GROK.md, docs/runtime_contracts.md, recent HANDOFF-*.md.
 
+CANONICAL ROUTES: algebra/ -> algebra; vault/ -> teaching.
+
 {routing_table_text()}
 
 VERIFY: builder verify <module>  OR  core test --suite <suite> -q
