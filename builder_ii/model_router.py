@@ -54,6 +54,13 @@ _HEAVY_HINTS = re.compile(
 )
 
 
+def _snippet(text: str, limit: int = 80) -> str:
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 1].rstrip() + "…"
+
+
 @dataclass(frozen=True)
 class SessionPlan:
     """Routing decision for a single Goose session."""
@@ -102,13 +109,14 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
     deep_match = _DEEP_PATTERNS.search(text)
     fast_match = _FAST_PATTERNS.search(text)
     heavy_match = _HEAVY_HINTS.search(text)
+    task_snippet = _snippet(text)
 
     if logic_match and not deep_match:
         return (
             "fast",
             "phi-reasoning",
             "high",
-            f"Formal/constraint keyword '{logic_match.group()}' detected → phi-reasoning",
+            f"Formal/constraint keyword '{logic_match.group()}' detected in task '{task_snippet}' → phi-reasoning",
         )
 
     if deep_match:
@@ -119,7 +127,7 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
             "primary",
             "qwen-coder",
             "high",
-            f"Implementation keyword '{deep_match.group()}' detected → qwen-coder{extra}",
+            f"Implementation keyword '{deep_match.group()}' detected in task '{task_snippet}' → qwen-coder{extra}",
         )
 
     if logic_match:
@@ -127,7 +135,7 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
             "fast",
             "phi-reasoning",
             "high",
-            f"Formal/constraint keyword '{logic_match.group()}' detected → phi-reasoning",
+            f"Formal/constraint keyword '{logic_match.group()}' detected in task '{task_snippet}' → phi-reasoning",
         )
 
     if fast_match:
@@ -135,7 +143,7 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
             "fast",
             "phi-reasoning",
             "high",
-            f"Exploratory keyword '{fast_match.group()}' detected → phi-reasoning",
+            f"Exploratory keyword '{fast_match.group()}' detected in task '{task_snippet}' → phi-reasoning",
         )
 
     return (
