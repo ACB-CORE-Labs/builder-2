@@ -23,6 +23,7 @@ dependencies = [
 builder = "builder_ii.cli:app"
 builder-runtime = "builder_ii.runtime_control:runtime_app"
 builder-lanes = "builder_ii.lane_guides:lane_app"
+builder-tools = "builder_ii.tools_cli:tools_app"
 
 [dependency-groups]
 dev = [

@@ -14,6 +14,7 @@ Start here if you are evaluating or sharing the project:
 | --- | --- |
 | [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the platform and its components. |
 | [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
+| [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Scope, non-goals, and near-term platform direction. |
 | [`docs/model_role_matrix.md`](docs/model_role_matrix.md) | Model aliases, runtime lanes, recommended use, and avoid boundaries. |
 | [`docs/lane_guides.md`](docs/lane_guides.md) | Reusable prompt lanes for direct ask and planning/review work. |
@@ -40,6 +41,8 @@ builder-II currently includes:
 - Goose recipes for platform, coding, plan, explore, implement, review, verify, and handoff flows;
 - builder-II skills copied into the target CORE repo;
 - lane guides, personas, and capability boundaries for prompt/task organization;
+- external tool registry via `builder-tools`;
+- optional external tool installer via `scripts/install-tools.sh`;
 - verification routing for CORE modules.
 
 ## Recommended model lanes
@@ -118,6 +121,8 @@ bash scripts/pull-roster.sh candidates
 builder setup
 builder doctor
 builder models
+bash scripts/install-tools.sh required
+builder-tools check --tier tier1
 builder start --task "audit the latest CORE branch and identify the safest next patch"
 ```
 
@@ -139,6 +144,30 @@ builder switch-model llama
 builder-runtime reset
 builder start --model phi-reasoning --task "review this proposal"
 ```
+
+## External engineering tools
+
+Inspect optional and required external tools with:
+
+```bash
+builder-tools list
+builder-tools check
+builder-tools check --tier tier1
+builder-tools missing
+bash scripts/install-tools.sh status
+```
+
+Install external tools with:
+
+```bash
+bash scripts/install-tools.sh required
+bash scripts/install-tools.sh tier1
+bash scripts/install-tools.sh tier2
+bash scripts/install-tools.sh notes
+bash scripts/install-tools.sh all
+```
+
+The notes backend is plain Markdown by default. You can open `.builder/notes/` with Logseq, Zettlr, Foam/VS Code, Obsidian, or no UI at all.
 
 ## Goose workflow
 
@@ -216,6 +245,8 @@ builder status
 builder models
 builder-runtime status
 bash scripts/pull-roster.sh status
+builder-tools check
+bash scripts/install-tools.sh status
 ```
 
 Common fixes:
@@ -227,6 +258,7 @@ Common fixes:
 | model cache partial | Re-run `bash scripts/pull-roster.sh alias <alias>`. |
 | session slows badly | Stop, switch to `phi-reasoning` or `qwen-coder`, and avoid heavy aliases. |
 | CORE path wrong | Edit `CORE_REPO_PATH` in `.env`. |
+| external tool missing | Run `builder-tools missing` and install the listed tool. |
 | local model emits JSON instead of using tools | Treat the session as text-only; do not accept autonomous edits until a tool smoke passes. |
 
 ## Command reference
@@ -239,6 +271,9 @@ builder pull
 builder ask --model qwen-coder --prompt "..."
 builder-lanes list
 builder-lanes show draft_patch_plan --context "..."
+builder-tools list
+builder-tools check --tier tier1
+bash scripts/install-tools.sh status
 builder start --task "..."
 builder start --model llama --task "..."
 builder switch-model qwen-coder
