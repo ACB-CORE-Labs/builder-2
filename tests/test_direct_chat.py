@@ -1,7 +1,12 @@
 from pathlib import Path
 
 from builder_ii.config import Settings
-from builder_ii.direct_chat import build_direct_chat_payload, run_direct_chat, sanitize_direct_output
+from builder_ii.direct_chat import (
+    EMPTY_SANITIZED_OUTPUT_MESSAGE,
+    build_direct_chat_payload,
+    run_direct_chat,
+    sanitize_direct_output,
+)
 
 
 class ResponseStub:
@@ -9,6 +14,13 @@ class ResponseStub:
 
     def json(self) -> object:
         return {"choices": [{"message": {"content": "ok"}}]}
+
+
+class ThinkOnlyResponseStub:
+    status_code = 200
+
+    def json(self) -> object:
+        return {"choices": [{"message": {"content": "<think>private scratchpad</think>"}}]}
 
 
 def settings_stub() -> Settings:
@@ -65,6 +77,18 @@ def test_direct_chat_posts_plain_payload(monkeypatch) -> None:
     assert seen["url"] == "http://127.0.0.1:8080/v1/chat/completions"
     assert "tools" not in seen["json"]
     assert "tool_choice" not in seen["json"]
+
+
+def test_direct_chat_returns_public_message_when_sanitized_empty(monkeypatch) -> None:
+    def fake_post(url, json, timeout):
+        return ThinkOnlyResponseStub()
+
+    monkeypatch.setattr("builder_ii.direct_chat.httpx.post", fake_post)
+
+    result = run_direct_chat(settings_stub(), prompt="check this")
+
+    assert result.ok is True
+    assert result.content == EMPTY_SANITIZED_OUTPUT_MESSAGE
 
 
 def test_sanitize_direct_output_removes_think_blocks_and_stop_markers() -> None:

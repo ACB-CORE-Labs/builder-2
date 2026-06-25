@@ -16,6 +16,12 @@ DEFAULT_DIRECT_SYSTEM_PROMPT = (
     "Answer only from the provided prompt and clearly state uncertainty."
 )
 
+EMPTY_SANITIZED_OUTPUT_MESSAGE = (
+    "The local model returned no public final answer after direct-ask sanitization. "
+    "This usually means it emitted only hidden reasoning or stopped before a final response. "
+    "Retry with a more explicit prompt or use qwen-coder for this direct ask."
+)
+
 _DIRECT_STOP_TOKENS = ("<|end|>", "<|assistant|>", "<|user|>", "</s>")
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
 
@@ -130,6 +136,6 @@ def run_direct_chat(
 
     content = _extract_content(body)
     if not content:
-        return DirectChatResult(False, "", url, settings.active_model_id, status_code=response.status_code, error="empty response")
+        return DirectChatResult(True, EMPTY_SANITIZED_OUTPUT_MESSAGE, url, settings.active_model_id, status_code=response.status_code)
 
     return DirectChatResult(True, content, url, settings.active_model_id, status_code=response.status_code)
