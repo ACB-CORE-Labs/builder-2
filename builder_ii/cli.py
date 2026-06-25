@@ -16,7 +16,8 @@ from builder_ii.backends import check_health, check_serves_active_model, list_st
 from builder_ii.benchmark import format_benchmark_report, run_benchmark, write_benchmark_report
 from builder_ii.capabilities import capability_gates
 from builder_ii.compliance import run_compliance_checks
-from builder_ii.config import BACKENDS, MODEL_ALIASES, MODEL_TIERS, load_settings, normalize_model_alias
+from builder_ii.config import BACKENDS, MODEL_TIERS, load_settings, normalize_model_alias
+from builder_ii.direct_chat import run_direct_chat
 from builder_ii.goose_launcher import (
     find_goose_binary,
     goose_status,
@@ -26,7 +27,7 @@ from builder_ii.goose_launcher import (
 from builder_ii.goose_setup import run_full_setup, validate_recipes
 from builder_ii.harness import format_verify_report, run_verification
 from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT, estimate_tokens
-from builder_ii.model_router import SESSION_MODES, explain_plan, plan_session
+from builder_ii.model_router import SESSION_MODES, explain_plan, plan_session, tier_for_alias
 from builder_ii.models import model_definitions, model_status_report
 
 app = typer.Typer(
@@ -114,23 +115,9 @@ def pull(
 
 @app.command("start")
 def start(
-    mode: str = typer.Option(
-        "orchestrator",
-        "--mode",
-        "-m",
-        help="orchestrator|quick|deep|coding",
-    ),
-    task_hint: Optional[str] = typer.Option(
-        None,
-        "--task",
-        "--task-hint",
-        help="Free-text task used to choose the M1-safe model alias for this session",
-    ),
-    model_alias: Optional[str] = typer.Option(
-        None,
-        "--model",
-        help="Explicit model alias override; see `builder models`",
-    ),
+    mode: str = typer.Option("orchestrator", "--mode", "-m", help="orchestrator|quick|deep|coding"),
+    task_hint: Optional[str] = typer.Option(None, "--task", "--task-hint", help="Free-text task used to choose the M1-safe model alias for this session"),
+    model_alias: Optional[str] = typer.Option(None, "--model", help="Explicit model alias override; see `builder models`"),
     resume: bool = typer.Option(False, "--resume", "-r"),
     no_backend: bool = typer.Option(False, "--no-backend"),
     name: Optional[str] = typer.Option(None, "--name", "-n", help="Goose session name"),
@@ -151,10 +138,7 @@ def start(
     console.print(explain_plan(session))
     if selected_alias != session.model_alias:
         console.print(f"Model override : {selected_alias}")
-    console.print(
-        f"[bold]Builder[/] mode={session.mode} alias={settings.model_alias} "
-        f"tier={session.model_tier} backend={settings.backend} model={settings.active_model_id}"
-    )
+    console.print(f"[bold]Builder[/] mode={session.mode} alias={settings.model_alias} tier={session.model_tier} backend={settings.backend} model={settings.active_model_id}")
     console.print(goose_status())
 
     run_full_setup(settings)
@@ -167,12 +151,34 @@ def start(
     proc.wait()
 
 
-@app.command("verify")
-def verify(
-    module: Optional[str] = typer.Argument(None),
-    suite: Optional[str] = typer.Option(None, "--suite", "-s"),
-    fail_fast: bool = typer.Option(False, "--fail-fast", "-x"),
+@app.command("ask")
+def ask(
+    prompt: str = typer.Option(..., "--prompt", "-p", help="Prompt for the selected local model"),
+    model_alias: Optional[str] = typer.Option(None, "--model", help="Explicit model alias; see `builder models`"),
+    system_prompt: str = typer.Option("You are a local builder-II review assistant. Answer from the prompt only and state uncertainty clearly.", "--system"),
+    max_tokens: int = typer.Option(512, "--max-tokens", min=1, max=4096),
+    timeout: float = typer.Option(120.0, "--timeout", min=1.0),
+    no_backend: bool = typer.Option(False, "--no-backend"),
 ) -> None:
+    """Ask the selected local model directly through /v1/chat/completions."""
+    if model_alias:
+        selected_alias = normalize_model_alias(model_alias)
+        os.environ["CORE_AGENT_MODEL_ALIAS"] = selected_alias
+        os.environ["CORE_AGENT_MODEL_TIER"] = tier_for_alias(selected_alias)
+
+    settings = load_settings()
+    console.print(f"[bold]Builder ask[/] alias={settings.model_alias} backend={settings.backend} model={settings.active_model_id}")
+    _ensure_backend(settings, no_backend)
+
+    result = run_direct_chat(settings, prompt=prompt, system_prompt=system_prompt, max_tokens=max_tokens, timeout=timeout)
+    if not result.ok:
+        console.print(f"[red]Direct ask failed[/] {result.error}")
+        raise typer.Exit(1)
+    console.print(result.content)
+
+
+@app.command("verify")
+def verify(module: Optional[str] = typer.Argument(None), suite: Optional[str] = typer.Option(None, "--suite", "-s"), fail_fast: bool = typer.Option(False, "--fail-fast", "-x")) -> None:
     """Run CORE verification harness."""
     settings = load_settings()
     result = run_verification(settings, module=module, suite=suite, fail_fast=fail_fast)
@@ -181,9 +187,7 @@ def verify(
 
 
 @app.command("benchmark")
-def benchmark(
-    output: Optional[Path] = typer.Option(None, "--output", "-o"),
-) -> None:
+def benchmark(output: Optional[Path] = typer.Option(None, "--output", "-o")) -> None:
     """Benchmark TTFT, tool-calling, compliance, memory."""
     settings = load_settings()
     report = run_benchmark(settings)
@@ -194,9 +198,7 @@ def benchmark(
 
 
 @app.command("capabilities")
-def capabilities(
-    chat: bool = typer.Option(False, "--chat", help="Run a live /v1/chat/completions smoke"),
-) -> None:
+def capabilities(chat: bool = typer.Option(False, "--chat", help="Run a live /v1/chat/completions smoke")) -> None:
     """Check local model capability gates without modifying CORE."""
     settings = load_settings()
     table = Table("Gate", "Result", "Details")
@@ -208,10 +210,7 @@ def capabilities(
 
 
 @app.command("switch-model")
-def switch_model(
-    alias: str = typer.Argument(..., help="Model alias or legacy tier; run `builder models`"),
-    backend: Optional[str] = typer.Option(None, "--backend", "-b"),
-) -> None:
+def switch_model(alias: str = typer.Argument(..., help="Model alias or legacy tier; run `builder models`"), backend: Optional[str] = typer.Option(None, "--backend", "-b")) -> None:
     """Print .env lines to switch model alias/tier. Restart backend after."""
     if alias in MODEL_TIERS:
         normalized = normalize_model_alias(None, tier_fallback=alias)
@@ -222,10 +221,7 @@ def switch_model(
     if backend and backend not in BACKENDS:
         console.print(f"backend must be one of {BACKENDS}")
         raise typer.Exit(1)
-    lines = [
-        f"CORE_AGENT_MODEL_ALIAS={normalized}",
-        f"CORE_AGENT_MODEL_TIER={tier}",
-    ]
+    lines = [f"CORE_AGENT_MODEL_ALIAS={normalized}", f"CORE_AGENT_MODEL_TIER={tier}"]
     if backend:
         lines.append(f"CORE_AGENT_BACKEND={backend}")
     lines.append("# Then: builder start --task 'describe the work'  (or restart backend/session)")
@@ -243,15 +239,7 @@ def models() -> None:
         cache = "COMPLETE" if status.likely_complete else ("PARTIAL" if status.cache_dir else "MISSING")
         if status.has_incomplete:
             cache += "/RESUMABLE"
-        table.add_row(
-            definition.alias,
-            definition.tier,
-            definition.policy,
-            definition.hf_repo,
-            f"{cache} {status.size_gb}GB",
-            f"~{definition.expected_gb}GB",
-            definition.note,
-        )
+        table.add_row(definition.alias, definition.tier, definition.policy, definition.hf_repo, f"{cache} {status.size_gb}GB", f"~{definition.expected_gb}GB", definition.note)
     console.print(table)
     console.print("\nDownload: bash scripts/pull-roster.sh recommended | alias <name> | all-safe | candidates")
 
@@ -261,7 +249,6 @@ def doctor() -> None:
     """Run a local platform readiness check without editing CORE."""
     settings = load_settings()
     failures: list[str] = []
-
     table = Table("Check", "Result", "Details")
 
     core_ok = settings.core_repo.exists() and (settings.core_repo / ".git").exists()
@@ -283,11 +270,7 @@ def doctor() -> None:
 
     compliance = run_compliance_checks()
     compliance_ok = compliance.init_literals_ok and compliance.refusal_probe_ok
-    table.add_row(
-        "Compliance",
-        "PASS" if compliance_ok else "FAIL",
-        f"literals={compliance.init_literals_ok} refusal={compliance.refusal_probe_ok}",
-    )
+    table.add_row("Compliance", "PASS" if compliance_ok else "FAIL", f"literals={compliance.init_literals_ok} refusal={compliance.refusal_probe_ok}")
     if not compliance_ok:
         failures.append("governed prompt/refusal compliance check failed")
 
@@ -303,11 +286,7 @@ def doctor() -> None:
     active_status = next((m for m in model_status_report(settings) if m.alias == settings.model_alias), None)
     if active_status:
         model_ok = active_status.likely_complete
-        table.add_row(
-            "Active model",
-            "PASS" if model_ok else "WARN",
-            f"{settings.model_alias}: {active_status.size_gb}GB; {active_status.resume_hint}",
-        )
+        table.add_row("Active model", "PASS" if model_ok else "WARN", f"{settings.model_alias}: {active_status.size_gb}GB; {active_status.resume_hint}")
 
     hf_bin = shutil.which("hf") or str(settings.project_root / ".venv" / "bin" / "hf")
     table.add_row("HF CLI", "PASS" if Path(hf_bin).exists() or shutil.which("hf") else "WARN", hf_bin)
@@ -327,17 +306,11 @@ def status() -> None:
     ok, msg = check_health(settings)
     served_ok, served_msg = check_serves_active_model(settings) if ok else (False, "backend down")
     compliance = run_compliance_checks()
-    console.print(
-        f"backend={settings.backend} alias={settings.model_alias} tier={settings.model_tier} "
-        f"model={settings.active_model_id} url={settings.base_url}"
-    )
+    console.print(f"backend={settings.backend} alias={settings.model_alias} tier={settings.model_tier} model={settings.active_model_id} url={settings.base_url}")
     console.print(f"health: {'OK' if ok else 'DOWN'} — {msg}")
     console.print(f"served-model: {'OK' if served_ok else 'WARN'} — {served_msg}")
     console.print(goose_status())
-    console.print(
-        f"compliance: literals={'PASS' if compliance.init_literals_ok else 'FAIL'} "
-        f"refusal={'PASS' if compliance.refusal_probe_ok else 'FAIL'}"
-    )
+    console.print(f"compliance: literals={'PASS' if compliance.init_literals_ok else 'FAIL'} refusal={'PASS' if compliance.refusal_probe_ok else 'FAIL'}")
     validations = validate_recipes(settings)
     ok_count = sum(1 for _p, ok, _m in validations if ok)
     console.print(f"recipes: {ok_count}/{len(validations)} valid")
