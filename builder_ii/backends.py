@@ -52,6 +52,9 @@ def build_backend_spec(settings: Settings) -> BackendSpec:
                 "--temp",
                 str(settings.temperature),
             ),
+            # mlx_lm.server exposes OpenAI-compatible endpoints under /v1.
+            # Polling /models returns 404 even when the server is healthy.
+            health_path="/v1/models",
         )
 
     # Ollama MLX engine — OpenAI-compatible via /v1 when OLLAMA_HOST points here.
@@ -65,11 +68,19 @@ def build_backend_spec(settings: Settings) -> BackendSpec:
     )
 
 
+def _without_v1_suffix(base_url: str) -> str:
+    base = base_url.rstrip("/")
+    if base.endswith("/v1"):
+        return base[: -len("/v1")]
+    return base
+
+
 def health_url(settings: Settings, path: str) -> str:
-    base = settings.base_url.rstrip("/v1").rstrip("/")
     if settings.backend == "ollama":
         return f"http://{settings.host}:{11434}{path}"
-    return f"{base}{path}"
+
+    root = _without_v1_suffix(settings.base_url)
+    return f"{root}{path}"
 
 
 def check_health(settings: Settings, timeout: float = 3.0) -> tuple[bool, str]:
