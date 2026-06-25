@@ -1,66 +1,35 @@
-"""Phase 2 / Phase 4 – Local Model Cache Verification and Roster.
+"""Local model cache verification and governed M1 roster.
 
-Before a cold start, interrogates the HuggingFace .cache directory to
-verify that quantized .safetensors are fully seated on disk and not
-flagged as .incomplete.
-
-Expanded local roster for M1 16GB:
-  Fast tier    (< 5 GB loaded):
-    - gemma-4-e4b-it-4bit          4.8 GB
-    - qwen2.5-coder-7b-instruct-4bit  4.5 GB  (superior Python formatting)
-
-  Primary tier (5-8 GB loaded):
-    - gemma-4-12b-it-4bit          6.5 GB
-    - deepseek-coder-v2-lite (mlx) 6.0 GB  (repo-level context sweep)
-    - llama-3.1-8b-instruct (mlx)  5.0 GB  (system-prompt adherence)
+The cache inspector is intentionally filesystem-only. It does not phone home or
+assume a model exists remotely. Download scripts are allowed to fail loudly if a
+candidate repo name changed; the runtime should remain deterministic and honest.
 """
 from __future__ import annotations
 
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 from builder_ii.config import Settings
 
-# ---------------------------------------------------------------------------
-# Expected complete sizes (GB) — used as heuristic lower bound
-# ---------------------------------------------------------------------------
 
-_EXPECTED_GB: dict[str, float] = {
-    # Gemma
-    "gemma-4-e4b": 4.8,
-    "gemma-4-12b": 6.5,
-    # Qwen2.5-Coder (fast-alt: superior Python formatting)
-    "qwen2.5-coder-7b": 4.5,
-    "qwen25coder7b":    4.5,
-    # DeepSeek-Coder-V2-Lite (primary-alt: repo-level context sweep)
-    "deepseek-coder-v2-lite": 6.0,
-    "deepseekcoder":          6.0,
-    # Llama 3.1 8B (primary-alt: complex system-prompt adherence)
-    "llama-3.1-8b": 5.0,
-    "llama31":      5.0,
-    # Legacy / smaller
-    "qwen3.5-4b": 2.9,
-}
+@dataclass(frozen=True)
+class ModelDefinition:
+    alias: str
+    hf_repo: str
+    tier: str
+    expected_gb: float
+    policy: str
+    note: str
 
-# Human-readable notes for CLI display
-ROSTER_NOTES: dict[str, str] = {
-    "gemma-4-e4b":            "default fast tier",
-    "gemma-4-12b":            "default primary tier",
-    "qwen2.5-coder-7b":       "fast-alt: superior Python formatting & strict instruction adherence",
-    "deepseek-coder-v2-lite": "primary-alt: repo-level sweep, versor_condition-aware refactor",
-    "llama-3.1-8b":           "primary-alt: resilient to complex system prompts, respects negative constraints",
-}
-
-
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
 
 @dataclass(frozen=True)
 class ModelCacheStatus:
     alias: str
     hf_repo: str
+    tier: str
+    policy: str
     cache_dir: Path | None
     size_gb: float
     expected_gb: float
@@ -71,126 +40,167 @@ class ModelCacheStatus:
     note: str
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# Expected disk/cache footprints are heuristics used for status reporting, not a
+# hard proof of correctness. Hugging Face file layouts vary across conversions.
+_EXPECTED_GB_BY_ALIAS: dict[str, float] = {
+    "phi-reasoning": 2.16,
+    "qwen-coder": 4.3,
+    "gemma-fast": 5.2,
+    "gemma-primary": 6.8,
+    "llama": 4.6,
+    "codegeex": 8.7,
+    "qwen-coder-14b": 8.5,
+    "qwen3-coder-heavy": 12.0,
+    "deepseek": 8.9,
+}
+
+_POLICIES: dict[str, str] = {
+    "phi-reasoning": "default-fast",
+    "qwen-coder": "default-primary",
+    "gemma-fast": "alternate",
+    "gemma-primary": "alternate-watch-swap",
+    "llama": "alternate",
+    "codegeex": "candidate-verify-first",
+    "qwen-coder-14b": "heavy-explicit-opt-in",
+    "qwen3-coder-heavy": "heavy-explicit-opt-in",
+    "deepseek": "heavy-explicit-opt-in",
+}
+
+_NOTES: dict[str, str] = {
+    "phi-reasoning": "logic/review/refusal; maximum KV-cache headroom",
+    "qwen-coder": "safe implementation default for targeted patches",
+    "gemma-fast": "general fast alternate",
+    "gemma-primary": "general reasoning alternate; monitor swap",
+    "llama": "negative-constraint/system-prompt alternate",
+    "codegeex": "candidate agentic implementation model; validate repo + behavior",
+    "qwen-coder-14b": "heavy code-refactor candidate; not a default on 16GB",
+    "qwen3-coder-heavy": "Qwen3 coder candidate; public lineup is heavy/MoE, not default M1",
+    "deepseek": "heavy repo-sweep candidate; use only with memory discipline",
+}
+
+
+def model_definitions(settings: Settings) -> tuple[ModelDefinition, ...]:
+    """Return the full configured roster in the order docs/scripts present it."""
+    values = (
+        ("phi-reasoning", settings.mlx_model_phi, "fast"),
+        ("qwen-coder", settings.mlx_model_qwen, "primary"),
+        ("gemma-fast", settings.mlx_model_fast, "fast-alt"),
+        ("gemma-primary", settings.mlx_model_primary, "primary-alt"),
+        ("llama", settings.mlx_model_llama, "primary-alt"),
+        ("codegeex", settings.mlx_model_codegeex, "candidate"),
+        ("qwen-coder-14b", settings.mlx_model_qwen14, "heavy-candidate"),
+        ("qwen3-coder-heavy", settings.mlx_model_qwen3_coder, "heavy-candidate"),
+        ("deepseek", settings.mlx_model_deepseek, "heavy-candidate"),
+    )
+    return tuple(
+        ModelDefinition(
+            alias=alias,
+            hf_repo=repo,
+            tier=tier,
+            expected_gb=_EXPECTED_GB_BY_ALIAS[alias],
+            policy=_POLICIES[alias],
+            note=_NOTES[alias],
+        )
+        for alias, repo, tier in values
+    )
+
 
 def _hf_cache_dir(hf_repo: str) -> Path:
     slug = f"models--{hf_repo.replace('/', '--')}"
     return Path.home() / ".cache" / "huggingface" / "hub" / slug
 
 
-def _expected_gb(hf_repo: str) -> float:
-    lower = hf_repo.lower()
-    for key, gb in _EXPECTED_GB.items():
-        if key.replace("-", "") in lower.replace("-", "").replace("_", ""):
-            return gb
-        if key in lower:
-            return gb
-    return 2.0 if ("e4b" in lower or "4b" in lower) else 6.0
-
-
-def _alias_note(alias: str) -> str:
-    lower = alias.lower()
-    for key, note in ROSTER_NOTES.items():
-        if key.replace("-", "") in lower.replace("-", "").replace("_", ""):
-            return note
-    return ""
-
-
-def _detect_weights_complete(cache: Path, hf_repo: str) -> bool:
-    """Generic N-shard detection: all model-NNNNN-of-NNNNN.safetensors present."""
-    lower = hf_repo.lower()
-    all_safetensors = [
-        f for f in cache.rglob("*.safetensors")
+def _large_safetensors(cache: Path) -> list[Path]:
+    return [
+        f
+        for f in cache.rglob("*.safetensors")
         if f.is_file()
         and ".incomplete" not in str(f)
-        and f.stat().st_size > 200_000_000  # ignore tiny metadata shards
+        and f.stat().st_size > 50_000_000
     ]
+
+
+def _detect_weights_complete(cache: Path) -> bool:
+    """Detect single-file or complete N-shard safetensors weights.
+
+    Requirements:
+      - no reliance on a fixed shard count;
+      - all shard names agree on the same total;
+      - every index 1..N is present;
+      - single large model.safetensors is accepted.
+    """
+    all_safetensors = _large_safetensors(cache)
     names = {f.name for f in all_safetensors}
 
-    # Single-file model
     if "model.safetensors" in names:
         return True
 
-    # N-shard: find max shard index
-    import re
     shard_pattern = re.compile(r"model-(\d+)-of-(\d+)\.safetensors")
-    shards: dict[int, int] = {}  # {index: total}
+    shards: dict[int, int] = {}
+    totals: set[int] = set()
     for name in names:
-        m = shard_pattern.match(name)
-        if m:
-            idx, total = int(m.group(1)), int(m.group(2))
-            shards[idx] = total
-    if not shards:
+        match = shard_pattern.fullmatch(name)
+        if not match:
+            continue
+        index, total = int(match.group(1)), int(match.group(2))
+        shards[index] = total
+        totals.add(total)
+
+    if not shards or len(totals) != 1:
         return False
-    total = max(shards.values())
-    return all(i in shards for i in range(1, total + 1))
+
+    total = next(iter(totals))
+    return set(shards) == set(range(1, total + 1))
 
 
-# ---------------------------------------------------------------------------
-# Core inspection
-# ---------------------------------------------------------------------------
+def _disk_size_gb(path: Path) -> float:
+    proc = subprocess.run(["du", "-sk", str(path)], capture_output=True, text=True)
+    if proc.returncode != 0 or not proc.stdout.strip():
+        return 0.0
+    return round((int(proc.stdout.split()[0]) * 1024) / (1024**3), 2)
 
-def inspect_model_cache(hf_repo: str, alias: str) -> ModelCacheStatus:
-    """Inspect the HuggingFace cache for a model and return full status."""
-    cache = _hf_cache_dir(hf_repo)
+
+def inspect_model_cache(definition: ModelDefinition) -> ModelCacheStatus:
+    """Inspect the Hugging Face cache for one configured model."""
+    cache = _hf_cache_dir(definition.hf_repo)
     incomplete = list(cache.rglob("*.incomplete")) if cache.exists() else []
-    weights_complete = _detect_weights_complete(cache, hf_repo) if cache.exists() else False
-
-    size = 0
-    if cache.exists():
-        proc = subprocess.run(["du", "-sk", str(cache)], capture_output=True, text=True)
-        if proc.returncode == 0:
-            size = int(proc.stdout.split()[0]) * 1024
-    size_gb = round(size / (1024**3), 2)
-    expected = _expected_gb(hf_repo)
+    weights_complete = _detect_weights_complete(cache) if cache.exists() else False
+    size_gb = _disk_size_gb(cache) if cache.exists() else 0.0
 
     if weights_complete and not incomplete:
         likely = True
-        hint = "ready — run: builder start --mode quick"
+        hint = f"ready — run: CORE_AGENT_MODEL_ALIAS={definition.alias} builder start"
     elif incomplete:
         likely = False
-        hint = "resume — run: builder pull --tier fast  (or: ./scripts/pull-phased.sh weights)"
+        hint = f"resume — run: ./scripts/pull-roster.sh alias {definition.alias}"
     elif cache.exists() and not weights_complete:
         has_meta = any(cache.rglob("config.json"))
         likely = False
         hint = (
-            "metadata done — run: ./scripts/pull-phased.sh weights"
+            f"metadata only — run: ./scripts/pull-roster.sh alias {definition.alias}"
             if has_meta
-            else "start — run: ./scripts/pull-phased.sh small"
+            else f"partial cache — run: ./scripts/pull-roster.sh alias {definition.alias}"
         )
     else:
         likely = False
-        hint = "not cached — run: ./scripts/pull-phased.sh small"
+        hint = f"not cached — run: ./scripts/pull-roster.sh alias {definition.alias}"
 
     return ModelCacheStatus(
-        alias=alias,
-        hf_repo=hf_repo,
+        alias=definition.alias,
+        hf_repo=definition.hf_repo,
+        tier=definition.tier,
+        policy=definition.policy,
         cache_dir=cache if cache.exists() else None,
         size_gb=size_gb,
-        expected_gb=expected,
+        expected_gb=definition.expected_gb,
         has_incomplete=bool(incomplete),
         weights_on_disk=weights_complete,
         likely_complete=likely,
         resume_hint=hint,
-        note=_alias_note(alias),
+        note=definition.note,
     )
 
 
 def model_status_report(settings: Settings) -> list[ModelCacheStatus]:
-    """Return cache status for all models in the full local roster."""
-    roster = [
-        (settings.mlx_model_fast,    settings.model_fast),
-        (settings.mlx_model_primary, settings.model_primary),
-    ]
-    # Extended roster from Settings (if available)
-    for attr, alias in [
-        ("mlx_model_qwen",      "qwen2.5-coder-7b"),
-        ("mlx_model_deepseek",  "deepseek-coder-v2-lite"),
-        ("mlx_model_llama",     "llama-3.1-8b"),
-    ]:
-        hf = getattr(settings, attr, None)
-        if hf:
-            roster.append((hf, alias))
-    return [inspect_model_cache(hf, alias) for hf, alias in roster]
+    """Return cache status for all models in the configured local roster."""
+    return [inspect_model_cache(definition) for definition in model_definitions(settings)]

@@ -49,11 +49,9 @@ def install_skills_to_core(settings: Settings) -> list[Path]:
             continue
         target = dest / skill_dir.name
         partial = dest / (skill_dir.name + ".partial")
-        # Stage to partial first
         if partial.exists():
             shutil.rmtree(partial)
         shutil.copytree(skill_dir, partial)
-        # Atomic swap
         if target.exists():
             shutil.rmtree(target)
         partial.rename(target)
@@ -71,15 +69,16 @@ def write_goosehints(settings: Settings) -> Path:
     content = (
         "# CORE + builder-II local agent hints\n"
         "- temperature 0 everywhere; planner_same_as_execution=true on M1 16GB\n"
+        "- Default backend: mlx-lm; one MLX model loaded at a time\n"
+        "- Default aliases: phi-reasoning for fast logic/review; qwen-coder for implementation\n"
         "- Read AGENTS.md, GROK.md, docs/runtime_contracts.md before edits\n"
         "- Proposals are SPECULATIVE until `builder verify` passes\n"
         "- Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep, core-handoff\n"
         "- Slash: /explore /implement /review /verify /handoff /plan /coding /platform\n"
-        "- Switch model: builder switch-model fast|primary (one model on M1 16GB)\n"
+        "- Startup: builder start --task '<task>'; inspect choices with builder models\n"
+        "- Switch model: builder switch-model phi-reasoning|qwen-coder|llama|gemma-primary\n"
+        "- Heavy/candidate aliases require explicit opt-in: codegeex, qwen-coder-14b, qwen3-coder-heavy, deepseek\n"
         "- versor_condition(F) < 1e-6 — refuse cosine/ANN/HNSW in vault\n"
-        "- Local roster: gemma-4-e4b (fast), gemma-4-12b (primary),\n"
-        "  qwen2.5-coder-7b (fast-alt), deepseek-coder-v2-lite (primary-alt),\n"
-        "  llama-3.1-8b (primary-alt)\n"
     )
     path.write_text(content, encoding="utf-8")
     return path
@@ -167,6 +166,8 @@ def write_moim_context(settings: Settings) -> Path:
     lines += [
         "",
         "## Active Constraints",
+        f"- model_alias: {settings.model_alias}",
+        f"- active_model: {settings.active_model_id}",
         "- temperature: 0.0",
         "- planner_same_as_execution: true  # M1 16GB — one model at a time",
         "- versor_condition(F) < 1e-6 everywhere",
@@ -185,20 +186,18 @@ def write_moim_context(settings: Settings) -> Path:
 def build_goose_config(settings: Settings) -> dict:
     """Build the full Goose config.yaml-compatible structure.
 
-    Locks down: recipes, slash commands, and the three strictly bundled
-    extensions (developer, skills, summon). Emits provider stubs so the
-    config is self-contained and requires no manual env wrangling.
+    Locks down recipes, slash commands, and the three strictly bundled
+    extensions (developer, skills, summon). Existing user/provider credentials
+    are preserved by write_goose_config().
     """
     recipes = settings.project_root / "recipes"
     return {
-        # Runtime parameters
         "GOOSE_TEMPERATURE": settings.temperature,
         "GOOSE_MODE": "auto",
         "GOOSE_MAX_TURNS": 1000,
         "GOOSE_AUTO_COMPACT_THRESHOLD": 0.8,
         "GOOSE_CLI_SHOW_COST": False,
         "GOOSE_RECIPE_PATH": str(recipes),
-        # Slash commands
         "slash_commands": [
             {"command": "explore",  "recipe_path": str(recipes / "subrecipes" / "explore.yaml")},
             {"command": "implement", "recipe_path": str(recipes / "subrecipes" / "implement.yaml")},
@@ -209,7 +208,6 @@ def build_goose_config(settings: Settings) -> dict:
             {"command": "platform", "recipe_path": str(recipes / "core-platform.yaml")},
             {"command": "coding",   "recipe_path": str(recipes / "core-coding.yaml")},
         ],
-        # Extensions — only bundled; no external network calls
         "extensions": {
             "developer": {
                 "bundled": True,
@@ -240,11 +238,7 @@ def build_goose_config(settings: Settings) -> dict:
 
 
 def write_goose_config(settings: Settings) -> Path:
-    """Merge builder-II config into ~/.config/goose/config.yaml.
-
-    Existing provider credentials (API keys, model names already set by
-    the user) are preserved — only builder-II keys are overwritten.
-    """
+    """Merge builder-II config into ~/.config/goose/config.yaml."""
     config_dir = goose_config_dir()
     config_dir.mkdir(parents=True, exist_ok=True)
     path = config_dir / "config.yaml"

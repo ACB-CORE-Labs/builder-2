@@ -1,10 +1,10 @@
-"""Configuration — loads Settings from .env with sane defaults.
+"""Configuration — deterministic local-agent settings for builder-II.
 
-Phase 4 additions:
-  - mlx_model_qwen      → Qwen2.5-Coder-7B fast-alt
-  - mlx_model_deepseek  → DeepSeek-Coder-V2-Lite primary-alt
-  - mlx_model_llama     → Llama-3.1-8B primary-alt
-  - EXTENDED_ROSTER constant for CLI display
+The platform is optimized for an Apple Silicon MacBook Pro M1 with 16GB of
+unified memory. The practical constraint is not merely model weight size:
+macOS, Goose, Python, terminal buffers, and the agentic KV cache all compete
+for the same RAM. For that reason builder-II treats model selection as an
+explicit execution policy rather than a generic provider string.
 """
 from __future__ import annotations
 
@@ -14,65 +14,190 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-BACKENDS   = ("rapid-mlx", "mlx-lm", "ollama")
+BACKENDS = ("rapid-mlx", "mlx-lm", "ollama")
 MODEL_TIERS = ("primary", "fast")
 
-# Human-readable roster for `builder models` CLI command
-EXTENDED_ROSTER: tuple[tuple[str, str, str, str], ...] = (
-    # (alias, hf_repo, tier, note)
-    ("gemma-4-e4b",
-     "mlx-community/gemma-4-e4b-it-4bit",
-     "fast",
-     "Default fast tier — 4.8 GB"),
-    ("gemma-4-12b",
-     "mlx-community/gemma-4-12B-it-4bit",
-     "primary",
-     "Default primary tier — 6.5 GB"),
-    ("qwen2.5-coder-7b",
-     "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
-     "fast-alt",
-     "Superior Python formatting & deterministic logic — 4.5 GB"),
-    ("deepseek-coder-v2-lite",
-     "mlx-community/DeepSeek-Coder-V2-Lite-Base-4bit",
-     "primary-alt",
-     "Repo-level context sweep; versor_condition-aware refactor — 6.0 GB"),
-    ("llama-3.1-8b",
-     "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
-     "primary-alt",
-     "Resilient to complex system prompts; respects negative constraints — 5.0 GB"),
+# Public aliases accepted by CORE_AGENT_MODEL_ALIAS and `builder switch-model`.
+# Keep these stable; docs/scripts depend on them.
+MODEL_ALIASES = (
+    "phi-reasoning",
+    "qwen-coder",
+    "gemma-fast",
+    "gemma-primary",
+    "llama",
+    "codegeex",
+    "qwen-coder-14b",
+    "qwen3-coder-heavy",
+    "deepseek",
 )
+
+_ALIAS_NORMALIZATION = {
+    "fast": "phi-reasoning",
+    "phi": "phi-reasoning",
+    "phi4": "phi-reasoning",
+    "phi-4": "phi-reasoning",
+    "phi4-mini": "phi-reasoning",
+    "phi-mini": "phi-reasoning",
+    "primary": "qwen-coder",
+    "qwen": "qwen-coder",
+    "qwen7": "qwen-coder",
+    "qwen-7b": "qwen-coder",
+    "qwen2.5-coder": "qwen-coder",
+    "gemma": "gemma-primary",
+    "gemma-e4b": "gemma-fast",
+    "gemma-4-e4b": "gemma-fast",
+    "gemma-12b": "gemma-primary",
+    "gemma-4-12b": "gemma-primary",
+    "llama3": "llama",
+    "llama31": "llama",
+    "llama-3.1": "llama",
+    "cgx": "codegeex",
+    "codegeex4": "codegeex",
+    "codegeex4-9b": "codegeex",
+    "qwen14": "qwen-coder-14b",
+    "qwen-14b": "qwen-coder-14b",
+    "qwen2.5-coder-14b": "qwen-coder-14b",
+    "qwen3": "qwen3-coder-heavy",
+    "qwen3-coder": "qwen3-coder-heavy",
+    "qwen3-heavy": "qwen3-coder-heavy",
+    "deepseek-coder": "deepseek",
+    "deepseek-lite": "deepseek",
+}
+
+# Human-readable roster for `builder models` and documentation. The HF repos are
+# defaults only; every repo can be overridden by env var for rapid experimentation.
+EXTENDED_ROSTER: tuple[tuple[str, str, str, str, str], ...] = (
+    (
+        "phi-reasoning",
+        "CORE_AGENT_MLX_MODEL_PHI",
+        "fast",
+        "mlx-community/Phi-4-mini-reasoning-4bit",
+        "Default fast/review lane — tiny math/reasoning model with large KV-cache headroom.",
+    ),
+    (
+        "qwen-coder",
+        "CORE_AGENT_MLX_MODEL_QWEN",
+        "primary",
+        "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+        "Default implementation lane — code-specialized and still comfortable on M1 16GB.",
+    ),
+    (
+        "gemma-fast",
+        "CORE_AGENT_MLX_MODEL_FAST",
+        "fast-alt",
+        "mlx-community/gemma-4-e4b-it-4bit",
+        "General fast alternate; useful when Phi is too math-biased.",
+    ),
+    (
+        "gemma-primary",
+        "CORE_AGENT_MLX_MODEL_PRIMARY",
+        "primary-alt",
+        "mlx-community/gemma-4-12B-it-4bit",
+        "Heavier general reasoning alternate; watch swap under long Goose sessions.",
+    ),
+    (
+        "llama",
+        "CORE_AGENT_MLX_MODEL_LLAMA",
+        "primary-alt",
+        "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+        "Instruction-following alternate for complex negative constraints.",
+    ),
+    (
+        "codegeex",
+        "CORE_AGENT_MLX_MODEL_CODEGEEX",
+        "candidate",
+        "mlx-community/codegeex4-all-9b-4bit",
+        "Candidate implementation engine; verify repo availability/performance before relying on it.",
+    ),
+    (
+        "qwen-coder-14b",
+        "CORE_AGENT_MLX_MODEL_QWEN14",
+        "heavy-candidate",
+        "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+        "Heavy refactor candidate; likely marginal on 16GB once KV cache grows.",
+    ),
+    (
+        "qwen3-coder-heavy",
+        "CORE_AGENT_MLX_MODEL_QWEN3_CODER",
+        "heavy-candidate",
+        "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit",
+        "Qwen3-Coder candidate lane; explicit opt-in only, not a 16GB default.",
+    ),
+    (
+        "deepseek",
+        "CORE_AGENT_MLX_MODEL_DEEPSEEK",
+        "heavy-candidate",
+        "mlx-community/DeepSeek-Coder-V2-Lite-Instruct-4bit",
+        "Heavy repo-sweep candidate; use only after confirming memory headroom.",
+    ),
+)
+
+
+def normalize_model_alias(raw: str | None, *, tier_fallback: str = "primary") -> str:
+    """Normalize user/env model aliases to a stable MODEL_ALIASES value."""
+    candidate = (raw or "").strip().lower().replace("_", "-")
+    if not candidate:
+        candidate = "phi-reasoning" if tier_fallback == "fast" else "qwen-coder"
+    candidate = _ALIAS_NORMALIZATION.get(candidate, candidate)
+    if candidate not in MODEL_ALIASES:
+        raise ValueError(
+            f"CORE_AGENT_MODEL_ALIAS must be one of {MODEL_ALIASES}, got {raw!r}"
+        )
+    return candidate
 
 
 @dataclass(frozen=True)
 class Settings:
-    core_repo:           Path
-    backend:             str
-    model_tier:          str
-    model_primary:       str
-    model_fast:          str
-    mlx_model_primary:   str
-    mlx_model_fast:      str
-    # Extended local roster (Phase 4)
-    mlx_model_qwen:      str
-    mlx_model_deepseek:  str
-    mlx_model_llama:     str
-    base_url:            str
-    host:                str
-    port:                int
-    temperature:         float
-    project_root:        Path
+    core_repo: Path
+    backend: str
+    model_tier: str
+    model_alias: str
+    model_primary: str
+    model_fast: str
+    mlx_model_primary: str
+    mlx_model_fast: str
+    mlx_model_phi: str
+    mlx_model_qwen: str
+    mlx_model_deepseek: str
+    mlx_model_llama: str
+    mlx_model_codegeex: str
+    mlx_model_qwen14: str
+    mlx_model_qwen3_coder: str
+    base_url: str
+    host: str
+    port: int
+    temperature: float
+    project_root: Path
 
     @property
     def active_model(self) -> str:
-        return self.model_primary if self.model_tier == "primary" else self.model_fast
+        """Rapid-MLX/Ollama model identifier for the selected alias."""
+        if self.model_alias == "gemma-primary":
+            return self.model_primary
+        if self.model_alias == "gemma-fast":
+            return self.model_fast
+        # Rapid-MLX may not have every HF alias. Prefer mlx-lm for non-Gemma aliases.
+        return self.model_alias
 
     @property
     def active_mlx_model(self) -> str:
-        return (
-            self.mlx_model_primary
-            if self.model_tier == "primary"
-            else self.mlx_model_fast
-        )
+        """MLX-LM Hugging Face repo for the selected alias."""
+        return {
+            "phi-reasoning": self.mlx_model_phi,
+            "qwen-coder": self.mlx_model_qwen,
+            "gemma-fast": self.mlx_model_fast,
+            "gemma-primary": self.mlx_model_primary,
+            "llama": self.mlx_model_llama,
+            "codegeex": self.mlx_model_codegeex,
+            "qwen-coder-14b": self.mlx_model_qwen14,
+            "qwen3-coder-heavy": self.mlx_model_qwen3_coder,
+            "deepseek": self.mlx_model_deepseek,
+        }[self.model_alias]
+
+    @property
+    def active_model_id(self) -> str:
+        """Provider-facing model id used by Goose's OpenAI-compatible client."""
+        return self.active_mlx_model if self.backend == "mlx-lm" else self.active_model
 
 
 def _resolve_core_repo(raw: str, project_root: Path) -> Path:
@@ -86,7 +211,7 @@ def load_settings(project_root: Path | None = None) -> Settings:
     root = (project_root or Path.cwd()).resolve()
     load_dotenv(root / ".env", override=False)
 
-    backend = os.getenv("CORE_AGENT_BACKEND", "rapid-mlx").strip().lower()
+    backend = os.getenv("CORE_AGENT_BACKEND", "mlx-lm").strip().lower()
     if backend not in BACKENDS:
         raise ValueError(f"CORE_AGENT_BACKEND must be one of {BACKENDS}, got {backend!r}")
 
@@ -94,10 +219,13 @@ def load_settings(project_root: Path | None = None) -> Settings:
     if tier not in MODEL_TIERS:
         raise ValueError(f"CORE_AGENT_MODEL_TIER must be one of {MODEL_TIERS}, got {tier!r}")
 
+    alias = normalize_model_alias(os.getenv("CORE_AGENT_MODEL_ALIAS"), tier_fallback=tier)
+
     return Settings(
         core_repo=_resolve_core_repo(os.getenv("CORE_REPO_PATH", "../core"), root),
         backend=backend,
         model_tier=tier,
+        model_alias=alias,
         model_primary=os.getenv("CORE_AGENT_MODEL_PRIMARY", "gemma-4-12b-4bit"),
         model_fast=os.getenv("CORE_AGENT_MODEL_FAST", "gemma-4-e4b-4bit"),
         mlx_model_primary=os.getenv(
@@ -108,18 +236,33 @@ def load_settings(project_root: Path | None = None) -> Settings:
             "CORE_AGENT_MLX_MODEL_FAST",
             "mlx-community/gemma-4-e4b-it-4bit",
         ),
-        # Extended local roster — Phase 4
+        mlx_model_phi=os.getenv(
+            "CORE_AGENT_MLX_MODEL_PHI",
+            "mlx-community/Phi-4-mini-reasoning-4bit",
+        ),
         mlx_model_qwen=os.getenv(
             "CORE_AGENT_MLX_MODEL_QWEN",
             "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
         ),
         mlx_model_deepseek=os.getenv(
             "CORE_AGENT_MLX_MODEL_DEEPSEEK",
-            "mlx-community/DeepSeek-Coder-V2-Lite-Base-4bit",
+            "mlx-community/DeepSeek-Coder-V2-Lite-Instruct-4bit",
         ),
         mlx_model_llama=os.getenv(
             "CORE_AGENT_MLX_MODEL_LLAMA",
             "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+        ),
+        mlx_model_codegeex=os.getenv(
+            "CORE_AGENT_MLX_MODEL_CODEGEEX",
+            "mlx-community/codegeex4-all-9b-4bit",
+        ),
+        mlx_model_qwen14=os.getenv(
+            "CORE_AGENT_MLX_MODEL_QWEN14",
+            "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+        ),
+        mlx_model_qwen3_coder=os.getenv(
+            "CORE_AGENT_MLX_MODEL_QWEN3_CODER",
+            "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit",
         ),
         base_url=os.getenv("CORE_AGENT_BASE_URL", "http://127.0.0.1:8080/v1"),
         host=os.getenv("CORE_AGENT_HOST", "127.0.0.1"),

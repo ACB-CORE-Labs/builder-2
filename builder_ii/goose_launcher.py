@@ -15,27 +15,37 @@ def find_goose_binary() -> str | None:
     return shutil.which("goose")
 
 
+def _server_root_url(base_url: str) -> str:
+    """Return provider host root without a trailing OpenAI /v1 path.
+
+    Goose's OpenAI provider appends `/v1/chat/completions` itself. Passing a
+    host that already ends in `/v1` produces `/v1/v1/chat/completions`.
+    """
+    base = base_url.rstrip("/")
+    if base.endswith("/v1"):
+        return base[: -len("/v1")]
+    return base
+
+
 def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict[str, str]:
     env = os.environ.copy()
-    base = settings.base_url.rstrip("/")
-    if not base.endswith("/v1"):
-        base = f"{base}/v1"
 
     if settings.backend == "ollama":
-        host = settings.base_url.rstrip("/v1").rstrip("/")
+        host = _server_root_url(settings.base_url)
         env["GOOSE_PROVIDER"] = "ollama"
         env["OLLAMA_HOST"] = host
     else:
         env["GOOSE_PROVIDER"] = "openai"
         env["OPENAI_API_KEY"] = env.get("OPENAI_API_KEY", "not-needed")
-        env["OPENAI_HOST"] = base
+        env["OPENAI_HOST"] = _server_root_url(settings.base_url)
 
-    env["GOOSE_MODEL"] = "default"
+    env["GOOSE_MODEL"] = settings.active_model_id
     env["GOOSE_TEMPERATURE"] = str(settings.temperature)
     env["GOOSE_MODE"] = "auto"
     env["GOOSE_MAX_TURNS"] = "1000"
 
-    # M1 16GB: planner shares execution endpoint (one model loaded).
+    # M1 16GB: planner shares execution endpoint. Loading a second planner model
+    # is exactly how local coding sessions fall into swap.
     env["GOOSE_PLANNER_PROVIDER"] = env["GOOSE_PROVIDER"]
     env["GOOSE_PLANNER_MODEL"] = env["GOOSE_MODEL"]
 
@@ -46,8 +56,8 @@ def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict
     moim = write_moim_context(settings)
     env["GOOSE_MOIM_MESSAGE_FILE"] = str(moim)
 
-    tier = session.model_tier if session else settings.model_tier
-    env["BUILDER_MODEL_TIER"] = tier
+    env["BUILDER_MODEL_TIER"] = session.model_tier if session else settings.model_tier
+    env["BUILDER_MODEL_ALIAS"] = settings.model_alias
     env["BUILDER_SESSION_MODE"] = session.mode if session else "orchestrator"
 
     return env
@@ -56,6 +66,23 @@ def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict
 def recipe_path(settings: Settings, session: SessionPlan | None = None) -> Path:
     name = session.recipe_name if session else "core-platform.yaml"
     return settings.project_root / "recipes" / name
+
+
+def _goose_session_help(goose: str) -> str:
+    try:
+        proc = subprocess.run(
+            [goose, "session", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    return (proc.stdout or "") + "\n" + (proc.stderr or "")
+
+
+def _supports_flag(help_text: str, flag: str) -> bool:
+    return flag in help_text
 
 
 def launch_goose_session(
@@ -79,27 +106,32 @@ def launch_goose_session(
         raise FileNotFoundError(f"Missing recipe: {recipe}")
 
     workdir = cwd or settings.core_repo
-    ctx = load_session_context(settings)
+    load_session_context(settings)
     env = goose_env(settings, session=plan)
 
-    argv = [goose, "session", "--recipe", str(recipe)]
-    if name:
+    help_text = _goose_session_help(goose)
+    argv = [goose, "session"]
+
+    # Goose 1.38 rejects `goose session --recipe`. Older builds accepted it.
+    # Detect support from help text instead of assuming one CLI shape.
+    if _supports_flag(help_text, "--recipe"):
+        argv.extend(["--recipe", str(recipe)])
+    else:
+        env["BUILDER_RECIPE_PATH"] = str(recipe)
+
+    if name and _supports_flag(help_text, "--name"):
         argv.extend(["--name", name])
-    if resume:
+    if resume and _supports_flag(help_text, "--resume"):
         argv.append("--resume")
 
-    argv.extend(
-        [
-            "--with-builtin",
-            "developer,skills,summon",
-        ]
-    )
+    if _supports_flag(help_text, "--with-builtin"):
+        argv.extend(["--with-builtin", "developer,skills,summon"])
 
     return subprocess.Popen(argv, cwd=workdir, env=env)
 
 
 def pull_models(settings: Settings) -> list[str]:
-    """Pre-download Rapid-MLX model weights."""
+    """Pre-download Rapid-MLX model weights for legacy rapid-mlx mode."""
     rapid = shutil.which("rapid-mlx")
     if not rapid or settings.backend != "rapid-mlx":
         return []
