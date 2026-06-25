@@ -30,12 +30,13 @@ def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict
         env["OPENAI_API_KEY"] = env.get("OPENAI_API_KEY", "not-needed")
         env["OPENAI_HOST"] = base
 
-    env["GOOSE_MODEL"] = "default"
+    env["GOOSE_MODEL"] = settings.active_model_id
     env["GOOSE_TEMPERATURE"] = str(settings.temperature)
     env["GOOSE_MODE"] = "auto"
     env["GOOSE_MAX_TURNS"] = "1000"
 
-    # M1 16GB: planner shares execution endpoint (one model loaded).
+    # M1 16GB: planner shares execution endpoint. Loading a second planner model
+    # is exactly how local coding sessions fall into swap.
     env["GOOSE_PLANNER_PROVIDER"] = env["GOOSE_PROVIDER"]
     env["GOOSE_PLANNER_MODEL"] = env["GOOSE_MODEL"]
 
@@ -47,7 +48,9 @@ def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict
     env["GOOSE_MOIM_MESSAGE_FILE"] = str(moim)
 
     tier = session.model_tier if session else settings.model_tier
+    alias = session.model_alias if session else settings.model_alias
     env["BUILDER_MODEL_TIER"] = tier
+    env["BUILDER_MODEL_ALIAS"] = alias
     env["BUILDER_SESSION_MODE"] = session.mode if session else "orchestrator"
 
     return env
@@ -79,7 +82,7 @@ def launch_goose_session(
         raise FileNotFoundError(f"Missing recipe: {recipe}")
 
     workdir = cwd or settings.core_repo
-    ctx = load_session_context(settings)
+    load_session_context(settings)
     env = goose_env(settings, session=plan)
 
     argv = [goose, "session", "--recipe", str(recipe)]
@@ -88,18 +91,13 @@ def launch_goose_session(
     if resume:
         argv.append("--resume")
 
-    argv.extend(
-        [
-            "--with-builtin",
-            "developer,skills,summon",
-        ]
-    )
+    argv.extend(["--with-builtin", "developer,skills,summon"])
 
     return subprocess.Popen(argv, cwd=workdir, env=env)
 
 
 def pull_models(settings: Settings) -> list[str]:
-    """Pre-download Rapid-MLX model weights."""
+    """Pre-download Rapid-MLX model weights for legacy rapid-mlx mode."""
     rapid = shutil.which("rapid-mlx")
     if not rapid or settings.backend != "rapid-mlx":
         return []
