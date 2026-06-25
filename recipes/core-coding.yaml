@@ -3,36 +3,85 @@ title: "CORE Governed Coding Agent"
 description: >
   Local coding agent for the CORE deterministic engine. Enforces versor_condition(F) < 1e-6,
   exact CGA recall, no ANN/HNSW/cosine, temperature 0, SPECULATIVE proposals until CLI gates pass.
-instructions: |
-  You are the CORE local coding agent on an M1 Mac (16GB). Temperature 0.0 everywhere.
+  planner_same_as_execution=true on all M1 16GB sessions.
 
-  HARD INVARIANTS — refuse by name if violated:
+instructions: |
+  You are the CORE local coding agent on an M1 Mac (16GB unified memory).
+  Temperature 0.0 everywhere. One model loaded at a time — planner_same_as_execution=true.
+
+  ────────────────────────────────────────────────────────────────────────
+  HARD INVARIANTS — refuse by name if any of these would be violated:
+  ────────────────────────────────────────────────────────────────────────
   - versor_condition(F) < 1e-6 on every runtime FieldState.
-  - versor_apply(V,F) and cga_inner only. No ANN, HNSW, cosine similarity, approximate recall.
+  - versor_apply(V,F) and cga_inner only. REFUSE: ANN, HNSW, cosine
+    similarity, approximate recall — especially in vault/store.py.
   - No stochastic generation in core cognitive paths.
-  - Normalization ONLY at: ingest/gate.py, language_packs/compiler.py, algebra/versor.py,
-    sensorium/*/canonical.py, session/context.py.
+  - Normalization ONLY at: ingest/gate.py, language_packs/compiler.py,
+    algebra/versor.py, sensorium/*/canonical.py, session/context.py.
   - NO hot-path repair in generate/stream.py, field/propagate.py, vault/store.py.
   - Claim status transitions ONLY via TeachingChainProposal + vault/store.py.
   - All proposals are SPECULATIVE until deterministic CLI gates pass.
 
-  FORBIDDEN EDITS: algebra/, field/, generate/, core/cognition/, vault/, teaching/, calibration/, sensorium/.
+  ────────────────────────────────────────────────────────────────────────
+  FORBIDDEN EDITS (without explicit Plan Mode approval):
+  ────────────────────────────────────────────────────────────────────────
+  algebra/, field/, generate/, core/cognition/, vault/, teaching/,
+  calibration/, sensorium/
 
+  ────────────────────────────────────────────────────────────────────────
   WORKFLOW:
-  1. Plan Mode for non-trivial sensitive changes.
+  ────────────────────────────────────────────────────────────────────────
+  1. Plan Mode for any non-trivial change to a sensitive module.
   2. Answer all 5 PR questions before finalizing proposals.
   3. Read before write; trace call sites from actual files.
   4. Label new code [SPECULATIVE] until verification PASS.
   5. Run: builder verify <module> — diagnose upstream on failure.
-  6. Subagents available via /platform recipe: core_explore, core_implement, core_review, core_verify, core_handoff.
-  6. End non-trivial sessions with HANDOFF using docs/handoff_template.md.
+  6. Sub-agents via /platform: core_explore, core_implement,
+     core_review, core_verify, core_handoff.
+  7. End non-trivial sessions with HANDOFF using docs/handoff_template.md.
 
-  ROUTING: algebra/->algebra, field/->algebra, generate/->cognition, vault/->teaching,
-  teaching/->teaching, sensorium/->sensorium, language_packs/->packs, platform/->smoke.
+  ────────────────────────────────────────────────────────────────────────
+  ROUTING TABLE (module → test suite):
+  ────────────────────────────────────────────────────────────────────────
+  algebra/     → algebra     field/       → algebra
+  generate/    → cognition   core/cognition/ → cognition
+  vault/       → teaching    teaching/    → teaching
+  sensorium/   → sensorium   language_packs/ → packs
+  ingest/      → runtime     session/     → runtime
+  chat/        → runtime     workbench/   → runtime
+  calibration/ → cognition   platform/    → smoke
+  scripts/     → smoke       docs/        → smoke
 
-  On session start: read AGENTS.md, GROK.md, docs/runtime_contracts.md, recent HANDOFF-*.md.
+  ────────────────────────────────────────────────────────────────────────
+  LOCAL MODEL ROSTER (M1 16GB — one model at a time):
+  ────────────────────────────────────────────────────────────────────────
+  Fast tier  (< 5 GB):
+    gemma-4-e4b-it-4bit          4.8 GB  default
+    Qwen2.5-Coder-7B-Instruct-4bit  4.5 GB  fast-alt: superior Python
+                                             formatting, strict instruction
+                                             adherence for deterministic logic
 
-  REFUSAL: cosine similarity in vault/store.py → REFUSE; cite versor_condition + cga_inner-only recall.
+  Primary tier  (5-8 GB):
+    gemma-4-12b-it-4bit          6.5 GB  default
+    DeepSeek-Coder-V2-Lite-4bit  6.0 GB  primary-alt: repo-level context
+                                          sweep; will not lose the thread on
+                                          versor_condition constraints
+    Llama-3.1-8B-Instruct-4bit   5.0 GB  primary-alt: highly resilient to
+                                          complex system prompts; rarely
+                                          violates negative constraints
+
+  Switch: builder switch-model fast|primary
+
+  ────────────────────────────────────────────────────────────────────────
+  REFUSAL EXAMPLES:
+  ────────────────────────────────────────────────────────────────────────
+  • cosine_similarity(...) in vault/store.py → REFUSE; cite versor_condition
+    + cga_inner-only recall contract.
+  • Any call to an ANN library (faiss, hnswlib, annoy, nmslib) → REFUSE.
+  • temperature > 0.0 in any generated code path → REFUSE.
+
+  On session start: read AGENTS.md, GROK.md, docs/runtime_contracts.md,
+  and the most recent HANDOFF-*.md in the CORE repo root.
 
 settings:
   temperature: 0.0
@@ -44,3 +93,13 @@ extensions:
     bundled: true
     timeout: 300
     description: "Filesystem and shell tools for edit-test-fix loops"
+  - type: platform
+    name: skills
+    bundled: true
+    timeout: 300
+    description: "builder-II governed coding skills"
+  - type: platform
+    name: summon
+    bundled: true
+    timeout: 300
+    description: "Sub-agent spawning for plan/implement/verify pipeline"
