@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Any, Sequence
 
 import httpx
 
@@ -17,11 +17,28 @@ class BackendSpec:
     health_path: str = "/models"
 
 
+@dataclass(frozen=True)
+class ServedModelStatus:
+    ok: bool
+    message: str
+    model_ids: tuple[str, ...]
+
+
 def _bin(name: str) -> str:
     found = shutil.which(name)
     if not found:
         raise FileNotFoundError(f"Required binary not on PATH: {name}")
     return found
+
+
+def health_path_for_backend(settings: Settings) -> str:
+    if settings.backend == "mlx-lm":
+        # mlx_lm.server exposes OpenAI-compatible endpoints under /v1.
+        # Polling /models returns 404 even when the server is healthy.
+        return "/v1/models"
+    if settings.backend == "ollama":
+        return "/api/tags"
+    return "/models"
 
 
 def build_backend_spec(settings: Settings) -> BackendSpec:
@@ -38,6 +55,7 @@ def build_backend_spec(settings: Settings) -> BackendSpec:
                 *host_flag,
                 *port_flag,
             ),
+            health_path=health_path_for_backend(settings),
         )
 
     if settings.backend == "mlx-lm":
@@ -52,9 +70,7 @@ def build_backend_spec(settings: Settings) -> BackendSpec:
                 "--temp",
                 str(settings.temperature),
             ),
-            # mlx_lm.server exposes OpenAI-compatible endpoints under /v1.
-            # Polling /models returns 404 even when the server is healthy.
-            health_path="/v1/models",
+            health_path=health_path_for_backend(settings),
         )
 
     # Ollama MLX engine — OpenAI-compatible via /v1 when OLLAMA_HOST points here.
@@ -64,7 +80,7 @@ def build_backend_spec(settings: Settings) -> BackendSpec:
             _bin("ollama"),
             "serve",
         ),
-        health_path="/api/tags",
+        health_path=health_path_for_backend(settings),
     )
 
 
@@ -84,8 +100,7 @@ def health_url(settings: Settings, path: str) -> str:
 
 
 def check_health(settings: Settings, timeout: float = 3.0) -> tuple[bool, str]:
-    spec = build_backend_spec(settings)
-    url = health_url(settings, spec.health_path)
+    url = health_url(settings, health_path_for_backend(settings))
     try:
         response = httpx.get(url, timeout=timeout)
         if response.status_code == 200:
@@ -93,6 +108,87 @@ def check_health(settings: Settings, timeout: float = 3.0) -> tuple[bool, str]:
         return False, f"HTTP {response.status_code} from {url}"
     except httpx.HTTPError as exc:
         return False, f"{url} unreachable: {exc}"
+
+
+def _extract_model_ids(payload: Any) -> tuple[str, ...]:
+    if not isinstance(payload, dict):
+        return ()
+
+    found: list[str] = []
+
+    # OpenAI-compatible /v1/models shape: {"data": [{"id": "..."}]}
+    data = payload.get("data")
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict) and isinstance(item.get("id"), str):
+                found.append(item["id"])
+            elif isinstance(item, str):
+                found.append(item)
+
+    # Ollama /api/tags shape: {"models": [{"name": "..."}]}
+    models = payload.get("models")
+    if isinstance(models, list):
+        for item in models:
+            if isinstance(item, dict):
+                value = item.get("name") or item.get("model") or item.get("id")
+                if isinstance(value, str):
+                    found.append(value)
+            elif isinstance(item, str):
+                found.append(item)
+
+    # Legacy/simple shapes sometimes expose a single model directly.
+    for key in ("id", "model", "name"):
+        value = payload.get(key)
+        if isinstance(value, str):
+            found.append(value)
+
+    return tuple(dict.fromkeys(found))
+
+
+def _model_id_matches(expected: str, served: str) -> bool:
+    return served == expected or served == expected.split("/")[-1]
+
+
+def served_models(settings: Settings, timeout: float = 3.0) -> ServedModelStatus:
+    url = health_url(settings, health_path_for_backend(settings))
+    try:
+        response = httpx.get(url, timeout=timeout)
+    except httpx.HTTPError as exc:
+        return ServedModelStatus(False, f"{url} unreachable: {exc}", ())
+
+    if response.status_code != 200:
+        return ServedModelStatus(False, f"HTTP {response.status_code} from {url}", ())
+
+    try:
+        payload = response.json()
+    except ValueError:
+        return ServedModelStatus(False, f"{url} did not return JSON model metadata", ())
+
+    ids = _extract_model_ids(payload)
+    if not ids:
+        return ServedModelStatus(False, f"{url} returned no model ids", ())
+
+    return ServedModelStatus(True, f"served models: {', '.join(ids)}", ids)
+
+
+def check_serves_active_model(settings: Settings, timeout: float = 3.0) -> tuple[bool, str]:
+    if settings.backend != "mlx-lm":
+        return True, f"served-model identity check skipped for backend={settings.backend}"
+
+    status = served_models(settings, timeout=timeout)
+    if not status.ok:
+        return False, status.message
+
+    expected = settings.active_model_id
+    if any(_model_id_matches(expected, served) for served in status.model_ids):
+        return True, f"serving selected model {expected}"
+
+    served = ", ".join(status.model_ids)
+    return (
+        False,
+        f"backend is serving {served}, but selected model is {expected}; "
+        "stop the existing server on this port and restart builder",
+    )
 
 
 def start_backend_process(settings: Settings) -> subprocess.Popen[str]:
