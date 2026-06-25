@@ -7,6 +7,7 @@ from typing import Any, Sequence
 
 import httpx
 
+from builder_ii.backend_state import check_backend_marker, read_backend_marker, write_backend_marker
 from builder_ii.config import Settings
 
 
@@ -175,19 +176,25 @@ def check_serves_active_model(settings: Settings, timeout: float = 3.0) -> tuple
     if settings.backend != "mlx-lm":
         return True, f"served-model identity check skipped for backend={settings.backend}"
 
+    marker_check = check_backend_marker(settings)
+    if not marker_check.ok:
+        return False, marker_check.message
+
     status = served_models(settings, timeout=timeout)
     if not status.ok:
         return False, status.message
 
     expected = settings.active_model_id
     if any(_model_id_matches(expected, served) for served in status.model_ids):
+        if read_backend_marker(settings) is None:
+            write_backend_marker(settings)
         return True, f"serving selected model {expected}"
 
     served = ", ".join(status.model_ids)
     return (
         False,
-        f"backend is serving {served}, but selected model is {expected}; "
-        "stop the existing server on this port and restart builder",
+        f"backend model list shows {served}, but selected model is {expected}; "
+        "reset the local backend before switching models",
     )
 
 
