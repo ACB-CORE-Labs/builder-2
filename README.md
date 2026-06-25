@@ -21,6 +21,24 @@ Alternates: `gemma-fast`, `gemma-primary`, and `llama`.
 
 Explicit opt-in candidate lanes: `codegeex`, `qwen-coder-14b`, `qwen3-coder-heavy`, and `deepseek`.
 
+## Current validation boundary
+
+Validated on the M1 `mlx-lm` lane:
+
+- `builder doctor` configuration/compliance checks.
+- MLX-LM backend startup.
+- Health probe at `http://127.0.0.1:8080/v1/models`.
+- Goose 1.38 session launch without the removed `--recipe` flag.
+- OpenAI-compatible chat transport at `http://127.0.0.1:8080/v1/chat/completions`.
+- Text-only audit/planning responses through `qwen-coder`.
+
+Not yet validated:
+
+- Autonomous Goose tool execution through the local `mlx-lm` provider.
+- File-modifying `/implement` sessions driven entirely by a local MLX model.
+
+Until a dedicated tool smoke proves otherwise, treat local MLX sessions as review/planning/reporting lanes. For code edits, require explicit human review and run deterministic verification before accepting changes.
+
 ## Install
 
 ```bash
@@ -93,16 +111,17 @@ builder doctor
 builder start --task "<specific CORE task>"
 ```
 
-Inside Goose, prefer the governed recipes and skills:
+Inside Goose, prefer the governed recipes and skills. Local `mlx-lm` sessions should remain review/planning/reporting-only until tool execution has a passing smoke test.
 
 ```text
 /plan describe the smallest safe patch before editing
 /explore trace the call sites first
-/implement apply the patch and run verification
-/verify workbench/journal.py
 /review check for CORE invariant violations
+/verify workbench/journal.py
 /handoff write continuity notes before stopping
 ```
+
+Use `/implement` only after the local provider's tool execution path is explicitly validated.
 
 ## Verification
 
@@ -149,6 +168,7 @@ Common fixes:
 | model cache partial | Re-run `bash scripts/pull-roster.sh alias <alias>`. |
 | session slows badly | Stop, switch to `phi-reasoning` or `qwen-coder`, and avoid heavy aliases. |
 | CORE path wrong | Edit `CORE_REPO_PATH` in `.env`. |
+| local model emits JSON instead of using tools | Treat the session as text-only; do not accept autonomous edits until a tool smoke passes. |
 
 ## Command reference
 
