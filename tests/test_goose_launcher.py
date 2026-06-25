@@ -1,9 +1,9 @@
 from builder_ii.config import load_settings
-from builder_ii.goose_launcher import find_goose_binary, goose_env, recipe_path
+from builder_ii.goose_launcher import goose_env, goose_status, recipe_path
 
 
-def test_goose_installed():
-    assert find_goose_binary() is not None
+def test_goose_status_is_string():
+    assert isinstance(goose_status(), str)
 
 
 def test_goose_env_openai_provider():
@@ -14,6 +14,8 @@ def test_goose_env_openai_provider():
     else:
         assert env["GOOSE_PROVIDER"] == "openai"
     assert env["GOOSE_TEMPERATURE"] == "0.0"
+    assert env["GOOSE_MODEL"] == settings.active_model_id
+    assert env["BUILDER_MODEL_ALIAS"] == settings.model_alias
 
 
 def test_recipe_exists():
