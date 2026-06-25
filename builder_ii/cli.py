@@ -12,8 +12,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from builder_ii.backends import check_health, list_start_command
+from builder_ii.backends import check_health, check_serves_active_model, list_start_command
 from builder_ii.benchmark import format_benchmark_report, run_benchmark, write_benchmark_report
+from builder_ii.capabilities import capability_gates
 from builder_ii.compliance import run_compliance_checks
 from builder_ii.config import BACKENDS, MODEL_ALIASES, MODEL_TIERS, load_settings, normalize_model_alias
 from builder_ii.goose_launcher import (
@@ -36,24 +37,44 @@ app = typer.Typer(
 console = Console()
 
 
+def _backend_ready_for_selected_model(settings) -> tuple[bool, str]:
+    ok, msg = check_health(settings)
+    if not ok:
+        return False, msg
+
+    model_ok, model_msg = check_serves_active_model(settings)
+    if not model_ok:
+        return False, model_msg
+
+    return True, f"{msg}; {model_msg}"
+
+
 def _ensure_backend(settings, no_backend: bool) -> None:
     if no_backend:
         return
-    ok, msg = check_health(settings)
-    if ok:
-        console.print(f"[green]Backend ready[/] {msg}")
-        return
-    console.print(f"[yellow]Starting backend[/] ({msg})")
+
+    health_ok, health_msg = check_health(settings)
+    if health_ok:
+        model_ok, model_msg = check_serves_active_model(settings)
+        if model_ok:
+            console.print(f"[green]Backend ready[/] {health_msg}; {model_msg}")
+            return
+        console.print(f"[red]Backend model mismatch[/] {model_msg}")
+        raise typer.Exit(1)
+
+    console.print(f"[yellow]Starting backend[/] ({health_msg})")
     cmd = list(list_start_command(settings))
     console.print(f"  {' '.join(cmd)}")
     subprocess.Popen(cmd)
+    last_msg = health_msg
     for _ in range(90):
         time.sleep(2)
-        ok, msg = check_health(settings)
-        if ok:
+        ready, msg = _backend_ready_for_selected_model(settings)
+        last_msg = msg
+        if ready:
             console.print(f"[green]Backend ready[/] {msg}")
             return
-    console.print("[red]Backend did not become ready in 180s (model may still be downloading)[/]")
+    console.print(f"[red]Backend did not become ready in 180s[/] {last_msg}")
     raise typer.Exit(1)
 
 
@@ -172,6 +193,20 @@ def benchmark(
     raise typer.Exit(0)
 
 
+@app.command("capabilities")
+def capabilities(
+    chat: bool = typer.Option(False, "--chat", help="Run a live /v1/chat/completions smoke"),
+) -> None:
+    """Check local model capability gates without modifying CORE."""
+    settings = load_settings()
+    table = Table("Gate", "Result", "Details")
+    gates = capability_gates(settings, run_chat_smoke=chat)
+    for gate in gates:
+        table.add_row(gate.name, gate.result, gate.details)
+    console.print(table)
+    raise typer.Exit(1 if any(gate.result == "FAIL" for gate in gates) else 0)
+
+
 @app.command("switch-model")
 def switch_model(
     alias: str = typer.Argument(..., help="Model alias or legacy tier; run `builder models`"),
@@ -240,6 +275,12 @@ def doctor() -> None:
     backend_ok, backend_msg = check_health(settings)
     table.add_row("Backend", "PASS" if backend_ok else "WARN", backend_msg)
 
+    if backend_ok:
+        served_ok, served_msg = check_serves_active_model(settings)
+        table.add_row("Served model", "PASS" if served_ok else "WARN", served_msg)
+    else:
+        table.add_row("Served model", "WARN", "backend not running; run builder start to serve selected model")
+
     compliance = run_compliance_checks()
     compliance_ok = compliance.init_literals_ok and compliance.refusal_probe_ok
     table.add_row(
@@ -284,12 +325,14 @@ def status() -> None:
     """Backend, Goose, compliance, recipe, and model status."""
     settings = load_settings()
     ok, msg = check_health(settings)
+    served_ok, served_msg = check_serves_active_model(settings) if ok else (False, "backend down")
     compliance = run_compliance_checks()
     console.print(
         f"backend={settings.backend} alias={settings.model_alias} tier={settings.model_tier} "
         f"model={settings.active_model_id} url={settings.base_url}"
     )
     console.print(f"health: {'OK' if ok else 'DOWN'} — {msg}")
+    console.print(f"served-model: {'OK' if served_ok else 'WARN'} — {served_msg}")
     console.print(goose_status())
     console.print(
         f"compliance: literals={'PASS' if compliance.init_literals_ok else 'FAIL'} "
