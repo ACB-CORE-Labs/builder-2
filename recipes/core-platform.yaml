@@ -1,10 +1,10 @@
 version: "1.0.0"
 title: "CORE Platform Agent"
 description: >
-  Orchestrated CORE coding on M1: governed invariants, subagents for explore/implement/review/verify/handoff.
-  temperature 0. One model at a time (12B deep / 4B fast via builder switch-model).
+  Orchestrated CORE coding on M1 16GB: governed invariants, subagents for explore/implement/review/verify/handoff.
+  temperature 0. One MLX model at a time with task-hint routing.
 instructions: |
-  You orchestrate CORE development on Apple M1 16GB with Codename Goose + local Gemma 4 MLX.
+  You orchestrate CORE development on Apple M1 16GB with Codename Goose + MLX-native local models.
 
   Load skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep.
 
@@ -24,8 +24,14 @@ instructions: |
 
   For non-trivial changes use /plan first. Read governance files on start.
 
-  Model tiers (one loaded): primary=12B deep reasoning, fast=4B quick tasks.
-  Switch: builder switch-model fast|primary then restart session.
+  Model aliases:
+  - phi-reasoning: fast logic, review, invariant checks, explanations.
+  - qwen-coder: default targeted implementation lane.
+  - gemma-fast, gemma-primary, llama: alternates.
+  - codegeex, qwen-coder-14b, qwen3-coder-heavy, deepseek: explicit opt-in candidates.
+
+  Prefer startup with: builder start --task "<actual task>".
+  Inspect choices with: builder models and builder doctor.
 
 prompt: |
   Session ready. CORE repo at {{ core_repo }}.
@@ -68,3 +74,4 @@ extensions:
     timeout: 600
   - type: platform
     name: summon
+    bundled: true
