@@ -1,16 +1,46 @@
 # builder-II
 
-`builder-II` is the local CORE coding cockpit for MacBook Pro M1 work when cloud coding tools are unavailable. It wraps Codename Goose with deterministic CORE governance, MLX-native local models, task-aware model routing, resumable downloads, and a verification harness aimed at `AssetOverflow/core`.
+`builder-II` is the local CORE coding cockpit for MacBook Pro M1 work when cloud coding tools are unavailable. It wraps Codename Goose with practical CORE development governance, MLX-native local models, task-aware model routing, resumable downloads, runtime controls, Goose recipes, skills, and a verification harness aimed at `AssetOverflow/core`.
 
-The design goal is not to pretend a small local model is a frontier cloud system. The goal is to place the local model inside strong rails: exact context injection, model memory discipline, read-before-write workflow, deterministic verification, and handoff continuity.
+The design goal is not to pretend a small local model is a frontier cloud system. The goal is to give the operator a usable local development platform with clear setup, prompts, recipes, tools, runtime boundaries, and validation commands.
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the current product scope: builder-II is a practical Goose/local-agent development cockpit for CORE, not a second CORE runtime.
+
+## Documentation map
+
+Start here if you are evaluating or sharing the project:
+
+| Document | Purpose |
+| --- | --- |
+| [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the platform and its components. |
+| [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Scope, non-goals, and near-term platform direction. |
+| [`docs/model_role_matrix.md`](docs/model_role_matrix.md) | Model aliases, runtime lanes, recommended use, and avoid boundaries. |
+| [`docs/lane_guides.md`](docs/lane_guides.md) | Reusable prompt lanes for direct ask and planning/review work. |
+| [`docs/personas.md`](docs/personas.md) | Read-only persona definitions. |
+| [`docs/role_gates.md`](docs/role_gates.md) | Capability boundaries for each persona. |
+| [`docs/lane_checks.md`](docs/lane_checks.md) | Offline consistency checks for role/lane/gate wiring. |
 
 ## Hardware target
 
 Primary target: Apple Silicon MacBook Pro M1 with 16GB unified memory.
 
 The machine does not have 16GB free for weights. macOS, Goose, Python, terminal buffers, repository context, and KV cache all share the same memory pool. Productive coding sessions should prefer roughly 2GB to 7GB model footprints. Larger models are available as explicit opt-in experiments, not defaults.
+
+## What is included
+
+builder-II currently includes:
+
+- CLI setup/doctor/status/model helpers;
+- MLX-LM backend startup and served-model checks;
+- direct local ask through an OpenAI-compatible local endpoint;
+- runtime marker and listener reset helpers;
+- model aliases and runtime policy;
+- Goose config generation;
+- Goose recipes for platform, coding, plan, explore, implement, review, verify, and handoff flows;
+- builder-II skills copied into the target CORE repo;
+- lane guides, personas, and capability boundaries for prompt/task organization;
+- verification routing for CORE modules.
 
 ## Recommended model lanes
 
@@ -35,11 +65,14 @@ Validated on the M1 `mlx-lm` lane:
 - OpenAI-compatible chat transport at `http://127.0.0.1:8080/v1/chat/completions`.
 - Direct local ask through `builder ask`.
 - Text-only audit/planning responses through `qwen-coder`.
+- Runtime reset with `builder-runtime reset`.
+- Goose recipe path wiring.
 
 Not yet validated:
 
-- Autonomous Goose tool execution through the local `mlx-lm` provider.
+- Fully autonomous Goose tool execution through the local `mlx-lm` provider.
 - File-modifying `/implement` sessions driven entirely by a local MLX model.
+- Production-quality multimodal sidecar support.
 
 Until a dedicated tool smoke proves otherwise, treat local MLX sessions as review/planning/reporting lanes. For code edits, require explicit human review and run deterministic verification before accepting changes.
 
@@ -107,17 +140,9 @@ builder-runtime reset
 builder start --model phi-reasoning --task "review this proposal"
 ```
 
-## Daily loop
+## Goose workflow
 
-```bash
-git -C ../core status --short --branch
-builder status
-builder doctor
-builder-runtime status
-builder start --task "<specific CORE task>"
-```
-
-Inside Goose, prefer the governed recipes and skills. Local `mlx-lm` sessions should remain review/planning/reporting-only until tool execution has a passing smoke test.
+`builder setup` writes Goose configuration and recipe wiring. In Goose, use the recipe commands:
 
 ```text
 /plan describe the smallest safe patch before editing
@@ -129,6 +154,16 @@ Inside Goose, prefer the governed recipes and skills. Local `mlx-lm` sessions sh
 
 Use `/implement` only after the local provider's tool execution path is explicitly validated.
 
+## Daily loop
+
+```bash
+git -C ../core status --short --branch
+builder status
+builder doctor
+builder-runtime status
+builder start --task "<specific CORE task>"
+```
+
 ## Direct local ask
 
 Use `builder ask` for small local questions that do not need a Goose session.
@@ -137,6 +172,13 @@ Use `builder ask` for small local questions that do not need a Goose session.
 builder-runtime reset
 builder ask --model phi-reasoning --prompt "Summarize this failure."
 builder ask --model qwen-coder --prompt "Draft a small patch plan."
+```
+
+Reusable prompt lanes are available with:
+
+```bash
+builder-lanes list
+builder-lanes show draft_patch_plan --context "Add a small CLI option."
 ```
 
 ## Verification
@@ -195,6 +237,8 @@ builder doctor
 builder models
 builder pull
 builder ask --model qwen-coder --prompt "..."
+builder-lanes list
+builder-lanes show draft_patch_plan --context "..."
 builder start --task "..."
 builder start --model llama --task "..."
 builder switch-model qwen-coder
