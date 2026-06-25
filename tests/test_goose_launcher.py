@@ -5,8 +5,9 @@ from builder_ii.goose_launcher import goose_env, goose_status, recipe_path
 
 
 def _settings_with_base_url(base_url: str) -> Settings:
+    existing_root = Path.cwd()
     return Settings(
-        core_repo=Path("/tmp/core"),
+        core_repo=existing_root,
         backend="mlx-lm",
         model_tier="primary",
         model_alias="qwen-coder",
@@ -25,7 +26,7 @@ def _settings_with_base_url(base_url: str) -> Settings:
         host="127.0.0.1",
         port=8080,
         temperature=0.0,
-        project_root=Path.cwd(),
+        project_root=existing_root,
     )
 
 
