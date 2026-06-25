@@ -74,7 +74,7 @@ def setup() -> None:
     for item in result["recipe_validation"]:
         mark = "[green]OK[/]" if item["ok"] else "[red]FAIL[/]"
         console.print(f"{mark} {item['path']}")
-    console.print("\nNext: [bold]./scripts/pull-roster.sh recommended[/] then [bold]builder start --task '...'[/]")
+    console.print("\nNext: [bold]bash scripts/pull-roster.sh recommended[/] then [bold]builder start --task '...'[/]")
 
 
 @app.command("pull")
@@ -218,7 +218,7 @@ def models() -> None:
             definition.note,
         )
     console.print(table)
-    console.print("\nDownload: ./scripts/pull-roster.sh recommended | alias <name> | all-safe | candidates")
+    console.print("\nDownload: bash scripts/pull-roster.sh recommended | alias <name> | all-safe | candidates")
 
 
 @app.command("doctor")
