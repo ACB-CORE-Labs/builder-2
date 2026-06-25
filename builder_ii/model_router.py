@@ -1,15 +1,9 @@
-"""Phase 2 – Intent-Based Cognitive Routing.
+"""Intent-based cognitive routing for local CORE agent sessions.
 
-On an M1 with 16GB of unified memory, only one quantized model can be
-loaded at a time. This module acts as a fast-pass semantic filter:
-
-- Fast tier  → gemma-4-e4b (4.8 GB) or qwen2.5-coder-7b (4.5 GB)
-  Triggered by exploratory/read-only intent.
-
-- Primary tier → gemma-4-12b (6.5 GB), deepseek-coder-v2-lite, llama-3.1-8b
-  Triggered by structural/generative/verification intent.
-
-planner_same_as_execution is always True to prevent memory thrashing.
+The router is deliberately conservative for M1 16GB hardware. It does not try
+to load a second planner model. It selects one concrete model alias for the
+whole Goose session and records the routing rationale so the user can see why
+that model was chosen.
 """
 from __future__ import annotations
 
@@ -18,11 +12,8 @@ from dataclasses import dataclass
 
 SESSION_MODES = ("orchestrator", "quick", "deep", "coding")
 
-# ---------------------------------------------------------------------------
-# Tier classification patterns
-# ---------------------------------------------------------------------------
-
-# Exploratory / read-only keywords → fast tier
+# Exploratory / read-only keywords → fast tier. Phi is preferred because its
+# tiny footprint leaves maximum unified-memory headroom for KV cache.
 _FAST_PATTERNS = re.compile(
     r"\b("
     r"explain|what|where|find|search|list|describe|summarize"
@@ -32,36 +23,49 @@ _FAST_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
-# Structural / generative / destructive keywords → primary tier
+# Structural/generative work → primary tier. Qwen2.5-Coder 7B is the default
+# implementation model because it is code-specialized without overfilling RAM.
 _DEEP_PATTERNS = re.compile(
     r"\b("
-    r"implement|fix|verify|write|refactor|review|debug|add|create"
-    r"|patch|build|generate|migrate|optimize|port|rewrite|test"
-    r"|benchmark|profile|delete|remove|replace|rename|restructure"
-    r"|analyze|audit|enforce|validate|simulate"
+    r"implement|fix|write|refactor|debug|add|create|patch|build"
+    r"|generate|migrate|optimize|port|rewrite|test|delete|remove"
+    r"|replace|rename|restructure"
     r")\b",
     re.IGNORECASE,
 )
 
+# Formal review, invariant reasoning, and audit work benefits from the stricter
+# small reasoning model even when it is not purely read-only.
+_LOGIC_PATTERNS = re.compile(
+    r"\b("
+    r"audit|review|verify|validate|prove|proof|invariant|versor"
+    r"|cga|clifford|algebra|determine|refusal|refuse|safety"
+    r"|governance|contract|adr|simulate|benchmark|profile"
+    r")\b",
+    re.IGNORECASE,
+)
 
-# ---------------------------------------------------------------------------
-# Data structures
-# ---------------------------------------------------------------------------
+# Heavy context hints are not automatically routed to a heavy model. The M1
+# policy is to keep heavy candidates explicit opt-in via `builder switch-model`.
+_HEAVY_HINTS = re.compile(
+    r"\b(whole repo|entire repo|deep refactor|large refactor|multi-file sweep|"
+    r"cross-module|call graph|global migration|architecture-wide)\b",
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True)
 class SessionPlan:
     """Routing decision for a single Goose session."""
+
     mode: str
-    model_tier: str           # 'fast' | 'primary'
+    model_tier: str  # 'fast' | 'primary'
+    model_alias: str
     recipe_name: str
     planner_same_as_execution: bool  # Always True on M1 16GB
-    confidence: str           # 'high' | 'low' (regex matched vs default)
-    rationale: str            # Human-readable explanation
+    confidence: str  # 'high' | 'medium' | 'low'
+    rationale: str
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def recipe_for_mode(mode: str) -> str:
     if mode == "coding":
@@ -72,63 +76,93 @@ def recipe_for_mode(mode: str) -> str:
 def tier_for_mode(mode: str) -> str:
     if mode == "quick":
         return "fast"
-    if mode in ("deep", "orchestrator"):
-        return "primary"
     return "primary"
 
 
-def classify_task(text: str) -> tuple[str, str, str]:
-    """Return (tier, confidence, rationale) for a free-text task hint.
+def alias_for_mode(mode: str) -> str:
+    if mode == "quick":
+        return "phi-reasoning"
+    return "qwen-coder"
 
-    Priority: deep patterns win over fast patterns when both match,
-    because structural work is always safer to run at full capacity.
+
+def classify_task(text: str) -> tuple[str, str, str]:
+    """Return (tier, confidence, rationale) for backward-compatible callers.
+
+    Deep patterns win over fast patterns unless the task is explicitly a formal
+    audit/review/verification job, in which case Phi's small reasoning profile
+    is preferred. Use choose_model_alias() when the concrete model matters.
     """
+    tier, _alias, confidence, rationale = choose_model_alias(text)
+    return tier, confidence, rationale
+
+
+def choose_model_alias(text: str) -> tuple[str, str, str, str]:
+    """Return (tier, model_alias, confidence, rationale) for a free-text task."""
+    logic_match = _LOGIC_PATTERNS.search(text)
     deep_match = _DEEP_PATTERNS.search(text)
     fast_match = _FAST_PATTERNS.search(text)
+    heavy_match = _HEAVY_HINTS.search(text)
+
+    if logic_match and not deep_match:
+        return (
+            "fast",
+            "phi-reasoning",
+            "high",
+            f"Formal/constraint keyword '{logic_match.group()}' detected → phi-reasoning",
+        )
 
     if deep_match:
+        extra = ""
+        if heavy_match:
+            extra = "; heavy-context hint detected, but M1 policy keeps heavy models explicit opt-in"
         return (
             "primary",
+            "qwen-coder",
             "high",
-            f"Structural keyword '{deep_match.group()}' detected → primary tier",
+            f"Implementation keyword '{deep_match.group()}' detected → qwen-coder{extra}",
         )
+
+    if logic_match:
+        return (
+            "fast",
+            "phi-reasoning",
+            "high",
+            f"Formal/constraint keyword '{logic_match.group()}' detected → phi-reasoning",
+        )
+
     if fast_match:
         return (
             "fast",
+            "phi-reasoning",
             "high",
-            f"Exploratory keyword '{fast_match.group()}' detected → fast tier",
+            f"Exploratory keyword '{fast_match.group()}' detected → phi-reasoning",
         )
+
     return (
         "primary",
+        "qwen-coder",
         "low",
-        "No strong signal detected; defaulting to primary tier (safe)",
+        "No strong signal detected; defaulting to qwen-coder implementation lane",
     )
 
 
-# ---------------------------------------------------------------------------
-# Session planning
-# ---------------------------------------------------------------------------
-
 def plan_session(mode: str = "orchestrator", task_hint: str = "") -> SessionPlan:
-    """Return a routing plan for the given mode and optional task hint.
-
-    In orchestrator mode, task_hint drives semantic interception.
-    In all other modes, the mode itself determines the tier.
-    planner_same_as_execution is always True: one model at a time on M1.
-    """
+    """Return a concrete routing plan for the given mode and optional task hint."""
     if mode not in SESSION_MODES:
         raise ValueError(f"mode must be one of {SESSION_MODES}, got {mode!r}")
 
-    if mode == "orchestrator" and task_hint:
-        tier, confidence, rationale = classify_task(task_hint)
+    if task_hint:
+        tier, alias, confidence, rationale = choose_model_alias(task_hint)
     else:
         tier = tier_for_mode(mode)
+        alias = alias_for_mode(mode)
         confidence = "high"
-        rationale = f"Mode '{mode}' explicitly maps to {tier!r} tier"
+        rationale = f"Mode '{mode}' explicitly maps to {alias!r} ({tier} tier)"
 
     return SessionPlan(
         mode=mode,
         model_tier=tier,
+        model_alias=alias,
         recipe_name=recipe_for_mode(mode),
         planner_same_as_execution=True,
         confidence=confidence,
@@ -141,6 +175,7 @@ def explain_plan(plan: SessionPlan) -> str:
     lines = [
         f"Session mode  : {plan.mode}",
         f"Model tier    : {plan.model_tier}  (confidence: {plan.confidence})",
+        f"Model alias   : {plan.model_alias}",
         f"Recipe        : {plan.recipe_name}",
         f"Planner=Exec  : {plan.planner_same_as_execution}  (M1 16GB — one model at a time)",
         f"Rationale     : {plan.rationale}",
