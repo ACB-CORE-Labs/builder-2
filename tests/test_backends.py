@@ -2,8 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.backends import health_url
+from builder_ii.backends import check_serves_active_model, health_url
 from builder_ii.config import Settings
+
+
+class _Response:
+    def __init__(self, status_code: int, payload: object) -> None:
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self) -> object:
+        return self._payload
 
 
 def _settings(*, backend: str, base_url: str = "http://127.0.0.1:8080/v1") -> Settings:
@@ -41,3 +50,41 @@ def test_rapid_mlx_health_url_keeps_legacy_models_endpoint() -> None:
     settings = _settings(backend="rapid-mlx")
 
     assert health_url(settings, "/models") == "http://127.0.0.1:8080/models"
+
+
+def test_check_serves_active_model_passes_matching_mlx_model(monkeypatch) -> None:
+    settings = _settings(backend="mlx-lm")
+
+    def fake_get(url: str, timeout: float) -> _Response:
+        return _Response(200, {"data": [{"id": settings.active_model_id}]})
+
+    monkeypatch.setattr("builder_ii.backends.httpx.get", fake_get)
+
+    ok, message = check_serves_active_model(settings)
+
+    assert ok is True
+    assert settings.active_model_id in message
+
+
+def test_check_serves_active_model_fails_mismatched_mlx_model(monkeypatch) -> None:
+    settings = _settings(backend="mlx-lm")
+
+    def fake_get(url: str, timeout: float) -> _Response:
+        return _Response(200, {"data": [{"id": "mlx-community/Phi-4-mini-reasoning-4bit"}]})
+
+    monkeypatch.setattr("builder_ii.backends.httpx.get", fake_get)
+
+    ok, message = check_serves_active_model(settings)
+
+    assert ok is False
+    assert "selected model" in message
+    assert "Phi-4-mini-reasoning" in message
+
+
+def test_check_serves_active_model_skips_non_mlx_backend() -> None:
+    settings = _settings(backend="rapid-mlx")
+
+    ok, message = check_serves_active_model(settings)
+
+    assert ok is True
+    assert "skipped" in message
