@@ -47,10 +47,8 @@ def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict
     moim = write_moim_context(settings)
     env["GOOSE_MOIM_MESSAGE_FILE"] = str(moim)
 
-    tier = session.model_tier if session else settings.model_tier
-    alias = session.model_alias if session else settings.model_alias
-    env["BUILDER_MODEL_TIER"] = tier
-    env["BUILDER_MODEL_ALIAS"] = alias
+    env["BUILDER_MODEL_TIER"] = session.model_tier if session else settings.model_tier
+    env["BUILDER_MODEL_ALIAS"] = settings.model_alias
     env["BUILDER_SESSION_MODE"] = session.mode if session else "orchestrator"
 
     return env
