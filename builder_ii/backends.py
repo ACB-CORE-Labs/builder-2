@@ -9,6 +9,7 @@ import httpx
 
 from builder_ii.backend_state import check_backend_marker, read_backend_marker, write_backend_marker
 from builder_ii.config import Settings
+from builder_ii.model_policy import launch_block_reason
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,13 @@ def _bin(name: str) -> str:
     return found
 
 
+def ensure_backend_supports_model(settings: Settings) -> tuple[bool, str]:
+    reason = launch_block_reason(settings.model_alias, settings.backend)
+    if reason:
+        return False, reason
+    return True, f"backend {settings.backend} supports model alias {settings.model_alias}"
+
+
 def health_path_for_backend(settings: Settings) -> str:
     if settings.backend == "mlx-lm":
         # mlx_lm.server exposes OpenAI-compatible endpoints under /v1.
@@ -43,6 +51,10 @@ def health_path_for_backend(settings: Settings) -> str:
 
 
 def build_backend_spec(settings: Settings) -> BackendSpec:
+    supported, reason = ensure_backend_supports_model(settings)
+    if not supported:
+        raise ValueError(reason)
+
     host_flag = ("--host", settings.host)
     port_flag = ("--port", str(settings.port))
 
@@ -101,6 +113,10 @@ def health_url(settings: Settings, path: str) -> str:
 
 
 def check_health(settings: Settings, timeout: float = 3.0) -> tuple[bool, str]:
+    supported, reason = ensure_backend_supports_model(settings)
+    if not supported:
+        return True, reason
+
     url = health_url(settings, health_path_for_backend(settings))
     try:
         response = httpx.get(url, timeout=timeout)
@@ -151,6 +167,10 @@ def _model_id_matches(expected: str, served: str) -> bool:
 
 
 def served_models(settings: Settings, timeout: float = 3.0) -> ServedModelStatus:
+    supported, reason = ensure_backend_supports_model(settings)
+    if not supported:
+        return ServedModelStatus(False, reason, ())
+
     url = health_url(settings, health_path_for_backend(settings))
     try:
         response = httpx.get(url, timeout=timeout)
@@ -173,6 +193,10 @@ def served_models(settings: Settings, timeout: float = 3.0) -> ServedModelStatus
 
 
 def check_serves_active_model(settings: Settings, timeout: float = 3.0) -> tuple[bool, str]:
+    supported, reason = ensure_backend_supports_model(settings)
+    if not supported:
+        return False, reason
+
     if settings.backend != "mlx-lm":
         return True, f"served-model identity check skipped for backend={settings.backend}"
 

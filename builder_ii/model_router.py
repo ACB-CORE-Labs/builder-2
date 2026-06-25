@@ -7,12 +7,15 @@ that model was chosen.
 """
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass
 
+from builder_ii.config import normalize_model_alias
+
 SESSION_MODES = ("orchestrator", "quick", "deep", "coding")
 
-# Exploratory / read-only keywords → fast tier. Phi is preferred because its
+# Exploratory / read-only keywords -> fast tier. Phi is preferred because its
 # tiny footprint leaves maximum unified-memory headroom for KV cache.
 _FAST_PATTERNS = re.compile(
     r"\b("
@@ -23,7 +26,7 @@ _FAST_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
-# Structural/generative work → primary tier. Qwen2.5-Coder 7B is the default
+# Structural/generative work -> primary tier. Qwen2.5-Coder 7B is the default
 # implementation model because it is code-specialized without overfilling RAM.
 _DEEP_PATTERNS = re.compile(
     r"\b("
@@ -58,7 +61,13 @@ def _snippet(text: str, limit: int = 80) -> str:
     compact = " ".join(text.split())
     if len(compact) <= limit:
         return compact
-    return compact[: limit - 1].rstrip() + "…"
+    return compact[: limit - 1].rstrip() + "..."
+
+
+def tier_for_alias(alias: str) -> str:
+    if alias in {"phi-reasoning", "gemma-fast"}:
+        return "fast"
+    return "primary"
 
 
 @dataclass(frozen=True)
@@ -116,7 +125,7 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
             "fast",
             "phi-reasoning",
             "high",
-            f"Formal/constraint keyword '{logic_match.group()}' detected in task '{task_snippet}' → phi-reasoning",
+            f"Formal/constraint keyword '{logic_match.group()}' detected in task '{task_snippet}' -> phi-reasoning",
         )
 
     if deep_match:
@@ -127,7 +136,7 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
             "primary",
             "qwen-coder",
             "high",
-            f"Implementation keyword '{deep_match.group()}' detected in task '{task_snippet}' → qwen-coder{extra}",
+            f"Implementation keyword '{deep_match.group()}' detected in task '{task_snippet}' -> qwen-coder{extra}",
         )
 
     if logic_match:
@@ -135,7 +144,7 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
             "fast",
             "phi-reasoning",
             "high",
-            f"Formal/constraint keyword '{logic_match.group()}' detected in task '{task_snippet}' → phi-reasoning",
+            f"Formal/constraint keyword '{logic_match.group()}' detected in task '{task_snippet}' -> phi-reasoning",
         )
 
     if fast_match:
@@ -143,7 +152,7 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
             "fast",
             "phi-reasoning",
             "high",
-            f"Exploratory keyword '{fast_match.group()}' detected in task '{task_snippet}' → phi-reasoning",
+            f"Exploratory keyword '{fast_match.group()}' detected in task '{task_snippet}' -> phi-reasoning",
         )
 
     return (
@@ -159,7 +168,13 @@ def plan_session(mode: str = "orchestrator", task_hint: str = "") -> SessionPlan
     if mode not in SESSION_MODES:
         raise ValueError(f"mode must be one of {SESSION_MODES}, got {mode!r}")
 
-    if task_hint:
+    env_alias = os.getenv("CORE_AGENT_MODEL_ALIAS")
+    if env_alias:
+        alias = normalize_model_alias(env_alias, tier_fallback=tier_for_mode(mode))
+        tier = tier_for_alias(alias)
+        confidence = "high"
+        rationale = f"CORE_AGENT_MODEL_ALIAS explicitly selects {alias!r}; task router is bypassed"
+    elif task_hint:
         tier, alias, confidence, rationale = choose_model_alias(task_hint)
     else:
         tier = tier_for_mode(mode)
@@ -185,7 +200,7 @@ def explain_plan(plan: SessionPlan) -> str:
         f"Model tier    : {plan.model_tier}  (confidence: {plan.confidence})",
         f"Model alias   : {plan.model_alias}",
         f"Recipe        : {plan.recipe_name}",
-        f"Planner=Exec  : {plan.planner_same_as_execution}  (M1 16GB — one model at a time)",
+        f"Planner=Exec  : {plan.planner_same_as_execution}  (M1 16GB - one model at a time)",
         f"Rationale     : {plan.rationale}",
     ]
     return "\n".join(lines)

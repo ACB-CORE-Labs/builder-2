@@ -1,4 +1,11 @@
+import pytest
+
 from builder_ii.model_router import classify_task, choose_model_alias, plan_session, tier_for_mode
+
+
+@pytest.fixture(autouse=True)
+def clear_model_alias_env(monkeypatch):
+    monkeypatch.delenv("CORE_AGENT_MODEL_ALIAS", raising=False)
 
 
 def test_quick_mode_uses_fast_tier_and_phi_alias():
@@ -40,6 +47,16 @@ def test_heavy_hint_does_not_auto_select_heavy_model():
     assert tier == "primary"
     assert alias == "qwen-coder"
     assert "explicit opt-in" in rationale
+
+
+def test_env_model_alias_overrides_task_router(monkeypatch):
+    monkeypatch.setenv("CORE_AGENT_MODEL_ALIAS", "gemma-fast")
+
+    plan = plan_session("orchestrator", "test model launch policy")
+
+    assert plan.model_tier == "fast"
+    assert plan.model_alias == "gemma-fast"
+    assert "CORE_AGENT_MODEL_ALIAS" in plan.rationale
 
 
 def test_tier_for_mode_preserved():
