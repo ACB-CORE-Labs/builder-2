@@ -1,0 +1,20 @@
+version: "1.0.0"
+title: "CORE Plan"
+description: "Plan the smallest safe CORE development slice before edits."
+instructions: |
+  Plan before changing files. Keep the scope small. Identify files to inspect, expected change shape, risks, and validation commands. Do not edit files in this recipe.
+prompt: |
+  Plan the smallest safe slice for: {{ task }}
+parameters:
+  - key: task
+    input_type: string
+    requirement: required
+    description: "What to plan"
+settings:
+  temperature: 0.0
+  max_turns: 20
+extensions:
+  - type: builtin
+    name: developer
+    bundled: true
+    timeout: 300
