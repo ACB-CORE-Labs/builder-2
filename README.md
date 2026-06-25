@@ -4,6 +4,8 @@
 
 The design goal is not to pretend a small local model is a frontier cloud system. The goal is to place the local model inside strong rails: exact context injection, model memory discipline, read-before-write workflow, deterministic verification, and handoff continuity.
 
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the current product scope: builder-II is a practical Goose/local-agent development cockpit for CORE, not a second CORE runtime.
+
 ## Hardware target
 
 Primary target: Apple Silicon MacBook Pro M1 with 16GB unified memory.
