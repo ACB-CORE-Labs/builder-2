@@ -6,7 +6,7 @@ It is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CORE remai
 
 ## Current status
 
-builder-II is complete on the no-runtime governance foundation. Verification profiles, handoff artifacts, quality gate artifacts, and research planning artifacts are post-foundation extension surfaces and remain artifact-only. Goose runtime behavior is now specified as a design boundary, not enabled.
+builder-II is complete on the no-runtime governance foundation. Verification profiles, handoff artifacts, quality gate artifacts, research planning artifacts, and Goose session manifests remain artifact-only. Goose runtime behavior is specified as a design boundary, not enabled.
 
 Completed foundation surfaces:
 
@@ -26,6 +26,7 @@ Completed foundation surfaces:
 - research planning artifacts
 - Goose runtime design spec
 - runtime promotion contract
+- Goose session manifest artifacts
 
 The current foundation is intentionally no-runtime:
 
@@ -35,7 +36,7 @@ The current foundation is intentionally no-runtime:
 - no model execution through the bridge
 - no command execution from quality gates
 - no search, MCP, or source collection from research plans
-- no Goose runtime activation from the spec docs
+- no Goose runtime activation from specs or manifests
 - no memory mutation
 - no commit/push automation
 - no CORE Workbench/UI coupling
@@ -59,6 +60,8 @@ builder-quality plan --target builder --profile builder_full --task "..." --outp
 builder-quality validate .builder/artifacts/quality-gate.json
 builder-notes handoff --target builder --agent handoff_scribe --task "..." --summary "..." --output .builder/artifacts/handoff.json
 builder-notes validate .builder/artifacts/handoff.json
+builder-goose manifest --target builder --agent patch_planner --mode read_only --task "..." --output .builder/artifacts/goose-session.json
+builder-goose validate .builder/artifacts/goose-session.json
 builder-bridge render patch_planner --target builder --format json --output .builder/artifacts/bridge-spec.json
 builder-bridge validate-artifact .builder/artifacts/bridge-spec.json
 ```
@@ -68,8 +71,8 @@ builder-bridge validate-artifact .builder/artifacts/bridge-spec.json
 These are not required for the governance foundation, but remain planned thin extensions:
 
 - prompt/eval lanes
-- Goose session manifest artifact
 - read-only runner candidate
+- runtime audit artifacts
 - later HITL-gated runtime candidate
 
 Each future capability must satisfy the capability promotion rule before it can move beyond disabled/spec/artifact/validation states.

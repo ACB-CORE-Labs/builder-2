@@ -15,7 +15,7 @@ builder-II is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CO
 
 ## Current baseline
 
-Completed foundation through PR #32:
+Completed foundation through PR #33:
 
 ```text
 DONE  target profiles
@@ -31,9 +31,11 @@ DONE  verification profile registry
 DONE  handoff artifacts
 DONE  quality gate artifacts
 DONE  research planning artifacts
+DONE  Goose runtime design spec
+DONE  runtime promotion contract
 ```
 
-The artifact foundation is complete. The next work is runtime design and then explicitly promoted runtime candidates.
+The artifact foundation is complete. The current work is Goose session manifests, still with no runtime activation.
 
 ## North Star operating loop
 
@@ -52,7 +54,8 @@ builder-notes handoff --target builder --agent handoff_scribe --task "..." --sum
 builder-notes validate .builder/artifacts/handoff.json
 builder-quality plan --target builder --profile builder_full --task "..." --output .builder/artifacts/quality-gate.json
 builder-quality validate .builder/artifacts/quality-gate.json
-builder-goose manifest --target builder --bundle .builder/artifacts/target-bundle.json --output .builder/artifacts/goose-session.json
+builder-goose manifest --target builder --mode read_only --bundle .builder/artifacts/target-bundle.json --output .builder/artifacts/goose-session.json
+builder-goose validate .builder/artifacts/goose-session.json
 builder-goose start-readonly --target builder --bundle .builder/artifacts/target-bundle.json
 builder-deepagents render --target builder --agent patch_planner --mode readonly --output .builder/artifacts/deepagents-runtime-spec.json
 builder-deepagents validate .builder/artifacts/deepagents-runtime-spec.json
@@ -82,9 +85,9 @@ These artifacts remain evidence and review objects. They are not runtime authori
 
 ## Phase 2: Goose runtime design layer
 
-Goal: formally define Goose as the primary runtime under builder-II governance.
+Status: complete through PR #33.
 
-Add `docs/GOOSE_RUNTIME.md` and `docs/RUNTIME_PROMOTION.md`.
+Goose is formally defined as the primary local runtime/operator under builder-II governance. Runtime modes and promotion requirements are specified, but no runtime is enabled by design docs.
 
 Runtime modes:
 
@@ -101,9 +104,11 @@ No code execution is enabled by the design docs alone.
 
 ## Phase 3: read-only runtime candidate
 
-Add `builder-goose manifest`, `builder-goose validate`, and `builder-goose start-readonly`.
+Add `builder-goose manifest`, `builder-goose validate`, and later `builder-goose start-readonly`.
 
-Read-only mode may inspect files, git status, repo tree, and docs, and may produce plans and handoffs. It must not edit files, write source, execute arbitrary shell, commit, push, mutate memory, or open PRs.
+The manifest step is artifact-only. It may describe a requested future mode, link target/verification/quality/handoff/context artifacts, and name an expected audit artifact. It must not start Goose.
+
+Read-only mode may later inspect files, git status, repo tree, and docs, and may produce plans and handoffs. It must not edit files, write source, execute arbitrary shell, commit, push, mutate memory, or open PRs.
 
 Every runtime session must emit a runtime audit artifact recording mode, target, task, files read, requested actions, denied actions, approval events, and handoff summary.
 
@@ -199,8 +204,8 @@ Deephaven remains untouched.
 #30 handoff artifacts                      MERGED
 #31 quality gate artifacts                 MERGED
 #32 research planning profiles/artifacts   MERGED
-#33 Goose runtime ADR/spec                 CURRENT
-#34 Goose session manifest
+#33 Goose runtime ADR/spec                 MERGED
+#34 Goose session manifest                 CURRENT
 #35 Goose read-only runtime candidate
 #36 deepagents readonly runtime spec
 #37 deepagents planning harness
