@@ -119,7 +119,7 @@ def validate(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Deepagents policy artifact {path} is valid.")
+    console.print(f"Deepagents policy artifact is valid: {path}")
 
 
 @deepagents_app.command("readiness")
@@ -150,4 +150,4 @@ def validate_readiness(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Deepagents readiness artifact {path} is valid.")
+    console.print(f"Deepagents readiness artifact is valid: {path}")

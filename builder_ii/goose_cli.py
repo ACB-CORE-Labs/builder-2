@@ -140,4 +140,4 @@ def validate_audit(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Goose read-only audit {path} is valid.")
+    console.print(f"Goose read-only audit is valid: {path}")
