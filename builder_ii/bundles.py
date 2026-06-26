@@ -58,10 +58,11 @@ def _governance_dict() -> dict[str, Any]:
 
 
 def _suggested_next_steps(target: TargetName, agent: AgentProfileName) -> list[str]:
+    verification_profile = default_profile_for_target(target).name
     return [
         f"builder-targets show {target}",
         f"builder-agent render {agent} --target {target}",
-        f"builder-verification artifact --target {target} --profile <profile> --output .builder/artifacts/verification-profile.json",
+        f"builder-verification artifact {verification_profile} --target {target} --output .builder/artifacts/verification-profile.json",
         "builder-verification validate .builder/artifacts/verification-profile.json",
         f"builder-bridge render {agent} --target {target} --format json --output .builder/artifacts/bridge-spec.json",
         "builder-bridge validate-artifact .builder/artifacts/bridge-spec.json",
