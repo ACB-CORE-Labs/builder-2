@@ -17,7 +17,7 @@ Builder-II governance is the sovereign boundary. Goose and deepagents are subord
 
 ## Current baseline
 
-Completed foundation through PR #34:
+Completed foundation through the read-only audit candidate:
 
 ```text
 DONE  target profiles
@@ -36,9 +36,10 @@ DONE  research planning artifacts
 DONE  Goose runtime design spec
 DONE  runtime promotion contract
 DONE  Goose session manifest artifacts
+DONE  Goose read-only candidate audit artifacts
 ```
 
-The artifact foundation is complete. Goose session manifests are now a governed artifact-only surface. The current work moves toward the read-only runtime candidate, still without autonomous writes, shell execution, source mutation, model execution, or runtime authority by default.
+The artifact foundation is complete. Goose session manifests are a governed artifact-only surface. The read-only candidate now stabilizes the manifest-to-audit path while still denying actual Goose runtime start, repository file reads, git status inspection, linked artifact reads, autonomous writes, shell execution, source mutation, model execution, and runtime authority by default.
 
 ## North Star operating loop
 
@@ -59,6 +60,8 @@ builder-quality plan --target builder --profile builder_full --task "..." --outp
 builder-quality validate .builder/artifacts/quality-gate.json
 builder-goose manifest --target builder --mode read_only --bundle .builder/artifacts/target-bundle.json --output .builder/artifacts/goose-session.json
 builder-goose validate .builder/artifacts/goose-session.json
+builder-goose readonly-audit .builder/artifacts/goose-session.json --output .builder/artifacts/goose-runtime-audit.json
+builder-goose validate-audit .builder/artifacts/goose-runtime-audit.json
 builder-goose start-readonly --manifest .builder/artifacts/goose-session.json
 builder-deepagents render --target builder --agent patch_planner --mode readonly --output .builder/artifacts/deepagents-runtime-spec.json
 builder-deepagents validate .builder/artifacts/deepagents-runtime-spec.json
@@ -117,12 +120,24 @@ No code execution is enabled by the design docs or manifests alone.
 
 ## Phase 3: read-only runtime candidate
 
-Status: current next runtime-adjacent work.
+Status: candidate audit artifact surface implemented; actual repository inspection remains unpromoted.
 
-The read-only candidate must consume a valid Goose session manifest and emit a runtime audit artifact. It may inspect files, git status, repo tree, docs, and existing artifacts only after promotion.
+Implemented candidate surfaces:
+
+- `docs/GOOSE_READONLY.md`
+- `builder_ii/goose_readonly.py`
+- `builder-goose readonly-audit`
+- `builder-goose validate-audit`
+- read-only candidate audit artifact tests
+
+The read-only candidate consumes a valid Goose session manifest with `requested_runtime_mode: read_only` and emits a runtime audit artifact. This first candidate does not yet inspect files, git status, repo tree, docs, or linked target artifacts.
 
 It must not:
 
+- start Goose
+- read repository files as runtime behavior
+- inspect git status as runtime behavior
+- read linked target artifacts as runtime behavior
 - edit files
 - write source
 - execute arbitrary shell
@@ -130,17 +145,22 @@ It must not:
 - commit or push
 - mutate memory
 - open pull requests
-- call models beyond configured and approved boundaries
+- call models
+- construct deepagents
+- collect sources, run web search, or run MCP tools
 - bypass target profiles, verification profiles, quality gates, approvals, or audit artifacts
 
-Required before promotion:
+Required before actual read-only inspection is promoted:
 
-- runtime audit artifact schema
-- read-only command surface
 - target-boundary rules or file-read allowlist
+- repository file read recording
+- git status recording
+- linked target artifact read recording
 - denied-action tests
 - no-write tests
 - no-shell tests
+- no-command tests
+- no-model-call tests
 - interruption recovery path
 - postflight/handoff behavior
 
@@ -222,6 +242,7 @@ builder-II chooses target/profile/context
 → target bundle artifact
 → verification profile artifact
 → Goose session manifest
+→ read-only audit artifact
 → optional deepagents planning/subagents
 → Goose performs approved read-only inspection
 → agent proposes command or patch artifacts
@@ -309,20 +330,21 @@ Deephaven remains untouched.
 #32 research planning profiles/artifacts   MERGED
 #33 Goose runtime ADR/spec                 MERGED
 #34 Goose session manifest                 MERGED
-#35 Goose read-only runtime candidate      CURRENT NEXT
-#36 runtime audit artifact schema
-#37 deepagents readonly planning spec
-#38 model routing policy artifacts
-#39 HITL command proposal/approval flow
-#40 approved verification command runner
-#41 HITL patch proposal flow
-#42 approved patch application flow
-#43 end-to-end builder target demo
-#44 generic target demo
-#45 CORE target profile demo
-#46 research target/open_deep_research demo
-#47 performance candidate benchmarks
-#48 production docs/playbooks/release checklist
+#35 docs reconciliation                    MERGED
+#36 Goose read-only candidate audit        CURRENT
+#37 actual read-only inspection boundary
+#38 deepagents readonly planning spec
+#39 model routing policy artifacts
+#40 HITL command proposal/approval flow
+#41 approved verification command runner
+#42 HITL patch proposal flow
+#43 approved patch application flow
+#44 end-to-end builder target demo
+#45 generic target demo
+#46 CORE target profile demo
+#47 research target/open_deep_research demo
+#48 performance candidate benchmarks
+#49 production docs/playbooks/release checklist
 ```
 
 The masterpiece is builder-II-governed, Goose-centered, deepagents-augmented only when useful, target-profile-driven, artifact-audited, model-policy-aware, performance-conscious, and HITL-safe.
