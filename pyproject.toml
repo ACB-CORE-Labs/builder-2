@@ -29,6 +29,7 @@ builder-targets = "builder_ii.targets_cli:targets_app"
 builder-agent = "builder_ii.agent_cli:agent_app"
 builder-bridge = "builder_ii.bridge_cli:bridge_app"
 builder-bundle = "builder_ii.bundle_cli:bundle_app"
+builder-notes = "builder_ii.notes_cli:notes_app"
 builder-verification = "builder_ii.verification_cli:verification_app"
 
 [dependency-groups]
