@@ -1,6 +1,6 @@
 # builder-II
 
-`builder-II` is a generic governed local agent/developer platform for MacBook Pro M1 work when cloud coding tools are unavailable. It wraps Codename Goose with practical development governance, MLX-native local models, task-aware model routing, resumable downloads, runtime controls, Goose recipes, skills, target profiles, and verification helpers.
+`builder-II` is a generic governed local agent/developer platform for MacBook Pro M1 work when cloud coding tools are unavailable. It wraps Codename Goose with practical development governance, MLX-native local models, task-aware model routing, resumable downloads, runtime controls, Goose recipes, skills, target profiles, agent profiles, and verification helpers.
 
 The design goal is not to pretend a small local model is a frontier cloud system. The goal is to give the operator a usable local development platform with clear setup, prompts, recipes, tools, runtime boundaries, target boundaries, and validation commands.
 
@@ -15,6 +15,7 @@ Start here if you are evaluating or sharing the project:
 | [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the platform and its components. |
 | [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
 | [`docs/TARGETS.md`](docs/TARGETS.md) | Explicit target profiles: generic, builder, and core. |
+| [`docs/AGENTS.md`](docs/AGENTS.md) | Generic agent profiles and authority contracts. |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Scope, non-goals, and near-term platform direction. |
 | [`docs/model_role_matrix.md`](docs/model_role_matrix.md) | Model aliases, runtime lanes, recommended use, and avoid boundaries. |
@@ -42,6 +43,7 @@ builder-II currently includes:
 - Goose recipes for platform, coding, plan, explore, implement, review, verify, and handoff flows;
 - builder-II skills copied into the selected target repo;
 - explicit target profiles via `builder-targets`;
+- generic agent profiles via `builder-agent`;
 - lane guides, personas, and capability boundaries for prompt/task organization;
 - external tool registry via `builder-tools`;
 - optional external tool installer via `scripts/install-tools.sh`;
@@ -126,6 +128,8 @@ builder doctor
 builder models
 builder-targets validate
 builder-targets list
+builder-agent validate
+builder-agent profiles
 bash scripts/install-tools.sh required
 builder-tools check --tier tier1
 builder-context pack --target builder --no-repomix
@@ -172,6 +176,33 @@ core     AssetOverflow/core as a target repo
 ```
 
 CORE is a target profile, not builder-II's platform identity. CORE Workbench/UI remains separate from builder-II.
+
+## Agent profiles
+
+Inspect generic agent profiles with:
+
+```bash
+builder-agent profiles
+builder-agent profiles --target builder
+builder-agent show patch_planner
+builder-agent render patch_planner --target generic
+builder-agent render patch_planner --target builder
+builder-agent render verification_planner --target core
+builder-agent validate
+```
+
+Initial profiles:
+
+```text
+repo_mapper
+context_planner
+code_reviewer
+patch_planner
+verification_planner
+handoff_scribe
+```
+
+These profiles only render prompt and authority contracts. They do not call models, invoke deepagents, edit files, execute shell commands, or write notes.
 
 ## External engineering tools
 
@@ -236,10 +267,12 @@ Use `/implement` only after the local provider's tool execution path is explicit
 ```bash
 git status --short --branch
 builder-targets list
+builder-agent profiles
 builder status
 builder doctor
 builder-runtime status
 builder-context pack --target builder --changed --task "current builder-II work"
+builder-agent render patch_planner --target builder
 builder start --task "<specific target task>"
 ```
 
@@ -296,6 +329,7 @@ builder doctor
 builder status
 builder models
 builder-targets validate
+builder-agent validate
 builder-runtime status
 bash scripts/pull-roster.sh status
 builder-tools check
@@ -313,6 +347,7 @@ Common fixes:
 | session slows badly | Stop, switch to `phi-reasoning` or `qwen-coder`, and avoid heavy aliases. |
 | CORE path wrong | Edit `CORE_REPO_PATH` in `.env`. |
 | target unclear | Run `builder-targets list` and `builder-targets show <target>`. |
+| agent profile unclear | Run `builder-agent profiles` and `builder-agent show <profile>`. |
 | external tool missing | Run `builder-tools missing` and install the listed tool. |
 | context pack fails | Confirm `--target core` versus `--target builder`, then run with `--no-repomix` to validate selection without Repomix. |
 | local model emits JSON instead of using tools | Treat the session as text-only; do not accept autonomous edits until a tool smoke passes. |
@@ -328,6 +363,10 @@ builder ask --model qwen-coder --prompt "..."
 builder-targets list
 builder-targets show builder
 builder-targets validate
+builder-agent profiles
+builder-agent show patch_planner
+builder-agent render patch_planner --target builder
+builder-agent validate
 builder-lanes list
 builder-lanes show draft_patch_plan --context "..."
 builder-tools list
