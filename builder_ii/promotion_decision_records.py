@@ -11,6 +11,7 @@ PromotionDecision = Literal["approved", "blocked"]
 
 PROMOTION_DECISION_RECORD_KIND = "builder_ii.promotion_decision_record"
 PROMOTION_DECISION_RECORD_SCHEMA_VERSION = 1
+_READINESS_STATUSES = {"ready", "blocked"}
 
 
 def _digest(value: dict[str, Any]) -> str:
@@ -109,6 +110,31 @@ def write_promotion_decision_record(record: dict[str, Any], output: Path) -> Non
     output.write_text(dumps_promotion_decision_record(record), encoding="utf-8")
 
 
+def _validate_readiness_ref(readiness: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(readiness, dict):
+        return ["readiness must be an object"]
+    if readiness.get("expected_kind") != PROMOTION_READINESS_RECORD_KIND:
+        errors.append(f"readiness.expected_kind must be {PROMOTION_READINESS_RECORD_KIND}")
+    if readiness.get("kind") != PROMOTION_READINESS_RECORD_KIND:
+        errors.append(f"readiness.kind must be {PROMOTION_READINESS_RECORD_KIND}")
+    if not readiness.get("path"):
+        errors.append("readiness.path is required")
+    if not readiness.get("sha256"):
+        errors.append("readiness.sha256 is required")
+    if readiness.get("status") not in _READINESS_STATUSES:
+        errors.append("readiness.status must be ready or blocked")
+    if not isinstance(readiness.get("ready"), bool):
+        errors.append("readiness.ready must be a boolean")
+    elif readiness.get("status") == "ready" and readiness.get("ready") is not True:
+        errors.append("readiness.ready must be true when status is ready")
+    elif readiness.get("status") == "blocked" and readiness.get("ready") is not False:
+        errors.append("readiness.ready must be false when status is blocked")
+    if not readiness.get("capability_name"):
+        errors.append("readiness.capability_name is required")
+    return errors
+
+
 def validate_promotion_decision_record(record: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(record, dict):
@@ -123,14 +149,19 @@ def validate_promotion_decision_record(record: Any) -> list[str]:
         errors.append("current_state must be DISABLED")
     if record.get("decision") not in ("approved", "blocked"):
         errors.append("decision must be approved or blocked")
-    if record.get("approved") is not (record.get("decision") == "approved" and record.get("blockers") == []):
-        errors.append("approved must match decision and blockers")
-    if not isinstance(record.get("blockers"), list):
+    blockers = record.get("blockers")
+    if not isinstance(blockers, list):
         errors.append("blockers must be a list")
+        blockers = []
+    if record.get("decision") == "approved" and blockers:
+        errors.append("approved decision must not have blockers")
+    if record.get("approved") is not (record.get("decision") == "approved" and blockers == []):
+        errors.append("approved must match decision and blockers")
     if not record.get("decided_by"):
         errors.append("decided_by is required")
-    if record.get("readiness", {}).get("expected_kind") != PROMOTION_READINESS_RECORD_KIND:
-        errors.append(f"readiness.expected_kind must be {PROMOTION_READINESS_RECORD_KIND}")
+    errors.extend(_validate_readiness_ref(record.get("readiness")))
+    if not isinstance(record.get("checks"), list):
+        errors.append("checks must be a list")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
