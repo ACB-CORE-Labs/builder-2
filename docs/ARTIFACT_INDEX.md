@@ -32,6 +32,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.verification_profile`
 - `builder_ii.context_pack_record`
 - `builder_ii.agent_profile_record`
+- `builder_ii.git_state_record`
 
 ## CLI
 

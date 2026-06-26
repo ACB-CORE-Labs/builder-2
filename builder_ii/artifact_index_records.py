@@ -19,6 +19,7 @@ from builder_ii.context_pack import CONTEXT_PACK_RECORD_KIND, validate_context_p
 from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_state_ledger_record
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
 from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND, validate_profile_artifact
+from builder_ii.git_state import GIT_STATE_RECORD_KIND, validate_git_state_record
 
 
 
@@ -56,6 +57,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     VERIFICATION_ARTIFACT_KIND: validate_profile_artifact,
     CONTEXT_PACK_RECORD_KIND: validate_context_pack_record,
     AGENT_PROFILE_RECORD_KIND: validate_agent_profile_record,
+    GIT_STATE_RECORD_KIND: validate_git_state_record,
 }
 
 
