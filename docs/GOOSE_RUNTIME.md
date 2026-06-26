@@ -52,7 +52,7 @@ hitl_write
 
 ### disabled
 
-Current default. No runtime session is started by this spec or by a Goose session manifest.
+Current default. No runtime session is started by this spec, by a Goose session manifest, or by a read-only candidate audit artifact.
 
 Allowed:
 
@@ -73,15 +73,31 @@ Denied:
 
 ### read_only
 
-Future candidate mode. It may inspect files, repo tree, git status, docs, and artifacts only after promotion.
+Candidate mode. The current implemented surface validates a read-only Goose session manifest and emits a read-only runtime candidate audit artifact.
 
-Allowed only after promotion:
+Implemented candidate surfaces:
+
+- `docs/GOOSE_READONLY.md`
+- `builder-goose readonly-audit`
+- `builder-goose validate-audit`
+
+Current candidate behavior:
+
+- validates an existing Goose session manifest
+- requires `requested_runtime_mode: read_only`
+- emits a runtime audit artifact
+- records that no Goose process started
+- records that no repository files were read
+- records that no git status inspection happened
+- records that no linked target artifacts were read
+- records that no commands, shell, model calls, writes, commits, pushes, pull requests, MCP, web search, or source collection occurred
+
+Allowed only after future promotion:
 
 - read repository files inside target-boundary rules
 - inspect git status
 - inspect target artifacts
-- emit a runtime audit artifact
-- emit planning and handoff artifacts
+- emit planning and handoff artifacts from actual inspection
 
 Denied:
 
@@ -195,15 +211,19 @@ The manifest is evidence and configuration. It is not authority by itself. A val
 
 Every promoted runtime mode must emit an audit artifact.
 
-Required fields:
+The current read-only candidate audit artifact is an early audit-surface implementation. It proves only that builder-II can validate a read-only manifest and emit an audit record while runtime authority remains disabled.
+
+Required audit fields include:
 
 - runtime mode
 - target
 - task
-- session manifest hash or path
-- start and end timestamps
+- session manifest path
+- timestamps
 - files read
-- artifacts read
+- repository files read
+- target artifacts read
+- git status inspection state
 - commands proposed
 - commands executed if any
 - writes proposed
@@ -213,6 +233,7 @@ Required fields:
 - verification output references
 - rollback references
 - handoff reference
+- governance boundary
 
 Audit artifacts are mandatory before any runtime mode can be considered complete.
 
@@ -243,4 +264,4 @@ builder-II must not become CORE, CORE Workbench/UI, or a second CORE runtime. An
 
 This document does not promote any runtime capability. It authorizes only future design and artifact work.
 
-Before any mode moves beyond disabled/spec/artifact/validation state, it must satisfy the capability promotion rule: docs, tests, command surface, failure mode, human approval boundary, output artifact, rollback path, and verification path.
+The current read-only audit artifact does not promote actual read-only repository inspection. Before any mode moves beyond disabled/spec/artifact/validation state, it must satisfy the capability promotion rule: docs, tests, command surface, failure mode, human approval boundary, output artifact, rollback path, and verification path.
