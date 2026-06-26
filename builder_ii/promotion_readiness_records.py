@@ -99,6 +99,14 @@ def write_promotion_readiness_record(record: dict[str, Any], output: Path) -> No
     output.write_text(dumps_promotion_readiness_record(record), encoding="utf-8")
 
 
+def _string_list_errors(value: Any, *, field: str) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{field} must be a list"]
+    if any(not isinstance(item, str) or not item for item in value):
+        return [f"{field} must be a list of non-empty strings"]
+    return []
+
+
 def _validate_check(check: Any, index: int) -> list[str]:
     """Validate shape of a single check entry."""
     errors: list[str] = []
@@ -107,12 +115,10 @@ def _validate_check(check: Any, index: int) -> list[str]:
         return [f"{prefix} must be an object"]
     if not isinstance(check.get("name"), str) or not check["name"]:
         errors.append(f"{prefix}.name must be a non-empty string")
-    if not isinstance(check.get("refs"), list):
-        errors.append(f"{prefix}.refs must be a list")
+    errors.extend(_string_list_errors(check.get("refs"), field=f"{prefix}.refs"))
     if not isinstance(check.get("ready"), bool):
         errors.append(f"{prefix}.ready must be a boolean")
-    if not isinstance(check.get("missing"), list):
-        errors.append(f"{prefix}.missing must be a list")
+    errors.extend(_string_list_errors(check.get("missing"), field=f"{prefix}.missing"))
     # Cross-field consistency within check
     if isinstance(check.get("refs"), list) and isinstance(check.get("ready"), bool):
         expected_ready = bool(check["refs"])
@@ -140,9 +146,9 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
         errors.append("current_state must be DISABLED")
     if record.get("capability_state") != "promotion_readiness_record":
         errors.append("capability_state must be promotion_readiness_record")
-    if not record.get("capability_name"):
+    if not isinstance(record.get("capability_name"), str) or not record["capability_name"]:
         errors.append("capability_name is required")
-    if not record.get("target_state"):
+    if not isinstance(record.get("target_state"), str) or not record["target_state"]:
         errors.append("target_state is required")
     if record.get("status") not in ("ready", "blocked"):
         errors.append("status must be ready or blocked")
@@ -150,8 +156,7 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
         errors.append("ready must be a boolean")
     elif record.get("ready") is not (record.get("status") == "ready"):
         errors.append("ready must match status")
-    if not isinstance(record.get("missing"), list):
-        errors.append("missing must be a list")
+    errors.extend(_string_list_errors(record.get("missing"), field="missing"))
     # Validate checks structure and required check names
     checks = record.get("checks")
     if not isinstance(checks, list):
@@ -186,6 +191,8 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
+        if governance.get("capability_state") != "promotion_readiness_record":
+            errors.append("governance.capability_state must be promotion_readiness_record")
         for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
