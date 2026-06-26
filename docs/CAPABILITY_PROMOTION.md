@@ -2,7 +2,7 @@
 
 builder-II capabilities must move through explicit, documented promotion states. A capability is never enabled merely because code exists, a dependency imports, an artifact validates, or an agent profile can be rendered.
 
-This registry records current artifact and bridge capabilities and the gates required before any future runtime promotion.
+This registry records current artifact, bridge, bundle, and verification-profile capabilities and the gates required before any future runtime promotion.
 
 ## Promotion states
 
@@ -46,23 +46,6 @@ Missing any item keeps the capability below `enabled`.
 | CORE Workbench/UI coupling | none |
 | Current maximum state | `validation_only` |
 
-The deepagents bridge currently supports:
-
-- optional import/readiness smoke reporting
-- readiness artifact output by explicit user-provided path
-- dry-run bridge spec artifact output by explicit user-provided path
-- artifact validation for supported builder-II bridge artifact schemas
-
-The deepagents bridge does not support:
-
-- constructing deepagents agents
-- running models
-- executing shell commands
-- granting file-edit/write authority
-- mutating durable memory
-- treating artifact contents as permission grants
-- coupling builder-II to CORE Workbench/UI behavior
-
 ## Current target bundle state
 
 | Property | Current value |
@@ -76,33 +59,38 @@ The deepagents bridge does not support:
 | Artifact authority | evidence only, never permission |
 | Current maximum state | `validation_only` |
 
-Target bundles currently support:
+## Current verification profile state
 
-- packaging one target profile
-- packaging one agent profile
-- embedding a dry-run bridge spec artifact
-- embedding optional deepagents readiness state
-- recording disabled governance limits
-- validating bundle schema and no-runtime invariants
+| Property | Current value |
+| --- | --- |
+| Command surface | `builder-verification list`, `show`, `artifact`, `validate` |
+| Runtime execution | `disabled` |
+| Model execution | `disabled` |
+| Agent construction | `disabled` |
+| Command execution | `disabled` |
+| File writes | only explicit user-provided artifact output path |
+| Shell execution | `disabled` |
+| Artifact authority | evidence only, never permission |
+| Current maximum state | `validation_only` |
 
-Target bundles do not execute their suggested commands.
+Verification profiles propose target-scoped verification commands as reviewable text. They do not run the proposed commands.
 
 ## Completed gates for validation-only state
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| Docs | complete | `docs/BRIDGE.md`, `docs/TARGET_BUNDLES.md`, this registry |
-| Tests | complete | bridge smoke, artifact output, bundle output, and validation tests |
-| Command surface | complete | `builder-bridge doctor`, `deepagents-smoke`, `render`, `validate-artifact`; `builder-bundle create`, `builder-bundle validate` |
+| Docs | complete | `docs/BRIDGE.md`, `docs/TARGET_BUNDLES.md`, `docs/VERIFICATION_PROFILES.md`, this registry |
+| Tests | complete | bridge, bundle, and verification profile artifact tests |
+| Command surface | complete | bridge, bundle, and verification profile CLI commands |
 | Failure mode | complete | validation errors and nonzero CLI exit for invalid artifacts |
-| Output artifact | complete | readiness, dry-run bridge spec, and target bundle JSON artifacts |
-| Verification path | complete | pytest plus CLI smoke/render/validate/bundle commands |
+| Output artifact | complete | readiness, bridge spec, target bundle, and verification profile JSON artifacts |
+| Verification path | complete | pytest plus CLI artifact validation commands |
 | Human approval boundary | not complete for runtime | no runtime behavior is promoted |
 | Rollback path | not complete for runtime | no runtime behavior is promoted |
 
 ## Required gates before runtime promotion
 
-Before builder-II may promote any deepagents bridge behavior beyond `validation_only`, a future PR must provide all of the following:
+Before builder-II may promote any bridge behavior beyond `validation_only`, a future PR must provide all of the following:
 
 - design document for read-only runtime behavior
 - explicit HITL approval boundary
@@ -116,7 +104,7 @@ Before builder-II may promote any deepagents bridge behavior beyond `validation_
 - clear statement that CORE remains a target profile, not builder-II platform identity
 - clear statement that CORE Workbench/UI remains separate
 
-## Current bridge and bundle commands and states
+## Current bridge, bundle, and verification commands and states
 
 | Command | State | Runtime authority |
 | --- | --- | --- |
@@ -131,7 +119,12 @@ Before builder-II may promote any deepagents bridge behavior beyond `validation_
 | `builder-bundle create --target TARGET --agent PROFILE` | `artifact_only` | none |
 | `builder-bundle create --target TARGET --agent PROFILE --output PATH` | `artifact_only` | writes only the explicit artifact path |
 | `builder-bundle validate PATH` | `validation_only` | reads and validates only |
+| `builder-verification list` | `spec_only` | none |
+| `builder-verification show PROFILE` | `spec_only` | none |
+| `builder-verification artifact PROFILE` | `artifact_only` | none |
+| `builder-verification artifact PROFILE --output PATH` | `artifact_only` | writes only the explicit artifact path |
+| `builder-verification validate PATH` | `validation_only` | reads and validates only |
 
 ## Non-promotion statement
 
-Validated artifacts are evidence, not authority. A valid artifact proves only that the artifact matches the current schema and disabled-runtime invariants. It does not authorize model execution, agent construction, file mutation, shell execution, memory mutation, commits, pushes, or pull request creation.
+Validated artifacts are evidence, not authority. A valid artifact proves only that the artifact matches the current schema and disabled-runtime invariants. It does not authorize model execution, agent construction, command execution, file mutation, shell execution, memory mutation, commits, pushes, or pull request creation.

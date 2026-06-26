@@ -6,7 +6,7 @@ It is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CORE remai
 
 ## Current status
 
-builder-II is complete on the no-runtime governance foundation once the target bundle artifact surface is merged.
+builder-II is complete on the no-runtime governance foundation. Verification profiles are the first post-foundation extension surface and remain no-runtime/artifact-only.
 
 Completed foundation surfaces:
 
@@ -20,6 +20,7 @@ Completed foundation surfaces:
 - bridge artifact validation
 - capability promotion registry
 - target bundle artifacts
+- verification profile registry
 
 The current foundation is intentionally no-runtime:
 
@@ -38,7 +39,10 @@ builder setup
 builder doctor
 builder-targets validate
 builder-agent validate
+builder-verification validate
 builder-context pack --target builder --changed --task "..."
+builder-verification artifact builder_full --target builder --task "..." --output .builder/artifacts/verification-profile.json
+builder-verification validate .builder/artifacts/verification-profile.json
 builder-bundle create --target builder --agent patch_planner --task "..." --output .builder/artifacts/target-bundle.json
 builder-bundle validate .builder/artifacts/target-bundle.json
 builder-bridge render patch_planner --target builder --format json --output .builder/artifacts/bridge-spec.json
@@ -49,7 +53,6 @@ builder-bridge validate-artifact .builder/artifacts/bridge-spec.json
 
 These are not required for the governance foundation, but remain planned thin extensions:
 
-- verification profile registry
 - quality gate command surface
 - notes/handoff artifact commands
 - prompt/eval lanes
