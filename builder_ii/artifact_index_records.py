@@ -15,6 +15,9 @@ from builder_ii.promotion_readiness_records import PROMOTION_READINESS_RECORD_KI
 from builder_ii.receipt_records import RECEIPT_RECORD_KIND, validate_receipt_record
 from builder_ii.receive_records import RECEIVE_RECORD_KIND, validate_receive_record
 from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_state_ledger_record
+from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
+
+
 
 ARTIFACT_INDEX_RECORD_KIND = "builder_ii.artifact_index_record"
 ARTIFACT_INDEX_RECORD_SCHEMA_VERSION = 1
@@ -44,7 +47,10 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     PROMOTION_DECISION_RECORD_KIND: validate_promotion_decision_record,
     STATE_LEDGER_RECORD_KIND: validate_state_ledger_record,
     _SNAPSHOT_RECORD_KIND: _validate_snapshot_record,
+    TARGET_PROFILE_ARTIFACT_KIND: validate_target_profile_artifact,
 }
+
+
 
 
 def _digest_bytes(raw: bytes) -> str:

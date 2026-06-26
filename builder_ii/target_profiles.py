@@ -1,12 +1,14 @@
-from __future__ import annotations
-
+import json as json_lib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from builder_ii.config import Settings
 
 TargetName = Literal["generic", "builder", "core"]
+
+TARGET_PROFILE_ARTIFACT_KIND = "builder_ii.target_profile"
+TARGET_PROFILE_SCHEMA_VERSION = 1
 
 
 @dataclass(frozen=True)
@@ -18,6 +20,29 @@ class TargetProfile:
     verification_hints: tuple[str, ...]
     principles: tuple[str, ...]
     notes: tuple[str, ...] = ()
+
+    def to_artifact_dict(self) -> dict[str, Any]:
+        return {
+            "kind": TARGET_PROFILE_ARTIFACT_KIND,
+            "schema_version": TARGET_PROFILE_SCHEMA_VERSION,
+            "name": self.name,
+            "description": self.description,
+            "repo": str(self.repo),
+            "context_defaults": list(self.context_defaults),
+            "verification_hints": list(self.verification_hints),
+            "principles": list(self.principles),
+            "notes": list(self.notes),
+            "governance": {
+                "capability_state": "target_profile_artifact",
+                "runtime_execution": "DISABLED",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            },
+        }
 
 
 _GENERIC_CONTEXT_DEFAULTS = (
@@ -150,3 +175,67 @@ def render_target_profile(profile: TargetProfile) -> str:
         lines.extend(f"- {note}" for note in profile.notes)
     lines.append("")
     return "\n".join(lines)
+
+
+def dumps_target_profile_artifact(profile: TargetProfile) -> str:
+    return json_lib.dumps(profile.to_artifact_dict(), indent=2, sort_keys=True) + "\n"
+
+
+def write_target_profile_artifact(profile: TargetProfile, output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(dumps_target_profile_artifact(profile), encoding="utf-8")
+
+
+def _string_list_errors(value: Any, *, field: str) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{field} must be a list"]
+    if any(not isinstance(item, str) or not item for item in value):
+        return [f"{field} must be a list of non-empty strings"]
+    return []
+
+
+def validate_target_profile_artifact(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["target profile artifact must be a JSON object"]
+    if data.get("kind") != TARGET_PROFILE_ARTIFACT_KIND:
+        errors.append(f"kind must be {TARGET_PROFILE_ARTIFACT_KIND}")
+    if data.get("schema_version") != TARGET_PROFILE_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {TARGET_PROFILE_SCHEMA_VERSION}")
+    if data.get("name") not in target_names():
+        errors.append("name must be a known target profile")
+
+    for field in ("description", "repo"):
+        if not isinstance(data.get(field), str) or not data.get(field):
+            errors.append(f"{field} must be a non-empty string")
+
+    for list_field in ("context_defaults", "verification_hints", "principles", "notes"):
+        errors.extend(_string_list_errors(data.get(list_field), field=list_field))
+
+    governance = data.get("governance")
+
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        if governance.get("capability_state") != "target_profile_artifact":
+            errors.append("governance.capability_state must be target_profile_artifact")
+        for key in ("runtime_execution", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
+    return errors
+
+
+def validate_target_profile_artifact_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as exc:
+        return [f"invalid JSON: {exc}"]
+    except Exception as exc:
+        return [f"failed to read file: {exc}"]
+    return validate_target_profile_artifact(data)

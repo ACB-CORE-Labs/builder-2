@@ -28,8 +28,10 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.state_ledger_record`
 - `builder_ii.artifact_index_record`
 - `builder_ii.snapshot_record`
+- `builder_ii.target_profile`
 
 ## CLI
+
 
 ```text
 builder-index record .builder/artifacts --output .builder/artifacts/artifact-index.json
