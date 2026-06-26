@@ -123,7 +123,7 @@ def test_target_profile_validation_failures(tmp_path: Path) -> None:
         "notes": [],
     }
     errors = validate_target_profile_artifact(bad_fields)
-    assert any("description must be a string" in err for err in errors)
+    assert any("description must be a non-empty string" in err for err in errors)
     assert any("context_defaults must be a list" in err for err in errors)
 
     # Bad governance
