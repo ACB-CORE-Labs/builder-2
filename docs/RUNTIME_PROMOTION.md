@@ -2,7 +2,7 @@
 
 builder-II runtime behavior must be promoted deliberately. Code existence, imported dependencies, rendered profiles, valid artifacts, Goose availability, or deepagents availability do not grant runtime authority.
 
-This document defines the gates required before Goose, deepagents, command execution, patch application, model routing, source collection, or any other runtime behavior may move beyond disabled/spec/artifact/validation state.
+This document defines the gates required before Goose, deepagents, command execution, patch application, model routing, source collection, repository file reads, git status inspection, linked target artifact reads, or any other runtime behavior may move beyond disabled/spec/artifact/validation/candidate state.
 
 ## Promotion states
 
@@ -57,16 +57,29 @@ Runtime promotion additionally requires:
 
 ### read_only
 
-Required before promotion:
+Current state: `read_only_runtime_candidate`.
 
-- `docs/GOOSE_RUNTIME.md`
-- Goose session manifest artifact
-- runtime audit artifact
+Implemented candidate surface:
+
+- `docs/GOOSE_READONLY.md`
+- `builder-goose readonly-audit`
+- `builder-goose validate-audit`
+- read-only audit artifact schema
+- denied-action tests proving the candidate does not start Goose, read repository files, inspect git status, read linked target artifacts, execute commands, execute shell, call models, construct deepagents, mutate memory, write source, commit, push, open pull requests, collect sources, run web search, or run MCP tools
+
+Required before actual read-only runtime inspection is enabled:
+
+- target-boundary rules or file-read allowlist
+- repository file read recording
+- git status recording
+- linked artifact read recording
 - no-write enforcement tests
 - no-shell enforcement tests
-- file-read allowlist or target-boundary rules
+- no-command-execution enforcement tests
+- no-model-call enforcement tests
 - denied action failure mode
 - handoff artifact output path
+- interruption recovery behavior
 
 Must remain denied:
 
@@ -74,6 +87,7 @@ Must remain denied:
 - command execution
 - commit/push
 - arbitrary shell
+- model/tool escalation
 - runtime memory mutation unless separately approved
 
 ### command_proposal
@@ -231,6 +245,9 @@ A valid artifact alone never authorizes:
 - web/search execution
 - Goose runtime start
 - deepagents construction
+- repository file reads as runtime behavior
+- git status inspection as runtime behavior
+- linked target artifact reads as runtime behavior
 
 ## Rollback requirement
 
@@ -238,6 +255,7 @@ Every promoted runtime mode must define rollback behavior before it can run.
 
 Examples:
 
+- read-only candidate audit rollback: delete the emitted audit artifact; no source rollback is needed because no runtime inspection or mutation occurs
 - read-only mode rollback: no source rollback needed, but audit and handoff must record interruption state
 - command proposal rollback: discard proposal artifact
 - verification execution rollback: no source rollback expected; record command output and failure state
@@ -263,4 +281,4 @@ Examples:
 
 This document is itself `spec_only`. It does not enable any runtime mode.
 
-The current platform remains artifact-first and no-runtime until a future PR implements, tests, documents, and explicitly promotes a specific runtime capability.
+The current platform remains artifact-first. The read-only audit surface is a candidate that emits an audit artifact while preserving disabled runtime authority. Actual repository inspection remains unpromoted until a future PR adds target-boundary rules, recording, denied-action tests, docs, rollback behavior, and verification paths.
