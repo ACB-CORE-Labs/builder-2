@@ -6,7 +6,7 @@ It is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CORE remai
 
 ## Current status
 
-builder-II is complete on the no-runtime governance foundation. Verification profiles and handoff artifacts are post-foundation extension surfaces and remain artifact-only.
+builder-II is complete on the no-runtime governance foundation. Verification profiles, handoff artifacts, and quality gate artifacts are post-foundation extension surfaces and remain artifact-only.
 
 Completed foundation surfaces:
 
@@ -22,6 +22,7 @@ Completed foundation surfaces:
 - target bundle artifacts
 - verification profile registry
 - handoff artifact commands
+- quality gate artifacts
 
 The current foundation is intentionally no-runtime:
 
@@ -29,6 +30,7 @@ The current foundation is intentionally no-runtime:
 - no shell execution as an agent capability
 - no deepagents construction
 - no model execution through the bridge
+- no command execution from quality gates
 - no memory mutation
 - no commit/push automation
 - no CORE Workbench/UI coupling
@@ -46,6 +48,8 @@ builder-verification artifact builder_full --target builder --task "..." --outpu
 builder-verification validate .builder/artifacts/verification-profile.json
 builder-bundle create --target builder --agent patch_planner --task "..." --output .builder/artifacts/target-bundle.json
 builder-bundle validate .builder/artifacts/target-bundle.json
+builder-quality plan --target builder --profile builder_full --task "..." --output .builder/artifacts/quality-gate.json
+builder-quality validate .builder/artifacts/quality-gate.json
 builder-notes handoff --target builder --agent handoff_scribe --task "..." --summary "..." --output .builder/artifacts/handoff.json
 builder-notes validate .builder/artifacts/handoff.json
 builder-bridge render patch_planner --target builder --format json --output .builder/artifacts/bridge-spec.json
@@ -56,7 +60,6 @@ builder-bridge validate-artifact .builder/artifacts/bridge-spec.json
 
 These are not required for the governance foundation, but remain planned thin extensions:
 
-- quality gate command surface
 - research planning artifacts
 - prompt/eval lanes
 - read-only runner design spec
