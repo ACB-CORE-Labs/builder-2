@@ -6,7 +6,7 @@ It is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CORE remai
 
 ## Current status
 
-builder-II is complete on the no-runtime governance foundation. Verification profiles, handoff artifacts, quality gate artifacts, and research planning artifacts are post-foundation extension surfaces and remain artifact-only.
+builder-II is complete on the no-runtime governance foundation. Verification profiles, handoff artifacts, quality gate artifacts, and research planning artifacts are post-foundation extension surfaces and remain artifact-only. Goose runtime behavior is now specified as a design boundary, not enabled.
 
 Completed foundation surfaces:
 
@@ -24,6 +24,8 @@ Completed foundation surfaces:
 - handoff artifact commands
 - quality gate artifacts
 - research planning artifacts
+- Goose runtime design spec
+- runtime promotion contract
 
 The current foundation is intentionally no-runtime:
 
@@ -33,6 +35,7 @@ The current foundation is intentionally no-runtime:
 - no model execution through the bridge
 - no command execution from quality gates
 - no search, MCP, or source collection from research plans
+- no Goose runtime activation from the spec docs
 - no memory mutation
 - no commit/push automation
 - no CORE Workbench/UI coupling
@@ -65,7 +68,8 @@ builder-bridge validate-artifact .builder/artifacts/bridge-spec.json
 These are not required for the governance foundation, but remain planned thin extensions:
 
 - prompt/eval lanes
-- read-only runner design spec
+- Goose session manifest artifact
+- read-only runner candidate
 - later HITL-gated runtime candidate
 
 Each future capability must satisfy the capability promotion rule before it can move beyond disabled/spec/artifact/validation states.
