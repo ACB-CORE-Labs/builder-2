@@ -107,7 +107,7 @@ def artifact(
     module: str | None = typer.Option(None, "--module", "-m", help="Repo file or directory to include"),
     changed: bool = typer.Option(False, "--changed", help="Include changed and untracked files"),
     target: str = typer.Option("core", "--target", help="Repository target: core, builder, or generic"),
-    no_repomix: bool = typer.Option(False, "--no-repomix", help="Write manifest only; do not invoke repomix"),
+    no_repomix: bool = typer.Option(True, "--no-repomix", help="Write manifest only; do not invoke repomix"),
     markdown_output: Path = typer.Option(Path(".builder/context-pack.md"), "--markdown-output"),
     repomix_output: Path = typer.Option(Path(".builder/context-pack.xml"), "--repomix-output"),
     output: Path | None = typer.Option(None, "--output", help="Write JSON artifact to path"),

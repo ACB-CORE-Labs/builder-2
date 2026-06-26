@@ -269,6 +269,7 @@ def create_context_pack_record(
             "source_writes": "DISABLED",
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
         },
     }
 
@@ -282,6 +283,14 @@ def write_context_pack_record(record: dict[str, Any], output: Path) -> None:
     output.write_text(dumps_context_pack_record(record), encoding="utf-8")
 
 
+def _string_list_errors(value: Any, *, field: str) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{field} must be a list"]
+    if any(not isinstance(item, str) or not item for item in value):
+        return [f"{field} must be a list of non-empty strings"]
+    return []
+
+
 def validate_context_pack_record(data: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
@@ -292,8 +301,7 @@ def validate_context_pack_record(data: Any) -> list[str]:
         errors.append(f"schema_version must be {CONTEXT_PACK_RECORD_SCHEMA_VERSION}")
     if data.get("target") not in ("core", "builder", "generic"):
         errors.append("target must be one of: core, builder, generic")
-    if not isinstance(data.get("selected_files"), list):
-        errors.append("selected_files must be a list")
+    errors.extend(_string_list_errors(data.get("selected_files"), field="selected_files"))
 
     governance = data.get("governance")
     if not isinstance(governance, dict):
@@ -306,6 +314,8 @@ def validate_context_pack_record(data: Any) -> list[str]:
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
     return errors
 
 

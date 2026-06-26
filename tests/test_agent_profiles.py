@@ -143,10 +143,61 @@ def test_agent_profile_validation_failures(tmp_path: Path) -> None:
             "source_writes": "DISABLED",
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
         }
     }
     errors = validate_agent_profile_record(bad_target)
     assert any("target must be one of" in err for err in errors)
+
+    # bad core_workbench_coupling
+    bad_coupling = {
+        "kind": "builder_ii.agent_profile_record",
+        "schema_version": 1,
+        "name": "patch_planner",
+        "target": "builder",
+        "compatible_targets": [],
+        "required_context": [],
+        "allowed_tools": [],
+        "forbidden_tools": [],
+        "hitl_required_for": [],
+        "governance": {
+            "capability_state": "agent_profile_record",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "INVALID",
+        }
+    }
+    errors = validate_agent_profile_record(bad_coupling)
+    assert any("core_workbench_coupling must be NONE" in err for err in errors)
+
+    # bad list entries in compatible_targets
+    bad_lists = {
+        "kind": "builder_ii.agent_profile_record",
+        "schema_version": 1,
+        "name": "patch_planner",
+        "target": "builder",
+        "compatible_targets": ["generic", "", 456],
+        "required_context": [],
+        "allowed_tools": [],
+        "forbidden_tools": [],
+        "hitl_required_for": [],
+        "governance": {
+            "capability_state": "agent_profile_record",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        }
+    }
+    errors = validate_agent_profile_record(bad_lists)
+    assert any("compatible_targets must be a list of non-empty strings" in err for err in errors)
 
     assert "file not found" in validate_agent_profile_record_file(tmp_path / "missing.json")[0]
 

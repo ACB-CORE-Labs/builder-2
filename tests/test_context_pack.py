@@ -160,10 +160,51 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
             "source_writes": "DISABLED",
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
         }
     }
     errors = validate_context_pack_record(bad_target)
     assert any("target must be one of" in err for err in errors)
+
+    # bad core_workbench_coupling
+    bad_coupling = {
+        "kind": "builder_ii.context_pack_record",
+        "schema_version": 1,
+        "target": "core",
+        "selected_files": [],
+        "governance": {
+            "capability_state": "context_pack_record",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "INVALID",
+        }
+    }
+    errors = validate_context_pack_record(bad_coupling)
+    assert any("core_workbench_coupling must be NONE" in err for err in errors)
+
+    # selected_files list validation failures
+    bad_files = {
+        "kind": "builder_ii.context_pack_record",
+        "schema_version": 1,
+        "target": "core",
+        "selected_files": ["ok.py", "", 123],
+        "governance": {
+            "capability_state": "context_pack_record",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        }
+    }
+    errors = validate_context_pack_record(bad_files)
+    assert any("selected_files must be a list of non-empty strings" in err for err in errors)
 
     assert "file not found" in validate_context_pack_record_file(tmp_path / "missing.json")[0]
 

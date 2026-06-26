@@ -222,6 +222,7 @@ def create_agent_profile_record(
             "source_writes": "DISABLED",
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
         },
     }
 
@@ -233,6 +234,14 @@ def dumps_agent_profile_record(record: dict[str, Any]) -> str:
 def write_agent_profile_record(record: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_agent_profile_record(record), encoding="utf-8")
+
+
+def _string_list_errors(value: Any, *, field: str) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{field} must be a list"]
+    if any(not isinstance(item, str) or not item for item in value):
+        return [f"{field} must be a list of non-empty strings"]
+    return []
 
 
 def validate_agent_profile_record(data: Any) -> list[str]:
@@ -249,8 +258,7 @@ def validate_agent_profile_record(data: Any) -> list[str]:
         errors.append("target must be one of: generic, builder, core")
 
     for list_field in ("compatible_targets", "required_context", "allowed_tools", "forbidden_tools", "hitl_required_for"):
-        if not isinstance(data.get(list_field), list):
-            errors.append(f"{list_field} must be a list")
+        errors.extend(_string_list_errors(data.get(list_field), field=list_field))
 
     governance = data.get("governance")
     if not isinstance(governance, dict):
@@ -263,6 +271,8 @@ def validate_agent_profile_record(data: Any) -> list[str]:
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
     return errors
 
 
