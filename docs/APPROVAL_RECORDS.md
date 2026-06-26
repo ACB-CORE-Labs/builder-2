@@ -13,9 +13,25 @@ They are record-only artifacts. They preserve:
 
 An approval record is evidence of human review. It is not standalone agent authority.
 
+## CLI
+
+The `builder-records` command creates and validates approval record artifacts.
+
+Example create command:
+
+```text
+builder-records record PROPOSAL_JSON --decision approved --decided-by operator --reason "ready for later gated handling" --output APPROVAL_RECORD_JSON
+```
+
+Example validate command:
+
+```text
+builder-records validate APPROVAL_RECORD_JSON
+```
+
 ## Verification
 
 ```bash
-uv run pytest tests/test_approval_records.py -q
+uv run pytest tests/test_approval_records.py tests/test_approval_records_cli.py tests/test_approval_record_governance.py -q
 uv run pytest -q
 ```
