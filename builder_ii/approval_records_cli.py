@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import typer
 from rich.console import Console
 
 from builder_ii.approval_records import (
+    ApprovalDecision,
     create_approval_record_from_file,
     dumps_approval_record,
     validate_approval_record_file,
@@ -17,11 +19,11 @@ console = Console()
 _VALID_DECISIONS = {"approved", "rejected"}
 
 
-def _decision(value: str) -> str:
+def _decision(value: str) -> ApprovalDecision:
     if value not in _VALID_DECISIONS:
         console.print("decision must be approved or rejected")
         raise typer.Exit(1)
-    return value
+    return cast(ApprovalDecision, value)
 
 
 @approval_app.command("record")
@@ -35,7 +37,7 @@ def record(
     """Create an approval record artifact."""
     artifact, errors = create_approval_record_from_file(
         proposal_path,
-        decision=_decision(decision),  # type: ignore[arg-type]
+        decision=_decision(decision),
         decided_by=decided_by,
         reason=reason,
     )
