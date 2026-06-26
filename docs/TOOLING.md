@@ -45,13 +45,13 @@ The default installer mode is `required`. It intentionally does not install opti
 
 ## Tier 1 tools
 
-These are the highest-leverage tools for the local CORE development cockpit.
+These are the highest-leverage tools for the local agent/developer platform.
 
 | Tool | Purpose | builder-II integration |
 | --- | --- | --- |
 | `repomix` | Pack repository files into AI-friendly context files. | `context-pack` / repo packaging. |
 | `serena` | Semantic code retrieval and MCP-style code intelligence. | Start read-only: symbol map, references, diagnostics. |
-| `semgrep` | Static/structural policy scanning. | CORE invariant scans. |
+| `semgrep` | Static/structural policy scanning. | Target-scoped invariant and policy scans. |
 | `ruff` | Python lint/format quality gate. | Quality preflight. |
 | `pyright` | Python type checking. | Type preflight. |
 | `pre-commit` | Git hook orchestration. | Install lint/type/scan/test hooks. |
@@ -90,7 +90,7 @@ Why Markdown-first:
 - no application lock-in;
 - easy git diffs;
 - works with Obsidian, Logseq, Zettlr, Foam, VS Code, or plain terminal tools;
-- easy for agents to read and write;
+- easy for approved tools and operators to read and write;
 - easy to pack into context with Repomix.
 
 Optional UIs:
