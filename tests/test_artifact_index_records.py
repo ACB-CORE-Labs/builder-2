@@ -6,6 +6,10 @@ from builder_ii.artifact_index_records import create_artifact_index_record, dump
 from builder_ii.config import load_settings
 from builder_ii.goose_command_proposal import create_goose_command_proposal, write_goose_command_proposal
 from builder_ii.goose_session import create_goose_session_manifest
+from builder_ii.promotion_decision_records import create_promotion_decision_record, write_promotion_decision_record
+from builder_ii.promotion_readiness_records import create_promotion_readiness_record, write_promotion_readiness_record
+from builder_ii.snapshot_records import create_snapshot_record, write_snapshot_record
+from builder_ii.state_ledger_records import create_state_ledger_record, write_state_ledger_record
 
 
 def _write_known_artifacts(tmp_path: Path) -> None:
@@ -21,6 +25,48 @@ def _write_known_artifacts(tmp_path: Path) -> None:
     approval = create_approval_record(proposal, proposal_path=tmp_path / "proposal.json", decision="approved", decided_by="operator")
     write_goose_command_proposal(proposal, tmp_path / "proposal.json")
     write_approval_record(approval, tmp_path / "approval.json")
+
+
+def _write_newer_artifacts(tmp_path: Path) -> None:
+    readiness_path = tmp_path / "readiness.json"
+    decision_path = tmp_path / "decision.json"
+    ledger_path = tmp_path / "ledger.json"
+    snapshot_path = tmp_path / "snapshot.json"
+
+    readiness = create_promotion_readiness_record(
+        capability_name="artifact-index-backfill",
+        docs_refs=("docs/ARTIFACT_INDEX.md",),
+        tests_refs=("tests/test_artifact_index_records.py",),
+        cli_refs=("builder-index",),
+        failure_mode_refs=("unknown artifacts remain incomplete",),
+        approval_boundary_refs=("metadata only",),
+        output_artifact_refs=("artifact-index.json",),
+        rollback_refs=("revert validator entry",),
+        verification_refs=("uv run pytest tests/test_artifact_index_records.py tests/test_artifact_index_cli.py -q",),
+    )
+    write_promotion_readiness_record(readiness, readiness_path)
+
+    decision = create_promotion_decision_record(
+        readiness,
+        readiness_path=readiness_path,
+        decision="approved",
+        decided_by="operator",
+        reason="test fixture",
+    )
+    write_promotion_decision_record(decision, decision_path)
+
+    ledger = create_state_ledger_record([(decision, decision_path)], ledger_name="artifact-index-test")
+    write_state_ledger_record(ledger, ledger_path)
+
+    artifact_index = create_artifact_index_record(tmp_path)
+    snapshot = create_snapshot_record(
+        artifact_index,
+        ledger,
+        artifact_index_path="artifact-index.json",
+        state_ledger_path=ledger_path,
+        snapshot_name="artifact-index-test",
+    )
+    write_snapshot_record(snapshot, snapshot_path)
 
 
 def test_create_complete_artifact_index_shape(tmp_path: Path) -> None:
@@ -42,6 +88,25 @@ def test_create_complete_artifact_index_shape(tmp_path: Path) -> None:
     assert record["performed_actions"] == []
     assert record["governance"]["artifact_is_authority"] is False
     assert record["governance"]["core_workbench_coupling"] == "NONE"
+    assert validate_artifact_index_record(record) == []
+
+
+def test_index_recognizes_newer_artifact_records(tmp_path: Path) -> None:
+    _write_newer_artifacts(tmp_path)
+    record = create_artifact_index_record(tmp_path)
+
+    assert record["status"] == "complete"
+    assert record["complete"] is True
+    assert record["counts"] == {"total": 4, "known": 4, "unknown": 0, "valid": 4, "invalid": 0}
+    assert {entry["kind"] for entry in record["artifacts"]} == {
+        "builder_ii.promotion_readiness_record",
+        "builder_ii.promotion_decision_record",
+        "builder_ii.state_ledger_record",
+        "builder_ii.snapshot_record",
+    }
+    assert all(entry["known"] is True for entry in record["artifacts"])
+    assert all(entry["valid"] is True for entry in record["artifacts"])
+    assert all(entry["errors"] == [] for entry in record["artifacts"])
     assert validate_artifact_index_record(record) == []
 
 
