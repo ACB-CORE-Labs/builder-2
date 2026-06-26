@@ -11,7 +11,6 @@ TARGET_PROFILE_ARTIFACT_KIND = "builder_ii.target_profile"
 TARGET_PROFILE_SCHEMA_VERSION = 1
 
 
-
 @dataclass(frozen=True)
 class TargetProfile:
     name: TargetName
@@ -34,13 +33,16 @@ class TargetProfile:
             "principles": list(self.principles),
             "notes": list(self.notes),
             "governance": {
+                "capability_state": "target_profile_artifact",
                 "runtime_execution": "DISABLED",
+                "model_execution": "DISABLED",
                 "shell_execution": "DISABLED",
-                "writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
                 "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
             },
         }
-
 
 
 _GENERIC_CONTEXT_DEFAULTS = (
@@ -184,6 +186,14 @@ def write_target_profile_artifact(profile: TargetProfile, output: Path) -> None:
     output.write_text(dumps_target_profile_artifact(profile), encoding="utf-8")
 
 
+def _string_list_errors(value: Any, *, field: str) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{field} must be a list"]
+    if any(not isinstance(item, str) or not item for item in value):
+        return [f"{field} must be a list of non-empty strings"]
+    return []
+
+
 def validate_target_profile_artifact(data: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
@@ -195,28 +205,27 @@ def validate_target_profile_artifact(data: Any) -> list[str]:
     if data.get("name") not in target_names():
         errors.append("name must be a known target profile")
 
-    # Optional fields or standard lists
     for field in ("description", "repo"):
-        if not isinstance(data.get(field), str):
-            errors.append(f"{field} must be a string")
+        if not isinstance(data.get(field), str) or not data.get(field):
+            errors.append(f"{field} must be a non-empty string")
 
     for list_field in ("context_defaults", "verification_hints", "principles", "notes"):
-        if not isinstance(data.get(list_field), list):
-            errors.append(f"{list_field} must be a list")
+        errors.extend(_string_list_errors(data.get(list_field), field=list_field))
 
     governance = data.get("governance")
 
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        if governance.get("runtime_execution") != "DISABLED":
-            errors.append("governance.runtime_execution must be DISABLED")
-        if governance.get("shell_execution") != "DISABLED":
-            errors.append("governance.shell_execution must be DISABLED")
-        if governance.get("writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
-            errors.append("governance.writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
+        if governance.get("capability_state") != "target_profile_artifact":
+            errors.append("governance.capability_state must be target_profile_artifact")
+        for key in ("runtime_execution", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
     return errors
 
 
