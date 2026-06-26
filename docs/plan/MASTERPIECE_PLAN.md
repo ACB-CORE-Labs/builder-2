@@ -15,7 +15,7 @@ builder-II is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CO
 
 ## Current baseline
 
-Completed foundation through PR #29:
+Completed foundation through PR #32:
 
 ```text
 DONE  target profiles
@@ -28,9 +28,12 @@ DONE  artifact validation
 DONE  capability promotion registry
 DONE  target bundle artifacts
 DONE  verification profile registry
+DONE  handoff artifacts
+DONE  quality gate artifacts
+DONE  research planning artifacts
 ```
 
-The next work is the home-stretch artifact layer, then runtime promotion.
+The artifact foundation is complete. The next work is runtime design and then explicitly promoted runtime candidates.
 
 ## North Star operating loop
 
@@ -43,6 +46,8 @@ builder-verification validate
 builder-context pack --target builder --changed --task "..."
 builder-bundle create --target builder --agent patch_planner --task "..." --output .builder/artifacts/target-bundle.json
 builder-bundle validate .builder/artifacts/target-bundle.json
+builder-research plan --target generic --profile research_planner --task "..." --output .builder/artifacts/research-plan.json
+builder-research validate .builder/artifacts/research-plan.json
 builder-notes handoff --target builder --agent handoff_scribe --task "..." --summary "..." --output .builder/artifacts/handoff.json
 builder-notes validate .builder/artifacts/handoff.json
 builder-quality plan --target builder --profile builder_full --task "..." --output .builder/artifacts/quality-gate.json
@@ -61,29 +66,19 @@ builder-postflight --target builder
 builder-notes handoff --target builder --summary "..."
 ```
 
-## Phase 1: finish artifact foundation
+## Phase 1: artifact foundation
 
-Goal: builder-II can package every important pre-runtime operation into validated artifacts.
+Status: complete through PR #32.
 
-### 1A. Handoff / notes artifacts
+builder-II can package pre-runtime work into validated artifacts:
 
-Add `builder-notes handoff` and `builder-notes validate`.
+- target bundles
+- verification profiles
+- handoff artifacts
+- quality gates
+- research plans
 
-Artifacts include target, agent profile, task, summary, next steps, blockers, verification evidence, timestamp, and governance boundary.
-
-Boundaries: no notes vault mutation by default, no model calls, no runtime, no shell, no commits, and no hidden writes. Only explicit output artifact paths are written.
-
-### 1B. Quality gate artifacts
-
-Add `builder-quality plan` and `builder-quality validate`.
-
-Quality gates are target-scoped artifacts containing the required commands, required evidence, merge blockers, rollback requirements, and approval requirements. They do not run tests yet.
-
-### 1C. Research planning artifacts
-
-Add `builder-research plan` and `builder-research validate`.
-
-Research artifacts are inspired by `AssetOverflow/open_deep_research` but do not import or execute it. They specify research task, source strategy, evidence requirements, report contract, known unknowns, citation requirements, and disabled search/MCP/runtime permissions.
+These artifacts remain evidence and review objects. They are not runtime authority.
 
 ## Phase 2: Goose runtime design layer
 
@@ -201,10 +196,10 @@ Deephaven remains untouched.
 
 ```text
 #29 verification profile registry          MERGED
-#30 handoff artifacts
-#31 quality gate artifacts
-#32 research planning profiles/artifacts
-#33 Goose runtime ADR/spec
+#30 handoff artifacts                      MERGED
+#31 quality gate artifacts                 MERGED
+#32 research planning profiles/artifacts   MERGED
+#33 Goose runtime ADR/spec                 CURRENT
 #34 Goose session manifest
 #35 Goose read-only runtime candidate
 #36 deepagents readonly runtime spec
