@@ -1,6 +1,6 @@
 # Target bundle artifacts
 
-Target bundles are governed, reviewable JSON artifacts that package the selected target profile, agent profile, dry-run bridge spec, deepagents readiness state, task context, governance limits, and suggested next steps.
+Target bundles are governed, reviewable JSON artifacts that package the selected target profile, agent profile, verification profile, dry-run bridge spec, deepagents readiness state, task context, governance limits, and suggested next steps.
 
 They are handoff objects for planning and review. They are not runtime permissions.
 
@@ -27,6 +27,7 @@ A target bundle includes:
 - task description
 - selected target profile
 - selected agent profile
+- default verification profile artifact for the selected target
 - dry-run bridge spec artifact
 - optional deepagents readiness artifact
 - governance state and disabled authority limits
@@ -56,6 +57,7 @@ Validation checks:
 
 - bundle kind and schema version
 - known target and agent profile names
+- embedded verification profile artifact validity
 - disabled runtime/model/agent construction state
 - denied tools in the embedded bridge spec
 - optional deepagents dependency mode
@@ -63,9 +65,15 @@ Validation checks:
 
 A valid bundle is evidence for review. It is not permission to execute its suggested commands.
 
-## Relationship to bridge artifacts
+## Relationship to verification and bridge artifacts
 
-Target bundles include the same dry-run bridge spec artifact shape produced by:
+Target bundles include the same verification profile artifact shape produced by:
+
+```bash
+builder-verification artifact builder_full --target builder
+```
+
+Target bundles also include the same dry-run bridge spec artifact shape produced by:
 
 ```bash
 builder-bridge render patch_planner --target builder --format json
@@ -77,4 +85,4 @@ They also include the same optional readiness shape produced by:
 builder-bridge deepagents-smoke --json
 ```
 
-The bundle is the higher-level handoff object that ties those artifacts to one target, one agent profile, one task description, and the current governance boundary.
+The bundle is the higher-level handoff object that ties those artifacts to one target, one agent profile, one verification profile, one task description, and the current governance boundary.
