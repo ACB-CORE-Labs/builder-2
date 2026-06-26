@@ -1,10 +1,10 @@
 # builder-II
 
-`builder-II` is the local CORE coding cockpit for MacBook Pro M1 work when cloud coding tools are unavailable. It wraps Codename Goose with practical CORE development governance, MLX-native local models, task-aware model routing, resumable downloads, runtime controls, Goose recipes, skills, and a verification harness aimed at `AssetOverflow/core`.
+`builder-II` is a generic governed local agent/developer platform for MacBook Pro M1 work when cloud coding tools are unavailable. It wraps Codename Goose with practical development governance, MLX-native local models, task-aware model routing, resumable downloads, runtime controls, Goose recipes, skills, target profiles, and verification helpers.
 
-The design goal is not to pretend a small local model is a frontier cloud system. The goal is to give the operator a usable local development platform with clear setup, prompts, recipes, tools, runtime boundaries, and validation commands.
+The design goal is not to pretend a small local model is a frontier cloud system. The goal is to give the operator a usable local development platform with clear setup, prompts, recipes, tools, runtime boundaries, target boundaries, and validation commands.
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the current product scope: builder-II is a practical Goose/local-agent development cockpit for CORE, not a second CORE runtime.
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the current product scope: builder-II is a practical Goose/local-agent development platform, not CORE, not a second CORE runtime, and not CORE Workbench/UI.
 
 ## Documentation map
 
@@ -14,6 +14,7 @@ Start here if you are evaluating or sharing the project:
 | --- | --- |
 | [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the platform and its components. |
 | [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
+| [`docs/TARGETS.md`](docs/TARGETS.md) | Explicit target profiles: generic, builder, and core. |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Scope, non-goals, and near-term platform direction. |
 | [`docs/model_role_matrix.md`](docs/model_role_matrix.md) | Model aliases, runtime lanes, recommended use, and avoid boundaries. |
@@ -39,12 +40,13 @@ builder-II currently includes:
 - model aliases and runtime policy;
 - Goose config generation;
 - Goose recipes for platform, coding, plan, explore, implement, review, verify, and handoff flows;
-- builder-II skills copied into the target CORE repo;
+- builder-II skills copied into the selected target repo;
+- explicit target profiles via `builder-targets`;
 - lane guides, personas, and capability boundaries for prompt/task organization;
 - external tool registry via `builder-tools`;
 - optional external tool installer via `scripts/install-tools.sh`;
 - Repomix-backed context manifests via `builder-context`;
-- verification routing for CORE modules.
+- verification routing for target repositories.
 
 ## Recommended model lanes
 
@@ -122,17 +124,19 @@ bash scripts/pull-roster.sh candidates
 builder setup
 builder doctor
 builder models
+builder-targets validate
+builder-targets list
 bash scripts/install-tools.sh required
 builder-tools check --tier tier1
-builder-context pack --no-repomix
-builder start --task "audit the latest CORE branch and identify the safest next patch"
+builder-context pack --target builder --no-repomix
+builder start --task "audit the selected target repo and identify the safest next patch"
 ```
 
 Task hints drive model routing:
 
 ```bash
-builder start --task "explain how vault recall works"
-builder start --task "audit versor_condition invariants"
+builder start --task "explain how the selected repo is organized"
+builder start --task "audit invariant boundaries"
 builder start --task "implement tests for the routing harness"
 builder start --task "refactor the CLI model selection path"
 ```
@@ -146,6 +150,28 @@ builder switch-model llama
 builder-runtime reset
 builder start --model phi-reasoning --task "review this proposal"
 ```
+
+## Target profiles
+
+Inspect target profiles with:
+
+```bash
+builder-targets list
+builder-targets show generic
+builder-targets show builder
+builder-targets show core
+builder-targets validate
+```
+
+Initial targets:
+
+```text
+generic  normal software repo
+builder  builder-II self-development
+core     AssetOverflow/core as a target repo
+```
+
+CORE is a target profile, not builder-II's platform identity. CORE Workbench/UI remains separate from builder-II.
 
 ## External engineering tools
 
@@ -198,8 +224,8 @@ The Markdown file is a manifest showing the target repo, task, git status, selec
 ```text
 /plan describe the smallest safe patch before editing
 /explore trace the call sites first
-/review check for CORE invariant violations
-/verify workbench/journal.py
+/review check for invariant or policy violations
+/verify path/to/changed_file.py
 /handoff write continuity notes before stopping
 ```
 
@@ -208,12 +234,13 @@ Use `/implement` only after the local provider's tool execution path is explicit
 ## Daily loop
 
 ```bash
-git -C ../core status --short --branch
+git status --short --branch
+builder-targets list
 builder status
 builder doctor
 builder-runtime status
-builder-context pack --target core --changed --task "current CORE work"
-builder start --task "<specific CORE task>"
+builder-context pack --target builder --changed --task "current builder-II work"
+builder start --task "<specific target task>"
 ```
 
 ## Direct local ask
@@ -235,7 +262,7 @@ builder-lanes show draft_patch_plan --context "Add a small CLI option."
 
 ## Verification
 
-`builder verify` maps a changed file to the smallest relevant CORE suite.
+`builder verify` maps a changed file to the smallest relevant configured suite.
 
 ```bash
 builder verify algebra/versor.py
@@ -243,7 +270,7 @@ builder verify vault/store.py --fail-fast
 builder verify --suite smoke
 ```
 
-Path routing examples:
+Path routing examples for the CORE target:
 
 | Path | Suite |
 |---|---|
@@ -254,9 +281,11 @@ Path routing examples:
 | `workbench/` | `runtime` |
 | `docs/` | `smoke` |
 
-## CORE invariant posture
+## CORE target posture
 
-The local tool must not trade correctness for convenience. It must reject edits that introduce approximate recall in `vault/`, stochastic temperature in CORE cognitive paths, unapproved normalization or hot-path repair, claim promotion outside the reviewed teaching lifecycle, or multi-model local planning on M1 16GB.
+CORE-specific behavior belongs in the `core` target profile. builder-II must not conflate itself with CORE Workbench/UI, and it must not treat CORE as the platform identity.
+
+When operating on the CORE target, the local tool must not trade correctness for convenience. It must reject edits that introduce approximate recall in `vault/`, stochastic temperature in CORE cognitive paths, unapproved normalization or hot-path repair, claim promotion outside the reviewed teaching lifecycle, or multi-model local planning on M1 16GB.
 
 ## Troubleshooting
 
@@ -266,11 +295,12 @@ Run these first:
 builder doctor
 builder status
 builder models
+builder-targets validate
 builder-runtime status
 bash scripts/pull-roster.sh status
 builder-tools check
 bash scripts/install-tools.sh status
-builder-context pack --no-repomix
+builder-context pack --target builder --no-repomix
 ```
 
 Common fixes:
@@ -282,6 +312,7 @@ Common fixes:
 | model cache partial | Re-run `bash scripts/pull-roster.sh alias <alias>`. |
 | session slows badly | Stop, switch to `phi-reasoning` or `qwen-coder`, and avoid heavy aliases. |
 | CORE path wrong | Edit `CORE_REPO_PATH` in `.env`. |
+| target unclear | Run `builder-targets list` and `builder-targets show <target>`. |
 | external tool missing | Run `builder-tools missing` and install the listed tool. |
 | context pack fails | Confirm `--target core` versus `--target builder`, then run with `--no-repomix` to validate selection without Repomix. |
 | local model emits JSON instead of using tools | Treat the session as text-only; do not accept autonomous edits until a tool smoke passes. |
@@ -294,6 +325,9 @@ builder doctor
 builder models
 builder pull
 builder ask --model qwen-coder --prompt "..."
+builder-targets list
+builder-targets show builder
+builder-targets validate
 builder-lanes list
 builder-lanes show draft_patch_plan --context "..."
 builder-tools list

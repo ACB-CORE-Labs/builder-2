@@ -25,6 +25,7 @@ builder-runtime = "builder_ii.runtime_control:runtime_app"
 builder-lanes = "builder_ii.lane_guides:lane_app"
 builder-tools = "builder_ii.tools_cli:tools_app"
 builder-context = "builder_ii.context_cli:context_app"
+builder-targets = "builder_ii.targets_cli:targets_app"
 
 [dependency-groups]
 dev = [
