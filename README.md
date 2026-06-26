@@ -23,6 +23,7 @@ Start here if you are evaluating or sharing the project:
 | [`docs/RESEARCH_PLANS.md`](docs/RESEARCH_PLANS.md) | Artifact-only research planning and source-strategy boundaries. |
 | [`docs/GOOSE_RUNTIME.md`](docs/GOOSE_RUNTIME.md) | Goose runtime design boundary and promotion requirements. |
 | [`docs/GOOSE_SESSION.md`](docs/GOOSE_SESSION.md) | Goose session manifest artifacts; no runtime activation. |
+| [`docs/DEEPAGENTS_POLICY.md`](docs/DEEPAGENTS_POLICY.md) | Governed deepagents policy artifacts; no agent construction. |
 | [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) | Capability promotion states and non-authority rule. |
 | [`docs/RUNTIME_PROMOTION.md`](docs/RUNTIME_PROMOTION.md) | Runtime-specific promotion gates for Goose, deepagents, commands, and patches. |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
@@ -61,6 +62,7 @@ builder-II currently includes:
 - handoff artifacts via `builder-notes`;
 - research planning artifacts via `builder-research`;
 - Goose session manifest artifacts via `builder-goose`;
+- governed deepagents policy artifacts via `builder-deepagents`;
 - lane guides, personas, and capability boundaries for prompt/task organization;
 - external tool registry via `builder-tools`;
 - optional external tool installer via `scripts/install-tools.sh`;
@@ -94,7 +96,7 @@ Validated on the M1 `mlx-lm` lane:
 - Text-only audit/planning responses through `qwen-coder`.
 - Runtime reset with `builder-runtime reset`.
 - Goose recipe path wiring.
-- Artifact creation and validation for target bundles, verification profiles, quality gates, handoffs, research plans, and Goose session manifests.
+- Artifact creation and validation for target bundles, verification profiles, quality gates, handoffs, research plans, Goose session manifests, and governed deepagents policies.
 
 Not yet validated/promoted:
 
