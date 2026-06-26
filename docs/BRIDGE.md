@@ -11,9 +11,9 @@ builder-bridge doctor
 builder-bridge deepagents-smoke
 builder-bridge deepagents-smoke --json
 builder-bridge deepagents-smoke --output .builder/artifacts/deepagents-smoke.json
-builder-bridge render patch_planner --target generic
-builder-bridge render patch_planner --target builder
-builder-bridge render verification_planner --target core
+builder-bridge render patch_planner --target builder --format markdown
+builder-bridge render patch_planner --target builder --format json
+builder-bridge render patch_planner --target builder --output .builder/artifacts/bridge-spec.json --format json
 ```
 
 ## Optional smoke
@@ -35,6 +35,20 @@ builder-bridge deepagents-smoke --output .builder/artifacts/deepagents-smoke.jso
 - `--output PATH` writes the JSON report to the specified path, creating any parent directories as needed.
 - Using both `--json --output PATH` prints the report and writes it to the file.
 - The readiness artifact is a static readiness report showing import status and capability limits. It is NOT a runtime permission or execution artifact.
+
+### Dry-Run Bridge Spec Artifact
+
+You can generate a dry-run bridge spec artifact (in JSON format) by running:
+
+```bash
+builder-bridge render patch_planner --target builder --format json --output .builder/artifacts/bridge-spec.json
+```
+
+- `--format FORMAT` specifies the output format: `markdown` (default) or `json`.
+- `--output PATH` writes the formatted spec to the specified path, creating any parent directories as needed.
+- If `--output` is not specified, it prints the spec directly to stdout (using raw stdout representation for JSON format).
+- This is a dry-run bridge spec artifact and NOT a runtime/execution authorization.
+
 
 
 ## Boundary

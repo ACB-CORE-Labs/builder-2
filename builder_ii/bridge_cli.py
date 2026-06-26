@@ -65,11 +65,21 @@ def deepagents_smoke(
         _print_deepagents_smoke()
 
 
+def _render_bridge_spec_output(spec: Any, output_format: str) -> str:
+    if output_format == "json":
+        return json_lib.dumps(spec.to_artifact_dict(), indent=2, sort_keys=True) + "\n"
+    if output_format == "markdown":
+        return render_bridge_spec(spec) + "\n"
+    raise ValueError("format must be one of: markdown, json")
+
+
 @bridge_app.command("render")
 def render(
     profile: str,
     target: str = typer.Option("generic", "--target", help="Target profile: generic, builder, core"),
     generic_repo: Path | None = typer.Option(None, "--generic-repo", help="Repo path for the generic target"),
+    output_format: str = typer.Option("markdown", "--format", help="Output format: markdown, json"),
+    output: Path | None = typer.Option(None, "--output", help="Write spec to path"),
 ) -> None:
     """Render a builder-II profile as a bridge spec."""
     settings = load_settings()
@@ -80,4 +90,18 @@ def render(
         for error in errors:
             console.print(error)
         raise typer.Exit(1)
-    console.print(render_bridge_spec(spec))
+
+    try:
+        text = _render_bridge_spec_output(spec, output_format)
+    except ValueError as exc:
+        console.print(str(exc))
+        raise typer.Exit(1)
+
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding="utf-8")
+    else:
+        if output_format == "json":
+            console.out(text, end="")
+        else:
+            console.print(text, end="")
