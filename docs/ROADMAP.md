@@ -6,7 +6,7 @@ It is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CORE remai
 
 ## Current status
 
-builder-II is complete on the no-runtime governance foundation. Verification profiles, handoff artifacts, quality gate artifacts, research planning artifacts, Goose session manifests, and governed deepagents policy artifacts remain artifact-only. Goose runtime behavior and deepagents runtime behavior are specified as design boundaries, not enabled.
+builder-II is complete on the no-runtime governance foundation. Verification profiles, handoff artifacts, quality gate artifacts, research planning artifacts, Goose session manifests, governed deepagents policy artifacts, and deepagents dependency-readiness artifacts remain artifact-only. Goose runtime behavior and deepagents runtime behavior are specified as design boundaries, not enabled.
 
 Completed foundation surfaces:
 
@@ -28,6 +28,7 @@ Completed foundation surfaces:
 - runtime promotion contract
 - Goose session manifest artifacts
 - governed deepagents policy artifacts
+- deepagents dependency-readiness artifacts
 
 The current foundation is intentionally no-runtime:
 
@@ -65,6 +66,8 @@ builder-goose manifest --target builder --agent patch_planner --mode read_only -
 builder-goose validate .builder/artifacts/goose-session.json
 builder-deepagents policy --target builder --task "..." --output .builder/artifacts/deepagents-policy.json
 builder-deepagents validate .builder/artifacts/deepagents-policy.json
+builder-deepagents readiness --mode metadata_only --output .builder/artifacts/deepagents-readiness.json
+builder-deepagents validate-readiness .builder/artifacts/deepagents-readiness.json
 builder-bridge render patch_planner --target builder --format json --output .builder/artifacts/bridge-spec.json
 builder-bridge validate-artifact .builder/artifacts/bridge-spec.json
 ```
@@ -116,7 +119,7 @@ These RFCs are not implementation authority. They do not enable memory mutation,
 ## Near-term order
 
 1. Keep documentation and metadata aligned with the generic-first platform identity.
-2. Treat Goose session manifests and governed deepagents policy artifacts as complete artifact-only infrastructure.
+2. Treat Goose session manifests, governed deepagents policy artifacts, and dependency-readiness artifacts as complete artifact-only infrastructure.
 3. Design the read-only runtime candidate and runtime audit artifact schema.
 4. Add cross-layer compatibility and denied-action tests before runtime promotion.
 5. Introduce model routing as a policy artifact before any automatic routing behavior.
