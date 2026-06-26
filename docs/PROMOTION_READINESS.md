@@ -15,6 +15,49 @@ The record checks eight required areas:
 
 The record is metadata-only. It does not enable the capability and does not grant authority.
 
+## Validation boundary
+
+The validator enforces these constraints:
+
+| Field | Required value |
+|---|---|
+| `kind` | `builder_ii.promotion_readiness_record` |
+| `schema_version` | `1` |
+| `record_state` | `RECORDED_ONLY` |
+| `current_state` | `DISABLED` |
+| `capability_state` | `promotion_readiness_record` |
+| `capability_name` | non-empty string |
+| `target_state` | non-empty string |
+| `status` | `ready` or `blocked` |
+| `ready` | boolean, must match `status` |
+| `missing` | list, must contain all check-level missing items |
+| `checks` | list of 8 required check objects |
+| `performed_actions` | `[]` |
+| `grants_runtime_authority` | `false` |
+| `grants_action_authority` | `false` |
+
+### Per-check validation
+
+Each check object must have:
+
+| Field | Type | Constraint |
+|---|---|---|
+| `name` | string | non-empty, one of the 8 required names |
+| `refs` | list | evidence references |
+| `ready` | boolean | must match whether `refs` is non-empty |
+| `missing` | list | must be empty when `refs` present; must be non-empty when `refs` empty |
+
+### Governance block
+
+| Field | Required value |
+|---|---|
+| `runtime_execution` | `DISABLED` |
+| `model_execution` | `DISABLED` |
+| `source_writes` | `DISABLED` |
+| `memory_mutation` | `DISABLED` |
+| `artifact_is_authority` | `false` |
+| `core_workbench_coupling` | `NONE` |
+
 ## CLI
 
 ```text

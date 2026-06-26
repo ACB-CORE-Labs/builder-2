@@ -99,6 +99,33 @@ def write_promotion_readiness_record(record: dict[str, Any], output: Path) -> No
     output.write_text(dumps_promotion_readiness_record(record), encoding="utf-8")
 
 
+def _validate_check(check: Any, index: int) -> list[str]:
+    """Validate shape of a single check entry."""
+    errors: list[str] = []
+    prefix = f"checks[{index}]"
+    if not isinstance(check, dict):
+        return [f"{prefix} must be an object"]
+    if not isinstance(check.get("name"), str) or not check["name"]:
+        errors.append(f"{prefix}.name must be a non-empty string")
+    if not isinstance(check.get("refs"), list):
+        errors.append(f"{prefix}.refs must be a list")
+    if not isinstance(check.get("ready"), bool):
+        errors.append(f"{prefix}.ready must be a boolean")
+    if not isinstance(check.get("missing"), list):
+        errors.append(f"{prefix}.missing must be a list")
+    # Cross-field consistency within check
+    if isinstance(check.get("refs"), list) and isinstance(check.get("ready"), bool):
+        expected_ready = bool(check["refs"])
+        if check["ready"] != expected_ready:
+            errors.append(f"{prefix}.ready must match whether refs is non-empty")
+    if isinstance(check.get("refs"), list) and isinstance(check.get("missing"), list):
+        if check["refs"] and check["missing"]:
+            errors.append(f"{prefix} must not have missing items when refs are present")
+        if not check["refs"] and not check["missing"]:
+            errors.append(f"{prefix} must have missing items when refs are empty")
+    return errors
+
+
 def validate_promotion_readiness_record(record: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(record, dict):
@@ -111,22 +138,45 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_state") != "DISABLED":
         errors.append("current_state must be DISABLED")
+    if record.get("capability_state") != "promotion_readiness_record":
+        errors.append("capability_state must be promotion_readiness_record")
     if not record.get("capability_name"):
         errors.append("capability_name is required")
+    if not record.get("target_state"):
+        errors.append("target_state is required")
     if record.get("status") not in ("ready", "blocked"):
         errors.append("status must be ready or blocked")
-    if record.get("ready") is not (record.get("status") == "ready"):
+    if not isinstance(record.get("ready"), bool):
+        errors.append("ready must be a boolean")
+    elif record.get("ready") is not (record.get("status") == "ready"):
         errors.append("ready must match status")
     if not isinstance(record.get("missing"), list):
         errors.append("missing must be a list")
+    # Validate checks structure and required check names
     checks = record.get("checks")
     if not isinstance(checks, list):
         errors.append("checks must be a list")
     else:
+        for index, check in enumerate(checks):
+            errors.extend(_validate_check(check, index))
         names = {check.get("name") for check in checks if isinstance(check, dict)}
         for required in _REQUIRED_CHECKS:
             if required not in names:
                 errors.append(f"missing check: {required}")
+        # Validate aggregate missing matches check-level missing
+        if isinstance(record.get("missing"), list):
+            check_missing = [
+                item
+                for check in checks
+                if isinstance(check, dict) and isinstance(check.get("missing"), list)
+                for item in check["missing"]
+            ]
+            # Top-level missing may include extra entries like "capability_name is required"
+            # but must contain all check-level missing items
+            top_missing = record["missing"]
+            for item in check_missing:
+                if item not in top_missing:
+                    errors.append(f"missing must include check-level item: {item}")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
