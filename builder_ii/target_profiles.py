@@ -1,12 +1,15 @@
-from __future__ import annotations
-
+import json as json_lib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from builder_ii.config import Settings
 
 TargetName = Literal["generic", "builder", "core"]
+
+TARGET_PROFILE_ARTIFACT_KIND = "builder_ii.target_profile"
+TARGET_PROFILE_SCHEMA_VERSION = 1
+
 
 
 @dataclass(frozen=True)
@@ -18,6 +21,26 @@ class TargetProfile:
     verification_hints: tuple[str, ...]
     principles: tuple[str, ...]
     notes: tuple[str, ...] = ()
+
+    def to_artifact_dict(self) -> dict[str, Any]:
+        return {
+            "kind": TARGET_PROFILE_ARTIFACT_KIND,
+            "schema_version": TARGET_PROFILE_SCHEMA_VERSION,
+            "name": self.name,
+            "description": self.description,
+            "repo": str(self.repo),
+            "context_defaults": list(self.context_defaults),
+            "verification_hints": list(self.verification_hints),
+            "principles": list(self.principles),
+            "notes": list(self.notes),
+            "governance": {
+                "runtime_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
+                "artifact_is_authority": False,
+            },
+        }
+
 
 
 _GENERIC_CONTEXT_DEFAULTS = (
@@ -150,3 +173,60 @@ def render_target_profile(profile: TargetProfile) -> str:
         lines.extend(f"- {note}" for note in profile.notes)
     lines.append("")
     return "\n".join(lines)
+
+
+def dumps_target_profile_artifact(profile: TargetProfile) -> str:
+    return json_lib.dumps(profile.to_artifact_dict(), indent=2, sort_keys=True) + "\n"
+
+
+def write_target_profile_artifact(profile: TargetProfile, output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(dumps_target_profile_artifact(profile), encoding="utf-8")
+
+
+def validate_target_profile_artifact(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["target profile artifact must be a JSON object"]
+    if data.get("kind") != TARGET_PROFILE_ARTIFACT_KIND:
+        errors.append(f"kind must be {TARGET_PROFILE_ARTIFACT_KIND}")
+    if data.get("schema_version") != TARGET_PROFILE_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {TARGET_PROFILE_SCHEMA_VERSION}")
+    if data.get("name") not in target_names():
+        errors.append("name must be a known target profile")
+
+    # Optional fields or standard lists
+    for field in ("description", "repo"):
+        if not isinstance(data.get(field), str):
+            errors.append(f"{field} must be a string")
+
+    for list_field in ("context_defaults", "verification_hints", "principles", "notes"):
+        if not isinstance(data.get(list_field), list):
+            errors.append(f"{list_field} must be a list")
+
+    governance = data.get("governance")
+
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        if governance.get("runtime_execution") != "DISABLED":
+            errors.append("governance.runtime_execution must be DISABLED")
+        if governance.get("shell_execution") != "DISABLED":
+            errors.append("governance.shell_execution must be DISABLED")
+        if governance.get("writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
+            errors.append("governance.writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+    return errors
+
+
+def validate_target_profile_artifact_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as exc:
+        return [f"invalid JSON: {exc}"]
+    except Exception as exc:
+        return [f"failed to read file: {exc}"]
+    return validate_target_profile_artifact(data)

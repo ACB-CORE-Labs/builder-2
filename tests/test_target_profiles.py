@@ -64,3 +64,94 @@ def test_render_profile_has_expected_sections(tmp_path: Path) -> None:
     assert "## Context defaults" in rendered
     assert "## Verification hints" in rendered
     assert "## Principles" in rendered
+
+
+def test_target_profile_to_artifact_dict(tmp_path: Path) -> None:
+    from builder_ii.target_profiles import (
+        TARGET_PROFILE_ARTIFACT_KIND,
+        TARGET_PROFILE_SCHEMA_VERSION,
+        validate_target_profile_artifact,
+        write_target_profile_artifact,
+        validate_target_profile_artifact_file,
+    )
+    settings = _settings(tmp_path)
+    profile = target_profile(settings, "builder")
+
+    art_dict = profile.to_artifact_dict()
+    assert art_dict["kind"] == TARGET_PROFILE_ARTIFACT_KIND
+    assert art_dict["schema_version"] == TARGET_PROFILE_SCHEMA_VERSION
+    assert art_dict["name"] == "builder"
+    assert art_dict["governance"]["runtime_execution"] == "DISABLED"
+
+    errors = validate_target_profile_artifact(art_dict)
+    assert not errors, f"Should be valid: {errors}"
+
+    # Test file-based validation
+    output_file = tmp_path / "target_profile.json"
+    write_target_profile_artifact(profile, output_file)
+    assert output_file.exists()
+
+    file_errors = validate_target_profile_artifact_file(output_file)
+    assert not file_errors, f"File should be valid: {file_errors}"
+
+
+def test_target_profile_validation_failures(tmp_path: Path) -> None:
+    from builder_ii.target_profiles import validate_target_profile_artifact, validate_target_profile_artifact_file
+
+    # Non-dict validation
+    assert any("must be a JSON object" in err for err in validate_target_profile_artifact([]))
+
+    # Missing kind / schema version
+    bad_dict = {
+        "kind": "wrong_kind",
+        "schema_version": 1,
+        "name": "builder",
+    }
+    errors = validate_target_profile_artifact(bad_dict)
+    assert any("kind must be" in err for err in errors)
+
+    # Missing list fields
+    bad_fields = {
+        "kind": "builder_ii.target_profile",
+        "schema_version": 1,
+        "name": "builder",
+        "description": 123,  # should be string
+        "repo": "path/to/repo",
+        "context_defaults": "not a list",
+        "verification_hints": [],
+        "principles": [],
+        "notes": [],
+    }
+    errors = validate_target_profile_artifact(bad_fields)
+    assert any("description must be a string" in err for err in errors)
+    assert any("context_defaults must be a list" in err for err in errors)
+
+    # Bad governance
+    bad_gov = {
+        "kind": "builder_ii.target_profile",
+        "schema_version": 1,
+        "name": "builder",
+        "description": "desc",
+        "repo": "path",
+        "context_defaults": [],
+        "verification_hints": [],
+        "principles": [],
+        "notes": [],
+        "governance": {
+            "runtime_execution": "ENABLED",
+            "shell_execution": "DISABLED",
+            "writes": "DISABLED",
+            "artifact_is_authority": True,
+        }
+    }
+    errors = validate_target_profile_artifact(bad_gov)
+    assert any("runtime_execution must be DISABLED" in err for err in errors)
+    assert any("artifact_is_authority must be false" in err for err in errors)
+
+    # Missing file validation
+    assert "file not found" in validate_target_profile_artifact_file(tmp_path / "non_existent.json")[0]
+
+    # Invalid JSON file
+    bad_json = tmp_path / "bad.json"
+    bad_json.write_text("{invalid", encoding="utf-8")
+    assert "invalid JSON" in validate_target_profile_artifact_file(bad_json)[0]

@@ -18,6 +18,9 @@ from builder_ii.receipt_records import RECEIPT_RECORD_KIND, validate_receipt_rec
 from builder_ii.receive_records import RECEIVE_RECORD_KIND, validate_receive_record
 from builder_ii.snapshot_records import SNAPSHOT_RECORD_KIND, validate_snapshot_record
 from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_state_ledger_record
+from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
+
+
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_COMMAND_PROPOSAL_KIND: validate_goose_command_proposal,
@@ -32,7 +35,10 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     STATE_LEDGER_RECORD_KIND: validate_state_ledger_record,
     ARTIFACT_INDEX_RECORD_KIND: validate_artifact_index_record,
     SNAPSHOT_RECORD_KIND: validate_snapshot_record,
+    TARGET_PROFILE_ARTIFACT_KIND: validate_target_profile_artifact,
 }
+
+
 
 
 def _digest(data: dict[str, Any]) -> str:
