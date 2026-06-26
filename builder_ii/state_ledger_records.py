@@ -9,6 +9,7 @@ from builder_ii.promotion_decision_records import PROMOTION_DECISION_RECORD_KIND
 
 STATE_LEDGER_RECORD_KIND = "builder_ii.state_ledger_record"
 STATE_LEDGER_RECORD_SCHEMA_VERSION = 1
+_LEDGER_STATES = {"approved_for_manual_followup", "blocked"}
 
 
 def _digest(value: dict[str, Any]) -> str:
@@ -115,6 +116,31 @@ def write_state_ledger_record(record: dict[str, Any], output: Path) -> None:
     output.write_text(dumps_state_ledger_record(record), encoding="utf-8")
 
 
+def _validate_entry(entry: Any, index: int) -> list[str]:
+    errors: list[str] = []
+    prefix = f"entries[{index}]"
+    if not isinstance(entry, dict):
+        return [f"{prefix} must be an object"]
+    if not entry.get("capability_name"):
+        errors.append(f"{prefix}.capability_name is required")
+    if entry.get("ledger_state") not in _LEDGER_STATES:
+        errors.append(f"{prefix}.ledger_state must be approved_for_manual_followup or blocked")
+    if not isinstance(entry.get("approved"), bool):
+        errors.append(f"{prefix}.approved must be a boolean")
+    elif entry.get("ledger_state") == "approved_for_manual_followup" and entry.get("approved") is not True:
+        errors.append(f"{prefix}.approved must be true for approved_for_manual_followup")
+    elif entry.get("ledger_state") == "blocked" and entry.get("approved") is not False:
+        errors.append(f"{prefix}.approved must be false for blocked")
+    if not isinstance(entry.get("issues"), list):
+        errors.append(f"{prefix}.issues must be a list")
+    decision = entry.get("decision")
+    if not isinstance(decision, dict):
+        errors.append(f"{prefix}.decision must be an object")
+    elif decision.get("expected_kind") != PROMOTION_DECISION_RECORD_KIND:
+        errors.append(f"{prefix}.decision.expected_kind must be {PROMOTION_DECISION_RECORD_KIND}")
+    return errors
+
+
 def validate_state_ledger_record(record: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(record, dict):
@@ -127,16 +153,29 @@ def validate_state_ledger_record(record: Any) -> list[str]:
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_state") != "DISABLED":
         errors.append("current_state must be DISABLED")
+    if not record.get("ledger_name"):
+        errors.append("ledger_name is required")
     if record.get("status") not in ("complete", "incomplete"):
         errors.append("status must be complete or incomplete")
     if record.get("complete") is not (record.get("status") == "complete"):
         errors.append("complete must match status")
     if not isinstance(record.get("issues"), list):
         errors.append("issues must be a list")
-    if not isinstance(record.get("counts"), dict):
+    counts = record.get("counts")
+    entries = record.get("entries")
+    if not isinstance(counts, dict):
         errors.append("counts must be an object")
-    if not isinstance(record.get("entries"), list):
+    if not isinstance(entries, list):
         errors.append("entries must be a list")
+    else:
+        for index, entry in enumerate(entries):
+            errors.extend(_validate_entry(entry, index))
+        if isinstance(counts, dict):
+            approved_count = sum(1 for entry in entries if isinstance(entry, dict) and entry.get("approved") is True)
+            blocked_count = sum(1 for entry in entries if isinstance(entry, dict) and entry.get("approved") is False)
+            expected_counts = {"total": len(entries), "approved": approved_count, "blocked": blocked_count}
+            if counts != expected_counts:
+                errors.append(f"counts must match entries: {expected_counts}")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
