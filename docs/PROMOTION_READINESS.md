@@ -30,7 +30,7 @@ The validator enforces these constraints:
 | `target_state` | non-empty string |
 | `status` | `ready` or `blocked` |
 | `ready` | boolean, must match `status` |
-| `missing` | list, must contain all check-level missing items |
+| `missing` | list of non-empty strings; must contain all check-level missing items |
 | `checks` | list of 8 required check objects |
 | `performed_actions` | `[]` |
 | `grants_runtime_authority` | `false` |
@@ -43,14 +43,15 @@ Each check object must have:
 | Field | Type | Constraint |
 |---|---|---|
 | `name` | string | non-empty, one of the 8 required names |
-| `refs` | list | evidence references |
+| `refs` | list | non-empty string evidence references |
 | `ready` | boolean | must match whether `refs` is non-empty |
-| `missing` | list | must be empty when `refs` present; must be non-empty when `refs` empty |
+| `missing` | list | non-empty strings; must be empty when `refs` present; must be non-empty when `refs` empty |
 
 ### Governance block
 
 | Field | Required value |
 |---|---|
+| `capability_state` | `promotion_readiness_record` |
 | `runtime_execution` | `DISABLED` |
 | `model_execution` | `DISABLED` |
 | `source_writes` | `DISABLED` |
