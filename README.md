@@ -24,6 +24,7 @@ Start here if you are evaluating or sharing the project:
 | [`docs/GOOSE_RUNTIME.md`](docs/GOOSE_RUNTIME.md) | Goose runtime design boundary and promotion requirements. |
 | [`docs/GOOSE_SESSION.md`](docs/GOOSE_SESSION.md) | Goose session manifest artifacts; no runtime activation. |
 | [`docs/GOOSE_READONLY.md`](docs/GOOSE_READONLY.md) | Goose read-only runtime candidate audit artifacts; no repository inspection yet. |
+| [`docs/GOOSE_INSPECTION.md`](docs/GOOSE_INSPECTION.md) | Bounded read-only inspection artifacts for explicit operator-requested files. |
 | [`docs/DEEPAGENTS_POLICY.md`](docs/DEEPAGENTS_POLICY.md) | Governed deepagents policy artifacts; no agent construction. |
 | [`docs/DEEPAGENTS_READINESS.md`](docs/DEEPAGENTS_READINESS.md) | Optional deepagents dependency-readiness artifacts; no runtime authority. |
 | [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) | Capability promotion states and non-authority rule. |
@@ -65,6 +66,7 @@ builder-II currently includes:
 - research planning artifacts via `builder-research`;
 - Goose session manifest artifacts via `builder-goose`;
 - Goose read-only candidate audit artifacts via `builder-goose`;
+- bounded Goose read-only inspection artifacts via `builder-goose`;
 - governed deepagents policy and dependency-readiness artifacts via `builder-deepagents`;
 - lane guides, personas, and capability boundaries for prompt/task organization;
 - external tool registry via `builder-tools`;
@@ -99,12 +101,13 @@ Validated on the M1 `mlx-lm` lane:
 - Text-only audit/planning responses through `qwen-coder`.
 - Runtime reset with `builder-runtime reset`.
 - Goose recipe path wiring.
-- Artifact creation and validation for target bundles, verification profiles, quality gates, handoffs, research plans, Goose session manifests, Goose read-only candidate audits, governed deepagents policies, and deepagents dependency-readiness artifacts.
+- Artifact creation and validation for target bundles, verification profiles, quality gates, handoffs, research plans, Goose session manifests, Goose read-only candidate audits, bounded read-only inspection artifacts, governed deepagents policies, and deepagents dependency-readiness artifacts.
 
 Not yet validated/promoted:
 
 - Fully autonomous Goose tool execution through the local `mlx-lm` provider.
 - Actual read-only repository inspection by Goose runtime.
+- Goose process-backed read-only runtime inspection.
 - File-modifying `/implement` sessions driven entirely by a local MLX model.
 - deepagents runtime orchestration.
 - approved command execution artifacts.

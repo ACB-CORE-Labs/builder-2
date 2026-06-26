@@ -13,6 +13,13 @@ from builder_ii.goose_readonly import (
     validate_readonly_runtime_audit_file,
     write_readonly_runtime_audit,
 )
+from builder_ii.goose_inspection import (
+    DEFAULT_MAX_READ_BYTES,
+    create_readonly_inspection_audit_from_manifest_file,
+    dumps_readonly_inspection_audit,
+    validate_readonly_inspection_audit_file,
+    write_readonly_inspection_audit,
+)
 from builder_ii.goose_session import (
     GooseRuntimeMode,
     create_goose_session_manifest,
@@ -141,3 +148,40 @@ def validate_audit(path: Path) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     console.print(f"Goose read-only audit is valid: {path}")
+
+@goose_app.command("inspect-readonly")
+def inspect_readonly(
+    manifest_path: Path = typer.Argument(..., help="Goose session manifest path"),
+    read_file: list[str] | None = typer.Option(None, "--read-file", help="Relative repository file path to inspect; repeatable"),
+    max_bytes: int = typer.Option(DEFAULT_MAX_READ_BYTES, "--max-bytes", help="Maximum bytes allowed per inspected file"),
+    output: Path | None = typer.Option(None, "--output", help="Write read-only inspection JSON to path"),
+) -> None:
+    """Create a bounded read-only inspection audit without starting Goose."""
+    audit, errors = create_readonly_inspection_audit_from_manifest_file(
+        manifest_path,
+        read_paths=read_file or [],
+        output_path=output,
+        max_bytes=max_bytes,
+    )
+    if errors or audit is None:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+
+    if output is not None:
+        write_readonly_inspection_audit(audit, output)
+        console.print(f"Goose read-only inspection audit written to {output}")
+    else:
+        console.out(dumps_readonly_inspection_audit(audit), end="")
+
+
+@goose_app.command("validate-inspection")
+def validate_inspection(path: Path) -> None:
+    """Validate a Goose read-only inspection audit artifact."""
+    errors = validate_readonly_inspection_audit_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+    console.print(f"Goose read-only inspection audit is valid: {path}")
+

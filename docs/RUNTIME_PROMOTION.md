@@ -59,20 +59,26 @@ Runtime promotion additionally requires:
 
 Current state: `read_only_runtime_candidate`.
 
-Implemented candidate surface:
+Implemented candidate surfaces:
 
 - `docs/GOOSE_READONLY.md`
 - `builder-goose readonly-audit`
 - `builder-goose validate-audit`
 - read-only audit artifact schema
-- denied-action tests proving the candidate does not start Goose, read repository files, inspect git status, read linked target artifacts, execute commands, execute shell, call models, construct deepagents, mutate memory, write source, commit, push, open pull requests, collect sources, run web search, or run MCP tools
+- denied-action tests proving the audit candidate does not start Goose, read repository files, inspect git status, read linked target artifacts, execute commands, execute shell, call models, construct deepagents, mutate memory, write source, commit, push, open pull requests, collect sources, run web search, or run MCP tools
+- `docs/GOOSE_INSPECTION.md`
+- `builder-goose inspect-readonly`
+- `builder-goose validate-inspection`
+- bounded read-only inspection artifact schema
+- explicit operator-requested relative repository file reads
+- file metadata recording without file content recording
+- denied-action tests proving bounded inspection does not start Goose, inspect git status, read linked target artifacts, execute commands, execute shell, call models, construct deepagents, mutate memory, write source, commit, push, open pull requests, collect sources, run web search, or run MCP tools
 
-Required before actual read-only runtime inspection is enabled:
+Required before richer read-only runtime inspection is enabled:
 
-- target-boundary rules or file-read allowlist
-- repository file read recording
 - git status recording
 - linked artifact read recording
+- optional target-boundary expansion beyond explicit files, if needed
 - no-write enforcement tests
 - no-shell enforcement tests
 - no-command-execution enforcement tests
@@ -245,7 +251,8 @@ A valid artifact alone never authorizes:
 - web/search execution
 - Goose runtime start
 - deepagents construction
-- repository file reads as runtime behavior
+- arbitrary repository file reads
+- repository file content recording
 - git status inspection as runtime behavior
 - linked target artifact reads as runtime behavior
 
@@ -256,6 +263,7 @@ Every promoted runtime mode must define rollback behavior before it can run.
 Examples:
 
 - read-only candidate audit rollback: delete the emitted audit artifact; no source rollback is needed because no runtime inspection or mutation occurs
+- bounded read-only inspection rollback: delete the emitted inspection audit artifact; no source rollback is needed because no mutation occurs and file contents are not recorded
 - read-only mode rollback: no source rollback needed, but audit and handoff must record interruption state
 - command proposal rollback: discard proposal artifact
 - verification execution rollback: no source rollback expected; record command output and failure state
@@ -281,4 +289,4 @@ Examples:
 
 This document is itself `spec_only`. It does not enable any runtime mode.
 
-The current platform remains artifact-first. The read-only audit surface is a candidate that emits an audit artifact while preserving disabled runtime authority. Actual repository inspection remains unpromoted until a future PR adds target-boundary rules, recording, denied-action tests, docs, rollback behavior, and verification paths.
+The current platform remains artifact-first. Bounded read-only inspection is a candidate surface that reads only explicit operator-requested relative file paths and records metadata without contents. Goose runtime start, git status inspection, linked target artifact reads, shell, commands, models, deepagents, source mutation, memory mutation, commits, pushes, pull requests, source collection, web search, and MCP remain unpromoted.

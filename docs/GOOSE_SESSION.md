@@ -2,7 +2,7 @@
 
 Goose session manifests are governed JSON artifacts that describe a future Goose session before any runtime starts.
 
-This surface is artifact-only. It does not start Goose, run commands, execute shell, construct agents, call models, inspect files as a runtime, or mutate source.
+This surface is artifact-only. It does not start Goose, run commands, execute shell, construct agents, call models, or mutate source.
 
 ## Commands
 
@@ -40,7 +40,19 @@ builder-goose validate-audit .builder/artifacts/goose-runtime-audit.json
 
 The `readonly-audit` command validates a read-only manifest and emits an audit artifact. It still does not start Goose, inspect repository files, inspect git status, read linked artifacts, execute commands, execute shell, call models, or mutate source.
 
-See `docs/GOOSE_READONLY.md`.
+Bounded read-only inspection artifacts:
+
+```bash
+builder-goose inspect-readonly \
+  .builder/artifacts/goose-session.json \
+  --read-file README.md \
+  --output .builder/artifacts/goose-readonly-inspection.json
+builder-goose validate-inspection .builder/artifacts/goose-readonly-inspection.json
+```
+
+The `inspect-readonly` command reads only explicit operator-requested relative file paths inside the target repository and records metadata, not contents. It still does not start Goose, inspect git status, read linked artifacts, execute commands, execute shell, call models, construct deepagents, or mutate source.
+
+See `docs/GOOSE_READONLY.md` and `docs/GOOSE_INSPECTION.md`.
 
 ## Artifact contents
 
@@ -82,7 +94,6 @@ Validated manifests are evidence and configuration. They are not authority.
 Goose session manifests deny:
 
 - starting Goose as a governed runtime
-- reading repository files as a runtime
 - command execution
 - shell execution
 - source writes
@@ -112,6 +123,8 @@ Goose session manifests deny:
 
 `builder-goose validate-audit PATH` checks the read-only audit artifact shape and confirms that runtime authority remains disabled.
 
+`builder-goose validate-inspection PATH` checks bounded read-only inspection records and confirms that file contents, shell, commands, models, writes, commits, pushes, PR creation, source collection, web search, MCP, git status, and linked target artifact reads remain denied.
+
 ## Relationship to later work
 
 This is the first runtime-adjacent artifact surface after the Goose runtime spec.
@@ -122,13 +135,14 @@ Implemented surfaces:
 - `builder-goose validate`
 - `builder-goose readonly-audit`
 - `builder-goose validate-audit`
+- `builder-goose inspect-readonly`
+- `builder-goose validate-inspection`
 
 Future PRs may add:
 
-- actual read-only repository inspection under target-boundary rules
 - git status recording
 - linked artifact read recording
 - command proposal artifacts
 - HITL approval artifacts
 
-Those later capabilities still require explicit promotion. The manifest and audit artifact alone never grant runtime authority.
+Those later capabilities still require explicit promotion. The manifest and audit artifacts alone never grant runtime authority.

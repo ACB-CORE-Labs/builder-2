@@ -111,6 +111,12 @@ The mature `read_only` runtime mode may eventually inspect repository files and 
 
 This candidate does not do that yet. It validates the manifest-to-audit path first so the audit schema, CLI surface, denied-action tests, and non-authority rule are in place before real read-only inspection is introduced.
 
+## Relationship to bounded inspection
+
+The next inspection surface is documented in `docs/GOOSE_INSPECTION.md`. It allows only explicit operator-requested relative repository file paths and records metadata, not contents.
+
+That later surface still does not start Goose, inspect git status, read linked target artifacts, execute commands, execute shell, call models, construct deepagents, or mutate source.
+
 ## Promotion posture
 
 This surface is a `read_only_runtime_candidate`, not an enabled runtime.
