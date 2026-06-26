@@ -4,6 +4,15 @@ Platform snapshot records connect an artifact index and a state ledger into one 
 
 They store metadata and digests only.
 
+Snapshot records preserve the same record-only boundary as the rest of the governed artifact chain:
+
+- runtime execution disabled;
+- model execution disabled;
+- source writes disabled;
+- memory mutation disabled;
+- artifact authority disabled;
+- CORE Workbench coupling none.
+
 ## CLI
 
 ```text
