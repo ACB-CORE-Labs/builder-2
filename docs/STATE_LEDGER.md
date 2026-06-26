@@ -6,6 +6,18 @@ The ledger records capability names, target states, decision digests, and blocke
 
 It is metadata-only. It does not enable any capability.
 
+Validation preserves the ledger boundary by requiring:
+
+- a ledger name;
+- counts that match ledger entries;
+- valid entry status shape;
+- runtime execution disabled;
+- model execution disabled;
+- source writes disabled;
+- memory mutation disabled;
+- artifact authority disabled;
+- CORE Workbench coupling none.
+
 ## CLI
 
 ```text
