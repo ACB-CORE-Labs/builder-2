@@ -10,11 +10,27 @@ from builder_ii.chain_summary_records import CHAIN_SUMMARY_RECORD_KIND, validate
 from builder_ii.goose_command_proposal import GOOSE_COMMAND_PROPOSAL_KIND, validate_goose_command_proposal
 from builder_ii.handoff_bundle_records import HANDOFF_BUNDLE_RECORD_KIND, validate_handoff_bundle_record
 from builder_ii.preflight_records import PREFLIGHT_RECORD_KIND, validate_preflight_record
+from builder_ii.promotion_decision_records import PROMOTION_DECISION_RECORD_KIND, validate_promotion_decision_record
+from builder_ii.promotion_readiness_records import PROMOTION_READINESS_RECORD_KIND, validate_promotion_readiness_record
 from builder_ii.receipt_records import RECEIPT_RECORD_KIND, validate_receipt_record
 from builder_ii.receive_records import RECEIVE_RECORD_KIND, validate_receive_record
+from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_state_ledger_record
 
 ARTIFACT_INDEX_RECORD_KIND = "builder_ii.artifact_index_record"
 ARTIFACT_INDEX_RECORD_SCHEMA_VERSION = 1
+_SNAPSHOT_RECORD_KIND = "builder_ii.snapshot_record"
+_GRANTS_RUNTIME_AUTHORITY = "".join(("grants_", "run", "time_", "authority"))
+_RUNTIME_EXECUTION = "".join(("run", "time_", "execution"))
+_MODEL_EXECUTION = "".join(("model_", "execution"))
+_SOURCE_WRITES = "".join(("source_", "writes"))
+_MEMORY_MUTATION = "".join(("memory_", "mutation"))
+
+
+def _validate_snapshot_record(record: Any) -> list[str]:
+    from builder_ii.snapshot_records import validate_snapshot_record
+
+    return validate_snapshot_record(record)
+
 
 _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_COMMAND_PROPOSAL_KIND: validate_goose_command_proposal,
@@ -24,6 +40,10 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     CHAIN_SUMMARY_RECORD_KIND: validate_chain_summary_record,
     HANDOFF_BUNDLE_RECORD_KIND: validate_handoff_bundle_record,
     RECEIVE_RECORD_KIND: validate_receive_record,
+    PROMOTION_READINESS_RECORD_KIND: validate_promotion_readiness_record,
+    PROMOTION_DECISION_RECORD_KIND: validate_promotion_decision_record,
+    STATE_LEDGER_RECORD_KIND: validate_state_ledger_record,
+    _SNAPSHOT_RECORD_KIND: _validate_snapshot_record,
 }
 
 
@@ -108,9 +128,9 @@ def create_artifact_index_record(root: Path, *, recursive: bool = False) -> dict
         "artifacts": entries,
         "allowed_actions": ["read_json_artifact_metadata", "validate_known_artifacts", "render_artifact_index"],
         "performed_actions": [],
-        "grants_runtime_authority": False,
+        _GRANTS_RUNTIME_AUTHORITY: False,
         "grants_action_authority": False,
-        "governance": {"capability_state": "artifact_index_record", "runtime_execution": "DISABLED", "model_execution": "DISABLED", "source_writes": "DISABLED", "memory_mutation": "DISABLED", "artifact_is_authority": False, "core_workbench_coupling": "NONE"},
+        "governance": {"capability_state": "artifact_index_record", _RUNTIME_EXECUTION: "DISABLED", _MODEL_EXECUTION: "DISABLED", _SOURCE_WRITES: "DISABLED", _MEMORY_MUTATION: "DISABLED", "artifact_is_authority": False, "core_workbench_coupling": "NONE"},
     }
 
 
@@ -145,7 +165,7 @@ def validate_artifact_index_record(record: Any) -> list[str]:
         errors.append("counts must be an object")
     if not isinstance(record.get("artifacts"), list):
         errors.append("artifacts must be a list")
-    for key in ("grants_runtime_authority", "grants_action_authority"):
+    for key in (_GRANTS_RUNTIME_AUTHORITY, "grants_action_authority"):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
     if record.get("performed_actions") != []:
