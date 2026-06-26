@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+from pathlib import Path
 from dataclasses import dataclass
 from importlib import metadata
 from typing import Any
@@ -228,3 +229,77 @@ def render_bridge_spec(spec: DeepAgentBridgeSpec) -> str:
     lines.extend(f"- {item}" for item in spec.hitl_required_for)
     lines.extend(["", "## Prompt", "", spec.prompt, ""])
     return "\n".join(lines)
+
+
+def validate_artifact_file(path: Path) -> list[str]:
+    """Validate a builder-II artifact schema from the given path."""
+    errors: list[str] = []
+    if not path.exists():
+        errors.append(f"file not found: {path}")
+        return errors
+
+    try:
+        import json as json_lib
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as exc:
+        errors.append(f"invalid JSON: {exc}")
+        return errors
+    except Exception as exc:
+        errors.append(f"failed to read file: {exc}")
+        return errors
+
+    if not isinstance(data, dict):
+        errors.append("artifact must be a JSON object")
+        return errors
+
+    kind = data.get("kind")
+    if not kind:
+        errors.append("missing kind field")
+        return errors
+
+    schema_version = data.get("schema_version")
+    if schema_version != 1:
+        errors.append(f"unsupported or missing schema_version: {schema_version}")
+
+    if kind == "builder_ii.deepagents_smoke":
+        if data.get("runtime_execution") != "DISABLED":
+            errors.append("runtime execution must be DISABLED")
+        if data.get("builder_ii_dependency_mode") != "OPTIONAL":
+            errors.append("builder-II dependency mode must be OPTIONAL")
+        if data.get("file_writes") != "DISABLED":
+            errors.append("file writes must be DISABLED")
+        if data.get("shell_execution") != "DISABLED":
+            errors.append("shell execution must be DISABLED")
+    elif kind == "builder_ii.deepagents_bridge_spec":
+        if data.get("runtime_enabled") is not False:
+            errors.append("runtime_enabled must be false")
+
+        denied_tools = data.get("denied_tools")
+        if not isinstance(denied_tools, list):
+            errors.append("denied_tools must be a list")
+        else:
+            for tool in REQUIRED_DENIED_TOOLS:
+                if tool not in denied_tools:
+                    errors.append(f"missing required denied tool: {tool}")
+
+        subagent = data.get("subagent")
+        if not isinstance(subagent, dict):
+            errors.append("subagent field is missing or invalid")
+        else:
+            metadata = subagent.get("metadata")
+            if not isinstance(metadata, dict):
+                errors.append("subagent metadata is missing or invalid")
+            else:
+                if metadata.get("runtime_enabled") is not False:
+                    errors.append("subagent metadata runtime_enabled must be false")
+                sub_denied_tools = metadata.get("denied_tools")
+                if not isinstance(sub_denied_tools, list):
+                    errors.append("subagent metadata denied_tools must be a list")
+                else:
+                    for tool in REQUIRED_DENIED_TOOLS:
+                        if tool not in sub_denied_tools:
+                            errors.append(f"subagent metadata missing required denied tool: {tool}")
+    else:
+        errors.append(f"unknown artifact kind: {kind}")
+
+    return errors

@@ -14,6 +14,7 @@ from builder_ii.deepagents_bridge import (
     deepagents_availability,
     render_bridge_prompt,
     render_bridge_spec,
+    validate_artifact_file,
     validate_bridge_spec,
 )
 from builder_ii.target_profiles import target_profile
@@ -312,3 +313,118 @@ def test_repo_mapper_hitl_required_for_serializes_as_single_item(tmp_path: Path)
 
     assert data["hitl_required_for"] == ["none; profile is read-only"]
     assert data["subagent"]["metadata"]["hitl_required_for"] == ["none; profile is read-only"]
+
+
+def test_validate_artifact_file_non_existent(tmp_path: Path) -> None:
+    errors = validate_artifact_file(tmp_path / "non_existent.json")
+    assert any("file not found" in err for err in errors)
+
+
+def test_validate_artifact_file_invalid_json(tmp_path: Path) -> None:
+    f = tmp_path / "invalid.json"
+    f.write_text("{bad json", encoding="utf-8")
+    errors = validate_artifact_file(f)
+    assert any("invalid JSON" in err for err in errors)
+
+
+def test_validate_artifact_file_not_object(tmp_path: Path) -> None:
+    f = tmp_path / "array.json"
+    f.write_text("[]", encoding="utf-8")
+    errors = validate_artifact_file(f)
+    assert "artifact must be a JSON object" in errors
+
+
+def test_validate_artifact_file_missing_fields(tmp_path: Path) -> None:
+    f = tmp_path / "missing.json"
+    f.write_text("{}", encoding="utf-8")
+    errors = validate_artifact_file(f)
+    assert "missing kind field" in errors
+
+    f2 = tmp_path / "wrong_version.json"
+    f2.write_text('{"kind": "builder_ii.deepagents_smoke", "schema_version": 2}', encoding="utf-8")
+    errors = validate_artifact_file(f2)
+    assert any("unsupported or missing schema_version" in err for err in errors)
+
+
+def test_validate_artifact_file_smoke_valid(tmp_path: Path) -> None:
+    status = deepagents_availability()
+    f = tmp_path / "smoke.json"
+    f.write_text(json_lib.dumps(status.to_json_dict()), encoding="utf-8")
+    errors = validate_artifact_file(f)
+    assert errors == []
+
+
+def test_validate_artifact_file_smoke_invalid(tmp_path: Path) -> None:
+    f = tmp_path / "smoke_bad.json"
+    bad_data = {
+        "kind": "builder_ii.deepagents_smoke",
+        "schema_version": 1,
+        "runtime_execution": "ENABLED",
+        "builder_ii_dependency_mode": "REQUIRED",
+        "file_writes": "ENABLED",
+        "shell_execution": "ENABLED",
+    }
+    f.write_text(json_lib.dumps(bad_data), encoding="utf-8")
+    errors = validate_artifact_file(f)
+    assert "runtime execution must be DISABLED" in errors
+    assert "builder-II dependency mode must be OPTIONAL" in errors
+    assert "file writes must be DISABLED" in errors
+    assert "shell execution must be DISABLED" in errors
+
+
+def test_validate_artifact_file_spec_valid(tmp_path: Path) -> None:
+    target = target_profile(_settings(tmp_path), "builder")
+    spec = bridge_spec_for("patch_planner", target)
+    f = tmp_path / "spec.json"
+    f.write_text(json_lib.dumps(spec.to_artifact_dict()), encoding="utf-8")
+    errors = validate_artifact_file(f)
+    assert errors == []
+
+
+def test_validate_artifact_file_spec_invalid(tmp_path: Path) -> None:
+    target = target_profile(_settings(tmp_path), "builder")
+    spec = bridge_spec_for("patch_planner", target)
+    data = spec.to_artifact_dict()
+
+    # Enable runtime at top-level
+    data["runtime_enabled"] = True
+    f = tmp_path / "spec_bad1.json"
+    f.write_text(json_lib.dumps(data), encoding="utf-8")
+    assert "runtime_enabled must be false" in validate_artifact_file(f)
+
+    # Enable runtime in subagent metadata
+    data["runtime_enabled"] = False
+    data["subagent"]["metadata"]["runtime_enabled"] = True
+    f2 = tmp_path / "spec_bad2.json"
+    f2.write_text(json_lib.dumps(data), encoding="utf-8")
+    assert "subagent metadata runtime_enabled must be false" in validate_artifact_file(f2)
+
+    # Remove denied tools
+    data["subagent"]["metadata"]["runtime_enabled"] = False
+    data["denied_tools"] = []
+    data["subagent"]["metadata"]["denied_tools"] = []
+    f3 = tmp_path / "spec_bad3.json"
+    f3.write_text(json_lib.dumps(data), encoding="utf-8")
+    errors = validate_artifact_file(f3)
+    assert any("missing required denied tool" in err for err in errors)
+
+
+def test_cli_validate_artifact_success(tmp_path: Path) -> None:
+    status = deepagents_availability()
+    f = tmp_path / "smoke.json"
+    f.write_text(json_lib.dumps(status.to_json_dict()), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(bridge_app, ["validate-artifact", str(f)])
+    assert result.exit_code == 0
+    assert "is valid" in result.stdout
+
+
+def test_cli_validate_artifact_fail(tmp_path: Path) -> None:
+    f = tmp_path / "smoke_bad.json"
+    f.write_text('{"kind": "builder_ii.deepagents_smoke", "schema_version": 1, "runtime_execution": "ENABLED"}', encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(bridge_app, ["validate-artifact", str(f)])
+    assert result.exit_code == 1
+    assert "Validation error" in result.stdout

@@ -9,7 +9,13 @@ from rich.table import Table
 
 from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
 from builder_ii.config import load_settings
-from builder_ii.deepagents_bridge import bridge_spec_for, deepagents_availability, render_bridge_spec, validate_bridge_spec
+from builder_ii.deepagents_bridge import (
+    bridge_spec_for,
+    deepagents_availability,
+    render_bridge_spec,
+    validate_artifact_file,
+    validate_bridge_spec,
+)
 from builder_ii.target_profiles import TargetName, target_names, target_profile
 
 bridge_app = typer.Typer(help="Render optional bridge specs.")
@@ -105,3 +111,16 @@ def render(
             console.out(text, end="")
         else:
             console.print(text, end="")
+
+
+@bridge_app.command("validate-artifact")
+def validate_artifact(
+    path: Path,
+) -> None:
+    """Validate a builder-II artifact schema."""
+    errors = validate_artifact_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+    console.print(f"Artifact {path} is valid.")
