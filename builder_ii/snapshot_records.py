@@ -56,7 +56,15 @@ def create_snapshot_record(
         "performed_actions": [],
         "grants_runtime_authority": False,
         "grants_action_authority": False,
-        "governance": {"capability_state": "snapshot_record", "runtime_execution": "DISABLED", "model_execution": "DISABLED", "artifact_is_authority": False, "core_workbench_coupling": "NONE"},
+        "governance": {
+            "capability_state": "snapshot_record",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
     }
 
 
@@ -123,8 +131,14 @@ def validate_snapshot_record(record: Any) -> list[str]:
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
-    elif governance.get("artifact_is_authority") is not False:
-        errors.append("governance.artifact_is_authority must be false")
+    else:
+        for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
     return errors
 
 
