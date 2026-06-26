@@ -29,6 +29,19 @@ builder-goose manifest \
   --output .builder/artifacts/goose-session.json
 ```
 
+Read-only candidate audit artifacts:
+
+```bash
+builder-goose readonly-audit \
+  .builder/artifacts/goose-session.json \
+  --output .builder/artifacts/goose-runtime-audit.json
+builder-goose validate-audit .builder/artifacts/goose-runtime-audit.json
+```
+
+The `readonly-audit` command validates a read-only manifest and emits an audit artifact. It still does not start Goose, inspect repository files, inspect git status, read linked artifacts, execute commands, execute shell, call models, or mutate source.
+
+See `docs/GOOSE_READONLY.md`.
+
 ## Artifact contents
 
 A Goose session manifest includes:
@@ -97,16 +110,25 @@ Goose session manifests deny:
 - required denied actions are present
 - governance denies runtime, shell, command, source write, model, memory, commit, and agent-construction authority
 
+`builder-goose validate-audit PATH` checks the read-only audit artifact shape and confirms that runtime authority remains disabled.
+
 ## Relationship to later work
 
 This is the first runtime-adjacent artifact surface after the Goose runtime spec.
 
+Implemented surfaces:
+
+- `builder-goose manifest`
+- `builder-goose validate`
+- `builder-goose readonly-audit`
+- `builder-goose validate-audit`
+
 Future PRs may add:
 
-- `builder-goose start-readonly`
-- runtime audit artifacts
-- read-only denied-action tests
+- actual read-only repository inspection under target-boundary rules
+- git status recording
+- linked artifact read recording
 - command proposal artifacts
 - HITL approval artifacts
 
-Those later capabilities still require explicit promotion. The manifest alone never grants runtime authority.
+Those later capabilities still require explicit promotion. The manifest and audit artifact alone never grant runtime authority.
