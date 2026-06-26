@@ -14,6 +14,8 @@ builder-bridge deepagents-smoke --output .builder/artifacts/deepagents-smoke.jso
 builder-bridge render patch_planner --target builder --format markdown
 builder-bridge render patch_planner --target builder --format json
 builder-bridge render patch_planner --target builder --output .builder/artifacts/bridge-spec.json --format json
+builder-bridge validate-artifact .builder/artifacts/deepagents-smoke.json
+builder-bridge validate-artifact .builder/artifacts/bridge-spec.json
 ```
 
 ## Optional smoke
@@ -51,9 +53,18 @@ builder-bridge render patch_planner --target builder --format json --output .bui
 
 
 
+### Artifact Validation
+
+`builder-bridge validate-artifact PATH` validates builder-II bridge artifacts produced by the smoke and render commands.
+
+Validation checks schema kind/version, disabled runtime state, optional dependency mode for smoke artifacts, and required denied tools for bridge spec artifacts.
+
+This command only reads and validates JSON artifacts. It does not execute artifact contents, construct agents, run models, write files, execute shell commands, or treat artifacts as permission grants.
+
 ## Boundary
 
 Runtime is disabled by default.
+
 
 Every bridge spec denies:
 
