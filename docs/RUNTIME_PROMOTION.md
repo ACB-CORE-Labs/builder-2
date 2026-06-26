@@ -1,8 +1,8 @@
 # Runtime promotion contract
 
-builder-II runtime behavior must be promoted deliberately. Code existence, imported dependencies, rendered profiles, valid artifacts, or Goose availability do not grant runtime authority.
+builder-II runtime behavior must be promoted deliberately. Code existence, imported dependencies, rendered profiles, valid artifacts, Goose availability, or deepagents availability do not grant runtime authority.
 
-This document defines the gates required before Goose, deepagents, command execution, patch application, or any other runtime behavior may move beyond disabled/spec/artifact/validation state.
+This document defines the gates required before Goose, deepagents, command execution, patch application, model routing, source collection, or any other runtime behavior may move beyond disabled/spec/artifact/validation state.
 
 ## Promotion states
 
@@ -41,9 +41,10 @@ Runtime promotion additionally requires:
 - explicit runtime mode
 - denied-action tests
 - audit artifact schema
-- session manifest schema
+- session manifest schema when Goose is involved
 - approval artifact schema when actions are gated
 - target profile compatibility check
+- agent profile compatibility check
 - verification profile compatibility check
 - quality gate compatibility check
 - rollback requirement check
@@ -145,12 +146,47 @@ Must remain denied:
 - unapproved commits
 - unapproved pushes
 
+### model_routing
+
+Required before promotion:
+
+- model routing policy artifact
+- allowed and forbidden model lane lists
+- local-first and frontier-escalation rules
+- privacy/cost approval boundary
+- audit artifact for model selection and execution
+- fallback behavior
+- no-hidden-call tests
+
+Must remain denied:
+
+- hidden external model calls
+- silent cost-bearing execution
+- frontier escalation without approval
+- treating model output as authority without verification
+
+## Governance boundary
+
+Builder-II governance is the sovereign boundary.
+
+No runtime, harness, model, bridge, artifact, target profile, or dependency may bypass:
+
+- target profiles
+- agent profiles
+- verification profiles
+- quality gates
+- approval artifacts
+- audit artifacts
+- rollback requirements
+- verification requirements
+
 ## Goose boundary
 
-Goose is the primary local runtime/operator, but builder-II governs when and how Goose may operate.
+Goose is the preferred local runtime/operator after explicit promotion, but builder-II governs when and how Goose may operate.
 
 Goose must not:
 
+- bypass builder-II governance
 - bypass target profiles
 - bypass agent profiles
 - bypass verification profiles
@@ -169,10 +205,12 @@ deepagents must not:
 - execute tools directly outside approved runtime mode
 - write files directly
 - execute shell directly
-- bypass Goose
+- bypass builder-II governance
 - bypass approval artifacts
 - bypass audit artifacts
 - change Deephaven-related work
+
+If deepagents is used inside a Goose-governed runtime mode, it must also respect that runtime boundary. The fundamental invariant is no bypass of builder-II governance.
 
 ## Artifact authority rule
 
@@ -191,6 +229,8 @@ A valid artifact alone never authorizes:
 - source collection
 - MCP execution
 - web/search execution
+- Goose runtime start
+- deepagents construction
 
 ## Rollback requirement
 
@@ -203,6 +243,7 @@ Examples:
 - verification execution rollback: no source rollback expected; record command output and failure state
 - patch proposal rollback: discard proposal artifact
 - hitl write rollback: revert patch or restore pre-apply state
+- model routing rollback: discard routing artifact and record no execution if no model call was approved
 
 ## Verification requirement
 
@@ -216,6 +257,7 @@ Examples:
 - target compatibility tests
 - audit artifact validation
 - postflight checks
+- no-hidden-model-call tests
 
 ## Non-promotion statement
 

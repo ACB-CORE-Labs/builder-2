@@ -1,6 +1,6 @@
 # builder-II roadmap
 
-builder-II is the generic governed local agent/developer platform.
+builder-II is a generic governed local agent/developer platform.
 
 It is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CORE remains a target profile only.
 
@@ -66,6 +66,8 @@ builder-bridge render patch_planner --target builder --format json --output .bui
 builder-bridge validate-artifact .builder/artifacts/bridge-spec.json
 ```
 
+Every command above either validates configuration, renders a reviewable plan/specification, or writes an explicit artifact path requested by the operator. None of these commands grants runtime authority.
+
 ## Remaining extension surfaces
 
 These are not required for the governance foundation, but remain planned thin extensions:
@@ -73,17 +75,31 @@ These are not required for the governance foundation, but remain planned thin ex
 - prompt/eval lanes
 - read-only runner candidate
 - runtime audit artifacts
-- later HITL-gated runtime candidate
+- command proposal artifacts
+- HITL approval artifacts
+- approved verification execution candidate
+- patch proposal artifacts
+- approved patch application candidate
 
 Each future capability must satisfy the capability promotion rule before it can move beyond disabled/spec/artifact/validation states.
 
-## Performance & Integration Priorities (2026 Amendment)
+## Performance and integration priorities
 
-A detailed amendment to the Masterpiece Plan is available at `docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md`.
+See `docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md` for the detailed amendment.
 
-Key prioritized additions:
-- **Rust-backed artifact validation & processing core** (Phase 1 focus)
-- **MLX + UMA accelerated context management & summarization** (Phase 2 focus)
-- New dedicated phase for **intelligent model routing & hybrid execution** (local + frontier models)
+The amendment adds three first-class candidate tracks without promoting runtime behavior:
 
-These enhancements run alongside the existing integration phases (#35–#42) while preserving the no-runtime governance foundation and all original non-negotiables.
+- Rust-backed artifact validation and processing, gated by measurement and parity evidence.
+- MLX + UMA context compression, restricted to provenance-preserving review artifacts.
+- Model routing and hybrid execution policy, introduced first as an artifact surface rather than hidden automatic model calls.
+
+These tracks run alongside the existing runtime integration phases. They must preserve the no-runtime governance foundation, the capability promotion rule, target-profile boundaries, and the separation between builder-II and CORE Workbench/UI.
+
+## Near-term order
+
+1. Keep documentation and metadata aligned with the generic-first platform identity.
+2. Treat Goose session manifests as complete artifact-only infrastructure.
+3. Design the read-only runtime candidate and runtime audit artifact schema.
+4. Add cross-layer compatibility and denied-action tests before runtime promotion.
+5. Introduce model routing as a policy artifact before any automatic routing behavior.
+6. Add measured Rust and MLX performance candidates only where evidence shows value.
