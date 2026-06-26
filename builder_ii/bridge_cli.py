@@ -31,18 +31,24 @@ def _target(value: str) -> TargetName:
     return value  # type: ignore[return-value]
 
 
+def _print_deepagents_smoke() -> None:
+    availability = deepagents_availability()
+    table = Table("Check", "Status", "Detail")
+    for check, status, detail in availability.rows():
+        table.add_row(check, status, detail)
+    console.print(table)
+
+
 @bridge_app.command("doctor")
 def doctor() -> None:
     """Report optional bridge dependency status."""
-    availability = deepagents_availability()
-    table = Table("Check", "Status", "Detail")
-    table.add_row("deepagents import", "PASS" if availability.available else "MISS", availability.detail)
-    table.add_row("runtime execution", "DISABLED", "bridge renders specs only")
-    table.add_row("file writes", "DISABLED", "requires future HITL-gated capability")
-    table.add_row("shell execution", "DISABLED", "requires future HITL-gated capability")
-    if availability.source:
-        table.add_row("source", availability.source, "")
-    console.print(table)
+    _print_deepagents_smoke()
+
+
+@bridge_app.command("deepagents-smoke")
+def deepagents_smoke() -> None:
+    """Run the optional deepagents import/readiness smoke check without enabling runtime."""
+    _print_deepagents_smoke()
 
 
 @bridge_app.command("render")

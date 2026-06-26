@@ -2,16 +2,23 @@
 
 The bridge renders builder-II agent profiles into deepagents-style subagent specs.
 
-This is a specification layer only. It does not import deepagents as a required dependency, run models, edit files, execute shell commands, or write notes.
+This is a specification layer only. It does not make deepagents a required dependency, run models, edit files, execute shell commands, or write notes.
 
 ## Commands
 
 ```bash
 builder-bridge doctor
+builder-bridge deepagents-smoke
 builder-bridge render patch_planner --target generic
 builder-bridge render patch_planner --target builder
 builder-bridge render verification_planner --target core
 ```
+
+## Optional smoke
+
+`builder-bridge doctor` and `builder-bridge deepagents-smoke` may inspect whether `deepagents` is importable and whether `create_deep_agent` is present.
+
+These commands do not construct agents, run models, enable runtime execution, write files, execute shell commands, or promote deepagents to a required dependency.
 
 ## Boundary
 
@@ -33,4 +40,4 @@ The bridge consumes explicit target profiles. CORE remains a target profile, not
 
 ## Future path
 
-A later PR may make deepagents an optional dependency after an import and construction audit. The first runtime step must be read-only.
+A later PR may add HITL-gated runtime behavior only after docs, tests, command surface, failure mode, human approval boundary, output artifact, rollback path, and verification path are in place. The first runtime step must be read-only.

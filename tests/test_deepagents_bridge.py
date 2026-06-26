@@ -1,6 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+from builder_ii import deepagents_bridge
 from builder_ii.agent_profiles import agent_profile_names, get_agent_profile
 from builder_ii.deepagents_bridge import (
     REQUIRED_DENIED_TOOLS,
@@ -29,6 +30,57 @@ def test_availability_does_not_require_dependency() -> None:
 
     assert isinstance(status.available, bool)
     assert status.detail
+    assert status.dependency_mode == "optional"
+    assert status.runtime_execution == "disabled"
+    assert status.file_writes == "disabled"
+    assert status.shell_execution == "disabled"
+
+
+def test_availability_reports_missing_dependency(monkeypatch) -> None:
+    monkeypatch.setattr(deepagents_bridge.importlib.util, "find_spec", lambda name: None)
+
+    status = deepagents_availability()
+
+    assert status.available is False
+    assert status.import_status == "MISS"
+    assert status.source is None
+    assert status.create_deep_agent_present is False
+    assert status.dependency_mode == "optional"
+
+
+def test_availability_reports_present_dependency_without_enabling_runtime(monkeypatch) -> None:
+    fake_module = SimpleNamespace(
+        __file__="/fake/site-packages/deepagents/__init__.py",
+        create_deep_agent=lambda: None,
+    )
+    fake_spec = SimpleNamespace(origin="/fake/site-packages/deepagents/__init__.py")
+
+    monkeypatch.setattr(deepagents_bridge.importlib.util, "find_spec", lambda name: fake_spec)
+    monkeypatch.setattr(deepagents_bridge.importlib, "import_module", lambda name: fake_module)
+    monkeypatch.setattr(deepagents_bridge.metadata, "version", lambda name: "0.2.8")
+
+    status = deepagents_availability()
+
+    assert status.available is True
+    assert status.import_status == "PASS"
+    assert status.version == "0.2.8"
+    assert status.source == "/fake/site-packages/deepagents/__init__.py"
+    assert status.create_deep_agent_present is True
+    assert status.runtime_execution == "disabled"
+    assert status.file_writes == "disabled"
+    assert status.shell_execution == "disabled"
+
+
+def test_smoke_rows_include_authority_boundaries(monkeypatch) -> None:
+    monkeypatch.setattr(deepagents_bridge.importlib.util, "find_spec", lambda name: None)
+
+    rows = dict((check, (status, detail)) for check, status, detail in deepagents_availability().rows())
+
+    assert rows["deepagents import"][0] == "MISS"
+    assert rows["runtime execution"][0] == "DISABLED"
+    assert rows["file writes"][0] == "DISABLED"
+    assert rows["shell execution"][0] == "DISABLED"
+    assert rows["builder-II dependency mode"][0] == "OPTIONAL"
 
 
 def test_bridge_spec_disables_runtime_by_default(tmp_path: Path) -> None:

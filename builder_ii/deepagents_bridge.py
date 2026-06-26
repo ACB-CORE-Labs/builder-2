@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import importlib
 import importlib.util
 from dataclasses import dataclass
+from importlib import metadata
 from typing import Any
 
 from builder_ii.agent_profiles import AgentProfile, AgentProfileName, get_agent_profile, render_agent_profile
@@ -15,6 +17,25 @@ class DeepAgentsAvailability:
     available: bool
     source: str | None
     detail: str
+    version: str | None = None
+    create_deep_agent_present: bool = False
+    import_status: str = "MISS"
+    dependency_mode: str = "optional"
+    runtime_execution: str = "disabled"
+    file_writes: str = "disabled"
+    shell_execution: str = "disabled"
+
+    def rows(self) -> tuple[tuple[str, str, str], ...]:
+        return (
+            ("deepagents import", self.import_status, self.detail),
+            ("deepagents source", self.source or "n/a", ""),
+            ("deepagents version", self.version or "unknown", ""),
+            ("create_deep_agent", "PRESENT" if self.create_deep_agent_present else "MISSING", ""),
+            ("runtime execution", self.runtime_execution.upper(), "bridge renders specs only"),
+            ("file writes", self.file_writes.upper(), "requires future HITL-gated capability"),
+            ("shell execution", self.shell_execution.upper(), "requires future HITL-gated capability"),
+            ("builder-II dependency mode", self.dependency_mode.upper(), "deepagents is optional"),
+        )
 
 
 @dataclass(frozen=True)
@@ -44,18 +65,52 @@ class DeepAgentBridgeSpec:
         }
 
 
+def _deepagents_version() -> str | None:
+    try:
+        return metadata.version("deepagents")
+    except metadata.PackageNotFoundError:
+        return None
+
+
 def deepagents_availability() -> DeepAgentsAvailability:
+    """Report optional deepagents import/readiness status without enabling runtime."""
     spec = importlib.util.find_spec("deepagents")
     if spec is None:
         return DeepAgentsAvailability(
             available=False,
             source=None,
             detail="deepagents is not installed; bridge rendering remains available.",
+            import_status="MISS",
         )
+
+    source = spec.origin
+    try:
+        module = importlib.import_module("deepagents")
+    except Exception as exc:  # pragma: no cover - exercised via monkeypatch
+        return DeepAgentsAvailability(
+            available=False,
+            source=source,
+            detail=f"deepagents import failed: {type(exc).__name__}: {exc}",
+            version=_deepagents_version(),
+            import_status="ERROR",
+        )
+
+    create_deep_agent = getattr(module, "create_deep_agent", None)
+    create_deep_agent_present = callable(create_deep_agent)
+    module_source = getattr(module, "__file__", None) or source
+    detail = (
+        "deepagents import passed; create_deep_agent found; runtime remains disabled."
+        if create_deep_agent_present
+        else "deepagents import passed; create_deep_agent missing; runtime remains disabled."
+    )
+
     return DeepAgentsAvailability(
         available=True,
-        source=spec.origin,
-        detail="deepagents import target found; runtime remains disabled until explicit smoke tests pass.",
+        source=module_source,
+        detail=detail,
+        version=_deepagents_version(),
+        create_deep_agent_present=create_deep_agent_present,
+        import_status="PASS",
     )
 
 
