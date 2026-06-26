@@ -284,6 +284,8 @@ def validate_profile_artifact(data: Any) -> list[str]:
             errors.append("governance.runtime_execution must be DISABLED")
         if governance.get("shell_execution") != "DISABLED":
             errors.append("governance.shell_execution must be DISABLED")
+        if governance.get("writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
+            errors.append("governance.writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
         if governance.get("executes_commands") is not False:
             errors.append("governance.executes_commands must be false")
         if governance.get("artifact_is_authority") is not False:

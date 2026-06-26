@@ -141,3 +141,47 @@ def test_cli_artifact_default_does_not_write() -> None:
         result = runner.invoke(verification_app, ["artifact", "generic_basic", "--target", "generic"])
         assert result.exit_code == 0
         assert list(Path(".").iterdir()) == []
+
+
+def test_validate_profile_artifact_additional_failures() -> None:
+    # Non-dict validation
+    assert "verification profile artifact must be a JSON object" in validate_profile_artifact([])
+
+    # Missing kind/schema_version
+    bad_dict = {
+        "kind": "wrong_kind",
+        "schema_version": 1,
+        "name": "generic_basic",
+    }
+    errors = validate_profile_artifact(bad_dict)
+    assert any("kind must be" in err for err in errors)
+
+    # Missing or invalid lists
+    bad_fields = {
+        "kind": "builder_ii.verification_profile",
+        "schema_version": 1,
+        "name": "generic_basic",
+        "proposed_commands": "not a list",
+        "required_evidence": [],
+    }
+    errors = validate_profile_artifact(bad_fields)
+    assert any("proposed_commands must be a non-empty list" in err for err in errors)
+    assert any("required_evidence must be a non-empty list" in err for err in errors)
+
+    # Bad writes governance
+    bad_gov = {
+        "kind": "builder_ii.verification_profile",
+        "schema_version": 1,
+        "name": "generic_basic",
+        "proposed_commands": ["test"],
+        "required_evidence": ["test"],
+        "governance": {
+            "runtime_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "writes": "ENABLED_ANYWHERE",
+            "executes_commands": False,
+            "artifact_is_authority": False,
+        }
+    }
+    errors = validate_profile_artifact(bad_gov)
+    assert any("governance.writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH" in err for err in errors)

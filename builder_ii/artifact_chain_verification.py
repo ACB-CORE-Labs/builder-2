@@ -19,6 +19,7 @@ from builder_ii.receive_records import RECEIVE_RECORD_KIND, validate_receive_rec
 from builder_ii.snapshot_records import SNAPSHOT_RECORD_KIND, validate_snapshot_record
 from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_state_ledger_record
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
+from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND, validate_profile_artifact
 
 
 
@@ -36,7 +37,9 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     ARTIFACT_INDEX_RECORD_KIND: validate_artifact_index_record,
     SNAPSHOT_RECORD_KIND: validate_snapshot_record,
     TARGET_PROFILE_ARTIFACT_KIND: validate_target_profile_artifact,
+    VERIFICATION_ARTIFACT_KIND: validate_profile_artifact,
 }
+
 
 
 

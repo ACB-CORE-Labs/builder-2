@@ -29,8 +29,10 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.artifact_index_record`
 - `builder_ii.snapshot_record`
 - `builder_ii.target_profile`
+- `builder_ii.verification_profile`
 
 ## CLI
+
 
 
 ```text
