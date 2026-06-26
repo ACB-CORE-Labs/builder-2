@@ -105,7 +105,7 @@ A valid artifact does not authorize:
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| Docs | complete | `docs/BRIDGE.md`, `docs/TARGET_BUNDLES.md`, `docs/VERIFICATION_PROFILES.md`, `docs/QUALITY_GATES.md`, `docs/HANDOFFS.md`, `docs/RESEARCH_PLANS.md`, `docs/GOOSE_SESSION.md`, this registry |
+| Docs | complete | `docs/BRIDGE.md`, `docs/TARGET_BUNDLES.md`, `docs/VERIFICATION_PROFILES.md`, `docs/QUALITY_GATES.md`, `docs/HANDOFF_ARTIFACTS.md`, `docs/RESEARCH_PLANS.md`, `docs/GOOSE_SESSION.md`, this registry |
 | Tests | complete | bridge, bundle, verification profile, quality gate, handoff, research plan, and Goose session artifact tests |
 | Command surface | complete | bridge, bundle, verification, quality, notes, research, and Goose CLI commands |
 | Failure mode | complete | validation errors and nonzero CLI exit for invalid artifacts |
