@@ -44,7 +44,7 @@ def agent_profiles() -> tuple[AgentProfile, ...]:
             required_context=("target profile", "repo root", "file tree or context pack"),
             allowed_tools=("context_pack", "read_file", "repo_search", "git_status"),
             forbidden_tools=("write_file", "edit_file", "execute_shell", "commit", "push"),
-            hitl_required_for=("none; profile is read-only"),
+            hitl_required_for=("none; profile is read-only",),
             output_contract="Return a concise map of modules, likely change surfaces, unknowns, and next context needed.",
         ),
         AgentProfile(

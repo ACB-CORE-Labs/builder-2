@@ -303,3 +303,12 @@ def test_cli_render_default_does_not_write(monkeypatch, tmp_path: Path) -> None:
         assert result.exit_code == 0
         import os
         assert os.listdir(".") == []
+
+
+def test_repo_mapper_hitl_required_for_serializes_as_single_item(tmp_path: Path) -> None:
+    target = target_profile(_settings(tmp_path), "builder")
+    spec = bridge_spec_for("repo_mapper", target)
+    data = spec.to_artifact_dict()
+
+    assert data["hitl_required_for"] == ["none; profile is read-only"]
+    assert data["subagent"]["metadata"]["hitl_required_for"] == ["none; profile is read-only"]
