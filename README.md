@@ -16,6 +16,7 @@ Start here if you are evaluating or sharing the project:
 | [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
 | [`docs/TARGETS.md`](docs/TARGETS.md) | Explicit target profiles: generic, builder, and core. |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | Generic agent profiles and authority contracts. |
+| [`docs/TARGET_BUNDLES.md`](docs/TARGET_BUNDLES.md) | Governed target bundle JSON artifact creation and validation. |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Scope, non-goals, and near-term platform direction. |
 | [`docs/model_role_matrix.md`](docs/model_role_matrix.md) | Model aliases, runtime lanes, recommended use, and avoid boundaries. |
@@ -44,6 +45,7 @@ builder-II currently includes:
 - builder-II skills copied into the selected target repo;
 - explicit target profiles via `builder-targets`;
 - generic agent profiles via `builder-agent`;
+- governed target bundle artifacts via `builder-bundle`;
 - lane guides, personas, and capability boundaries for prompt/task organization;
 - external tool registry via `builder-tools`;
 - optional external tool installer via `scripts/install-tools.sh`;
@@ -203,6 +205,18 @@ handoff_scribe
 ```
 
 These profiles only render prompt and authority contracts. They do not call models, invoke deepagents, edit files, execute shell commands, or write notes.
+
+## Target bundle artifacts
+
+Package target profiles, agent profiles, dry-run bridge specs, deepagents readiness, governance limits, task descriptions, and suggested next steps into reviewable JSON artifacts:
+
+```bash
+builder-bundle create --target builder --agent patch_planner --task "plan the next bounded PR"
+builder-bundle create --target builder --agent patch_planner --task "plan the next bounded PR" --output .builder/artifacts/target-bundle.json
+builder-bundle validate .builder/artifacts/target-bundle.json
+```
+
+Target bundles remain evidence and handoff objects only. They do not enable runtime execution, model calls, agent construction, shell access, autonomous source writes, memory mutation, or commit/push automation.
 
 ## External engineering tools
 
@@ -367,6 +381,8 @@ builder-agent profiles
 builder-agent show patch_planner
 builder-agent render patch_planner --target builder
 builder-agent validate
+builder-bundle create --target builder --agent patch_planner --task "..."
+builder-bundle validate .builder/artifacts/target-bundle.json
 builder-lanes list
 builder-lanes show draft_patch_plan --context "..."
 builder-tools list
