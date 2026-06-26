@@ -14,6 +14,20 @@ The index records:
 
 It is metadata-only and does not activate artifact authority.
 
+## Known artifact kinds
+
+- `builder_ii.goose_command_proposal`
+- `builder_ii.approval_record`
+- `builder_ii.preflight_record`
+- `builder_ii.receipt_record`
+- `builder_ii.chain_summary_record`
+- `builder_ii.handoff_bundle_record`
+- `builder_ii.receive_record`
+- `builder_ii.promotion_readiness_record`
+- `builder_ii.promotion_decision_record`
+- `builder_ii.state_ledger_record`
+- `builder_ii.snapshot_record`
+
 ## CLI
 
 ```text
