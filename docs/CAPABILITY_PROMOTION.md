@@ -2,7 +2,7 @@
 
 builder-II capabilities must move through explicit, documented promotion states. A capability is never enabled merely because code exists, a dependency imports, an artifact validates, or an agent profile can be rendered.
 
-This registry records current artifact, bridge, bundle, verification, quality, handoff, research, and Goose-session capabilities and the gates required before any future runtime promotion.
+This registry records current artifact, bridge, bundle, verification, quality, handoff, research, Goose-session, and read-only audit candidate capabilities and the gates required before any future runtime promotion.
 
 ## Promotion states
 
@@ -13,7 +13,7 @@ This registry records current artifact, bridge, bundle, verification, quality, h
 | `smoke_only` | builder-II can inspect import/readiness status without constructing or running the dependency. |
 | `artifact_only` | builder-II can emit an explicit output artifact requested by the user. |
 | `validation_only` | builder-II can validate artifact schema and governance invariants, but cannot execute artifact contents. |
-| `read_only_runtime_candidate` | A future design candidate for read-only runtime behavior exists, but it is not enabled. |
+| `read_only_runtime_candidate` | A design candidate for read-only runtime behavior exists, but it is not an enabled runtime. |
 | `hitl_runtime_candidate` | A future HITL-gated runtime design candidate exists, but it is not enabled. |
 | `enabled` | The capability is enabled by documented command surface, tests, failure modes, human approval boundary, output artifact, rollback path, and verification path. |
 
@@ -42,6 +42,9 @@ Missing any item keeps the capability below `enabled`.
 | File writes | `disabled` except explicit user-provided artifact output paths |
 | Shell execution | `disabled` |
 | Command execution from artifacts | `disabled` |
+| Repository file reads from read-only candidate | `disabled` |
+| Git status inspection from read-only candidate | `disabled` |
+| Linked target artifact reads from read-only candidate | `disabled` |
 | Agent construction | `disabled` |
 | Deepagents construction | `disabled` |
 | Memory mutation | `disabled` |
@@ -49,7 +52,7 @@ Missing any item keeps the capability below `enabled`.
 | Pull request automation | `disabled` |
 | Search/MCP/source collection | `disabled` |
 | CORE Workbench/UI coupling | none |
-| Current maximum state | `validation_only` |
+| Current maximum state | `read_only_runtime_candidate` |
 
 ## Current deepagents bridge state
 
@@ -77,8 +80,11 @@ Missing any item keeps the capability below `enabled`.
 | handoff | `builder-notes handoff`, `builder-notes validate` | `validation_only` | none |
 | research plan | `builder-research plan`, `builder-research validate` | `validation_only` | none |
 | Goose session manifest | `builder-goose manifest`, `builder-goose validate` | `validation_only` | none |
+| Goose read-only audit candidate | `builder-goose readonly-audit`, `builder-goose validate-audit` | `read_only_runtime_candidate` | none |
 
 All listed artifact surfaces are evidence and review objects. They do not execute their contents.
+
+The read-only audit candidate records the manifest-to-audit path while explicitly denying actual runtime start, repository file reads, git status inspection, linked artifact reads, shell, commands, model calls, deepagents construction, source writes, memory mutation, commits, pushes, pull requests, source collection, web search, and MCP execution.
 
 ## Artifact authority rule
 
@@ -90,6 +96,9 @@ A valid artifact does not authorize:
 - agent construction;
 - deepagents construction;
 - Goose runtime start;
+- repository file reads;
+- git status inspection;
+- linked target artifact reads;
 - command execution;
 - file mutation;
 - shell execution;
@@ -101,26 +110,26 @@ A valid artifact does not authorize:
 - pushes;
 - pull request creation.
 
-## Completed gates for validation-only state
+## Completed gates for validation-only and read-only-candidate state
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| Docs | complete | `docs/BRIDGE.md`, `docs/TARGET_BUNDLES.md`, `docs/VERIFICATION_PROFILES.md`, `docs/QUALITY_GATES.md`, `docs/HANDOFF_ARTIFACTS.md`, `docs/RESEARCH_PLANS.md`, `docs/GOOSE_SESSION.md`, this registry |
-| Tests | complete | bridge, bundle, verification profile, quality gate, handoff, research plan, and Goose session artifact tests |
+| Docs | complete | `docs/BRIDGE.md`, `docs/TARGET_BUNDLES.md`, `docs/VERIFICATION_PROFILES.md`, `docs/QUALITY_GATES.md`, `docs/HANDOFF_ARTIFACTS.md`, `docs/RESEARCH_PLANS.md`, `docs/GOOSE_SESSION.md`, `docs/GOOSE_READONLY.md`, this registry |
+| Tests | complete | bridge, bundle, verification profile, quality gate, handoff, research plan, Goose session, and Goose read-only audit artifact tests |
 | Command surface | complete | bridge, bundle, verification, quality, notes, research, and Goose CLI commands |
 | Failure mode | complete | validation errors and nonzero CLI exit for invalid artifacts |
-| Output artifact | complete | readiness, bridge spec, target bundle, verification profile, quality gate, handoff, research plan, and Goose session JSON artifacts |
+| Output artifact | complete | readiness, bridge spec, target bundle, verification profile, quality gate, handoff, research plan, Goose session, and Goose read-only audit JSON artifacts |
 | Verification path | complete | pytest plus CLI artifact validation commands |
-| Human approval boundary | not complete for runtime | no runtime behavior is promoted |
-| Rollback path | not complete for runtime | no runtime behavior is promoted |
+| Human approval boundary | not complete for enabled runtime | no enabled runtime behavior is promoted |
+| Rollback path | candidate artifact only | delete the emitted audit artifact; no source mutation occurs |
 
-## Required gates before runtime promotion
+## Required gates before enabled runtime promotion
 
-Before builder-II may promote any behavior beyond `validation_only`, a future PR must provide all of the following:
+Before builder-II may promote any behavior beyond `read_only_runtime_candidate`, a future PR must provide all of the following:
 
 - design document for the specific runtime behavior;
 - explicit runtime mode;
-- explicit HITL approval boundary;
+- explicit HITL approval boundary where applicable;
 - rollback path;
 - runtime sandbox or target-boundary contract;
 - no-write enforcement tests;
@@ -134,6 +143,8 @@ Before builder-II may promote any behavior beyond `validation_only`, a future PR
 - clear recovery path after interruption;
 - clear statement that CORE remains a target profile, not builder-II platform identity;
 - clear statement that CORE Workbench/UI remains separate.
+
+Before actual read-only inspection is enabled, a future PR must also provide target-boundary rules, repository file read recording, git status recording, linked artifact read recording, and denied-action tests proving writes, shell, commands, models, source collection, MCP, and deepagents construction remain disabled.
 
 ## Current commands and states
 
@@ -167,7 +178,10 @@ Before builder-II may promote any behavior beyond `validation_only`, a future PR
 | `builder-goose manifest --target TARGET --agent PROFILE` | `artifact_only` | none |
 | `builder-goose manifest --target TARGET --agent PROFILE --output PATH` | `artifact_only` | writes only the explicit artifact path |
 | `builder-goose validate PATH` | `validation_only` | reads and validates only |
+| `builder-goose readonly-audit MANIFEST` | `read_only_runtime_candidate` | none |
+| `builder-goose readonly-audit MANIFEST --output PATH` | `read_only_runtime_candidate` | writes only the explicit artifact path |
+| `builder-goose validate-audit PATH` | `validation_only` | reads and validates only |
 
 ## Non-promotion statement
 
-No current artifact surface authorizes model execution, agent construction, command execution, file mutation, shell execution, memory mutation, commits, pushes, pull request creation, Goose runtime activation, deepagents construction, source collection, web search, or MCP execution.
+No current artifact surface authorizes model execution, agent construction, command execution, file mutation, shell execution, memory mutation, commits, pushes, pull request creation, Goose runtime activation, deepagents construction, source collection, web search, MCP execution, repository file reads, git status inspection, or linked target artifact reads as runtime behavior.
