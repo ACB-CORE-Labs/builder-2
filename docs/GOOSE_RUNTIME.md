@@ -1,19 +1,21 @@
 # Goose runtime design spec
 
-This document defines how builder-II treats Goose as the primary local runtime/operator while preserving builder-II governance.
+This document defines how builder-II treats Goose as the preferred local runtime/operator while preserving builder-II governance.
 
-This is a design specification only. It does not enable a runtime, construct agents, execute commands, mutate files, or grant tool authority.
+This is a design specification only. It does not enable a runtime, construct agents, execute commands, mutate files, call models, or grant tool authority.
 
 ## Identity boundary
 
 ```text
 builder-II = governed platform/control plane
-Goose      = primary local runtime/operator
+Goose      = preferred local runtime/operator after explicit promotion
 deepagents = optional planning/subagent harness
 target repo = generic / builder / core / research target / future targets
 ```
 
 builder-II is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CORE remains a target profile. Goose is not allowed to collapse these boundaries.
+
+Builder-II governance is the sovereign boundary. Goose may operate only inside a promoted runtime mode with explicit approval, audit, rollback, and verification requirements.
 
 ## Runtime goal
 
@@ -33,6 +35,7 @@ builder-II owns the governance surface around that loop:
 - approval boundaries
 - runtime audit artifacts
 - rollback and verification requirements
+- model routing policy
 
 Goose may perform runtime work only after the relevant mode is explicitly promoted.
 
@@ -49,7 +52,7 @@ hitl_write
 
 ### disabled
 
-Current default. No runtime session is started by this spec.
+Current default. No runtime session is started by this spec or by a Goose session manifest.
 
 Allowed:
 
@@ -70,11 +73,11 @@ Denied:
 
 ### read_only
 
-Future candidate mode. It may inspect files, repo tree, git status, docs, and artifacts.
+Future candidate mode. It may inspect files, repo tree, git status, docs, and artifacts only after promotion.
 
 Allowed only after promotion:
 
-- read repository files
+- read repository files inside target-boundary rules
 - inspect git status
 - inspect target artifacts
 - emit a runtime audit artifact
@@ -84,7 +87,7 @@ Denied:
 
 - source writes
 - arbitrary shell
-- test execution
+- test execution unless a later approved verification mode permits it
 - commit/push
 - notes vault mutation unless separately approved
 - model/tool escalation beyond the configured runtime boundary
@@ -157,9 +160,15 @@ Denied:
 
 ## Goose session manifest
 
-The next implementation step should introduce a Goose session manifest artifact. It should be created before any runtime session.
+Goose session manifests are the first runtime-adjacent artifact surface after this spec. They describe a future Goose session before any runtime starts.
 
-Required fields:
+Implemented surfaces:
+
+- `docs/GOOSE_SESSION.md`
+- `builder-goose manifest`
+- `builder-goose validate`
+
+A session manifest records:
 
 - artifact kind and schema version
 - target profile
@@ -167,17 +176,20 @@ Required fields:
 - target repo path or identifier
 - selected agent profile
 - selected verification profile
-- linked context pack path
-- linked target bundle path
-- linked quality gate path
-- linked handoff path when present
-- runtime mode
-- allowed actions
-- denied actions
+- linked context pack path when provided
+- linked target bundle path when provided
+- linked quality gate path when provided
+- linked research plan path when provided
+- linked handoff path when provided
+- requested runtime mode
+- current runtime state
+- whether the manifest starts Goose
+- allowed manifest-only actions
+- denied runtime actions
 - approval requirements
 - expected audit artifact path
 
-The manifest is evidence and configuration. It is not authority by itself.
+The manifest is evidence and configuration. It is not authority by itself. A valid manifest does not start Goose.
 
 ## Runtime audit artifact
 
@@ -214,11 +226,12 @@ Rules:
 - no hard dependency before readiness is proven
 - no direct writes through deepagents
 - no direct shell through deepagents
-- no bypassing Goose or builder-II approval gates
+- no bypassing builder-II governance, approval artifacts, or audit artifacts
+- if used inside a Goose-governed runtime mode, no bypassing that runtime boundary
 - no hidden agent authority
 - no Deephaven changes
 
-A future deepagents runtime spec may render subagent plans, but Goose remains the primary local runtime/operator.
+A future deepagents runtime spec may render subagent plans, but deepagents remains subordinate to builder-II governance.
 
 ## CORE target boundary
 
