@@ -26,6 +26,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.promotion_readiness_record`
 - `builder_ii.promotion_decision_record`
 - `builder_ii.state_ledger_record`
+- `builder_ii.artifact_index_record`
 - `builder_ii.snapshot_record`
 
 ## CLI
