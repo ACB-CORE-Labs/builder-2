@@ -1,7 +1,9 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import json as json_lib
 import pytest
+
 
 from builder_ii.context_pack import (
     ContextPackSelection,
@@ -99,3 +101,131 @@ def test_build_context_pack_can_target_builder_repo(tmp_path: Path) -> None:
     assert result.target == "builder"
     assert result.repo == Path.cwd()
     assert result.selected_files == ("builder_ii/context_pack.py",)
+
+
+def test_context_pack_record_and_validation(tmp_path: Path) -> None:
+    from builder_ii.context_pack import (
+        create_context_pack_record,
+        validate_context_pack_record,
+        validate_context_pack_record_file,
+        write_context_pack_record,
+        CONTEXT_PACK_RECORD_KIND,
+        CONTEXT_PACK_RECORD_SCHEMA_VERSION,
+    )
+    settings = SimpleNamespace(core_repo=Path.cwd(), project_root=tmp_path)
+    result = build_context_pack(
+        settings,
+        ContextPackSelection(task="test validation", module="builder_ii/context_pack.py"),
+        run_repomix=False,
+    )
+    record = create_context_pack_record(result, task="test validation")
+    assert record["kind"] == CONTEXT_PACK_RECORD_KIND
+    assert record["schema_version"] == CONTEXT_PACK_RECORD_SCHEMA_VERSION
+    assert record["target"] == "core"
+
+    errors = validate_context_pack_record(record)
+    assert not errors, f"Record should be valid: {errors}"
+
+    output_file = tmp_path / "context-pack.json"
+    write_context_pack_record(record, output_file)
+    assert output_file.exists()
+
+    file_errors = validate_context_pack_record_file(output_file)
+    assert not file_errors, f"File should be valid: {file_errors}"
+
+
+def test_context_pack_validation_failures(tmp_path: Path) -> None:
+    from builder_ii.context_pack import validate_context_pack_record, validate_context_pack_record_file
+
+    assert "context pack record must be a JSON object" in validate_context_pack_record([])
+
+    bad_dict = {
+        "kind": "wrong_kind",
+        "schema_version": 1,
+        "target": "core",
+    }
+    errors = validate_context_pack_record(bad_dict)
+    assert any("kind must be" in err for err in errors)
+
+    bad_target = {
+        "kind": "builder_ii.context_pack_record",
+        "schema_version": 1,
+        "target": "invalid_target",
+        "selected_files": [],
+        "governance": {
+            "capability_state": "context_pack_record",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+        }
+    }
+    errors = validate_context_pack_record(bad_target)
+    assert any("target must be one of" in err for err in errors)
+
+    assert "file not found" in validate_context_pack_record_file(tmp_path / "missing.json")[0]
+
+
+def test_context_pack_cli_commands(tmp_path: Path) -> None:
+    from typer.testing import CliRunner
+    from builder_ii.context_cli import context_app
+
+    runner = CliRunner()
+
+    # Help command
+    help_res = runner.invoke(context_app, ["--help"])
+    assert help_res.exit_code == 0
+    assert "artifact" in help_res.stdout
+    assert "validate" in help_res.stdout
+
+    # Emit artifact to stdout
+    art_out = tmp_path / "context-pack-stdout.json"
+    result = runner.invoke(
+        context_app,
+        [
+            "artifact",
+            "--task",
+            "cli test",
+            "--module",
+            "builder_ii/context_pack.py",
+            "--target",
+            "builder",
+            "--no-repomix",
+        ],
+    )
+    assert result.exit_code == 0
+    data = json_lib.loads(result.stdout)
+    assert data["kind"] == "builder_ii.context_pack_record"
+    assert data["task"] == "cli test"
+
+    # Emit artifact to file
+    out_file = tmp_path / "context-pack-record.json"
+    result_file = runner.invoke(
+        context_app,
+        [
+            "artifact",
+            "--task",
+            "cli test file",
+            "--module",
+            "builder_ii/context_pack.py",
+            "--target",
+            "builder",
+            "--no-repomix",
+            "--output",
+            str(out_file),
+        ],
+    )
+    assert result_file.exit_code == 0
+    assert out_file.exists()
+    assert "Context pack record written to" in result_file.stdout
+
+    # Validate command
+    val_res = runner.invoke(context_app, ["validate", str(out_file)])
+    assert val_res.exit_code == 0
+    assert "is valid" in val_res.stdout
+
+    # Validate invalid path
+    val_bad = runner.invoke(context_app, ["validate", str(tmp_path / "nonexistent.json")])
+    assert val_bad.exit_code == 1

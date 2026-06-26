@@ -1,17 +1,21 @@
-from __future__ import annotations
-
+import hashlib
+import json as json_lib
 import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from builder_ii.config import Settings
 
 DEFAULT_MARKDOWN_OUTPUT = Path(".builder/context-pack.md")
 DEFAULT_REPOMIX_OUTPUT = Path(".builder/context-pack.xml")
-RepoTarget = Literal["core", "builder"]
+RepoTarget = Literal["core", "builder", "generic"]
+
+CONTEXT_PACK_RECORD_KIND = "builder_ii.context_pack_record"
+CONTEXT_PACK_RECORD_SCHEMA_VERSION = 1
+
 
 
 @dataclass(frozen=True)
@@ -44,7 +48,10 @@ def repo_for_target(settings: Settings, target: RepoTarget) -> Path:
         return settings.core_repo
     if target == "builder":
         return settings.project_root
+    if target == "generic":
+        return Path.cwd()
     raise ValueError(f"unknown context target: {target}")
+
 
 
 def _run_git(repo: Path, args: list[str]) -> str:
@@ -229,3 +236,86 @@ def build_context_pack(
         stdout=proc.stdout,
         stderr=proc.stderr,
     )
+
+
+def _file_sha256(path: Path | None) -> str:
+    if not path or not path.exists():
+        return ""
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def create_context_pack_record(
+    result: ContextPackResult,
+    *,
+    task: str | None = None,
+) -> dict[str, Any]:
+    md_digest = _file_sha256(result.markdown_path)
+    repomix_digest = _file_sha256(result.repomix_path)
+    return {
+        "kind": CONTEXT_PACK_RECORD_KIND,
+        "schema_version": CONTEXT_PACK_RECORD_SCHEMA_VERSION,
+        "target": result.target,
+        "task": task or "",
+        "selected_files": list(result.selected_files),
+        "markdown_path": str(result.markdown_path),
+        "repomix_path": str(result.repomix_path) if result.repomix_path else "",
+        "markdown_sha256": md_digest,
+        "repomix_sha256": repomix_digest,
+        "governance": {
+            "capability_state": "context_pack_record",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+        },
+    }
+
+
+def dumps_context_pack_record(record: dict[str, Any]) -> str:
+    return json_lib.dumps(record, indent=2, sort_keys=True) + "\n"
+
+
+def write_context_pack_record(record: dict[str, Any], output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(dumps_context_pack_record(record), encoding="utf-8")
+
+
+def validate_context_pack_record(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["context pack record must be a JSON object"]
+    if data.get("kind") != CONTEXT_PACK_RECORD_KIND:
+        errors.append(f"kind must be {CONTEXT_PACK_RECORD_KIND}")
+    if data.get("schema_version") != CONTEXT_PACK_RECORD_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {CONTEXT_PACK_RECORD_SCHEMA_VERSION}")
+    if data.get("target") not in ("core", "builder", "generic"):
+        errors.append("target must be one of: core, builder, generic")
+    if not isinstance(data.get("selected_files"), list):
+        errors.append("selected_files must be a list")
+
+    governance = data.get("governance")
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        if governance.get("capability_state") != "context_pack_record":
+            errors.append("governance.capability_state must be context_pack_record")
+        for key in ("runtime_execution", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+    return errors
+
+
+def validate_context_pack_record_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as exc:
+        return [f"invalid JSON: {exc}"]
+    except Exception as exc:
+        return [f"failed to read file: {exc}"]
+    return validate_context_pack_record(data)

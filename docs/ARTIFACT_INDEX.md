@@ -30,10 +30,10 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.snapshot_record`
 - `builder_ii.target_profile`
 - `builder_ii.verification_profile`
+- `builder_ii.context_pack_record`
+- `builder_ii.agent_profile_record`
 
 ## CLI
-
-
 
 ```text
 builder-index record .builder/artifacts --output .builder/artifacts/artifact-index.json

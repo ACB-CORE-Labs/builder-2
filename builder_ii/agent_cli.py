@@ -6,9 +6,22 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from builder_ii.agent_profiles import AgentProfileName, agent_profiles, get_agent_profile, profiles_for_target, render_agent_profile, validate_agent_profiles
+from builder_ii.agent_profiles import (
+    AgentProfileName,
+    agent_profiles,
+    get_agent_profile,
+    profiles_for_target,
+    render_agent_profile,
+    validate_agent_profiles,
+    create_agent_profile_record,
+    dumps_agent_profile_record,
+    write_agent_profile_record,
+    validate_agent_profile_record,
+    validate_agent_profile_record_file,
+)
 from builder_ii.config import load_settings
 from builder_ii.target_profiles import TargetName, target_profile
+
 
 agent_app = typer.Typer(help="Inspect and render generic builder-II agent profiles.")
 console = Console()
@@ -65,8 +78,17 @@ def render(
 
 
 @agent_app.command("validate")
-def validate() -> None:
-    """Validate generic agent profile registry consistency."""
+def validate(path: Path | None = typer.Argument(None, help="Validate an agent profile record JSON file")) -> None:
+    """Validate generic agent profile registry consistency or an artifact file."""
+    if path:
+        errors = validate_agent_profile_record_file(path)
+        if errors:
+            for error in errors:
+                console.print(f"Validation error: {error}")
+            raise typer.Exit(1)
+        console.print(f"Agent profile record {path} is valid.")
+        return
+
     errors = validate_agent_profiles()
     if not errors:
         console.print("[green]Agent profiles valid[/]")
@@ -74,3 +96,32 @@ def validate() -> None:
     for error in errors:
         console.print(f"[red]{error}[/]")
     raise typer.Exit(1)
+
+
+@agent_app.command("artifact")
+def artifact(
+    name: str,
+    target: str = typer.Option("generic", "--target", help="Target profile: generic, builder, core"),
+    generic_repo: Path | None = typer.Option(None, "--generic-repo", help="Repo path for the generic target"),
+    task: str = typer.Option("", "--task", help="Optional task context"),
+    output: Path | None = typer.Option(None, "--output", help="Write JSON artifact to path"),
+) -> None:
+    """Emit a no-runtime agent profile record artifact."""
+    settings = load_settings()
+    profile = get_agent_profile(_normalize_agent(name))
+    selected_target = target_profile(settings, _normalize_target(target), generic_repo=generic_repo)
+    if selected_target.name not in profile.compatible_targets:
+        console.print(f"[red]{profile.name} is not compatible with target {selected_target.name}[/]")
+        raise typer.Exit(1)
+
+    record = create_agent_profile_record(profile, selected_target, task=task)
+    errors = validate_agent_profile_record(record)
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+    if output is not None:
+        write_agent_profile_record(record, output)
+        console.print(f"Agent profile record written to {output}")
+    else:
+        console.out(dumps_agent_profile_record(record), end="")

@@ -1,9 +1,14 @@
-from __future__ import annotations
-
+import hashlib
+import json as json_lib
 from dataclasses import dataclass
-from typing import Literal
+from pathlib import Path
+from typing import Any, Literal
 
 from builder_ii.target_profiles import TargetName, TargetProfile
+
+AGENT_PROFILE_RECORD_KIND = "builder_ii.agent_profile_record"
+AGENT_PROFILE_RECORD_SCHEMA_VERSION = 1
+
 
 AgentProfileName = Literal[
     "repo_mapper",
@@ -183,3 +188,91 @@ def render_agent_profile(profile: AgentProfile, target: TargetProfile | None = N
         lines.extend(f"- {principle}" for principle in target.principles)
         lines.append("")
     return "\n".join(lines)
+
+
+def create_agent_profile_record(
+    profile: AgentProfile,
+    target: TargetProfile | None = None,
+    *,
+    task: str | None = None,
+) -> dict[str, Any]:
+    rendered = render_agent_profile(profile, target)
+    rendered_digest = hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+    return {
+        "kind": AGENT_PROFILE_RECORD_KIND,
+        "schema_version": AGENT_PROFILE_RECORD_SCHEMA_VERSION,
+        "name": profile.name,
+        "description": profile.description,
+        "purpose": profile.purpose,
+        "authority": profile.authority,
+        "compatible_targets": list(profile.compatible_targets),
+        "required_context": list(profile.required_context),
+        "allowed_tools": list(profile.allowed_tools),
+        "forbidden_tools": list(profile.forbidden_tools),
+        "hitl_required_for": list(profile.hitl_required_for),
+        "output_contract": profile.output_contract,
+        "target": target.name if target else "",
+        "task": task or "",
+        "rendered_profile_sha256": rendered_digest,
+        "governance": {
+            "capability_state": "agent_profile_record",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+        },
+    }
+
+
+def dumps_agent_profile_record(record: dict[str, Any]) -> str:
+    return json_lib.dumps(record, indent=2, sort_keys=True) + "\n"
+
+
+def write_agent_profile_record(record: dict[str, Any], output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(dumps_agent_profile_record(record), encoding="utf-8")
+
+
+def validate_agent_profile_record(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["agent profile record must be a JSON object"]
+    if data.get("kind") != AGENT_PROFILE_RECORD_KIND:
+        errors.append(f"kind must be {AGENT_PROFILE_RECORD_KIND}")
+    if data.get("schema_version") != AGENT_PROFILE_RECORD_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {AGENT_PROFILE_RECORD_SCHEMA_VERSION}")
+    if data.get("name") not in agent_profile_names():
+        errors.append("name must be a known agent profile")
+    if data.get("target") and data.get("target") not in ("generic", "builder", "core"):
+        errors.append("target must be one of: generic, builder, core")
+
+    for list_field in ("compatible_targets", "required_context", "allowed_tools", "forbidden_tools", "hitl_required_for"):
+        if not isinstance(data.get(list_field), list):
+            errors.append(f"{list_field} must be a list")
+
+    governance = data.get("governance")
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        if governance.get("capability_state") != "agent_profile_record":
+            errors.append("governance.capability_state must be agent_profile_record")
+        for key in ("runtime_execution", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+    return errors
+
+
+def validate_agent_profile_record_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as exc:
+        return [f"invalid JSON: {exc}"]
+    except Exception as exc:
+        return [f"failed to read file: {exc}"]
+    return validate_agent_profile_record(data)
