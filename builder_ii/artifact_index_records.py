@@ -14,9 +14,12 @@ from builder_ii.promotion_decision_records import PROMOTION_DECISION_RECORD_KIND
 from builder_ii.promotion_readiness_records import PROMOTION_READINESS_RECORD_KIND, validate_promotion_readiness_record
 from builder_ii.receipt_records import RECEIPT_RECORD_KIND, validate_receipt_record
 from builder_ii.receive_records import RECEIVE_RECORD_KIND, validate_receive_record
+from builder_ii.agent_profiles import AGENT_PROFILE_RECORD_KIND, validate_agent_profile_record
+from builder_ii.context_pack import CONTEXT_PACK_RECORD_KIND, validate_context_pack_record
 from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_state_ledger_record
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
 from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND, validate_profile_artifact
+
 
 
 
@@ -51,7 +54,10 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     _SNAPSHOT_RECORD_KIND: _validate_snapshot_record,
     TARGET_PROFILE_ARTIFACT_KIND: validate_target_profile_artifact,
     VERIFICATION_ARTIFACT_KIND: validate_profile_artifact,
+    CONTEXT_PACK_RECORD_KIND: validate_context_pack_record,
+    AGENT_PROFILE_RECORD_KIND: validate_agent_profile_record,
 }
+
 
 
 
