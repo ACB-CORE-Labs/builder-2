@@ -7,6 +7,12 @@ from rich.console import Console
 
 from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
 from builder_ii.config import load_settings
+from builder_ii.goose_readonly import (
+    create_readonly_runtime_audit_from_manifest_file,
+    dumps_readonly_runtime_audit,
+    validate_readonly_runtime_audit_file,
+    write_readonly_runtime_audit,
+)
 from builder_ii.goose_session import (
     GooseRuntimeMode,
     create_goose_session_manifest,
@@ -18,7 +24,7 @@ from builder_ii.goose_session import (
 from builder_ii.target_profiles import TargetName, target_names
 
 
-goose_app = typer.Typer(help="Create and validate no-runtime Goose session manifest artifacts.")
+goose_app = typer.Typer(help="Create and validate governed Goose artifacts without starting Goose.")
 console = Console()
 _VALID_AGENTS = set(agent_profile_names())
 _VALID_TARGETS = set(target_names())
@@ -105,3 +111,33 @@ def validate(path: Path) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     console.print(f"Goose session manifest {path} is valid.")
+
+
+@goose_app.command("readonly-audit")
+def readonly_audit(
+    manifest_path: Path = typer.Argument(..., help="Goose session manifest path"),
+    output: Path | None = typer.Option(None, "--output", help="Write read-only audit JSON to path"),
+) -> None:
+    """Create a read-only runtime candidate audit artifact without starting Goose."""
+    audit, errors = create_readonly_runtime_audit_from_manifest_file(manifest_path, output_path=output)
+    if errors or audit is None:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+
+    if output is not None:
+        write_readonly_runtime_audit(audit, output)
+        console.print(f"Goose read-only audit written to {output}")
+    else:
+        console.out(dumps_readonly_runtime_audit(audit), end="")
+
+
+@goose_app.command("validate-audit")
+def validate_audit(path: Path) -> None:
+    """Validate a Goose read-only runtime candidate audit artifact."""
+    errors = validate_readonly_runtime_audit_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+    console.print(f"Goose read-only audit {path} is valid.")
