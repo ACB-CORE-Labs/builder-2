@@ -4,6 +4,8 @@ The bridge renders builder-II agent profiles into deepagents-style subagent spec
 
 This is a specification layer only. It does not make deepagents a required dependency, run models, edit files, execute shell commands, or write notes.
 
+Capability promotion state for this bridge is tracked in [`CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md).
+
 ## Commands
 
 ```bash
@@ -51,8 +53,6 @@ builder-bridge render patch_planner --target builder --format json --output .bui
 - If `--output` is not specified, it prints the spec directly to stdout (using raw stdout representation for JSON format).
 - This is a dry-run bridge spec artifact and NOT a runtime/execution authorization.
 
-
-
 ### Artifact Validation
 
 `builder-bridge validate-artifact PATH` validates builder-II bridge artifacts produced by the smoke and render commands.
@@ -65,7 +65,6 @@ This command only reads and validates JSON artifacts. It does not execute artifa
 
 Runtime is disabled by default.
 
-
 Every bridge spec denies:
 
 - `write_file`
@@ -74,7 +73,7 @@ Every bridge spec denies:
 - `commit`
 - `push`
 
-Future runtime work must add HITL gates, smoke tests, docs, rollback path, and verification before any denied action can be promoted.
+Current bridge work is capped at `validation_only`. Future runtime work must add HITL gates, smoke tests, docs, rollback path, and verification before any denied action can be promoted.
 
 ## Target separation
 
