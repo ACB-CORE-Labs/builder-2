@@ -62,7 +62,24 @@ class DeepAgentBridgeSpec:
     tools: tuple[str, ...]
     denied_tools: tuple[str, ...]
     hitl_required_for: tuple[str, ...]
+    agent_profile: AgentProfileName
     runtime_enabled: bool = False
+
+    def to_artifact_dict(self) -> dict[str, Any]:
+        return {
+            "kind": "builder_ii.deepagents_bridge_spec",
+            "schema_version": 1,
+            "name": self.name,
+            "description": self.description,
+            "agent_profile": self.agent_profile,
+            "target": self.target,
+            "runtime_enabled": self.runtime_enabled,
+            "tools": list(self.tools),
+            "denied_tools": list(self.denied_tools),
+            "hitl_required_for": list(self.hitl_required_for),
+            "builder_ii_bridge": True,
+            "subagent": self.as_subagent_dict(),
+        }
 
     def as_subagent_dict(self) -> dict[str, Any]:
         return {
@@ -162,6 +179,7 @@ def deepagent_bridge_spec(profile: AgentProfile, target: TargetProfile) -> DeepA
         tools=profile.allowed_tools,
         denied_tools=_denied_tools(profile),
         hitl_required_for=profile.hitl_required_for,
+        agent_profile=profile.name,
         runtime_enabled=False,
     )
 

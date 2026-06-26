@@ -202,3 +202,113 @@ def test_cli_deepagents_smoke_default_does_not_write(tmp_path: Path) -> None:
     result = runner.invoke(bridge_app, ["deepagents-smoke"])
     assert result.exit_code == 0
     assert not any(tmp_path.iterdir())
+
+
+def test_spec_to_artifact_dict(tmp_path: Path) -> None:
+    target = target_profile(_settings(tmp_path), "builder")
+    spec = bridge_spec_for("patch_planner", target)
+    data = spec.to_artifact_dict()
+
+    assert data["kind"] == "builder_ii.deepagents_bridge_spec"
+    assert data["schema_version"] == 1
+    assert data["name"] == "builder-patch-planner"
+    assert data["agent_profile"] == "patch_planner"
+    assert data["target"] == "builder"
+    assert data["runtime_enabled"] is False
+    assert isinstance(data["tools"], list)
+    assert "write_file" in data["denied_tools"]
+    assert data["builder_ii_bridge"] is True
+
+    # subagent field shape verification
+    sub = data["subagent"]
+    assert sub["name"] == "builder-patch-planner"
+    assert "prompt" in sub
+    assert sub["metadata"]["target"] == "builder"
+    assert sub["metadata"]["builder_ii_bridge"] is True
+
+
+def test_cli_render_invalid_format(monkeypatch, tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    monkeypatch.setattr("builder_ii.bridge_cli.load_settings", lambda: settings)
+
+    runner = CliRunner()
+    result = runner.invoke(bridge_app, ["render", "patch_planner", "--target", "builder", "--format", "invalid"])
+    assert result.exit_code == 1
+    assert "format must be one of: markdown, json" in result.stdout
+
+
+def test_cli_render_markdown(monkeypatch, tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    monkeypatch.setattr("builder_ii.bridge_cli.load_settings", lambda: settings)
+
+    runner = CliRunner()
+    result = runner.invoke(bridge_app, ["render", "patch_planner", "--target", "builder", "--format", "markdown"])
+    assert result.exit_code == 0
+    assert "# deepagents bridge spec: builder-patch-planner" in result.stdout
+
+
+def test_cli_render_json(monkeypatch, tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    monkeypatch.setattr("builder_ii.bridge_cli.load_settings", lambda: settings)
+
+    runner = CliRunner()
+    result = runner.invoke(bridge_app, ["render", "patch_planner", "--target", "builder", "--format", "json"])
+    assert result.exit_code == 0
+    data = json_lib.loads(result.stdout)
+    assert data["kind"] == "builder_ii.deepagents_bridge_spec"
+    assert data["schema_version"] == 1
+
+
+def test_cli_render_output_json(monkeypatch, tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    monkeypatch.setattr("builder_ii.bridge_cli.load_settings", lambda: settings)
+
+    runner = CliRunner()
+    out_file = tmp_path / "spec_dir" / "spec.json"
+    result = runner.invoke(
+        bridge_app,
+        ["render", "patch_planner", "--target", "builder", "--format", "json", "--output", str(out_file)],
+    )
+    assert result.exit_code == 0
+    assert result.stdout == ""
+    assert out_file.exists()
+    data = json_lib.loads(out_file.read_text(encoding="utf-8"))
+    assert data["kind"] == "builder_ii.deepagents_bridge_spec"
+
+
+def test_cli_render_output_markdown(monkeypatch, tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    monkeypatch.setattr("builder_ii.bridge_cli.load_settings", lambda: settings)
+
+    runner = CliRunner()
+    out_file = tmp_path / "spec.md"
+    result = runner.invoke(
+        bridge_app,
+        ["render", "patch_planner", "--target", "builder", "--format", "markdown", "--output", str(out_file)],
+    )
+    assert result.exit_code == 0
+    assert result.stdout == ""
+    assert out_file.exists()
+    content = out_file.read_text(encoding="utf-8")
+    assert "# deepagents bridge spec: builder-patch-planner" in content
+
+
+def test_cli_render_default_does_not_write(monkeypatch, tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    monkeypatch.setattr("builder_ii.bridge_cli.load_settings", lambda: settings)
+
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        result = runner.invoke(bridge_app, ["render", "patch_planner", "--target", "builder"])
+        assert result.exit_code == 0
+        import os
+        assert os.listdir(".") == []
+
+
+def test_repo_mapper_hitl_required_for_serializes_as_single_item(tmp_path: Path) -> None:
+    target = target_profile(_settings(tmp_path), "builder")
+    spec = bridge_spec_for("repo_mapper", target)
+    data = spec.to_artifact_dict()
+
+    assert data["hitl_required_for"] == ["none; profile is read-only"]
+    assert data["subagent"]["metadata"]["hitl_required_for"] == ["none; profile is read-only"]
