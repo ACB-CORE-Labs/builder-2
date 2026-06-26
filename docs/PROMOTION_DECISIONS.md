@@ -8,6 +8,8 @@ An approved decision requires a ready promotion readiness record and a decision 
 
 If the readiness record is blocked, the decision record is also blocked.
 
+Validation also checks the stored readiness reference shape, blocker consistency, check-list shape, and disabled governance boundary.
+
 ## CLI
 
 ```text
