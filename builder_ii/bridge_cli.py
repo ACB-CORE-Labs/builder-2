@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json as json_lib
 from pathlib import Path
 
 import typer
@@ -46,9 +47,22 @@ def doctor() -> None:
 
 
 @bridge_app.command("deepagents-smoke")
-def deepagents_smoke() -> None:
+def deepagents_smoke(
+    json_output: bool = typer.Option(False, "--json", help="Print JSON readiness report."),
+    output: Path | None = typer.Option(None, "--output", help="Write JSON readiness report to path."),
+) -> None:
     """Run the optional deepagents import/readiness smoke check without enabling runtime."""
-    _print_deepagents_smoke()
+    availability = deepagents_availability()
+    if json_output or output is not None:
+        payload = availability.to_json_dict()
+        text = json_lib.dumps(payload, indent=2, sort_keys=True) + "\n"
+        if json_output:
+            console.print(text, end="")
+        if output is not None:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(text, encoding="utf-8")
+    else:
+        _print_deepagents_smoke()
 
 
 @bridge_app.command("render")

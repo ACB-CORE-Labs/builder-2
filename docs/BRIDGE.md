@@ -9,6 +9,8 @@ This is a specification layer only. It does not make deepagents a required depen
 ```bash
 builder-bridge doctor
 builder-bridge deepagents-smoke
+builder-bridge deepagents-smoke --json
+builder-bridge deepagents-smoke --output .builder/artifacts/deepagents-smoke.json
 builder-bridge render patch_planner --target generic
 builder-bridge render patch_planner --target builder
 builder-bridge render verification_planner --target core
@@ -19,6 +21,21 @@ builder-bridge render verification_planner --target core
 `builder-bridge doctor` and `builder-bridge deepagents-smoke` may inspect whether `deepagents` is importable and whether `create_deep_agent` is present.
 
 These commands do not construct agents, run models, enable runtime execution, write files, execute shell commands, or promote deepagents to a required dependency.
+
+### Readiness Artifact
+
+You can generate a machine-readable JSON readiness report (readiness artifact) by running:
+
+```bash
+builder-bridge deepagents-smoke --json
+builder-bridge deepagents-smoke --output .builder/artifacts/deepagents-smoke.json
+```
+
+- `--json` prints the JSON report to stdout.
+- `--output PATH` writes the JSON report to the specified path, creating any parent directories as needed.
+- Using both `--json --output PATH` prints the report and writes it to the file.
+- The readiness artifact is a static readiness report showing import status and capability limits. It is NOT a runtime permission or execution artifact.
+
 
 ## Boundary
 

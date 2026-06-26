@@ -37,6 +37,21 @@ class DeepAgentsAvailability:
             ("builder-II dependency mode", self.dependency_mode.upper(), "deepagents is optional"),
         )
 
+    def to_json_dict(self) -> dict[str, Any]:
+        return {
+            "kind": "builder_ii.deepagents_smoke",
+            "schema_version": 1,
+            "deepagents_import": self.import_status,
+            "deepagents_source": self.source or "n/a",
+            "deepagents_version": self.version or "unknown",
+            "create_deep_agent": "PRESENT" if self.create_deep_agent_present else "MISSING",
+            "runtime_execution": self.runtime_execution.upper(),
+            "file_writes": self.file_writes.upper(),
+            "shell_execution": self.shell_execution.upper(),
+            "builder_ii_dependency_mode": self.dependency_mode.upper(),
+        }
+
+
 
 @dataclass(frozen=True)
 class DeepAgentBridgeSpec:
