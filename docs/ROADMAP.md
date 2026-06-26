@@ -95,6 +95,18 @@ The amendment adds three first-class candidate tracks without promoting runtime 
 
 These tracks run alongside the existing runtime integration phases. They must preserve the no-runtime governance foundation, the capability promotion rule, target-profile boundaries, and the separation between builder-II and CORE Workbench/UI.
 
+## Design-halt RFCs
+
+During implementation halts, builder-II may advance through design-only RFCs that clarify future artifact contracts without enabling runtime behavior.
+
+Current RFCs:
+
+- `docs/plan/ARTIFACT_MEMORY_RFC.md` — artifact graph memory, memory atom envelope, reconstruction posture, and summary boundaries.
+- `docs/plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md` — deepagents plan/assignment/result/review/gate artifacts before any deepagents runtime construction.
+- `docs/plan/RUST_VALIDATION_SPIKE.md` — measurement-first Rust validation spike plan with Python reference parity.
+
+These RFCs are not implementation authority. They do not enable memory mutation, deepagents construction, Rust dependencies, shell execution, command execution, model calls, source mutation, or Goose runtime activation.
+
 ## Near-term order
 
 1. Keep documentation and metadata aligned with the generic-first platform identity.
