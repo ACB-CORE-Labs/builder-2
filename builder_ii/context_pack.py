@@ -5,11 +5,13 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from builder_ii.config import Settings
 
 DEFAULT_MARKDOWN_OUTPUT = Path(".builder/context-pack.md")
 DEFAULT_REPOMIX_OUTPUT = Path(".builder/context-pack.xml")
+RepoTarget = Literal["core", "builder"]
 
 
 @dataclass(frozen=True)
@@ -22,6 +24,7 @@ class ContextPackSelection:
 @dataclass(frozen=True)
 class ContextPackResult:
     repo: Path
+    target: RepoTarget
     markdown_path: Path
     repomix_path: Path | None
     selected_files: tuple[str, ...]
@@ -34,6 +37,14 @@ class ContextPackResult:
     @property
     def ok(self) -> bool:
         return self.returncode in (None, 0)
+
+
+def repo_for_target(settings: Settings, target: RepoTarget) -> Path:
+    if target == "core":
+        return settings.core_repo
+    if target == "builder":
+        return settings.project_root
+    raise ValueError(f"unknown context target: {target}")
 
 
 def _run_git(repo: Path, args: list[str]) -> str:
@@ -79,8 +90,11 @@ def _module_files(repo: Path, module: str) -> tuple[str, ...]:
         return (rel,)
     if target.is_dir():
         prefix = rel + "/"
-        return tuple(path for path in _tracked_files(repo) if path.startswith(prefix))
-    return (rel,)
+        files = tuple(path for path in _tracked_files(repo) if path.startswith(prefix))
+        if files:
+            return files
+        raise FileNotFoundError(f"module directory has no tracked files in {repo}: {rel}")
+    raise FileNotFoundError(f"module not found in {repo}: {rel}")
 
 
 def select_context_files(repo: Path, selection: ContextPackSelection) -> tuple[str, ...]:
@@ -116,6 +130,7 @@ def repomix_command(repo: Path, files: tuple[str, ...], output: Path) -> tuple[s
 def render_context_manifest(
     *,
     repo: Path,
+    target: RepoTarget,
     selection: ContextPackSelection,
     selected_files: tuple[str, ...],
     repomix_output: Path,
@@ -133,7 +148,8 @@ def render_context_manifest(
         "",
         "## Repository",
         "",
-        f"`{repo}`",
+        f"target: `{target}`",
+        f"path: `{repo}`",
         "",
         "## Git status",
         "",
@@ -175,11 +191,12 @@ def build_context_pack(
     settings: Settings,
     selection: ContextPackSelection,
     *,
+    target: RepoTarget = "core",
     markdown_output: Path = DEFAULT_MARKDOWN_OUTPUT,
     repomix_output: Path = DEFAULT_REPOMIX_OUTPUT,
     run_repomix: bool = True,
 ) -> ContextPackResult:
-    repo = settings.core_repo
+    repo = repo_for_target(settings, target)
     selected = select_context_files(repo, selection)
     markdown_path = settings.project_root / markdown_output
     repomix_path = settings.project_root / repomix_output
@@ -189,6 +206,7 @@ def build_context_pack(
     markdown_path.write_text(
         render_context_manifest(
             repo=repo,
+            target=target,
             selection=selection,
             selected_files=selected,
             repomix_output=repomix_path,
@@ -197,10 +215,11 @@ def build_context_pack(
         encoding="utf-8",
     )
     if not run_repomix:
-        return ContextPackResult(repo, markdown_path, repomix_path, selected, command, False)
+        return ContextPackResult(repo, target, markdown_path, repomix_path, selected, command, False)
     proc = subprocess.run(command, cwd=repo, capture_output=True, text=True, timeout=300)
     return ContextPackResult(
         repo=repo,
+        target=target,
         markdown_path=markdown_path,
         repomix_path=repomix_path,
         selected_files=selected,

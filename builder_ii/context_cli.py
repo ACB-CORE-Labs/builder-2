@@ -7,35 +7,28 @@ from rich.console import Console
 from rich.table import Table
 
 from builder_ii.config import load_settings
-from builder_ii.context_pack import ContextPackSelection, build_context_pack
+from builder_ii.context_pack import ContextPackSelection, ContextPackResult, RepoTarget, build_context_pack
 
-context_app = typer.Typer(help="Build task-scoped CORE context packs for local agents.")
+context_app = typer.Typer(help="Build task-scoped context packs for local agents.")
 console = Console()
+_VALID_TARGETS: set[str] = {"core", "builder"}
 
 
-@context_app.command("pack")
-def pack(
-    task: str | None = typer.Option(None, "--task", "-t", help="Task description to include in the manifest"),
-    module: str | None = typer.Option(None, "--module", "-m", help="Repo file or directory to include"),
-    changed: bool = typer.Option(False, "--changed", help="Include changed and untracked files"),
-    no_repomix: bool = typer.Option(False, "--no-repomix", help="Write manifest only; do not invoke repomix"),
-    markdown_output: Path = typer.Option(Path(".builder/context-pack.md"), "--markdown-output"),
-    repomix_output: Path = typer.Option(Path(".builder/context-pack.xml"), "--repomix-output"),
-) -> None:
-    """Build a context-pack manifest and optional Repomix repository pack."""
-    settings = load_settings()
-    result = build_context_pack(
-        settings,
-        ContextPackSelection(task=task, module=module, changed=changed),
-        markdown_output=markdown_output,
-        repomix_output=repomix_output,
-        run_repomix=not no_repomix,
-    )
+def _normalize_target(value: str) -> RepoTarget:
+    if value not in _VALID_TARGETS:
+        console.print("[red]--target must be one of: core, builder[/]")
+        raise typer.Exit(1)
+    return value  # type: ignore[return-value]
+
+
+def _print_result(result: ContextPackResult) -> None:
     table = Table("Artifact", "Path")
     table.add_row("manifest", str(result.markdown_path))
     if result.repomix_path:
         table.add_row("repomix", str(result.repomix_path))
     console.print(table)
+    console.print(f"target: {result.target}")
+    console.print(f"repo: {result.repo}")
     console.print(f"selected files: {len(result.selected_files)}")
     if result.command:
         console.print("repomix command: " + " ".join(result.command))
@@ -50,7 +43,47 @@ def pack(
         console.print("[yellow]Manifest only[/]")
 
 
+@context_app.command("pack")
+def pack(
+    task: str | None = typer.Option(None, "--task", "-t", help="Task description to include in the manifest"),
+    module: str | None = typer.Option(None, "--module", "-m", help="Repo file or directory to include"),
+    changed: bool = typer.Option(False, "--changed", help="Include changed and untracked files"),
+    target: str = typer.Option("core", "--target", help="Repository target: core or builder"),
+    no_repomix: bool = typer.Option(False, "--no-repomix", help="Write manifest only; do not invoke repomix"),
+    markdown_output: Path = typer.Option(Path(".builder/context-pack.md"), "--markdown-output"),
+    repomix_output: Path = typer.Option(Path(".builder/context-pack.xml"), "--repomix-output"),
+) -> None:
+    """Build a context-pack manifest and optional Repomix repository pack."""
+    settings = load_settings()
+    try:
+        result = build_context_pack(
+            settings,
+            ContextPackSelection(task=task, module=module, changed=changed),
+            target=_normalize_target(target),
+            markdown_output=markdown_output,
+            repomix_output=repomix_output,
+            run_repomix=not no_repomix,
+        )
+    except FileNotFoundError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1) from exc
+    _print_result(result)
+
+
 @context_app.command("changed")
-def changed(task: str | None = typer.Option(None, "--task", "-t"), no_repomix: bool = typer.Option(False, "--no-repomix")) -> None:
+def changed(
+    task: str | None = typer.Option(None, "--task", "-t"),
+    target: str = typer.Option("core", "--target", help="Repository target: core or builder"),
+    no_repomix: bool = typer.Option(False, "--no-repomix"),
+) -> None:
     """Shortcut for pack --changed."""
-    pack(task=task, module=None, changed=True, no_repomix=no_repomix)
+    settings = load_settings()
+    result = build_context_pack(
+        settings,
+        ContextPackSelection(task=task, module=None, changed=True),
+        target=_normalize_target(target),
+        markdown_output=Path(".builder/context-pack.md"),
+        repomix_output=Path(".builder/context-pack.xml"),
+        run_repomix=not no_repomix,
+    )
+    _print_result(result)
