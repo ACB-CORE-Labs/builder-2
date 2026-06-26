@@ -8,6 +8,7 @@ from builder_ii.agent_profiles import AgentProfile, AgentProfileName, agent_prof
 from builder_ii.config import Settings
 from builder_ii.deepagents_bridge import REQUIRED_DENIED_TOOLS, bridge_spec_for, deepagents_availability, validate_bridge_spec
 from builder_ii.target_profiles import TargetName, TargetProfile, target_names, target_profile
+from builder_ii.verification_profiles import default_profile_for_target, validate_profile_artifact
 
 BUNDLE_KIND = "builder_ii.target_profile_bundle"
 BUNDLE_SCHEMA_VERSION = 1
@@ -60,6 +61,8 @@ def _suggested_next_steps(target: TargetName, agent: AgentProfileName) -> list[s
     return [
         f"builder-targets show {target}",
         f"builder-agent render {agent} --target {target}",
+        f"builder-verification artifact --target {target} --profile <profile> --output .builder/artifacts/verification-profile.json",
+        "builder-verification validate .builder/artifacts/verification-profile.json",
         f"builder-bridge render {agent} --target {target} --format json --output .builder/artifacts/bridge-spec.json",
         "builder-bridge validate-artifact .builder/artifacts/bridge-spec.json",
         f"builder-context pack --target {target} --task '<task>' --no-repomix",
@@ -77,8 +80,10 @@ def create_target_bundle(
     """Create a governed, no-runtime target bundle artifact."""
     selected_target = target_profile(settings, target_name, generic_repo=generic_repo)
     selected_agent = get_agent_profile(agent_profile)
+    selected_verification = default_profile_for_target(target_name)
     bridge_spec = bridge_spec_for(agent_profile, selected_target)
     bridge_errors = validate_bridge_spec(bridge_spec)
+    verification_artifact = selected_verification.to_artifact_dict(target=target_name, task=task)
 
     return {
         "kind": BUNDLE_KIND,
@@ -88,6 +93,8 @@ def create_target_bundle(
         },
         "target": _target_dict(selected_target),
         "agent_profile": _agent_dict(selected_agent),
+        "verification_profile": verification_artifact,
+        "verification_profile_validation_errors": validate_profile_artifact(verification_artifact),
         "bridge_spec": bridge_spec.to_artifact_dict(),
         "bridge_spec_validation_errors": list(bridge_errors),
         "deepagents_readiness": deepagents_availability().to_json_dict(),
@@ -135,6 +142,10 @@ def validate_target_bundle(bundle: Any) -> list[str]:
             errors.append("agent_profile.forbidden_tools must be a list")
         elif "execute_shell" not in forbidden_tools:
             errors.append("agent profile must forbid execute_shell")
+
+    verification_profile = bundle.get("verification_profile")
+    verification_errors = validate_profile_artifact(verification_profile)
+    errors.extend(f"verification_profile: {error}" for error in verification_errors)
 
     bridge_spec = bundle.get("bridge_spec")
     if not isinstance(bridge_spec, dict):
@@ -185,6 +196,10 @@ def validate_target_bundle(bundle: Any) -> list[str]:
     bridge_errors = bundle.get("bridge_spec_validation_errors")
     if bridge_errors not in ([], None):
         errors.append("bridge_spec_validation_errors must be empty")
+
+    profile_errors = bundle.get("verification_profile_validation_errors")
+    if profile_errors not in ([], None):
+        errors.append("verification_profile_validation_errors must be empty")
 
     return errors
 
