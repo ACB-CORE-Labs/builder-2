@@ -99,6 +99,39 @@ def write_promotion_readiness_record(record: dict[str, Any], output: Path) -> No
     output.write_text(dumps_promotion_readiness_record(record), encoding="utf-8")
 
 
+def _string_list_errors(value: Any, *, field: str) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{field} must be a list"]
+    if any(not isinstance(item, str) or not item for item in value):
+        return [f"{field} must be a list of non-empty strings"]
+    return []
+
+
+def _validate_check(check: Any, index: int) -> list[str]:
+    """Validate shape of a single check entry."""
+    errors: list[str] = []
+    prefix = f"checks[{index}]"
+    if not isinstance(check, dict):
+        return [f"{prefix} must be an object"]
+    if not isinstance(check.get("name"), str) or not check["name"]:
+        errors.append(f"{prefix}.name must be a non-empty string")
+    errors.extend(_string_list_errors(check.get("refs"), field=f"{prefix}.refs"))
+    if not isinstance(check.get("ready"), bool):
+        errors.append(f"{prefix}.ready must be a boolean")
+    errors.extend(_string_list_errors(check.get("missing"), field=f"{prefix}.missing"))
+    # Cross-field consistency within check
+    if isinstance(check.get("refs"), list) and isinstance(check.get("ready"), bool):
+        expected_ready = bool(check["refs"])
+        if check["ready"] != expected_ready:
+            errors.append(f"{prefix}.ready must match whether refs is non-empty")
+    if isinstance(check.get("refs"), list) and isinstance(check.get("missing"), list):
+        if check["refs"] and check["missing"]:
+            errors.append(f"{prefix} must not have missing items when refs are present")
+        if not check["refs"] and not check["missing"]:
+            errors.append(f"{prefix} must have missing items when refs are empty")
+    return errors
+
+
 def validate_promotion_readiness_record(record: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(record, dict):
@@ -111,22 +144,44 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_state") != "DISABLED":
         errors.append("current_state must be DISABLED")
-    if not record.get("capability_name"):
+    if record.get("capability_state") != "promotion_readiness_record":
+        errors.append("capability_state must be promotion_readiness_record")
+    if not isinstance(record.get("capability_name"), str) or not record["capability_name"]:
         errors.append("capability_name is required")
+    if not isinstance(record.get("target_state"), str) or not record["target_state"]:
+        errors.append("target_state is required")
     if record.get("status") not in ("ready", "blocked"):
         errors.append("status must be ready or blocked")
-    if record.get("ready") is not (record.get("status") == "ready"):
+    if not isinstance(record.get("ready"), bool):
+        errors.append("ready must be a boolean")
+    elif record.get("ready") is not (record.get("status") == "ready"):
         errors.append("ready must match status")
-    if not isinstance(record.get("missing"), list):
-        errors.append("missing must be a list")
+    errors.extend(_string_list_errors(record.get("missing"), field="missing"))
+    # Validate checks structure and required check names
     checks = record.get("checks")
     if not isinstance(checks, list):
         errors.append("checks must be a list")
     else:
+        for index, check in enumerate(checks):
+            errors.extend(_validate_check(check, index))
         names = {check.get("name") for check in checks if isinstance(check, dict)}
         for required in _REQUIRED_CHECKS:
             if required not in names:
                 errors.append(f"missing check: {required}")
+        # Validate aggregate missing matches check-level missing
+        if isinstance(record.get("missing"), list):
+            check_missing = [
+                item
+                for check in checks
+                if isinstance(check, dict) and isinstance(check.get("missing"), list)
+                for item in check["missing"]
+            ]
+            # Top-level missing may include extra entries like "capability_name is required"
+            # but must contain all check-level missing items
+            top_missing = record["missing"]
+            for item in check_missing:
+                if item not in top_missing:
+                    errors.append(f"missing must include check-level item: {item}")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
@@ -136,6 +191,8 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
+        if governance.get("capability_state") != "promotion_readiness_record":
+            errors.append("governance.capability_state must be promotion_readiness_record")
         for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
