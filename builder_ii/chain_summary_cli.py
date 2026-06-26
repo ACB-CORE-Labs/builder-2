@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
@@ -51,3 +52,26 @@ def validate(path: Path) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     console.print(f"Chain summary record is valid: {path}")
+
+
+@chain_app.command("verify-artifacts")
+def verify_artifacts(
+    paths: list[Path] = typer.Argument(..., help="Paths to artifact JSON files to verify"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write verification report JSON to path"),
+) -> None:
+    """Validate a set of artifacts and verify their cross-record adjacency and digests."""
+    from builder_ii.artifact_chain_verification import verify_artifact_chain
+
+    report = verify_artifact_chain(paths)
+    
+    report_json = json.dumps(report, indent=2, sort_keys=True)
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(report_json + "\n", encoding="utf-8")
+        console.print(f"Verification report written to {output}")
+    else:
+        console.out(report_json)
+
+    if not report["valid"]:
+        raise typer.Exit(1)
+
