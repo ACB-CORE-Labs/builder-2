@@ -76,3 +76,14 @@ These are not required for the governance foundation, but remain planned thin ex
 - later HITL-gated runtime candidate
 
 Each future capability must satisfy the capability promotion rule before it can move beyond disabled/spec/artifact/validation states.
+
+## Performance & Integration Priorities (2026 Amendment)
+
+A detailed amendment to the Masterpiece Plan is available at `docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md`.
+
+Key prioritized additions:
+- **Rust-backed artifact validation & processing core** (Phase 1 focus)
+- **MLX + UMA accelerated context management & summarization** (Phase 2 focus)
+- New dedicated phase for **intelligent model routing & hybrid execution** (local + frontier models)
+
+These enhancements run alongside the existing integration phases (#35–#42) while preserving the no-runtime governance foundation and all original non-negotiables.
