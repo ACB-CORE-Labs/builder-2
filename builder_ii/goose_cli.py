@@ -7,6 +7,12 @@ from rich.console import Console
 
 from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
 from builder_ii.config import load_settings
+from builder_ii.goose_command_proposal import (
+    create_goose_command_proposal_from_manifest_file,
+    dumps_goose_command_proposal,
+    validate_goose_command_proposal_file,
+    write_goose_command_proposal,
+)
 from builder_ii.goose_readonly import (
     create_readonly_runtime_audit_from_manifest_file,
     dumps_readonly_runtime_audit,
@@ -184,4 +190,42 @@ def validate_inspection(path: Path) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     console.print(f"Goose read-only inspection audit is valid: {path}")
+
+@goose_app.command("propose-command")
+def propose_command(
+    manifest_path: Path = typer.Argument(..., help="Goose session manifest path"),
+    command: str = typer.Option(..., "--command", help="Command string to propose but not execute"),
+    reason: str = typer.Option("", "--reason", help="Reason for the proposed command"),
+    risk_level: str = typer.Option("medium", "--risk-level", help="Risk level: low, medium, high, critical"),
+    output: Path | None = typer.Option(None, "--output", help="Write command proposal JSON to path"),
+) -> None:
+    """Create a command proposal artifact without executing anything."""
+    proposal, errors = create_goose_command_proposal_from_manifest_file(
+        manifest_path,
+        command=command,
+        reason=reason,
+        risk_level=risk_level,  # type: ignore[arg-type]
+        output_path=output,
+    )
+    if errors or proposal is None:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+
+    if output is not None:
+        write_goose_command_proposal(proposal, output)
+        console.print(f"Goose command proposal written to {output}")
+    else:
+        console.out(dumps_goose_command_proposal(proposal), end="")
+
+
+@goose_app.command("validate-command-proposal")
+def validate_command_proposal(path: Path) -> None:
+    """Validate a Goose command proposal artifact."""
+    errors = validate_goose_command_proposal_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+    console.print(f"Goose command proposal is valid: {path}")
 
