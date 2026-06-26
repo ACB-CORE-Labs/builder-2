@@ -2,7 +2,7 @@
 
 builder-II capabilities must move through explicit, documented promotion states. A capability is never enabled merely because code exists, a dependency imports, an artifact validates, or an agent profile can be rendered.
 
-This registry records the current state of bridge-related capabilities and the gates required before any future runtime promotion.
+This registry records current artifact and bridge capabilities and the gates required before any future runtime promotion.
 
 ## Promotion states
 
@@ -63,16 +63,40 @@ The deepagents bridge does not support:
 - treating artifact contents as permission grants
 - coupling builder-II to CORE Workbench/UI behavior
 
+## Current target bundle state
+
+| Property | Current value |
+| --- | --- |
+| Command surface | `builder-bundle create`, `builder-bundle validate` |
+| Runtime execution | `disabled` |
+| Model execution | `disabled` |
+| Agent construction | `disabled` |
+| File writes | only explicit user-provided bundle output path |
+| Shell execution | `disabled` |
+| Artifact authority | evidence only, never permission |
+| Current maximum state | `validation_only` |
+
+Target bundles currently support:
+
+- packaging one target profile
+- packaging one agent profile
+- embedding a dry-run bridge spec artifact
+- embedding optional deepagents readiness state
+- recording disabled governance limits
+- validating bundle schema and no-runtime invariants
+
+Target bundles do not execute their suggested commands.
+
 ## Completed gates for validation-only state
 
 | Gate | Status | Evidence |
 | --- | --- | --- |
-| Docs | complete | `docs/BRIDGE.md`, this registry |
-| Tests | complete | bridge smoke, artifact output, and validation tests |
-| Command surface | complete | `builder-bridge doctor`, `deepagents-smoke`, `render`, `validate-artifact` |
+| Docs | complete | `docs/BRIDGE.md`, `docs/TARGET_BUNDLES.md`, this registry |
+| Tests | complete | bridge smoke, artifact output, bundle output, and validation tests |
+| Command surface | complete | `builder-bridge doctor`, `deepagents-smoke`, `render`, `validate-artifact`; `builder-bundle create`, `builder-bundle validate` |
 | Failure mode | complete | validation errors and nonzero CLI exit for invalid artifacts |
-| Output artifact | complete | readiness and dry-run bridge spec JSON artifacts |
-| Verification path | complete | pytest plus CLI smoke/render/validate commands |
+| Output artifact | complete | readiness, dry-run bridge spec, and target bundle JSON artifacts |
+| Verification path | complete | pytest plus CLI smoke/render/validate/bundle commands |
 | Human approval boundary | not complete for runtime | no runtime behavior is promoted |
 | Rollback path | not complete for runtime | no runtime behavior is promoted |
 
@@ -92,7 +116,7 @@ Before builder-II may promote any deepagents bridge behavior beyond `validation_
 - clear statement that CORE remains a target profile, not builder-II platform identity
 - clear statement that CORE Workbench/UI remains separate
 
-## Current bridge commands and states
+## Current bridge and bundle commands and states
 
 | Command | State | Runtime authority |
 | --- | --- | --- |
@@ -104,7 +128,10 @@ Before builder-II may promote any deepagents bridge behavior beyond `validation_
 | `builder-bridge render PROFILE --target TARGET --format json` | `artifact_only` | none |
 | `builder-bridge render PROFILE --target TARGET --format json --output PATH` | `artifact_only` | writes only the explicit artifact path |
 | `builder-bridge validate-artifact PATH` | `validation_only` | reads and validates only |
+| `builder-bundle create --target TARGET --agent PROFILE` | `artifact_only` | none |
+| `builder-bundle create --target TARGET --agent PROFILE --output PATH` | `artifact_only` | writes only the explicit artifact path |
+| `builder-bundle validate PATH` | `validation_only` | reads and validates only |
 
 ## Non-promotion statement
 
-Validated artifacts are evidence, not authority. A valid bridge artifact proves only that the artifact matches the current schema and disabled-runtime invariants. It does not authorize model execution, agent construction, file mutation, shell execution, memory mutation, commits, pushes, or pull request creation.
+Validated artifacts are evidence, not authority. A valid artifact proves only that the artifact matches the current schema and disabled-runtime invariants. It does not authorize model execution, agent construction, file mutation, shell execution, memory mutation, commits, pushes, or pull request creation.
