@@ -49,11 +49,16 @@ class VerificationProfile:
             "failure_mode": self.failure_mode,
             "rollback_hint": self.rollback_hint,
             "governance": {
+                "capability_state": "verification_profile_artifact",
                 "runtime_execution": self.runtime_execution.upper(),
+                "model_execution": "DISABLED",
                 "shell_execution": self.shell_execution.upper(),
+                "source_writes": "DISABLED",
                 "writes": self.writes.upper(),
+                "memory_mutation": "DISABLED",
                 "executes_commands": self.executes_commands,
                 "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
             },
         }
 
@@ -257,6 +262,14 @@ def write_profile_artifact(profile: VerificationProfile, output: Path, *, target
     output.write_text(dumps_profile_artifact(profile, target=target, task=task), encoding="utf-8")
 
 
+def _string_list_errors(value: Any, *, field: str) -> list[str]:
+    if not isinstance(value, list) or not value:
+        return [f"{field} must be a non-empty list"]
+    if any(not isinstance(item, str) or not item for item in value):
+        return [f"{field} must be a list of non-empty strings"]
+    return []
+
+
 def validate_profile_artifact(data: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
@@ -270,26 +283,25 @@ def validate_profile_artifact(data: Any) -> list[str]:
     target = data.get("target")
     if target and target not in target_names():
         errors.append("target must be one of: generic, builder, core")
-    commands = data.get("proposed_commands")
-    if not isinstance(commands, list) or not commands:
-        errors.append("proposed_commands must be a non-empty list")
-    evidence = data.get("required_evidence")
-    if not isinstance(evidence, list) or not evidence:
-        errors.append("required_evidence must be a non-empty list")
+    errors.extend(_string_list_errors(data.get("proposed_commands"), field="proposed_commands"))
+    errors.extend(_string_list_errors(data.get("required_evidence"), field="required_evidence"))
     governance = data.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        if governance.get("runtime_execution") != "DISABLED":
-            errors.append("governance.runtime_execution must be DISABLED")
-        if governance.get("shell_execution") != "DISABLED":
-            errors.append("governance.shell_execution must be DISABLED")
+        if governance.get("capability_state") != "verification_profile_artifact":
+            errors.append("governance.capability_state must be verification_profile_artifact")
+        for key in ("runtime_execution", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
         if governance.get("writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
             errors.append("governance.writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
         if governance.get("executes_commands") is not False:
             errors.append("governance.executes_commands must be false")
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
     return errors
 
 
