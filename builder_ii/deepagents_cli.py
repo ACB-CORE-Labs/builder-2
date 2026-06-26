@@ -15,14 +15,23 @@ from builder_ii.deepagents_policy import (
     validate_deepagents_policy_artifact_file,
     write_deepagents_policy_artifact,
 )
+from builder_ii.deepagents_readiness import (
+    DeepAgentsReadinessMode,
+    create_deepagents_readiness_artifact,
+    dumps_deepagents_readiness_artifact,
+    validate_deepagents_readiness_artifact,
+    validate_deepagents_readiness_artifact_file,
+    write_deepagents_readiness_artifact,
+)
 from builder_ii.target_profiles import TargetName, target_names
 
 
-deepagents_app = typer.Typer(help="Create and validate artifact-only governed deepagents policy JSON.")
+deepagents_app = typer.Typer(help="Create and validate artifact-only governed deepagents JSON.")
 console = Console()
 _VALID_TARGETS = set(target_names())
 _VALID_MEMORY_MODES = {"disabled", "proposal_only", "approved"}
 _VALID_SUBAGENT_MODES = {"trusted", "proposal_only"}
+_VALID_READINESS_MODES = {"metadata_only", "import_check"}
 
 
 def _target(value: str) -> TargetName:
@@ -42,6 +51,13 @@ def _memory_mode(value: str) -> DeepAgentsMemoryMode:
 def _subagent_mode(value: str) -> DeepAgentsSubagentResultMode:
     if value not in _VALID_SUBAGENT_MODES:
         console.print("subagent result mode must be trusted or proposal_only")
+        raise typer.Exit(1)
+    return value  # type: ignore[return-value]
+
+
+def _readiness_mode(value: str) -> DeepAgentsReadinessMode:
+    if value not in _VALID_READINESS_MODES:
+        console.print("readiness mode must be metadata_only or import_check")
         raise typer.Exit(1)
     return value  # type: ignore[return-value]
 
@@ -104,3 +120,34 @@ def validate(path: Path) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     console.print(f"Deepagents policy artifact {path} is valid.")
+
+
+@deepagents_app.command("readiness")
+def readiness(
+    mode: str = typer.Option("metadata_only", "--mode", help="metadata_only or import_check"),
+    output: Path | None = typer.Option(None, "--output", help="Write readiness JSON to path"),
+) -> None:
+    """Create a deepagents dependency-readiness artifact without constructing an agent."""
+    artifact = create_deepagents_readiness_artifact(mode=_readiness_mode(mode))
+    errors = validate_deepagents_readiness_artifact(artifact)
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+
+    if output is not None:
+        write_deepagents_readiness_artifact(artifact, output)
+        console.print(f"Deepagents readiness artifact written to {output}")
+    else:
+        console.out(dumps_deepagents_readiness_artifact(artifact), end="")
+
+
+@deepagents_app.command("validate-readiness")
+def validate_readiness(path: Path) -> None:
+    """Validate a deepagents dependency-readiness artifact without constructing an agent."""
+    errors = validate_deepagents_readiness_artifact_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+    console.print(f"Deepagents readiness artifact {path} is valid.")
