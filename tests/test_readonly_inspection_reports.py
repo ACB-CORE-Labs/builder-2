@@ -128,3 +128,27 @@ def test_cli_stdout_output_and_validate(tmp_path: Path) -> None:
     validate_result = runner.invoke(readonly_app, ["validate", str(output)])
     assert validate_result.exit_code == 0
     assert "is valid" in validate_result.stdout
+
+
+def test_report_registered_in_artifact_index_and_chain_verifier(tmp_path: Path) -> None:
+    from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
+    from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
+    from builder_ii.artifact_index_records import create_artifact_index_record
+
+    source = tmp_path / "file.txt"
+    source.write_text("hello", encoding="utf-8")
+    report = create_readonly_inspection_report(target="builder", purpose="review", paths=[source])
+
+    assert READONLY_INSPECTION_REPORT_KIND in INDEX_VALIDATORS
+    assert READONLY_INSPECTION_REPORT_KIND in CHAIN_VALIDATORS
+    assert INDEX_VALIDATORS[READONLY_INSPECTION_REPORT_KIND](report) == []
+    assert CHAIN_VALIDATORS[READONLY_INSPECTION_REPORT_KIND](report) == []
+
+    output = tmp_path / "readonly-report.json"
+    write_readonly_inspection_report(report, output)
+    index = create_artifact_index_record(tmp_path)
+
+    assert index["counts"]["total"] == 1
+    assert index["counts"]["known"] == 1
+    assert index["counts"]["valid"] == 1
+    assert index["artifacts"][0]["kind"] == READONLY_INSPECTION_REPORT_KIND

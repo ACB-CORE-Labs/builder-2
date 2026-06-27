@@ -24,6 +24,7 @@ from builder_ii.research_plans import RESEARCH_PLAN_KIND, validate_research_plan
 from builder_ii.research_adapters import RESEARCH_ADAPTER_KIND, validate_research_adapter_artifact
 from builder_ii.performance_measurements import PERFORMANCE_MEASUREMENT_KIND, validate_performance_measurement_record
 from builder_ii.readonly_inspection_promotion import READONLY_INSPECTION_PROMOTION_SPEC_KIND, validate_readonly_inspection_promotion_spec
+from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND, validate_readonly_inspection_report
 
 
 
@@ -65,6 +66,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     RESEARCH_ADAPTER_KIND: validate_research_adapter_artifact,
     PERFORMANCE_MEASUREMENT_KIND: validate_performance_measurement_record,
     READONLY_INSPECTION_PROMOTION_SPEC_KIND: validate_readonly_inspection_promotion_spec,
+    READONLY_INSPECTION_REPORT_KIND: validate_readonly_inspection_report,
 }
 
 
