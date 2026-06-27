@@ -1,6 +1,6 @@
 # Convention Layer Kernel
 
-**Status:** Design v1 — For review and incremental implementation
+**Status:** Design v1.1 — Updated to address Issue #115
 **Owner:** CORE builder-II platform
 **Date:** 2026-06-27
 
@@ -8,7 +8,7 @@
 
 The Convention Layer Kernel is the single, canonical abstraction that unifies all builder-II governed artifacts around the Codename Goose execution substrate.
 
-It enforces the core doctrine:
+It enforces the core doctrine from ADR-0002:
 
 > Use Codename Goose natively underneath.
 > Expose builder conventions above.
@@ -18,12 +18,12 @@ Every resolved session, Goose projection, orchestration plan, approval spec, dry
 
 ## Design Principles (Non-Negotiable)
 
-1. **Semantic Rigor** — Every field has precise meaning. A plan is never execution. A projection is never authority. Evidence is always explicit.
-2. **Mechanical Sympathy** — Respects real local development (Git, repos, Goose recipes, human review loops).
-3. **Fail-Closed Governance** — Unknown states, missing evidence, or authority escalation are rejected visibly.
-4. **Projection Purity** — The kernel produces deterministic, inspectable Goose-native surfaces without side effects.
-5. **Evidence Chaining** — Every artifact carries or links to verifiable provenance.
-6. **Generic-First** — Works for `generic`, `builder`, and `core` target profiles without leakage.
+1. **Semantic Rigor** — Every field has precise meaning. A plan is never execution. A projection is never authority. Evidence is always explicit and chain-linked.
+2. **Mechanical Sympathy** — Respects real local development (Git state, repos, Goose recipes, human review loops, existing tool surfaces).
+3. **Fail-Closed Governance** — Unknown states, missing evidence, or authority escalation are rejected visibly with typed errors.
+4. **Projection Purity** — Produces deterministic, inspectable Goose-native surfaces without side effects.
+5. **Evidence Chaining** — Every artifact carries or links to verifiable provenance via ArtifactIndex and ChainVerifier.
+6. **Generic-First** — Works cleanly for `generic`, `builder`, and `core` target profiles without leakage.
 
 ## Core Concepts
 
@@ -37,107 +37,104 @@ class ResolvedSessionSpine:
     target_profile: str
     repo_path: str
     agent_profile: str
-    prompt_profile: str | None
+    prompt_profile: Optional[str]
     verification_profile: str
-    authority_mode: AuthorityMode  # PLANNED_ONLY | PROPOSED | APPROVED etc.
-    context_pack_ref: str | None
-    model_policy: ModelPolicy
-    goose_projection_policy: GooseProjectionPolicy
+    authority_mode: AuthorityMode
+    context_pack_ref: Optional[str]
+    model_policy: dict[str, Any]
+    goose_projection_policy: dict[str, Any]
     required_evidence: list[str]
-    handoff_expectation: HandoffExpectation
-    # Immutable governance block
-    governance: GovernanceBlock  # runtime_execution=DISABLED, artifact_is_authority=False, ...
+    handoff_expectation: dict[str, Any]
+    governance: GovernanceBlock
+
+    def validate(self) -> ValidationResult: ...
 ```
 
 ### 2. GooseNativeProjection
 
-Deterministic output suitable for Goose (env, recipe, context, etc.).
+Deterministic output suitable for direct use with Codename Goose.
 
 ```python
 @dataclass(frozen=True)
 class GooseNativeProjection:
     provider: str
     model: str
-    planner_provider: str | None
-    planner_model: str | None
-    recipe_path: str | None
+    planner_provider: Optional[str]
+    planner_model: Optional[str]
+    recipe_path: Optional[str]
     working_directory: str
     session_name: str
-    context_pack_ref: str | None
+    context_pack_ref: Optional[str]
     builtins: list[str]
     extensions: list[str]
-    # Plus any custom builder_ fields for convention
-    builder_model_tier: str | None
+    builder_model_tier: Optional[str]
     builder_session_mode: str
     governance: GovernanceBlock
-```
-
-### 3. GovernedArtifact (Base)
-
-All first-class artifacts inherit or compose with this.
-
-```python
-class GovernedArtifact(ABC):
-    @property
-    @abstractmethod
-    def artifact_kind(self) -> str: ...
-
-    @property
-    @abstractmethod
-    def governance(self) -> GovernanceBlock: ...
 
     def validate(self) -> ValidationResult: ...
-    def to_chain_record(self) -> ArtifactChainRecord: ...
 ```
 
-### 4. GovernanceBlock (Immutable)
+### 3. GovernanceBlock (Immutable)
 
 ```python
 @dataclass(frozen=True)
 class GovernanceBlock:
     runtime_execution: Literal["DISABLED", "PROPOSED", "AUTHORIZED"]
-    model_execution: Literal["DISABLED", ...]
-    shell_execution: Literal["DISABLED", ...]
-    source_writes: Literal["DISABLED", ...]
-    artifact_is_authority: bool = False
-    core_workbench_coupling: Literal["NONE", "TARGET_ONLY"] = "NONE"
-    # ... other fields
+    model_execution: Literal["DISABLED", "PROPOSED", "AUTHORIZED"]
+    shell_execution: Literal["DISABLED", "PROPOSED", "AUTHORIZED"]
+    source_writes: Literal["DISABLED", "PROPOSED", "AUTHORIZED"]
+    git_mutation: Literal["DISABLED", "PROPOSED", "AUTHORIZED"]
+    artifact_is_authority: bool
+    core_workbench_coupling: Literal["NONE", "TARGET_ONLY"]
+    deepagents_activation: Literal["DISABLED", "PROPOSED", "AUTHORIZED"]
 
-    def is_safe_for_projection(self) -> bool:
-        return self.runtime_execution == "DISABLED" and not self.artifact_is_authority
+    def is_safe_for_projection(self) -> bool: ...
+    def to_dict(self) -> dict[str, Any]: ...
+```
+
+### 4. GovernedArtifact Protocol
+
+All first-class artifacts should implement or compose with:
+
+```python
+class GovernedArtifact(Protocol):
+    artifact_kind: str
+    governance: GovernanceBlock
+
+    def validate(self) -> ValidationResult: ...
+    def to_chain_record(self) -> ArtifactChainRecord: ...
 ```
 
 ## Kernel Responsibilities
 
-- Resolve a `ResolvedSessionSpine` from target + profiles + context
-- Produce `GooseNativeProjection` from spine (pure function)
-- Validate governance boundaries at every transition
-- Generate dry-run / approval / handoff artifacts
-- Register with `ArtifactIndex` and `ChainVerifier`
-- Support introspection and diffing of projections
+- Resolve a `ResolvedSessionSpine` by delegating to existing `profile_resolution.py`, `context_pack.py`, `target_profiles.py`, and `model_policy.py`.
+- Produce pure `GooseNativeProjection` from a validated spine.
+- Generate dry-run, approval, and handoff artifacts that are chain-verifiable.
+- Enforce governance at every transition with typed errors.
+- Register outputs with `ArtifactIndex` and `ChainVerifier`.
+- Support introspection, diffing, and provenance queries.
 
-## Migration Path (Existing Code)
+## Integration Points (Existing Codebase)
 
-Existing modules will gradually compose with or delegate to the kernel:
+- `profile_resolution.py` → supplies resolved profiles into spines
+- `context_pack.py` → supplies context_pack_ref and content
+- `goose_projection.py` + `goose_recipe_context_projection.py` → should delegate to kernel for projection creation
+- `orchestration_plan.py` + `orchestration_dry_run.py` → use kernel for role-level spines
+- `artifact_chain_verification.py` → accepts kernel-produced records
+- `handoff_artifacts.py` → should produce chain-linked handoff records from kernel outputs
 
-- `session_config.py` → produces `ResolvedSessionSpine`
-- `goose_projection.py` → produces `GooseNativeProjection` via kernel
-- `orchestration_plan.py` → uses kernel for role-level spines
-- `goose_wrapper_plan.py`, `runtime_activation_approval.py`, `orchestration_dry_run.py` → built on kernel outputs
+## Acceptance Criteria (from Issue #115)
 
-## Implementation Order
+- [x] docs/CONVENTION_LAYER_KERNEL.md updated with explicit integration points and delegation model
+- [ ] tests/test_convention_kernel.py exists with scenario coverage (happy path + adversarial governance cases)
+- [ ] Kernel produces chain-verifiable records
+- [ ] All projections remain safe (governance.is_safe_for_projection())
+- [ ] Acceptance command: `uv run pytest tests/test_convention_kernel.py -q && uv run pytest tests/test_artifact_chain_verification.py -q`
 
-1. Core dataclasses + GovernanceBlock + validation
-2. Spine resolution + pure projection function
-3. Base `GovernedArtifact` + registration helpers
-4. Integration points with existing Goose modules
-5. CLI surfaces updated to use kernel
-6. Full test suite + scenario coverage
+## Non-Goals
 
-## Non-Goals (For Now)
-
-- Actual Goose process launching (remains outside builder-II authority)
-- Deepagents runtime construction
-- Any autonomous mutation or execution
+- Launching Codename Goose or any runtime execution
+- Constructing deepagents subagents
+- Any autonomous source or git mutation
 
 This kernel makes the convention layer inevitable, auditable, and scalable while preserving the strict authority boundary with Codename Goose.
