@@ -11,6 +11,7 @@ from builder_ii.performance_measurements import PERFORMANCE_MEASUREMENT_KIND, cr
 from builder_ii.readonly_inspection_promotion import READONLY_INSPECTION_PROMOTION_SPEC_KIND, create_readonly_inspection_promotion_spec
 from builder_ii.research_adapters import RESEARCH_ADAPTER_KIND, create_research_adapter_artifact
 from builder_ii.research_plans import RESEARCH_PLAN_KIND, create_research_plan_artifact
+from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND
 
 
 CLOSURE_KINDS = {
@@ -23,6 +24,7 @@ CLOSURE_KINDS = {
     RESEARCH_ADAPTER_KIND,
     PERFORMANCE_MEASUREMENT_KIND,
     READONLY_INSPECTION_PROMOTION_SPEC_KIND,
+    READONLY_INSPECTION_REPORT_KIND,
 }
 
 

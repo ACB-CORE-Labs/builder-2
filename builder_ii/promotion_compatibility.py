@@ -10,6 +10,7 @@ from builder_ii.context_pack import CONTEXT_PACK_RECORD_KIND
 from builder_ii.git_state import GIT_STATE_RECORD_KIND
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND
 from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND
+from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND
 
 PROMOTION_SUPPORT_ARTIFACT_REQUIRED_KINDS: tuple[str, ...] = (
     TARGET_PROFILE_ARTIFACT_KIND,
@@ -17,6 +18,11 @@ PROMOTION_SUPPORT_ARTIFACT_REQUIRED_KINDS: tuple[str, ...] = (
     CONTEXT_PACK_RECORD_KIND,
     AGENT_PROFILE_RECORD_KIND,
     GIT_STATE_RECORD_KIND,
+)
+
+PROMOTION_SUPPORT_ARTIFACT_ALLOWED_KINDS: tuple[str, ...] = (
+    PROMOTION_SUPPORT_ARTIFACT_REQUIRED_KINDS
+    + (READONLY_INSPECTION_REPORT_KIND,)
 )
 
 _TARGETS = {"generic", "builder", "core"}
@@ -62,7 +68,7 @@ def _validate_ref(ref: Any, index: int, *, expected_target: str) -> list[str]:
         return [f"{prefix} must be an object"]
     if ref.get("_parse_error"):
         return [f"{prefix}: {ref['_parse_error']}"]
-    if ref.get("kind") not in PROMOTION_SUPPORT_ARTIFACT_REQUIRED_KINDS:
+    if ref.get("kind") not in PROMOTION_SUPPORT_ARTIFACT_ALLOWED_KINDS:
         errors.append(f"{prefix}.kind must be a known promotion support artifact kind")
     for field in ("path", "sha256"):
         if not isinstance(ref.get(field), str) or not ref[field]:

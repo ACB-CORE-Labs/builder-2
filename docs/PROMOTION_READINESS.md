@@ -27,11 +27,13 @@ When `support_artifacts` is empty, legacy readiness records remain valid. Once a
 - `builder_ii.agent_profile_record`
 - `builder_ii.git_state_record`
 
+Additionally, `builder_ii.readonly_inspection_report` is supported as an optional support artifact kind, but it is not part of the required baseline set.
+
 Each support artifact reference has:
 
 | Field | Constraint |
 |---|---|
-| `kind` | one of the required support artifact kinds |
+| `kind` | one of the allowed support artifact kinds |
 | `path` | non-empty explicit artifact path string |
 | `sha256` | non-empty digest string |
 | `target` | `generic`, `builder`, or `core`; must match readiness `target` |
