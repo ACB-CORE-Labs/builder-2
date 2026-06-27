@@ -96,6 +96,7 @@ def create_hitl_patch_application_spec(
         "required_future_gates": list(_REQUIRED_FUTURE_GATES),
         "governance": {
             "capability_state": "DESIGN_ONLY",
+            "runtime_execution": "DISABLED",
             "patch_application": "DISABLED",
             "source_writes": "DISABLED",
             "file_mutation": "DISABLED",
@@ -194,6 +195,7 @@ def validate_hitl_patch_application_spec(artifact: Any) -> list[str]:
         if governance.get("capability_state") != "DESIGN_ONLY":
             errors.append("governance.capability_state must be DESIGN_ONLY")
         for key in (
+            "runtime_execution",
             "patch_application",
             "source_writes",
             "file_mutation",
