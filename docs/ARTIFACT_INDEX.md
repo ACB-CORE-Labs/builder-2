@@ -47,24 +47,62 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.execution_verification_record`
 - `builder_ii.hitl_evidence_bundle`
 - `builder_ii.session_workflow_plan`
+- `builder_ii.repo_map`
+- `builder_ii.context_pack`
 - `builder_ii.convention_kernel_platform_bundle`
+- `builder_ii.governed_prepare_package`
+- `builder_ii.governed_prepare_package_summary`
+- `builder_ii.orchestration_plan`
+- `builder_ii.orchestration_dry_run`
+- `builder_ii.runtime_activation_approval_spec`
+- `builder_ii.goose_readonly_session_plan`
+- `builder_ii.goose_projection`
+- `builder_ii.goose_wrapper_plan`
+- `builder_ii.verification_profile_report`
+- `builder_ii.handoff_note`
+- `builder_ii.deepagents_bridge_readiness_report`
+- `builder_ii.goose_session_manifest`
+- `builder_ii.handoff_artifact`
+- `builder_ii.session_configuration`
+
+## Governance and Authority Boundaries
+
+Artifacts validate structure and governance invariants. They are design-only and passive record objects.
+- **Artifacts are not runtime authority.** A valid artifact does not grant permission to run models or execute commands.
+- **Valid artifacts do not run commands.** They are structurally audited configurations, not active scripts.
+- **Valid artifacts do not mutate source.** The verification and projection steps are read-only and leave repository source untouched.
+- **Valid artifacts do not prove planned verification was executed.** Emitting a verification plan or summary artifact does not substitute for actual execution evidence. Evidence receipts must be recorded after out-of-band execution.
 
 ## Governance / spec / record artifacts
 
-The following artifact kinds are **governance, specification, and record artifacts** introduced in PR W, PR X, PR Y, PR AD, PR AE, and PR AF.  They are design-only records that document future runtime governance paths.  They do **not** grant runtime authority, execute commands, mutate source, invoke subprocesses, or activate any runtime.
+The following artifact kinds are **governance, specification, and record artifacts** introduced in PRs #118 through #133.
 
 | Kind | Category | Source PR |
 |------|----------|-----------|
-| `builder_ii.hitl_execution_request` | Governance record | PR W |
-| `builder_ii.hitl_execution_receipt` | Governance record | PR W |
-| `builder_ii.hitl_patch_application_spec` | Design specification | PR X |
-| `builder_ii.rollback_plan` | Governance record | PR Y |
-| `builder_ii.rollback_receipt` | Governance record | PR Y |
-| `builder_ii.execution_postflight_record` | Governance record | PR AD |
-| `builder_ii.execution_verification_record` | Governance record | PR AD |
-| `builder_ii.hitl_evidence_bundle` | Evidence bundle index | PR AE |
-| `builder_ii.session_workflow_plan` | Session plan specification | PR AF |
-| `builder_ii.convention_kernel_platform_bundle` | Platform spine bundle | PR AG |
+| `builder_ii.hitl_execution_request` | Governance record | #118 |
+| `builder_ii.hitl_execution_receipt` | Governance record | #118 |
+| `builder_ii.hitl_patch_application_spec` | Design specification | #120 |
+| `builder_ii.rollback_plan` | Governance record | #122 |
+| `builder_ii.rollback_receipt` | Governance record | #122 |
+| `builder_ii.execution_postflight_record` | Governance record | #124 |
+| `builder_ii.execution_verification_record` | Governance record | #124 |
+| `builder_ii.hitl_evidence_bundle` | Evidence bundle index | #126 |
+| `builder_ii.session_workflow_plan` | Session plan specification | #128 |
+| `builder_ii.convention_kernel_platform_bundle` | Platform spine bundle | #131 |
+| `builder_ii.governed_prepare_package` | Package specification | #132 |
+| `builder_ii.governed_prepare_package_summary` | Package summary record | #132 |
+| `builder_ii.orchestration_plan` | Orchestration plan | #133 |
+| `builder_ii.orchestration_dry_run` | Dry run specification | #133 |
+| `builder_ii.runtime_activation_approval_spec` | Runtime activation spec | #133 |
+| `builder_ii.goose_readonly_session_plan` | Goose readonly plan | #133 |
+| `builder_ii.goose_projection` | Projection spec | #133 |
+| `builder_ii.goose_wrapper_plan` | Launch plan spec | #133 |
+| `builder_ii.verification_profile_report` | Verification report plan | #133 |
+| `builder_ii.handoff_note` | Handoff note | #133 |
+| `builder_ii.deepagents_bridge_readiness_report` | Bridge readiness check | #133 |
+| `builder_ii.goose_session_manifest` | Goose session manifest | #133 |
+| `builder_ii.handoff_artifact` | Handoff record | #133 |
+| `builder_ii.session_configuration` | Session configuration | #133 |
 
 **Chain evidence status:** The standalone governance records do not embed outbound references. However, the `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
 

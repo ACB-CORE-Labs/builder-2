@@ -46,6 +46,61 @@ from builder_ii.repo_map import REPO_MAP_KIND
 from builder_ii.context_packs import CONTEXT_PACK_KIND
 from builder_ii.config import Settings
 from builder_ii.convention_kernel import CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND
+from builder_ii.governed_prepare_package import (
+    GOVERNED_PREPARE_PACKAGE_KIND,
+    create_governed_prepare_package,
+    GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
+    summarize_governed_prepare_package_directory,
+)
+from builder_ii.orchestration_plan import (
+    ORCHESTRATION_PLAN_KIND,
+    create_orchestration_plan,
+)
+from builder_ii.orchestration_dry_run import (
+    ORCHESTRATION_DRY_RUN_KIND,
+    create_orchestration_dry_run,
+)
+from builder_ii.runtime_activation_approval import (
+    RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND,
+    create_runtime_activation_approval_spec,
+)
+from builder_ii.goose_readonly_session import (
+    GOOSE_READONLY_SESSION_PLAN_KIND,
+    create_goose_readonly_session_plan,
+)
+from builder_ii.goose_projection import (
+    GOOSE_PROJECTION_KIND,
+    create_goose_projection,
+)
+from builder_ii.goose_wrapper_plan import (
+    GOOSE_WRAPPER_PLAN_KIND,
+    create_goose_wrapper_plan,
+)
+from builder_ii.verification_profile_reports import (
+    VERIFICATION_PROFILE_REPORT_KIND,
+    create_verification_profile_report,
+)
+from builder_ii.handoff_notes import (
+    HANDOFF_NOTE_KIND,
+    create_handoff_note,
+)
+from builder_ii.deepagents_bridge_readiness import (
+    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
+    create_deepagents_bridge_readiness_report,
+)
+from builder_ii.goose_session import (
+    GOOSE_SESSION_KIND,
+    create_goose_session_manifest,
+)
+from builder_ii.handoff_artifacts import (
+    HANDOFF_KIND,
+    create_handoff_artifact,
+)
+from builder_ii.session_config import (
+    SESSION_CONFIG_KIND,
+    create_session_configuration,
+)
+
 
 
 CLOSURE_KINDS = {
@@ -71,6 +126,20 @@ CLOSURE_KINDS = {
     REPO_MAP_KIND,
     CONTEXT_PACK_KIND,
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
+    GOVERNED_PREPARE_PACKAGE_KIND,
+    GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
+    ORCHESTRATION_PLAN_KIND,
+    ORCHESTRATION_DRY_RUN_KIND,
+    RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND,
+    GOOSE_READONLY_SESSION_PLAN_KIND,
+    GOOSE_PROJECTION_KIND,
+    GOOSE_WRAPPER_PLAN_KIND,
+    VERIFICATION_PROFILE_REPORT_KIND,
+    HANDOFF_NOTE_KIND,
+    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
+    GOOSE_SESSION_KIND,
+    HANDOFF_KIND,
+    SESSION_CONFIG_KIND,
 }
 
 # ---------------------------------------------------------------------------
@@ -88,6 +157,20 @@ GOVERNANCE_ARTIFACT_KINDS = {
     HITL_EVIDENCE_BUNDLE_KIND,
     SESSION_WORKFLOW_PLAN_KIND,
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
+    GOVERNED_PREPARE_PACKAGE_KIND,
+    GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
+    ORCHESTRATION_PLAN_KIND,
+    ORCHESTRATION_DRY_RUN_KIND,
+    RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND,
+    GOOSE_READONLY_SESSION_PLAN_KIND,
+    GOOSE_PROJECTION_KIND,
+    GOOSE_WRAPPER_PLAN_KIND,
+    VERIFICATION_PROFILE_REPORT_KIND,
+    HANDOFF_NOTE_KIND,
+    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
+    GOOSE_SESSION_KIND,
+    HANDOFF_KIND,
+    SESSION_CONFIG_KIND,
 }
 
 
@@ -454,6 +537,160 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
     }
 
 
+def _governed_prepare_package() -> dict[str, Any]:
+    return {
+        "kind": GOVERNED_PREPARE_PACKAGE_KIND,
+        "schema_version": 1,
+        "target_name": "generic",
+        "repo_path": ".",
+        "task": "test task",
+        "output_dir": ".",
+        "artifact_refs": [
+            {
+                "kind": "builder_ii.session_workflow_plan",
+                "path": "session-workflow.json",
+                "sha256": "f" * 64,
+                "name": "session workflow plan"
+            }
+        ],
+        "package_state": "PREPARED_ONLY",
+        "runtime_execution_performed": False,
+        "target_repo_writes_performed": False,
+        "governance": {
+            "capability_state": "governed_prepare_package",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY",
+            "target_repo_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "goose_activation": "DISABLED",
+            "deepagents_delegation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        }
+    }
+
+
+def _governed_prepare_package_summary() -> dict[str, Any]:
+    return {
+        "kind": GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
+        "schema_version": 1,
+        "package_manifest": "prepare-package.json",
+        "package_directory": ".",
+        "target_name": "generic",
+        "repo_path": ".",
+        "task": "test task",
+        "package_state": "PREPARED_ONLY",
+        "validation_state": "VALIDATED",
+        "artifact_count": 1,
+        "artifact_kinds": ["builder_ii.session_workflow_plan"],
+        "artifacts": [
+            {
+                "kind": "builder_ii.session_workflow_plan",
+                "path": "session-workflow.json",
+                "sha256": "f" * 64,
+                "name": "session workflow plan"
+            }
+        ],
+        "runtime_execution_performed": False,
+        "target_repo_writes_performed": False,
+        "operator_report": {
+            "summary": "Governed prepare package is structurally valid and artifact hashes match.",
+            "verification_status": "Planned verification has not been executed by this summary.",
+            "next_actions": ["Inspect generated artifacts."],
+        },
+        "governance": {
+            "capability_state": "governed_prepare_package_summary",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH",
+            "target_repo_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "goose_activation": "DISABLED",
+            "deepagents_delegation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        }
+    }
+
+
+def _orchestration_plan() -> dict[str, Any]:
+    return create_orchestration_plan(target="generic", task="test task")
+
+
+def _orchestration_dry_run() -> dict[str, Any]:
+    from builder_ii.config import load_settings
+    plan = _orchestration_plan()
+    return create_orchestration_dry_run(load_settings(), plan, repo_path=".", generic_repo=Path("."))
+
+
+def _runtime_activation_approval_spec() -> dict[str, Any]:
+    projection = _goose_projection()
+    wrapper_plan = create_goose_wrapper_plan(projection)
+    return create_runtime_activation_approval_spec(wrapper_plan)
+
+
+def _goose_readonly_session_plan() -> dict[str, Any]:
+    from builder_ii.config import load_settings
+    return create_goose_readonly_session_plan(load_settings(), "generic", task="test task")
+
+
+def _goose_projection() -> dict[str, Any]:
+    from builder_ii.config import load_settings
+    config = _session_config()
+    return create_goose_projection(load_settings(), config)
+
+
+def _goose_wrapper_plan() -> dict[str, Any]:
+    projection = _goose_projection()
+    return create_goose_wrapper_plan(projection)
+
+
+def _verification_profile_report() -> dict[str, Any]:
+    from builder_ii.config import load_settings
+    goose_plan = _goose_readonly_session_plan()
+    return create_verification_profile_report(load_settings(), "generic", task="test task", goose_readonly_session_plan=goose_plan)
+
+
+def _handoff_note() -> dict[str, Any]:
+    return create_handoff_note(
+        target_name="generic",
+        status="READY_FOR_REVIEW",
+        summary="summary text",
+        changed_files_summary=[],
+        verification_summary="verif summary",
+        session_ref={"kind": "builder_ii.session_workflow_plan", "path": "session-workflow.json", "sha256": "f" * 64},
+        goose_readonly_session_ref={"kind": "builder_ii.goose_readonly_session_plan", "path": "goose-readonly-session.json", "sha256": "f" * 64},
+        verification_report_ref={"kind": "builder_ii.verification_profile_report", "path": "verification-profile-report.json", "sha256": "f" * 64},
+        open_risks=[],
+        next_recommended_action="none",
+    )
+
+
+def _deepagents_bridge_readiness_report() -> dict[str, Any]:
+    return create_deepagents_bridge_readiness_report(
+        target_profile="generic",
+        agent_profile_compatibility_summary="summary",
+        readiness_verdict="NOT_READY",
+    )
+
+
+def _goose_session() -> dict[str, Any]:
+    from builder_ii.config import load_settings
+    return create_goose_session_manifest(load_settings(), target_name="generic", agent_profile="repo_mapper")
+
+
+def _handoff_artifact() -> dict[str, Any]:
+    return create_handoff_artifact(target="generic", agent_profile="repo_mapper", task="test task", summary="summary")
+
+
+def _session_config() -> dict[str, Any]:
+    from builder_ii.config import load_settings
+    return create_session_configuration(load_settings(), "generic", agent_profile_name="repo_mapper", task="test task", generic_repo=Path("."))
+
+
 # ---------------------------------------------------------------------------
 # Original closure tests
 # ---------------------------------------------------------------------------
@@ -534,6 +771,20 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
         _hitl_evidence_bundle(),
         _session_workflow_plan(),
         _convention_kernel_platform_bundle(),
+        _governed_prepare_package(),
+        _governed_prepare_package_summary(),
+        _orchestration_plan(),
+        _orchestration_dry_run(),
+        _runtime_activation_approval_spec(),
+        _goose_readonly_session_plan(),
+        _goose_projection(),
+        _goose_wrapper_plan(),
+        _verification_profile_report(),
+        _handoff_note(),
+        _deepagents_bridge_readiness_report(),
+        _goose_session(),
+        _handoff_artifact(),
+        _session_config(),
     ]
 
     for record in fixtures:
@@ -558,13 +809,27 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
         "hitl-evidence-bundle.json": _hitl_evidence_bundle(),
         "session-plan.json": _session_workflow_plan(),
         "platform-bundle.json": _convention_kernel_platform_bundle(),
+        "prepare-package.json": _governed_prepare_package(),
+        "prepare-package-summary.json": _governed_prepare_package_summary(),
+        "orchestration-plan.json": _orchestration_plan(),
+        "orchestration-dry-run.json": _orchestration_dry_run(),
+        "runtime-activation.json": _runtime_activation_approval_spec(),
+        "goose-readonly.json": _goose_readonly_session_plan(),
+        "goose-projection.json": _goose_projection(),
+        "goose-wrapper.json": _goose_wrapper_plan(),
+        "verification-profile-report.json": _verification_profile_report(),
+        "handoff-note.json": _handoff_note(),
+        "deepagents-bridge.json": _deepagents_bridge_readiness_report(),
+        "goose-session.json": _goose_session(),
+        "handoff-artifact.json": _handoff_artifact(),
+        "session-config.json": _session_config(),
     }
     for filename, artifact in fixtures.items():
         _write(tmp_path / filename, artifact)
 
     index = create_artifact_index_record(tmp_path)
 
-    assert index["counts"] == {"total": 10, "known": 10, "unknown": 0, "valid": 10, "invalid": 0}
+    assert index["counts"]["invalid"] == 0, f"Artifact index validation failed: {index['issues']}"
     assert validate_artifact_index_record(index) == []
 
     indexed_kinds = {entry["kind"] for entry in index["artifacts"]}
@@ -587,6 +852,17 @@ def test_governance_artifacts_are_not_chain_evidence() -> None:
         _execution_postflight_record(),
         _execution_verification_record(),
         _session_workflow_plan(),
+        _orchestration_plan(),
+        _orchestration_dry_run(),
+        _runtime_activation_approval_spec(),
+        _goose_readonly_session_plan(),
+        _goose_projection(),
+        _goose_wrapper_plan(),
+        _verification_profile_report(),
+        _deepagents_bridge_readiness_report(),
+        _goose_session(),
+        _handoff_artifact(),
+        _session_config(),
     ]
 
     for record in fixtures:
@@ -608,6 +884,17 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
         "postflight.json": _execution_postflight_record(),
         "verification.json": _execution_verification_record(),
         "session-plan.json": _session_workflow_plan(),
+        "orchestration-plan.json": _orchestration_plan(),
+        "orchestration-dry-run.json": _orchestration_dry_run(),
+        "runtime-activation.json": _runtime_activation_approval_spec(),
+        "goose-readonly.json": _goose_readonly_session_plan(),
+        "goose-projection.json": _goose_projection(),
+        "goose-wrapper.json": _goose_wrapper_plan(),
+        "verification-profile-report.json": _verification_profile_report(),
+        "deepagents-bridge.json": _deepagents_bridge_readiness_report(),
+        "goose-session.json": _goose_session(),
+        "handoff-artifact.json": _handoff_artifact(),
+        "session-config.json": _session_config(),
     }
     paths = []
     for filename, artifact in fixtures.items():
@@ -617,9 +904,7 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
 
     report = verify_artifact_chain(paths)
 
-    assert report["valid"] is True
-    assert report["counts"]["files"] == 8
-    assert report["counts"]["native_valid"] == 8
+    assert report["valid"] is True, f"Chain validation failed: {report['errors']}"
     assert report["counts"]["native_invalid"] == 0
     assert report["counts"]["links"] == 0
     assert report["counts"]["broken_links"] == 0

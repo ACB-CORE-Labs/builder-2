@@ -79,6 +79,20 @@ from builder_ii.convention_kernel import (
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
     validate_convention_kernel_platform_bundle,
 )
+from builder_ii.governed_prepare_package import (
+    GOVERNED_PREPARE_PACKAGE_KIND,
+    validate_governed_prepare_package,
+    GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
+    validate_governed_prepare_package_summary,
+)
+from builder_ii.orchestration_dry_run import (
+    ORCHESTRATION_DRY_RUN_KIND,
+    validate_orchestration_dry_run,
+)
+from builder_ii.runtime_activation_approval import (
+    RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND,
+    validate_runtime_activation_approval_spec,
+)
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -126,6 +140,10 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     REPO_MAP_KIND: validate_repo_map,
     CONTEXT_PACK_KIND: validate_context_pack,
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND: validate_convention_kernel_platform_bundle,
+    GOVERNED_PREPARE_PACKAGE_KIND: validate_governed_prepare_package,
+    GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND: validate_governed_prepare_package_summary,
+    ORCHESTRATION_DRY_RUN_KIND: validate_orchestration_dry_run,
+    RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND: validate_runtime_activation_approval_spec,
 }
 
 
@@ -246,7 +264,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
             ("verification_report_ref", VERIFICATION_PROFILE_REPORT_KIND),
         ):
             value = record.get(field)
-            if isinstance(value, dict):
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                 refs.append(
                     {
                         "field": field,
@@ -259,7 +277,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         evidence_refs = record.get("verification_evidence_refs")
         if isinstance(evidence_refs, list):
             for index, value in enumerate(evidence_refs):
-                if isinstance(value, dict):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"verification_evidence_refs[{index}]",
@@ -278,13 +296,41 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                 ("verification_report_ref", VERIFICATION_PROFILE_REPORT_KIND),
             ):
                 value = handoff.get(field)
-                if isinstance(value, dict):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"handoff_note.{field}",
                             "sha256": value.get("sha256"),
                             "path": value.get("path"),
                             "expected_kind": expected_kind,
+                        }
+                    )
+
+    elif kind == GOVERNED_PREPARE_PACKAGE_KIND:
+        refs_list = record.get("artifact_refs")
+        if isinstance(refs_list, list):
+            for index, value in enumerate(refs_list):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                    refs.append(
+                        {
+                            "field": f"artifact_refs[{index}]",
+                            "sha256": value.get("sha256"),
+                            "path": value.get("path"),
+                            "expected_kind": value.get("kind"),
+                        }
+                    )
+
+    elif kind == GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND:
+        refs_list = record.get("artifacts")
+        if isinstance(refs_list, list):
+            for index, value in enumerate(refs_list):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                    refs.append(
+                        {
+                            "field": f"artifacts[{index}]",
+                            "sha256": value.get("sha256"),
+                            "path": value.get("path"),
+                            "expected_kind": value.get("kind"),
                         }
                     )
 

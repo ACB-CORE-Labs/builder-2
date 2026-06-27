@@ -69,6 +69,49 @@ from builder_ii.convention_kernel import (
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
     validate_convention_kernel_platform_bundle,
 )
+from builder_ii.governed_prepare_package import (
+    GOVERNED_PREPARE_PACKAGE_KIND,
+    validate_governed_prepare_package,
+    GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
+    validate_governed_prepare_package_summary,
+)
+from builder_ii.orchestration_plan import (
+    ORCHESTRATION_PLAN_KIND,
+    validate_orchestration_plan,
+)
+from builder_ii.orchestration_dry_run import (
+    ORCHESTRATION_DRY_RUN_KIND,
+    validate_orchestration_dry_run,
+)
+from builder_ii.runtime_activation_approval import (
+    RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND,
+    validate_runtime_activation_approval_spec,
+)
+from builder_ii.goose_session import (
+    GOOSE_SESSION_KIND,
+    validate_goose_session_manifest,
+)
+from builder_ii.handoff_artifacts import (
+    HANDOFF_KIND,
+    validate_handoff_artifact,
+)
+from builder_ii.verification_profile_reports import (
+    VERIFICATION_PROFILE_REPORT_KIND,
+    validate_verification_profile_report,
+)
+from builder_ii.session_config import (
+    SESSION_CONFIG_KIND,
+    validate_session_configuration,
+)
+from builder_ii.goose_projection import (
+    GOOSE_PROJECTION_KIND,
+    validate_goose_projection,
+)
+from builder_ii.goose_wrapper_plan import (
+    GOOSE_WRAPPER_PLAN_KIND,
+    validate_goose_wrapper_plan,
+)
+
 
 
 
@@ -126,6 +169,17 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     REPO_MAP_KIND: validate_repo_map,
     CONTEXT_PACK_KIND: validate_context_pack,
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND: validate_convention_kernel_platform_bundle,
+    GOVERNED_PREPARE_PACKAGE_KIND: validate_governed_prepare_package,
+    GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND: validate_governed_prepare_package_summary,
+    ORCHESTRATION_PLAN_KIND: validate_orchestration_plan,
+    ORCHESTRATION_DRY_RUN_KIND: validate_orchestration_dry_run,
+    RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND: validate_runtime_activation_approval_spec,
+    GOOSE_SESSION_KIND: validate_goose_session_manifest,
+    HANDOFF_KIND: validate_handoff_artifact,
+    VERIFICATION_PROFILE_REPORT_KIND: validate_verification_profile_report,
+    SESSION_CONFIG_KIND: validate_session_configuration,
+    GOOSE_PROJECTION_KIND: validate_goose_projection,
+    GOOSE_WRAPPER_PLAN_KIND: validate_goose_wrapper_plan,
 }
 
 
