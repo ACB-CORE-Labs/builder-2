@@ -23,7 +23,10 @@ from builder_ii.context_pack import CONTEXT_PACK_RECORD_KIND, validate_context_p
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
 from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND, validate_profile_artifact
 from builder_ii.git_state import GIT_STATE_RECORD_KIND, validate_git_state_record
-
+from builder_ii.research_plans import RESEARCH_PLAN_KIND, validate_research_plan_artifact
+from builder_ii.research_adapters import RESEARCH_ADAPTER_KIND, validate_research_adapter_artifact
+from builder_ii.performance_measurements import PERFORMANCE_MEASUREMENT_KIND, validate_performance_measurement_record
+from builder_ii.readonly_inspection_promotion import READONLY_INSPECTION_PROMOTION_SPEC_KIND, validate_readonly_inspection_promotion_spec
 
 
 
@@ -45,10 +48,11 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     CONTEXT_PACK_RECORD_KIND: validate_context_pack_record,
     AGENT_PROFILE_RECORD_KIND: validate_agent_profile_record,
     GIT_STATE_RECORD_KIND: validate_git_state_record,
+    RESEARCH_PLAN_KIND: validate_research_plan_artifact,
+    RESEARCH_ADAPTER_KIND: validate_research_adapter_artifact,
+    PERFORMANCE_MEASUREMENT_KIND: validate_performance_measurement_record,
+    READONLY_INSPECTION_PROMOTION_SPEC_KIND: validate_readonly_inspection_promotion_spec,
 }
-
-
-
 
 
 
@@ -133,6 +137,11 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         ledger = record.get("state_ledger", {})
         if isinstance(ledger, dict):
             refs.append({"field": "state_ledger", "sha256": ledger.get("sha256"), "path": ledger.get("path"), "expected_kind": STATE_LEDGER_RECORD_KIND})
+
+    elif kind == RESEARCH_ADAPTER_KIND:
+        plan = record.get("research_plan", {})
+        if isinstance(plan, dict):
+            refs.append({"field": "research_plan", "sha256": plan.get("sha256"), "path": plan.get("path"), "expected_kind": RESEARCH_PLAN_KIND})
 
     return refs
 

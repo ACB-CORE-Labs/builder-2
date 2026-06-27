@@ -20,8 +20,10 @@ from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_s
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
 from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND, validate_profile_artifact
 from builder_ii.git_state import GIT_STATE_RECORD_KIND, validate_git_state_record
+from builder_ii.research_plans import RESEARCH_PLAN_KIND, validate_research_plan_artifact
 from builder_ii.research_adapters import RESEARCH_ADAPTER_KIND, validate_research_adapter_artifact
 from builder_ii.performance_measurements import PERFORMANCE_MEASUREMENT_KIND, validate_performance_measurement_record
+from builder_ii.readonly_inspection_promotion import READONLY_INSPECTION_PROMOTION_SPEC_KIND, validate_readonly_inspection_promotion_spec
 
 
 
@@ -59,8 +61,10 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     CONTEXT_PACK_RECORD_KIND: validate_context_pack_record,
     AGENT_PROFILE_RECORD_KIND: validate_agent_profile_record,
     GIT_STATE_RECORD_KIND: validate_git_state_record,
+    RESEARCH_PLAN_KIND: validate_research_plan_artifact,
     RESEARCH_ADAPTER_KIND: validate_research_adapter_artifact,
     PERFORMANCE_MEASUREMENT_KIND: validate_performance_measurement_record,
+    READONLY_INSPECTION_PROMOTION_SPEC_KIND: validate_readonly_inspection_promotion_spec,
 }
 
 
