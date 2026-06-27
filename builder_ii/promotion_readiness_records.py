@@ -4,6 +4,8 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.promotion_compatibility import support_artifact_kinds, validate_support_artifacts
+
 PROMOTION_READINESS_RECORD_KIND = "builder_ii.promotion_readiness_record"
 PROMOTION_READINESS_RECORD_SCHEMA_VERSION = 1
 
@@ -17,6 +19,7 @@ _REQUIRED_CHECKS = (
     "rollback_path",
     "verification_path",
 )
+_TARGETS = {"generic", "builder", "core"}
 
 
 def _clean(value: str | None) -> str:
@@ -37,6 +40,7 @@ def create_promotion_readiness_record(
     *,
     capability_name: str,
     target_state: str = "enabled",
+    target: str = "",
     docs_refs: tuple[str, ...] | list[str] | None = None,
     tests_refs: tuple[str, ...] | list[str] | None = None,
     cli_refs: tuple[str, ...] | list[str] | None = None,
@@ -45,6 +49,7 @@ def create_promotion_readiness_record(
     output_artifact_refs: tuple[str, ...] | list[str] | None = None,
     rollback_refs: tuple[str, ...] | list[str] | None = None,
     verification_refs: tuple[str, ...] | list[str] | None = None,
+    support_artifacts: list[dict[str, Any]] | None = None,
     notes: str = "",
 ) -> dict[str, Any]:
     checks = [
@@ -57,9 +62,13 @@ def create_promotion_readiness_record(
         _check("rollback_path", _clean_list(rollback_refs)),
         _check("verification_path", _clean_list(verification_refs)),
     ]
+    selected_target = _clean(target)
+    support_refs = list(support_artifacts or [])
     missing = [item for check in checks for item in check["missing"]]
     if not _clean(capability_name):
         missing.append("capability_name is required")
+    for error in validate_support_artifacts(support_refs, expected_target=selected_target):
+        missing.append(f"support_artifacts: {error}")
     ready = not missing
     return {
         "kind": PROMOTION_READINESS_RECORD_KIND,
@@ -69,10 +78,12 @@ def create_promotion_readiness_record(
         "current_state": "DISABLED",
         "capability_name": _clean(capability_name),
         "target_state": _clean(target_state),
+        "target": selected_target,
         "status": "ready" if ready else "blocked",
         "ready": ready,
         "missing": missing,
         "checks": checks,
+        "support_artifacts": support_refs,
         "notes": _clean(notes),
         "allowed_actions": ["record_promotion_readiness", "validate_promotion_readiness"],
         "performed_actions": [],
@@ -150,6 +161,9 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
         errors.append("capability_name is required")
     if not isinstance(record.get("target_state"), str) or not record["target_state"]:
         errors.append("target_state is required")
+    target = record.get("target", "")
+    if target not in ("", "generic", "builder", "core"):
+        errors.append("target must be one of: generic, builder, core")
     if record.get("status") not in ("ready", "blocked"):
         errors.append("status must be ready or blocked")
     if not isinstance(record.get("ready"), bool):
@@ -182,6 +196,15 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
             for item in check_missing:
                 if item not in top_missing:
                     errors.append(f"missing must include check-level item: {item}")
+    support_artifacts = record.get("support_artifacts", [])
+    errors.extend(validate_support_artifacts(support_artifacts, expected_target=target if isinstance(target, str) else ""))
+    if isinstance(record.get("missing"), list):
+        compatibility_missing = [f"support_artifacts: {error}" for error in validate_support_artifacts(support_artifacts, expected_target=target if isinstance(target, str) else "")]
+        if compatibility_missing and record.get("ready") is True:
+            errors.append("ready must be false when support_artifacts are incompatible")
+        for item in compatibility_missing:
+            if item not in record["missing"]:
+                errors.append(f"missing must include compatibility item: {item}")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
