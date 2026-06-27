@@ -20,8 +20,6 @@ def test_generic_first_and_target_profile() -> None:
     assert "not CORE Workbench/UI" in text
 
 
-
-
 def test_lists_completed_artifacts() -> None:
     text = _text()
     completed_artifacts = [
@@ -46,6 +44,7 @@ def test_lists_completed_artifacts() -> None:
         "performance measurements",
         "readonly inspection promotion spec",
         "readonly inspection reports",
+        "readonly inspection promotion wiring",
     ]
     for artifact in completed_artifacts:
         assert artifact in text
@@ -83,3 +82,20 @@ def test_does_not_claim_active_or_enabled_features() -> None:
     assert "model execution is disabled" in text
     assert "deepagents runtime is disabled" in text
     assert "goose runtime is disabled" in text
+
+
+def test_release_verification_checklist_names_current_commands() -> None:
+    text = _text()
+    expected_commands = [
+        "uv run pytest -q",
+        "builder-index validate",
+        "builder-chain verify",
+        "builder-promotion record",
+        "builder-promotion-decision record",
+        "builder-state-index validate",
+        "builder-snapshot validate",
+        "builder-inspect report",
+        "builder-inspect validate",
+    ]
+    for command in expected_commands:
+        assert command in text
