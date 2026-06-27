@@ -1,0 +1,1014 @@
+from dataclasses import dataclass
+from typing import Any, Literal
+
+# Standard authority tiers
+TIER_0 = "Tier 0 — read-only inspection"
+TIER_1 = "Tier 1 — artifact-only planning/validation"
+TIER_2 = "Tier 2 — operator-managed setup/runtime helper"
+TIER_3 = "Tier 3 — HITL-gated execution candidate"
+TIER_4 = "Tier 4 — forbidden/unpromoted automation"
+
+VALID_TIERS = {TIER_0, TIER_1, TIER_2, TIER_3, TIER_4}
+
+# Valid promotion states
+STATE_SPEC_ONLY = "spec_only"
+STATE_ARTIFACT_ONLY = "artifact_only"
+STATE_VALIDATION_ONLY = "validation_only"
+STATE_READ_ONLY_RUNTIME_CANDIDATE = "read_only_runtime_candidate"
+STATE_OPERATOR_MANAGED = "operator_managed"
+STATE_HITL_RUNTIME_CANDIDATE = "hitl_runtime_candidate"
+STATE_FORBIDDEN_UNPROMOTED = "forbidden_unpromoted"
+STATE_ENABLED = "enabled"
+
+VALID_PROMOTION_STATES = {
+    STATE_SPEC_ONLY,
+    STATE_ARTIFACT_ONLY,
+    STATE_VALIDATION_ONLY,
+    STATE_READ_ONLY_RUNTIME_CANDIDATE,
+    STATE_OPERATOR_MANAGED,
+    STATE_HITL_RUNTIME_CANDIDATE,
+    STATE_FORBIDDEN_UNPROMOTED,
+    STATE_ENABLED,
+}
+
+# Valid approval modes
+MODE_NONE = "none"
+MODE_EXPLICIT_OPERATOR_INVOCATION = "explicit_operator_invocation"
+MODE_HITL_ARTIFACT_REQUIRED = "hitl_artifact_required"
+MODE_FORBIDDEN_UNPROMOTED = "forbidden_unpromoted"
+
+VALID_APPROVAL_MODES = {
+    MODE_NONE,
+    MODE_EXPLICIT_OPERATOR_INVOCATION,
+    MODE_HITL_ARTIFACT_REQUIRED,
+    MODE_FORBIDDEN_UNPROMOTED,
+}
+
+
+@dataclass(frozen=True)
+class CommandAuthorityRecord:
+    name: str  # Script name or subcommand path, e.g. "builder" or "builder-session prepare-package"
+    entrypoint: str  # Python entrypoint mapping
+    tier: str  # Authority tier
+    promotion_state: str  # Capability promotion state
+    runtime_boundary: str  # Description of execution boundaries
+    write_boundary: str  # Description of what may be modified or created
+    approval_mode: str  # Method of approval required
+    approval_boundary: str  # Human boundary for approval
+    output_behavior: str  # Behavior of stdout/stderr and file writing
+    failure_mode: str  # How errors are propagated and state recovered
+    notes: str  # Details on limitations and deprecated/legacy logic
+    allows_runtime_start: bool = False
+    allows_model_execution: bool = False
+    allows_shell_execution: bool = False
+    allows_source_writes: bool = False
+    allows_memory_mutation: bool = False
+    allows_git_mutation: bool = False
+    allows_artifact_writes: bool = False
+    allows_state_writes: bool = False
+    allows_readonly_subprocess: bool = False
+    allows_external_tool_invocation: bool = False
+
+
+# A curated list of subcommands that must be explicitly classified
+REQUIRED_SUBCOMMANDS = {
+    "builder-session prepare-package",
+    "builder-session validate-prepare-package",
+    "builder-session summarize-prepare-package",
+    "builder-context pack",
+    "builder-context changed",
+    "builder-context artifact",
+    "builder start",
+    "builder ask",
+    "builder verify",
+    "builder-goose manifest",
+    "builder-goose validate",
+    "builder-goose readonly-audit",
+    "builder-goose validate-audit",
+    "builder-goose inspect-readonly",
+    "builder-goose validate-inspection",
+    "builder-goose start-readonly",
+    "builder-deepagents render",
+    "builder-deepagents validate",
+    "builder-deepagents delegate",
+    "builder-hitl request",
+    "builder-hitl receipt",
+    "builder-hitl validate",
+    "builder-orchestration plan",
+    "builder-orchestration validate",
+}
+
+COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
+    # --- Top-Level Script Entrypoints (Delegating to subcommands) ---
+    CommandAuthorityRecord(
+        name="builder",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Delegates to helper subcommands; root CLI does not execute direct agent/model loops.",
+        write_boundary="No direct write authority at root CLI level.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Operator must explicitly run command options from active terminal.",
+        output_behavior="Interactive terminal messages, text reports, or dispatch to subcommands.",
+        failure_mode="Exits non-zero with diagnostic logs; leaves target system unchanged.",
+        notes="Root command of builder-II developer platform. Delegates execution to subcommands.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-runtime",
+        entrypoint="builder_ii.runtime_control:runtime_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Interacts with local server endpoints, background agents, and runtime indicators.",
+        write_boundary="Writes session runtime lockfiles and state indicators locally.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Operator must trigger control signals manually.",
+        output_behavior="Prints server status and active process logs to stdout.",
+        failure_mode="Reports failure to talk to the local background process; exits non-zero.",
+        notes="Inspects and controls runtime agent sessions locally.",
+        allows_runtime_start=True,
+        allows_state_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-lanes",
+        entrypoint="builder_ii.lane_guides:lane_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Evaluates passive rules and checklists; no subprocess execution.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Passive check, no approval required.",
+        output_behavior="Prints verification checklists and audit messages to console.",
+        failure_mode="Exits non-zero if validation fails.",
+        notes="Guides operator lane readiness before committing artifacts.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-tools",
+        entrypoint="builder_ii.tools_cli:tools_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Lists or verifies tool specs; can query tool registry metadata.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Operator runs spec auditing.",
+        output_behavior="Prints JSON tool definitions and compatibility maps.",
+        failure_mode="Exits non-zero if schema validations fail.",
+        notes="Audits tools schema definitions.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-context",
+        entrypoint="builder_ii.context_cli:context_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Legacy context builder; delegates execution details to subcommands.",
+        write_boundary="No direct write authority at root CLI level.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Legacy context generator; operator must run command explicitly.",
+        output_behavior="Generates codebase context state representation via subcommands.",
+        failure_mode="Exits non-zero if git or file scanning fails.",
+        notes="LEGACY. Uses external repomix or git commands. Not the canonical governed path.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-git-state",
+        entrypoint="builder_ii.git_state_cli:git_state_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Executes local git queries via read-only subprocess.",
+        write_boundary="Writes declarative state file artifacts in workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Passive git branch check.",
+        output_behavior="Saves JSON file containing current commit info.",
+        failure_mode="Exits non-zero if git command fails.",
+        notes="Captures current revision state to confirm context stability.",
+        allows_artifact_writes=True,
+        allows_readonly_subprocess=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-targets",
+        entrypoint="builder_ii.targets_cli:targets_app",
+        tier=TIER_0,
+        promotion_state=STATE_SPEC_ONLY,
+        runtime_boundary="Retrieves target profile metadata; no execution.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Outputs available target names and definitions.",
+        failure_mode="Exits non-zero on target resolution error.",
+        notes="Lists profiles like generic, builder, and core.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-session",
+        entrypoint="builder_ii.session_cli:session_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Delegates packaging and checks to subcommands.",
+        write_boundary="No direct write authority at root CLI level.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Read-only checks or artifact-only packaging; no approval needed.",
+        output_behavior="Dispatches to subcommand functions.",
+        failure_mode="Raises ValidationError or exits non-zero on corrupt schemas.",
+        notes="Canonical governed operator lane entrypoint.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-agent",
+        entrypoint="builder_ii.agent_cli:agent_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Resolves active agent profiles and manifests.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Operator triggers agent inventory check.",
+        output_behavior="Lists matching agent definitions.",
+        failure_mode="Exits non-zero if spec parse fails.",
+        notes="Verifies agent metadata without starting active sessions.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-bridge",
+        entrypoint="builder_ii.bridge_cli:bridge_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Tests readiness of external deepagents integrations.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Operator checks network bridge connectivity.",
+        output_behavior="Outputs status report of endpoints.",
+        failure_mode="Exits non-zero if network connection fails.",
+        notes="Used for bridge diagnostics.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-bundle",
+        entrypoint="builder_ii.bundle_cli:bundle_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Validates bundle definitions or packages build artifacts.",
+        write_boundary="Creates ZIP or tar bundles in designated build folder.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Artifact build task.",
+        output_behavior="Saves packed bundles.",
+        failure_mode="Fails build process and reports missing manifest files.",
+        notes="Packages bundle content cleanly.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-goose",
+        entrypoint="builder_ii.goose_cli:goose_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Delegates validation and read-only audits to subcommands.",
+        write_boundary="No direct write authority at root CLI level.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Validation and audit only.",
+        output_behavior="Dispatches to validation subcommand functions.",
+        failure_mode="Exits non-zero on verification failure.",
+        notes="Interacts with Goose session metadata and configurations.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-records",
+        entrypoint="builder_ii.approval_records_cli:approval_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Decodes and validates cryptographically signed or structured approval logs.",
+        write_boundary="Writes verified signature files.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None; read-only verification.",
+        output_behavior="Prints verification results.",
+        failure_mode="Exits non-zero on signature mismatch.",
+        notes="Governance record validator.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-preflight",
+        entrypoint="builder_ii.preflight_cli:preflight_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Runs local environment checks (Python version, CLI presence).",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Lists check statuses.",
+        failure_mode="Exits non-zero on system incompatibility.",
+        notes="Preflight sanity checker.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-receipt",
+        entrypoint="builder_ii.receipt_records_cli:receipt_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Generates or reads execution receipts.",
+        write_boundary="Writes receipt JSON files to output folders.",
+        approval_mode=MODE_NONE,
+        output_behavior="Saves JSON data.",
+        failure_mode="Exits non-zero on bad receipt schema.",
+        approval_boundary="None.",
+        notes="Tracks execution history.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-chain",
+        entrypoint="builder_ii.chain_summary_cli:chain_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Traces artifact lineage chains.",
+        write_boundary="Writes chain validation artifacts.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Generates validation chain report.",
+        failure_mode="Exits non-zero if lineage broken.",
+        notes="Artifact linkage audit.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-handoff",
+        entrypoint="builder_ii.handoff_bundle_cli:handoff_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Aggregates verified evidence and creates handoff bundle metadata.",
+        write_boundary="Writes handoff markdown files.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Writes handoff bundle files.",
+        failure_mode="Exits non-zero on missing verification docs.",
+        notes="Packages handoffs.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-intake",
+        entrypoint="builder_ii.intake_cli:intake_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Ingests inputs from outside workspace.",
+        write_boundary="Writes configuration files in specific workspace location.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Saves ingested assets.",
+        failure_mode="Exits non-zero on invalid payload.",
+        notes="Imports data packages.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-index",
+        entrypoint="builder_ii.artifact_index_cli:index_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Tracks and indexes generated artifact files.",
+        write_boundary="Updates local artifact index JSON ledger.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Updates local index file.",
+        failure_mode="Exits non-zero if path outside worktree.",
+        notes="Passive registry of workspace outputs.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-promotion",
+        entrypoint="builder_ii.promotion_readiness_cli:promotion_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Analyzes readiness for target promotion.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Outputs promotion validation list.",
+        failure_mode="Exits non-zero if promotion checklist is not met.",
+        notes="Validates readiness gates.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-promotion-decision",
+        entrypoint="builder_ii.promotion_decision_cli:promotion_decision_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Creates a signed promotion decision artifact.",
+        write_boundary="Writes promotion decision JSON artifact.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Writes signed promotion records.",
+        failure_mode="Exits non-zero on schema validation failures.",
+        notes="Governance promotion decision recorder.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-state-index",
+        entrypoint="builder_ii.state_index_cli:state_index_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Constructs system state summaries.",
+        write_boundary="Writes state index JSON files.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Outputs state summary records.",
+        failure_mode="Exits non-zero on file-system index failures.",
+        notes="Indexes state layers.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-snapshot",
+        entrypoint="builder_ii.snap_cli:snap_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Records current directory snapshot hashes.",
+        write_boundary="Writes workspace snapshot hash index.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Generates checksum manifest.",
+        failure_mode="Exits non-zero on scanning error.",
+        notes="Workspace integrity checks.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-deepagents",
+        entrypoint="builder_ii.deepagents_cli:deepagents_app",
+        tier=TIER_4,
+        promotion_state=STATE_FORBIDDEN_UNPROMOTED,
+        runtime_boundary="Delegates deepagent specs rendering and validation to subcommands; active run is forbidden.",
+        write_boundary="No direct write authority at root CLI level.",
+        approval_mode=MODE_FORBIDDEN_UNPROMOTED,
+        approval_boundary="Forbidden; no supported approval path.",
+        output_behavior="Dispatches to subcommands.",
+        failure_mode="Exits non-zero.",
+        notes="Optional readiness specs and dry-runs only. Autonomous runs are blocked.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-notes",
+        entrypoint="builder_ii.notes_cli:notes_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Verifies or creates handoff notes artifacts.",
+        write_boundary="Writes handoff notes markdown files.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Writes text files.",
+        failure_mode="Exits non-zero if handoff validations fail.",
+        notes="Writes handoff notes.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-quality",
+        entrypoint="builder_ii.quality_cli:quality_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Checks code linting or test coverage thresholds.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints compliance report.",
+        failure_mode="Exits non-zero if quality threshold missed.",
+        notes="Quality assurance checks.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-research",
+        entrypoint="builder_ii.research_cli:research_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Builds read-only research plans.",
+        write_boundary="Writes plan metadata files.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Outputs JSON research plan.",
+        failure_mode="Exits non-zero on validation failures.",
+        notes="Artifact planning utility.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-performance",
+        entrypoint="builder_ii.performance_cli:performance_app",
+        tier=TIER_0,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Measures CLI loading time and file sizes.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Outputs timing statistics.",
+        failure_mode="Exits non-zero if execution limits exceeded.",
+        notes="Performance benchmarking.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-readonly",
+        entrypoint="builder_ii.readonly_inspection_cli:readonly_app",
+        tier=TIER_0,
+        promotion_state=STATE_READ_ONLY_RUNTIME_CANDIDATE,
+        runtime_boundary="Inspects system files and configurations without execution.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Outputs inspection reports.",
+        failure_mode="Exits non-zero if targeted file does not exist.",
+        notes="Ensures safe environment observation.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-verification",
+        entrypoint="builder_ii.verification_cli:verification_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates verification profile schemas.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Outputs verification lists.",
+        failure_mode="Exits non-zero if profiles are malformed.",
+        notes="Audits verification setups.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-hitl",
+        entrypoint="builder_ii.hitl_execution_cli:hitl_app",
+        tier=TIER_3,
+        promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
+        runtime_boundary="Delegates execution request and receipt operations to subcommands.",
+        write_boundary="No direct write authority at root CLI level.",
+        approval_mode=MODE_HITL_ARTIFACT_REQUIRED,
+        approval_boundary="Operator must sign hitl request and verify receipts.",
+        output_behavior="Dispatches to subcommands.",
+        failure_mode="Exits non-zero on signature or verification failure.",
+        notes="HITL-gated candidate tracking.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-orchestration",
+        entrypoint="builder_ii.orchestration_cli:orchestration_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Delegates plan setup and validation to subcommands.",
+        write_boundary="No direct write authority at root CLI level.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Dispatches to subcommands.",
+        failure_mode="Exits non-zero on schema validation failures.",
+        notes="Artifact plan creator.",
+    ),
+    # --- Selected Subcommands ---
+    CommandAuthorityRecord(
+        name="builder-session prepare-package",
+        entrypoint="builder_ii.session_cli:session_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Prepares context packaging and checks files.",
+        write_boundary="Writes prepared package files locally.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Writes packaged bundle files.",
+        failure_mode="Exits non-zero if inputs malformed.",
+        notes="Governed package preparation lane. Artifact-only.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-session validate-prepare-package",
+        entrypoint="builder_ii.session_cli:session_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Performs validations on the prepared package directory structure.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints verification results.",
+        failure_mode="Exits non-zero on validation error.",
+        notes="Governed package validator.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-session summarize-prepare-package",
+        entrypoint="builder_ii.session_cli:session_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Analyzes prepared package and generates a passive summary.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints package stats and content summaries.",
+        failure_mode="Exits non-zero if read fails.",
+        notes="Passive summary producer.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-context pack",
+        entrypoint="builder_ii.context_cli:context_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Invokes legacy external scanner or git commands.",
+        write_boundary="Writes context bundle files.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; no artifact approval chain.",
+        output_behavior="Outputs packed context data.",
+        failure_mode="Exits non-zero if repomix fails.",
+        notes="Legacy repomix packing mode.",
+        allows_artifact_writes=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-context changed",
+        entrypoint="builder_ii.context_cli:context_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Queries git status or git diff via subprocess.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; no artifact approval chain.",
+        output_behavior="Outputs diff context.",
+        failure_mode="Exits non-zero if git fails.",
+        notes="Legacy git diff inspection mode.",
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-context artifact",
+        entrypoint="builder_ii.context_cli:context_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Processes codebase scanning, potentially using external tools like repomix.",
+        write_boundary="Creates context artifact files.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; no artifact approval chain.",
+        output_behavior="Writes context artifact to file.",
+        failure_mode="Exits non-zero if scanner errors.",
+        notes="Legacy repo scan. Avoid when builder-session prepare-package can be used.",
+        allows_artifact_writes=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder start",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Starts background runtime processes and servers.",
+        write_boundary="Creates process locks and configuration settings.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; no artifact approval chain.",
+        output_behavior="Launches background process and writes log info.",
+        failure_mode="Exits non-zero if server cannot start.",
+        notes="Used to boot local agents or backends.",
+        allows_runtime_start=True,
+        allows_state_writes=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder ask",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Queries model provider or MLX local runtime using user input.",
+        write_boundary="Writes conversation history files locally.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; no artifact approval chain.",
+        output_behavior="Prints model response text to terminal.",
+        failure_mode="Exits non-zero on API or local runtime error.",
+        notes="Direct model chat surface.",
+        allows_model_execution=True,
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder verify",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Invokes local pytest/runner test suites via subprocess.",
+        write_boundary="No source code changes; generates test result files.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; no artifact approval chain.",
+        output_behavior="Outputs test run reports.",
+        failure_mode="Exits non-zero if test cases fail.",
+        notes="Audits repo testing state.",
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-goose manifest",
+        entrypoint="builder_ii.goose_cli:goose_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Inspects Goose configuration manifest templates.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Validates manifest layout.",
+        failure_mode="Exits non-zero on schema mismatch.",
+        notes="Goose spec validation.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-goose validate",
+        entrypoint="builder_ii.goose_cli:goose_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Performs validations on active Goose session configs.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Outputs verification checklist status.",
+        failure_mode="Exits non-zero on mismatch.",
+        notes="Configuration verification.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-goose readonly-audit",
+        entrypoint="builder_ii.goose_cli:goose_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Ensures a target Goose session uses read-only tools only.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Validates tool capabilities and permissions.",
+        failure_mode="Exits non-zero if write tools are allowed.",
+        notes="Safety auditor for Goose profiles.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-goose validate-audit",
+        entrypoint="builder_ii.goose_cli:goose_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates the output of a Goose audit run.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints verification results.",
+        failure_mode="Exits non-zero on validation error.",
+        notes="Audit integrity check.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-goose inspect-readonly",
+        entrypoint="builder_ii.goose_cli:goose_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Performs read-only inspection validation on explicitly requested paths.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Validates inspection path configuration.",
+        failure_mode="Exits non-zero if write paths are targeted.",
+        notes="Audit tool for read-only containment.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-goose validate-inspection",
+        entrypoint="builder_ii.goose_cli:goose_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates inspection config details.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints verification results.",
+        failure_mode="Exits non-zero on validation error.",
+        notes="Validation check.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-goose start-readonly",
+        entrypoint="builder_ii.goose_cli:goose_app",
+        tier=TIER_4,
+        promotion_state=STATE_FORBIDDEN_UNPROMOTED,
+        runtime_boundary="Attempts to start a Goose session. Disabled and unpromoted by default.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_FORBIDDEN_UNPROMOTED,
+        approval_boundary="Forbidden; no supported approval path.",
+        output_behavior="Prints error block.",
+        failure_mode="Exits non-zero.",
+        notes="Starting active Goose runtime components from the platform is unpromoted.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-deepagents render",
+        entrypoint="builder_ii.deepagents_cli:deepagents_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Renders deepagent specs statically.",
+        write_boundary="Writes spec manifest files.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Writes JSON files.",
+        failure_mode="Exits non-zero on format mismatch.",
+        notes="Dry-run and readiness rendering only.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-deepagents validate",
+        entrypoint="builder_ii.deepagents_cli:deepagents_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates deepagents spec metadata.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Validation checklist.",
+        failure_mode="Exits non-zero on schema error.",
+        notes="Dry-run audit.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-deepagents delegate",
+        entrypoint="builder_ii.deepagents_cli:deepagents_app",
+        tier=TIER_4,
+        promotion_state=STATE_FORBIDDEN_UNPROMOTED,
+        runtime_boundary="Attempts to execute autonomous models. Forbidden.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_FORBIDDEN_UNPROMOTED,
+        approval_boundary="Forbidden; no supported approval path.",
+        output_behavior="Error message.",
+        failure_mode="Exits non-zero.",
+        notes="Autonomous deepagent model execution is not promoted.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-hitl request",
+        entrypoint="builder_ii.hitl_execution_cli:hitl_app",
+        tier=TIER_3,
+        promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
+        runtime_boundary="Collects and validates HITL request details.",
+        write_boundary="Writes HITL request JSON artifact.",
+        approval_mode=MODE_HITL_ARTIFACT_REQUIRED,
+        approval_boundary="Requires explicit operator approval signature.",
+        output_behavior="Writes JSON file.",
+        failure_mode="Exits non-zero if required refs are missing.",
+        notes="Prepares execution requests under HITL governance.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-hitl receipt",
+        entrypoint="builder_ii.hitl_execution_cli:hitl_app",
+        tier=TIER_3,
+        promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
+        runtime_boundary="Records execution completion or failure receipt metadata.",
+        write_boundary="Writes HITL receipt JSON artifact.",
+        approval_mode=MODE_HITL_ARTIFACT_REQUIRED,
+        approval_boundary="Operator must sign hitl request and verify receipts.",
+        output_behavior="Writes JSON file.",
+        failure_mode="Exits non-zero on invalid request reference.",
+        notes="Records governance confirmation without running code.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-hitl validate",
+        entrypoint="builder_ii.hitl_execution_cli:hitl_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates request and receipt artifact files against schema.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints verification results.",
+        failure_mode="Exits non-zero if malformed JSON or invalid schema.",
+        notes="Audit validation utility.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-orchestration plan",
+        entrypoint="builder_ii.orchestration_cli:orchestration_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Creates plan structure statically without launching active agents.",
+        write_boundary="Writes plan JSON file.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Outputs serialized orchestration plan.",
+        failure_mode="Exits non-zero if target profile is invalid.",
+        notes="Creates the plan under governance.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-orchestration validate",
+        entrypoint="builder_ii.orchestration_cli:orchestration_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates the schema and steps of a plan artifact.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints verification results.",
+        failure_mode="Exits non-zero if validation fails.",
+        notes="Plan auditor.",
+    ),
+)
+
+
+def get_all_records() -> tuple[CommandAuthorityRecord, ...]:
+    """Return all registered CommandAuthorityRecord instances."""
+    return COMMAND_AUTHORITY_REGISTRY
+
+
+def get_command_record(name: str) -> CommandAuthorityRecord | None:
+    """Find a record by its exact name."""
+    for record in COMMAND_AUTHORITY_REGISTRY:
+        if record.name == name:
+            return record
+    return None
+
+
+def validate_registry_invariants() -> list[str]:
+    """Validate all registry constraints and return a list of error strings if any fail."""
+    errors = []
+    for r in COMMAND_AUTHORITY_REGISTRY:
+        # Tier check
+        if r.tier not in VALID_TIERS:
+            errors.append(f"Record '{r.name}' has invalid tier '{r.tier}'")
+
+        # Promotion state check
+        if r.promotion_state not in VALID_PROMOTION_STATES:
+            errors.append(
+                f"Record '{r.name}' has invalid promotion state '{r.promotion_state}'"
+            )
+
+        # Approval mode check
+        if r.approval_mode not in VALID_APPROVAL_MODES:
+            errors.append(
+                f"Record '{r.name}' has invalid approval mode '{r.approval_mode}'"
+            )
+
+        # Missing required string check
+        if not r.runtime_boundary.strip():
+            errors.append(f"Record '{r.name}' is missing runtime boundary description")
+        if not r.write_boundary.strip():
+            errors.append(f"Record '{r.name}' is missing write boundary description")
+        if not r.output_behavior.strip():
+            errors.append(f"Record '{r.name}' is missing output behavior description")
+        if not r.failure_mode.strip():
+            errors.append(f"Record '{r.name}' is missing failure mode description")
+        if not r.approval_boundary.strip():
+            errors.append(f"Record '{r.name}' is missing approval boundary description")
+
+        # Human approval requirements
+        has_authority_flag = (
+            r.allows_runtime_start
+            or r.allows_model_execution
+            or r.allows_shell_execution
+            or r.allows_source_writes
+            or r.allows_external_tool_invocation
+        )
+        if has_authority_flag:
+            if r.approval_mode == MODE_NONE:
+                errors.append(
+                    f"Record '{r.name}' has authority flags enabled but approval mode is 'none'"
+                )
+
+        # Tier 0 constraints
+        if r.tier == TIER_0:
+            has_risky = (
+                r.allows_runtime_start
+                or r.allows_model_execution
+                or r.allows_shell_execution
+                or r.allows_source_writes
+                or r.allows_memory_mutation
+                or r.allows_git_mutation
+                or r.allows_artifact_writes
+                or r.allows_state_writes
+                or r.allows_external_tool_invocation
+            )
+            if has_risky:
+                errors.append(
+                    f"Tier 0 record '{r.name}' claims forbidden execution/mutation authority"
+                )
+
+        # Tier 1 constraints
+        if r.tier == TIER_1:
+            has_forbidden_tier1 = (
+                r.allows_runtime_start
+                or r.allows_model_execution
+                or r.allows_shell_execution
+                or r.allows_source_writes
+                or r.allows_memory_mutation
+                or r.allows_git_mutation
+                or r.allows_state_writes
+                or r.allows_external_tool_invocation
+            )
+            if has_forbidden_tier1:
+                errors.append(
+                    f"Tier 1 record '{r.name}' claims forbidden execution/mutation authority"
+                )
+
+        # Contradiction check: write boundary text vs write flags
+        wb_lower = r.write_boundary.lower()
+        has_any_write = r.allows_source_writes or r.allows_artifact_writes or r.allows_state_writes
+        if not has_any_write:
+            # Should not claim active writes in description
+            if "write" in wb_lower and "no " not in wb_lower and "not " not in wb_lower and "without " not in wb_lower and "read-only" not in wb_lower:
+                errors.append(
+                    f"Record '{r.name}' write boundary text describes writes but no write flags are set"
+                )
+        else:
+            # Should not say "no changes" or "no modifications"
+            if "no changes" in wb_lower or "no modifications" in wb_lower or "no write" in wb_lower:
+                errors.append(
+                    f"Record '{r.name}' write flags are enabled but write boundary text claims no writes/changes"
+                )
+
+        # Conflation check
+        for field_val in (
+            r.name,
+            r.entrypoint,
+            r.tier,
+            r.promotion_state,
+            r.runtime_boundary,
+            r.write_boundary,
+            r.approval_boundary,
+            r.output_behavior,
+            r.failure_mode,
+            r.notes,
+        ):
+            if "CORE builder-II" in field_val or "CORE Builder-II" in field_val:
+                errors.append(
+                    f"Record '{r.name}' contains forbidden framing 'CORE builder-II'"
+                )
+
+    return errors
+
+
+def render_registry_markdown_table() -> str:
+    """Helper function to render the command registry into a Markdown table for docs."""
+    lines = [
+        "| Command Name | Tier | State | Runtime Boundary | Write Boundary | Approval Mode | Approval Boundary | Allows Shell | Allows Writes | Artifact Writes | State Writes |",
+        "|---|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for r in COMMAND_AUTHORITY_REGISTRY:
+        shell_str = "Yes" if r.allows_shell_execution else "No"
+        write_str = "Yes" if r.allows_source_writes else "No"
+        art_str = "Yes" if r.allows_artifact_writes else "No"
+        state_str = "Yes" if r.allows_state_writes else "No"
+        lines.append(
+            f"| `{r.name}` | {r.tier} | `{r.promotion_state}` | {r.runtime_boundary} | {r.write_boundary} | `{r.approval_mode}` | {r.approval_boundary} | {shell_str} | {write_str} | {art_str} | {state_str} |"
+        )
+    return "\n".join(lines)
