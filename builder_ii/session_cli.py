@@ -38,6 +38,17 @@ from builder_ii.governed_prepare_package import (
     summarize_governed_prepare_package_directory,
     validate_governed_prepare_package_directory,
 )
+from builder_ii.repo_map import (
+    create_repo_map,
+    dumps_repo_map,
+    validate_repo_map,
+)
+from builder_ii.context_packs import (
+    create_context_pack,
+    dumps_context_pack,
+    validate_context_pack,
+)
+from builder_ii.profile_resolution import ProfileResolver
 
 session_app = typer.Typer(help="Inspect and plan governed local developer sessions.")
 console = Console()
@@ -346,6 +357,69 @@ def validate_goose_readonly_plan_cmd(path: Path = typer.Argument(..., help="Path
     console.print(f"[green]Goose read-only session plan artifact {path} is valid.[/]")
 
 
+@session_app.command("repo-map")
+def repo_map_cmd(
+    target: str = typer.Argument(..., help="Target profile name: generic | builder | core"),
+    repo_path: Optional[str] = typer.Option(None, "--repo-path", help="Explicit target repo path override"),
+    output: Path = typer.Option(..., "--output", "-o", help="Write JSON repo map artifact to this path"),
+) -> None:
+    """Create a bounded read-only repository map foundation artifact."""
+    settings = load_settings()
+    target_norm = _normalize_target(target)
+
+    resolver = ProfileResolver(settings)
+    try:
+        resolved = resolver.resolve(target_name=target_norm, repo_path=repo_path)  # type: ignore[arg-type]
+        data = create_repo_map(resolved.repo_path, target_name=target_norm)
+    except ValueError as exc:
+        console.print(f"[red]Error creating repo map: {exc}[/]")
+        raise typer.Exit(1)
+
+    errors = validate_repo_map(data)
+    if errors:
+        console.print(f"[red]Created invalid repo map: {'; '.join(errors)}[/]")
+        raise typer.Exit(1)
+
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(dumps_repo_map(data), encoding="utf-8")
+        console.print(f"[green]Repo map written to {output}[/]")
+    except Exception as exc:
+        console.print(f"[red]Failed to write repo map output file: {exc}[/]")
+        raise typer.Exit(1)
+
+
+@session_app.command("context-pack")
+def context_pack_cmd(
+    target: str = typer.Argument(..., help="Target profile name: generic | builder | core"),
+    repo_map: Path = typer.Option(..., "--repo-map", help="Path to repo map JSON file"),
+    output: Path = typer.Option(..., "--output", "-o", help="Write JSON context pack artifact to this path"),
+    task: str = typer.Option("", "--task", help="Optional task description"),
+) -> None:
+    """Create a bounded read-only context pack foundation artifact from a repo map."""
+    target_norm = _normalize_target(target)
+    map_data = _load_json_object(repo_map, "repo map")
+
+    try:
+        data = create_context_pack(map_data, target_name=target_norm, task=task)
+    except ValueError as exc:
+        console.print(f"[red]Error creating context pack: {exc}[/]")
+        raise typer.Exit(1)
+
+    errors = validate_context_pack(data)
+    if errors:
+        console.print(f"[red]Created invalid context pack: {'; '.join(errors)}[/]")
+        raise typer.Exit(1)
+
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(dumps_context_pack(data), encoding="utf-8")
+        console.print(f"[green]Context pack written to {output}[/]")
+    except Exception as exc:
+        console.print(f"[red]Failed to write context pack output file: {exc}[/]")
+        raise typer.Exit(1)
+
+
 @session_app.command("prepare-package")
 def prepare_package_cmd(
     target: str = typer.Argument(..., help="Target profile name: generic | builder | core"),
@@ -440,6 +514,8 @@ def operator_surface_cmd() -> None:
 
     table.add_row("Discovery", "builder-targets list", "disabled", "Enumerate available target profiles")
     table.add_row("Discovery", "builder-tools list", "disabled", "Enumerate governed local tool definitions")
+    table.add_row("Intelligence", "builder-session repo-map", "artifact-only", "Create bounded read-only repository map")
+    table.add_row("Intelligence", "builder-session context-pack", "artifact-only", "Create bounded read-only context pack")
     table.add_row("Preparation", "builder-session prepare-package", "planned/artifact", "Create governed preparation package")
     table.add_row("Validation", "builder-session validate-prepare-package", "artifact-only", "Validate prepare package integrity")
     table.add_row("Summarization", "builder-session summarize-prepare-package", "artifact-only", "Summarize prepare package for human review")

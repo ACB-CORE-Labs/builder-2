@@ -32,6 +32,17 @@ from builder_ii.verification_profile_reports import (
     create_verification_profile_report,
     validate_verification_profile_report,
 )
+from builder_ii.repo_map import (
+    REPO_MAP_KIND,
+    create_repo_map,
+    validate_repo_map,
+)
+from builder_ii.context_packs import (
+    CONTEXT_PACK_KIND,
+    create_context_pack,
+    validate_context_pack,
+)
+from builder_ii.profile_resolution import ProfileResolver
 
 GOVERNED_PREPARE_PACKAGE_KIND = "builder_ii.governed_prepare_package"
 GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION = 1
@@ -158,6 +169,35 @@ def create_governed_prepare_package(
         name="verification profile report",
     )
 
+    resolver = ProfileResolver(settings)
+    resolved = resolver.resolve(target_name=target_name, repo_path=repo_path)  # type: ignore[arg-type]
+    resolved_repo = Path(resolved.repo_path)
+
+    repo_map = create_repo_map(resolved_repo, target_name=target_name)
+    _validate_or_raise("repo map", validate_repo_map(repo_map))
+
+    context_pack = create_context_pack(repo_map, target_name=target_name, task=task_text)
+    _validate_or_raise("context pack", validate_context_pack(context_pack))
+
+    repo_map_path = output_dir / "repo-map.json"
+    context_pack_path = output_dir / "context-pack.json"
+
+    _write_json_artifact(repo_map, repo_map_path)
+    _write_json_artifact(context_pack, context_pack_path)
+
+    repo_map_ref = _artifact_ref_for(
+        repo_map_path,
+        kind=REPO_MAP_KIND,
+        output_dir=output_dir,
+        name="bounded repo map",
+    )
+    context_pack_ref = _artifact_ref_for(
+        context_pack_path,
+        kind=CONTEXT_PACK_KIND,
+        output_dir=output_dir,
+        name="bounded context pack",
+    )
+
     handoff_note = create_handoff_note(
         target_name=target_name,
         status="READY_FOR_REVIEW",
@@ -186,7 +226,7 @@ def create_governed_prepare_package(
         name="governed handoff note",
     )
 
-    artifact_refs = [session_ref, goose_ref, verification_ref, handoff_ref]
+    artifact_refs = [session_ref, goose_ref, verification_ref, repo_map_ref, context_pack_ref, handoff_ref]
 
     if include_deepagents_readiness:
         deepagents_report = create_deepagents_bridge_readiness_report(
@@ -358,6 +398,8 @@ def validate_governed_prepare_package_directory(path: Path) -> list[str]:
         VERIFICATION_PROFILE_REPORT_KIND: validate_verification_profile_report,
         HANDOFF_NOTE_KIND: validate_handoff_note,
         DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
+        REPO_MAP_KIND: validate_repo_map,
+        CONTEXT_PACK_KIND: validate_context_pack,
     }
 
     for index, ref in enumerate(artifact_refs):

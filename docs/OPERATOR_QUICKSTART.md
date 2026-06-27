@@ -43,6 +43,8 @@ The package directory contains:
 - session-workflow.json
 - goose-readonly-session.json
 - verification-profile-report.json
+- repo-map.json
+- context-pack.json
 - handoff-note.json
 - deepagents-bridge-readiness.json
 - prepare-package.json

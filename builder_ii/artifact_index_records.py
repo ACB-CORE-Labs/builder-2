@@ -57,6 +57,14 @@ from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
     validate_deepagents_bridge_readiness_report,
 )
+from builder_ii.repo_map import (
+    REPO_MAP_KIND,
+    validate_repo_map,
+)
+from builder_ii.context_packs import (
+    CONTEXT_PACK_KIND,
+    validate_context_pack,
+)
 
 
 
@@ -111,6 +119,8 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
     HANDOFF_NOTE_KIND: validate_handoff_note,
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
+    REPO_MAP_KIND: validate_repo_map,
+    CONTEXT_PACK_KIND: validate_context_pack,
 }
 
 

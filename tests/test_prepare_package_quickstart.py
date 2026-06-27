@@ -80,7 +80,7 @@ def test_operator_quickstart_prepare_validate_summarize_lane(tmp_path):
     assert summary["task"] == "operator quickstart scenario"
     assert summary["package_state"] == "PREPARED_ONLY"
     assert summary["validation_state"] == "VALIDATED"
-    assert summary["artifact_count"] == 5
+    assert summary["artifact_count"] == 7
     assert summary["runtime_execution_performed"] is False
     assert summary["target_repo_writes_performed"] is False
 

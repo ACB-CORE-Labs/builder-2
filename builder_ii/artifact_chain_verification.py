@@ -73,6 +73,8 @@ from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
     validate_deepagents_bridge_readiness_report,
 )
+from builder_ii.repo_map import REPO_MAP_KIND, validate_repo_map
+from builder_ii.context_packs import CONTEXT_PACK_KIND, validate_context_pack
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -117,6 +119,8 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_WRAPPER_PLAN_KIND: validate_goose_wrapper_plan,
     ORCHESTRATION_PLAN_KIND: validate_orchestration_plan,
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
+    REPO_MAP_KIND: validate_repo_map,
+    CONTEXT_PACK_KIND: validate_context_pack,
 }
 
 

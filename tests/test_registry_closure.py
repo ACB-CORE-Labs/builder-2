@@ -42,6 +42,8 @@ from builder_ii.session_workflow import (
     SESSION_WORKFLOW_PLAN_KIND,
     create_session_workflow_plan,
 )
+from builder_ii.repo_map import REPO_MAP_KIND
+from builder_ii.context_packs import CONTEXT_PACK_KIND
 from builder_ii.config import Settings
 
 
@@ -65,6 +67,8 @@ CLOSURE_KINDS = {
     EXECUTION_VERIFICATION_RECORD_KIND,
     HITL_EVIDENCE_BUNDLE_KIND,
     SESSION_WORKFLOW_PLAN_KIND,
+    REPO_MAP_KIND,
+    CONTEXT_PACK_KIND,
 }
 
 # ---------------------------------------------------------------------------

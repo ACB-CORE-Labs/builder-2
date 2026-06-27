@@ -77,12 +77,28 @@ The operator command surface is organized by phase. Every command operates stric
 - **Human responsibility**: Audit existing artifacts in local storage.
 - **Writes**: Read-only; writes only stdout.
 
+#### `builder-session repo-map`
+- **Command name**: `builder-session repo-map`
+- **Purpose**: Create a bounded read-only repository map foundation artifact.
+- **Output artifact, if any**: `repo-map.json` when `--output` is specified.
+- **Execution authority**: artifact-only
+- **Human responsibility**: Inspect repository structure and role classification before planning work.
+- **Writes**: Writes only explicit artifact output paths specified via `--output`.
+
+#### `builder-session context-pack`
+- **Command name**: `builder-session context-pack`
+- **Purpose**: Create a bounded read-only context pack foundation artifact from a repo map.
+- **Output artifact, if any**: `context-pack.json` when `--output` is specified.
+- **Execution authority**: artifact-only
+- **Human responsibility**: Inspect selected files to understand relevant repository context. Do not treat as proof of correctness.
+- **Writes**: Writes only explicit artifact output paths specified via `--output`.
+
 ### Session Preparation
 
 #### `builder-session prepare-package`
 - **Command name**: `builder-session prepare-package`
 - **Purpose**: Create a bounded set of local preparation artifacts for a developer session without executing target-repo work.
-- **Output artifact, if any**: `prepare-package.json`, `session-workflow.json`, `goose-readonly-session.json`, `verification-profile-report.json`, `handoff-note.json`, `deepagents-bridge-readiness.json`.
+- **Output artifact, if any**: `prepare-package.json`, `session-workflow.json`, `goose-readonly-session.json`, `verification-profile-report.json`, `repo-map.json`, `context-pack.json`, `handoff-note.json`, `deepagents-bridge-readiness.json`.
 - **Execution authority**: planned-only (for workflow and verification plans) and artifact-only (for manifest generation).
 - **Human responsibility**: Inspect generated session package artifacts and verify proposed workflow tasks.
 - **Writes**: Writes only explicit artifact output paths specified via `--output-dir`.

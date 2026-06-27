@@ -92,7 +92,7 @@ def test_prepare_package_artifact_refs_have_hashes_and_relative_paths(tmp_path):
     )
 
     refs = package["artifact_refs"]
-    assert len(refs) == 5
+    assert len(refs) == 7
 
     for ref in refs:
         assert ref["path"]
@@ -129,7 +129,7 @@ def test_prepare_package_can_omit_deepagents_readiness(tmp_path):
         include_deepagents_readiness=False,
     )
 
-    assert len(package["artifact_refs"]) == 4
+    assert len(package["artifact_refs"]) == 6
     assert not (output_dir / "deepagents-bridge-readiness.json").exists()
 
 
@@ -339,7 +339,7 @@ def test_summarize_prepare_package_directory_returns_human_inspection_summary(tm
     assert summary["kind"] == GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND
     assert summary["validation_state"] == "VALIDATED"
     assert summary["package_state"] == "PREPARED_ONLY"
-    assert summary["artifact_count"] == 5
+    assert summary["artifact_count"] == 7
     assert summary["runtime_execution_performed"] is False
     assert summary["target_repo_writes_performed"] is False
     assert validate_governed_prepare_package_summary(summary) == []
@@ -391,7 +391,7 @@ def test_summarize_prepare_package_cli_prints_json_summary(tmp_path):
     assert result.exit_code == 0, result.output
     summary = json.loads(result.output)
     assert summary["validation_state"] == "VALIDATED"
-    assert summary["artifact_count"] == 5
+    assert summary["artifact_count"] == 7
 
 
 def test_summarize_prepare_package_cli_writes_summary_artifact(tmp_path):
