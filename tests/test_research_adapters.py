@@ -164,7 +164,7 @@ def test_artifact_index_recognizes_research_adapter(tmp_path: Path) -> None:
     write_research_adapter_artifact(_adapter(), tmp_path / "adapter.json")
     record = create_artifact_index_record(tmp_path)
 
-    assert record["totals"] == {"total": 1, "known": 1, "unknown": 0, "valid": 1, "invalid": 0}
+    assert record["counts"] == {"total": 1, "known": 1, "unknown": 0, "valid": 1, "invalid": 0}
     assert record["artifacts"][0]["kind"] == RESEARCH_ADAPTER_KIND
     assert validate_artifact_index_record(record) == []
 
