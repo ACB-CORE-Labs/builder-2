@@ -137,7 +137,7 @@ def test_valid_receipt_validates() -> None:
 
 
 def test_receipt_execution_state_not_executed() -> None:
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     assert receipt["execution_state"] == "NOT_EXECUTED"
     assert receipt["exit_code"] is None
     assert receipt["stdout_ref"] is None
@@ -150,7 +150,7 @@ def test_receipt_execution_state_not_executed() -> None:
 
 
 def test_receipt_governance_denies_all_execution() -> None:
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     gov = receipt["governance"]
     assert gov["runtime_execution"] == "DISABLED"
     assert gov["shell_execution"] == "DISABLED"
@@ -167,36 +167,42 @@ def test_receipt_governance_denies_all_execution() -> None:
     assert gov["core_workbench_coupling"] == "NONE"
 
 
-def test_receipt_fails_if_execution_state_not_not_executed() -> None:
+def test_receipt_fails_missing_request_ref() -> None:
     receipt = create_hitl_execution_receipt()
+    errors = validate_hitl_execution_receipt(receipt)
+    assert "request_ref is required" in errors
+
+
+def test_receipt_fails_if_execution_state_not_not_executed() -> None:
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["execution_state"] = "COMPLETED"
     errors = validate_hitl_execution_receipt(receipt)
     assert "execution_state must be NOT_EXECUTED" in errors
 
 
 def test_receipt_fails_if_exit_code_implies_execution() -> None:
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["exit_code"] = 0
     errors = validate_hitl_execution_receipt(receipt)
     assert "exit_code must be null (no execution)" in errors
 
 
 def test_receipt_fails_if_stdout_implies_execution() -> None:
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["stdout_ref"] = "some-stdout-ref"
     errors = validate_hitl_execution_receipt(receipt)
     assert "stdout_ref must be null (no execution)" in errors
 
 
 def test_receipt_fails_if_stderr_implies_execution() -> None:
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["stderr_ref"] = "some-stderr-ref"
     errors = validate_hitl_execution_receipt(receipt)
     assert "stderr_ref must be null (no execution)" in errors
 
 
 def test_receipt_fails_if_timestamps_imply_execution() -> None:
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["started_at"] = "2026-06-27T00:00:00Z"
     receipt["completed_at"] = "2026-06-27T00:00:01Z"
     errors = validate_hitl_execution_receipt(receipt)
@@ -205,21 +211,21 @@ def test_receipt_fails_if_timestamps_imply_execution() -> None:
 
 
 def test_receipt_fails_if_governance_claims_execution_enabled() -> None:
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["governance"]["runtime_execution"] = "ENABLED"
     errors = validate_hitl_execution_receipt(receipt)
     assert any("runtime_execution" in e and "DISABLED" in e for e in errors)
 
 
 def test_receipt_fails_if_artifact_is_authority_true() -> None:
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["artifact_is_authority"] = True
     errors = validate_hitl_execution_receipt(receipt)
     assert "artifact_is_authority must be false" in errors
 
 
 def test_receipt_fails_if_coupling_not_none() -> None:
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["governance"]["core_workbench_coupling"] = "TIGHT"
     errors = validate_hitl_execution_receipt(receipt)
     assert "governance.core_workbench_coupling must be NONE" in errors
@@ -308,7 +314,7 @@ def test_dumps_produces_valid_json() -> None:
     req = create_hitl_execution_request(
         command_proposal_ref="p", approval_record_ref="a", preflight_record_ref="pf",
     )
-    receipt = create_hitl_execution_receipt()
+    receipt = create_hitl_execution_receipt(request_ref="r")
 
     req_json = json.loads(dumps_hitl_execution_request(req))
     receipt_json = json.loads(dumps_hitl_execution_receipt(receipt))
