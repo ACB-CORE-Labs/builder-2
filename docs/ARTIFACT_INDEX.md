@@ -43,10 +43,12 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.hitl_patch_application_spec`
 - `builder_ii.rollback_plan`
 - `builder_ii.rollback_receipt`
+- `builder_ii.execution_postflight_record`
+- `builder_ii.execution_verification_record`
 
 ## Governance / spec / record artifacts
 
-The following artifact kinds are **governance, specification, and record artifacts** introduced in PR W, PR X, and PR Y.  They are design-only records that document future runtime governance paths.  They do **not** grant runtime authority, execute commands, mutate source, invoke subprocesses, or activate any runtime.
+The following artifact kinds are **governance, specification, and record artifacts** introduced in PR W, PR X, PR Y, and PR AD.  They are design-only records that document future runtime governance paths.  They do **not** grant runtime authority, execute commands, mutate source, invoke subprocesses, or activate any runtime.
 
 | Kind | Category | Source PR |
 |------|----------|-----------|
@@ -55,6 +57,8 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.hitl_patch_application_spec` | Design specification | PR X |
 | `builder_ii.rollback_plan` | Governance record | PR Y |
 | `builder_ii.rollback_receipt` | Governance record | PR Y |
+| `builder_ii.execution_postflight_record` | Governance record | PR AD |
+| `builder_ii.execution_verification_record` | Governance record | PR AD |
 
 **Chain evidence status:** These artifacts are not currently valid chain evidence.  They are standalone design records that do not embed cross-record SHA-256 references to other artifacts.  The chain verifier recognizes and validates them natively but does not extract outbound references from them.  If cross-reference fields are added in a future PR, `extract_references()` should be updated at that time.
 
