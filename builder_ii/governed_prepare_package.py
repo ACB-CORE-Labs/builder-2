@@ -59,6 +59,14 @@ def _artifact_ref_for(path: Path, *, kind: str, output_dir: Path, name: str = ""
     }
 
 
+def _is_within_directory(path: Path, directory: Path) -> bool:
+    try:
+        path.relative_to(directory)
+    except ValueError:
+        return False
+    return True
+
+
 def _validate_or_raise(label: str, errors: list[str]) -> None:
     if errors:
         raise ValueError(f"invalid {label}: " + "; ".join(errors))
@@ -308,6 +316,102 @@ def validate_governed_prepare_package_file(path: Path) -> list[str]:
     except Exception as exc:
         return [f"failed to read file: {exc}"]
     return validate_governed_prepare_package(data)
+
+
+def validate_governed_prepare_package_directory(path: Path) -> list[str]:
+    """Validate a governed prepare package manifest and referenced artifacts.
+
+    ``path`` may point either to a package directory or directly to a
+    ``prepare-package.json`` manifest. This validator does not execute any
+    command. It only reads explicit package artifacts, checks reference
+    containment, recomputes hashes, and validates each referenced JSON artifact
+    by its declared kind.
+    """
+
+    manifest_path = path / "prepare-package.json" if path.is_dir() else path
+    errors: list[str] = []
+
+    if not manifest_path.exists():
+        return [f"prepare package manifest not found: {manifest_path}"]
+    if not manifest_path.is_file():
+        return [f"prepare package manifest is not a file: {manifest_path}"]
+
+    try:
+        package = json_lib.loads(manifest_path.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as exc:
+        return [f"invalid prepare package JSON: {exc}"]
+    except Exception as exc:
+        return [f"failed to read prepare package manifest: {exc}"]
+
+    errors.extend(validate_governed_prepare_package(package))
+
+    package_dir = manifest_path.parent.resolve()
+    artifact_refs = package.get("artifact_refs")
+    if not isinstance(artifact_refs, list):
+        return errors
+
+    kind_validators = {
+        SESSION_WORKFLOW_PLAN_KIND: validate_session_workflow_plan,
+        GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
+        VERIFICATION_PROFILE_REPORT_KIND: validate_verification_profile_report,
+        HANDOFF_NOTE_KIND: validate_handoff_note,
+        DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
+    }
+
+    for index, ref in enumerate(artifact_refs):
+        prefix = f"artifact_refs[{index}]"
+        if not isinstance(ref, dict):
+            continue
+
+        ref_path_value = ref.get("path")
+        ref_kind = ref.get("kind")
+        expected_sha = ref.get("sha256")
+
+        if not isinstance(ref_path_value, str) or not ref_path_value:
+            continue
+
+        ref_path = Path(ref_path_value)
+        if ref_path.is_absolute():
+            errors.append(f"{prefix}.path must be relative to the prepare package directory")
+            continue
+
+        artifact_path = (package_dir / ref_path).resolve()
+        if not _is_within_directory(artifact_path, package_dir):
+            errors.append(f"{prefix}.path escapes the prepare package directory")
+            continue
+
+        if not artifact_path.exists():
+            errors.append(f"{prefix}.path does not exist: {ref_path_value}")
+            continue
+        if not artifact_path.is_file():
+            errors.append(f"{prefix}.path is not a file: {ref_path_value}")
+            continue
+
+        actual_sha = _sha256_file(artifact_path)
+        if isinstance(expected_sha, str) and expected_sha and actual_sha != expected_sha:
+            errors.append(f"{prefix}.sha256 mismatch for {ref_path_value}")
+
+        try:
+            artifact_data = json_lib.loads(artifact_path.read_text(encoding="utf-8"))
+        except json_lib.JSONDecodeError as exc:
+            errors.append(f"{prefix}.artifact is not valid JSON: {exc}")
+            continue
+        except Exception as exc:
+            errors.append(f"{prefix}.artifact could not be read: {exc}")
+            continue
+
+        if not isinstance(ref_kind, str):
+            continue
+
+        validator = kind_validators.get(ref_kind)
+        if validator is None:
+            errors.append(f"{prefix}.kind has no prepare-package artifact validator: {ref_kind}")
+            continue
+
+        for artifact_error in validator(artifact_data):
+            errors.append(f"{prefix}.artifact invalid for {ref_kind}: {artifact_error}")
+
+    return errors
 
 
 def dumps_governed_prepare_package(package: dict[str, Any]) -> str:

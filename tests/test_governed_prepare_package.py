@@ -170,3 +170,148 @@ def test_prepare_package_source_does_not_import_execution_primitives():
 
     for token in forbidden:
         assert token not in source
+
+
+def test_validate_prepare_package_directory_accepts_valid_package(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    from builder_ii.governed_prepare_package import validate_governed_prepare_package_directory
+
+    assert validate_governed_prepare_package_directory(output_dir) == []
+    assert validate_governed_prepare_package_directory(output_dir / "prepare-package.json") == []
+
+
+def test_validate_prepare_package_directory_rejects_missing_artifact(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    (output_dir / "handoff-note.json").unlink()
+
+    from builder_ii.governed_prepare_package import validate_governed_prepare_package_directory
+
+    errors = validate_governed_prepare_package_directory(output_dir)
+    assert any("does not exist" in error for error in errors)
+
+
+def test_validate_prepare_package_directory_rejects_hash_mismatch(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    (output_dir / "handoff-note.json").write_text('{"tampered": true}\n', encoding="utf-8")
+
+    from builder_ii.governed_prepare_package import validate_governed_prepare_package_directory
+
+    errors = validate_governed_prepare_package_directory(output_dir)
+    assert any("sha256 mismatch" in error for error in errors)
+
+
+def test_validate_prepare_package_directory_rejects_path_escape(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    manifest_path = output_dir / "prepare-package.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["artifact_refs"][0]["path"] = "../escaped.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    from builder_ii.governed_prepare_package import validate_governed_prepare_package_directory
+
+    errors = validate_governed_prepare_package_directory(output_dir)
+    assert any("escapes the prepare package directory" in error for error in errors)
+
+
+def test_validate_prepare_package_cli_accepts_valid_package(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+    runner = CliRunner()
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    result = runner.invoke(
+        session_app,
+        [
+            "validate-prepare-package",
+            str(output_dir),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "is valid" in result.output
+
+
+def test_validate_prepare_package_cli_rejects_invalid_package(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+    runner = CliRunner()
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    (output_dir / "session-workflow.json").unlink()
+
+    result = runner.invoke(
+        session_app,
+        [
+            "validate-prepare-package",
+            str(output_dir),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "Validation error" in result.output
+
+
+def test_validate_prepare_package_docs_state_runtime_boundary():
+    doc = (ROOT / "docs" / "VALIDATE_PREPARE_PACKAGE.md").read_text(encoding="utf-8")
+
+    required = [
+        "does not prove that planned verification commands have been run",
+        "execute shell commands",
+        "activate Goose",
+        "activate or delegate to deepagents",
+        "execute model/runtime work",
+        "write to the target repository",
+        "touch Deephaven",
+        "couple builder-II to CORE Workbench/UI",
+    ]
+
+    for phrase in required:
+        assert phrase in doc

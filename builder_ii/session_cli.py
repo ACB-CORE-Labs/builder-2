@@ -33,6 +33,7 @@ from builder_ii.session_workflow import (
 
 from builder_ii.governed_prepare_package import (
     create_governed_prepare_package,
+    validate_governed_prepare_package_directory,
 )
 
 session_app = typer.Typer(help="Inspect and plan governed local developer sessions.")
@@ -376,6 +377,19 @@ def prepare_package_cmd(
     console.print(f"[green]Governed prepare package written to {output_dir.resolve()}[/]")
     console.print(f"[green]Package manifest: {output_dir.resolve() / 'prepare-package.json'}[/]")
     console.print(f"[cyan]Artifacts: {len(package.get('artifact_refs', []))}[/]")
+
+
+@session_app.command("validate-prepare-package")
+def validate_prepare_package_cmd(
+    path: Path = typer.Argument(..., help="Path to a prepare package directory or prepare-package.json manifest"),
+) -> None:
+    """Validate a governed prepare package manifest and referenced artifacts."""
+    errors = validate_governed_prepare_package_directory(path)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error: {error}[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]Governed prepare package {path} is valid.[/]")
 
 
 if __name__ == "__main__":
