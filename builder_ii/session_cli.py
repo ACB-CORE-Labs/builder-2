@@ -31,6 +31,10 @@ from builder_ii.session_workflow import (
     validate_session_workflow_plan_file,
 )
 
+from builder_ii.governed_prepare_package import (
+    create_governed_prepare_package,
+)
+
 session_app = typer.Typer(help="Inspect and plan governed local developer sessions.")
 console = Console()
 _VALID_TARGETS: set[str] = {"generic", "builder", "core"}
@@ -336,6 +340,42 @@ def validate_goose_readonly_plan_cmd(path: Path = typer.Argument(..., help="Path
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
     console.print(f"[green]Goose read-only session plan artifact {path} is valid.[/]")
+
+
+@session_app.command("prepare-package")
+def prepare_package_cmd(
+    target: str = typer.Argument(..., help="Target profile name: generic | builder | core"),
+    output_dir: Path = typer.Option(..., "--output-dir", "-o", help="Directory where governed preparation artifacts will be written"),
+    repo_path: Optional[str] = typer.Option(None, "--repo-path", help="Explicit target repo path override"),
+    agent: Optional[str] = typer.Option(None, "--agent", help="Explicit agent profile name override"),
+    prompt: Optional[str] = typer.Option(None, "--prompt", help="Explicit prompt profile name override"),
+    verification: Optional[str] = typer.Option(None, "--verification", help="Explicit verification profile name override"),
+    task: str = typer.Option("", "--task", help="Optional task description"),
+    include_deepagents_readiness: bool = typer.Option(True, "--deepagents-readiness/--no-deepagents-readiness", help="Include optional deepagents readiness artifact"),
+) -> None:
+    """Create a governed preparation package without executing target-repo work."""
+    settings = load_settings()
+    target_norm = _normalize_target(target)
+
+    try:
+        package = create_governed_prepare_package(
+            settings,
+            target_norm,
+            output_dir=output_dir,
+            repo_path=repo_path,
+            agent_profile_name=agent,
+            prompt_profile_name=prompt,
+            verification_profile_name=verification,
+            task=task,
+            include_deepagents_readiness=include_deepagents_readiness,
+        )
+    except ValueError as exc:
+        console.print(f"[red]Error creating governed prepare package: {exc}[/]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Governed prepare package written to {output_dir.resolve()}[/]")
+    console.print(f"[green]Package manifest: {output_dir.resolve() / 'prepare-package.json'}[/]")
+    console.print(f"[cyan]Artifacts: {len(package.get('artifact_refs', []))}[/]")
 
 
 if __name__ == "__main__":

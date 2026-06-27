@@ -1,0 +1,314 @@
+from __future__ import annotations
+
+import hashlib
+import json as json_lib
+from pathlib import Path
+from typing import Any
+
+from builder_ii.config import Settings
+from builder_ii.deepagents_bridge_readiness import (
+    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
+    create_deepagents_bridge_readiness_report,
+    validate_deepagents_bridge_readiness_report,
+)
+from builder_ii.goose_readonly_session import (
+    GOOSE_READONLY_SESSION_PLAN_KIND,
+    create_goose_readonly_session_plan,
+    validate_goose_readonly_session_plan,
+)
+from builder_ii.handoff_notes import (
+    HANDOFF_NOTE_KIND,
+    create_artifact_ref,
+    create_handoff_note,
+    validate_handoff_note,
+)
+from builder_ii.session_workflow import (
+    SESSION_WORKFLOW_PLAN_KIND,
+    create_session_workflow_plan,
+    validate_session_workflow_plan,
+)
+from builder_ii.verification_profile_reports import (
+    VERIFICATION_PROFILE_REPORT_KIND,
+    create_verification_profile_report,
+    validate_verification_profile_report,
+)
+
+GOVERNED_PREPARE_PACKAGE_KIND = "builder_ii.governed_prepare_package"
+GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION = 1
+
+
+def _dumps_json(data: dict[str, Any]) -> str:
+    return json_lib.dumps(data, indent=2, sort_keys=True) + "\n"
+
+
+def _sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _write_json_artifact(data: dict[str, Any], path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_dumps_json(data), encoding="utf-8")
+
+
+def _artifact_ref_for(path: Path, *, kind: str, output_dir: Path, name: str = "") -> dict[str, Any]:
+    return {
+        "kind": kind,
+        "path": str(path.relative_to(output_dir)),
+        "sha256": _sha256_file(path),
+        "name": name,
+    }
+
+
+def _validate_or_raise(label: str, errors: list[str]) -> None:
+    if errors:
+        raise ValueError(f"invalid {label}: " + "; ".join(errors))
+
+
+def create_governed_prepare_package(
+    settings: Settings,
+    target_name: str,
+    *,
+    output_dir: Path,
+    repo_path: str | None = None,
+    agent_profile_name: str | None = None,
+    prompt_profile_name: str | None = None,
+    verification_profile_name: str | None = None,
+    task: str = "",
+    include_deepagents_readiness: bool = True,
+) -> dict[str, Any]:
+    """Create a governed local preparation package.
+
+    This function writes only explicit artifact files under ``output_dir``.
+    It does not execute commands, invoke Goose, delegate to deepagents, or
+    modify the target repository.
+    """
+
+    output_dir = output_dir.resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    task_text = task or "prepare governed local developer session"
+
+    session_plan = create_session_workflow_plan(
+        settings,
+        target_name,  # type: ignore[arg-type]
+        agent_profile_name=agent_profile_name,  # type: ignore[arg-type]
+        prompt_profile_name=prompt_profile_name,
+        verification_profile_name=verification_profile_name,  # type: ignore[arg-type]
+        repo_path=repo_path,
+    )
+    _validate_or_raise("session workflow plan", validate_session_workflow_plan(session_plan))
+
+    goose_plan = create_goose_readonly_session_plan(
+        settings,
+        target_name,  # type: ignore[arg-type]
+        agent_profile_name=agent_profile_name,  # type: ignore[arg-type]
+        prompt_profile_name=prompt_profile_name,
+        verification_profile_name=verification_profile_name,  # type: ignore[arg-type]
+        repo_path=repo_path,
+        task=task_text,
+    )
+    _validate_or_raise("Goose read-only session plan", validate_goose_readonly_session_plan(goose_plan))
+
+    verification_report = create_verification_profile_report(
+        settings,
+        target_name,  # type: ignore[arg-type]
+        agent_profile_name=agent_profile_name,  # type: ignore[arg-type]
+        prompt_profile_name=prompt_profile_name,
+        verification_profile_name=verification_profile_name,  # type: ignore[arg-type]
+        repo_path=repo_path,
+        task=task_text,
+        goose_readonly_session_plan=goose_plan,
+    )
+    _validate_or_raise("verification profile report", validate_verification_profile_report(verification_report))
+
+    session_path = output_dir / "session-workflow.json"
+    goose_path = output_dir / "goose-readonly-session.json"
+    verification_path = output_dir / "verification-profile-report.json"
+
+    _write_json_artifact(session_plan, session_path)
+    _write_json_artifact(goose_plan, goose_path)
+    _write_json_artifact(verification_report, verification_path)
+
+    session_ref = _artifact_ref_for(
+        session_path,
+        kind=SESSION_WORKFLOW_PLAN_KIND,
+        output_dir=output_dir,
+        name="session workflow plan",
+    )
+    goose_ref = _artifact_ref_for(
+        goose_path,
+        kind=GOOSE_READONLY_SESSION_PLAN_KIND,
+        output_dir=output_dir,
+        name="Goose read-only session plan",
+    )
+    verification_ref = _artifact_ref_for(
+        verification_path,
+        kind=VERIFICATION_PROFILE_REPORT_KIND,
+        output_dir=output_dir,
+        name="verification profile report",
+    )
+
+    handoff_note = create_handoff_note(
+        target_name=target_name,
+        status="READY_FOR_REVIEW",
+        summary="Governed preparation package created. No target-repo execution was performed.",
+        changed_files_summary=[
+            "Created explicit governed preparation artifacts under the requested output directory."
+        ],
+        verification_summary="Verification report is planned-only. No checks were executed by this package.",
+        session_ref=create_artifact_ref(**session_ref),
+        goose_readonly_session_ref=create_artifact_ref(**goose_ref),
+        verification_report_ref=create_artifact_ref(**verification_ref),
+        open_risks=[
+            "Human operator must run and evidence any verification commands out-of-band.",
+            "Any future writes or execution remain HITL-gated.",
+        ],
+        next_recommended_action="Inspect generated artifacts, run planned verification manually, then record evidence.",
+    )
+    _validate_or_raise("handoff note", validate_handoff_note(handoff_note))
+
+    handoff_path = output_dir / "handoff-note.json"
+    _write_json_artifact(handoff_note, handoff_path)
+    handoff_ref = _artifact_ref_for(
+        handoff_path,
+        kind=HANDOFF_NOTE_KIND,
+        output_dir=output_dir,
+        name="governed handoff note",
+    )
+
+    artifact_refs = [session_ref, goose_ref, verification_ref, handoff_ref]
+
+    if include_deepagents_readiness:
+        deepagents_report = create_deepagents_bridge_readiness_report(
+            target_profile=target_name,
+            agent_profile_compatibility_summary=(
+                "Prepared for readiness inspection only. No deepagents delegation or runtime activation was performed."
+            ),
+            readiness_verdict="NOT_READY",
+        )
+        _validate_or_raise(
+            "deepagents bridge readiness report",
+            validate_deepagents_bridge_readiness_report(deepagents_report),
+        )
+        deepagents_path = output_dir / "deepagents-bridge-readiness.json"
+        _write_json_artifact(deepagents_report, deepagents_path)
+        artifact_refs.append(
+            _artifact_ref_for(
+                deepagents_path,
+                kind=DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
+                output_dir=output_dir,
+                name="optional deepagents bridge readiness report",
+            )
+        )
+
+    package = {
+        "kind": GOVERNED_PREPARE_PACKAGE_KIND,
+        "schema_version": GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION,
+        "target_name": target_name,
+        "repo_path": repo_path,
+        "task": task_text,
+        "output_dir": str(output_dir),
+        "artifact_refs": artifact_refs,
+        "package_state": "PREPARED_ONLY",
+        "runtime_execution_performed": False,
+        "target_repo_writes_performed": False,
+        "governance": {
+            "capability_state": "governed_prepare_package",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY",
+            "target_repo_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "goose_activation": "DISABLED",
+            "deepagents_delegation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
+    }
+
+    _validate_or_raise("governed prepare package", validate_governed_prepare_package(package))
+
+    package_path = output_dir / "prepare-package.json"
+    _write_json_artifact(package, package_path)
+
+    return package
+
+
+def validate_governed_prepare_package(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["governed prepare package must be a JSON object"]
+
+    if data.get("kind") != GOVERNED_PREPARE_PACKAGE_KIND:
+        errors.append(f"kind must be {GOVERNED_PREPARE_PACKAGE_KIND}")
+    if data.get("schema_version") != GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION}")
+
+    if data.get("target_name") not in {"generic", "builder", "core"}:
+        errors.append("target_name must be one of: generic, builder, core")
+
+    artifact_refs = data.get("artifact_refs")
+    if not isinstance(artifact_refs, list) or not artifact_refs:
+        errors.append("artifact_refs must be a non-empty list")
+    else:
+        for index, ref in enumerate(artifact_refs):
+            prefix = f"artifact_refs[{index}]"
+            if not isinstance(ref, dict):
+                errors.append(f"{prefix} must be an object")
+                continue
+            if not isinstance(ref.get("kind"), str) or not ref["kind"]:
+                errors.append(f"{prefix}.kind must be a non-empty string")
+            if not isinstance(ref.get("path"), str) or not ref["path"]:
+                errors.append(f"{prefix}.path must be a non-empty string")
+            if not isinstance(ref.get("sha256"), str) or len(ref["sha256"]) != 64:
+                errors.append(f"{prefix}.sha256 must be a 64-character string")
+            if not isinstance(ref.get("name", ""), str):
+                errors.append(f"{prefix}.name must be a string when present")
+
+    if data.get("package_state") != "PREPARED_ONLY":
+        errors.append("package_state must be PREPARED_ONLY")
+    if data.get("runtime_execution_performed") is not False:
+        errors.append("runtime_execution_performed must be false")
+    if data.get("target_repo_writes_performed") is not False:
+        errors.append("target_repo_writes_performed must be false")
+
+    governance = data.get("governance")
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        if governance.get("capability_state") != "governed_prepare_package":
+            errors.append("governance.capability_state must be governed_prepare_package")
+        for key in ("runtime_execution", "model_execution", "shell_execution", "memory_mutation"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
+        if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY":
+            errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY")
+        if governance.get("target_repo_writes") != "DISABLED":
+            errors.append("governance.target_repo_writes must be DISABLED")
+        if governance.get("goose_activation") != "DISABLED":
+            errors.append("governance.goose_activation must be DISABLED")
+        if governance.get("deepagents_delegation") != "DISABLED":
+            errors.append("governance.deepagents_delegation must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
+
+    return errors
+
+
+def validate_governed_prepare_package_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as exc:
+        return [f"invalid JSON: {exc}"]
+    except Exception as exc:
+        return [f"failed to read file: {exc}"]
+    return validate_governed_prepare_package(data)
+
+
+def dumps_governed_prepare_package(package: dict[str, Any]) -> str:
+    return _dumps_json(package)
