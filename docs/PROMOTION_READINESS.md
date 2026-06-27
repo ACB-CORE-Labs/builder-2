@@ -15,6 +15,30 @@ The record checks eight required areas:
 
 The record is metadata-only. It does not enable the capability and does not grant authority.
 
+## Compatibility support artifacts
+
+Promotion readiness may also include an optional `support_artifacts` compatibility set. This is an explicit-input-only gate: the operator provides digest-bearing references, and the readiness validator checks that they are target-compatible. It does not read files, inspect repositories, query git, execute commands, or infer state from the local workspace.
+
+When `support_artifacts` is empty, legacy readiness records remain valid. Once any support artifact is supplied, the set must include one reference for each required kind:
+
+- `builder_ii.target_profile`
+- `builder_ii.verification_profile`
+- `builder_ii.context_pack_record`
+- `builder_ii.agent_profile_record`
+- `builder_ii.git_state_record`
+
+Each support artifact reference has:
+
+| Field | Constraint |
+|---|---|
+| `kind` | one of the required support artifact kinds |
+| `path` | non-empty explicit artifact path string |
+| `sha256` | non-empty digest string |
+| `target` | `generic`, `builder`, or `core`; must match readiness `target` |
+| `name` | optional string |
+
+A partial, duplicate, target-mismatched, or malformed support set blocks readiness and must be listed in `missing`.
+
 ## Validation boundary
 
 The validator enforces these constraints:
@@ -28,10 +52,12 @@ The validator enforces these constraints:
 | `capability_state` | `promotion_readiness_record` |
 | `capability_name` | non-empty string |
 | `target_state` | non-empty string |
+| `target` | empty, `generic`, `builder`, or `core`; required when `support_artifacts` are supplied |
 | `status` | `ready` or `blocked` |
 | `ready` | boolean, must match `status` |
-| `missing` | list of non-empty strings; must contain all check-level missing items |
+| `missing` | list of non-empty strings; must contain all check-level and compatibility missing items |
 | `checks` | list of 8 required check objects |
+| `support_artifacts` | optional list of explicit support artifact references |
 | `performed_actions` | `[]` |
 | `grants_runtime_authority` | `false` |
 | `grants_action_authority` | `false` |
@@ -66,9 +92,15 @@ builder-promotion record --capability-name artifact_index --docs-ref docs/ARTIFA
 builder-promotion validate promotion-readiness.json
 ```
 
+Support artifact refs may be supplied explicitly with repeated `--support-artifact` values in this comma-separated form:
+
+```text
+kind,path,sha256,target[,name]
+```
+
 ## Verification
 
 ```bash
-uv run pytest tests/test_promotion_readiness_records.py tests/test_promotion_readiness_cli.py -q
+uv run pytest tests/test_promotion_readiness_records.py tests/test_promotion_readiness_cli.py tests/test_promotion_compatibility.py -q
 uv run pytest -q
 ```
