@@ -5,6 +5,7 @@ import json as json_lib
 from pathlib import Path
 from typing import Any, Literal
 
+from builder_ii.promotion_compatibility import support_artifact_kinds
 from builder_ii.promotion_readiness_records import PROMOTION_READINESS_RECORD_KIND, validate_promotion_readiness_record
 
 PromotionDecision = Literal["approved", "blocked"]
@@ -41,6 +42,7 @@ def create_promotion_decision_record(
         blockers.append("decided_by is required")
     if decision == "approved" and blockers:
         decision = "blocked"
+    support_artifacts = readiness.get("support_artifacts", []) if isinstance(readiness.get("support_artifacts", []), list) else []
     return {
         "kind": PROMOTION_DECISION_RECORD_KIND,
         "schema_version": PROMOTION_DECISION_RECORD_SCHEMA_VERSION,
@@ -61,6 +63,9 @@ def create_promotion_decision_record(
             "ready": readiness.get("ready", False),
             "capability_name": readiness.get("capability_name", ""),
             "target_state": readiness.get("target_state", ""),
+            "target": readiness.get("target", ""),
+            "support_artifact_count": len(support_artifacts),
+            "support_artifact_kinds": support_artifact_kinds(support_artifacts),
         },
         "checks": readiness.get("checks", []) if isinstance(readiness.get("checks"), list) else [],
         "allowed_actions": ["validate_readiness_record", "render_promotion_decision", "validate_promotion_decision"],
@@ -110,6 +115,14 @@ def write_promotion_decision_record(record: dict[str, Any], output: Path) -> Non
     output.write_text(dumps_promotion_decision_record(record), encoding="utf-8")
 
 
+def _string_list_errors(value: Any, *, field: str) -> list[str]:
+    if not isinstance(value, list):
+        return [f"{field} must be a list"]
+    if any(not isinstance(item, str) or not item for item in value):
+        return [f"{field} must be a list of non-empty strings"]
+    return []
+
+
 def _validate_readiness_ref(readiness: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(readiness, dict):
@@ -132,6 +145,13 @@ def _validate_readiness_ref(readiness: Any) -> list[str]:
         errors.append("readiness.ready must be false when status is blocked")
     if not readiness.get("capability_name"):
         errors.append("readiness.capability_name is required")
+    target = readiness.get("target", "")
+    if target not in ("", "generic", "builder", "core"):
+        errors.append("readiness.target must be one of: generic, builder, core")
+    if "support_artifact_count" in readiness and (not isinstance(readiness.get("support_artifact_count"), int) or readiness["support_artifact_count"] < 0):
+        errors.append("readiness.support_artifact_count must be a non-negative integer")
+    if "support_artifact_kinds" in readiness:
+        errors.extend(_string_list_errors(readiness.get("support_artifact_kinds"), field="readiness.support_artifact_kinds"))
     return errors
 
 
