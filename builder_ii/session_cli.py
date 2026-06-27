@@ -5,6 +5,7 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from rich.table import Table
 
 from builder_ii.config import load_settings
 from builder_ii.goose_projection import (
@@ -417,6 +418,37 @@ def summarize_prepare_package_cmd(
             raise typer.Exit(1)
     else:
         console.out(serialized, end="")
+
+
+@session_app.command("command-surface")
+@session_app.command("operator-surface")
+def operator_surface_cmd() -> None:
+    """Print the operator command surface index documentation path and a minimal command table."""
+    console.print("[green]Canonical Operator Command Surface Index:[/]")
+    console.print("docs/OPERATOR_COMMAND_SURFACE.md\n")
+
+    console.print("[green]First-Class Operator Lane:[/]")
+    console.print("  builder-session prepare-package")
+    console.print("  builder-session validate-prepare-package")
+    console.print("  builder-session summarize-prepare-package\n")
+
+    table = Table()
+    table.add_column("Phase")
+    table.add_column("Command", overflow="fold")
+    table.add_column("Authority")
+    table.add_column("Purpose", overflow="fold")
+
+    table.add_row("Discovery", "builder-targets list", "disabled", "Enumerate available target profiles")
+    table.add_row("Discovery", "builder-tools list", "disabled", "Enumerate governed local tool definitions")
+    table.add_row("Preparation", "builder-session prepare-package", "planned/artifact", "Create governed preparation package")
+    table.add_row("Validation", "builder-session validate-prepare-package", "artifact-only", "Validate prepare package integrity")
+    table.add_row("Summarization", "builder-session summarize-prepare-package", "artifact-only", "Summarize prepare package for human review")
+    table.add_row("Handoff", "builder-handoff create", "artifact-only", "Generate passive handoff note bundle")
+    table.add_row("Verification", "builder-verification plan", "planned-only", "Emit planned verification profile report")
+    table.add_row("HITL", "builder-hitl plan-patch", "planned-only", "Generate HITL patch specification proposal")
+    table.add_row("Deepagents", "builder-deepagents check-readiness", "disabled/artifact", "Inspect optional deepagents readiness")
+
+    console.print(table)
 
 
 if __name__ == "__main__":

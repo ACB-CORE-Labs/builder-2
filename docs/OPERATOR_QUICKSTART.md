@@ -4,6 +4,8 @@ This guide shows the first complete operator lane for builder-II.
 
 builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench, not CORE UI/UX, and not a second CORE runtime. CORE is only a target profile.
 
+For the canonical taxonomy of operator commands and governance boundaries, see the [Operator Command Surface Index](OPERATOR_COMMAND_SURFACE.md).
+
 ## Purpose
 
 The governed prepare package lane gives an operator one bounded path to prepare, validate, and inspect a local development session package.
