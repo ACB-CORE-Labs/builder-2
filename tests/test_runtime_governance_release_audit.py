@@ -40,6 +40,9 @@ def test_release_audit_covers_completed_foundation_surfaces() -> None:
         "builder_ii/hitl_patch_spec.py",
         "builder_ii/rollback_artifacts.py",
         "builder_ii/execution_postflight_records.py",
+        "builder_ii/hitl_evidence_bundle.py",
+        "docs/HITL_EVIDENCE_BUNDLE.md",
+        "tests/test_hitl_evidence_bundle.py",
         "docs/COMMAND_SURFACE_AUDIT.md",
         "docs/ARTIFACT_INDEX.md",
     ]
@@ -57,6 +60,7 @@ def test_release_audit_lists_runtime_governance_artifact_kinds() -> None:
         "builder_ii.rollback_receipt",
         "builder_ii.execution_postflight_record",
         "builder_ii.execution_verification_record",
+        "builder_ii.hitl_evidence_bundle",
     ):
         assert kind in text
 
@@ -116,7 +120,6 @@ def test_release_audit_names_next_safe_work_and_blocks_executor() -> None:
 
 def test_release_audit_includes_verification_commands() -> None:
     text = _text()
-    assert "uv run pytest tests/test_runtime_governance_release_audit.py -q" in text
-    assert "uv run pytest tests/test_registry_closure.py" in text
+    assert "CORE_REPO_PATH=. uv run pytest tests/test_hitl_evidence_bundle.py tests/test_registry_closure.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py tests/test_runtime_governance_release_audit.py -q" in text
     assert "CORE_REPO_PATH=. uv run pytest -q" in text
     assert "git diff --check" in text

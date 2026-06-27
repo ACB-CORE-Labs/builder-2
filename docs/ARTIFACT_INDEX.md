@@ -45,10 +45,11 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.rollback_receipt`
 - `builder_ii.execution_postflight_record`
 - `builder_ii.execution_verification_record`
+- `builder_ii.hitl_evidence_bundle`
 
 ## Governance / spec / record artifacts
 
-The following artifact kinds are **governance, specification, and record artifacts** introduced in PR W, PR X, PR Y, and PR AD.  They are design-only records that document future runtime governance paths.  They do **not** grant runtime authority, execute commands, mutate source, invoke subprocesses, or activate any runtime.
+The following artifact kinds are **governance, specification, and record artifacts** introduced in PR W, PR X, PR Y, PR AD, and PR AE.  They are design-only records that document future runtime governance paths.  They do **not** grant runtime authority, execute commands, mutate source, invoke subprocesses, or activate any runtime.
 
 | Kind | Category | Source PR |
 |------|----------|-----------|
@@ -59,8 +60,9 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.rollback_receipt` | Governance record | PR Y |
 | `builder_ii.execution_postflight_record` | Governance record | PR AD |
 | `builder_ii.execution_verification_record` | Governance record | PR AD |
+| `builder_ii.hitl_evidence_bundle` | Evidence bundle index | PR AE |
 
-**Chain evidence status:** These artifacts are not currently valid chain evidence.  They are standalone design records that do not embed cross-record SHA-256 references to other artifacts.  The chain verifier recognizes and validates them natively but does not extract outbound references from them.  If cross-reference fields are added in a future PR, `extract_references()` should be updated at that time.
+**Chain evidence status:** The standalone governance records do not embed outbound references. However, the `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
 
 ## CLI
 

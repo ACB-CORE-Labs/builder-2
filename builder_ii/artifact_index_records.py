@@ -36,6 +36,10 @@ from builder_ii.execution_postflight_records import (
     EXECUTION_VERIFICATION_RECORD_KIND,
     validate_execution_verification_record,
 )
+from builder_ii.hitl_evidence_bundle import (
+    HITL_EVIDENCE_BUNDLE_KIND,
+    validate_hitl_evidence_bundle,
+)
 
 
 
@@ -85,6 +89,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     ROLLBACK_RECEIPT_KIND: validate_rollback_receipt,
     EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
     EXECUTION_VERIFICATION_RECORD_KIND: validate_execution_verification_record,
+    HITL_EVIDENCE_BUNDLE_KIND: validate_hitl_evidence_bundle,
 }
 
 

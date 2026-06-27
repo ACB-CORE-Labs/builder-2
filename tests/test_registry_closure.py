@@ -34,6 +34,10 @@ from builder_ii.execution_postflight_records import (
     create_execution_postflight_record,
     create_execution_verification_record,
 )
+from builder_ii.hitl_evidence_bundle import (
+    HITL_EVIDENCE_BUNDLE_KIND,
+    create_hitl_evidence_bundle,
+)
 
 
 CLOSURE_KINDS = {
@@ -54,10 +58,11 @@ CLOSURE_KINDS = {
     ROLLBACK_RECEIPT_KIND,
     EXECUTION_POSTFLIGHT_RECORD_KIND,
     EXECUTION_VERIFICATION_RECORD_KIND,
+    HITL_EVIDENCE_BUNDLE_KIND,
 }
 
 # ---------------------------------------------------------------------------
-# Governance artifact kinds added in PR W / PR X / PR Y / PR AD
+# Governance artifact kinds added in PR W / PR X / PR Y / PR AD / PR AE
 # ---------------------------------------------------------------------------
 
 GOVERNANCE_ARTIFACT_KINDS = {
@@ -68,6 +73,7 @@ GOVERNANCE_ARTIFACT_KINDS = {
     ROLLBACK_RECEIPT_KIND,
     EXECUTION_POSTFLIGHT_RECORD_KIND,
     EXECUTION_VERIFICATION_RECORD_KIND,
+    HITL_EVIDENCE_BUNDLE_KIND,
 }
 
 
@@ -180,6 +186,21 @@ def _execution_verification_record() -> dict[str, Any]:
     )
 
 
+def _hitl_evidence_bundle() -> dict[str, Any]:
+    return create_hitl_evidence_bundle(
+        target_name="generic",
+        bundle_id="bundle-123",
+        created_at="2026-06-26T00:00:00Z",
+        created_by="operator",
+        proposal_ref="proposal.json",
+        approval_ref="approval.json",
+        preflight_ref="preflight.json",
+        request_ref="request.json",
+        postflight_ref="postflight.json",
+        verification_ref="verification.json",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Original closure tests
 # ---------------------------------------------------------------------------
@@ -257,6 +278,7 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
         _rollback_receipt(),
         _execution_postflight_record(),
         _execution_verification_record(),
+        _hitl_evidence_bundle(),
     ]
 
     for record in fixtures:
@@ -278,13 +300,14 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
         "rollback-receipt.json": _rollback_receipt(),
         "postflight.json": _execution_postflight_record(),
         "verification.json": _execution_verification_record(),
+        "hitl-evidence-bundle.json": _hitl_evidence_bundle(),
     }
     for filename, artifact in fixtures.items():
         _write(tmp_path / filename, artifact)
 
     index = create_artifact_index_record(tmp_path)
 
-    assert index["counts"] == {"total": 7, "known": 7, "unknown": 0, "valid": 7, "invalid": 0}
+    assert index["counts"] == {"total": 8, "known": 8, "unknown": 0, "valid": 8, "invalid": 0}
     assert validate_artifact_index_record(index) == []
 
     indexed_kinds = {entry["kind"] for entry in index["artifacts"]}
