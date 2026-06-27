@@ -46,6 +46,7 @@ builder-deepagents = "builder_ii.deepagents_cli:deepagents_app"
 builder-notes = "builder_ii.notes_cli:notes_app"
 builder-quality = "builder_ii.quality_cli:quality_app"
 builder-research = "builder_ii.research_cli:research_app"
+builder-performance = "builder_ii.performance_cli:performance_app"
 builder-verification = "builder_ii.verification_cli:verification_app"
 
 [dependency-groups]
