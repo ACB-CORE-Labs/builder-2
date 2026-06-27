@@ -38,6 +38,11 @@ from builder_ii.hitl_evidence_bundle import (
     HITL_EVIDENCE_BUNDLE_KIND,
     create_hitl_evidence_bundle,
 )
+from builder_ii.session_workflow import (
+    SESSION_WORKFLOW_PLAN_KIND,
+    create_session_workflow_plan,
+)
+from builder_ii.config import Settings
 
 
 CLOSURE_KINDS = {
@@ -59,10 +64,11 @@ CLOSURE_KINDS = {
     EXECUTION_POSTFLIGHT_RECORD_KIND,
     EXECUTION_VERIFICATION_RECORD_KIND,
     HITL_EVIDENCE_BUNDLE_KIND,
+    SESSION_WORKFLOW_PLAN_KIND,
 }
 
 # ---------------------------------------------------------------------------
-# Governance artifact kinds added in PR W / PR X / PR Y / PR AD / PR AE
+# Governance artifact kinds added in PR W / PR X / PR Y / PR AD / PR AE / PR AF
 # ---------------------------------------------------------------------------
 
 GOVERNANCE_ARTIFACT_KINDS = {
@@ -74,6 +80,7 @@ GOVERNANCE_ARTIFACT_KINDS = {
     EXECUTION_POSTFLIGHT_RECORD_KIND,
     EXECUTION_VERIFICATION_RECORD_KIND,
     HITL_EVIDENCE_BUNDLE_KIND,
+    SESSION_WORKFLOW_PLAN_KIND,
 }
 
 
@@ -201,6 +208,14 @@ def _hitl_evidence_bundle() -> dict[str, Any]:
     )
 
 
+def _session_workflow_plan() -> dict[str, Any]:
+    from builder_ii.config import load_settings
+    return create_session_workflow_plan(
+        load_settings(),
+        "generic",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Original closure tests
 # ---------------------------------------------------------------------------
@@ -279,6 +294,7 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
         _execution_postflight_record(),
         _execution_verification_record(),
         _hitl_evidence_bundle(),
+        _session_workflow_plan(),
     ]
 
     for record in fixtures:
@@ -301,13 +317,14 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
         "postflight.json": _execution_postflight_record(),
         "verification.json": _execution_verification_record(),
         "hitl-evidence-bundle.json": _hitl_evidence_bundle(),
+        "session-plan.json": _session_workflow_plan(),
     }
     for filename, artifact in fixtures.items():
         _write(tmp_path / filename, artifact)
 
     index = create_artifact_index_record(tmp_path)
 
-    assert index["counts"] == {"total": 8, "known": 8, "unknown": 0, "valid": 8, "invalid": 0}
+    assert index["counts"] == {"total": 9, "known": 9, "unknown": 0, "valid": 9, "invalid": 0}
     assert validate_artifact_index_record(index) == []
 
     indexed_kinds = {entry["kind"] for entry in index["artifacts"]}
@@ -329,6 +346,7 @@ def test_governance_artifacts_are_not_chain_evidence() -> None:
         _rollback_receipt(),
         _execution_postflight_record(),
         _execution_verification_record(),
+        _session_workflow_plan(),
     ]
 
     for record in fixtures:
@@ -349,6 +367,7 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
         "rollback-receipt.json": _rollback_receipt(),
         "postflight.json": _execution_postflight_record(),
         "verification.json": _execution_verification_record(),
+        "session-plan.json": _session_workflow_plan(),
     }
     paths = []
     for filename, artifact in fixtures.items():
@@ -359,8 +378,8 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
     report = verify_artifact_chain(paths)
 
     assert report["valid"] is True
-    assert report["counts"]["files"] == 7
-    assert report["counts"]["native_valid"] == 7
+    assert report["counts"]["files"] == 8
+    assert report["counts"]["native_valid"] == 8
     assert report["counts"]["native_invalid"] == 0
     assert report["counts"]["links"] == 0
     assert report["counts"]["broken_links"] == 0

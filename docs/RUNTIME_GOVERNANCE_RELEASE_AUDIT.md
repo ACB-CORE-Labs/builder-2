@@ -38,6 +38,7 @@ The artifact index registry and chain verification registry account for these ru
 - `builder_ii.execution_postflight_record`
 - `builder_ii.execution_verification_record`
 - `builder_ii.hitl_evidence_bundle`
+- `builder_ii.session_workflow_plan`
 
 The registry closure sweep validates these kinds natively. The standalone governance records and specifications do not produce outbound chain references, while the `builder_ii.hitl_evidence_bundle` specifies path references to preceding stages in the governance lifecycle, which the chain verifier resolves and validates recursively.
 

@@ -12,6 +12,7 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 ## Target/Profile/Context
 - `builder-context`
 - `builder-targets`
+- `builder-session`
 
 ## Artifact Chain / Governance Records
 - `builder-records`

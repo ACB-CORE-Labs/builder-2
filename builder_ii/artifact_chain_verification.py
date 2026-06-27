@@ -43,6 +43,10 @@ from builder_ii.hitl_evidence_bundle import (
     HITL_EVIDENCE_BUNDLE_KIND,
     validate_hitl_evidence_bundle,
 )
+from builder_ii.session_workflow import (
+    SESSION_WORKFLOW_PLAN_KIND,
+    validate_session_workflow_plan,
+)
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -76,6 +80,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
     EXECUTION_VERIFICATION_RECORD_KIND: validate_execution_verification_record,
     HITL_EVIDENCE_BUNDLE_KIND: validate_hitl_evidence_bundle,
+    SESSION_WORKFLOW_PLAN_KIND: validate_session_workflow_plan,
 }
 
 
