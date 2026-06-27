@@ -28,7 +28,11 @@ from builder_ii.research_adapters import RESEARCH_ADAPTER_KIND, validate_researc
 from builder_ii.performance_measurements import PERFORMANCE_MEASUREMENT_KIND, validate_performance_measurement_record
 from builder_ii.readonly_inspection_promotion import READONLY_INSPECTION_PROMOTION_SPEC_KIND, validate_readonly_inspection_promotion_spec
 from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND, validate_readonly_inspection_report
-
+from builder_ii.hitl_execution_records import HITL_EXECUTION_REQUEST_KIND, validate_hitl_execution_request
+from builder_ii.hitl_execution_records import HITL_EXECUTION_RECEIPT_KIND, validate_hitl_execution_receipt
+from builder_ii.hitl_patch_spec import HITL_PATCH_APPLICATION_SPEC_KIND, validate_hitl_patch_application_spec
+from builder_ii.rollback_artifacts import ROLLBACK_PLAN_KIND, validate_rollback_plan
+from builder_ii.rollback_artifacts import ROLLBACK_RECEIPT_KIND, validate_rollback_receipt
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -54,6 +58,11 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     PERFORMANCE_MEASUREMENT_KIND: validate_performance_measurement_record,
     READONLY_INSPECTION_PROMOTION_SPEC_KIND: validate_readonly_inspection_promotion_spec,
     READONLY_INSPECTION_REPORT_KIND: validate_readonly_inspection_report,
+    HITL_EXECUTION_REQUEST_KIND: validate_hitl_execution_request,
+    HITL_EXECUTION_RECEIPT_KIND: validate_hitl_execution_receipt,
+    HITL_PATCH_APPLICATION_SPEC_KIND: validate_hitl_patch_application_spec,
+    ROLLBACK_PLAN_KIND: validate_rollback_plan,
+    ROLLBACK_RECEIPT_KIND: validate_rollback_receipt,
 }
 
 
