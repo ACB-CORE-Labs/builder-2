@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json as json_lib
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -13,7 +12,12 @@ from builder_ii.agent_profiles import (
     create_agent_profile_record,
 )
 from builder_ii.config import Settings
-from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT
+from builder_ii.profile_resolution import (
+    PromptProfile,
+    get_prompt_profile,
+    prompt_profiles,
+    ProfileResolver,
+)
 from builder_ii.target_profiles import (
     TargetName,
     target_profile,
@@ -30,53 +34,6 @@ SESSION_WORKFLOW_PLAN_KIND = "builder_ii.session_workflow_plan"
 SESSION_WORKFLOW_PLAN_SCHEMA_VERSION = 1
 
 
-@dataclass(frozen=True)
-class PromptProfile:
-    name: str
-    description: str
-    system_prompt: str
-    compatible_targets: tuple[TargetName, ...]
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "description": self.description,
-            "system_prompt": self.system_prompt,
-            "compatible_targets": list(self.compatible_targets),
-        }
-
-
-def prompt_profiles() -> tuple[PromptProfile, ...]:
-    return (
-        PromptProfile(
-            name="generic_default",
-            description="Generic software development prompt focusing on clean and correct edits.",
-            system_prompt="You are a local developer assistant. Focus on code readability, test coverage, and documentation consistency.",
-            compatible_targets=("generic",),
-        ),
-        PromptProfile(
-            name="builder_default",
-            description="builder-II self-development prompt emphasizing safety rails.",
-            system_prompt="You are a local builder-II self-development assistant. Prefer generic-first behavior and preserve safety rails.",
-            compatible_targets=("builder",),
-        ),
-        PromptProfile(
-            name="core_default",
-            description="CORE development prompt enforcing math and CGA constraints.",
-            system_prompt=CORE_INIT_SYSTEM_PROMPT,
-            compatible_targets=("core",),
-        ),
-    )
-
-
-def get_prompt_profile(name: str) -> PromptProfile:
-    profiles = {profile.name: profile for profile in prompt_profiles()}
-    try:
-        return profiles[name]
-    except KeyError as exc:
-        raise ValueError(f"unknown prompt profile: {name}") from exc
-
-
 def create_session_workflow_plan(
     settings: Settings,
     target_name: TargetName,
@@ -86,57 +43,25 @@ def create_session_workflow_plan(
     verification_profile_name: VerificationProfileName | None = None,
     repo_path: str | None = None,
 ) -> dict[str, Any]:
-    # Resolve target profile
-    t_profile = target_profile(settings, target_name)
-    resolved_repo = repo_path or str(t_profile.repo)
+    # Use the unified profile resolver
+    resolver = ProfileResolver(settings)
+    resolved = resolver.resolve(
+        target_name=target_name,
+        agent_profile_name=agent_profile_name,
+        prompt_profile_name=prompt_profile_name,
+        verification_profile_name=verification_profile_name,
+        repo_path=repo_path,
+    )
 
-    # Deterministic default resolutions
-    if agent_profile_name is None:
-        agent_defaults: dict[TargetName, AgentProfileName] = {
-            "generic": "repo_mapper",
-            "builder": "context_planner",
-            "core": "code_reviewer",
-        }
-        agent_profile_name = agent_defaults[target_name]
+    t_profile_dict = resolved.target_profile.to_artifact_dict()
+    t_profile_dict["repo"] = resolved.repo_path
+    t_profile_dict["context_defaults"] = list(resolved.context_defaults)
 
-    if prompt_profile_name is None:
-        prompt_defaults: dict[TargetName, str] = {
-            "generic": "generic_default",
-            "builder": "builder_default",
-            "core": "core_default",
-        }
-        prompt_profile_name = prompt_defaults[target_name]
+    a_profile = resolved.agent_profile
+    p_profile = resolved.prompt_profile
+    v_profile = resolved.verification_profile
+    resolved_repo = resolved.repo_path
 
-    if verification_profile_name is None:
-        verification_defaults: dict[TargetName, VerificationProfileName] = {
-            "generic": "generic_basic",
-            "builder": "builder_fast",
-            "core": "core_smoke",
-        }
-        verification_profile_name = verification_defaults[target_name]
-
-    # Retrieve and validate profiles
-    a_profile = get_agent_profile(agent_profile_name)
-    if target_name not in a_profile.compatible_targets:
-        raise ValueError(
-            f"Agent profile '{agent_profile_name}' is not compatible with target '{target_name}'"
-        )
-
-    p_profile = get_prompt_profile(prompt_profile_name)
-    if target_name not in p_profile.compatible_targets:
-        raise ValueError(
-            f"Prompt profile '{prompt_profile_name}' is not compatible with target '{target_name}'"
-        )
-
-    v_profile = get_verification_profile(verification_profile_name)
-    if target_name not in v_profile.compatible_targets:
-        raise ValueError(
-            f"Verification profile '{verification_profile_name}' is not compatible with target '{target_name}'"
-        )
-
-    # Build target profile representation (incorporating resolved repo metadata)
-    t_profile_dict = t_profile.to_artifact_dict()
-    t_profile_dict["repo"] = resolved_repo
 
     # Assemble planned commands
     planned_commands = [
@@ -152,7 +77,7 @@ def create_session_workflow_plan(
         "schema_version": SESSION_WORKFLOW_PLAN_SCHEMA_VERSION,
         "target_profile": t_profile_dict,
         "repo_path": resolved_repo,
-        "selected_agent_profile": create_agent_profile_record(a_profile, t_profile, task="governed session"),
+        "selected_agent_profile": create_agent_profile_record(a_profile, resolved.target_profile, task="governed session"),
         "selected_prompt_profile": p_profile.to_dict(),
         "selected_verification_profile": v_profile.to_artifact_dict(target=target_name, task="governed session"),
         "planned_artifacts": [
