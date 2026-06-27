@@ -7,6 +7,12 @@ import typer
 from rich.console import Console
 
 from builder_ii.config import load_settings
+from builder_ii.goose_projection import (
+    create_goose_projection,
+    dumps_goose_projection,
+    validate_goose_projection,
+    validate_goose_projection_file,
+)
 from builder_ii.session_config import (
     create_session_configuration,
     dumps_session_configuration,
@@ -79,9 +85,7 @@ def plan_session(
 
 
 @session_app.command("validate")
-def validate_session(
-    path: Path = typer.Argument(..., help="Path to session plan JSON file to validate")
-) -> None:
+def validate_session(path: Path = typer.Argument(..., help="Path to session plan JSON file to validate")) -> None:
     """Validate a session plan artifact file."""
     errors = validate_session_workflow_plan_file(path)
     if errors:
@@ -144,9 +148,7 @@ def session_config_cmd(
 
 
 @session_app.command("validate-config")
-def validate_session_config_cmd(
-    path: Path = typer.Argument(..., help="Path to session configuration JSON file to validate")
-) -> None:
+def validate_session_config_cmd(path: Path = typer.Argument(..., help="Path to session configuration JSON file to validate")) -> None:
     """Validate a governed session configuration artifact file."""
     errors = validate_session_configuration_file(path)
     if errors:
@@ -154,6 +156,56 @@ def validate_session_config_cmd(
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
     console.print(f"[green]Session configuration artifact {path} is valid.[/]")
+
+
+@session_app.command("goose-projection")
+def goose_projection_cmd(
+    config_path: Path = typer.Argument(..., help="Path to a governed session configuration JSON file"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write JSON Goose projection artifact to this path"),
+) -> None:
+    """Project a session configuration into Goose-native surfaces without launching Goose."""
+    settings = load_settings()
+    try:
+        import json as json_lib
+        session_config = json_lib.loads(config_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        console.print(f"[red]Failed to load session configuration: {exc}[/]")
+        raise typer.Exit(1)
+
+    try:
+        projection = create_goose_projection(settings, session_config)
+    except ValueError as exc:
+        console.print(f"[red]Error creating Goose projection: {exc}[/]")
+        raise typer.Exit(1)
+
+    errors = validate_goose_projection(projection)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error in generated Goose projection: {error}[/]")
+        raise typer.Exit(1)
+
+    serialized = dumps_goose_projection(projection)
+    if output is not None:
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(serialized, encoding="utf-8")
+            console.print(f"[green]Goose projection written to {output}[/]")
+        except Exception as exc:
+            console.print(f"[red]Failed to write output file: {exc}[/]")
+            raise typer.Exit(1)
+    else:
+        console.out(serialized, end="")
+
+
+@session_app.command("validate-goose-projection")
+def validate_goose_projection_cmd(path: Path = typer.Argument(..., help="Path to Goose projection JSON file to validate")) -> None:
+    """Validate a Goose projection artifact file."""
+    errors = validate_goose_projection_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error: {error}[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]Goose projection artifact {path} is valid.[/]")
 
 
 @session_app.command("goose-readonly-plan")
@@ -171,7 +223,6 @@ def goose_readonly_plan(
     settings = load_settings()
     target_norm = _normalize_target(target)
 
-    # Load context pack record if path is supplied
     context_pack_record = None
     if context_pack_path is not None:
         try:
@@ -182,10 +233,7 @@ def goose_readonly_plan(
             raise typer.Exit(1)
 
     try:
-        from builder_ii.goose_readonly_session import (
-            create_goose_readonly_session_plan,
-            validate_goose_readonly_session_plan,
-        )
+        from builder_ii.goose_readonly_session import create_goose_readonly_session_plan, validate_goose_readonly_session_plan
         plan = create_goose_readonly_session_plan(
             settings,
             target_norm,  # type: ignore[arg-type]
@@ -208,7 +256,6 @@ def goose_readonly_plan(
 
     import json as json_lib
     serialized = json_lib.dumps(plan, indent=2, sort_keys=True) + "\n"
-
     if output is not None:
         try:
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -222,9 +269,7 @@ def goose_readonly_plan(
 
 
 @session_app.command("validate-goose-readonly-plan")
-def validate_goose_readonly_plan_cmd(
-    path: Path = typer.Argument(..., help="Path to Goose read-only session plan JSON file to validate")
-) -> None:
+def validate_goose_readonly_plan_cmd(path: Path = typer.Argument(..., help="Path to Goose read-only session plan JSON file to validate")) -> None:
     """Validate a Goose read-only session plan artifact file."""
     from builder_ii.goose_readonly_session import validate_goose_readonly_session_plan_file
     errors = validate_goose_readonly_session_plan_file(path)
