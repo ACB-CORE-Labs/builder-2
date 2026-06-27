@@ -5,6 +5,13 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.research_adapters import (
+    create_research_adapter_artifact,
+    dumps_research_adapter_artifact,
+    validate_research_adapter_artifact,
+    validate_research_adapter_artifact_file,
+    write_research_adapter_artifact,
+)
 from builder_ii.research_plans import (
     create_research_plan_artifact,
     dumps_research_plan_artifact,
@@ -113,3 +120,47 @@ def validate(path: Path) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     console.print(f"Research plan artifact {path} is valid.")
+
+
+@research_app.command("adapter")
+def adapter(
+    target: str = typer.Option("generic", "--target"),
+    topic: str = typer.Option(..., "--topic"),
+    research_question: str = typer.Option(..., "--research-question"),
+    plan_path: Path = typer.Option(..., "--plan-path"),
+    plan_sha256: str = typer.Option(..., "--plan-sha256"),
+    output_contract: list[str] = typer.Option([], "--output-contract"),
+    review_note: list[str] = typer.Option([], "--review-note"),
+    output: Path | None = typer.Option(None, "--output"),
+) -> None:
+    """Create a research adapter artifact without invoking external research."""
+    artifact = create_research_adapter_artifact(
+        target=_target(target),
+        topic=topic,
+        research_question=research_question,
+        plan_path=plan_path,
+        plan_sha256=plan_sha256,
+        output_contract=tuple(output_contract),
+        review_notes=tuple(review_note),
+    )
+    errors = validate_research_adapter_artifact(artifact)
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+    if output is not None:
+        write_research_adapter_artifact(artifact, output)
+        console.print(f"Research adapter artifact written to {output}")
+    else:
+        console.out(dumps_research_adapter_artifact(artifact), end="")
+
+
+@research_app.command("validate-adapter")
+def validate_adapter(path: Path) -> None:
+    """Validate a research adapter artifact without invoking it."""
+    errors = validate_research_adapter_artifact_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+    console.print(f"Research adapter artifact {path} is valid.")
