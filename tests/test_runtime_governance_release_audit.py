@@ -32,12 +32,14 @@ def test_release_audit_covers_completed_foundation_surfaces() -> None:
         "HITL execution artifact CLI",
         "HITL patch application spec",
         "Rollback plan/receipt artifacts",
+        "execution postflight and verification record specs",
         "Command surface audit",
         "Registry closure",
         "builder_ii/hitl_execution_records.py",
         "builder_ii/hitl_execution_cli.py",
         "builder_ii/hitl_patch_spec.py",
         "builder_ii/rollback_artifacts.py",
+        "builder_ii/execution_postflight_records.py",
         "docs/COMMAND_SURFACE_AUDIT.md",
         "docs/ARTIFACT_INDEX.md",
     ]
@@ -53,6 +55,8 @@ def test_release_audit_lists_runtime_governance_artifact_kinds() -> None:
         "builder_ii.hitl_patch_application_spec",
         "builder_ii.rollback_plan",
         "builder_ii.rollback_receipt",
+        "builder_ii.execution_postflight_record",
+        "builder_ii.execution_verification_record",
     ):
         assert kind in text
 

@@ -33,6 +33,12 @@ from builder_ii.hitl_execution_records import HITL_EXECUTION_RECEIPT_KIND, valid
 from builder_ii.hitl_patch_spec import HITL_PATCH_APPLICATION_SPEC_KIND, validate_hitl_patch_application_spec
 from builder_ii.rollback_artifacts import ROLLBACK_PLAN_KIND, validate_rollback_plan
 from builder_ii.rollback_artifacts import ROLLBACK_RECEIPT_KIND, validate_rollback_receipt
+from builder_ii.execution_postflight_records import (
+    EXECUTION_POSTFLIGHT_RECORD_KIND,
+    validate_execution_postflight_record,
+    EXECUTION_VERIFICATION_RECORD_KIND,
+    validate_execution_verification_record,
+)
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -63,6 +69,8 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_PATCH_APPLICATION_SPEC_KIND: validate_hitl_patch_application_spec,
     ROLLBACK_PLAN_KIND: validate_rollback_plan,
     ROLLBACK_RECEIPT_KIND: validate_rollback_receipt,
+    EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
+    EXECUTION_VERIFICATION_RECORD_KIND: validate_execution_verification_record,
 }
 
 

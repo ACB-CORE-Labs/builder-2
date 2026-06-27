@@ -28,6 +28,12 @@ from builder_ii.rollback_artifacts import (
     create_rollback_plan,
     create_rollback_receipt,
 )
+from builder_ii.execution_postflight_records import (
+    EXECUTION_POSTFLIGHT_RECORD_KIND,
+    EXECUTION_VERIFICATION_RECORD_KIND,
+    create_execution_postflight_record,
+    create_execution_verification_record,
+)
 
 
 CLOSURE_KINDS = {
@@ -46,10 +52,12 @@ CLOSURE_KINDS = {
     HITL_PATCH_APPLICATION_SPEC_KIND,
     ROLLBACK_PLAN_KIND,
     ROLLBACK_RECEIPT_KIND,
+    EXECUTION_POSTFLIGHT_RECORD_KIND,
+    EXECUTION_VERIFICATION_RECORD_KIND,
 }
 
 # ---------------------------------------------------------------------------
-# Governance artifact kinds added in PR W / PR X / PR Y
+# Governance artifact kinds added in PR W / PR X / PR Y / PR AD
 # ---------------------------------------------------------------------------
 
 GOVERNANCE_ARTIFACT_KINDS = {
@@ -58,6 +66,8 @@ GOVERNANCE_ARTIFACT_KINDS = {
     HITL_PATCH_APPLICATION_SPEC_KIND,
     ROLLBACK_PLAN_KIND,
     ROLLBACK_RECEIPT_KIND,
+    EXECUTION_POSTFLIGHT_RECORD_KIND,
+    EXECUTION_VERIFICATION_RECORD_KIND,
 }
 
 
@@ -149,6 +159,27 @@ def _rollback_receipt() -> dict[str, Any]:
     )
 
 
+def _execution_postflight_record() -> dict[str, Any]:
+    return create_execution_postflight_record(
+        target_name="generic",
+        request_ref="request.json",
+        receipt_ref="receipt.json",
+        preflight_ref="preflight.json",
+        approval_ref="approval.json",
+        expected_outcome="outcome",
+        observed_state_ref="state",
+    )
+
+
+def _execution_verification_record() -> dict[str, Any]:
+    return create_execution_verification_record(
+        target_name="generic",
+        request_ref="request.json",
+        receipt_ref="receipt.json",
+        postflight_ref="postflight.json",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Original closure tests
 # ---------------------------------------------------------------------------
@@ -216,7 +247,7 @@ def test_governance_artifact_kinds_are_registered_in_both_registries() -> None:
 
 
 def test_governance_artifact_fixtures_validate_through_both_registries() -> None:
-    """Creates valid fixtures for all five governance artifact kinds and
+    """Creates valid fixtures for all governance artifact kinds and
     validates them through both registries."""
     fixtures = [
         _hitl_execution_request(),
@@ -224,6 +255,8 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
         _hitl_patch_application_spec(),
         _rollback_plan(),
         _rollback_receipt(),
+        _execution_postflight_record(),
+        _execution_verification_record(),
     ]
 
     for record in fixtures:
@@ -235,7 +268,7 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
 
 
 def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> None:
-    """Writes all five governance artifact fixtures to disk and asserts the
+    """Writes all governance artifact fixtures to disk and asserts the
     artifact index recognizes them all as known and valid."""
     fixtures = {
         "hitl-request.json": _hitl_execution_request(),
@@ -243,13 +276,15 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
         "hitl-patch-spec.json": _hitl_patch_application_spec(),
         "rollback-plan.json": _rollback_plan(),
         "rollback-receipt.json": _rollback_receipt(),
+        "postflight.json": _execution_postflight_record(),
+        "verification.json": _execution_verification_record(),
     }
     for filename, artifact in fixtures.items():
         _write(tmp_path / filename, artifact)
 
     index = create_artifact_index_record(tmp_path)
 
-    assert index["counts"] == {"total": 5, "known": 5, "unknown": 0, "valid": 5, "invalid": 0}
+    assert index["counts"] == {"total": 7, "known": 7, "unknown": 0, "valid": 7, "invalid": 0}
     assert validate_artifact_index_record(index) == []
 
     indexed_kinds = {entry["kind"] for entry in index["artifacts"]}
@@ -269,6 +304,8 @@ def test_governance_artifacts_are_not_chain_evidence() -> None:
         _hitl_patch_application_spec(),
         _rollback_plan(),
         _rollback_receipt(),
+        _execution_postflight_record(),
+        _execution_verification_record(),
     ]
 
     for record in fixtures:
@@ -279,7 +316,7 @@ def test_governance_artifacts_are_not_chain_evidence() -> None:
 
 
 def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
-    """Writes all five governance artifacts and runs chain verification.
+    """Writes all governance artifacts and runs chain verification.
     All should be natively valid with zero links and zero errors."""
     fixtures = {
         "hitl-request.json": _hitl_execution_request(),
@@ -287,6 +324,8 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
         "hitl-patch-spec.json": _hitl_patch_application_spec(),
         "rollback-plan.json": _rollback_plan(),
         "rollback-receipt.json": _rollback_receipt(),
+        "postflight.json": _execution_postflight_record(),
+        "verification.json": _execution_verification_record(),
     }
     paths = []
     for filename, artifact in fixtures.items():
@@ -297,8 +336,8 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
     report = verify_artifact_chain(paths)
 
     assert report["valid"] is True
-    assert report["counts"]["files"] == 5
-    assert report["counts"]["native_valid"] == 5
+    assert report["counts"]["files"] == 7
+    assert report["counts"]["native_valid"] == 7
     assert report["counts"]["native_invalid"] == 0
     assert report["counts"]["links"] == 0
     assert report["counts"]["broken_links"] == 0

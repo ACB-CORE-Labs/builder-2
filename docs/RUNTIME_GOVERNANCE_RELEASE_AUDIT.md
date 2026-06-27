@@ -8,8 +8,7 @@
 builder-II is a generic governed local agent/developer platform.
 
 builder-II is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
-
-This audit covers the current builder-II governance foundation after the HITL command execution spec, HITL execution request/receipt artifacts, HITL execution artifact CLI, HITL patch application spec, rollback artifacts, command surface audit, and registry closure sweep.
+This audit covers the current builder-II governance foundation after the HITL command execution spec, HITL execution request/receipt artifacts, HITL execution artifact CLI, HITL patch application spec, rollback artifacts, execution postflight and verification record specs, command surface audit, and registry closure sweep.
 
 ## 2. Completed Runtime-Governance Foundation
 
@@ -20,6 +19,7 @@ The current foundation includes these merged surfaces:
 - HITL execution artifact CLI: `builder_ii/hitl_execution_cli.py`, `docs/HITL_EXECUTION_CLI.md`, `tests/test_hitl_execution_cli.py`
 - HITL patch application spec: `builder_ii/hitl_patch_spec.py`, `docs/HITL_PATCH_SPEC.md`, `tests/test_hitl_patch_spec.py`
 - Rollback plan/receipt artifacts: `builder_ii/rollback_artifacts.py`, `docs/ROLLBACK_ARTIFACTS.md`, `tests/test_rollback_artifacts.py`
+- Execution postflight and verification record specs: `builder_ii/execution_postflight_records.py`, `docs/EXECUTION_POSTFLIGHT_RECORDS.md`, `tests/test_execution_postflight_records.py`
 - Command surface audit: `docs/COMMAND_SURFACE_AUDIT.md`, `tests/test_command_surface_audit.py`
 - Registry closure: `builder_ii/artifact_index_records.py`, `builder_ii/artifact_chain_verification.py`, `docs/ARTIFACT_INDEX.md`, `tests/test_registry_closure.py`
 
@@ -34,6 +34,8 @@ The artifact index registry and chain verification registry account for these ru
 - `builder_ii.hitl_patch_application_spec`
 - `builder_ii.rollback_plan`
 - `builder_ii.rollback_receipt`
+- `builder_ii.execution_postflight_record`
+- `builder_ii.execution_verification_record`
 
 The registry closure sweep validates these kinds natively and documents that they currently produce no outbound chain references. If future PRs add cross-record SHA references, the chain reference extractor must be updated and tested then.
 
