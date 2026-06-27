@@ -4,7 +4,7 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
-from builder_ii.promotion_compatibility import support_artifact_kinds, validate_support_artifacts
+from builder_ii.promotion_compatibility import validate_support_artifacts
 
 PROMOTION_READINESS_RECORD_KIND = "builder_ii.promotion_readiness_record"
 PROMOTION_READINESS_RECORD_SCHEMA_VERSION = 1
@@ -19,7 +19,6 @@ _REQUIRED_CHECKS = (
     "rollback_path",
     "verification_path",
 )
-_TARGETS = {"generic", "builder", "core"}
 
 
 def _clean(value: str | None) -> str:
@@ -119,7 +118,6 @@ def _string_list_errors(value: Any, *, field: str) -> list[str]:
 
 
 def _validate_check(check: Any, index: int) -> list[str]:
-    """Validate shape of a single check entry."""
     errors: list[str] = []
     prefix = f"checks[{index}]"
     if not isinstance(check, dict):
@@ -130,7 +128,6 @@ def _validate_check(check: Any, index: int) -> list[str]:
     if not isinstance(check.get("ready"), bool):
         errors.append(f"{prefix}.ready must be a boolean")
     errors.extend(_string_list_errors(check.get("missing"), field=f"{prefix}.missing"))
-    # Cross-field consistency within check
     if isinstance(check.get("refs"), list) and isinstance(check.get("ready"), bool):
         expected_ready = bool(check["refs"])
         if check["ready"] != expected_ready:
@@ -141,6 +138,13 @@ def _validate_check(check: Any, index: int) -> list[str]:
         if not check["refs"] and not check["missing"]:
             errors.append(f"{prefix} must have missing items when refs are empty")
     return errors
+
+
+def _support_errors(record: dict[str, Any], target: Any) -> list[str]:
+    support_artifacts = record.get("support_artifacts", [])
+    if not isinstance(support_artifacts, list):
+        return ["support_artifacts must be a list"]
+    return validate_support_artifacts(support_artifacts, expected_target=target if isinstance(target, str) else "")
 
 
 def validate_promotion_readiness_record(record: Any) -> list[str]:
@@ -171,7 +175,6 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
     elif record.get("ready") is not (record.get("status") == "ready"):
         errors.append("ready must match status")
     errors.extend(_string_list_errors(record.get("missing"), field="missing"))
-    # Validate checks structure and required check names
     checks = record.get("checks")
     if not isinstance(checks, list):
         errors.append("checks must be a list")
@@ -182,7 +185,6 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
         for required in _REQUIRED_CHECKS:
             if required not in names:
                 errors.append(f"missing check: {required}")
-        # Validate aggregate missing matches check-level missing
         if isinstance(record.get("missing"), list):
             check_missing = [
                 item
@@ -190,21 +192,20 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
                 if isinstance(check, dict) and isinstance(check.get("missing"), list)
                 for item in check["missing"]
             ]
-            # Top-level missing may include extra entries like "capability_name is required"
-            # but must contain all check-level missing items
             top_missing = record["missing"]
             for item in check_missing:
                 if item not in top_missing:
                     errors.append(f"missing must include check-level item: {item}")
-    support_artifacts = record.get("support_artifacts", [])
-    errors.extend(validate_support_artifacts(support_artifacts, expected_target=target if isinstance(target, str) else ""))
+    support_errors = _support_errors(record, target)
     if isinstance(record.get("missing"), list):
-        compatibility_missing = [f"support_artifacts: {error}" for error in validate_support_artifacts(support_artifacts, expected_target=target if isinstance(target, str) else "")]
+        compatibility_missing = [f"support_artifacts: {error}" for error in support_errors]
         if compatibility_missing and record.get("ready") is True:
             errors.append("ready must be false when support_artifacts are incompatible")
         for item in compatibility_missing:
             if item not in record["missing"]:
                 errors.append(f"missing must include compatibility item: {item}")
+    elif support_errors:
+        errors.extend(support_errors)
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
