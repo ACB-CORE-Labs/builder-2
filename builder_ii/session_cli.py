@@ -85,5 +85,84 @@ def validate_session(
     console.print(f"[green]Session plan artifact {path} is valid.[/]")
 
 
+@session_app.command("goose-readonly-plan")
+def goose_readonly_plan(
+    target: str = typer.Argument(..., help="Target profile name: generic | builder | core"),
+    agent: Optional[str] = typer.Option(None, "--agent", help="Explicit agent profile name override"),
+    prompt: Optional[str] = typer.Option(None, "--prompt", help="Explicit prompt profile name override"),
+    verification: Optional[str] = typer.Option(None, "--verification", help="Explicit verification profile name override"),
+    repo_path: Optional[str] = typer.Option(None, "--repo-path", help="Explicit target repo path override (metadata only)"),
+    task: str = typer.Option("", "--task", help="Optional task description"),
+    context_pack_path: Optional[Path] = typer.Option(None, "--context-pack", help="Optional path to a context pack record JSON to embed"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write JSON plan artifact to this path"),
+) -> None:
+    """Generate a governed, read-only Goose session plan."""
+    settings = load_settings()
+    target_norm = _normalize_target(target)
+
+    # Load context pack record if path is supplied
+    context_pack_record = None
+    if context_pack_path is not None:
+        try:
+            import json as json_lib
+            context_pack_record = json_lib.loads(context_pack_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            console.print(f"[red]Failed to load context pack record: {exc}[/]")
+            raise typer.Exit(1)
+
+    try:
+        from builder_ii.goose_readonly_session import (
+            create_goose_readonly_session_plan,
+            validate_goose_readonly_session_plan,
+        )
+        plan = create_goose_readonly_session_plan(
+            settings,
+            target_norm,  # type: ignore[arg-type]
+            agent_profile_name=agent,  # type: ignore[arg-type]
+            prompt_profile_name=prompt,
+            verification_profile_name=verification,  # type: ignore[arg-type]
+            repo_path=repo_path,
+            context_pack_record=context_pack_record,
+            task=task,
+        )
+    except ValueError as exc:
+        console.print(f"[red]Error resolving profiles: {exc}[/]")
+        raise typer.Exit(1)
+
+    errors = validate_goose_readonly_session_plan(plan)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error in generated plan: {error}[/]")
+        raise typer.Exit(1)
+
+    import json as json_lib
+    serialized = json_lib.dumps(plan, indent=2, sort_keys=True) + "\n"
+
+    if output is not None:
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(serialized, encoding="utf-8")
+            console.print(f"[green]Goose read-only session plan written to {output}[/]")
+        except Exception as exc:
+            console.print(f"[red]Failed to write output file: {exc}[/]")
+            raise typer.Exit(1)
+    else:
+        console.out(serialized, end="")
+
+
+@session_app.command("validate-goose-readonly-plan")
+def validate_goose_readonly_plan_cmd(
+    path: Path = typer.Argument(..., help="Path to Goose read-only session plan JSON file to validate")
+) -> None:
+    """Validate a Goose read-only session plan artifact file."""
+    from builder_ii.goose_readonly_session import validate_goose_readonly_session_plan_file
+    errors = validate_goose_readonly_session_plan_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error: {error}[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]Goose read-only session plan artifact {path} is valid.[/]")
+
+
 if __name__ == "__main__":
     session_app()
