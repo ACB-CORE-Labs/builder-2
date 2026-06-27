@@ -28,7 +28,7 @@ The artifact is not authority. It cannot grant permissions, bypass system guards
 
 ## Future Governed Patch Path
 
-When the capability is promoted to active runtime (after all required gates pass and a human operator explicitly authorises), the governed state machine must traverse the following eight stages in order:
+When the capability is promoted to active runtime only after all required gates pass and a human operator explicitly authorizes it, the governed state machine must traverse the following eight stages in order:
 
 1. **patch proposal** — A structured proposal artifact is created describing the exact diff, target file(s), target repository, rationale, and expected effect. No file is touched at this stage.
 2. **human approval record** — An explicit human approval record is created and persisted. Automated approval is not permitted. The record is the authority for all downstream stages.
@@ -36,7 +36,7 @@ When the capability is promoted to active runtime (after all required gates pass
 4. **explicit patch application request** — A separate, intentional invocation (distinct from proposal creation) requests application, bound to an approved preflight state. This is not automatic.
 5. **patch application receipt** — The result of the application (success, failure, diff applied, file hashes before/after, timing) is captured in a receipt artifact.
 6. **rollback artifact** — A rollback artifact is produced alongside every application receipt, containing the inverse patch and the pre-application snapshot necessary to restore the target to its prior state.
-7. **verification record** — Post-application state is verified against expected hashes and a test gate. The verification record is persisted. If verification fails, the rollback path is invoked automatically.
+7. **verification record** — Post-application state is verified against expected hashes and a test gate. If verification fails, the human-gated rollback path becomes available through its own approval/request/receipt chain; rollback is not automatic.
 8. **handoff/postflight** — The full chain (proposal → approval → preflight → receipt → rollback → verification) is indexed into the artifact chain and a handoff record is produced.
 
 ---
@@ -80,6 +80,7 @@ All of the following quality and safety gates must pass before any promotion to 
 | Field | Value |
 |---|---|
 | `capability_state` | `DESIGN_ONLY` |
+| `runtime_execution` | `DISABLED` |
 | `patch_application` | `DISABLED` |
 | `source_writes` | `DISABLED` |
 | `file_mutation` | `DISABLED` |
