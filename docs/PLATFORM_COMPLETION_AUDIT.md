@@ -28,6 +28,7 @@ The following structural and metadata tracking foundations are fully completed a
 * **performance measurements**
 * **readonly inspection promotion spec**
 * **readonly inspection reports**
+* **readonly inspection promotion wiring**
 
 ## Current Runtime-Candidate Capability
 The only current runtime-candidate capability is:
@@ -61,8 +62,22 @@ The following capabilities and runtimes are not yet promoted:
 * **Deepagents runtime is disabled**: The deepagents bridge/runtime is not enabled.
 * **Goose runtime is disabled**: The Goose runtime environment is not enabled.
 
+## Release Verification Checklist
+Use this checklist when validating the current governed platform state. Paths shown are examples; operators must supply real artifact paths for their run.
+
+```bash
+uv run pytest -q
+builder-index validate <artifact-index>
+builder-chain verify <artifact-path>...
+builder-promotion record --capability-name <name> --target <target> ...
+builder-promotion-decision record <promotion-readiness>
+builder-state-index validate <state-index>
+builder-snapshot validate <snapshot>
+builder-inspect report --target <target> --purpose review --path <explicit-file> --output <readonly-inspection-report>
+builder-inspect validate <readonly-inspection-report>
+```
+
 ## Next Arcs
-* **readonly inspection promotion evidence**
 * **HITL command execution spec**
 * **execution receipts**
 * **HITL patch proposal/application artifacts**
