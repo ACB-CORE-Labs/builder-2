@@ -49,6 +49,11 @@ from builder_ii.goose_readonly_session import (
     validate_goose_readonly_session_plan,
 )
 
+from builder_ii.handoff_notes import (
+    HANDOFF_NOTE_KIND,
+    validate_handoff_note,
+)
+
 
 
 
@@ -100,6 +105,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_EVIDENCE_BUNDLE_KIND: validate_hitl_evidence_bundle,
     SESSION_WORKFLOW_PLAN_KIND: validate_session_workflow_plan,
     GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
+    HANDOFF_NOTE_KIND: validate_handoff_note,
 }
 
 
