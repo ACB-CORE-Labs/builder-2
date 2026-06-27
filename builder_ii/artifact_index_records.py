@@ -53,6 +53,10 @@ from builder_ii.handoff_notes import (
     HANDOFF_NOTE_KIND,
     validate_handoff_note,
 )
+from builder_ii.deepagents_bridge_readiness import (
+    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
+    validate_deepagents_bridge_readiness_report,
+)
 
 
 
@@ -106,6 +110,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     SESSION_WORKFLOW_PLAN_KIND: validate_session_workflow_plan,
     GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
     HANDOFF_NOTE_KIND: validate_handoff_note,
+    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
 }
 
 
