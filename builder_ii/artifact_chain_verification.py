@@ -60,6 +60,10 @@ from builder_ii.verification_profile_reports import (
     VERIFICATION_PROFILE_REPORT_KIND,
     validate_verification_profile_report,
 )
+from builder_ii.session_config import SESSION_CONFIG_KIND, validate_session_configuration
+from builder_ii.goose_projection import GOOSE_PROJECTION_KIND, validate_goose_projection
+from builder_ii.goose_wrapper_plan import GOOSE_WRAPPER_PLAN_KIND, validate_goose_wrapper_plan
+from builder_ii.orchestration_plan import ORCHESTRATION_PLAN_KIND, validate_orchestration_plan
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -98,6 +102,10 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_SESSION_KIND: validate_goose_session_manifest,
     HANDOFF_KIND: validate_handoff_artifact,
     VERIFICATION_PROFILE_REPORT_KIND: validate_verification_profile_report,
+    SESSION_CONFIG_KIND: validate_session_configuration,
+    GOOSE_PROJECTION_KIND: validate_goose_projection,
+    GOOSE_WRAPPER_PLAN_KIND: validate_goose_wrapper_plan,
+    ORCHESTRATION_PLAN_KIND: validate_orchestration_plan,
 }
 
 
