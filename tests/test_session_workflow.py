@@ -126,6 +126,9 @@ def test_cli_plan() -> None:
 
 
 def test_cli_plan_overrides_and_output(tmp_path: Path) -> None:
+    custom_repo = tmp_path / "custom_repo"
+    custom_repo.mkdir()
+    (custom_repo / "README.md").write_text("custom", encoding="utf-8")
     output_file = tmp_path / "session-plan.json"
     result = runner.invoke(
         session_app,
@@ -139,7 +142,7 @@ def test_cli_plan_overrides_and_output(tmp_path: Path) -> None:
             "--verification",
             "builder_full",
             "--repo-path",
-            "/custom/repo/path",
+            str(custom_repo),
             "--output",
             str(output_file),
         ],
@@ -152,7 +155,7 @@ def test_cli_plan_overrides_and_output(tmp_path: Path) -> None:
     assert data["target_profile"]["name"] == "builder"
     assert data["selected_agent_profile"]["name"] == "code_reviewer"
     assert data["selected_verification_profile"]["name"] == "builder_full"
-    assert data["repo_path"] == "/custom/repo/path"
+    assert data["repo_path"] == str(custom_repo.resolve())
 
     # Validate output file via CLI
     validate_result = runner.invoke(session_app, ["validate", str(output_file)])
