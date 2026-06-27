@@ -248,6 +248,10 @@ def validate_hitl_execution_receipt(artifact: Any) -> list[str]:
         if not target.get("repo"):
             errors.append("target.repo is required")
 
+    # Receipt must be bound to an execution request artifact
+    if not isinstance(artifact.get("request_ref"), str) or not artifact["request_ref"]:
+        errors.append("request_ref is required")
+
     # Execution state must be NOT_EXECUTED
     if artifact.get("execution_state") != "NOT_EXECUTED":
         errors.append("execution_state must be NOT_EXECUTED")
