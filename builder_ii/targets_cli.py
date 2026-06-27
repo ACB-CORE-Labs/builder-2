@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.table import Table
 
 from builder_ii.config import load_settings
+from builder_ii.target_profile_demos import get_target_profile_demo, render_target_profile_demo, validate_target_profile_demos
 from builder_ii.target_profiles import (
     TargetName,
     build_target_profiles,
@@ -62,8 +63,7 @@ def validate(path: Path | None = typer.Argument(None, help="Validate target prof
         console.print(f"Target profile artifact {path} is valid.")
         return
 
-    settings = load_settings()
-    errors = validate_target_profiles(settings)
+    errors = [*validate_target_profiles(load_settings()), *validate_target_profile_demos()]
     if not errors:
         console.print("[green]Target profiles valid[/]")
         return
@@ -91,3 +91,14 @@ def artifact(
         console.print(f"Target profile artifact written to {output}")
     else:
         console.out(dumps_target_profile_artifact(profile), end="")
+
+
+@targets_app.command("demo")
+def demo(name: str) -> None:
+    """Show a no-runtime target profile demo recipe."""
+    errors = validate_target_profile_demos()
+    if errors:
+        for error in errors:
+            console.print(f"Validation error: {error}")
+        raise typer.Exit(1)
+    console.print(render_target_profile_demo(get_target_profile_demo(_normalize_target(name))))
