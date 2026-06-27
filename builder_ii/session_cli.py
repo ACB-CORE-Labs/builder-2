@@ -13,6 +13,12 @@ from builder_ii.goose_projection import (
     validate_goose_projection,
     validate_goose_projection_file,
 )
+from builder_ii.goose_wrapper_plan import (
+    create_goose_wrapper_plan,
+    dumps_goose_wrapper_plan,
+    validate_goose_wrapper_plan,
+    validate_goose_wrapper_plan_file,
+)
 from builder_ii.session_config import (
     create_session_configuration,
     dumps_session_configuration,
@@ -35,6 +41,20 @@ def _normalize_target(value: str) -> str:
         console.print("[red]target must be one of: generic, builder, core[/]")
         raise typer.Exit(1)
     return value
+
+
+def _load_json_object(path: Path, label: str) -> dict:
+    try:
+        import json as json_lib
+
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        console.print(f"[red]Failed to load {label}: {exc}[/]")
+        raise typer.Exit(1)
+    if not isinstance(data, dict):
+        console.print(f"[red]{label} must be a JSON object[/]")
+        raise typer.Exit(1)
+    return data
 
 
 @session_app.command("plan")
@@ -163,14 +183,9 @@ def goose_projection_cmd(
     config_path: Path = typer.Argument(..., help="Path to a governed session configuration JSON file"),
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write JSON Goose projection artifact to this path"),
 ) -> None:
-    """Project a session configuration into Goose-native surfaces without launching Goose."""
+    """Project a session configuration into Goose-native surfaces without starting Goose."""
     settings = load_settings()
-    try:
-        import json as json_lib
-        session_config = json_lib.loads(config_path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        console.print(f"[red]Failed to load session configuration: {exc}[/]")
-        raise typer.Exit(1)
+    session_config = _load_json_object(config_path, "session configuration")
 
     try:
         projection = create_goose_projection(settings, session_config)
@@ -206,6 +221,49 @@ def validate_goose_projection_cmd(path: Path = typer.Argument(..., help="Path to
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
     console.print(f"[green]Goose projection artifact {path} is valid.[/]")
+
+
+@session_app.command("goose-wrapper-plan")
+def goose_wrapper_plan_cmd(
+    projection_path: Path = typer.Argument(..., help="Path to Goose projection JSON file"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write JSON Goose wrapper plan artifact to this path"),
+) -> None:
+    """Render an operator-reviewed Goose wrapper plan artifact."""
+    projection = _load_json_object(projection_path, "Goose projection")
+    try:
+        plan = create_goose_wrapper_plan(projection)
+    except ValueError as exc:
+        console.print(f"[red]Error creating Goose wrapper plan: {exc}[/]")
+        raise typer.Exit(1)
+
+    errors = validate_goose_wrapper_plan(plan)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error in generated Goose wrapper plan: {error}[/]")
+        raise typer.Exit(1)
+
+    serialized = dumps_goose_wrapper_plan(plan)
+    if output is not None:
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(serialized, encoding="utf-8")
+            console.print(f"[green]Goose wrapper plan written to {output}[/]")
+        except Exception as exc:
+            console.print(f"[red]Failed to write output file: {exc}[/]")
+            raise typer.Exit(1)
+    else:
+        console.out(serialized, end="")
+
+
+@session_app.command("validate-goose-wrapper-plan")
+def validate_goose_wrapper_plan_cmd(path: Path = typer.Argument(..., help="Path to Goose wrapper plan JSON file to validate")) -> None:
+    """Validate a Goose wrapper plan artifact file."""
+    errors = validate_goose_wrapper_plan_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error: {error}[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]Goose wrapper plan artifact {path} is valid.[/]")
 
 
 @session_app.command("goose-readonly-plan")
