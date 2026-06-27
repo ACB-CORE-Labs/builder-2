@@ -9,6 +9,10 @@ from builder_ii.promotion_readiness_cli import promotion_app
 from builder_ii.promotion_readiness_records import create_promotion_readiness_record, validate_promotion_readiness_record
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND
 from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND
+from builder_ii.readonly_inspection_reports import (
+    READONLY_INSPECTION_REPORT_KIND,
+    create_readonly_inspection_report,
+)
 
 
 def _support_refs(target: str = "builder") -> list[dict]:
@@ -126,3 +130,62 @@ def test_promotion_cli_accepts_explicit_support_artifact_refs() -> None:
     assert result.exit_code == 0
     assert '"target": "builder"' in result.stdout
     assert '"support_artifacts"' in result.stdout
+
+
+def test_readonly_inspection_report_promotion_support_cases(tmp_path) -> None:
+    # 1. Existing promotion readiness records (no support_artifacts) remain backward compatible
+    record_none = create_promotion_readiness_record(target="builder", support_artifacts=None, **_ready_kwargs())
+    assert record_none["status"] == "ready"
+    assert record_none["ready"] is True
+    assert validate_promotion_readiness_record(record_none) == []
+
+    # 2. Baseline support artifacts still work as before
+    baseline = _support_refs("builder")
+    record_baseline = create_promotion_readiness_record(target="builder", support_artifacts=baseline, **_ready_kwargs())
+    assert record_baseline["status"] == "ready"
+    assert record_baseline["ready"] is True
+    assert validate_promotion_readiness_record(record_baseline) == []
+
+    # 3. builder_ii.readonly_inspection_report is accepted as a support artifact in addition to the required baseline
+    source = tmp_path / "file.txt"
+    source.write_text("hello", encoding="utf-8")
+    report = create_readonly_inspection_report(target="builder", purpose="review", paths=[source])
+    report_ref = create_support_artifact_ref(report, path="readonly-report.json")
+
+    extended_support = baseline + [report_ref]
+    record_extended = create_promotion_readiness_record(target="builder", support_artifacts=extended_support, **_ready_kwargs())
+    assert record_extended["status"] == "ready"
+    assert record_extended["ready"] is True
+    assert validate_promotion_readiness_record(record_extended) == []
+
+    # 4. readonly_inspection_report alone is invalid because required baseline is missing
+    record_alone = create_promotion_readiness_record(target="builder", support_artifacts=[report_ref], **_ready_kwargs())
+    assert record_alone["status"] == "blocked"
+    assert record_alone["ready"] is False
+    assert any("missing support artifact kind" in item for item in record_alone["missing"])
+    assert validate_promotion_readiness_record(record_alone) == []
+
+    # 5. wrong target mismatch is rejected
+    report_wrong_target = create_readonly_inspection_report(target="core", purpose="review", paths=[source])
+    report_wrong_ref = create_support_artifact_ref(report_wrong_target, path="readonly-report.json")
+    extended_wrong = baseline + [report_wrong_ref]
+    record_wrong = create_promotion_readiness_record(target="builder", support_artifacts=extended_wrong, **_ready_kwargs())
+    assert record_wrong["status"] == "blocked"
+    assert any("target must match readiness target builder" in item for item in record_wrong["missing"])
+    assert validate_promotion_readiness_record(record_wrong) == []
+
+    # 6. unsupported kind is still rejected
+    bad_ref = {"kind": "builder_ii.unsupported_kind", "path": "bad.json", "sha256": "123", "target": "builder"}
+    extended_bad = baseline + [bad_ref]
+    record_bad = create_promotion_readiness_record(target="builder", support_artifacts=extended_bad, **_ready_kwargs())
+    assert record_bad["status"] == "blocked"
+    assert any("must be a known promotion support artifact kind" in item for item in record_bad["missing"])
+    assert validate_promotion_readiness_record(record_bad) == []
+
+    # 7. report artifact does not grant authority by itself
+    assert report["governance"]["artifact_is_authority"] is False
+    assert report["governance"]["runtime_execution"] == "EXPLICIT_READ_ONLY"
+    assert report["governance"]["shell_execution"] == "DISABLED"
+    assert report["governance"]["model_execution"] == "DISABLED"
+    assert report["governance"]["network_access"] == "DISABLED"
+    assert report["governance"]["source_writes"] == "DISABLED"
