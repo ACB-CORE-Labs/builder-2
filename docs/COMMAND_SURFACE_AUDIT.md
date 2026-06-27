@@ -59,3 +59,10 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - no deepagents runtime is enabled
 - builder-II is not CORE Workbench/UI
 - CORE is only a target profile
+
+
+## Reconciliation additions
+
+These command surfaces are registered in `pyproject.toml` and remain governed by builder-II's default no-autonomous-execution boundary unless their specific documentation states a narrower read-only or artifact-only behavior.
+
+- `builder-orchestration`

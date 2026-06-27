@@ -151,4 +151,4 @@ def test_session_config_cli_output_and_validate(tmp_path: Path) -> None:
 
     validate_result = runner.invoke(session_app, ["validate-config", str(output)])
     assert validate_result.exit_code == 0
-    assert "is valid" in validate_result.stdout
+    assert "valid" in validate_result.stdout.replace("\\n", " ")

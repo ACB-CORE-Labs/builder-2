@@ -155,6 +155,9 @@ def test_full_governed_preparation_lane_for_generic_target(tmp_path: Path) -> No
 
 def test_builder_target_preparation_lane_remains_separate_from_core_workbench(tmp_path: Path) -> None:
     settings = load_settings(project_root=tmp_path / "builder-II")
+    builder_repo = tmp_path / "builder-II"
+    builder_repo.mkdir(exist_ok=True)
+
     session_config = create_session_configuration(
         settings,
         "builder",
