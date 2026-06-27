@@ -69,6 +69,22 @@ class CommandAuthorityRecord:
     allows_readonly_subprocess: bool = False
     allows_external_tool_invocation: bool = False
 
+    @property
+    def is_command_group(self) -> bool:
+        return self.name in (
+            "builder",
+            "builder-context",
+            "builder-goose",
+            "builder-deepagents",
+            "builder-hitl",
+            "builder-orchestration",
+            "builder-session",
+        )
+
+    @property
+    def authority_delegates_to_subcommands(self) -> bool:
+        return self.is_command_group
+
 
 # A curated list of subcommands that must be explicitly classified
 REQUIRED_SUBCOMMANDS = {

@@ -47,6 +47,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.execution_verification_record`
 - `builder_ii.hitl_evidence_bundle`
 - `builder_ii.session_workflow_plan`
+- `builder_ii.convention_kernel_platform_bundle`
 
 ## Governance / spec / record artifacts
 
@@ -63,6 +64,7 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.execution_verification_record` | Governance record | PR AD |
 | `builder_ii.hitl_evidence_bundle` | Evidence bundle index | PR AE |
 | `builder_ii.session_workflow_plan` | Session plan specification | PR AF |
+| `builder_ii.convention_kernel_platform_bundle` | Platform spine bundle | PR AG |
 
 **Chain evidence status:** The standalone governance records do not embed outbound references. However, the `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
 

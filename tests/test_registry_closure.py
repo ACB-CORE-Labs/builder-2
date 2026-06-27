@@ -45,6 +45,7 @@ from builder_ii.session_workflow import (
 from builder_ii.repo_map import REPO_MAP_KIND
 from builder_ii.context_packs import CONTEXT_PACK_KIND
 from builder_ii.config import Settings
+from builder_ii.convention_kernel import CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND
 
 
 CLOSURE_KINDS = {
@@ -69,6 +70,7 @@ CLOSURE_KINDS = {
     SESSION_WORKFLOW_PLAN_KIND,
     REPO_MAP_KIND,
     CONTEXT_PACK_KIND,
+    CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
 }
 
 # ---------------------------------------------------------------------------
@@ -85,6 +87,7 @@ GOVERNANCE_ARTIFACT_KINDS = {
     EXECUTION_VERIFICATION_RECORD_KIND,
     HITL_EVIDENCE_BUNDLE_KIND,
     SESSION_WORKFLOW_PLAN_KIND,
+    CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
 }
 
 
@@ -220,6 +223,237 @@ def _session_workflow_plan() -> dict[str, Any]:
     )
 
 
+def _convention_kernel_platform_bundle() -> dict[str, Any]:
+    return {
+        "kind": CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
+        "schema_version": 1,
+        "bundle_state": "PLANNED_ONLY",
+        "target": "builder",
+        "repo_path": ".",
+        "operator_review_required": True,
+        "executes_now": False,
+        "verification_status": "planned-only",
+        "target_profile": {"name": "builder"},
+        "command_authority_check": {
+            "kind": "builder_ii.command_authority_check",
+            "schema_version": 1,
+            "all_referenced_commands_registered": True,
+            "referenced_commands": [],
+            "verification_status": "planned-only"
+        },
+        "session_configuration": {
+            "kind": "builder_ii.session_configuration",
+            "schema_version": 1,
+            "target_profile": {"name": "builder"},
+            "repo_path": ".",
+            "selected_agent_profile": {"name": "default"},
+            "selected_prompt_profile": {"name": "default"},
+            "selected_verification_profile": {"name": "default"},
+            "authority_mode": "PLANNED_ONLY",
+            "model_policy": {},
+            "governance": {
+                "runtime_execution": "DISABLED",
+                "goose_runtime_start": "DISABLED",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            }
+        },
+        "repo_map": {
+            "kind": "builder_ii.repo_map",
+            "schema_version": 1,
+            "target_name": "builder",
+            "repo_path": ".",
+            "files": [],
+            "governance": {
+                "capability_state": "repo_map",
+                "runtime_execution": "DISABLED",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            }
+        },
+        "context_pack": {
+            "kind": "builder_ii.context_pack",
+            "schema_version": 1,
+            "target_name": "builder",
+            "task": "test",
+            "repo_map": {},
+            "governance": {
+                "capability_state": "context_pack",
+                "runtime_execution": "DISABLED",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            }
+        },
+        "prepare_package": {
+            "kind": "builder_ii.governed_prepare_package",
+            "schema_version": 1,
+            "target_name": "builder",
+            "repo_path": ".",
+            "task": "test",
+            "output_dir": ".",
+            "artifact_refs": [
+                {"kind": "builder_ii.session_workflow_plan", "path": "session-workflow.json", "sha256": "f" * 64, "name": "session workflow plan"},
+                {"kind": "builder_ii.goose_readonly_session_plan", "path": "goose-readonly-session.json", "sha256": "f" * 64, "name": "Goose read-only session plan"},
+                {"kind": "builder_ii.verification_profile_report", "path": "verification-profile-report.json", "sha256": "f" * 64, "name": "verification profile report"},
+                {"kind": "builder_ii.repo_map", "path": "repo-map.json", "sha256": "f" * 64, "name": "bounded repo map"},
+                {"kind": "builder_ii.context_pack", "path": "context-pack.json", "sha256": "f" * 64, "name": "bounded context pack"},
+                {"kind": "builder_ii.handoff_note", "path": "handoff-note.json", "sha256": "f" * 64, "name": "governed handoff note"},
+            ],
+            "package_state": "PREPARED_ONLY",
+            "runtime_execution_performed": False,
+            "target_repo_writes_performed": False,
+            "governance": {
+                "capability_state": "governed_prepare_package",
+                "runtime_execution": "DISABLED",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY",
+                "target_repo_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "goose_activation": "DISABLED",
+                "deepagents_delegation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            }
+        },
+        "goose_projection": {
+            "kind": "builder_ii.goose_projection",
+            "schema_version": 1,
+            "goose_native_surface": {
+                "env": {
+                    "GOOSE_PROVIDER": "unbound",
+                    "GOOSE_MODEL": "unbound",
+                    "GOOSE_PLANNER_PROVIDER": "",
+                    "GOOSE_PLANNER_MODEL": "",
+                    "BUILDER_MODEL_TIER": "",
+                    "BUILDER_SESSION_MODE": "",
+                },
+                "recipe_path": "",
+                "working_directory": ".",
+                "session_name": "",
+                "context_pack_ref": "",
+            },
+            "governance": {
+                "runtime_execution": "DISABLED",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            }
+        },
+        "goose_wrapper_plan": {
+            "kind": "builder_ii.goose_wrapper_plan",
+            "schema_version": 1,
+            "operator_launch": {
+                "requires_operator_execution": True,
+                "executes_now": False,
+            },
+            "governance": {
+                "runtime_execution": "DISABLED",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            }
+        },
+        "verification_profile_report": {
+            "kind": "builder_ii.verification_profile_report",
+            "schema_version": 1,
+            "target": "builder",
+            "task": "test",
+            "verification_profile": {
+                "kind": "builder_ii.verification_profile",
+                "schema_version": 1,
+                "name": "builder_fast",
+                "description": "test",
+                "target": "builder",
+                "task": "test",
+                "compatible_targets": ["builder"],
+                "purpose": "test",
+                "proposed_commands": [],
+                "required_evidence": [],
+                "failure_mode": "test",
+                "rollback_hint": "test",
+                "governance": {
+                    "capability_state": "verification_profile_artifact",
+                    "runtime_execution": "DISABLED",
+                    "model_execution": "DISABLED",
+                    "shell_execution": "DISABLED",
+                    "source_writes": "DISABLED",
+                    "writes": "DISABLED",
+                    "memory_mutation": "DISABLED",
+                    "executes_commands": False,
+                    "artifact_is_authority": False,
+                    "core_workbench_coupling": "NONE",
+                }
+            },
+            "governance": {
+                "capability_state": "verification_profile_report",
+                "runtime_execution": "DISABLED",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            }
+        },
+        "handoff_note": {
+            "kind": "builder_ii.handoff_note",
+            "schema_version": 1,
+            "target_name": "builder",
+            "status": "READY_FOR_REVIEW",
+            "summary": "test",
+            "changed_files_summary": [],
+            "verification_summary": "test",
+            "session_ref": {"kind": "builder_ii.session_workflow_plan", "path": "session-workflow.json", "sha256": "f" * 64, "name": "session workflow plan"},
+            "goose_readonly_session_ref": {"kind": "builder_ii.goose_readonly_session_plan", "path": "goose-readonly-session.json", "sha256": "f" * 64, "name": "Goose read-only session plan"},
+            "verification_report_ref": {"kind": "builder_ii.verification_profile_report", "path": "verification-profile-report.json", "sha256": "f" * 64, "name": "verification profile report"},
+            "open_risks": [],
+            "next_recommended_action": "test",
+            "governance": {
+                "capability_state": "handoff_note",
+                "runtime_execution": "DISABLED",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            }
+        },
+        "governance": {
+            "runtime_execution": "DISABLED",
+            "runtime_activation": "DISABLED",
+            "goose_runtime_start": "DISABLED",
+            "deepagents_runtime_start": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "target_repo_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        }
+    }
+
+
 # ---------------------------------------------------------------------------
 # Original closure tests
 # ---------------------------------------------------------------------------
@@ -299,6 +533,7 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
         _execution_verification_record(),
         _hitl_evidence_bundle(),
         _session_workflow_plan(),
+        _convention_kernel_platform_bundle(),
     ]
 
     for record in fixtures:
@@ -322,13 +557,14 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
         "verification.json": _execution_verification_record(),
         "hitl-evidence-bundle.json": _hitl_evidence_bundle(),
         "session-plan.json": _session_workflow_plan(),
+        "platform-bundle.json": _convention_kernel_platform_bundle(),
     }
     for filename, artifact in fixtures.items():
         _write(tmp_path / filename, artifact)
 
     index = create_artifact_index_record(tmp_path)
 
-    assert index["counts"] == {"total": 9, "known": 9, "unknown": 0, "valid": 9, "invalid": 0}
+    assert index["counts"] == {"total": 10, "known": 10, "unknown": 0, "valid": 10, "invalid": 0}
     assert validate_artifact_index_record(index) == []
 
     indexed_kinds = {entry["kind"] for entry in index["artifacts"]}

@@ -65,6 +65,10 @@ from builder_ii.context_packs import (
     CONTEXT_PACK_KIND,
     validate_context_pack,
 )
+from builder_ii.convention_kernel import (
+    CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
+    validate_convention_kernel_platform_bundle,
+)
 
 
 
@@ -121,6 +125,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
     REPO_MAP_KIND: validate_repo_map,
     CONTEXT_PACK_KIND: validate_context_pack,
+    CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND: validate_convention_kernel_platform_bundle,
 }
 
 

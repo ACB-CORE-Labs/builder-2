@@ -105,6 +105,28 @@ class GovernedArtifact(Protocol):
     def to_chain_record(self) -> ArtifactChainRecord: ...
 ```
 
+### 5. ConventionKernelPlatformBundle
+
+The canonical platform spine bundle coordinates the entire set of passive planning/verification specifications. It is produced by:
+
+```python
+bundle = kernel.prepare_platform_spine(
+    settings,
+    target_profile,
+    repo_path=...,
+    task=...,
+)
+```
+
+It is strictly planned-only/artifact-only and preserves the following constraints:
+- It **does not grant authority** or execute any runtime.
+- It **does not start Goose** or Goose runtime sessions.
+- It **does not start deepagents** or delegate to agents.
+- It **does not run models** or perform LLM inference.
+- It **does not mutate target repository source code**.
+- It **does not replace the command authority registry**.
+- It **checks the command authority registry** for every referenced planned/verification command. If a command is unregistered, or classified as Tier 2+ without an explicit operator-managed marking, the kernel will refuse to build the platform spine.
+
 ## Kernel Responsibilities
 
 - Resolve a `ResolvedSessionSpine` by delegating to existing `profile_resolution.py`, `context_pack.py`, `target_profiles.py`, and `model_policy.py`.
@@ -125,11 +147,11 @@ class GovernedArtifact(Protocol):
 
 ## Acceptance Criteria (from Issue #115)
 
-- [x] docs/CONVENTION_LAYER_KERNEL.md updated with explicit integration points and delegation model
-- [ ] tests/test_convention_kernel.py exists with scenario coverage (happy path + adversarial governance cases)
-- [ ] Kernel produces chain-verifiable records
-- [ ] All projections remain safe (governance.is_safe_for_projection())
-- [ ] Acceptance command: `uv run pytest tests/test_convention_kernel.py -q && uv run pytest tests/test_artifact_chain_verification.py -q`
+- [x] docs/CONVENTION_LAYER_KERNEL.md updated with explicit platform spine bundle details and delegation model
+- [x] tests/test_convention_kernel.py and tests/test_convention_kernel_platform_spine.py exist with scenario coverage (happy path + adversarial governance cases)
+- [x] Kernel produces chain-verifiable records
+- [x] All projections remain safe (governance.is_safe_for_projection())
+- [x] Acceptance command: `uv run pytest tests/test_convention_kernel.py tests/test_convention_kernel_platform_spine.py tests/test_registry_closure.py -q`
 
 ## Non-Goals
 

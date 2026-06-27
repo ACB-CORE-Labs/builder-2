@@ -75,6 +75,10 @@ from builder_ii.deepagents_bridge_readiness import (
 )
 from builder_ii.repo_map import REPO_MAP_KIND, validate_repo_map
 from builder_ii.context_packs import CONTEXT_PACK_KIND, validate_context_pack
+from builder_ii.convention_kernel import (
+    CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
+    validate_convention_kernel_platform_bundle,
+)
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -121,6 +125,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
     REPO_MAP_KIND: validate_repo_map,
     CONTEXT_PACK_KIND: validate_context_pack,
+    CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND: validate_convention_kernel_platform_bundle,
 }
 
 
@@ -261,6 +266,25 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                             "sha256": value.get("sha256"),
                             "path": value.get("path"),
                             "expected_kind": value.get("kind"),
+                        }
+                    )
+
+    elif kind == CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND:
+        handoff = record.get("handoff_note")
+        if isinstance(handoff, dict):
+            for field, expected_kind in (
+                ("session_ref", SESSION_WORKFLOW_PLAN_KIND),
+                ("goose_readonly_session_ref", GOOSE_READONLY_SESSION_PLAN_KIND),
+                ("verification_report_ref", VERIFICATION_PROFILE_REPORT_KIND),
+            ):
+                value = handoff.get(field)
+                if isinstance(value, dict):
+                    refs.append(
+                        {
+                            "field": f"handoff_note.{field}",
+                            "sha256": value.get("sha256"),
+                            "path": value.get("path"),
+                            "expected_kind": expected_kind,
                         }
                     )
 
