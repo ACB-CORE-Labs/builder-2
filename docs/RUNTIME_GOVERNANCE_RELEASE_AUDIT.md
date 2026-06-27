@@ -8,7 +8,7 @@
 builder-II is a generic governed local agent/developer platform.
 
 builder-II is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
-This audit covers the current builder-II governance foundation after the HITL command execution spec, HITL execution request/receipt artifacts, HITL execution artifact CLI, HITL patch application spec, rollback artifacts, execution postflight and verification record specs, command surface audit, and registry closure sweep.
+This audit covers the current builder-II governance foundation after the HITL command execution spec, HITL execution request/receipt artifacts, HITL execution artifact CLI, HITL patch application spec, rollback artifacts, execution postflight and verification record specs, command surface audit, registry closure sweep, and HITL execution evidence bundle index.
 
 ## 2. Completed Runtime-Governance Foundation
 
@@ -22,6 +22,7 @@ The current foundation includes these merged surfaces:
 - Execution postflight and verification record specs: `builder_ii/execution_postflight_records.py`, `docs/EXECUTION_POSTFLIGHT_RECORDS.md`, `tests/test_execution_postflight_records.py`
 - Command surface audit: `docs/COMMAND_SURFACE_AUDIT.md`, `tests/test_command_surface_audit.py`
 - Registry closure: `builder_ii/artifact_index_records.py`, `builder_ii/artifact_chain_verification.py`, `docs/ARTIFACT_INDEX.md`, `tests/test_registry_closure.py`
+- HITL execution evidence bundle index: `builder_ii/hitl_evidence_bundle.py`, `docs/HITL_EVIDENCE_BUNDLE.md`, `tests/test_hitl_evidence_bundle.py`
 
 These surfaces are governance/spec/record surfaces. They describe future controlled behavior, but they do not grant runtime authority.
 
@@ -36,8 +37,9 @@ The artifact index registry and chain verification registry account for these ru
 - `builder_ii.rollback_receipt`
 - `builder_ii.execution_postflight_record`
 - `builder_ii.execution_verification_record`
+- `builder_ii.hitl_evidence_bundle`
 
-The registry closure sweep validates these kinds natively and documents that they currently produce no outbound chain references. If future PRs add cross-record SHA references, the chain reference extractor must be updated and tested then.
+The registry closure sweep validates these kinds natively. The standalone governance records and specifications do not produce outbound chain references, while the `builder_ii.hitl_evidence_bundle` specifies path references to preceding stages in the governance lifecycle, which the chain verifier resolves and validates recursively.
 
 ## 4. Command Surface Audit
 
@@ -111,8 +113,7 @@ The first real execution surface, the bounded HITL command executor, must not st
 Use these checks for this foundation state:
 
 ```bash
-uv run pytest tests/test_runtime_governance_release_audit.py -q
-uv run pytest tests/test_registry_closure.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py -q
+CORE_REPO_PATH=. uv run pytest tests/test_hitl_evidence_bundle.py tests/test_registry_closure.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py tests/test_runtime_governance_release_audit.py -q
 uv run pytest tests/test_command_surface_audit.py -q
 CORE_REPO_PATH=. uv run pytest -q
 git diff --check

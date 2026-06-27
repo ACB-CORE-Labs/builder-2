@@ -39,6 +39,10 @@ from builder_ii.execution_postflight_records import (
     EXECUTION_VERIFICATION_RECORD_KIND,
     validate_execution_verification_record,
 )
+from builder_ii.hitl_evidence_bundle import (
+    HITL_EVIDENCE_BUNDLE_KIND,
+    validate_hitl_evidence_bundle,
+)
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -71,6 +75,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     ROLLBACK_RECEIPT_KIND: validate_rollback_receipt,
     EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
     EXECUTION_VERIFICATION_RECORD_KIND: validate_execution_verification_record,
+    HITL_EVIDENCE_BUNDLE_KIND: validate_hitl_evidence_bundle,
 }
 
 
@@ -161,6 +166,28 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         plan = record.get("research_plan", {})
         if isinstance(plan, dict):
             refs.append({"field": "research_plan", "sha256": plan.get("sha256"), "path": plan.get("path"), "expected_kind": RESEARCH_PLAN_KIND})
+
+    elif kind == HITL_EVIDENCE_BUNDLE_KIND:
+        for field, expected in [
+            ("proposal_ref", GOOSE_COMMAND_PROPOSAL_KIND),
+            ("approval_ref", APPROVAL_RECORD_KIND),
+            ("preflight_ref", PREFLIGHT_RECORD_KIND),
+            ("request_ref", HITL_EXECUTION_REQUEST_KIND),
+            ("postflight_ref", EXECUTION_POSTFLIGHT_RECORD_KIND),
+            ("verification_ref", EXECUTION_VERIFICATION_RECORD_KIND),
+        ]:
+            val = record.get(field)
+            if isinstance(val, str) and val:
+                refs.append({"field": field, "sha256": None, "path": val, "expected_kind": expected})
+
+        # Rollback references are optional but typed when present
+        for field, expected in [
+            ("rollback_plan_ref", ROLLBACK_PLAN_KIND),
+            ("rollback_receipt_ref", ROLLBACK_RECEIPT_KIND),
+        ]:
+            val = record.get(field)
+            if isinstance(val, str) and val:
+                refs.append({"field": field, "sha256": None, "path": val, "expected_kind": expected})
 
     return refs
 
