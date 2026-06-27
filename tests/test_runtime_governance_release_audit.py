@@ -61,6 +61,7 @@ def test_release_audit_lists_runtime_governance_artifact_kinds() -> None:
         "builder_ii.execution_postflight_record",
         "builder_ii.execution_verification_record",
         "builder_ii.hitl_evidence_bundle",
+        "builder_ii.session_workflow_plan",
     ):
         assert kind in text
 
