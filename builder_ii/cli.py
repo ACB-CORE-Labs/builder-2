@@ -32,7 +32,7 @@ from builder_ii.models import model_definitions, model_status_report
 
 app = typer.Typer(
     name="builder",
-    help="Local CORE coding platform: Goose + MLX models on Apple Silicon",
+    help="builder-II — Generic governed platform for local agent-assisted development.",
     no_args_is_help=True,
 )
 console = Console()

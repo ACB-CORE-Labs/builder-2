@@ -1,6 +1,6 @@
-# CORE builder-II
+# builder-II
 
-`CORE builder-II` is CORE's governed engineering platform for local agent-assisted software development. It is a CORE product and brand extension: CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet.
+`builder-II` is a generic governed platform for local agent-assisted software development. It is CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet. CORE is supported as a target profile.
 
 The platform exists to make engineering work feel like an extension of the engineer. It should bring the right repo context, target profile, agent profile, verification path, authority boundary, and handoff structure to the operator before the operator has to reconstruct that state manually.
 
@@ -35,7 +35,7 @@ Start here if you are evaluating or sharing the project:
 
 | Document | Purpose |
 | --- | --- |
-| [`docs/MANIFESTO.md`](docs/MANIFESTO.md) | CORE builder-II manifesto: signet, product ethos, Codename Goose relationship, and governed engineering promise. |
+| [`docs/MANIFESTO.md`](docs/MANIFESTO.md) | builder-II manifesto: signet, product ethos, Codename Goose relationship, and governed engineering promise. |
 | [`docs/GOOSE_CONVENTION_LAYER.md`](docs/GOOSE_CONVENTION_LAYER.md) | Operational spec for the builder convention layer over Codename Goose. |
 | [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) | Architecture decision defining CORE builder-II as a governed engineering extension. |
 | [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) | Architecture decision requiring builder-II abstractions to compile down to Codename-Goose-native surfaces. |

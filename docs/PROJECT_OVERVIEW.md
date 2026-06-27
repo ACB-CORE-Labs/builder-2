@@ -1,8 +1,8 @@
 # builder-II project overview
 
-CORE builder-II is CORE's governed engineering platform for local agent-assisted software development.
+builder-II is a generic governed platform for local agent-assisted software development.
 
-It is a CORE product and brand extension: CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet.
+It is CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet. CORE is supported as a target profile.
 
 It can target CORE through the `core` target profile, but builder-II is not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime. The CORE brand supplies the philosophy. The builder-II architecture preserves generality.
 
@@ -13,7 +13,7 @@ builder-II carries CORE's engineering philosophy into the developer-platform lay
 The positioning is simple:
 
 ```text
-CORE builder-II  = governed engineering platform for local agent-assisted development
+builder-II       = generic governed platform for local agent-assisted development
 Codename Goose   = execution-capable local agent platform reinforced by builder-II
 deepagents       = optional future orchestration harness
 ```

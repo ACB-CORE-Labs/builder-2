@@ -1,8 +1,8 @@
 # builder-II roadmap
 
-CORE builder-II is CORE's governed engineering platform for local agent-assisted software development.
+builder-II is a generic governed platform for local agent-assisted software development.
 
-It is a CORE product and brand extension, but it is not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime. CORE remains a first-class target profile and brand lineage; builder-II remains generic-first in architecture.
+It is a CORE product and brand extension, but it is not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime. CORE is supported as a first-class target profile and brand lineage; builder-II remains generic-first in architecture.
 
 The governing product doctrine is captured in [`docs/MANIFESTO.md`](MANIFESTO.md), [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md), and [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](adrs/ADR-0002-builder-convention-layer-over-codename-goose.md).
 

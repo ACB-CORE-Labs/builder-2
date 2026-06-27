@@ -104,3 +104,17 @@ def test_session_cli_command_surface_discoverability():
         assert result.exit_code == 0, result.output
         assert "docs/OPERATOR_COMMAND_SURFACE.md" in result.output
         assert "builder-session prepare-package" in result.output
+
+
+def test_cli_identity_coherence():
+    import builder_ii
+    from builder_ii.cli import app
+
+    doc = getattr(builder_ii, "__doc__", None) or ""
+    if doc:
+        assert "Generic governed platform" in doc
+        assert "CORE builder-II" not in doc
+
+    assert "Generic governed platform" in app.info.help
+    assert "CORE builder-II" not in app.info.help
+    assert "Local CORE coding platform" not in app.info.help

@@ -28,8 +28,7 @@ _VALID_TARGETS: set[str] = {"core", "builder", "generic"}
 
 def _normalize_target(value: str) -> RepoTarget:
     if value not in _VALID_TARGETS:
-        console.print("[red]--target must be one of: core, builder[/]")
-        raise typer.Exit(1)
+        raise typer.BadParameter("--target must be one of: core, builder, or generic")
     return value  # type: ignore[return-value]
 
 
@@ -60,7 +59,7 @@ def pack(
     task: str | None = typer.Option(None, "--task", "-t", help="Task description to include in the manifest"),
     module: str | None = typer.Option(None, "--module", "-m", help="Repo file or directory to include"),
     changed: bool = typer.Option(False, "--changed", help="Include changed and untracked files"),
-    target: str = typer.Option("core", "--target", help="Repository target: core or builder"),
+    target: str = typer.Option("core", "--target", help="Repository target: core, builder, or generic"),
     no_repomix: bool = typer.Option(False, "--no-repomix", help="Write manifest only; do not invoke repomix"),
     markdown_output: Path = typer.Option(Path(".builder/context-pack.md"), "--markdown-output"),
     repomix_output: Path = typer.Option(Path(".builder/context-pack.xml"), "--repomix-output"),
@@ -85,7 +84,7 @@ def pack(
 @context_app.command("changed")
 def changed(
     task: str | None = typer.Option(None, "--task", "-t"),
-    target: str = typer.Option("core", "--target", help="Repository target: core or builder"),
+    target: str = typer.Option("core", "--target", help="Repository target: core, builder, or generic"),
     no_repomix: bool = typer.Option(False, "--no-repomix"),
 ) -> None:
     """Shortcut for pack --changed."""

@@ -1,3 +1,3 @@
-"""CORE local agent platform — Goose + MLX inference for governed coding."""
+"""builder-II — Generic governed platform for local agent-assisted development."""
 
 __version__ = "0.1.0"
