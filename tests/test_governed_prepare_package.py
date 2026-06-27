@@ -315,3 +315,156 @@ def test_validate_prepare_package_docs_state_runtime_boundary():
 
     for phrase in required:
         assert phrase in doc
+
+
+def test_summarize_prepare_package_directory_returns_human_inspection_summary(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    from builder_ii.governed_prepare_package import (
+        GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
+        summarize_governed_prepare_package_directory,
+        validate_governed_prepare_package_summary,
+    )
+
+    summary = summarize_governed_prepare_package_directory(output_dir)
+
+    assert summary["kind"] == GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND
+    assert summary["validation_state"] == "VALIDATED"
+    assert summary["package_state"] == "PREPARED_ONLY"
+    assert summary["artifact_count"] == 5
+    assert summary["runtime_execution_performed"] is False
+    assert summary["target_repo_writes_performed"] is False
+    assert validate_governed_prepare_package_summary(summary) == []
+
+
+def test_summarize_prepare_package_directory_refuses_invalid_package(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    (output_dir / "handoff-note.json").unlink()
+
+    from builder_ii.governed_prepare_package import summarize_governed_prepare_package_directory
+
+    try:
+        summarize_governed_prepare_package_directory(output_dir)
+    except ValueError as exc:
+        assert "invalid governed prepare package" in str(exc)
+    else:
+        raise AssertionError("expected invalid package summary refusal")
+
+
+def test_summarize_prepare_package_cli_prints_json_summary(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+    runner = CliRunner()
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    result = runner.invoke(
+        session_app,
+        [
+            "summarize-prepare-package",
+            str(output_dir),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    summary = json.loads(result.output)
+    assert summary["validation_state"] == "VALIDATED"
+    assert summary["artifact_count"] == 5
+
+
+def test_summarize_prepare_package_cli_writes_summary_artifact(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+    summary_path = tmp_path / "summary.json"
+    runner = CliRunner()
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    result = runner.invoke(
+        session_app,
+        [
+            "summarize-prepare-package",
+            str(output_dir),
+            "--output",
+            str(summary_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["kind"] == "builder_ii.governed_prepare_package_summary"
+    assert "summary written" in result.output
+
+
+def test_summarize_prepare_package_cli_refuses_invalid_package(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+    runner = CliRunner()
+
+    create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+    )
+
+    (output_dir / "session-workflow.json").unlink()
+
+    result = runner.invoke(
+        session_app,
+        [
+            "summarize-prepare-package",
+            str(output_dir),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "invalid governed prepare package" in result.output
+
+
+def test_prepare_package_summary_docs_state_runtime_and_verification_boundaries():
+    doc = (ROOT / "docs" / "PREPARE_PACKAGE_SUMMARY.md").read_text(encoding="utf-8")
+
+    required = [
+        "refuses to summarize invalid packages",
+        "execute shell commands",
+        "activate Goose",
+        "activate or delegate to deepagents",
+        "execute model/runtime work",
+        "write to the target repository",
+        "touch Deephaven",
+        "couple builder-II to CORE Workbench/UI",
+        "does not prove that planned verification commands have been run",
+        "does not convert planned verification into completed evidence",
+        "does not make the summary artifact authoritative",
+    ]
+
+    for phrase in required:
+        assert phrase in doc

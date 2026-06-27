@@ -33,6 +33,8 @@ from builder_ii.session_workflow import (
 
 from builder_ii.governed_prepare_package import (
     create_governed_prepare_package,
+    dumps_governed_prepare_package_summary,
+    summarize_governed_prepare_package_directory,
     validate_governed_prepare_package_directory,
 )
 
@@ -390,6 +392,31 @@ def validate_prepare_package_cmd(
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
     console.print(f"[green]Governed prepare package {path} is valid.[/]")
+
+
+@session_app.command("summarize-prepare-package")
+def summarize_prepare_package_cmd(
+    path: Path = typer.Argument(..., help="Path to a prepare package directory or prepare-package.json manifest"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Optional path to write JSON summary artifact"),
+) -> None:
+    """Summarize a valid governed prepare package for human inspection."""
+    try:
+        summary = summarize_governed_prepare_package_directory(path)
+        serialized = dumps_governed_prepare_package_summary(summary)
+    except ValueError as exc:
+        console.print(f"[red]Error summarizing governed prepare package: {exc}[/]")
+        raise typer.Exit(1)
+
+    if output is not None:
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(serialized, encoding="utf-8")
+            console.print(f"[green]Governed prepare package summary written to {output}[/]")
+        except Exception as exc:
+            console.print(f"[red]Failed to write summary output file: {exc}[/]")
+            raise typer.Exit(1)
+    else:
+        console.out(serialized, end="")
 
 
 if __name__ == "__main__":

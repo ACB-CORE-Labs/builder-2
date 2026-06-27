@@ -35,6 +35,8 @@ from builder_ii.verification_profile_reports import (
 
 GOVERNED_PREPARE_PACKAGE_KIND = "builder_ii.governed_prepare_package"
 GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION = 1
+GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND = "builder_ii.governed_prepare_package_summary"
+GOVERNED_PREPARE_PACKAGE_SUMMARY_SCHEMA_VERSION = 1
 
 
 def _dumps_json(data: dict[str, Any]) -> str:
@@ -412,6 +414,174 @@ def validate_governed_prepare_package_directory(path: Path) -> list[str]:
             errors.append(f"{prefix}.artifact invalid for {ref_kind}: {artifact_error}")
 
     return errors
+
+
+def summarize_governed_prepare_package_directory(path: Path) -> dict[str, Any]:
+    """Summarize a validated governed prepare package for human inspection.
+
+    The summary path is read-only over the package contents. It refuses to
+    summarize invalid packages and never executes package instructions,
+    verification commands, Goose, deepagents, shell commands, or runtime work.
+    """
+
+    errors = validate_governed_prepare_package_directory(path)
+    if errors:
+        raise ValueError("invalid governed prepare package: " + "; ".join(errors))
+
+    manifest_path = path / "prepare-package.json" if path.is_dir() else path
+    manifest_path = manifest_path.resolve()
+    package_dir = manifest_path.parent
+
+    package = json_lib.loads(manifest_path.read_text(encoding="utf-8"))
+    artifact_refs = list(package.get("artifact_refs", []))
+    artifact_kinds = sorted({ref.get("kind", "") for ref in artifact_refs if isinstance(ref, dict)})
+
+    artifacts: list[dict[str, Any]] = []
+    for ref in artifact_refs:
+        if not isinstance(ref, dict):
+            continue
+        artifacts.append(
+            {
+                "kind": ref.get("kind", ""),
+                "path": ref.get("path", ""),
+                "name": ref.get("name", ""),
+                "sha256": ref.get("sha256", ""),
+            }
+        )
+
+    summary = {
+        "kind": GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
+        "schema_version": GOVERNED_PREPARE_PACKAGE_SUMMARY_SCHEMA_VERSION,
+        "package_manifest": str(manifest_path),
+        "package_directory": str(package_dir),
+        "target_name": package.get("target_name"),
+        "repo_path": package.get("repo_path"),
+        "task": package.get("task"),
+        "package_state": package.get("package_state"),
+        "validation_state": "VALIDATED",
+        "artifact_count": len(artifacts),
+        "artifact_kinds": artifact_kinds,
+        "artifacts": artifacts,
+        "runtime_execution_performed": package.get("runtime_execution_performed"),
+        "target_repo_writes_performed": package.get("target_repo_writes_performed"),
+        "operator_report": {
+            "summary": "Governed prepare package is structurally valid and artifact hashes match.",
+            "verification_status": "Planned verification has not been executed by this summary.",
+            "next_actions": [
+                "Inspect generated artifacts.",
+                "Run planned verification commands manually if appropriate.",
+                "Record verification evidence before claiming checks passed.",
+                "Keep any future execution or writes HITL-gated.",
+            ],
+        },
+        "governance": {
+            "capability_state": "governed_prepare_package_summary",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH",
+            "target_repo_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "goose_activation": "DISABLED",
+            "deepagents_delegation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
+    }
+
+    summary_errors = validate_governed_prepare_package_summary(summary)
+    if summary_errors:
+        raise ValueError("invalid governed prepare package summary: " + "; ".join(summary_errors))
+    return summary
+
+
+def validate_governed_prepare_package_summary(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["governed prepare package summary must be a JSON object"]
+
+    if data.get("kind") != GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND:
+        errors.append(f"kind must be {GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND}")
+    if data.get("schema_version") != GOVERNED_PREPARE_PACKAGE_SUMMARY_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {GOVERNED_PREPARE_PACKAGE_SUMMARY_SCHEMA_VERSION}")
+
+    if data.get("validation_state") != "VALIDATED":
+        errors.append("validation_state must be VALIDATED")
+    if data.get("target_name") not in {"generic", "builder", "core"}:
+        errors.append("target_name must be one of: generic, builder, core")
+    if data.get("package_state") != "PREPARED_ONLY":
+        errors.append("package_state must be PREPARED_ONLY")
+    if data.get("runtime_execution_performed") is not False:
+        errors.append("runtime_execution_performed must be false")
+    if data.get("target_repo_writes_performed") is not False:
+        errors.append("target_repo_writes_performed must be false")
+
+    artifacts = data.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        errors.append("artifacts must be a non-empty list")
+    else:
+        for index, artifact in enumerate(artifacts):
+            prefix = f"artifacts[{index}]"
+            if not isinstance(artifact, dict):
+                errors.append(f"{prefix} must be an object")
+                continue
+            for field in ("kind", "path", "sha256"):
+                if not isinstance(artifact.get(field), str) or not artifact[field]:
+                    errors.append(f"{prefix}.{field} must be a non-empty string")
+            if not isinstance(artifact.get("name", ""), str):
+                errors.append(f"{prefix}.name must be a string when present")
+
+    if data.get("artifact_count") != len(artifacts or []):
+        errors.append("artifact_count must match artifacts length")
+
+    artifact_kinds = data.get("artifact_kinds")
+    if not isinstance(artifact_kinds, list) or any(not isinstance(kind, str) or not kind for kind in artifact_kinds):
+        errors.append("artifact_kinds must be a list of non-empty strings")
+
+    operator_report = data.get("operator_report")
+    if not isinstance(operator_report, dict):
+        errors.append("operator_report must be an object")
+    else:
+        if not isinstance(operator_report.get("summary"), str) or not operator_report["summary"]:
+            errors.append("operator_report.summary must be a non-empty string")
+        if not isinstance(operator_report.get("verification_status"), str) or not operator_report["verification_status"]:
+            errors.append("operator_report.verification_status must be a non-empty string")
+        next_actions = operator_report.get("next_actions")
+        if not isinstance(next_actions, list) or not next_actions:
+            errors.append("operator_report.next_actions must be a non-empty list")
+        elif any(not isinstance(action, str) or not action for action in next_actions):
+            errors.append("operator_report.next_actions must be a list of non-empty strings")
+
+    governance = data.get("governance")
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        if governance.get("capability_state") != "governed_prepare_package_summary":
+            errors.append("governance.capability_state must be governed_prepare_package_summary")
+        for key in ("runtime_execution", "model_execution", "shell_execution", "memory_mutation"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
+        if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH":
+            errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH")
+        if governance.get("target_repo_writes") != "DISABLED":
+            errors.append("governance.target_repo_writes must be DISABLED")
+        if governance.get("goose_activation") != "DISABLED":
+            errors.append("governance.goose_activation must be DISABLED")
+        if governance.get("deepagents_delegation") != "DISABLED":
+            errors.append("governance.deepagents_delegation must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
+
+    return errors
+
+
+def dumps_governed_prepare_package_summary(summary: dict[str, Any]) -> str:
+    errors = validate_governed_prepare_package_summary(summary)
+    if errors:
+        raise ValueError("invalid governed prepare package summary: " + "; ".join(errors))
+    return _dumps_json(summary)
 
 
 def dumps_governed_prepare_package(package: dict[str, Any]) -> str:
