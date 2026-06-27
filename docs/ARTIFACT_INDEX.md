@@ -64,6 +64,8 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.goose_session_manifest`
 - `builder_ii.handoff_artifact`
 - `builder_ii.session_configuration`
+- `builder_ii.v0_release_manifest`
+- `builder_ii.artifact_chain_verification_report`
 
 ## Governance and Authority Boundaries
 
@@ -103,6 +105,8 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.goose_session_manifest` | Goose session manifest | #133 |
 | `builder_ii.handoff_artifact` | Handoff record | #133 |
 | `builder_ii.session_configuration` | Session configuration | #133 |
+| `builder_ii.v0_release_manifest` | V0 release proof manifest | #135 |
+| `builder_ii.artifact_chain_verification_report` | Chain verification report | #135 |
 
 **Chain evidence status:** The standalone governance records do not embed outbound references. However, the `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
 

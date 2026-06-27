@@ -238,6 +238,16 @@ The operator command surface is organized by phase. Every command operates stric
 - **Human responsibility**: Inspect bridge status passively.
 - **Writes**: Read-only; writes only stdout.
 
+### Release Proof Harness
+
+#### `python scripts/verify_v0_release.py`
+- **Command name**: `python scripts/verify_v0_release.py`
+- **Purpose**: Execute the repeatable anti-handwave v0 release proof harness for builder-II, producing the 8 canonical governed preparation artifacts, platform spine bundle, chain verification reports, artifact index, and release manifest without runtime authority or source modifications.
+- **Output artifact, if any**: `release-manifest.json`, `chain-verification-report.json`, `artifact-index.json`, `platform-spine.json`, and the canonical preparation artifacts written to the isolated output directory.
+- **Execution authority**: artifact-only / proof-only
+- **Human responsibility**: Execute proof harness to evaluate v0 release readiness and inspect emitted reports confirming no runtime execution occurred.
+- **Writes**: Writes strictly to isolated output directory specified via `--output-dir` (defaulting to `dist/v0-release-proof`); target repository working tree remains 100% untouched.
+
 ## Explicit Forbidden Boundary
 
 The operator command surface strictly adheres to builder-II governance and runtime boundaries. None of the commands listed above permit or execute:

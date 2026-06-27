@@ -93,6 +93,46 @@ from builder_ii.runtime_activation_approval import (
     RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND,
     validate_runtime_activation_approval_spec,
 )
+from builder_ii.release_manifest import (
+    V0_RELEASE_MANIFEST_KIND,
+    validate_v0_release_manifest,
+)
+
+ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = "builder_ii.artifact_chain_verification_report"
+
+
+def validate_artifact_chain_verification_report(record: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return ["artifact chain verification report must be a JSON object"]
+    if record.get("kind") != ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND:
+        errors.append(f"kind must be {ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND}")
+    if record.get("schema_version") != 1:
+        errors.append("schema_version must be 1")
+    if record.get("status") not in ("valid", "invalid"):
+        errors.append("status must be valid or invalid")
+    if not isinstance(record.get("valid"), bool):
+        errors.append("valid must be a boolean")
+    if not isinstance(record.get("counts"), dict):
+        errors.append("counts must be an object")
+    if not isinstance(record.get("files"), list):
+        errors.append("files must be a list")
+    if not isinstance(record.get("links"), list):
+        errors.append("links must be a list")
+    if not isinstance(record.get("errors"), list):
+        errors.append("errors must be a list")
+    governance = record.get("governance")
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
+    return errors
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -144,6 +184,8 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND: validate_governed_prepare_package_summary,
     ORCHESTRATION_DRY_RUN_KIND: validate_orchestration_dry_run,
     RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND: validate_runtime_activation_approval_spec,
+    V0_RELEASE_MANIFEST_KIND: validate_v0_release_manifest,
+    ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 
 
@@ -331,6 +373,58 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                             "sha256": value.get("sha256"),
                             "path": value.get("path"),
                             "expected_kind": value.get("kind"),
+                        }
+                    )
+
+    elif kind == V0_RELEASE_MANIFEST_KIND:
+        session_proof = record.get("governed_session_proof")
+        if isinstance(session_proof, dict):
+            for field, expected_kind in [
+                ("prepare_package_ref", GOVERNED_PREPARE_PACKAGE_KIND),
+                ("session_workflow_ref", SESSION_WORKFLOW_PLAN_KIND),
+                ("goose_readonly_session_ref", GOOSE_READONLY_SESSION_PLAN_KIND),
+                ("verification_report_ref", VERIFICATION_PROFILE_REPORT_KIND),
+                ("repo_map_ref", REPO_MAP_KIND),
+                ("context_pack_ref", CONTEXT_PACK_KIND),
+                ("handoff_note_ref", HANDOFF_NOTE_KIND),
+                ("deepagents_readiness_ref", DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND),
+            ]:
+                val = session_proof.get(field)
+                if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
+                    refs.append(
+                        {
+                            "field": f"governed_session_proof.{field}",
+                            "sha256": val.get("sha256") or None,
+                            "path": val.get("path"),
+                            "expected_kind": expected_kind,
+                        }
+                    )
+        spine_proof = record.get("platform_spine_proof")
+        if isinstance(spine_proof, dict):
+            val = spine_proof.get("platform_spine_ref")
+            if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
+                refs.append(
+                    {
+                        "field": "platform_spine_proof.platform_spine_ref",
+                        "sha256": val.get("sha256") or None,
+                        "path": val.get("path"),
+                        "expected_kind": CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
+                    }
+                )
+        audit_refs = record.get("audit_references")
+        if isinstance(audit_refs, dict):
+            for field, expected_kind in [
+                ("artifact_index_ref", ARTIFACT_INDEX_RECORD_KIND),
+                ("chain_verification_report_ref", ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND),
+            ]:
+                val = audit_refs.get(field)
+                if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
+                    refs.append(
+                        {
+                            "field": f"audit_references.{field}",
+                            "sha256": val.get("sha256") or None,
+                            "path": val.get("path"),
+                            "expected_kind": expected_kind,
                         }
                     )
 

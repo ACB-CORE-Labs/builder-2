@@ -100,6 +100,13 @@ from builder_ii.session_config import (
     SESSION_CONFIG_KIND,
     create_session_configuration,
 )
+from builder_ii.release_manifest import (
+    V0_RELEASE_MANIFEST_KIND,
+    create_artifact_ref,
+    create_v0_release_manifest,
+)
+from builder_ii.artifact_chain_verification import ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND
+
 
 
 
@@ -140,6 +147,8 @@ CLOSURE_KINDS = {
     GOOSE_SESSION_KIND,
     HANDOFF_KIND,
     SESSION_CONFIG_KIND,
+    V0_RELEASE_MANIFEST_KIND,
+    ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
 }
 
 # ---------------------------------------------------------------------------
@@ -171,6 +180,8 @@ GOVERNANCE_ARTIFACT_KINDS = {
     GOOSE_SESSION_KIND,
     HANDOFF_KIND,
     SESSION_CONFIG_KIND,
+    V0_RELEASE_MANIFEST_KIND,
+    ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
 }
 
 
@@ -749,6 +760,61 @@ def test_research_adapter_link_resolves_to_plan(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _artifact_chain_verification_report() -> dict[str, Any]:
+    return {
+        "kind": "builder_ii.artifact_chain_verification_report",
+        "schema_version": 1,
+        "status": "valid",
+        "valid": True,
+        "counts": {},
+        "files": [],
+        "links": [],
+        "errors": [],
+        "governance": {
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        }
+    }
+
+
+def _v0_release_manifest() -> dict[str, Any]:
+    ref = create_artifact_ref(kind="builder_ii.session_workflow_plan", path="session-workflow.json", sha256="a"*64)
+    prepare_ref = create_artifact_ref(kind="builder_ii.governed_prepare_package", path="prepare-package.json", sha256="a"*64)
+    readonly_ref = create_artifact_ref(kind="builder_ii.goose_readonly_session_plan", path="goose-readonly-session.json", sha256="a"*64)
+    report_ref = create_artifact_ref(kind="builder_ii.verification_profile_report", path="verification-profile-report.json", sha256="a"*64)
+    repomap_ref = create_artifact_ref(kind="builder_ii.repo_map", path="repo-map.json", sha256="a"*64)
+    context_ref = create_artifact_ref(kind="builder_ii.context_pack", path="context-pack.json", sha256="a"*64)
+    handoff_ref = create_artifact_ref(kind="builder_ii.handoff_note", path="handoff-note.json", sha256="a"*64)
+    bridge_ref = create_artifact_ref(kind="builder_ii.deepagents_bridge_readiness_report", path="deepagents-bridge-readiness.json", sha256="a"*64)
+    spine_ref = create_artifact_ref(kind="builder_ii.convention_kernel_platform_bundle", path="platform-spine.json", sha256="a"*64)
+    index_ref = create_artifact_ref(kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256="")
+    chain_ref = create_artifact_ref(kind="builder_ii.artifact_chain_verification_report", path="chain-verification-report.json", sha256="a"*64)
+
+    return create_v0_release_manifest(
+        governed_session_proof={
+            "prepare_package_ref": prepare_ref,
+            "session_workflow_ref": ref,
+            "goose_readonly_session_ref": readonly_ref,
+            "verification_report_ref": report_ref,
+            "repo_map_ref": repomap_ref,
+            "context_pack_ref": context_ref,
+            "handoff_note_ref": handoff_ref,
+            "deepagents_readiness_ref": bridge_ref,
+        },
+        platform_spine_proof={
+            "platform_spine_ref": spine_ref,
+        },
+        audit_references={
+            "artifact_index_ref": index_ref,
+            "chain_verification_report_ref": chain_ref,
+        }
+    )
+
+
 def test_governance_artifact_kinds_are_registered_in_both_registries() -> None:
     """Fails if any governance artifact kind from PR W/X/Y is missing from
     either the artifact index or chain verification registry."""
@@ -785,6 +851,8 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
         _goose_session(),
         _handoff_artifact(),
         _session_config(),
+        _artifact_chain_verification_report(),
+        _v0_release_manifest(),
     ]
 
     for record in fixtures:
@@ -823,6 +891,8 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
         "goose-session.json": _goose_session(),
         "handoff-artifact.json": _handoff_artifact(),
         "session-config.json": _session_config(),
+        "chain-report.json": _artifact_chain_verification_report(),
+        "release-manifest.json": _v0_release_manifest(),
     }
     for filename, artifact in fixtures.items():
         _write(tmp_path / filename, artifact)
@@ -863,6 +933,7 @@ def test_governance_artifacts_are_not_chain_evidence() -> None:
         _goose_session(),
         _handoff_artifact(),
         _session_config(),
+        _artifact_chain_verification_report(),
     ]
 
     for record in fixtures:
@@ -895,6 +966,7 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
         "goose-session.json": _goose_session(),
         "handoff-artifact.json": _handoff_artifact(),
         "session-config.json": _session_config(),
+        "chain-report.json": _artifact_chain_verification_report(),
     }
     paths = []
     for filename, artifact in fixtures.items():
