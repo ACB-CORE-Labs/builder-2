@@ -43,6 +43,12 @@ from builder_ii.hitl_evidence_bundle import (
     HITL_EVIDENCE_BUNDLE_KIND,
     validate_hitl_evidence_bundle,
 )
+from builder_ii.hitl_chain_binding import (
+    HITL_CHAIN_BINDING_KIND,
+    HITL_CHAIN_BINDING_SLOT_FIELDS,
+    HITL_CHAIN_BINDING_SLOT_KIND_MAP,
+    validate_hitl_chain_binding,
+)
 from builder_ii.session_workflow import (
     SESSION_WORKFLOW_PLAN_KIND,
     validate_session_workflow_plan,
@@ -166,6 +172,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
     EXECUTION_VERIFICATION_RECORD_KIND: validate_execution_verification_record,
     HITL_EVIDENCE_BUNDLE_KIND: validate_hitl_evidence_bundle,
+    HITL_CHAIN_BINDING_KIND: validate_hitl_chain_binding,
     SESSION_WORKFLOW_PLAN_KIND: validate_session_workflow_plan,
     GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
     HANDOFF_NOTE_KIND: validate_handoff_note,
@@ -298,6 +305,19 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
             val = record.get(field)
             if isinstance(val, str) and val:
                 refs.append({"field": field, "sha256": None, "path": val, "expected_kind": expected})
+
+    elif kind == HITL_CHAIN_BINDING_KIND:
+        for slot, field in HITL_CHAIN_BINDING_SLOT_FIELDS.items():
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": HITL_CHAIN_BINDING_SLOT_KIND_MAP[slot],
+                    }
+                )
 
     elif kind == HANDOFF_NOTE_KIND:
         for field, expected_kind in (

@@ -38,6 +38,7 @@ from builder_ii.hitl_evidence_bundle import (
     HITL_EVIDENCE_BUNDLE_KIND,
     create_hitl_evidence_bundle,
 )
+from builder_ii.hitl_chain_binding import HITL_CHAIN_BINDING_KIND
 from builder_ii.session_workflow import (
     SESSION_WORKFLOW_PLAN_KIND,
     create_session_workflow_plan,
@@ -129,6 +130,7 @@ CLOSURE_KINDS = {
     EXECUTION_POSTFLIGHT_RECORD_KIND,
     EXECUTION_VERIFICATION_RECORD_KIND,
     HITL_EVIDENCE_BUNDLE_KIND,
+    HITL_CHAIN_BINDING_KIND,
     SESSION_WORKFLOW_PLAN_KIND,
     REPO_MAP_KIND,
     CONTEXT_PACK_KIND,
@@ -164,6 +166,7 @@ GOVERNANCE_ARTIFACT_KINDS = {
     EXECUTION_POSTFLIGHT_RECORD_KIND,
     EXECUTION_VERIFICATION_RECORD_KIND,
     HITL_EVIDENCE_BUNDLE_KIND,
+    HITL_CHAIN_BINDING_KIND,
     SESSION_WORKFLOW_PLAN_KIND,
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
     GOVERNED_PREPARE_PACKAGE_KIND,
@@ -307,6 +310,38 @@ def _hitl_evidence_bundle() -> dict[str, Any]:
         postflight_ref="postflight.json",
         verification_ref="verification.json",
     )
+
+
+def _hitl_chain_binding() -> dict[str, Any]:
+    return {
+        "kind": HITL_CHAIN_BINDING_KIND,
+        "schema_version": 1,
+        "chain_state": "BOUND_ONLY",
+        "proposal_ref": create_artifact_ref(kind="builder_ii.goose_command_proposal", path="proposal.json", sha256="a" * 64),
+        "approval_ref": create_artifact_ref(kind="builder_ii.approval_record", path="approval.json", sha256="a" * 64),
+        "preflight_ref": create_artifact_ref(kind="builder_ii.preflight_record", path="preflight.json", sha256="a" * 64),
+        "request_ref": create_artifact_ref(kind=HITL_EXECUTION_REQUEST_KIND, path="request.json", sha256="a" * 64),
+        "receipt_ref": create_artifact_ref(kind=HITL_EXECUTION_RECEIPT_KIND, path="receipt.json", sha256="a" * 64),
+        "postflight_ref": create_artifact_ref(kind=EXECUTION_POSTFLIGHT_RECORD_KIND, path="postflight.json", sha256="a" * 64),
+        "verification_ref": create_artifact_ref(kind=EXECUTION_VERIFICATION_RECORD_KIND, path="verification.json", sha256="a" * 64),
+        "governance": {
+            "capability_state": "hitl_chain_binding",
+            "runtime_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "goose_runtime_start": "DISABLED",
+            "command_execution": "DISABLED",
+            "git_mutation": "DISABLED",
+            "commit_push": "DISABLED",
+            "network_access": "DISABLED",
+            "goose_runtime_activation": "DISABLED",
+            "deepagents_runtime": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
+    }
 
 
 def _session_workflow_plan() -> dict[str, Any]:
@@ -835,6 +870,7 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
         _execution_postflight_record(),
         _execution_verification_record(),
         _hitl_evidence_bundle(),
+        _hitl_chain_binding(),
         _session_workflow_plan(),
         _convention_kernel_platform_bundle(),
         _governed_prepare_package(),
@@ -875,6 +911,7 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
         "postflight.json": _execution_postflight_record(),
         "verification.json": _execution_verification_record(),
         "hitl-evidence-bundle.json": _hitl_evidence_bundle(),
+        "hitl-chain-binding.json": _hitl_chain_binding(),
         "session-plan.json": _session_workflow_plan(),
         "platform-bundle.json": _convention_kernel_platform_bundle(),
         "prepare-package.json": _governed_prepare_package(),
@@ -911,8 +948,8 @@ def test_governance_artifacts_are_not_chain_evidence() -> None:
     """Explicitly verifies that governance artifact kinds do not produce
     outbound chain references.  They are standalone design records.
 
-    If a future PR adds cross-reference fields to any of these kinds,
-    extract_references() should be updated and this test should be revised."""
+    The passive HITL chain binding artifact is the intentional exception and
+    is tested separately."""
     fixtures = [
         _hitl_execution_request(),
         _hitl_execution_receipt(),
@@ -983,8 +1020,8 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
 
 
 def test_docs_list_governance_artifact_kinds() -> None:
-    """Reads ARTIFACT_INDEX.md and asserts all five governance artifact
-    kinds appear in the documentation.  Fails if docs are out of sync."""
+    """Reads ARTIFACT_INDEX.md and asserts all governance artifact kinds
+    appear in the documentation.  Fails if docs are out of sync."""
     docs_path = Path(__file__).resolve().parent.parent / "docs" / "ARTIFACT_INDEX.md"
     content = docs_path.read_text(encoding="utf-8")
 

@@ -46,6 +46,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.execution_postflight_record`
 - `builder_ii.execution_verification_record`
 - `builder_ii.hitl_evidence_bundle`
+- `builder_ii.hitl_chain_binding`
 - `builder_ii.session_workflow_plan`
 - `builder_ii.repo_map`
 - `builder_ii.context_pack`
@@ -89,6 +90,7 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.execution_postflight_record` | Governance record | #124 |
 | `builder_ii.execution_verification_record` | Governance record | #124 |
 | `builder_ii.hitl_evidence_bundle` | Evidence bundle index | #126 |
+| `builder_ii.hitl_chain_binding` | Passive evidence-chain metadata | #136 |
 | `builder_ii.session_workflow_plan` | Session plan specification | #128 |
 | `builder_ii.convention_kernel_platform_bundle` | Platform spine bundle | #131 |
 | `builder_ii.governed_prepare_package` | Package specification | #132 |
@@ -108,7 +110,7 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.v0_release_manifest` | V0 release proof manifest | #135 |
 | `builder_ii.artifact_chain_verification_report` | Chain verification report | #135 |
 
-**Chain evidence status:** The standalone governance records do not embed outbound references. However, the `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
+**Chain evidence status:** The standalone governance records do not embed outbound references. However, the `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts, while `builder_ii.hitl_chain_binding` records passive chain metadata that binds the same evidence slots without granting execution authority. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
 
 ## CLI
 

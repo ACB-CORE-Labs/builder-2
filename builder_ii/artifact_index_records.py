@@ -40,6 +40,7 @@ from builder_ii.hitl_evidence_bundle import (
     HITL_EVIDENCE_BUNDLE_KIND,
     validate_hitl_evidence_bundle,
 )
+from builder_ii.hitl_chain_binding import HITL_CHAIN_BINDING_KIND, validate_hitl_chain_binding
 from builder_ii.session_workflow import (
     SESSION_WORKFLOW_PLAN_KIND,
     validate_session_workflow_plan,
@@ -177,6 +178,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
     EXECUTION_VERIFICATION_RECORD_KIND: validate_execution_verification_record,
     HITL_EVIDENCE_BUNDLE_KIND: validate_hitl_evidence_bundle,
+    HITL_CHAIN_BINDING_KIND: validate_hitl_chain_binding,
     SESSION_WORKFLOW_PLAN_KIND: validate_session_workflow_plan,
     GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
     HANDOFF_NOTE_KIND: validate_handoff_note,
