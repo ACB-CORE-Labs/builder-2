@@ -31,6 +31,17 @@ The primary governed sequence for preparing, validating, and summarizing a local
 2. `builder-session validate-prepare-package`
 3. `builder-session summarize-prepare-package`
 
+## Canonical Governed E2E Proof
+
+The canonical governed session lane binds together the platform preparation tools into a single, cohesive, fail-closed sequence. This end-to-end relationship connects prepare-package creation, convention kernel platform spine coordination, index recognition, and passive verification:
+
+1. **Governed Prepare Package**: Emits deterministic component artifacts (`prepare-package.json`, `session-workflow.json`, `goose-readonly-session.json`, `verification-profile-report.json`, `repo-map.json`, `context-pack.json`, `handoff-note.json`) into an isolated output directory while keeping package state at `PREPARED_ONLY`.
+2. **ConventionKernel Platform Spine**: Composes the governed platform spine bundle, verifying target profile constraints and auditing that all proposed commands belong to Tier 0 or Tier 1 (or remain uninvoked operator-managed helpers).
+3. **Artifact Index Recognition**: Inspects emitted package output files to verify that generated records conform to known schemas without unknown or invalid entries.
+4. **Passive Chain Verification**: Cryptographically resolves and audits cross-record references across the emitted bundle using canonical JSON digests.
+5. **Fail-Closed Governance**: Throughout the entire sequence, runtime execution, model calls, shell invocations, and target repository modifications remain disabled, and planned verification checks remain strictly unexecuted (`NOT_RUN`).
+
+
 ## Command Taxonomy by Phase
 
 The operator command surface is organized by phase. Every command operates strictly within bounded runtime authority and write permissions.

@@ -55,6 +55,13 @@ def _dumps_json(data: dict[str, Any]) -> str:
 
 
 def _sha256_file(path: Path) -> str:
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, (dict, list)):
+            raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            return hashlib.sha256(raw).hexdigest()
+    except Exception:
+        pass
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
