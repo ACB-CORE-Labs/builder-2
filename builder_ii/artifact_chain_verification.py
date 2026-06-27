@@ -225,6 +225,36 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
             if isinstance(val, str) and val:
                 refs.append({"field": field, "sha256": None, "path": val, "expected_kind": expected})
 
+    elif kind == HANDOFF_NOTE_KIND:
+        for field, expected_kind in (
+            ("session_ref", SESSION_WORKFLOW_PLAN_KIND),
+            ("goose_readonly_session_ref", GOOSE_READONLY_SESSION_PLAN_KIND),
+            ("verification_report_ref", VERIFICATION_PROFILE_REPORT_KIND),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind,
+                    }
+                )
+
+        evidence_refs = record.get("verification_evidence_refs")
+        if isinstance(evidence_refs, list):
+            for index, value in enumerate(evidence_refs):
+                if isinstance(value, dict):
+                    refs.append(
+                        {
+                            "field": f"verification_evidence_refs[{index}]",
+                            "sha256": value.get("sha256"),
+                            "path": value.get("path"),
+                            "expected_kind": value.get("kind"),
+                        }
+                    )
+
     return refs
 
 

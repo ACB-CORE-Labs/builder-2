@@ -97,3 +97,57 @@ def test_validate_handoff_note_file(tmp_path: Path) -> None:
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("not json", encoding="utf-8")
     assert any("invalid JSON" in error for error in validate_handoff_note_file(bad_json))
+
+
+def test_handoff_note_references_are_extracted_for_chain_verification():
+    from builder_ii.artifact_chain_verification import extract_references
+    from builder_ii.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND
+    from builder_ii.handoff_notes import create_artifact_ref, create_handoff_note
+    from builder_ii.session_workflow import SESSION_WORKFLOW_PLAN_KIND
+    from builder_ii.verification_profile_reports import VERIFICATION_PROFILE_REPORT_KIND
+
+    note = create_handoff_note(
+        target_name="builder",
+        summary="Session handoff.",
+        next_recommended_action="Review and continue.",
+        session_ref=create_artifact_ref(
+            kind=SESSION_WORKFLOW_PLAN_KIND,
+            path="artifacts/session.json",
+            sha256="session-sha",
+        ),
+        goose_readonly_session_ref=create_artifact_ref(
+            kind=GOOSE_READONLY_SESSION_PLAN_KIND,
+            path="artifacts/goose-readonly.json",
+            sha256="goose-sha",
+        ),
+        verification_report_ref=create_artifact_ref(
+            kind=VERIFICATION_PROFILE_REPORT_KIND,
+            path="artifacts/verification.json",
+            sha256="verification-sha",
+        ),
+        verification_evidence_refs=[
+            create_artifact_ref(
+                kind="builder_ii.execution_verification_record",
+                path="artifacts/execution-verification.json",
+                sha256="evidence-sha",
+            )
+        ],
+    )
+
+    refs = extract_references(note)
+    refs_by_field = {ref["field"]: ref for ref in refs}
+
+    assert refs_by_field["session_ref"] == {
+        "field": "session_ref",
+        "sha256": "session-sha",
+        "path": "artifacts/session.json",
+        "expected_kind": SESSION_WORKFLOW_PLAN_KIND,
+    }
+    assert refs_by_field["goose_readonly_session_ref"]["expected_kind"] == GOOSE_READONLY_SESSION_PLAN_KIND
+    assert refs_by_field["verification_report_ref"]["expected_kind"] == VERIFICATION_PROFILE_REPORT_KIND
+    assert refs_by_field["verification_evidence_refs[0]"] == {
+        "field": "verification_evidence_refs[0]",
+        "sha256": "evidence-sha",
+        "path": "artifacts/execution-verification.json",
+        "expected_kind": "builder_ii.execution_verification_record",
+    }
