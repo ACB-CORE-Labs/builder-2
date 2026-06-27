@@ -7,6 +7,12 @@ import typer
 from rich.console import Console
 
 from builder_ii.config import load_settings
+from builder_ii.session_config import (
+    create_session_configuration,
+    dumps_session_configuration,
+    validate_session_configuration,
+    validate_session_configuration_file,
+)
 from builder_ii.session_workflow import (
     create_session_workflow_plan,
     validate_session_workflow_plan,
@@ -83,6 +89,71 @@ def validate_session(
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
     console.print(f"[green]Session plan artifact {path} is valid.[/]")
+
+
+@session_app.command("config")
+def session_config_cmd(
+    target: str = typer.Argument(..., help="Target profile name: generic | builder | core"),
+    agent: Optional[str] = typer.Option(None, "--agent", help="Explicit agent profile name override"),
+    prompt: Optional[str] = typer.Option(None, "--prompt", help="Explicit prompt profile name override"),
+    verification: Optional[str] = typer.Option(None, "--verification", help="Explicit verification profile name override"),
+    repo_path: Optional[str] = typer.Option(None, "--repo-path", help="Explicit target repo path override"),
+    task: str = typer.Option("", "--task", help="Optional task description"),
+    authority_mode: str = typer.Option("read_only", "--authority-mode", help="Authority mode: read_only | planned_patch"),
+    model_alias: Optional[str] = typer.Option(None, "--model", help="Explicit model alias override"),
+    context_pack: Optional[str] = typer.Option(None, "--context-pack", help="Optional context pack artifact reference"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write JSON config artifact to this path"),
+) -> None:
+    """Generate a governed session configuration spine artifact."""
+    settings = load_settings()
+    target_norm = _normalize_target(target)
+    try:
+        config = create_session_configuration(
+            settings,
+            target_norm,  # type: ignore[arg-type]
+            agent_profile_name=agent,  # type: ignore[arg-type]
+            prompt_profile_name=prompt,
+            verification_profile_name=verification,  # type: ignore[arg-type]
+            repo_path=repo_path,
+            task=task,
+            authority_mode=authority_mode,  # type: ignore[arg-type]
+            model_alias=model_alias,
+            context_pack=context_pack,
+        )
+    except ValueError as exc:
+        console.print(f"[red]Error resolving session configuration: {exc}[/]")
+        raise typer.Exit(1)
+
+    errors = validate_session_configuration(config)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error in generated config: {error}[/]")
+        raise typer.Exit(1)
+
+    serialized = dumps_session_configuration(config)
+    if output is not None:
+        try:
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(serialized, encoding="utf-8")
+            console.print(f"[green]Session configuration written to {output}[/]")
+        except Exception as exc:
+            console.print(f"[red]Failed to write output file: {exc}[/]")
+            raise typer.Exit(1)
+    else:
+        console.out(serialized, end="")
+
+
+@session_app.command("validate-config")
+def validate_session_config_cmd(
+    path: Path = typer.Argument(..., help="Path to session configuration JSON file to validate")
+) -> None:
+    """Validate a governed session configuration artifact file."""
+    errors = validate_session_configuration_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error: {error}[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]Session configuration artifact {path} is valid.[/]")
 
 
 @session_app.command("goose-readonly-plan")
