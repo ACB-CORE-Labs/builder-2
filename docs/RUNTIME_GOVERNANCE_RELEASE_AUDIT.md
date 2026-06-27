@@ -1,222 +1,46 @@
 # Runtime Governance Release Audit
 
-**Date:** 2026-06-26
-**Branch:** `pr-ab-runtime-governance-release-audit`
-**Status:** Foundation complete, all runtime capabilities disabled by default.
-
----
+**Date:** 2026-06-27
+**Status:** Runtime-governance foundation complete; all execution capabilities remain disabled by default.
 
 ## 1. Platform Identity and Scope
 
-- **builder-II is a generic governed local agent/developer platform.**
-- **builder-II is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime.**
-- **CORE is only a target profile.**
+builder-II is a generic governed local agent/developer platform.
 
-builder-II governs local agent workflows. It provides artifact schemas, CLI surfaces, promotion ladders, and governance contracts. It does not conflate its own governance boundary with CORE Workbench, CORE UI/UX, or any second CORE runtime. The `core` target name is a target profile only; it carries no CORE workbench coupling (`core_workbench_coupling: NONE`).
+builder-II is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
 
----
+This audit covers the current builder-II governance foundation after the HITL command execution spec, HITL execution request/receipt artifacts, HITL patch application spec, rollback artifacts, command surface audit, and registry closure sweep.
 
-## 2. HITL Command Execution Spec Audit
+## 2. Completed Runtime-Governance Foundation
 
-**Doc:** `docs/HITL_COMMAND_EXECUTION.md`
-**Module:** `builder_ii/hitl_command_execution.py`
-**Tests:** `tests/test_hitl_command_execution.py`
+The current foundation includes these merged surfaces:
 
-The HITL command execution spec defines the design-only artifact kind
-`builder_ii.hitl_command_execution_spec` for future governed shell command execution.
+- HITL command execution spec: `docs/HITL_COMMAND_EXECUTION.md`, `builder_ii/hitl_command_execution.py`, `tests/test_hitl_command_execution.py`
+- HITL execution request/receipt artifacts: `builder_ii/hitl_execution_records.py`, `docs/HITL_EXECUTION_RECORDS.md`, `tests/test_hitl_execution_records.py`
+- HITL patch application spec: `builder_ii/hitl_patch_spec.py`, `docs/HITL_PATCH_SPEC.md`, `tests/test_hitl_patch_spec.py`
+- Rollback plan/receipt artifacts: `builder_ii/rollback_artifacts.py`, `docs/ROLLBACK_ARTIFACTS.md`, `tests/test_rollback_artifacts.py`
+- Command surface audit: `docs/COMMAND_SURFACE_AUDIT.md`, `tests/test_command_surface_audit.py`
+- Registry closure: `builder_ii/artifact_index_records.py`, `builder_ii/artifact_chain_verification.py`, `docs/ARTIFACT_INDEX.md`, `tests/test_registry_closure.py`
 
-### Current State
+These surfaces are governance/spec/record surfaces. They describe future controlled behavior, but they do not grant runtime authority.
 
-| Field | Value |
-|---|---|
-| `current_state.mode` | `DESIGN_ONLY` |
-| `current_state.runtime` | `DISABLED` |
-| `governance.shell_execution` | `DISABLED` |
-| `governance.command_execution` | `DISABLED` |
-| `governance.model_execution` | `DISABLED` |
-| `governance.subprocess_execution` | `DISABLED` |
-| `governance.goose_runtime_activation` | `DISABLED` |
-| `governance.deepagents_runtime` | `DISABLED` |
-| `governance.source_writes` | `DISABLED` |
-| `governance.artifact_is_authority` | `false` |
-| `governance.core_workbench_coupling` | `NONE` |
+## 3. Registered Governance Artifact Kinds
 
-### Allowed Future Transitions (not yet enabled)
+The artifact index registry and chain verification registry account for these runtime-governance artifact kinds:
 
-1. command proposal
-2. approval record
-3. preflight record
-4. explicit execution request
-5. execution receipt
-6. postflight/handoff
+- `builder_ii.hitl_execution_request`
+- `builder_ii.hitl_execution_receipt`
+- `builder_ii.hitl_patch_application_spec`
+- `builder_ii.rollback_plan`
+- `builder_ii.rollback_receipt`
 
-### Required Future Gates (before any promotion)
+The registry closure sweep validates these kinds natively and documents that they currently produce no outbound chain references. If future PRs add cross-record SHA references, the chain reference extractor must be updated and tested then.
 
-- docs
-- tests
-- command surface
-- failure mode
-- human approval boundary
-- output artifact
-- rollback path
-- verification path
+## 4. Command Surface Audit
 
----
+`docs/COMMAND_SURFACE_AUDIT.md` is the current command surface inventory. `tests/test_command_surface_audit.py` parses `pyproject.toml` and fails if any registered `builder-*` console script is missing from the audit document.
 
-## 3. HITL Execution Request/Receipt Artifacts Audit
-
-**Doc:** `docs/HITL_COMMAND_EXECUTION.md`
-**Module:** `builder_ii/hitl_command_execution.py`
-**Related modules:** `builder_ii/receipt_records.py`, `builder_ii/approval_records.py`, `builder_ii/preflight_records.py`
-
-Execution request and receipt artifacts are **design-only records only**. No execution request is processed, no receipt is generated at runtime, and no subprocess is spawned.
-
-### Current State
-
-- `execution_request` artifact: **design spec only** — not produced by an active runtime
-- `execution_receipt` artifact: **design spec only** — not produced by an active runtime
-- `approval_record`: schema complete, validated, no authority granted
-- `preflight_record`: schema complete, validated, no authority granted
-- `receipt_record`: schema complete, validated, no authority granted
-
-### Denied Behaviors (execution request/receipt phase)
-
-- no subprocess
-- no shell execution
-- no command execution
-- no model execution
-- no source writes
-- no git mutation
-- no commit/push
-- no network/MCP execution
-- no Goose runtime activation
-- no deepagents runtime
-
----
-
-## 4. HITL Patch Application Spec Audit
-
-**Doc:** `docs/HITL_COMMAND_EXECUTION.md`
-**Module:** `builder_ii/hitl_command_execution.py`
-**Related docs:** `docs/RUNTIME_PROMOTION.md` §patch_proposal, §hitl_write
-
-Patch application is explicitly not promoted. The platform carries the design
-specification for a future patch proposal / hitl_write promotion path.
-
-### Current State
-
-| Capability | Status |
-|---|---|
-| Patch application | `DISABLED` |
-| Source writes | `DISABLED` |
-| Git mutation | `DISABLED` |
-| Commit/push | `DISABLED` |
-| Autonomous writes | `DISABLED` |
-
-### Required gates before patch_proposal promotion
-
-- patch proposal artifact
-- changed-file list
-- risk explanation
-- rollback plan
-- verification plan
-- human approval boundary
-
-### Required gates before hitl_write promotion
-
-- approved patch artifact
-- exact patch matching
-- apply audit artifact
-- verification after apply
-- rollback command or revert path
-- postflight handoff
-
----
-
-## 5. Rollback Plan/Receipt Artifacts Audit
-
-**Doc:** `docs/RUNTIME_PROMOTION.md` §Rollback requirement
-
-Every future promoted runtime mode must define rollback behavior before it can run.
-No runtime mode is currently promoted; therefore no rollback path is active.
-
-### Defined rollback shapes (spec-only, not active)
-
-| Mode | Rollback |
-|---|---|
-| read-only audit | delete emitted audit artifact; no source rollback |
-| bounded inspection | delete emitted inspection artifact; no source rollback |
-| command proposal | discard proposal artifact |
-| verification execution | record command output and failure state; no source rollback expected |
-| patch proposal | discard proposal artifact |
-| hitl write | revert patch or restore pre-apply state |
-| model routing | discard routing artifact; record no execution if no model call approved |
-
-### Rollback receipt artifacts
-
-Rollback receipts are design artifacts only. No rollback is executed or recorded
-at runtime in the current foundation state.
-
----
-
-## 6. Command Surface Audit
-
-**Doc:** `docs/COMMAND_SURFACE_AUDIT.md`
-**Tests:** `tests/test_command_surface_audit.py`
-**Source:** `pyproject.toml [project.scripts]`
-
-All registered CLI entry points are governance-aware read/inspect/plan surfaces.
-None of the registered commands enable shell execution, model execution, patch
-application, autonomous writes, Goose runtime activation, or deepagents runtime.
-
-### Registered command surfaces
-
-#### Platform Setup / Runtime Policy
-- `builder`
-- `builder-runtime`
-- `builder-lanes`
-- `builder-tools`
-- `builder-git-state`
-
-#### Target / Profile / Context
-- `builder-context`
-- `builder-targets`
-
-#### Artifact Chain / Governance Records
-- `builder-records`
-- `builder-receipt`
-- `builder-chain`
-- `builder-index`
-- `builder-state-index`
-- `builder-snapshot`
-
-#### Promotion / Readiness / Decision
-- `builder-preflight`
-- `builder-promotion`
-- `builder-promotion-decision`
-
-#### Inspection / Read-Only Candidate
-- `builder-readonly`
-
-#### Research / Performance / Verification
-- `builder-agent`
-- `builder-bundle`
-- `builder-quality`
-- `builder-research`
-- `builder-performance`
-- `builder-verification`
-
-#### Notes / Handoff / Intake
-- `builder-handoff`
-- `builder-intake`
-- `builder-notes`
-
-#### Deepagents / Goose Optional Bridge Surfaces
-- `builder-bridge`
-- `builder-goose`
-- `builder-deepagents`
-
-### Command Surface Invariants
+The command surface audit asserts:
 
 - no shell execution is enabled
 - no model execution is enabled
@@ -226,194 +50,71 @@ application, autonomous writes, Goose runtime activation, or deepagents runtime.
 - no deepagents runtime is enabled
 - builder-II is not CORE Workbench/UI
 - CORE is only a target profile
-- rollback execution is not enabled
-- voice/TTS/STT runtime is not enabled
 
----
+## 5. Disabled-by-Default Runtime Claims
 
-## 7. Registry Closure Audit
+The following capabilities are not enabled in the current foundation release:
 
-**Tests:** `tests/test_registry_closure.py`
-**Modules:** `builder_ii/artifact_index_records.py`, `builder_ii/artifact_chain_verification.py`
-
-The artifact index registry (`_VALIDATORS`) and the chain verification registry
-(`VALIDATORS`) are kept in strict parity. Every governed artifact kind registered
-in one registry must be registered in the other.
-
-### Registered and verified kinds (both registries)
-
-- `builder_ii.target_profile`
-- `builder_ii.verification_profile`
-- `builder_ii.context_pack_record`
-- `builder_ii.agent_profile_record`
-- `builder_ii.git_state_record`
-- `builder_ii.research_plan`
-- `builder_ii.research_adapter`
-- `builder_ii.performance_measurement`
-- `builder_ii.readonly_inspection_promotion_spec`
-- `builder_ii.readonly_inspection_report`
-
-### Registry Closure Invariant
-
-No artifact kind may appear in the index registry but not the chain registry,
-and vice versa. Tests in `tests/test_registry_closure.py` enforce this invariant
-on every CI run.
-
----
-
-## 8. No-Runtime / No-Authority Claims
-
-### No-Runtime Claims
-
-The following capabilities are **not enabled** in the current foundation release:
-
-| Capability | Status |
+| Capability | Current status |
 |---|---|
-| Shell execution | **NOT ENABLED** |
-| Model execution | **NOT ENABLED** |
-| Patch application | **NOT ENABLED** |
-| Autonomous writes | **NOT ENABLED** |
-| Goose runtime activation | **NOT ENABLED** |
-| deepagents runtime | **NOT ENABLED** |
-| Rollback execution | **NOT ENABLED** |
-| Voice/TTS/STT runtime | **NOT ENABLED** |
-| Commit/push automation | **NOT ENABLED** |
-| MCP execution | **NOT ENABLED** |
-| CORE Workbench/UI coupling | **NONE** |
+| Shell execution | NOT ENABLED |
+| Command execution | NOT ENABLED |
+| Model execution | NOT ENABLED |
+| Patch application | NOT ENABLED |
+| Autonomous writes | NOT ENABLED |
+| Source writes by agent runtime | NOT ENABLED |
+| Git mutation | NOT ENABLED |
+| Commit/push automation | NOT ENABLED |
+| Network/MCP execution | NOT ENABLED |
+| Goose runtime activation | NOT ENABLED |
+| deepagents runtime | NOT ENABLED |
+| Rollback execution | NOT ENABLED |
+| Voice/TTS/STT runtime | NOT ENABLED |
+| CORE Workbench/UI coupling | NONE |
 
-### No-Authority Claims
+## 6. No-Authority Claims
+
+The current foundation enforces these no-authority claims:
 
 - Artifact validity does not grant runtime authority.
-- `artifact_is_authority` is `false` on every governed artifact.
-- `core_workbench_coupling` is `NONE` on every governed artifact.
-- Promotion state is tracked; no capability is promoted to `enabled` at this time.
 - Design-only artifacts describe future governance contracts; they do not activate those contracts.
+- `artifact_is_authority` remains `false` on governance artifacts that carry the field.
+- `core_workbench_coupling` remains `NONE` on governance artifacts that carry the field.
+- No runtime capability is promoted to `enabled`.
+- No artifact or CLI surface may bypass the human approval boundary.
 
-### Cross-artifact governance invariants
+## 7. Future Promotion Ladder
 
-Every governed artifact surface enforces:
+Every runtime capability remains gated by all of the following before any promotion to enabled behavior:
 
-```text
-model_execution       = DISABLED
-agent_construction    = DISABLED
-shell_execution       = DISABLED
-command_execution     = DISABLED
-source_writes         = DISABLED
-memory_mutation       = DISABLED
-artifact_is_authority = false
-core_workbench_coupling = NONE
-```
+1. docs
+2. tests
+3. command surface
+4. failure mode
+5. human approval boundary
+6. output artifact
+7. rollback path
+8. verification path
 
-See `docs/GOVERNANCE_INVARIANTS.md` for the full cross-artifact invariant definition.
+The next safe promotion candidates are artifact/CLI/spec-only work, not active runtime execution:
 
----
+- HITL execution artifact CLI without execution
+- execution postflight and verification record specs
 
-## 9. Future Promotion Ladder
+The first real execution surface, the bounded HITL command executor, must not start until the request, receipt, postflight, verification, rollback, and command-surface controls are complete and reviewed.
 
-**Doc:** `docs/RUNTIME_PROMOTION.md`
-**Doc:** `docs/CAPABILITY_PROMOTION.md`
+## 8. Release Verification Checklist
 
-### Promotion States
-
-```text
-unavailable
-spec_only
-smoke_only
-artifact_only
-validation_only
-read_only_runtime_candidate
-hitl_runtime_candidate
-enabled
-```
-
-### Current Position of Each Runtime Capability
-
-| Capability | Current State |
-|---|---|
-| bounded read-only inspection | `read_only_runtime_candidate` |
-| command proposal | `spec_only` |
-| HITL command execution | `spec_only` |
-| HITL patch application | `spec_only` |
-| verification execution | `spec_only` |
-| model routing | `spec_only` |
-| Goose runtime | `spec_only` |
-| deepagents runtime | `spec_only` |
-| voice/TTS/STT | `spec_only` |
-| rollback execution | `spec_only` |
-
-### Required Gates Before Any Promotion to `enabled`
-
-Every capability must accumulate all of the following before it may be promoted:
-
-1. **docs** — specification document in `docs/`
-2. **tests** — automated test coverage, including denied-action tests
-3. **command surface** — CLI entry point in `pyproject.toml`
-4. **failure mode** — defined failure behavior and recovery path
-5. **human approval boundary** — explicit HITL gate
-6. **output artifact** — governed artifact capturing execution result
-7. **rollback path** — defined rollback behavior
-8. **verification path** — defined post-execution verification
-
-### Next Promotion Candidates
-
-- HITL command execution spec → `artifact_only`
-- Rollback artifact schema → `artifact_only`
-- HITL patch spec → `artifact_only`
-
----
-
-## 10. Release Verification Checklist
-
-Run the following commands to verify the current foundation state:
+Use these checks for this foundation state:
 
 ```bash
-# Run full test suite
-uv run pytest -q
-
-# Run this release audit test specifically
 uv run pytest tests/test_runtime_governance_release_audit.py -q
-
-# Run with CORE_REPO_PATH set
+uv run pytest tests/test_registry_closure.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py -q
+uv run pytest tests/test_command_surface_audit.py -q
 CORE_REPO_PATH=. uv run pytest -q
-
-# Verify no trailing whitespace
 git diff --check
-
-# Validate artifact index
-builder-index validate <artifact-index>
-
-# Verify artifact chain
-builder-chain verify <artifact-path>...
-
-# Validate promotion readiness
-builder-promotion record --capability-name <name> --target <target>
-
-# Record promotion decision
-builder-promotion-decision record <promotion-readiness>
-
-# Validate state index
-builder-state-index validate <state-index>
-
-# Validate snapshot
-builder-snapshot validate <snapshot>
-
-# Run bounded read-only inspection
-builder-readonly report --target <target> --purpose review --path <explicit-file> --output <inspection-report>
-builder-readonly validate <inspection-report>
 ```
 
----
+## 9. Summary
 
-## 11. Summary
-
-builder-II is a generic governed local agent/developer platform. The current
-foundation release is **complete and disabled-by-default**:
-
-- All runtime capabilities are gated by docs, tests, command surface, failure
-  mode, human approval boundary, output artifact, rollback path, and
-  verification path.
-- No capability has been promoted to `enabled`.
-- Every governed artifact carries `artifact_is_authority: false` and
-  `core_workbench_coupling: NONE`.
-- builder-II is not CORE, not CORE Workbench/UI/UX, and not a second CORE
-  runtime. CORE is only a target profile.
+builder-II is now positioned as a governed local agent/developer platform with a closed runtime-governance foundation. The platform has recorded command execution, patch application, rollback, command-surface, and registry governance surfaces while keeping shell execution, model execution, patch application, rollback execution, autonomous writes, Goose runtime activation, deepagents runtime, voice/TTS/STT runtime, and CORE Workbench/UI coupling disabled by default.
