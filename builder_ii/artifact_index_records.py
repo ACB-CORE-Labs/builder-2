@@ -20,7 +20,7 @@ from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_s
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
 from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND, validate_profile_artifact
 from builder_ii.git_state import GIT_STATE_RECORD_KIND, validate_git_state_record
-
+from builder_ii.research_adapters import RESEARCH_ADAPTER_KIND, validate_research_adapter_artifact
 
 
 
@@ -58,8 +58,8 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     CONTEXT_PACK_RECORD_KIND: validate_context_pack_record,
     AGENT_PROFILE_RECORD_KIND: validate_agent_profile_record,
     GIT_STATE_RECORD_KIND: validate_git_state_record,
+    RESEARCH_ADAPTER_KIND: validate_research_adapter_artifact,
 }
-
 
 
 
@@ -110,45 +110,59 @@ def _safe_entry(path: Path, root: Path) -> dict[str, Any]:
         return _artifact_entry(path, root)
     except json_lib.JSONDecodeError as exc:
         raw = path.read_bytes()
-        return {"path": rel_path, "sha256": _digest_bytes(raw), "bytes": len(raw), "kind": "", "schema_version": None, "known": False, "valid": False, "errors": [f"invalid JSON: {exc}"]}
-    except UnicodeDecodeError as exc:
-        raw = path.read_bytes()
-        return {"path": rel_path, "sha256": _digest_bytes(raw), "bytes": len(raw), "kind": "", "schema_version": None, "known": False, "valid": False, "errors": [f"artifact is not utf-8: {exc}"]}
-    except Exception as exc:
-        return {"path": rel_path, "sha256": "", "bytes": 0, "kind": "", "schema_version": None, "known": False, "valid": False, "errors": [f"failed to read artifact: {exc}"]}
+        return {
+            "path": rel_path,
+            "sha256": _digest_bytes(raw),
+            "bytes": len(raw),
+            "kind": "",
+            "schema_version": None,
+            "known": False,
+            "valid": False,
+            "errors": [f"invalid JSON: {exc}"],
+        }
+    except Exception as exc:  # defensive: malformed artifact should not break index creation
+        return {
+            "path": rel_path,
+            "sha256": "",
+            "bytes": 0,
+            "kind": "",
+            "schema_version": None,
+            "known": False,
+            "valid": False,
+            "errors": [f"failed to inspect artifact: {exc}"],
+        }
 
 
 def create_artifact_index_record(root: Path, *, recursive: bool = False) -> dict[str, Any]:
-    root = root.resolve()
-    entries: list[dict[str, Any]] = []
-    issues: list[str] = []
-    if not root.exists():
-        issues.append(f"directory not found: {root}")
-    elif not root.is_dir():
-        issues.append(f"not a directory: {root}")
-    else:
-        paths = sorted(root.rglob("*.json") if recursive else root.glob("*.json"))
-        entries = [_safe_entry(path, root) for path in paths if path.is_file()]
-    invalid_count = sum(1 for entry in entries if not entry.get("valid"))
-    known_count = sum(1 for entry in entries if entry.get("known"))
+    pattern = "**/*.json" if recursive else "*.json"
+    files = sorted(path for path in root.glob(pattern) if path.is_file())
+    artifacts = [_safe_entry(path, root) for path in files]
+    totals = {
+        "total": len(artifacts),
+        "known": sum(1 for item in artifacts if item["known"]),
+        "unknown": sum(1 for item in artifacts if not item["known"]),
+        "valid": sum(1 for item in artifacts if item["valid"]),
+        "invalid": sum(1 for item in artifacts if not item["valid"]),
+    }
     return {
         "kind": ARTIFACT_INDEX_RECORD_KIND,
         "schema_version": ARTIFACT_INDEX_RECORD_SCHEMA_VERSION,
-        "capability_state": "artifact_index_record",
-        "record_state": "RECORDED_ONLY",
-        "current_state": "DISABLED",
         "root": str(root),
         "recursive": recursive,
-        "status": "complete" if not issues and invalid_count == 0 else "incomplete",
-        "complete": not issues and invalid_count == 0,
-        "issues": issues,
-        "counts": {"total": len(entries), "known": known_count, "unknown": len(entries) - known_count, "valid": len(entries) - invalid_count, "invalid": invalid_count},
-        "artifacts": entries,
-        "allowed_actions": ["read_json_artifact_metadata", "validate_known_artifacts", "render_artifact_index"],
+        "artifacts": artifacts,
+        "totals": totals,
+        "allowed_actions": ["record_artifact_index", "validate_artifact_index"],
         "performed_actions": [],
-        _GRANTS_RUNTIME_AUTHORITY: False,
-        "grants_action_authority": False,
-        "governance": {"capability_state": "artifact_index_record", _RUNTIME_EXECUTION: "DISABLED", _MODEL_EXECUTION: "DISABLED", _SOURCE_WRITES: "DISABLED", _MEMORY_MUTATION: "DISABLED", "artifact_is_authority": False, "core_workbench_coupling": "NONE"},
+        "grants_runtime_authority": False,
+        "governance": {
+            "capability_state": "artifact_index_record",
+            _RUNTIME_EXECUTION: "DISABLED",
+            _MODEL_EXECUTION: "DISABLED",
+            _SOURCE_WRITES: "DISABLED",
+            _MEMORY_MUTATION: "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
     }
 
 
@@ -169,33 +183,35 @@ def validate_artifact_index_record(record: Any) -> list[str]:
         errors.append(f"kind must be {ARTIFACT_INDEX_RECORD_KIND}")
     if record.get("schema_version") != ARTIFACT_INDEX_RECORD_SCHEMA_VERSION:
         errors.append(f"schema_version must be {ARTIFACT_INDEX_RECORD_SCHEMA_VERSION}")
-    if record.get("record_state") != "RECORDED_ONLY":
-        errors.append("record_state must be RECORDED_ONLY")
-    if record.get("current_state") != "DISABLED":
-        errors.append("current_state must be DISABLED")
-    if record.get("status") not in ("complete", "incomplete"):
-        errors.append("status must be complete or incomplete")
-    if record.get("complete") is not (record.get("status") == "complete"):
-        errors.append("complete must match status")
-    if not isinstance(record.get("issues"), list):
-        errors.append("issues must be a list")
-    if not isinstance(record.get("counts"), dict):
-        errors.append("counts must be an object")
     if not isinstance(record.get("artifacts"), list):
         errors.append("artifacts must be a list")
-    for key in (_GRANTS_RUNTIME_AUTHORITY, "grants_action_authority"):
-        if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+    if not isinstance(record.get("totals"), dict):
+        errors.append("totals must be an object")
+    else:
+        artifacts = record.get("artifacts", []) if isinstance(record.get("artifacts"), list) else []
+        expected = {
+            "total": len(artifacts),
+            "known": sum(1 for item in artifacts if isinstance(item, dict) and item.get("known") is True),
+            "unknown": sum(1 for item in artifacts if isinstance(item, dict) and item.get("known") is not True),
+            "valid": sum(1 for item in artifacts if isinstance(item, dict) and item.get("valid") is True),
+            "invalid": sum(1 for item in artifacts if isinstance(item, dict) and item.get("valid") is not True),
+        }
+        for key, value in expected.items():
+            if record["totals"].get(key) != value:
+                errors.append(f"totals.{key} must be {value}")
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
+    if record.get("grants_runtime_authority") is not False:
+        errors.append("grants_runtime_authority must be false")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
+        for key in (_RUNTIME_EXECUTION, _MODEL_EXECUTION, _SOURCE_WRITES, _MEMORY_MUTATION):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
     return errors
 
 
