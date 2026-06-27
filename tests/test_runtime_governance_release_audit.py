@@ -29,11 +29,13 @@ def test_release_audit_covers_completed_foundation_surfaces() -> None:
     required = [
         "HITL command execution spec",
         "HITL execution request/receipt artifacts",
+        "HITL execution artifact CLI",
         "HITL patch application spec",
         "Rollback plan/receipt artifacts",
         "Command surface audit",
         "Registry closure",
         "builder_ii/hitl_execution_records.py",
+        "builder_ii/hitl_execution_cli.py",
         "builder_ii/hitl_patch_spec.py",
         "builder_ii/rollback_artifacts.py",
         "docs/COMMAND_SURFACE_AUDIT.md",

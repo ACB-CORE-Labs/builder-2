@@ -20,6 +20,7 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - `builder-index`
 - `builder-state-index`
 - `builder-snapshot`
+- `builder-hitl`
 
 ## Promotion/Readiness/Decision
 - `builder-preflight`

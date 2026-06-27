@@ -9,7 +9,7 @@ builder-II is a generic governed local agent/developer platform.
 
 builder-II is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
 
-This audit covers the current builder-II governance foundation after the HITL command execution spec, HITL execution request/receipt artifacts, HITL patch application spec, rollback artifacts, command surface audit, and registry closure sweep.
+This audit covers the current builder-II governance foundation after the HITL command execution spec, HITL execution request/receipt artifacts, HITL execution artifact CLI, HITL patch application spec, rollback artifacts, command surface audit, and registry closure sweep.
 
 ## 2. Completed Runtime-Governance Foundation
 
@@ -17,6 +17,7 @@ The current foundation includes these merged surfaces:
 
 - HITL command execution spec: `docs/HITL_COMMAND_EXECUTION.md`, `builder_ii/hitl_command_execution.py`, `tests/test_hitl_command_execution.py`
 - HITL execution request/receipt artifacts: `builder_ii/hitl_execution_records.py`, `docs/HITL_EXECUTION_RECORDS.md`, `tests/test_hitl_execution_records.py`
+- HITL execution artifact CLI: `builder_ii/hitl_execution_cli.py`, `docs/HITL_EXECUTION_CLI.md`, `tests/test_hitl_execution_cli.py`
 - HITL patch application spec: `builder_ii/hitl_patch_spec.py`, `docs/HITL_PATCH_SPEC.md`, `tests/test_hitl_patch_spec.py`
 - Rollback plan/receipt artifacts: `builder_ii/rollback_artifacts.py`, `docs/ROLLBACK_ARTIFACTS.md`, `tests/test_rollback_artifacts.py`
 - Command surface audit: `docs/COMMAND_SURFACE_AUDIT.md`, `tests/test_command_surface_audit.py`
@@ -98,7 +99,7 @@ Every runtime capability remains gated by all of the following before any promot
 
 The next safe promotion candidates are artifact/CLI/spec-only work, not active runtime execution:
 
-- HITL execution artifact CLI without execution
+- HITL execution artifact CLI without execution (COMPLETED - creates governance artifacts only, does not execute commands)
 - execution postflight and verification record specs
 
 The first real execution surface, the bounded HITL command executor, must not start until the request, receipt, postflight, verification, rollback, and command-surface controls are complete and reviewed.
