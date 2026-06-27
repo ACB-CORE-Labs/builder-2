@@ -33,6 +33,30 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.context_pack_record`
 - `builder_ii.agent_profile_record`
 - `builder_ii.git_state_record`
+- `builder_ii.research_plan`
+- `builder_ii.research_adapter`
+- `builder_ii.performance_measurement`
+- `builder_ii.readonly_inspection_promotion_spec`
+- `builder_ii.readonly_inspection_report`
+- `builder_ii.hitl_execution_request`
+- `builder_ii.hitl_execution_receipt`
+- `builder_ii.hitl_patch_application_spec`
+- `builder_ii.rollback_plan`
+- `builder_ii.rollback_receipt`
+
+## Governance / spec / record artifacts
+
+The following artifact kinds are **governance, specification, and record artifacts** introduced in PR W, PR X, and PR Y.  They are design-only records that document future runtime governance paths.  They do **not** grant runtime authority, execute commands, mutate source, invoke subprocesses, or activate any runtime.
+
+| Kind | Category | Source PR |
+|------|----------|-----------|
+| `builder_ii.hitl_execution_request` | Governance record | PR W |
+| `builder_ii.hitl_execution_receipt` | Governance record | PR W |
+| `builder_ii.hitl_patch_application_spec` | Design specification | PR X |
+| `builder_ii.rollback_plan` | Governance record | PR Y |
+| `builder_ii.rollback_receipt` | Governance record | PR Y |
+
+**Chain evidence status:** These artifacts are not currently valid chain evidence.  They are standalone design records that do not embed cross-record SHA-256 references to other artifacts.  The chain verifier recognizes and validates them natively but does not extract outbound references from them.  If cross-reference fields are added in a future PR, `extract_references()` should be updated at that time.
 
 ## CLI
 
