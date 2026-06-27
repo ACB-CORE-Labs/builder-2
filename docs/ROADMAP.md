@@ -1,8 +1,10 @@
 # builder-II roadmap
 
-builder-II is a generic governed local agent/developer platform.
+CORE builder-II is CORE's governed engineering platform for local agent-assisted software development.
 
-It is not CORE, not CORE Workbench/UI, and not a second CORE runtime. CORE remains a target profile only.
+It is a CORE product and brand extension, but it is not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime. CORE remains a first-class target profile and brand lineage; builder-II remains generic-first in architecture.
+
+The governing product doctrine is captured in [`docs/MANIFESTO.md`](MANIFESTO.md), [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md), and [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](adrs/ADR-0002-builder-convention-layer-over-codename-goose.md).
 
 ## Current status
 
@@ -10,6 +12,9 @@ builder-II is complete on the no-runtime governance foundation. Verification pro
 
 Completed foundation surfaces:
 
+- CORE-born product positioning with generic-first architecture
+- Builder's Signet doctrine: Mechanical Sympathy, Semantic Rigor, and The Third Door
+- builder convention-layer doctrine over Codename Goose
 - generic platform core
 - explicit target profiles: `generic`, `builder`, `core`
 - generic agent profiles
@@ -86,6 +91,11 @@ Every command above either validates configuration, renders a reviewable plan/sp
 
 These are not required for the governance foundation, but remain planned thin extensions:
 
+- governed engineering scenario tests
+- session configuration spine artifact
+- Codename Goose projection artifact
+- builder command wrapper around Goose projection
+- agent/subagent orchestration plan artifact
 - prompt/eval lanes
 - read-only runner candidate
 - runtime audit artifacts
@@ -126,10 +136,15 @@ These RFCs are not implementation authority. They do not enable memory mutation,
 
 ## Near-term order
 
-1. Keep documentation and metadata aligned with the generic-first platform identity.
+1. Keep documentation and metadata aligned with CORE-born, generic-first platform identity.
 2. Treat Goose session manifests, Goose read-only candidate audits, bounded read-only inspection artifacts, governed deepagents policy artifacts, and dependency-readiness artifacts as complete artifact-only infrastructure.
-3. Design the read-only runtime candidate and runtime audit artifact schema.
-4. Add cross-layer compatibility and denied-action tests before runtime promotion.
-5. Introduce model routing as a policy artifact before any automatic routing behavior.
-6. Add measured Rust and MLX performance candidates only where evidence shows value.
-7. Treat MCP as a policy/inventory/audit seam before any server connection or tool invocation.
+3. Add governed engineering scenario tests that prove end-to-end session propagation across target/profile resolution, Goose session manifest, planned verification report, handoff/receipt, and artifact chain verification.
+4. Add a session configuration spine artifact that resolves target/provider/model/agent/authority/context/verification into one reviewable record.
+5. Add a Codename Goose projection artifact that renders env/recipe/context/session fields without launching Goose.
+6. Add builder command wrappers around the projection layer.
+7. Add agent/subagent orchestration plan artifacts before any subagent runtime construction.
+8. Design the read-only runtime candidate and runtime audit artifact schema.
+9. Add cross-layer compatibility and denied-action tests before runtime promotion.
+10. Introduce model routing as a policy artifact before any automatic routing behavior.
+11. Add measured Rust and MLX performance candidates only where evidence shows value.
+12. Treat MCP as a policy/inventory/audit seam before any server connection or tool invocation.

@@ -1,10 +1,33 @@
-# builder-II
+# CORE builder-II
 
-`builder-II` is a generic governed local agent/developer platform for working with target repositories through explicit profiles, artifacts, model policy, verification guidance, and operator-controlled workflows. It wraps Codename Goose, MLX-native local models, task-aware model policy, resumable downloads, runtime controls, Goose recipes, skills, target profiles, agent profiles, and verification helpers.
+`CORE builder-II` is CORE's governed engineering platform for local agent-assisted software development. It is a CORE product and brand extension: CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet.
 
-The design goal is not to pretend a small local model is a frontier cloud system. The goal is to give the operator a usable local development platform with clear setup, prompts, recipes, tools, runtime boundaries, target boundaries, audit artifacts, and validation commands.
+The platform exists to make engineering work feel like an extension of the engineer. It should bring the right repo context, target profile, agent profile, verification path, authority boundary, and handoff structure to the operator before the operator has to reconstruct that state manually.
 
-See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the current product scope: builder-II is a practical Goose/local-agent development platform, not CORE, not a second CORE runtime, and not CORE Workbench/UI. CORE is one target profile.
+`builder-II` supplements Codename Goose. Codename Goose is the local execution-capable agent platform; builder-II prepares, constrains, records, verifies, and hands off governed engineering work around Goose and future optional harnesses such as deepagents.
+
+See [`docs/MANIFESTO.md`](docs/MANIFESTO.md) for the product philosophy, [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) for the governing product decision, and [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) for the Codename Goose convention-layer decision.
+
+`builder-II` is not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime. CORE is the brand lineage and a first-class target profile, but builder-II remains architecturally generic enough to support many target repositories.
+
+## The Builder's Signet
+
+Every architectural decision in builder-II should reflect three engineering pillars inherited from CORE:
+
+1. **Mechanical Sympathy** — Respect the real substrate of engineering work: local repositories, Git, Codename Goose, tests, diffs, handoffs, PRs, failed checks, constrained hardware, and human judgment. Do not rebuild what already works. Reinforce it.
+2. **Semantic Rigor** — Preserve exact meaning across every artifact and claim. Planned is not executed. Executed is not verified. Verified is not promoted. A manifest is not runtime evidence. A handoff is not proof of correctness.
+3. **The Third Door** — Reject the false choice between weak safety theater and reckless automation. builder-II must become powerful because it is governed: ambient and anticipatory where appropriate, explicit and HITL-gated where authority changes.
+
+These are not slogans. They are design constraints.
+
+## Canonical Goose references
+
+Keep the public Goose docs close during design and implementation:
+
+- Goose docs: <https://goose-docs.ai/>
+- Agentic AI Foundation: <https://aaif.io/>
+
+The builder convention layer should track Goose's official docs as Goose evolves under AAIF and prefer Goose-native concepts over invented substitutes.
 
 ## Documentation map
 
@@ -12,7 +35,11 @@ Start here if you are evaluating or sharing the project:
 
 | Document | Purpose |
 | --- | --- |
-| [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the generic governed platform and its components. |
+| [`docs/MANIFESTO.md`](docs/MANIFESTO.md) | CORE builder-II manifesto: signet, product ethos, Codename Goose relationship, and governed engineering promise. |
+| [`docs/GOOSE_CONVENTION_LAYER.md`](docs/GOOSE_CONVENTION_LAYER.md) | Operational spec for the builder convention layer over Codename Goose. |
+| [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) | Architecture decision defining CORE builder-II as a governed engineering extension. |
+| [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) | Architecture decision requiring builder-II abstractions to compile down to Codename-Goose-native surfaces. |
+| [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the CORE-born, generic-first governed platform and its components. |
 | [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
 | [`docs/TARGETS.md`](docs/TARGETS.md) | Explicit target profiles: generic, builder, and core. |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | Generic agent profiles and authority contracts. |
