@@ -6,118 +6,143 @@ It is a CORE product and brand extension, but it is not the CORE runtime, not CO
 
 The governing product doctrine is captured in [`docs/MANIFESTO.md`](MANIFESTO.md), [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md), and [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](adrs/ADR-0002-builder-convention-layer-over-codename-goose.md).
 
-## Current status
+## Current status — v0 governed artifact platform (as of 2026-06-27)
 
-builder-II is complete on the no-runtime governance foundation. Verification profiles, handoff artifacts, quality gate artifacts, research planning artifacts, Goose session manifests, Goose read-only candidate audit artifacts, bounded read-only inspection artifacts, governed deepagents policy artifacts, and deepagents dependency-readiness artifacts remain artifact-only. Goose runtime behavior and deepagents runtime behavior are specified as design boundaries, not enabled.
+builder-II has completed its **v0 release**. The full governed artifact platform is built, tested, and proven via the operator-run v0 proof harness (`scripts/verify_v0_release.py`). All capabilities below are source-backed with tests; runtime execution remains deliberately ungated.
 
-Completed foundation surfaces:
+### Completed artifact spine (PRs #95–138)
 
-- CORE-born product positioning with generic-first architecture
-- Builder's Signet doctrine: Mechanical Sympathy, Semantic Rigor, and The Third Door
-- builder convention-layer doctrine over Codename Goose
-- generic platform core
-- explicit target profiles: `generic`, `builder`, `core`
-- generic agent profiles
-- context pack artifacts
-- optional deepagents bridge specs
-- optional deepagents readiness smoke
-- readiness and bridge spec artifact output
-- bridge artifact validation
-- capability promotion registry
-- target bundle artifacts
-- verification profile registry
-- handoff artifact commands
-- quality gate artifacts
-- research planning artifacts
-- Goose runtime design spec
-- runtime promotion contract
-- Goose session manifest artifacts
-- Goose read-only candidate audit artifacts
-- bounded read-only inspection artifacts
-- governed deepagents policy artifacts
-- deepagents dependency-readiness artifacts
+**Session and preparation lane**
+- Governed session workflow plan artifact (`builder_ii.session_workflow_plan`)
+- Governed session configuration spine (`builder_ii.session_configuration`)
+- Governed prepare-package command, validation, and summarization lane
+- Repo map artifact (`builder_ii.repo_map`) — read-only filesystem scan
+- Context pack artifact (`builder_ii.context_pack`) — high-signal subset extraction
+- Operator command surface index (`docs/OPERATOR_COMMAND_SURFACE.md`)
+- Governed session bootstrap guide (`docs/OPERATOR_QUICKSTART.md`)
 
-The current foundation is intentionally no-runtime:
+**Goose projection and planning**
+- Goose projection artifact (`builder_ii.goose_projection`) — PLANNED_ONLY
+- Goose wrapper plan artifact (`builder_ii.goose_wrapper_plan`)
+- Goose recipe/context projection artifact (`builder_ii.goose_recipe_context_projection`)
+- Goose read-only session plan rendering (`builder_ii.goose_readonly_session_plan`)
+- Runtime activation approval spec (`builder_ii.runtime_activation_approval_spec`) — PROPOSED_ONLY
 
-- no autonomous source writes
-- no shell execution as an agent capability
-- no deepagents construction
-- no model execution through the bridge
-- no command execution from quality gates
-- no search, MCP, or source collection from research plans
-- no Goose runtime activation from specs or manifests
-- no repository inspection from Goose read-only audit candidates
-- no arbitrary repository inspection; bounded inspection requires explicit operator paths
-- no memory mutation
-- no commit/push automation
-- no CORE Workbench/UI coupling
+**Orchestration and verification**
+- Orchestration plan artifact (`builder_ii.orchestration_plan`) — all roles UNBOUND
+- Orchestration dry-run artifact (`builder_ii.orchestration_dry_run`)
+- Verification profile reports (`builder_ii.verification_profile_report`) — planned checks, NOT_RUN
+- Full governed preparation lane scenario tests
+
+**HITL governance chain**
+- HITL execution request/receipt records (`builder_ii.hitl_execution_request`, `builder_ii.hitl_execution_receipt`)
+- Execution postflight/verification records (`builder_ii.execution_postflight_record`, `builder_ii.execution_verification_record`)
+- HITL evidence bundle (`builder_ii.hitl_evidence_bundle`)
+- HITL chain binding artifact (`builder_ii.hitl_chain_binding`) — cryptographic lifecycle binding
+- HITL approved verification execution candidate (`builder_ii.hitl_approved_verification_execution_candidate`) — candidate only, no execution
+
+**Platform governance**
+- ConventionKernel as governed platform spine (`ConventionKernelPlatformBundle`)
+- Command authority tier registry (`docs/COMMAND_AUTHORITY_REGISTRY.md`)
+- Model capability registry artifact (`builder_ii.model_capability_registry`)
+- Artifact index and chain verification registry (all v0 kinds registered and closure-tested)
+- v0 release manifest + operator-run proof harness (`builder_ii.v0_release_manifest`, `scripts/verify_v0_release.py`)
+- Capability promotion registry (`docs/CAPABILITY_PROMOTION.md`)
+- Generic-first identity pivot (PR #129) — CORE scoped to target profile throughout
+
+**Supporting infrastructure (earlier PRs)**
+- Target profiles: `generic`, `builder`, `core`
+- Generic agent profiles
+- Profile resolution layer
+- Handoff note lifecycle (`builder_ii.handoff_note`)
+- deepagents bridge readiness reports (`builder_ii.deepagents_bridge_readiness_report`)
+- Artifact index and chain verification
+- Runtime governance and release audit tests
+- Builder platform release audit
+
+### Non-authority boundaries (enforced)
+
+- No autonomous source writes
+- No shell execution as an agent capability
+- No deepagents runtime construction
+- No model execution through the bridge
+- No Goose runtime activation from specs or manifests
+- No command execution from quality gates or verification candidates
+- No arbitrary repository inspection
+- No memory mutation
+- No commit/push automation
+- No CORE Workbench/UI coupling
+- No Deephaven changes
 
 ## Current operating loop
 
 ```bash
+# Setup
 builder setup
 builder doctor
-builder-targets validate
-builder-agent validate
-builder-verification validate
-builder-context pack --target builder --changed --task "..."
-builder-verification artifact builder_full --target builder --task "..." --output .builder/artifacts/verification-profile.json
-builder-verification validate .builder/artifacts/verification-profile.json
-builder-bundle create --target builder --agent patch_planner --task "..." --output .builder/artifacts/target-bundle.json
-builder-bundle validate .builder/artifacts/target-bundle.json
-builder-research plan --target generic --profile research_planner --task "..." --output .builder/artifacts/research-plan.json
-builder-research validate .builder/artifacts/research-plan.json
-builder-quality plan --target builder --profile builder_full --task "..." --output .builder/artifacts/quality-gate.json
-builder-quality validate .builder/artifacts/quality-gate.json
-builder-notes handoff --target builder --agent handoff_scribe --task "..." --summary "..." --output .builder/artifacts/handoff.json
-builder-notes validate .builder/artifacts/handoff.json
-builder-goose manifest --target builder --agent patch_planner --mode read_only --task "..." --output .builder/artifacts/goose-session.json
-builder-goose validate .builder/artifacts/goose-session.json
-builder-goose readonly-audit .builder/artifacts/goose-session.json --output .builder/artifacts/goose-readonly-audit.json
-builder-goose validate-audit .builder/artifacts/goose-readonly-audit.json
-builder-goose inspect-readonly .builder/artifacts/goose-session.json --read-file README.md --output .builder/artifacts/goose-readonly-inspection.json
-builder-goose validate-inspection .builder/artifacts/goose-readonly-inspection.json
-builder-deepagents policy --target builder --task "..." --output .builder/artifacts/deepagents-policy.json
-builder-deepagents validate .builder/artifacts/deepagents-policy.json
-builder-deepagents readiness --mode metadata_only --output .builder/artifacts/deepagents-readiness.json
-builder-deepagents validate-readiness .builder/artifacts/deepagents-readiness.json
-builder-bridge render patch_planner --target builder --format json --output .builder/artifacts/bridge-spec.json
-builder-bridge validate-artifact .builder/artifacts/bridge-spec.json
+
+# Session preparation
+builder-session prepare-package --target builder --task "..." --output .builder/session/
+builder-session validate-prepare-package .builder/session/
+builder-session summarize-prepare-package .builder/session/
+
+# ConventionKernel platform spine
+builder-session config --target builder --task "..."
+builder-session goose-projection ...
+builder-session goose-readonly-plan ...
+
+# HITL governance artifacts
+builder-hitl request ...
+builder-hitl receipt ...
+
+# Verification and handoff
+builder-notes handoff ...
+builder-verification artifact ...
 ```
 
-Every command above either validates configuration, renders a reviewable plan/specification, or writes an explicit artifact path requested by the operator. None of these commands grants runtime authority.
+Every command above renders a reviewable artifact or validates an existing one. None grants runtime authority.
 
-## Remaining extension surfaces
+## Remaining extension surfaces (what comes after v0)
 
-These are not required for the governance foundation, but remain planned thin extensions:
+These are the next capability promotions. Each requires the full capability promotion gate (docs, tests, command surface, failure mode, HITL boundary, output artifact, rollback path, verification path) before it can move from candidate to enabled.
 
-- governed engineering scenario tests
-- session configuration spine artifact
-- Codename Goose projection artifact
-- builder command wrapper around Goose projection
-- agent/subagent orchestration plan artifact
-- prompt/eval lanes
-- read-only runner candidate
-- runtime audit artifacts
-- command proposal artifacts
-- HITL approval artifacts
-- approved verification execution candidate
-- patch proposal artifacts
-- approved patch application candidate
+### Phase: read-only file inspection (next)
+- Promote bounded file inspection into actual runtime reads against operator-specified paths
+- Canonical template for all subsequent execution gate promotions
 
-Each future capability must satisfy the capability promotion rule before it can move beyond disabled/spec/artifact/validation states.
+### Phase: model routing policy artifact
+- Introduce model routing as a `builder_ii.model_routing_policy` artifact
+- No automatic routing until artifact is reviewed and approved
 
-## Performance and integration priorities
+### Phase: live deepagents render (planning mode)
+- Render deepagents planning artifacts from session config
+- No agent construction or delegation until HITL gate is crossed
 
-See `docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md` for the detailed amendment.
+### Phase: HITL command proposal → approved execution
+- Command proposal artifact → operator approval → HITL chain binding → approved execution candidate → actual execution
+- Requires full evidence chain and rollback path
 
-The amendment adds three first-class candidate tracks without promoting runtime behavior:
+### Phase: HITL patch proposal → approved apply
+- Patch proposal artifact → operator review → approved patch application
+- Requires full verification evidence
 
-- Rust-backed artifact validation and processing, gated by measurement and parity evidence.
-- MLX + UMA context compression, restricted to provenance-preserving review artifacts.
-- Model routing and hybrid execution policy, introduced first as an artifact surface rather than hidden automatic model calls.
+### Phase: end-to-end target demos
+- One complete demo per target: `generic`, `builder`, `core`
+- Proves the governed lane works on real repos
 
-These tracks run alongside the existing runtime integration phases. They must preserve the no-runtime governance foundation, the capability promotion rule, target-profile boundaries, and the separation between builder-II and CORE Workbench/UI.
+### Phase: performance tracks (measurement-gated)
+- Rust-backed artifact validation — only if measurement proves value
+- MLX + UMA context compression — provenance-preserving only
+- See `docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md`
+
+### Phase: CI quality gate enforcement
+- Enforce full test suite in CI on every PR
+- No merge without green gate
+
+### Phase: production playbooks and release polish
+- Failure recovery docs
+- Operator runbooks per target
+- Formal release checklist
 
 ## Design-halt RFCs
 
@@ -132,19 +157,16 @@ Current RFCs:
 - `docs/plan/MCP_POLICY_ARTIFACT_RFC.md` — deny-by-default MCP policy artifact for tools, resources, prompts, roots, sampling, elicitation, auth, limits, and result handling.
 - `docs/plan/MCP_TOOL_INVENTORY_RFC.md` — MCP inventory artifact, tool/resource/prompt hashes, risk classification, and change detection before policy or invocation.
 
-These RFCs are not implementation authority. They do not enable memory mutation, deepagents construction, Rust dependencies, shell execution, command execution, model calls, source mutation, MCP connection, MCP tool execution, source collection, or Goose runtime activation.
+These RFCs are not implementation authority. They do not enable memory mutation, deepagents construction, Rust dependencies, shell execution, model calls, source mutation, MCP connection, MCP tool execution, or Goose runtime activation.
 
-## Near-term order
+## Performance and integration priorities
 
-1. Keep documentation and metadata aligned with CORE-born, generic-first platform identity.
-2. Treat Goose session manifests, Goose read-only candidate audits, bounded read-only inspection artifacts, governed deepagents policy artifacts, and dependency-readiness artifacts as complete artifact-only infrastructure.
-3. Add governed engineering scenario tests that prove end-to-end session propagation across target/profile resolution, Goose session manifest, planned verification report, handoff/receipt, and artifact chain verification.
-4. Add a session configuration spine artifact that resolves target/provider/model/agent/authority/context/verification into one reviewable record.
-5. Add a Codename Goose projection artifact that renders env/recipe/context/session fields without launching Goose.
-6. Add builder command wrappers around the projection layer.
-7. Add agent/subagent orchestration plan artifacts before any subagent runtime construction.
-8. Design the read-only runtime candidate and runtime audit artifact schema.
-9. Add cross-layer compatibility and denied-action tests before runtime promotion.
-10. Introduce model routing as a policy artifact before any automatic routing behavior.
-11. Add measured Rust and MLX performance candidates only where evidence shows value.
-12. Treat MCP as a policy/inventory/audit seam before any server connection or tool invocation.
+See `docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md` for the detailed amendment.
+
+The amendment adds three first-class candidate tracks without promoting runtime behavior:
+
+- Rust-backed artifact validation and processing, gated by measurement and parity evidence.
+- MLX + UMA context compression, restricted to provenance-preserving review artifacts.
+- Model routing and hybrid execution policy, introduced first as an artifact surface rather than hidden automatic model calls.
+
+These tracks run alongside the existing runtime integration phases. They must preserve the no-runtime governance foundation, the capability promotion rule, target-profile boundaries, and the separation between builder-II and CORE Workbench/UI.
