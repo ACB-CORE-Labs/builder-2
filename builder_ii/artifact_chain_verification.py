@@ -103,6 +103,10 @@ from builder_ii.release_manifest import (
     V0_RELEASE_MANIFEST_KIND,
     validate_v0_release_manifest,
 )
+from builder_ii.model_capabilities import (
+    MODEL_CAPABILITY_REGISTRY_KIND,
+    validate_model_capability_registry,
+)
 
 ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = "builder_ii.artifact_chain_verification_report"
 
@@ -192,6 +196,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     ORCHESTRATION_DRY_RUN_KIND: validate_orchestration_dry_run,
     RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND: validate_runtime_activation_approval_spec,
     V0_RELEASE_MANIFEST_KIND: validate_v0_release_manifest,
+    MODEL_CAPABILITY_REGISTRY_KIND: validate_model_capability_registry,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 

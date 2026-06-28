@@ -67,6 +67,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.session_configuration`
 - `builder_ii.v0_release_manifest`
 - `builder_ii.artifact_chain_verification_report`
+- `builder_ii.model_capability_registry`
 
 ## Governance and Authority Boundaries
 

@@ -107,6 +107,11 @@ from builder_ii.release_manifest import (
     create_v0_release_manifest,
 )
 from builder_ii.artifact_chain_verification import ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND
+from builder_ii.model_capabilities import (
+    MODEL_CAPABILITY_REGISTRY_KIND,
+    create_model_capability_registry,
+)
+from builder_ii.config import Settings
 
 
 
@@ -151,6 +156,7 @@ CLOSURE_KINDS = {
     SESSION_CONFIG_KIND,
     V0_RELEASE_MANIFEST_KIND,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
+    MODEL_CAPABILITY_REGISTRY_KIND,
 }
 
 # ---------------------------------------------------------------------------
@@ -737,6 +743,35 @@ def _session_config() -> dict[str, Any]:
     return create_session_configuration(load_settings(), "generic", agent_profile_name="repo_mapper", task="test task", generic_repo=Path("."))
 
 
+def _settings_stub(alias: str = "qwen-coder") -> Settings:
+    return Settings(
+        core_repo=Path("/tmp/core"),
+        backend="mlx-lm",
+        model_tier="primary",
+        model_alias=alias,
+        model_primary="gemma-4-12b-4bit",
+        model_fast="gemma-4-e4b-4bit",
+        mlx_model_primary="mlx-community/gemma-4-12B-it-4bit",
+        mlx_model_fast="mlx-community/gemma-4-e4b-it-4bit",
+        mlx_model_phi="mlx-community/Phi-4-mini-reasoning-4bit",
+        mlx_model_qwen="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+        mlx_model_deepseek="mlx-community/DeepSeek-Coder-V2-Lite-Instruct-4bit",
+        mlx_model_llama="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+        mlx_model_codegeex="mlx-community/codegeex4-all-9b-4bit",
+        mlx_model_qwen14="mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+        mlx_model_qwen3_coder="mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit",
+        base_url="http://127.0.0.1:8080/v1",
+        host="127.0.0.1",
+        port=8080,
+        temperature=0.0,
+        project_root=Path("/tmp/builder-II"),
+    )
+
+
+def _model_capability_registry() -> dict[str, Any]:
+    return create_model_capability_registry(_settings_stub())
+
+
 # ---------------------------------------------------------------------------
 # Original closure tests
 # ---------------------------------------------------------------------------
@@ -889,6 +924,7 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
         _session_config(),
         _artifact_chain_verification_report(),
         _v0_release_manifest(),
+        _model_capability_registry(),
     ]
 
     for record in fixtures:
@@ -930,6 +966,7 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
         "session-config.json": _session_config(),
         "chain-report.json": _artifact_chain_verification_report(),
         "release-manifest.json": _v0_release_manifest(),
+        "model-capability-registry.json": _model_capability_registry(),
     }
     for filename, artifact in fixtures.items():
         _write(tmp_path / filename, artifact)
@@ -971,6 +1008,7 @@ def test_governance_artifacts_are_not_chain_evidence() -> None:
         _handoff_artifact(),
         _session_config(),
         _artifact_chain_verification_report(),
+        _model_capability_registry(),
     ]
 
     for record in fixtures:
@@ -1004,6 +1042,7 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
         "handoff-artifact.json": _handoff_artifact(),
         "session-config.json": _session_config(),
         "chain-report.json": _artifact_chain_verification_report(),
+        "model-capability-registry.json": _model_capability_registry(),
     }
     paths = []
     for filename, artifact in fixtures.items():

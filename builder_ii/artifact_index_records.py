@@ -116,6 +116,10 @@ from builder_ii.release_manifest import (
     V0_RELEASE_MANIFEST_KIND,
     validate_v0_release_manifest,
 )
+from builder_ii.model_capabilities import (
+    MODEL_CAPABILITY_REGISTRY_KIND,
+    validate_model_capability_registry,
+)
 
 
 
@@ -198,6 +202,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_PROJECTION_KIND: validate_goose_projection,
     GOOSE_WRAPPER_PLAN_KIND: validate_goose_wrapper_plan,
     V0_RELEASE_MANIFEST_KIND: validate_v0_release_manifest,
+    MODEL_CAPABILITY_REGISTRY_KIND: validate_model_capability_registry,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
 
