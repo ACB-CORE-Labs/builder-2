@@ -69,6 +69,11 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.v0_release_manifest`
 - `builder_ii.artifact_chain_verification_report`
 - `builder_ii.model_capability_registry`
+- `builder_ii.profile_pack_manifest`
+- `builder_ii.profile_pack_render_plan`
+- `builder_ii.profile_pack_dry_run`
+- `builder_ii.profile_pack_validation_report`
+- `builder_ii.profile_pack`
 
 ## Governance and Authority Boundaries
 
@@ -112,6 +117,11 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.session_configuration` | Session configuration | #133 |
 | `builder_ii.v0_release_manifest` | V0 release proof manifest | #135 |
 | `builder_ii.artifact_chain_verification_report` | Chain verification report | #135 |
+| `builder_ii.profile_pack_manifest` | Passive profile-pack manifest | current |
+| `builder_ii.profile_pack_render_plan` | Passive profile-pack render plan | current |
+| `builder_ii.profile_pack_dry_run` | Passive profile-pack dry run | current |
+| `builder_ii.profile_pack_validation_report` | Passive profile-pack validation report | current |
+| `builder_ii.profile_pack` | Passive profile-pack lifecycle bundle | current |
 
 **Chain evidence status:** Most standalone governance records do not embed outbound references. However, the `builder_ii.hitl_verification_execution_candidate` embeds candidate-stage references to proposal, approval, preflight, and request artifacts while encoding future receipt/postflight/verification/chain requirements as requirements, not completed evidence. The `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts, while `builder_ii.hitl_chain_binding` records passive chain metadata that binds the same evidence slots without granting execution authority. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
 

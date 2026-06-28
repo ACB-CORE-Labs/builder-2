@@ -174,6 +174,7 @@ The builder convention layer should track Goose's official docs as Goose evolves
 | [`docs/CONTEXT_PACKS.md`](docs/CONTEXT_PACKS.md) | Context pack artifact creation and validation. |
 | [`docs/TARGET_BUNDLES.md`](docs/TARGET_BUNDLES.md) | Governed target bundle JSON artifact creation and validation. |
 | [`docs/VERIFICATION_PROFILES.md`](docs/VERIFICATION_PROFILES.md) | Target-scoped verification profile artifacts and validation. |
+| [`docs/PROFILE_PACKS.md`](docs/PROFILE_PACKS.md) | Passive profile-pack manifests, render plans, dry-runs, and validation reports for capability-factory composition. |
 | [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md) | Artifact-only quality gate planning and validation. |
 | [`docs/HANDOFF_ARTIFACTS.md`](docs/HANDOFF_ARTIFACTS.md) | Artifact-only handoff capture and validation. |
 | [`docs/RESEARCH_PLANS.md`](docs/RESEARCH_PLANS.md) | Artifact-only research planning and source-strategy boundaries. |
@@ -240,6 +241,7 @@ builder-II v0 includes the full governed artifact platform:
   - approved verification execution candidate
 - Verification profile reports via `builder-verification`
 - Handoff note lifecycle via `builder-notes`
+- Passive profile-pack lifecycle via `builder-profile-pack`
 - deepagents bridge readiness reports via `builder-deepagents`
 - Artifact index and chain verification (all v0 kinds registered, closure-tested)
 - **v0 release manifest and operator-run proof harness** (`scripts/verify_v0_release.py`)

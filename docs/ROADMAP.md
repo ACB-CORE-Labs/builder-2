@@ -59,6 +59,7 @@ builder-II has completed its **v0 release**. The full governed artifact platform
 - Artifact index and chain verification
 - Runtime governance and release audit tests
 - Builder platform release audit
+- Passive profile-pack substrate (`builder_ii.profile_pack_manifest`, `builder_ii.profile_pack_render_plan`, `builder_ii.profile_pack_dry_run`, `builder_ii.profile_pack_validation_report`, `builder_ii.profile_pack`) for capability-factory composition without runtime authority
 
 ### Non-authority boundaries (enforced)
 
@@ -80,6 +81,25 @@ builder-II has completed its **v0 release**. The full governed artifact platform
 # Setup
 builder setup
 builder doctor
+builder-targets validate
+builder-agent validate
+
+# Legacy / focused context and profile surfaces
+builder-context pack
+builder-profile-pack scaffold --target builder --output .builder/profile-pack/manifest.json
+builder-profile-pack render .builder/profile-pack/manifest.json --output .builder/profile-pack/render-plan.json
+builder-profile-pack dry-run .builder/profile-pack/manifest.json --render-plan .builder/profile-pack/render-plan.json --output .builder/profile-pack/dry-run.json
+builder-profile-pack validate .builder/profile-pack/manifest.json --output .builder/profile-pack/validation-report.json
+builder-verification artifact
+builder-verification validate
+builder-bundle create
+builder-bundle validate
+builder-research plan
+builder-research validate
+builder-quality plan
+builder-quality validate
+builder-notes handoff
+builder-notes validate
 
 # Session preparation
 builder-session prepare-package --target builder --task "..." --output .builder/session/
@@ -90,6 +110,12 @@ builder-session summarize-prepare-package .builder/session/
 builder-session config --target builder --task "..."
 builder-session goose-projection ...
 builder-session goose-readonly-plan ...
+builder-goose manifest ...
+builder-goose validate ...
+builder-goose readonly-audit ...
+builder-goose validate-audit ...
+builder-goose inspect-readonly ...
+builder-goose validate-inspection ...
 
 # HITL governance artifacts
 builder-hitl request ...
@@ -98,6 +124,14 @@ builder-hitl receipt ...
 # Verification and handoff
 builder-notes handoff ...
 builder-verification artifact ...
+
+# Optional deepagents / bridge artifacts
+builder-deepagents policy ...
+builder-deepagents validate ...
+builder-deepagents readiness ...
+builder-deepagents validate-readiness ...
+builder-bridge render ...
+builder-bridge validate-artifact ...
 ```
 
 Every command above renders a reviewable artifact or validates an existing one. None grants runtime authority.

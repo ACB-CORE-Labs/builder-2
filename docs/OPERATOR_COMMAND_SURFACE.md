@@ -22,6 +22,7 @@ This index links together the core governed operator lane documentation:
 - [Governed Prepare Package](GOVERNED_PREPARE_PACKAGE.md)
 - [Validate Prepare Package](VALIDATE_PREPARE_PACKAGE.md)
 - [Prepare Package Summary](PREPARE_PACKAGE_SUMMARY.md)
+- [Profile Packs](PROFILE_PACKS.md)
 
 ## Exact First-Class Operator Lane
 
@@ -193,6 +194,40 @@ The operator command surface is organized by phase. Every command operates stric
 - **Execution authority**: artifact-only
 - **Human responsibility**: Ensure quality gate definitions match required project standards.
 - **Writes**: Can write only explicit artifact output paths when requested; otherwise stdout.
+
+### Profile Pack Lifecycle
+
+#### `builder-profile-pack scaffold`
+- **Command name**: `builder-profile-pack scaffold`
+- **Purpose**: Scaffold a passive profile-pack manifest with required pack areas, source refs, content hashes, and denied-by-default authority classifications.
+- **Output artifact, if any**: Profile pack manifest JSON when `--output` is specified.
+- **Execution authority**: artifact-only; no runtime activation.
+- **Human responsibility**: Review the source refs, hashes, and authority classifications before using the pack as planning input.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-profile-pack render`
+- **Command name**: `builder-profile-pack render`
+- **Purpose**: Render a passive profile-pack render plan from a manifest.
+- **Output artifact, if any**: Profile pack render plan JSON when `--output` is specified.
+- **Execution authority**: artifact-only; render means deterministic planning, not execution.
+- **Human responsibility**: Confirm planned outputs remain passive and deny runtime authority.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-profile-pack dry-run`
+- **Command name**: `builder-profile-pack dry-run`
+- **Purpose**: Emit a passive dry-run artifact proving planned pack entries would render without executing commands, starting Goose, constructing deepagents, calling models, or calling MCP tools.
+- **Output artifact, if any**: Profile pack dry-run JSON when `--output` is specified.
+- **Execution authority**: dry-run only; no execution, authorization, promotion, or verification evidence.
+- **Human responsibility**: Inspect dry-run checks before any future capability promotion proposal.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-profile-pack validate`
+- **Command name**: `builder-profile-pack validate`
+- **Purpose**: Validate profile-pack lifecycle artifacts and optionally emit a validation report.
+- **Output artifact, if any**: Profile pack validation report JSON when `--output` is specified.
+- **Execution authority**: validation-only; validation does not imply execution, authorization, verification, or promotion.
+- **Human responsibility**: Treat validation as structural evidence only.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified; otherwise stdout/errors only.
 
 ### HITL Request / Receipt / Evidence
 
