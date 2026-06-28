@@ -2,7 +2,7 @@
 
 `builder-II` is a generic governed platform for local agent-assisted software development. It is CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet. CORE is supported as a target profile.
 
-The platform exists to make engineering work feel like an extension of the engineer. It should bring the right repo context, target profile, agent profile, verification path, authority boundary, and handoff structure to the operator before the operator has to reconstruct that state manually.
+The platform exists to make engineering work feel like an extension of the engineer. It brings the right repo context, target profile, agent profile, verification path, authority boundary, and handoff structure to the operator before the operator has to reconstruct that state manually.
 
 `builder-II` supplements Codename Goose. Codename Goose is the local execution-capable agent platform; builder-II prepares, constrains, records, verifies, and hands off governed engineering work around Goose and future optional harnesses such as deepagents.
 
@@ -31,8 +31,6 @@ The builder convention layer should track Goose's official docs as Goose evolves
 
 ## Documentation map
 
-Start here if you are evaluating or sharing the project:
-
 | Document | Purpose |
 | --- | --- |
 | [`docs/MANIFESTO.md`](docs/MANIFESTO.md) | builder-II manifesto: signet, product ethos, Codename Goose relationship, and governed engineering promise. |
@@ -41,8 +39,11 @@ Start here if you are evaluating or sharing the project:
 | [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) | Architecture decision requiring builder-II abstractions to compile down to Codename-Goose-native surfaces. |
 | [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the CORE-born, generic-first governed platform and its components. |
 | [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
+| [`docs/OPERATOR_COMMAND_SURFACE.md`](docs/OPERATOR_COMMAND_SURFACE.md) | Canonical index of all operator-facing commands, authority tiers, and output artifacts. |
 | [`docs/TARGETS.md`](docs/TARGETS.md) | Explicit target profiles: generic, builder, and core. |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | Generic agent profiles and authority contracts. |
+| [`docs/REPO_MAPS.md`](docs/REPO_MAPS.md) | Repo map artifact creation and validation. |
+| [`docs/CONTEXT_PACKS.md`](docs/CONTEXT_PACKS.md) | Context pack artifact creation and validation. |
 | [`docs/TARGET_BUNDLES.md`](docs/TARGET_BUNDLES.md) | Governed target bundle JSON artifact creation and validation. |
 | [`docs/VERIFICATION_PROFILES.md`](docs/VERIFICATION_PROFILES.md) | Target-scoped verification profile artifacts and validation. |
 | [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md) | Artifact-only quality gate planning and validation. |
@@ -53,9 +54,11 @@ Start here if you are evaluating or sharing the project:
 | [`docs/GOOSE_READONLY.md`](docs/GOOSE_READONLY.md) | Goose read-only runtime candidate audit artifacts; no repository inspection yet. |
 | [`docs/GOOSE_INSPECTION.md`](docs/GOOSE_INSPECTION.md) | Bounded read-only inspection artifacts for explicit operator-requested files. |
 | [`docs/DEEPAGENTS_POLICY.md`](docs/DEEPAGENTS_POLICY.md) | Governed deepagents policy artifacts; no agent construction. |
-| [`docs/DEEPAGENTS_READINESS.md`](docs/DEEPAGENTS_READINESS.md) | Optional deepagents dependency-readiness artifacts; no runtime authority. |
+| [`docs/DEEPAGENTS_READINESS.md`](docs/DEEPAGENTS_READINESS.md) | Optional deepagents bridge readiness reports; no runtime authority. |
 | [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) | Capability promotion states and non-authority rule. |
 | [`docs/RUNTIME_PROMOTION.md`](docs/RUNTIME_PROMOTION.md) | Runtime-specific promotion gates for Goose, deepagents, commands, and patches. |
+| [`docs/ARTIFACT_INDEX.md`](docs/ARTIFACT_INDEX.md) | Index of all registered artifact kinds and non-authority boundaries. |
+| [`docs/RELEASE_PROOF.md`](docs/RELEASE_PROOF.md) | v0 release proof harness documentation and operator run instructions. |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Scope, non-goals, and near-term platform direction. |
 | [`docs/plan/MASTERPIECE_PLAN.md`](docs/plan/MASTERPIECE_PLAN.md) | End-to-end implementation vision. |
@@ -74,32 +77,50 @@ The machine does not have 16GB free for weights. macOS, Goose, Python, terminal 
 
 ## What is included
 
-builder-II currently includes:
+builder-II v0 includes the full governed artifact platform:
 
-- CLI setup/doctor/status/model helpers;
-- MLX-LM backend startup and served-model checks;
-- direct local ask through an OpenAI-compatible local endpoint;
-- runtime marker and listener reset helpers;
-- model aliases and runtime policy;
-- Goose config generation;
-- Goose recipes for platform, coding, plan, explore, implement, review, verify, and handoff flows;
-- builder-II skills copied into the selected target repo;
-- explicit target profiles via `builder-targets`;
-- generic agent profiles via `builder-agent`;
-- governed target bundle artifacts via `builder-bundle`;
-- verification profile artifacts via `builder-verification`;
-- quality gate artifacts via `builder-quality`;
-- handoff artifacts via `builder-notes`;
-- research planning artifacts via `builder-research`;
-- Goose session manifest artifacts via `builder-goose`;
-- Goose read-only candidate audit artifacts via `builder-goose`;
-- bounded Goose read-only inspection artifacts via `builder-goose`;
-- governed deepagents policy and dependency-readiness artifacts via `builder-deepagents`;
-- lane guides, personas, and capability boundaries for prompt/task organization;
-- external tool registry via `builder-tools`;
-- optional external tool installer via `scripts/install-tools.sh`;
-- Repomix-backed context manifests via `builder-context`;
-- verification routing for target repositories.
+- CLI setup/doctor/status/model helpers
+- MLX-LM backend startup and served-model checks
+- Direct local ask through an OpenAI-compatible local endpoint
+- Runtime marker and listener reset helpers
+- Model aliases, runtime policy, and model capability registry artifact
+- Goose config generation
+- Goose recipes for platform, coding, plan, explore, implement, review, verify, and handoff flows
+- builder-II skills copied into the selected target repo
+- Explicit target profiles (`generic`, `builder`, `core`) via `builder-targets`
+- Generic agent profiles via `builder-agent`
+- Profile resolution layer (target, agent, prompt, verification, context)
+- **Session preparation lane** via `builder-session`:
+  - `prepare-package` — composes all session artifacts into a governed package
+  - `validate-prepare-package` — SHA-256 integrity check on all artifact refs
+  - `summarize-prepare-package` — human-readable package summary
+  - `repo-map` — read-only filesystem scan artifact
+  - `context-pack` — high-signal context subset artifact
+  - `config` — session configuration spine artifact
+  - `goose-projection` — Goose-native projection artifact (PLANNED_ONLY)
+  - `goose-wrapper-plan` — operator-facing wrapper plan artifact
+  - `goose-readonly-plan` — read-only session plan rendering
+- **ConventionKernel platform spine** — governed composition of the full session artifact set
+- **Command authority tier registry** — explicit authority tier, write boundary, and approval requirement for every command
+- **Orchestration plan and dry-run** via `builder-orchestration`
+- **HITL governance chain** via `builder-hitl`:
+  - execution request/receipt records
+  - postflight/verification records
+  - evidence bundle
+  - chain binding (cryptographic lifecycle)
+  - approved verification execution candidate
+- Verification profile reports via `builder-verification`
+- Handoff note lifecycle via `builder-notes`
+- deepagents bridge readiness reports via `builder-deepagents`
+- Artifact index and chain verification (all v0 kinds registered, closure-tested)
+- **v0 release manifest and operator-run proof harness** (`scripts/verify_v0_release.py`)
+- Governed target bundle artifacts via `builder-bundle`
+- Quality gate artifacts via `builder-quality`
+- Research planning artifacts via `builder-research`
+- Lane guides, personas, and capability boundaries for prompt/task organization
+- External tool registry via `builder-tools`
+- Optional external tool installer via `scripts/install-tools.sh`
+- Repomix-backed context manifests via `builder-context`
 
 ## Recommended model lanes
 
@@ -120,26 +141,36 @@ Future hybrid local/frontier routing must begin as a governed policy artifact. I
 
 Validated on the M1 `mlx-lm` lane:
 
-- `builder doctor` configuration/compliance checks.
-- MLX-LM backend startup.
-- Health probe at `http://127.0.0.1:8080/v1/models`.
-- OpenAI-compatible chat transport at `http://127.0.0.1:8080/v1/chat/completions`.
-- Direct local ask through `builder ask`.
-- Text-only audit/planning responses through `qwen-coder`.
-- Runtime reset with `builder-runtime reset`.
-- Goose recipe path wiring.
-- Artifact creation and validation for target bundles, verification profiles, quality gates, handoffs, research plans, Goose session manifests, Goose read-only candidate audits, bounded read-only inspection artifacts, governed deepagents policies, and deepagents dependency-readiness artifacts.
+- `builder doctor` configuration/compliance checks
+- MLX-LM backend startup
+- Health probe at `http://127.0.0.1:8080/v1/models`
+- OpenAI-compatible chat transport at `http://127.0.0.1:8080/v1/chat/completions`
+- Direct local ask through `builder ask`
+- Text-only audit/planning responses through `qwen-coder`
+- Runtime reset with `builder-runtime reset`
+- Goose recipe path wiring
+- Full `builder-session prepare-package` → `validate-prepare-package` → `summarize-prepare-package` lane
+- Repo map and context pack generation
+- Session configuration, Goose projection, wrapper plan, and read-only plan artifacts
+- ConventionKernel platform spine composition
+- HITL execution request/receipt, postflight, verification, evidence bundle, and chain binding artifacts
+- HITL approved verification execution candidate (candidate only — no execution performed)
+- Handoff note lifecycle artifacts
+- deepagents bridge readiness reports
+- Artifact index and chain verification (all v0 kinds)
+- v0 release proof harness (`uv run python scripts/verify_v0_release.py`)
 
-Not yet validated/promoted:
+Not yet promoted (requires capability promotion gate):
 
-- Fully autonomous Goose tool execution through the local `mlx-lm` provider.
-- Actual read-only repository inspection by Goose runtime.
-- Goose process-backed read-only runtime inspection.
-- File-modifying `/implement` sessions driven entirely by a local MLX model.
-- deepagents runtime orchestration.
-- approved command execution artifacts.
-- approved patch application artifacts.
-- Production-quality multimodal sidecar support.
+- Actual read-only repository inspection at runtime
+- Fully autonomous Goose tool execution through the local `mlx-lm` provider
+- Goose process-backed runtime inspection
+- File-modifying sessions driven by a local MLX model
+- HITL command proposal → approved execution (candidate exists, execution not crossed)
+- HITL patch proposal → approved application
+- deepagents runtime orchestration
+- Model routing policy artifact (RFC exists, artifact not yet built)
+- Production-quality multimodal sidecar support
 
 Until a dedicated promotion path proves otherwise, treat local MLX sessions as review/planning/reporting lanes. For code edits, require explicit human review and run deterministic verification before accepting changes.
 
@@ -191,6 +222,12 @@ builder-agent validate
 builder-agent profiles
 bash scripts/install-tools.sh required
 builder-tools check --tier tier1
-builder-context pack --target builder --no-repomix
-builder start --task "audit the selected target repo and identify the safest next patch"
+
+# Run the v0 proof harness
+uv run python scripts/verify_v0_release.py
+
+# Prepare a governed session package
+builder-session prepare-package --target builder --task "audit the selected target repo and identify the safest next patch" --output .builder/session/
+builder-session validate-prepare-package .builder/session/
+builder-session summarize-prepare-package .builder/session/
 ```
