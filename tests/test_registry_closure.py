@@ -4,12 +4,27 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
-from builder_ii.artifact_chain_verification import extract_references, verify_artifact_chain
+from builder_ii.artifact_chain_verification import (
+    extract_references,
+    verify_artifact_chain,
+)
 from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-from builder_ii.artifact_index_records import create_artifact_index_record, validate_artifact_index_record
-from builder_ii.performance_measurements import PERFORMANCE_MEASUREMENT_KIND, create_performance_measurement_record
-from builder_ii.readonly_inspection_promotion import READONLY_INSPECTION_PROMOTION_SPEC_KIND, create_readonly_inspection_promotion_spec
-from builder_ii.research_adapters import RESEARCH_ADAPTER_KIND, create_research_adapter_artifact
+from builder_ii.artifact_index_records import (
+    create_artifact_index_record,
+    validate_artifact_index_record,
+)
+from builder_ii.performance_measurements import (
+    PERFORMANCE_MEASUREMENT_KIND,
+    create_performance_measurement_record,
+)
+from builder_ii.readonly_inspection_promotion import (
+    READONLY_INSPECTION_PROMOTION_SPEC_KIND,
+    create_readonly_inspection_promotion_spec,
+)
+from builder_ii.research_adapters import (
+    RESEARCH_ADAPTER_KIND,
+    create_research_adapter_artifact,
+)
 from builder_ii.research_plans import RESEARCH_PLAN_KIND, create_research_plan_artifact
 from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND
 from builder_ii.hitl_execution_records import (
@@ -53,9 +68,7 @@ from builder_ii.config import Settings
 from builder_ii.convention_kernel import CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND
 from builder_ii.governed_prepare_package import (
     GOVERNED_PREPARE_PACKAGE_KIND,
-    create_governed_prepare_package,
     GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
-    summarize_governed_prepare_package_directory,
 )
 from builder_ii.orchestration_plan import (
     ORCHESTRATION_PLAN_KIND,
@@ -110,14 +123,20 @@ from builder_ii.release_manifest import (
     create_artifact_ref,
     create_v0_release_manifest,
 )
-from builder_ii.artifact_chain_verification import ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND
+from builder_ii.artifact_chain_verification import (
+    ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
+)
 from builder_ii.model_capabilities import (
     MODEL_CAPABILITY_REGISTRY_KIND,
     create_model_capability_registry,
 )
-from builder_ii.config import Settings
-
-
+from builder_ii.orchestration_assignment import (
+    AGENT_ASSIGNMENT_PLAN_KIND,
+    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
+    ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
+    ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
+)
+from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 
 CLOSURE_KINDS = {
@@ -162,6 +181,17 @@ CLOSURE_KINDS = {
     V0_RELEASE_MANIFEST_KIND,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
     MODEL_CAPABILITY_REGISTRY_KIND,
+    AGENT_ASSIGNMENT_PLAN_KIND,
+    ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
+    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
+    ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
+}
+
+GOAL2_ASSIGNMENT_ARTIFACT_KINDS = {
+    AGENT_ASSIGNMENT_PLAN_KIND,
+    ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
+    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
+    ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
 }
 
 # ---------------------------------------------------------------------------
@@ -206,7 +236,9 @@ def _digest(value: dict[str, Any]) -> str:
 
 
 def _write(path: Path, value: dict[str, Any]) -> None:
-    path.write_text(json_lib.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path.write_text(
+        json_lib.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
 
 
 def _plan() -> dict[str, Any]:
@@ -243,6 +275,7 @@ def _measurement() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Governance artifact fixture factories
 # ---------------------------------------------------------------------------
+
 
 def _hitl_execution_request() -> dict[str, Any]:
     return create_hitl_execution_request(
@@ -341,13 +374,33 @@ def _hitl_chain_binding() -> dict[str, Any]:
         "kind": HITL_CHAIN_BINDING_KIND,
         "schema_version": 1,
         "chain_state": "BOUND_ONLY",
-        "proposal_ref": create_artifact_ref(kind="builder_ii.goose_command_proposal", path="proposal.json", sha256="a" * 64),
-        "approval_ref": create_artifact_ref(kind="builder_ii.approval_record", path="approval.json", sha256="a" * 64),
-        "preflight_ref": create_artifact_ref(kind="builder_ii.preflight_record", path="preflight.json", sha256="a" * 64),
-        "request_ref": create_artifact_ref(kind=HITL_EXECUTION_REQUEST_KIND, path="request.json", sha256="a" * 64),
-        "receipt_ref": create_artifact_ref(kind=HITL_EXECUTION_RECEIPT_KIND, path="receipt.json", sha256="a" * 64),
-        "postflight_ref": create_artifact_ref(kind=EXECUTION_POSTFLIGHT_RECORD_KIND, path="postflight.json", sha256="a" * 64),
-        "verification_ref": create_artifact_ref(kind=EXECUTION_VERIFICATION_RECORD_KIND, path="verification.json", sha256="a" * 64),
+        "proposal_ref": create_artifact_ref(
+            kind="builder_ii.goose_command_proposal",
+            path="proposal.json",
+            sha256="a" * 64,
+        ),
+        "approval_ref": create_artifact_ref(
+            kind="builder_ii.approval_record", path="approval.json", sha256="a" * 64
+        ),
+        "preflight_ref": create_artifact_ref(
+            kind="builder_ii.preflight_record", path="preflight.json", sha256="a" * 64
+        ),
+        "request_ref": create_artifact_ref(
+            kind=HITL_EXECUTION_REQUEST_KIND, path="request.json", sha256="a" * 64
+        ),
+        "receipt_ref": create_artifact_ref(
+            kind=HITL_EXECUTION_RECEIPT_KIND, path="receipt.json", sha256="a" * 64
+        ),
+        "postflight_ref": create_artifact_ref(
+            kind=EXECUTION_POSTFLIGHT_RECORD_KIND,
+            path="postflight.json",
+            sha256="a" * 64,
+        ),
+        "verification_ref": create_artifact_ref(
+            kind=EXECUTION_VERIFICATION_RECORD_KIND,
+            path="verification.json",
+            sha256="a" * 64,
+        ),
         "governance": {
             "capability_state": "hitl_chain_binding",
             "runtime_execution": "DISABLED",
@@ -370,6 +423,7 @@ def _hitl_chain_binding() -> dict[str, Any]:
 
 def _session_workflow_plan() -> dict[str, Any]:
     from builder_ii.config import load_settings
+
     return create_session_workflow_plan(
         load_settings(),
         "generic",
@@ -392,7 +446,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
             "schema_version": 1,
             "all_referenced_commands_registered": True,
             "referenced_commands": [],
-            "verification_status": "planned-only"
+            "verification_status": "planned-only",
         },
         "session_configuration": {
             "kind": "builder_ii.session_configuration",
@@ -413,7 +467,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
                 "memory_mutation": "DISABLED",
                 "artifact_is_authority": False,
                 "core_workbench_coupling": "NONE",
-            }
+            },
         },
         "repo_map": {
             "kind": "builder_ii.repo_map",
@@ -430,7 +484,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
                 "memory_mutation": "DISABLED",
                 "artifact_is_authority": False,
                 "core_workbench_coupling": "NONE",
-            }
+            },
         },
         "context_pack": {
             "kind": "builder_ii.context_pack",
@@ -447,7 +501,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
                 "memory_mutation": "DISABLED",
                 "artifact_is_authority": False,
                 "core_workbench_coupling": "NONE",
-            }
+            },
         },
         "prepare_package": {
             "kind": "builder_ii.governed_prepare_package",
@@ -457,12 +511,42 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
             "task": "test",
             "output_dir": ".",
             "artifact_refs": [
-                {"kind": "builder_ii.session_workflow_plan", "path": "session-workflow.json", "sha256": "f" * 64, "name": "session workflow plan"},
-                {"kind": "builder_ii.goose_readonly_session_plan", "path": "goose-readonly-session.json", "sha256": "f" * 64, "name": "Goose read-only session plan"},
-                {"kind": "builder_ii.verification_profile_report", "path": "verification-profile-report.json", "sha256": "f" * 64, "name": "verification profile report"},
-                {"kind": "builder_ii.repo_map", "path": "repo-map.json", "sha256": "f" * 64, "name": "bounded repo map"},
-                {"kind": "builder_ii.context_pack", "path": "context-pack.json", "sha256": "f" * 64, "name": "bounded context pack"},
-                {"kind": "builder_ii.handoff_note", "path": "handoff-note.json", "sha256": "f" * 64, "name": "governed handoff note"},
+                {
+                    "kind": "builder_ii.session_workflow_plan",
+                    "path": "session-workflow.json",
+                    "sha256": "f" * 64,
+                    "name": "session workflow plan",
+                },
+                {
+                    "kind": "builder_ii.goose_readonly_session_plan",
+                    "path": "goose-readonly-session.json",
+                    "sha256": "f" * 64,
+                    "name": "Goose read-only session plan",
+                },
+                {
+                    "kind": "builder_ii.verification_profile_report",
+                    "path": "verification-profile-report.json",
+                    "sha256": "f" * 64,
+                    "name": "verification profile report",
+                },
+                {
+                    "kind": "builder_ii.repo_map",
+                    "path": "repo-map.json",
+                    "sha256": "f" * 64,
+                    "name": "bounded repo map",
+                },
+                {
+                    "kind": "builder_ii.context_pack",
+                    "path": "context-pack.json",
+                    "sha256": "f" * 64,
+                    "name": "bounded context pack",
+                },
+                {
+                    "kind": "builder_ii.handoff_note",
+                    "path": "handoff-note.json",
+                    "sha256": "f" * 64,
+                    "name": "governed handoff note",
+                },
             ],
             "package_state": "PREPARED_ONLY",
             "runtime_execution_performed": False,
@@ -479,7 +563,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
                 "deepagents_delegation": "DISABLED",
                 "artifact_is_authority": False,
                 "core_workbench_coupling": "NONE",
-            }
+            },
         },
         "goose_projection": {
             "kind": "builder_ii.goose_projection",
@@ -506,7 +590,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
                 "memory_mutation": "DISABLED",
                 "artifact_is_authority": False,
                 "core_workbench_coupling": "NONE",
-            }
+            },
         },
         "goose_wrapper_plan": {
             "kind": "builder_ii.goose_wrapper_plan",
@@ -523,7 +607,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
                 "memory_mutation": "DISABLED",
                 "artifact_is_authority": False,
                 "core_workbench_coupling": "NONE",
-            }
+            },
         },
         "verification_profile_report": {
             "kind": "builder_ii.verification_profile_report",
@@ -554,7 +638,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
                     "executes_commands": False,
                     "artifact_is_authority": False,
                     "core_workbench_coupling": "NONE",
-                }
+                },
             },
             "governance": {
                 "capability_state": "verification_profile_report",
@@ -565,7 +649,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
                 "memory_mutation": "DISABLED",
                 "artifact_is_authority": False,
                 "core_workbench_coupling": "NONE",
-            }
+            },
         },
         "handoff_note": {
             "kind": "builder_ii.handoff_note",
@@ -575,9 +659,24 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
             "summary": "test",
             "changed_files_summary": [],
             "verification_summary": "test",
-            "session_ref": {"kind": "builder_ii.session_workflow_plan", "path": "session-workflow.json", "sha256": "f" * 64, "name": "session workflow plan"},
-            "goose_readonly_session_ref": {"kind": "builder_ii.goose_readonly_session_plan", "path": "goose-readonly-session.json", "sha256": "f" * 64, "name": "Goose read-only session plan"},
-            "verification_report_ref": {"kind": "builder_ii.verification_profile_report", "path": "verification-profile-report.json", "sha256": "f" * 64, "name": "verification profile report"},
+            "session_ref": {
+                "kind": "builder_ii.session_workflow_plan",
+                "path": "session-workflow.json",
+                "sha256": "f" * 64,
+                "name": "session workflow plan",
+            },
+            "goose_readonly_session_ref": {
+                "kind": "builder_ii.goose_readonly_session_plan",
+                "path": "goose-readonly-session.json",
+                "sha256": "f" * 64,
+                "name": "Goose read-only session plan",
+            },
+            "verification_report_ref": {
+                "kind": "builder_ii.verification_profile_report",
+                "path": "verification-profile-report.json",
+                "sha256": "f" * 64,
+                "name": "verification profile report",
+            },
             "open_risks": [],
             "next_recommended_action": "test",
             "governance": {
@@ -589,7 +688,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
                 "memory_mutation": "DISABLED",
                 "artifact_is_authority": False,
                 "core_workbench_coupling": "NONE",
-            }
+            },
         },
         "governance": {
             "runtime_execution": "DISABLED",
@@ -603,7 +702,7 @@ def _convention_kernel_platform_bundle() -> dict[str, Any]:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
 
 
@@ -620,7 +719,7 @@ def _governed_prepare_package() -> dict[str, Any]:
                 "kind": "builder_ii.session_workflow_plan",
                 "path": "session-workflow.json",
                 "sha256": "f" * 64,
-                "name": "session workflow plan"
+                "name": "session workflow plan",
             }
         ],
         "package_state": "PREPARED_ONLY",
@@ -638,7 +737,7 @@ def _governed_prepare_package() -> dict[str, Any]:
             "deepagents_delegation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
 
 
@@ -660,7 +759,7 @@ def _governed_prepare_package_summary() -> dict[str, Any]:
                 "kind": "builder_ii.session_workflow_plan",
                 "path": "session-workflow.json",
                 "sha256": "f" * 64,
-                "name": "session workflow plan"
+                "name": "session workflow plan",
             }
         ],
         "runtime_execution_performed": False,
@@ -682,7 +781,7 @@ def _governed_prepare_package_summary() -> dict[str, Any]:
             "deepagents_delegation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
 
 
@@ -692,8 +791,11 @@ def _orchestration_plan() -> dict[str, Any]:
 
 def _orchestration_dry_run() -> dict[str, Any]:
     from builder_ii.config import load_settings
+
     plan = _orchestration_plan()
-    return create_orchestration_dry_run(load_settings(), plan, repo_path=".", generic_repo=Path("."))
+    return create_orchestration_dry_run(
+        load_settings(), plan, repo_path=".", generic_repo=Path(".")
+    )
 
 
 def _runtime_activation_approval_spec() -> dict[str, Any]:
@@ -704,11 +806,15 @@ def _runtime_activation_approval_spec() -> dict[str, Any]:
 
 def _goose_readonly_session_plan() -> dict[str, Any]:
     from builder_ii.config import load_settings
-    return create_goose_readonly_session_plan(load_settings(), "generic", task="test task")
+
+    return create_goose_readonly_session_plan(
+        load_settings(), "generic", task="test task"
+    )
 
 
 def _goose_projection() -> dict[str, Any]:
     from builder_ii.config import load_settings
+
     config = _session_config()
     return create_goose_projection(load_settings(), config)
 
@@ -720,8 +826,14 @@ def _goose_wrapper_plan() -> dict[str, Any]:
 
 def _verification_profile_report() -> dict[str, Any]:
     from builder_ii.config import load_settings
+
     goose_plan = _goose_readonly_session_plan()
-    return create_verification_profile_report(load_settings(), "generic", task="test task", goose_readonly_session_plan=goose_plan)
+    return create_verification_profile_report(
+        load_settings(),
+        "generic",
+        task="test task",
+        goose_readonly_session_plan=goose_plan,
+    )
 
 
 def _handoff_note() -> dict[str, Any]:
@@ -731,9 +843,21 @@ def _handoff_note() -> dict[str, Any]:
         summary="summary text",
         changed_files_summary=[],
         verification_summary="verif summary",
-        session_ref={"kind": "builder_ii.session_workflow_plan", "path": "session-workflow.json", "sha256": "f" * 64},
-        goose_readonly_session_ref={"kind": "builder_ii.goose_readonly_session_plan", "path": "goose-readonly-session.json", "sha256": "f" * 64},
-        verification_report_ref={"kind": "builder_ii.verification_profile_report", "path": "verification-profile-report.json", "sha256": "f" * 64},
+        session_ref={
+            "kind": "builder_ii.session_workflow_plan",
+            "path": "session-workflow.json",
+            "sha256": "f" * 64,
+        },
+        goose_readonly_session_ref={
+            "kind": "builder_ii.goose_readonly_session_plan",
+            "path": "goose-readonly-session.json",
+            "sha256": "f" * 64,
+        },
+        verification_report_ref={
+            "kind": "builder_ii.verification_profile_report",
+            "path": "verification-profile-report.json",
+            "sha256": "f" * 64,
+        },
         open_risks=[],
         next_recommended_action="none",
     )
@@ -749,16 +873,31 @@ def _deepagents_bridge_readiness_report() -> dict[str, Any]:
 
 def _goose_session() -> dict[str, Any]:
     from builder_ii.config import load_settings
-    return create_goose_session_manifest(load_settings(), target_name="generic", agent_profile="repo_mapper")
+
+    return create_goose_session_manifest(
+        load_settings(), target_name="generic", agent_profile="repo_mapper"
+    )
 
 
 def _handoff_artifact() -> dict[str, Any]:
-    return create_handoff_artifact(target="generic", agent_profile="repo_mapper", task="test task", summary="summary")
+    return create_handoff_artifact(
+        target="generic",
+        agent_profile="repo_mapper",
+        task="test task",
+        summary="summary",
+    )
 
 
 def _session_config() -> dict[str, Any]:
     from builder_ii.config import load_settings
-    return create_session_configuration(load_settings(), "generic", agent_profile_name="repo_mapper", task="test task", generic_repo=Path("."))
+
+    return create_session_configuration(
+        load_settings(),
+        "generic",
+        agent_profile_name="repo_mapper",
+        task="test task",
+        generic_repo=Path("."),
+    )
 
 
 def _settings_stub(alias: str = "qwen-coder") -> Settings:
@@ -794,18 +933,42 @@ def _model_capability_registry() -> dict[str, Any]:
 # Original closure tests
 # ---------------------------------------------------------------------------
 
+
 def test_recent_artifact_kinds_are_registered_in_both_registries() -> None:
     for kind in CLOSURE_KINDS:
         assert kind in INDEX_VALIDATORS
         assert kind in CHAIN_VALIDATORS
 
 
+def test_goal2_assignment_artifact_kinds_are_registered_in_both_registries() -> None:
+    for kind in GOAL2_ASSIGNMENT_ARTIFACT_KINDS:
+        assert kind in INDEX_VALIDATORS
+        assert kind in CHAIN_VALIDATORS
+
+
 def test_recent_artifact_fixtures_validate_through_both_registries() -> None:
     plan = _plan()
-    records = [plan, _adapter(plan), _measurement(), create_readonly_inspection_promotion_spec(target="builder")]
+    records = [
+        plan,
+        _adapter(plan),
+        _measurement(),
+        create_readonly_inspection_promotion_spec(target="builder"),
+    ]
 
     for record in records:
         kind = record["kind"]
+        assert INDEX_VALIDATORS[kind](record) == []
+        assert CHAIN_VALIDATORS[kind](record) == []
+
+
+def test_goal2_assignment_artifact_fixtures_validate_through_both_registries(
+    tmp_path: Path,
+) -> None:
+    fixture = build_goal2_assignment_fixture(tmp_path)
+    for name in ("assignment", "orchestration", "dry_run", "validation_report"):
+        record = fixture["artifacts"][name]
+        kind = record["kind"]
+
         assert INDEX_VALIDATORS[kind](record) == []
         assert CHAIN_VALIDATORS[kind](record) == []
 
@@ -816,13 +979,21 @@ def test_artifact_index_recognizes_recent_artifacts(tmp_path: Path) -> None:
         "research-plan.json": plan,
         "research-adapter.json": _adapter(plan),
         "performance.json": _measurement(),
-        "readonly-spec.json": create_readonly_inspection_promotion_spec(target="builder"),
+        "readonly-spec.json": create_readonly_inspection_promotion_spec(
+            target="builder"
+        ),
     }.items():
         _write(tmp_path / filename, artifact)
 
     index = create_artifact_index_record(tmp_path)
 
-    assert index["counts"] == {"total": 4, "known": 4, "unknown": 0, "valid": 4, "invalid": 0}
+    assert index["counts"] == {
+        "total": 4,
+        "known": 4,
+        "unknown": 0,
+        "valid": 4,
+        "invalid": 0,
+    }
     assert validate_artifact_index_record(index) == []
 
 
@@ -865,22 +1036,58 @@ def _artifact_chain_verification_report() -> dict[str, Any]:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
 
 
 def _v0_release_manifest() -> dict[str, Any]:
-    ref = create_artifact_ref(kind="builder_ii.session_workflow_plan", path="session-workflow.json", sha256="a"*64)
-    prepare_ref = create_artifact_ref(kind="builder_ii.governed_prepare_package", path="prepare-package.json", sha256="a"*64)
-    readonly_ref = create_artifact_ref(kind="builder_ii.goose_readonly_session_plan", path="goose-readonly-session.json", sha256="a"*64)
-    report_ref = create_artifact_ref(kind="builder_ii.verification_profile_report", path="verification-profile-report.json", sha256="a"*64)
-    repomap_ref = create_artifact_ref(kind="builder_ii.repo_map", path="repo-map.json", sha256="a"*64)
-    context_ref = create_artifact_ref(kind="builder_ii.context_pack", path="context-pack.json", sha256="a"*64)
-    handoff_ref = create_artifact_ref(kind="builder_ii.handoff_note", path="handoff-note.json", sha256="a"*64)
-    bridge_ref = create_artifact_ref(kind="builder_ii.deepagents_bridge_readiness_report", path="deepagents-bridge-readiness.json", sha256="a"*64)
-    spine_ref = create_artifact_ref(kind="builder_ii.convention_kernel_platform_bundle", path="platform-spine.json", sha256="a"*64)
-    index_ref = create_artifact_ref(kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256="")
-    chain_ref = create_artifact_ref(kind="builder_ii.artifact_chain_verification_report", path="chain-verification-report.json", sha256="a"*64)
+    ref = create_artifact_ref(
+        kind="builder_ii.session_workflow_plan",
+        path="session-workflow.json",
+        sha256="a" * 64,
+    )
+    prepare_ref = create_artifact_ref(
+        kind="builder_ii.governed_prepare_package",
+        path="prepare-package.json",
+        sha256="a" * 64,
+    )
+    readonly_ref = create_artifact_ref(
+        kind="builder_ii.goose_readonly_session_plan",
+        path="goose-readonly-session.json",
+        sha256="a" * 64,
+    )
+    report_ref = create_artifact_ref(
+        kind="builder_ii.verification_profile_report",
+        path="verification-profile-report.json",
+        sha256="a" * 64,
+    )
+    repomap_ref = create_artifact_ref(
+        kind="builder_ii.repo_map", path="repo-map.json", sha256="a" * 64
+    )
+    context_ref = create_artifact_ref(
+        kind="builder_ii.context_pack", path="context-pack.json", sha256="a" * 64
+    )
+    handoff_ref = create_artifact_ref(
+        kind="builder_ii.handoff_note", path="handoff-note.json", sha256="a" * 64
+    )
+    bridge_ref = create_artifact_ref(
+        kind="builder_ii.deepagents_bridge_readiness_report",
+        path="deepagents-bridge-readiness.json",
+        sha256="a" * 64,
+    )
+    spine_ref = create_artifact_ref(
+        kind="builder_ii.convention_kernel_platform_bundle",
+        path="platform-spine.json",
+        sha256="a" * 64,
+    )
+    index_ref = create_artifact_ref(
+        kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256=""
+    )
+    chain_ref = create_artifact_ref(
+        kind="builder_ii.artifact_chain_verification_report",
+        path="chain-verification-report.json",
+        sha256="a" * 64,
+    )
 
     return create_v0_release_manifest(
         governed_session_proof={
@@ -899,7 +1106,7 @@ def _v0_release_manifest() -> dict[str, Any]:
         audit_references={
             "artifact_index_ref": index_ref,
             "chain_verification_report_ref": chain_ref,
-        }
+        },
     )
 
 
@@ -907,8 +1114,12 @@ def test_governance_artifact_kinds_are_registered_in_both_registries() -> None:
     """Fails if any governance artifact kind from PR W/X/Y is missing from
     either the artifact index or chain verification registry."""
     for kind in GOVERNANCE_ARTIFACT_KINDS:
-        assert kind in INDEX_VALIDATORS, f"{kind} missing from artifact index _VALIDATORS"
-        assert kind in CHAIN_VALIDATORS, f"{kind} missing from chain verification VALIDATORS"
+        assert kind in INDEX_VALIDATORS, (
+            f"{kind} missing from artifact index _VALIDATORS"
+        )
+        assert kind in CHAIN_VALIDATORS, (
+            f"{kind} missing from chain verification VALIDATORS"
+        )
 
 
 def test_governance_artifact_fixtures_validate_through_both_registries() -> None:
@@ -993,7 +1204,9 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
 
     index = create_artifact_index_record(tmp_path)
 
-    assert index["counts"]["invalid"] == 0, f"Artifact index validation failed: {index['issues']}"
+    assert index["counts"]["invalid"] == 0, (
+        f"Artifact index validation failed: {index['issues']}"
+    )
     assert validate_artifact_index_record(index) == []
 
     indexed_kinds = {entry["kind"] for entry in index["artifacts"]}
@@ -1088,4 +1301,15 @@ def test_docs_list_governance_artifact_kinds() -> None:
         assert kind in content, (
             f"{kind} not found in docs/ARTIFACT_INDEX.md — "
             f"registry closure requires docs coverage"
+        )
+
+
+def test_docs_list_goal2_assignment_artifact_kinds() -> None:
+    docs_path = Path(__file__).resolve().parent.parent / "docs" / "ARTIFACT_INDEX.md"
+    content = docs_path.read_text(encoding="utf-8")
+
+    for kind in GOAL2_ASSIGNMENT_ARTIFACT_KINDS:
+        assert kind in content, (
+            f"{kind} not found in docs/ARTIFACT_INDEX.md — "
+            f"Goal 2 registry closure requires docs coverage"
         )

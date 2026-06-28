@@ -7,36 +7,99 @@ from typing import Any, Callable
 
 # Import kinds and validators
 from builder_ii.approval_records import APPROVAL_RECORD_KIND, validate_approval_record
-from builder_ii.artifact_index_records import ARTIFACT_INDEX_RECORD_KIND, validate_artifact_index_record
-from builder_ii.chain_summary_records import CHAIN_SUMMARY_RECORD_KIND, validate_chain_summary_record
-from builder_ii.goose_command_proposal import GOOSE_COMMAND_PROPOSAL_KIND, validate_goose_command_proposal
-from builder_ii.handoff_bundle_records import HANDOFF_BUNDLE_RECORD_KIND, validate_handoff_bundle_record
-from builder_ii.preflight_records import PREFLIGHT_RECORD_KIND, validate_preflight_record
-from builder_ii.promotion_decision_records import PROMOTION_DECISION_RECORD_KIND, validate_promotion_decision_record
-from builder_ii.promotion_readiness_records import PROMOTION_READINESS_RECORD_KIND, validate_promotion_readiness_record
+from builder_ii.artifact_index_records import (
+    ARTIFACT_INDEX_RECORD_KIND,
+    validate_artifact_index_record,
+)
+from builder_ii.chain_summary_records import (
+    CHAIN_SUMMARY_RECORD_KIND,
+    validate_chain_summary_record,
+)
+from builder_ii.goose_command_proposal import (
+    GOOSE_COMMAND_PROPOSAL_KIND,
+    validate_goose_command_proposal,
+)
+from builder_ii.handoff_bundle_records import (
+    HANDOFF_BUNDLE_RECORD_KIND,
+    validate_handoff_bundle_record,
+)
+from builder_ii.preflight_records import (
+    PREFLIGHT_RECORD_KIND,
+    validate_preflight_record,
+)
+from builder_ii.promotion_decision_records import (
+    PROMOTION_DECISION_RECORD_KIND,
+    validate_promotion_decision_record,
+)
+from builder_ii.promotion_readiness_records import (
+    PROMOTION_READINESS_RECORD_KIND,
+    validate_promotion_readiness_record,
+)
 from builder_ii.receipt_records import RECEIPT_RECORD_KIND, validate_receipt_record
 from builder_ii.receive_records import RECEIVE_RECORD_KIND, validate_receive_record
 from builder_ii.snapshot_records import SNAPSHOT_RECORD_KIND, validate_snapshot_record
-from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_state_ledger_record
-from builder_ii.agent_profiles import AGENT_PROFILE_RECORD_KIND, validate_agent_profile_record
-from builder_ii.context_pack import CONTEXT_PACK_RECORD_KIND, validate_context_pack_record
-from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
-from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND, validate_profile_artifact
+from builder_ii.state_ledger_records import (
+    STATE_LEDGER_RECORD_KIND,
+    validate_state_ledger_record,
+)
+from builder_ii.agent_profiles import (
+    AGENT_PROFILE_RECORD_KIND,
+    validate_agent_profile_record,
+)
+from builder_ii.context_pack import (
+    CONTEXT_PACK_RECORD_KIND,
+    validate_context_pack_record,
+)
+from builder_ii.target_profiles import (
+    TARGET_PROFILE_ARTIFACT_KIND,
+    validate_target_profile_artifact,
+)
+from builder_ii.verification_profiles import (
+    VERIFICATION_ARTIFACT_KIND,
+    validate_profile_artifact,
+)
 from builder_ii.git_state import GIT_STATE_RECORD_KIND, validate_git_state_record
-from builder_ii.research_plans import RESEARCH_PLAN_KIND, validate_research_plan_artifact
-from builder_ii.research_adapters import RESEARCH_ADAPTER_KIND, validate_research_adapter_artifact
-from builder_ii.performance_measurements import PERFORMANCE_MEASUREMENT_KIND, validate_performance_measurement_record
-from builder_ii.readonly_inspection_promotion import READONLY_INSPECTION_PROMOTION_SPEC_KIND, validate_readonly_inspection_promotion_spec
-from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND, validate_readonly_inspection_report
-from builder_ii.hitl_execution_records import HITL_EXECUTION_REQUEST_KIND, validate_hitl_execution_request
-from builder_ii.hitl_execution_records import HITL_EXECUTION_RECEIPT_KIND, validate_hitl_execution_receipt
+from builder_ii.research_plans import (
+    RESEARCH_PLAN_KIND,
+    validate_research_plan_artifact,
+)
+from builder_ii.research_adapters import (
+    RESEARCH_ADAPTER_KIND,
+    validate_research_adapter_artifact,
+)
+from builder_ii.performance_measurements import (
+    PERFORMANCE_MEASUREMENT_KIND,
+    validate_performance_measurement_record,
+)
+from builder_ii.readonly_inspection_promotion import (
+    READONLY_INSPECTION_PROMOTION_SPEC_KIND,
+    validate_readonly_inspection_promotion_spec,
+)
+from builder_ii.readonly_inspection_reports import (
+    READONLY_INSPECTION_REPORT_KIND,
+    validate_readonly_inspection_report,
+)
+from builder_ii.hitl_execution_records import (
+    HITL_EXECUTION_REQUEST_KIND,
+    validate_hitl_execution_request,
+)
+from builder_ii.hitl_execution_records import (
+    HITL_EXECUTION_RECEIPT_KIND,
+    validate_hitl_execution_receipt,
+)
 from builder_ii.hitl_verification_candidate import (
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
     validate_hitl_verification_execution_candidate,
 )
-from builder_ii.hitl_patch_spec import HITL_PATCH_APPLICATION_SPEC_KIND, validate_hitl_patch_application_spec
+from builder_ii.hitl_patch_spec import (
+    HITL_PATCH_APPLICATION_SPEC_KIND,
+    validate_hitl_patch_application_spec,
+)
 from builder_ii.rollback_artifacts import ROLLBACK_PLAN_KIND, validate_rollback_plan
-from builder_ii.rollback_artifacts import ROLLBACK_RECEIPT_KIND, validate_rollback_receipt
+from builder_ii.rollback_artifacts import (
+    ROLLBACK_RECEIPT_KIND,
+    validate_rollback_receipt,
+)
 from builder_ii.execution_postflight_records import (
     EXECUTION_POSTFLIGHT_RECORD_KIND,
     validate_execution_postflight_record,
@@ -75,10 +138,19 @@ from builder_ii.verification_profile_reports import (
     VERIFICATION_PROFILE_REPORT_KIND,
     validate_verification_profile_report,
 )
-from builder_ii.session_config import SESSION_CONFIG_KIND, validate_session_configuration
+from builder_ii.session_config import (
+    SESSION_CONFIG_KIND,
+    validate_session_configuration,
+)
 from builder_ii.goose_projection import GOOSE_PROJECTION_KIND, validate_goose_projection
-from builder_ii.goose_wrapper_plan import GOOSE_WRAPPER_PLAN_KIND, validate_goose_wrapper_plan
-from builder_ii.orchestration_plan import ORCHESTRATION_PLAN_KIND, validate_orchestration_plan
+from builder_ii.goose_wrapper_plan import (
+    GOOSE_WRAPPER_PLAN_KIND,
+    validate_goose_wrapper_plan,
+)
+from builder_ii.orchestration_plan import (
+    ORCHESTRATION_PLAN_KIND,
+    validate_orchestration_plan,
+)
 from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
     validate_deepagents_bridge_readiness_report,
@@ -112,22 +184,46 @@ from builder_ii.model_capabilities import (
     validate_model_capability_registry,
 )
 from builder_ii.profile_pack import PROFILE_PACK_KIND, validate_profile_pack
-from builder_ii.profile_pack_manifest import PROFILE_PACK_MANIFEST_KIND, validate_profile_pack_manifest
-from builder_ii.profile_pack_render_plan import PROFILE_PACK_RENDER_PLAN_KIND, validate_profile_pack_render_plan
-from builder_ii.profile_pack_dry_run import PROFILE_PACK_DRY_RUN_KIND, validate_profile_pack_dry_run
+from builder_ii.profile_pack_manifest import (
+    PROFILE_PACK_MANIFEST_KIND,
+    validate_profile_pack_manifest,
+)
+from builder_ii.profile_pack_render_plan import (
+    PROFILE_PACK_RENDER_PLAN_KIND,
+    validate_profile_pack_render_plan,
+)
+from builder_ii.profile_pack_dry_run import (
+    PROFILE_PACK_DRY_RUN_KIND,
+    validate_profile_pack_dry_run,
+)
 from builder_ii.profile_pack_validation_report import (
     PROFILE_PACK_VALIDATION_REPORT_KIND,
     validate_profile_pack_validation_report,
 )
-from builder_ii.model_client_registry import MODEL_CLIENT_REGISTRY_KIND, validate_model_client_registry
+from builder_ii.model_client_registry import (
+    MODEL_CLIENT_REGISTRY_KIND,
+    validate_model_client_registry,
+)
 from builder_ii.model_routing_policy import (
     MODEL_ROUTING_POLICY_KIND,
     validate_model_routing_policy,
     MODEL_ROUTING_RECOMMENDATION_KIND,
     validate_model_routing_recommendation,
 )
+from builder_ii.orchestration_assignment import (
+    AGENT_ASSIGNMENT_PLAN_KIND,
+    validate_agent_assignment_plan,
+    ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
+    validate_orchestration_assignment_plan,
+    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
+    validate_orchestration_assignment_dry_run,
+    ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
+    validate_orchestration_assignment_validation_report,
+)
 
-ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = "builder_ii.artifact_chain_verification_report"
+ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = (
+    "builder_ii.artifact_chain_verification_report"
+)
 
 
 def validate_artifact_chain_verification_report(record: Any) -> list[str]:
@@ -154,7 +250,12 @@ def validate_artifact_chain_verification_report(record: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
+        for key in (
+            "runtime_execution",
+            "model_execution",
+            "source_writes",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:
@@ -225,9 +326,12 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     MODEL_CLIENT_REGISTRY_KIND: validate_model_client_registry,
     MODEL_ROUTING_POLICY_KIND: validate_model_routing_policy,
     MODEL_ROUTING_RECOMMENDATION_KIND: validate_model_routing_recommendation,
+    AGENT_ASSIGNMENT_PLAN_KIND: validate_agent_assignment_plan,
+    ORCHESTRATION_ASSIGNMENT_PLAN_KIND: validate_orchestration_assignment_plan,
+    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND: validate_orchestration_assignment_dry_run,
+    ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND: validate_orchestration_assignment_validation_report,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
-
 
 
 def _digest(data: dict[str, Any]) -> str:
@@ -242,20 +346,48 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
     if kind == APPROVAL_RECORD_KIND:
         prop = record.get("proposal", {})
         if isinstance(prop, dict):
-            refs.append({"field": "proposal", "sha256": prop.get("sha256"), "path": prop.get("path"), "expected_kind": GOOSE_COMMAND_PROPOSAL_KIND})
+            refs.append(
+                {
+                    "field": "proposal",
+                    "sha256": prop.get("sha256"),
+                    "path": prop.get("path"),
+                    "expected_kind": GOOSE_COMMAND_PROPOSAL_KIND,
+                }
+            )
 
     elif kind == PREFLIGHT_RECORD_KIND:
         prop = record.get("proposal", {})
         if isinstance(prop, dict):
-            refs.append({"field": "proposal", "sha256": prop.get("sha256"), "path": prop.get("path"), "expected_kind": GOOSE_COMMAND_PROPOSAL_KIND})
+            refs.append(
+                {
+                    "field": "proposal",
+                    "sha256": prop.get("sha256"),
+                    "path": prop.get("path"),
+                    "expected_kind": GOOSE_COMMAND_PROPOSAL_KIND,
+                }
+            )
         appr = record.get("approval", {})
         if isinstance(appr, dict):
-            refs.append({"field": "approval", "sha256": appr.get("sha256"), "path": appr.get("path"), "expected_kind": APPROVAL_RECORD_KIND})
+            refs.append(
+                {
+                    "field": "approval",
+                    "sha256": appr.get("sha256"),
+                    "path": appr.get("path"),
+                    "expected_kind": APPROVAL_RECORD_KIND,
+                }
+            )
 
     elif kind == RECEIPT_RECORD_KIND:
         pref = record.get("preflight", {})
         if isinstance(pref, dict):
-            refs.append({"field": "preflight", "sha256": pref.get("sha256"), "path": pref.get("path"), "expected_kind": PREFLIGHT_RECORD_KIND})
+            refs.append(
+                {
+                    "field": "preflight",
+                    "sha256": pref.get("sha256"),
+                    "path": pref.get("path"),
+                    "expected_kind": PREFLIGHT_RECORD_KIND,
+                }
+            )
 
     elif kind == CHAIN_SUMMARY_RECORD_KIND:
         artifacts = record.get("artifacts", {})
@@ -268,32 +400,74 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
             ]:
                 item = artifacts.get(name, {})
                 if isinstance(item, dict):
-                    refs.append({"field": f"artifacts.{name}", "sha256": item.get("sha256"), "path": item.get("path"), "expected_kind": expected})
+                    refs.append(
+                        {
+                            "field": f"artifacts.{name}",
+                            "sha256": item.get("sha256"),
+                            "path": item.get("path"),
+                            "expected_kind": expected,
+                        }
+                    )
 
     elif kind == HANDOFF_BUNDLE_RECORD_KIND:
         sum_field = record.get("summary", {})
         if isinstance(sum_field, dict):
-            refs.append({"field": "summary", "sha256": sum_field.get("sha256"), "path": sum_field.get("path"), "expected_kind": CHAIN_SUMMARY_RECORD_KIND})
+            refs.append(
+                {
+                    "field": "summary",
+                    "sha256": sum_field.get("sha256"),
+                    "path": sum_field.get("path"),
+                    "expected_kind": CHAIN_SUMMARY_RECORD_KIND,
+                }
+            )
         digests = record.get("artifact_digests", {})
         if isinstance(digests, dict):
             for name, item in digests.items():
                 if isinstance(item, dict):
-                    refs.append({"field": f"artifact_digests.{name}", "sha256": item.get("sha256"), "path": item.get("path"), "expected_kind": item.get("kind")})
+                    refs.append(
+                        {
+                            "field": f"artifact_digests.{name}",
+                            "sha256": item.get("sha256"),
+                            "path": item.get("path"),
+                            "expected_kind": item.get("kind"),
+                        }
+                    )
 
     elif kind == RECEIVE_RECORD_KIND:
         bundle = record.get("bundle", {})
         if isinstance(bundle, dict):
-            refs.append({"field": "bundle", "sha256": bundle.get("sha256"), "path": bundle.get("path"), "expected_kind": HANDOFF_BUNDLE_RECORD_KIND})
+            refs.append(
+                {
+                    "field": "bundle",
+                    "sha256": bundle.get("sha256"),
+                    "path": bundle.get("path"),
+                    "expected_kind": HANDOFF_BUNDLE_RECORD_KIND,
+                }
+            )
         digests = record.get("artifact_digests", {})
         if isinstance(digests, dict):
             for name, item in digests.items():
                 if isinstance(item, dict):
-                    refs.append({"field": f"artifact_digests.{name}", "sha256": item.get("sha256"), "path": item.get("path"), "expected_kind": item.get("kind")})
+                    refs.append(
+                        {
+                            "field": f"artifact_digests.{name}",
+                            "sha256": item.get("sha256"),
+                            "path": item.get("path"),
+                            "expected_kind": item.get("kind"),
+                        }
+                    )
 
     elif kind == PROMOTION_DECISION_RECORD_KIND:
         readiness = record.get("readiness", {})
         if isinstance(readiness, dict):
-            refs.append({"field": "readiness", "sha256": readiness.get("sha256"), "path": readiness.get("path"), "expected_kind": PROMOTION_READINESS_RECORD_KIND})
+            refs.append(
+                {
+                    "field": "readiness",
+                    "sha256": readiness.get("sha256"),
+                    "path": readiness.get("path"),
+                    "expected_kind": PROMOTION_READINESS_RECORD_KIND,
+                }
+            )
 
     elif kind == STATE_LEDGER_RECORD_KIND:
         entries = record.get("entries", [])
@@ -302,20 +476,48 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                 if isinstance(entry, dict):
                     dec = entry.get("decision", {})
                     if isinstance(dec, dict):
-                        refs.append({"field": f"entries[{idx}].decision", "sha256": dec.get("sha256"), "path": dec.get("path"), "expected_kind": PROMOTION_DECISION_RECORD_KIND})
+                        refs.append(
+                            {
+                                "field": f"entries[{idx}].decision",
+                                "sha256": dec.get("sha256"),
+                                "path": dec.get("path"),
+                                "expected_kind": PROMOTION_DECISION_RECORD_KIND,
+                            }
+                        )
 
     elif kind == SNAPSHOT_RECORD_KIND:
         idx = record.get("artifact_index", {})
         if isinstance(idx, dict):
-            refs.append({"field": "artifact_index", "sha256": idx.get("sha256"), "path": idx.get("path"), "expected_kind": ARTIFACT_INDEX_RECORD_KIND})
+            refs.append(
+                {
+                    "field": "artifact_index",
+                    "sha256": idx.get("sha256"),
+                    "path": idx.get("path"),
+                    "expected_kind": ARTIFACT_INDEX_RECORD_KIND,
+                }
+            )
         ledger = record.get("state_ledger", {})
         if isinstance(ledger, dict):
-            refs.append({"field": "state_ledger", "sha256": ledger.get("sha256"), "path": ledger.get("path"), "expected_kind": STATE_LEDGER_RECORD_KIND})
+            refs.append(
+                {
+                    "field": "state_ledger",
+                    "sha256": ledger.get("sha256"),
+                    "path": ledger.get("path"),
+                    "expected_kind": STATE_LEDGER_RECORD_KIND,
+                }
+            )
 
     elif kind == RESEARCH_ADAPTER_KIND:
         plan = record.get("research_plan", {})
         if isinstance(plan, dict):
-            refs.append({"field": "research_plan", "sha256": plan.get("sha256"), "path": plan.get("path"), "expected_kind": RESEARCH_PLAN_KIND})
+            refs.append(
+                {
+                    "field": "research_plan",
+                    "sha256": plan.get("sha256"),
+                    "path": plan.get("path"),
+                    "expected_kind": RESEARCH_PLAN_KIND,
+                }
+            )
 
     elif kind == HITL_EVIDENCE_BUNDLE_KIND:
         for field, expected in [
@@ -328,7 +530,14 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         ]:
             val = record.get(field)
             if isinstance(val, str) and val:
-                refs.append({"field": field, "sha256": None, "path": val, "expected_kind": expected})
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": None,
+                        "path": val,
+                        "expected_kind": expected,
+                    }
+                )
 
         # Rollback references are optional but typed when present
         for field, expected in [
@@ -337,7 +546,14 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         ]:
             val = record.get(field)
             if isinstance(val, str) and val:
-                refs.append({"field": field, "sha256": None, "path": val, "expected_kind": expected})
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": None,
+                        "path": val,
+                        "expected_kind": expected,
+                    }
+                )
 
     elif kind == HITL_CHAIN_BINDING_KIND:
         for slot, field in HITL_CHAIN_BINDING_SLOT_FIELDS.items():
@@ -361,10 +577,22 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         ]:
             val = record.get(field)
             if isinstance(val, str) and val:
-                refs.append({"field": field, "sha256": None, "path": val, "expected_kind": expected})
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": None,
+                        "path": val,
+                        "expected_kind": expected,
+                    }
+                )
         command_ref = record.get("verification_command_ref")
         command_ref_kind = record.get("verification_command_ref_kind")
-        if isinstance(command_ref, str) and command_ref and isinstance(command_ref_kind, str) and command_ref_kind:
+        if (
+            isinstance(command_ref, str)
+            and command_ref
+            and isinstance(command_ref_kind, str)
+            and command_ref_kind
+        ):
             refs.append(
                 {
                     "field": "verification_command_ref",
@@ -394,7 +622,9 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         evidence_refs = record.get("verification_evidence_refs")
         if isinstance(evidence_refs, list):
             for index, value in enumerate(evidence_refs):
-                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                if isinstance(value, dict) and (
+                    value.get("path") or value.get("sha256")
+                ):
                     refs.append(
                         {
                             "field": f"verification_evidence_refs[{index}]",
@@ -413,7 +643,9 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                 ("verification_report_ref", VERIFICATION_PROFILE_REPORT_KIND),
             ):
                 value = handoff.get(field)
-                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                if isinstance(value, dict) and (
+                    value.get("path") or value.get("sha256")
+                ):
                     refs.append(
                         {
                             "field": f"handoff_note.{field}",
@@ -427,7 +659,9 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         refs_list = record.get("artifact_refs")
         if isinstance(refs_list, list):
             for index, value in enumerate(refs_list):
-                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                if isinstance(value, dict) and (
+                    value.get("path") or value.get("sha256")
+                ):
                     refs.append(
                         {
                             "field": f"artifact_refs[{index}]",
@@ -441,7 +675,9 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         refs_list = record.get("artifacts")
         if isinstance(refs_list, list):
             for index, value in enumerate(refs_list):
-                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                if isinstance(value, dict) and (
+                    value.get("path") or value.get("sha256")
+                ):
                     refs.append(
                         {
                             "field": f"artifacts[{index}]",
@@ -490,7 +726,10 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         if isinstance(audit_refs, dict):
             for field, expected_kind in [
                 ("artifact_index_ref", ARTIFACT_INDEX_RECORD_KIND),
-                ("chain_verification_report_ref", ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND),
+                (
+                    "chain_verification_report_ref",
+                    ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
+                ),
             ]:
                 val = audit_refs.get(field)
                 if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
@@ -534,7 +773,11 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
     elif kind == PROFILE_PACK_VALIDATION_REPORT_KIND:
         value = record.get("subject_ref")
         expected_kind = record.get("subject_kind")
-        if isinstance(value, dict) and isinstance(expected_kind, str) and (value.get("path") or value.get("sha256")):
+        if (
+            isinstance(value, dict)
+            and isinstance(expected_kind, str)
+            and (value.get("path") or value.get("sha256"))
+        ):
             refs.append(
                 {
                     "field": "subject_ref",
@@ -578,6 +821,77 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                     }
                 )
 
+    elif kind == AGENT_ASSIGNMENT_PLAN_KIND:
+        refs_list = record.get("source_refs")
+        if isinstance(refs_list, list):
+            for index, value in enumerate(refs_list):
+                if isinstance(value, dict) and (
+                    value.get("path") or value.get("sha256")
+                ):
+                    refs.append(
+                        {
+                            "field": f"source_refs[{index}]",
+                            "sha256": value.get("sha256"),
+                            "path": value.get("path"),
+                            "expected_kind": value.get("kind"),
+                        }
+                    )
+
+    elif kind == ORCHESTRATION_ASSIGNMENT_PLAN_KIND:
+        value = record.get("assignment_plan_ref")
+        if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+            refs.append(
+                {
+                    "field": "assignment_plan_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": AGENT_ASSIGNMENT_PLAN_KIND,
+                }
+            )
+        refs_list = record.get("bound_source_refs")
+        if isinstance(refs_list, list):
+            for index, value in enumerate(refs_list):
+                if isinstance(value, dict) and (
+                    value.get("path") or value.get("sha256")
+                ):
+                    refs.append(
+                        {
+                            "field": f"bound_source_refs[{index}]",
+                            "sha256": value.get("sha256"),
+                            "path": value.get("path"),
+                            "expected_kind": value.get("kind"),
+                        }
+                    )
+
+    elif kind == ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND:
+        value = record.get("source_orchestration_assignment_plan_ref")
+        if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+            refs.append(
+                {
+                    "field": "source_orchestration_assignment_plan_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
+                }
+            )
+
+    elif kind == ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND:
+        value = record.get("subject_ref")
+        expected_kind = record.get("subject_kind")
+        if (
+            isinstance(value, dict)
+            and isinstance(expected_kind, str)
+            and (value.get("path") or value.get("sha256"))
+        ):
+            refs.append(
+                {
+                    "field": "subject_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": expected_kind,
+                }
+            )
+
     return refs
 
 
@@ -600,7 +914,12 @@ def resolve_reference(
         try:
             declared_path = Path(declared_path_str).resolve()
             if declared_path in loaded_by_path:
-                return declared_path, loaded_by_path[declared_path], "exact_input_path", []
+                return (
+                    declared_path,
+                    loaded_by_path[declared_path],
+                    "exact_input_path",
+                    [],
+                )
         except Exception:
             pass
 
@@ -614,9 +933,19 @@ def resolve_reference(
                     data = json_lib.loads(rel_path.read_text(encoding="utf-8"))
                     if isinstance(data, dict):
                         return rel_path, data, "relative_path", []
-                    return rel_path, None, "relative_path", [f"Referenced file {rel_path} must be a JSON object"]
+                    return (
+                        rel_path,
+                        None,
+                        "relative_path",
+                        [f"Referenced file {rel_path} must be a JSON object"],
+                    )
                 except Exception as e:
-                    return rel_path, None, "relative_path", [f"Failed to load referenced file {rel_path}: {e}"]
+                    return (
+                        rel_path,
+                        None,
+                        "relative_path",
+                        [f"Failed to load referenced file {rel_path}: {e}"],
+                    )
         except Exception:
             pass
 
@@ -630,24 +959,55 @@ def resolve_reference(
                     data = json_lib.loads(as_is_path.read_text(encoding="utf-8"))
                     if isinstance(data, dict):
                         return as_is_path, data, "as_is_path", []
-                    return as_is_path, None, "as_is_path", [f"Referenced file {as_is_path} must be a JSON object"]
+                    return (
+                        as_is_path,
+                        None,
+                        "as_is_path",
+                        [f"Referenced file {as_is_path} must be a JSON object"],
+                    )
                 except Exception as e:
-                    return as_is_path, None, "as_is_path", [f"Failed to load referenced file {as_is_path}: {e}"]
+                    return (
+                        as_is_path,
+                        None,
+                        "as_is_path",
+                        [f"Failed to load referenced file {as_is_path}: {e}"],
+                    )
         except Exception:
             pass
 
     if expected_sha256:
         candidates = loaded_by_digest.get(expected_sha256, [])
         if candidates:
-            matching_candidates = [(path, data) for path, data in candidates if not expected_kind or data.get("kind") == expected_kind]
+            matching_candidates = [
+                (path, data)
+                for path, data in candidates
+                if not expected_kind or data.get("kind") == expected_kind
+            ]
             if len(matching_candidates) > 1:
                 paths_set = {p.resolve() for p, _ in matching_candidates}
                 if len(paths_set) > 1:
                     paths_str = ", ".join(str(p) for p in paths_set)
-                    return None, None, "ambiguous", [f"Ambiguous digest fallback match. Multiple paths found with digest '{expected_sha256}': {paths_str}"]
-                return matching_candidates[0][0], matching_candidates[0][1], "digest_fallback", []
+                    return (
+                        None,
+                        None,
+                        "ambiguous",
+                        [
+                            f"Ambiguous digest fallback match. Multiple paths found with digest '{expected_sha256}': {paths_str}"
+                        ],
+                    )
+                return (
+                    matching_candidates[0][0],
+                    matching_candidates[0][1],
+                    "digest_fallback",
+                    [],
+                )
             if len(matching_candidates) == 1:
-                return matching_candidates[0][0], matching_candidates[0][1], "digest_fallback", []
+                return (
+                    matching_candidates[0][0],
+                    matching_candidates[0][1],
+                    "digest_fallback",
+                    [],
+                )
 
     msg = f"Digest '{expected_sha256}' referenced by '{expected_kind}' could not be resolved"
     if declared_path_str:
@@ -683,7 +1043,15 @@ def verify_artifact_chain(paths: list[Path]) -> dict[str, Any]:
         if not path.exists():
             err_msg = f"File not found: {path}"
             global_errors.append(err_msg)
-            files_report.append({"path": str(path), "kind": "", "sha256": "", "native_valid": False, "native_errors": [err_msg]})
+            files_report.append(
+                {
+                    "path": str(path),
+                    "kind": "",
+                    "sha256": "",
+                    "native_valid": False,
+                    "native_errors": [err_msg],
+                }
+            )
             native_invalid_count += 1
             continue
 
@@ -693,20 +1061,44 @@ def verify_artifact_chain(paths: list[Path]) -> dict[str, Any]:
         except json_lib.JSONDecodeError as exc:
             err_msg = f"Invalid JSON in {path}: {exc}"
             global_errors.append(err_msg)
-            files_report.append({"path": str(path), "kind": "", "sha256": "", "native_valid": False, "native_errors": [err_msg]})
+            files_report.append(
+                {
+                    "path": str(path),
+                    "kind": "",
+                    "sha256": "",
+                    "native_valid": False,
+                    "native_errors": [err_msg],
+                }
+            )
             native_invalid_count += 1
             continue
         except Exception as exc:
             err_msg = f"Failed to read {path}: {exc}"
             global_errors.append(err_msg)
-            files_report.append({"path": str(path), "kind": "", "sha256": "", "native_valid": False, "native_errors": [err_msg]})
+            files_report.append(
+                {
+                    "path": str(path),
+                    "kind": "",
+                    "sha256": "",
+                    "native_valid": False,
+                    "native_errors": [err_msg],
+                }
+            )
             native_invalid_count += 1
             continue
 
         if not isinstance(data, dict):
             err_msg = f"Artifact {path} must be a JSON object"
             global_errors.append(err_msg)
-            files_report.append({"path": str(path), "kind": "", "sha256": "", "native_valid": False, "native_errors": [err_msg]})
+            files_report.append(
+                {
+                    "path": str(path),
+                    "kind": "",
+                    "sha256": "",
+                    "native_valid": False,
+                    "native_errors": [err_msg],
+                }
+            )
             native_invalid_count += 1
             continue
 
@@ -729,9 +1121,19 @@ def verify_artifact_chain(paths: list[Path]) -> dict[str, Any]:
             native_valid_count += 1
         else:
             native_invalid_count += 1
-            global_errors.extend(f"Native validation error in {path}: {e}" for e in native_errors)
+            global_errors.extend(
+                f"Native validation error in {path}: {e}" for e in native_errors
+            )
 
-        files_report.append({"path": str(path), "kind": kind, "sha256": digest_val, "native_valid": is_valid, "native_errors": native_errors})
+        files_report.append(
+            {
+                "path": str(path),
+                "kind": kind,
+                "sha256": digest_val,
+                "native_valid": is_valid,
+                "native_errors": native_errors,
+            }
+        )
 
     resolved_links_count = 0
     broken_links_count = 0
@@ -762,21 +1164,29 @@ def verify_artifact_chain(paths: list[Path]) -> dict[str, Any]:
             if target_data is not None:
                 actual_sha256 = _digest(target_data)
                 if expected_sha256 and actual_sha256 != expected_sha256:
-                    link_errors.append(f"Digest mismatch: referenced '{expected_sha256}', resolved file '{target_path}' has '{actual_sha256}'")
+                    link_errors.append(
+                        f"Digest mismatch: referenced '{expected_sha256}', resolved file '{target_path}' has '{actual_sha256}'"
+                    )
 
                 actual_kind = target_data.get("kind", "")
                 if expected_kind and actual_kind != expected_kind:
-                    link_errors.append(f"Kind mismatch: expected '{expected_kind}', resolved file '{target_path}' has '{actual_kind}'")
+                    link_errors.append(
+                        f"Kind mismatch: expected '{expected_kind}', resolved file '{target_path}' has '{actual_kind}'"
+                    )
 
                 for target_error in _target_native_errors(target_data):
-                    link_errors.append(f"Resolved target native validation failed: {target_error}")
+                    link_errors.append(
+                        f"Resolved target native validation failed: {target_error}"
+                    )
 
             link_valid = len(link_errors) == 0
             if link_valid:
                 resolved_links_count += 1
             else:
                 broken_links_count += 1
-                global_errors.extend(f"Link error in {path} (field '{field}'): {e}" for e in link_errors)
+                global_errors.extend(
+                    f"Link error in {path} (field '{field}'): {e}" for e in link_errors
+                )
 
             links_report.append(
                 {

@@ -56,6 +56,10 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.governed_prepare_package_summary`
 - `builder_ii.orchestration_plan`
 - `builder_ii.orchestration_dry_run`
+- `builder_ii.agent_assignment_plan`
+- `builder_ii.orchestration_assignment_plan`
+- `builder_ii.orchestration_assignment_dry_run`
+- `builder_ii.orchestration_assignment_validation_report`
 - `builder_ii.runtime_activation_approval_spec`
 - `builder_ii.goose_readonly_session_plan`
 - `builder_ii.goose_projection`
@@ -108,6 +112,10 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.governed_prepare_package_summary` | Package summary record | #132 |
 | `builder_ii.orchestration_plan` | Orchestration plan | #133 |
 | `builder_ii.orchestration_dry_run` | Dry run specification | #133 |
+| `builder_ii.agent_assignment_plan` | Passive agent assignment plan | Goal 2 |
+| `builder_ii.orchestration_assignment_plan` | Passive orchestration assignment plan | Goal 2 |
+| `builder_ii.orchestration_assignment_dry_run` | Passive orchestration assignment dry run | Goal 2 |
+| `builder_ii.orchestration_assignment_validation_report` | Passive assignment validation report | Goal 2 |
 | `builder_ii.runtime_activation_approval_spec` | Runtime activation spec | #133 |
 | `builder_ii.goose_readonly_session_plan` | Goose readonly plan | #133 |
 | `builder_ii.goose_projection` | Projection spec | #133 |
@@ -129,7 +137,7 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.model_routing_policy` | Passive model routing policy | current |
 | `builder_ii.model_routing_recommendation` | Passive model routing recommendation | current |
 
-**Chain evidence status:** Most standalone governance records do not embed outbound references. However, the `builder_ii.hitl_verification_execution_candidate` embeds candidate-stage references to proposal, approval, preflight, and request artifacts while encoding future receipt/postflight/verification/chain requirements as requirements, not completed evidence. The `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts, while `builder_ii.hitl_chain_binding` records passive chain metadata that binds the same evidence slots without granting execution authority. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
+**Chain evidence status:** Most standalone governance records do not embed outbound references. However, the `builder_ii.hitl_verification_execution_candidate` embeds candidate-stage references to proposal, approval, preflight, and request artifacts while encoding future receipt/postflight/verification/chain requirements as requirements, not completed evidence. The `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts, while `builder_ii.hitl_chain_binding` records passive chain metadata that binds the same evidence slots without granting execution authority. The Goal 2 assignment artifacts also embed source refs so target, agent, task/profile-pack, model-routing, context, verification, tool, HITL, output, and handoff bindings can be resolved and hash-checked without executing them. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
 
 ## CLI
 

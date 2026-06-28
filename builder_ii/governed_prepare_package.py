@@ -58,7 +58,9 @@ def _sha256_file(path: Path) -> str:
     try:
         data = json_lib.loads(path.read_text(encoding="utf-8"))
         if isinstance(data, (dict, list)):
-            raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode(
+                "utf-8"
+            )
             return hashlib.sha256(raw).hexdigest()
     except Exception:
         pass
@@ -70,7 +72,9 @@ def _write_json_artifact(data: dict[str, Any], path: Path) -> None:
     path.write_text(_dumps_json(data), encoding="utf-8")
 
 
-def _artifact_ref_for(path: Path, *, kind: str, output_dir: Path, name: str = "") -> dict[str, Any]:
+def _artifact_ref_for(
+    path: Path, *, kind: str, output_dir: Path, name: str = ""
+) -> dict[str, Any]:
     return {
         "kind": kind,
         "path": str(path.relative_to(output_dir)),
@@ -124,7 +128,9 @@ def create_governed_prepare_package(
         verification_profile_name=verification_profile_name,  # type: ignore[arg-type]
         repo_path=repo_path,
     )
-    _validate_or_raise("session workflow plan", validate_session_workflow_plan(session_plan))
+    _validate_or_raise(
+        "session workflow plan", validate_session_workflow_plan(session_plan)
+    )
 
     goose_plan = create_goose_readonly_session_plan(
         settings,
@@ -135,7 +141,9 @@ def create_governed_prepare_package(
         repo_path=repo_path,
         task=task_text,
     )
-    _validate_or_raise("Goose read-only session plan", validate_goose_readonly_session_plan(goose_plan))
+    _validate_or_raise(
+        "Goose read-only session plan", validate_goose_readonly_session_plan(goose_plan)
+    )
 
     verification_report = create_verification_profile_report(
         settings,
@@ -147,7 +155,10 @@ def create_governed_prepare_package(
         task=task_text,
         goose_readonly_session_plan=goose_plan,
     )
-    _validate_or_raise("verification profile report", validate_verification_profile_report(verification_report))
+    _validate_or_raise(
+        "verification profile report",
+        validate_verification_profile_report(verification_report),
+    )
 
     session_path = output_dir / "session-workflow.json"
     goose_path = output_dir / "goose-readonly-session.json"
@@ -183,7 +194,9 @@ def create_governed_prepare_package(
     repo_map = create_repo_map(resolved_repo, target_name=target_name)
     _validate_or_raise("repo map", validate_repo_map(repo_map))
 
-    context_pack = create_context_pack(repo_map, target_name=target_name, task=task_text)
+    context_pack = create_context_pack(
+        repo_map, target_name=target_name, task=task_text
+    )
     _validate_or_raise("context pack", validate_context_pack(context_pack))
 
     repo_map_path = output_dir / "repo-map.json"
@@ -233,7 +246,14 @@ def create_governed_prepare_package(
         name="governed handoff note",
     )
 
-    artifact_refs = [session_ref, goose_ref, verification_ref, repo_map_ref, context_pack_ref, handoff_ref]
+    artifact_refs = [
+        session_ref,
+        goose_ref,
+        verification_ref,
+        repo_map_ref,
+        context_pack_ref,
+        handoff_ref,
+    ]
 
     if include_deepagents_readiness:
         deepagents_report = create_deepagents_bridge_readiness_report(
@@ -284,7 +304,9 @@ def create_governed_prepare_package(
         },
     }
 
-    _validate_or_raise("governed prepare package", validate_governed_prepare_package(package))
+    _validate_or_raise(
+        "governed prepare package", validate_governed_prepare_package(package)
+    )
 
     package_path = output_dir / "prepare-package.json"
     _write_json_artifact(package, package_path)
@@ -300,7 +322,9 @@ def validate_governed_prepare_package(data: Any) -> list[str]:
     if data.get("kind") != GOVERNED_PREPARE_PACKAGE_KIND:
         errors.append(f"kind must be {GOVERNED_PREPARE_PACKAGE_KIND}")
     if data.get("schema_version") != GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION:
-        errors.append(f"schema_version must be {GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION}")
+        errors.append(
+            f"schema_version must be {GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION}"
+        )
 
     if data.get("target_name") not in {"generic", "builder", "core"}:
         errors.append("target_name must be one of: generic, builder, core")
@@ -335,12 +359,24 @@ def validate_governed_prepare_package(data: Any) -> list[str]:
         errors.append("governance must be an object")
     else:
         if governance.get("capability_state") != "governed_prepare_package":
-            errors.append("governance.capability_state must be governed_prepare_package")
-        for key in ("runtime_execution", "model_execution", "shell_execution", "memory_mutation"):
+            errors.append(
+                "governance.capability_state must be governed_prepare_package"
+            )
+        for key in (
+            "runtime_execution",
+            "model_execution",
+            "shell_execution",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY":
-            errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY")
+        if (
+            governance.get("source_writes")
+            != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY"
+        ):
+            errors.append(
+                "governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY"
+            )
         if governance.get("target_repo_writes") != "DISABLED":
             errors.append("governance.target_repo_writes must be DISABLED")
         if governance.get("goose_activation") != "DISABLED":
@@ -399,6 +435,17 @@ def validate_governed_prepare_package_directory(path: Path) -> list[str]:
     if not isinstance(artifact_refs, list):
         return errors
 
+    from builder_ii.orchestration_assignment import (
+        AGENT_ASSIGNMENT_PLAN_KIND,
+        ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
+        ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
+        ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
+        validate_agent_assignment_plan,
+        validate_orchestration_assignment_dry_run,
+        validate_orchestration_assignment_plan,
+        validate_orchestration_assignment_validation_report,
+    )
+
     kind_validators = {
         SESSION_WORKFLOW_PLAN_KIND: validate_session_workflow_plan,
         GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
@@ -407,6 +454,10 @@ def validate_governed_prepare_package_directory(path: Path) -> list[str]:
         DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
         REPO_MAP_KIND: validate_repo_map,
         CONTEXT_PACK_KIND: validate_context_pack,
+        AGENT_ASSIGNMENT_PLAN_KIND: validate_agent_assignment_plan,
+        ORCHESTRATION_ASSIGNMENT_PLAN_KIND: validate_orchestration_assignment_plan,
+        ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND: validate_orchestration_assignment_dry_run,
+        ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND: validate_orchestration_assignment_validation_report,
     }
 
     for index, ref in enumerate(artifact_refs):
@@ -423,7 +474,9 @@ def validate_governed_prepare_package_directory(path: Path) -> list[str]:
 
         ref_path = Path(ref_path_value)
         if ref_path.is_absolute():
-            errors.append(f"{prefix}.path must be relative to the prepare package directory")
+            errors.append(
+                f"{prefix}.path must be relative to the prepare package directory"
+            )
             continue
 
         artifact_path = (package_dir / ref_path).resolve()
@@ -439,7 +492,11 @@ def validate_governed_prepare_package_directory(path: Path) -> list[str]:
             continue
 
         actual_sha = _sha256_file(artifact_path)
-        if isinstance(expected_sha, str) and expected_sha and actual_sha != expected_sha:
+        if (
+            isinstance(expected_sha, str)
+            and expected_sha
+            and actual_sha != expected_sha
+        ):
             errors.append(f"{prefix}.sha256 mismatch for {ref_path_value}")
 
         try:
@@ -456,7 +513,9 @@ def validate_governed_prepare_package_directory(path: Path) -> list[str]:
 
         validator = kind_validators.get(ref_kind)
         if validator is None:
-            errors.append(f"{prefix}.kind has no prepare-package artifact validator: {ref_kind}")
+            errors.append(
+                f"{prefix}.kind has no prepare-package artifact validator: {ref_kind}"
+            )
             continue
 
         for artifact_error in validator(artifact_data):
@@ -483,7 +542,9 @@ def summarize_governed_prepare_package_directory(path: Path) -> dict[str, Any]:
 
     package = json_lib.loads(manifest_path.read_text(encoding="utf-8"))
     artifact_refs = list(package.get("artifact_refs", []))
-    artifact_kinds = sorted({ref.get("kind", "") for ref in artifact_refs if isinstance(ref, dict)})
+    artifact_kinds = sorted(
+        {ref.get("kind", "") for ref in artifact_refs if isinstance(ref, dict)}
+    )
 
     artifacts: list[dict[str, Any]] = []
     for ref in artifact_refs:
@@ -540,7 +601,9 @@ def summarize_governed_prepare_package_directory(path: Path) -> dict[str, Any]:
 
     summary_errors = validate_governed_prepare_package_summary(summary)
     if summary_errors:
-        raise ValueError("invalid governed prepare package summary: " + "; ".join(summary_errors))
+        raise ValueError(
+            "invalid governed prepare package summary: " + "; ".join(summary_errors)
+        )
     return summary
 
 
@@ -552,7 +615,9 @@ def validate_governed_prepare_package_summary(data: Any) -> list[str]:
     if data.get("kind") != GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND:
         errors.append(f"kind must be {GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND}")
     if data.get("schema_version") != GOVERNED_PREPARE_PACKAGE_SUMMARY_SCHEMA_VERSION:
-        errors.append(f"schema_version must be {GOVERNED_PREPARE_PACKAGE_SUMMARY_SCHEMA_VERSION}")
+        errors.append(
+            f"schema_version must be {GOVERNED_PREPARE_PACKAGE_SUMMARY_SCHEMA_VERSION}"
+        )
 
     if data.get("validation_state") != "VALIDATED":
         errors.append("validation_state must be VALIDATED")
@@ -584,34 +649,58 @@ def validate_governed_prepare_package_summary(data: Any) -> list[str]:
         errors.append("artifact_count must match artifacts length")
 
     artifact_kinds = data.get("artifact_kinds")
-    if not isinstance(artifact_kinds, list) or any(not isinstance(kind, str) or not kind for kind in artifact_kinds):
+    if not isinstance(artifact_kinds, list) or any(
+        not isinstance(kind, str) or not kind for kind in artifact_kinds
+    ):
         errors.append("artifact_kinds must be a list of non-empty strings")
 
     operator_report = data.get("operator_report")
     if not isinstance(operator_report, dict):
         errors.append("operator_report must be an object")
     else:
-        if not isinstance(operator_report.get("summary"), str) or not operator_report["summary"]:
+        if (
+            not isinstance(operator_report.get("summary"), str)
+            or not operator_report["summary"]
+        ):
             errors.append("operator_report.summary must be a non-empty string")
-        if not isinstance(operator_report.get("verification_status"), str) or not operator_report["verification_status"]:
-            errors.append("operator_report.verification_status must be a non-empty string")
+        if (
+            not isinstance(operator_report.get("verification_status"), str)
+            or not operator_report["verification_status"]
+        ):
+            errors.append(
+                "operator_report.verification_status must be a non-empty string"
+            )
         next_actions = operator_report.get("next_actions")
         if not isinstance(next_actions, list) or not next_actions:
             errors.append("operator_report.next_actions must be a non-empty list")
         elif any(not isinstance(action, str) or not action for action in next_actions):
-            errors.append("operator_report.next_actions must be a list of non-empty strings")
+            errors.append(
+                "operator_report.next_actions must be a list of non-empty strings"
+            )
 
     governance = data.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
         if governance.get("capability_state") != "governed_prepare_package_summary":
-            errors.append("governance.capability_state must be governed_prepare_package_summary")
-        for key in ("runtime_execution", "model_execution", "shell_execution", "memory_mutation"):
+            errors.append(
+                "governance.capability_state must be governed_prepare_package_summary"
+            )
+        for key in (
+            "runtime_execution",
+            "model_execution",
+            "shell_execution",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH":
-            errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH")
+        if (
+            governance.get("source_writes")
+            != "DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH"
+        ):
+            errors.append(
+                "governance.source_writes must be DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH"
+            )
         if governance.get("target_repo_writes") != "DISABLED":
             errors.append("governance.target_repo_writes must be DISABLED")
         if governance.get("goose_activation") != "DISABLED":
@@ -629,7 +718,9 @@ def validate_governed_prepare_package_summary(data: Any) -> list[str]:
 def dumps_governed_prepare_package_summary(summary: dict[str, Any]) -> str:
     errors = validate_governed_prepare_package_summary(summary)
     if errors:
-        raise ValueError("invalid governed prepare package summary: " + "; ".join(errors))
+        raise ValueError(
+            "invalid governed prepare package summary: " + "; ".join(errors)
+        )
     return _dumps_json(summary)
 
 

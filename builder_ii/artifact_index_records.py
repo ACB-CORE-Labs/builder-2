@@ -6,34 +6,94 @@ from pathlib import Path
 from typing import Any, Callable
 
 from builder_ii.approval_records import APPROVAL_RECORD_KIND, validate_approval_record
-from builder_ii.chain_summary_records import CHAIN_SUMMARY_RECORD_KIND, validate_chain_summary_record
-from builder_ii.goose_command_proposal import GOOSE_COMMAND_PROPOSAL_KIND, validate_goose_command_proposal
-from builder_ii.handoff_bundle_records import HANDOFF_BUNDLE_RECORD_KIND, validate_handoff_bundle_record
-from builder_ii.preflight_records import PREFLIGHT_RECORD_KIND, validate_preflight_record
-from builder_ii.promotion_decision_records import PROMOTION_DECISION_RECORD_KIND, validate_promotion_decision_record
-from builder_ii.promotion_readiness_records import PROMOTION_READINESS_RECORD_KIND, validate_promotion_readiness_record
+from builder_ii.chain_summary_records import (
+    CHAIN_SUMMARY_RECORD_KIND,
+    validate_chain_summary_record,
+)
+from builder_ii.goose_command_proposal import (
+    GOOSE_COMMAND_PROPOSAL_KIND,
+    validate_goose_command_proposal,
+)
+from builder_ii.handoff_bundle_records import (
+    HANDOFF_BUNDLE_RECORD_KIND,
+    validate_handoff_bundle_record,
+)
+from builder_ii.preflight_records import (
+    PREFLIGHT_RECORD_KIND,
+    validate_preflight_record,
+)
+from builder_ii.promotion_decision_records import (
+    PROMOTION_DECISION_RECORD_KIND,
+    validate_promotion_decision_record,
+)
+from builder_ii.promotion_readiness_records import (
+    PROMOTION_READINESS_RECORD_KIND,
+    validate_promotion_readiness_record,
+)
 from builder_ii.receipt_records import RECEIPT_RECORD_KIND, validate_receipt_record
 from builder_ii.receive_records import RECEIVE_RECORD_KIND, validate_receive_record
-from builder_ii.agent_profiles import AGENT_PROFILE_RECORD_KIND, validate_agent_profile_record
-from builder_ii.context_pack import CONTEXT_PACK_RECORD_KIND, validate_context_pack_record
-from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_state_ledger_record
-from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, validate_target_profile_artifact
-from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND, validate_profile_artifact
+from builder_ii.agent_profiles import (
+    AGENT_PROFILE_RECORD_KIND,
+    validate_agent_profile_record,
+)
+from builder_ii.context_pack import (
+    CONTEXT_PACK_RECORD_KIND,
+    validate_context_pack_record,
+)
+from builder_ii.state_ledger_records import (
+    STATE_LEDGER_RECORD_KIND,
+    validate_state_ledger_record,
+)
+from builder_ii.target_profiles import (
+    TARGET_PROFILE_ARTIFACT_KIND,
+    validate_target_profile_artifact,
+)
+from builder_ii.verification_profiles import (
+    VERIFICATION_ARTIFACT_KIND,
+    validate_profile_artifact,
+)
 from builder_ii.git_state import GIT_STATE_RECORD_KIND, validate_git_state_record
-from builder_ii.research_plans import RESEARCH_PLAN_KIND, validate_research_plan_artifact
-from builder_ii.research_adapters import RESEARCH_ADAPTER_KIND, validate_research_adapter_artifact
-from builder_ii.performance_measurements import PERFORMANCE_MEASUREMENT_KIND, validate_performance_measurement_record
-from builder_ii.readonly_inspection_promotion import READONLY_INSPECTION_PROMOTION_SPEC_KIND, validate_readonly_inspection_promotion_spec
-from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND, validate_readonly_inspection_report
-from builder_ii.hitl_execution_records import HITL_EXECUTION_REQUEST_KIND, validate_hitl_execution_request
-from builder_ii.hitl_execution_records import HITL_EXECUTION_RECEIPT_KIND, validate_hitl_execution_receipt
+from builder_ii.research_plans import (
+    RESEARCH_PLAN_KIND,
+    validate_research_plan_artifact,
+)
+from builder_ii.research_adapters import (
+    RESEARCH_ADAPTER_KIND,
+    validate_research_adapter_artifact,
+)
+from builder_ii.performance_measurements import (
+    PERFORMANCE_MEASUREMENT_KIND,
+    validate_performance_measurement_record,
+)
+from builder_ii.readonly_inspection_promotion import (
+    READONLY_INSPECTION_PROMOTION_SPEC_KIND,
+    validate_readonly_inspection_promotion_spec,
+)
+from builder_ii.readonly_inspection_reports import (
+    READONLY_INSPECTION_REPORT_KIND,
+    validate_readonly_inspection_report,
+)
+from builder_ii.hitl_execution_records import (
+    HITL_EXECUTION_REQUEST_KIND,
+    validate_hitl_execution_request,
+)
+from builder_ii.hitl_execution_records import (
+    HITL_EXECUTION_RECEIPT_KIND,
+    validate_hitl_execution_receipt,
+)
 from builder_ii.hitl_verification_candidate import (
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
     validate_hitl_verification_execution_candidate,
 )
-from builder_ii.hitl_patch_spec import HITL_PATCH_APPLICATION_SPEC_KIND, validate_hitl_patch_application_spec
+from builder_ii.hitl_patch_spec import (
+    HITL_PATCH_APPLICATION_SPEC_KIND,
+    validate_hitl_patch_application_spec,
+)
 from builder_ii.rollback_artifacts import ROLLBACK_PLAN_KIND, validate_rollback_plan
-from builder_ii.rollback_artifacts import ROLLBACK_RECEIPT_KIND, validate_rollback_receipt
+from builder_ii.rollback_artifacts import (
+    ROLLBACK_RECEIPT_KIND,
+    validate_rollback_receipt,
+)
 from builder_ii.execution_postflight_records import (
     EXECUTION_POSTFLIGHT_RECORD_KIND,
     validate_execution_postflight_record,
@@ -44,7 +104,10 @@ from builder_ii.hitl_evidence_bundle import (
     HITL_EVIDENCE_BUNDLE_KIND,
     validate_hitl_evidence_bundle,
 )
-from builder_ii.hitl_chain_binding import HITL_CHAIN_BINDING_KIND, validate_hitl_chain_binding
+from builder_ii.hitl_chain_binding import (
+    HITL_CHAIN_BINDING_KIND,
+    validate_hitl_chain_binding,
+)
 from builder_ii.session_workflow import (
     SESSION_WORKFLOW_PLAN_KIND,
     validate_session_workflow_plan,
@@ -125,24 +188,42 @@ from builder_ii.model_capabilities import (
     validate_model_capability_registry,
 )
 from builder_ii.profile_pack import PROFILE_PACK_KIND, validate_profile_pack
-from builder_ii.profile_pack_manifest import PROFILE_PACK_MANIFEST_KIND, validate_profile_pack_manifest
-from builder_ii.profile_pack_render_plan import PROFILE_PACK_RENDER_PLAN_KIND, validate_profile_pack_render_plan
-from builder_ii.profile_pack_dry_run import PROFILE_PACK_DRY_RUN_KIND, validate_profile_pack_dry_run
+from builder_ii.profile_pack_manifest import (
+    PROFILE_PACK_MANIFEST_KIND,
+    validate_profile_pack_manifest,
+)
+from builder_ii.profile_pack_render_plan import (
+    PROFILE_PACK_RENDER_PLAN_KIND,
+    validate_profile_pack_render_plan,
+)
+from builder_ii.profile_pack_dry_run import (
+    PROFILE_PACK_DRY_RUN_KIND,
+    validate_profile_pack_dry_run,
+)
 from builder_ii.profile_pack_validation_report import (
     PROFILE_PACK_VALIDATION_REPORT_KIND,
     validate_profile_pack_validation_report,
 )
-from builder_ii.model_client_registry import MODEL_CLIENT_REGISTRY_KIND, validate_model_client_registry
+from builder_ii.model_client_registry import (
+    MODEL_CLIENT_REGISTRY_KIND,
+    validate_model_client_registry,
+)
 from builder_ii.model_routing_policy import (
     MODEL_ROUTING_POLICY_KIND,
     validate_model_routing_policy,
     MODEL_ROUTING_RECOMMENDATION_KIND,
     validate_model_routing_recommendation,
 )
-
-
-
-
+from builder_ii.orchestration_assignment import (
+    AGENT_ASSIGNMENT_PLAN_KIND,
+    validate_agent_assignment_plan,
+    ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
+    validate_orchestration_assignment_plan,
+    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
+    validate_orchestration_assignment_dry_run,
+    ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
+    validate_orchestration_assignment_validation_report,
+)
 
 
 ARTIFACT_INDEX_RECORD_KIND = "builder_ii.artifact_index_record"
@@ -155,11 +236,15 @@ _SOURCE_WRITES = "".join(("source_", "writes"))
 _MEMORY_MUTATION = "".join(("memory_", "mutation"))
 
 
-_ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = "builder_ii.artifact_chain_verification_report"
+_ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = (
+    "builder_ii.artifact_chain_verification_report"
+)
 
 
 def _validate_chain_verification_report(record: Any) -> list[str]:
-    from builder_ii.artifact_chain_verification import validate_artifact_chain_verification_report
+    from builder_ii.artifact_chain_verification import (
+        validate_artifact_chain_verification_report,
+    )
 
     return validate_artifact_chain_verification_report(record)
 
@@ -168,7 +253,6 @@ def _validate_snapshot_record(record: Any) -> list[str]:
     from builder_ii.snapshot_records import validate_snapshot_record
 
     return validate_snapshot_record(record)
-
 
 
 _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
@@ -231,11 +315,12 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     MODEL_CLIENT_REGISTRY_KIND: validate_model_client_registry,
     MODEL_ROUTING_POLICY_KIND: validate_model_routing_policy,
     MODEL_ROUTING_RECOMMENDATION_KIND: validate_model_routing_recommendation,
+    AGENT_ASSIGNMENT_PLAN_KIND: validate_agent_assignment_plan,
+    ORCHESTRATION_ASSIGNMENT_PLAN_KIND: validate_orchestration_assignment_plan,
+    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND: validate_orchestration_assignment_dry_run,
+    ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND: validate_orchestration_assignment_validation_report,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
-
-
-
 
 
 def _digest_bytes(raw: bytes) -> str:
@@ -283,15 +368,44 @@ def _safe_entry(path: Path, root: Path) -> dict[str, Any]:
         return _artifact_entry(path, root)
     except json_lib.JSONDecodeError as exc:
         raw = path.read_bytes()
-        return {"path": rel_path, "sha256": _digest_bytes(raw), "bytes": len(raw), "kind": "", "schema_version": None, "known": False, "valid": False, "errors": [f"invalid JSON: {exc}"]}
+        return {
+            "path": rel_path,
+            "sha256": _digest_bytes(raw),
+            "bytes": len(raw),
+            "kind": "",
+            "schema_version": None,
+            "known": False,
+            "valid": False,
+            "errors": [f"invalid JSON: {exc}"],
+        }
     except UnicodeDecodeError as exc:
         raw = path.read_bytes()
-        return {"path": rel_path, "sha256": _digest_bytes(raw), "bytes": len(raw), "kind": "", "schema_version": None, "known": False, "valid": False, "errors": [f"artifact is not utf-8: {exc}"]}
+        return {
+            "path": rel_path,
+            "sha256": _digest_bytes(raw),
+            "bytes": len(raw),
+            "kind": "",
+            "schema_version": None,
+            "known": False,
+            "valid": False,
+            "errors": [f"artifact is not utf-8: {exc}"],
+        }
     except Exception as exc:
-        return {"path": rel_path, "sha256": "", "bytes": 0, "kind": "", "schema_version": None, "known": False, "valid": False, "errors": [f"failed to read artifact: {exc}"]}
+        return {
+            "path": rel_path,
+            "sha256": "",
+            "bytes": 0,
+            "kind": "",
+            "schema_version": None,
+            "known": False,
+            "valid": False,
+            "errors": [f"failed to read artifact: {exc}"],
+        }
 
 
-def create_artifact_index_record(root: Path, *, recursive: bool = False) -> dict[str, Any]:
+def create_artifact_index_record(
+    root: Path, *, recursive: bool = False
+) -> dict[str, Any]:
     root = root.resolve()
     entries: list[dict[str, Any]] = []
     issues: list[str] = []
@@ -315,13 +429,31 @@ def create_artifact_index_record(root: Path, *, recursive: bool = False) -> dict
         "status": "complete" if not issues and invalid_count == 0 else "incomplete",
         "complete": not issues and invalid_count == 0,
         "issues": issues,
-        "counts": {"total": len(entries), "known": known_count, "unknown": len(entries) - known_count, "valid": len(entries) - invalid_count, "invalid": invalid_count},
+        "counts": {
+            "total": len(entries),
+            "known": known_count,
+            "unknown": len(entries) - known_count,
+            "valid": len(entries) - invalid_count,
+            "invalid": invalid_count,
+        },
         "artifacts": entries,
-        "allowed_actions": ["read_json_artifact_metadata", "validate_known_artifacts", "render_artifact_index"],
+        "allowed_actions": [
+            "read_json_artifact_metadata",
+            "validate_known_artifacts",
+            "render_artifact_index",
+        ],
         "performed_actions": [],
         _GRANTS_RUNTIME_AUTHORITY: False,
         "grants_action_authority": False,
-        "governance": {"capability_state": "artifact_index_record", _RUNTIME_EXECUTION: "DISABLED", _MODEL_EXECUTION: "DISABLED", _SOURCE_WRITES: "DISABLED", _MEMORY_MUTATION: "DISABLED", "artifact_is_authority": False, "core_workbench_coupling": "NONE"},
+        "governance": {
+            "capability_state": "artifact_index_record",
+            _RUNTIME_EXECUTION: "DISABLED",
+            _MODEL_EXECUTION: "DISABLED",
+            _SOURCE_WRITES: "DISABLED",
+            _MEMORY_MUTATION: "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
     }
 
 

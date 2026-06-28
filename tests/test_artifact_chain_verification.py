@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import json as json_lib
-import hashlib
 from pathlib import Path
 from typing import Any
 
-import pytest
 from typer.testing import CliRunner
 
 from builder_ii.chain_summary_cli import chain_app
 from builder_ii.artifact_chain_verification import verify_artifact_chain
+from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 from builder_ii.approval_records import create_approval_record
 from builder_ii.artifact_index_records import create_artifact_index_record
@@ -56,7 +55,12 @@ def _approval(proposal: dict[str, Any], proposal_path: str) -> dict[str, Any]:
     )
 
 
-def _preflight(proposal: dict[str, Any], approval: dict[str, Any], proposal_path: str, approval_path: str) -> dict[str, Any]:
+def _preflight(
+    proposal: dict[str, Any],
+    approval: dict[str, Any],
+    proposal_path: str,
+    approval_path: str,
+) -> dict[str, Any]:
     return create_preflight_record(
         proposal,
         approval,
@@ -129,7 +133,9 @@ def _readiness() -> dict[str, Any]:
     )
 
 
-def _promotion_decision(readiness: dict[str, Any], readiness_path: str) -> dict[str, Any]:
+def _promotion_decision(
+    readiness: dict[str, Any], readiness_path: str
+) -> dict[str, Any]:
     return create_promotion_decision_record(
         readiness,
         readiness_path=readiness_path,
@@ -212,7 +218,9 @@ def test_valid_full_chain(tmp_path: Path) -> None:
     r_path = tmp_path / "receipt.json"
     r_path.write_text(json_lib.dumps(r))
 
-    s = _chain_summary(p, a, pf, r, "proposal.json", "approval.json", "preflight.json", "receipt.json")
+    s = _chain_summary(
+        p, a, pf, r, "proposal.json", "approval.json", "preflight.json", "receipt.json"
+    )
     s_path = tmp_path / "summary.json"
     s_path.write_text(json_lib.dumps(s))
 
@@ -245,8 +253,18 @@ def test_valid_full_chain(tmp_path: Path) -> None:
     snap_path.write_text(json_lib.dumps(snap))
 
     all_paths = [
-        p_path, a_path, pf_path, r_path, s_path, h_path, rc_path,
-        readiness_path, decision_path, ledger_path, idx_path, snap_path
+        p_path,
+        a_path,
+        pf_path,
+        r_path,
+        s_path,
+        h_path,
+        rc_path,
+        readiness_path,
+        decision_path,
+        ledger_path,
+        idx_path,
+        snap_path,
     ]
     report = verify_artifact_chain(all_paths)
 
@@ -347,6 +365,48 @@ def test_invalid_native_record(tmp_path: Path) -> None:
     assert any("Native validation error" in err for err in report["errors"])
 
 
+def test_goal2_assignment_chain_resolves_source_refs(tmp_path: Path) -> None:
+    fixture = build_goal2_assignment_fixture(tmp_path)
+    paths = list(fixture["paths"].values())
+
+    report = verify_artifact_chain(paths)
+
+    assert report["valid"] is True, report["errors"]
+    assert report["counts"]["native_invalid"] == 0
+    assert report["counts"]["broken_links"] == 0
+    assert report["counts"]["links"] >= 20
+    assert any(
+        link["source_kind"] == "builder_ii.agent_assignment_plan"
+        for link in report["links"]
+    )
+    assert any(
+        link["source_kind"] == "builder_ii.orchestration_assignment_plan"
+        for link in report["links"]
+    )
+    assert any(
+        link["source_kind"] == "builder_ii.orchestration_assignment_dry_run"
+        for link in report["links"]
+    )
+
+
+def test_goal2_assignment_chain_detects_source_ref_digest_mismatch(
+    tmp_path: Path,
+) -> None:
+    fixture = build_goal2_assignment_fixture(tmp_path)
+    target_path = fixture["paths"]["target_profile"]
+    target = json_lib.loads(target_path.read_text(encoding="utf-8"))
+    target["description"] = "changed after assignment binding"
+    target_path.write_text(
+        json_lib.dumps(target, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    report = verify_artifact_chain([fixture["paths"]["assignment"], target_path])
+
+    assert report["valid"] is False
+    assert report["counts"]["broken_links"] == 1
+    assert any("Digest mismatch" in err for err in report["errors"])
+
+
 # ---------------------------------------------------------------------------
 # CLI Command Tests
 # ---------------------------------------------------------------------------
@@ -373,11 +433,13 @@ def test_cli_verify_artifacts_output_file(tmp_path: Path) -> None:
 
     out_file = tmp_path / "report.json"
     runner = CliRunner()
-    result = runner.invoke(chain_app, ["verify-artifacts", str(p_path), "--output", str(out_file)])
+    result = runner.invoke(
+        chain_app, ["verify-artifacts", str(p_path), "--output", str(out_file)]
+    )
 
     assert result.exit_code == 0
     assert "Verification report written to" in result.output
-    
+
     assert out_file.exists()
     data = json_lib.loads(out_file.read_text(encoding="utf-8"))
     assert data["kind"] == "builder_ii.artifact_chain_verification_report"
