@@ -123,7 +123,6 @@ def create_research_plan_artifact(
         "task": task,
         "topic": topic,
         "source_hints": [item.strip() for item in source_hint if item.strip()],
-        "open_deep_research_relation": "REFERENCE_ONLY",
         "source_strategy": list(profile.source_strategy),
         "evidence_requirements": list(profile.evidence_requirements),
         "report_contract": list(profile.report_contract),
@@ -175,8 +174,6 @@ def validate_research_plan_artifact(artifact: Any) -> list[str]:
         value = artifact.get(field)
         if not isinstance(value, list) or not value:
             errors.append(f"{field} must be a non-empty list")
-    if artifact.get("open_deep_research_relation") != "REFERENCE_ONLY":
-        errors.append("open_deep_research_relation must be REFERENCE_ONLY")
     governance = artifact.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
