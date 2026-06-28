@@ -1,14 +1,14 @@
-# ADR-0001: CORE builder-II as a Governed Engineering Extension
+# ADR-0001: builder-II as a Governed Engineering Extension
 
 ## Status
 
-Accepted
+Accepted. Identity language refined by ADR-0003.
 
 ## Context
 
-CORE builder-II is CORE's governed engineering platform for local agent-assisted software development.
+builder-II is a CORE-born governed engineering platform for local agent-assisted software development.
 
-It carries CORE's engineering philosophy into the developer-platform layer while remaining architecturally separate from the CORE runtime and CORE Workbench/UI.
+It carries CORE's engineering philosophy into the developer-platform layer while remaining architecturally separate from CORE, the CORE runtime, and CORE Workbench/UI. CORE is a first-class target profile and lineage context, not the global platform identity.
 
 The design risk is threefold:
 
@@ -23,12 +23,12 @@ Codename Goose already provides a capable local agent execution platform. builde
 The governing question is:
 
 ```text
-How should CORE builder-II become powerful for real engineering design, implementation, verification, and handoff without bypassing human authority or collapsing into CORE runtime identity?
+How should builder-II become powerful for real engineering design, implementation, verification, and handoff without bypassing human authority or collapsing into CORE runtime identity?
 ```
 
 ## Decision
 
-builder-II shall be designed as CORE's governed engineering control plane for local agent-assisted software development.
+builder-II shall be designed as a generic governed engineering control plane for local agent-assisted software development.
 
 It is:
 
@@ -40,6 +40,7 @@ It is:
 
 It is not:
 
+- CORE;
 - the CORE runtime;
 - CORE Workbench/UI;
 - a second CORE runtime;
@@ -50,9 +51,10 @@ It is not:
 The product positioning is:
 
 ```text
-CORE builder-II = governed engineering platform for local agent-assisted development
+builder-II      = generic governed platform for local agent-assisted development
+CORE            = first-class target profile and lineage context
 Codename Goose  = execution-capable local agent platform reinforced by builder-II
-deepagents      = optional future orchestration harness
+deepagents      = optional governed planning/delegation harness
 ```
 
 builder-II shall make local agent-assisted engineering feel like an extension of the engineer: context-aware, profile-aware, repo-aware, verification-aware, evidence-bearing, resumable, anticipatory, and explicitly bounded by human authority.
@@ -95,6 +97,7 @@ manifest != runtime evidence
 handoff != proof of correctness
 HITL-required != HITL-approved
 verification-planned != verification-passed
+Notion-planned != repo-authoritative
 ```
 
 Semantic Rigor requires builder-II to prevent unverified work from masquerading as verified work.
@@ -151,7 +154,8 @@ builder-II does not own:
 - Codename Goose runtime identity;
 - deepagents runtime identity;
 - autonomous execution authority by default;
-- verification claims without evidence.
+- verification claims without evidence;
+- repository-external planning notes as project truth unless reconciled into repository artifacts.
 
 ## Codename Goose Relationship
 
@@ -319,62 +323,14 @@ builder-II improves real development workflows by producing useful context, plan
 
 builder-II supplements Codename Goose rather than replacing it.
 
-### Product Lineage
+### Generic-First Identity
 
-builder-II clearly presents itself as CORE's developer-platform product while remaining separate from CORE runtime and CORE Workbench/UI.
+builder-II remains generic-first, with CORE behavior scoped to the `core` target profile.
 
-### Profile Discipline
+### Authority Preservation
 
-Generic behavior remains generic. CORE behavior is isolated to the CORE target profile.
+Runtime activation, shell execution, source mutation, verification claims, promotion, merge, and release authority remain explicit, evidenced, and HITL-gated.
 
-### Explicit Authority
+### Scenario Evidence
 
-Mutation, shell execution, runtime activation, promotion, merge, and completion claims require explicit authority and evidence.
-
-### Evidence Discipline
-
-Planned, attempted, executed, verified, failed, blocked, and promoted states remain distinct.
-
-### Session Continuity
-
-Work can be resumed by another human, model, or agent without losing governing context.
-
-### Scenario Coverage
-
-Scenario tests prove governed engineering flows across artifact boundaries, not merely schema validity.
-
-## Consequences
-
-This decision prioritizes engineering usefulness over platform expansion.
-
-builder-II should invest first in:
-
-- context pack quality;
-- profile rendering;
-- Goose manifest quality;
-- repo state awareness;
-- verification planning;
-- handoff quality;
-- artifact linkage;
-- HITL boundary enforcement;
-- scenario-level workflow coverage.
-
-builder-II should not prioritize:
-
-- becoming a replacement agent runtime;
-- autonomous writes by default;
-- shell execution by default;
-- CORE runtime identity;
-- CORE Workbench/UI behavior;
-- deepagents hard dependency;
-- governance artifacts that do not improve engineering execution.
-
-The system should become powerful, but only in ways that preserve responsibility, evidence, and human authority.
-
-## Summary
-
-CORE builder-II is the developer-platform expression of CORE's engineering philosophy: mechanically sympathetic to real development work, semantically rigorous about every claim and artifact, and committed to the Third Door of governed power.
-
-It exists to make governed engineering feel ambient: the right context, profile, verification path, and handoff structure should come to the engineer before the engineer has to reconstruct them manually.
-
-It is an extension of the engineer's workshop: disciplined, powerful, context-rich, evidence-bearing, and honest about what has and has not been done.
+Scenario tests prove that the governed engineering flow works across module seams without false authority claims.

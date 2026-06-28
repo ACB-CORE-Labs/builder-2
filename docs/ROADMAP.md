@@ -2,9 +2,11 @@
 
 builder-II is a generic governed platform for local agent-assisted software development.
 
-It is a CORE product and brand extension, but it is not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime. CORE is supported as a first-class target profile and brand lineage; builder-II remains generic-first in architecture.
+It is CORE-born and carries CORE's engineering signet, but it is not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime. CORE is supported as a first-class target profile and lineage context; builder-II remains generic-first in architecture.
 
-The governing product doctrine is captured in [`docs/MANIFESTO.md`](MANIFESTO.md), [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md), and [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](adrs/ADR-0002-builder-convention-layer-over-codename-goose.md).
+The governing product doctrine is captured in [`docs/MANIFESTO.md`](MANIFESTO.md), [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md), [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](adrs/ADR-0002-builder-convention-layer-over-codename-goose.md), and [`docs/adrs/ADR-0003-builder-ii-generic-platform-identity-and-capability-factory.md`](adrs/ADR-0003-builder-ii-generic-platform-identity-and-capability-factory.md).
+
+Repository docs, schemas, tests, command registries, and source code are the authoritative project record. Notion planning artifacts are supportive planning material unless reconciled back into the repository.
 
 ## Current status — v0 governed artifact platform (as of 2026-06-27)
 
@@ -106,7 +108,12 @@ Every command above renders a reviewable artifact or validates an existing one. 
 
 These are the next capability promotions. Each requires the full capability promotion gate (docs, tests, command surface, failure mode, HITL boundary, output artifact, rollback path, verification path) before it can move from candidate to enabled.
 
-### Phase: read-only file inspection (next)
+### Phase: profile-pack / capability-factory substrate (next planning spine)
+- Introduce user-created profile packs for target profiles, agents, subagents, tasks, tools, context, verification, approval, Goose projections, deepagents projections, MCP policies, and handoff profiles
+- Add scaffold, render, validate, and dry-run lifecycle commands before any runtime authority
+- Require deterministic hashes, denied defaults, schema versions, source refs, and authority classifications
+
+### Phase: read-only file inspection
 - Promote bounded file inspection into actual runtime reads against operator-specified paths
 - Canonical template for all subsequent execution gate promotions
 
@@ -125,6 +132,18 @@ These are the next capability promotions. Each requires the full capability prom
 ### Phase: HITL patch proposal → approved apply
 - Patch proposal artifact → operator review → approved patch application
 - Requires full verification evidence
+
+### Phase: artifact memory and context reconstruction
+- Promote artifact-memory envelopes and context reconstruction artifacts as provenance-preserving continuity records
+- No hidden memory mutation; summaries remain derived and non-authoritative
+
+### Phase: event ledger and observability
+- Define runtime event records for denial, approval, invocation, verification, rollback, handoff, model routing, MCP, Goose, and deepagents activity
+- Ensure event records are replayable, chainable, and auditable
+
+### Phase: security and secret-boundary hardening
+- Keep raw secrets out of artifacts
+- Use token refs, path redaction, prompt/log redaction, and explicit approval for network, cost, credential, and external-provider escalation
 
 ### Phase: end-to-end target demos
 - One complete demo per target: `generic`, `builder`, `core`

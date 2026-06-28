@@ -1,7 +1,7 @@
 # Convention Layer Kernel
 
 **Status:** Design v1.1 — Updated to address Issue #115
-**Owner:** CORE builder-II platform
+**Owner:** builder-II platform
 **Date:** 2026-06-27
 
 ## Purpose

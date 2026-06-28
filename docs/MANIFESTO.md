@@ -2,7 +2,7 @@
 
 builder-II is a generic governed platform for local agent-assisted software development.
 
-It is CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet. CORE is supported as a target profile.
+It is CORE-born: the Builder's Signet is first-principles design doctrine embedded into the platform, not decorative lineage. builder-II is Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by Mechanical Sympathy, Semantic Rigor, and The Third Door. CORE is supported as the originating design lineage and a first-class target profile, but builder-II itself is not CORE, not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime.
 
 Its purpose is not to produce governance ceremony. Its purpose is to make engineering design, implementation, verification, and handoff more reliable, more repeatable, more context-aware, and more worthy of trust.
 
@@ -10,19 +10,36 @@ A system that cannot help build correct software is not useful. A system that bu
 
 ## Product Positioning
 
-builder-II is a CORE product and brand extension.
+builder-II is a generic governed local agent/developer platform.
 
-It carries CORE's engineering philosophy into the developer-platform layer while remaining generic enough to improve many software repositories, not only CORE-targeted work.
+It carries CORE's engineering signet into the developer-platform layer while remaining architecturally separate from CORE and generic enough to improve many software repositories, not only CORE-targeted work.
 
 The positioning is simple:
 
 ```text
 builder-II       = generic governed platform for local agent-assisted development
+CORE             = originating design lineage + first-class target profile
 Codename Goose   = execution-capable local agent platform reinforced by builder-II
-deepagents       = optional future orchestration harness
+deepagents       = optional governed planning/delegation harness
+MCP              = external capability adapter governed by builder-II policy
 ```
 
-The brand supplies the philosophy. The architecture preserves generality.
+The lineage supplies first principles. The architecture preserves generality.
+
+## Source-of-Truth Boundary
+
+Repository artifacts are the durable source of truth for builder-II architecture and implementation.
+
+The source-of-truth order is:
+
+1. accepted ADRs and later ADR refinements;
+2. `README.md` identity and architecture summary;
+3. this manifesto;
+4. `docs/ROADMAP.md` current status and promotion plan;
+5. implementation docs, command registries, schemas, tests, and source code;
+6. Notion planning artifacts and external notes as supportive planning material only.
+
+Notion pages may help organize plans and decisions, but they do not override repository ADRs, source code, tests, command authority registries, artifact schemas, promotion records, or validation behavior. When a Notion artifact contains a genuine refinement, that refinement must be reconciled back into repository docs/code before it is treated as project truth.
 
 ## The Promise
 
@@ -50,7 +67,7 @@ Autonomous authority is not implied.
 
 ## The Builder's Signet
 
-Every architectural decision in builder-II is measured against three engineering pillars inherited from CORE.
+Every architectural decision in builder-II is measured against three engineering pillars inherited from CORE and embedded as platform design law.
 
 These are not slogans. They are hard constraints.
 
@@ -86,6 +103,7 @@ A Goose session manifest is not evidence that Goose ran.
 A handoff is not proof that the implementation is correct.
 A required HITL gate is not an approved HITL gate.
 A planned verification command is not a passed verification command.
+A Notion planning page is not a repository source of truth.
 
 Semantic Rigor means builder-II refuses to let ambiguous, incomplete, or unverified work masquerade as completed engineering truth.
 
@@ -149,7 +167,7 @@ Goose is the muscle. builder-II is the governed engineering convention layer tha
 
 ## Generic-First Architecture
 
-builder-II is a CORE product, but it must not be CORE-locked.
+builder-II is CORE-born, but it must not be CORE-locked.
 
 The first target profiles are:
 
@@ -167,6 +185,45 @@ The `core` profile is for AssetOverflow/core and may include CORE-specific princ
 
 CORE-specific behavior must stay target-profile-scoped. It must not leak into builder-II globally.
 
+## User-Created Capability Factory
+
+The mature builder-II platform should not only provide built-in governed workflows. It should let users create their own governed development-system components while preserving builder-II authority boundaries.
+
+First-class future objects include:
+
+- target profiles;
+- agent profiles;
+- subagent profiles;
+- task profiles;
+- tool profiles;
+- MCP inventory and policy entries;
+- context packs;
+- model routing policies;
+- verification profiles;
+- approval policies;
+- Goose projections;
+- deepagents projections;
+- handoff profiles;
+- profile packs.
+
+The canonical lifecycle is:
+
+```text
+scaffold
+-> render
+-> validate
+-> dry-run
+-> inspect
+-> propose
+-> approve
+-> execute only if promoted
+-> verify
+-> record
+-> handoff
+```
+
+A user-created profile, pack, tool, task, model policy, Goose projection, or deepagents projection is not runtime authority by itself.
+
 ## Authority Doctrine
 
 builder-II must never silently grant:
@@ -176,6 +233,7 @@ builder-II must never silently grant:
 - live Goose activation;
 - live deepagents activation;
 - model calls outside declared policy;
+- MCP tool execution;
 - memory mutation;
 - git mutation;
 - PR creation;
@@ -228,4 +286,4 @@ A governed extension of the engineer.
 
 ## Summary
 
-CORE builder-II is the developer-platform expression of CORE's engineering philosophy: mechanically sympathetic to real development work, semantically rigorous about every claim and artifact, and committed to the Third Door of governed power.
+builder-II is the developer-platform expression of CORE's engineering signet: mechanically sympathetic to real development work, semantically rigorous about every claim and artifact, and committed to the Third Door of governed power. CORE is the originating design lineage and a first-class target profile, not the platform identity.

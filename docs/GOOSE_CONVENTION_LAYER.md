@@ -1,6 +1,6 @@
 # Codename Goose Convention Layer
 
-CORE builder-II uses Codename Goose as the primary local execution-capable agent platform.
+builder-II uses Codename Goose as the primary local execution-capable agent platform.
 
 builder-II does not replace Goose. It wraps, reinforces, and governs Goose through a stable builder convention layer.
 

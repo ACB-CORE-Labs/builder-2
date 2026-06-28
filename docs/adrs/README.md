@@ -1,24 +1,18 @@
 # builder-II Architecture Decision Records
 
-This directory records durable architecture decisions for CORE builder-II.
+This directory records durable architecture decisions for builder-II.
 
-builder-II is a CORE product and brand extension, but it remains architecturally separate from the CORE runtime and CORE Workbench/UI. ADRs in this directory should preserve that distinction while carrying CORE's engineering signet into the developer-platform layer.
+builder-II is CORE-born and governed by the Builder's Signet, but it is a generic governed local agent/developer platform. CORE is the originating design lineage and a first-class target profile, not the global platform identity. ADRs in this directory should preserve that distinction while treating CORE's engineering signet — Mechanical Sympathy, Semantic Rigor, and The Third Door — as first-principles design doctrine for the developer-platform layer.
 
 ## Index
 
 | ADR | Status | Decision |
 | --- | --- | --- |
-| [`ADR-0001`](ADR-0001-core-builder-ii-governed-engineering-extension.md) | Accepted | Define CORE builder-II as a governed engineering extension: CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by Mechanical Sympathy, Semantic Rigor, and The Third Door. |
+| [`ADR-0001`](ADR-0001-core-builder-ii-governed-engineering-extension.md) | Accepted | Define builder-II as a governed engineering extension: CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by Mechanical Sympathy, Semantic Rigor, and The Third Door. |
 | [`ADR-0002`](ADR-0002-builder-convention-layer-over-codename-goose.md) | Accepted | Define the builder convention layer over Codename Goose: stable builder commands/config/profiles/artifacts above, Goose-native env/recipe/context/session surfaces underneath. |
+| [`ADR-0003`](ADR-0003-builder-ii-generic-platform-identity-and-capability-factory.md) | Accepted | Refine builder-II identity as a generic governed platform, define repo docs as source of truth over Notion planning, and establish the profile-pack/capability-factory direction. |
+| [`ADR-0004`](ADR-0004-core-born-builders-signet-doctrine.md) | Accepted | Define `CORE-born` as originating design lineage plus embedded Builder's Signet doctrine, while keeping CORE-specific behavior target-profile scoped. |
 
 ## ADR discipline
 
-Each ADR should state:
-
-- the engineering problem;
-- the decision;
-- the authority boundary;
-- the evidence or test expectation;
-- the relationship to Codename Goose, CORE runtime, CORE Workbench/UI, and optional future harnesses where relevant.
-
-ADRs are not runtime authority. A design decision does not promote autonomous writes, shell execution, model calls, Goose runtime activation, deepagents construction, verification-passed claims, or merge authority unless the corresponding capability promotion path is documented, tested, approved, and evidenced.
+Each ADR should state the engineering problem, decision, authority boundary, evidence or test expectation, and relationship to Codename Goose, CORE runtime, CORE Workbench/UI, and optional future harnesses where relevant.

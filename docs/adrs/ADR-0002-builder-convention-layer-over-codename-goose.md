@@ -2,11 +2,11 @@
 
 ## Status
 
-Accepted
+Accepted. Identity language refined by ADR-0003.
 
 ## Context
 
-CORE builder-II is intended to make local agent-assisted engineering feel coherent, governed, and natural for the operator.
+builder-II is intended to make local agent-assisted engineering feel coherent, governed, and natural for the operator.
 
 Codename Goose already provides the primary local execution-capable agent platform. It can be configured through provider/model settings, recipes, environment variables, session options, built-ins, extensions, and local context. builder-II should not rebuild this runtime layer or become a competing agent runtime.
 
@@ -22,7 +22,7 @@ The platform needs a Third Door: a stable builder convention layer that compiles
 
 ## Decision
 
-CORE builder-II shall expose a stable builder convention layer over Codename Goose.
+builder-II shall expose a stable builder convention layer over Codename Goose.
 
 Builder commands, configuration files, profiles, and artifacts may wrap Goose-native capabilities, but they must compile down to Goose-compatible environment, recipe, context, and session surfaces while preserving explicit authority and evidence boundaries.
 
@@ -198,6 +198,7 @@ agent profile != autonomous agent
 subagent plan != subagent runtime
 verification plan != verification evidence
 handoff != proof of correctness
+Notion plan != repository source of truth
 ```
 
 ## The Third Door
