@@ -237,6 +237,20 @@ def create_model_routing_recommendation(
             matched_rule = r
             break
 
+    request_risk_num = _RISK_HIERARCHY[req_max_risk]
+    effective_max_risk_num = request_risk_num
+    effective_max_risk_label = req_max_risk
+    policy_cap_applied = False
+
+    if matched_rule:
+        rule_risk = matched_rule.get("max_risk_classification")
+        if rule_risk in _RISK_HIERARCHY:
+            rule_risk_num = _RISK_HIERARCHY[rule_risk]
+            if rule_risk_num < effective_max_risk_num:
+                effective_max_risk_num = rule_risk_num
+                effective_max_risk_label = rule_risk
+                policy_cap_applied = True
+
     candidates = []
     for cand in registry.get("clients", []):
         if not cand.get("enabled"):
@@ -244,7 +258,7 @@ def create_model_routing_recommendation(
         cand_risk = cand.get("risk_classification")
         if not cand_risk or cand_risk not in _RISK_HIERARCHY:
             raise ValueError(f"Candidate model '{cand.get('model_id')}' missing valid risk classification")
-        if _RISK_HIERARCHY[cand_risk] > max_risk_num:
+        if _RISK_HIERARCHY[cand_risk] > effective_max_risk_num:
             continue
         if req_tools and not cand.get("tool_use_supported"):
             continue
@@ -257,6 +271,8 @@ def create_model_routing_recommendation(
 
         score = 0
         reasons = [f"Risk level '{cand_risk}' satisfies requirement '{req_max_risk}'"]
+        if policy_cap_applied:
+            reasons.append(f"Risk level capped at policy limit '{effective_max_risk_label}'")
         if cand.get("tool_use_supported"):
             reasons.append("Supports required tool use")
 
@@ -277,6 +293,13 @@ def create_model_routing_recommendation(
 
     recommended_list = []
     for idx, (_, cand, reasons) in enumerate(candidates, start=1):
+        cand_constraints = [
+            f"Endpoint kind: {cand.get('endpoint_kind')}",
+            f"Cost class: {cand.get('cost_class')}",
+            "Passive recommendation only; requires human promotion before execution",
+        ]
+        if policy_cap_applied:
+            cand_constraints.append(f"Policy risk cap applied: {effective_max_risk_label}")
         recommended_list.append(
             {
                 "rank": idx,
@@ -286,11 +309,7 @@ def create_model_routing_recommendation(
                 "model_alias": cand.get("model_alias"),
                 "risk_classification": cand.get("risk_classification"),
                 "reasons": reasons,
-                "constraints": [
-                    f"Endpoint kind: {cand.get('endpoint_kind')}",
-                    f"Cost class: {cand.get('cost_class')}",
-                    "Passive recommendation only; requires human promotion before execution",
-                ],
+                "constraints": cand_constraints,
             }
         )
 

@@ -94,3 +94,49 @@ def test_routing_policy_nested_execution():
     policy["rules"][0]["rationale"] = "EXECUTED"
     errors = validate_model_routing_policy(policy)
     assert any("claims active authority state 'EXECUTED'" in err for err in errors)
+
+
+def test_routing_policy_risk_cap_enforcement():
+    policy = create_model_routing_policy()
+    registry = create_model_client_registry()
+    
+    # 1. Enable gpt-4o-stub (cloud_external risk)
+    found_gpt4o = False
+    for client in registry["clients"]:
+        if client["model_id"] == "gpt-4o-stub":
+            client["enabled"] = True
+            found_gpt4o = True
+            break
+    assert found_gpt4o, "Could not find gpt-4o-stub in default registry"
+    
+    # 2. Match a rule (coding) that caps risk to local_offline
+    for rule in policy["rules"]:
+        if rule["task_intent"] == "coding":
+            rule["max_risk_classification"] = "local_offline"
+            break
+            
+    # 3. Request with cloud_external max_risk
+    request = {
+        "task_intent": "coding",
+        "max_risk_classification": "cloud_external",
+        "requires_tool_use": True,
+    }
+    
+    # Recommend
+    rec = create_model_routing_recommendation(policy=policy, registry=registry, request=request)
+    errors = validate_model_routing_recommendation(rec)
+    assert errors == []
+    
+    # Cloud candidate should NOT be recommended because coding rule caps at local_offline
+    recommended_model_ids = [c["model_id"] for c in rec["recommended_candidates"]]
+    assert "gpt-4o-stub" not in recommended_model_ids
+    
+    # 4. Now relax coding rule cap to cloud_external
+    for rule in policy["rules"]:
+        if rule["task_intent"] == "coding":
+            rule["max_risk_classification"] = "cloud_external"
+            break
+            
+    rec_relaxed = create_model_routing_recommendation(policy=policy, registry=registry, request=request)
+    assert any(c["model_id"] == "gpt-4o-stub" for c in rec_relaxed["recommended_candidates"])
+

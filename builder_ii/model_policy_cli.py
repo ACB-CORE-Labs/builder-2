@@ -22,6 +22,7 @@ from builder_ii.model_routing_policy import (
     dumps_model_routing_recommendation,
     validate_model_routing_policy,
     validate_model_routing_recommendation,
+    write_model_routing_policy,
     write_model_routing_recommendation,
 )
 
@@ -46,7 +47,14 @@ def _read_json(path: Path) -> dict:
 
 @model_policy_app.command("validate")
 def validate(
-    path: Path = typer.Argument(..., help="Path to model registry, routing policy, or recommendation artifact JSON"),
+    path: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Path to model registry, routing policy, or recommendation artifact JSON",
+    ),
     output: Path | None = typer.Option(None, "--output", "-o", help="Write validation result JSON to this path"),
 ) -> None:
     """Validate a model client registry, routing policy, or recommendation artifact."""
@@ -84,8 +92,24 @@ def validate(
 
 @model_policy_app.command("render")
 def render(
-    policy_path: Path | None = typer.Option(None, "--policy", help="Optional path to model routing policy JSON"),
-    registry_path: Path | None = typer.Option(None, "--registry", help="Optional path to model client registry JSON"),
+    policy_path: Path | None = typer.Option(
+        None,
+        "--policy",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Optional path to model routing policy JSON",
+    ),
+    registry_path: Path | None = typer.Option(
+        None,
+        "--registry",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Optional path to model client registry JSON",
+    ),
     task_intent: str = typer.Option("coding", "--task-intent", help="Task intent: coding or reasoning"),
     max_risk: str = typer.Option("local_offline", "--max-risk", help="Max allowed risk classification"),
     requires_tools: bool = typer.Option(True, "--requires-tools/--no-tools", help="Whether tool use is required"),
@@ -94,6 +118,19 @@ def render(
     """Render a passive model routing recommendation report."""
     policy = _read_json(policy_path) if policy_path else create_model_routing_policy()
     registry = _read_json(registry_path) if registry_path else create_model_client_registry()
+
+    actual_policy_path = policy_path
+    actual_registry_path = registry_path
+
+    if output is not None:
+        if actual_policy_path is None:
+            actual_policy_path = output.with_name(output.name + ".model-routing-policy.json")
+            write_model_routing_policy(policy, actual_policy_path)
+            console.print(f"[green]Default model routing policy written to {actual_policy_path}[/]")
+        if actual_registry_path is None:
+            actual_registry_path = output.with_name(output.name + ".model-client-registry.json")
+            write_model_client_registry(registry, actual_registry_path)
+            console.print(f"[green]Default model client registry written to {actual_registry_path}[/]")
 
     request = {
         "task_intent": task_intent,
@@ -106,8 +143,8 @@ def render(
             policy=policy,
             registry=registry,
             request=request,
-            policy_path=policy_path,
-            registry_path=registry_path,
+            policy_path=actual_policy_path,
+            registry_path=actual_registry_path,
         )
     except ValueError as exc:
         console.print(f"[red]{exc}[/]")
@@ -128,8 +165,24 @@ def render(
 
 @model_policy_app.command("dry-run")
 def dry_run(
-    policy_path: Path | None = typer.Option(None, "--policy", help="Optional path to model routing policy JSON"),
-    registry_path: Path | None = typer.Option(None, "--registry", help="Optional path to model client registry JSON"),
+    policy_path: Path | None = typer.Option(
+        None,
+        "--policy",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Optional path to model routing policy JSON",
+    ),
+    registry_path: Path | None = typer.Option(
+        None,
+        "--registry",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Optional path to model client registry JSON",
+    ),
     output: Path | None = typer.Option(None, "--output", "-o", help="Write dry-run recommendation report JSON to this path"),
 ) -> None:
     """Perform a passive routing recommendation dry-run without execution."""

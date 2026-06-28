@@ -59,3 +59,33 @@ def test_model_policy_dry_run(tmp_path: Path):
     assert out_path.exists()
     data = json.loads(out_path.read_text(encoding="utf-8"))
     assert data["kind"] == "builder_ii.model_routing_recommendation"
+
+
+def test_model_policy_render_sibling_artifacts_and_verification(tmp_path: Path):
+    from builder_ii.artifact_chain_verification import verify_artifact_chain
+    out_path = tmp_path / "rec.json"
+    result = runner.invoke(
+        model_policy_app,
+        [
+            "render",
+            "--task-intent",
+            "coding",
+            "--max-risk",
+            "local_offline",
+            "--output",
+            str(out_path),
+        ],
+    )
+    assert result.exit_code == 0
+    assert out_path.exists()
+    
+    # Check sibling files
+    policy_path = tmp_path / "rec.json.model-routing-policy.json"
+    registry_path = tmp_path / "rec.json.model-client-registry.json"
+    assert policy_path.exists()
+    assert registry_path.exists()
+    
+    # Verify artifact chain closure
+    report = verify_artifact_chain([policy_path, registry_path, out_path])
+    assert report["valid"] is True
+
