@@ -1,14 +1,93 @@
 # builder-II
 
-`builder-II` is a generic governed platform for local agent-assisted software development. It is CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet. CORE is supported as a target profile.
+`builder-II` is a generic governed platform for local agent-assisted software development.
 
-The platform exists to make engineering work feel like an extension of the engineer. It brings the right repo context, target profile, agent profile, verification path, authority boundary, and handoff structure to the operator before the operator has to reconstruct that state manually.
+It is CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet. CORE is supported as a first-class target profile, but builder-II itself is not CORE, not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime.
 
-`builder-II` supplements Codename Goose. Codename Goose is the local execution-capable agent platform; builder-II prepares, constrains, records, verifies, and hands off governed engineering work around Goose and future optional harnesses such as deepagents.
+builder-II exists to make powerful local agent-assisted engineering work safer, clearer, more reproducible, and more honest about authority. It brings the right repo context, target profile, agent profile, model lane, verification path, authority boundary, audit trail, and handoff structure to the operator before the operator has to reconstruct that state manually.
+
+The project is being built to be freely usable. It does not need hype to justify itself; the facts of the system are the pitch: explicit authority, durable artifacts, human approval where authority changes, verification before promotion, and rollback paths when work touches real code.
 
 See [`docs/MANIFESTO.md`](docs/MANIFESTO.md) for the product philosophy, [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) for the governing product decision, and [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) for the Codename Goose convention-layer decision.
 
-`builder-II` is not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime. CORE is the brand lineage and a first-class target profile, but builder-II remains architecturally generic enough to support many target repositories.
+## The core architecture
+
+builder-II is the overarching governed control plane.
+
+Goose, deepagents, MCP, and model clients are not parallel sources of authority beside builder-II. They are pressed into builder-II through governed adapters, policy artifacts, event sinks, and approval boundaries.
+
+```text
+Wrong shape:
+  Goose does some things.
+  deepagents does some things.
+  MCP tools do some things.
+  builder-II later audits whatever it can see.
+
+Right shape:
+  builder-II defines the governed envelope.
+  Goose operates inside that envelope.
+  deepagents plans/delegates inside that envelope.
+  MCP capabilities are inventoried, gated, wrapped, and audited inside that envelope.
+  Model clients propose/review/plan inside that envelope.
+  Every authority-bearing action crosses builder-II policy, artifact, HITL, receipt, verification, and rollback boundaries.
+```
+
+Every layer may provide mechanics. Only builder-II provides authority.
+
+```mermaid
+flowchart TD
+    A["builder-II<br/>Governance Kernel / Control Plane"]
+
+    A --> B["Target Profiles<br/>generic · builder · core"]
+    A --> C["Agent Profiles<br/>repo_mapper · context_planner · code_reviewer · patch_planner · verification_planner · handoff_scribe"]
+    A --> D["Model / Client Policy<br/>capability registry · routing candidates · assignment boundaries"]
+    A --> E["Command Authority<br/>capability promotion · HITL gates"]
+    A --> F["Artifact & Event Ledger<br/>plans · receipts · evidence · handoffs"]
+    A --> G["Verification / Rollback Chain"]
+
+    A --> H["Goose Adapter<br/>operator runtime / session shell"]
+    A --> I["deepagents Adapter<br/>planning / delegation / interrupt-resume"]
+    A --> J["MCP Adapter<br/>external tools / resources / prompts"]
+    A --> K["Model Provider Adapters<br/>local + future remote model clients"]
+
+    H --> F
+    I --> F
+    J --> F
+    K --> F
+
+    E --> H
+    E --> I
+    E --> J
+    E --> K
+    G --> F
+```
+
+### How to read the diagram
+
+- **builder-II is the system.** It owns governance, authority boundaries, artifacts, promotion, verification, rollback, and handoff continuity.
+- **Goose is the operator runtime adapter.** Goose supplies local session/runtime mechanics inside a builder-II-defined envelope. Goose must not invent authority.
+- **deepagents is the planning/delegation adapter.** deepagents may eventually provide graph planning, subagent decomposition, interrupt/resume, and planning middleware. It must not bypass builder-II policy or treat subagent output as authority.
+- **MCP is the external capability adapter.** MCP can expose tools, resources, prompts, roots, elicitation, and sampling surfaces. builder-II must inventory, classify, gate, wrap, audit, and revoke those capabilities.
+- **Model clients are reasoning/proposal adapters.** Models may review, plan, summarize, propose, and explain. A model output is not approval, verification, promotion, or truth by itself.
+
+builder-II knows what is happening across layers because capability-bearing actions must pass through builder-II-defined adapters, artifacts, policy checks, and event records. It does not rely on trust that a layer "probably did the right thing." It records what was requested, what policy applied, what was approved or blocked, what executed, what evidence came back, what verification followed, and what rollback path exists.
+
+## The governing distinctions
+
+builder-II is designed around distinctions that agent systems often blur:
+
+- **planned** is not **executed**;
+- **executed** is not **verified**;
+- **verified** is not **promoted**;
+- **artifact** is not **authority**;
+- **model output** is not **approval**;
+- **subagent output** is not **truth**;
+- **approval** is not **successful execution**;
+- **execution** is not **safe merge**.
+
+These are not philosophical decorations. They are implementation boundaries.
+
+The platform is meant to become powerful because it is governed: ambient and anticipatory where the work is context, preparation, planning, routing, verification planning, and handoff continuity; explicit and HITL-gated where authority changes.
 
 ## The Builder's Signet
 
@@ -16,9 +95,58 @@ Every architectural decision in builder-II should reflect three engineering pill
 
 1. **Mechanical Sympathy** — Respect the real substrate of engineering work: local repositories, Git, Codename Goose, tests, diffs, handoffs, PRs, failed checks, constrained hardware, and human judgment. Do not rebuild what already works. Reinforce it.
 2. **Semantic Rigor** — Preserve exact meaning across every artifact and claim. Planned is not executed. Executed is not verified. Verified is not promoted. A manifest is not runtime evidence. A handoff is not proof of correctness.
-3. **The Third Door** — Reject the false choice between weak safety theater and reckless automation. builder-II must become powerful because it is governed: ambient and anticipatory where appropriate, explicit and HITL-gated where authority changes.
+3. **The Third Door** — Reject the false choice between weak safety theater and reckless automation. builder-II must become powerful because it is governed: every capability that changes authority needs docs, tests, command surface, failure mode, human approval boundary, output artifact, rollback path, and verification path.
 
 These are not slogans. They are design constraints.
+
+## Layer integration model
+
+### builder-II
+
+builder-II owns the platform contract:
+
+- target repositories and target profiles;
+- agent profiles and authority contracts;
+- model/client metadata and routing policy artifacts;
+- context packs and repo maps;
+- command authority tiers;
+- capability promotion records;
+- HITL gates;
+- execution requests and receipts;
+- evidence bundles and chain bindings;
+- verification records;
+- rollback artifacts;
+- handoff notes.
+
+No integration layer gets to override this contract.
+
+### Goose
+
+builder-II wraps Goose as the approved operator runtime substrate.
+
+Goose is valuable because it is already built for local operator-facing agent sessions. builder-II should reinforce that instead of rebuilding it. Goose may host runtime sessions, present gates, and carry operator interaction, but it should consume builder-II session manifests and linked policy artifacts rather than deciding authority on its own.
+
+### deepagents
+
+builder-II admits deepagents as an optional governed inner orchestration harness.
+
+deepagents is a strong fit for planning graphs, subagent decomposition, TODO planning, interrupt/resume behavior, and structured delegation. Inside builder-II, those features must flow through builder-II work artifacts, assignment artifacts, policy records, and result-review boundaries.
+
+Subagent output remains proposal/evidence unless a separate builder-II review and promotion path says otherwise.
+
+### MCP
+
+builder-II treats MCP as the external capability seam.
+
+MCP can make tools and context easier to connect. That same convenience makes it a potential bypass if it is not governed. builder-II therefore treats MCP capabilities as inventory-first, deny-by-default surfaces: hash them, classify them, gate them, wrap them, audit them, and revoke them when needed.
+
+MCP should make external capabilities easier to govern, not easier to hide.
+
+### Models and providers
+
+builder-II treats local and future remote models as model/provider adapters.
+
+Models may help reason, propose, review, plan, summarize, and explain. They must not silently become approvers, verifiers, command authorities, patch appliers, or promotion engines. Future model routing begins as policy and artifact metadata before it becomes execution behavior.
 
 ## Canonical Goose references
 
@@ -55,6 +183,7 @@ The builder convention layer should track Goose's official docs as Goose evolves
 | [`docs/GOOSE_INSPECTION.md`](docs/GOOSE_INSPECTION.md) | Bounded read-only inspection artifacts for explicit operator-requested files. |
 | [`docs/DEEPAGENTS_POLICY.md`](docs/DEEPAGENTS_POLICY.md) | Governed deepagents policy artifacts; no agent construction. |
 | [`docs/DEEPAGENTS_READINESS.md`](docs/DEEPAGENTS_READINESS.md) | Optional deepagents bridge readiness reports; no runtime authority. |
+| [`docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md`](docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md) | Design-only seam for Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated external capability surface. |
 | [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) | Capability promotion states and non-authority rule. |
 | [`docs/RUNTIME_PROMOTION.md`](docs/RUNTIME_PROMOTION.md) | Runtime-specific promotion gates for Goose, deepagents, commands, and patches. |
 | [`docs/ARTIFACT_INDEX.md`](docs/ARTIFACT_INDEX.md) | Index of all registered artifact kinds and non-authority boundaries. |
@@ -170,6 +299,7 @@ Not yet promoted (requires capability promotion gate):
 - HITL patch proposal → approved application
 - deepagents runtime orchestration
 - Model routing policy artifact (RFC exists, artifact not yet built)
+- MCP inventory/policy/enforcement runtime
 - Production-quality multimodal sidecar support
 
 Until a dedicated promotion path proves otherwise, treat local MLX sessions as review/planning/reporting lanes. For code edits, require explicit human review and run deterministic verification before accepting changes.
