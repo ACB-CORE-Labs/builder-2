@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
+import pytest
+
 from builder_ii.artifact_chain_verification import verify_artifact_chain
 from builder_ii.artifact_index_records import create_artifact_index_record
 from builder_ii.profile_pack import create_profile_pack, dumps_profile_pack, validate_profile_pack
@@ -34,9 +36,9 @@ from builder_ii.profile_pack_validation_report import (
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _manifest() -> dict:
+def _manifest(pack_id: str = "test-profile-pack") -> dict:
     return create_profile_pack_manifest(
-        pack_id="test-profile-pack",
+        pack_id=pack_id,
         target_profile="builder",
         task="test passive profile pack",
         project_root=ROOT,
@@ -190,6 +192,83 @@ def test_render_plan_and_dry_run_reject_execution_claims(tmp_path: Path) -> None
     bad_dry_run["summary"]["verification_status"] = "PASSED"
     assert "checks[0].calls_models must be false" in validate_profile_pack_dry_run(bad_dry_run)
     assert "summary.verification_status must be NOT_RUN" in validate_profile_pack_dry_run(bad_dry_run)
+
+
+def test_dry_run_rejects_render_plan_from_another_manifest() -> None:
+    manifest = _manifest("primary-profile-pack")
+    other_manifest = _manifest("other-profile-pack")
+    other_plan = create_profile_pack_render_plan(other_manifest)
+
+    with pytest.raises(ValueError, match="render plan does not match manifest"):
+        create_profile_pack_dry_run(manifest, other_plan)
+
+
+def test_profile_pack_rejects_render_plan_from_another_pack() -> None:
+    manifest = _manifest("primary-profile-pack")
+    render_plan = create_profile_pack_render_plan(manifest)
+    dry_run = create_profile_pack_dry_run(manifest, render_plan)
+    validation_report = create_profile_pack_validation_report(manifest)
+
+    other_manifest = _manifest("other-profile-pack")
+    other_render_plan = create_profile_pack_render_plan(other_manifest)
+
+    with pytest.raises(ValueError, match="lifecycle artifacts are not bound"):
+        create_profile_pack(
+            manifest=manifest,
+            render_plan=other_render_plan,
+            dry_run=dry_run,
+            validation_report=validation_report,
+        )
+
+
+def test_profile_pack_rejects_dry_run_from_another_pack() -> None:
+    manifest = _manifest("primary-profile-pack")
+    render_plan = create_profile_pack_render_plan(manifest)
+    validation_report = create_profile_pack_validation_report(manifest)
+
+    other_manifest = _manifest("other-profile-pack")
+    other_render_plan = create_profile_pack_render_plan(other_manifest)
+    other_dry_run = create_profile_pack_dry_run(other_manifest, other_render_plan)
+
+    with pytest.raises(ValueError, match="lifecycle artifacts are not bound"):
+        create_profile_pack(
+            manifest=manifest,
+            render_plan=render_plan,
+            dry_run=other_dry_run,
+            validation_report=validation_report,
+        )
+
+
+def test_profile_pack_rejects_invalid_validation_report() -> None:
+    manifest = _manifest()
+    render_plan = create_profile_pack_render_plan(manifest)
+    dry_run = create_profile_pack_dry_run(manifest, render_plan)
+    invalid_subject = copy.deepcopy(manifest)
+    del invalid_subject["schema_version"]
+    invalid_report = create_profile_pack_validation_report(invalid_subject)
+
+    with pytest.raises(ValueError, match="validation_report.valid must be true"):
+        create_profile_pack(
+            manifest=manifest,
+            render_plan=render_plan,
+            dry_run=dry_run,
+            validation_report=invalid_report,
+        )
+
+
+def test_profile_pack_rejects_validation_report_for_unrelated_subject() -> None:
+    manifest = _manifest("primary-profile-pack")
+    render_plan = create_profile_pack_render_plan(manifest)
+    dry_run = create_profile_pack_dry_run(manifest, render_plan)
+    unrelated_report = create_profile_pack_validation_report(_manifest("other-profile-pack"))
+
+    with pytest.raises(ValueError, match="subject_ref.sha256 must match"):
+        create_profile_pack(
+            manifest=manifest,
+            render_plan=render_plan,
+            dry_run=dry_run,
+            validation_report=unrelated_report,
+        )
 
 
 def test_validation_report_distinguishes_validated_from_promoted() -> None:
