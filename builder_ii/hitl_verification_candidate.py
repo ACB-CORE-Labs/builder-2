@@ -74,6 +74,35 @@ _GOVERNANCE_DISABLED_KEYS = (
     "goose_runtime_start",
     "deepagents_runtime",
 )
+_ALLOWED_TOP_LEVEL_FIELDS = {
+    "kind",
+    "schema_version",
+    "candidate_state",
+    "target_profile",
+    "target",
+    "verification_command",
+    "verification_command_ref",
+    "verification_command_ref_kind",
+    "allowed_command_kind",
+    "verification_scope",
+    "proposal_ref",
+    "approval_ref",
+    "preflight_ref",
+    "request_ref",
+    "receipt_requirements",
+    "postflight_requirements",
+    "rollback_or_no_mutation_assertion",
+    "verification_record_requirements",
+    "chain_binding_requirements",
+    "operator_review_required",
+    "executes_now",
+    "runtime_execution",
+    "command_execution",
+    "source_writes",
+    "target_repo_writes",
+    "artifact_is_authority",
+    "governance",
+}
 
 
 def create_hitl_verification_execution_candidate(
@@ -196,6 +225,10 @@ def validate_hitl_verification_execution_candidate(artifact: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(artifact, dict):
         return ["hitl verification execution candidate artifact must be a JSON object"]
+
+    for key in artifact:
+        if key not in _ALLOWED_TOP_LEVEL_FIELDS:
+            errors.append(f"unknown field: {key}")
 
     if artifact.get("kind") != HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND:
         errors.append(f"kind must be {HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND}")

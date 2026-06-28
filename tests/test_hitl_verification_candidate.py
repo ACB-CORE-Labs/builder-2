@@ -141,6 +141,24 @@ def test_artifact_is_authority_true_fails_closed() -> None:
     assert "governance.artifact_is_authority must be false" in errors
 
 
+def test_unknown_top_level_fields_fail_closed() -> None:
+    candidate = _candidate()
+    candidate["unexpected"] = "value"
+
+    errors = validate_hitl_verification_execution_candidate(candidate)
+
+    assert "unknown field: unexpected" in errors
+
+
+def test_top_level_authority_fields_fail_closed_when_injected() -> None:
+    candidate = _candidate()
+    candidate["model_execution"] = "ENABLED"
+
+    errors = validate_hitl_verification_execution_candidate(candidate)
+
+    assert "unknown field: model_execution" in errors
+
+
 def test_chain_and_index_validators_know_candidate_kind(tmp_path: Path) -> None:
     candidate = _candidate()
     assert HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND in INDEX_VALIDATORS
