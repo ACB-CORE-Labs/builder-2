@@ -28,8 +28,8 @@ def test_create_research_plan_artifact_shape() -> None:
     artifact = create_research_plan_artifact(
         target="generic",
         profile_name="research_planner",
-        task="map open_deep_research architecture",
-        topic="research runtime reference",
+        task="map governed research architecture",
+        topic="research runtime planning",
         source_hint=("repository docs",),
     )
 
@@ -37,9 +37,8 @@ def test_create_research_plan_artifact_shape() -> None:
     assert artifact["schema_version"] == 1
     assert artifact["target"] == "generic"
     assert artifact["profile"]["name"] == "research_planner"
-    assert artifact["topic"] == "research runtime reference"
+    assert artifact["topic"] == "research runtime planning"
     assert artifact["source_hints"] == ["repository docs"]
-    assert artifact["open_deep_research_relation"] == "REFERENCE_ONLY"
     assert artifact["source_strategy"]
     assert artifact["evidence_requirements"]
     assert artifact["report_contract"]
@@ -111,9 +110,9 @@ def test_cli_plan_stdout() -> None:
             "--profile",
             "research_planner",
             "--task",
-            "map open_deep_research architecture",
+            "map governed research architecture",
             "--topic",
-            "research reference",
+            "research planning",
             "--source-hint",
             "repository docs",
         ],
