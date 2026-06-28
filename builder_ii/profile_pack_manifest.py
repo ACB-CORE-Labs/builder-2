@@ -61,7 +61,7 @@ PROFILE_KINDS_BY_AREA: dict[str, tuple[str, ...]] = {
     "mcp_inventory_policy_stubs": ("mcp_inventory_stub", "mcp_policy_stub"),
     "handoff_profiles": ("handoff_profile",),
     "packs": ("pack",),
-    "model_policies": ("model_policy_stub",),
+    "model_policies": ("model_policy_stub", "model_client_registry", "model_routing_policy", "model_routing_recommendation"),
 }
 
 EXPECTED_AUTHORITY_BY_KIND: dict[str, str] = {
@@ -80,6 +80,9 @@ EXPECTED_AUTHORITY_BY_KIND: dict[str, str] = {
     "handoff_profile": "handoff_only",
     "pack": "artifact_only",
     "model_policy_stub": "policy_stub_only",
+    "model_client_registry": "artifact_only",
+    "model_routing_policy": "policy_stub_only",
+    "model_routing_recommendation": "artifact_only",
 }
 
 ALLOWED_AUTHORITY_CLASSIFICATIONS = tuple(sorted(set(EXPECTED_AUTHORITY_BY_KIND.values())))
@@ -512,7 +515,7 @@ def _validate_entry_payload(entry: dict[str, Any], *, field: str) -> list[str]:
             if payload.get(key) is not False:
                 errors.append(f"{field}.payload.{key} must be false")
 
-    if profile_kind == "model_policy_stub":
+    if profile_kind in {"model_policy_stub", "model_client_registry", "model_routing_policy", "model_routing_recommendation"}:
         if payload.get("calls_models") is not False:
             errors.append(f"{field}.payload.calls_models must be false")
         if payload.get("model_execution") != "DISABLED":

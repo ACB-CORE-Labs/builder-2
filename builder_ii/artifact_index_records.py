@@ -132,6 +132,13 @@ from builder_ii.profile_pack_validation_report import (
     PROFILE_PACK_VALIDATION_REPORT_KIND,
     validate_profile_pack_validation_report,
 )
+from builder_ii.model_client_registry import MODEL_CLIENT_REGISTRY_KIND, validate_model_client_registry
+from builder_ii.model_routing_policy import (
+    MODEL_ROUTING_POLICY_KIND,
+    validate_model_routing_policy,
+    MODEL_ROUTING_RECOMMENDATION_KIND,
+    validate_model_routing_recommendation,
+)
 
 
 
@@ -221,6 +228,9 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     PROFILE_PACK_RENDER_PLAN_KIND: validate_profile_pack_render_plan,
     PROFILE_PACK_DRY_RUN_KIND: validate_profile_pack_dry_run,
     PROFILE_PACK_VALIDATION_REPORT_KIND: validate_profile_pack_validation_report,
+    MODEL_CLIENT_REGISTRY_KIND: validate_model_client_registry,
+    MODEL_ROUTING_POLICY_KIND: validate_model_routing_policy,
+    MODEL_ROUTING_RECOMMENDATION_KIND: validate_model_routing_recommendation,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
 

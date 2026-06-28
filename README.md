@@ -242,6 +242,7 @@ builder-II v0 includes the full governed artifact platform:
 - Verification profile reports via `builder-verification`
 - Handoff note lifecycle via `builder-notes`
 - Passive profile-pack lifecycle via `builder-profile-pack`
+- Passive model client registry and routing policy via `builder-model-policy`
 - deepagents bridge readiness reports via `builder-deepagents`
 - Artifact index and chain verification (all v0 kinds registered, closure-tested)
 - **v0 release manifest and operator-run proof harness** (`scripts/verify_v0_release.py`)
