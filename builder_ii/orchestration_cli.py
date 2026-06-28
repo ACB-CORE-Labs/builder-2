@@ -316,6 +316,13 @@ def render_assignment(
         write_agent_assignment_plan(assignment, assignment_output)
         assignment_path = assignment_output
         console.print(f"[green]Agent assignment plan written to {assignment_output}[/]")
+    elif output is not None:
+        sibling_path = output.parent / (output.name + ".agent-assignment-plan.json")
+        write_agent_assignment_plan(assignment, sibling_path)
+        assignment_path = sibling_path
+        console.print(
+            f"[green]Agent assignment plan written to sibling {sibling_path}[/]"
+        )
     else:
         assignment_path = None
 

@@ -968,7 +968,10 @@ def create_orchestration_assignment_validation_report(
                 f"unknown orchestration assignment artifact kind: {subject_kind or '<missing>'}"
             )
         else:
-            errors.extend(validator(subject))
+            try:
+                errors.extend(validator(subject))
+            except Exception as exc:
+                errors.append(f"subject validation raised: {exc}")
 
     valid = errors == []
     report = {
@@ -1059,6 +1062,7 @@ def _validate_ref(
     field: str,
     expected_kind: str | None = None,
     expected_role: str | None = None,
+    lenient_subject: bool = False,
 ) -> list[str]:
     errors: list[str] = []
     if not isinstance(value, dict):
@@ -1066,15 +1070,24 @@ def _validate_ref(
     if expected_role is not None and value.get("role") != expected_role:
         errors.append(f"{field}.role must be {expected_role}")
     kind = value.get("kind")
-    if not isinstance(kind, str) or not kind:
-        errors.append(f"{field}.kind must be a non-empty string")
-    elif kind not in _KNOWN_REF_KINDS:
-        errors.append(f"{field}.kind is an unknown artifact kind")
-    elif expected_kind is not None and kind != expected_kind:
-        errors.append(f"{field}.kind must be {expected_kind}")
+    if lenient_subject:
+        if kind is not None and not isinstance(kind, str):
+            errors.append(f"{field}.kind must be a string")
+    else:
+        if not isinstance(kind, str) or not kind:
+            errors.append(f"{field}.kind must be a non-empty string")
+        elif kind not in _KNOWN_REF_KINDS:
+            errors.append(f"{field}.kind is an unknown artifact kind")
+        elif expected_kind is not None and kind != expected_kind:
+            errors.append(f"{field}.kind must be {expected_kind}")
     if not isinstance(value.get("path", ""), str):
         errors.append(f"{field}.path must be a string")
-    errors.extend(_validate_sha(value.get("sha256"), field=f"{field}.sha256"))
+    sha = value.get("sha256")
+    if lenient_subject:
+        if sha != "" and sha is not None:
+            errors.extend(_validate_sha(sha, field=f"{field}.sha256"))
+    else:
+        errors.extend(_validate_sha(sha, field=f"{field}.sha256"))
     if value.get("required") is not True:
         errors.append(f"{field}.required must be true")
     if not isinstance(value.get("name", ""), str):
@@ -1325,6 +1338,34 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
             errors.append("bindings.handoff must be an object")
         elif handoff_binding.get("claims_verification_evidence") is not False:
             errors.append("bindings.handoff.claims_verification_evidence must be false")
+
+        model_binding = bindings.get("model")
+        if not isinstance(model_binding, dict):
+            errors.append("bindings.model must be an object")
+        else:
+            if model_binding.get("executes_model") is not False:
+                errors.append("bindings.model.executes_model must be false")
+            if model_binding.get("routing_grants_authority") is not False:
+                errors.append("bindings.model.routing_grants_authority must be false")
+            if model_binding.get("recommendation_state") != "RECOMMENDATION_ONLY":
+                errors.append(
+                    "bindings.model.recommendation_state must be RECOMMENDATION_ONLY"
+                )
+            if not isinstance(model_binding.get("selected_candidate"), dict):
+                errors.append("bindings.model.selected_candidate must be an object")
+
+        context_binding = bindings.get("context")
+        if not isinstance(context_binding, dict):
+            errors.append("bindings.context must be an object")
+        else:
+            if context_binding.get("context_is_proof") is not False:
+                errors.append("bindings.context.context_is_proof must be false")
+            if context_binding.get("source_ref_role") != "context_pack":
+                errors.append("bindings.context.source_ref_role must be context_pack")
+            if context_binding.get("target_name") != data.get("target"):
+                errors.append(
+                    "bindings.context.target_name must match assignment target"
+                )
 
     errors.extend(_validate_required_source_refs(data))
 
@@ -1672,16 +1713,27 @@ def validate_orchestration_assignment_validation_report(data: Any) -> list[str]:
         )
     if data.get("validation_state") != "VALIDATED_ONLY":
         errors.append("validation_state must be VALIDATED_ONLY")
+    valid = data.get("valid")
     subject_kind = data.get("subject_kind")
-    if not isinstance(subject_kind, str):
-        errors.append("subject_kind must be a string")
-    elif subject_kind and subject_kind not in _assignment_validators():
-        errors.append(
-            "subject_kind must be a known orchestration assignment artifact kind"
-        )
+    if valid is True:
+        if not isinstance(subject_kind, str):
+            errors.append("subject_kind must be a string")
+        elif not subject_kind:
+            errors.append("subject_kind must be a non-empty string")
+        elif subject_kind not in _assignment_validators():
+            errors.append(
+                "subject_kind must be a known orchestration assignment artifact kind"
+            )
+    else:
+        if subject_kind is not None and not isinstance(subject_kind, str):
+            errors.append("subject_kind must be a string")
+
     errors.extend(
         _validate_ref(
-            data.get("subject_ref"), field="subject_ref", expected_role="subject"
+            data.get("subject_ref"),
+            field="subject_ref",
+            expected_role="subject",
+            lenient_subject=(valid is False),
         )
     )
     if data.get("status") not in {"valid", "invalid"}:

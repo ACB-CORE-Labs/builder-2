@@ -293,3 +293,128 @@ def test_goal2_orchestration_assignment_plan_rejects_authority_escalation(
         "field 'orchestration_assignment_plan.plan_state' claims active authority state 'EXECUTED'"
         in errors
     )
+
+
+def test_goal2_assignment_model_binding_escalation_fails_closed(tmp_path: Path) -> None:
+    fixture = build_goal2_assignment_fixture(tmp_path)
+    assignment = fixture["artifacts"]["assignment"]
+
+    # executes_model = True
+    bad_exec = copy.deepcopy(assignment)
+    bad_exec["bindings"]["model"]["executes_model"] = True
+    assert (
+        "bindings.model.executes_model must be false"
+        in validate_agent_assignment_plan(bad_exec)
+    )
+
+    # routing_grants_authority = True
+    bad_grant = copy.deepcopy(assignment)
+    bad_grant["bindings"]["model"]["routing_grants_authority"] = True
+    assert (
+        "bindings.model.routing_grants_authority must be false"
+        in validate_agent_assignment_plan(bad_grant)
+    )
+
+    # recommendation_state != RECOMMENDATION_ONLY
+    bad_state = copy.deepcopy(assignment)
+    bad_state["bindings"]["model"]["recommendation_state"] = "AUTHORIZED"
+    assert (
+        "bindings.model.recommendation_state must be RECOMMENDATION_ONLY"
+        in validate_agent_assignment_plan(bad_state)
+    )
+
+    # selected_candidate not a dict
+    bad_candidate = copy.deepcopy(assignment)
+    bad_candidate["bindings"]["model"]["selected_candidate"] = "not a dict"
+    assert (
+        "bindings.model.selected_candidate must be an object"
+        in validate_agent_assignment_plan(bad_candidate)
+    )
+
+
+def test_goal2_assignment_context_binding_escalation_fails_closed(
+    tmp_path: Path,
+) -> None:
+    fixture = build_goal2_assignment_fixture(tmp_path)
+    assignment = fixture["artifacts"]["assignment"]
+
+    # context_is_proof = True
+    bad_proof = copy.deepcopy(assignment)
+    bad_proof["bindings"]["context"]["context_is_proof"] = True
+    assert (
+        "bindings.context.context_is_proof must be false"
+        in validate_agent_assignment_plan(bad_proof)
+    )
+
+    # source_ref_role != context_pack
+    bad_role = copy.deepcopy(assignment)
+    bad_role["bindings"]["context"]["source_ref_role"] = "wrong_role"
+    assert (
+        "bindings.context.source_ref_role must be context_pack"
+        in validate_agent_assignment_plan(bad_role)
+    )
+
+    # target_name mismatch
+    bad_target = copy.deepcopy(assignment)
+    bad_target["bindings"]["context"]["target_name"] = "wrong_target"
+    assert (
+        "bindings.context.target_name must match assignment target"
+        in validate_agent_assignment_plan(bad_target)
+    )
+
+
+def test_validation_report_for_invalid_unknown_malformed_subjects(
+    tmp_path: Path,
+) -> None:
+    from builder_ii.orchestration_assignment import (
+        create_orchestration_assignment_validation_report,
+        validate_orchestration_assignment_validation_report,
+    )
+
+    # 1. Invalid subject kind
+    malformed_subject = {"kind": "builder_ii.unknown_kind", "foo": "bar"}
+    report = create_orchestration_assignment_validation_report(malformed_subject)
+    assert report["valid"] is False
+    assert report["status"] == "invalid"
+    assert any(
+        "unknown orchestration assignment artifact kind" in err
+        for err in report["errors"]
+    )
+
+    # Validation report itself must pass validation
+    report_errors = validate_orchestration_assignment_validation_report(report)
+    assert report_errors == []
+
+    # 2. Subject is not a dict
+    not_a_dict_subject = "not a dict"
+    report_not_dict = create_orchestration_assignment_validation_report(
+        not_a_dict_subject
+    )
+    assert report_not_dict["valid"] is False
+    assert report_not_dict["status"] == "invalid"
+    assert "subject must be a JSON object" in report_not_dict["errors"]
+
+    report_not_dict_errors = validate_orchestration_assignment_validation_report(
+        report_not_dict
+    )
+    assert report_not_dict_errors == []
+
+    # 3. Subject validation raises an exception
+    class CrashingDict(dict):
+        def get(self, key, default=None):
+            if key == "bindings":
+                raise RuntimeError("mock crash")
+            return super().get(key, default)
+
+    crashing_subject = CrashingDict(kind="builder_ii.agent_assignment_plan")
+    report_crash = create_orchestration_assignment_validation_report(crashing_subject)
+    assert report_crash["valid"] is False
+    assert report_crash["status"] == "invalid"
+    assert any(
+        "subject validation raised: mock crash" in err for err in report_crash["errors"]
+    )
+
+    report_crash_errors = validate_orchestration_assignment_validation_report(
+        report_crash
+    )
+    assert report_crash_errors == []
