@@ -18,6 +18,10 @@ from builder_ii.hitl_execution_records import (
     create_hitl_execution_request,
     create_hitl_execution_receipt,
 )
+from builder_ii.hitl_verification_candidate import (
+    HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
+    create_hitl_verification_execution_candidate,
+)
 from builder_ii.hitl_patch_spec import (
     HITL_PATCH_APPLICATION_SPEC_KIND,
     create_hitl_patch_application_spec,
@@ -129,6 +133,7 @@ CLOSURE_KINDS = {
     READONLY_INSPECTION_REPORT_KIND,
     HITL_EXECUTION_REQUEST_KIND,
     HITL_EXECUTION_RECEIPT_KIND,
+    HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
     HITL_PATCH_APPLICATION_SPEC_KIND,
     ROLLBACK_PLAN_KIND,
     ROLLBACK_RECEIPT_KIND,
@@ -166,6 +171,7 @@ CLOSURE_KINDS = {
 GOVERNANCE_ARTIFACT_KINDS = {
     HITL_EXECUTION_REQUEST_KIND,
     HITL_EXECUTION_RECEIPT_KIND,
+    HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
     HITL_PATCH_APPLICATION_SPEC_KIND,
     ROLLBACK_PLAN_KIND,
     ROLLBACK_RECEIPT_KIND,
@@ -254,6 +260,18 @@ def _hitl_execution_request() -> dict[str, Any]:
 def _hitl_execution_receipt() -> dict[str, Any]:
     return create_hitl_execution_receipt(
         target_name="generic",
+        request_ref="request.json",
+    )
+
+
+def _hitl_verification_execution_candidate() -> dict[str, Any]:
+    return create_hitl_verification_execution_candidate(
+        target_name="generic",
+        verification_command="uv run pytest tests/test_registry_closure.py -q",
+        allowed_command_kind="repo_native_pytest",
+        proposal_ref="proposal.json",
+        approval_ref="approval.json",
+        preflight_ref="preflight.json",
         request_ref="request.json",
     )
 
@@ -899,6 +917,7 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
     fixtures = [
         _hitl_execution_request(),
         _hitl_execution_receipt(),
+        _hitl_verification_execution_candidate(),
         _hitl_patch_application_spec(),
         _rollback_plan(),
         _rollback_receipt(),
@@ -941,6 +960,7 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
     fixtures = {
         "hitl-request.json": _hitl_execution_request(),
         "hitl-receipt.json": _hitl_execution_receipt(),
+        "hitl-verification-candidate.json": _hitl_verification_execution_candidate(),
         "hitl-patch-spec.json": _hitl_patch_application_spec(),
         "rollback-plan.json": _rollback_plan(),
         "rollback-receipt.json": _rollback_receipt(),

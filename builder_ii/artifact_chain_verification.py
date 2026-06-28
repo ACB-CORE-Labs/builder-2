@@ -30,6 +30,10 @@ from builder_ii.readonly_inspection_promotion import READONLY_INSPECTION_PROMOTI
 from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND, validate_readonly_inspection_report
 from builder_ii.hitl_execution_records import HITL_EXECUTION_REQUEST_KIND, validate_hitl_execution_request
 from builder_ii.hitl_execution_records import HITL_EXECUTION_RECEIPT_KIND, validate_hitl_execution_receipt
+from builder_ii.hitl_verification_candidate import (
+    HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
+    validate_hitl_verification_execution_candidate,
+)
 from builder_ii.hitl_patch_spec import HITL_PATCH_APPLICATION_SPEC_KIND, validate_hitl_patch_application_spec
 from builder_ii.rollback_artifacts import ROLLBACK_PLAN_KIND, validate_rollback_plan
 from builder_ii.rollback_artifacts import ROLLBACK_RECEIPT_KIND, validate_rollback_receipt
@@ -170,6 +174,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     READONLY_INSPECTION_REPORT_KIND: validate_readonly_inspection_report,
     HITL_EXECUTION_REQUEST_KIND: validate_hitl_execution_request,
     HITL_EXECUTION_RECEIPT_KIND: validate_hitl_execution_receipt,
+    HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND: validate_hitl_verification_execution_candidate,
     HITL_PATCH_APPLICATION_SPEC_KIND: validate_hitl_patch_application_spec,
     ROLLBACK_PLAN_KIND: validate_rollback_plan,
     ROLLBACK_RECEIPT_KIND: validate_rollback_receipt,
@@ -323,6 +328,28 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                         "expected_kind": HITL_CHAIN_BINDING_SLOT_KIND_MAP[slot],
                     }
                 )
+
+    elif kind == HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND:
+        for field, expected in [
+            ("proposal_ref", GOOSE_COMMAND_PROPOSAL_KIND),
+            ("approval_ref", APPROVAL_RECORD_KIND),
+            ("preflight_ref", PREFLIGHT_RECORD_KIND),
+            ("request_ref", HITL_EXECUTION_REQUEST_KIND),
+        ]:
+            val = record.get(field)
+            if isinstance(val, str) and val:
+                refs.append({"field": field, "sha256": None, "path": val, "expected_kind": expected})
+        command_ref = record.get("verification_command_ref")
+        command_ref_kind = record.get("verification_command_ref_kind")
+        if isinstance(command_ref, str) and command_ref and isinstance(command_ref_kind, str) and command_ref_kind:
+            refs.append(
+                {
+                    "field": "verification_command_ref",
+                    "sha256": None,
+                    "path": command_ref,
+                    "expected_kind": command_ref_kind,
+                }
+            )
 
     elif kind == HANDOFF_NOTE_KIND:
         for field, expected_kind in (

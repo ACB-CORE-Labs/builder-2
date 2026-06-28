@@ -40,6 +40,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.readonly_inspection_report`
 - `builder_ii.hitl_execution_request`
 - `builder_ii.hitl_execution_receipt`
+- `builder_ii.hitl_verification_execution_candidate`
 - `builder_ii.hitl_patch_application_spec`
 - `builder_ii.rollback_plan`
 - `builder_ii.rollback_receipt`
@@ -79,12 +80,13 @@ Artifacts validate structure and governance invariants. They are design-only and
 
 ## Governance / spec / record artifacts
 
-The following artifact kinds are **governance, specification, and record artifacts** introduced in PRs #118 through #133.
+The following artifact kinds are **governance, specification, and record artifacts** introduced in PRs #118 through #138.
 
 | Kind | Category | Source PR |
 |------|----------|-----------|
 | `builder_ii.hitl_execution_request` | Governance record | #118 |
 | `builder_ii.hitl_execution_receipt` | Governance record | #118 |
+| `builder_ii.hitl_verification_execution_candidate` | HITL verification candidate | #138 |
 | `builder_ii.hitl_patch_application_spec` | Design specification | #120 |
 | `builder_ii.rollback_plan` | Governance record | #122 |
 | `builder_ii.rollback_receipt` | Governance record | #122 |
@@ -111,7 +113,7 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.v0_release_manifest` | V0 release proof manifest | #135 |
 | `builder_ii.artifact_chain_verification_report` | Chain verification report | #135 |
 
-**Chain evidence status:** The standalone governance records do not embed outbound references. However, the `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts, while `builder_ii.hitl_chain_binding` records passive chain metadata that binds the same evidence slots without granting execution authority. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
+**Chain evidence status:** Most standalone governance records do not embed outbound references. However, the `builder_ii.hitl_verification_execution_candidate` embeds candidate-stage references to proposal, approval, preflight, and request artifacts while encoding future receipt/postflight/verification/chain requirements as requirements, not completed evidence. The `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts, while `builder_ii.hitl_chain_binding` records passive chain metadata that binds the same evidence slots without granting execution authority. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
 
 ## CLI
 
