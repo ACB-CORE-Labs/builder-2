@@ -196,6 +196,14 @@ The operator command surface is organized by phase. Every command operates stric
 
 ### HITL Request / Receipt / Evidence
 
+#### HITL verification execution candidate artifact
+- **Artifact kind**: `builder_ii.hitl_verification_execution_candidate`
+- **Purpose**: Represent a candidate-only path for a future operator-approved verification command, including approval, preflight, request, receipt, postflight, rollback/no-mutation, verification record, and chain-binding requirements.
+- **Output artifact, if any**: `hitl-verification-candidate.json` when created by library or future governed artifact tooling.
+- **Execution authority**: candidate-only / planned-only; no execution authority.
+- **Human responsibility**: Review the bounded command intent and all future evidence requirements before any manual/operator-approved verification run.
+- **Writes**: The artifact itself may be written only to an explicit artifact output path by external tooling; it does not execute commands, run shell, call models, start Goose/deepagents, mutate source, write target repositories, or mutate git.
+
 #### `builder-hitl plan-patch`
 - **Command name**: `builder-hitl plan-patch`
 - **Purpose**: Generate a Human-In-The-Loop patch specification proposal for review.
