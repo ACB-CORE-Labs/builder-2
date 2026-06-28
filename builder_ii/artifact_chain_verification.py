@@ -111,6 +111,14 @@ from builder_ii.model_capabilities import (
     MODEL_CAPABILITY_REGISTRY_KIND,
     validate_model_capability_registry,
 )
+from builder_ii.profile_pack import PROFILE_PACK_KIND, validate_profile_pack
+from builder_ii.profile_pack_manifest import PROFILE_PACK_MANIFEST_KIND, validate_profile_pack_manifest
+from builder_ii.profile_pack_render_plan import PROFILE_PACK_RENDER_PLAN_KIND, validate_profile_pack_render_plan
+from builder_ii.profile_pack_dry_run import PROFILE_PACK_DRY_RUN_KIND, validate_profile_pack_dry_run
+from builder_ii.profile_pack_validation_report import (
+    PROFILE_PACK_VALIDATION_REPORT_KIND,
+    validate_profile_pack_validation_report,
+)
 
 ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = "builder_ii.artifact_chain_verification_report"
 
@@ -202,6 +210,11 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND: validate_runtime_activation_approval_spec,
     V0_RELEASE_MANIFEST_KIND: validate_v0_release_manifest,
     MODEL_CAPABILITY_REGISTRY_KIND: validate_model_capability_registry,
+    PROFILE_PACK_KIND: validate_profile_pack,
+    PROFILE_PACK_MANIFEST_KIND: validate_profile_pack_manifest,
+    PROFILE_PACK_RENDER_PLAN_KIND: validate_profile_pack_render_plan,
+    PROFILE_PACK_DRY_RUN_KIND: validate_profile_pack_dry_run,
+    PROFILE_PACK_VALIDATION_REPORT_KIND: validate_profile_pack_validation_report,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 
@@ -479,6 +492,65 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                             "expected_kind": expected_kind,
                         }
                     )
+
+    elif kind == PROFILE_PACK_RENDER_PLAN_KIND:
+        value = record.get("source_manifest_ref")
+        if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+            refs.append(
+                {
+                    "field": "source_manifest_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": PROFILE_PACK_MANIFEST_KIND,
+                }
+            )
+
+    elif kind == PROFILE_PACK_DRY_RUN_KIND:
+        for field, expected_kind in (
+            ("source_manifest_ref", PROFILE_PACK_MANIFEST_KIND),
+            ("source_render_plan_ref", PROFILE_PACK_RENDER_PLAN_KIND),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind,
+                    }
+                )
+
+    elif kind == PROFILE_PACK_VALIDATION_REPORT_KIND:
+        value = record.get("subject_ref")
+        expected_kind = record.get("subject_kind")
+        if isinstance(value, dict) and isinstance(expected_kind, str) and (value.get("path") or value.get("sha256")):
+            refs.append(
+                {
+                    "field": "subject_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": expected_kind,
+                }
+            )
+
+    elif kind == PROFILE_PACK_KIND:
+        for field, expected_kind in (
+            ("manifest_ref", PROFILE_PACK_MANIFEST_KIND),
+            ("render_plan_ref", PROFILE_PACK_RENDER_PLAN_KIND),
+            ("dry_run_ref", PROFILE_PACK_DRY_RUN_KIND),
+            ("validation_report_ref", PROFILE_PACK_VALIDATION_REPORT_KIND),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind,
+                    }
+                )
 
     return refs
 

@@ -124,6 +124,14 @@ from builder_ii.model_capabilities import (
     MODEL_CAPABILITY_REGISTRY_KIND,
     validate_model_capability_registry,
 )
+from builder_ii.profile_pack import PROFILE_PACK_KIND, validate_profile_pack
+from builder_ii.profile_pack_manifest import PROFILE_PACK_MANIFEST_KIND, validate_profile_pack_manifest
+from builder_ii.profile_pack_render_plan import PROFILE_PACK_RENDER_PLAN_KIND, validate_profile_pack_render_plan
+from builder_ii.profile_pack_dry_run import PROFILE_PACK_DRY_RUN_KIND, validate_profile_pack_dry_run
+from builder_ii.profile_pack_validation_report import (
+    PROFILE_PACK_VALIDATION_REPORT_KIND,
+    validate_profile_pack_validation_report,
+)
 
 
 
@@ -208,6 +216,11 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_WRAPPER_PLAN_KIND: validate_goose_wrapper_plan,
     V0_RELEASE_MANIFEST_KIND: validate_v0_release_manifest,
     MODEL_CAPABILITY_REGISTRY_KIND: validate_model_capability_registry,
+    PROFILE_PACK_KIND: validate_profile_pack,
+    PROFILE_PACK_MANIFEST_KIND: validate_profile_pack_manifest,
+    PROFILE_PACK_RENDER_PLAN_KIND: validate_profile_pack_render_plan,
+    PROFILE_PACK_DRY_RUN_KIND: validate_profile_pack_dry_run,
+    PROFILE_PACK_VALIDATION_REPORT_KIND: validate_profile_pack_validation_report,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
 
