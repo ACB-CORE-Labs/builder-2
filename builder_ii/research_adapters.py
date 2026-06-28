@@ -28,7 +28,7 @@ def create_research_adapter_artifact(
     research_question: str,
     plan_path: str | Path,
     plan_sha256: str,
-    adapter_name: str = "open_deep_research_reference",
+    adapter_name: str = "governed_research_projection",
     output_contract: tuple[str, ...] | list[str] | None = None,
     review_notes: tuple[str, ...] | list[str] | None = None,
 ) -> dict[str, Any]:
@@ -40,7 +40,7 @@ def create_research_adapter_artifact(
         "topic": _clean(topic),
         "research_question": _clean(research_question),
         "research_plan": {"path": str(plan_path), "kind": RESEARCH_PLAN_KIND, "sha256": _clean(plan_sha256)},
-        "adapter_relation": "REFERENCE_ONLY",
+        "adapter_relation": "PROJECTION_ONLY",
         "handoff_state": "NOT_INVOKED",
         "output_contract": _clean_list(output_contract) or ["plan remains review-only", "collection requires later approval"],
         "review_notes": _clean_list(review_notes),
@@ -53,7 +53,6 @@ def create_research_adapter_artifact(
             "search_execution": "DISABLED",
             "mcp_execution": "DISABLED",
             "source_collection": "DISABLED",
-            "shell_execution": "DISABLED",
             "source_writes": "DISABLED",
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
@@ -104,8 +103,8 @@ def validate_research_adapter_artifact(artifact: Any) -> list[str]:
             errors.append(f"research_plan.kind must be {RESEARCH_PLAN_KIND}")
         if not isinstance(plan.get("sha256"), str) or not plan["sha256"]:
             errors.append("research_plan.sha256 must be a non-empty string")
-    if artifact.get("adapter_relation") != "REFERENCE_ONLY":
-        errors.append("adapter_relation must be REFERENCE_ONLY")
+    if artifact.get("adapter_relation") != "PROJECTION_ONLY":
+        errors.append("adapter_relation must be PROJECTION_ONLY")
     if artifact.get("handoff_state") != "NOT_INVOKED":
         errors.append("handoff_state must be NOT_INVOKED")
     errors.extend(_string_list_errors(artifact.get("output_contract"), field="output_contract"))
@@ -118,7 +117,7 @@ def validate_research_adapter_artifact(artifact: Any) -> list[str]:
     else:
         if governance.get("capability_state") != "research_adapter_artifact":
             errors.append("governance.capability_state must be research_adapter_artifact")
-        for key in ("runtime_execution", "model_execution", "agent_construction", "search_execution", "mcp_execution", "source_collection", "shell_execution", "source_writes", "memory_mutation"):
+        for key in ("runtime_execution", "model_execution", "agent_construction", "search_execution", "mcp_execution", "source_collection", "source_writes", "memory_mutation"):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:
