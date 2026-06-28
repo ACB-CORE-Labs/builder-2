@@ -26,6 +26,61 @@ def _artifact_ref(data: dict[str, Any], *, path: Path | None) -> dict[str, Any]:
     }
 
 
+def _ref_sha(record: dict[str, Any], field: str) -> str | None:
+    value = record.get(field)
+    if not isinstance(value, dict):
+        return None
+    sha = value.get("sha256")
+    return sha if isinstance(sha, str) else None
+
+
+def _lifecycle_binding_errors(
+    *,
+    manifest: dict[str, Any],
+    render_plan: dict[str, Any],
+    dry_run: dict[str, Any],
+    validation_report: dict[str, Any],
+) -> list[str]:
+    errors: list[str] = []
+    for field in ("pack_id", "target_profile", "task"):
+        manifest_value = manifest.get(field)
+        if render_plan.get(field) != manifest_value:
+            errors.append(f"render_plan.{field} must match manifest.{field}")
+        if dry_run.get(field) != manifest_value:
+            errors.append(f"dry_run.{field} must match manifest.{field}")
+
+    manifest_digest = canonical_digest(manifest)
+    render_plan_digest = canonical_digest(render_plan)
+    dry_run_digest = canonical_digest(dry_run)
+
+    if _ref_sha(render_plan, "source_manifest_ref") != manifest_digest:
+        errors.append("render_plan.source_manifest_ref.sha256 must match manifest digest")
+    if _ref_sha(dry_run, "source_manifest_ref") != manifest_digest:
+        errors.append("dry_run.source_manifest_ref.sha256 must match manifest digest")
+    if _ref_sha(dry_run, "source_render_plan_ref") != render_plan_digest:
+        errors.append("dry_run.source_render_plan_ref.sha256 must match render plan digest")
+
+    if validation_report.get("valid") is not True:
+        errors.append("validation_report.valid must be true")
+    if validation_report.get("status") != "valid":
+        errors.append("validation_report.status must be valid")
+
+    subject_ref = validation_report.get("subject_ref")
+    subject_sha = subject_ref.get("sha256") if isinstance(subject_ref, dict) else None
+    subject_kind = validation_report.get("subject_kind")
+    expected_subjects = {
+        PROFILE_PACK_MANIFEST_KIND: manifest_digest,
+        PROFILE_PACK_RENDER_PLAN_KIND: render_plan_digest,
+        PROFILE_PACK_DRY_RUN_KIND: dry_run_digest,
+    }
+    if subject_kind not in expected_subjects:
+        errors.append("validation_report.subject_kind must reference this lifecycle manifest, render plan, or dry-run")
+    elif subject_sha != expected_subjects[subject_kind]:
+        errors.append("validation_report.subject_ref.sha256 must match the referenced lifecycle artifact")
+
+    return errors
+
+
 def create_profile_pack(
     *,
     manifest: dict[str, Any],
@@ -46,6 +101,14 @@ def create_profile_pack(
             "profile pack lifecycle artifacts are invalid: "
             + "; ".join(manifest_errors + render_errors + dry_run_errors + report_errors)
         )
+    binding_errors = _lifecycle_binding_errors(
+        manifest=manifest,
+        render_plan=render_plan,
+        dry_run=dry_run,
+        validation_report=validation_report,
+    )
+    if binding_errors:
+        raise ValueError("profile pack lifecycle artifacts are not bound: " + "; ".join(binding_errors))
 
     return {
         "kind": PROFILE_PACK_KIND,
