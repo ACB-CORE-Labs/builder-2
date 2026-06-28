@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json as json_lib
+import re
 from pathlib import Path
 from typing import Any
 
 from builder_ii.model_client_registry import (
+    ALLOWED_COST_CLASSES,
+    ALLOWED_ENDPOINT_KINDS,
     ALLOWED_RISK_CLASSIFICATIONS,
     KNOWN_CLIENT_IDS,
     KNOWN_MODEL_IDS,
@@ -13,6 +16,8 @@ from builder_ii.model_client_registry import (
     MODEL_CLIENT_REGISTRY_KIND,
     validate_model_client_registry,
 )
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 MODEL_ROUTING_POLICY_KIND = "builder_ii.model_routing_policy"
 MODEL_ROUTING_POLICY_SCHEMA_VERSION = 1
@@ -109,10 +114,28 @@ def validate_model_routing_policy(record: Any) -> list[str]:
     if not isinstance(rules, list) or not rules:
         errors.append("rules must be a non-empty list")
     else:
+        seen_rule_ids = set()
         for idx, rule in enumerate(rules):
             if not isinstance(rule, dict):
                 errors.append(f"rules[{idx}] must be an object")
                 continue
+            rule_id = rule.get("rule_id")
+            if not isinstance(rule_id, str) or not rule_id:
+                errors.append(f"rules[{idx}].rule_id must be a non-empty string")
+            elif rule_id in seen_rule_ids:
+                errors.append(f"rules[{idx}].rule_id '{rule_id}' is not unique")
+            else:
+                seen_rule_ids.add(rule_id)
+            task_intent = rule.get("task_intent")
+            if not isinstance(task_intent, str) or not task_intent:
+                errors.append(f"rules[{idx}].task_intent must be a non-empty string")
+            rationale = rule.get("rationale")
+            if not isinstance(rationale, str) or not rationale:
+                errors.append(f"rules[{idx}].rationale must be a non-empty string")
+            requires_tool_use = rule.get("requires_tool_use")
+            if not isinstance(requires_tool_use, bool):
+                errors.append(f"rules[{idx}].requires_tool_use must be a boolean")
+
             risk = rule.get("max_risk_classification")
             if not risk or risk not in ALLOWED_RISK_CLASSIFICATIONS:
                 errors.append(f"rules[{idx}].max_risk_classification missing or invalid")
@@ -140,10 +163,20 @@ def validate_model_routing_policy(record: Any) -> list[str]:
         if governance.get("core_workbench_coupling") != "NONE":
             errors.append("governance.core_workbench_coupling must be NONE")
 
-    for k, v in record.items():
-        if isinstance(v, str) and v in {"EXECUTED", "AUTHORIZED", "PROMOTED", "ENABLED"}:
-            if k not in {"policy_state"}:
-                errors.append(f"field '{k}' claims active authority state '{v}'")
+    def _check_no_active_states(obj: Any, path: str) -> None:
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in {"policy_state"}:
+                    continue
+                _check_no_active_states(v, f"{path}.{k}" if path else k)
+        elif isinstance(obj, list):
+            for i, v in enumerate(obj):
+                _check_no_active_states(v, f"{path}[{i}]")
+        elif isinstance(obj, str):
+            if obj in {"EXECUTED", "AUTHORIZED", "PROMOTED", "ENABLED"}:
+                errors.append(f"field '{path}' claims active authority state '{obj}'")
+
+    _check_no_active_states(record, "policy")
 
     return errors
 
@@ -181,6 +214,21 @@ def create_model_routing_recommendation(
         raise ValueError(f"Unknown max_risk_classification in request: '{req_max_risk}'")
     max_risk_num = _RISK_HIERARCHY[req_max_risk]
     req_tools = req.get("requires_tool_use", False)
+
+    # Validate explicit constraints against known universes before filtering
+    from builder_ii.model_client_registry import MODEL_ALIASES
+    
+    req_model_id = req.get("required_model_id")
+    if req_model_id and req_model_id not in KNOWN_MODEL_IDS:
+        raise ValueError(f"Unknown required_model_id: '{req_model_id}'")
+        
+    req_alias = req.get("required_model_alias")
+    if req_alias and req_alias not in MODEL_ALIASES:
+        raise ValueError(f"Unknown required_model_alias: '{req_alias}'")
+        
+    req_lane = req.get("required_lane")
+    if req_lane and req_lane not in KNOWN_MODEL_IDS and req_lane not in MODEL_ALIASES:
+        raise ValueError(f"Unknown required_lane (neither known model ID nor alias): '{req_lane}'")
 
     # Find matching policy rule
     matched_rule = None
@@ -303,6 +351,24 @@ def validate_model_routing_recommendation(record: Any) -> list[str]:
         errors.append("grants_authority must be false")
     if record.get("requires_human_promotion_for_execution") is not True:
         errors.append("requires_human_promotion_for_execution must be true")
+
+    policy_ref = record.get("source_policy_ref")
+    if not isinstance(policy_ref, dict):
+        errors.append("source_policy_ref must be an object")
+    else:
+        if policy_ref.get("kind") != MODEL_ROUTING_POLICY_KIND:
+            errors.append(f"source_policy_ref.kind must be {MODEL_ROUTING_POLICY_KIND}")
+        if not isinstance(policy_ref.get("sha256"), str) or not _SHA256_RE.match(policy_ref["sha256"]):
+            errors.append("source_policy_ref.sha256 must be a valid SHA-256 digest")
+
+    registry_ref = record.get("source_registry_ref")
+    if not isinstance(registry_ref, dict):
+        errors.append("source_registry_ref must be an object")
+    else:
+        if registry_ref.get("kind") != MODEL_CLIENT_REGISTRY_KIND:
+            errors.append(f"source_registry_ref.kind must be {MODEL_CLIENT_REGISTRY_KIND}")
+        if not isinstance(registry_ref.get("sha256"), str) or not _SHA256_RE.match(registry_ref["sha256"]):
+            errors.append("source_registry_ref.sha256 must be a valid SHA-256 digest")
 
     candidates = record.get("recommended_candidates")
     if not isinstance(candidates, list):

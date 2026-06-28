@@ -43,6 +43,9 @@ KNOWN_PROFILE_KINDS: tuple[str, ...] = (
     "mcp_inventory_stub",
     "mcp_policy_stub",
     "handoff_profile",
+    "model_client_registry",
+    "model_routing_policy",
+    "model_routing_recommendation",
     "pack",
     "model_policy_stub",
 )

@@ -268,11 +268,20 @@ def validate_model_client_registry(record: Any) -> list[str]:
         if governance.get("core_workbench_coupling") != "NONE":
             errors.append("governance.core_workbench_coupling must be NONE")
 
-    # Check that nowhere does any key claim promotion or execution
-    for k, v in record.items():
-        if isinstance(v, str) and v in {"EXECUTED", "AUTHORIZED", "PROMOTED", "ENABLED"}:
-            if k not in {"registry_state", "current_state"}:
-                errors.append(f"field '{k}' claims active authority state '{v}'")
+    def _check_no_active_states(obj: Any, path: str) -> None:
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if k in {"registry_state", "current_state", "enabled"}:
+                    continue
+                _check_no_active_states(v, f"{path}.{k}" if path else k)
+        elif isinstance(obj, list):
+            for i, v in enumerate(obj):
+                _check_no_active_states(v, f"{path}[{i}]")
+        elif isinstance(obj, str):
+            if obj in {"EXECUTED", "AUTHORIZED", "PROMOTED", "ENABLED"}:
+                errors.append(f"field '{path}' claims active authority state '{obj}'")
+
+    _check_no_active_states(record, "registry")
 
     return errors
 
