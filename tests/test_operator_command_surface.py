@@ -70,6 +70,7 @@ def test_operator_command_surface_doc_command_groups():
         "Package Summarization",
         "Handoff / Notes",
         "Verification Planning",
+        "Assignment / Orchestration",
         "HITL Request / Receipt / Evidence",
         "Optional Deepagents Readiness",
     ]
@@ -95,6 +96,19 @@ def test_operator_command_surface_doc_runtime_boundary_and_non_authoritative_cla
     ]
     for phrase in required_boundaries:
         assert phrase in content, f"Missing boundary phrase: {phrase}"
+
+
+def test_operator_command_surface_doc_covers_goal2_assignment_commands():
+    content = DOC_PATH.read_text(encoding="utf-8")
+    required = [
+        "builder-orchestration render-assignment",
+        "builder-orchestration validate",
+        "builder-orchestration dry-run",
+        "planned bindings, denied capabilities, required promotions, expected evidence, and handoff expectations",
+        "no execution, authorization, promotion, or verification evidence",
+    ]
+    for phrase in required:
+        assert phrase in content, f"Missing Goal 2 operator surface phrase: {phrase}"
 
 
 def test_session_cli_command_surface_discoverability():

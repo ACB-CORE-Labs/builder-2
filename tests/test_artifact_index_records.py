@@ -2,14 +2,32 @@ import json as json_lib
 from pathlib import Path
 
 from builder_ii.approval_records import create_approval_record, write_approval_record
-from builder_ii.artifact_index_records import create_artifact_index_record, dumps_artifact_index_record, validate_artifact_index_record, validate_artifact_index_record_file
+from builder_ii.artifact_index_records import (
+    create_artifact_index_record,
+    dumps_artifact_index_record,
+    validate_artifact_index_record,
+    validate_artifact_index_record_file,
+)
 from builder_ii.config import load_settings
-from builder_ii.goose_command_proposal import create_goose_command_proposal, write_goose_command_proposal
+from builder_ii.goose_command_proposal import (
+    create_goose_command_proposal,
+    write_goose_command_proposal,
+)
 from builder_ii.goose_session import create_goose_session_manifest
-from builder_ii.promotion_decision_records import create_promotion_decision_record, write_promotion_decision_record
-from builder_ii.promotion_readiness_records import create_promotion_readiness_record, write_promotion_readiness_record
+from builder_ii.promotion_decision_records import (
+    create_promotion_decision_record,
+    write_promotion_decision_record,
+)
+from builder_ii.promotion_readiness_records import (
+    create_promotion_readiness_record,
+    write_promotion_readiness_record,
+)
 from builder_ii.snapshot_records import create_snapshot_record, write_snapshot_record
-from builder_ii.state_ledger_records import create_state_ledger_record, write_state_ledger_record
+from builder_ii.state_ledger_records import (
+    create_state_ledger_record,
+    write_state_ledger_record,
+)
+from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 
 def _write_known_artifacts(tmp_path: Path) -> None:
@@ -21,8 +39,18 @@ def _write_known_artifacts(tmp_path: Path) -> None:
         runtime_mode="read_only",
         generic_repo=tmp_path,
     )
-    proposal = create_goose_command_proposal(manifest, manifest_path=tmp_path / "goose-session.json", command="verify", risk_level="low")
-    approval = create_approval_record(proposal, proposal_path=tmp_path / "proposal.json", decision="approved", decided_by="operator")
+    proposal = create_goose_command_proposal(
+        manifest,
+        manifest_path=tmp_path / "goose-session.json",
+        command="verify",
+        risk_level="low",
+    )
+    approval = create_approval_record(
+        proposal,
+        proposal_path=tmp_path / "proposal.json",
+        decision="approved",
+        decided_by="operator",
+    )
     write_goose_command_proposal(proposal, tmp_path / "proposal.json")
     write_approval_record(approval, tmp_path / "approval.json")
 
@@ -42,7 +70,9 @@ def _write_newer_artifacts(tmp_path: Path) -> None:
         approval_boundary_refs=("metadata only",),
         output_artifact_refs=("artifact-index.json",),
         rollback_refs=("revert validator entry",),
-        verification_refs=("uv run pytest tests/test_artifact_index_records.py tests/test_artifact_index_cli.py -q",),
+        verification_refs=(
+            "uv run pytest tests/test_artifact_index_records.py tests/test_artifact_index_cli.py -q",
+        ),
     )
     write_promotion_readiness_record(readiness, readiness_path)
 
@@ -55,7 +85,9 @@ def _write_newer_artifacts(tmp_path: Path) -> None:
     )
     write_promotion_decision_record(decision, decision_path)
 
-    ledger = create_state_ledger_record([(decision, decision_path)], ledger_name="artifact-index-test")
+    ledger = create_state_ledger_record(
+        [(decision, decision_path)], ledger_name="artifact-index-test"
+    )
     write_state_ledger_record(ledger, ledger_path)
 
     artifact_index = create_artifact_index_record(tmp_path)
@@ -82,7 +114,10 @@ def test_create_complete_artifact_index_shape(tmp_path: Path) -> None:
     assert record["counts"]["total"] == 2
     assert record["counts"]["known"] == 2
     assert record["counts"]["invalid"] == 0
-    assert {entry["kind"] for entry in record["artifacts"]} == {"builder_ii.goose_command_proposal", "builder_ii.approval_record"}
+    assert {entry["kind"] for entry in record["artifacts"]} == {
+        "builder_ii.goose_command_proposal",
+        "builder_ii.approval_record",
+    }
     assert record["grants_runtime_authority"] is False
     assert record["grants_action_authority"] is False
     assert record["performed_actions"] == []
@@ -97,7 +132,13 @@ def test_index_recognizes_newer_artifact_records(tmp_path: Path) -> None:
 
     assert record["status"] == "complete"
     assert record["complete"] is True
-    assert record["counts"] == {"total": 4, "known": 4, "unknown": 0, "valid": 4, "invalid": 0}
+    assert record["counts"] == {
+        "total": 4,
+        "known": 4,
+        "unknown": 0,
+        "valid": 4,
+        "invalid": 0,
+    }
     assert {entry["kind"] for entry in record["artifacts"]} == {
         "builder_ii.promotion_readiness_record",
         "builder_ii.promotion_decision_record",
@@ -110,8 +151,29 @@ def test_index_recognizes_newer_artifact_records(tmp_path: Path) -> None:
     assert validate_artifact_index_record(record) == []
 
 
+def test_index_recognizes_goal2_assignment_artifacts(tmp_path: Path) -> None:
+    fixture = build_goal2_assignment_fixture(tmp_path)
+    record = create_artifact_index_record(fixture["artifact_dir"])
+
+    indexed_kinds = {entry["kind"] for entry in record["artifacts"]}
+
+    assert record["status"] == "complete"
+    assert record["complete"] is True
+    assert record["counts"]["unknown"] == 0
+    assert record["counts"]["invalid"] == 0
+    assert {
+        "builder_ii.agent_assignment_plan",
+        "builder_ii.orchestration_assignment_plan",
+        "builder_ii.orchestration_assignment_dry_run",
+        "builder_ii.orchestration_assignment_validation_report",
+    }.issubset(indexed_kinds)
+    assert validate_artifact_index_record(record) == []
+
+
 def test_index_marks_unknown_artifact_incomplete(tmp_path: Path) -> None:
-    (tmp_path / "unknown.json").write_text(json_lib.dumps({"kind": "unknown", "schema_version": 1}), encoding="utf-8")
+    (tmp_path / "unknown.json").write_text(
+        json_lib.dumps({"kind": "unknown", "schema_version": 1}), encoding="utf-8"
+    )
     record = create_artifact_index_record(tmp_path)
 
     assert record["status"] == "incomplete"
@@ -162,12 +224,21 @@ def test_validate_rejects_authority_changes(tmp_path: Path) -> None:
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:
-    assert any("file not found" in error for error in validate_artifact_index_record_file(tmp_path / "missing.json"))
+    assert any(
+        "file not found" in error
+        for error in validate_artifact_index_record_file(tmp_path / "missing.json")
+    )
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")
-    assert any("invalid JSON" in error for error in validate_artifact_index_record_file(bad_json))
+    assert any(
+        "invalid JSON" in error
+        for error in validate_artifact_index_record_file(bad_json)
+    )
 
     not_object = tmp_path / "array.json"
     not_object.write_text("[]", encoding="utf-8")
-    assert "artifact index record must be a JSON object" in validate_artifact_index_record_file(not_object)
+    assert (
+        "artifact index record must be a JSON object"
+        in validate_artifact_index_record_file(not_object)
+    )

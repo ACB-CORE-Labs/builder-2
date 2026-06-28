@@ -40,7 +40,8 @@ The canonical governed session lane binds together the platform preparation tool
 2. **ConventionKernel Platform Spine**: Composes the governed platform spine bundle, verifying target profile constraints and auditing that all proposed commands belong to Tier 0 or Tier 1 (or remain uninvoked operator-managed helpers).
 3. **Artifact Index Recognition**: Inspects emitted package output files to verify that generated records conform to known schemas without unknown or invalid entries.
 4. **Passive Chain Verification**: Cryptographically resolves and audits cross-record references across the emitted bundle using canonical JSON digests.
-5. **Fail-Closed Governance**: Throughout the entire sequence, runtime execution, model calls, shell invocations, and target repository modifications remain disabled, and planned verification checks remain strictly unexecuted (`NOT_RUN`).
+5. **Agent Assignment / Orchestration v2**: Binds target, task, agent, model recommendation, context, verification, tool policy, HITL policy, outputs, and handoff refs into deterministic assignment artifacts without execution authority.
+6. **Fail-Closed Governance**: Throughout the entire sequence, runtime execution, model calls, shell invocations, and target repository modifications remain disabled, and planned verification checks remain strictly unexecuted (`NOT_RUN`).
 
 
 ## Command Taxonomy by Phase
@@ -194,6 +195,32 @@ The operator command surface is organized by phase. Every command operates stric
 - **Execution authority**: artifact-only
 - **Human responsibility**: Ensure quality gate definitions match required project standards.
 - **Writes**: Can write only explicit artifact output paths when requested; otherwise stdout.
+
+### Assignment / Orchestration
+
+#### `builder-orchestration render-assignment`
+- **Command name**: `builder-orchestration render-assignment`
+- **Purpose**: Render passive Goal 2 assignment and orchestration assignment plan artifacts from existing source artifacts and SHA-256 refs.
+- **Output artifact, if any**: `agent-assignment-plan.json` when `--assignment-output` is specified and `orchestration-assignment-plan.json` when `--output` is specified.
+- **Execution authority**: artifact-only; no runtime activation.
+- **Human responsibility**: Review the target/task/agent/model/context/verification/tool/HITL/output/handoff bindings, source digests, denied capabilities, and required promotions.
+- **Writes**: Writes only explicit artifact output paths when requested.
+
+#### `builder-orchestration validate`
+- **Command name**: `builder-orchestration validate`
+- **Purpose**: Validate v1 orchestration artifacts and Goal 2 assignment/orchestration artifacts; for Goal 2 artifacts it can emit a passive validation report.
+- **Output artifact, if any**: Optional orchestration assignment validation report when `--output` is specified.
+- **Execution authority**: validation-only; validation is structural and does not authorize execution.
+- **Human responsibility**: Treat validation as source-ref and governance evidence only, not runtime approval.
+- **Writes**: Writes only explicit validation-report output paths when requested.
+
+#### `builder-orchestration dry-run`
+- **Command name**: `builder-orchestration dry-run`
+- **Purpose**: Explain what a Goal 2 orchestration assignment plan would bind and why, including planned bindings, denied capabilities, required promotions, expected evidence, and handoff expectations.
+- **Output artifact, if any**: `orchestration-assignment-dry-run.json` when `--output` is specified.
+- **Execution authority**: dry-run only; no execution, authorization, promotion, or verification evidence.
+- **Human responsibility**: Inspect the dry-run before any separate HITL execution proposal or manual verification path.
+- **Writes**: Writes only explicit artifact output paths when requested.
 
 ### Profile Pack Lifecycle
 

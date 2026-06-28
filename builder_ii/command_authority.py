@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import Any, Literal
 
 # Standard authority tiers
 TIER_0 = "Tier 0 — read-only inspection"
@@ -112,7 +111,9 @@ REQUIRED_SUBCOMMANDS = {
     "builder-hitl receipt",
     "builder-hitl validate",
     "builder-orchestration plan",
+    "builder-orchestration render-assignment",
     "builder-orchestration validate",
+    "builder-orchestration dry-run",
     "builder-profile-pack scaffold",
     "builder-profile-pack render",
     "builder-profile-pack validate",
@@ -548,13 +549,13 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         entrypoint="builder_ii.orchestration_cli:orchestration_app",
         tier=TIER_1,
         promotion_state=STATE_ARTIFACT_ONLY,
-        runtime_boundary="Delegates plan setup and validation to subcommands.",
+        runtime_boundary="Delegates passive plan setup, assignment rendering, validation, and dry-run subcommands.",
         write_boundary="No direct write authority at root CLI level.",
         approval_mode=MODE_NONE,
         approval_boundary="None.",
         output_behavior="Dispatches to subcommands.",
         failure_mode="Exits non-zero on schema validation failures.",
-        notes="Artifact plan creator.",
+        notes="Artifact orchestration and assignment planner; no runtime or execution authority.",
     ),
     CommandAuthorityRecord(
         name="builder-profile-pack",
@@ -901,17 +902,46 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
+        name="builder-orchestration render-assignment",
+        entrypoint="builder_ii.orchestration_cli:orchestration_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Renders passive Goal 2 assignment and orchestration plans from existing source artifacts and SHA-256 refs.",
+        write_boundary="Writes assignment/orchestration JSON only to explicit artifact output paths.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints or writes deterministic assignment and orchestration assignment plan artifacts.",
+        failure_mode="Fails closed on missing refs, digest mismatches, invalid model recommendations, unsafe governance, or authority escalation.",
+        notes="Render only; does not call models, execute tools, invoke Goose/deepagents/MCP, run shell, or mutate target repositories.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
         name="builder-orchestration validate",
         entrypoint="builder_ii.orchestration_cli:orchestration_app",
         tier=TIER_1,
         promotion_state=STATE_VALIDATION_ONLY,
-        runtime_boundary="Validates the schema and steps of a plan artifact.",
-        write_boundary="No changes to workspace.",
+        runtime_boundary="Validates v1 orchestration and Goal 2 assignment/orchestration artifacts.",
+        write_boundary="Writes validation-report JSON only when an explicit output path is supplied.",
         approval_mode=MODE_NONE,
         approval_boundary="None.",
-        output_behavior="Prints verification results.",
+        output_behavior="Prints verification results and can write passive validation reports for Goal 2 artifacts.",
         failure_mode="Exits non-zero if validation fails.",
-        notes="Plan auditor.",
+        notes="Validation-only auditor; validation never grants execution authority.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-orchestration dry-run",
+        entrypoint="builder_ii.orchestration_cli:orchestration_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Creates a passive dry-run explaining Goal 2 planned bindings without executing anything.",
+        write_boundary="Writes dry-run JSON only to an explicit artifact output path.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints or writes dry-run JSON with denied capabilities, required promotions, evidence expectations, and handoff expectations.",
+        failure_mode="Exits non-zero if the source orchestration assignment plan is invalid or claims authority.",
+        notes="Dry-run remains non-runtime and cannot call models, tools, Goose, deepagents, MCP, shell, network, verification, or target writes.",
+        allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
         name="builder-profile-pack scaffold",
@@ -1110,16 +1140,28 @@ def validate_registry_invariants() -> list[str]:
 
         # Contradiction check: write boundary text vs write flags
         wb_lower = r.write_boundary.lower()
-        has_any_write = r.allows_source_writes or r.allows_artifact_writes or r.allows_state_writes
+        has_any_write = (
+            r.allows_source_writes or r.allows_artifact_writes or r.allows_state_writes
+        )
         if not has_any_write:
             # Should not claim active writes in description
-            if "write" in wb_lower and "no " not in wb_lower and "not " not in wb_lower and "without " not in wb_lower and "read-only" not in wb_lower:
+            if (
+                "write" in wb_lower
+                and "no " not in wb_lower
+                and "not " not in wb_lower
+                and "without " not in wb_lower
+                and "read-only" not in wb_lower
+            ):
                 errors.append(
                     f"Record '{r.name}' write boundary text describes writes but no write flags are set"
                 )
         else:
             # Should not say "no changes" or "no modifications"
-            if "no changes" in wb_lower or "no modifications" in wb_lower or "no write" in wb_lower:
+            if (
+                "no changes" in wb_lower
+                or "no modifications" in wb_lower
+                or "no write" in wb_lower
+            ):
                 errors.append(
                     f"Record '{r.name}' write flags are enabled but write boundary text claims no writes/changes"
                 )
