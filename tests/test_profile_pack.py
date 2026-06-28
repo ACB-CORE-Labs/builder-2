@@ -88,6 +88,9 @@ def test_profile_pack_lifecycle_happy_path(tmp_path: Path) -> None:
     assert pack["lifecycle"]["executed"] is False
     assert pack["lifecycle"]["authorized"] is False
     assert pack["lifecycle"]["promoted"] is False
+    assert pack["lifecycle_bindings"]["render_plan_manifest_sha256"] == pack["manifest_ref"]["sha256"]
+    assert pack["lifecycle_bindings"]["dry_run_manifest_sha256"] == pack["manifest_ref"]["sha256"]
+    assert pack["lifecycle_bindings"]["dry_run_render_plan_sha256"] == pack["render_plan_ref"]["sha256"]
     assert validate_profile_pack_manifest(manifest) == []
     assert validate_profile_pack_render_plan(render_plan) == []
     assert validate_profile_pack_dry_run(dry_run) == []
@@ -269,6 +272,44 @@ def test_profile_pack_rejects_validation_report_for_unrelated_subject() -> None:
             dry_run=dry_run,
             validation_report=unrelated_report,
         )
+
+
+def test_profile_pack_validation_rejects_unbound_lifecycle_json() -> None:
+    manifest = _manifest("primary-profile-pack")
+    render_plan = create_profile_pack_render_plan(manifest)
+    dry_run = create_profile_pack_dry_run(manifest, render_plan)
+    validation_report = create_profile_pack_validation_report(manifest)
+    pack = create_profile_pack(
+        manifest=manifest,
+        render_plan=render_plan,
+        dry_run=dry_run,
+        validation_report=validation_report,
+    )
+
+    bad = copy.deepcopy(pack)
+    bad["lifecycle_bindings"]["dry_run_render_plan_sha256"] = bad["manifest_ref"]["sha256"]
+    errors = validate_profile_pack(bad)
+
+    assert "lifecycle_bindings.dry_run_render_plan_sha256 must match render_plan_sha256" in errors
+
+
+def test_profile_pack_validation_rejects_unrelated_validation_subject_json() -> None:
+    manifest = _manifest("primary-profile-pack")
+    render_plan = create_profile_pack_render_plan(manifest)
+    dry_run = create_profile_pack_dry_run(manifest, render_plan)
+    validation_report = create_profile_pack_validation_report(manifest)
+    pack = create_profile_pack(
+        manifest=manifest,
+        render_plan=render_plan,
+        dry_run=dry_run,
+        validation_report=validation_report,
+    )
+
+    bad = copy.deepcopy(pack)
+    bad["lifecycle_bindings"]["validation_report_subject_sha256"] = bad["render_plan_ref"]["sha256"]
+    errors = validate_profile_pack(bad)
+
+    assert "lifecycle_bindings.validation_report_subject_sha256 must match the referenced lifecycle digest" in errors
 
 
 def test_validation_report_distinguishes_validated_from_promoted() -> None:

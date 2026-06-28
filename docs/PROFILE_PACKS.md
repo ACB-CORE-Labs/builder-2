@@ -21,7 +21,7 @@ builder-profile-pack validate .builder/profile-pack/manifest.json --output .buil
 | `builder_ii.profile_pack_render_plan` | `RENDERED_ONLY` | Plans deterministic passive render outputs for manifest entries. |
 | `builder_ii.profile_pack_dry_run` | `DRY_RUN_ONLY` | Shows what would render and proves every step remains non-executing. |
 | `builder_ii.profile_pack_validation_report` | `VALIDATED_ONLY` | Records validation results without converting validity into promotion. |
-| `builder_ii.profile_pack` | `PACKED_ONLY` | Binds lifecycle artifacts as passive refs for index and chain verification. |
+| `builder_ii.profile_pack` | `PACKED_ONLY` | Binds lifecycle artifacts as passive refs and internal digest bindings for index and chain verification. |
 
 ## Required areas
 
@@ -60,6 +60,7 @@ Validation fails when:
 - verification profiles claim to execute commands;
 - handoff profiles claim verification evidence;
 - planned, rendered, dry-run, or validated artifacts claim to be executed, authorized, or promoted.
+- a profile-pack lifecycle bundle does not bind manifest, render plan, dry-run, and validation report digests coherently.
 
 ## Authority boundary
 

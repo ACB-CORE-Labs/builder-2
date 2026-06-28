@@ -81,6 +81,28 @@ def _lifecycle_binding_errors(
     return errors
 
 
+def _lifecycle_bindings(
+    *,
+    manifest: dict[str, Any],
+    render_plan: dict[str, Any],
+    dry_run: dict[str, Any],
+    validation_report: dict[str, Any],
+) -> dict[str, Any]:
+    subject_ref = validation_report.get("subject_ref")
+    subject_sha = subject_ref.get("sha256") if isinstance(subject_ref, dict) else ""
+    return {
+        "manifest_sha256": canonical_digest(manifest),
+        "render_plan_sha256": canonical_digest(render_plan),
+        "dry_run_sha256": canonical_digest(dry_run),
+        "validation_report_sha256": canonical_digest(validation_report),
+        "render_plan_manifest_sha256": _ref_sha(render_plan, "source_manifest_ref") or "",
+        "dry_run_manifest_sha256": _ref_sha(dry_run, "source_manifest_ref") or "",
+        "dry_run_render_plan_sha256": _ref_sha(dry_run, "source_render_plan_ref") or "",
+        "validation_report_subject_kind": str(validation_report.get("subject_kind", "")),
+        "validation_report_subject_sha256": subject_sha if isinstance(subject_sha, str) else "",
+    }
+
+
 def create_profile_pack(
     *,
     manifest: dict[str, Any],
@@ -121,6 +143,12 @@ def create_profile_pack(
         "render_plan_ref": _artifact_ref(render_plan, path=render_plan_path),
         "dry_run_ref": _artifact_ref(dry_run, path=dry_run_path),
         "validation_report_ref": _artifact_ref(validation_report, path=validation_report_path),
+        "lifecycle_bindings": _lifecycle_bindings(
+            manifest=manifest,
+            render_plan=render_plan,
+            dry_run=dry_run,
+            validation_report=validation_report,
+        ),
         "lifecycle": {
             "planned": True,
             "rendered": True,
@@ -172,6 +200,65 @@ def _validate_ref(value: Any, *, field: str, expected_kind: str) -> list[str]:
         errors.append(f"{field}.path must be a string")
     if not isinstance(value.get("sha256"), str) or not _SHA256_RE.match(value["sha256"]):
         errors.append(f"{field}.sha256 must be a SHA-256 hex digest")
+    return errors
+
+
+def _validate_sha_field(value: Any, *, field: str) -> list[str]:
+    if not isinstance(value, str) or not _SHA256_RE.match(value):
+        return [f"{field} must be a SHA-256 hex digest"]
+    return []
+
+
+def _validate_lifecycle_bindings(data: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    bindings = data.get("lifecycle_bindings")
+    if not isinstance(bindings, dict):
+        return ["lifecycle_bindings must be an object"]
+
+    digest_fields = (
+        "manifest_sha256",
+        "render_plan_sha256",
+        "dry_run_sha256",
+        "validation_report_sha256",
+        "render_plan_manifest_sha256",
+        "dry_run_manifest_sha256",
+        "dry_run_render_plan_sha256",
+        "validation_report_subject_sha256",
+    )
+    for field in digest_fields:
+        errors.extend(_validate_sha_field(bindings.get(field), field=f"lifecycle_bindings.{field}"))
+
+    ref_expectations = (
+        ("manifest_ref", "manifest_sha256"),
+        ("render_plan_ref", "render_plan_sha256"),
+        ("dry_run_ref", "dry_run_sha256"),
+        ("validation_report_ref", "validation_report_sha256"),
+    )
+    for ref_field, binding_field in ref_expectations:
+        ref_sha = _ref_sha(data, ref_field)
+        if isinstance(ref_sha, str) and bindings.get(binding_field) != ref_sha:
+            errors.append(f"lifecycle_bindings.{binding_field} must match {ref_field}.sha256")
+
+    manifest_sha = bindings.get("manifest_sha256")
+    render_sha = bindings.get("render_plan_sha256")
+    if bindings.get("render_plan_manifest_sha256") != manifest_sha:
+        errors.append("lifecycle_bindings.render_plan_manifest_sha256 must match manifest_sha256")
+    if bindings.get("dry_run_manifest_sha256") != manifest_sha:
+        errors.append("lifecycle_bindings.dry_run_manifest_sha256 must match manifest_sha256")
+    if bindings.get("dry_run_render_plan_sha256") != render_sha:
+        errors.append("lifecycle_bindings.dry_run_render_plan_sha256 must match render_plan_sha256")
+
+    subject_kind = bindings.get("validation_report_subject_kind")
+    expected_subjects = {
+        PROFILE_PACK_MANIFEST_KIND: bindings.get("manifest_sha256"),
+        PROFILE_PACK_RENDER_PLAN_KIND: bindings.get("render_plan_sha256"),
+        PROFILE_PACK_DRY_RUN_KIND: bindings.get("dry_run_sha256"),
+    }
+    if subject_kind not in expected_subjects:
+        errors.append("lifecycle_bindings.validation_report_subject_kind must reference manifest, render plan, or dry-run")
+    elif bindings.get("validation_report_subject_sha256") != expected_subjects[subject_kind]:
+        errors.append("lifecycle_bindings.validation_report_subject_sha256 must match the referenced lifecycle digest")
+
     return errors
 
 
@@ -230,6 +317,7 @@ def validate_profile_pack(data: Any) -> list[str]:
             expected_kind=PROFILE_PACK_VALIDATION_REPORT_KIND,
         )
     )
+    errors.extend(_validate_lifecycle_bindings(data))
 
     lifecycle = data.get("lifecycle")
     if not isinstance(lifecycle, dict):
