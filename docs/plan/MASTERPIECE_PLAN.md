@@ -255,13 +255,11 @@ builder-II chooses target/profile/context
 
 Completion requires demos on builder, generic, and CORE targets without making builder-II CORE-specific.
 
-## Phase 9: research agent / open_deep_research adapter
+## Phase 9: governed research agent
 
-Use `AssetOverflow/open_deep_research` first as a target repo, reference implementation, and adapter source.
+Research remains a builder-II capability, not a separate platform dependency. Research planning stays artifact-only until a later promoted mode defines source policy, collection approval, MCP permission artifacts, cost budget artifacts, report artifacts, citation validation, and separation between research output and verified claims.
 
-Future research runtime candidates require search proposal artifacts, source collection approval, MCP permission artifacts, cost budget artifacts, report artifacts, citation validation, and clear separation between research output and verified claims.
-
-Research plans remain artifact-only until separately promoted.
+Future research runtime candidates should be built from builder-II policy, Goose runtime boundaries, and the optional governed deepagents harness. External examples may inform operator intuition, but they are not canonical builder-II dependencies, adapters, or roadmap targets.
 
 ## Phase 10: performance and efficiency track
 
@@ -308,7 +306,7 @@ Read-only runtime works.
 HITL command execution works.
 HITL patch application works.
 Research agent planning works.
-open_deep_research can be used as target/reference/adapter source.
+Governed research runtime candidates remain builder-II/Goose/deepagents-governed when promoted.
 Model routing is policy-bound and auditable.
 Rust/MLX performance work is measured and promotion-gated.
 Quality gates are enforced.
@@ -342,7 +340,7 @@ Deephaven remains untouched.
 #44 end-to-end builder target demo
 #45 generic target demo
 #46 CORE target profile demo
-#47 research target/open_deep_research demo
+#47 governed research target demo
 #48 performance candidate benchmarks
 #49 production docs/playbooks/release checklist
 ```
