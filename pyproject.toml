@@ -53,6 +53,7 @@ builder-verification = "builder_ii.verification_cli:verification_app"
 builder-hitl = "builder_ii.hitl_execution_cli:hitl_app"
 builder-orchestration = "builder_ii.orchestration_cli:orchestration_app"
 builder-profile-pack = "builder_ii.profile_pack_cli:profile_pack_app"
+builder-model-policy = "builder_ii.model_policy_cli:model_policy_app"
 
 [dependency-groups]
 dev = [

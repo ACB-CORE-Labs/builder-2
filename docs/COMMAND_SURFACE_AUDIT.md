@@ -12,6 +12,7 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 ## Target/Profile/Context
 - `builder-context`
 - `builder-profile-pack`
+- `builder-model-policy`
 - `builder-targets`
 - `builder-session`
 

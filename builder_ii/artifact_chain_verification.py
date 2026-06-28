@@ -119,6 +119,13 @@ from builder_ii.profile_pack_validation_report import (
     PROFILE_PACK_VALIDATION_REPORT_KIND,
     validate_profile_pack_validation_report,
 )
+from builder_ii.model_client_registry import MODEL_CLIENT_REGISTRY_KIND, validate_model_client_registry
+from builder_ii.model_routing_policy import (
+    MODEL_ROUTING_POLICY_KIND,
+    validate_model_routing_policy,
+    MODEL_ROUTING_RECOMMENDATION_KIND,
+    validate_model_routing_recommendation,
+)
 
 ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = "builder_ii.artifact_chain_verification_report"
 
@@ -215,6 +222,9 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     PROFILE_PACK_RENDER_PLAN_KIND: validate_profile_pack_render_plan,
     PROFILE_PACK_DRY_RUN_KIND: validate_profile_pack_dry_run,
     PROFILE_PACK_VALIDATION_REPORT_KIND: validate_profile_pack_validation_report,
+    MODEL_CLIENT_REGISTRY_KIND: validate_model_client_registry,
+    MODEL_ROUTING_POLICY_KIND: validate_model_routing_policy,
+    MODEL_ROUTING_RECOMMENDATION_KIND: validate_model_routing_recommendation,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 
@@ -533,6 +543,22 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                     "expected_kind": expected_kind,
                 }
             )
+
+    elif kind == MODEL_ROUTING_RECOMMENDATION_KIND:
+        for field, expected_kind in (
+            ("source_policy_ref", MODEL_ROUTING_POLICY_KIND),
+            ("source_registry_ref", MODEL_CLIENT_REGISTRY_KIND),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind,
+                    }
+                )
 
     elif kind == PROFILE_PACK_KIND:
         for field, expected_kind in (
