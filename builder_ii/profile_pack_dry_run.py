@@ -52,6 +52,20 @@ def _default_governance() -> dict[str, Any]:
     }
 
 
+def _render_plan_manifest_binding_errors(manifest: dict[str, Any], render_plan: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    for field in ("pack_id", "target_profile", "task"):
+        if render_plan.get(field) != manifest.get(field):
+            errors.append(f"render_plan.{field} must match manifest.{field}")
+    source_manifest_ref = render_plan.get("source_manifest_ref")
+    expected_digest = canonical_digest(manifest)
+    if not isinstance(source_manifest_ref, dict):
+        errors.append("render_plan.source_manifest_ref must be an object")
+    elif source_manifest_ref.get("sha256") != expected_digest:
+        errors.append("render_plan.source_manifest_ref.sha256 must match manifest digest")
+    return errors
+
+
 def create_profile_pack_dry_run(
     manifest: dict[str, Any],
     render_plan: dict[str, Any] | None = None,
@@ -66,6 +80,9 @@ def create_profile_pack_dry_run(
     plan_errors = validate_profile_pack_render_plan(plan)
     if plan_errors:
         raise ValueError("profile pack render plan is invalid: " + "; ".join(plan_errors))
+    binding_errors = _render_plan_manifest_binding_errors(manifest, plan)
+    if binding_errors:
+        raise ValueError("profile pack render plan does not match manifest: " + "; ".join(binding_errors))
 
     checks: list[dict[str, Any]] = []
     for output in plan["planned_outputs"]:
