@@ -396,13 +396,10 @@ def _validate_deephaven_rejection(val: Any, path: str) -> list[str]:
     errors: list[str] = []
     if isinstance(val, dict):
         for k, v in val.items():
+            current_path = f"{path}.{k}" if path else k
             if "deephaven" in k.lower():
-                errors.append(
-                    f"Deephaven work is forbidden in key '{path}.{k}' if path else k"
-                )
-            errors.extend(
-                _validate_deephaven_rejection(v, f"{path}.{k}" if path else k)
-            )
+                errors.append(f"Deephaven work is forbidden in key '{current_path}'")
+            errors.extend(_validate_deephaven_rejection(v, current_path))
     elif isinstance(val, list):
         for idx, item in enumerate(val):
             errors.extend(_validate_deephaven_rejection(item, f"{path}[{idx}]"))
