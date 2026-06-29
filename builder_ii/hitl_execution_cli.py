@@ -18,22 +18,44 @@ from builder_ii.hitl_execution_records import (
     write_hitl_execution_receipt,
     write_hitl_execution_request,
 )
+from builder_ii.hitl_promotion_cli import register_promotion_commands
 
-hitl_app = typer.Typer(help="HITL execution request/receipt artifact CLI (No Execution).")
+hitl_app = typer.Typer(
+    help="HITL execution request/receipt artifact CLI (No Execution)."
+)
 console = Console()
+register_promotion_commands(hitl_app)
 
 
 @hitl_app.command("request")
 def request(
-    target_name: str = typer.Option("generic", "--target-name", help="Target profile name"),
-    command_proposal_ref: str = typer.Option(..., "--command-proposal-ref", help="Proposal record reference"),
-    approval_record_ref: str = typer.Option(..., "--approval-record-ref", help="Approval record reference"),
-    preflight_record_ref: str = typer.Option(..., "--preflight-record-ref", help="Preflight record reference"),
-    requested_by: str = typer.Option(..., "--requested-by", help="Operator/agent requesting execution"),
-    requested_at: str = typer.Option(..., "--requested-at", help="Timestamp of request"),
-    explicit_operator_intent: str = typer.Option(..., "--explicit-operator-intent", help="Explicit intent statement"),
-    command_preview: str = typer.Option(..., "--command-preview", help="Proposed command preview"),
-    output: Path = typer.Option(..., "--output", help="Output path for the request artifact"),
+    target_name: str = typer.Option(
+        "generic", "--target-name", help="Target profile name"
+    ),
+    command_proposal_ref: str = typer.Option(
+        ..., "--command-proposal-ref", help="Proposal record reference"
+    ),
+    approval_record_ref: str = typer.Option(
+        ..., "--approval-record-ref", help="Approval record reference"
+    ),
+    preflight_record_ref: str = typer.Option(
+        ..., "--preflight-record-ref", help="Preflight record reference"
+    ),
+    requested_by: str = typer.Option(
+        ..., "--requested-by", help="Operator/agent requesting execution"
+    ),
+    requested_at: str = typer.Option(
+        ..., "--requested-at", help="Timestamp of request"
+    ),
+    explicit_operator_intent: str = typer.Option(
+        ..., "--explicit-operator-intent", help="Explicit intent statement"
+    ),
+    command_preview: str = typer.Option(
+        ..., "--command-preview", help="Proposed command preview"
+    ),
+    output: Path = typer.Option(
+        ..., "--output", help="Output path for the request artifact"
+    ),
 ) -> None:
     """Create a HITL execution request artifact."""
     try:
@@ -68,9 +90,15 @@ def request(
 
 @hitl_app.command("receipt")
 def receipt(
-    target_name: str = typer.Option("generic", "--target-name", help="Target profile name"),
-    request_ref: str = typer.Option(..., "--request-ref", help="Request artifact reference"),
-    output: Path = typer.Option(..., "--output", help="Output path for the receipt artifact"),
+    target_name: str = typer.Option(
+        "generic", "--target-name", help="Target profile name"
+    ),
+    request_ref: str = typer.Option(
+        ..., "--request-ref", help="Request artifact reference"
+    ),
+    output: Path = typer.Option(
+        ..., "--output", help="Output path for the receipt artifact"
+    ),
 ) -> None:
     """Create a NOT_EXECUTED receipt artifact."""
     try:
@@ -99,7 +127,9 @@ def receipt(
 
 @hitl_app.command("validate")
 def validate(
-    path: Path = typer.Argument(..., help="Path to request or receipt artifact JSON file"),
+    path: Path = typer.Argument(
+        ..., help="Path to request or receipt artifact JSON file"
+    ),
 ) -> None:
     """Validate a request or receipt artifact by kind."""
     if not path.exists():

@@ -77,6 +77,12 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.deepagents_blocked_action_record`
 - `builder_ii.deepagents_proposal_result`
 - `builder_ii.deepagents_work_validation_report`
+- `builder_ii.hitl_promotion_request`
+- `builder_ii.hitl_promotion_review`
+- `builder_ii.hitl_promotion_decision`
+- `builder_ii.hitl_approval_boundary`
+- `builder_ii.hitl_rejection_record`
+- `builder_ii.hitl_promotion_validation_report`
 - `builder_ii.goose_session_manifest`
 - `builder_ii.handoff_artifact`
 - `builder_ii.session_configuration`

@@ -266,6 +266,14 @@ The operator command surface is organized by phase. Every command operates stric
 - **Human responsibility**: Review the bounded command intent and all future evidence requirements before any manual/operator-approved verification run.
 - **Writes**: The artifact itself may be written only to an explicit artifact output path by external tooling; it does not execute commands, run shell, call models, start Goose/deepagents, mutate source, write target repositories, or mutate git.
 
+#### `builder-hitl promotion-request` / `promotion-review` / `promotion-decision` / `approval-boundary` / `rejection-record` / `validate-promotion`
+- **Command name**: `builder-hitl promotion-request` (and related review, decision, boundary, rejection, validate subcommands)
+- **Purpose**: Connect Goal 2/Goal 3 passive proposals to typed human request, review, decision, boundary, and rejection records, and validate structural compliance.
+- **Output artifact, if any**: `hitl_promotion_request`, `hitl_promotion_review`, `hitl_promotion_decision`, `hitl_approval_boundary`, `hitl_rejection_record`, or `hitl_promotion_validation_report` JSON artifact.
+- **Execution authority**: artifact-only / validation-only; executes nothing and grants no authority.
+- **Human responsibility**: Review promotion request proposals, review findings, decisions, and approval boundaries passively before any future execution-candidate design.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
 #### `builder-hitl plan-patch`
 - **Command name**: `builder-hitl plan-patch`
 - **Purpose**: Generate a Human-In-The-Loop patch specification proposal for review.

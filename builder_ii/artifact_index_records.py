@@ -250,6 +250,20 @@ from builder_ii.deepagents_work_artifacts import (
     DEEPAGENTS_WORK_VALIDATION_REPORT_KIND,
     validate_deepagents_work_validation_report,
 )
+from builder_ii.hitl_promotion_artifacts import (
+    HITL_PROMOTION_REQUEST_KIND,
+    validate_hitl_promotion_request,
+    HITL_PROMOTION_REVIEW_KIND,
+    validate_hitl_promotion_review,
+    HITL_PROMOTION_DECISION_KIND,
+    validate_hitl_promotion_decision,
+    HITL_APPROVAL_BOUNDARY_KIND,
+    validate_hitl_approval_boundary,
+    HITL_REJECTION_RECORD_KIND,
+    validate_hitl_rejection_record,
+    HITL_PROMOTION_VALIDATION_REPORT_KIND,
+    validate_hitl_promotion_validation_report,
+)
 
 
 ARTIFACT_INDEX_RECORD_KIND = "builder_ii.artifact_index_record"
@@ -355,6 +369,12 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND: validate_deepagents_blocked_action_record,
     DEEPAGENTS_PROPOSAL_RESULT_KIND: validate_deepagents_proposal_result,
     DEEPAGENTS_WORK_VALIDATION_REPORT_KIND: validate_deepagents_work_validation_report,
+    HITL_PROMOTION_REQUEST_KIND: validate_hitl_promotion_request,
+    HITL_PROMOTION_REVIEW_KIND: validate_hitl_promotion_review,
+    HITL_PROMOTION_DECISION_KIND: validate_hitl_promotion_decision,
+    HITL_APPROVAL_BOUNDARY_KIND: validate_hitl_approval_boundary,
+    HITL_REJECTION_RECORD_KIND: validate_hitl_rejection_record,
+    HITL_PROMOTION_VALIDATION_REPORT_KIND: validate_hitl_promotion_validation_report,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
 

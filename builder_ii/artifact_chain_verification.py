@@ -246,6 +246,20 @@ from builder_ii.deepagents_work_artifacts import (
     DEEPAGENTS_WORK_VALIDATION_REPORT_KIND,
     validate_deepagents_work_validation_report,
 )
+from builder_ii.hitl_promotion_artifacts import (
+    HITL_PROMOTION_REQUEST_KIND,
+    validate_hitl_promotion_request,
+    HITL_PROMOTION_REVIEW_KIND,
+    validate_hitl_promotion_review,
+    HITL_PROMOTION_DECISION_KIND,
+    validate_hitl_promotion_decision,
+    HITL_APPROVAL_BOUNDARY_KIND,
+    validate_hitl_approval_boundary,
+    HITL_REJECTION_RECORD_KIND,
+    validate_hitl_rejection_record,
+    HITL_PROMOTION_VALIDATION_REPORT_KIND,
+    validate_hitl_promotion_validation_report,
+)
 
 ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = (
     "builder_ii.artifact_chain_verification_report"
@@ -366,6 +380,12 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND: validate_deepagents_blocked_action_record,
     DEEPAGENTS_PROPOSAL_RESULT_KIND: validate_deepagents_proposal_result,
     DEEPAGENTS_WORK_VALIDATION_REPORT_KIND: validate_deepagents_work_validation_report,
+    HITL_PROMOTION_REQUEST_KIND: validate_hitl_promotion_request,
+    HITL_PROMOTION_REVIEW_KIND: validate_hitl_promotion_review,
+    HITL_PROMOTION_DECISION_KIND: validate_hitl_promotion_decision,
+    HITL_APPROVAL_BOUNDARY_KIND: validate_hitl_approval_boundary,
+    HITL_REJECTION_RECORD_KIND: validate_hitl_rejection_record,
+    HITL_PROMOTION_VALIDATION_REPORT_KIND: validate_hitl_promotion_validation_report,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 
@@ -1055,6 +1075,105 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                     "expected_kind": expected_kind,
                 }
             )
+
+    elif kind == HITL_PROMOTION_REQUEST_KIND:
+        for field, expected_kind in (
+            ("proposal_ref", None),
+            ("target_profile_ref", None),
+            ("session_manifest_ref", None),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": value.get("kind") or expected_kind,
+                    }
+                )
+
+    elif kind == HITL_PROMOTION_REVIEW_KIND:
+        for field, expected_kind in (
+            ("promotion_request_ref", HITL_PROMOTION_REQUEST_KIND),
+            ("policy_ref", None),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind or value.get("kind"),
+                    }
+                )
+
+    elif kind == HITL_PROMOTION_DECISION_KIND:
+        for field, expected_kind in (
+            ("promotion_request_ref", HITL_PROMOTION_REQUEST_KIND),
+            ("promotion_review_ref", HITL_PROMOTION_REVIEW_KIND),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind,
+                    }
+                )
+
+    elif kind == HITL_APPROVAL_BOUNDARY_KIND:
+        for field, expected_kind in (
+            ("promotion_decision_ref", HITL_PROMOTION_DECISION_KIND),
+            ("promotion_request_ref", HITL_PROMOTION_REQUEST_KIND),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind,
+                    }
+                )
+
+    elif kind == HITL_REJECTION_RECORD_KIND:
+        for field, expected_kind in (
+            ("promotion_request_ref", HITL_PROMOTION_REQUEST_KIND),
+            ("promotion_decision_ref", HITL_PROMOTION_DECISION_KIND),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind
+                        if field == "promotion_request_ref"
+                        else (value.get("kind") or expected_kind),
+                    }
+                )
+
+    elif kind == HITL_PROMOTION_VALIDATION_REPORT_KIND:
+        subjects = record.get("subject_refs")
+        if isinstance(subjects, list):
+            for index, value in enumerate(subjects):
+                if isinstance(value, dict) and (
+                    value.get("path") or value.get("sha256")
+                ):
+                    refs.append(
+                        {
+                            "field": f"subject_refs[{index}]",
+                            "sha256": value.get("sha256"),
+                            "path": value.get("path"),
+                            "expected_kind": value.get("kind"),
+                        }
+                    )
 
     return refs
 
