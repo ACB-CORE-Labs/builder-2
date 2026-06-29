@@ -11,6 +11,21 @@ from builder_ii.agent_profiles import (
 )
 from builder_ii.target_profiles import target_profile
 
+BASE_AGENT_PROFILES = (
+    "repo_mapper",
+    "context_planner",
+    "code_reviewer",
+    "patch_planner",
+    "verification_planner",
+    "handoff_scribe",
+)
+
+CORE_AGENT_PROFILES = (
+    "core.invariant_auditor",
+    "core.patch_planner",
+    "core.verification_planner",
+)
+
 
 def _settings(tmp_path: Path):
     core = tmp_path / "core"
@@ -23,14 +38,7 @@ def _settings(tmp_path: Path):
 
 
 def test_agent_profile_names_are_generic_base_profiles() -> None:
-    assert agent_profile_names() == (
-        "repo_mapper",
-        "context_planner",
-        "code_reviewer",
-        "patch_planner",
-        "verification_planner",
-        "handoff_scribe",
-    )
+    assert agent_profile_names() == (*BASE_AGENT_PROFILES, *CORE_AGENT_PROFILES)
 
 
 def test_all_profiles_forbid_shell_and_mutation_by_default() -> None:
@@ -40,13 +48,16 @@ def test_all_profiles_forbid_shell_and_mutation_by_default() -> None:
         assert "push" in profile.forbidden_tools
 
 
-def test_all_profiles_support_all_initial_targets() -> None:
+def test_base_profiles_support_all_initial_targets() -> None:
     for profile in agent_profiles():
-        assert profile.compatible_targets == ("generic", "builder", "core")
+        if profile.name in BASE_AGENT_PROFILES:
+            assert profile.compatible_targets == ("generic", "builder", "core")
+        else:
+            assert profile.compatible_targets == ("core",)
 
 
 def test_profiles_for_target_returns_generic_profiles() -> None:
-    assert {profile.name for profile in profiles_for_target("builder")} == set(agent_profile_names())
+    assert {profile.name for profile in profiles_for_target("builder")} == set(BASE_AGENT_PROFILES)
     assert {profile.name for profile in profiles_for_target("core")} == set(agent_profile_names())
 
 

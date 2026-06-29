@@ -15,6 +15,8 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - `builder-model-policy`
 - `builder-targets`
 - `builder-session`
+- `builder-workflow`
+- `builder-ledger`
 
 ## Artifact Chain / Governance Records
 - `builder-records`

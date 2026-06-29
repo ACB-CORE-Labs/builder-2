@@ -431,6 +431,57 @@ def create_profile_pack_manifest(
         },
     ]
 
+    if target_profile == "core":
+        for area in areas:
+            if area["area"] == "agent_profiles":
+                area["entries"].extend(
+                    [
+                        _entry(
+                            entry_id="core-invariant-auditor",
+                            area="agent_profiles",
+                            profile_kind="agent_profile",
+                            title="CORE invariant auditor",
+                            description="Read-only CORE invariant audit role contract.",
+                            source_refs=source("builder_ii/agent_profiles.py"),
+                            payload={
+                                "agent_profile": "core.invariant_auditor",
+                                "target": "core",
+                                "authority": "read_only",
+                                "constructs_agents": False,
+                            },
+                        ),
+                        _entry(
+                            entry_id="core-patch-planner",
+                            area="agent_profiles",
+                            profile_kind="agent_profile",
+                            title="CORE patch planner",
+                            description="Proposal-only CORE patch planning role contract.",
+                            source_refs=source("builder_ii/agent_profiles.py"),
+                            payload={
+                                "agent_profile": "core.patch_planner",
+                                "target": "core",
+                                "authority": "proposal_only",
+                                "constructs_agents": False,
+                            },
+                        ),
+                        _entry(
+                            entry_id="core-verification-planner",
+                            area="agent_profiles",
+                            profile_kind="agent_profile",
+                            title="CORE verification planner",
+                            description="Plan-only CORE verification role contract.",
+                            source_refs=source("builder_ii/agent_profiles.py"),
+                            payload={
+                                "agent_profile": "core.verification_planner",
+                                "target": "core",
+                                "authority": "plan_only",
+                                "constructs_agents": False,
+                            },
+                        ),
+                    ]
+                )
+                break
+
     manifest = {
         "kind": PROFILE_PACK_MANIFEST_KIND,
         "schema_version": PROFILE_PACK_MANIFEST_SCHEMA_VERSION,

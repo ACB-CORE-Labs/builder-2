@@ -73,8 +73,8 @@ builder-promotion record --capability-name <name> --target <target> ...
 builder-promotion-decision record <promotion-readiness>
 builder-state-index validate <state-index>
 builder-snapshot validate <snapshot>
-builder-inspect report --target <target> --purpose review --path <explicit-file> --output <readonly-inspection-report>
-builder-inspect validate <readonly-inspection-report>
+builder-readonly inspect <explicit-file> --root <root> --output <readonly-inspection-report>
+builder-readonly validate <readonly-inspection-report>
 ```
 
 ## Next Arcs

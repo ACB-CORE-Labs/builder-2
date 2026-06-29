@@ -17,6 +17,9 @@ AgentProfileName = Literal[
     "patch_planner",
     "verification_planner",
     "handoff_scribe",
+    "core.invariant_auditor",
+    "core.patch_planner",
+    "core.verification_planner",
 ]
 Authority = Literal["read_only", "plan_only", "proposal_only", "notes_only"]
 
@@ -112,6 +115,42 @@ def agent_profiles() -> tuple[AgentProfile, ...]:
             hitl_required_for=("writing notes", "publishing handoff", "updating PR body"),
             output_contract="Return a handoff with branch state, changes, validation, blockers, and next operator commands.",
         ),
+        AgentProfile(
+            name="core.invariant_auditor",
+            description="Audit CORE invariants in read-only planning mode.",
+            purpose="Identify invariant surfaces, proof obligations, and verification risks without mutating CORE.",
+            authority="read_only",
+            compatible_targets=("core",),
+            required_context=("core target profile", "task", "repo map", "context pack", "verification hints"),
+            allowed_tools=("context_pack", "read_file", "repo_search", "static_scan"),
+            forbidden_tools=("write_file", "edit_file", "execute_shell", "commit", "push"),
+            hitl_required_for=("running verification commands", "expanding beyond explicit read scope"),
+            output_contract="Return CORE invariant findings, evidence refs, uncertainty, and required follow-up checks only.",
+        ),
+        AgentProfile(
+            name="core.patch_planner",
+            description="Plan CORE patches without source mutation.",
+            purpose="Translate CORE findings into a bounded proposal with files, invariants, tests, and rollback proof requirements.",
+            authority="proposal_only",
+            compatible_targets=("core",),
+            required_context=("core target profile", "task", "context pack", "invariant audit", "verification hints"),
+            allowed_tools=("context_pack", "read_file", "repo_search", "git_status", "test_plan"),
+            forbidden_tools=("write_file", "edit_file", "execute_shell", "commit", "push"),
+            hitl_required_for=("applying patches", "running commands", "changing durable notes"),
+            output_contract="Return a CORE patch proposal only: scope, invariant impact, exact verification plan, rollback path, and stop conditions.",
+        ),
+        AgentProfile(
+            name="core.verification_planner",
+            description="Plan CORE verification evidence without executing commands.",
+            purpose="Map CORE proposal risks to exact verification commands and required evidence receipts.",
+            authority="plan_only",
+            compatible_targets=("core",),
+            required_context=("core target profile", "changed files or proposal", "invariant audit", "verification hints"),
+            allowed_tools=("git_status", "test_plan", "static_scan"),
+            forbidden_tools=("write_file", "edit_file", "execute_shell", "commit", "push"),
+            hitl_required_for=("running verification commands", "recording execution receipts"),
+            output_contract="Return exact proposed CORE verification commands, pass criteria, evidence refs, and no-mutation assertions.",
+        ),
     )
 
 
@@ -148,7 +187,17 @@ def validate_agent_profiles() -> tuple[str, ...]:
             errors.append(f"agent profile {profile.name} must forbid execute_shell by default")
         if not profile.output_contract:
             errors.append(f"agent profile {profile.name} missing output contract")
-    for expected in ("repo_mapper", "context_planner", "code_reviewer", "patch_planner", "verification_planner", "handoff_scribe"):
+    for expected in (
+        "repo_mapper",
+        "context_planner",
+        "code_reviewer",
+        "patch_planner",
+        "verification_planner",
+        "handoff_scribe",
+        "core.invariant_auditor",
+        "core.patch_planner",
+        "core.verification_planner",
+    ):
         if expected not in seen:
             errors.append(f"missing agent profile: {expected}")
     return tuple(errors)

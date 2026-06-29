@@ -32,6 +32,16 @@ The primary governed sequence for preparing, validating, and summarizing a local
 2. `builder-session validate-prepare-package`
 3. `builder-session summarize-prepare-package`
 
+The event-sourced guided workflow lane composes existing passive artifacts into a replayable operator chain:
+
+1. `builder workflow plan`
+2. `builder workflow promote`
+3. `builder workflow candidate`
+4. `builder workflow verify-chain`
+5. `builder workflow handoff`
+6. `builder ledger replay <session-id>`
+7. `builder ledger audit <artifact-sha>`
+
 ## Canonical Governed E2E Proof
 
 The canonical governed session lane binds together the platform preparation tools into a single, cohesive, fail-closed sequence. This end-to-end relationship connects prepare-package creation, convention kernel platform spine coordination, index recognition, and passive verification:
@@ -108,6 +118,54 @@ The operator command surface is organized by phase. Every command operates stric
 
 ### Session Preparation
 
+#### `builder workflow plan`
+- **Command name**: `builder workflow plan`
+- **Purpose**: Create a governed workflow session graph from intent through profile pack, model-routing recommendation, orchestration assignment, and passive deepagents work plan artifacts.
+- **Output artifact, if any**: `workflow-session.json`, `workflow-transition-plan.json`, `event-ledger.json`, `ledger-replay-report.json`, `workflow-status.json`, and composed passive planning artifacts under the workflow output directory.
+- **Execution authority**: artifact-only
+- **Human responsibility**: Inspect the generated session graph and confirm that all planned surfaces remain passive.
+- **Writes**: Writes only explicit workflow artifact output paths.
+
+#### `builder workflow promote`
+- **Command name**: `builder workflow promote`
+- **Purpose**: Record passive HITL promotion request, review, decision, and approval-boundary artifacts for candidate design.
+- **Output artifact, if any**: HITL promotion artifacts, workflow transition, event record, replay report, ledger, and status.
+- **Execution authority**: artifact-only; no runtime approval is granted.
+- **Human responsibility**: Review that promotion remains limited to candidate-manifest design.
+- **Writes**: Writes only workflow artifact output paths.
+
+#### `builder workflow candidate`
+- **Command name**: `builder workflow candidate`
+- **Purpose**: Record a passive execution candidate manifest and structural validation report from the approved candidate-design boundary.
+- **Output artifact, if any**: `execution-candidate-manifest.json`, validation report, workflow transition, event record, replay report, ledger, and status.
+- **Execution authority**: artifact-only; no command execution.
+- **Human responsibility**: Confirm that any later execution requires a separate exact HITL approval.
+- **Writes**: Writes only workflow artifact output paths.
+
+#### `builder workflow verify-chain`
+- **Command name**: `builder workflow verify-chain`
+- **Purpose**: Create artifact index and chain verification evidence for the passive workflow graph.
+- **Output artifact, if any**: `artifact-index.json`, `chain-verification-report.json`, workflow transition, event record, replay report, ledger, and status.
+- **Execution authority**: validation-only
+- **Human responsibility**: Treat chain verification as evidence-link validation, not executed verification.
+- **Writes**: Writes only workflow artifact output paths.
+
+#### `builder workflow handoff`
+- **Command name**: `builder workflow handoff`
+- **Purpose**: Produce passive handoff and golden-path summary artifacts after successful chain verification.
+- **Output artifact, if any**: `handoff-note.json`, `GOLDEN_PATH_CHAIN_v1.json`, `GOLDEN_PATH_DEMO_README.md`, workflow transition, event record, replay report, ledger, and status.
+- **Execution authority**: artifact-only
+- **Human responsibility**: Review the handoff before deciding whether any later runtime promotion is warranted.
+- **Writes**: Writes only workflow artifact output paths.
+
+#### `builder workflow status`
+- **Command name**: `builder workflow status`
+- **Purpose**: Reconstruct workflow status from event records rather than trusting mutable state.
+- **Output artifact, if any**: Refreshed `ledger-replay-report.json`, `event-ledger.json`, and `workflow-status.json`.
+- **Execution authority**: validation-only
+- **Human responsibility**: Use replayed status as the current operational view.
+- **Writes**: Writes only workflow artifact output paths.
+
 #### `builder-session prepare-package`
 - **Command name**: `builder-session prepare-package`
 - **Purpose**: Create a bounded set of local preparation artifacts for a developer session without executing target-repo work.
@@ -133,6 +191,38 @@ The operator command surface is organized by phase. Every command operates stric
 - **Writes**: Writes only explicit artifact output paths when `--output` is specified.
 
 ### Package Validation
+
+#### `builder ledger list`
+- **Command name**: `builder ledger list`
+- **Purpose**: List known workflow ledgers and replayed stages without activating any workflow runtime.
+- **Output artifact, if any**: None; JSON stdout only.
+- **Execution authority**: validation-only
+- **Human responsibility**: Locate the relevant session before replay or audit.
+- **Writes**: Read-only; writes only stdout.
+
+#### `builder ledger replay`
+- **Command name**: `builder ledger replay`
+- **Purpose**: Rebuild workflow status deterministically from event records.
+- **Output artifact, if any**: Optional or default `ledger-replay-report.json`.
+- **Execution authority**: validation-only
+- **Human responsibility**: Confirm event order and status before making operational claims.
+- **Writes**: Writes only explicit replay artifact output paths.
+
+#### `builder ledger audit`
+- **Command name**: `builder ledger audit`
+- **Purpose**: Answer audit-by-SHA questions with event, actor, policy, decision, evidence, and next-transition context.
+- **Output artifact, if any**: None; JSON stdout only.
+- **Execution authority**: validation-only
+- **Human responsibility**: Use SHA-linked events as evidence, not authority.
+- **Writes**: Read-only; writes only stdout.
+
+#### `builder ledger export`
+- **Command name**: `builder ledger export`
+- **Purpose**: Export the current passive event ledger artifact for a workflow session.
+- **Output artifact, if any**: `event-ledger.json` or explicit export path.
+- **Execution authority**: artifact-only
+- **Human responsibility**: Preserve exported ledgers as review evidence only.
+- **Writes**: Writes only explicit ledger artifact output paths.
 
 #### `builder-session validate-prepare-package`
 - **Command name**: `builder-session validate-prepare-package`

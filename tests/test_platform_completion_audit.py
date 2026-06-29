@@ -94,8 +94,8 @@ def test_release_verification_checklist_names_current_commands() -> None:
         "builder-promotion-decision record",
         "builder-state-index validate",
         "builder-snapshot validate",
-        "builder-inspect report",
-        "builder-inspect validate",
+        "builder-readonly inspect",
+        "builder-readonly validate",
     ]
     for command in expected_commands:
         assert command in text

@@ -266,6 +266,22 @@ from builder_ii.execution_candidate_manifest import (
     EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND,
     validate_execution_candidate_manifest_validation_report,
 )
+from builder_ii.event_ledger import (
+    EVENT_LEDGER_KIND,
+    EVENT_RECORD_KIND,
+    LEDGER_REPLAY_REPORT_KIND,
+    validate_event_ledger,
+    validate_event_record,
+    validate_ledger_replay_report,
+)
+from builder_ii.workflow_records import (
+    WORKFLOW_SESSION_KIND,
+    WORKFLOW_STATUS_KIND,
+    WORKFLOW_TRANSITION_KIND,
+    validate_workflow_session,
+    validate_workflow_status,
+    validate_workflow_transition,
+)
 
 
 ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = (
@@ -395,6 +411,12 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_PROMOTION_VALIDATION_REPORT_KIND: validate_hitl_promotion_validation_report,
     EXECUTION_CANDIDATE_MANIFEST_KIND: validate_execution_candidate_manifest,
     EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND: validate_execution_candidate_manifest_validation_report,
+    WORKFLOW_SESSION_KIND: validate_workflow_session,
+    WORKFLOW_STATUS_KIND: validate_workflow_status,
+    WORKFLOW_TRANSITION_KIND: validate_workflow_transition,
+    EVENT_RECORD_KIND: validate_event_record,
+    EVENT_LEDGER_KIND: validate_event_ledger,
+    LEDGER_REPLAY_REPORT_KIND: validate_ledger_replay_report,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 
@@ -407,6 +429,21 @@ def _digest(data: dict[str, Any]) -> str:
 def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
     kind = record.get("kind")
     refs: list[dict[str, Any]] = []
+
+    def append_artifact_ref(field: str, value: Any, expected_kind: str | None = None) -> None:
+        if not isinstance(value, dict) or not (value.get("path") or value.get("sha256")):
+            return
+        resolved_kind = expected_kind or value.get("kind")
+        if resolved_kind not in VALIDATORS:
+            return
+        refs.append(
+            {
+                "field": field,
+                "sha256": value.get("sha256"),
+                "path": value.get("path"),
+                "expected_kind": resolved_kind,
+            }
+        )
 
     if kind == APPROVAL_RECORD_KIND:
         prop = record.get("proposal", {})
@@ -1267,6 +1304,39 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                             "expected_kind": value.get("kind"),
                         }
                     )
+
+    elif kind == WORKFLOW_TRANSITION_KIND:
+        previous = record.get("previous_transition_ref")
+        append_artifact_ref("previous_transition_ref", previous, WORKFLOW_TRANSITION_KIND)
+        subject_refs = record.get("subject_refs")
+        if isinstance(subject_refs, list):
+            for index, value in enumerate(subject_refs):
+                append_artifact_ref(f"subject_refs[{index}]", value)
+
+    elif kind == WORKFLOW_STATUS_KIND:
+        append_artifact_ref("last_event_ref", record.get("last_event_ref"), EVENT_RECORD_KIND)
+        artifact_refs = record.get("artifact_refs")
+        if isinstance(artifact_refs, list):
+            for index, value in enumerate(artifact_refs):
+                append_artifact_ref(f"artifact_refs[{index}]", value)
+
+    elif kind == EVENT_RECORD_KIND:
+        append_artifact_ref("previous_event_ref", record.get("previous_event_ref"), EVENT_RECORD_KIND)
+        subject_refs = record.get("subject_refs")
+        if isinstance(subject_refs, list):
+            for index, value in enumerate(subject_refs):
+                append_artifact_ref(f"subject_refs[{index}]", value)
+
+    elif kind == EVENT_LEDGER_KIND:
+        append_artifact_ref("last_event_ref", record.get("last_event_ref"), EVENT_RECORD_KIND)
+        append_artifact_ref("replay_report_ref", record.get("replay_report_ref"), LEDGER_REPLAY_REPORT_KIND)
+        event_refs = record.get("event_refs")
+        if isinstance(event_refs, list):
+            for index, value in enumerate(event_refs):
+                append_artifact_ref(f"event_refs[{index}]", value, EVENT_RECORD_KIND)
+
+    elif kind == LEDGER_REPLAY_REPORT_KIND:
+        append_artifact_ref("last_event_ref", record.get("last_event_ref"), EVENT_RECORD_KIND)
 
     return refs
 

@@ -45,7 +45,7 @@ builder-II has completed its **v0 release**. The full governed artifact platform
 
 **Platform governance**
 - ConventionKernel as governed platform spine (`ConventionKernelPlatformBundle`)
-- Command authority tier registry (`docs/COMMAND_AUTHORITY_REGISTRY.md`)
+- Command authority tier registry (`docs/COMMAND_AUTHORITY.md`)
 - Model capability registry artifact (`builder_ii.model_capability_registry`)
 - Artifact index and chain verification registry (all v0 kinds registered and closure-tested)
 - v0 release manifest + operator-run proof harness (`builder_ii.v0_release_manifest`, `scripts/verify_v0_release.py`)

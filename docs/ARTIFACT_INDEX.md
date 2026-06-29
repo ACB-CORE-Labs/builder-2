@@ -99,6 +99,12 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.model_client_registry`
 - `builder_ii.model_routing_policy`
 - `builder_ii.model_routing_recommendation`
+- `builder_ii.workflow_session`
+- `builder_ii.workflow_status`
+- `builder_ii.workflow_transition`
+- `builder_ii.event_record`
+- `builder_ii.event_ledger`
+- `builder_ii.ledger_replay_report`
 
 ## Governance and Authority Boundaries
 
@@ -164,6 +170,12 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.model_client_registry` | Passive model client registry | current |
 | `builder_ii.model_routing_policy` | Passive model routing policy | current |
 | `builder_ii.model_routing_recommendation` | Passive model routing recommendation | current |
+| `builder_ii.workflow_session` | Passive workflow session record | current |
+| `builder_ii.workflow_status` | Replayed workflow status record | current |
+| `builder_ii.workflow_transition` | Passive workflow transition record | current |
+| `builder_ii.event_record` | Event-sourced workflow transition record | current |
+| `builder_ii.event_ledger` | Passive workflow event ledger | current |
+| `builder_ii.ledger_replay_report` | Deterministic ledger replay report | current |
 | `builder_ii.execution_candidate_manifest` | Bounded proposed future execution candidate | Goal 5 |
 | `builder_ii.execution_candidate_manifest_validation_report` | Candidate manifest validation report | Goal 5 |
 

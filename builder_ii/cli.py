@@ -29,6 +29,8 @@ from builder_ii.harness import format_verify_report, run_verification
 from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT, estimate_tokens
 from builder_ii.model_router import SESSION_MODES, explain_plan, plan_session, tier_for_alias
 from builder_ii.models import model_definitions, model_status_report
+from builder_ii.ledger_cli import ledger_app
+from builder_ii.workflow_cli import workflow_app
 
 app = typer.Typer(
     name="builder",
@@ -36,6 +38,9 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 console = Console()
+
+app.add_typer(workflow_app, name="workflow")
+app.add_typer(ledger_app, name="ledger")
 
 
 def _backend_ready_for_selected_model(settings) -> tuple[bool, str]:
