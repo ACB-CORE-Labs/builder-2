@@ -35,10 +35,10 @@ No code execution, shell commands, LLM loops, or repository mutations occur duri
 Generate the passive read-only founder demo artifacts using the following command:
 
 ```bash
-uv run builder-targets readonly-founder-demo core --output .builder/demos/core-readonly
+uv run builder-targets readonly-founder-demo core --output .builder/demos/core-readonly --force
 ```
 
-This command runs `generate_readonly_founder_demo(...)`, emits only passive planning artifacts, and authorizes zero runtime, model, shell, Goose, or deepagents execution.
+This command runs `generate_readonly_founder_demo(...)` with the `--force` flag (to ensure clean/idempotent recreation by clearing any stale files in that directory), emits only passive planning artifacts, and authorizes zero runtime, model, shell, Goose, or deepagents execution.
 
 ## Generated Artifacts
 

@@ -235,15 +235,108 @@ def write_target_verification_plan(record: dict[str, Any], path: Path) -> None:
     _write_json(record, path)
 
 
+def _is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def _has_demo_temp_scope(path: Path) -> bool:
+    markers = ("demo", "test", "readonly", "idempotence")
+    return any(any(marker in part.lower() for marker in markers) for part in path.parts)
+
+
+def validate_safe_demo_directory_for_deletion(path: Path, settings: Settings) -> None:
+    """Validate that a --force delete is confined to generated demo outputs.
+
+    This guard protects the only destructive operation in the readonly-founder-demo
+    path. It intentionally permits only two boringly narrow surfaces:
+    project-local `.builder/demos/<child>` outputs and scoped temporary test/demo
+    outputs. Everything else fails closed.
+    """
+    try:
+        path_abs = path.resolve().absolute()
+    except Exception as exc:
+        raise ValueError(f"Could not resolve output path '{path}': {exc}") from exc
+
+    proj_abs = Path(settings.project_root).resolve().absolute()
+    cwd_abs = Path.cwd().resolve().absolute()
+    home_abs = Path.home().resolve().absolute()
+    root_abs = Path("/").resolve().absolute()
+
+    protected_roots = (
+        (root_abs, "system root"),
+        (home_abs, "user home directory"),
+        (proj_abs, "repository root"),
+        (cwd_abs, "current working directory"),
+    )
+    for protected, label in protected_roots:
+        if path_abs == protected or _is_relative_to(protected, path_abs):
+            raise ValueError(
+                f"Safety violation: Target directory '{path_abs}' is equal to or a parent of the {label} '{protected}'."
+            )
+
+    system_paths = [
+        Path("/usr"),
+        Path("/var"),
+        Path("/etc"),
+        Path("/bin"),
+        Path("/sbin"),
+        Path("/lib"),
+        Path("/private"),
+        Path("/System"),
+        Path("/Library"),
+        Path("/Applications"),
+        Path("/Users"),
+    ]
+    for sys_path in system_paths:
+        try:
+            sys_abs = sys_path.resolve().absolute()
+        except Exception:
+            continue
+        if path_abs == sys_abs or _is_relative_to(sys_abs, path_abs):
+            raise ValueError(
+                f"Safety violation: Target directory '{path_abs}' is equal to or a parent of system directory '{sys_abs}'."
+            )
+
+    demos_dir = proj_abs / ".builder" / "demos"
+    if _is_relative_to(path_abs, demos_dir) and path_abs != demos_dir:
+        return
+
+    import tempfile
+
+    temp_dir = Path(tempfile.gettempdir()).resolve().absolute()
+    if _is_relative_to(path_abs, temp_dir) and path_abs != temp_dir and _has_demo_temp_scope(path_abs):
+        return
+
+    raise ValueError(
+        f"Safety violation: Target directory '{path_abs}' is not recognized as a safe demo-output directory. "
+        "Force deletion is only permitted under '.builder/demos/' or scoped temporary demo/test directories."
+    )
+
+
 def generate_readonly_founder_demo(
     settings: Settings | None = None,
     target: TargetName = "core",
     output_dir: Path | None = None,
     *,
     session_id: str | None = None,
+    force: bool = False,
 ) -> dict[str, Path]:
     settings = settings or load_settings()
     out = output_dir or (Path.cwd() / ".builder" / "demos" / f"{target}-readonly")
+    if out.exists() and any(out.iterdir()):
+        if not force:
+            raise ValueError(
+                f"Output directory '{out}' already exists and is not empty. "
+                "Use --force to overwrite/recreate."
+            )
+        validate_safe_demo_directory_for_deletion(out, settings)
+        import shutil
+        shutil.rmtree(out)
+
     out.mkdir(parents=True, exist_ok=True)
     artifacts_dir = out / "artifacts"
     artifacts_dir.mkdir(parents=True, exist_ok=True)

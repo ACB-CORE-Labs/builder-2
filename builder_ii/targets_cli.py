@@ -108,12 +108,17 @@ def demo(name: str) -> None:
 def readonly_founder_demo(
     name: str,
     output: Path = typer.Option(None, "--output", "-o", help="Directory to write demo artifacts to"),
+    force: bool = typer.Option(False, "--force", "-f", help="Force deletion and recreation of output directory if it exists"),
 ) -> None:
     """Generate passive read-only founder demo artifacts."""
     from builder_ii.readonly_founder_demo import generate_readonly_founder_demo
     settings = load_settings()
     target = _normalize_target(name)
-    paths = generate_readonly_founder_demo(settings, target=target, output_dir=output)
+    try:
+        paths = generate_readonly_founder_demo(settings, target=target, output_dir=output, force=force)
+    except ValueError as e:
+        console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
     console.print(f"Generated passive read-only founder demo for {target} to {output or '.builder/demos/' + target + '-readonly'}")
     for key, path in sorted(paths.items()):
         console.print(f"  {key}: {path}")

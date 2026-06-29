@@ -36,9 +36,9 @@ uv run python scripts/verify_v0_release.py
 This produces 13 canonical release proof files under `dist/v0-release-proof` and asserts all core invariants are preserved.
 
 ### Step 4: Execute the Founder-Demo Target Command
-Generate the actual passive read-only demo artifacts targeting the `core` profile:
+Generate the actual passive read-only demo artifacts targeting the `core` profile, using the `--force` flag to ensure a clean slate:
 ```bash
-uv run builder-targets readonly-founder-demo core --output .builder/demos/core-readonly
+uv run builder-targets readonly-founder-demo core --output .builder/demos/core-readonly --force
 ```
 This creates the following suite of planning and tracking documents:
 * **Target Profile**: `.builder/demos/core-readonly/artifacts/target-profile.json`
@@ -67,7 +67,7 @@ A strict verification matrix confirming the platform is sealed, stable, and runn
 
 | Verification Item | Metric / Target | Status |
 | :--- | :--- | :---: |
-| **All Unit/Integration Tests Green** | 940/940 tests passing locally | **[PASS]** |
+| **All Unit/Integration Tests Green** | 943/943 tests passing locally | **[PASS]** |
 | **Clean Working Tree** | `git status` reports working tree clean, no modified files | **[PASS]** |
 | **Spine References Validated** | `builder-workflow verify-chain` reports `valid: true` | **[PASS]** |
 | **Event Ledger Validity** | Ledger replays to `chain_verified` with 0 validation errors | **[PASS]** |
@@ -129,7 +129,7 @@ Across all generated artifacts and system tests, the following invariants are st
 
 ## 6. Exact Test Execution Output
 
-All 940 tests are clean and passing on the `main` branch:
+All 943 tests are clean and passing on the `main` branch:
 
 ```text
 $ uv run pytest
@@ -143,9 +143,9 @@ $ uv run pytest
 ........................................................................ [ 61%]
 ........................................................................ [ 68%]
 ........................................................................ [ 76%]
-........................................................................ [ 84%]
+........................................................................ [ 83%]
 ........................................................................ [ 91%]
 ........................................................................ [ 99%]
-....                                                                     [100%]
-940 passed in 6.49s
+.......                                                                  [100%]
+943 passed in 6.65s
 ```
