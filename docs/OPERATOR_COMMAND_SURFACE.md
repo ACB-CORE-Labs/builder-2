@@ -274,6 +274,14 @@ The operator command surface is organized by phase. Every command operates stric
 - **Human responsibility**: Review promotion request proposals, review findings, decisions, and approval boundaries passively before any future execution-candidate design.
 - **Writes**: Writes only explicit artifact output paths when `--output` is specified.
 
+#### `builder-hitl candidate-manifest` / `validate-candidate-manifest`
+- **Command name**: `builder-hitl candidate-manifest` (and related validation subcommand)
+- **Purpose**: Render a passive execution candidate manifest from human approval boundaries, or validate its invariants and structure.
+- **Output artifact, if any**: `execution_candidate_manifest` or `execution_candidate_manifest_validation_report` JSON artifact.
+- **Execution authority**: artifact-only / validation-only; executes nothing and grants no authority.
+- **Human responsibility**: Passively record candidate execution parameters and verify them before any future activation.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
 #### `builder-hitl plan-patch`
 - **Command name**: `builder-hitl plan-patch`
 - **Purpose**: Generate a Human-In-The-Loop patch specification proposal for review.

@@ -264,6 +264,12 @@ from builder_ii.hitl_promotion_artifacts import (
     HITL_PROMOTION_VALIDATION_REPORT_KIND,
     validate_hitl_promotion_validation_report,
 )
+from builder_ii.execution_candidate_manifest import (
+    EXECUTION_CANDIDATE_MANIFEST_KIND,
+    validate_execution_candidate_manifest,
+    EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND,
+    validate_execution_candidate_manifest_validation_report,
+)
 
 
 ARTIFACT_INDEX_RECORD_KIND = "builder_ii.artifact_index_record"
@@ -375,6 +381,8 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_APPROVAL_BOUNDARY_KIND: validate_hitl_approval_boundary,
     HITL_REJECTION_RECORD_KIND: validate_hitl_rejection_record,
     HITL_PROMOTION_VALIDATION_REPORT_KIND: validate_hitl_promotion_validation_report,
+    EXECUTION_CANDIDATE_MANIFEST_KIND: validate_execution_candidate_manifest,
+    EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND: validate_execution_candidate_manifest_validation_report,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
 

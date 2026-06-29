@@ -260,6 +260,13 @@ from builder_ii.hitl_promotion_artifacts import (
     HITL_PROMOTION_VALIDATION_REPORT_KIND,
     validate_hitl_promotion_validation_report,
 )
+from builder_ii.execution_candidate_manifest import (
+    EXECUTION_CANDIDATE_MANIFEST_KIND,
+    validate_execution_candidate_manifest,
+    EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND,
+    validate_execution_candidate_manifest_validation_report,
+)
+
 
 ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = (
     "builder_ii.artifact_chain_verification_report"
@@ -386,6 +393,8 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_APPROVAL_BOUNDARY_KIND: validate_hitl_approval_boundary,
     HITL_REJECTION_RECORD_KIND: validate_hitl_rejection_record,
     HITL_PROMOTION_VALIDATION_REPORT_KIND: validate_hitl_promotion_validation_report,
+    EXECUTION_CANDIDATE_MANIFEST_KIND: validate_execution_candidate_manifest,
+    EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND: validate_execution_candidate_manifest_validation_report,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 
@@ -1160,6 +1169,90 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                 )
 
     elif kind == HITL_PROMOTION_VALIDATION_REPORT_KIND:
+        subjects = record.get("subject_refs")
+        if isinstance(subjects, list):
+            for index, value in enumerate(subjects):
+                if isinstance(value, dict) and (
+                    value.get("path") or value.get("sha256")
+                ):
+                    refs.append(
+                        {
+                            "field": f"subject_refs[{index}]",
+                            "sha256": value.get("sha256"),
+                            "path": value.get("path"),
+                            "expected_kind": value.get("kind"),
+                        }
+                    )
+
+    elif kind == EXECUTION_CANDIDATE_MANIFEST_KIND:
+        for field, expected in [
+            ("approval_boundary_ref", HITL_APPROVAL_BOUNDARY_KIND),
+            ("promotion_decision_ref", HITL_PROMOTION_DECISION_KIND),
+            ("promotion_review_ref", HITL_PROMOTION_REVIEW_KIND),
+            ("promotion_request_ref", HITL_PROMOTION_REQUEST_KIND),
+            ("target_profile_ref", None),
+            ("rollback_plan_ref", ROLLBACK_PLAN_KIND),
+            ("git_state_ref", GIT_STATE_RECORD_KIND),
+            ("preflight_ref", PREFLIGHT_RECORD_KIND),
+            (
+                "artifact_chain_verification_report_ref",
+                ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
+            ),
+            (
+                "specialized_candidate_ref",
+                HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
+            ),
+        ]:
+            val = record.get(field)
+            if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": val.get("sha256"),
+                        "path": val.get("path"),
+                        "expected_kind": expected or val.get("kind"),
+                    }
+                )
+
+        # command_authority_snapshot_ref is the verifiable path pointing to a registered snapshot record kind.
+        # command_authority_ref is metadata-only and is not extracted as a verifiable reference by the chain.
+        val = record.get("command_authority_snapshot_ref")
+        if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
+            refs.append(
+                {
+                    "field": "command_authority_snapshot_ref",
+                    "sha256": val.get("sha256"),
+                    "path": val.get("path"),
+                    "expected_kind": SNAPSHOT_RECORD_KIND,
+                }
+            )
+
+        for field in ("verification_profile_ref", "verification_profile_report_ref"):
+            val = record.get(field)
+            if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": val.get("sha256"),
+                        "path": val.get("path"),
+                        "expected_kind": val.get("kind"),
+                    }
+                )
+
+        proposal_refs = record.get("source_proposal_refs")
+        if isinstance(proposal_refs, list):
+            for index, val in enumerate(proposal_refs):
+                if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
+                    refs.append(
+                        {
+                            "field": f"source_proposal_refs[{index}]",
+                            "sha256": val.get("sha256"),
+                            "path": val.get("path"),
+                            "expected_kind": val.get("kind"),
+                        }
+                    )
+
+    elif kind == EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND:
         subjects = record.get("subject_refs")
         if isinstance(subjects, list):
             for index, value in enumerate(subjects):
