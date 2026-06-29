@@ -1191,16 +1191,16 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
             ("promotion_review_ref", HITL_PROMOTION_REVIEW_KIND),
             ("promotion_request_ref", HITL_PROMOTION_REQUEST_KIND),
             ("target_profile_ref", None),
-            ("rollback_plan_ref", "builder_ii.rollback_plan"),
-            ("git_state_ref", "builder_ii.git_state_record"),
-            ("preflight_ref", "builder_ii.preflight_record"),
+            ("rollback_plan_ref", ROLLBACK_PLAN_KIND),
+            ("git_state_ref", GIT_STATE_RECORD_KIND),
+            ("preflight_ref", PREFLIGHT_RECORD_KIND),
             (
                 "artifact_chain_verification_report_ref",
-                "builder_ii.artifact_chain_verification_report",
+                ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
             ),
             (
                 "specialized_candidate_ref",
-                "builder_ii.hitl_verification_execution_candidate",
+                HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
             ),
         ]:
             val = record.get(field)
@@ -1214,17 +1214,18 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                     }
                 )
 
-        for field in ("command_authority_ref", "command_authority_snapshot_ref"):
-            val = record.get(field)
-            if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
-                refs.append(
-                    {
-                        "field": field,
-                        "sha256": val.get("sha256"),
-                        "path": val.get("path"),
-                        "expected_kind": val.get("kind"),
-                    }
-                )
+        # command_authority_snapshot_ref is the verifiable path pointing to a registered snapshot record kind.
+        # command_authority_ref is metadata-only and is not extracted as a verifiable reference by the chain.
+        val = record.get("command_authority_snapshot_ref")
+        if isinstance(val, dict) and (val.get("path") or val.get("sha256")):
+            refs.append(
+                {
+                    "field": "command_authority_snapshot_ref",
+                    "sha256": val.get("sha256"),
+                    "path": val.get("path"),
+                    "expected_kind": SNAPSHOT_RECORD_KIND,
+                }
+            )
 
         for field in ("verification_profile_ref", "verification_profile_report_ref"):
             val = record.get(field)

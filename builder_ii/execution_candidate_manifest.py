@@ -158,7 +158,7 @@ def _should_skip_active_state_scan(path: str) -> bool:
     if path.startswith("subject_refs["):
         return True
     return any(
-        path == root or path.startswith(f"{root}.")
+        path == root or path.startswith(f"{root}.") or path.startswith(f"{root}[")
         for root in _ACTIVE_STATE_SCAN_SKIP_ROOTS
     )
 
@@ -396,6 +396,10 @@ def _validate_deephaven_rejection(val: Any, path: str) -> list[str]:
     errors: list[str] = []
     if isinstance(val, dict):
         for k, v in val.items():
+            if "deephaven" in k.lower():
+                errors.append(
+                    f"Deephaven work is forbidden in key '{path}.{k}' if path else k"
+                )
             errors.extend(
                 _validate_deephaven_rejection(v, f"{path}.{k}" if path else k)
             )
@@ -429,10 +433,7 @@ def _validate_command_previews(previews: Any, path: str) -> list[str]:
 
         # Check for forbidden commands/utilities
         for cmd in _FORBIDDEN_COMMANDS:
-            if (
-                re.search(rf"\b{re.escape(cmd)}\b", preview, re.IGNORECASE)
-                or cmd in preview
-            ):
+            if re.search(rf"\b{re.escape(cmd)}\b", preview, re.IGNORECASE):
                 errors.append(
                     f"forbidden active command '{cmd}' detected in preview command '{preview}' at '{curr_path}'"
                 )

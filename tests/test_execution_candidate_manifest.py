@@ -38,6 +38,51 @@ def _boundary_data() -> dict:
         "source_decision_result": "approved_for_candidate_design",
         "source_decision_record_state": "DECISION_RECORDED_ONLY",
         "requires_separate_execution_candidate": True,
+        "promotion_decision_ref": _ref(HITL_PROMOTION_DECISION_KIND, "decision.json"),
+        "promotion_request_ref": _ref(HITL_PROMOTION_REQUEST_KIND, "request.json"),
+        "executes_model": False,
+        "executes_tools": False,
+        "executes_shell": False,
+        "invokes_goose": False,
+        "constructs_deepagents": False,
+        "constructs_subagents": False,
+        "invokes_mcp": False,
+        "performs_network_calls": False,
+        "mutates_target_repo": False,
+        "mutates_memory": False,
+        "runtime_execution": False,
+        "source_writes": False,
+        "memory_mutation": False,
+        "artifact_is_authority": False,
+        "bypasses_command_authority": False,
+        "bypasses_verification": False,
+        "grants_runtime_authority": False,
+        "authorizes_execution": False,
+        "grants_authority": False,
+        "core_workbench_coupling": "NONE",
+        "governance": {
+            "capability_state": "BOUNDARY_RECORDED_ONLY",
+            "executes_model": False,
+            "executes_tools": False,
+            "executes_shell": False,
+            "invokes_goose": False,
+            "constructs_deepagents": False,
+            "constructs_subagents": False,
+            "invokes_mcp": False,
+            "performs_network_calls": False,
+            "mutates_target_repo": False,
+            "mutates_memory": False,
+            "runtime_execution": False,
+            "source_writes": False,
+            "memory_mutation": False,
+            "artifact_is_authority": False,
+            "bypasses_command_authority": False,
+            "bypasses_verification": False,
+            "grants_runtime_authority": False,
+            "authorizes_execution": False,
+            "grants_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
     }
 
 
@@ -344,7 +389,7 @@ def test_artifact_chain_references() -> None:
     assert "promotion_review_ref" in fields
     assert "promotion_request_ref" in fields
     assert "target_profile_ref" in fields
-    assert "command_authority_ref" in fields
+    assert "command_authority_ref" not in fields
     assert "verification_profile_ref" in fields
     assert "source_proposal_refs[0]" in fields
 
@@ -514,3 +559,159 @@ def test_core_as_platform_identity_rejected() -> None:
     manifest["candidate_scope"]["notes"] = "builder-ii is core platform."
     errors = validate_execution_candidate_manifest(manifest)
     assert any("Forbidden text implying builder-II is CORE" in err for err in errors)
+
+
+def test_cli_candidate_manifest_rejects_malformed_approval_boundary(
+    tmp_path: Path,
+) -> None:
+    boundary = tmp_path / "boundary.json"
+    decision = tmp_path / "decision.json"
+    review = tmp_path / "review.json"
+    request = tmp_path / "request.json"
+    proposal = tmp_path / "proposal.json"
+    target = tmp_path / "target.json"
+    cmd_auth = tmp_path / "cmd_auth.json"
+    ver_profile = tmp_path / "ver_profile.json"
+    output = tmp_path / "manifest.json"
+
+    # Malformed: missing source_decision_result
+    boundary_data = _boundary_data()
+    del boundary_data["source_decision_result"]
+
+    boundary.write_text(json.dumps(boundary_data), encoding="utf-8")
+    decision.write_text(json.dumps(_decision_data()), encoding="utf-8")
+    review.write_text(json.dumps(_review_data()), encoding="utf-8")
+    request.write_text(json.dumps(_request_data()), encoding="utf-8")
+    proposal.write_text(json.dumps(_proposal_data()), encoding="utf-8")
+    target.write_text(json.dumps(_target_profile_data()), encoding="utf-8")
+    cmd_auth.write_text(json.dumps(_cmd_auth_data()), encoding="utf-8")
+    ver_profile.write_text(json.dumps(_ver_profile_data()), encoding="utf-8")
+
+    res = runner.invoke(
+        hitl_app,
+        [
+            "candidate-manifest",
+            "--approval-boundary-path",
+            str(boundary),
+            "--decision-path",
+            str(decision),
+            "--review-path",
+            str(review),
+            "--request-path",
+            str(request),
+            "--source-proposal-path",
+            str(proposal),
+            "--target-profile-path",
+            str(target),
+            "--command-authority-path",
+            str(cmd_auth),
+            "--verification-profile-path",
+            str(ver_profile),
+            "--output",
+            str(output),
+            "--no-mutation-assertion",
+        ],
+    )
+    assert res.exit_code != 0
+    assert "Approval boundary validation error" in res.output
+
+
+def test_cli_candidate_manifest_rejects_unapproved_decision_result(
+    tmp_path: Path,
+) -> None:
+    boundary = tmp_path / "boundary.json"
+    decision = tmp_path / "decision.json"
+    review = tmp_path / "review.json"
+    request = tmp_path / "request.json"
+    proposal = tmp_path / "proposal.json"
+    target = tmp_path / "target.json"
+    cmd_auth = tmp_path / "cmd_auth.json"
+    ver_profile = tmp_path / "ver_profile.json"
+    output = tmp_path / "manifest.json"
+
+    # Not approved: rejected_only
+    boundary_data = _boundary_data()
+    boundary_data["source_decision_result"] = "rejected_only"
+
+    boundary.write_text(json.dumps(boundary_data), encoding="utf-8")
+    decision.write_text(json.dumps(_decision_data()), encoding="utf-8")
+    review.write_text(json.dumps(_review_data()), encoding="utf-8")
+    request.write_text(json.dumps(_request_data()), encoding="utf-8")
+    proposal.write_text(json.dumps(_proposal_data()), encoding="utf-8")
+    target.write_text(json.dumps(_target_profile_data()), encoding="utf-8")
+    cmd_auth.write_text(json.dumps(_cmd_auth_data()), encoding="utf-8")
+    ver_profile.write_text(json.dumps(_ver_profile_data()), encoding="utf-8")
+
+    res = runner.invoke(
+        hitl_app,
+        [
+            "candidate-manifest",
+            "--approval-boundary-path",
+            str(boundary),
+            "--decision-path",
+            str(decision),
+            "--review-path",
+            str(review),
+            "--request-path",
+            str(request),
+            "--source-proposal-path",
+            str(proposal),
+            "--target-profile-path",
+            str(target),
+            "--command-authority-path",
+            str(cmd_auth),
+            "--verification-profile-path",
+            str(ver_profile),
+            "--output",
+            str(output),
+            "--no-mutation-assertion",
+        ],
+    )
+    assert res.exit_code != 0
+    assert "Approval boundary validation error" in res.output
+
+
+def test_deephaven_key_name_rejected() -> None:
+    manifest = _mock_valid_manifest()
+    manifest["candidate_scope"]["deephaven_field"] = "some_value"
+    errors = validate_execution_candidate_manifest(manifest)
+    assert any("Deephaven work is forbidden in key" in err for err in errors)
+
+
+def test_active_ish_words_in_source_proposal_refs_path() -> None:
+    manifest = _mock_valid_manifest()
+    # Path has active-ish words like "execute" and "run"
+    manifest["source_proposal_refs"][0]["path"] = "execute_run_proposal.json"
+    errors = validate_execution_candidate_manifest(manifest)
+    assert not errors, (
+        f"Expected active-ish words in source_proposal_refs path to be skipped, got errors: {errors}"
+    )
+
+
+def test_forbidden_command_detection_no_false_positives() -> None:
+    manifest = _mock_valid_manifest()
+    # Harmless substrings "datacurl" or "show_chmod" should NOT trigger forbidden command rejection
+    manifest["candidate_scope"]["command_previews"] = [
+        "builder-hitl validate-candidate-manifest --arg datacurl --arg show_chmod"
+    ]
+    errors = validate_execution_candidate_manifest(manifest)
+    assert not errors, f"Expected no error for harmless substrings, got: {errors}"
+
+
+def test_chain_extraction_command_authority_snapshot_ref() -> None:
+    manifest = _mock_valid_manifest()
+    manifest["command_authority_snapshot_ref"] = _ref(
+        "builder_ii.snapshot_record", "snapshot.json"
+    )
+
+    # command_authority_snapshot_ref should be extracted pointing to builder_ii.snapshot_record
+    # command_authority_ref is metadata-only and should not be extracted
+    refs = extract_references(manifest)
+    fields = {r["field"]: r for r in refs}
+
+    assert "command_authority_snapshot_ref" in fields
+    assert (
+        fields["command_authority_snapshot_ref"]["expected_kind"]
+        == "builder_ii.snapshot_record"
+    )
+    assert "command_authority_ref" not in fields

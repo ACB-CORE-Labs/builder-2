@@ -15,7 +15,10 @@ from builder_ii.execution_candidate_manifest import (
     validate_execution_candidate_manifest_validation_report,
     write_execution_candidate_manifest,
 )
-from builder_ii.hitl_promotion_artifacts import _create_ref
+from builder_ii.hitl_promotion_artifacts import (
+    _create_ref,
+    validate_hitl_approval_boundary,
+)
 
 manifest_cli_app = typer.Typer(help="HITL candidate manifest CLI.")
 console = Console()
@@ -100,6 +103,12 @@ def candidate_manifest(
     cmd_auth = _load_json(command_authority_path)
     ver_prof = _load_json(verification_profile_path)
 
+    boundary_errors = validate_hitl_approval_boundary(boundary)
+    if boundary_errors:
+        for err in boundary_errors:
+            console.print(f"Approval boundary validation error: {err}")
+        raise typer.Exit(1)
+
     boundary_ref = _create_ref(
         boundary, path=approval_boundary_path, role="approval_boundary"
     )
@@ -169,17 +178,13 @@ def candidate_manifest(
     if command_preview:
         candidate_scope["command_previews"] = command_preview
 
-    source_approval_boundary_record_state = boundary.get(
-        "record_state", "BOUNDARY_RECORDED_ONLY"
-    )
-    source_approval_boundary_decision_result = boundary.get(
-        "source_decision_result", "approved_for_candidate_design"
-    )
+    source_approval_boundary_record_state = boundary.get("record_state")
+    source_approval_boundary_decision_result = boundary.get("source_decision_result")
     source_approval_boundary_decision_record_state = boundary.get(
-        "source_decision_record_state", "DECISION_RECORDED_ONLY"
+        "source_decision_record_state"
     )
     source_approval_boundary_requires_separate_execution_candidate = boundary.get(
-        "requires_separate_execution_candidate", True
+        "requires_separate_execution_candidate"
     )
 
     manifest = create_execution_candidate_manifest(
