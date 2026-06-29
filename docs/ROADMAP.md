@@ -206,12 +206,13 @@ Current RFCs:
 - `docs/plan/ARTIFACT_MEMORY_RFC.md` — artifact graph memory, memory atom envelope, reconstruction posture, and summary boundaries.
 - `docs/plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md` — deepagents plan/assignment/result/review/gate artifacts before any deepagents runtime construction.
 - `docs/plan/PASSIVE_HITL_PROMOTION_BRIDGE_RFC.md` — passive HITL promotion bridge artifacts connecting Goal 2 and Goal 3 proposals to traceable human boundaries.
+- `docs/plan/PASSIVE_EXECUTION_CANDIDATE_MANIFEST_RFC.md` — Goal 5 passive execution candidate manifest design that consumes a verified `builder_ii.hitl_approval_boundary` and authorizes only bounded candidate/validation artifacts, not runtime activation.
 - `docs/plan/RUST_VALIDATION_SPIKE.md` — measurement-first Rust validation spike plan with Python reference parity.
 - `docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md` — Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated integration seam.
 - `docs/plan/MCP_POLICY_ARTIFACT_RFC.md` — deny-by-default MCP policy artifact for tools, resources, prompts, roots, sampling, elicitation, auth, limits, and result handling.
 - `docs/plan/MCP_TOOL_INVENTORY_RFC.md` — MCP inventory artifact, tool/resource/prompt hashes, risk classification, and change detection before policy or invocation.
 
-These RFCs are not implementation authority. They do not enable memory mutation, deepagents construction, Rust dependencies, shell execution, model calls, source mutation, MCP connection, MCP tool execution, or Goose runtime activation.
+These RFCs are not implementation authority. They do not enable memory mutation, deepagents construction, Rust dependencies, shell execution, model calls, source mutation, MCP connection, MCP tool execution, target repo mutation, execution candidate activation, or Goose runtime activation.
 
 ## Performance and integration priorities
 
