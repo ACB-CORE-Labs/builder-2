@@ -19,12 +19,14 @@ from builder_ii.hitl_execution_records import (
     write_hitl_execution_request,
 )
 from builder_ii.hitl_promotion_cli import register_promotion_commands
+from builder_ii.execution_candidate_manifest_cli import register_manifest_commands
 
 hitl_app = typer.Typer(
     help="HITL execution request/receipt artifact CLI (No Execution)."
 )
 console = Console()
 register_promotion_commands(hitl_app)
+register_manifest_commands(hitl_app)
 
 
 @hitl_app.command("request")
