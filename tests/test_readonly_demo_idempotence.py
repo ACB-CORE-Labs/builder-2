@@ -163,3 +163,15 @@ def test_readonly_founder_demo_force_safety_violations(tmp_path: Path) -> None:
     assert "Error:" in normalized_out
     assert "Safety violation:" in normalized_out
     assert (blocked_dir / "sentinel.txt").exists()
+
+    file_output = tmp_path / "core-readonly-file"
+    file_output.write_text("keep\\n", encoding="utf-8")
+    file_result = runner.invoke(
+        targets_app,
+        ["readonly-founder-demo", "core", "--output", str(file_output), "--force"],
+    )
+    assert file_result.exit_code == 1
+    file_out = " ".join(file_result.stdout.split())
+    assert "Error:" in file_out
+    assert "not a directory" in file_out
+    assert file_output.read_text(encoding="utf-8") == "keep\\n"

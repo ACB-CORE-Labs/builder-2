@@ -245,7 +245,8 @@ def _is_relative_to(path: Path, parent: Path) -> bool:
 
 def _has_demo_temp_scope(path: Path) -> bool:
     markers = ("demo", "test", "readonly", "idempotence")
-    return any(any(marker in part.lower() for marker in markers) for part in path.parts)
+    name = path.name.lower()
+    return any(marker in name for marker in markers)
 
 
 def validate_safe_demo_directory_for_deletion(path: Path, settings: Settings) -> None:
@@ -327,15 +328,18 @@ def generate_readonly_founder_demo(
 ) -> dict[str, Path]:
     settings = settings or load_settings()
     out = output_dir or (Path.cwd() / ".builder" / "demos" / f"{target}-readonly")
-    if out.exists() and any(out.iterdir()):
-        if not force:
-            raise ValueError(
-                f"Output directory '{out}' already exists and is not empty. "
-                "Use --force to overwrite/recreate."
-            )
-        validate_safe_demo_directory_for_deletion(out, settings)
-        import shutil
-        shutil.rmtree(out)
+    if out.exists():
+        if not out.is_dir():
+            raise ValueError(f"Output path '{out}' already exists and is not a directory.")
+        if any(out.iterdir()):
+            if not force:
+                raise ValueError(
+                    f"Output directory '{out}' already exists and is not empty. "
+                    "Use --force to overwrite/recreate."
+                )
+            validate_safe_demo_directory_for_deletion(out, settings)
+            import shutil
+            shutil.rmtree(out)
 
     out.mkdir(parents=True, exist_ok=True)
     artifacts_dir = out / "artifacts"
