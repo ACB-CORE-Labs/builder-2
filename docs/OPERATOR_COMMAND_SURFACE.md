@@ -292,13 +292,98 @@ The operator command surface is organized by phase. Every command operates stric
 
 ### Optional Deepagents Readiness
 
-#### `builder-deepagents check-readiness`
-- **Command name**: `builder-deepagents check-readiness`
-- **Purpose**: Inspect optional bridge readiness and configuration for deepagents integration.
-- **Output artifact, if any**: Optional readiness report JSON artifact.
-- **Execution authority**: disabled / artifact-only (readiness evaluation only; no runtime activation).
-- **Human responsibility**: Confirm readiness status without relying on autonomous delegation.
+#### `builder-deepagents policy`
+- **Command name**: `builder-deepagents policy`
+- **Purpose**: Create governed deepagents policy metadata without constructing deepagents.
+- **Output artifact, if any**: Deepagents policy JSON.
+- **Execution authority**: artifact-only
 - **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents validate`
+- **Command name**: `builder-deepagents validate`
+- **Purpose**: Validate governed deepagents policy metadata.
+- **Output artifact, if any**: None.
+- **Execution authority**: validation-only
+- **Writes**: Read-only; writes diagnostic stdout/stderr only.
+
+#### `builder-deepagents readiness`
+- **Command name**: `builder-deepagents readiness`
+- **Purpose**: Create optional dependency-readiness metadata for deepagents integration.
+- **Output artifact, if any**: Deepagents readiness JSON.
+- **Execution authority**: artifact-only; no runtime activation.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents validate-readiness`
+- **Command name**: `builder-deepagents validate-readiness`
+- **Purpose**: Validate deepagents dependency-readiness metadata.
+- **Output artifact, if any**: None.
+- **Execution authority**: validation-only
+- **Writes**: Read-only; writes diagnostic stdout/stderr only.
+
+#### `builder-deepagents delegate`
+- **Command name**: `builder-deepagents delegate`
+- **Purpose**: Fail closed for forbidden active deepagents delegation.
+- **Output artifact, if any**: None.
+- **Execution authority**: forbidden / unpromoted
+- **Writes**: None.
+
+### Deepagents Work Artifacts
+
+#### `builder-deepagents work-plan`
+- **Command name**: `builder-deepagents work-plan`
+- **Purpose**: Create a passive deepagents work plan artifact.
+- **Output artifact, if any**: Deepagents work plan JSON.
+- **Execution authority**: artifact-only
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents assign-subagent`
+- **Command name**: `builder-deepagents assign-subagent`
+- **Purpose**: Create a passive deepagents subagent assignment artifact.
+- **Output artifact, if any**: Subagent assignment JSON.
+- **Execution authority**: artifact-only
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents record-result`
+- **Command name**: `builder-deepagents record-result`
+- **Purpose**: Create a passive deepagents subagent result artifact.
+- **Output artifact, if any**: Subagent result JSON.
+- **Execution authority**: artifact-only
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents review-result`
+- **Command name**: `builder-deepagents review-result`
+- **Purpose**: Create a passive deepagents subagent review artifact.
+- **Output artifact, if any**: Subagent review JSON.
+- **Execution authority**: artifact-only
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents request-human-gate`
+- **Command name**: `builder-deepagents request-human-gate`
+- **Purpose**: Create a passive deepagents human gate request artifact.
+- **Output artifact, if any**: Human gate request JSON.
+- **Execution authority**: artifact-only
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents record-blocked-action`
+- **Command name**: `builder-deepagents record-blocked-action`
+- **Purpose**: Create a passive deepagents blocked action record artifact.
+- **Output artifact, if any**: Blocked action record JSON.
+- **Execution authority**: artifact-only
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents proposal-result`
+- **Command name**: `builder-deepagents proposal-result`
+- **Purpose**: Create a passive deepagents proposal result artifact.
+- **Output artifact, if any**: Proposal result JSON.
+- **Execution authority**: artifact-only
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents validate-work-artifact`
+- **Command name**: `builder-deepagents validate-work-artifact`
+- **Purpose**: Validate any passive deepagents work-output artifact file.
+- **Output artifact, if any**: None.
+- **Execution authority**: validation-only
+- **Writes**: Read-only; writes diagnostic stdout/stderr only.
 
 #### `builder-bridge status`
 - **Command name**: `builder-bridge status`

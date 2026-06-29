@@ -67,6 +67,16 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.verification_profile_report`
 - `builder_ii.handoff_note`
 - `builder_ii.deepagents_bridge_readiness_report`
+- `builder_ii.deepagents_governed_policy`
+- `builder_ii.deepagents_dependency_readiness`
+- `builder_ii.deepagents_work_plan`
+- `builder_ii.deepagents_subagent_assignment`
+- `builder_ii.deepagents_subagent_result`
+- `builder_ii.deepagents_subagent_review`
+- `builder_ii.deepagents_human_gate_request`
+- `builder_ii.deepagents_blocked_action_record`
+- `builder_ii.deepagents_proposal_result`
+- `builder_ii.deepagents_work_validation_report`
 - `builder_ii.goose_session_manifest`
 - `builder_ii.handoff_artifact`
 - `builder_ii.session_configuration`
@@ -123,6 +133,16 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.verification_profile_report` | Verification report plan | #133 |
 | `builder_ii.handoff_note` | Handoff note | #133 |
 | `builder_ii.deepagents_bridge_readiness_report` | Bridge readiness check | #133 |
+| `builder_ii.deepagents_governed_policy` | Passive deepagents governed policy | Goal 3 prerequisite |
+| `builder_ii.deepagents_dependency_readiness` | Passive deepagents dependency readiness | Goal 3 prerequisite |
+| `builder_ii.deepagents_work_plan` | Passive deepagents work plan | Goal 3 |
+| `builder_ii.deepagents_subagent_assignment` | Passive deepagents subagent assignment | Goal 3 |
+| `builder_ii.deepagents_subagent_result` | Passive deepagents subagent result | Goal 3 |
+| `builder_ii.deepagents_subagent_review` | Passive deepagents subagent review | Goal 3 |
+| `builder_ii.deepagents_human_gate_request` | Passive deepagents human gate request | Goal 3 |
+| `builder_ii.deepagents_blocked_action_record` | Passive deepagents blocked action record | Goal 3 |
+| `builder_ii.deepagents_proposal_result` | Passive deepagents proposal result | Goal 3 |
+| `builder_ii.deepagents_work_validation_report` | Passive deepagents validation report | Goal 3 |
 | `builder_ii.goose_session_manifest` | Goose session manifest | #133 |
 | `builder_ii.handoff_artifact` | Handoff record | #133 |
 | `builder_ii.session_configuration` | Session configuration | #133 |

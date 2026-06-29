@@ -125,6 +125,14 @@ from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
     validate_deepagents_bridge_readiness_report,
 )
+from builder_ii.deepagents_policy import (
+    DEEPAGENTS_POLICY_KIND,
+    validate_deepagents_policy_artifact,
+)
+from builder_ii.deepagents_readiness import (
+    DEEPAGENTS_READINESS_KIND,
+    validate_deepagents_readiness_artifact,
+)
 from builder_ii.repo_map import (
     REPO_MAP_KIND,
     validate_repo_map,
@@ -224,6 +232,24 @@ from builder_ii.orchestration_assignment import (
     ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
     validate_orchestration_assignment_validation_report,
 )
+from builder_ii.deepagents_work_artifacts import (
+    DEEPAGENTS_WORK_PLAN_KIND,
+    validate_deepagents_work_plan,
+    DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND,
+    validate_deepagents_subagent_assignment,
+    DEEPAGENTS_SUBAGENT_RESULT_KIND,
+    validate_deepagents_subagent_result,
+    DEEPAGENTS_SUBAGENT_REVIEW_KIND,
+    validate_deepagents_subagent_review,
+    DEEPAGENTS_HUMAN_GATE_REQUEST_KIND,
+    validate_deepagents_human_gate_request,
+    DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND,
+    validate_deepagents_blocked_action_record,
+    DEEPAGENTS_PROPOSAL_RESULT_KIND,
+    validate_deepagents_proposal_result,
+    DEEPAGENTS_WORK_VALIDATION_REPORT_KIND,
+    validate_deepagents_work_validation_report,
+)
 
 
 ARTIFACT_INDEX_RECORD_KIND = "builder_ii.artifact_index_record"
@@ -291,6 +317,8 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
     HANDOFF_NOTE_KIND: validate_handoff_note,
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
+    DEEPAGENTS_POLICY_KIND: validate_deepagents_policy_artifact,
+    DEEPAGENTS_READINESS_KIND: validate_deepagents_readiness_artifact,
     REPO_MAP_KIND: validate_repo_map,
     CONTEXT_PACK_KIND: validate_context_pack,
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND: validate_convention_kernel_platform_bundle,
@@ -319,6 +347,14 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     ORCHESTRATION_ASSIGNMENT_PLAN_KIND: validate_orchestration_assignment_plan,
     ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND: validate_orchestration_assignment_dry_run,
     ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND: validate_orchestration_assignment_validation_report,
+    DEEPAGENTS_WORK_PLAN_KIND: validate_deepagents_work_plan,
+    DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND: validate_deepagents_subagent_assignment,
+    DEEPAGENTS_SUBAGENT_RESULT_KIND: validate_deepagents_subagent_result,
+    DEEPAGENTS_SUBAGENT_REVIEW_KIND: validate_deepagents_subagent_review,
+    DEEPAGENTS_HUMAN_GATE_REQUEST_KIND: validate_deepagents_human_gate_request,
+    DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND: validate_deepagents_blocked_action_record,
+    DEEPAGENTS_PROPOSAL_RESULT_KIND: validate_deepagents_proposal_result,
+    DEEPAGENTS_WORK_VALIDATION_REPORT_KIND: validate_deepagents_work_validation_report,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
 

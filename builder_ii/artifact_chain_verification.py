@@ -155,6 +155,14 @@ from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
     validate_deepagents_bridge_readiness_report,
 )
+from builder_ii.deepagents_policy import (
+    DEEPAGENTS_POLICY_KIND,
+    validate_deepagents_policy_artifact,
+)
+from builder_ii.deepagents_readiness import (
+    DEEPAGENTS_READINESS_KIND,
+    validate_deepagents_readiness_artifact,
+)
 from builder_ii.repo_map import REPO_MAP_KIND, validate_repo_map
 from builder_ii.context_packs import CONTEXT_PACK_KIND, validate_context_pack
 from builder_ii.convention_kernel import (
@@ -219,6 +227,24 @@ from builder_ii.orchestration_assignment import (
     validate_orchestration_assignment_dry_run,
     ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
     validate_orchestration_assignment_validation_report,
+)
+from builder_ii.deepagents_work_artifacts import (
+    DEEPAGENTS_WORK_PLAN_KIND,
+    validate_deepagents_work_plan,
+    DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND,
+    validate_deepagents_subagent_assignment,
+    DEEPAGENTS_SUBAGENT_RESULT_KIND,
+    validate_deepagents_subagent_result,
+    DEEPAGENTS_SUBAGENT_REVIEW_KIND,
+    validate_deepagents_subagent_review,
+    DEEPAGENTS_HUMAN_GATE_REQUEST_KIND,
+    validate_deepagents_human_gate_request,
+    DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND,
+    validate_deepagents_blocked_action_record,
+    DEEPAGENTS_PROPOSAL_RESULT_KIND,
+    validate_deepagents_proposal_result,
+    DEEPAGENTS_WORK_VALIDATION_REPORT_KIND,
+    validate_deepagents_work_validation_report,
 )
 
 ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = (
@@ -309,6 +335,8 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_WRAPPER_PLAN_KIND: validate_goose_wrapper_plan,
     ORCHESTRATION_PLAN_KIND: validate_orchestration_plan,
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
+    DEEPAGENTS_POLICY_KIND: validate_deepagents_policy_artifact,
+    DEEPAGENTS_READINESS_KIND: validate_deepagents_readiness_artifact,
     REPO_MAP_KIND: validate_repo_map,
     CONTEXT_PACK_KIND: validate_context_pack,
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND: validate_convention_kernel_platform_bundle,
@@ -330,6 +358,14 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     ORCHESTRATION_ASSIGNMENT_PLAN_KIND: validate_orchestration_assignment_plan,
     ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND: validate_orchestration_assignment_dry_run,
     ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND: validate_orchestration_assignment_validation_report,
+    DEEPAGENTS_WORK_PLAN_KIND: validate_deepagents_work_plan,
+    DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND: validate_deepagents_subagent_assignment,
+    DEEPAGENTS_SUBAGENT_RESULT_KIND: validate_deepagents_subagent_result,
+    DEEPAGENTS_SUBAGENT_REVIEW_KIND: validate_deepagents_subagent_review,
+    DEEPAGENTS_HUMAN_GATE_REQUEST_KIND: validate_deepagents_human_gate_request,
+    DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND: validate_deepagents_blocked_action_record,
+    DEEPAGENTS_PROPOSAL_RESULT_KIND: validate_deepagents_proposal_result,
+    DEEPAGENTS_WORK_VALIDATION_REPORT_KIND: validate_deepagents_work_validation_report,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 
@@ -876,6 +912,134 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
             )
 
     elif kind == ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND:
+        value = record.get("subject_ref")
+        expected_kind = record.get("subject_kind")
+        if (
+            isinstance(value, dict)
+            and isinstance(expected_kind, str)
+            and (value.get("path") or value.get("sha256"))
+        ):
+            refs.append(
+                {
+                    "field": "subject_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": expected_kind,
+                }
+            )
+
+    elif kind == DEEPAGENTS_WORK_PLAN_KIND:
+        for field, expected_kind in (
+            ("orchestration_assignment_plan_ref", ORCHESTRATION_ASSIGNMENT_PLAN_KIND),
+            (
+                "orchestration_assignment_dry_run_ref",
+                ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
+            ),
+            ("deepagents_policy_ref", DEEPAGENTS_POLICY_KIND),
+            ("deepagents_readiness_ref", DEEPAGENTS_READINESS_KIND),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind,
+                    }
+                )
+
+    elif kind == DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND:
+        value = record.get("work_plan_ref")
+        if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+            refs.append(
+                {
+                    "field": "work_plan_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": DEEPAGENTS_WORK_PLAN_KIND,
+                }
+            )
+
+    elif kind == DEEPAGENTS_SUBAGENT_RESULT_KIND:
+        value = record.get("subagent_assignment_ref")
+        if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+            refs.append(
+                {
+                    "field": "subagent_assignment_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND,
+                }
+            )
+
+    elif kind == DEEPAGENTS_SUBAGENT_REVIEW_KIND:
+        for field, expected_kind in (
+            ("subagent_result_ref", DEEPAGENTS_SUBAGENT_RESULT_KIND),
+            ("subagent_assignment_ref", DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND),
+        ):
+            value = record.get(field)
+            if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+                refs.append(
+                    {
+                        "field": field,
+                        "sha256": value.get("sha256"),
+                        "path": value.get("path"),
+                        "expected_kind": expected_kind,
+                    }
+                )
+
+    elif kind == DEEPAGENTS_HUMAN_GATE_REQUEST_KIND:
+        value = record.get("reviewed_artifact_ref")
+        if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+            refs.append(
+                {
+                    "field": "reviewed_artifact_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": value.get("kind"),
+                }
+            )
+
+    elif kind == DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND:
+        value = record.get("triggering_artifact_ref")
+        if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+            refs.append(
+                {
+                    "field": "triggering_artifact_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": value.get("kind"),
+                }
+            )
+
+    elif kind == DEEPAGENTS_PROPOSAL_RESULT_KIND:
+        value = record.get("work_plan_ref")
+        if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
+            refs.append(
+                {
+                    "field": "work_plan_ref",
+                    "sha256": value.get("sha256"),
+                    "path": value.get("path"),
+                    "expected_kind": DEEPAGENTS_WORK_PLAN_KIND,
+                }
+            )
+        reviewed_result_refs = record.get("reviewed_result_refs")
+        if isinstance(reviewed_result_refs, list):
+            for index, value in enumerate(reviewed_result_refs):
+                if isinstance(value, dict) and (
+                    value.get("path") or value.get("sha256")
+                ):
+                    refs.append(
+                        {
+                            "field": f"reviewed_result_refs[{index}]",
+                            "sha256": value.get("sha256"),
+                            "path": value.get("path"),
+                            "expected_kind": value.get("kind"),
+                        }
+                    )
+
+    elif kind == DEEPAGENTS_WORK_VALIDATION_REPORT_KIND:
         value = record.get("subject_ref")
         expected_kind = record.get("subject_kind")
         if (

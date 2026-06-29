@@ -111,6 +111,22 @@ def test_operator_command_surface_doc_covers_goal2_assignment_commands():
         assert phrase in content, f"Missing Goal 2 operator surface phrase: {phrase}"
 
 
+def test_operator_command_surface_doc_covers_deepagents_actual_commands():
+    content = DOC_PATH.read_text(encoding="utf-8")
+    required = [
+        "builder-deepagents policy",
+        "builder-deepagents validate",
+        "builder-deepagents readiness",
+        "builder-deepagents validate-readiness",
+        "builder-deepagents delegate",
+        "builder-deepagents work-plan",
+        "builder-deepagents validate-work-artifact",
+    ]
+    for phrase in required:
+        assert phrase in content, f"Missing deepagents command phrase: {phrase}"
+    assert "builder-deepagents check-readiness" not in content
+
+
 def test_session_cli_command_surface_discoverability():
     runner = CliRunner()
     for cmd in ["command-surface", "operator-surface"]:

@@ -522,7 +522,7 @@ def operator_surface_cmd() -> None:
     table.add_row("Handoff", "builder-handoff create", "artifact-only", "Generate passive handoff note bundle")
     table.add_row("Verification", "builder-verification plan", "planned-only", "Emit planned verification profile report")
     table.add_row("HITL", "builder-hitl plan-patch", "planned-only", "Generate HITL patch specification proposal")
-    table.add_row("Deepagents", "builder-deepagents check-readiness", "disabled/artifact", "Inspect optional deepagents readiness")
+    table.add_row("Deepagents", "builder-deepagents readiness", "disabled/artifact", "Inspect optional deepagents readiness")
 
     console.print(table)
 
