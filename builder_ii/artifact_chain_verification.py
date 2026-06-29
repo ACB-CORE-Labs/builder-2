@@ -282,6 +282,15 @@ from builder_ii.workflow_records import (
     validate_workflow_status,
     validate_workflow_transition,
 )
+from builder_ii.readonly_founder_demo import (
+    TARGET_INSPECTION_PLAN_KIND,
+    TARGET_PATCH_PROPOSAL_KIND,
+    TARGET_VERIFICATION_PLAN_KIND,
+    validate_target_inspection_plan,
+    validate_target_patch_proposal,
+    validate_target_verification_plan,
+)
+
 
 
 ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = (
@@ -417,6 +426,9 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     EVENT_RECORD_KIND: validate_event_record,
     EVENT_LEDGER_KIND: validate_event_ledger,
     LEDGER_REPLAY_REPORT_KIND: validate_ledger_replay_report,
+    TARGET_INSPECTION_PLAN_KIND: validate_target_inspection_plan,
+    TARGET_PATCH_PROPOSAL_KIND: validate_target_patch_proposal,
+    TARGET_VERIFICATION_PLAN_KIND: validate_target_verification_plan,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 
@@ -1337,6 +1349,20 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
 
     elif kind == LEDGER_REPLAY_REPORT_KIND:
         append_artifact_ref("last_event_ref", record.get("last_event_ref"), EVENT_RECORD_KIND)
+
+    elif kind == TARGET_INSPECTION_PLAN_KIND:
+        append_artifact_ref("target_profile_ref", record.get("target_profile_ref"), TARGET_PROFILE_ARTIFACT_KIND)
+        append_artifact_ref("workflow_session_ref", record.get("workflow_session_ref"), WORKFLOW_SESSION_KIND)
+
+    elif kind == TARGET_PATCH_PROPOSAL_KIND:
+        append_artifact_ref("inspection_plan_ref", record.get("inspection_plan_ref"), TARGET_INSPECTION_PLAN_KIND)
+        append_artifact_ref("target_profile_ref", record.get("target_profile_ref"), TARGET_PROFILE_ARTIFACT_KIND)
+        append_artifact_ref("workflow_session_ref", record.get("workflow_session_ref"), WORKFLOW_SESSION_KIND)
+
+    elif kind == TARGET_VERIFICATION_PLAN_KIND:
+        append_artifact_ref("patch_proposal_ref", record.get("patch_proposal_ref"), TARGET_PATCH_PROPOSAL_KIND)
+        append_artifact_ref("target_profile_ref", record.get("target_profile_ref"), TARGET_PROFILE_ARTIFACT_KIND)
+        append_artifact_ref("workflow_session_ref", record.get("workflow_session_ref"), WORKFLOW_SESSION_KIND)
 
     return refs
 

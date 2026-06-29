@@ -286,6 +286,15 @@ from builder_ii.workflow_records import (
     validate_workflow_status,
     validate_workflow_transition,
 )
+from builder_ii.readonly_founder_demo import (
+    TARGET_INSPECTION_PLAN_KIND,
+    TARGET_PATCH_PROPOSAL_KIND,
+    TARGET_VERIFICATION_PLAN_KIND,
+    validate_target_inspection_plan,
+    validate_target_patch_proposal,
+    validate_target_verification_plan,
+)
+
 
 
 ARTIFACT_INDEX_RECORD_KIND = "builder_ii.artifact_index_record"
@@ -405,6 +414,9 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     EVENT_RECORD_KIND: validate_event_record,
     EVENT_LEDGER_KIND: validate_event_ledger,
     LEDGER_REPLAY_REPORT_KIND: validate_ledger_replay_report,
+    TARGET_INSPECTION_PLAN_KIND: validate_target_inspection_plan,
+    TARGET_PATCH_PROPOSAL_KIND: validate_target_patch_proposal,
+    TARGET_VERIFICATION_PLAN_KIND: validate_target_verification_plan,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
 
