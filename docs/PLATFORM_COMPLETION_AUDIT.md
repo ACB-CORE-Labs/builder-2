@@ -16,10 +16,10 @@ Current platform truth:
 
 - passive foundation state: `PASSIVE_FOUNDATION`
 - runtime authority state: not `OPERATIONALLY_VERIFIED`
-- setup/config kernel state: R1.1 passive schema, source resolution, and setup plan artifacts exist; apply/rollback remain non-operational
+- setup/config kernel state: R1.2 passive schema, source resolution, setup plan, overlay plan, and rollback snapshot artifacts exist; apply and rollback execution remain non-operational
 - next sequence: `R0 -> R1 -> B1`
 
-R1.1 adds passive config schema, source resolution, setup plan artifacts, command authority coverage, docs, and tests. R1.1 does not add runtime execution, setup apply, setup rollback, patch application, model/provider calls, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, or commit/push automation.
+R1.2 adds passive setup overlay and rollback snapshot artifacts, command authority coverage, docs, and tests on top of the R1.1 config/setup plan foundation. R1.2 does not add runtime execution, setup apply, setup rollback execution, Goose config writes, `.goosehints` writes, skill copying, recipe installation writes, patch application, model/provider calls, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, or commit/push automation.
 
 ## State Labels
 
@@ -50,14 +50,14 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | config source precedence | `PASSIVE_FOUNDATION` | R1 |
 | interactive setup wizard | `NOT_STARTED` | R1 |
 | non-interactive setup/apply/validate | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
-| Goose config overlay/rollback | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
+| Goose config overlay/rollback | `PASSIVE_FOUNDATION` | R1 |
 | recipe generator/wizard | `ARTIFACT_ONLY` | R1 |
 | skill generator/installer/validator | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
 | target profile wizard | `NOT_STARTED` | R1 |
 | agent profile wizard | `NOT_STARTED` | R1 |
 | verification profile wizard | `NOT_STARTED` | R1 |
 | deepagents/researcher setup wizard | `NOT_STARTED` | R1 |
-| setup receipt + rollback artifact | `NOT_STARTED` | R1 |
+| setup receipt + rollback artifact | `PASSIVE_FOUNDATION` | R1 |
 | model registry | `PASSIVE_FOUNDATION` | B6 |
 | model routing | `PASSIVE_FOUNDATION` | B6 |
 | model/provider execution | `MERGED_BUT_NOT_OPERATIONAL` | B6 |
@@ -93,9 +93,9 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 
 - Passive model routing exists through `builder-model-policy`; provider execution remains unpromoted.
 - Legacy operator-managed helpers such as `builder setup`, `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
-- Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, and `builder-platform`.
+- Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-setup overlay-plan`, `builder-setup rollback-snapshot`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, and `builder-platform`.
 - R1 Config + Onboarding Kernel must precede B1 verification execution because execution authority depends on canonical target roots, artifact roots, config source precedence, setup receipts, rollback artifacts, and auditable capability defaults.
-- `builder-setup plan` is passive setup planning only. It records future planned writes but cannot write Goose config, copy skills, apply setup, roll back setup, start models, start Goose, construct deepagents, call MCP/tools, or apply patches.
+- `builder-setup plan`, `builder-setup overlay-plan`, and `builder-setup rollback-snapshot` are passive setup planning only. They record future planned overlays and prior-state snapshot metadata but cannot write Goose config, write `.goosehints`, copy skills, install recipes, apply setup, execute rollback, start models, start Goose, construct deepagents, call MCP/tools, or apply patches.
 
 ## Validation
 
@@ -103,12 +103,16 @@ Use:
 
 ```bash
 CORE_REPO_PATH=. uv run pytest -q
-CORE_REPO_PATH=. uv run python scripts/verify_v0_release.py --output-dir /tmp/builder-ii-v0-proof-r0
+CORE_REPO_PATH=. uv run python scripts/verify_v0_release.py --output-dir /tmp/builder-ii-v0-proof-r1-2
 uv run builder-platform matrix
 uv run builder-platform status
 uv run builder-platform audit-docs
 uv run builder-config schema
 uv run builder-config resolve
-uv run builder-setup plan --output /tmp/builder-ii-setup-plan.json
-uv run builder-setup validate-plan /tmp/builder-ii-setup-plan.json
+uv run builder-setup plan --output /tmp/builder-ii-setup-plan-r1-2.json
+uv run builder-setup validate-plan /tmp/builder-ii-setup-plan-r1-2.json
+uv run builder-setup overlay-plan /tmp/builder-ii-setup-plan-r1-2.json --output /tmp/builder-ii-setup-overlay-r1-2.json
+uv run builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay-r1-2.json
+uv run builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay-r1-2.json --output /tmp/builder-ii-setup-rollback-snapshot-r1-2.json
+uv run builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot-r1-2.json
 ```

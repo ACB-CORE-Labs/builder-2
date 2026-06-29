@@ -82,6 +82,69 @@ def test_builder_setup_plan_and_validate_plan_cli(tmp_path: Path) -> None:
     assert json.loads(validate_result.output)["valid"] is True
 
 
+def test_builder_setup_overlay_and_rollback_cli_write_only_requested_artifacts(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    output_plan = tmp_path / "setup-plan.json"
+    output_overlay = tmp_path / "setup-overlay.json"
+    output_snapshot = tmp_path / "setup-rollback-snapshot.json"
+    home = tmp_path / "home"
+    env = {"HOME": str(home)}
+
+    plan_result = runner.invoke(
+        setup_app,
+        [
+            "plan",
+            "--root",
+            str(tmp_path),
+            "--target-repo",
+            str(target),
+            "--artifact-root",
+            str(tmp_path / "artifacts"),
+            "--output",
+            str(output_plan),
+        ],
+        env=env,
+    )
+    assert plan_result.exit_code == 0, plan_result.output
+    before = sorted(path.relative_to(target) for path in target.rglob("*"))
+
+    overlay_result = runner.invoke(
+        setup_app,
+        ["overlay-plan", str(output_plan), "--output", str(output_overlay)],
+        env=env,
+    )
+    assert overlay_result.exit_code == 0, overlay_result.output
+    assert output_overlay.exists()
+    overlay_data = json.loads(output_overlay.read_text(encoding="utf-8"))
+    assert overlay_data["kind"] == "builder_ii.setup_overlay_plan"
+    assert overlay_data["artifact_is_authority"] is False
+    assert all(change["planned_only"] is True for change in overlay_data["planned_changes"])
+
+    validate_overlay_result = runner.invoke(setup_app, ["validate-overlay-plan", str(output_overlay)], env=env)
+    assert validate_overlay_result.exit_code == 0, validate_overlay_result.output
+    assert json.loads(validate_overlay_result.output)["valid"] is True
+
+    snapshot_result = runner.invoke(
+        setup_app,
+        ["rollback-snapshot", str(output_overlay), "--output", str(output_snapshot)],
+        env=env,
+    )
+    assert snapshot_result.exit_code == 0, snapshot_result.output
+    assert output_snapshot.exists()
+    snapshot_data = json.loads(output_snapshot.read_text(encoding="utf-8"))
+    assert snapshot_data["kind"] == "builder_ii.setup_rollback_snapshot"
+    assert snapshot_data["snapshot_only"] is True
+    assert snapshot_data["artifact_is_authority"] is False
+
+    validate_snapshot_result = runner.invoke(setup_app, ["validate-rollback-snapshot", str(output_snapshot)], env=env)
+    assert validate_snapshot_result.exit_code == 0, validate_snapshot_result.output
+    assert json.loads(validate_snapshot_result.output)["valid"] is True
+
+    after = sorted(path.relative_to(target) for path in target.rglob("*"))
+    assert after == before
+
+
 def test_new_commands_are_tier1_without_runtime_authority() -> None:
     by_name = {record.name: record for record in COMMAND_AUTHORITY_REGISTRY}
     for name in (
@@ -92,6 +155,10 @@ def test_new_commands_are_tier1_without_runtime_authority() -> None:
         "builder-setup",
         "builder-setup plan",
         "builder-setup validate-plan",
+        "builder-setup overlay-plan",
+        "builder-setup validate-overlay-plan",
+        "builder-setup rollback-snapshot",
+        "builder-setup validate-rollback-snapshot",
     ):
         record = by_name[name]
         assert record.tier == TIER_1
@@ -111,3 +178,7 @@ def test_new_commands_are_tier1_without_runtime_authority() -> None:
     assert by_name["builder-config validate"].allows_artifact_writes is False
     assert by_name["builder-setup plan"].allows_artifact_writes is True
     assert by_name["builder-setup validate-plan"].allows_artifact_writes is False
+    assert by_name["builder-setup overlay-plan"].allows_artifact_writes is True
+    assert by_name["builder-setup validate-overlay-plan"].allows_artifact_writes is False
+    assert by_name["builder-setup rollback-snapshot"].allows_artifact_writes is True
+    assert by_name["builder-setup validate-rollback-snapshot"].allows_artifact_writes is False

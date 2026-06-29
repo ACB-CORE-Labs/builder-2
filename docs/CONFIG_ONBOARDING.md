@@ -1,6 +1,6 @@
 # Config + Onboarding Kernel
 
-R1.1 establishes passive configuration and setup-planning artifacts for builder-II. It is not an onboarding wizard, setup apply path, rollback path, runtime launcher, model gateway, Goose runtime, deepagents runtime, MCP/tool bridge, patch authority, or autonomous write mechanism.
+R1.2 extends passive configuration and setup-planning artifacts for builder-II with setup overlay plans and rollback snapshot plans. It is not an onboarding wizard, setup apply path, rollback execution path, runtime launcher, model gateway, Goose runtime, deepagents runtime, MCP/tool bridge, patch authority, or autonomous write mechanism.
 
 builder-II remains a generic governed local agent/developer platform. CORE is only a target profile/adapter. Generic `BUILDER_*` names are the preferred configuration vocabulary; legacy `CORE_*` names are accepted only as backwards-compatible aliases and are recorded as such in the source resolution artifact.
 
@@ -19,7 +19,7 @@ Every resolved field records the source kind, source key or config path, whether
 
 ## Canonical Fields
 
-The R1.1 schema models:
+The R1 schema models:
 
 - schema version;
 - platform artifact root;
@@ -71,9 +71,46 @@ Legacy aliases such as `CORE_REPO_PATH`, `CORE_AGENT_BACKEND`, and `CORE_AGENT_M
 
 The setup plan has `artifact_is_authority=false`. Planned writes are descriptive only. No setup plan can mutate a target repository, write Goose config, copy skills, start Goose, call a model, construct deepagents, invoke MCP/tools, run shell commands, apply patches, or authorize future writes.
 
+## Passive Setup Overlay Plan
+
+`builder-setup overlay-plan` consumes a valid setup plan artifact and emits `builder_ii.setup_overlay_plan`. The overlay plan describes exact future setup overlays without applying them. It includes planned-only changes for:
+
+- builder config file candidate materialization;
+- `.env` recommendation;
+- Goose config overlay candidate;
+- `.goosehints` candidate;
+- MOIM/session context candidate;
+- recipe path registration candidate;
+- skill install plan candidate;
+- target/profile reference materialization candidate.
+
+Every planned change has a change id, change kind, target path, scope classification, builder/target/user-config/artifact-root booleans, operation type, digest, redacted preview, conflict classification, future-approval requirement, rollback requirement, safety notes, and `planned_only=true`.
+
+The Goose overlay candidate records the config target path, expected prior config path, overlay keys, slash-command recipe paths, extension policy, recipe path, conflict warnings, secrets-preservation policy, and rollback requirement. It does not copy credentials or secrets into the artifact.
+
+Skill install planning records source directory, destination directory, skill id, manifest/source digests, destination path, create/replace/no-op classification, conflict notes, and rollback requirements. It does not copy skill files.
+
+## Passive Rollback Snapshot Plan
+
+`builder-setup rollback-snapshot` consumes a valid setup overlay plan and emits `builder_ii.setup_rollback_snapshot`. The snapshot is a prior-state description for future apply/rollback safety. It includes:
+
+- setup plan digest and overlay plan digest;
+- deterministic snapshot id and snapshot digest;
+- target paths covered;
+- prior existence state for each path;
+- prior content digest and size when a file exists;
+- redacted preview only when safe;
+- missing-file, directory, symlink, and unsupported-path markers;
+- secret redaction state;
+- future rollback operation needed;
+- `snapshot_only=true`;
+- `artifact_is_authority=false`.
+
+Normal JSON rollback snapshot artifacts do not store raw secrets or raw prior file content. They record digest, size, redacted preview, and a policy requiring future secure prior-content storage before any apply command can mutate a path.
+
 ## Path Safety
 
-R1.1 canonicalizes local paths. An artifact root inside a target source tree is rejected unless it is under the platform artifact convention `.builder/artifacts` or an explicit path policy opt-in is supplied. This prevents accidental source-tree mutation from being hidden inside setup planning.
+R1.2 canonicalizes local paths and classifies setup targets as builder repo, target repo, user config dir, artifact root, or outside declared setup scopes. Path traversal, symlink targets, directory/file conflicts, parent conflicts, missing parents, and unmanaged existing files are classified before any future apply exists. No planned write outside declared setup scopes validates.
 
 ## Commands
 
@@ -90,22 +127,28 @@ Passive setup commands:
 ```bash
 builder-setup plan --output /tmp/builder-ii-setup-plan.json
 builder-setup validate-plan /tmp/builder-ii-setup-plan.json
+builder-setup overlay-plan /tmp/builder-ii-setup-plan.json --output /tmp/builder-ii-setup-overlay.json
+builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay.json
+builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay.json --output /tmp/builder-ii-setup-rollback-snapshot.json
+builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json
 ```
 
 These commands are Tier 1 artifact-only or validation-only surfaces in `docs/COMMAND_AUTHORITY.md`.
 
 ## Non-Goals
 
-R1.1 does not implement:
+R1.2 does not implement:
 
 - interactive setup wizard;
 - setup apply;
-- setup rollback;
+- setup rollback execution;
 - setup receipt;
-- Goose overlay writes;
-- skill installation changes;
+- Goose config writes;
+- `.goosehints` writes;
+- skill copying or installation writes;
+- recipe installation writes;
 - B1 verification execution runner;
 - runtime/model/tool/MCP/deepagents/Goose/patch authority;
 - autonomous writes.
 
-Existing `builder setup` remains a legacy/operator-managed helper until later R1 slices reconcile setup apply, setup receipts, rollback artifacts, and governed write boundaries.
+Existing `builder setup` remains a legacy/operator-managed helper until later R1 slices reconcile setup apply, setup receipts, rollback execution, and governed write boundaries. Future R1.3 or later may implement apply/rollback using these artifacts.

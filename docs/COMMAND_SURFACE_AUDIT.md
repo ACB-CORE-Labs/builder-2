@@ -12,6 +12,15 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - `builder-config`
 - `builder-setup`
 
+R1.2 passive setup subcommands:
+
+- `builder-setup plan`
+- `builder-setup validate-plan`
+- `builder-setup overlay-plan`
+- `builder-setup validate-overlay-plan`
+- `builder-setup rollback-snapshot`
+- `builder-setup validate-rollback-snapshot`
+
 ## Target/Profile/Context
 - `builder-context`
 - `builder-profile-pack`
@@ -64,6 +73,9 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - no autonomous writes are enabled
 - no Goose runtime activation is enabled
 - no deepagents runtime is enabled
+- no setup apply is enabled
+- no setup rollback execution is enabled
+- no Goose config writes, `.goosehints` writes, skill copying, or recipe installation writes are enabled by `builder-setup`
 - builder-II is not CORE Workbench/UI
 - CORE is only a target profile
 

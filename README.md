@@ -374,13 +374,17 @@ builder-platform matrix
 builder-platform status
 builder-platform audit-docs
 
-# Inspect passive R1.1 config/setup planning artifacts.
-# These do not apply setup, write Goose config, copy skills, start runtime, or call models.
+# Inspect passive R1 config/setup planning artifacts.
+# These do not apply setup, execute rollback, write Goose config, copy skills, start runtime, or call models.
 builder-config schema
 builder-config resolve
 builder-config validate
 builder-setup plan --output /tmp/builder-ii-setup-plan.json
 builder-setup validate-plan /tmp/builder-ii-setup-plan.json
+builder-setup overlay-plan /tmp/builder-ii-setup-plan.json --output /tmp/builder-ii-setup-overlay.json
+builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay.json
+builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay.json --output /tmp/builder-ii-setup-rollback-snapshot.json
+builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json
 
 # Prepare a governed session package
 builder-session prepare-package --target builder --task "audit the selected target repo and identify the safest next patch" --output .builder/session/
@@ -388,4 +392,4 @@ builder-session validate-prepare-package .builder/session/
 builder-session summarize-prepare-package .builder/session/
 ```
 
-Existing `builder setup` remains legacy/operator-managed until later R1 slices reconcile passive setup plans with apply, receipt, and rollback artifacts.
+Existing `builder setup` remains legacy/operator-managed until later R1 slices reconcile passive setup plans, overlays, rollback snapshots, apply, receipts, and rollback execution.

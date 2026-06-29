@@ -94,6 +94,7 @@ def create_setup_plan(resolution: ConfigResolution) -> dict[str, Any]:
             "kind": CONFIG_SOURCE_RESOLUTION_KIND,
             "digest": resolution_artifact["digest"],
         },
+        "builder_repo_canonical_path": str(resolution.project_root),
         "target_repo_canonical_path": target_repo,
         "artifact_root_canonical_path": artifact_root,
         "selected_target_profile": _field(resolution, "active_target_profile"),
@@ -171,6 +172,7 @@ def validate_setup_plan_artifact(data: Any) -> list[str]:
         if not isinstance(digest, str) or len(digest) != 64:
             errors.append("config_source_resolution_ref.digest must be a SHA-256 hex string")
     for path_field in (
+        "builder_repo_canonical_path",
         "target_repo_canonical_path",
         "artifact_root_canonical_path",
         "goose_config_target_path",
