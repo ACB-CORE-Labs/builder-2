@@ -169,6 +169,19 @@ def candidate_manifest(
     if command_preview:
         candidate_scope["command_previews"] = command_preview
 
+    source_approval_boundary_record_state = boundary.get(
+        "record_state", "BOUNDARY_RECORDED_ONLY"
+    )
+    source_approval_boundary_decision_result = boundary.get(
+        "source_decision_result", "approved_for_candidate_design"
+    )
+    source_approval_boundary_decision_record_state = boundary.get(
+        "source_decision_record_state", "DECISION_RECORDED_ONLY"
+    )
+    source_approval_boundary_requires_separate_execution_candidate = boundary.get(
+        "requires_separate_execution_candidate", True
+    )
+
     manifest = create_execution_candidate_manifest(
         approval_boundary_ref=boundary_ref,
         promotion_decision_ref=dec_ref,
@@ -181,6 +194,10 @@ def candidate_manifest(
         rollback_requirements=rollback_reqs,
         verification_requirements=verification_reqs,
         candidate_scope=candidate_scope,
+        source_approval_boundary_record_state=source_approval_boundary_record_state,
+        source_approval_boundary_decision_result=source_approval_boundary_decision_result,
+        source_approval_boundary_decision_record_state=source_approval_boundary_decision_record_state,
+        source_approval_boundary_requires_separate_execution_candidate=source_approval_boundary_requires_separate_execution_candidate,
         rollback_plan_ref=rollback_plan_ref,
         git_state_ref=git_state_ref,
         preflight_ref=preflight_ref,

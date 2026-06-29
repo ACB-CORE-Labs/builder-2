@@ -185,6 +185,69 @@ def _validate_no_active_state_claims(value: Any, path: str) -> list[str]:
     return errors
 
 
+def _scan_forbidden_boolean_keys(data: Any, path: str) -> list[str]:
+    errors: list[str] = []
+    forbidden_keys = {
+        "records_execution",
+        "authorizes_activation",
+        "activation_requested",
+        "runtime_activation",
+        "execution_started",
+        "execution_completed",
+        "commands_executed",
+        "tools_invoked",
+        "model_invoked",
+        "goose_started",
+        "deepagents_dispatched",
+        "mcp_invoked",
+        "network_called",
+        "target_repo_mutated",
+        "memory_mutated",
+    }
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if k in forbidden_keys and v is True:
+                errors.append(
+                    f"field '{path}.{k}' claims forbidden active capability '{k}'"
+                )
+            errors.extend(_scan_forbidden_boolean_keys(v, f"{path}.{k}" if path else k))
+    elif isinstance(data, list):
+        for idx, item in enumerate(data):
+            errors.extend(_scan_forbidden_boolean_keys(item, f"{path}[{idx}]"))
+    return errors
+
+
+def _scan_platform_identity_rejection(data: Any, path: str) -> list[str]:
+    errors: list[str] = []
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if (
+                k in ("platform_identity", "platform_name")
+                and isinstance(v, str)
+                and v.upper() == "CORE"
+            ):
+                errors.append(
+                    f"Forbidden CORE platform identity claim in field '{path}.{k}'"
+                )
+            errors.extend(
+                _scan_platform_identity_rejection(v, f"{path}.{k}" if path else k)
+            )
+    elif isinstance(data, list):
+        for idx, item in enumerate(data):
+            errors.extend(_scan_platform_identity_rejection(item, f"{path}[{idx}]"))
+    elif isinstance(data, str):
+        normalized = data.lower()
+        if (
+            "builder-ii is core" in normalized
+            or "builder_ii is core" in normalized
+            or "builder ii is core" in normalized
+        ):
+            errors.append(
+                f"Forbidden text implying builder-II is CORE in field '{path}'"
+            )
+    return errors
+
+
 def _manifest_top_level_invariants() -> dict[str, Any]:
     return {
         "executes_model": False,
@@ -281,6 +344,10 @@ def create_execution_candidate_manifest(
     verification_requirements: dict[str, Any],
     candidate_scope: dict[str, Any],
     *,
+    source_approval_boundary_record_state: str,
+    source_approval_boundary_decision_result: str,
+    source_approval_boundary_decision_record_state: str,
+    source_approval_boundary_requires_separate_execution_candidate: bool,
     rollback_plan_ref: dict[str, Any] | None = None,
     git_state_ref: dict[str, Any] | None = None,
     preflight_ref: dict[str, Any] | None = None,
@@ -303,6 +370,10 @@ def create_execution_candidate_manifest(
         "rollback_requirements": rollback_requirements,
         "verification_requirements": verification_requirements,
         "candidate_scope": candidate_scope,
+        "source_approval_boundary_record_state": source_approval_boundary_record_state,
+        "source_approval_boundary_decision_result": source_approval_boundary_decision_result,
+        "source_approval_boundary_decision_record_state": source_approval_boundary_decision_record_state,
+        "source_approval_boundary_requires_separate_execution_candidate": source_approval_boundary_requires_separate_execution_candidate,
         **_manifest_top_level_invariants(),
         "governance": _manifest_default_governance("CANDIDATE_RECORDED_ONLY"),
     }
@@ -382,6 +453,10 @@ def _validate_command_previews(previews: Any, path: str) -> list[str]:
                     errors.append(
                         f"preview command '{preview}' references forbidden Tier 4 subcommand '{matched_record.name}' at '{curr_path}'"
                     )
+            else:
+                errors.append(
+                    f"preview command '{preview}' has no matching command authority record at '{curr_path}'"
+                )
     return errors
 
 
@@ -398,6 +473,33 @@ def validate_execution_candidate_manifest(data: Any) -> list[str]:
         )
     if data.get("record_state") != "CANDIDATE_RECORDED_ONLY":
         errors.append("record_state must be CANDIDATE_RECORDED_ONLY")
+
+    # Source approval boundary snapshot validation
+    if data.get("source_approval_boundary_record_state") != "BOUNDARY_RECORDED_ONLY":
+        errors.append(
+            "source_approval_boundary_record_state must be BOUNDARY_RECORDED_ONLY"
+        )
+    if (
+        data.get("source_approval_boundary_decision_result")
+        != "approved_for_candidate_design"
+    ):
+        errors.append(
+            "source_approval_boundary_decision_result must be approved_for_candidate_design"
+        )
+    if (
+        data.get("source_approval_boundary_decision_record_state")
+        != "DECISION_RECORDED_ONLY"
+    ):
+        errors.append(
+            "source_approval_boundary_decision_record_state must be DECISION_RECORDED_ONLY"
+        )
+    if (
+        data.get("source_approval_boundary_requires_separate_execution_candidate")
+        is not True
+    ):
+        errors.append(
+            "source_approval_boundary_requires_separate_execution_candidate must be true"
+        )
 
     # Required refs validation
     errors.extend(
@@ -596,6 +698,8 @@ def validate_execution_candidate_manifest(data: Any) -> list[str]:
 
     errors.extend(_validate_manifest_invariants(data, "CANDIDATE_RECORDED_ONLY"))
     errors.extend(_validate_no_active_state_claims(data, ""))
+    errors.extend(_scan_forbidden_boolean_keys(data, ""))
+    errors.extend(_scan_platform_identity_rejection(data, ""))
 
     return errors
 
@@ -671,6 +775,8 @@ def validate_execution_candidate_manifest_validation_report(data: Any) -> list[s
 
     errors.extend(_validate_manifest_invariants(data, "VALIDATION_ONLY"))
     errors.extend(_validate_no_active_state_claims(data, ""))
+    errors.extend(_scan_forbidden_boolean_keys(data, ""))
+    errors.extend(_scan_platform_identity_rejection(data, ""))
     return errors
 
 

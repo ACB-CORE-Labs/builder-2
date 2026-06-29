@@ -37,6 +37,7 @@ def _boundary_data() -> dict:
         "record_state": "BOUNDARY_RECORDED_ONLY",
         "source_decision_result": "approved_for_candidate_design",
         "source_decision_record_state": "DECISION_RECORDED_ONLY",
+        "requires_separate_execution_candidate": True,
     }
 
 
@@ -123,8 +124,12 @@ def _mock_valid_manifest() -> dict:
         candidate_scope={
             "target_profile": "generic",
             "core_workbench_coupling": "NONE",
-            "command_previews": ["builder-hitl validate"],
+            "command_previews": ["builder-hitl validate-candidate-manifest"],
         },
+        source_approval_boundary_record_state="BOUNDARY_RECORDED_ONLY",
+        source_approval_boundary_decision_result="approved_for_candidate_design",
+        source_approval_boundary_decision_record_state="DECISION_RECORDED_ONLY",
+        source_approval_boundary_requires_separate_execution_candidate=True,
     )
 
 
@@ -252,7 +257,7 @@ def test_tier_4_command_preview_fails() -> None:
 def test_shell_control_syntax_in_preview_fails() -> None:
     manifest = _mock_valid_manifest()
     manifest["candidate_scope"]["command_previews"] = [
-        "builder-hitl validate ; rm -rf /"
+        "builder-hitl validate-candidate-manifest ; rm -rf /"
     ]
     errors = validate_execution_candidate_manifest(manifest)
     assert any("shell control syntax" in err for err in errors)
@@ -262,7 +267,7 @@ def test_forbidden_commands_in_preview_fails() -> None:
     for cmd in ("sh -c", "bash -c", "python -c", "curl", "wget", "chmod", "rm -rf"):
         manifest = _mock_valid_manifest()
         manifest["candidate_scope"]["command_previews"] = [
-            f"builder-hitl validate --arg '{cmd}'"
+            f"builder-hitl validate-candidate-manifest --arg '{cmd}'"
         ]
         errors = validate_execution_candidate_manifest(manifest)
         assert any("forbidden active command" in err for err in errors), (
@@ -433,7 +438,6 @@ def test_cli_commands(tmp_path: Path) -> None:
 
 
 def test_hitl_verification_candidate_sibling() -> None:
-    # Existing sibling hitl verification execution candidate kind remains a specialized sibling
     from builder_ii.hitl_verification_candidate import (
         HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
         validate_hitl_verification_execution_candidate,
@@ -443,6 +447,70 @@ def test_hitl_verification_candidate_sibling() -> None:
         HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND
         == "builder_ii.hitl_verification_execution_candidate"
     )
-
-    # Asserting that we do not change verification candidate validators
     assert validate_hitl_verification_execution_candidate is not None
+
+
+def test_unapproved_source_boundary_fails() -> None:
+    manifest = _mock_valid_manifest()
+    manifest["source_approval_boundary_record_state"] = "INVALID"
+    assert (
+        "source_approval_boundary_record_state must be BOUNDARY_RECORDED_ONLY"
+        in validate_execution_candidate_manifest(manifest)
+    )
+
+    manifest = _mock_valid_manifest()
+    manifest["source_approval_boundary_decision_result"] = "INVALID"
+    assert (
+        "source_approval_boundary_decision_result must be approved_for_candidate_design"
+        in validate_execution_candidate_manifest(manifest)
+    )
+
+    manifest = _mock_valid_manifest()
+    manifest["source_approval_boundary_decision_record_state"] = "INVALID"
+    assert (
+        "source_approval_boundary_decision_record_state must be DECISION_RECORDED_ONLY"
+        in validate_execution_candidate_manifest(manifest)
+    )
+
+    manifest = _mock_valid_manifest()
+    manifest["source_approval_boundary_requires_separate_execution_candidate"] = False
+    assert (
+        "source_approval_boundary_requires_separate_execution_candidate must be true"
+        in validate_execution_candidate_manifest(manifest)
+    )
+
+
+def test_unclassified_command_preview_fails() -> None:
+    manifest = _mock_valid_manifest()
+    manifest["candidate_scope"]["command_previews"] = [
+        "invalid-unregistered-command-xyz"
+    ]
+    errors = validate_execution_candidate_manifest(manifest)
+    assert any("has no matching command authority record" in err for err in errors)
+
+
+def test_hidden_boolean_claims_rejected() -> None:
+    for key in (
+        "records_execution",
+        "activation_requested",
+        "runtime_activation",
+        "commands_executed",
+        "target_repo_mutated",
+        "memory_mutated",
+    ):
+        manifest = _mock_valid_manifest()
+        manifest["candidate_scope"][key] = True
+        errors = validate_execution_candidate_manifest(manifest)
+        assert any("claims forbidden active capability" in err for err in errors)
+
+
+def test_core_as_platform_identity_rejected() -> None:
+    manifest = _mock_valid_manifest()
+    manifest["platform_identity"] = "CORE"
+    errors = validate_execution_candidate_manifest(manifest)
+    assert any("Forbidden CORE platform identity claim" in err for err in errors)
+
+    manifest = _mock_valid_manifest()
+    manifest["candidate_scope"]["notes"] = "builder-ii is core platform."
+    errors = validate_execution_candidate_manifest(manifest)
+    assert any("Forbidden text implying builder-II is CORE" in err for err in errors)
