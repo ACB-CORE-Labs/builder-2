@@ -178,6 +178,7 @@ The builder convention layer should track Goose's official docs as Goose evolves
 | [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md) | Artifact-only quality gate planning and validation. |
 | [`docs/HANDOFF_ARTIFACTS.md`](docs/HANDOFF_ARTIFACTS.md) | Artifact-only handoff capture and validation. |
 | [`docs/RESEARCH_PLANS.md`](docs/RESEARCH_PLANS.md) | Artifact-only research planning and source-strategy boundaries. |
+| [`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) | R0 truth matrix mirror, platform status boundary, and docs truth audit entrypoint. |
 | [`docs/GOOSE_RUNTIME.md`](docs/GOOSE_RUNTIME.md) | Goose runtime design boundary and promotion requirements. |
 | [`docs/GOOSE_SESSION.md`](docs/GOOSE_SESSION.md) | Goose session manifest artifacts; no runtime activation. |
 | [`docs/GOOSE_READONLY.md`](docs/GOOSE_READONLY.md) | Goose read-only runtime candidate audit artifacts; no repository inspection yet. |
@@ -205,18 +206,23 @@ Primary target: Apple Silicon MacBook Pro M1 with 16GB unified memory.
 
 The machine does not have 16GB free for weights. macOS, Goose, Python, terminal buffers, repository context, and KV cache all share the same memory pool. Productive coding sessions should prefer roughly 2GB to 7GB model footprints. Larger models are available as explicit opt-in experiments, not defaults.
 
-## What is included
+## What Is Present
 
-builder-II v0 includes the full governed artifact platform:
+builder-II v0 includes a passive governed artifact foundation.
 
-- CLI setup/doctor/status/model helpers
-- MLX-LM backend startup and served-model checks
+Legacy operator-managed helpers remain explicit and separate:
+
+- CLI setup/doctor/status/model helpers through `builder`
+- MLX-LM backend startup and served-model checks through operator invocation
 - Direct local ask through an OpenAI-compatible local endpoint
 - Runtime marker and listener reset helpers
-- Model aliases, runtime policy, and model capability registry artifact
 - Goose config generation
 - Goose recipes for platform, coding, plan, explore, implement, review, verify, and handoff flows
 - builder-II skills copied into the selected target repo
+
+Canonical governed passive lanes include:
+
+- Model aliases, runtime policy, and model capability registry artifact
 - Explicit target profiles (`generic`, `builder`, `core`) via `builder-targets`
 - Generic agent profiles via `builder-agent`
 - Profile resolution layer (target, agent, prompt, verification, context)
@@ -243,6 +249,7 @@ builder-II v0 includes the full governed artifact platform:
 - Handoff note lifecycle via `builder-notes`
 - Passive profile-pack lifecycle via `builder-profile-pack`
 - Passive model client registry and routing policy via `builder-model-policy`
+- Platform truth matrix, status, and docs audit via `builder-platform`
 - deepagents bridge readiness reports via `builder-deepagents`
 - Artifact index and chain verification (all v0 kinds registered, closure-tested)
 - **v0 release manifest and operator-run proof harness** (`scripts/verify_v0_release.py`)
@@ -301,7 +308,7 @@ Not yet promoted (requires capability promotion gate):
 - HITL command proposal → approved execution (candidate exists, execution not crossed)
 - HITL patch proposal → approved application
 - deepagents runtime orchestration
-- Model routing policy artifact (RFC exists, artifact not yet built)
+- Model/provider execution gateway; passive model registry and routing artifacts exist through `builder-model-policy`
 - MCP inventory/policy/enforcement runtime
 - Production-quality multimodal sidecar support
 
@@ -358,6 +365,11 @@ builder-tools check --tier tier1
 
 # Run the v0 proof harness
 uv run python scripts/verify_v0_release.py
+
+# Inspect the R0 platform truth state
+builder-platform matrix
+builder-platform status
+builder-platform audit-docs
 
 # Prepare a governed session package
 builder-session prepare-package --target builder --task "audit the selected target repo and identify the safest next patch" --output .builder/session/

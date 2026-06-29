@@ -56,6 +56,7 @@ builder-profile-pack = "builder_ii.profile_pack_cli:profile_pack_app"
 builder-model-policy = "builder_ii.model_policy_cli:model_policy_app"
 builder-workflow = "builder_ii.workflow_cli:workflow_app"
 builder-ledger = "builder_ii.ledger_cli:ledger_app"
+builder-platform = "builder_ii.platform_status_cli:platform_app"
 
 [dependency-groups]
 dev = [

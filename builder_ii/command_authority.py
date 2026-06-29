@@ -82,6 +82,7 @@ class CommandAuthorityRecord:
             "builder-workflow",
             "builder-ledger",
             "builder-targets",
+            "builder-platform",
         )
 
     @property
@@ -168,6 +169,9 @@ REQUIRED_SUBCOMMANDS = {
     "builder-ledger replay",
     "builder-ledger audit",
     "builder-ledger export",
+    "builder-platform matrix",
+    "builder-platform status",
+    "builder-platform audit-docs",
 }
 
 COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
@@ -709,6 +713,19 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Dispatches to model policy artifact validation, rendering, and dry-run subcommands.",
         failure_mode="Exits non-zero on schema validation failures.",
         notes="Passive model routing metadata; never invokes models or provider endpoints.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-platform",
+        entrypoint="builder_ii.platform_status_cli:platform_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Delegates passive completion-truth matrix, status, and docs-audit rendering; no runtime, model, shell, Goose, deepagents, MCP, or tool execution.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Dispatches to truth rendering and validation subcommands.",
+        failure_mode="Exits non-zero on invalid matrix metadata, missing authority coverage, or false-completion docs claims.",
+        notes="R0 truth machine command group. It reports platform state and cannot promote authority.",
     ),
     CommandAuthorityRecord(
         name="builder-workflow",
@@ -1443,6 +1460,45 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         failure_mode="Exits non-zero on validation failures or if any candidate lacks risk classification.",
         notes="Dry-run remains non-runtime and cannot invoke models or network endpoints.",
         allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-platform matrix",
+        entrypoint="builder_ii.platform_status_cli:platform_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Renders the static source-derived completion truth matrix as JSON after validating shape and authority references.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints JSON to stdout.",
+        failure_mode="Exits non-zero if required rows, state labels, evidence refs, or command authority refs are invalid.",
+        notes="Artifact-only truth rendering. It does not run verification, models, tools, Goose, deepagents, shell commands, or MCP calls.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-platform status",
+        entrypoint="builder_ii.platform_status_cli:platform_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Summarizes the completion truth matrix without inspecting runtime systems or target repositories.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints concise human-readable platform truth state to stdout.",
+        failure_mode="Exits non-zero if the matrix or command authority coverage is invalid.",
+        notes="States that builder-II is passive-foundation-complete and operationally incomplete, and names R0 -> R1 -> B1.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-platform audit-docs",
+        entrypoint="builder_ii.platform_status_cli:platform_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Scans README.md and docs/**/*.md for false operational-completion claims without invoking external tools.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints JSON docs-truth audit report to stdout.",
+        failure_mode="Exits non-zero when docs imply operational completion for non-OPERATIONALLY_VERIFIED capabilities or contain known stale claims.",
+        notes="Docs truth enforcement only. It cannot rewrite docs or promote runtime authority.",
     ),
     CommandAuthorityRecord(
         name="builder workflow plan",

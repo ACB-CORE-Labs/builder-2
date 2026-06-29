@@ -27,6 +27,7 @@ def test_foundation_status_covers_landed_concepts() -> None:
         "target profiles",
         "verification profiles",
         "context packs",
+        "profile packs",
         "agent profiles",
         "git state records",
         "promotion records",
@@ -36,6 +37,8 @@ def test_foundation_status_covers_landed_concepts() -> None:
         "research adapters",
         "performance records",
         "inspection design gate",
+        "platform completion truth matrix",
+        "docs truth enforcement",
     ):
         assert phrase in text
 
@@ -54,8 +57,24 @@ def test_foundation_status_avoids_forbidden_platform_language() -> None:
         assert phrase not in text
 
 
-def test_foundation_status_names_next_phase_as_reviewed_capability_work() -> None:
+def test_foundation_status_uses_exact_state_labels_and_sequence() -> None:
     text = _text()
 
-    assert "The artifact-first foundation is complete" in text
-    assert "carefully reviewed capability work" in text
+    assert "Passive foundation state: `PASSIVE_FOUNDATION`" in text
+    assert "R0 -> R1 -> B1" in text
+    assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in text
+
+
+def test_foundation_status_denies_runtime_authority() -> None:
+    text = _text()
+    for phrase in (
+        "runtime execution",
+        "patch application",
+        "model/provider execution",
+        "MCP/tool invocation",
+        "Goose runtime promotion",
+        "deepagents runtime",
+        "autonomous writes",
+        "commit/push automation",
+    ):
+        assert phrase in text

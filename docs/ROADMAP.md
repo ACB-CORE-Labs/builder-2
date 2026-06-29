@@ -8,11 +8,20 @@ The governing product doctrine is captured in [`docs/MANIFESTO.md`](MANIFESTO.md
 
 Repository docs, schemas, tests, command registries, and source code are the authoritative project record. Notion planning artifacts are supportive planning material unless reconciled back into the repository.
 
-## Current status — v0 governed artifact platform (as of 2026-06-27)
+## Current status - v0 passive governed artifact platform (as of 2026-06-29)
 
-builder-II has completed its **v0 release**. The full governed artifact platform is built, tested, and proven via the operator-run v0 proof harness (`scripts/verify_v0_release.py`). All capabilities below are source-backed with tests; runtime execution remains deliberately ungated.
+builder-II has a source-backed passive v0 artifact proof harness (`scripts/verify_v0_release.py`). The platform truth state is maintained by `builder-platform matrix`, `builder-platform status`, and `builder-platform audit-docs`.
 
-### Completed artifact spine (PRs #95–138)
+Current truth summary:
+
+- passive foundation state: `PASSIVE_FOUNDATION`
+- operational runtime capability state: not `OPERATIONALLY_VERIFIED`
+- setup/config kernel state: present in the matrix and non-operational until R1
+- next sequence: `R0 -> R1 -> B1`
+
+R1 Config + Onboarding Kernel must precede B1 verification execution because execution authority depends on canonical target roots, artifact roots, config source precedence, setup receipts, rollback artifacts, and auditable capability defaults.
+
+### Passive artifact spine (PRs #95-138)
 
 **Session and preparation lane**
 - Governed session workflow plan artifact (`builder_ii.session_workflow_plan`)
@@ -142,6 +151,12 @@ Every command above renders a reviewable artifact or validates an existing one. 
 
 These are the next capability promotions. Each requires the full capability promotion gate (docs, tests, command surface, failure mode, HITL boundary, output artifact, rollback path, verification path) before it can move from candidate to enabled.
 
+### R0 -> R1 -> B1 ladder
+
+- R0: completion truth matrix, platform status CLI, docs truth audit, command authority coverage, and tests.
+- R1: Config + Onboarding Kernel for canonical source precedence, setup plan/apply/validate, receipts, rollback artifacts, and capability defaults.
+- B1: HITL-approved verification execution after R1 has made target roots, artifact roots, and setup state auditable.
+
 ### Phase: profile-pack / capability-factory substrate (next planning spine)
 - Introduce user-created profile packs for target profiles, agents, subagents, tasks, tools, context, verification, approval, Goose projections, deepagents projections, MCP policies, and handoff profiles
 - Add scaffold, render, validate, and dry-run lifecycle commands before any runtime authority
@@ -151,9 +166,9 @@ These are the next capability promotions. Each requires the full capability prom
 - Promote bounded file inspection into actual runtime reads against operator-specified paths
 - Canonical template for all subsequent execution gate promotions
 
-### Phase: model routing policy artifact
-- Introduce model routing as a `builder_ii.model_routing_policy` artifact
-- No automatic routing until artifact is reviewed and approved
+### Phase: model/provider execution gateway
+- Passive model registry and routing artifacts already exist through `builder-model-policy`
+- Provider execution remains unpromoted until B6 adds an envelope, prompt/context digest, budget, receipt, ledger, and replay declaration
 
 ### Phase: live deepagents render (planning mode)
 - Render deepagents planning artifacts from session config
@@ -180,8 +195,8 @@ These are the next capability promotions. Each requires the full capability prom
 - Use token refs, path redaction, prompt/log redaction, and explicit approval for network, cost, credential, and external-provider escalation
 
 ### Phase: end-to-end target demos
-- One complete demo per target: `generic`, `builder`, `core`
-- Proves the governed lane works on real repos
+- One passive demo path per target: `generic`, `builder`, `core`
+- Shows the governed lane on real repos without implying runtime authority
 
 ### Phase: performance tracks (measurement-gated)
 - Rust-backed artifact validation — only if measurement proves value

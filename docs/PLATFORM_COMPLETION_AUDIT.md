@@ -1,86 +1,109 @@
 # Platform Completion Audit
 
-## Identity & Philosophy
-* **builder-II** is a generic-first governed local agent/developer platform.
-* **CORE** is a target profile, not the runtime itself.
-* **builder-II** is not CORE Workbench/UI or a second CORE runtime. It remains decoupled from any CORE Workbench/UI coupling.
-
-## Completed Foundation
-The following structural and metadata tracking foundations are fully completed and verified:
-* **target profiles**
-* **verification profiles**
-* **context pack records**
-* **agent profile records**
-* **explicit git state records**
-* **command proposal records**
-* **approval records**
-* **preflight records**
-* **receipt records**
-* **handoff bundles**
-* **intake records**
-* **artifact index**
-* **chain verification**
-* **promotion readiness**
-* **promotion decisions**
-* **state ledger**
-* **snapshots**
-* **research adapters**
-* **performance measurements**
-* **readonly inspection promotion spec**
-* **readonly inspection reports**
-* **readonly inspection promotion wiring**
-
-## Current Runtime-Candidate Capability
-The only current runtime-candidate capability is:
-* **bounded read-only inspection report**
-
-This capability is strictly constrained by the following rules:
-* **explicit file paths only**
-* **metadata/SHA-256 only**
-* **optional root boundary**
-* **no content capture**
-* **no traversal**
-
-## Not Yet Promoted
-The following capabilities and runtimes are not yet promoted:
-* **shell execution** (disabled)
-* **model execution** (disabled)
-* **patch application**
-* **commit/push automation**
-* **Goose runtime activation** (disabled)
-* **deepagents runtime** (disabled)
-* **MCP execution**
-* **arbitrary repository traversal**
-* **content capture**
-* **voice/TTS/STT**
-* **CORE Workbench/UI coupling**
-
-## Governance Assertions
-* **No autonomous writes**: The platform does not perform or claim autonomous write operations.
-* **Shell execution is disabled**: There is no active shell execution capability.
-* **Model execution is disabled**: The platform does not invoke or execute AI models directly at runtime.
-* **Deepagents runtime is disabled**: The deepagents bridge/runtime is not enabled.
-* **Goose runtime is disabled**: The Goose runtime environment is not enabled.
-
-## Release Verification Checklist
-Use this checklist when validating the current governed platform state. Paths shown are examples; operators must supply real artifact paths for their run.
+This document is the human mirror of the R0 truth machine. The machine-readable source is:
 
 ```bash
-uv run pytest -q
-builder-index validate <artifact-index>
-builder-chain verify <artifact-path>...
-builder-promotion record --capability-name <name> --target <target> ...
-builder-promotion-decision record <promotion-readiness>
-builder-state-index validate <state-index>
-builder-snapshot validate <snapshot>
-builder-readonly inspect <explicit-file> --root <root> --output <readonly-inspection-report>
-builder-readonly validate <readonly-inspection-report>
+builder-platform matrix
+builder-platform status
+builder-platform audit-docs
 ```
 
-## Next Arcs
-* **HITL command execution spec**
-* **execution receipts**
-* **HITL patch proposal/application artifacts**
-* **rollback artifacts**
-* **optional Goose runtime after promotion**
-* **optional deepagents bridge after promotion**
+## Truth State
+
+builder-II is a generic governed local agent/developer platform. CORE is a target profile, not the platform identity, not a second runtime, and not CORE Workbench/UI.
+
+Current platform truth:
+
+- passive foundation state: `PASSIVE_FOUNDATION`
+- runtime authority state: not `OPERATIONALLY_VERIFIED`
+- setup/config kernel state: present in the matrix, non-operational until R1
+- next sequence: `R0 -> R1 -> B1`
+
+R0 adds the truth matrix, status CLI, docs audit, command authority coverage, and tests. R0 does not add runtime execution, patch application, model/provider calls, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, or commit/push automation.
+
+## State Labels
+
+Allowed labels:
+
+- `NOT_STARTED`
+- `DESIGN_ONLY`
+- `ARTIFACT_ONLY`
+- `PASSIVE_FOUNDATION`
+- `IMPLEMENTED_ON_BRANCH`
+- `PR_OPEN`
+- `MERGED_BUT_NOT_OPERATIONAL`
+- `OPERATIONALLY_VERIFIED`
+
+Every row has exactly one label. A valid artifact is not authority. Approval is not execution. Execution is not verification. Verification is not promotion unless receipt, postflight, rollback/no-mutation proof, ledger, and replay/audit close the loop.
+
+## Capability Matrix
+
+| Capability | State | Next PR |
+|---|---|---|
+| generic platform identity | `PASSIVE_FOUNDATION` | R0 |
+| target profiles | `PASSIVE_FOUNDATION` | B3 |
+| agent profiles | `PASSIVE_FOUNDATION` | B5 |
+| verification profiles | `PASSIVE_FOUNDATION` | B1 |
+| context packs | `PASSIVE_FOUNDATION` | B3 |
+| profile packs | `PASSIVE_FOUNDATION` | defer runtime materialization |
+| config schema | `DESIGN_ONLY` | R1 |
+| config source precedence | `DESIGN_ONLY` | R1 |
+| interactive setup wizard | `NOT_STARTED` | R1 |
+| non-interactive setup/apply/validate | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
+| Goose config overlay/rollback | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
+| recipe generator/wizard | `ARTIFACT_ONLY` | R1 |
+| skill generator/installer/validator | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
+| target profile wizard | `NOT_STARTED` | R1 |
+| agent profile wizard | `NOT_STARTED` | R1 |
+| verification profile wizard | `NOT_STARTED` | R1 |
+| deepagents/researcher setup wizard | `NOT_STARTED` | R1 |
+| setup receipt + rollback artifact | `NOT_STARTED` | R1 |
+| model registry | `PASSIVE_FOUNDATION` | B6 |
+| model routing | `PASSIVE_FOUNDATION` | B6 |
+| model/provider execution | `MERGED_BUT_NOT_OPERATIONAL` | B6 |
+| tool registry | `PASSIVE_FOUNDATION` | B7 |
+| MCP/tool invocation | `DESIGN_ONLY` | B7 |
+| passive orchestration assignment | `PASSIVE_FOUNDATION` | B5 |
+| workflow/event ledger | `PASSIVE_FOUNDATION` | B1 then B6/B7/B8 |
+| replay/audit | `PASSIVE_FOUNDATION` | B1 |
+| readonly founder demo | `PASSIVE_FOUNDATION` | defer after R0 |
+| orchestration founder demo wrapper | `PASSIVE_FOUNDATION` | B9 |
+| HITL promotion bridge | `PASSIVE_FOUNDATION` | B1 |
+| execution candidate manifests | `PASSIVE_FOUNDATION` | B1 |
+| HITL-approved verification execution | `ARTIFACT_ONLY` | B1 |
+| HITL patch proposal | `DESIGN_ONLY` | B2 |
+| HITL patch application | `DESIGN_ONLY` | B2 after B1 |
+| rollback execution | `ARTIFACT_ONLY` | B2 |
+| postflight verification | `ARTIFACT_ONLY` | B1 |
+| Goose setup | `MERGED_BUT_NOT_OPERATIONAL` | B4 after R0/B3 |
+| Goose readonly runtime | `MERGED_BUT_NOT_OPERATIONAL` | B4 |
+| Goose command proposals | `PASSIVE_FOUNDATION` | B1/B4 |
+| deepagents policy/readiness | `PASSIVE_FOUNDATION` | B5 |
+| deepagents passive work artifacts | `PASSIVE_FOUNDATION` | B5 |
+| deepagents runtime/subagents | `DESIGN_ONLY` | B5 |
+| notes/handoff artifacts | `PASSIVE_FOUNDATION` | B8 |
+| artifact memory | `DESIGN_ONLY` | B8 |
+| operator quickstart/golden path | `PASSIVE_FOUNDATION` | B9 |
+| platform doctor/status/audit | `PASSIVE_FOUNDATION` | R1 then B1 |
+| release proof/quality gates | `PASSIVE_FOUNDATION` | B1 |
+| command authority as runtime gate | `MERGED_BUT_NOT_OPERATIONAL` | B1/B6/B7 |
+| docs truth enforcement | `PASSIVE_FOUNDATION` | R1 then B1 |
+
+## Corrections
+
+- Passive model routing exists through `builder-model-policy`; provider execution remains unpromoted.
+- Legacy operator-managed helpers such as `builder setup`, `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
+- Canonical governed passive lanes include `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, and `builder-platform`.
+- R1 Config + Onboarding Kernel must precede B1 verification execution because execution authority depends on canonical target roots, artifact roots, config source precedence, setup receipts, rollback artifacts, and auditable capability defaults.
+
+## Validation
+
+Use:
+
+```bash
+CORE_REPO_PATH=. uv run pytest -q
+CORE_REPO_PATH=. uv run python scripts/verify_v0_release.py --output-dir /tmp/builder-ii-v0-proof-r0
+uv run builder-platform matrix
+uv run builder-platform status
+uv run builder-platform audit-docs
+```

@@ -39,7 +39,7 @@ DONE  Goose session manifest artifacts
 DONE  Goose read-only candidate audit artifacts
 ```
 
-The artifact foundation is complete. Goose session manifests are a governed artifact-only surface. The read-only candidate now stabilizes the manifest-to-audit path while still denying actual Goose runtime start, repository file reads, git status inspection, linked artifact reads, autonomous writes, shell execution, source mutation, model execution, and runtime authority by default.
+Artifact foundation state: `PASSIVE_FOUNDATION`. Goose session manifests are a governed artifact-only surface. The read-only candidate now stabilizes the manifest-to-audit path while still denying actual Goose runtime start, repository file reads, git status inspection, linked artifact reads, autonomous writes, shell execution, source mutation, model execution, and runtime authority by default.
 
 ## North Star operating loop
 

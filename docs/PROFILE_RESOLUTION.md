@@ -1,6 +1,6 @@
 # Profile Resolution
 
-Profile resolution defines a deterministic, complete, and fail-closed mechanism for selecting and validating the execution environment parameters (targets, context packs, prompt profiles, agent profiles, and verification profiles) in the builder-II platform.
+Profile resolution defines a deterministic, fail-closed mechanism for selecting and validating passive execution-environment parameters (targets, context packs, prompt profiles, agent profiles, and verification profiles) in the builder-II platform.
 
 This layer replaces scattered, ad-hoc lookups and default mapping logic across generic, builder, and core repositories.
 
