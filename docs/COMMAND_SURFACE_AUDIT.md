@@ -9,6 +9,8 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - `builder-tools`
 - `builder-git-state`
 - `builder-platform`
+- `builder-config`
+- `builder-setup`
 
 ## Target/Profile/Context
 - `builder-context`

@@ -17,7 +17,8 @@ from dotenv import load_dotenv
 BACKENDS = ("rapid-mlx", "mlx-lm", "ollama")
 MODEL_TIERS = ("primary", "fast")
 
-# Public aliases accepted by CORE_AGENT_MODEL_ALIAS and `builder switch-model`.
+# Public aliases accepted by BUILDER_MODEL_ALIAS / CORE_AGENT_MODEL_ALIAS and
+# `builder switch-model`.
 # Keep these stable; docs/scripts depend on them.
 MODEL_ALIASES = (
     "phi-reasoning",
@@ -141,7 +142,7 @@ def normalize_model_alias(raw: str | None, *, tier_fallback: str = "primary") ->
     candidate = _ALIAS_NORMALIZATION.get(candidate, candidate)
     if candidate not in MODEL_ALIASES:
         raise ValueError(
-            f"CORE_AGENT_MODEL_ALIAS must be one of {MODEL_ALIASES}, got {raw!r}"
+            f"BUILDER_MODEL_ALIAS must be one of {MODEL_ALIASES}, got {raw!r}"
         )
     return candidate
 
@@ -207,66 +208,87 @@ def _resolve_core_repo(raw: str, project_root: Path) -> Path:
     return path
 
 
+def _env(primary: str, legacy: str | tuple[str, ...], default: str) -> str:
+    value = os.getenv(primary)
+    if value is not None and value.strip():
+        return value
+    aliases = (legacy,) if isinstance(legacy, str) else legacy
+    for alias in aliases:
+        value = os.getenv(alias)
+        if value is not None and value.strip():
+            return value
+    return default
+
+
 def load_settings(project_root: Path | None = None) -> Settings:
     root = (project_root or Path.cwd()).resolve()
     load_dotenv(root / ".env", override=False)
 
-    backend = os.getenv("CORE_AGENT_BACKEND", "mlx-lm").strip().lower()
+    backend = _env("BUILDER_MODEL_BACKEND", "CORE_AGENT_BACKEND", "mlx-lm").strip().lower()
     if backend not in BACKENDS:
-        raise ValueError(f"CORE_AGENT_BACKEND must be one of {BACKENDS}, got {backend!r}")
+        raise ValueError(f"BUILDER_MODEL_BACKEND must be one of {BACKENDS}, got {backend!r}")
 
-    tier = os.getenv("CORE_AGENT_MODEL_TIER", "primary").strip().lower()
+    tier = _env("BUILDER_MODEL_TIER", "CORE_AGENT_MODEL_TIER", "primary").strip().lower()
     if tier not in MODEL_TIERS:
-        raise ValueError(f"CORE_AGENT_MODEL_TIER must be one of {MODEL_TIERS}, got {tier!r}")
+        raise ValueError(f"BUILDER_MODEL_TIER must be one of {MODEL_TIERS}, got {tier!r}")
 
-    alias = normalize_model_alias(os.getenv("CORE_AGENT_MODEL_ALIAS"), tier_fallback=tier)
+    alias = normalize_model_alias(_env("BUILDER_MODEL_ALIAS", "CORE_AGENT_MODEL_ALIAS", ""), tier_fallback=tier)
 
     return Settings(
-        core_repo=_resolve_core_repo(os.getenv("CORE_REPO_PATH", "../core"), root),
+        core_repo=_resolve_core_repo(_env("BUILDER_TARGET_REPO", "CORE_REPO_PATH", "../core"), root),
         backend=backend,
         model_tier=tier,
         model_alias=alias,
-        model_primary=os.getenv("CORE_AGENT_MODEL_PRIMARY", "gemma-4-12b-4bit"),
-        model_fast=os.getenv("CORE_AGENT_MODEL_FAST", "gemma-4-e4b-4bit"),
-        mlx_model_primary=os.getenv(
+        model_primary=_env("BUILDER_MODEL_PRIMARY", "CORE_AGENT_MODEL_PRIMARY", "gemma-4-12b-4bit"),
+        model_fast=_env("BUILDER_MODEL_FAST", "CORE_AGENT_MODEL_FAST", "gemma-4-e4b-4bit"),
+        mlx_model_primary=_env(
+            "BUILDER_MLX_MODEL_PRIMARY",
             "CORE_AGENT_MLX_MODEL_PRIMARY",
             "mlx-community/gemma-4-12B-it-4bit",
         ),
-        mlx_model_fast=os.getenv(
+        mlx_model_fast=_env(
+            "BUILDER_MLX_MODEL_FAST",
             "CORE_AGENT_MLX_MODEL_FAST",
             "mlx-community/gemma-4-e4b-it-4bit",
         ),
-        mlx_model_phi=os.getenv(
+        mlx_model_phi=_env(
+            "BUILDER_MLX_MODEL_PHI",
             "CORE_AGENT_MLX_MODEL_PHI",
             "mlx-community/Phi-4-mini-reasoning-4bit",
         ),
-        mlx_model_qwen=os.getenv(
+        mlx_model_qwen=_env(
+            "BUILDER_MLX_MODEL_QWEN",
             "CORE_AGENT_MLX_MODEL_QWEN",
             "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
         ),
-        mlx_model_deepseek=os.getenv(
+        mlx_model_deepseek=_env(
+            "BUILDER_MLX_MODEL_DEEPSEEK",
             "CORE_AGENT_MLX_MODEL_DEEPSEEK",
             "mlx-community/DeepSeek-Coder-V2-Lite-Instruct-4bit",
         ),
-        mlx_model_llama=os.getenv(
+        mlx_model_llama=_env(
+            "BUILDER_MLX_MODEL_LLAMA",
             "CORE_AGENT_MLX_MODEL_LLAMA",
             "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
         ),
-        mlx_model_codegeex=os.getenv(
+        mlx_model_codegeex=_env(
+            "BUILDER_MLX_MODEL_CODEGEEX",
             "CORE_AGENT_MLX_MODEL_CODEGEEX",
             "mlx-community/codegeex4-all-9b-4bit",
         ),
-        mlx_model_qwen14=os.getenv(
+        mlx_model_qwen14=_env(
+            "BUILDER_MLX_MODEL_QWEN14",
             "CORE_AGENT_MLX_MODEL_QWEN14",
             "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
         ),
-        mlx_model_qwen3_coder=os.getenv(
+        mlx_model_qwen3_coder=_env(
+            "BUILDER_MLX_MODEL_QWEN3_CODER",
             "CORE_AGENT_MLX_MODEL_QWEN3_CODER",
             "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit",
         ),
-        base_url=os.getenv("CORE_AGENT_BASE_URL", "http://127.0.0.1:8080/v1"),
-        host=os.getenv("CORE_AGENT_HOST", "127.0.0.1"),
-        port=int(os.getenv("CORE_AGENT_PORT", "8080")),
-        temperature=float(os.getenv("CORE_AGENT_TEMPERATURE", "0.0")),
+        base_url=_env("BUILDER_MODEL_BASE_URL", "CORE_AGENT_BASE_URL", "http://127.0.0.1:8080/v1"),
+        host=_env("BUILDER_MODEL_HOST", "CORE_AGENT_HOST", "127.0.0.1"),
+        port=int(_env("BUILDER_MODEL_PORT", "CORE_AGENT_PORT", "8080")),
+        temperature=float(_env("BUILDER_MODEL_TEMPERATURE", "CORE_AGENT_TEMPERATURE", "0.0")),
         project_root=root,
     )

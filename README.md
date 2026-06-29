@@ -323,12 +323,15 @@ uv sync
 cp .env.example .env
 ```
 
-Edit `.env` for target repo paths as needed. If using the `core` target, set the CORE repo path explicitly when it is not at `../core`.
+Edit `.env` for target repo paths as needed. Prefer generic `BUILDER_*` names. If using the `core` target, set the target repo path explicitly when it is not at the expected location. Legacy `CORE_*` names remain compatibility aliases only.
 
 ```bash
-CORE_REPO_PATH=../core
-CORE_AGENT_BACKEND=mlx-lm
-CORE_AGENT_MODEL_ALIAS=qwen-coder
+BUILDER_TARGET_REPO=../core
+BUILDER_TARGET_PROFILE=core
+BUILDER_ARTIFACT_ROOT=.builder/artifacts
+BUILDER_MODEL_BACKEND=mlx-lm
+BUILDER_MODEL_ALIAS=qwen-coder
+BUILDER_RUNTIME_MODE=passive
 ```
 
 ## Download models
@@ -371,8 +374,18 @@ builder-platform matrix
 builder-platform status
 builder-platform audit-docs
 
+# Inspect passive R1.1 config/setup planning artifacts.
+# These do not apply setup, write Goose config, copy skills, start runtime, or call models.
+builder-config schema
+builder-config resolve
+builder-config validate
+builder-setup plan --output /tmp/builder-ii-setup-plan.json
+builder-setup validate-plan /tmp/builder-ii-setup-plan.json
+
 # Prepare a governed session package
 builder-session prepare-package --target builder --task "audit the selected target repo and identify the safest next patch" --output .builder/session/
 builder-session validate-prepare-package .builder/session/
 builder-session summarize-prepare-package .builder/session/
 ```
+
+Existing `builder setup` remains legacy/operator-managed until later R1 slices reconcile passive setup plans with apply, receipt, and rollback artifacts.

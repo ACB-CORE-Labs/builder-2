@@ -16,10 +16,10 @@ Current platform truth:
 
 - passive foundation state: `PASSIVE_FOUNDATION`
 - runtime authority state: not `OPERATIONALLY_VERIFIED`
-- setup/config kernel state: present in the matrix, non-operational until R1
+- setup/config kernel state: R1.1 passive schema, source resolution, and setup plan artifacts exist; apply/rollback remain non-operational
 - next sequence: `R0 -> R1 -> B1`
 
-R0 adds the truth matrix, status CLI, docs audit, command authority coverage, and tests. R0 does not add runtime execution, patch application, model/provider calls, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, or commit/push automation.
+R1.1 adds passive config schema, source resolution, setup plan artifacts, command authority coverage, docs, and tests. R1.1 does not add runtime execution, setup apply, setup rollback, patch application, model/provider calls, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, or commit/push automation.
 
 ## State Labels
 
@@ -46,8 +46,8 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | verification profiles | `PASSIVE_FOUNDATION` | B1 |
 | context packs | `PASSIVE_FOUNDATION` | B3 |
 | profile packs | `PASSIVE_FOUNDATION` | defer runtime materialization |
-| config schema | `DESIGN_ONLY` | R1 |
-| config source precedence | `DESIGN_ONLY` | R1 |
+| config schema | `PASSIVE_FOUNDATION` | R1 |
+| config source precedence | `PASSIVE_FOUNDATION` | R1 |
 | interactive setup wizard | `NOT_STARTED` | R1 |
 | non-interactive setup/apply/validate | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
 | Goose config overlay/rollback | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
@@ -93,8 +93,9 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 
 - Passive model routing exists through `builder-model-policy`; provider execution remains unpromoted.
 - Legacy operator-managed helpers such as `builder setup`, `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
-- Canonical governed passive lanes include `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, and `builder-platform`.
+- Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, and `builder-platform`.
 - R1 Config + Onboarding Kernel must precede B1 verification execution because execution authority depends on canonical target roots, artifact roots, config source precedence, setup receipts, rollback artifacts, and auditable capability defaults.
+- `builder-setup plan` is passive setup planning only. It records future planned writes but cannot write Goose config, copy skills, apply setup, roll back setup, start models, start Goose, construct deepagents, call MCP/tools, or apply patches.
 
 ## Validation
 
@@ -106,4 +107,8 @@ CORE_REPO_PATH=. uv run python scripts/verify_v0_release.py --output-dir /tmp/bu
 uv run builder-platform matrix
 uv run builder-platform status
 uv run builder-platform audit-docs
+uv run builder-config schema
+uv run builder-config resolve
+uv run builder-setup plan --output /tmp/builder-ii-setup-plan.json
+uv run builder-setup validate-plan /tmp/builder-ii-setup-plan.json
 ```

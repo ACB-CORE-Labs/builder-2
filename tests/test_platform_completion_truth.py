@@ -10,7 +10,10 @@ from builder_ii.command_authority import (
 )
 from builder_ii.platform_completion_audit import (
     ALLOWED_STATE_LABELS,
+    MERGED_BUT_NOT_OPERATIONAL,
+    NOT_STARTED,
     OPERATIONALLY_VERIFIED,
+    PASSIVE_FOUNDATION,
     REQUIRED_CAPABILITIES,
     REQUIRED_CAPABILITY_ROWS,
     R1_CONFIG_ONBOARDING_CAPABILITIES,
@@ -51,6 +54,17 @@ def test_config_onboarding_rows_exist_and_point_to_r1() -> None:
         assert by_capability[capability].next_pr == "R1"
         assert by_capability[capability].state != OPERATIONALLY_VERIFIED
     assert not validate_r1_config_onboarding_mapping()
+
+
+def test_r1_1_matrix_state_changes_are_scoped() -> None:
+    by_capability = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
+
+    assert by_capability["config schema"].state == PASSIVE_FOUNDATION
+    assert by_capability["config source precedence"].state == PASSIVE_FOUNDATION
+    assert by_capability["non-interactive setup/apply/validate"].state == MERGED_BUT_NOT_OPERATIONAL
+    assert by_capability["Goose config overlay/rollback"].state == MERGED_BUT_NOT_OPERATIONAL
+    assert by_capability["interactive setup wizard"].state == NOT_STARTED
+    assert by_capability["setup receipt + rollback artifact"].state == NOT_STARTED
 
 
 def test_matrix_command_names_are_registered_where_applicable() -> None:
