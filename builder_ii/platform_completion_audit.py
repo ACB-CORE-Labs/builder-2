@@ -734,11 +734,22 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "platform doctor/status/audit",
         PASSIVE_FOUNDATION,
-        ("builder_ii/platform_completion_audit.py", "builder_ii/platform_status_cli.py", "docs/PLATFORM_COMPLETION_AUDIT.md"),
+        (
+            "builder_ii/platform_completion_audit.py",
+            "builder_ii/platform_status_cli.py",
+            "builder_ii/r1_closure_report.py",
+            "docs/PLATFORM_COMPLETION_AUDIT.md",
+        ),
         ("builder-platform",),
-        ("tests/test_platform_completion_truth.py", "tests/test_platform_completion_audit.py"),
+        (
+            "tests/test_platform_completion_truth.py",
+            "tests/test_platform_completion_audit.py",
+            "tests/test_r1_closure_report.py",
+            "tests/test_platform_r1_closure_cli.py",
+        ),
         (
             "R0 adds source-derived truth status.",
+            "R1.6 adds canonical R1 closure report and golden path proof commands.",
             "Legacy builder doctor/status remain operator-managed environment helpers.",
             "Operational execution still waits for R1 then B1.",
         ),

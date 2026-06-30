@@ -83,6 +83,7 @@ def test_builder_platform_commands_are_registered_as_tier1_validation_only() -> 
         "builder-platform matrix",
         "builder-platform status",
         "builder-platform audit-docs",
+        "builder-platform validate-r1-closure",
     ):
         record = by_name[name]
         assert record.tier == TIER_1
@@ -95,6 +96,20 @@ def test_builder_platform_commands_are_registered_as_tier1_validation_only() -> 
         assert not record.allows_git_mutation
         assert not record.allows_state_writes
         assert not record.allows_external_tool_invocation
+        assert not record.allows_artifact_writes
+
+    r1_record = by_name["builder-platform r1-closure"]
+    assert r1_record.tier == TIER_1
+    assert r1_record.approval_mode == MODE_NONE
+    assert not r1_record.allows_runtime_start
+    assert not r1_record.allows_model_execution
+    assert not r1_record.allows_shell_execution
+    assert not r1_record.allows_source_writes
+    assert not r1_record.allows_memory_mutation
+    assert not r1_record.allows_git_mutation
+    assert not r1_record.allows_state_writes
+    assert not r1_record.allows_external_tool_invocation
+    assert r1_record.allows_artifact_writes
 
 
 def test_matrix_rendering_is_json_safe() -> None:

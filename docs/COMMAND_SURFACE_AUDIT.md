@@ -13,6 +13,14 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - `builder-setup`
 - `builder onboarding`
 
+Governed platform subcommands:
+
+- `builder-platform matrix`
+- `builder-platform status`
+- `builder-platform audit-docs`
+- `builder-platform r1-closure`
+- `builder-platform validate-r1-closure`
+
 Governed setup subcommands:
 
 - `builder-setup plan`
@@ -105,6 +113,11 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder-setup apply` adds digest-bound governed setup apply from a validated overlay/snapshot pair and requires explicit `--approve-digest` plus explicit receipt `--output`.
 - `builder-setup validate-receipt` validates `builder_ii.setup_apply_receipt` artifacts.
 - `builder-setup rollback` adds digest-bound governed setup rollback from an applied setup receipt plus matching rollback snapshot.
-- Legacy `builder setup` now fails closed and cannot bypass digest-bound governed setup apply/rollback.
 - R1.5 adds `builder-setup init`, `builder-setup wizard`, `builder onboarding`, and `builder-setup validate-onboarding-intent` as passive onboarding wrappers.
 - R1.5 does not add B1 verification execution, runtime/model/tool/MCP/Goose/deepagents/shell/subprocess/patch authority, or autonomous apply.
+
+## R1.6 command surface delta
+
+- `builder-platform r1-closure` runs the full passive R1 config/setup/onboarding pipeline, emitting canonical chain evidence and `r1-closure-report.json`.
+- `builder-platform validate-r1-closure` validates the closure report and referenced evidence files on disk.
+- R1.6 completes R1 golden-path proof without executing setup mutation or promoting B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority.

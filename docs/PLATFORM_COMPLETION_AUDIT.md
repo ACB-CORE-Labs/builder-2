@@ -116,6 +116,8 @@ uv run builder-setup overlay-plan /tmp/builder-ii-setup-plan-r1-4.json --output 
 uv run builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay-r1-4.json
 uv run builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay-r1-4.json --output /tmp/builder-ii-setup-rollback-snapshot-r1-4.json
 uv run builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot-r1-4.json
+uv run builder-platform r1-closure --output-dir /tmp/builder-ii-r1-6-proof
+uv run builder-platform validate-r1-closure /tmp/builder-ii-r1-6-proof/r1-closure-report.json
 ```
 
 ## R1.4 update
@@ -125,4 +127,8 @@ R1.4 leaves the governed setup apply and rollback slices intact and reconciles t
 ## R1.5 update
 
 R1.5 adds `builder-setup init`, `builder-setup wizard`, `builder onboarding`, and `builder-setup validate-onboarding-intent` to provide a governed onboarding UX over the R1 setup chain. It generates passive onboarding intent reports and prints deferred apply commands only. Setup mutation remains exclusively owned by existing `builder-setup apply --approve-digest`. B1, B2, B3, runtime, model/provider, MCP/tool, Goose runtime, deepagents runtime, shell/subprocess execution in the setup path, patch, and autonomous write authority remain unpromoted.
+
+## R1.6 update
+
+R1.6 completes R1 by introducing `builder-platform r1-closure` and `builder-platform validate-r1-closure`. These commands execute the entire passive config/setup/onboarding chain and emit a canonical, auditable `r1-closure-report.json` alongside the full evidence artifact chain (`config-schema.json`, `config-resolution.json`, `setup-plan.json`, `setup-overlay.json`, `setup-rollback-snapshot.json`, and `onboarding-intent.json`). This proves the R1 golden path while ensuring that setup apply/rollback execution remains explicit and B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority remain unpromoted.
 

@@ -634,3 +634,7 @@ R1.3A adds a bounded setup apply mechanism and receipt artifact. The new path is
 ## R1.5 governed onboarding UX delta
 
 R1.5 implements a governed onboarding UX layer over the R1 setup chain: `builder-setup init`, `builder-setup wizard`, `builder onboarding`, and `builder-setup validate-onboarding-intent`. It records non-interactive and guided inputs into a passive onboarding intent report artifact (`builder_ii.onboarding_intent_report`). Onboarding commands print deferred apply commands only; setup mutation remains exclusively owned by existing `builder-setup apply --approve-digest`. It does not execute B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority or claim completion of standalone target/agent/verification profile editing wizards.
+
+## R1.6 closure report and golden-path proof delta
+
+R1.6 completes R1 by introducing `builder-platform r1-closure` and `builder-platform validate-r1-closure`. These commands execute the entire passive config/setup/onboarding chain and emit a canonical, auditable `r1-closure-report.json` alongside the full evidence artifact chain (`config-schema.json`, `config-resolution.json`, `setup-plan.json`, `setup-overlay.json`, `setup-rollback-snapshot.json`, and `onboarding-intent.json`). This turns the R1 chain into a single auditable golden-path proof while ensuring that setup apply/rollback execution remains explicit and B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority remain unpromoted.

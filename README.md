@@ -397,6 +397,10 @@ builder-setup validate-onboarding-intent .builder/setup-artifacts/onboarding-int
 builder-setup wizard
 builder onboarding
 
+# Generate and validate canonical R1 golden path closure proof
+builder-platform r1-closure --output-dir .builder/r1-closure
+builder-platform validate-r1-closure .builder/r1-closure/r1-closure-report.json
+
 # Prepare a governed session package
 builder-session prepare-package --target builder --task "audit the selected target repo and identify the safest next patch" --output .builder/session/
 builder-session validate-prepare-package .builder/session/

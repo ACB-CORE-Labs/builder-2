@@ -208,3 +208,17 @@ builder onboarding
 
 Onboarding commands do not perform mutation or write setup receipts directly. To apply setup writes, run the printed `builder-setup apply` command after reviewing the overlay plan digest.
 
+## R1.6 closure report and golden-path proof
+
+R1.6 completes R1 by providing a single canonical golden path that aggregates all passive configuration, setup planning, overlay, rollback snapshot, and onboarding intent artifacts into an `r1-closure-report.json`:
+
+- `builder-platform r1-closure` runs the complete passive R1 chain and writes `r1-closure-report.json` along with its underlying evidence files to `--output-dir`.
+- `builder-platform validate-r1-closure` verifies schema, digests, status labels, and referenced evidence files for any closure report on disk.
+
+```bash
+builder-platform r1-closure --output-dir .builder/r1-closure
+builder-platform validate-r1-closure .builder/r1-closure/r1-closure-report.json
+```
+
+This establishes an end-to-end auditable proof for operator configuration and setup intent without executing setup mutation or promoting B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority.
+
