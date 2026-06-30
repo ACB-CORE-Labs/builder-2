@@ -27,10 +27,11 @@ from builder_ii.verification_execution_receipt import (
     validate_verification_execution_receipt_against_plan_and_approval,
     validate_verification_execution_receipt_file,
 )
+from builder_ii.verification_execution_runner import run_approved_verification
 from builder_ii.verification_profiles import verification_profile_names
 
 
-verify_app = typer.Typer(help="Render and validate passive verification execution plan artifacts.")
+verify_app = typer.Typer(help="Render, approve, validate, and run bounded verification artifacts.")
 console = Console()
 
 
@@ -155,7 +156,7 @@ def validate_receipt(
     plan: Path = typer.Option(..., "--plan", help="Path to the referenced verification execution plan JSON artifact"),
     approval: Path = typer.Option(..., "--approval", help="Path to the referenced verification execution approval JSON artifact"),
 ) -> None:
-    """Validate a passive verification execution receipt against its referenced plan and approval."""
+    """Validate a verification execution receipt against its referenced plan and approval."""
     errors = validate_verification_execution_receipt_file(path)
     plan_errors = validate_verification_execution_plan_file(plan)
     approval_errors = validate_verification_execution_approval_file(approval)
@@ -182,4 +183,27 @@ def validate_receipt(
     }
     console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
     if errors:
+        raise typer.Exit(1)
+
+
+@verify_app.command("run-approved")
+def run_approved(
+    plan_path: Path = typer.Option(..., "--plan", help="Path to the referenced verification execution plan JSON artifact"),
+    approval_path: Path = typer.Option(..., "--approval", help="Path to the referenced verification execution approval JSON artifact"),
+    output: Path = typer.Option(..., "--output", help="Explicit receipt artifact path to write"),
+    profile: str = typer.Option("platform_status", "--profile", help="Approved bounded command profile to run"),
+) -> None:
+    """Run one bounded, approval-bound verification profile and emit a receipt."""
+    try:
+        receipt = run_approved_verification(
+            plan_path=plan_path,
+            approval_path=approval_path,
+            output=output,
+            requested_profile=profile,
+        )
+    except (OSError, json_lib.JSONDecodeError) as exc:
+        console.print(f"Verification runner could not start: {exc}")
+        raise typer.Exit(1) from None
+    console.out(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n", end="")
+    if not receipt.get("valid", False):
         raise typer.Exit(1)

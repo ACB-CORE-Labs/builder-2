@@ -246,7 +246,7 @@ Canonical governed passive lanes include:
   - chain binding (cryptographic lifecycle)
   - approved verification execution candidate
 - Verification profile reports via `builder-verification`
-- Passive B1.3A verification plan, approval binding, and receipt contract artifacts via `builder-verify`
+- B1.3B verification plan, approval binding, receipt contract, and bounded `platform_status` runner via `builder-verify`
 - Handoff note lifecycle via `builder-notes`
 - Passive profile-pack lifecycle via `builder-profile-pack`
 - Passive model client registry and routing policy via `builder-model-policy`

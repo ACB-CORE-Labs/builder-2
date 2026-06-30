@@ -70,7 +70,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | orchestration founder demo wrapper | `PASSIVE_FOUNDATION` | B9 |
 | HITL promotion bridge | `PASSIVE_FOUNDATION` | B1 |
 | execution candidate manifests | `PASSIVE_FOUNDATION` | B1 |
-| HITL-approved verification execution | `PASSIVE_FOUNDATION` | B1.3B |
+| HITL-approved verification execution | `PASSIVE_FOUNDATION` | B1.4 |
 | HITL patch proposal | `DESIGN_ONLY` | B2 |
 | HITL patch application | `DESIGN_ONLY` | B2 after B1 |
 | rollback execution | `ARTIFACT_ONLY` | B2 |
@@ -132,4 +132,4 @@ R1.5 adds `builder-setup init`, `builder-setup wizard`, `builder onboarding`, an
 
 R1.6 completes R1 by introducing `builder-platform r1-closure` and `builder-platform validate-r1-closure`. These commands execute the entire passive config/setup/onboarding chain and emit a canonical, auditable `r1-closure-report.json` alongside the full evidence artifact chain (`config-schema.json`, `config-resolution.json`, `setup-plan.json`, `setup-overlay.json`, `setup-rollback-snapshot.json`, and `onboarding-intent.json`). This proves the R1 golden path while ensuring that setup apply/rollback execution remains explicit and B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority remain unpromoted.
 
-B1.1 adds `builder_ii.verification_execution_plan` plus `builder-verify plan` and `builder-verify validate-plan` as a passive verification execution planning surface. B1.2 adds `builder_ii.verification_execution_approval` plus `builder-verify approve-plan` and `builder-verify validate-approval` as a digest-bound HITL approval binding surface. Both artifacts remain passive and non-authoritative: they do not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, or promote actual verification execution. B1.3A adds a passive receipt contract only. B1.3B is still required before any approved verification can run.
+B1.1 adds `builder_ii.verification_execution_plan` plus `builder-verify plan` and `builder-verify validate-plan` as a passive verification execution planning surface. B1.2 adds `builder_ii.verification_execution_approval` plus `builder-verify approve-plan` and `builder-verify validate-approval` as a digest-bound HITL approval binding surface. Both artifacts remain passive and non-authoritative: they do not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, or promote actual verification execution. B1.3A adds a passive receipt contract. B1.3B adds the first bounded approved verification runner for `platform_status`; B1.4 is still required for event-ledger/replay hardening.

@@ -1,3 +1,4 @@
+from builder_ii.command_authority import TIER_3, STATE_HITL_RUNTIME_CANDIDATE, MODE_HITL_ARTIFACT_REQUIRED
 from builder_ii.command_authority import STATE_VALIDATION_ONLY
 from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, MODE_NONE, TIER_1
 
@@ -55,4 +56,22 @@ def test_validate_receipt_command_authority_is_validation_only() -> None:
     assert record.allows_source_writes is False
     assert record.allows_git_mutation is False
     assert record.allows_artifact_writes is False
+    assert record.allows_external_tool_invocation is False
+
+
+def test_run_approved_command_authority_is_bounded_hitl_runtime_candidate() -> None:
+    by_name = {item.name: item for item in COMMAND_AUTHORITY_REGISTRY}
+    assert "builder-verify run-approved" in by_name
+    record = by_name["builder-verify run-approved"]
+
+    assert record.tier == TIER_3
+    assert record.promotion_state == STATE_HITL_RUNTIME_CANDIDATE
+    assert record.approval_mode == MODE_HITL_ARTIFACT_REQUIRED
+    assert record.allows_runtime_start is False
+    assert record.allows_model_execution is False
+    assert record.allows_shell_execution is False
+    assert record.allows_source_writes is False
+    assert record.allows_git_mutation is False
+    assert record.allows_artifact_writes is True
+    assert record.allows_readonly_subprocess is True
     assert record.allows_external_tool_invocation is False

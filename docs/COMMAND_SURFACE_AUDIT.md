@@ -133,7 +133,7 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 ## B1.2/B1.3A command surface delta
 
 - `builder-verify approve-plan` writes a passive `builder_ii.verification_execution_approval` artifact only to explicit `--output` and prints the same JSON.
-- `builder-verify validate-approval` validates that approval artifact against a referenced passive plan without executing verification.\n- `builder-verify validate-receipt` validates a passive B1.3A receipt contract against its referenced plan and approval without executing verification.
+- `builder-verify validate-approval` validates that approval artifact against a referenced passive plan without executing verification.\n- `builder-verify validate-receipt` validates a passive B1.3A receipt contract against its referenced plan and approval without executing verification.\n- `builder-verify run-approved` runs the first bounded B1.3B verification profile (`platform_status`) only after validating plan and approval artifacts. It uses fixed in-code argv with `shell=False`, writes only an explicit receipt artifact, and does not grant patch/model/MCP/Goose/deepagents/B2 authority.
 - B1.2 binds human approval to an exact verification plan digest only; it does not become runtime authority or authorize direct execution.
 - B1.2 does not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 patch authority.
 - B1.3 is still required before any approved verification can execute.

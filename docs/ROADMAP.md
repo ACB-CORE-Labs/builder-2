@@ -44,7 +44,7 @@ R1 Config + Onboarding Kernel must precede B1 verification execution because exe
 - Orchestration dry-run artifact (`builder_ii.orchestration_dry_run`)
 - Verification profile reports (`builder_ii.verification_profile_report`) — planned checks, NOT_RUN
 - B1.1 verification execution plan artifact (`builder_ii.verification_execution_plan`) — planned-only, execution disabled
-- B1.2 verification execution approval artifact (`builder_ii.verification_execution_approval`) — digest-bound HITL approval only, execution disabled\n- B1.3A verification execution receipt artifact (`builder_ii.verification_execution_receipt`) — passive receipt contract only, execution disabled
+- B1.2 verification execution approval artifact (`builder_ii.verification_execution_approval`) — digest-bound HITL approval only, execution disabled\n- B1.3A verification execution receipt artifact (`builder_ii.verification_execution_receipt`) — passive receipt contract\n- B1.3B bounded approved verification runner (`builder-verify run-approved`) — one approved `platform_status` profile, fixed argv, `shell=False`, receipt-bound
 - Full governed preparation lane scenario tests
 
 **HITL governance chain**

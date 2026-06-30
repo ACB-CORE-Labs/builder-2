@@ -199,6 +199,7 @@ REQUIRED_SUBCOMMANDS = {
     "builder-verify approve-plan",
     "builder-verify validate-approval",
     "builder-verify validate-receipt",
+    "builder-verify run-approved",
 }
 
 COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
@@ -755,6 +756,21 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints validation JSON to stdout.",
         failure_mode="Exits non-zero on malformed receipt artifact, invalid referenced plan or approval, digest drift, binding mismatch, enabled execution flags, shell-enabled flags, subprocess-started flags, mutation flags, or forbidden authority overclaim.",
         notes="Validation-only B1.3A command. It validates the receipt contract only; it does not execute verification. B1.3B is required before approved verification can run.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-verify run-approved",
+        entrypoint="builder_ii.verification_execution_plan_cli:verify_app",
+        tier=TIER_3,
+        promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
+        runtime_boundary="Runs exactly one bounded verification profile from fixed in-code argv with subprocess shell=False, after validating the plan artifact, approval artifact, and approval-to-plan binding. Initial B1.3B support is limited to profile=platform_status.",
+        write_boundary="Writes only the explicit verification execution receipt artifact requested by --output, and only under the configured artifact root when output is inside the target repository.",
+        approval_mode=MODE_HITL_ARTIFACT_REQUIRED,
+        approval_boundary="Requires a digest-bound verification execution approval artifact for the requested command profile and step id.",
+        output_behavior="Prints canonical verification execution receipt JSON to stdout and writes the same receipt to the explicit output path. Captures bounded stdout/stderr excerpts and digests, not full unbounded logs.",
+        failure_mode="Blocks before execution on invalid plan, invalid approval, digest mismatch, unapproved profile/step, unsafe output path, unsupported profile, target/artifact-root escape, or git preflight capture failure. Marks receipt failed on timeout/nonzero exit and invalid on workspace mutation detection.",
+        notes="B1.3B bounded runner candidate only. It does not allow arbitrary shell, operator-provided argv, patch authority, source writes beyond receipt output, git mutation, model execution, MCP/tool invocation, Goose, deepagents, or B2 authority.",
+        allows_artifact_writes=True,
+        allows_readonly_subprocess=True,
     ),
     CommandAuthorityRecord(
         name="builder-hitl",
