@@ -23,6 +23,10 @@ from builder_ii.verification_execution_plan import (
     validate_verification_execution_plan_file,
     write_verification_execution_plan,
 )
+from builder_ii.verification_execution_receipt import (
+    validate_verification_execution_receipt_against_plan_and_approval,
+    validate_verification_execution_receipt_file,
+)
 from builder_ii.verification_profiles import verification_profile_names
 
 
@@ -140,6 +144,42 @@ def validate_approval(
         errors.extend(validate_verification_execution_approval_against_plan(approval_data, plan_data))
 
     report = {"valid": not errors, "errors": errors, "path": str(path), "plan_path": str(plan)}
+    console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
+    if errors:
+        raise typer.Exit(1)
+
+
+@verify_app.command("validate-receipt")
+def validate_receipt(
+    path: Path = typer.Argument(..., help="Path to a verification execution receipt JSON artifact"),
+    plan: Path = typer.Option(..., "--plan", help="Path to the referenced verification execution plan JSON artifact"),
+    approval: Path = typer.Option(..., "--approval", help="Path to the referenced verification execution approval JSON artifact"),
+) -> None:
+    """Validate a passive verification execution receipt against its referenced plan and approval."""
+    errors = validate_verification_execution_receipt_file(path)
+    plan_errors = validate_verification_execution_plan_file(plan)
+    approval_errors = validate_verification_execution_approval_file(approval)
+    errors.extend(plan_errors)
+    errors.extend(approval_errors)
+    if not errors:
+        receipt_data = _read_json_object(path)
+        plan_data = _read_json_object(plan)
+        approval_data = _read_json_object(approval)
+        errors.extend(
+            validate_verification_execution_receipt_against_plan_and_approval(
+                receipt_data,
+                plan_data,
+                approval_data,
+            )
+        )
+
+    report = {
+        "valid": not errors,
+        "errors": errors,
+        "path": str(path),
+        "plan_path": str(plan),
+        "approval_path": str(approval),
+    }
     console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
     if errors:
         raise typer.Exit(1)

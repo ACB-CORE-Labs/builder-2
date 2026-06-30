@@ -246,7 +246,7 @@ Canonical governed passive lanes include:
   - chain binding (cryptographic lifecycle)
   - approved verification execution candidate
 - Verification profile reports via `builder-verification`
-- Passive B1.2 verification plan + approval binding artifacts via `builder-verify`
+- Passive B1.3A verification plan, approval binding, and receipt contract artifacts via `builder-verify`
 - Handoff note lifecycle via `builder-notes`
 - Passive profile-pack lifecycle via `builder-profile-pack`
 - Passive model client registry and routing policy via `builder-model-policy`
@@ -295,7 +295,7 @@ Validated on the M1 `mlx-lm` lane:
 - ConventionKernel platform spine composition
 - HITL execution request/receipt, postflight, verification, evidence bundle, and chain binding artifacts
 - HITL approved verification execution candidate (candidate only — no execution performed)
-- B1.2 passive verification execution plan + approval artifacts (`builder_ii.verification_execution_plan`, `builder_ii.verification_execution_approval`) with execution disabled
+- B1.3A passive verification execution plan, approval, and receipt artifacts (`builder_ii.verification_execution_plan`, `builder_ii.verification_execution_approval`, `builder_ii.verification_execution_receipt`) with execution disabled
 - Handoff note lifecycle artifacts
 - deepagents bridge readiness reports
 - Artifact index and chain verification (all v0 kinds)

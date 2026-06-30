@@ -198,6 +198,7 @@ REQUIRED_SUBCOMMANDS = {
     "builder-verify validate-plan",
     "builder-verify approve-plan",
     "builder-verify validate-approval",
+    "builder-verify validate-receipt",
 }
 
 COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
@@ -741,6 +742,19 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints validation JSON to stdout.",
         failure_mode="Exits non-zero on malformed approval artifact, invalid referenced plan, digest drift, subset drift, enabled execution flags, or forbidden authority overclaim.",
         notes="Validation-only B1.2 command. It does not authorize execution and requires B1.3 before any approved plan can run.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-verify validate-receipt",
+        entrypoint="builder_ii.verification_execution_plan_cli:verify_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates a passive B1.3A verification execution receipt artifact against its referenced plan and approval without runtime start, direct execution, shell execution, subprocess execution, model execution, MCP/tool invocation, Goose, deepagents, git mutation, or B2 patch authority.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints validation JSON to stdout.",
+        failure_mode="Exits non-zero on malformed receipt artifact, invalid referenced plan or approval, digest drift, binding mismatch, enabled execution flags, shell-enabled flags, subprocess-started flags, mutation flags, or forbidden authority overclaim.",
+        notes="Validation-only B1.3A command. It validates the receipt contract only; it does not execute verification. B1.3B is required before approved verification can run.",
     ),
     CommandAuthorityRecord(
         name="builder-hitl",

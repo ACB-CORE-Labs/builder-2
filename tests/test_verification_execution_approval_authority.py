@@ -1,3 +1,4 @@
+from builder_ii.command_authority import STATE_VALIDATION_ONLY
 from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, MODE_NONE, TIER_1
 
 
@@ -39,3 +40,19 @@ def test_validate_approval_is_read_only_and_has_no_runtime_authority() -> None:
     assert not record.allows_external_tool_invocation
     assert record.allows_artifact_writes is False
     assert record.write_boundary == "No changes to workspace."
+
+
+def test_validate_receipt_command_authority_is_validation_only() -> None:
+    by_name = {item.name: item for item in COMMAND_AUTHORITY_REGISTRY}
+    assert "builder-verify validate-receipt" in by_name
+    record = by_name["builder-verify validate-receipt"]
+
+    assert record.tier == TIER_1
+    assert record.promotion_state == STATE_VALIDATION_ONLY
+    assert record.allows_runtime_start is False
+    assert record.allows_model_execution is False
+    assert record.allows_shell_execution is False
+    assert record.allows_source_writes is False
+    assert record.allows_git_mutation is False
+    assert record.allows_artifact_writes is False
+    assert record.allows_external_tool_invocation is False

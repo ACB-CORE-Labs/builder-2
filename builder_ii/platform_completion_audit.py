@@ -556,6 +556,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "builder_ii/verification_execution_plan.py",
             "builder_ii/verification_execution_approval.py",
+            "builder_ii/verification_execution_receipt.py",
             "builder_ii/verification_execution_plan_cli.py",
             "builder_ii/hitl_command_execution.py",
             "builder_ii/hitl_execution_records.py",
@@ -568,6 +569,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "builder-verify validate-plan",
             "builder-verify approve-plan",
             "builder-verify validate-approval",
+            "builder-verify validate-receipt",
         ),
         (
             "tests/test_verification_execution_plan.py",
@@ -575,6 +577,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/test_verification_execution_approval.py",
             "tests/test_verification_execution_approval_cli.py",
             "tests/test_verification_execution_approval_authority.py",
+            "tests/test_verification_execution_receipt.py",
+            "tests/test_verification_execution_receipt_cli.py",
             "tests/test_hitl_command_execution.py",
             "tests/test_hitl_execution_records.py",
             "tests/test_hitl_verification_candidate.py",
@@ -582,10 +586,11 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "B1.1 adds a digest-stable passive verification execution plan artifact only.",
             "B1.2 adds a digest-bound HITL approval artifact only and remains non-authoritative.",
+            "B1.3A adds a passive verification execution receipt contract and validate-receipt surface only.",
             "Receipt state is NOT_EXECUTED.",
             "Subprocess envelope, runner, canonical cwd/env, timeout, bounded capture, git mutation detection, artifact root, receipt binding, and ledger event are missing.",
         ),
-        "B1.3",
+        "B1.3B",
     ),
     _row(
         "HITL patch proposal",
