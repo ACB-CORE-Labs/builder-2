@@ -391,6 +391,12 @@ builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay.json
 builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay.json --output /tmp/builder-ii-setup-rollback-snapshot.json
 builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json
 
+# Run passive governed onboarding UX wrapper or interactive wizard
+builder-setup init --output-dir .builder/setup-artifacts
+builder-setup validate-onboarding-intent .builder/setup-artifacts/onboarding-intent.json
+builder-setup wizard
+builder onboarding
+
 # Prepare a governed session package
 builder-session prepare-package --target builder --task "audit the selected target repo and identify the safest next patch" --output .builder/session/
 builder-session validate-prepare-package .builder/session/
@@ -398,3 +404,4 @@ builder-session summarize-prepare-package .builder/session/
 ```
 
 Legacy `builder setup` now fails closed and prints the governed R1 setup sequence. It does not write Goose config, `.goosehints`, skills, recipes, or runtime state.
+

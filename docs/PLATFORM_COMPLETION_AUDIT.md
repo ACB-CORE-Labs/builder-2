@@ -121,3 +121,8 @@ uv run builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-s
 ## R1.4 update
 
 R1.4 leaves the governed setup apply and rollback slices intact and reconciles the remaining legacy bypass: `builder setup` now fails closed and prints the governed `builder-setup` sequence instead of writing Goose config, `.goosehints`, skills, or recipes. B1, B2, B3, runtime, model/provider, MCP/tool, Goose runtime, deepagents runtime, shell/subprocess execution in the setup path, patch, and autonomous write authority remain unpromoted.
+
+## R1.5 update
+
+R1.5 adds `builder-setup init`, `builder-setup wizard`, `builder onboarding`, and `builder-setup validate-onboarding-intent` to provide a governed onboarding UX over the R1 setup chain. It generates passive onboarding intent reports and prints deferred apply commands only. Setup mutation remains exclusively owned by existing `builder-setup apply --approve-digest`. B1, B2, B3, runtime, model/provider, MCP/tool, Goose runtime, deepagents runtime, shell/subprocess execution in the setup path, patch, and autonomous write authority remain unpromoted.
+

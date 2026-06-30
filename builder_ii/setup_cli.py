@@ -33,6 +33,8 @@ from builder_ii.setup_rollback import (
     validate_setup_rollback_snapshot_file,
     write_setup_rollback_snapshot,
 )
+from builder_ii.onboarding_intent import validate_onboarding_intent_report_file
+from builder_ii.setup_onboarding import run_onboarding_pipeline
 
 
 setup_app = typer.Typer(
@@ -94,6 +96,18 @@ def _rollback_receipt_validation_report(errors: list[str]) -> str:
     return json_lib.dumps(
         {
             "kind": "builder_ii.setup_rollback_receipt_validation_report",
+            "valid": not errors,
+            "errors": errors,
+        },
+        indent=2,
+        sort_keys=True,
+    ) + "\n"
+
+
+def _onboarding_intent_validation_report(errors: list[str]) -> str:
+    return json_lib.dumps(
+        {
+            "kind": "builder_ii.onboarding_intent_validation_report",
             "valid": not errors,
             "errors": errors,
         },
@@ -305,5 +319,88 @@ def validate_rollback_receipt(
         raise typer.Exit(1)
 
 
+@setup_app.command("validate-onboarding-intent")
+def validate_onboarding_intent(
+    path: Path = typer.Argument(..., help="Onboarding intent report JSON artifact path."),
+) -> None:
+    """Validate an onboarding intent report artifact."""
+    errors = validate_onboarding_intent_report_file(path)
+    console.out(_onboarding_intent_validation_report(errors), end="")
+    if errors:
+        raise typer.Exit(1)
+
+
+@setup_app.command("init")
+def setup_init(
+    output_dir: Path = typer.Option(..., "--output-dir", help="Required output directory for onboarding artifacts."),
+    root: Path = typer.Option(Path.cwd(), "--root", help="Project root for configuration resolution."),
+    config_file: Path | None = typer.Option(None, "--config-file", help="Optional builder config file path."),
+    target_repo: Path | None = typer.Option(None, "--target-repo", help="Target repository override."),
+    artifact_root: Path | None = typer.Option(None, "--artifact-root", help="Platform artifact root override."),
+    target_profile: str | None = typer.Option(None, "--target-profile", help="Target profile override (generic|builder|core)."),
+    agent_profile: str | None = typer.Option(None, "--agent-profile", help="Agent profile override."),
+    verification_profile: str | None = typer.Option(None, "--verification-profile", help="Verification profile override."),
+    model_backend: str | None = typer.Option(None, "--model-backend", help="Model backend override."),
+    model_alias: str | None = typer.Option(None, "--model-alias", help="Model alias override."),
+) -> None:
+    """Non-interactive governed onboarding UX wrapper."""
+    result = run_onboarding_pipeline(
+        output_dir=output_dir,
+        onboarding_mode="init",
+        root=root,
+        config_file=config_file,
+        target_repo=target_repo,
+        artifact_root=artifact_root,
+        target_profile=target_profile,
+        agent_profile=agent_profile,
+        verification_profile=verification_profile,
+        model_backend=model_backend,
+        model_alias=model_alias,
+    )
+    if not result.valid:
+        console.out(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
+        raise typer.Exit(1)
+
+    console.out(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
+    console.out("\nExact next commands:\n", end="")
+    console.out(f"  {result.onboarding_intent['apply_command']}\n", end="")
+    console.out(f"  {result.onboarding_intent['validate_receipt_command']}\n", end="")
+
+
+@setup_app.command("wizard")
+def setup_wizard(
+    output_dir: Path | None = typer.Option(None, "--output-dir", help="Output directory for onboarding artifacts."),
+    root: Path = typer.Option(Path.cwd(), "--root", help="Project root for configuration resolution."),
+    target_profile: str | None = typer.Option(None, "--target-profile", help="Target profile override (generic|builder|core)."),
+    model_backend: str | None = typer.Option(None, "--model-backend", help="Model backend override."),
+    model_alias: str | None = typer.Option(None, "--model-alias", help="Model alias override."),
+) -> None:
+    """Interactive guided onboarding wizard flow."""
+    out_path = output_dir or Path(typer.prompt("Enter output directory for onboarding artifacts", default=".builder/setup-artifacts"))
+    profile = target_profile or typer.prompt("Select target profile (generic, builder, core)", default="generic")
+    backend = model_backend or typer.prompt("Select local model backend (rapid-mlx, mlx-lm, ollama)", default="rapid-mlx")
+    alias = model_alias or typer.prompt("Select primary model alias", default="phi-reasoning")
+
+    result = run_onboarding_pipeline(
+        output_dir=out_path,
+        onboarding_mode="wizard",
+        root=root,
+        target_profile=profile,
+        model_backend=backend,
+        model_alias=alias,
+    )
+    if not result.valid:
+        console.out(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
+        raise typer.Exit(1)
+
+    console.out(f"\nOnboarding Plan Generated Successfully!\nOutput Directory: {out_path}\n", end="")
+    console.out(f"Setup Plan Digest:        {result.setup_plan['plan_digest']}\n", end="")
+    console.out(f"Overlay Plan Digest:      {result.overlay_plan['overlay_plan_digest']}\n", end="")
+    console.out(f"Rollback Snapshot Digest: {result.rollback_snapshot['snapshot_id']}\n", end="")
+    console.out(f"\nExact next commands:\n  {result.onboarding_intent['apply_command']}\n  {result.onboarding_intent['validate_receipt_command']}\n", end="")
+    console.out("\nTo apply, run the printed builder-setup apply command after reviewing the overlay digest.\n", end="")
+
+
 if __name__ == "__main__":
     setup_app()
+

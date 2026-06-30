@@ -96,6 +96,26 @@ def setup() -> None:
     raise typer.Exit(1)
 
 
+@app.command("onboarding")
+def onboarding(
+    output_dir: Optional[Path] = typer.Option(None, "--output-dir", help="Output directory for onboarding artifacts."),
+    root: Path = typer.Option(Path.cwd(), "--root", help="Project root for configuration resolution."),
+    target_profile: Optional[str] = typer.Option(None, "--target-profile", help="Target profile override."),
+    model_backend: Optional[str] = typer.Option(None, "--model-backend", help="Model backend override."),
+    model_alias: Optional[str] = typer.Option(None, "--model-alias", help="Model alias override."),
+) -> None:
+    """Interactive guided onboarding wizard flow (delegates to builder-setup wizard)."""
+    from builder_ii.setup_cli import setup_wizard
+    setup_wizard(
+        output_dir=output_dir,
+        root=root,
+        target_profile=target_profile,
+        model_backend=model_backend,
+        model_alias=model_alias,
+    )
+
+
+
 @app.command("pull")
 def pull(
     tier: str = typer.Option("recommended", "--tier", "-t", help="recommended|fast|primary|all-safe|status|legacy"),

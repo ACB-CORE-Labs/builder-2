@@ -186,5 +186,25 @@ R1.4 reconciles legacy setup surfaces into the governed R1 path:
 - `builder setup` is a fail-closed compatibility wrapper that prints the governed `builder-setup` sequence and exits non-zero.
 - `builder_ii/goose_setup.py` remains setup-artifact/config-overlay oriented and does not perform direct writes, skill copying, or recipe validation.
 - Goose setup remains represented as passive overlay candidates until the operator explicitly uses digest-bound `builder-setup apply`.
-- Goose runtime is still not enabled.
 - Skills, recipes, Goose config, and `.goosehints` are not installed through unmanaged writes.
+
+## R1.5 governed onboarding UX
+
+R1.5 adds a governed onboarding UX layer over the existing R1 setup chain:
+
+- `builder-setup init` provides a non-interactive wrapper around configuration resolution, setup planning, overlay planning, rollback snapshot generation, and intent reporting.
+- `builder-setup wizard` provides an interactive guided onboarding flow using safe `typer.prompt` dry-run inputs.
+- `builder onboarding` provides a clean root CLI delegation to `builder-setup wizard`.
+- `builder-setup validate-onboarding-intent` validates passive onboarding intent report artifacts (`builder_ii.onboarding_intent_report`).
+
+The onboarding intent report records onboarding inputs, target and agent profiles, planned files, and the setup plan/overlay/rollback snapshot digests. It explicitly asserts that `artifact_is_authority` is `false` and that runtime, model, shell, subprocess, Goose, deepagents, and patch execution remain disabled.
+
+```bash
+builder-setup init --output-dir .builder/setup-artifacts
+builder-setup validate-onboarding-intent .builder/setup-artifacts/onboarding-intent.json
+builder-setup wizard
+builder onboarding
+```
+
+Onboarding commands do not perform mutation or write setup receipts directly. To apply setup writes, run the printed `builder-setup apply` command after reviewing the overlay plan digest.
+

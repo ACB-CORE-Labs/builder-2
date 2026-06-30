@@ -11,6 +11,7 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - `builder-platform`
 - `builder-config`
 - `builder-setup`
+- `builder onboarding`
 
 Governed setup subcommands:
 
@@ -20,6 +21,9 @@ Governed setup subcommands:
 - `builder-setup validate-overlay-plan`
 - `builder-setup rollback-snapshot`
 - `builder-setup validate-rollback-snapshot`
+- `builder-setup init`
+- `builder-setup wizard`
+- `builder-setup validate-onboarding-intent`
 
 ## Target/Profile/Context
 - `builder-context`
@@ -102,4 +106,5 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder-setup validate-receipt` validates `builder_ii.setup_apply_receipt` artifacts.
 - `builder-setup rollback` adds digest-bound governed setup rollback from an applied setup receipt plus matching rollback snapshot.
 - Legacy `builder setup` now fails closed and cannot bypass digest-bound governed setup apply/rollback.
-- R1.4 does not add B1 verification execution, runtime/model/tool/MCP/Goose/deepagents/shell/subprocess/patch authority, or autonomous apply.
+- R1.5 adds `builder-setup init`, `builder-setup wizard`, `builder onboarding`, and `builder-setup validate-onboarding-intent` as passive onboarding wrappers.
+- R1.5 does not add B1 verification execution, runtime/model/tool/MCP/Goose/deepagents/shell/subprocess/patch authority, or autonomous apply.
