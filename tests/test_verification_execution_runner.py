@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from builder_ii.config_schema import attach_digest
 from builder_ii.verification_execution_approval import (
     finalize_verification_execution_approval,
     write_verification_execution_approval,
@@ -210,13 +211,26 @@ def test_cli_run_approved_writes_receipt(monkeypatch: Any, tmp_path: Path) -> No
     assert json.loads(receipt_path.read_text(encoding="utf-8"))["receipt_status"] == "EXECUTED"
 
 
-def test_minimal_env_preserves_path(monkeypatch: Any, tmp_path: Path) -> None:
+def test_minimal_env_preserves_path_without_forwarding_secrets(monkeypatch: Any, tmp_path: Path) -> None:
     monkeypatch.setenv("PATH", "/usr/bin:/bin")
+    monkeypatch.setenv("TERM", "xterm-256color")
+    monkeypatch.setenv("SYSTEMDRIVE", "C:")
+    monkeypatch.setenv("OPENAI_API_KEY", "secret")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "secret")
+    monkeypatch.setenv("GITHUB_TOKEN", "secret")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
+
     env = _minimal_env(tmp_path)
 
     assert env["PATH"] == "/usr/bin:/bin"
+    assert env["TERM"] == "xterm-256color"
+    assert env["SYSTEMDRIVE"] == "C:"
     assert env["CORE_REPO_PATH"] == "."
     assert env["PYTHONPATH"] == str(tmp_path)
+    assert "OPENAI_API_KEY" not in env
+    assert "ANTHROPIC_API_KEY" not in env
+    assert "GITHUB_TOKEN" not in env
+    assert "AWS_SECRET_ACCESS_KEY" not in env
 
 
 def test_invalid_non_object_plan_blocks_without_crashing(tmp_path: Path) -> None:
@@ -238,3 +252,113 @@ def test_invalid_non_object_plan_blocks_without_crashing(tmp_path: Path) -> None
     assert receipt["valid"] is False
     assert receipt["receipt_status"] == "BLOCKED_BEFORE_EXECUTION"
     assert any("plan" in error.lower() for error in receipt["errors"])
+
+
+def test_invalid_false_plan_blocks_without_subprocess(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    plan["valid"] = False
+    plan["errors"] = ["synthetic invalid plan"]
+    plan = attach_digest(plan, digest_key="verification_execution_plan_digest")
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(list(args))
+        return _completed(args)
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path,
+        approval_path=approval_path,
+        output=receipt_path,
+        requested_profile="platform_status",
+    )
+
+    assert receipt["valid"] is False
+    assert receipt["receipt_status"] == "BLOCKED_BEFORE_EXECUTION"
+    assert any("plan must be valid" in error for error in receipt["errors"])
+    assert calls == []
+
+
+def test_invalid_false_approval_blocks_without_subprocess(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)
+    approval = json.loads(approval_path.read_text(encoding="utf-8"))
+    approval["valid"] = False
+    approval["errors"] = ["synthetic invalid approval"]
+    approval = attach_digest(approval, digest_key="verification_execution_approval_digest")
+    approval_path.write_text(json.dumps(approval, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(list(args))
+        return _completed(args)
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path,
+        approval_path=approval_path,
+        output=receipt_path,
+        requested_profile="platform_status",
+    )
+
+    assert receipt["valid"] is False
+    assert receipt["receipt_status"] == "BLOCKED_BEFORE_EXECUTION"
+    assert any("approval must be valid" in error for error in receipt["errors"])
+    assert calls == []
+
+
+def test_output_outside_artifact_root_blocks_without_write_or_subprocess(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, _receipt_path = _write_bound_artifacts(tmp_path)
+    unsafe_output = tmp_path / "receipt-outside-root.json"
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(list(args))
+        return _completed(args)
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path,
+        approval_path=approval_path,
+        output=unsafe_output,
+        requested_profile="platform_status",
+    )
+
+    assert receipt["valid"] is False
+    assert receipt["receipt_status"] == "BLOCKED_BEFORE_EXECUTION"
+    assert any("artifact root" in error for error in receipt["errors"])
+    assert not unsafe_output.exists()
+    assert calls == []
+
+
+def test_output_equal_to_artifact_root_blocks_without_write_or_subprocess(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, _receipt_path = _write_bound_artifacts(tmp_path)
+    unsafe_output = tmp_path / ".builder" / "verification"
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(list(args))
+        return _completed(args)
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path,
+        approval_path=approval_path,
+        output=unsafe_output,
+        requested_profile="platform_status",
+    )
+
+    assert receipt["valid"] is False
+    assert receipt["receipt_status"] == "BLOCKED_BEFORE_EXECUTION"
+    assert any("artifact root" in error for error in receipt["errors"])
+    assert unsafe_output.is_dir()
+    assert calls == []

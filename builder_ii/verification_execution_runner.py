@@ -28,6 +28,24 @@ from builder_ii.verification_execution_receipt import (
 STDOUT_STDERR_CAPTURE_BYTES = 65536
 GIT_STATUS_TIMEOUT_SECONDS = 10
 FORBIDDEN_ARG_TOKENS = ("&&", "||", ";", "|", "`", "$(", "\n", "\r", ">", "<")
+SAFE_ENV_KEYS = (
+    "PATH",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "HOME",
+    "TMPDIR",
+    "TEMP",
+    "TMP",
+    "USER",
+    "TZ",
+    "SYSTEMROOT",
+    "WINDIR",
+    "COMSPEC",
+    "PATHEXT",
+    "SYSTEMDRIVE",
+    "TERM",
+)
 
 
 @dataclass(frozen=True)
@@ -50,7 +68,7 @@ SUPPORTED_COMMAND_PROFILES: dict[str, BoundedCommandProfile] = {
 }
 
 
-def _read_json_object(path: Path) -> dict[str, Any]:
+def _read_json_object(path: Path) -> Any:
     return json_lib.loads(path.read_text(encoding="utf-8"))
 
 
@@ -79,13 +97,15 @@ def _validate_output_path(*, output: Path, target_repo: Path, artifact_root: Pat
     resolved_output = output.expanduser().resolve()
     if resolved_output.exists() and resolved_output.is_dir():
         errors.append("output path must be a file path, not a directory")
-    if _path_is_relative_to(resolved_output, target_repo) and not _path_is_relative_to(resolved_output, artifact_root):
-        errors.append("output path inside target repo must be under the configured artifact root")
+    if not _path_is_relative_to(resolved_output, artifact_root) or resolved_output == artifact_root:
+        errors.append("output path must be under the configured artifact root inside target_repo")
+    if not _path_is_relative_to(artifact_root, target_repo):
+        errors.append("artifact_root must resolve inside target_repo")
     return errors
 
 
 def _minimal_env(target_repo: Path) -> dict[str, str]:
-    env = os.environ.copy()
+    env = {key: value for key, value in os.environ.items() if key in SAFE_ENV_KEYS}
     env.update(
         {
             "CORE_REPO_PATH": ".",
@@ -200,6 +220,20 @@ def _blocked_process_result(*, profile: str, step_id: str, reason: str) -> dict[
     }
 
 
+def _maybe_write_blocked_receipt(
+    *,
+    receipt: dict[str, Any],
+    output: Path,
+    target_repo: Path | None,
+    artifact_root: Path | None,
+) -> None:
+    if target_repo is None or artifact_root is None:
+        return
+    if _validate_output_path(output=output, target_repo=target_repo, artifact_root=artifact_root):
+        return
+    write_verification_execution_receipt(receipt, output)
+
+
 def _receipt_for_block(
     *,
     plan: dict[str, Any],
@@ -243,7 +277,12 @@ def _receipt_for_block(
     receipt["errors"] = list(dict.fromkeys(list(receipt.get("errors") or []) + errors))
     receipt["valid"] = False
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
-    write_verification_execution_receipt(receipt, output)
+    _maybe_write_blocked_receipt(
+        receipt=receipt,
+        output=output,
+        target_repo=target_repo,
+        artifact_root=artifact_root,
+    )
     return receipt
 
 
@@ -263,6 +302,10 @@ def run_approved_verification(
 
     errors.extend(validate_verification_execution_plan_artifact(plan_data))
     errors.extend(validate_verification_execution_approval_artifact(approval_data))
+    if isinstance(plan_data, dict) and plan_data.get("valid") is not True:
+        errors.append("referenced verification execution plan must be valid (valid=true)")
+    if isinstance(approval_data, dict) and approval_data.get("valid") is not True:
+        errors.append("referenced verification execution approval must be valid (valid=true)")
     if not errors:
         errors.extend(validate_verification_execution_approval_against_plan(approval, plan))
     if profile is None:
