@@ -12,7 +12,7 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - `builder-config`
 - `builder-setup`
 
-R1.2 passive setup subcommands:
+Governed setup subcommands:
 
 - `builder-setup plan`
 - `builder-setup validate-plan`
@@ -73,11 +73,21 @@ R1.2 passive setup subcommands:
 - no autonomous writes are enabled
 - no Goose runtime activation is enabled
 - no deepagents runtime is enabled
-- no setup apply is enabled
-- setup rollback execution is enabled only for digest-bound explicit approval; generic/B2 rollback remains disabled
-- no Goose config writes, `.goosehints` writes, skill copying, or recipe installation writes are enabled by `builder-setup`
+- setup apply is enabled only for digest-bound explicit approval through `builder-setup apply`
+- setup rollback execution is enabled only for digest-bound explicit approval through `builder-setup rollback`; generic/B2 rollback remains disabled
+- legacy `builder setup` performs no writes and only redirects to the governed R1 path
+- no Goose config writes, `.goosehints` writes, skill copying, or recipe installation writes are enabled by the legacy `builder setup` redirect path
 - builder-II is not CORE Workbench/UI
 - CORE is only a target profile
+
+## R1.4 Legacy Setup Reconciliation Audit
+
+| Surface | Current behavior | Reconciled behavior | Mode | Authority tier | Write/runtime boundary |
+|---|---|---|---|---|---|
+| `builder setup` | Legacy compatibility entrypoint | Fails closed and prints governed `builder-setup` sequence | `disabled_redirect` | Tier 1 compatibility redirect | No setup writes, no Goose start, no subprocess/shell, no model/tool/runtime promotion |
+| `builder_ii/goose_setup.py` | Passive Goose config and skill-source metadata | Passive-only setup/config-overlay helper | `passive_only` | Tier 1 passive metadata | No direct writes, no recipe validation, no skill copying |
+| `builder start` | Operator-managed runtime helper | No longer auto-runs legacy setup writes | `runtime_decoupled` | Tier 2 operator-managed runtime helper | Runtime state only; setup must go through governed artifacts |
+| `builder_ii/goose_launcher.py` | Runtime launcher | Runtime-only helper with session-context write | `runtime_only` | Tier 2 operator-managed runtime helper | No Goose setup delegation, no config writes, no skill installs |
 
 
 ## Reconciliation additions
@@ -86,8 +96,10 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 
 - `builder-orchestration`
 
-## R1.3A command surface delta
+## R1.4 command surface delta
 
 - `builder-setup apply` adds digest-bound governed setup apply from a validated overlay/snapshot pair and requires explicit `--approve-digest` plus explicit receipt `--output`.
 - `builder-setup validate-receipt` validates `builder_ii.setup_apply_receipt` artifacts.
-- R1.3B adds setup rollback only and does not add B1 verification execution, runtime/model/tool/MCP/Goose/deepagents/shell/subprocess/patch authority, autonomous apply, or legacy setup reconciliation.
+- `builder-setup rollback` adds digest-bound governed setup rollback from an applied setup receipt plus matching rollback snapshot.
+- Legacy `builder setup` now fails closed and cannot bypass digest-bound governed setup apply/rollback.
+- R1.4 does not add B1 verification execution, runtime/model/tool/MCP/Goose/deepagents/shell/subprocess/patch authority, or autonomous apply.

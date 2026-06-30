@@ -216,9 +216,9 @@ Legacy operator-managed helpers remain explicit and separate:
 - MLX-LM backend startup and served-model checks through operator invocation
 - Direct local ask through an OpenAI-compatible local endpoint
 - Runtime marker and listener reset helpers
-- Goose config generation
+- Passive Goose config overlay planning
 - Goose recipes for platform, coding, plan, explore, implement, review, verify, and handoff flows
-- builder-II skills copied into the selected target repo
+- Passive skill install planning via governed setup overlays
 
 Canonical governed passive lanes include:
 
@@ -356,7 +356,12 @@ bash scripts/pull-roster.sh candidates
 ## First run
 
 ```bash
-builder setup
+builder-setup plan --output /tmp/builder-ii-setup-plan.json
+builder-setup validate-plan /tmp/builder-ii-setup-plan.json
+builder-setup overlay-plan /tmp/builder-ii-setup-plan.json --output /tmp/builder-ii-setup-overlay.json
+builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay.json
+builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay.json --output /tmp/builder-ii-setup-rollback-snapshot.json
+builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json
 builder doctor
 builder models
 builder-targets validate
@@ -392,4 +397,4 @@ builder-session validate-prepare-package .builder/session/
 builder-session summarize-prepare-package .builder/session/
 ```
 
-Existing `builder setup` remains legacy/operator-managed until later R1 slices reconcile passive setup plans, overlays, rollback snapshots, apply, receipts, and rollback execution.
+Legacy `builder setup` now fails closed and prints the governed R1 setup sequence. It does not write Goose config, `.goosehints`, skills, recipes, or runtime state.

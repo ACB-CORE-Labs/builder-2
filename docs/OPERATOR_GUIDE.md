@@ -21,23 +21,28 @@ The current platform does not grant authority for:
 - source collection, web search, or MCP execution;
 - CORE Workbench/UI coupling.
 
-## What gets installed or configured
+## What the governed setup lane plans
 
-`builder setup` prepares the local platform environment and Goose support. Depending on target configuration, setup may write:
+Legacy `builder setup` is disabled in R1.4 and now only prints the governed `builder-setup` sequence. The governed setup lane plans and validates:
 
-- Goose config at `~/.config/goose/config.yaml`;
-- recipe path pointing to `recipes/`;
-- slash commands for governed development recipes;
-- `.goosehints` in the selected target repo;
-- auto-generated session context under `.builder/session-context.md`;
-- builder-II skills copied into the selected target repo under `.agents/skills`.
+- Goose config overlay candidates for `~/.config/goose/config.yaml`;
+- recipe path and slash-command overlay candidates pointing to `recipes/`;
+- `.goosehints` candidates in the selected target repo;
+- session-context candidates under `.builder/session-context.md`;
+- skill install candidates from `.agents/skills` into the selected target repo;
+- rollback snapshots and digest-bound apply/rollback prerequisites.
 
 Target-specific behavior must remain isolated to the selected target profile.
 
 ## Normal artifact-first workflow
 
 ```bash
-builder setup
+builder-setup plan --output .builder/artifacts/setup-plan.json
+builder-setup validate-plan .builder/artifacts/setup-plan.json
+builder-setup overlay-plan .builder/artifacts/setup-plan.json --output .builder/artifacts/setup-overlay.json
+builder-setup validate-overlay-plan .builder/artifacts/setup-overlay.json
+builder-setup rollback-snapshot .builder/artifacts/setup-overlay.json --output .builder/artifacts/setup-rollback-snapshot.json
+builder-setup validate-rollback-snapshot .builder/artifacts/setup-rollback-snapshot.json
 builder doctor
 builder-targets validate
 builder-agent validate
@@ -149,7 +154,7 @@ Validated:
 - served-model check at `/v1/models`;
 - direct local ask through `/v1/chat/completions`;
 - runtime marker reset and listener cleanup;
-- Goose config generation;
+- passive Goose config overlay planning;
 - recipe path existence checks;
 - artifact creation and validation for target bundles, verification profiles, quality gates, handoffs, research plans, and Goose session manifests.
 

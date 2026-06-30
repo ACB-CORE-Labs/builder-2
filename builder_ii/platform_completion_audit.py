@@ -283,8 +283,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/test_config_setup_cli.py",
         ),
         (
-            "Legacy builder setup still writes config/hints/skills outside the governed R1.1 lane.",
-            "R1.3A adds digest-bound governed setup apply and setup receipts for declared setup targets only; R1.3B adds digest-bound setup rollback for changed paths covered by setup snapshots. Legacy setup reconciliation remains missing.",
+            "R1.4 disables legacy builder setup writes and redirects operators to the governed builder-setup artifact chain.",
+            "R1.3A adds digest-bound governed setup apply and setup receipts for declared setup targets only; R1.3B adds digest-bound setup rollback for changed paths covered by setup snapshots.",
+            "Interactive onboarding, setup wizard UX, and operational runtime promotion remain missing.",
         ),
         "R1",
     ),
@@ -300,7 +301,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/scenarios/test_config_to_goose_projection_flow.py",
         ),
         (
-            "Legacy merge behavior exists.",
+            "Legacy merge-style Goose config application remains intentionally unimplemented.",
             "R1.2 can describe Goose config overlay keys, recipe path registration, secrets-preservation policy, and rollback snapshot requirements passively.",
             "R1.3A apply can write declared setup paths only when represented as supported create/replace/mkdir/no-op changes; R1.3B setup rollback can undo eligible setup-created paths. Merge-style Goose config overlay and generic rollback remain unimplemented.",
         ),
@@ -325,7 +326,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("builder-setup", "builder"),
         ("tests/test_setup_overlay.py", "tests/test_goose_setup.py"),
         (
-            "Legacy skill installer copies into the target repo.",
+            "Legacy skill copying is disabled from builder setup in R1.4.",
             "R1.2 adds passive skill install-plan entries with source/destination digests and conflict notes.",
             "Operational install/copy and target-scoped approval are missing; R1.3B setup rollback does not promote generic skill rollback.",
         ),
@@ -625,8 +626,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("builder",),
         ("tests/test_goose_setup.py",),
         (
-            "Legacy setup writes Goose config, hints, skills, and recipes.",
-            "It is operator-managed behavior, not governed runtime promotion.",
+            "R1.4 converts builder setup into a fail-closed redirect and removes legacy setup writes from the setup path.",
+            "Goose runtime promotion, recipe execution, and governed runtime receipts remain missing.",
         ),
         "B4 after R0/B3",
     ),
@@ -832,7 +833,7 @@ def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_R
         "builder-II platform truth state",
         "",
         "builder-II is passive-foundation-complete for governed artifacts, but operationally incomplete.",
-        "No runtime execution, patch application, model/provider call, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous write, or commit/push authority is promoted by R1.3B.",
+        "No runtime execution, patch application, model/provider call, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous write, or commit/push authority is promoted by R1.4.",
         f"Next sequence: {NEXT_SEQUENCE}. R1 Config + Onboarding Kernel must precede B1 verification execution.",
         "",
         "Capability states:",
@@ -842,14 +843,14 @@ def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_R
     lines.extend(
         [
             "",
-            "R1 config/onboarding rows promoted through R1.3B:",
+            "R1 config/onboarding rows promoted through R1.4:",
             "- config schema: PASSIVE_FOUNDATION",
             "- config source precedence: PASSIVE_FOUNDATION",
-            "- setup plan/overlay/rollback-snapshot/apply/rollback command surface: governed apply and setup rollback are digest-bound and non-runtime",
+            "- setup plan/overlay/rollback-snapshot/apply/rollback command surface: governed apply and setup rollback are digest-bound and non-runtime, and legacy builder setup now fails closed",
             "- Goose config overlay/rollback planning: PASSIVE_FOUNDATION",
             "- setup receipt + rollback receipt artifacts: PASSIVE_FOUNDATION",
             "",
-            "Generic/B2 rollback execution, interactive setup wizard, runtime execution, and B1 verification execution remain non-operational; R1.3B setup rollback is narrowly digest-bound.",
+            "Generic/B2 rollback execution, interactive setup wizard, runtime execution, and B1 verification execution remain non-operational; R1.4 reconciles only the legacy setup command surface.",
         ]
     )
     return "\n".join(lines) + "\n"

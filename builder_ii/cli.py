@@ -24,7 +24,11 @@ from builder_ii.goose_launcher import (
     launch_goose_session,
     pull_models,
 )
-from builder_ii.goose_setup import run_full_setup, validate_recipes
+from builder_ii.goose_recipe_validation import validate_recipes
+from builder_ii.goose_setup import (
+    legacy_setup_redirect_payload,
+    render_legacy_setup_redirect_text,
+)
 from builder_ii.harness import format_verify_report, run_verification
 from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT, estimate_tokens
 from builder_ii.model_router import SESSION_MODES, explain_plan, plan_session, tier_for_alias
@@ -86,22 +90,10 @@ def _ensure_backend(settings, no_backend: bool) -> None:
 
 @app.command("setup")
 def setup() -> None:
-    """One-shot setup: Goose config, skills, hints, MOIM context, validate recipes."""
+    """Legacy compatibility wrapper for the governed R1 setup path."""
     settings = load_settings()
-    console.print("[bold]Builder setup[/]")
-    console.print(goose_status())
-    result = run_full_setup(settings)
-    table = Table("Artifact", "Path")
-    table.add_row("goose config", result["goose_config"])
-    table.add_row(".goosehints", result["goosehints"])
-    table.add_row("MOIM context", result["moim_context"])
-    console.print(table)
-    if result["skills_installed"]:
-        console.print(f"Skills installed to CORE: {len(result['skills_installed'])}")
-    for item in result["recipe_validation"]:
-        mark = "[green]OK[/]" if item["ok"] else "[red]FAIL[/]"
-        console.print(f"{mark} {item['path']}")
-    console.print("\nNext: [bold]bash scripts/pull-roster.sh recommended[/] then [bold]builder start --task '...'[/]")
+    console.out(render_legacy_setup_redirect_text(settings), end="")
+    raise typer.Exit(1)
 
 
 @app.command("pull")
@@ -146,7 +138,6 @@ def start(
     console.print(f"[bold]Builder[/] mode={session.mode} alias={settings.model_alias} tier={session.model_tier} backend={settings.backend} model={settings.active_model_id}")
     console.print(goose_status())
 
-    run_full_setup(settings)
     _ensure_backend(settings, no_backend)
 
     console.print(f"CORE repo: {settings.core_repo}")
@@ -330,10 +321,18 @@ def status() -> None:
 
 @app.command("config")
 def config_dump() -> None:
-    """Print effective Goose/session configuration as JSON."""
+    """Print passive config and legacy setup reconciliation metadata as JSON."""
     settings = load_settings()
-    result = run_full_setup(settings)
-    console.print(json.dumps(result, indent=2))
+    payload = legacy_setup_redirect_payload(settings)
+    payload["settings"] = {
+        "project_root": str(settings.project_root),
+        "target_repo": str(settings.core_repo),
+        "backend": settings.backend,
+        "model_alias": settings.model_alias,
+        "model_tier": settings.model_tier,
+        "active_model_id": settings.active_model_id,
+    }
+    console.out(json.dumps(payload, indent=2) + "\n", end="")
 
 
 @app.command("init-prompt")

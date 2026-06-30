@@ -90,7 +90,8 @@ R1 Config + Onboarding Kernel must precede B1 verification execution because exe
 
 ```bash
 # Setup
-builder setup
+builder-setup plan --output /tmp/builder-ii-setup-plan.json
+builder-setup validate-plan /tmp/builder-ii-setup-plan.json
 builder doctor
 builder-targets validate
 builder-agent validate

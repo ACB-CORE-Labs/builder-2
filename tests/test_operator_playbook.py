@@ -47,7 +47,8 @@ def test_docs_alignment_drift():
         
     # Command families to look for
     commands = [
-        "builder setup",
+        "builder-setup plan",
+        "builder-setup validate-plan",
         "builder doctor",
         "builder-targets validate",
         "builder-agent validate",

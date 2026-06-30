@@ -44,7 +44,8 @@ Artifact foundation state: `PASSIVE_FOUNDATION`. Goose session manifests are a g
 ## North Star operating loop
 
 ```bash
-builder setup
+builder-setup plan --output .builder/artifacts/setup-plan.json
+builder-setup validate-plan .builder/artifacts/setup-plan.json
 builder doctor
 builder-targets validate
 builder-agent validate

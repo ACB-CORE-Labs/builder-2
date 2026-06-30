@@ -15,11 +15,18 @@ brew install block-goose-cli
 cd builder-II
 uv sync
 cp .env.example .env
-builder setup
+builder-setup plan --output /tmp/builder-ii-setup-plan.json
+builder-setup validate-plan /tmp/builder-ii-setup-plan.json
+builder-setup overlay-plan /tmp/builder-ii-setup-plan.json --output /tmp/builder-ii-setup-overlay.json
+builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay.json
+builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay.json --output /tmp/builder-ii-setup-rollback-snapshot.json
+builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json
 bash scripts/pull-roster.sh recommended
 builder doctor
 builder start --task "inspect CORE and suggest the smallest safe patch"
 ```
+
+Legacy `builder setup` is a fail-closed redirect in R1.4. It no longer writes Goose config, `.goosehints`, skills, or recipes.
 
 Default `.env` values:
 
@@ -96,9 +103,9 @@ builder start --model llama --task "review prompt adherence"
 | Orchestrator recipe | `recipes/core-platform.yaml` |
 | Coding recipe | `recipes/core-coding.yaml` |
 | Subrecipes | `explore`, `implement`, `review`, `verify`, `handoff`, `plan` |
-| Skills | `.agents/skills/` copied into CORE by `builder setup` |
-| MOIM context | `.builder/session-context.md` |
-| Hints | `.goosehints` written to CORE repo root |
+| Skills | Planned in setup overlay artifacts; not copied by legacy `builder setup` |
+| MOIM context | `.builder/session-context.md` for active operator-launched runtime sessions |
+| Hints | Planned as `.goosehints` setup overlay candidates |
 
 ## Verification harness
 
@@ -145,7 +152,8 @@ builder models
 ## Command reference
 
 ```bash
-builder setup
+builder-setup plan --output /tmp/builder-ii-setup-plan.json
+builder-setup validate-plan /tmp/builder-ii-setup-plan.json
 builder doctor
 builder models
 builder pull

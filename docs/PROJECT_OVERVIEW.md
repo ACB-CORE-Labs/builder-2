@@ -78,7 +78,7 @@ The current implementation deliberately stops before autonomous runtime authorit
 | `builder_ii/notes_cli.py` | Handoff artifact creation and validation. |
 | `builder_ii/research_cli.py` | Artifact-only research planning. |
 | `builder_ii/goose_session.py` | Goose session manifest creation and validation. |
-| `builder_ii/goose_setup.py` | Goose config, hints, context, skills, and recipe wiring. |
+| `builder_ii/goose_setup.py` | Passive Goose setup metadata plus legacy setup redirect payloads. |
 | `builder_ii/goose_launcher.py` | Operator-started Goose session helper. |
 | `builder_ii/backends.py` | MLX-LM backend health and served-model checks. |
 | `builder_ii/runtime_control.py` | Runtime status/reset helper for local MLX listener and marker state. |
@@ -87,7 +87,7 @@ The current implementation deliberately stops before autonomous runtime authorit
 | `builder_ii/roles.py` | Read-only persona definitions. |
 | `builder_ii/role_gates.py` | Capability boundaries for personas. |
 | `recipes/` | Goose platform and coding recipes. |
-| `.agents/skills/` | Skills copied into the selected target repo by setup flows. |
+| `.agents/skills/` | Skills represented as passive setup overlay candidates. |
 
 ## Agents, subagents, and tasks
 

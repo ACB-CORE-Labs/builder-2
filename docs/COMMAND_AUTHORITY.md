@@ -38,11 +38,13 @@ The platform categorizes all console scripts and subcommands into one of five ex
 3. **CORE TARGET ONLY**: CORE is a lineage context and target profile only, not the identity of the platform. Conflating the platform with the CORE workbench is strictly forbidden.
 4. **Deephaven untouched**: Deephaven-related capabilities remain completely untouched and out of scope.
 
-## R1.2 Config/Setup Commands
+## R1 Config/Setup Commands
 
 `builder-config schema`, `builder-config resolve`, `builder-config validate`, `builder-setup plan`, `builder-setup validate-plan`, `builder-setup overlay-plan`, `builder-setup validate-overlay-plan`, `builder-setup rollback-snapshot`, and `builder-setup validate-rollback-snapshot` are Tier 1 passive artifact/validation commands.
 
 For each command, runtime execution, model execution, shell execution, source writes, Goose runtime, deepagents runtime, MCP/tool invocation, patch authority, setup apply, and setup rollback execution are disabled. Artifact-producing commands may write only the explicit JSON artifact path supplied by `--output`. They do not write Goose config, `.goosehints`, skills, recipes, target repo files, source files, or secure prior-content stores.
+
+R1.4 additionally reconciles the legacy `builder setup` surface: it is now a fail-closed Tier 1 compatibility redirect that prints the governed `builder-setup` sequence and performs no writes.
 
 ## Command Authority Registry Table
 
@@ -99,7 +101,8 @@ For each command, runtime execution, model execution, shell execution, source wr
 | `builder-context pack` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Invokes legacy external scanner or git commands. | Writes context bundle files. | `explicit_operator_invocation` | Explicit operator invocation only; no artifact approval chain. | No | No | Yes | No |
 | `builder-context changed` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Queries git status or git diff via subprocess. | No changes to workspace. | `explicit_operator_invocation` | Explicit operator invocation only; no artifact approval chain. | No | No | No | No |
 | `builder-context artifact` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Processes codebase scanning, potentially using external tools like repomix. | Creates context artifact files. | `explicit_operator_invocation` | Explicit operator invocation only; no artifact approval chain. | No | No | Yes | No |
-| `builder start` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Starts background runtime processes and servers. | Creates process locks and configuration settings. | `explicit_operator_invocation` | Explicit operator invocation only; no artifact approval chain. | No | No | No | Yes |
+| `builder setup` | Tier 1 — artifact-only planning/validation | `validation_only` | Fail-closed compatibility wrapper that redirects operators to governed builder-setup plan/overlay/rollback/apply commands; no setup apply is performed by this legacy surface. | No changes to workspace, target repo, Goose config, .goosehints, skills, recipes, or runtime state. | `none` | None. The command is informational only and exits non-zero after printing the governed migration path. | No | No | No | No |
+| `builder start` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Starts background runtime processes and servers. | Creates runtime process state and session context artifacts only; does not perform legacy setup writes. | `explicit_operator_invocation` | Explicit operator invocation only; no artifact approval chain. | No | No | No | Yes |
 | `builder ask` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Queries model provider or MLX local runtime using user input. | Writes conversation history files locally. | `explicit_operator_invocation` | Explicit operator invocation only; no artifact approval chain. | No | No | Yes | No |
 | `builder verify` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Invokes local pytest/runner test suites via subprocess. | No source code changes; generates test result files. | `explicit_operator_invocation` | Explicit operator invocation only; no artifact approval chain. | No | No | No | No |
 | `builder-goose manifest` | Tier 1 — artifact-only planning/validation | `validation_only` | Inspects Goose configuration manifest templates. | No changes to workspace. | `none` | None. | No | No | No | No |

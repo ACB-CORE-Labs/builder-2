@@ -1,195 +1,30 @@
-"""Phase 1 – Dynamic Context Injection (Pre-Boot Sequence).
+"""Passive Goose setup metadata for governed R1 planning.
 
-This module is the bootstrap loader for the builder-II harness.
-It runs before Goose processes a single token and gives the agent
-absolute situational awareness of the project.
+R1.4 reconciles legacy setup surfaces by keeping Goose setup representation in
+passive configuration/overlay form and redirecting operators to the governed
+`builder-setup` artifact chain. This module intentionally avoids direct
+filesystem mutation, skill copying, recipe validation, Goose startup, or
+subprocess execution.
 """
 from __future__ import annotations
 
-import shutil
-import subprocess
 from pathlib import Path
 
-import yaml
-
 from builder_ii.config import Settings, load_settings
-from builder_ii.context import load_session_context
 
+SETUP_REDIRECT_KIND = "builder_ii.legacy_setup_redirect_report"
 
-# ---------------------------------------------------------------------------
-# Goose configuration directory
-# ---------------------------------------------------------------------------
 
 def goose_config_dir() -> Path:
     return Path.home() / ".config" / "goose"
 
 
-# ---------------------------------------------------------------------------
-# Skill bridging
-# ---------------------------------------------------------------------------
-
 def skills_source(settings: Settings) -> Path:
     return settings.project_root / ".agents" / "skills"
 
 
-def install_skills_to_core(settings: Settings) -> list[Path]:
-    """Atomically copy builder-II skills into CORE repo .agents/skills.
-
-    Uses a .partial staging directory so a crash never leaves Goose
-    in a broken discovery state.
-    """
-    src = skills_source(settings)
-    dest = settings.core_repo / ".agents" / "skills"
-    dest.mkdir(parents=True, exist_ok=True)
-    installed: list[Path] = []
-    if not src.exists():
-        return installed
-    for skill_dir in src.iterdir():
-        if not skill_dir.is_dir():
-            continue
-        target = dest / skill_dir.name
-        partial = dest / (skill_dir.name + ".partial")
-        if partial.exists():
-            shutil.rmtree(partial)
-        shutil.copytree(skill_dir, partial)
-        if target.exists():
-            shutil.rmtree(target)
-        partial.rename(target)
-        installed.append(target)
-    return installed
-
-
-# ---------------------------------------------------------------------------
-# .goosehints
-# ---------------------------------------------------------------------------
-
-def write_goosehints(settings: Settings) -> Path:
-    """Top-of-mind hints file written to CORE repo root."""
-    path = settings.core_repo / ".goosehints"
-    content = (
-        "# CORE + builder-II local agent hints\n"
-        "- temperature 0 everywhere; planner_same_as_execution=true on M1 16GB\n"
-        "- Default backend: mlx-lm; one MLX model loaded at a time\n"
-        "- Default aliases: phi-reasoning for fast logic/review; qwen-coder for implementation\n"
-        "- Read AGENTS.md, GROK.md, docs/runtime_contracts.md before edits\n"
-        "- Proposals are SPECULATIVE until `builder verify` passes\n"
-        "- Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep, core-handoff\n"
-        "- Slash: /explore /implement /review /verify /handoff /plan /coding /platform\n"
-        "- Startup: builder start --task '<task>'; inspect choices with builder models\n"
-        "- Switch model: builder switch-model phi-reasoning|qwen-coder|llama|gemma-primary\n"
-        "- Heavy/candidate aliases require explicit opt-in: codegeex, qwen-coder-14b, qwen3-coder-heavy, deepseek\n"
-        "- versor_condition(F) < 1e-6 — refuse cosine/ANN/HNSW in vault\n"
-    )
-    path.write_text(content, encoding="utf-8")
-    return path
-
-
-# ---------------------------------------------------------------------------
-# MOIM context injection
-# ---------------------------------------------------------------------------
-
-def _git_branch(repo: Path) -> str:
-    """Return current branch name or 'detached'."""
-    proc = subprocess.run(
-        ["git", "-C", str(repo), "rev-parse", "--abbrev-ref", "HEAD"],
-        capture_output=True, text=True,
-    )
-    return proc.stdout.strip() if proc.returncode == 0 else "unknown"
-
-
-def _git_diff_stat(repo: Path) -> tuple[int, int]:
-    """Return (staged_count, unstaged_count) for repo."""
-    staged = subprocess.run(
-        ["git", "-C", str(repo), "diff", "--cached", "--name-only"],
-        capture_output=True, text=True,
-    )
-    unstaged = subprocess.run(
-        ["git", "-C", str(repo), "diff", "--name-only"],
-        capture_output=True, text=True,
-    )
-    s = len([l for l in staged.stdout.splitlines() if l.strip()])
-    u = len([l for l in unstaged.stdout.splitlines() if l.strip()])
-    return s, u
-
-
-def _recent_handoffs(core_repo: Path, limit: int = 3) -> list[str]:
-    """Return up to `limit` recent HANDOFF-*.md filenames, newest first."""
-    handoffs = sorted(
-        core_repo.glob("HANDOFF-*.md"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    return [h.name for h in handoffs[:limit]]
-
-
-def write_moim_context(settings: Settings) -> Path:
-    """Write session-context.md injected via GOOSE_MOIM_MESSAGE_FILE.
-
-    Every agent session gets absolute situational awareness:
-    - Git branch + staged/unstaged counts
-    - All top-level directories
-    - Governance snippets loaded
-    - Recent HANDOFF documents listed explicitly
-    """
-    cache = settings.project_root / ".builder" / "session-context.md"
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    ctx = load_session_context(settings)
-
-    branch = _git_branch(settings.core_repo)
-    staged, unstaged = _git_diff_stat(settings.core_repo)
-    recent_handoffs = _recent_handoffs(settings.core_repo)
-
-    lines: list[str] = [
-        "# Builder-II Session Context (auto-generated — do not edit)",
-        "",
-        "## Repository",
-        f"CORE repo: {ctx.core_repo}",
-        f"Branch: {branch}",
-        f"Git status: {ctx.git_status}",
-        f"Staged files: {staged}  Unstaged files: {unstaged}",
-        "",
-        "## Project Structure",
-        f"Top-level dirs: {', '.join(ctx.top_level_dirs)}",
-        "",
-        "## Governance",
-    ]
-    for name in ctx.governance_snippets:
-        lines.append(f"- {name}")
-
-    lines += ["", "## Recent Handoffs"]
-    if recent_handoffs:
-        for hf in recent_handoffs:
-            lines.append(f"- {hf}")
-    else:
-        lines.append("- (none found)")
-
-    lines += [
-        "",
-        "## Active Constraints",
-        f"- model_alias: {settings.model_alias}",
-        f"- active_model: {settings.active_model_id}",
-        "- temperature: 0.0",
-        "- planner_same_as_execution: true  # M1 16GB — one model at a time",
-        "- versor_condition(F) < 1e-6 everywhere",
-        "- REFUSE: cosine similarity, ANN, HNSW in vault/",
-        "- SPECULATIVE label required until `builder verify` PASS",
-    ]
-
-    cache.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return cache
-
-
-# ---------------------------------------------------------------------------
-# Goose config.yaml generation
-# ---------------------------------------------------------------------------
-
 def build_goose_config(settings: Settings) -> dict:
-    """Build the full Goose config.yaml-compatible structure.
-
-    Locks down recipes, slash commands, and the three strictly bundled
-    extensions (developer, skills, summon). Existing user/provider credentials
-    are preserved by write_goose_config().
-    """
+    """Build the passive Goose config overlay candidate structure."""
     recipes = settings.project_root / "recipes"
     return {
         "GOOSE_TEMPERATURE": settings.temperature,
@@ -199,14 +34,14 @@ def build_goose_config(settings: Settings) -> dict:
         "GOOSE_CLI_SHOW_COST": False,
         "GOOSE_RECIPE_PATH": str(recipes),
         "slash_commands": [
-            {"command": "explore",  "recipe_path": str(recipes / "subrecipes" / "explore.yaml")},
+            {"command": "explore", "recipe_path": str(recipes / "subrecipes" / "explore.yaml")},
             {"command": "implement", "recipe_path": str(recipes / "subrecipes" / "implement.yaml")},
-            {"command": "review",   "recipe_path": str(recipes / "subrecipes" / "review.yaml")},
-            {"command": "verify",   "recipe_path": str(recipes / "subrecipes" / "verify.yaml")},
-            {"command": "handoff",  "recipe_path": str(recipes / "subrecipes" / "handoff.yaml")},
-            {"command": "plan",     "recipe_path": str(recipes / "subrecipes" / "plan.yaml")},
+            {"command": "review", "recipe_path": str(recipes / "subrecipes" / "review.yaml")},
+            {"command": "verify", "recipe_path": str(recipes / "subrecipes" / "verify.yaml")},
+            {"command": "handoff", "recipe_path": str(recipes / "subrecipes" / "handoff.yaml")},
+            {"command": "plan", "recipe_path": str(recipes / "subrecipes" / "plan.yaml")},
             {"command": "platform", "recipe_path": str(recipes / "core-platform.yaml")},
-            {"command": "coding",   "recipe_path": str(recipes / "core-coding.yaml")},
+            {"command": "coding", "recipe_path": str(recipes / "core-coding.yaml")},
         ],
         "extensions": {
             "developer": {
@@ -237,57 +72,105 @@ def build_goose_config(settings: Settings) -> dict:
     }
 
 
-def write_goose_config(settings: Settings) -> Path:
-    """Merge builder-II config into ~/.config/goose/config.yaml."""
-    config_dir = goose_config_dir()
-    config_dir.mkdir(parents=True, exist_ok=True)
-    path = config_dir / "config.yaml"
-    existing: dict = {}
-    if path.exists():
-        existing = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    merged = {**existing, **build_goose_config(settings)}
-    path.write_text(
-        yaml.dump(merged, default_flow_style=False, sort_keys=False, allow_unicode=True),
-        encoding="utf-8",
+def governed_setup_command_sequence() -> tuple[str, ...]:
+    return (
+        "builder-setup plan --output /tmp/builder-ii-setup-plan.json",
+        "builder-setup validate-plan /tmp/builder-ii-setup-plan.json",
+        "builder-setup overlay-plan /tmp/builder-ii-setup-plan.json --output /tmp/builder-ii-setup-overlay.json",
+        "builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay.json",
+        "builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay.json --output /tmp/builder-ii-setup-rollback-snapshot.json",
+        "builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json",
+        "builder-setup apply /tmp/builder-ii-setup-overlay.json --rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json --approve-digest <overlay_plan_digest> --output /tmp/builder-ii-setup-receipt.json",
+        "builder-setup validate-receipt /tmp/builder-ii-setup-receipt.json",
+        "builder-setup rollback /tmp/builder-ii-setup-receipt.json --rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json --approve-digest <setup_receipt_digest> --output /tmp/builder-ii-setup-rollback-receipt.json",
+        "builder-setup validate-rollback-receipt /tmp/builder-ii-setup-rollback-receipt.json",
     )
-    return path
 
 
-# ---------------------------------------------------------------------------
-# Recipe validation
-# ---------------------------------------------------------------------------
+def legacy_setup_surface_rows(settings: Settings) -> tuple[dict[str, str], ...]:
+    return (
+        {
+            "surface": "builder setup",
+            "current_behavior": "Legacy one-shot helper previously wrote Goose config, .goosehints, session context, skill installs, and ran Goose recipe validation.",
+            "reconciled_behavior": "Disabled compatibility wrapper. Prints governed R1 command sequence and fails closed without writes.",
+            "reconciliation_mode": "disabled_redirect",
+            "authority_tier": "Tier 1 compatibility redirect",
+            "write_runtime_boundary": "No setup writes, no Goose runtime start, no subprocess/shell, no model/provider, no MCP/tool, and no patch authority.",
+        },
+        {
+            "surface": "builder_ii/goose_setup.py",
+            "current_behavior": "Represents Goose config, slash-command, and skill-source metadata for setup planning.",
+            "reconciled_behavior": "Passive overlay/config candidate helper only. No direct config writes, skill copying, or recipe validation remain in this module.",
+            "reconciliation_mode": "passive_only",
+            "authority_tier": "Tier 1 passive metadata",
+            "write_runtime_boundary": "No writes or runtime activation; artifacts remain non-authoritative.",
+        },
+        {
+            "surface": "builder start",
+            "current_behavior": "Legacy runtime helper can launch backend and Goose when explicitly invoked by the operator.",
+            "reconciled_behavior": "No longer auto-runs legacy setup writes before runtime launch.",
+            "reconciliation_mode": "runtime_decoupled",
+            "authority_tier": "Tier 2 operator-managed runtime helper",
+            "write_runtime_boundary": "Runtime start remains operator-managed; setup reconciliation must go through builder-setup artifacts and digest-bound apply/rollback when writes are needed.",
+        },
+        {
+            "surface": "builder_ii/goose_launcher.py",
+            "current_behavior": "Launches Goose runtime and writes only transient session-context metadata needed by an active operator-launched session.",
+            "reconciled_behavior": "Runtime-only helper. No Goose setup delegation, config writes, skill installs, or recipe validation.",
+            "reconciliation_mode": "runtime_only",
+            "authority_tier": "Tier 2 operator-managed runtime helper",
+            "write_runtime_boundary": "No setup writes; no bypass around governed builder-setup apply/rollback.",
+        },
+        {
+            "surface": "docs setup instructions",
+            "current_behavior": "Historical docs referenced direct builder setup behavior.",
+            "reconciled_behavior": "Docs must redirect operators to builder-setup plan/overlay/rollback-snapshot/apply/rollback and state that Goose runtime is still unpromoted.",
+            "reconciliation_mode": "documented_redirect",
+            "authority_tier": "Documentation boundary",
+            "write_runtime_boundary": "No unmanaged writes or runtime authority implied by docs.",
+        },
+    )
 
-def validate_recipes(settings: Settings) -> list[tuple[Path, bool, str]]:
-    """Run `goose recipe validate` against every *.yaml in recipes/."""
-    goose = shutil.which("goose")
-    if not goose:
-        return []
-    results: list[tuple[Path, bool, str]] = []
-    for recipe in sorted((settings.project_root / "recipes").rglob("*.yaml")):
-        proc = subprocess.run(
-            [goose, "recipe", "validate", str(recipe)],
-            capture_output=True, text=True,
-        )
-        ok = proc.returncode == 0
-        msg = (proc.stdout or proc.stderr).strip()
-        results.append((recipe, ok, msg))
-    return results
 
-
-# ---------------------------------------------------------------------------
-# Full setup entrypoint
-# ---------------------------------------------------------------------------
-
-def run_full_setup(settings: Settings | None = None) -> dict[str, object]:
-    """Run the complete pre-boot sequence and return a JSON-safe report."""
-    s = settings or load_settings()
+def legacy_setup_redirect_payload(settings: Settings | None = None) -> dict[str, object]:
+    active_settings = settings or load_settings()
     return {
-        "goose_config": str(write_goose_config(s)),
-        "goosehints": str(write_goosehints(s)),
-        "moim_context": str(write_moim_context(s)),
-        "skills_installed": [str(p) for p in install_skills_to_core(s)],
-        "recipe_validation": [
-            {"path": str(p), "ok": ok, "msg": msg}
-            for p, ok, msg in validate_recipes(s)
+        "kind": SETUP_REDIRECT_KIND,
+        "schema_version": "1.0.0",
+        "project_root": str(active_settings.project_root),
+        "target_repo": str(active_settings.core_repo),
+        "goose_config_path": str(goose_config_dir() / "config.yaml"),
+        "skills_source": str(skills_source(active_settings)),
+        "governed_setup_commands": list(governed_setup_command_sequence()),
+        "legacy_setup_surfaces": list(legacy_setup_surface_rows(active_settings)),
+        "non_goals": [
+            "no live Goose runtime promotion",
+            "no subprocess or shell execution in the reconciled setup path",
+            "no unmanaged Goose config writes",
+            "no unmanaged .goosehints writes",
+            "no unmanaged skill copying",
+            "no recipe installation writes",
+            "no model/provider calls",
+            "no MCP/tool invocation",
+            "no deepagents runtime",
+            "no patch authority",
+            "no autonomous writes",
         ],
     }
+
+
+def render_legacy_setup_redirect_text(settings: Settings | None = None) -> str:
+    payload = legacy_setup_redirect_payload(settings)
+    commands = "\n".join(f"  {command}" for command in payload["governed_setup_commands"])
+    return (
+        "Legacy `builder setup` is disabled in R1.4.\n"
+        "Use the governed R1 setup chain instead:\n"
+        f"{commands}\n\n"
+        "Reconciled boundary:\n"
+        "- no Goose config writes\n"
+        "- no `.goosehints` writes\n"
+        "- no skill copying\n"
+        "- no recipe validation subprocesses\n"
+        "- no Goose start\n"
+        "- no model/provider, MCP/tool, deepagents, patch, or autonomous write authority\n"
+    )

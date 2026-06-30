@@ -7,7 +7,7 @@ from pathlib import Path
 
 from builder_ii.config import Settings
 from builder_ii.context import load_session_context
-from builder_ii.goose_setup import write_moim_context
+from builder_ii.goose_runtime_context import write_moim_context
 from builder_ii.model_router import SessionPlan, plan_session
 
 

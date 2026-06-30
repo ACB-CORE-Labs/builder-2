@@ -137,7 +137,7 @@ These commands are Tier 1 artifact-only or validation-only surfaces in `docs/COM
 
 ## Non-Goals
 
-R1.3B still does not implement:
+R1.4 still does not implement:
 
 - interactive setup wizard;
 - Goose config writes;
@@ -148,13 +148,13 @@ R1.3B still does not implement:
 - runtime/model/tool/MCP/deepagents/Goose/patch authority;
 - autonomous writes.
 
-Existing `builder setup` remains a legacy/operator-managed helper until later R1 slices reconcile legacy setup with governed write boundaries. R1.3A implements apply receipts; R1.3B implements only digest-bound governed setup rollback execution using those receipts and R1.2 rollback snapshots.
+Legacy `builder setup` no longer performs unmanaged writes. R1.4 converts it into a fail-closed compatibility wrapper that prints the governed `builder-setup` command sequence only. R1.3A implements digest-bound apply receipts; R1.3B implements digest-bound governed setup rollback execution using those receipts and R1.2 rollback snapshots.
 
 ## R1.3A governed setup apply receipt
 
 R1.3A adds `builder-setup apply` as a narrowly scoped governed setup-write command. It consumes a validated setup overlay plan and a validated rollback snapshot, requires `--approve-digest` to exactly match `overlay_plan_digest`, and writes a required setup receipt to the explicit `--output` path. The apply path writes only declared setup targets from the overlay plan and supports only create, replace, mkdir, and no-op operations. Unsupported merge/copy operations fail closed unless a later PR explicitly reconciles and tests them.
 
-Setup apply does not grant shell, subprocess, model/provider, runtime, MCP/tool, Goose runtime, deepagents runtime, B1 verification runner, patch, autonomous apply, generic rollback, git rollback, B2 patch rollback, or arbitrary source-code mutation authority. Existing legacy `builder setup` remains operator-managed legacy behavior until an explicit R1.4 reconciliation PR.
+Setup apply does not grant shell, subprocess, model/provider, runtime, MCP/tool, Goose runtime, deepagents runtime, B1 verification runner, patch, autonomous apply, generic rollback, git rollback, B2 patch rollback, or arbitrary source-code mutation authority. Legacy `builder setup` is now only a redirect surface and cannot bypass this digest-bound lane.
 
 ```bash
 builder-setup apply SETUP_OVERLAY.json \
@@ -178,3 +178,13 @@ builder-setup rollback SETUP_RECEIPT.json \
   --output SETUP_ROLLBACK_RECEIPT.json
 builder-setup validate-rollback-receipt SETUP_ROLLBACK_RECEIPT.json
 ```
+
+## R1.4 legacy setup reconciliation
+
+R1.4 reconciles legacy setup surfaces into the governed R1 path:
+
+- `builder setup` is a fail-closed compatibility wrapper that prints the governed `builder-setup` sequence and exits non-zero.
+- `builder_ii/goose_setup.py` remains setup-artifact/config-overlay oriented and does not perform direct writes, skill copying, or recipe validation.
+- Goose setup remains represented as passive overlay candidates until the operator explicitly uses digest-bound `builder-setup apply`.
+- Goose runtime is still not enabled.
+- Skills, recipes, Goose config, and `.goosehints` are not installed through unmanaged writes.

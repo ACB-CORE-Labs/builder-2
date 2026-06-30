@@ -152,6 +152,7 @@ def test_new_commands_are_tier1_without_runtime_authority() -> None:
         "builder-config schema",
         "builder-config resolve",
         "builder-config validate",
+        "builder setup",
         "builder-setup",
         "builder-setup plan",
         "builder-setup validate-plan",
@@ -176,9 +177,22 @@ def test_new_commands_are_tier1_without_runtime_authority() -> None:
     assert by_name["builder-config schema"].allows_artifact_writes is True
     assert by_name["builder-config resolve"].allows_artifact_writes is True
     assert by_name["builder-config validate"].allows_artifact_writes is False
+    assert by_name["builder setup"].allows_artifact_writes is False
     assert by_name["builder-setup plan"].allows_artifact_writes is True
     assert by_name["builder-setup validate-plan"].allows_artifact_writes is False
     assert by_name["builder-setup overlay-plan"].allows_artifact_writes is True
     assert by_name["builder-setup validate-overlay-plan"].allows_artifact_writes is False
     assert by_name["builder-setup rollback-snapshot"].allows_artifact_writes is True
     assert by_name["builder-setup validate-rollback-snapshot"].allows_artifact_writes is False
+
+
+def test_legacy_builder_setup_registry_record_is_redirect_only() -> None:
+    record = {item.name: item for item in COMMAND_AUTHORITY_REGISTRY}["builder setup"]
+    assert record.tier == TIER_1
+    assert record.approval_mode == MODE_NONE
+    assert "redirects operators" in record.runtime_boundary
+    assert not record.allows_runtime_start
+    assert not record.allows_model_execution
+    assert not record.allows_shell_execution
+    assert not record.allows_source_writes
+    assert not record.allows_artifact_writes

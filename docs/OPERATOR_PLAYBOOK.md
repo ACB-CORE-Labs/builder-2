@@ -27,7 +27,8 @@ Operators compose the following sequence of commands to inspect configuration, p
 ### 1. Doctor & Verification Checks
 Validate system configuration and dependencies without changing files.
 ```bash
-builder setup
+builder-setup plan --output .builder/artifacts/setup-plan.json
+builder-setup validate-plan .builder/artifacts/setup-plan.json
 builder doctor
 builder-targets validate
 builder-agent validate

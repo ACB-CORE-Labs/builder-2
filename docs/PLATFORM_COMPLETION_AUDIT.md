@@ -16,10 +16,10 @@ Current platform truth:
 
 - passive foundation state: `PASSIVE_FOUNDATION`
 - runtime authority state: not `OPERATIONALLY_VERIFIED`
-- setup/config kernel state: R1.2 passive schema, source resolution, setup plan, overlay plan, and rollback snapshot artifacts exist; apply and setup rollback are digest-bound; generic rollback remains non-operational
+- setup/config kernel state: R1.4 passive schema, source resolution, setup plan, overlay plan, rollback snapshot, digest-bound apply/rollback, and legacy setup-surface reconciliation exist; generic rollback remains non-operational
 - next sequence: `R0 -> R1 -> B1`
 
-R1.2 adds passive setup overlay and rollback snapshot artifacts, command authority coverage, docs, and tests on top of the R1.1 config/setup plan foundation. R1.2 does not add runtime execution, setup apply, setup rollback execution, Goose config writes, `.goosehints` writes, skill copying, recipe installation writes, patch application, model/provider calls, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, or commit/push automation.
+R1.4 keeps the setup/config kernel non-operational beyond the governed artifact chain. Legacy `builder setup` now fails closed and redirects to `builder-setup`, while runtime execution, Goose runtime promotion, model/provider calls, MCP/tool invocation, deepagents runtime, patch application, autonomous writes, and commit/push automation remain unpromoted.
 
 ## State Labels
 
@@ -92,7 +92,8 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 ## Corrections
 
 - Passive model routing exists through `builder-model-policy`; provider execution remains unpromoted.
-- Legacy operator-managed helpers such as `builder setup`, `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
+- Legacy operator-managed helpers such as `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
+- Legacy `builder setup` is no longer operator-managed setup execution; it is a fail-closed redirect to the governed `builder-setup` path.
 - Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-setup overlay-plan`, `builder-setup rollback-snapshot`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, and `builder-platform`.
 - R1 Config + Onboarding Kernel must precede B1 verification execution because execution authority depends on canonical target roots, artifact roots, config source precedence, setup receipts, rollback artifacts, and auditable capability defaults.
 - `builder-setup plan`, `builder-setup overlay-plan`, and `builder-setup rollback-snapshot` are passive setup planning only. They record future planned overlays and prior-state snapshot metadata but cannot write Goose config, write `.goosehints`, copy skills, install recipes, apply setup, execute rollback, start models, start Goose, construct deepagents, call MCP/tools, or apply patches.
@@ -103,20 +104,20 @@ Use:
 
 ```bash
 CORE_REPO_PATH=. uv run pytest -q
-CORE_REPO_PATH=. uv run python scripts/verify_v0_release.py --output-dir /tmp/builder-ii-v0-proof-r1-2
+CORE_REPO_PATH=. uv run python scripts/verify_v0_release.py --output-dir /tmp/builder-ii-v0-proof-r1-4
 uv run builder-platform matrix
 uv run builder-platform status
 uv run builder-platform audit-docs
 uv run builder-config schema
 uv run builder-config resolve
-uv run builder-setup plan --output /tmp/builder-ii-setup-plan-r1-2.json
-uv run builder-setup validate-plan /tmp/builder-ii-setup-plan-r1-2.json
-uv run builder-setup overlay-plan /tmp/builder-ii-setup-plan-r1-2.json --output /tmp/builder-ii-setup-overlay-r1-2.json
-uv run builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay-r1-2.json
-uv run builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay-r1-2.json --output /tmp/builder-ii-setup-rollback-snapshot-r1-2.json
-uv run builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot-r1-2.json
+uv run builder-setup plan --output /tmp/builder-ii-setup-plan-r1-4.json
+uv run builder-setup validate-plan /tmp/builder-ii-setup-plan-r1-4.json
+uv run builder-setup overlay-plan /tmp/builder-ii-setup-plan-r1-4.json --output /tmp/builder-ii-setup-overlay-r1-4.json
+uv run builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay-r1-4.json
+uv run builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay-r1-4.json --output /tmp/builder-ii-setup-rollback-snapshot-r1-4.json
+uv run builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot-r1-4.json
 ```
 
-## R1.3A update
+## R1.4 update
 
-R1.3A promotes only the governed setup apply slice: `builder-setup apply` can mutate declared setup paths when the overlay digest is explicitly approved and the rollback snapshot matches the same setup/overlay digests. Setup receipts record changed, skipped, denied paths and before/after digests. Rollback execution remains not operational and is reserved for R1.3B. B1, B2, B3, runtime, model/provider, MCP/tool, Goose runtime, deepagents runtime, shell/subprocess, patch, and autonomous write authority remain unpromoted. Existing legacy builder setup remains operator-managed until R1.4 reconciliation.
+R1.4 leaves the governed setup apply and rollback slices intact and reconciles the remaining legacy bypass: `builder setup` now fails closed and prints the governed `builder-setup` sequence instead of writing Goose config, `.goosehints`, skills, or recipes. B1, B2, B3, runtime, model/provider, MCP/tool, Goose runtime, deepagents runtime, shell/subprocess execution in the setup path, patch, and autonomous write authority remain unpromoted.
