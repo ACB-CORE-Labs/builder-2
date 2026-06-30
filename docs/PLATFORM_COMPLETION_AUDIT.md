@@ -16,7 +16,7 @@ Current platform truth:
 
 - passive foundation state: `PASSIVE_FOUNDATION`
 - runtime authority state: not `OPERATIONALLY_VERIFIED`
-- setup/config kernel state: R1.2 passive schema, source resolution, setup plan, overlay plan, and rollback snapshot artifacts exist; apply and rollback execution remain non-operational
+- setup/config kernel state: R1.2 passive schema, source resolution, setup plan, overlay plan, and rollback snapshot artifacts exist; apply and setup rollback are digest-bound; generic rollback remains non-operational
 - next sequence: `R0 -> R1 -> B1`
 
 R1.2 adds passive setup overlay and rollback snapshot artifacts, command authority coverage, docs, and tests on top of the R1.1 config/setup plan foundation. R1.2 does not add runtime execution, setup apply, setup rollback execution, Goose config writes, `.goosehints` writes, skill copying, recipe installation writes, patch application, model/provider calls, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, or commit/push automation.

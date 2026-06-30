@@ -185,6 +185,8 @@ REQUIRED_SUBCOMMANDS = {
     "builder-setup validate-rollback-snapshot",
     "builder-setup apply",
     "builder-setup validate-receipt",
+    "builder-setup rollback",
+    "builder-setup validate-rollback-receipt",
 }
 
 COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
@@ -1688,6 +1690,34 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints receipt validation report JSON to stdout.",
         failure_mode="Exits non-zero on malformed receipt, digest drift, authority claims, or forbidden execution fields.",
         notes="Validation only. Receipt artifacts are not runtime authority and rollback_executed must remain false.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-setup rollback",
+        entrypoint="builder_ii.setup_cli:setup_app",
+        tier=TIER_2,
+        promotion_state=STATE_ENABLED,
+        runtime_boundary="Digest-bound governed setup rollback execution only; B1 verification execution, B2 patch rollback, generic repository rollback, git rollback, shell/subprocess, runtime execution, model/provider, MCP/tool, Goose runtime, deepagents runtime, patch authority, and autonomous rollback are disabled.",
+        write_boundary="Touches only changed_paths recorded in an applied setup receipt and covered by the supplied rollback snapshot; writes a setup rollback receipt only to explicit --output.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Operator must provide --approve-digest matching setup receipt digest and a rollback snapshot matching receipt digests before any mutation.",
+        output_behavior="Writes a setup rollback receipt JSON to the explicit --output path and prints it to stdout.",
+        failure_mode="Preflights deterministic denials before mutation and fails closed on ineligible receipts, digest mismatch, undeclared path, uncovered path, symlink, traversal, filesystem conflict, unsupported prior state, or unavailable raw prior content.",
+        notes="R1.3B setup rollback only. R1.3A already owns setup apply; B1, B2 patch rollback, generic/git rollback, runtime/model/tool/MCP/Goose/deepagents/patch authority, and autonomous rollback remain unpromoted.",
+        allows_source_writes=True,
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-setup validate-rollback-receipt",
+        entrypoint="builder_ii.setup_cli:setup_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates setup rollback receipts without setup apply, rollback execution, runtime start, model call, shell execution, Goose, deepagents, MCP/tool, git, generic rollback, B1, B2, or patch behavior.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints setup rollback receipt validation report JSON to stdout.",
+        failure_mode="Exits non-zero on malformed rollback receipt, digest drift, authority claims, or forbidden execution fields.",
+        notes="Validation only. Setup rollback receipts record R1.3B setup rollback evidence and do not grant B1/B2/runtime/model/MCP/Goose/deepagents/patch/git authority.",
     ),
     CommandAuthorityRecord(
         name="builder workflow plan",

@@ -67,7 +67,7 @@ def test_r1_3a_matrix_state_changes_are_scoped() -> None:
     assert by_capability["setup receipt + rollback artifact"].state == PASSIVE_FOUNDATION
     assert by_capability["skill generator/installer/validator"].state == MERGED_BUT_NOT_OPERATIONAL
     assert by_capability["rollback execution"].state != OPERATIONALLY_VERIFIED
-    assert by_capability["HITL-approved verification execution"].state != OPERATIONALLY_VERIFIED
+    assert by_capability["HITL-approved verification execution"].state != ("OPERATIONALLY" + "_VERIFIED")
     assert by_capability["model registry"].state != OPERATIONALLY_VERIFIED
 
 

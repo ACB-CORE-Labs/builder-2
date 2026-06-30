@@ -137,10 +137,9 @@ These commands are Tier 1 artifact-only or validation-only surfaces in `docs/COM
 
 ## Non-Goals
 
-R1.3A still does not implement:
+R1.3B still does not implement:
 
 - interactive setup wizard;
-- setup rollback execution;
 - Goose config writes;
 - `.goosehints` writes;
 - skill copying or installation writes;
@@ -149,13 +148,13 @@ R1.3A still does not implement:
 - runtime/model/tool/MCP/deepagents/Goose/patch authority;
 - autonomous writes.
 
-Existing `builder setup` remains a legacy/operator-managed helper until later R1 slices reconcile legacy setup and rollback execution with governed write boundaries. R1.3A implements apply receipts only; R1.3B may implement rollback execution using these artifacts.
+Existing `builder setup` remains a legacy/operator-managed helper until later R1 slices reconcile legacy setup with governed write boundaries. R1.3A implements apply receipts; R1.3B implements only digest-bound governed setup rollback execution using those receipts and R1.2 rollback snapshots.
 
 ## R1.3A governed setup apply receipt
 
 R1.3A adds `builder-setup apply` as a narrowly scoped governed setup-write command. It consumes a validated setup overlay plan and a validated rollback snapshot, requires `--approve-digest` to exactly match `overlay_plan_digest`, and writes a required setup receipt to the explicit `--output` path. The apply path writes only declared setup targets from the overlay plan and supports only create, replace, mkdir, and no-op operations. Unsupported merge/copy operations fail closed unless a later PR explicitly reconciles and tests them.
 
-Rollback execution is not implemented in R1.3A; it is reserved for R1.3B. Setup apply does not grant shell, subprocess, model/provider, runtime, MCP/tool, Goose runtime, deepagents runtime, B1 verification runner, patch, autonomous apply, or arbitrary source-code mutation authority. Existing legacy `builder setup` remains operator-managed legacy behavior until an explicit R1.4 reconciliation PR.
+Setup apply does not grant shell, subprocess, model/provider, runtime, MCP/tool, Goose runtime, deepagents runtime, B1 verification runner, patch, autonomous apply, generic rollback, git rollback, B2 patch rollback, or arbitrary source-code mutation authority. Existing legacy `builder setup` remains operator-managed legacy behavior until an explicit R1.4 reconciliation PR.
 
 ```bash
 builder-setup apply SETUP_OVERLAY.json \
@@ -163,4 +162,19 @@ builder-setup apply SETUP_OVERLAY.json \
   --approve-digest <overlay_plan_digest> \
   --output SETUP_RECEIPT.json
 builder-setup validate-receipt SETUP_RECEIPT.json
+```
+
+
+## R1.3B governed setup rollback receipt
+
+R1.3B adds `builder-setup rollback` and `builder-setup validate-rollback-receipt` as a narrowly scoped setup rollback lane. The rollback executor consumes an R1.3A setup apply receipt plus an R1.2 rollback snapshot, requires `--approve-digest` to exactly match the setup receipt digest, and writes a setup rollback receipt to the explicit `--output` path. It touches only `changed_paths` from an applied setup receipt when every changed path is covered by the supplied snapshot. Skipped setup paths are recorded as no-op only.
+
+The executor preflights deterministic rollback denials before any mutation. Missing prior state deletes future-created files or empty directories. Prior directories are ensured to exist or treated as no-op. Prior files require safely available raw prior content and otherwise fail closed with `manual_restore_required`; redacted previews are never used as restore material. Prior symlinks and unsupported states fail closed. Rollback never invokes git, shell, subprocesses, models, MCP/tools, Goose, deepagents, patch authority, B1 verification execution, B2 patch rollback, generic repository rollback, or autonomous rollback.
+
+```bash
+builder-setup rollback SETUP_RECEIPT.json \
+  --rollback-snapshot SETUP_ROLLBACK_SNAPSHOT.json \
+  --approve-digest <setup_receipt_digest> \
+  --output SETUP_ROLLBACK_RECEIPT.json
+builder-setup validate-rollback-receipt SETUP_ROLLBACK_RECEIPT.json
 ```

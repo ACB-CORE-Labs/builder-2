@@ -74,7 +74,7 @@ R1.2 passive setup subcommands:
 - no Goose runtime activation is enabled
 - no deepagents runtime is enabled
 - no setup apply is enabled
-- no setup rollback execution is enabled
+- setup rollback execution is enabled only for digest-bound explicit approval; generic/B2 rollback remains disabled
 - no Goose config writes, `.goosehints` writes, skill copying, or recipe installation writes are enabled by `builder-setup`
 - builder-II is not CORE Workbench/UI
 - CORE is only a target profile
@@ -90,4 +90,4 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 
 - `builder-setup apply` adds digest-bound governed setup apply from a validated overlay/snapshot pair and requires explicit `--approve-digest` plus explicit receipt `--output`.
 - `builder-setup validate-receipt` validates `builder_ii.setup_apply_receipt` artifacts.
-- R1.3A does not add rollback execution, B1 verification execution, runtime/model/tool/MCP/Goose/deepagents/shell/subprocess/patch authority, autonomous apply, or legacy setup reconciliation.
+- R1.3B adds setup rollback only and does not add B1 verification execution, runtime/model/tool/MCP/Goose/deepagents/shell/subprocess/patch authority, autonomous apply, or legacy setup reconciliation.

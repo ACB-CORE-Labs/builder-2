@@ -302,7 +302,7 @@ B1.2 shell=False verification runner.
 
 Files likely touched: `builder_ii/hitl_verification_runner.py`, records, postflight, git state helpers, tests.
 
-State change: HITL-approved verification execution -> `OPERATIONALLY_VERIFIED` only for verification-only allowlist.
+State change: HITL-approved verification execution would require a future verification-only allowlist before any operationally verified label.
 
 Commands: `builder-hitl run-verification`.
 

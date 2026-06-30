@@ -24,6 +24,8 @@ from builder_ii.setup_overlay import (
 )
 from builder_ii.setup_apply import SetupApplyError, apply_setup_overlay
 from builder_ii.setup_receipt import validate_setup_receipt_file
+from builder_ii.setup_rollback_execute import SetupRollbackError, execute_setup_rollback
+from builder_ii.setup_rollback_receipt import validate_setup_rollback_receipt_file
 from builder_ii.setup_rollback import (
     create_setup_rollback_snapshot,
     dumps_setup_rollback_snapshot,
@@ -80,6 +82,18 @@ def _rollback_validation_report(errors: list[str]) -> str:
     return json_lib.dumps(
         {
             "kind": "builder_ii.setup_rollback_snapshot_validation_report",
+            "valid": not errors,
+            "errors": errors,
+        },
+        indent=2,
+        sort_keys=True,
+    ) + "\n"
+
+
+def _rollback_receipt_validation_report(errors: list[str]) -> str:
+    return json_lib.dumps(
+        {
+            "kind": "builder_ii.setup_rollback_receipt_validation_report",
             "valid": not errors,
             "errors": errors,
         },
@@ -246,6 +260,47 @@ def validate_receipt(
     """Validate a setup apply receipt artifact."""
     errors = validate_setup_receipt_file(path)
     console.out(_receipt_validation_report(errors), end="")
+    if errors:
+        raise typer.Exit(1)
+
+
+@setup_app.command("rollback")
+def rollback(
+    setup_receipt_path: Path = typer.Argument(..., help="Setup apply receipt JSON artifact path."),
+    rollback_snapshot: Path = typer.Option(..., "--rollback-snapshot", help="Required rollback snapshot artifact path."),
+    approve_digest: str = typer.Option(..., "--approve-digest", help="Required digest-bound approval matching setup receipt digest."),
+    output: Path = typer.Option(..., "--output", "-o", help="Required explicit setup rollback receipt output path."),
+) -> None:
+    """Rollback digest-approved setup writes and emit a setup rollback receipt."""
+    receipt_errors = validate_setup_receipt_file(setup_receipt_path)
+    rollback_errors = validate_setup_rollback_snapshot_file(rollback_snapshot)
+    if receipt_errors or rollback_errors:
+        console.out(_receipt_validation_report(receipt_errors), end="")
+        console.out(_rollback_validation_report(rollback_errors), end="")
+        raise typer.Exit(1)
+    try:
+        receipt = execute_setup_rollback(
+            _load_json_file(setup_receipt_path),
+            _load_json_file(rollback_snapshot),
+            approve_digest=approve_digest,
+            receipt_output=output,
+        )
+    except SetupRollbackError as exc:
+        if exc.receipt is not None:
+            console.out(json_lib.dumps(exc.receipt, indent=2, sort_keys=True) + "\n", end="")
+        else:
+            console.out(str(exc) + "\n", end="")
+        raise typer.Exit(1)
+    console.out(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n", end="")
+
+
+@setup_app.command("validate-rollback-receipt")
+def validate_rollback_receipt(
+    path: Path = typer.Argument(..., help="Setup rollback receipt JSON artifact path."),
+) -> None:
+    """Validate a setup rollback receipt artifact."""
+    errors = validate_setup_rollback_receipt_file(path)
+    console.out(_rollback_receipt_validation_report(errors), end="")
     if errors:
         raise typer.Exit(1)
 
