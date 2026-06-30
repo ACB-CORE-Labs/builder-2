@@ -52,7 +52,7 @@ State labels used: `NOT_STARTED`, `DESIGN_ONLY`, `ARTIFACT_ONLY`, `PASSIVE_FOUND
 | orchestration founder demo wrapper | PASSIVE_FOUNDATION | `builder_ii/readonly_founder_demo.py`, `docs/demos/CORE_READONLY_FOUNDER_DEMO.md`; command: `builder-targets readonly-founder-demo` | Wrapper is a passive workflow/event demonstration. Missing operator golden path that runs real governed read/verify loops. | B9 |
 | HITL promotion bridge | PASSIVE_FOUNDATION | `builder_ii/hitl_promotion_artifacts.py`, `builder_ii/hitl_promotion_cli.py`, `tests/test_hitl_promotion_artifacts.py`; commands: `builder-hitl promotion-request/review/decision/approval-boundary/rejection-record/validate-promotion` | Approval boundary is for candidate design only and requires a separate execution candidate. No execution authority. | B1 |
 | execution candidate manifests | PASSIVE_FOUNDATION | `builder_ii/execution_candidate_manifest.py`, `builder_ii/execution_candidate_manifest_cli.py`, `tests/test_execution_candidate_manifest.py`; commands: `builder-hitl candidate-manifest/validate-candidate-manifest` | Manifest validates intent, rollback requirements, verification requirements, and command previews; it never activates. Missing executor. | B1 |
-| HITL-approved verification execution | ARTIFACT_ONLY | `builder_ii/hitl_command_execution.py`, `builder_ii/hitl_execution_records.py`, `builder_ii/hitl_verification_candidate.py`, `builder_ii/hitl_execution_cli.py`, `tests/test_hitl_command_execution.py`, `tests/test_hitl_execution_records.py`, `tests/test_hitl_verification_candidate.py`; commands: `builder-hitl request/receipt/validate` | Receipt is `NOT_EXECUTED`; no `subprocess.run` envelope with `shell=False`, canonical cwd/env, timeout, bounded capture, git pre/post, mutation detection, artifact root, ledger event. | B1 |
+| HITL-approved verification execution | PASSIVE_FOUNDATION | `builder_ii/verification_execution_plan.py`, `builder_ii/verification_execution_plan_cli.py`, `builder_ii/hitl_command_execution.py`, `builder_ii/hitl_execution_records.py`, `builder_ii/hitl_verification_candidate.py`, `builder_ii/hitl_execution_cli.py`, `tests/test_verification_execution_plan.py`, `tests/test_verification_execution_plan_cli.py`, `tests/test_hitl_command_execution.py`, `tests/test_hitl_execution_records.py`, `tests/test_hitl_verification_candidate.py`; commands: `builder-verify plan/validate-plan`, `builder-hitl request/receipt/validate` | B1.1 adds a digest-stable passive verification execution plan artifact only. Receipt is still `NOT_EXECUTED`; no `subprocess.run` runner with `shell=False`, canonical cwd/env, timeout, bounded capture, git pre/post, mutation detection, artifact root, ledger event, or approval-bound execution exists. | B1.2/B1.3 |
 | HITL patch proposal | DESIGN_ONLY | `builder_ii/hitl_patch_spec.py`, `builder_ii/goose_command_proposal.py`, `tests/test_hitl_patch_spec.py`, `tests/test_goose_command_proposal.py`; commands: `builder-goose propose-command` exists for commands, not patches | No diff/patch proposal artifact with exact patch digest, target profile, approval binding, rollback spec, and verification profile. | B2 |
 | HITL patch application | DESIGN_ONLY | `builder_ii/hitl_patch_spec.py`, `docs/HITL_PATCH_APPLICATION.md`, `tests/test_hitl_patch_spec.py`; command: none active | Patch apply is explicitly denied. Must wait for B1 verification execution and then bind patch digest, clean git state, approval, rollback, postflight diff, receipt, ledger. | B2 after B1 |
 | rollback execution | ARTIFACT_ONLY | `builder_ii/rollback_artifacts.py`, `tests/test_rollback_artifacts.py`; command surface through record/chain helpers | Rollback plan and receipt templates exist; receipt is `NOT_EXECUTED`. Missing rollback executor and mutation proof. | B2 |
@@ -276,27 +276,27 @@ Non-goals: no B1 verification execution, no patch application, no provider call,
 
 ### B1 - HITL-approved verification execution
 
-B1.1 execution envelope + approval artifacts.
+B1.1 verification execution plan artifact.
 
-Files likely touched: `builder_ii/hitl_execution_envelope.py`, `builder_ii/hitl_execution_records.py`, `builder_ii/hitl_execution_cli.py`, `builder_ii/command_authority.py`, docs/tests.
+Files likely touched: `builder_ii/verification_execution_plan.py`, `builder_ii/verification_execution_plan_cli.py`, `builder_ii/command_authority.py`, docs/tests.
 
-State change: HITL-approved verification execution `ARTIFACT_ONLY` -> `PASSIVE_FOUNDATION` for executable envelope, not yet runner.
+State change: HITL-approved verification execution `ARTIFACT_ONLY` -> `PASSIVE_FOUNDATION` for passive planning only, not runner authority.
 
-Commands: `builder-hitl envelope`, `builder-hitl validate-envelope`.
+Commands: `builder-verify plan`, `builder-verify validate-plan`.
 
-Artifacts: `builder_ii.hitl_execution_envelope` with full envelope digest and argv sub-digest.
+Artifacts: `builder_ii.verification_execution_plan` with canonical digest, `planned_only` mode, structured command profile refs, passive planned steps, approval-required marker, execution disabled marker, and explicit disabled authority for arbitrary shell, subprocess, source writes, patch/git/model/MCP/Goose/deepagents/autonomous/B2 authority.
 
-Authority changes: Tier 3 candidate, requires approval artifact.
+Authority changes: Tier 1 artifact-only/validation-only. `builder-verify plan` may write only the explicit output artifact. It does not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 patch authority.
 
-Tests: digest drift, cwd/env/timeout/target drift, shell command rejection, denylist rejection, allowlist acceptance.
+Tests: valid artifact validation, digest drift, execution enabled rejection, approval false rejection, artifact authority rejection, missing disabled authority, raw shell string rejection, shell separator rejection, forbidden patch/model/MCP/Goose/deepagents authority claims, CLI artifact write/JSON output.
 
-Failure modes: invalid envelope, approval mismatch, target mismatch, command denylist.
+Failure modes: invalid plan shape, digest drift, enabled execution, raw shell string, command injection token, forbidden authority overclaim, missing target or verification profile.
 
-Rollback/no-mutation proof: envelope is artifact-only.
+Rollback/no-mutation proof: plan is artifact-only and has no mutation authority beyond explicit output artifact creation.
 
-Acceptance: canonical digest stable; no command execution.
+Acceptance: canonical digest stable for identical payloads; no verification execution.
 
-Non-goals: no subprocess execution.
+Non-goals: no subprocess execution, no pytest execution, no shell execution, no model/tool call, no MCP/Goose/deepagents runtime, no patch application, no B2 authority.
 
 B1.2 shell=False verification runner.
 
@@ -530,7 +530,7 @@ Non-goals: landing page, CORE Workbench/UI, autonomous commit/push.
 
 ## 8. PR detail compliance
 
-Each PR item in section 7 includes: goal, files likely touched, exact capability state change, command surface changes, artifact kinds added or changed, command authority changes, tests required, docs required, failure modes, rollback or no-mutation proof, acceptance criteria, and explicit non-goals. R1 sits between R0 and B1 because runtime authority depends on canonical, auditable, reversible setup state. B1 is split into B1.1, B1.2, and B1.3 because the envelope, runner, and ledger/chain promotion are separately reviewable authority boundaries.
+Each PR item in section 7 includes: goal, files likely touched, exact capability state change, command surface changes, artifact kinds added or changed, command authority changes, tests required, docs required, failure modes, rollback or no-mutation proof, acceptance criteria, and explicit non-goals. R1 sits between R0 and B1 because runtime authority depends on canonical, auditable, reversible setup state. B1 is split into B1.1, B1.2, and B1.3 because passive planning, runner authority, and ledger/chain promotion are separately reviewable authority boundaries.
 
 ## 9. Immediate next PR recommendation
 

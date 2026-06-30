@@ -246,6 +246,7 @@ Canonical governed passive lanes include:
   - chain binding (cryptographic lifecycle)
   - approved verification execution candidate
 - Verification profile reports via `builder-verification`
+- Passive B1.1 verification execution plans via `builder-verify`
 - Handoff note lifecycle via `builder-notes`
 - Passive profile-pack lifecycle via `builder-profile-pack`
 - Passive model client registry and routing policy via `builder-model-policy`
@@ -294,6 +295,7 @@ Validated on the M1 `mlx-lm` lane:
 - ConventionKernel platform spine composition
 - HITL execution request/receipt, postflight, verification, evidence bundle, and chain binding artifacts
 - HITL approved verification execution candidate (candidate only — no execution performed)
+- B1.1 passive verification execution plan artifact (`builder_ii.verification_execution_plan`) with execution disabled
 - Handoff note lifecycle artifacts
 - deepagents bridge readiness reports
 - Artifact index and chain verification (all v0 kinds)
@@ -306,6 +308,7 @@ Not yet promoted (requires capability promotion gate):
 - Goose process-backed runtime inspection
 - File-modifying sessions driven by a local MLX model
 - HITL command proposal → approved execution (candidate exists, execution not crossed)
+- Actual B1 verification execution; `builder-verify` only plans and validates passive artifacts
 - HITL patch proposal → approved application
 - deepagents runtime orchestration
 - Model/provider execution gateway; passive model registry and routing artifacts exist through `builder-model-policy`
@@ -401,6 +404,12 @@ builder onboarding
 builder-platform r1-closure --output-dir .builder/r1-closure
 builder-platform validate-r1-closure .builder/r1-closure/r1-closure-report.json
 
+# Generate a passive B1.1 verification execution plan artifact.
+# Initial B1.1 support is limited to target_profile=builder with verification_profile=builder_full.
+# This does not run tests, execute shell/subprocess, call models/tools, start Goose/deepagents, or apply patches.
+builder-verify plan --target-profile builder --verification-profile builder_full --output .builder/verification/verification-execution-plan.json
+builder-verify validate-plan .builder/verification/verification-execution-plan.json
+
 # Prepare a governed session package
 builder-session prepare-package --target builder --task "audit the selected target repo and identify the safest next patch" --output .builder/session/
 builder-session validate-prepare-package .builder/session/
@@ -408,4 +417,3 @@ builder-session summarize-prepare-package .builder/session/
 ```
 
 Legacy `builder setup` now fails closed and prints the governed R1 setup sequence. It does not write Goose config, `.goosehints`, skills, recipes, or runtime state.
-

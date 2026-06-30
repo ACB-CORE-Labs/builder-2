@@ -46,6 +46,10 @@ For each command, runtime execution, model execution, shell execution, source wr
 
 R1.4 additionally reconciles the legacy `builder setup` surface: it is now a fail-closed Tier 1 compatibility redirect that prints the governed `builder-setup` sequence and performs no writes.
 
+## B1.1 Verification Execution Plan Commands
+
+`builder-verify plan` and `builder-verify validate-plan` are Tier 1 passive artifact/validation commands. B1.1 adds a digest-stable verification execution plan artifact only. The initial B1.1 slice supports only `target_profile=builder` with `verification_profile=builder_full`; other target/profile pairs fail closed until profile-derived planning is designed. It does not run tests, execute shell/subprocesses, call models or tools, invoke MCP, start Goose or deepagents, apply patches, mutate git, or promote B2 patch authority. HITL approval and actual verification execution remain later B1 slices.
+
 ## Command Authority Registry Table
 
 | Command Name | Tier | State | Runtime Boundary | Write Boundary | Approval Mode | Approval Boundary | Allows Shell | Allows Writes | Artifact Writes | State Writes |
@@ -86,6 +90,8 @@ R1.4 additionally reconciles the legacy `builder setup` surface: it is now a fai
 | `builder-performance` | Tier 0 — read-only inspection | `validation_only` | Measures CLI loading time and file sizes. | No changes to workspace. | `none` | None. | No | No | No | No |
 | `builder-readonly` | Tier 0 — read-only inspection | `read_only_runtime_candidate` | Inspects system files and configurations without execution. | No changes to workspace. | `none` | None. | No | No | No | No |
 | `builder-verification` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates verification profile schemas. | No changes to workspace. | `none` | None. | No | No | No | No |
+| `builder-verify plan` | Tier 1 — artifact-only planning/validation | `artifact_only` | Generates a passive verification execution plan artifact only; no runtime start, shell execution, subprocess execution, model execution, MCP/tool invocation, Goose, deepagents, git mutation, or B2 patch authority. | Writes only the explicit verification execution plan JSON artifact requested by --output. | `none` | None. This is planned-only metadata and cannot authorize execution. | No | No | Yes | No |
+| `builder-verify validate-plan` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates a verification execution plan artifact without runtime start, shell execution, subprocess execution, model execution, MCP/tool invocation, Goose, deepagents, git mutation, or B2 patch authority. | No changes to workspace. | `none` | None. | No | No | No | No |
 | `builder-hitl` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Delegates execution request and receipt operations to subcommands. | No direct write authority at root CLI level. | `hitl_artifact_required` | Operator must sign hitl request and verify receipts. | No | No | No | No |
 | `builder-orchestration` | Tier 1 — artifact-only planning/validation | `artifact_only` | Delegates passive plan setup, assignment rendering, validation, and dry-run subcommands. | No direct write authority at root CLI level. | `none` | None. | No | No | No | No |
 | `builder-profile-pack` | Tier 1 — artifact-only planning/validation | `artifact_only` | Delegates passive profile-pack scaffold, render, dry-run, and validation subcommands. | No direct write authority at root CLI level. | `none` | None. | No | No | No | No |

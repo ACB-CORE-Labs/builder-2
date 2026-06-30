@@ -552,24 +552,29 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "HITL-approved verification execution",
-        ARTIFACT_ONLY,
+        PASSIVE_FOUNDATION,
         (
+            "builder_ii/verification_execution_plan.py",
+            "builder_ii/verification_execution_plan_cli.py",
             "builder_ii/hitl_command_execution.py",
             "builder_ii/hitl_execution_records.py",
             "builder_ii/hitl_verification_candidate.py",
             "builder_ii/hitl_execution_cli.py",
         ),
-        ("builder-hitl",),
+        ("builder-hitl", "builder-verify plan", "builder-verify validate-plan"),
         (
+            "tests/test_verification_execution_plan.py",
+            "tests/test_verification_execution_plan_cli.py",
             "tests/test_hitl_command_execution.py",
             "tests/test_hitl_execution_records.py",
             "tests/test_hitl_verification_candidate.py",
         ),
         (
+            "B1.1 adds a digest-stable passive verification execution plan artifact only.",
             "Receipt state is NOT_EXECUTED.",
-            "Subprocess envelope, canonical cwd/env, timeout, bounded capture, git mutation detection, artifact root, and ledger event are missing.",
+            "Subprocess envelope, runner, canonical cwd/env, timeout, bounded capture, git mutation detection, artifact root, receipt binding, and ledger event are missing.",
         ),
-        "B1",
+        "B1.2/B1.3",
     ),
     _row(
         "HITL patch proposal",

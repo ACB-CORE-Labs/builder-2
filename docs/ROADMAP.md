@@ -8,7 +8,7 @@ The governing product doctrine is captured in [`docs/MANIFESTO.md`](MANIFESTO.md
 
 Repository docs, schemas, tests, command registries, and source code are the authoritative project record. Notion planning artifacts are supportive planning material unless reconciled back into the repository.
 
-## Current status - v0 passive governed artifact platform (as of 2026-06-29)
+## Current status - v0 passive governed artifact platform (as of 2026-06-30)
 
 builder-II has a source-backed passive v0 artifact proof harness (`scripts/verify_v0_release.py`). The platform truth state is maintained by `builder-platform matrix`, `builder-platform status`, and `builder-platform audit-docs`.
 
@@ -43,6 +43,7 @@ R1 Config + Onboarding Kernel must precede B1 verification execution because exe
 - Orchestration plan artifact (`builder_ii.orchestration_plan`) — all roles UNBOUND
 - Orchestration dry-run artifact (`builder_ii.orchestration_dry_run`)
 - Verification profile reports (`builder_ii.verification_profile_report`) — planned checks, NOT_RUN
+- B1.1 verification execution plan artifact (`builder_ii.verification_execution_plan`) — planned-only, execution disabled
 - Full governed preparation lane scenario tests
 
 **HITL governance chain**
@@ -104,6 +105,8 @@ builder-profile-pack dry-run .builder/profile-pack/manifest.json --render-plan .
 builder-profile-pack validate .builder/profile-pack/manifest.json --output .builder/profile-pack/validation-report.json
 builder-verification artifact
 builder-verification validate
+builder-verify plan --target-profile builder --verification-profile builder_full --output .builder/verification/verification-execution-plan.json
+builder-verify validate-plan .builder/verification/verification-execution-plan.json
 builder-bundle create
 builder-bundle validate
 builder-research plan
@@ -156,7 +159,7 @@ These are the next capability promotions. Each requires the full capability prom
 
 - R0: completion truth matrix, platform status CLI, docs truth audit, command authority coverage, and tests.
 - R1: Config + Onboarding Kernel for canonical source precedence, setup plan/apply/validate, receipts, rollback artifacts, and capability defaults.
-- B1: HITL-approved verification execution after R1 has made target roots, artifact roots, and setup state auditable.
+- B1: HITL-approved verification execution after R1 has made target roots, artifact roots, and setup state auditable. B1.1 is only a passive verification execution plan artifact; HITL approval and actual execution remain later B1 slices.
 
 ### Phase: profile-pack / capability-factory substrate (next planning spine)
 - Introduce user-created profile packs for target profiles, agents, subagents, tasks, tools, context, verification, approval, Goose projections, deepagents projections, MCP policies, and handoff profiles

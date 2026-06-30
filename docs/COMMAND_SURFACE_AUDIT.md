@@ -66,6 +66,7 @@ Governed setup subcommands:
 - `builder-research`
 - `builder-performance`
 - `builder-verification`
+- `builder-verify`
 
 ## Notes/Handoff/Intake
 - `builder-handoff`
@@ -121,3 +122,10 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder-platform r1-closure` runs the full passive R1 config/setup/onboarding pipeline, emitting canonical chain evidence and `r1-closure-report.json`.
 - `builder-platform validate-r1-closure` validates the closure report and referenced evidence files on disk.
 - R1.6 completes R1 golden-path proof without executing setup mutation or promoting B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority.
+
+## B1.1 command surface delta
+
+- `builder-verify plan` writes a passive `builder_ii.verification_execution_plan` artifact only to explicit `--output` and prints the same JSON.
+- `builder-verify validate-plan` validates that artifact without executing verification.
+- Initial B1.1 support is limited to `target_profile=builder` with `verification_profile=builder_full`; unsupported target/profile pairs fail closed.
+- B1.1 does not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 patch authority. HITL approval and actual verification execution remain later B1 slices.

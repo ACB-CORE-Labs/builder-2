@@ -22,6 +22,11 @@ from builder_ii.receipt_records import create_receipt_record
 from builder_ii.receive_records import create_receive_record
 from builder_ii.snapshot_records import create_snapshot_record
 from builder_ii.state_ledger_records import create_state_ledger_record
+from builder_ii.config_schema import attach_digest
+from builder_ii.verification_execution_plan import (
+    finalize_verification_execution_plan,
+    write_verification_execution_plan,
+)
 
 # ---------------------------------------------------------------------------
 # Test Fixture Factories
@@ -405,6 +410,44 @@ def test_goal2_assignment_chain_detects_source_ref_digest_mismatch(
     assert report["valid"] is False
     assert report["counts"]["broken_links"] == 1
     assert any("Digest mismatch" in err for err in report["errors"])
+
+
+def test_chain_accepts_verification_execution_plan_artifact(tmp_path: Path) -> None:
+    plan = finalize_verification_execution_plan(
+        target_profile="builder",
+        verification_profile="builder_full",
+        target_repo=".",
+        artifact_root=".builder/verification",
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    plan_path = tmp_path / "verification-execution-plan.json"
+    write_verification_execution_plan(plan, plan_path)
+
+    report = verify_artifact_chain([plan_path])
+
+    assert report["valid"] is True
+    assert report["counts"]["files"] == 1
+    assert report["counts"]["native_invalid"] == 0
+
+
+def test_chain_rejects_malformed_verification_execution_plan_artifact(tmp_path: Path) -> None:
+    plan = finalize_verification_execution_plan(
+        target_profile="builder",
+        verification_profile="builder_full",
+        target_repo=".",
+        artifact_root=".builder/verification",
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    plan["execution_enabled"] = True
+    plan = attach_digest(plan, digest_key="verification_execution_plan_digest")
+    plan_path = tmp_path / "verification-execution-plan.json"
+    write_verification_execution_plan(plan, plan_path)
+
+    report = verify_artifact_chain([plan_path])
+
+    assert report["valid"] is False
+    assert report["counts"]["native_invalid"] == 1
+    assert any("execution_enabled must be false" in error for error in report["errors"])
 
 
 # ---------------------------------------------------------------------------

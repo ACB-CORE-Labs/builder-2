@@ -27,6 +27,11 @@ from builder_ii.state_ledger_records import (
     create_state_ledger_record,
     write_state_ledger_record,
 )
+from builder_ii.config_schema import attach_digest
+from builder_ii.verification_execution_plan import (
+    finalize_verification_execution_plan,
+    write_verification_execution_plan,
+)
 from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 
@@ -168,6 +173,46 @@ def test_index_recognizes_goal2_assignment_artifacts(tmp_path: Path) -> None:
         "builder_ii.orchestration_assignment_validation_report",
     }.issubset(indexed_kinds)
     assert validate_artifact_index_record(record) == []
+
+
+def test_index_recognizes_verification_execution_plan_artifact(tmp_path: Path) -> None:
+    plan = finalize_verification_execution_plan(
+        target_profile="builder",
+        verification_profile="builder_full",
+        target_repo=".",
+        artifact_root=".builder/verification",
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    write_verification_execution_plan(plan, tmp_path / "verification-execution-plan.json")
+
+    record = create_artifact_index_record(tmp_path)
+
+    assert record["status"] == "complete"
+    assert record["counts"]["known"] == 1
+    assert record["counts"]["invalid"] == 0
+    assert record["artifacts"][0]["kind"] == "builder_ii.verification_execution_plan"
+    assert record["artifacts"][0]["valid"] is True
+
+
+def test_index_rejects_malformed_verification_execution_plan_artifact(tmp_path: Path) -> None:
+    plan = finalize_verification_execution_plan(
+        target_profile="builder",
+        verification_profile="builder_full",
+        target_repo=".",
+        artifact_root=".builder/verification",
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    plan["execution_enabled"] = True
+    plan = attach_digest(plan, digest_key="verification_execution_plan_digest")
+    write_verification_execution_plan(plan, tmp_path / "verification-execution-plan.json")
+
+    record = create_artifact_index_record(tmp_path)
+
+    assert record["status"] == "incomplete"
+    assert record["counts"]["known"] == 1
+    assert record["counts"]["invalid"] == 1
+    assert record["artifacts"][0]["kind"] == "builder_ii.verification_execution_plan"
+    assert any("execution_enabled must be false" in error for error in record["artifacts"][0]["errors"])
 
 
 def test_index_marks_unknown_artifact_incomplete(tmp_path: Path) -> None:
