@@ -183,6 +183,8 @@ REQUIRED_SUBCOMMANDS = {
     "builder-setup validate-overlay-plan",
     "builder-setup rollback-snapshot",
     "builder-setup validate-rollback-snapshot",
+    "builder-setup apply",
+    "builder-setup validate-receipt",
 }
 
 COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
@@ -1658,6 +1660,34 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints rollback snapshot validation report JSON to stdout.",
         failure_mode="Exits non-zero on malformed snapshot, raw-content claims, authority claims, or digest drift.",
         notes="Validation only. A valid rollback snapshot remains snapshot_only=true and artifact_is_authority=false.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-setup apply",
+        entrypoint="builder_ii.setup_cli:setup_app",
+        tier=TIER_2,
+        promotion_state=STATE_ENABLED,
+        runtime_boundary="Digest-bound governed setup write only; runtime execution, model execution, shell/subprocess execution, Goose runtime, deepagents runtime, MCP/tool invocation, patch authority, rollback execution, and B1 verification execution are disabled.",
+        write_boundary="Writes only declared setup target paths from a validated overlay plan plus the explicit setup receipt output; source writes are disabled except declared artifact-root setup metadata/config paths.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Operator must provide --approve-digest matching overlay_plan_digest and --rollback-snapshot matching the overlay before any mutation.",
+        output_behavior="Writes a setup apply receipt JSON to the explicit --output path and prints it to stdout.",
+        failure_mode="Fails closed on missing/wrong digest, mismatched snapshot, unsafe path, symlink, undeclared path, unsupported operation, or partial write failure; emits failure receipt where practical and does not rollback.",
+        notes="R1.3A setup apply only. Rollback execution, B1, runtime/model/tool/MCP/Goose/deepagents/patch authority, autonomous apply, and arbitrary/source-code writes remain unpromoted.",
+        allows_source_writes=True,
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-setup validate-receipt",
+        entrypoint="builder_ii.setup_cli:setup_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates setup apply receipts without setup apply, rollback execution, runtime start, model call, shell execution, Goose, deepagents, MCP/tool, or patch behavior.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints receipt validation report JSON to stdout.",
+        failure_mode="Exits non-zero on malformed receipt, digest drift, authority claims, or forbidden execution fields.",
+        notes="Validation only. Receipt artifacts are not runtime authority and rollback_executed must remain false.",
     ),
     CommandAuthorityRecord(
         name="builder workflow plan",

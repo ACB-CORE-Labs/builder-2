@@ -85,3 +85,9 @@ R1.2 passive setup subcommands:
 These command surfaces are registered in `pyproject.toml` and remain governed by builder-II's default no-autonomous-execution boundary unless their specific documentation states a narrower read-only or artifact-only behavior.
 
 - `builder-orchestration`
+
+## R1.3A command surface delta
+
+- `builder-setup apply` adds digest-bound governed setup apply from a validated overlay/snapshot pair and requires explicit `--approve-digest` plus explicit receipt `--output`.
+- `builder-setup validate-receipt` validates `builder_ii.setup_apply_receipt` artifacts.
+- R1.3A does not add rollback execution, B1 verification execution, runtime/model/tool/MCP/Goose/deepagents/shell/subprocess/patch authority, autonomous apply, or legacy setup reconciliation.

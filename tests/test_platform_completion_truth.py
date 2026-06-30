@@ -56,7 +56,7 @@ def test_config_onboarding_rows_exist_and_point_to_r1() -> None:
     assert not validate_r1_config_onboarding_mapping()
 
 
-def test_r1_2_matrix_state_changes_are_scoped() -> None:
+def test_r1_3a_matrix_state_changes_are_scoped() -> None:
     by_capability = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
 
     assert by_capability["config schema"].state == PASSIVE_FOUNDATION
@@ -67,6 +67,8 @@ def test_r1_2_matrix_state_changes_are_scoped() -> None:
     assert by_capability["setup receipt + rollback artifact"].state == PASSIVE_FOUNDATION
     assert by_capability["skill generator/installer/validator"].state == MERGED_BUT_NOT_OPERATIONAL
     assert by_capability["rollback execution"].state != OPERATIONALLY_VERIFIED
+    assert by_capability["HITL-approved verification execution"].state != OPERATIONALLY_VERIFIED
+    assert by_capability["model registry"].state != OPERATIONALLY_VERIFIED
 
 
 def test_matrix_command_names_are_registered_where_applicable() -> None:

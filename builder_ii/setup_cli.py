@@ -22,6 +22,8 @@ from builder_ii.setup_overlay import (
     validate_setup_overlay_plan_file,
     write_setup_overlay_plan,
 )
+from builder_ii.setup_apply import SetupApplyError, apply_setup_overlay
+from builder_ii.setup_receipt import validate_setup_receipt_file
 from builder_ii.setup_rollback import (
     create_setup_rollback_snapshot,
     dumps_setup_rollback_snapshot,
@@ -32,7 +34,7 @@ from builder_ii.setup_rollback import (
 
 
 setup_app = typer.Typer(
-    help="Create and validate passive setup plans without applying setup writes.",
+    help="Create, validate, and digest-apply governed setup artifacts.",
     no_args_is_help=True,
 )
 console = Console()
@@ -54,6 +56,18 @@ def _overlay_validation_report(errors: list[str]) -> str:
     return json_lib.dumps(
         {
             "kind": "builder_ii.setup_overlay_plan_validation_report",
+            "valid": not errors,
+            "errors": errors,
+        },
+        indent=2,
+        sort_keys=True,
+    ) + "\n"
+
+
+def _receipt_validation_report(errors: list[str]) -> str:
+    return json_lib.dumps(
+        {
+            "kind": "builder_ii.setup_receipt_validation_report",
             "valid": not errors,
             "errors": errors,
         },
@@ -191,6 +205,47 @@ def validate_rollback_snapshot(
     """Validate a passive setup rollback snapshot artifact."""
     errors = validate_setup_rollback_snapshot_file(path)
     console.out(_rollback_validation_report(errors), end="")
+    if errors:
+        raise typer.Exit(1)
+
+
+@setup_app.command("apply")
+def apply(
+    setup_overlay_path: Path = typer.Argument(..., help="Setup overlay plan JSON artifact path."),
+    rollback_snapshot: Path = typer.Option(..., "--rollback-snapshot", help="Required rollback snapshot artifact path."),
+    approve_digest: str = typer.Option(..., "--approve-digest", help="Required digest-bound approval matching overlay_plan_digest."),
+    output: Path = typer.Option(..., "--output", "-o", help="Required explicit setup receipt output path."),
+) -> None:
+    """Apply only digest-approved declared setup writes and emit a setup receipt."""
+    overlay_errors = validate_setup_overlay_plan_file(setup_overlay_path)
+    rollback_errors = validate_setup_rollback_snapshot_file(rollback_snapshot)
+    if overlay_errors or rollback_errors:
+        console.out(_overlay_validation_report(overlay_errors), end="")
+        console.out(_rollback_validation_report(rollback_errors), end="")
+        raise typer.Exit(1)
+    try:
+        receipt = apply_setup_overlay(
+            _load_json_file(setup_overlay_path),
+            _load_json_file(rollback_snapshot),
+            approve_digest=approve_digest,
+            receipt_output=output,
+        )
+    except SetupApplyError as exc:
+        if exc.receipt is not None:
+            console.out(json_lib.dumps(exc.receipt, indent=2, sort_keys=True) + "\n", end="")
+        else:
+            console.out(str(exc) + "\n", end="")
+        raise typer.Exit(1)
+    console.out(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n", end="")
+
+
+@setup_app.command("validate-receipt")
+def validate_receipt(
+    path: Path = typer.Argument(..., help="Setup apply receipt JSON artifact path."),
+) -> None:
+    """Validate a setup apply receipt artifact."""
+    errors = validate_setup_receipt_file(path)
+    console.out(_receipt_validation_report(errors), end="")
     if errors:
         raise typer.Exit(1)
 

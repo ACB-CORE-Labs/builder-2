@@ -51,7 +51,7 @@ from builder_ii.context_packs import (
 from builder_ii.profile_resolution import ProfileResolver
 
 session_app = typer.Typer(help="Inspect and plan governed local developer sessions.")
-console = Console()
+console = Console(width=240)
 _VALID_TARGETS: set[str] = {"generic", "builder", "core"}
 
 

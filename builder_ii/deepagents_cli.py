@@ -61,7 +61,7 @@ from builder_ii.deepagents_work_artifacts import (
 deepagents_app = typer.Typer(
     help="Create and validate artifact-only governed deepagents JSON."
 )
-console = Console()
+console = Console(width=240)
 _VALID_TARGETS = set(target_names())
 _VALID_MEMORY_MODES = {"disabled", "proposal_only", "approved"}
 _VALID_SUBAGENT_MODES = {"trusted", "proposal_only"}

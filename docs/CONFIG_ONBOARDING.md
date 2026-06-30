@@ -137,12 +137,10 @@ These commands are Tier 1 artifact-only or validation-only surfaces in `docs/COM
 
 ## Non-Goals
 
-R1.2 does not implement:
+R1.3A still does not implement:
 
 - interactive setup wizard;
-- setup apply;
 - setup rollback execution;
-- setup receipt;
 - Goose config writes;
 - `.goosehints` writes;
 - skill copying or installation writes;
@@ -151,4 +149,18 @@ R1.2 does not implement:
 - runtime/model/tool/MCP/deepagents/Goose/patch authority;
 - autonomous writes.
 
-Existing `builder setup` remains a legacy/operator-managed helper until later R1 slices reconcile setup apply, setup receipts, rollback execution, and governed write boundaries. Future R1.3 or later may implement apply/rollback using these artifacts.
+Existing `builder setup` remains a legacy/operator-managed helper until later R1 slices reconcile legacy setup and rollback execution with governed write boundaries. R1.3A implements apply receipts only; R1.3B may implement rollback execution using these artifacts.
+
+## R1.3A governed setup apply receipt
+
+R1.3A adds `builder-setup apply` as a narrowly scoped governed setup-write command. It consumes a validated setup overlay plan and a validated rollback snapshot, requires `--approve-digest` to exactly match `overlay_plan_digest`, and writes a required setup receipt to the explicit `--output` path. The apply path writes only declared setup targets from the overlay plan and supports only create, replace, mkdir, and no-op operations. Unsupported merge/copy operations fail closed unless a later PR explicitly reconciles and tests them.
+
+Rollback execution is not implemented in R1.3A; it is reserved for R1.3B. Setup apply does not grant shell, subprocess, model/provider, runtime, MCP/tool, Goose runtime, deepagents runtime, B1 verification runner, patch, autonomous apply, or arbitrary source-code mutation authority. Existing legacy `builder setup` remains operator-managed legacy behavior until an explicit R1.4 reconciliation PR.
+
+```bash
+builder-setup apply SETUP_OVERLAY.json \
+  --rollback-snapshot SETUP_ROLLBACK_SNAPSHOT.json \
+  --approve-digest <overlay_plan_digest> \
+  --output SETUP_RECEIPT.json
+builder-setup validate-receipt SETUP_RECEIPT.json
+```

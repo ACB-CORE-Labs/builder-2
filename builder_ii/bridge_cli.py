@@ -19,7 +19,7 @@ from builder_ii.deepagents_bridge import (
 from builder_ii.target_profiles import TargetName, target_names, target_profile
 
 bridge_app = typer.Typer(help="Render optional bridge specs.")
-console = Console()
+console = Console(width=240)
 _VALID_AGENTS = set(agent_profile_names())
 _VALID_TARGETS = set(target_names())
 

@@ -626,3 +626,7 @@ Run:
 CORE_REPO_PATH=. uv run pytest -q
 CORE_REPO_PATH=. uv run python scripts/verify_v0_release.py --output-dir /tmp/builder-ii-v0-proof-r0
 ```
+
+## R1.3A governed setup apply receipt delta
+
+R1.3A adds a bounded setup apply mechanism and receipt artifact. The new path is digest-bound (`--approve-digest` must match `overlay_plan_digest`), snapshot-bound (rollback snapshot setup/overlay digests must match), and declared-path-only. It supports create, replace, mkdir, and no-op operations and fails closed on unsupported operations, traversal, symlink targets, undeclared paths, mismatched artifacts, or missing approval. It does not execute rollback, B1 verification, shell/subprocesses, models/providers, MCP/tools, Goose, deepagents, patches, or autonomous apply. Existing legacy builder setup remains legacy/operator-managed until explicit reconciliation.

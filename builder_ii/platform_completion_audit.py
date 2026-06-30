@@ -270,6 +270,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "builder_ii/setup_plan.py",
             "builder_ii/setup_overlay.py",
             "builder_ii/setup_rollback.py",
+            "builder_ii/setup_apply.py",
+            "builder_ii/setup_receipt.py",
             "builder_ii/setup_cli.py",
         ),
         ("builder", "builder-setup"),
@@ -282,7 +284,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ),
         (
             "Legacy builder setup still writes config/hints/skills outside the governed R1.1 lane.",
-            "R1.2 adds passive setup plan, overlay-plan, rollback-snapshot, and validators only; setup apply, setup receipt, rollback execution, and governed write authority are missing.",
+            "R1.3A adds digest-bound governed setup apply and setup receipts for declared setup targets only; rollback execution and legacy setup reconciliation remain missing.",
         ),
         "R1",
     ),
@@ -300,7 +302,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "Legacy merge behavior exists.",
             "R1.2 can describe Goose config overlay keys, recipe path registration, secrets-preservation policy, and rollback snapshot requirements passively.",
-            "Approved write boundary, setup apply, rollback execution, audit receipt, and Goose config writes are still missing.",
+            "R1.3A apply can write declared setup paths only when represented as supported create/replace/mkdir/no-op changes; merge-style Goose config overlay and rollback execution remain unimplemented.",
         ),
         "R1",
     ),
@@ -383,6 +385,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         PASSIVE_FOUNDATION,
         (
             "builder_ii/setup_rollback.py",
+            "builder_ii/setup_apply.py",
+            "builder_ii/setup_receipt.py",
             "builder_ii/receipt_records.py",
             "builder_ii/rollback_artifacts.py",
         ),
@@ -391,7 +395,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "Generic records exist.",
             "R1.2 adds setup rollback snapshot planning with plan/overlay digests, prior existence markers, content digests, redacted previews, and future rollback operations.",
-            "Setup receipt, changed-path receipt, rollback execution, ledger event, and replay binding are missing.",
+            "R1.3A adds setup apply receipts with changed/skipped/denied paths and before/after digests; rollback execution, ledger event, and replay binding are missing.",
         ),
         "R1",
     ),
@@ -826,7 +830,7 @@ def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_R
         "builder-II platform truth state",
         "",
         "builder-II is passive-foundation-complete for governed artifacts, but operationally incomplete.",
-        "No runtime execution, patch application, model/provider call, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous write, or commit/push authority is promoted by R1.2.",
+        "No runtime execution, patch application, model/provider call, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous write, or commit/push authority is promoted by R1.3A.",
         f"Next sequence: {NEXT_SEQUENCE}. R1 Config + Onboarding Kernel must precede B1 verification execution.",
         "",
         "Capability states:",
@@ -836,14 +840,14 @@ def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_R
     lines.extend(
         [
             "",
-            "R1 passive config/onboarding rows promoted through R1.2:",
+            "R1 config/onboarding rows promoted through R1.3A:",
             "- config schema: PASSIVE_FOUNDATION",
             "- config source precedence: PASSIVE_FOUNDATION",
-            "- setup plan/overlay/rollback-snapshot command surface: artifact-only and non-operational",
+            "- setup plan/overlay/rollback-snapshot/apply command surface: governed apply is digest-bound and non-runtime",
             "- Goose config overlay/rollback planning: PASSIVE_FOUNDATION",
-            "- setup rollback snapshot planning: PASSIVE_FOUNDATION",
+            "- setup receipt + rollback snapshot planning: PASSIVE_FOUNDATION",
             "",
-            "Setup apply, setup rollback execution, interactive setup wizard, runtime execution, and B1 verification execution remain non-operational.",
+            "Setup rollback execution, interactive setup wizard, runtime execution, and B1 verification execution remain non-operational.",
         ]
     )
     return "\n".join(lines) + "\n"

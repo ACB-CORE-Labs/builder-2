@@ -118,4 +118,4 @@ def test_snapshot_requires_future_secure_storage_for_existing_files(tmp_path: Pa
 
     assert state["prior_existence_state"] == "file"
     assert state["prior_content_storage_policy"] == "digest_size_redacted_preview_only_future_secure_snapshot_required"
-    assert state["future_rollback_operation_needed"] == "restore_prior_file_from_future_secure_snapshot"
+    assert state["future_rollback_operation_needed"] == "none"

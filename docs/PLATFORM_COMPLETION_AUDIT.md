@@ -116,3 +116,7 @@ uv run builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay-r1-2.js
 uv run builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay-r1-2.json --output /tmp/builder-ii-setup-rollback-snapshot-r1-2.json
 uv run builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot-r1-2.json
 ```
+
+## R1.3A update
+
+R1.3A promotes only the governed setup apply slice: `builder-setup apply` can mutate declared setup paths when the overlay digest is explicitly approved and the rollback snapshot matches the same setup/overlay digests. Setup receipts record changed, skipped, denied paths and before/after digests. Rollback execution remains not operational and is reserved for R1.3B. B1, B2, B3, runtime, model/provider, MCP/tool, Goose runtime, deepagents runtime, shell/subprocess, patch, and autonomous write authority remain unpromoted. Existing legacy builder setup remains operator-managed until R1.4 reconciliation.

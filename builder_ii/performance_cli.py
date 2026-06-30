@@ -15,7 +15,7 @@ from builder_ii.performance_measurements import (
 from builder_ii.target_profiles import TargetName, target_names
 
 performance_app = typer.Typer(help="Create and validate explicit performance measurement records.")
-console = Console()
+console = Console(width=240)
 _VALID_TARGETS = set(target_names())
 
 
