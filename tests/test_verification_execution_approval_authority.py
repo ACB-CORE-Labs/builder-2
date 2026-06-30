@@ -1,0 +1,41 @@
+from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, MODE_NONE, TIER_1
+
+
+def test_verification_execution_approval_command_authority_rows_exist() -> None:
+    by_name = {record.name: record for record in COMMAND_AUTHORITY_REGISTRY}
+    assert "builder-verify approve-plan" in by_name
+    assert "builder-verify validate-approval" in by_name
+
+
+def test_approve_plan_allows_only_explicit_artifact_output_write() -> None:
+    record = {item.name: item for item in COMMAND_AUTHORITY_REGISTRY}["builder-verify approve-plan"]
+    assert record.tier == TIER_1
+    assert record.approval_mode == MODE_NONE
+    assert not record.allows_runtime_start
+    assert not record.allows_model_execution
+    assert not record.allows_shell_execution
+    assert not record.allows_source_writes
+    assert not record.allows_memory_mutation
+    assert not record.allows_git_mutation
+    assert not record.allows_state_writes
+    assert not record.allows_readonly_subprocess
+    assert not record.allows_external_tool_invocation
+    assert record.allows_artifact_writes is True
+    assert "explicit verification execution approval JSON artifact" in record.write_boundary
+
+
+def test_validate_approval_is_read_only_and_has_no_runtime_authority() -> None:
+    record = {item.name: item for item in COMMAND_AUTHORITY_REGISTRY}["builder-verify validate-approval"]
+    assert record.tier == TIER_1
+    assert record.approval_mode == MODE_NONE
+    assert not record.allows_runtime_start
+    assert not record.allows_model_execution
+    assert not record.allows_shell_execution
+    assert not record.allows_source_writes
+    assert not record.allows_memory_mutation
+    assert not record.allows_git_mutation
+    assert not record.allows_state_writes
+    assert not record.allows_readonly_subprocess
+    assert not record.allows_external_tool_invocation
+    assert record.allows_artifact_writes is False
+    assert record.write_boundary == "No changes to workspace."

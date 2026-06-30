@@ -52,7 +52,7 @@ State labels used: `NOT_STARTED`, `DESIGN_ONLY`, `ARTIFACT_ONLY`, `PASSIVE_FOUND
 | orchestration founder demo wrapper | PASSIVE_FOUNDATION | `builder_ii/readonly_founder_demo.py`, `docs/demos/CORE_READONLY_FOUNDER_DEMO.md`; command: `builder-targets readonly-founder-demo` | Wrapper is a passive workflow/event demonstration. Missing operator golden path that runs real governed read/verify loops. | B9 |
 | HITL promotion bridge | PASSIVE_FOUNDATION | `builder_ii/hitl_promotion_artifacts.py`, `builder_ii/hitl_promotion_cli.py`, `tests/test_hitl_promotion_artifacts.py`; commands: `builder-hitl promotion-request/review/decision/approval-boundary/rejection-record/validate-promotion` | Approval boundary is for candidate design only and requires a separate execution candidate. No execution authority. | B1 |
 | execution candidate manifests | PASSIVE_FOUNDATION | `builder_ii/execution_candidate_manifest.py`, `builder_ii/execution_candidate_manifest_cli.py`, `tests/test_execution_candidate_manifest.py`; commands: `builder-hitl candidate-manifest/validate-candidate-manifest` | Manifest validates intent, rollback requirements, verification requirements, and command previews; it never activates. Missing executor. | B1 |
-| HITL-approved verification execution | PASSIVE_FOUNDATION | `builder_ii/verification_execution_plan.py`, `builder_ii/verification_execution_plan_cli.py`, `builder_ii/hitl_command_execution.py`, `builder_ii/hitl_execution_records.py`, `builder_ii/hitl_verification_candidate.py`, `builder_ii/hitl_execution_cli.py`, `tests/test_verification_execution_plan.py`, `tests/test_verification_execution_plan_cli.py`, `tests/test_hitl_command_execution.py`, `tests/test_hitl_execution_records.py`, `tests/test_hitl_verification_candidate.py`; commands: `builder-verify plan/validate-plan`, `builder-hitl request/receipt/validate` | B1.1 adds a digest-stable passive verification execution plan artifact only. Receipt is still `NOT_EXECUTED`; no `subprocess.run` runner with `shell=False`, canonical cwd/env, timeout, bounded capture, git pre/post, mutation detection, artifact root, ledger event, or approval-bound execution exists. | B1.2/B1.3 |
+| HITL-approved verification execution | PASSIVE_FOUNDATION | `builder_ii/verification_execution_plan.py`, `builder_ii/verification_execution_approval.py`, `builder_ii/verification_execution_plan_cli.py`, `builder_ii/hitl_command_execution.py`, `builder_ii/hitl_execution_records.py`, `builder_ii/hitl_verification_candidate.py`, `builder_ii/hitl_execution_cli.py`, `tests/test_verification_execution_plan.py`, `tests/test_verification_execution_plan_cli.py`, `tests/test_verification_execution_approval.py`, `tests/test_verification_execution_approval_cli.py`, `tests/test_verification_execution_approval_authority.py`, `tests/test_hitl_command_execution.py`, `tests/test_hitl_execution_records.py`, `tests/test_hitl_verification_candidate.py`; commands: `builder-verify plan/validate-plan/approve-plan/validate-approval`, `builder-hitl request/receipt/validate` | B1.1 adds a digest-stable passive verification execution plan artifact only. B1.2 adds a digest-bound HITL approval artifact only. Receipt is still `NOT_EXECUTED`; no `subprocess.run` runner with `shell=False`, canonical cwd/env, timeout, bounded capture, git pre/post, mutation detection, artifact root, ledger event, or approval-bound execution exists. | B1.3 |
 | HITL patch proposal | DESIGN_ONLY | `builder_ii/hitl_patch_spec.py`, `builder_ii/goose_command_proposal.py`, `tests/test_hitl_patch_spec.py`, `tests/test_goose_command_proposal.py`; commands: `builder-goose propose-command` exists for commands, not patches | No diff/patch proposal artifact with exact patch digest, target profile, approval binding, rollback spec, and verification profile. | B2 |
 | HITL patch application | DESIGN_ONLY | `builder_ii/hitl_patch_spec.py`, `docs/HITL_PATCH_APPLICATION.md`, `tests/test_hitl_patch_spec.py`; command: none active | Patch apply is explicitly denied. Must wait for B1 verification execution and then bind patch digest, clean git state, approval, rollback, postflight diff, receipt, ledger. | B2 after B1 |
 | rollback execution | ARTIFACT_ONLY | `builder_ii/rollback_artifacts.py`, `tests/test_rollback_artifacts.py`; command surface through record/chain helpers | Rollback plan and receipt templates exist; receipt is `NOT_EXECUTED`. Missing rollback executor and mutation proof. | B2 |
@@ -298,27 +298,27 @@ Acceptance: canonical digest stable for identical payloads; no verification exec
 
 Non-goals: no subprocess execution, no pytest execution, no shell execution, no model/tool call, no MCP/Goose/deepagents runtime, no patch application, no B2 authority.
 
-B1.2 shell=False verification runner.
+B1.2 HITL approval binding for verification plans.
 
-Files likely touched: `builder_ii/hitl_verification_runner.py`, records, postflight, git state helpers, tests.
+Files likely touched: `builder_ii/verification_execution_approval.py`, `builder_ii/verification_execution_plan_cli.py`, `builder_ii/artifact_index_records.py`, `builder_ii/artifact_chain_verification.py`, `builder_ii/command_authority.py`, docs/tests.
 
-State change: HITL-approved verification execution would require a future verification-only allowlist before any operationally verified label.
+State change: HITL-approved verification execution remains `PASSIVE_FOUNDATION`; B1.2 binds human approval to an exact passive plan digest only and does not enable execution.
 
-Commands: `builder-hitl run-verification`.
+Commands: `builder-verify approve-plan`, `builder-verify validate-approval`.
 
-Artifacts: receipt with stdout/stderr refs, postflight mutation report, verification record, git pre/post refs.
+Artifacts: `builder_ii.verification_execution_approval` with canonical digest, exact `plan_digest` binding, approved command-profile subset, approved step-id subset, explicit disabled authority, `execution_enabled=false`, `approval_enables_execution=false`, `artifact_is_authority=false`, and `requires_b1_3_runner=true`.
 
-Authority changes: Tier 3 HITL runtime with command allowlist.
+Authority changes: Tier 1 artifact-only/validation-only. `builder-verify approve-plan` may write only the explicit output approval artifact. Neither command runs tests, executes shell/subprocess, calls models/tools, invokes MCP, starts Goose/deepagents, applies patches, mutates git, or promotes B2 authority.
 
-Tests: `shell=False`, explicit argv list, fixed canonical cwd, minimal env allowlist, timeout, bounded stdout/stderr capture, pre/post git state, source mutation detection, artifact output outside target repo.
+Tests: valid approval validation, digest drift, plan digest mismatch, target/profile mismatch, approved command profile outside plan rejection, approved step id outside plan rejection, execution enabled rejection, approval-enables-execution rejection, artifact authority rejection, missing disabled authority rejection, raw shell string rejection, forbidden patch/model/MCP/Goose/deepagents authority claims, CLI artifact write/JSON output, artifact index registration, artifact chain registration, and authority-row coverage.
 
-Failure modes: digest drift, cwd drift, env drift, target drift, timeout drift, shell commands, `bash/sh/zsh -c`, `python -c`, `git reset/clean/push/checkout`, package install/network commands, source tree mutation, hidden model/tool/MCP/Goose/deepagents escalation.
+Failure modes: invalid plan shape, digest drift, subset drift against plan, enabled execution flags, raw shell string, command injection token, forbidden authority overclaim, or missing disabled authority.
 
-Rollback/no-mutation proof: verification commands must produce no source diff; mutation blocks and records failure.
+Rollback/no-mutation proof: approval is artifact-only and has no mutation authority beyond explicit output artifact creation.
 
-Acceptance: approved pytest-style verification can run and produce valid receipt/postflight/ledger without source mutation.
+Acceptance: canonical approval digest is stable for identical payloads; approval binds only to a plan digest; B1.3 runner remains missing.
 
-Non-goals: patch apply, model/tool calls, Goose/deepagents runtime.
+Non-goals: no subprocess execution, no pytest execution, no shell execution, no model/tool call, no MCP/Goose/deepagents runtime, no patch application, no B2 authority.
 
 B1.3 CLI + command authority + ledger/chain.
 

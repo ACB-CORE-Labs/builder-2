@@ -196,6 +196,8 @@ REQUIRED_SUBCOMMANDS = {
     "builder-setup validate-onboarding-intent",
     "builder-verify plan",
     "builder-verify validate-plan",
+    "builder-verify approve-plan",
+    "builder-verify validate-approval",
 }
 
 COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
@@ -712,6 +714,33 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints validation JSON to stdout.",
         failure_mode="Exits non-zero on malformed artifact, digest drift, enabled execution authority, raw shell strings, or forbidden authority overclaim.",
         notes="Validation-only B1.1 command. It does not execute verification or grant approval.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-verify approve-plan",
+        entrypoint="builder_ii.verification_execution_plan_cli:verify_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Generates a digest-bound HITL approval artifact for a passive verification execution plan only; no runtime start, direct execution, shell execution, subprocess execution, model execution, MCP/tool invocation, Goose, deepagents, git mutation, or B2 patch authority.",
+        write_boundary="Writes only the explicit verification execution approval JSON artifact requested by --output.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None. The artifact binds human approval to a plan digest only and does not authorize execution.",
+        output_behavior="Prints canonical verification execution approval JSON to stdout and writes the same artifact to the explicit output path.",
+        failure_mode="Exits non-zero on invalid plan input, digest mismatch, subset drift against the referenced plan, malformed approval text, or authority overclaim.",
+        notes="B1.2 passive HITL binding only. It never runs verification and never grants runtime authority.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-verify validate-approval",
+        entrypoint="builder_ii.verification_execution_plan_cli:verify_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Validates a verification execution approval artifact against its referenced passive plan without runtime start, direct execution, shell execution, subprocess execution, model execution, MCP/tool invocation, Goose, deepagents, git mutation, or B2 patch authority.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints validation JSON to stdout.",
+        failure_mode="Exits non-zero on malformed approval artifact, invalid referenced plan, digest drift, subset drift, enabled execution flags, or forbidden authority overclaim.",
+        notes="Validation-only B1.2 command. It does not authorize execution and requires B1.3 before any approved plan can run.",
     ),
     CommandAuthorityRecord(
         name="builder-hitl",

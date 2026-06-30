@@ -44,6 +44,7 @@ R1 Config + Onboarding Kernel must precede B1 verification execution because exe
 - Orchestration dry-run artifact (`builder_ii.orchestration_dry_run`)
 - Verification profile reports (`builder_ii.verification_profile_report`) — planned checks, NOT_RUN
 - B1.1 verification execution plan artifact (`builder_ii.verification_execution_plan`) — planned-only, execution disabled
+- B1.2 verification execution approval artifact (`builder_ii.verification_execution_approval`) — digest-bound HITL approval only, execution disabled
 - Full governed preparation lane scenario tests
 
 **HITL governance chain**
@@ -107,6 +108,8 @@ builder-verification artifact
 builder-verification validate
 builder-verify plan --target-profile builder --verification-profile builder_full --output .builder/verification/verification-execution-plan.json
 builder-verify validate-plan .builder/verification/verification-execution-plan.json
+builder-verify approve-plan .builder/verification/verification-execution-plan.json --approval-actor "Joshua Shay" --approval-reason "Approve passive B1.1 verification plan for future B1.3 runner testing." --output .builder/verification/verification-execution-approval.json
+builder-verify validate-approval .builder/verification/verification-execution-approval.json --plan .builder/verification/verification-execution-plan.json
 builder-bundle create
 builder-bundle validate
 builder-research plan
@@ -159,7 +162,7 @@ These are the next capability promotions. Each requires the full capability prom
 
 - R0: completion truth matrix, platform status CLI, docs truth audit, command authority coverage, and tests.
 - R1: Config + Onboarding Kernel for canonical source precedence, setup plan/apply/validate, receipts, rollback artifacts, and capability defaults.
-- B1: HITL-approved verification execution after R1 has made target roots, artifact roots, and setup state auditable. B1.1 is only a passive verification execution plan artifact; HITL approval and actual execution remain later B1 slices.
+- B1: HITL-approved verification execution after R1 has made target roots, artifact roots, and setup state auditable. B1.1 is only a passive verification execution plan artifact, B1.2 is only a digest-bound HITL approval binding artifact, and B1.3 is still required before any approved verification can execute.
 
 ### Phase: profile-pack / capability-factory substrate (next planning spine)
 - Introduce user-created profile packs for target profiles, agents, subagents, tasks, tools, context, verification, approval, Goose projections, deepagents projections, MCP policies, and handoff profiles

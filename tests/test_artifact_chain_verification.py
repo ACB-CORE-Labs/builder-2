@@ -23,6 +23,10 @@ from builder_ii.receive_records import create_receive_record
 from builder_ii.snapshot_records import create_snapshot_record
 from builder_ii.state_ledger_records import create_state_ledger_record
 from builder_ii.config_schema import attach_digest
+from builder_ii.verification_execution_approval import (
+    finalize_verification_execution_approval,
+    write_verification_execution_approval,
+)
 from builder_ii.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
@@ -448,6 +452,58 @@ def test_chain_rejects_malformed_verification_execution_plan_artifact(tmp_path: 
     assert report["valid"] is False
     assert report["counts"]["native_invalid"] == 1
     assert any("execution_enabled must be false" in error for error in report["errors"])
+
+
+def test_chain_accepts_verification_execution_approval_artifact(tmp_path: Path) -> None:
+    plan = finalize_verification_execution_plan(
+        target_profile="builder",
+        verification_profile="builder_full",
+        target_repo=".",
+        artifact_root=".builder/verification",
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    approval = finalize_verification_execution_approval(
+        plan=plan,
+        plan_path="verification-execution-plan.json",
+        approval_actor="Joshua Shay",
+        approval_reason="Approve passive B1.1 verification plan for future B1.3 runner testing.",
+        generated_at="2026-06-30T00:00:01+00:00",
+    )
+    approval_path = tmp_path / "verification-execution-approval.json"
+    write_verification_execution_approval(approval, approval_path)
+
+    report = verify_artifact_chain([approval_path])
+
+    assert report["valid"] is True
+    assert report["counts"]["files"] == 1
+    assert report["counts"]["native_invalid"] == 0
+
+
+def test_chain_rejects_malformed_verification_execution_approval_artifact(tmp_path: Path) -> None:
+    plan = finalize_verification_execution_plan(
+        target_profile="builder",
+        verification_profile="builder_full",
+        target_repo=".",
+        artifact_root=".builder/verification",
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    approval = finalize_verification_execution_approval(
+        plan=plan,
+        plan_path="verification-execution-plan.json",
+        approval_actor="Joshua Shay",
+        approval_reason="Approve passive B1.1 verification plan for future B1.3 runner testing.",
+        generated_at="2026-06-30T00:00:01+00:00",
+    )
+    approval["approval_enables_execution"] = True
+    approval = attach_digest(approval, digest_key="verification_execution_approval_digest")
+    approval_path = tmp_path / "verification-execution-approval.json"
+    write_verification_execution_approval(approval, approval_path)
+
+    report = verify_artifact_chain([approval_path])
+
+    assert report["valid"] is False
+    assert report["counts"]["native_invalid"] == 1
+    assert any("approval_enables_execution must be false" in error for error in report["errors"])
 
 
 # ---------------------------------------------------------------------------

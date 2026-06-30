@@ -62,6 +62,10 @@ from builder_ii.verification_execution_plan import (
     VERIFICATION_EXECUTION_PLAN_KIND,
     validate_verification_execution_plan_artifact,
 )
+from builder_ii.verification_execution_approval import (
+    VERIFICATION_EXECUTION_APPROVAL_KIND,
+    validate_verification_execution_approval_artifact,
+)
 from builder_ii.git_state import GIT_STATE_RECORD_KIND, validate_git_state_record
 from builder_ii.research_plans import (
     RESEARCH_PLAN_KIND,
@@ -357,6 +361,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     TARGET_PROFILE_ARTIFACT_KIND: validate_target_profile_artifact,
     VERIFICATION_ARTIFACT_KIND: validate_profile_artifact,
     VERIFICATION_EXECUTION_PLAN_KIND: validate_verification_execution_plan_artifact,
+    VERIFICATION_EXECUTION_APPROVAL_KIND: validate_verification_execution_approval_artifact,
     CONTEXT_PACK_RECORD_KIND: validate_context_pack_record,
     AGENT_PROFILE_RECORD_KIND: validate_agent_profile_record,
     GIT_STATE_RECORD_KIND: validate_git_state_record,

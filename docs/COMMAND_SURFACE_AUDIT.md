@@ -128,4 +128,12 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder-verify plan` writes a passive `builder_ii.verification_execution_plan` artifact only to explicit `--output` and prints the same JSON.
 - `builder-verify validate-plan` validates that artifact without executing verification.
 - Initial B1.1 support is limited to `target_profile=builder` with `verification_profile=builder_full`; unsupported target/profile pairs fail closed.
-- B1.1 does not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 patch authority. HITL approval and actual verification execution remain later B1 slices.
+- B1.1 does not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 patch authority.
+
+## B1.2 command surface delta
+
+- `builder-verify approve-plan` writes a passive `builder_ii.verification_execution_approval` artifact only to explicit `--output` and prints the same JSON.
+- `builder-verify validate-approval` validates that approval artifact against a referenced passive plan without executing verification.
+- B1.2 binds human approval to an exact verification plan digest only; it does not become runtime authority or authorize direct execution.
+- B1.2 does not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 patch authority.
+- B1.3 is still required before any approved verification can execute.

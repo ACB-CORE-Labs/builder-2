@@ -2,11 +2,20 @@ from __future__ import annotations
 
 import json as json_lib
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
 
 from builder_ii.target_profiles import target_names
+from builder_ii.verification_execution_approval import (
+    dumps_verification_execution_approval,
+    finalize_verification_execution_approval,
+    validate_verification_execution_approval_against_plan,
+    validate_verification_execution_approval_artifact,
+    validate_verification_execution_approval_file,
+    write_verification_execution_approval,
+)
 from builder_ii.verification_execution_plan import (
     dumps_verification_execution_plan,
     finalize_verification_execution_plan,
@@ -35,6 +44,15 @@ def _verification_profile(value: str) -> str:
     return value
 
 
+def _print_validation_errors(errors: list[str]) -> None:
+    for error in errors:
+        console.print(f"Validation error: {error}")
+
+
+def _read_json_object(path: Path) -> dict[str, Any]:
+    return json_lib.loads(path.read_text(encoding="utf-8"))
+
+
 @verify_app.command("plan")
 def plan(
     target_profile: str = typer.Option(..., "--target-profile", help="Target profile: generic, builder, core"),
@@ -52,8 +70,7 @@ def plan(
     )
     errors = validate_verification_execution_plan_artifact(artifact)
     if errors:
-        for error in errors:
-            console.print(f"Validation error: {error}")
+        _print_validation_errors(errors)
         raise typer.Exit(1)
     try:
         write_verification_execution_plan(artifact, output)
@@ -70,6 +87,59 @@ def validate_plan(
     """Validate a verification execution plan artifact without running verification."""
     errors = validate_verification_execution_plan_file(path)
     report = {"valid": not errors, "errors": errors, "path": str(path)}
+    console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
+    if errors:
+        raise typer.Exit(1)
+
+
+@verify_app.command("approve-plan")
+def approve_plan(
+    plan_path: Path = typer.Argument(..., help="Path to a passive verification execution plan JSON artifact"),
+    approval_actor: str = typer.Option(..., "--approval-actor", help="Human operator approving the plan digest"),
+    approval_reason: str = typer.Option(..., "--approval-reason", help="Reason for the digest-bound approval"),
+    output: Path = typer.Option(..., "--output", help="Explicit JSON approval artifact path to write"),
+) -> None:
+    """Emit a HITL approval artifact bound to an exact passive verification execution plan digest."""
+    plan_errors = validate_verification_execution_plan_file(plan_path)
+    if plan_errors:
+        _print_validation_errors(plan_errors)
+        raise typer.Exit(1)
+
+    plan = _read_json_object(plan_path)
+    artifact = finalize_verification_execution_approval(
+        plan=plan,
+        plan_path=str(plan_path),
+        approval_actor=approval_actor,
+        approval_reason=approval_reason,
+    )
+    errors = validate_verification_execution_approval_artifact(artifact)
+    errors.extend(validate_verification_execution_approval_against_plan(artifact, plan))
+    if errors:
+        _print_validation_errors(errors)
+        raise typer.Exit(1)
+    try:
+        write_verification_execution_approval(artifact, output)
+    except OSError as exc:
+        console.print(f"Verification execution approval could not be written: {exc}")
+        raise typer.Exit(1) from None
+    console.out(dumps_verification_execution_approval(artifact), end="")
+
+
+@verify_app.command("validate-approval")
+def validate_approval(
+    path: Path = typer.Argument(..., help="Path to a verification execution approval JSON artifact"),
+    plan: Path = typer.Option(..., "--plan", help="Path to the referenced verification execution plan JSON artifact"),
+) -> None:
+    """Validate a HITL plan approval artifact against its referenced passive plan."""
+    errors = validate_verification_execution_approval_file(path)
+    plan_errors = validate_verification_execution_plan_file(plan)
+    errors.extend(plan_errors)
+    if not errors:
+        approval_data = _read_json_object(path)
+        plan_data = _read_json_object(plan)
+        errors.extend(validate_verification_execution_approval_against_plan(approval_data, plan_data))
+
+    report = {"valid": not errors, "errors": errors, "path": str(path), "plan_path": str(plan)}
     console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
     if errors:
         raise typer.Exit(1)
