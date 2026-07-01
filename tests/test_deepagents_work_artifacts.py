@@ -857,8 +857,10 @@ def test_deepagents_command_authority() -> None:
         TIER_4,
         TIER_1,
         STATE_FORBIDDEN_UNPROMOTED,
+        STATE_HITL_RUNTIME_CANDIDATE,
         STATE_VALIDATION_ONLY,
         STATE_ARTIFACT_ONLY,
+        TIER_3,
     )
 
     expected_cmds = {
@@ -875,6 +877,12 @@ def test_deepagents_command_authority() -> None:
         "builder-deepagents record-blocked-action",
         "builder-deepagents proposal-result",
         "builder-deepagents validate-work-artifact",
+        "builder-deepagents execution-candidate",
+        "builder-deepagents approve-candidate",
+        "builder-deepagents run-approved",
+        "builder-deepagents replay-run",
+        "builder-deepagents evidence-bundle",
+        "builder-deepagents resume-approved",
     }
     found_cmds = set()
     for record in COMMAND_AUTHORITY_REGISTRY:
@@ -884,11 +892,20 @@ def test_deepagents_command_authority() -> None:
                 assert record.tier == TIER_4
                 assert record.promotion_state == STATE_FORBIDDEN_UNPROMOTED
                 continue
+            if record.name in {
+                "builder-deepagents run-approved",
+                "builder-deepagents resume-approved",
+            }:
+                assert record.tier == TIER_3
+                assert record.promotion_state == STATE_HITL_RUNTIME_CANDIDATE
+                assert record.allows_artifact_writes is True
+                continue
             assert record.tier == TIER_1
             if record.name in {
                 "builder-deepagents validate",
                 "builder-deepagents validate-readiness",
                 "builder-deepagents validate-work-artifact",
+                "builder-deepagents replay-run",
             }:
                 assert record.promotion_state == STATE_VALIDATION_ONLY
             else:

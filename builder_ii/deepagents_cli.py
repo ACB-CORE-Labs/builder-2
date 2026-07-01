@@ -60,6 +60,38 @@ from builder_ii.deepagents_work_artifacts import (
     dumps_deepagents_proposal_result,
 )
 from builder_ii.deepagents_runtime import DeepAgentsRuntimeHarness
+from builder_ii.deepagents_execution import (
+    BACKEND_MODES,
+    DEEPAGENTS_CHECKPOINT_KIND,
+    DEEPAGENTS_EVENT_LEDGER_KIND,
+    DEEPAGENTS_EVENT_RECORD_KIND,
+    DEEPAGENTS_EVIDENCE_BUNDLE_KIND,
+    DEEPAGENTS_EXECUTION_APPROVAL_KIND,
+    DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
+    DEEPAGENTS_EXECUTION_RECEIPT_KIND,
+    DEEPAGENTS_REPLAY_REPORT_KIND,
+    DEEPAGENTS_RUN_ENVELOPE_KIND,
+    PROTOCOL_FAKE_BACKEND,
+    create_deepagents_execution_approval,
+    create_deepagents_execution_candidate,
+    create_evidence_bundle_from_files,
+    dumps_deepagents_execution_approval,
+    dumps_deepagents_execution_candidate,
+    replay_deepagents_run,
+    resume_deepagents_approved_candidate,
+    run_deepagents_approved_candidate,
+    validate_deepagents_checkpoint,
+    validate_deepagents_event_ledger,
+    validate_deepagents_event_record,
+    validate_deepagents_evidence_bundle,
+    validate_deepagents_execution_approval,
+    validate_deepagents_execution_candidate,
+    validate_deepagents_execution_receipt,
+    validate_deepagents_replay_report,
+    validate_deepagents_run_envelope,
+    write_deepagents_execution_approval,
+    write_deepagents_execution_candidate,
+)
 
 deepagents_app = typer.Typer(
     help="Create and validate artifact-only governed deepagents JSON."
@@ -69,6 +101,7 @@ _VALID_TARGETS = set(target_names())
 _VALID_MEMORY_MODES = {"disabled", "proposal_only", "approved"}
 _VALID_SUBAGENT_MODES = {"trusted", "proposal_only"}
 _VALID_READINESS_MODES = {"metadata_only", "import_check"}
+_VALID_BACKEND_MODES = set(BACKEND_MODES)
 
 
 def _target(value: str) -> TargetName:
@@ -97,6 +130,13 @@ def _readiness_mode(value: str) -> DeepAgentsReadinessMode:
         console.print("readiness mode must be metadata_only or import_check")
         raise typer.Exit(1)
     return value  # type: ignore[return-value]
+
+
+def _backend_mode(value: str) -> str:
+    if value not in _VALID_BACKEND_MODES:
+        console.print(f"backend mode must be one of: {', '.join(BACKEND_MODES)}")
+        raise typer.Exit(1)
+    return value
 
 
 def _split_csv(value: str | None) -> list[str] | None:
@@ -523,6 +563,15 @@ def validate_work_artifact(path: Path) -> None:
         "builder_ii.deepagents_work_validation_report": validate_deepagents_work_validation_report,
         "builder_ii.deepagents_runtime_envelope": validate_deepagents_runtime_envelope,
         "builder_ii.deepagents_subagent_execution_receipt": validate_deepagents_subagent_execution_receipt,
+        DEEPAGENTS_EXECUTION_CANDIDATE_KIND: validate_deepagents_execution_candidate,
+        DEEPAGENTS_EXECUTION_APPROVAL_KIND: validate_deepagents_execution_approval,
+        DEEPAGENTS_RUN_ENVELOPE_KIND: validate_deepagents_run_envelope,
+        DEEPAGENTS_EVENT_RECORD_KIND: validate_deepagents_event_record,
+        DEEPAGENTS_EVENT_LEDGER_KIND: validate_deepagents_event_ledger,
+        DEEPAGENTS_REPLAY_REPORT_KIND: validate_deepagents_replay_report,
+        DEEPAGENTS_CHECKPOINT_KIND: validate_deepagents_checkpoint,
+        DEEPAGENTS_EXECUTION_RECEIPT_KIND: validate_deepagents_execution_receipt,
+        DEEPAGENTS_EVIDENCE_BUNDLE_KIND: validate_deepagents_evidence_bundle,
     }
 
     validator = validators.get(kind)
@@ -571,3 +620,214 @@ def collect_results(
     except Exception as exc:
         console.print(f"Error: {exc}")
         raise typer.Exit(1)
+
+
+@deepagents_app.command("execution-candidate")
+def execution_candidate(
+    work_plan: Path = typer.Option(
+        ..., "--work-plan", help="Path to passive deepagents work plan JSON"
+    ),
+    output_root: Path = typer.Option(
+        ..., "--output-root", help="Root directory allowed for promoted run artifacts"
+    ),
+    backend_mode: str = typer.Option(
+        PROTOCOL_FAKE_BACKEND,
+        "--backend-mode",
+        help=f"Backend mode: {', '.join(BACKEND_MODES)}",
+    ),
+    allowed_subagents: str | None = typer.Option(
+        None,
+        "--allowed-subagents",
+        help="Comma-separated approved subagents; defaults to work plan proposed_subagents",
+    ),
+    max_subagents: int = typer.Option(8, "--max-subagents", help="Maximum subagents"),
+    max_events: int = typer.Option(256, "--max-events", help="Maximum event records"),
+    max_output_bytes: int = typer.Option(
+        65536, "--max-output-bytes", help="Maximum bounded output bytes"
+    ),
+    output: Path | None = typer.Option(
+        None, "--output", help="Write execution candidate JSON to path"
+    ),
+) -> None:
+    """Create a promoted-lane candidate; it does not run deepagents."""
+    work_plan_data = _load_json(work_plan)
+    try:
+        artifact = create_deepagents_execution_candidate(
+            work_plan=work_plan_data,
+            work_plan_path=work_plan,
+            output_root=output_root,
+            backend_mode=_backend_mode(backend_mode),
+            allowed_subagents=_split_csv(allowed_subagents),
+            max_subagents=max_subagents,
+            max_events=max_events,
+            max_output_bytes=max_output_bytes,
+        )
+    except ValueError as exc:
+        console.print(f"ValueError: {exc}")
+        raise typer.Exit(1)
+
+    if output is not None:
+        write_deepagents_execution_candidate(artifact, output)
+        console.print(
+            f"Deepagents execution candidate written to {output}. Next: builder-deepagents approve-candidate --candidate {output} --approval-actor <name> --approval-reason <reason> --output <approval.json>"
+        )
+    else:
+        console.out(dumps_deepagents_execution_candidate(artifact), end="")
+
+
+@deepagents_app.command("approve-candidate")
+def approve_candidate(
+    candidate: Path = typer.Option(
+        ..., "--candidate", help="Path to deepagents execution candidate JSON"
+    ),
+    approval_actor: str = typer.Option(
+        ..., "--approval-actor", help="Human approval actor"
+    ),
+    approval_reason: str = typer.Option(
+        ..., "--approval-reason", help="Human approval reason"
+    ),
+    expires_at: str | None = typer.Option(
+        None, "--expires-at", help="Optional ISO expiry timestamp"
+    ),
+    output: Path | None = typer.Option(
+        None, "--output", help="Write execution approval JSON to path"
+    ),
+) -> None:
+    """Bind HITL approval to the exact candidate digest."""
+    candidate_data = _load_json(candidate)
+    try:
+        artifact = create_deepagents_execution_approval(
+            candidate=candidate_data,
+            candidate_path=candidate,
+            approval_actor=approval_actor,
+            approval_reason=approval_reason,
+            expires_at=expires_at,
+        )
+    except ValueError as exc:
+        console.print(f"ValueError: {exc}")
+        raise typer.Exit(1)
+
+    if output is not None:
+        write_deepagents_execution_approval(artifact, output)
+        console.print(
+            f"Deepagents execution approval written to {output}. Next: builder-deepagents run-approved --candidate {candidate} --approval {output} --output-dir <run-dir>"
+        )
+    else:
+        console.out(dumps_deepagents_execution_approval(artifact), end="")
+
+
+@deepagents_app.command("run-approved")
+def run_approved(
+    candidate: Path = typer.Option(
+        ..., "--candidate", help="Path to deepagents execution candidate JSON"
+    ),
+    approval: Path = typer.Option(
+        ..., "--approval", help="Path to deepagents execution approval JSON"
+    ),
+    output_dir: Path = typer.Option(
+        ..., "--output-dir", help="Directory for run envelope, events, receipt, and replay"
+    ),
+    stop_after: int | None = typer.Option(
+        None,
+        "--stop-after",
+        help="Testing/resume hook: checkpoint after N completed subagents",
+    ),
+) -> None:
+    """Run the approved protocol backend lane and write replayable evidence."""
+    try:
+        summary = run_deepagents_approved_candidate(
+            candidate_path=candidate,
+            approval_path=approval,
+            output_dir=output_dir,
+            stop_after=stop_after,
+        )
+    except Exception as exc:
+        console.print(f"Error: {exc}")
+        raise typer.Exit(1)
+    console.out(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n", end="")
+
+
+@deepagents_app.command("resume-approved")
+def resume_approved(
+    candidate: Path = typer.Option(
+        ..., "--candidate", help="Path to deepagents execution candidate JSON"
+    ),
+    approval: Path = typer.Option(
+        ..., "--approval", help="Path to deepagents execution approval JSON"
+    ),
+    checkpoint: Path = typer.Option(
+        ..., "--checkpoint", help="Path to deepagents checkpoint JSON"
+    ),
+    output_dir: Path = typer.Option(
+        ..., "--output-dir", help="Directory for resumed run artifacts"
+    ),
+) -> None:
+    """Resume a checkpoint only when candidate and approval still bind exactly."""
+    try:
+        summary = resume_deepagents_approved_candidate(
+            candidate_path=candidate,
+            approval_path=approval,
+            checkpoint_path=checkpoint,
+            output_dir=output_dir,
+        )
+    except Exception as exc:
+        console.print(f"Error: {exc}")
+        raise typer.Exit(1)
+    console.out(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n", end="")
+
+
+@deepagents_app.command("replay-run")
+def replay_run(
+    events_dir: Path = typer.Option(
+        ..., "--events-dir", help="Directory containing deepagents event records"
+    ),
+    output: Path = typer.Option(
+        ..., "--output", help="Write replay report JSON to path"
+    ),
+) -> None:
+    """Reconstruct run state from events only; never reruns backend/model/tool work."""
+    try:
+        replay = replay_deepagents_run(events_dir=events_dir, output=output)
+    except Exception as exc:
+        console.print(f"Error: {exc}")
+        raise typer.Exit(1)
+    console.out(json_lib.dumps({"valid": replay["valid"], "status": replay["status"], "output": str(output)}, indent=2, sort_keys=True) + "\n", end="")
+    if replay["valid"] is not True:
+        raise typer.Exit(1)
+
+
+@deepagents_app.command("evidence-bundle")
+def evidence_bundle(
+    candidate: Path = typer.Option(..., "--candidate", help="Candidate JSON path"),
+    approval: Path = typer.Option(..., "--approval", help="Approval JSON path"),
+    envelope: Path = typer.Option(..., "--envelope", help="Run envelope JSON path"),
+    receipt: Path = typer.Option(..., "--receipt", help="Execution receipt JSON path"),
+    event_ledger: Path = typer.Option(
+        ..., "--event-ledger", help="Event ledger JSON path"
+    ),
+    replay_report: Path = typer.Option(
+        ..., "--replay-report", help="Replay report JSON path"
+    ),
+    checkpoint: Path | None = typer.Option(
+        None, "--checkpoint", help="Optional checkpoint JSON path"
+    ),
+    output: Path = typer.Option(
+        ..., "--output", help="Write evidence bundle JSON to path"
+    ),
+) -> None:
+    """Bundle candidate, approval, run, receipt, ledger, and replay evidence."""
+    try:
+        bundle = create_evidence_bundle_from_files(
+            candidate_path=candidate,
+            approval_path=approval,
+            envelope_path=envelope,
+            receipt_path=receipt,
+            event_ledger_path=event_ledger,
+            replay_report_path=replay_report,
+            checkpoint_path=checkpoint,
+            output_path=output,
+        )
+    except Exception as exc:
+        console.print(f"Error: {exc}")
+        raise typer.Exit(1)
+    console.out(json_lib.dumps({"status": bundle["status"], "output": str(output)}, indent=2, sort_keys=True) + "\n", end="")
