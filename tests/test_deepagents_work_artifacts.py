@@ -877,6 +877,7 @@ def test_deepagents_command_authority() -> None:
         "builder-deepagents record-blocked-action",
         "builder-deepagents proposal-result",
         "builder-deepagents validate-work-artifact",
+        "builder-deepagents backend-readiness",
         "builder-deepagents execution-candidate",
         "builder-deepagents approve-candidate",
         "builder-deepagents run-approved",

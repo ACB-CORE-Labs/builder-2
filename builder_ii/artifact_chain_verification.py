@@ -281,6 +281,7 @@ from builder_ii.deepagents_work_artifacts import (
     validate_deepagents_work_validation_report,
 )
 from builder_ii.deepagents_execution import (
+    DEEPAGENTS_BACKEND_READINESS_GATE_KIND,
     DEEPAGENTS_CHECKPOINT_KIND,
     DEEPAGENTS_EVENT_LEDGER_KIND,
     DEEPAGENTS_EVENT_RECORD_KIND,
@@ -291,6 +292,7 @@ from builder_ii.deepagents_execution import (
     DEEPAGENTS_REPLAY_REPORT_KIND,
     DEEPAGENTS_RUN_ENVELOPE_KIND,
     validate_deepagents_checkpoint,
+    validate_deepagents_backend_readiness_gate,
     validate_deepagents_event_ledger,
     validate_deepagents_event_record,
     validate_deepagents_evidence_bundle,
@@ -498,6 +500,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     DEEPAGENTS_CHECKPOINT_KIND: validate_deepagents_checkpoint,
     DEEPAGENTS_EXECUTION_RECEIPT_KIND: validate_deepagents_execution_receipt,
     DEEPAGENTS_EVIDENCE_BUNDLE_KIND: validate_deepagents_evidence_bundle,
+    DEEPAGENTS_BACKEND_READINESS_GATE_KIND: validate_deepagents_backend_readiness_gate,
     HITL_PROMOTION_REQUEST_KIND: validate_hitl_promotion_request,
     HITL_PROMOTION_REVIEW_KIND: validate_hitl_promotion_review,
     HITL_PROMOTION_DECISION_KIND: validate_hitl_promotion_decision,

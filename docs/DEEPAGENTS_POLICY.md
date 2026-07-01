@@ -111,6 +111,16 @@ The future `optional_deepagents` backend must pass a separate readiness gate bef
 - evidence that all model work routes through builder-II model call envelopes and receipts;
 - replay proof showing state reconstruction from events without rerunning backend work.
 
+The gate is represented by `builder_ii.deepagents_backend_readiness_gate` and produced with:
+
+```text
+builder-deepagents backend-readiness --capability-gates-passed --output <gate.json>
+```
+
+`builder-deepagents execution-candidate --backend-mode optional_deepagents` rejects candidate creation unless `--backend-readiness-gate <gate.json>` points to a structurally valid gate with `gate_state: PASS`. The runner re-reads that gate by path and digest before execution, emits the gate's denial probes as `action_denied` events, and still requires the normal candidate approval artifact. A stale, missing, or failing gate is a governed denial, not a fallback to hidden runtime authority.
+
+The protocol adapter export is `builder_ii_run_protocol_subagent`. It may return proposal-only payloads, but it must not construct native deepagents agents, invoke models directly, call tools, execute shell, connect MCP, mutate memory, write source, or couple to CORE Workbench. Native deepagents construction and governed factory calls remain a separate future promotion.
+
 ## Non-goals
 
 This artifact does not:

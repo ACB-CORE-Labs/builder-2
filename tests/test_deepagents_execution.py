@@ -275,41 +275,20 @@ def test_result_output_budget_truncates_with_digest(tmp_path: Path) -> None:
     assert result_event["payload"]["result_mode"] == "PROPOSAL_ONLY_TRUNCATED"
 
 
-def test_optional_backend_records_failure_without_widening_authority(tmp_path: Path) -> None:
+def test_optional_backend_requires_readiness_gate_for_candidate(tmp_path: Path) -> None:
     work_plan, work_plan_path = _work_plan_fixture(tmp_path)
-    candidate = create_deepagents_execution_candidate(
-        work_plan=work_plan,
-        work_plan_path=work_plan_path,
-        output_root=tmp_path / "runs",
-        backend_mode="optional_deepagents",
-        allowed_subagents=["repo_mapper"],
-    )
-    candidate_path = _write(tmp_path / "optional-candidate.json", candidate)
-    approval = create_deepagents_execution_approval(
-        candidate=candidate,
-        candidate_path=candidate_path,
-        approval_actor="Joshua Shay",
-        approval_reason="Exercise optional backend failure mode.",
-    )
-    approval_path = _write(tmp_path / "optional-approval.json", approval)
 
-    summary = run_deepagents_approved_candidate(
-        candidate_path=candidate_path,
-        approval_path=approval_path,
-        output_dir=tmp_path / "runs" / "optional",
-    )
-    output_dir = tmp_path / "runs" / "optional"
-    receipt = json_lib.loads((output_dir / "deepagents-execution-receipt.json").read_text(encoding="utf-8"))
-    failed_event = json_lib.loads(
-        (output_dir / "events" / "event-0004-run_failed.json").read_text(encoding="utf-8")
-    )
-
-    assert summary["status"] == "FAILED"
-    assert failed_event["payload"]["backend_denial"] is True
-    assert failed_event["payload"]["error_type"] == "DeepAgentsBackendDenied"
-    assert receipt["executes_model"] is False
-    assert receipt["constructs_deepagents"] is False
-    assert validate_deepagents_execution_receipt(receipt) == []
+    try:
+        create_deepagents_execution_candidate(
+            work_plan=work_plan,
+            work_plan_path=work_plan_path,
+            output_root=tmp_path / "runs",
+            backend_mode="optional_deepagents",
+            allowed_subagents=["repo_mapper"],
+        )
+        assert False, "optional backend candidate should require readiness gate"
+    except ValueError as exc:
+        assert "optional_deepagents requires --backend-readiness-gate" in str(exc)
 
 
 def test_replay_detects_hash_chain_gap(tmp_path: Path) -> None:
@@ -449,7 +428,7 @@ def test_resume_failure_records_failed_receipt(monkeypatch, tmp_path: Path) -> N
         def run_subagent(self, *, subagent_profile: str, task: str) -> dict:
             raise RuntimeError("resume backend failure")
 
-    monkeypatch.setattr(execution_module, "backend_for", lambda mode: FailingBackend())
+    monkeypatch.setattr(execution_module, "backend_for", lambda mode, **_kwargs: FailingBackend())
 
     summary = resume_deepagents_approved_candidate(
         candidate_path=candidate_path,

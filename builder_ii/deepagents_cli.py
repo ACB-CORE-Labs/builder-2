@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json as json_lib
 from pathlib import Path
 from typing import Any
@@ -62,6 +63,7 @@ from builder_ii.deepagents_work_artifacts import (
 from builder_ii.deepagents_runtime import DeepAgentsRuntimeHarness
 from builder_ii.deepagents_execution import (
     BACKEND_MODES,
+    DEEPAGENTS_BACKEND_READINESS_GATE_KIND,
     DEEPAGENTS_CHECKPOINT_KIND,
     DEEPAGENTS_EVENT_LEDGER_KIND,
     DEEPAGENTS_EVENT_RECORD_KIND,
@@ -72,15 +74,18 @@ from builder_ii.deepagents_execution import (
     DEEPAGENTS_REPLAY_REPORT_KIND,
     DEEPAGENTS_RUN_ENVELOPE_KIND,
     PROTOCOL_FAKE_BACKEND,
+    create_deepagents_backend_readiness_gate,
     create_deepagents_execution_approval,
     create_deepagents_execution_candidate,
     create_evidence_bundle_from_files,
+    dumps_deepagents_backend_readiness_gate,
     dumps_deepagents_execution_approval,
     dumps_deepagents_execution_candidate,
     replay_deepagents_run,
     resume_deepagents_approved_candidate,
     run_deepagents_approved_candidate,
     validate_deepagents_checkpoint,
+    validate_deepagents_backend_readiness_gate,
     validate_deepagents_event_ledger,
     validate_deepagents_event_record,
     validate_deepagents_evidence_bundle,
@@ -91,6 +96,7 @@ from builder_ii.deepagents_execution import (
     validate_deepagents_run_envelope,
     write_deepagents_execution_approval,
     write_deepagents_execution_candidate,
+    write_deepagents_backend_readiness_gate,
 )
 
 deepagents_app = typer.Typer(
@@ -572,6 +578,7 @@ def validate_work_artifact(path: Path) -> None:
         DEEPAGENTS_CHECKPOINT_KIND: validate_deepagents_checkpoint,
         DEEPAGENTS_EXECUTION_RECEIPT_KIND: validate_deepagents_execution_receipt,
         DEEPAGENTS_EVIDENCE_BUNDLE_KIND: validate_deepagents_evidence_bundle,
+        DEEPAGENTS_BACKEND_READINESS_GATE_KIND: validate_deepagents_backend_readiness_gate,
     }
 
     validator = validators.get(kind)
@@ -635,6 +642,11 @@ def execution_candidate(
         "--backend-mode",
         help=f"Backend mode: {', '.join(BACKEND_MODES)}",
     ),
+    backend_readiness_gate: Path | None = typer.Option(
+        None,
+        "--backend-readiness-gate",
+        help="Required passing gate JSON when --backend-mode optional_deepagents",
+    ),
     allowed_subagents: str | None = typer.Option(
         None,
         "--allowed-subagents",
@@ -651,12 +663,15 @@ def execution_candidate(
 ) -> None:
     """Create a promoted-lane candidate; it does not run deepagents."""
     work_plan_data = _load_json(work_plan)
+    readiness_gate_data = _load_json(backend_readiness_gate) if backend_readiness_gate is not None else None
     try:
         artifact = create_deepagents_execution_candidate(
             work_plan=work_plan_data,
             work_plan_path=work_plan,
             output_root=output_root,
             backend_mode=_backend_mode(backend_mode),
+            backend_readiness_gate=readiness_gate_data,
+            backend_readiness_gate_path=backend_readiness_gate,
             allowed_subagents=_split_csv(allowed_subagents),
             max_subagents=max_subagents,
             max_events=max_events,
@@ -673,6 +688,69 @@ def execution_candidate(
         )
     else:
         console.out(dumps_deepagents_execution_candidate(artifact), end="")
+
+
+@deepagents_app.command("backend-readiness")
+def backend_readiness(
+    module_name: str = typer.Option(
+        "deepagents", "--module-name", help="Optional backend module to inspect"
+    ),
+    package_name: str = typer.Option(
+        "deepagents", "--package-name", help="Optional backend package name"
+    ),
+    capability_gates_passed: bool = typer.Option(
+        False,
+        "--capability-gates-passed",
+        help="Operator assertion that all AGENTS.md promotion gates are covered",
+    ),
+    model_receipt_ref: list[Path] | None = typer.Option(
+        None,
+        "--model-receipt-ref",
+        help="Repeatable model receipt artifact path when backend performs model work",
+    ),
+    output: Path | None = typer.Option(
+        None, "--output", help="Write backend readiness gate JSON to path"
+    ),
+) -> None:
+    """Create an optional_deepagents promotion gate without constructing an agent."""
+    refs: list[dict[str, Any]] = []
+    for path in model_receipt_ref or []:
+        artifact = _load_json(path)
+        refs.append(
+            {
+                "role": "model_call_receipt",
+                "kind": str(artifact.get("kind", "")),
+                "path": str(path),
+                "sha256": hashlib.sha256(
+                    json_lib.dumps(
+                        artifact,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        ensure_ascii=True,
+                    ).encode("utf-8")
+                ).hexdigest(),
+                "name": "builder-II model call receipt",
+                "required": True,
+            }
+        )
+    try:
+        artifact = create_deepagents_backend_readiness_gate(
+            module_name=module_name,
+            package_name=package_name,
+            capability_gates_passed=capability_gates_passed,
+            model_call_receipt_refs=refs,
+        )
+    except ValueError as exc:
+        console.print(f"ValueError: {exc}")
+        raise typer.Exit(1)
+
+    if output is not None:
+        write_deepagents_backend_readiness_gate(artifact, output)
+        console.print(
+            f"Deepagents backend readiness gate written to {output}. Next: builder-deepagents execution-candidate --backend-mode optional_deepagents --backend-readiness-gate {output} ..."
+        )
+    else:
+        console.out(dumps_deepagents_backend_readiness_gate(artifact), end="")
 
 
 @deepagents_app.command("approve-candidate")
