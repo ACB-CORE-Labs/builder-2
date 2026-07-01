@@ -41,7 +41,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.hitl_execution_request`
 - `builder_ii.hitl_execution_receipt`
 - `builder_ii.hitl_verification_execution_candidate`
-- `builder_ii.hitl_patch_application_spec`
+- `builder_ii.hitl_patch_proposal`
 - `builder_ii.rollback_plan`
 - `builder_ii.rollback_receipt`
 - `builder_ii.execution_postflight_record`
@@ -123,7 +123,7 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.hitl_execution_request` | Governance record | #118 |
 | `builder_ii.hitl_execution_receipt` | Governance record | #118 |
 | `builder_ii.hitl_verification_execution_candidate` | HITL verification candidate | #138 |
-| `builder_ii.hitl_patch_application_spec` | Design specification | #120 |
+| `builder_ii.hitl_patch_proposal` | Design specification | #120 |
 | `builder_ii.rollback_plan` | Governance record | #122 |
 | `builder_ii.rollback_receipt` | Governance record | #122 |
 | `builder_ii.execution_postflight_record` | Governance record | #124 |

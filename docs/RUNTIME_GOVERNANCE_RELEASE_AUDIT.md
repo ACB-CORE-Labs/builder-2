@@ -17,7 +17,7 @@ The current foundation includes these merged surfaces:
 - HITL command execution spec: `docs/HITL_COMMAND_EXECUTION.md`, `builder_ii/hitl_command_execution.py`, `tests/test_hitl_command_execution.py`
 - HITL execution request/receipt artifacts: `builder_ii/hitl_execution_records.py`, `docs/HITL_EXECUTION_RECORDS.md`, `tests/test_hitl_execution_records.py`
 - HITL execution artifact CLI: `builder_ii/hitl_execution_cli.py`, `docs/HITL_EXECUTION_CLI.md`, `tests/test_hitl_execution_cli.py`
-- HITL patch application spec: `builder_ii/hitl_patch_spec.py`, `docs/HITL_PATCH_SPEC.md`, `tests/test_hitl_patch_spec.py`
+- HITL patch application spec: `builder_ii/hitl_patch_proposal.py`, `docs/HITL_PATCH_PROPOSAL.md`, `tests/test_hitl_patch_proposal.py`
 - Rollback plan/receipt artifacts: `builder_ii/rollback_artifacts.py`, `docs/ROLLBACK_ARTIFACTS.md`, `tests/test_rollback_artifacts.py`
 - Execution postflight and verification record specs: `builder_ii/execution_postflight_records.py`, `docs/EXECUTION_POSTFLIGHT_RECORDS.md`, `tests/test_execution_postflight_records.py`
 - Command surface audit: `docs/COMMAND_SURFACE_AUDIT.md`, `tests/test_command_surface_audit.py`
@@ -32,7 +32,7 @@ The artifact index registry and chain verification registry account for these ru
 
 - `builder_ii.hitl_execution_request`
 - `builder_ii.hitl_execution_receipt`
-- `builder_ii.hitl_patch_application_spec`
+- `builder_ii.hitl_patch_proposal`
 - `builder_ii.rollback_plan`
 - `builder_ii.rollback_receipt`
 - `builder_ii.execution_postflight_record`

@@ -37,9 +37,9 @@ from builder_ii.hitl_verification_candidate import (
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
     create_hitl_verification_execution_candidate,
 )
-from builder_ii.hitl_patch_spec import (
-    HITL_PATCH_APPLICATION_SPEC_KIND,
-    create_hitl_patch_application_spec,
+from builder_ii.hitl_patch_proposal import (
+    HITL_PATCH_PROPOSAL_KIND,
+    create_hitl_patch_proposal,
 )
 from builder_ii.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
@@ -163,7 +163,7 @@ CLOSURE_KINDS = {
     HITL_EXECUTION_REQUEST_KIND,
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
-    HITL_PATCH_APPLICATION_SPEC_KIND,
+    HITL_PATCH_PROPOSAL_KIND,
     ROLLBACK_PLAN_KIND,
     ROLLBACK_RECEIPT_KIND,
     EXECUTION_POSTFLIGHT_RECORD_KIND,
@@ -218,7 +218,7 @@ GOVERNANCE_ARTIFACT_KINDS = {
     HITL_EXECUTION_REQUEST_KIND,
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
-    HITL_PATCH_APPLICATION_SPEC_KIND,
+    HITL_PATCH_PROPOSAL_KIND,
     ROLLBACK_PLAN_KIND,
     ROLLBACK_RECEIPT_KIND,
     EXECUTION_POSTFLIGHT_RECORD_KIND,
@@ -325,8 +325,8 @@ def _hitl_verification_execution_candidate() -> dict[str, Any]:
     )
 
 
-def _hitl_patch_application_spec() -> dict[str, Any]:
-    return create_hitl_patch_application_spec(
+def _hitl_patch_proposal() -> dict[str, Any]:
+    return create_hitl_patch_proposal(
         target_name="generic",
         patch_description="test patch",
         reason="test fixture",
@@ -1145,7 +1145,7 @@ def test_governance_artifact_fixtures_validate_through_both_registries() -> None
         _hitl_execution_request(),
         _hitl_execution_receipt(),
         _hitl_verification_execution_candidate(),
-        _hitl_patch_application_spec(),
+        _hitl_patch_proposal(),
         _rollback_plan(),
         _rollback_receipt(),
         _execution_postflight_record(),
@@ -1188,7 +1188,7 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
         "hitl-request.json": _hitl_execution_request(),
         "hitl-receipt.json": _hitl_execution_receipt(),
         "hitl-verification-candidate.json": _hitl_verification_execution_candidate(),
-        "hitl-patch-spec.json": _hitl_patch_application_spec(),
+        "hitl-patch-spec.json": _hitl_patch_proposal(),
         "rollback-plan.json": _rollback_plan(),
         "rollback-receipt.json": _rollback_receipt(),
         "postflight.json": _execution_postflight_record(),
@@ -1239,7 +1239,7 @@ def test_governance_artifacts_are_not_chain_evidence() -> None:
     fixtures = [
         _hitl_execution_request(),
         _hitl_execution_receipt(),
-        _hitl_patch_application_spec(),
+        _hitl_patch_proposal(),
         _rollback_plan(),
         _rollback_receipt(),
         _execution_postflight_record(),
@@ -1273,7 +1273,7 @@ def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
     fixtures = {
         "hitl-request.json": _hitl_execution_request(),
         "hitl-receipt.json": _hitl_execution_receipt(),
-        "hitl-patch-spec.json": _hitl_patch_application_spec(),
+        "hitl-patch-spec.json": _hitl_patch_proposal(),
         "rollback-plan.json": _rollback_plan(),
         "rollback-receipt.json": _rollback_receipt(),
         "postflight.json": _execution_postflight_record(),

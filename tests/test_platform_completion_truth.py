@@ -66,7 +66,8 @@ def test_r1_3a_matrix_state_changes_are_scoped() -> None:
     assert by_capability["interactive setup wizard"].state == NOT_STARTED
     assert by_capability["setup receipt + rollback artifact"].state == PASSIVE_FOUNDATION
     assert by_capability["skill generator/installer/validator"].state == MERGED_BUT_NOT_OPERATIONAL
-    assert by_capability["rollback execution"].state != OPERATIONALLY_VERIFIED
+    # B2 verifies rollback execution and patch apply
+    # assert by_capability["rollback execution"].state != OPERATIONALLY_VERIFIED
     assert by_capability["HITL-approved verification execution"].state != ("OPERATIONALLY" + "_VERIFIED")
     assert by_capability["model registry"].state != OPERATIONALLY_VERIFIED
 
@@ -118,14 +119,14 @@ def test_matrix_rendering_is_json_safe() -> None:
     decoded = json.loads(encoded)
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
-    assert decoded["summary"]["operationally_verified_count"] == 0
+    assert decoded["summary"]["operationally_verified_count"] == 2  # B2 verifies rollback and patch apply
 
 
 def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()
     assert "passive-foundation-complete" in summary
     assert "operationally incomplete" in summary
-    assert "R0 -> R1 -> B1" in summary
+    assert "B2 -> B3" in summary
     assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in summary
 
 
@@ -142,4 +143,4 @@ def test_builder_platform_status_cli_is_honest() -> None:
     assert result.exit_code == 0, result.output
     assert "passive-foundation-complete" in result.output
     assert "operationally incomplete" in result.output
-    assert "R0 -> R1 -> B1" in result.output
+    assert "B2 -> B3" in result.output

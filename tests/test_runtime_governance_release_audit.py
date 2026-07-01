@@ -37,7 +37,7 @@ def test_release_audit_covers_completed_foundation_surfaces() -> None:
         "Registry closure",
         "builder_ii/hitl_execution_records.py",
         "builder_ii/hitl_execution_cli.py",
-        "builder_ii/hitl_patch_spec.py",
+        "builder_ii/hitl_patch_proposal.py",
         "builder_ii/rollback_artifacts.py",
         "builder_ii/execution_postflight_records.py",
         "builder_ii/hitl_evidence_bundle.py",
@@ -55,7 +55,7 @@ def test_release_audit_lists_runtime_governance_artifact_kinds() -> None:
     for kind in (
         "builder_ii.hitl_execution_request",
         "builder_ii.hitl_execution_receipt",
-        "builder_ii.hitl_patch_application_spec",
+        "builder_ii.hitl_patch_proposal",
         "builder_ii.rollback_plan",
         "builder_ii.rollback_receipt",
         "builder_ii.execution_postflight_record",

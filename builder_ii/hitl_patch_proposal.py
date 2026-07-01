@@ -7,8 +7,8 @@ from typing import Any
 from builder_ii.config import Settings
 from builder_ii.target_profiles import TargetName, target_names, target_profile
 
-HITL_PATCH_APPLICATION_SPEC_KIND = "builder_ii.hitl_patch_application_spec"
-HITL_PATCH_APPLICATION_SPEC_SCHEMA_VERSION = 1
+HITL_PATCH_PROPOSAL_KIND = "builder_ii.hitl_patch_proposal"
+HITL_PATCH_PROPOSAL_SCHEMA_VERSION = 1
 
 # ---------------------------------------------------------------------------
 # Governed future path — ordered state machine (design record only)
@@ -57,12 +57,14 @@ _REQUIRED_FUTURE_GATES = (
 )
 
 
-def create_hitl_patch_application_spec(
+def create_hitl_patch_proposal(
     settings: Settings | None = None,
     *,
     target_name: TargetName = "generic",
     patch_description: str = "",
     reason: str = "",
+    patch_digest: str = "",
+    unified_diff: str = "",
     generic_repo: Path | None = None,
 ) -> dict[str, Any]:
     """Create a design/spec artifact for the future HITL patch application path.
@@ -77,10 +79,12 @@ def create_hitl_patch_application_spec(
         settings = load_settings()
     selected = target_profile(settings, target_name, generic_repo=generic_repo)
     return {
-        "kind": HITL_PATCH_APPLICATION_SPEC_KIND,
-        "schema_version": HITL_PATCH_APPLICATION_SPEC_SCHEMA_VERSION,
+        "kind": HITL_PATCH_PROPOSAL_KIND,
+        "schema_version": HITL_PATCH_PROPOSAL_SCHEMA_VERSION,
         "patch_description": patch_description,
         "reason": reason,
+        "patch_digest": patch_digest,
+        "unified_diff": unified_diff,
         "target": {
             "name": selected.name,
             "repo": str(selected.repo),
@@ -88,14 +92,14 @@ def create_hitl_patch_application_spec(
         },
         "allowed_future_transition": list(_ALLOWED_FUTURE_TRANSITIONS),
         "current_state": {
-            "mode": "DESIGN_ONLY",
+            "mode": "PASSIVE_FOUNDATION",
             "runtime": "DISABLED",
             "artifact_is_authority": False,
         },
         "denied_current_behavior": list(_DENIED_CURRENT_BEHAVIORS),
         "required_future_gates": list(_REQUIRED_FUTURE_GATES),
         "governance": {
-            "capability_state": "DESIGN_ONLY",
+            "capability_state": "PASSIVE_FOUNDATION",
             "runtime_execution": "DISABLED",
             "patch_application": "DISABLED",
             "source_writes": "DISABLED",
@@ -114,17 +118,17 @@ def create_hitl_patch_application_spec(
     }
 
 
-def dumps_hitl_patch_application_spec(artifact: dict[str, Any]) -> str:
+def dumps_hitl_patch_proposal(artifact: dict[str, Any]) -> str:
     return json_lib.dumps(artifact, indent=2, sort_keys=True) + "\n"
 
 
-def write_hitl_patch_application_spec(artifact: dict[str, Any], output: Path) -> None:
+def write_hitl_patch_proposal(artifact: dict[str, Any], output: Path) -> None:
     """Write the spec artifact to disk as JSON.  No source mutation occurs."""
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(dumps_hitl_patch_application_spec(artifact), encoding="utf-8")
+    output.write_text(dumps_hitl_patch_proposal(artifact), encoding="utf-8")
 
 
-def validate_hitl_patch_application_spec(artifact: Any) -> list[str]:
+def validate_hitl_patch_proposal(artifact: Any) -> list[str]:
     """Validate a HITL patch application spec artifact dict.
 
     Returns a list of error strings; an empty list means the artifact is valid.
@@ -133,10 +137,15 @@ def validate_hitl_patch_application_spec(artifact: Any) -> list[str]:
     if not isinstance(artifact, dict):
         return ["hitl patch application spec artifact must be a JSON object"]
 
-    if artifact.get("kind") != HITL_PATCH_APPLICATION_SPEC_KIND:
-        errors.append(f"kind must be {HITL_PATCH_APPLICATION_SPEC_KIND}")
-    if artifact.get("schema_version") != HITL_PATCH_APPLICATION_SPEC_SCHEMA_VERSION:
-        errors.append(f"schema_version must be {HITL_PATCH_APPLICATION_SPEC_SCHEMA_VERSION}")
+    if artifact.get("kind") != HITL_PATCH_PROPOSAL_KIND:
+        errors.append(f"kind must be {HITL_PATCH_PROPOSAL_KIND}")
+    if artifact.get("schema_version") != HITL_PATCH_PROPOSAL_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {HITL_PATCH_PROPOSAL_SCHEMA_VERSION}")
+
+    if not isinstance(artifact.get("patch_digest"), str):
+        errors.append("patch_digest must be a string")
+    if not isinstance(artifact.get("unified_diff"), str):
+        errors.append("unified_diff must be a string")
 
     # target
     target = artifact.get("target")
@@ -162,8 +171,8 @@ def validate_hitl_patch_application_spec(artifact: Any) -> list[str]:
     if not isinstance(curr_state, dict):
         errors.append("current_state must be an object")
     else:
-        if curr_state.get("mode") != "DESIGN_ONLY":
-            errors.append("current_state.mode must be DESIGN_ONLY")
+        if curr_state.get("mode") != "PASSIVE_FOUNDATION":
+            errors.append("current_state.mode must be PASSIVE_FOUNDATION")
         if curr_state.get("runtime") != "DISABLED":
             errors.append("current_state.runtime must be DISABLED")
         if curr_state.get("artifact_is_authority") is not False:
@@ -192,8 +201,8 @@ def validate_hitl_patch_application_spec(artifact: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        if governance.get("capability_state") != "DESIGN_ONLY":
-            errors.append("governance.capability_state must be DESIGN_ONLY")
+        if governance.get("capability_state") != "PASSIVE_FOUNDATION":
+            errors.append("governance.capability_state must be PASSIVE_FOUNDATION")
         for key in (
             "runtime_execution",
             "patch_application",
@@ -218,7 +227,7 @@ def validate_hitl_patch_application_spec(artifact: Any) -> list[str]:
     return errors
 
 
-def validate_hitl_patch_application_spec_file(path: Path) -> list[str]:
+def validate_hitl_patch_proposal_file(path: Path) -> list[str]:
     if not path.exists():
         return [f"file not found: {path}"]
     try:
@@ -227,4 +236,4 @@ def validate_hitl_patch_application_spec_file(path: Path) -> list[str]:
         return [f"invalid JSON: {exc}"]
     except Exception as exc:
         return [f"failed to read file: {exc}"]
-    return validate_hitl_patch_application_spec(data)
+    return validate_hitl_patch_proposal(data)

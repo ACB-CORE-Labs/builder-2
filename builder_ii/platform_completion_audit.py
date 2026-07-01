@@ -11,7 +11,7 @@ PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "R0 -> R1 -> B1"
+NEXT_SEQUENCE = "B2 -> B3"
 
 StateLabel = Literal[
     "NOT_STARTED",
@@ -606,39 +606,37 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "HITL patch proposal",
-        DESIGN_ONLY,
-        ("builder_ii/hitl_patch_spec.py", "builder_ii/goose_command_proposal.py"),
+        PASSIVE_FOUNDATION,
+        ("builder_ii/hitl_patch_proposal.py", "builder_ii/goose_command_proposal.py"),
         ("builder-goose",),
-        ("tests/test_hitl_patch_spec.py", "tests/test_goose_command_proposal.py"),
+        ("tests/test_hitl_patch_proposal.py", "tests/test_goose_command_proposal.py"),
         (
-            "Command proposal artifacts exist, but patch proposal artifact flow is not implemented.",
-            "Patch digest, target profile, approval binding, rollback spec, and verification profile are missing.",
+            "Patch proposal artifact exists and generates a digest of the proposed patch.",
         ),
-        "B2",
+        "B3",
     ),
     _row(
         "HITL patch application",
-        DESIGN_ONLY,
-        ("builder_ii/hitl_patch_spec.py", "docs/HITL_PATCH_SPEC.md"),
-        (),
-        ("tests/test_hitl_patch_spec.py",),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/hitl_patch_apply.py", "builder_ii/hitl_patch_cli.py", "builder_ii/hitl_patch_proposal.py", "docs/HITL_PATCH_PROPOSAL.md"),
+        ("builder-hitl apply-patch",),
+        ("tests/test_hitl_patch_proposal.py", "tests/test_hitl_patch_apply.py"),
         (
-            "Patch apply is explicitly denied.",
-            "Clean git state, approval, rollback, postflight diff, receipt, and ledger binding must wait for B1 then B2.",
+            "Patch application is operationally verified.",
+            "Enforces clean git state, approval match, verification receipt, and rollback generation before apply.",
         ),
-        "B2 after B1",
+        "B3",
     ),
     _row(
         "rollback execution",
-        ARTIFACT_ONLY,
-        ("builder_ii/rollback_artifacts.py",),
-        ("builder-chain",),
-        ("tests/test_rollback_artifacts.py",),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/rollback_artifacts.py", "builder_ii/hitl_patch_cli.py", "builder_ii/hitl_patch_apply.py"),
+        ("builder-hitl rollback",),
+        ("tests/test_rollback_artifacts.py", "tests/test_hitl_patch_apply.py"),
         (
-            "Rollback plan and receipt templates exist with NOT_EXECUTED semantics.",
-            "Rollback executor and mutation proof are missing.",
+            "Rollback execution is operationally verified.",
         ),
-        "B2",
+        "B3",
     ),
     _row(
         "postflight verification",

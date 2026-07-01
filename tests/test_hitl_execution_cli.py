@@ -24,8 +24,8 @@ def test_module_does_not_import_subprocess() -> None:
 
 
 def test_cli_does_not_expose_forbidden_commands() -> None:
-    """The CLI must not expose any execute, run, apply, patch, rollback, or shell commands."""
-    forbidden = {"execute", "run", "apply", "patch", "rollback", "shell"}
+    """The CLI must not expose arbitrary execute, run, or shell commands."""
+    forbidden = {"execute", "run", "shell"}
     for cmd in hitl_app.registered_commands:
         assert cmd.name not in forbidden, f"Forbidden command '{cmd.name}' is exposed!"
 

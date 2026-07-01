@@ -11,7 +11,7 @@ This document is the **design specification** for a future Human-In-The-Loop (HI
 The specification artifact kind is:
 
 ```
-builder_ii.hitl_patch_application_spec
+builder_ii.hitl_patch_proposal
 ```
 
 ### Current State

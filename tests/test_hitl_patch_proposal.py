@@ -1,4 +1,4 @@
-"""Tests for builder_ii.hitl_patch_spec — design-only governance assertions."""
+"""Tests for builder_ii.hitl_patch_proposal — design-only governance assertions."""
 from __future__ import annotations
 
 import ast
@@ -7,19 +7,19 @@ from pathlib import Path
 
 import pytest
 
-import builder_ii.hitl_patch_spec as hitl_mod
-from builder_ii.hitl_patch_spec import (
-    HITL_PATCH_APPLICATION_SPEC_KIND,
-    create_hitl_patch_application_spec,
-    dumps_hitl_patch_application_spec,
-    validate_hitl_patch_application_spec,
-    validate_hitl_patch_application_spec_file,
+import builder_ii.hitl_patch_proposal as hitl_mod
+from builder_ii.hitl_patch_proposal import (
+    HITL_PATCH_PROPOSAL_KIND,
+    create_hitl_patch_proposal,
+    dumps_hitl_patch_proposal,
+    validate_hitl_patch_proposal,
+    validate_hitl_patch_proposal_file,
 )
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-_DOC_PATH = Path(__file__).parent.parent / "docs" / "HITL_PATCH_SPEC.md"
+_DOC_PATH = Path(__file__).parent.parent / "docs" / "HITL_PATCH_PROPOSAL.md"
 _MODULE_SRC = inspect.getsource(hitl_mod)
 
 
@@ -28,12 +28,12 @@ _MODULE_SRC = inspect.getsource(hitl_mod)
 # ---------------------------------------------------------------------------
 def test_valid_spec_validates() -> None:
     """A freshly-created spec must pass validation with no errors."""
-    spec = create_hitl_patch_application_spec(
+    spec = create_hitl_patch_proposal(
         patch_description="test patch design spec",
         reason="unit test",
     )
-    assert spec["kind"] == HITL_PATCH_APPLICATION_SPEC_KIND
-    errors = validate_hitl_patch_application_spec(spec)
+    assert spec["kind"] == HITL_PATCH_PROPOSAL_KIND
+    errors = validate_hitl_patch_proposal(spec)
     assert errors == [], f"Unexpected validation errors: {errors}"
 
 
@@ -42,9 +42,9 @@ def test_valid_spec_validates() -> None:
 # ---------------------------------------------------------------------------
 def test_invalid_enabled_runtime_fails() -> None:
     """Setting current_state.runtime to anything other than DISABLED must fail."""
-    spec = create_hitl_patch_application_spec()
+    spec = create_hitl_patch_proposal()
     spec["current_state"]["runtime"] = "ENABLED"
-    errors = validate_hitl_patch_application_spec(spec)
+    errors = validate_hitl_patch_proposal(spec)
     assert any("current_state.runtime must be DISABLED" in e for e in errors)
 
 
@@ -53,9 +53,9 @@ def test_invalid_enabled_runtime_fails() -> None:
 # ---------------------------------------------------------------------------
 def test_source_writes_enabled_fails() -> None:
     """Enabling source_writes in governance must fail validation."""
-    spec = create_hitl_patch_application_spec()
+    spec = create_hitl_patch_proposal()
     spec["governance"]["source_writes"] = "ENABLED"
-    errors = validate_hitl_patch_application_spec(spec)
+    errors = validate_hitl_patch_proposal(spec)
     assert any("governance.source_writes must be DISABLED" in e for e in errors)
 
 
@@ -65,15 +65,15 @@ def test_source_writes_enabled_fails() -> None:
 def test_artifact_is_authority_true_fails() -> None:
     """Setting artifact_is_authority to True must fail validation (both locations)."""
     # governance block
-    spec = create_hitl_patch_application_spec()
+    spec = create_hitl_patch_proposal()
     spec["governance"]["artifact_is_authority"] = True
-    errors = validate_hitl_patch_application_spec(spec)
+    errors = validate_hitl_patch_proposal(spec)
     assert any("governance.artifact_is_authority must be false" in e for e in errors)
 
     # current_state block
-    spec2 = create_hitl_patch_application_spec()
+    spec2 = create_hitl_patch_proposal()
     spec2["current_state"]["artifact_is_authority"] = True
-    errors2 = validate_hitl_patch_application_spec(spec2)
+    errors2 = validate_hitl_patch_proposal(spec2)
     assert any("current_state.artifact_is_authority must be false" in e for e in errors2)
 
 
@@ -83,9 +83,9 @@ def test_artifact_is_authority_true_fails() -> None:
 def test_core_workbench_coupling_non_none_fails() -> None:
     """Any core_workbench_coupling value other than NONE must fail."""
     for bad_value in ("TIGHT", "LOOSE", "PARTIAL", "TRUE"):
-        spec = create_hitl_patch_application_spec()
+        spec = create_hitl_patch_proposal()
         spec["governance"]["core_workbench_coupling"] = bad_value
-        errors = validate_hitl_patch_application_spec(spec)
+        errors = validate_hitl_patch_proposal(spec)
         assert any("governance.core_workbench_coupling must be NONE" in e for e in errors), (
             f"Expected failure for coupling={bad_value!r}, got: {errors}"
         )
@@ -190,7 +190,7 @@ def test_no_function_applies_patches_or_writes_target_source() -> None:
 # 10. All governance fields default to DISABLED / False / NONE
 # ---------------------------------------------------------------------------
 def test_governance_defaults_fully_disabled() -> None:
-    spec = create_hitl_patch_application_spec()
+    spec = create_hitl_patch_proposal()
     gov = spec["governance"]
     for key in (
         "patch_application",
@@ -214,16 +214,16 @@ def test_governance_defaults_fully_disabled() -> None:
 # 11. File I/O round-trip
 # ---------------------------------------------------------------------------
 def test_file_io_round_trip(tmp_path: Path) -> None:
-    spec = create_hitl_patch_application_spec(patch_description="round-trip test", reason="ci")
-    out = tmp_path / "hitl_patch_spec.json"
-    hitl_mod.write_hitl_patch_application_spec(spec, out)
+    spec = create_hitl_patch_proposal(patch_description="round-trip test", reason="ci")
+    out = tmp_path / "hitl_patch_proposal.json"
+    hitl_mod.write_hitl_patch_proposal(spec, out)
     assert out.exists()
-    errors = validate_hitl_patch_application_spec_file(out)
+    errors = validate_hitl_patch_proposal_file(out)
     assert errors == [], f"Round-trip validation failed: {errors}"
 
     # Missing file
     missing = tmp_path / "does_not_exist.json"
-    errs = validate_hitl_patch_application_spec_file(missing)
+    errs = validate_hitl_patch_proposal_file(missing)
     assert any("file not found" in e for e in errs)
 
 
@@ -233,7 +233,7 @@ def test_file_io_round_trip(tmp_path: Path) -> None:
 def test_dumps_produces_valid_json() -> None:
     import json
 
-    spec = create_hitl_patch_application_spec()
-    text = dumps_hitl_patch_application_spec(spec)
+    spec = create_hitl_patch_proposal()
+    text = dumps_hitl_patch_proposal(spec)
     parsed = json.loads(text)
-    assert parsed["kind"] == HITL_PATCH_APPLICATION_SPEC_KIND
+    assert parsed["kind"] == HITL_PATCH_PROPOSAL_KIND

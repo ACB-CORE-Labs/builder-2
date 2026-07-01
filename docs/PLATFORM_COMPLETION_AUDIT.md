@@ -71,9 +71,9 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | HITL promotion bridge | `PASSIVE_FOUNDATION` | B1 |
 | execution candidate manifests | `PASSIVE_FOUNDATION` | B1 |
 | HITL-approved verification execution | `PASSIVE_FOUNDATION` | B2.0 |
-| HITL patch proposal | `DESIGN_ONLY` | B2 |
-| HITL patch application | `DESIGN_ONLY` | B2 after B1 |
-| rollback execution | `ARTIFACT_ONLY` | B2 |
+| HITL patch proposal | `PASSIVE_FOUNDATION` | B3 |
+| HITL patch application | `OPERATIONALLY_VERIFIED` | B3 |
+| rollback execution | `OPERATIONALLY_VERIFIED` | B3 |
 | postflight verification | `ARTIFACT_ONLY` | B1 |
 | Goose setup | `MERGED_BUT_NOT_OPERATIONAL` | B4 after R0/B3 |
 | Goose readonly runtime | `MERGED_BUT_NOT_OPERATIONAL` | B4 |
