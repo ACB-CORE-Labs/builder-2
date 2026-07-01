@@ -29,6 +29,8 @@ EVENT_TYPES = {
     "workflow_candidate_recorded",
     "workflow_chain_verified",
     "workflow_handoff_ready",
+    "read_executed",
+    "read_denied",
 }
 
 EVENT_TYPE_STAGE = {
@@ -218,8 +220,12 @@ def replay_events(
 
         stage = str(event.get("stage", ""))
         expected_stage = EVENT_TYPE_STAGE.get(str(event.get("event_type", "")))
-        if expected_stage != stage:
-            errors.append(f"{path}: stage does not match event_type")
+        if expected_stage is not None:
+            if expected_stage != stage:
+                errors.append(f"{path}: stage does not match event_type")
+        else:
+            if stage != current_stage:
+                errors.append(f"{path}: non-transition event stage {stage} must match current stage {current_stage}")
 
         if index == 0:
             if event.get("previous_event_ref") is not None:

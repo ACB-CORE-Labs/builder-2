@@ -41,10 +41,10 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | Capability | State | Next PR |
 |---|---|---|
 | generic platform identity | `PASSIVE_FOUNDATION` | R0 |
-| target profiles | `PASSIVE_FOUNDATION` | B3 |
+| target profiles | `OPERATIONALLY_VERIFIED` | B4 |
 | agent profiles | `PASSIVE_FOUNDATION` | B5 |
 | verification profiles | `PASSIVE_FOUNDATION` | B1 |
-| context packs | `PASSIVE_FOUNDATION` | B3 |
+| context packs | `OPERATIONALLY_VERIFIED` | B4 |
 | profile packs | `PASSIVE_FOUNDATION` | defer runtime materialization |
 | config schema | `PASSIVE_FOUNDATION` | R1 |
 | config source precedence | `PASSIVE_FOUNDATION` | R1 |
@@ -71,11 +71,12 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | HITL promotion bridge | `PASSIVE_FOUNDATION` | B1 |
 | execution candidate manifests | `PASSIVE_FOUNDATION` | B1 |
 | HITL-approved verification execution | `PASSIVE_FOUNDATION` | B2.0 |
-| HITL patch proposal | `PASSIVE_FOUNDATION` | B3 |
-| HITL patch application | `OPERATIONALLY_VERIFIED` | B3 |
-| rollback execution | `OPERATIONALLY_VERIFIED` | B3 |
+| HITL patch proposal | `OPERATIONALLY_VERIFIED` | B4 |
+| HITL patch application | `OPERATIONALLY_VERIFIED` | B4 |
+| rollback execution | `OPERATIONALLY_VERIFIED` | B4 |
 | postflight verification | `ARTIFACT_ONLY` | B1 |
 | Goose setup | `MERGED_BUT_NOT_OPERATIONAL` | B4 after R0/B3 |
+| governed read-only runtime | `OPERATIONALLY_VERIFIED` | B4 |
 | Goose readonly runtime | `MERGED_BUT_NOT_OPERATIONAL` | B4 |
 | Goose command proposals | `PASSIVE_FOUNDATION` | B1/B4 |
 | deepagents policy/readiness | `PASSIVE_FOUNDATION` | B5 |

@@ -1,0 +1,301 @@
+from __future__ import annotations
+
+import hashlib
+import json as json_lib
+import time
+import re
+from pathlib import Path
+from typing import Any
+
+from builder_ii.config import Settings
+
+READ_POLICY_KIND = "builder_ii.read_policy"
+READ_POLICY_SCHEMA_VERSION = 1
+
+READ_RECEIPT_KIND = "builder_ii.read_receipt"
+READ_RECEIPT_SCHEMA_VERSION = 1
+
+DENIED_READ_KIND = "builder_ii.denied_read"
+DENIED_READ_SCHEMA_VERSION = 1
+
+# Common secrets regex patterns or file suffixes
+SECRET_PATTERNS = [
+    re.compile(r"(?i)(api_key|private_key|password|secret|passwd|token)"),
+]
+SECRET_FILE_SUFFIXES = {".pem", ".key", ".pkcs12", ".p12", ".env"}
+
+
+def create_read_policy(
+    *,
+    target_name: str,
+    target_repo: Path,
+    allowed_paths: list[str] | None = None,
+    denied_paths: list[str] | None = None,
+    max_bytes_budget: int = 10 * 1024 * 1024,  # 10MB default
+    content_capture_allowed: bool = False,
+    operator_note: str = "",
+) -> dict[str, Any]:
+    return {
+        "kind": READ_POLICY_KIND,
+        "schema_version": READ_POLICY_SCHEMA_VERSION,
+        "target": {
+            "name": target_name,
+            "repo": str(target_repo.resolve()),
+        },
+        "allowed_paths": allowed_paths or ["*"],
+        "denied_paths": denied_paths or [".git/*", ".env*"],
+        "max_bytes_budget": max_bytes_budget,
+        "content_capture_allowed": content_capture_allowed,
+        "operator_note": operator_note,
+        "current_state": "OPERATIONALLY_VERIFIED",
+        "governance": {
+            "capability_state": "OPERATIONALLY_VERIFIED",
+            "runtime_execution": "EXPLICIT_READ_ONLY",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": True,
+            "core_workbench_coupling": "NONE",
+        },
+    }
+
+
+def validate_read_policy(policy: Any) -> list[str]:
+    errors = []
+    if not isinstance(policy, dict):
+        return ["Read policy must be a dictionary"]
+    if policy.get("kind") != READ_POLICY_KIND:
+        errors.append(f"kind must be {READ_POLICY_KIND}")
+    if policy.get("schema_version") != READ_POLICY_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {READ_POLICY_SCHEMA_VERSION}")
+    
+    target = policy.get("target")
+    if not isinstance(target, dict):
+        errors.append("target must be a dictionary")
+    else:
+        if not target.get("name"):
+            errors.append("target.name is required")
+        if not target.get("repo"):
+            errors.append("target.repo is required")
+            
+    if not isinstance(policy.get("allowed_paths"), list):
+        errors.append("allowed_paths must be a list")
+    if not isinstance(policy.get("denied_paths"), list):
+        errors.append("denied_paths must be a list")
+    if not isinstance(policy.get("max_bytes_budget"), int) or policy.get("max_bytes_budget", -1) < 0:
+        errors.append("max_bytes_budget must be a non-negative integer")
+    if not isinstance(policy.get("content_capture_allowed"), bool):
+        errors.append("content_capture_allowed must be a boolean")
+        
+    return errors
+
+
+def validate_read_policy_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"invalid JSON: {exc}"]
+    return validate_read_policy(data)
+
+
+def _is_path_allowed(path: Path, root: Path, allowed_patterns: list[str], denied_patterns: list[str]) -> bool:
+    try:
+        resolved = path.resolve()
+        resolved_root = root.resolve()
+        
+        # Prevent path traversal
+        if not str(resolved).startswith(str(resolved_root)):
+            return False
+            
+        # Secrets checks: filenames
+        if resolved.suffix in SECRET_FILE_SUFFIXES:
+            return False
+            
+        # Convert path to relative for pattern matching
+        rel_path = resolved.relative_to(resolved_root).as_posix()
+        
+        # Check against denied patterns (glob matching)
+        for pattern in denied_patterns:
+            if path.match(pattern) or Path(rel_path).match(pattern):
+                return False
+                
+        # Check against allowed patterns (glob matching)
+        allowed = False
+        for pattern in allowed_patterns:
+            if pattern == "*" or path.match(pattern) or Path(rel_path).match(pattern):
+                allowed = True
+                break
+                
+        return allowed
+    except Exception:
+        return False
+
+
+def _check_secrets_content(content: bytes) -> bool:
+    try:
+        text = content.decode("utf-8", errors="ignore")
+        for pattern in SECRET_PATTERNS:
+            if pattern.search(text):
+                return False
+        return True
+    except Exception:
+        return True
+
+
+def execute_governed_read(
+    policy: dict[str, Any],
+    file_path: Path,
+    current_read_bytes: int = 0,
+) -> dict[str, Any]:
+    """Execute a governed read operation on a single file, enforcing the read policy.
+    
+    Returns a read_receipt or denied_read artifact.
+    """
+    target_repo = Path(policy["target"]["repo"])
+    allowed_paths = policy["allowed_paths"]
+    denied_paths = policy["denied_paths"]
+    budget = policy["max_bytes_budget"]
+    content_capture = policy["content_capture_allowed"]
+    
+    # Pre-read metadata
+    resolved = file_path.resolve()
+    
+    # 1. Path Travel / Allowlist validation
+    if not _is_path_allowed(resolved, target_repo, allowed_paths, denied_paths):
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="Path not allowed or security policy violation (traversal, .git, secret suffixes)",
+        )
+        
+    if not resolved.exists():
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="File not found",
+        )
+        
+    if not resolved.is_file():
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="Path is not a file",
+        )
+        
+    # Read size check
+    file_size = resolved.stat().st_size
+    if current_read_bytes + file_size > budget:
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason=f"Read budget exceeded (limit: {budget} bytes, requested size: {file_size} bytes)",
+        )
+        
+    # Verify modification time before read
+    mtime_before = resolved.stat().st_mtime
+    
+    try:
+        content = resolved.read_bytes()
+    except Exception as e:
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason=f"Failed to read file: {e}",
+        )
+        
+    # Verify modification time after read to check for concurrent writes
+    mtime_after = resolved.stat().st_mtime
+    if mtime_before != mtime_after:
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="File was modified during read",
+        )
+        
+    # Secrets filtering
+    if not _check_secrets_content(content):
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="Security policy violation: detected potential secrets in content",
+        )
+        
+    # Hash calculation
+    sha256 = hashlib.sha256(content).hexdigest()
+    
+    # Build receipt
+    receipt = {
+        "kind": READ_RECEIPT_KIND,
+        "schema_version": READ_RECEIPT_SCHEMA_VERSION,
+        "policy_ref": policy.get("kind"),
+        "target_file": str(resolved),
+        "bytes_read": len(content),
+        "sha256": sha256,
+        "captured_at": int(time.time()),
+        "content": content.decode("utf-8", errors="replace") if content_capture else None,
+        "governance": {
+            "capability_state": "OPERATIONALLY_VERIFIED",
+            "runtime_execution": "EXPLICIT_READ_ONLY",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
+    }
+    return receipt
+
+
+def create_denied_read(
+    policy: dict[str, Any],
+    file_path: Path,
+    reason: str,
+) -> dict[str, Any]:
+    return {
+        "kind": DENIED_READ_KIND,
+        "schema_version": DENIED_READ_SCHEMA_VERSION,
+        "target_file": str(file_path.resolve()),
+        "reason": reason,
+        "timestamp": int(time.time()),
+        "governance": {
+            "capability_state": "OPERATIONALLY_VERIFIED",
+            "runtime_execution": "EXPLICIT_READ_ONLY",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
+    }
+
+
+def validate_read_receipt(receipt: Any) -> list[str]:
+    errors = []
+    if not isinstance(receipt, dict):
+        return ["Read receipt must be a dictionary"]
+    if receipt.get("kind") != READ_RECEIPT_KIND:
+        errors.append(f"kind must be {READ_RECEIPT_KIND}")
+    if receipt.get("schema_version") != READ_RECEIPT_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {READ_RECEIPT_SCHEMA_VERSION}")
+    if not isinstance(receipt.get("target_file"), str) or not receipt.get("target_file"):
+        errors.append("target_file must be a non-empty string")
+    if not isinstance(receipt.get("bytes_read"), int) or receipt.get("bytes_read", -1) < 0:
+        errors.append("bytes_read must be a non-negative integer")
+    if not isinstance(receipt.get("sha256"), str) or len(receipt.get("sha256", "")) != 64:
+        errors.append("sha256 must be a SHA-256 hex digest")
+    return errors
+
+
+def validate_read_receipt_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"invalid JSON: {exc}"]
+    return validate_read_receipt(data)

@@ -11,7 +11,7 @@ PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "B2 -> B3"
+NEXT_SEQUENCE = "B3 -> B4"
 
 StateLabel = Literal[
     "NOT_STARTED",
@@ -84,6 +84,7 @@ REQUIRED_CAPABILITIES: tuple[str, ...] = (
     "HITL patch application",
     "rollback execution",
     "postflight verification",
+    "governed read-only runtime",
     "Goose setup",
     "Goose readonly runtime",
     "Goose command proposals",
@@ -158,15 +159,14 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "target profiles",
-        PASSIVE_FOUNDATION,
-        ("builder_ii/target_profiles.py", "builder_ii/targets_cli.py"),
-        ("builder-targets",),
-        ("tests/test_target_profiles.py", "tests/test_targets_cli.py"),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/target_profiles.py", "builder_ii/targets_cli.py", "builder_ii/readonly_authority.py"),
+        ("builder-targets", "builder-readonly"),
+        ("tests/test_target_profiles.py", "tests/test_targets_cli.py", "tests/test_readonly_authority.py"),
         (
-            "Profiles are no-runtime artifacts.",
-            "Target registration lifecycle and target-root policy are not operationally verified.",
+            "Target registration lifecycle and target-root policies are operationally verified through the read runtime.",
         ),
-        "B3",
+        "B4",
     ),
     _row(
         "agent profiles",
@@ -198,16 +198,14 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "context packs",
-        PASSIVE_FOUNDATION,
-        ("builder_ii/repo_map.py", "builder_ii/context_packs.py", "builder_ii/session_cli.py"),
-        ("builder-session", "builder-context"),
-        ("tests/test_repo_map.py", "tests/test_governed_prepare_package.py"),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/repo_map.py", "builder_ii/context_packs.py", "builder_ii/session_cli.py", "builder_ii/readonly_authority.py"),
+        ("builder-session", "builder-context", "builder-readonly"),
+        ("tests/test_repo_map.py", "tests/test_governed_prepare_package.py", "tests/test_readonly_authority.py"),
         (
-            "Canonical path is artifact-only.",
-            "Legacy builder-context remains operator-managed external scanning.",
-            "B3 read authority policy is missing.",
+            "Canonical context packs and read policies are operationally verified.",
         ),
-        "B3",
+        "B4",
     ),
     _row(
         "profile packs",
@@ -606,14 +604,14 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "HITL patch proposal",
-        PASSIVE_FOUNDATION,
-        ("builder_ii/hitl_patch_proposal.py", "builder_ii/goose_command_proposal.py"),
-        ("builder-goose",),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/hitl_patch_proposal.py", "builder_ii/goose_command_proposal.py", "builder_ii/hitl_patch_cli.py"),
+        ("builder-goose", "builder-hitl propose-patch"),
         ("tests/test_hitl_patch_proposal.py", "tests/test_goose_command_proposal.py"),
         (
-            "Patch proposal artifact exists and generates a digest of the proposed patch.",
+            "Patch proposal artifact is operationally verified.",
         ),
-        "B3",
+        "B4",
     ),
     _row(
         "HITL patch application",
@@ -625,7 +623,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "Patch application is operationally verified.",
             "Enforces clean git state, approval match, verification receipt, and rollback generation before apply.",
         ),
-        "B3",
+        "B4",
     ),
     _row(
         "rollback execution",
@@ -636,7 +634,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "Rollback execution is operationally verified.",
         ),
-        "B3",
+        "B4",
     ),
     _row(
         "postflight verification",
@@ -661,6 +659,17 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "Goose runtime promotion, recipe execution, and governed runtime receipts remain missing.",
         ),
         "B4 after R0/B3",
+    ),
+    _row(
+        "governed read-only runtime",
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/readonly_authority.py", "builder_ii/readonly_inspection_cli.py"),
+        ("builder-readonly policy", "builder-readonly read", "builder-readonly validate"),
+        ("tests/test_readonly_authority.py",),
+        (
+            "Unified governed read-only runtime is operationally verified.",
+        ),
+        "B4",
     ),
     _row(
         "Goose readonly runtime",

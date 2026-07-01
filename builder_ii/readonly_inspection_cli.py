@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json as json_lib
+import time
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -12,7 +15,26 @@ from builder_ii.readonly_inspection_reports import (
     validate_readonly_inspection_report_file,
     write_readonly_inspection_report,
 )
-from builder_ii.target_profiles import TargetName, target_names
+from builder_ii.readonly_authority import (
+    create_read_policy,
+    validate_read_policy,
+    validate_read_policy_file,
+    execute_governed_read,
+    validate_read_receipt,
+    validate_read_receipt_file,
+    READ_POLICY_KIND,
+    READ_RECEIPT_KIND,
+    DENIED_READ_KIND,
+)
+from builder_ii.target_profiles import TargetName, target_names, target_profile
+from builder_ii.config import load_settings
+from builder_ii.event_ledger import (
+    create_event_record,
+    write_event_record,
+    load_event_records,
+    replay_events,
+)
+from builder_ii.workflow_records import artifact_ref
 
 readonly_app = typer.Typer(help="Create and validate explicit read-only inspection reports.")
 console = Console(width=240)
@@ -54,11 +76,141 @@ def report(
         console.out(dumps_readonly_inspection_report(item), end="")
 
 
+@readonly_app.command("policy")
+def policy_cmd(
+    target: str = typer.Option("generic", "--target"),
+    allowed_path: list[str] = typer.Option(None, "--allowed-path", help="Glob pattern allowed to read. Can repeat."),
+    denied_path: list[str] = typer.Option(None, "--denied-path", help="Glob pattern denied to read. Can repeat."),
+    budget: int = typer.Option(10 * 1024 * 1024, "--budget", help="Maximum bytes allowed to read."),
+    content_capture: bool = typer.Option(False, "--content-capture", help="Allow content capture in receipts."),
+    note: str = typer.Option("", "--note"),
+    output: Path = typer.Option(..., "--output", help="Output path for read policy JSON."),
+) -> None:
+    """Create a read policy for B3 governed runtime."""
+    settings = load_settings()
+    selected_target = target_profile(settings, _target(target))
+    
+    policy = create_read_policy(
+        target_name=selected_target.name,
+        target_repo=selected_target.repo,
+        allowed_paths=allowed_path,
+        denied_paths=denied_path,
+        max_bytes_budget=budget,
+        content_capture_allowed=content_capture,
+        operator_note=note,
+    )
+    
+    errors = validate_read_policy(policy)
+    if errors:
+        for error in errors:
+            console.print(f"Policy validation error: {error}")
+        raise typer.Exit(1)
+        
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json_lib.dumps(policy, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    console.print(f"Read policy written to {output}")
+
+
+@readonly_app.command("read")
+def read_cmd(
+    policy_path: Path = typer.Option(..., "--policy", help="Path to read policy JSON."),
+    file_path: Path = typer.Option(..., "--file", help="Path to file to read."),
+    output_dir: Path = typer.Option(..., "--output-dir", help="Directory to write read receipt."),
+    session_id: str | None = typer.Option(None, "--session-id", help="Optional workflow session ID to log event to."),
+) -> None:
+    """Execute a governed read operation, producing a receipt and optional ledger event."""
+    if not policy_path.exists():
+        console.print(f"Policy file not found: {policy_path}")
+        raise typer.Exit(1)
+        
+    policy = json_lib.loads(policy_path.read_text(encoding="utf-8"))
+    errors = validate_read_policy(policy)
+    if errors:
+        console.print(f"Invalid policy: {errors}")
+        raise typer.Exit(1)
+        
+    receipt = execute_governed_read(policy, file_path)
+    
+    # Write receipt or denied record
+    kind = receipt["kind"]
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    if kind == READ_RECEIPT_KIND:
+        receipt_path = output_dir / f"read_receipt_{int(time.time())}.json"
+        receipt_path.write_text(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        console.print(f"Read receipt written to {receipt_path}")
+    else:
+        receipt_path = output_dir / f"denied_read_{int(time.time())}.json"
+        receipt_path.write_text(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        console.print(f"Read denied: {receipt['reason']}. Written to {receipt_path}")
+        
+    # Log to workflow ledger if session_id is provided
+    if session_id:
+        sessions_dir = Path(".builder/sessions") / session_id
+        events_dir = sessions_dir / "events"
+        events_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Load existing events to determine sequence and current stage
+        existing_records = load_event_records(events_dir)
+        sequence = len(existing_records) + 1
+        
+        current_stage = "initialized"
+        if existing_records:
+            replay_report = replay_events(existing_records, session_id=session_id)
+            if replay_report["valid"]:
+                current_stage = replay_report["current_stage"]
+                
+        event_type = "read_executed" if kind == READ_RECEIPT_KIND else "read_denied"
+        event_id = f"evt_read_{int(time.time())}_{sequence}"
+        
+        # Build subject refs pointing to receipt
+        subject = artifact_ref(receipt, path=receipt_path, role="read_artifact", name="read receipt")
+        policy_ref = artifact_ref(policy, path=policy_path, role="read_policy", name="read policy")
+        
+        event_record = create_event_record(
+            event_id=event_id,
+            session_id=session_id,
+            sequence=sequence,
+            event_type=event_type,
+            stage=current_stage,
+            subject_refs=[subject],
+            command_surface="builder-readonly read",
+            policy_snapshot_ref=policy_ref,
+            message=f"Governed read of {file_path}",
+        )
+        
+        event_path = events_dir / f"{sequence:03d}_{event_type}.json"
+        write_event_record(event_record, event_path)
+        console.print(f"Workflow event logged to {event_path}")
+        
+    if kind == DENIED_READ_KIND:
+        raise typer.Exit(1)
+
+
 @readonly_app.command("validate")
 def validate(path: Path) -> None:
-    errors = validate_readonly_inspection_report_file(path)
+    """Validate a readonly inspection report, policy, or receipt file."""
+    if not path.exists():
+        console.print(f"File not found: {path}")
+        raise typer.Exit(1)
+        
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        console.print(f"Invalid JSON: {exc}")
+        raise typer.Exit(1)
+        
+    kind = data.get("kind")
+    if kind == READ_POLICY_KIND:
+        errors = validate_read_policy(data)
+    elif kind == READ_RECEIPT_KIND:
+        errors = validate_read_receipt(data)
+    else:
+        errors = validate_readonly_inspection_report(data)
+        
     if errors:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Readonly inspection report {path} is valid.")
+        
+    console.print(f"File {path} of kind '{kind}' is valid.")

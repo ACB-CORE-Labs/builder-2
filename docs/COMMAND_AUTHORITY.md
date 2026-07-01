@@ -54,6 +54,10 @@ R1.4 additionally reconciles the legacy `builder setup` surface: it is now a fai
 
 `builder-ledger index-receipt` and `builder ledger index-receipt` passively write validated B1.3 receipt-chain evidence into `.builder/ledger/`. `builder-ledger query-receipts` and `builder ledger query-receipts` read and filter those records without writes. `builder-ledger validate-receipts` and `builder ledger validate-receipts` emit a read-only `builder_ii.verification_execution_ledger_integrity_report` that detects rejected records, digest drift, duplicates, missing plan/approval/receipt refs, chain-digest mismatch, and optional index-chain discontinuity. `builder-ledger reconstruct-receipts` and `builder ledger reconstruct-receipts` emit a read-only `builder_ii.verification_execution_ledger_reconstruction_report` with summary, invalid/rejected records, chain continuity status, reconstructed chain rows, and evidence refs. These commands do not replay execution, run verification, run subprocesses, execute shell, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate source/target repo files, mutate git, mutate memory, or promote B2 authority.
 
+## B3 Read-Only Runtime Commands
+
+`builder-readonly policy`, `builder-readonly read`, and `builder-readonly validate` are read-only commands for establishing and executing target-bound read operations under explicit policies.
+
 ## Command Authority Registry Table
 
 | Command Name | Tier | State | Runtime Boundary | Write Boundary | Approval Mode | Approval Boundary | Allows Shell | Allows Writes | Artifact Writes | State Writes |
@@ -93,6 +97,9 @@ R1.4 additionally reconciles the legacy `builder setup` surface: it is now a fai
 | `builder-research` | Tier 1 — artifact-only planning/validation | `artifact_only` | Builds read-only research plans. | Writes plan metadata files. | `none` | None. | No | No | Yes | No |
 | `builder-performance` | Tier 0 — read-only inspection | `validation_only` | Measures CLI loading time and file sizes. | No changes to workspace. | `none` | None. | No | No | No | No |
 | `builder-readonly` | Tier 0 — read-only inspection | `read_only_runtime_candidate` | Inspects system files and configurations without execution. | No changes to workspace. | `none` | None. | No | No | No | No |
+| `builder-readonly policy` | Tier 1 — artifact-only planning/validation | `validation_only` | Generates read policy schema. | Writes policy JSON. | `none` | None. | No | No | Yes | No |
+| `builder-readonly read` | Tier 1 — artifact-only planning/validation | `read_only_runtime_candidate` | Reads system files according to policy. | Writes read receipt JSON. | `none` | None. | No | No | Yes | No |
+| `builder-readonly validate` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates read receipt JSON. | No changes to workspace. | `none` | None. | No | No | No | No |
 | `builder-verification` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates verification profile schemas. | No changes to workspace. | `none` | None. | No | No | No | No |
 | `builder-verify plan` | Tier 1 — artifact-only planning/validation | `artifact_only` | Generates a passive verification execution plan artifact only; no runtime start, shell execution, subprocess execution, model execution, MCP/tool invocation, Goose, deepagents, git mutation, or B2 patch authority. | Writes only the explicit verification execution plan JSON artifact requested by --output. | `none` | None. This is planned-only metadata and cannot authorize execution. | No | No | Yes | No |
 | `builder-verify validate-plan` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates a verification execution plan artifact without runtime start, shell execution, subprocess execution, model execution, MCP/tool invocation, Goose, deepagents, git mutation, or B2 patch authority. | No changes to workspace. | `none` | None. | No | No | No | No |
