@@ -11,7 +11,7 @@ PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "B4 -> B5"
+NEXT_SEQUENCE = "B5 -> B6"
 
 StateLabel = Literal[
     "NOT_STARTED",
@@ -702,9 +702,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("tests/test_deepagents_policy.py", "tests/test_deepagents_readiness.py", "tests/test_deepagents_bridge.py"),
         (
             "Policy/readiness may inspect import metadata.",
-            "Runtime harness is missing.",
+            "Runtime harness is operational.",
         ),
-        "B5",
+        "B6",
     ),
     _row(
         "deepagents passive work artifacts",
@@ -714,21 +714,20 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("tests/test_deepagents_work_artifacts.py",),
         (
             "Work artifacts deny model/tool/shell/Goose/deepagents/MCP/network/writes.",
-            "Runtime bridge is missing.",
+            "Runtime harness is operational.",
         ),
-        "B5",
+        "B6",
     ),
     _row(
         "deepagents runtime/subagents",
-        DESIGN_ONLY,
-        ("builder_ii/deepagents_cli.py", "docs/DEEPAGENTS_POLICY.md"),
-        ("builder-deepagents",),
-        ("tests/test_deepagents_policy.py", "tests/test_deepagents_work_artifacts.py"),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/deepagents_cli.py", "docs/DEEPAGENTS_POLICY.md", "builder_ii/deepagents_runtime.py"),
+        ("builder-deepagents", "builder-deepagents run-plan", "builder-deepagents collect-results"),
+        ("tests/test_deepagents_policy.py", "tests/test_deepagents_work_artifacts.py", "tests/test_deepagents_runtime.py"),
         (
-            "Delegate command fails closed.",
-            "No governed deep agent construction, subagent execution, model/tool receipt, or review-to-result bridge exists.",
+            "deepagents runtime is operationally verified with subagent execution receipts and proposal-only results.",
         ),
-        "B5",
+        "B6",
     ),
     _row(
         "notes/handoff artifacts",

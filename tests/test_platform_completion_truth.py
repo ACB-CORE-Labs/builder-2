@@ -119,14 +119,13 @@ def test_matrix_rendering_is_json_safe() -> None:
     decoded = json.loads(encoded)
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
-    assert decoded["summary"]["operationally_verified_count"] == 7  # B3 verifies target profiles, context packs, patch proposal, and governed read-only
-
-
+    assert decoded["summary"]["operationally_verified_count"] == 8  # B5 verifies deepagents runtime/subagents
+    
 def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()
     assert "passive-foundation-complete" in summary
     assert "operationally incomplete" in summary
-    assert "B4 -> B5" in summary
+    assert "B5 -> B6" in summary
     assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in summary
 
 
@@ -143,4 +142,4 @@ def test_builder_platform_status_cli_is_honest() -> None:
     assert result.exit_code == 0, result.output
     assert "passive-foundation-complete" in result.output
     assert "operationally incomplete" in result.output
-    assert "B4 -> B5" in result.output
+    assert "B5 -> B6" in result.output

@@ -46,6 +46,12 @@ DEEPAGENTS_PROPOSAL_RESULT_SCHEMA_VERSION = 1
 DEEPAGENTS_WORK_VALIDATION_REPORT_KIND = "builder_ii.deepagents_work_validation_report"
 DEEPAGENTS_WORK_VALIDATION_REPORT_SCHEMA_VERSION = 1
 
+DEEPAGENTS_RUNTIME_ENVELOPE_KIND = "builder_ii.deepagents_runtime_envelope"
+DEEPAGENTS_RUNTIME_ENVELOPE_SCHEMA_VERSION = 1
+
+DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND = "builder_ii.deepagents_subagent_execution_receipt"
+DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_SCHEMA_VERSION = 1
+
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 # Active state escalation words forbidden in values unless allowed under governance exceptions
@@ -1689,6 +1695,103 @@ def validate_deepagents_work_validation_report(data: Any) -> list[str]:
     return errors
 
 
+def validate_deepagents_runtime_envelope(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["deepagents runtime envelope must be a JSON object"]
+    if data.get("kind") != DEEPAGENTS_RUNTIME_ENVELOPE_KIND:
+        errors.append(f"kind must be {DEEPAGENTS_RUNTIME_ENVELOPE_KIND}")
+    if data.get("schema_version") != DEEPAGENTS_RUNTIME_ENVELOPE_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {DEEPAGENTS_RUNTIME_ENVELOPE_SCHEMA_VERSION}")
+    if data.get("envelope_state") not in ("RUNNING", "COMPLETED"):
+        errors.append("envelope_state must be RUNNING or COMPLETED")
+    
+    # Check work_plan_ref
+    errors.extend(
+        _validate_ref(
+            data.get("work_plan_ref"),
+            field="work_plan_ref",
+            expected_kind=DEEPAGENTS_WORK_PLAN_KIND,
+            expected_role="work_plan",
+        )
+    )
+
+    # Check execution_receipt_refs
+    receipt_refs = data.get("execution_receipt_refs")
+    if not isinstance(receipt_refs, list):
+        errors.append("execution_receipt_refs must be a list")
+    else:
+        for idx, ref in enumerate(receipt_refs):
+            errors.extend(
+                _validate_ref(
+                    ref,
+                    field=f"execution_receipt_refs[{idx}]",
+                    expected_kind=DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND,
+                    expected_role=f"execution_receipt_{idx}",
+                )
+            )
+
+    errors.extend(
+        _validate_authority_boundary(
+            data, capability_state="deepagents_runtime"
+        )
+    )
+    errors.extend(
+        _validate_governance(
+            data.get("governance"), capability_state="deepagents_runtime"
+        )
+    )
+    # The runtime envelope acts with runtime/execution authority, so we exclude it from no active state claims
+    return errors
+
+
+def validate_deepagents_subagent_execution_receipt(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["deepagents subagent execution receipt must be a JSON object"]
+    if data.get("kind") != DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND:
+        errors.append(f"kind must be {DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND}")
+    if data.get("schema_version") != DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_SCHEMA_VERSION}")
+    if data.get("receipt_state") != "EXECUTED_ONLY":
+        errors.append("receipt_state must be EXECUTED_ONLY")
+    if not isinstance(data.get("subagent_profile"), str) or not data["subagent_profile"]:
+        errors.append("subagent_profile must be a non-empty string")
+
+    # Check assignment_ref
+    errors.extend(
+        _validate_ref(
+            data.get("assignment_ref"),
+            field="assignment_ref",
+            expected_kind=DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND,
+            expected_role="assignment",
+        )
+    )
+
+    # Check result_ref
+    errors.extend(
+        _validate_ref(
+            data.get("result_ref"),
+            field="result_ref",
+            expected_kind=DEEPAGENTS_SUBAGENT_RESULT_KIND,
+            expected_role="result",
+        )
+    )
+
+    errors.extend(
+        _validate_authority_boundary(
+            data, capability_state="deepagents_runtime"
+        )
+    )
+    errors.extend(
+        _validate_governance(
+            data.get("governance"), capability_state="deepagents_runtime"
+        )
+    )
+    # The receipt has EXECUTED_ONLY state, so it does not check for no active state claims
+    return errors
+
+
 # File Load and Validators
 
 
@@ -1738,6 +1841,14 @@ def validate_deepagents_work_validation_report_file(path: Path) -> list[str]:
     return _validate_file_generic(path, validate_deepagents_work_validation_report)
 
 
+def validate_deepagents_runtime_envelope_file(path: Path) -> list[str]:
+    return _validate_file_generic(path, validate_deepagents_runtime_envelope)
+
+
+def validate_deepagents_subagent_execution_receipt_file(path: Path) -> list[str]:
+    return _validate_file_generic(path, validate_deepagents_subagent_execution_receipt)
+
+
 def _deepagents_validators() -> dict[str, Callable[[Any], list[str]]]:
     return {
         DEEPAGENTS_WORK_PLAN_KIND: validate_deepagents_work_plan,
@@ -1748,4 +1859,6 @@ def _deepagents_validators() -> dict[str, Callable[[Any], list[str]]]:
         DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND: validate_deepagents_blocked_action_record,
         DEEPAGENTS_PROPOSAL_RESULT_KIND: validate_deepagents_proposal_result,
         DEEPAGENTS_WORK_VALIDATION_REPORT_KIND: validate_deepagents_work_validation_report,
+        DEEPAGENTS_RUNTIME_ENVELOPE_KIND: validate_deepagents_runtime_envelope,
+        DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND: validate_deepagents_subagent_execution_receipt,
     }

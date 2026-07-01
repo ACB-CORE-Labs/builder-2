@@ -42,6 +42,8 @@ from builder_ii.deepagents_work_artifacts import (
     validate_deepagents_blocked_action_record,
     validate_deepagents_proposal_result,
     validate_deepagents_work_validation_report,
+    validate_deepagents_runtime_envelope,
+    validate_deepagents_subagent_execution_receipt,
     write_deepagents_work_plan,
     write_deepagents_subagent_assignment,
     write_deepagents_subagent_result,
@@ -57,6 +59,7 @@ from builder_ii.deepagents_work_artifacts import (
     dumps_deepagents_blocked_action_record,
     dumps_deepagents_proposal_result,
 )
+from builder_ii.deepagents_runtime import DeepAgentsRuntimeHarness
 
 deepagents_app = typer.Typer(
     help="Create and validate artifact-only governed deepagents JSON."
@@ -518,6 +521,8 @@ def validate_work_artifact(path: Path) -> None:
         "builder_ii.deepagents_blocked_action_record": validate_deepagents_blocked_action_record,
         "builder_ii.deepagents_proposal_result": validate_deepagents_proposal_result,
         "builder_ii.deepagents_work_validation_report": validate_deepagents_work_validation_report,
+        "builder_ii.deepagents_runtime_envelope": validate_deepagents_runtime_envelope,
+        "builder_ii.deepagents_subagent_execution_receipt": validate_deepagents_subagent_execution_receipt,
     }
 
     validator = validators.get(kind)
@@ -531,3 +536,38 @@ def validate_work_artifact(path: Path) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     console.print(f"Deepagents work artifact is valid: {path}")
+
+
+@deepagents_app.command("run-plan")
+def run_plan(
+    work_plan: Path = typer.Option(..., "--work-plan", help="Path to deepagents work plan JSON"),
+    output: Path = typer.Option(..., "--output", help="Write runtime envelope JSON to path"),
+    receipts_dir: Path = typer.Option(..., "--receipts-dir", help="Directory to output subagent receipts"),
+) -> None:
+    """Execute deepagents/subagent planning under HITL without writes."""
+    try:
+        harness = DeepAgentsRuntimeHarness(load_settings(), work_plan)
+        harness.run(output, receipts_dir)
+        console.print(f"Deepagents runtime envelope written to {output}")
+    except ImportError as exc:
+        console.print(f"ImportError: {exc}")
+        raise typer.Exit(1)
+    except ValueError as exc:
+        console.print(f"ValueError: {exc}")
+        raise typer.Exit(1)
+
+
+@deepagents_app.command("collect-results")
+def collect_results(
+    work_plan: Path = typer.Option(..., "--work-plan", help="Path to deepagents work plan JSON"),
+    envelope: Path = typer.Option(..., "--envelope", help="Path to deepagents runtime envelope JSON"),
+    output: Path = typer.Option(..., "--output", help="Write proposal result JSON to path"),
+) -> None:
+    """Collect deepagents planning results into a proposal result artifact."""
+    try:
+        harness = DeepAgentsRuntimeHarness(load_settings(), work_plan)
+        harness.collect_results(envelope, output)
+        console.print(f"Proposal result written to {output}")
+    except Exception as exc:
+        console.print(f"Error: {exc}")
+        raise typer.Exit(1)
