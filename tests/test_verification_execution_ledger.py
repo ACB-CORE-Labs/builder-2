@@ -17,6 +17,7 @@ from builder_ii.verification_execution_ledger import (
     VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND,
     VERIFICATION_EXECUTION_LEDGER_RECORD_KIND,
     VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND,
+    VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND,
     default_verification_execution_ledger_output,
     index_verification_execution_receipt,
     query_verification_execution_ledger_by_chain_digest,
@@ -24,9 +25,11 @@ from builder_ii.verification_execution_ledger import (
     query_verification_execution_ledger_by_receipt_status,
     query_verification_execution_ledger_by_runner_mode,
     query_verification_execution_ledger_records,
+    reconstruct_verification_execution_ledger,
     summarize_verification_execution_ledger_records,
     validate_verification_execution_ledger_integrity,
     validate_verification_execution_ledger_integrity_report,
+    validate_verification_execution_ledger_reconstruction_report,
     validate_receipt_chain_for_ledger,
     validate_verification_execution_ledger_record,
     write_verification_execution_ledger_record,
@@ -622,4 +625,95 @@ def test_cli_validate_receipts_prints_json_and_does_not_write(tmp_path: Path) ->
     data = json.loads(result.output)
     assert data["kind"] == VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND
     assert data["valid"] is True
+    assert before == after
+
+
+def test_reconstruction_report_projects_valid_ledger_chains(tmp_path: Path) -> None:
+    failed = _write_ledger_record(
+        tmp_path,
+        "z-failed.json",
+        receipt_status="FAILED",
+        process_result_status="timeout",
+        generated_at="2026-06-30T00:03:00+00:00",
+    )
+    executed = _write_ledger_record(tmp_path, "a-executed.json")
+
+    report = reconstruct_verification_execution_ledger(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["kind"] == VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND
+    assert report["valid"] is True
+    assert validate_verification_execution_ledger_reconstruction_report(report) == []
+    assert report["summary"]["reconstructed_chain_count"] == 2
+    assert report["summary"]["invalid_record_count"] == 0
+    assert report["chain_continuity_status"] == "not_applicable_no_sequence_rule"
+    assert [row["chain_digest"] for row in report["reconstructed_chains"]] == [
+        executed["chain_digest"],
+        failed["chain_digest"],
+    ]
+    assert all(row["evidence_ref"]["kind"] == VERIFICATION_EXECUTION_LEDGER_RECORD_KIND for row in report["reconstructed_chains"])
+
+
+def test_reconstruction_report_carries_invalid_and_rejected_records(tmp_path: Path) -> None:
+    _write_ledger_record(tmp_path, "valid.json")
+    invalid_path = tmp_path / ".builder" / "ledger" / "invalid.json"
+    invalid_path.write_text(json.dumps({"kind": "wrong"}, indent=2) + "\n", encoding="utf-8")
+
+    report = reconstruct_verification_execution_ledger(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["valid"] is False
+    assert report["summary"]["reconstructed_chain_count"] == 1
+    assert report["summary"]["invalid_record_count"] == 1
+    assert report["invalid_records"][0]["source"] == "rejected"
+    assert any("kind must be" in error for error in report["errors"])
+    assert validate_verification_execution_ledger_reconstruction_report(report) == []
+
+
+def test_reconstruction_report_carries_chain_continuity_failure(tmp_path: Path) -> None:
+    first = _write_ledger_record(tmp_path, "first.json")
+    second = _write_ledger_record(
+        tmp_path,
+        "second.json",
+        receipt_status="FAILED",
+        process_result_status="timeout",
+        generated_at="2026-06-30T00:03:00+00:00",
+    )
+    first_path = tmp_path / ".builder" / "ledger" / "first.json"
+    second_path = tmp_path / ".builder" / "ledger" / "second.json"
+    first["ledger_index"] = 1
+    first["previous_ledger_record_digest"] = None
+    first = _with_record_digest(first)
+    second["ledger_index"] = 3
+    second["previous_ledger_record_digest"] = first["verification_execution_ledger_record_digest"]
+    second = _with_record_digest(second)
+    first_path.write_text(json.dumps(first, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    second_path.write_text(json.dumps(second, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = reconstruct_verification_execution_ledger(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["valid"] is False
+    assert report["chain_continuity_status"] == "invalid"
+    assert report["summary"]["chain_rule_applies"] is True
+    assert any(item["source"] == "chain_error" for item in report["invalid_records"])
+    assert any("ledger_index must be 2" in error for error in report["errors"])
+
+
+def test_cli_reconstruct_receipts_prints_json_and_does_not_write(tmp_path: Path) -> None:
+    _write_ledger_record(tmp_path, "receipt-ledger.json")
+    before = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+
+    result = CliRunner().invoke(
+        ledger_app,
+        [
+            "reconstruct-receipts",
+            "--target-repo",
+            str(tmp_path),
+        ],
+    )
+    after = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["kind"] == VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND
+    assert data["valid"] is True
+    assert data["summary"]["reconstructed_chain_count"] == 1
     assert before == after
