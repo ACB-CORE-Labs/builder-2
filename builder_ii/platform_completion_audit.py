@@ -11,7 +11,7 @@ PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "R1 -> B1"
+NEXT_SEQUENCE = "B8 deferred; B9 complete"
 
 StateLabel = Literal[
     "NOT_STARTED",
