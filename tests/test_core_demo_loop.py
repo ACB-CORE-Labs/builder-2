@@ -9,6 +9,7 @@ from builder_ii.core_demo_loop import (
     run_core_demo_loop,
     validate_core_demo_report,
 )
+from builder_ii.hitl_patch_apply import _verification_receipt_errors
 from builder_ii.platform_status_cli import platform_app
 
 
@@ -102,6 +103,41 @@ def test_core_demo_all_applies_verifies_rolls_back_and_indexes_evidence(tmp_path
     assert str(output_dir / "core-worktree") in artifact_index["excluded_paths"]
     assert all("core-worktree/" not in artifact["path"] for artifact in artifact_index["artifacts"])
     assert all(artifact["path"] != "core-demo-loop-report.json" for artifact in artifact_index["artifacts"])
+
+
+def test_core_demo_apply_gate_rejects_malformed_demo_receipt(tmp_path: Path) -> None:
+    repo = _core_repo(tmp_path)
+    output_dir = tmp_path / "demo"
+    run_core_demo_loop(core_repo=repo, output_dir=output_dir, phase="prepare")
+
+    receipt_path = output_dir / "forged-core-demo-receipt.json"
+    receipt_path.write_text(
+        json.dumps(
+            {
+                "kind": "builder_ii.core_demo_verification_receipt",
+                "schema_version": 1,
+                "label": "after_apply",
+                "target": {"name": "core", "repo": str(output_dir / "core-worktree")},
+                "receipt_status": "EXECUTED",
+                "checks": [{"name": "forged", "status": "FAIL"}],
+                "governance": {
+                    "model_execution": "DISABLED",
+                    "source_writes": "DISABLED",
+                    "artifact_is_authority": False,
+                    "core_workbench_coupling": "NONE",
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    errors = _verification_receipt_errors(receipt_path, target_repo=output_dir / "core-worktree")
+
+    assert "label must be before_apply for HITL patch application" in errors
+    assert "all checks must be PASS" in errors
 
 
 def test_core_demo_cli_runs_prepare_checkpoint(tmp_path: Path) -> None:
