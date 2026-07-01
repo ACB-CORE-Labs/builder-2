@@ -7,12 +7,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from builder_ii.operator_status import create_operator_status_report
-from builder_ii.operator_next import create_operator_next_action_report
+from builder_ii.operator_status import (
+    create_operator_status_report,
+    validate_operator_status_report,
+    write_operator_status_report,
+)
+from builder_ii.operator_next import (
+    create_operator_next_action_report,
+    validate_operator_next_action_report,
+    write_operator_next_action_report,
+)
 from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
 
 OPERATOR_GOLDEN_PATH_REPORT_KIND = "builder_ii.operator_golden_path_report"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def canonical_digest(value: dict[str, Any]) -> str:
@@ -29,44 +37,112 @@ def _default_governance() -> dict[str, Any]:
 
 
 def create_operator_golden_path_report(target_profile: str, output_dir: Path) -> dict[str, Any]:
+    output_dir = Path(output_dir).resolve()
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. Status Report
+    status_path = output_dir / "operator-status.json"
+    status_report = create_operator_status_report(target=target_profile)
+    status_errors = validate_operator_status_report(status_report)
+    if status_errors:
+        raise ValueError(f"Status report validation failed: {status_errors}")
+    write_operator_status_report(status_report, status_path)
+    status_digest = status_report["report_digest"]
+
+    # 2. Next Report
+    next_path = output_dir / "operator-next.json"
+    next_report = create_operator_next_action_report()
+    next_errors = validate_operator_next_action_report(next_report)
+    if next_errors:
+        raise ValueError(f"Next report validation failed: {next_errors}")
+    write_operator_next_action_report(next_report, next_path)
+    next_digest = next_report["report_digest"]
+
+    # 3. Classify capabilities
     exercised = []
     skipped = []
     known_gaps = []
 
     for row in REQUIRED_CAPABILITY_ROWS:
-        if row.state == "OPERATIONALLY_VERIFIED":
-            # Just a simplistic rule to classify capability demonstration
-            if "validation" in row.capability.lower() or "artifact" in row.capability.lower() or "report" in row.capability.lower():
-                exercised.append({"capability": row.capability, "status": "validated_only"})
-            else:
+        # Check real evidence files
+        has_evidence = len(row.evidence_files) > 0 and all(Path(f).exists() for f in row.evidence_files)
+        if has_evidence:
+            if row.command_surfaces:
                 exercised.append({"capability": row.capability, "status": "exercised"})
+            else:
+                exercised.append({"capability": row.capability, "status": "validated_only"})
         else:
-            reason = "unavailable"
-            if row.state in ("PASSIVE_FOUNDATION", "ARTIFACT_ONLY"):
-                reason = "skipped_missing_evidence"
+            if row.state == "DISABLED":
+                status = "skipped_disabled"
+            elif row.state in ("PASSIVE_FOUNDATION", "ARTIFACT_ONLY", "MERGED_BUT_NOT_OPERATIONAL", "DESIGN_ONLY"):
+                status = "skipped_missing_evidence"
             elif row.state == "NOT_STARTED":
-                reason = "not_applicable"
-            elif row.state == "DISABLED":
-                reason = "skipped_disabled"
+                status = "unavailable"
+            else:
+                status = "not_applicable"
 
             skipped.append({
                 "capability": row.capability,
-                "status": reason,
-                "reason": f"State is {row.state}"
+                "status": status,
+                "reason": f"State is {row.state} and evidence files are missing."
             })
             known_gaps.append(f"{row.capability} ({row.state})")
+
+    # 4. Check B8 memory index evidence
+    memory_status = "skipped_missing_evidence"
+    default_memory_index = Path(".builder/artifacts/memory-index.json")
+    if default_memory_index.is_file():
+        memory_status = "available"
+
+    # 5. Check Ledger/artifact chain evidence
+    ledger_status = "skipped_missing_evidence"
+    default_ledger = Path(".builder/artifacts/event-ledger.json")
+    if default_ledger.is_file():
+        ledger_status = "available"
+
+    generated_artifacts = [
+        {
+            "name": "operator-status.json",
+            "path": str(status_path),
+            "digest": status_digest
+        },
+        {
+            "name": "operator-next.json",
+            "path": str(next_path),
+            "digest": next_digest
+        },
+        {
+            "name": "golden-path-report.json",
+            "path": str(output_dir / "golden-path-report.json"),
+            "digest": None
+        }
+    ]
+
+    evidence_refs = [
+        {
+            "artifact": "builder_ii.operator_status_report",
+            "path": str(status_path),
+            "digest": status_digest
+        },
+        {
+            "artifact": "builder_ii.operator_next_report",
+            "path": str(next_path),
+            "digest": next_digest
+        }
+    ]
 
     report = {
         "kind": OPERATOR_GOLDEN_PATH_REPORT_KIND,
         "schema_version": SCHEMA_VERSION,
         "run_id": str(uuid.uuid4()),
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "target": target_profile,
         "target_profile": target_profile,
         "output_dir": str(output_dir),
         "exercised_capabilities": exercised,
         "skipped_capabilities": skipped,
-        "evidence_refs": [],
-        "generated_artifacts": [],
+        "evidence_refs": evidence_refs,
+        "generated_artifacts": generated_artifacts,
         "warnings": ["Golden path demo generated without execution. No target repository mutation occurred."],
         "known_gaps": known_gaps,
         "no_mutation_proof": "Verified: B9 operator primitive disabled all source write, runtime, and model authorities. Output confined to output_dir.",
@@ -82,6 +158,10 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
             "hidden_memory": "Disabled",
             "autonomous_writes": "Disabled",
         },
+        "artifact_is_authority": False,
+        "grants_authority": False,
+        "memory_status": memory_status,
+        "ledger_status": ledger_status,
         "governance": _default_governance(),
     }
 
@@ -103,10 +183,17 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
     for field in [
         "run_id",
         "created_at_utc",
-        "target_profile",
+        "target",
         "output_dir",
         "no_mutation_proof",
-        "disabled_authority_summary"
+        "disabled_authority_summary",
+        "exercised_capabilities",
+        "skipped_capabilities",
+        "evidence_refs",
+        "generated_artifacts",
+        "known_gaps",
+        "memory_status",
+        "ledger_status"
     ]:
         if field not in record:
             errors.append(f"missing required field: {field}")
@@ -116,6 +203,17 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
 
     if not isinstance(record.get("skipped_capabilities"), list):
         errors.append("skipped_capabilities must be a list")
+
+    if not isinstance(record.get("evidence_refs"), list) or not record.get("evidence_refs"):
+        errors.append("evidence_refs must be a non-empty list")
+
+    if not isinstance(record.get("generated_artifacts"), list) or not record.get("generated_artifacts"):
+        errors.append("generated_artifacts must be a non-empty list")
+
+    if record.get("artifact_is_authority") is not False:
+        errors.append("artifact_is_authority must be false")
+    if record.get("grants_authority") is not False:
+        errors.append("grants_authority must be false")
 
     gov = record.get("governance")
     if not isinstance(gov, dict):

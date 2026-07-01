@@ -187,8 +187,8 @@ def validate_golden_path(
 ) -> None:
     """Validate a B9 governed operator golden path report."""
     report_file = report_file.resolve()
-    if not report_file.exists():
-        console.print(f"[red]report file not found:[/] {report_file}")
+    if not report_file.is_file():
+        console.print(f"[red]report file is not a valid file:[/] {report_file}")
         raise typer.Exit(1)
         
     try:

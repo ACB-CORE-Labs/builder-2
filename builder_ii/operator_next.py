@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json as json_lib
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
 
 OPERATOR_NEXT_ACTION_REPORT_KIND = "builder_ii.operator_next_action_report"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def canonical_digest(value: dict[str, Any]) -> str:
@@ -25,32 +26,55 @@ def _default_governance() -> dict[str, Any]:
 
 
 def create_operator_next_action_report() -> dict[str, Any]:
-    # Find the first incomplete platform capability
-    incomplete = None
+    state_str = "".join(f"{row.capability}:{row.state}" for row in REQUIRED_CAPABILITY_ROWS)
+    current_state_digest = hashlib.sha256(state_str.encode("utf-8")).hexdigest()
+
+    ordered_next_actions = []
+    missing_evidence = []
+
     for row in REQUIRED_CAPABILITY_ROWS:
         if row.state != "OPERATIONALLY_VERIFIED":
-            incomplete = row
-            break
+            blocked_by = list(row.blockers)
 
-    next_action = ""
-    suggested_command = ""
-    if incomplete:
-        next_action = f"Capability '{incomplete.capability}' is currently at state {incomplete.state}. Next phase block is {incomplete.next_pr}."
-        if incomplete.command_surfaces:
-            suggested_command = incomplete.command_surfaces[0]
-        else:
-            suggested_command = "builder-platform matrix"
-    else:
-        next_action = "Platform is fully operationally verified."
-        suggested_command = "builder-platform status"
+            # Simple evidence check
+            # For each incomplete, identify missing evidence files
+            for file_path in row.evidence_files:
+                if not Path(file_path).exists():
+                    missing_evidence.append(file_path)
+
+            action = {
+                "capability": row.capability,
+                "state": row.state,
+                "reason": f"Capability '{row.capability}' is currently at state {row.state}.",
+                "blocked_by": blocked_by,
+                "safe_commands": list(row.command_surfaces) if row.command_surfaces else ["builder-platform matrix"],
+            }
+            ordered_next_actions.append(action)
+
+    missing_evidence = sorted(list(set(missing_evidence)))
+
+    current_state_summary = f"Platform has {len(ordered_next_actions)} incomplete capabilities remaining out of {len(REQUIRED_CAPABILITY_ROWS)}."
 
     report = {
         "kind": OPERATOR_NEXT_ACTION_REPORT_KIND,
         "schema_version": SCHEMA_VERSION,
-        "next_action": next_action,
-        "suggested_command": suggested_command,
-        "incomplete_capability": incomplete.capability if incomplete else None,
-        "incomplete_state": incomplete.state if incomplete else None,
+        "created_at_utc": datetime.now(timezone.utc).isoformat(),
+        "current_state_digest": current_state_digest,
+        "current_state_summary": current_state_summary,
+        "ordered_next_actions": ordered_next_actions,
+        "non_goals": [
+            "runtime execution",
+            "patch application",
+            "model/provider calls",
+            "MCP/tool invocation",
+            "Goose runtime promotion",
+            "deepagents runtime",
+            "autonomous writes",
+            "commit/push automation",
+        ],
+        "missing_evidence": missing_evidence,
+        "artifact_is_authority": False,
+        "grants_authority": False,
         "governance": _default_governance(),
     }
 
@@ -69,11 +93,33 @@ def validate_operator_next_action_report(record: Any) -> list[str]:
     if record.get("schema_version") != SCHEMA_VERSION:
         errors.append(f"schema_version must be {SCHEMA_VERSION}")
 
-    if not isinstance(record.get("next_action"), str) or not record["next_action"]:
-        errors.append("next_action must be a non-empty string")
+    for f in (
+        "created_at_utc",
+        "current_state_digest",
+        "current_state_summary",
+        "ordered_next_actions",
+        "non_goals",
+        "missing_evidence",
+    ):
+        if f not in record:
+            errors.append(f"missing required field: {f}")
 
-    if not isinstance(record.get("suggested_command"), str) or not record["suggested_command"]:
-        errors.append("suggested_command must be a non-empty string")
+    if not isinstance(record.get("ordered_next_actions"), list):
+        errors.append("ordered_next_actions must be a list")
+    else:
+        for index, action in enumerate(record["ordered_next_actions"]):
+            prefix = f"ordered_next_actions[{index}]"
+            if not isinstance(action, dict):
+                errors.append(f"{prefix} must be an object")
+                continue
+            for k in ("capability", "state", "reason", "blocked_by", "safe_commands"):
+                if k not in action:
+                    errors.append(f"{prefix} is missing required field: {k}")
+
+    if record.get("artifact_is_authority") is not False:
+        errors.append("artifact_is_authority must be false")
+    if record.get("grants_authority") is not False:
+        errors.append("grants_authority must be false")
 
     gov = record.get("governance")
     if not isinstance(gov, dict):
