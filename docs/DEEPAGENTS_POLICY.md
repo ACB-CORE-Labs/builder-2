@@ -81,6 +81,34 @@ builder-II policy artifact
   -> future audit event artifact
 ```
 
+## Approved protocol lane
+
+builder-II now has a bounded protocol proof lane for deepagents-style delegation:
+
+```text
+builder-deepagents execution-candidate
+  -> builder-deepagents approve-candidate
+  -> builder-deepagents run-approved
+  -> builder-deepagents replay-run
+  -> builder-deepagents evidence-bundle
+```
+
+The first backend is `protocol_fake`, a deterministic backend used to prove the governance surface. It writes only run artifacts: execution candidate, approval, run envelope, hash-chained events, replay report, event ledger, receipt, optional checkpoint, and evidence bundle.
+
+This lane still denies native deepagents construction, native model invocation, direct tool execution, shell execution, source writes, git mutation, Goose activation, MCP calls, hidden memory, and CORE Workbench/UI coupling.
+
+## Real backend readiness
+
+The future `optional_deepagents` backend must pass a separate readiness gate before it can replace `protocol_fake`. Readiness is not a successful import alone. It must include:
+
+- exported protocol version and factory compatibility;
+- deterministic contract tests against the `DeepAgentsBackend` interface;
+- schema-drift detection for backend outputs;
+- denial probes for unexpected tools, model calls, shell, MCP, memory, and source writes;
+- partial-failure fixtures for interrupted runs, malformed results, timeouts, and dependency absence;
+- evidence that all model work routes through builder-II model call envelopes and receipts;
+- replay proof showing state reconstruction from events without rerunning backend work.
+
 ## Non-goals
 
 This artifact does not:

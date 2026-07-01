@@ -506,6 +506,48 @@ The operator command surface is organized by phase. Every command operates stric
 - **Execution authority**: validation-only
 - **Writes**: Read-only; writes diagnostic stdout/stderr only.
 
+#### `builder-deepagents execution-candidate`
+- **Command name**: `builder-deepagents execution-candidate`
+- **Purpose**: Create the bounded protocol execution candidate from a passive deepagents work plan.
+- **Output artifact, if any**: `builder_ii.deepagents_execution_candidate`.
+- **Execution authority**: artifact-only; no backend run.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents approve-candidate`
+- **Command name**: `builder-deepagents approve-candidate`
+- **Purpose**: Bind HITL approval to the exact deepagents execution candidate digest.
+- **Output artifact, if any**: `builder_ii.deepagents_execution_approval`.
+- **Execution authority**: approval artifact only; the approval does not execute anything by itself.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents run-approved`
+- **Command name**: `builder-deepagents run-approved`
+- **Purpose**: Run the approved protocol backend lane after validating candidate digest, approval digest, backend mode, budgets, and output-root containment.
+- **Output artifact, if any**: Run envelope, hash-chained event records, replay report, event ledger, execution receipt, and optional checkpoint.
+- **Execution authority**: HITL-gated protocol backend candidate only.
+- **Writes**: Writes only deepagents evidence artifacts under the approved output root; no target-repo mutation, shell, model, Goose, MCP, git, source write, hidden memory, or native deepagents construction authority.
+
+#### `builder-deepagents replay-run`
+- **Command name**: `builder-deepagents replay-run`
+- **Purpose**: Reconstruct deepagents run state from hash-chained event records.
+- **Output artifact, if any**: `builder_ii.deepagents_replay_report`.
+- **Execution authority**: validation-only; replay never reruns backend/model/tool work.
+- **Writes**: Writes only explicit replay report output path.
+
+#### `builder-deepagents evidence-bundle`
+- **Command name**: `builder-deepagents evidence-bundle`
+- **Purpose**: Bundle candidate, approval, run, receipt, ledger, replay, and optional checkpoint evidence for operator review.
+- **Output artifact, if any**: `builder_ii.deepagents_evidence_bundle`.
+- **Execution authority**: evidence-only.
+- **Writes**: Writes only explicit artifact output paths.
+
+#### `builder-deepagents resume-approved`
+- **Command name**: `builder-deepagents resume-approved`
+- **Purpose**: Resume a checkpointed approved protocol run only when the same candidate and approval still bind exactly.
+- **Output artifact, if any**: Appended event records plus updated run envelope, replay report, ledger, and execution receipt.
+- **Execution authority**: HITL-gated protocol backend candidate only, bounded by the original approval.
+- **Writes**: Writes only deepagents evidence artifacts under the approved output root.
+
 #### `builder-bridge status`
 - **Command name**: `builder-bridge status`
 - **Purpose**: Check optional integration bridge status report passively.

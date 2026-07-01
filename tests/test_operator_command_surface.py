@@ -121,6 +121,12 @@ def test_operator_command_surface_doc_covers_deepagents_actual_commands():
         "builder-deepagents delegate",
         "builder-deepagents work-plan",
         "builder-deepagents validate-work-artifact",
+        "builder-deepagents execution-candidate",
+        "builder-deepagents approve-candidate",
+        "builder-deepagents run-approved",
+        "builder-deepagents replay-run",
+        "builder-deepagents evidence-bundle",
+        "builder-deepagents resume-approved",
     ]
     for phrase in required:
         assert phrase in content, f"Missing deepagents command phrase: {phrase}"
