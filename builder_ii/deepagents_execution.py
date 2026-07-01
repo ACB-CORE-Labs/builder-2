@@ -210,7 +210,15 @@ def backend_for(mode: str, *, readiness_gate: dict[str, Any] | None = None) -> D
     if mode == PROTOCOL_FAKE_BACKEND:
         return ProtocolFakeBackend()
     if mode == OPTIONAL_DEEPAGENTS_BACKEND:
-        return OptionalDeepAgentsBackend(readiness_gate=readiness_gate)
+        module_name = "deepagents"
+        if readiness_gate is not None and isinstance(readiness_gate.get("module"), dict):
+            observed = readiness_gate["module"].get("module")
+            if isinstance(observed, str) and observed:
+                module_name = observed
+        return OptionalDeepAgentsBackend(
+            readiness_gate=readiness_gate,
+            module_name=module_name,
+        )
     raise ValueError(f"unknown deepagents backend: {mode}")
 
 

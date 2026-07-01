@@ -354,3 +354,85 @@ def test_optional_backend_readiness_gate_is_indexable(monkeypatch, tmp_path: Pat
     assert index["counts"]["unknown"] == 0
     assert index["counts"]["invalid"] == 0
     assert validate_artifact_index_record(index) == []
+
+def test_optional_backend_uses_module_bound_in_readiness_gate(monkeypatch, tmp_path: Path) -> None:
+    custom_module_name = "builder_ii_custom_deepagents_backend"
+    invoked_profiles: list[str] = []
+
+    custom_module = ModuleType(custom_module_name)
+    custom_module.__version__ = "1.0.0-custom"
+    custom_module.BUILDER_II_DEEPAGENTS_PROTOCOL_VERSION = OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION
+    custom_module.BUILDER_II_MODEL_WORK_EXPECTED = False
+    custom_module.BUILDER_II_DENIAL_PROBES = {
+        "tool calls": "DENIED",
+        "model calls": "DENIED",
+        "shell execution": "DENIED",
+        "mcp calls": "DENIED",
+        "memory mutation": "DENIED",
+        "source writes": "DENIED",
+    }
+
+    def create_governed_deep_agent(*args, **kwargs):
+        raise AssertionError("readiness must not construct native deepagents")
+
+    def custom_runner(*, subagent_profile: str, task: str) -> dict:
+        invoked_profiles.append(subagent_profile)
+        return _proposal_payload(subagent_profile, task)
+
+    custom_module.create_governed_deep_agent = create_governed_deep_agent
+    custom_module.builder_ii_run_protocol_subagent = custom_runner
+
+    poison_default = ModuleType("deepagents")
+    poison_default.__version__ = "1.0.0-poison"
+    poison_default.BUILDER_II_DEEPAGENTS_PROTOCOL_VERSION = OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION
+    poison_default.BUILDER_II_MODEL_WORK_EXPECTED = False
+    poison_default.BUILDER_II_DENIAL_PROBES = custom_module.BUILDER_II_DENIAL_PROBES
+    poison_default.create_governed_deep_agent = create_governed_deep_agent
+
+    def poison_runner(*, subagent_profile: str, task: str) -> dict:
+        raise AssertionError("default deepagents module must not be used after a custom readiness gate")
+
+    poison_default.builder_ii_run_protocol_subagent = poison_runner
+
+    monkeypatch.setitem(sys.modules, custom_module_name, custom_module)
+    monkeypatch.setitem(sys.modules, "deepagents", poison_default)
+
+    work_plan, work_plan_path = _work_plan_fixture(tmp_path)
+    gate = create_deepagents_backend_readiness_gate(
+        module_name=custom_module_name,
+        package_name=custom_module_name,
+        capability_gates_passed=True,
+    )
+    gate_path = _write(tmp_path / "custom-backend-readiness-gate.json", gate)
+
+    assert gate["gate_state"] == "PASS"
+    assert gate["module"]["module"] == custom_module_name
+    assert validate_deepagents_backend_readiness_gate(gate) == []
+
+    candidate = create_deepagents_execution_candidate(
+        work_plan=work_plan,
+        work_plan_path=work_plan_path,
+        output_root=tmp_path / "runs",
+        backend_mode="optional_deepagents",
+        backend_readiness_gate=gate,
+        backend_readiness_gate_path=gate_path,
+        allowed_subagents=["repo_mapper"],
+    )
+    candidate_path = _write(tmp_path / "candidate.json", candidate)
+    approval = create_deepagents_execution_approval(
+        candidate=candidate,
+        candidate_path=candidate_path,
+        approval_actor="Joshua Shay",
+        approval_reason="Approve custom optional backend module binding.",
+    )
+    approval_path = _write(tmp_path / "approval.json", approval)
+
+    summary = run_deepagents_approved_candidate(
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=tmp_path / "runs" / "custom-module",
+    )
+
+    assert summary["status"] == "COMPLETED"
+    assert invoked_profiles.count("readiness_probe") == 2
+    assert "repo_mapper" in invoked_profiles
