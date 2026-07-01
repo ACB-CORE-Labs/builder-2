@@ -206,3 +206,24 @@ def test_tier_0_and_tier_1_boundaries():
             assert not r.allows_memory_mutation, f"{r.name} (Tier 1) cannot mutate memory"
             assert not r.allows_git_mutation, f"{r.name} (Tier 1) cannot mutate git"
             assert not r.allows_external_tool_invocation, f"{r.name} (Tier 1) cannot invoke external tools"
+
+
+def test_standalone_call_registered_in_authority() -> None:
+    """builder-model standalone-call must be registered as Tier 3, declare model execution
+    and artifact writes, and be in REQUIRED_SUBCOMMANDS."""
+    from builder_ii.command_authority import (
+        COMMAND_AUTHORITY_REGISTRY,
+        REQUIRED_SUBCOMMANDS,
+        TIER_3,
+    )
+
+    name = "builder-model standalone-call"
+    registered = {r.name: r for r in COMMAND_AUTHORITY_REGISTRY}
+
+    assert name in registered, f"'{name}' is missing from COMMAND_AUTHORITY_REGISTRY"
+    record = registered[name]
+
+    assert record.tier == TIER_3, f"Expected Tier 3, got tier={record.tier}"
+    assert record.allows_model_execution, f"{name} must declare allows_model_execution=True"
+    assert record.allows_artifact_writes, f"{name} must declare allows_artifact_writes=True"
+    assert name in REQUIRED_SUBCOMMANDS, f"'{name}' must be in REQUIRED_SUBCOMMANDS"

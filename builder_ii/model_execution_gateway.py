@@ -47,7 +47,11 @@ def _digest(data: dict[str, Any]) -> str:
     raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(raw).hexdigest()
 
-def _default_authority_boundary(capability_state: str) -> dict[str, Any]:
+def _default_authority_boundary(
+    capability_state: str,
+    *,
+    performs_network_calls: bool = False,
+) -> dict[str, Any]:
     return {
         "capability_state": capability_state,
         "executes_model": True,
@@ -57,7 +61,7 @@ def _default_authority_boundary(capability_state: str) -> dict[str, Any]:
         "constructs_deepagents": False,
         "constructs_subagents": False,
         "invokes_mcp": False,
-        "performs_network_calls": False,
+        "performs_network_calls": performs_network_calls,
         "mutates_target_repo": False,
         "mutates_memory": False,
         "grants_authority": False,
@@ -65,7 +69,11 @@ def _default_authority_boundary(capability_state: str) -> dict[str, Any]:
         "requires_human_promotion_for_execution": True,
     }
 
-def _default_governance(capability_state: str) -> dict[str, Any]:
+def _default_governance(
+    capability_state: str,
+    *,
+    network_calls_enabled: bool = False,
+) -> dict[str, Any]:
     return {
         "capability_state": capability_state,
         "runtime_execution": "DISABLED",
@@ -76,7 +84,7 @@ def _default_governance(capability_state: str) -> dict[str, Any]:
         "model_execution": "ENABLED_UNDER_ENVELOPE",
         "tool_execution": "DISABLED",
         "shell_execution": "DISABLED",
-        "network_calls": "DISABLED",
+        "network_calls": "ENABLED_UNDER_ENVELOPE" if network_calls_enabled else "DISABLED",
         "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
         "target_repo_writes": "DISABLED",
         "memory_mutation": "DISABLED",
@@ -153,7 +161,6 @@ def validate_model_call_envelope(data: Any) -> list[str]:
             "constructs_deepagents",
             "constructs_subagents",
             "invokes_mcp",
-            "performs_network_calls",
             "mutates_target_repo",
             "mutates_memory",
             "grants_authority",
@@ -161,6 +168,12 @@ def validate_model_call_envelope(data: Any) -> list[str]:
         ):
             if boundary.get(f_false) is not False:
                 errors.append(f"authority_boundary.{f_false} must be false")
+        # performs_network_calls in authority_boundary must match top-level
+        top_network = data.get("performs_network_calls")
+        if isinstance(top_network, bool) and boundary.get("performs_network_calls") != top_network:
+            errors.append(
+                "authority_boundary.performs_network_calls must match top-level performs_network_calls"
+            )
 
     gov = data.get("governance")
     if not isinstance(gov, dict):
@@ -168,6 +181,11 @@ def validate_model_call_envelope(data: Any) -> list[str]:
     else:
         if gov.get("model_execution") != "ENABLED_UNDER_ENVELOPE":
             errors.append("governance.model_execution must be ENABLED_UNDER_ENVELOPE")
+        # network_calls must match whether network is involved
+        top_network = data.get("performs_network_calls")
+        expected_network_gov = "ENABLED_UNDER_ENVELOPE" if top_network else "DISABLED"
+        if gov.get("network_calls") != expected_network_gov:
+            errors.append(f"governance.network_calls must be {expected_network_gov} (based on performs_network_calls={top_network})")
         for key in (
             "runtime_execution",
             "goose_runtime_start",
@@ -176,7 +194,6 @@ def validate_model_call_envelope(data: Any) -> list[str]:
             "subagent_construction",
             "tool_execution",
             "shell_execution",
-            "network_calls",
             "target_repo_writes",
             "memory_mutation",
             "mcp_tool_calls",
@@ -323,6 +340,8 @@ class ModelExecutionGateway:
         session_id = f"session-{_digest({'prompt': prompt})[:12]}"
         prompt_digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
+        performs_network = risk_level in ("local_network", "cloud_external")
+
         envelope = {
             "kind": MODEL_CALL_ENVELOPE_KIND,
             "schema_version": MODEL_CALL_ENVELOPE_SCHEMA_VERSION,
@@ -340,14 +359,18 @@ class ModelExecutionGateway:
             "constructs_deepagents": False,
             "constructs_subagents": False,
             "invokes_mcp": False,
-            "performs_network_calls": risk_level in ("local_network", "cloud_external"),
+            "performs_network_calls": performs_network,
             "mutates_target_repo": False,
             "mutates_memory": False,
             "grants_authority": False,
             "artifact_is_authority": False,
             "requires_human_promotion_for_execution": True,
-            "authority_boundary": _default_authority_boundary("model_call"),
-            "governance": _default_governance("model_call"),
+            "authority_boundary": _default_authority_boundary(
+                "model_call", performs_network_calls=performs_network
+            ),
+            "governance": _default_governance(
+                "model_call", network_calls_enabled=performs_network
+            ),
         }
         envelope["digest"] = _digest(envelope)
 
@@ -413,8 +436,12 @@ class ModelExecutionGateway:
             "grants_authority": False,
             "artifact_is_authority": False,
             "requires_human_promotion_for_execution": True,
-            "authority_boundary": _default_authority_boundary("model_call"),
-            "governance": _default_governance("model_call"),
+            "authority_boundary": _default_authority_boundary(
+                "model_call", performs_network_calls=performs_network
+            ),
+            "governance": _default_governance(
+                "model_call", network_calls_enabled=performs_network
+            ),
         }
         receipt["digest"] = _digest(receipt)
 

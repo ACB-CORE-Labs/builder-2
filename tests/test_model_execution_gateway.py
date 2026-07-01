@@ -271,3 +271,74 @@ def test_cli_commands(mock_settings, standard_registry, standard_execution_polic
             str(receipt_path)
         ])
         assert result_val.exit_code == 0, result_val.output
+
+
+# ── Network semantics ─────────────────────────────────────────────────────────
+
+def test_envelope_network_semantics_local_network(
+    mock_settings, standard_registry, standard_execution_policy, tmp_path
+) -> None:
+    """local_network risk: envelope + authority_boundary + governance must declare network enabled."""
+    from unittest.mock import patch as _patch
+    from builder_ii.direct_chat import DirectChatResult
+    stub_result = DirectChatResult(ok=True, content="Paris", endpoint="http://x", model_id="m")
+    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
+    envelope_path = tmp_path / "envelope.json"
+    receipt_path = tmp_path / "receipt.json"
+
+    with _patch("builder_ii.model_execution_gateway.run_direct_chat", return_value=stub_result):
+        envelope, receipt = gateway.run_model_call(
+            model_id="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+            prompt="Capital of France?",
+            envelope_path=envelope_path,
+            receipt_path=receipt_path,
+        )
+
+    assert envelope["performs_network_calls"] is True
+    assert envelope["authority_boundary"]["performs_network_calls"] is True
+    assert envelope["governance"]["network_calls"] == "ENABLED_UNDER_ENVELOPE"
+    assert receipt["authority_boundary"]["performs_network_calls"] is True
+    assert receipt["governance"]["network_calls"] == "ENABLED_UNDER_ENVELOPE"
+    env_errors = validate_model_call_envelope(envelope)
+    assert env_errors == [], f"Envelope validation errors: {env_errors}"
+
+
+def test_envelope_network_semantics_cloud_external(
+    mock_settings, standard_registry, standard_execution_policy, tmp_path
+) -> None:
+    """cloud_external risk: envelope must declare network enabled when cloud models are allowed."""
+    for client in standard_registry["clients"]:
+        if client["model_id"] == "gpt-4o-stub":
+            client["enabled"] = True
+    cloud_settings = Settings(**{**mock_settings.__dict__, "allow_cloud_models": True})
+    gateway = ModelExecutionGateway(cloud_settings, standard_registry, standard_execution_policy)
+    envelope_path = tmp_path / "envelope.json"
+    receipt_path = tmp_path / "receipt.json"
+    envelope, receipt = gateway.run_model_call(
+        model_id="gpt-4o-stub",
+        prompt="Capital of France?",
+        envelope_path=envelope_path,
+        receipt_path=receipt_path,
+    )
+    assert envelope["performs_network_calls"] is True
+    assert envelope["authority_boundary"]["performs_network_calls"] is True
+    assert envelope["governance"]["network_calls"] == "ENABLED_UNDER_ENVELOPE"
+    env_errors = validate_model_call_envelope(envelope)
+    assert env_errors == [], f"Envelope validation errors: {env_errors}"
+
+
+# ── Execution policy authority claims ─────────────────────────────────────────
+
+def test_execution_policy_does_not_claim_grants_authority(standard_execution_policy) -> None:
+    assert standard_execution_policy.get("grants_authority") is False
+
+def test_execution_policy_artifact_is_not_authority(standard_execution_policy) -> None:
+    gov = standard_execution_policy.get("governance", {})
+    assert gov.get("artifact_is_authority") is False
+
+def test_execution_policy_requires_human_promotion(standard_execution_policy) -> None:
+    assert standard_execution_policy.get("requires_human_promotion_for_execution") is True
+
+def test_execution_policy_governance_model_execution_is_under_envelope(standard_execution_policy) -> None:
+    gov = standard_execution_policy.get("governance", {})
+    assert gov.get("model_execution") == "ENABLED_UNDER_ENVELOPE"

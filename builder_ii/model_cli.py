@@ -47,6 +47,38 @@ def _read_json(path: Path | None, default_func) -> dict:
         raise typer.Exit(1)
     return data
 
+
+def _artifact_ref(data: dict, path: Path, role: str) -> dict:
+    """Build a canonical artifact ref dict with compact JSON SHA-256 digest."""
+    raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    digest = hashlib.sha256(raw).hexdigest()
+    return {
+        "kind": data.get("kind"),
+        "path": str(path),
+        "sha256": digest,
+        "role": role,
+        "name": role.replace("_", " "),
+        "required": True,
+    }
+
+
+def _previous_event_ref(existing_records: list) -> dict | None:
+    """Compute previous_event_ref from the last record in an existing session.
+
+    existing_records is a list of (event_dict, path) tuples as returned by
+    load_event_records. Returns None when there are no prior events.
+    """
+    if not existing_records:
+        return None
+    last_event, last_path = existing_records[-1]
+    return {
+        "kind": last_event.get("kind"),
+        "sha256": last_event.get("payload_sha256"),
+        "event_id": last_event.get("event_id"),
+        "sequence": last_event.get("sequence"),
+        "path": str(last_path),
+    }
+
 @model_app.command("call")
 def call_cmd(
     model: str = typer.Option(..., "--model", help="Model ID (e.g. gpt-4o-stub) to call."),
@@ -116,7 +148,7 @@ def call_cmd(
             events_dir.mkdir(parents=True, exist_ok=True)
             existing_records = load_event_records(events_dir)
             sequence = len(existing_records) + 1
-            
+
             current_stage = "initialized"
             if existing_records:
                 replay_report = replay_events(existing_records, session_id=session_id)
@@ -132,12 +164,10 @@ def call_cmd(
                 stage=current_stage,
                 subject_refs=[],
                 command_surface="builder-model call",
-                policy_snapshot_ref={
-                    "kind": "builder_ii.model_execution_policy",
-                    "sha256": hashlib.sha256(json_lib.dumps(execution_policy, sort_keys=True).encode("utf-8")).hexdigest(),
-                    "role": "model_execution_policy",
-                    "required": True
-                } if execution_policy else {},
+                policy_snapshot_ref=_artifact_ref(
+                    execution_policy, execution_policy_path, "model_execution_policy"
+                ) if execution_policy and execution_policy_path else {},
+                previous_event_ref=_previous_event_ref(existing_records),
                 message=f"Model call failed: {exc}",
             )
             write_event_record(event_record, events_dir / f"{sequence:03d}_model_call_failed.json")
@@ -154,29 +184,15 @@ def call_cmd(
         events_dir.mkdir(parents=True, exist_ok=True)
         existing_records = load_event_records(events_dir)
         sequence = len(existing_records) + 1
-        
+
         current_stage = "initialized"
         if existing_records:
             replay_report = replay_events(existing_records, session_id=session_id)
             if replay_report["valid"]:
                 current_stage = replay_report["current_stage"]
 
-        # Digest helpers
-        import hashlib
-        def _get_ref(data, path, role):
-            raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
-            digest = hashlib.sha256(raw).hexdigest()
-            return {
-                "kind": data.get("kind"),
-                "path": str(path),
-                "sha256": digest,
-                "role": role,
-                "name": role.replace("_", " "),
-                "required": True
-            }
-
-        envelope_ref = _get_ref(envelope, output_envelope, "model_call_envelope")
-        receipt_ref = _get_ref(receipt, output_receipt, "model_call_receipt")
+        envelope_ref = _artifact_ref(envelope, output_envelope, "model_call_envelope")
+        receipt_ref = _artifact_ref(receipt, output_receipt, "model_call_receipt")
 
         event_id = f"evt_model_exec_{int(time.time())}_{sequence}"
         event_record = create_event_record(
@@ -187,7 +203,10 @@ def call_cmd(
             stage=current_stage,
             subject_refs=[envelope_ref, receipt_ref],
             command_surface="builder-model call",
-            policy_snapshot_ref=_get_ref(execution_policy, execution_policy_path, "model_execution_policy"),
+            policy_snapshot_ref=_artifact_ref(
+                execution_policy, execution_policy_path, "model_execution_policy"
+            ),
+            previous_event_ref=_previous_event_ref(existing_records),
             message=f"Model call executed: {model}",
         )
         write_event_record(event_record, events_dir / f"{sequence:03d}_model_call_executed.json")

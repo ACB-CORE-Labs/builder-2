@@ -435,13 +435,21 @@ MODEL_EXECUTION_POLICY_KIND = "builder_ii.model_execution_policy"
 MODEL_EXECUTION_POLICY_SCHEMA_VERSION = 1
 
 def create_model_execution_policy(recommendation: dict[str, Any], max_tokens: int = 4096) -> dict[str, Any]:
+    """Create a bounded model execution policy artifact.
+
+    This is an operator-scoped execution policy. It does NOT grant authority; authority
+    remains with the command authority registry (builder-model call / standalone-call) and
+    explicit operator invocation. This artifact records the approved model set and token
+    limits for a single governed call session.
+    """
     return {
         "kind": MODEL_EXECUTION_POLICY_KIND,
         "schema_version": MODEL_EXECUTION_POLICY_SCHEMA_VERSION,
         "policy_state": "AUTHORIZED",
         "executes_model": True,
-        "grants_authority": True,
-        "requires_human_promotion_for_execution": False,
+        "grants_authority": False,
+        "operator_approval_required": True,
+        "requires_human_promotion_for_execution": True,
         "max_tokens": max_tokens,
         "source_recommendation_ref": {
             "kind": MODEL_ROUTING_RECOMMENDATION_KIND,
@@ -449,12 +457,12 @@ def create_model_execution_policy(recommendation: dict[str, Any], max_tokens: in
         },
         "allowed_models": [cand["model_id"] for cand in recommendation.get("recommended_candidates", [])],
         "governance": {
-            "model_execution": "ENABLED",
+            "model_execution": "ENABLED_UNDER_ENVELOPE",
             "runtime_execution": "DISABLED",
             "network_calls": "DISABLED",
             "shell_execution": "DISABLED",
             "provider_calls": "DISABLED",
-            "artifact_is_authority": True,
+            "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
         },
     }
@@ -478,11 +486,13 @@ def validate_model_execution_policy(record: Any) -> list[str]:
         errors.append("policy_state must be AUTHORIZED")
     if record.get("executes_model") is not True:
         errors.append("executes_model must be true")
-    if record.get("grants_authority") is not True:
-        errors.append("grants_authority must be true")
-    if record.get("requires_human_promotion_for_execution") is not False:
-        errors.append("requires_human_promotion_for_execution must be false")
-    
+    # Execution policy must NOT claim hidden authority; authority comes from command
+    # authority registry and explicit operator invocation only.
+    if record.get("grants_authority") is not False:
+        errors.append("grants_authority must be false — execution policy is a bounded artifact, not an authority source")
+    if record.get("requires_human_promotion_for_execution") is not True:
+        errors.append("requires_human_promotion_for_execution must be true")
+
     if not isinstance(record.get("max_tokens"), int) or record["max_tokens"] <= 0:
         errors.append("max_tokens must be a positive integer")
 
@@ -494,7 +504,7 @@ def validate_model_execution_policy(record: Any) -> list[str]:
             errors.append(f"source_recommendation_ref.kind must be {MODEL_ROUTING_RECOMMENDATION_KIND}")
         if not isinstance(rec_ref.get("sha256"), str) or not _SHA256_RE.match(rec_ref["sha256"]):
             errors.append("source_recommendation_ref.sha256 must be a valid SHA-256 digest")
-            
+
     allowed_models = record.get("allowed_models")
     if not isinstance(allowed_models, list) or not allowed_models:
         errors.append("allowed_models must be a non-empty list")
@@ -509,13 +519,13 @@ def validate_model_execution_policy(record: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        if governance.get("model_execution") != "ENABLED":
-            errors.append("governance.model_execution must be ENABLED")
+        if governance.get("model_execution") != "ENABLED_UNDER_ENVELOPE":
+            errors.append("governance.model_execution must be ENABLED_UNDER_ENVELOPE")
         for key in ("runtime_execution", "network_calls", "shell_execution", "provider_calls"):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("artifact_is_authority") is not True:
-            errors.append("governance.artifact_is_authority must be true")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
         if governance.get("core_workbench_coupling") != "NONE":
             errors.append("governance.core_workbench_coupling must be NONE")
 
