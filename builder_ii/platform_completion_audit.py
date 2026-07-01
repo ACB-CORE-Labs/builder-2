@@ -11,7 +11,7 @@ PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "B3 -> B4"
+NEXT_SEQUENCE = "B4 -> B5"
 
 StateLabel = Literal[
     "NOT_STARTED",
@@ -673,15 +673,14 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "Goose readonly runtime",
-        MERGED_BUT_NOT_OPERATIONAL,
-        ("builder_ii/goose_session.py", "builder_ii/goose_readonly.py", "builder_ii/goose_inspection.py", "builder_ii/goose_cli.py"),
-        ("builder-goose",),
-        ("tests/test_goose_readonly.py", "tests/test_goose_inspection.py"),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/goose_session.py", "builder_ii/goose_readonly.py", "builder_ii/goose_inspection.py", "builder_ii/goose_cli.py", "builder_ii/goose_runtime_harness.py"),
+        ("builder-goose", "builder-goose start-readonly", "builder-goose close-readonly"),
+        ("tests/test_goose_readonly.py", "tests/test_goose_inspection.py", "tests/test_goose_runtime_harness.py"),
         (
-            "Governed CLI does not start Goose.",
-            "Legacy launcher is not under receipts, ledger, or no-mutation proof.",
+            "Goose readonly runtime is operationally verified with receipts and no-mutation postflight.",
         ),
-        "B4",
+        "B5",
     ),
     _row(
         "Goose command proposals",

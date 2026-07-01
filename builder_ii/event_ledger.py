@@ -31,6 +31,9 @@ EVENT_TYPES = {
     "workflow_handoff_ready",
     "read_executed",
     "read_denied",
+    "goose_readonly_started",
+    "goose_readonly_closed",
+    "goose_mutation_prevented",
 }
 
 EVENT_TYPE_STAGE = {

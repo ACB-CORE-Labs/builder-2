@@ -1,65 +1,3 @@
-# Command Authority Tier Registry
-
-## Why the Registry Exists
-The Command Authority Tier Registry exists to prevent authority fog across the `builder-II` developer platform. As a generic platform exposing multiple console scripts and major subcommands, it is essential that every command has a single canonical classification describing its authority boundaries, runtime boundaries, write boundaries, human approval requirements, output behaviors, and promotion states. 
-
-Crucially, **the presence of a command in this repository does not imply it is promoted, safe, runtime-enabled, or permitted to mutate source code.**
-
-## The Tier Model
-The platform categorizes all console scripts and subcommands into one of five explicit tiers:
-
-* **Tier 0 — read-only inspection**:
-  - *Allows*: Reading files, querying git history/hashes, inspecting workspace metadata, printing benchmarks.
-  - *Forbids*: Running subprocesses (except read-only queries), generating non-read-only artifacts, modifying memory, or writing to source.
-* **Tier 1 — artifact-only planning/validation**:
-  - *Allows*: Static code analysis, template validations, writing structured/signed plans, preflight validation.
-  - *Forbids*: Runtime execution of agents, model interaction, or mutating workspace source files.
-* **Tier 2 — operator-managed setup/runtime helper**:
-  - *Allows*: Triggered background server setups, model-chat loops (`builder ask`), execution of test suites (`builder verify`), and legacy/external scans.
-  - *Forbids*: Autonomous agent execution or hidden runtime write authorities.
-* **Tier 3 — HITL-gated execution candidate**:
-  - *Allows*: Preparing execution requests, gathering candidate patches, and validating execution receipts.
-  - *Forbids*: Autonomous execution without explicit human approval.
-* **Tier 4 — forbidden/unpromoted automation**:
-  - *Allows*: Spec rendering and dry-run validation.
-  - *Forbids*: Active execution. These commands are unpromoted and disabled by default.
-
-## Rules and Invariants
-1. **Metadata is NOT Runtime Permission**: The registry defines declarative metadata boundaries. It does not dynamically grant runtime execution authorization.
-2. **Promotion Requirements**: Upgrading a command to a more permissive state or tier requires:
-   - Complete documentation.
-   - Comprehensive test coverage.
-   - A stable command surface.
-   - Explicit failure mode definition.
-   - A human approval boundary.
-   - Predictable output artifacts.
-   - A verified rollback path.
-   - Verification suites.
-3. **CORE TARGET ONLY**: CORE is a lineage context and target profile only, not the identity of the platform. Conflating the platform with the CORE workbench is strictly forbidden.
-4. **Deephaven untouched**: Deephaven-related capabilities remain completely untouched and out of scope.
-
-## R1 Config/Setup Commands
-
-`builder-config schema`, `builder-config resolve`, `builder-config validate`, `builder-setup plan`, `builder-setup validate-plan`, `builder-setup overlay-plan`, `builder-setup validate-overlay-plan`, `builder-setup rollback-snapshot`, and `builder-setup validate-rollback-snapshot` are Tier 1 passive artifact/validation commands.
-
-For each command, runtime execution, model execution, shell execution, source writes, Goose runtime, deepagents runtime, MCP/tool invocation, patch authority, setup apply, and setup rollback execution are disabled. Artifact-producing commands may write only the explicit JSON artifact path supplied by `--output`. They do not write Goose config, `.goosehints`, skills, recipes, target repo files, source files, or secure prior-content stores.
-
-R1.4 additionally reconciles the legacy `builder setup` surface: it is now a fail-closed Tier 1 compatibility redirect that prints the governed `builder-setup` sequence and performs no writes.
-
-## B1.2 Verification Plan Approval Commands
-
-`builder-verify plan`, `builder-verify validate-plan`, `builder-verify approve-plan`, and `builder-verify validate-approval` are Tier 1 passive artifact/validation commands. B1.1 adds a digest-stable verification execution plan artifact only. B1.2 adds a digest-bound HITL approval artifact that binds human approval to an exact plan digest for future B1.3 consideration only. The current surface still supports only `target_profile=builder` with `verification_profile=builder_full`; other target/profile pairs fail closed until profile-derived planning is designed. None of these commands run tests, execute shell/subprocesses, call models or tools, invoke MCP, start Goose or deepagents, apply patches, mutate git, or promote B2 patch authority. B1.3 is still required before any approved verification can execute.
-
-## B1.4 Verification Ledger Commands
-
-`builder-ledger index-receipt` and `builder ledger index-receipt` passively write validated B1.3 receipt-chain evidence into `.builder/ledger/`. `builder-ledger query-receipts` and `builder ledger query-receipts` read and filter those records without writes. `builder-ledger validate-receipts` and `builder ledger validate-receipts` emit a read-only `builder_ii.verification_execution_ledger_integrity_report` that detects rejected records, digest drift, duplicates, missing plan/approval/receipt refs, chain-digest mismatch, and optional index-chain discontinuity. `builder-ledger reconstruct-receipts` and `builder ledger reconstruct-receipts` emit a read-only `builder_ii.verification_execution_ledger_reconstruction_report` with summary, invalid/rejected records, chain continuity status, reconstructed chain rows, and evidence refs. These commands do not replay execution, run verification, run subprocesses, execute shell, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate source/target repo files, mutate git, mutate memory, or promote B2 authority.
-
-## B3 Read-Only Runtime Commands
-
-`builder-readonly policy`, `builder-readonly read`, and `builder-readonly validate` are read-only commands for establishing and executing target-bound read operations under explicit policies.
-
-## Command Authority Registry Table
-
 | Command Name | Tier | State | Runtime Boundary | Write Boundary | Approval Mode | Approval Boundary | Allows Shell | Allows Writes | Artifact Writes | State Writes |
 |---|---|---|---|---|---|---|---|---|---|---|
 | `builder` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Delegates to helper subcommands; root CLI does not execute direct agent/model loops. | No direct write authority at root CLI level. | `explicit_operator_invocation` | Operator must explicitly run command options from active terminal. | No | No | No | No |
@@ -133,7 +71,8 @@ R1.4 additionally reconciles the legacy `builder setup` surface: it is now a fai
 | `builder-goose validate-audit` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates the output of a Goose audit run. | No changes to workspace. | `none` | None. | No | No | No | No |
 | `builder-goose inspect-readonly` | Tier 1 — artifact-only planning/validation | `validation_only` | Performs read-only inspection validation on explicitly requested paths. | No changes to workspace. | `none` | None. | No | No | No | No |
 | `builder-goose validate-inspection` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates inspection config details. | No changes to workspace. | `none` | None. | No | No | No | No |
-| `builder-goose start-readonly` | Tier 4 — forbidden/unpromoted automation | `forbidden_unpromoted` | Attempts to start a Goose session. Disabled and unpromoted by default. | No changes to workspace. | `forbidden_unpromoted` | Forbidden; no supported approval path. | No | No | No | No |
+| `builder-goose start-readonly` | Tier 3 — HITL-gated execution candidate | `read_only_runtime_candidate` | Starts a Goose session bounded by read-only policies. | No writes permitted. Strict environment isolation. | `explicit_operator_invocation` | Requires implicit or explicit HITL approval for launch. | No | No | No | No |
+| `builder-goose close-readonly` | Tier 3 — HITL-gated execution candidate | `read_only_runtime_candidate` | Closes a governed Goose session and verifies no mutation occurred. | No writes permitted. Target filesystem is inspected for drift. | `explicit_operator_invocation` | Delegated to CLI lifecycle. | No | No | No | No |
 | `builder-deepagents policy` | Tier 1 — artifact-only planning/validation | `artifact_only` | Renders governed deepagents policy metadata statically. | Writes policy JSON only to explicit artifact output paths. | `none` | None. | No | No | Yes | No |
 | `builder-deepagents validate` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates deepagents spec metadata. | No changes to workspace. | `none` | None. | No | No | No | No |
 | `builder-deepagents readiness` | Tier 1 — artifact-only planning/validation | `artifact_only` | Renders optional deepagents dependency-readiness metadata. | Writes readiness JSON only to explicit artifact output paths. | `none` | None. | No | No | Yes | No |

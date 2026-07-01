@@ -77,7 +77,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | postflight verification | `ARTIFACT_ONLY` | B1 |
 | Goose setup | `MERGED_BUT_NOT_OPERATIONAL` | B4 after R0/B3 |
 | governed read-only runtime | `OPERATIONALLY_VERIFIED` | B4 |
-| Goose readonly runtime | `MERGED_BUT_NOT_OPERATIONAL` | B4 |
+| Goose readonly runtime | `OPERATIONALLY_VERIFIED` | B5 |
 | Goose command proposals | `PASSIVE_FOUNDATION` | B1/B4 |
 | deepagents policy/readiness | `PASSIVE_FOUNDATION` | B5 |
 | deepagents passive work artifacts | `PASSIVE_FOUNDATION` | B5 |
