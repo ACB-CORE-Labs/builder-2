@@ -20,6 +20,7 @@ from builder_ii.verification_execution_ledger import (
     default_verification_execution_ledger_output,
     index_verification_execution_receipt,
     query_verification_execution_ledger_records,
+    validate_verification_execution_ledger_integrity,
     validate_verification_execution_ledger_record,
     write_verification_execution_ledger_record,
 )
@@ -280,6 +281,20 @@ def query_receipts(
         receipt_status=receipt_status,
         runner_mode=runner_mode,
     )
+    _emit(report)
+    if report.get("valid") is not True:
+        raise typer.Exit(1)
+
+
+@ledger_app.command("validate-receipts")
+def validate_receipts(
+    target_repo: Path = typer.Option(Path("."), "--target-repo", help="Target repository whose .builder/ledger directory should be read."),
+    ledger_root: Path | None = typer.Option(None, "--ledger-root", help="Explicit verification execution ledger root; defaults to --target-repo/.builder/ledger."),
+) -> None:
+    """Validate verification execution ledger record integrity without execution or writes."""
+
+    root = ledger_root or (target_repo / ".builder" / "ledger")
+    report = validate_verification_execution_ledger_integrity(ledger_root=root)
     _emit(report)
     if report.get("valid") is not True:
         raise typer.Exit(1)

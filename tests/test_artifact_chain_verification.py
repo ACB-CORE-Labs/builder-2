@@ -29,6 +29,7 @@ from builder_ii.verification_execution_approval import (
 )
 from builder_ii.verification_execution_ledger import (
     index_verification_execution_receipt,
+    validate_verification_execution_ledger_integrity,
     write_verification_execution_ledger_record,
 )
 from builder_ii.verification_execution_plan import (
@@ -592,6 +593,88 @@ def test_chain_accepts_verification_execution_ledger_record(tmp_path: Path) -> N
 
     assert report["valid"] is True
     assert report["counts"]["files"] == 1
+    assert report["counts"]["native_invalid"] == 0
+    assert report["counts"]["broken_links"] == 0
+
+
+def test_chain_accepts_verification_execution_ledger_integrity_report(tmp_path: Path) -> None:
+    artifact_root = tmp_path / ".builder" / "verification"
+    artifact_root.mkdir(parents=True, exist_ok=True)
+    ledger_root = tmp_path / ".builder" / "ledger"
+
+    plan = finalize_verification_execution_plan(
+        target_profile="builder",
+        verification_profile="builder_full",
+        target_repo=str(tmp_path),
+        artifact_root=".builder/verification",
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    plan_path = artifact_root / "verification-execution-plan.json"
+    write_verification_execution_plan(plan, plan_path)
+
+    approval = finalize_verification_execution_approval(
+        plan=plan,
+        plan_path=str(plan_path),
+        approval_actor="Joshua Shay",
+        approval_reason="Approve bounded platform_status verification runner proof.",
+        approved_command_profiles=["platform_status"],
+        approved_step_ids=["platform_status"],
+        generated_at="2026-06-30T00:01:00+00:00",
+    )
+    approval_path = artifact_root / "verification-execution-approval.json"
+    write_verification_execution_approval(approval, approval_path)
+
+    receipt = finalize_verification_execution_receipt(
+        plan=plan,
+        approval=approval,
+        plan_path=str(plan_path),
+        approval_path=str(approval_path),
+        runner_mode=RUNNER_MODE_BOUNDED_APPROVED,
+        generated_at="2026-06-30T00:02:00+00:00",
+        receipt_status="EXECUTED",
+        executed_steps=[{"step_id": "platform_status", "status": "success", "profile": "platform_status"}],
+        skipped_steps=[],
+        process_results=[
+            {
+                "step_id": "platform_status",
+                "profile": "platform_status",
+                "command_profile_ref": "verification_profiles.builder_full.platform_status",
+                "status": "success",
+                "returncode": 0,
+                "timeout_seconds": 30,
+                "shell": False,
+                "argv_digest": "0" * 64,
+                "stdout_sha256": "1" * 64,
+                "stderr_sha256": "2" * 64,
+                "stdout_excerpt": "builder-II platform status\n",
+                "stderr_excerpt": "",
+                "stdout_truncated": False,
+                "stderr_truncated": False,
+            }
+        ],
+        preflight_git_state={"state_label": "preflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
+        postflight_git_state={"state_label": "postflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
+        workspace_mutation_detected=False,
+        execution_enabled=True,
+        subprocess_mode=SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
+    )
+    receipt_path = artifact_root / "verification-execution-receipt.json"
+    write_verification_execution_receipt(receipt, receipt_path)
+
+    record = index_verification_execution_receipt(
+        receipt_path=receipt_path,
+        plan_path=plan_path,
+        approval_path=approval_path,
+    )
+    record_path = ledger_root / "verification-execution-ledger.json"
+    write_verification_execution_ledger_record(record, record_path)
+    integrity_report = validate_verification_execution_ledger_integrity(ledger_root=ledger_root)
+    report_path = tmp_path / "verification-execution-ledger-integrity-report.json"
+    report_path.write_text(json_lib.dumps(integrity_report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = verify_artifact_chain([record_path, report_path])
+
+    assert report["valid"] is True
     assert report["counts"]["native_invalid"] == 0
     assert report["counts"]["broken_links"] == 0
 

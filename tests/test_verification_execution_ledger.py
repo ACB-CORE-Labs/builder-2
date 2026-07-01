@@ -14,6 +14,7 @@ from builder_ii.verification_execution_approval import (
 )
 from builder_ii.verification_execution_ledger import (
     LEDGER_RECORD_STATE,
+    VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND,
     VERIFICATION_EXECUTION_LEDGER_RECORD_KIND,
     VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND,
     default_verification_execution_ledger_output,
@@ -24,6 +25,8 @@ from builder_ii.verification_execution_ledger import (
     query_verification_execution_ledger_by_runner_mode,
     query_verification_execution_ledger_records,
     summarize_verification_execution_ledger_records,
+    validate_verification_execution_ledger_integrity,
+    validate_verification_execution_ledger_integrity_report,
     validate_receipt_chain_for_ledger,
     validate_verification_execution_ledger_record,
     write_verification_execution_ledger_record,
@@ -297,6 +300,10 @@ def _receipt_digest(record: dict[str, Any]) -> str:
     raise AssertionError("missing receipt ref")
 
 
+def _with_record_digest(record: dict[str, Any]) -> dict[str, Any]:
+    return attach_digest(record, digest_key="verification_execution_ledger_record_digest")
+
+
 def test_query_returns_valid_records_deterministically(tmp_path: Path) -> None:
     failed = _write_ledger_record(
         tmp_path,
@@ -449,3 +456,170 @@ def test_query_reports_unresolvable_ledger_root_as_json_diagnostics(monkeypatch:
     assert report["records"] == []
     assert report["rejected"] == []
     assert any("failed to resolve ledger_root" in error for error in report["errors"])
+
+
+def test_integrity_report_validates_records_deterministically(tmp_path: Path) -> None:
+    failed = _write_ledger_record(
+        tmp_path,
+        "z-failed.json",
+        receipt_status="FAILED",
+        process_result_status="timeout",
+        generated_at="2026-06-30T00:03:00+00:00",
+    )
+    executed = _write_ledger_record(tmp_path, "a-executed.json")
+
+    report = validate_verification_execution_ledger_integrity(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["kind"] == VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND
+    assert report["valid"] is True
+    assert validate_verification_execution_ledger_integrity_report(report) == []
+    assert [row["chain_digest"] for row in report["records"]] == [
+        executed["chain_digest"],
+        failed["chain_digest"],
+    ]
+    assert report["summary"]["record_count"] == 2
+    assert report["summary"]["chain_continuity_status"] == "not_applicable_no_sequence_rule"
+    assert report["duplicates"] == []
+    assert report["chain_errors"] == []
+
+
+def test_integrity_detects_duplicate_records(tmp_path: Path) -> None:
+    first = _write_ledger_record(tmp_path, "first.json")
+    second = _write_ledger_record(tmp_path, "second.json")
+
+    report = validate_verification_execution_ledger_integrity(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert first["chain_digest"] == second["chain_digest"]
+    assert report["valid"] is False
+    assert report["summary"]["duplicate_count"] >= 1
+    assert any(item["field"] == "chain_digest" for item in report["duplicates"])
+    assert any("duplicate chain_digest" in error for error in report["errors"])
+    assert validate_verification_execution_ledger_integrity_report(report) == []
+
+
+def test_integrity_detects_tampered_record_digest(tmp_path: Path) -> None:
+    _write_ledger_record(tmp_path, "receipt-ledger.json")
+    path = tmp_path / ".builder" / "ledger" / "receipt-ledger.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["target_profile"] = "generic"
+    path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = validate_verification_execution_ledger_integrity(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["valid"] is False
+    assert report["summary"]["rejected_count"] == 1
+    assert any("verification_execution_ledger_record_digest drift detected" in error for error in report["errors"])
+
+
+def test_integrity_detects_missing_required_subject_ref_role(tmp_path: Path) -> None:
+    _write_ledger_record(tmp_path, "receipt-ledger.json")
+    path = tmp_path / ".builder" / "ledger" / "receipt-ledger.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    record["subject_refs"][2]["role"] = "not_verification_execution_receipt"
+    record = _with_record_digest(record)
+    path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = validate_verification_execution_ledger_integrity(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["valid"] is False
+    assert any("exactly one verification_execution_receipt ref" in error for error in report["errors"])
+    assert report["summary"]["chain_error_count"] == 1
+
+
+def test_integrity_detects_mismatched_subject_digest_chain(tmp_path: Path) -> None:
+    _write_ledger_record(tmp_path, "receipt-ledger.json")
+    path = tmp_path / ".builder" / "ledger" / "receipt-ledger.json"
+    record = json.loads(path.read_text(encoding="utf-8"))
+    for ref in record["subject_refs"]:
+        if ref["role"] == "verification_execution_receipt":
+            ref["artifact_digest"] = "f" * 64
+    record = _with_record_digest(record)
+    path.write_text(json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = validate_verification_execution_ledger_integrity(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["valid"] is False
+    assert any("chain_digest does not match plan/approval/receipt subject digests" in error for error in report["errors"])
+
+
+def test_integrity_detects_index_chain_discontinuity_when_rule_applies(tmp_path: Path) -> None:
+    first = _write_ledger_record(tmp_path, "first.json")
+    second = _write_ledger_record(
+        tmp_path,
+        "second.json",
+        receipt_status="FAILED",
+        process_result_status="timeout",
+        generated_at="2026-06-30T00:03:00+00:00",
+    )
+    first_path = tmp_path / ".builder" / "ledger" / "first.json"
+    second_path = tmp_path / ".builder" / "ledger" / "second.json"
+    first["ledger_index"] = 1
+    first["previous_ledger_record_digest"] = None
+    first = _with_record_digest(first)
+    second["ledger_index"] = 3
+    second["previous_ledger_record_digest"] = first["verification_execution_ledger_record_digest"]
+    second = _with_record_digest(second)
+    first_path.write_text(json.dumps(first, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    second_path.write_text(json.dumps(second, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = validate_verification_execution_ledger_integrity(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["valid"] is False
+    assert report["summary"]["chain_rule_applies"] is True
+    assert report["summary"]["chain_continuity_status"] == "invalid"
+    assert any("ledger_index must be 2" in error for error in report["errors"])
+
+
+def test_integrity_duplicate_ledger_index_does_not_emit_false_prior_digest_error(tmp_path: Path) -> None:
+    first = _write_ledger_record(tmp_path, "first.json")
+    second = _write_ledger_record(
+        tmp_path,
+        "second.json",
+        receipt_status="FAILED",
+        process_result_status="timeout",
+        generated_at="2026-06-30T00:03:00+00:00",
+    )
+
+    first_path = tmp_path / ".builder" / "ledger" / "first.json"
+    second_path = tmp_path / ".builder" / "ledger" / "second.json"
+
+    first["ledger_index"] = 1
+    first["previous_ledger_record_digest"] = None
+    first = _with_record_digest(first)
+
+    second["ledger_index"] = 1
+    second["previous_ledger_record_digest"] = None
+    second = _with_record_digest(second)
+
+    first_path.write_text(json.dumps(first, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    second_path.write_text(json.dumps(second, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = validate_verification_execution_ledger_integrity(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["valid"] is False
+    assert any("duplicate ledger_index 1" in error for error in report["errors"])
+    assert not any(
+        "previous_ledger_record_digest does not match prior indexed record digest" in error
+        for error in report["errors"]
+    )
+
+
+def test_cli_validate_receipts_prints_json_and_does_not_write(tmp_path: Path) -> None:
+    _write_ledger_record(tmp_path, "receipt-ledger.json")
+    before = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+
+    result = CliRunner().invoke(
+        ledger_app,
+        [
+            "validate-receipts",
+            "--target-repo",
+            str(tmp_path),
+        ],
+    )
+    after = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["kind"] == VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND
+    assert data["valid"] is True
+    assert before == after
