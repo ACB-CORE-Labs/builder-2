@@ -22,7 +22,12 @@ def test_goose_config_has_slash_commands():
     commands = {item["command"] for item in cfg["slash_commands"]}
     assert "explore" in commands
     assert "implement" in commands
-    assert "handoff" in commands
+    assert "review" in commands
+    assert "verify" in commands
+    assert "plan" in commands
+    assert "platform" in commands
+    assert "coding" in commands
+    assert "handoff" not in commands
 
 
 def test_skills_exist():

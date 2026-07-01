@@ -24,7 +24,6 @@ Never modify: `algebra/`, `field/`, `generate/`, `core/cognition/`, `vault/`, `t
 4. Label outputs [SPECULATIVE] until verification PASS
 5. Run `builder verify <module>` — fix upstream cause on failure
 6. Answer all 5 PR questions before finalizing
-7. `/core-handoff` or handoff skill at session end
 
 ## Suite routing
 algebra/, field/ → algebra | generate/, core/cognition/ → cognition | vault/, teaching/ → teaching | sensorium/ → sensorium | language_packs/ → packs | platform/ → smoke

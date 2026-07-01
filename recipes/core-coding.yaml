@@ -41,8 +41,7 @@ instructions: |
   4. Label new code [SPECULATIVE] until verification PASS.
   5. Run: builder verify <module> — diagnose upstream on failure.
   6. Sub-agents via /platform: core_explore, core_implement,
-     core_review, core_verify, core_handoff.
-  7. End non-trivial sessions with HANDOFF using docs/handoff_template.md.
+     core_review, core_verify.
 
   ────────────────────────────────────────────────────────────────────────
   ROUTING TABLE (module → test suite):
@@ -98,8 +97,7 @@ instructions: |
   • Loading separate planner + executor models on M1 16GB → REFUSE; require
     planner_same_as_execution=true.
 
-  On session start: read AGENTS.md, GROK.md, docs/runtime_contracts.md,
-  and the most recent HANDOFF-*.md in the CORE repo root.
+  On session start: read AGENTS.md, GROK.md, and docs/runtime_contracts.md.
 
 settings:
   temperature: 0.0

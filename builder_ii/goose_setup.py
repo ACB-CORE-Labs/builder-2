@@ -38,7 +38,6 @@ def build_goose_config(settings: Settings) -> dict:
             {"command": "implement", "recipe_path": str(recipes / "subrecipes" / "implement.yaml")},
             {"command": "review", "recipe_path": str(recipes / "subrecipes" / "review.yaml")},
             {"command": "verify", "recipe_path": str(recipes / "subrecipes" / "verify.yaml")},
-            {"command": "handoff", "recipe_path": str(recipes / "subrecipes" / "handoff.yaml")},
             {"command": "plan", "recipe_path": str(recipes / "subrecipes" / "plan.yaml")},
             {"command": "platform", "recipe_path": str(recipes / "core-platform.yaml")},
             {"command": "coding", "recipe_path": str(recipes / "core-coding.yaml")},

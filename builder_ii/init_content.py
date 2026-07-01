@@ -22,11 +22,10 @@ WORKFLOW:
 3. Read before write; trace call sites from actual files.
 4. Label new code/tests [SPECULATIVE] until verification PASS.
 5. Run verification harness for the module suite; diagnose upstream cause on failure — never patch tests to green, never add forbidden patterns to pass.
-6. End non-trivial sessions with HANDOFF using docs/handoff_template.md.
 
 REFUSAL EXAMPLE: cosine similarity in vault/store.py → REFUSE. Name versor_condition + exact-recall invariant; cite cga_inner-only vault recall.
 
-GOVERNANCE FILES (read on session start): AGENTS.md, GROK.md, docs/runtime_contracts.md, recent HANDOFF-*.md.
+GOVERNANCE FILES (read on session start): AGENTS.md, GROK.md, docs/runtime_contracts.md.
 
 CANONICAL ROUTES: algebra/ -> algebra; vault/ -> teaching.
 
@@ -49,7 +48,6 @@ REQUIRED_INIT_LITERALS: tuple[str, ...] = (
     "SPECULATIVE until deterministic CLI gates pass",
     "Plan Mode",
     "answer all 5 PR questions",
-    "HANDOFF",
     "temperature 0",
     "cosine similarity",
     "No ANN, HNSW, cosine similarity",
