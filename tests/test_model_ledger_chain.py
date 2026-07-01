@@ -15,7 +15,12 @@ from typer.testing import CliRunner
 from unittest.mock import patch
 
 from builder_ii.config import Settings
-from builder_ii.event_ledger import create_event_record, write_event_record, load_event_records
+from builder_ii.event_ledger import (
+    create_event_record,
+    write_event_record,
+    load_event_records,
+    replay_events,
+)
 from builder_ii.model_cli import model_app
 from builder_ii.model_client_registry import create_model_client_registry
 from builder_ii.model_routing_policy import create_model_execution_policy
@@ -141,11 +146,22 @@ def test_model_event_chains_to_prior_event(tmp_path: Path, monkeypatch) -> None:
     # Now run the model call -- it should chain to the prior event
     event = _run_call_cmd(tmp_path, session_id, pol_path, settings, monkeypatch)
 
+    from builder_ii.workflow_records import canonical_digest
+    from builder_ii.event_ledger import validate_event_record
+
     assert event["sequence"] == 2, f"Expected sequence 2, got {event['sequence']}"
     prev_ref = event.get("previous_event_ref")
     assert prev_ref is not None, "Event #2 must have previous_event_ref"
-    assert prev_ref["sha256"] == prior_event["payload_sha256"], (
+
+    expected_digest = canonical_digest(prior_event)
+    assert prev_ref["sha256"] == expected_digest, (
         f"previous_event_ref.sha256 {prev_ref['sha256']!r} != "
-        f"prior event payload_sha256 {prior_event['payload_sha256']!r}"
+        f"expected digest {expected_digest!r}"
     )
-    assert event["previous_event_sha256"] == prior_event["payload_sha256"]
+    assert event["previous_event_sha256"] == expected_digest
+
+    # Load all records and perform direct validation and replay validation
+    records = load_event_records(events_dir)
+    assert validate_event_record(records[-1][0]) == []
+    report = replay_events(records, session_id=session_id)
+    assert report["valid"], report["errors"]

@@ -29,7 +29,9 @@ from builder_ii.event_ledger import (
     load_event_records,
     replay_events,
     write_event_record,
+    EVENT_RECORD_KIND,
 )
+from builder_ii.workflow_records import canonical_digest
 
 model_app = typer.Typer(help="Governed model/provider execution gateway CLI.")
 console = Console()
@@ -72,11 +74,12 @@ def _previous_event_ref(existing_records: list) -> dict | None:
         return None
     last_event, last_path = existing_records[-1]
     return {
-        "kind": last_event.get("kind"),
-        "sha256": last_event.get("payload_sha256"),
-        "event_id": last_event.get("event_id"),
-        "sequence": last_event.get("sequence"),
+        "role": "event",
+        "kind": EVENT_RECORD_KIND,
         "path": str(last_path),
+        "sha256": canonical_digest(last_event),
+        "name": str(last_event.get("event_type", "")),
+        "required": True,
     }
 
 @model_app.command("call")
