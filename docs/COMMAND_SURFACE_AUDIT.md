@@ -137,3 +137,10 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - B1.2 binds human approval to an exact verification plan digest only; it does not become runtime authority or authorize direct execution.
 - B1.2 does not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 patch authority.
 - B1.3 is still required before any approved verification can execute.
+
+
+## B1.4A command surface delta
+
+- `builder-ledger index-receipt` passively indexes an existing validated B1.3 verification execution plan/approval/receipt chain into a deterministic `builder_ii.verification_execution_ledger_record` under `.builder/ledger/`.
+- `builder ledger index-receipt` is the root-command equivalent surface.
+- B1.4A does not replay execution, run subprocesses, execute shell, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 authority.

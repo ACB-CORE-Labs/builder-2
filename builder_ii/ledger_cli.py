@@ -16,6 +16,12 @@ from builder_ii.event_ledger import (
     write_event_ledger,
     write_ledger_replay_report,
 )
+from builder_ii.verification_execution_ledger import (
+    default_verification_execution_ledger_output,
+    index_verification_execution_receipt,
+    validate_verification_execution_ledger_record,
+    write_verification_execution_ledger_record,
+)
 from builder_ii.workflow_orchestrator import WorkflowError, workflow_status
 
 ledger_app = typer.Typer(help="List, replay, audit, and export governed workflow event ledgers.")
@@ -69,6 +75,25 @@ def _resolve_output_dir(session_id: str, workflows_dir: Path) -> Path:
         if _session_id_for_dir(candidate) == session_id:
             return candidate
     raise WorkflowError(f"workflow session not found: {session_id}")
+
+
+def _path_is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_ledger_output_path(output: Path, ledger_root: Path) -> list[str]:
+    resolved_output = output.expanduser().resolve()
+    resolved_root = ledger_root.expanduser().resolve()
+    errors: list[str] = []
+    if resolved_output.exists() and resolved_output.is_dir():
+        errors.append("output path must be a file path, not a directory")
+    if not _path_is_relative_to(resolved_output, resolved_root) or resolved_output == resolved_root:
+        errors.append("output path must be under the target repo .builder/ledger directory")
+    return errors
 
 
 def _emit(value: dict[str, Any] | list[dict[str, Any]]) -> None:
@@ -196,6 +221,41 @@ def export(
             raise WorkflowError("invalid event ledger: " + "; ".join(errors))
         write_event_ledger(ledger, output or (workflow_dir / "artifacts" / "event-ledger.json"))
         return ledger
+
+    _run(action)
+
+
+@ledger_app.command("index-receipt")
+def index_receipt(
+    receipt: Path = typer.Option(..., "--receipt", help="B1.3 verification execution receipt JSON."),
+    plan: Path = typer.Option(..., "--plan", help="Referenced verification execution plan JSON."),
+    approval: Path = typer.Option(..., "--approval", help="Referenced verification execution approval JSON."),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Optional ledger record output path under .builder/ledger."),
+) -> None:
+    """Passively index a validated B1.3 receipt chain as a ledger record without replay execution."""
+
+    def action() -> dict[str, Any]:
+        try:
+            record = index_verification_execution_receipt(
+                receipt_path=receipt,
+                plan_path=plan,
+                approval_path=approval,
+            )
+        except (OSError, ValueError, json_lib.JSONDecodeError) as exc:
+            raise WorkflowError(f"failed to load receipt chain: {exc}") from exc
+        if record.get("valid") is not True:
+            raise WorkflowError("invalid verification execution receipt chain: " + "; ".join(record.get("errors") or []))
+        errors = validate_verification_execution_ledger_record(record)
+        if errors:
+            raise WorkflowError("invalid verification execution ledger record: " + "; ".join(errors))
+        target_repo = Path(str(record.get("target_repo", "."))).expanduser().resolve()
+        ledger_root = target_repo / ".builder" / "ledger"
+        output_path = output or default_verification_execution_ledger_output(record)
+        path_errors = _validate_ledger_output_path(output_path, ledger_root)
+        if path_errors:
+            raise WorkflowError("invalid ledger output path: " + "; ".join(path_errors))
+        write_verification_execution_ledger_record(record, output_path)
+        return record
 
     _run(action)
 
