@@ -43,6 +43,7 @@ def build_direct_chat_payload(
     system_prompt: str = DEFAULT_DIRECT_SYSTEM_PROMPT,
     max_tokens: int = 256,
     temperature: float | None = None,
+    override_model_id: str | None = None,
 ) -> dict[str, Any]:
     if not prompt.strip():
         raise ValueError("prompt must not be empty")
@@ -50,7 +51,7 @@ def build_direct_chat_payload(
         raise ValueError("max_tokens must be positive")
 
     payload: dict[str, Any] = {
-        "model": settings.active_model_id,
+        "model": override_model_id if override_model_id is not None else settings.active_model_id,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt},
@@ -104,6 +105,7 @@ def run_direct_chat(
     max_tokens: int = 256,
     timeout: float = 120.0,
     temperature: float | None = None,
+    override_model_id: str | None = None,
 ) -> DirectChatResult:
     url = chat_completions_url(settings)
     payload = build_direct_chat_payload(
@@ -112,6 +114,7 @@ def run_direct_chat(
         system_prompt=system_prompt,
         max_tokens=max_tokens,
         temperature=temperature,
+        override_model_id=override_model_id,
     )
 
     try:

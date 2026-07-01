@@ -938,6 +938,7 @@ def _settings_stub(alias: str = "qwen-coder") -> Settings:
         port=8080,
         temperature=0.0,
         project_root=Path("/tmp/builder-II"),
+        allow_cloud_models=False,
     )
 
 

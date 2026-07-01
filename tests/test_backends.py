@@ -37,6 +37,7 @@ def _settings(*, backend: str, base_url: str = "http://127.0.0.1:8080/v1") -> Se
         port=8080,
         temperature=0.0,
         project_root=Path("/tmp/builder-II"),
+        allow_cloud_models=False,
     )
 
 

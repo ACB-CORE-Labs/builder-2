@@ -36,6 +36,8 @@ EVENT_TYPES = {
     "goose_mutation_prevented",
     "deepagents_runtime_executed",
     "deepagents_runtime_failed",
+    "model_call_executed",
+    "model_call_failed",
 }
 
 EVENT_TYPE_STAGE = {

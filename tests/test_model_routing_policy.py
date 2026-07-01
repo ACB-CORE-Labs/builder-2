@@ -26,7 +26,7 @@ def test_routing_recommendation_valid_and_passive():
     registry = create_model_client_registry()
     request = {
         "task_intent": "coding",
-        "max_risk_classification": "local_offline",
+        "max_risk_classification": "local_network",
         "requires_tool_use": True,
     }
     rec = create_model_routing_recommendation(policy=policy, registry=registry, request=request)
@@ -42,7 +42,7 @@ def test_routing_recommendation_unknown_lane():
     registry = create_model_client_registry()
     request = {
         "task_intent": "coding",
-        "max_risk_classification": "local_offline",
+        "max_risk_classification": "local_network",
         "requires_tool_use": True,
         "required_lane": "non_existent_lane",
     }
@@ -55,7 +55,7 @@ def test_routing_recommendation_no_candidate():
     registry = create_model_client_registry()
     request = {
         "task_intent": "coding",
-        "max_risk_classification": "local_offline",
+        "max_risk_classification": "local_network",
         "requires_tool_use": True,
         "required_model_id": "claude-3-5-sonnet-stub",
     }
@@ -68,7 +68,7 @@ def test_routing_recommendation_forbidden_execution():
     registry = create_model_client_registry()
     request = {
         "task_intent": "coding",
-        "max_risk_classification": "local_offline",
+        "max_risk_classification": "local_network",
         "requires_tool_use": True,
     }
     rec = create_model_routing_recommendation(policy=policy, registry=registry, request=request)
@@ -81,7 +81,7 @@ def test_routing_recommendation_invalid_source_ref():
     registry = create_model_client_registry()
     request = {
         "task_intent": "coding",
-        "max_risk_classification": "local_offline",
+        "max_risk_classification": "local_network",
         "requires_tool_use": True,
     }
     rec = create_model_routing_recommendation(policy=policy, registry=registry, request=request)
@@ -109,10 +109,10 @@ def test_routing_policy_risk_cap_enforcement():
             break
     assert found_gpt4o, "Could not find gpt-4o-stub in default registry"
     
-    # 2. Match a rule (coding) that caps risk to local_offline
+    # 2. Match a rule (coding) that caps risk to local_network
     for rule in policy["rules"]:
         if rule["task_intent"] == "coding":
-            rule["max_risk_classification"] = "local_offline"
+            rule["max_risk_classification"] = "local_network"
             break
             
     # 3. Request with cloud_external max_risk
@@ -127,7 +127,7 @@ def test_routing_policy_risk_cap_enforcement():
     errors = validate_model_routing_recommendation(rec)
     assert errors == []
     
-    # Cloud candidate should NOT be recommended because coding rule caps at local_offline
+    # Cloud candidate should NOT be recommended because coding rule caps at local_network
     recommended_model_ids = [c["model_id"] for c in rec["recommended_candidates"]]
     assert "gpt-4o-stub" not in recommended_model_ids
     

@@ -58,9 +58,9 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | verification profile wizard | `NOT_STARTED` | R1 |
 | deepagents/researcher setup wizard | `NOT_STARTED` | R1 |
 | setup receipt + rollback artifact | `PASSIVE_FOUNDATION` | R1 |
-| model registry | `PASSIVE_FOUNDATION` | B6 |
-| model routing | `PASSIVE_FOUNDATION` | B6 |
-| model/provider execution | `MERGED_BUT_NOT_OPERATIONAL` | B6 |
+| model registry | `OPERATIONALLY_VERIFIED` | B7 |
+| model routing | `OPERATIONALLY_VERIFIED` | B7 |
+| model/provider execution | `OPERATIONALLY_VERIFIED` | B7 |
 | tool registry | `PASSIVE_FOUNDATION` | B7 |
 | MCP/tool invocation | `DESIGN_ONLY` | B7 |
 | passive orchestration assignment | `PASSIVE_FOUNDATION` | B5 |

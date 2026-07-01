@@ -413,7 +413,7 @@ def plan_workflow(
         registry=model_registry,
         request={
             "task_intent": "coding",
-            "max_risk_classification": "local_offline",
+            "max_risk_classification": "local_network",
             "requires_tool_use": True,
         },
         policy_path=model_policy_path,

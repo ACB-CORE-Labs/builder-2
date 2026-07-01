@@ -42,7 +42,7 @@ def _default_routing_rules() -> list[dict[str, Any]]:
         {
             "rule_id": "coding_local_default",
             "task_intent": "coding",
-            "max_risk_classification": "local_offline",
+            "max_risk_classification": "local_network",
             "requires_tool_use": True,
             "preferred_model_family": "qwen2.5",
             "preferred_model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
@@ -51,7 +51,7 @@ def _default_routing_rules() -> list[dict[str, Any]]:
         {
             "rule_id": "reasoning_local_default",
             "task_intent": "reasoning",
-            "max_risk_classification": "local_offline",
+            "max_risk_classification": "local_network",
             "requires_tool_use": False,
             "preferred_model_family": "phi3",
             "preferred_model_id": "mlx-community/Phi-3.5-mini-instruct-4bit",
@@ -207,9 +207,9 @@ def create_model_routing_recommendation(
     if registry_errors:
         raise ValueError(f"Invalid model client registry: {registry_errors}")
 
-    req = request or {"task_intent": "coding", "max_risk_classification": "local_offline", "requires_tool_use": True}
+    req = request or {"task_intent": "coding", "max_risk_classification": "local_network", "requires_tool_use": True}
     req_intent = req.get("task_intent", "coding")
-    req_max_risk = req.get("max_risk_classification", "local_offline")
+    req_max_risk = req.get("max_risk_classification", "local_network")
     if req_max_risk not in _RISK_HIERARCHY:
         raise ValueError(f"Unknown max_risk_classification in request: '{req_max_risk}'")
     max_risk_num = _RISK_HIERARCHY[req_max_risk]
@@ -430,3 +430,114 @@ def validate_model_routing_recommendation(record: Any) -> list[str]:
                 errors.append(f"field '{k}' claims active authority state '{v}'")
 
     return errors
+
+MODEL_EXECUTION_POLICY_KIND = "builder_ii.model_execution_policy"
+MODEL_EXECUTION_POLICY_SCHEMA_VERSION = 1
+
+def create_model_execution_policy(recommendation: dict[str, Any], max_tokens: int = 4096) -> dict[str, Any]:
+    """Create a bounded model execution policy artifact.
+
+    This is an operator-scoped execution policy. It does NOT grant authority; authority
+    remains with the command authority registry (builder-model call / standalone-call) and
+    explicit operator invocation. This artifact records the approved model set and token
+    limits for a single governed call session.
+    """
+    return {
+        "kind": MODEL_EXECUTION_POLICY_KIND,
+        "schema_version": MODEL_EXECUTION_POLICY_SCHEMA_VERSION,
+        "policy_state": "AUTHORIZED",
+        "executes_model": True,
+        "grants_authority": False,
+        "operator_approval_required": True,
+        "requires_human_promotion_for_execution": True,
+        "max_tokens": max_tokens,
+        "source_recommendation_ref": {
+            "kind": MODEL_ROUTING_RECOMMENDATION_KIND,
+            "sha256": _digest(recommendation)
+        },
+        "allowed_models": [cand["model_id"] for cand in recommendation.get("recommended_candidates", [])],
+        "governance": {
+            "model_execution": "ENABLED_UNDER_ENVELOPE",
+            "runtime_execution": "DISABLED",
+            "network_calls": "DISABLED",
+            "shell_execution": "DISABLED",
+            "provider_calls": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
+    }
+
+def dumps_model_execution_policy(policy: dict[str, Any]) -> str:
+    return json_lib.dumps(policy, indent=2, sort_keys=True) + "\n"
+
+def write_model_execution_policy(policy: dict[str, Any], output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(dumps_model_execution_policy(policy), encoding="utf-8")
+
+def validate_model_execution_policy(record: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return ["model execution policy must be a JSON object"]
+    if record.get("kind") != MODEL_EXECUTION_POLICY_KIND:
+        errors.append(f"kind must be {MODEL_EXECUTION_POLICY_KIND}")
+    if record.get("schema_version") != MODEL_EXECUTION_POLICY_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {MODEL_EXECUTION_POLICY_SCHEMA_VERSION}")
+    if record.get("policy_state") != "AUTHORIZED":
+        errors.append("policy_state must be AUTHORIZED")
+    if record.get("executes_model") is not True:
+        errors.append("executes_model must be true")
+    # Execution policy must NOT claim hidden authority; authority comes from command
+    # authority registry and explicit operator invocation only.
+    if record.get("grants_authority") is not False:
+        errors.append("grants_authority must be false — execution policy is a bounded artifact, not an authority source")
+    if record.get("requires_human_promotion_for_execution") is not True:
+        errors.append("requires_human_promotion_for_execution must be true")
+
+    if not isinstance(record.get("max_tokens"), int) or record["max_tokens"] <= 0:
+        errors.append("max_tokens must be a positive integer")
+
+    rec_ref = record.get("source_recommendation_ref")
+    if not isinstance(rec_ref, dict):
+        errors.append("source_recommendation_ref must be an object")
+    else:
+        if rec_ref.get("kind") != MODEL_ROUTING_RECOMMENDATION_KIND:
+            errors.append(f"source_recommendation_ref.kind must be {MODEL_ROUTING_RECOMMENDATION_KIND}")
+        if not isinstance(rec_ref.get("sha256"), str) or not _SHA256_RE.match(rec_ref["sha256"]):
+            errors.append("source_recommendation_ref.sha256 must be a valid SHA-256 digest")
+
+    allowed_models = record.get("allowed_models")
+    if not isinstance(allowed_models, list) or not allowed_models:
+        errors.append("allowed_models must be a non-empty list")
+    else:
+        for idx, mod in enumerate(allowed_models):
+            if not isinstance(mod, str) or not mod:
+                errors.append(f"allowed_models[{idx}] must be a non-empty string")
+            elif mod not in KNOWN_MODEL_IDS:
+                errors.append(f"allowed_models[{idx}] '{mod}' is unknown")
+
+    governance = record.get("governance")
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        if governance.get("model_execution") != "ENABLED_UNDER_ENVELOPE":
+            errors.append("governance.model_execution must be ENABLED_UNDER_ENVELOPE")
+        for key in ("runtime_execution", "network_calls", "shell_execution", "provider_calls"):
+            if governance.get(key) != "DISABLED":
+                errors.append(f"governance.{key} must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
+
+    return errors
+
+def validate_model_execution_policy_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as exc:
+        return [f"invalid JSON: {exc}"]
+    except Exception as exc:
+        return [f"failed to read file: {exc}"]
+    return validate_model_execution_policy(data)
