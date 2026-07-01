@@ -111,7 +111,7 @@ def render(
         help="Optional path to model client registry JSON",
     ),
     task_intent: str = typer.Option("coding", "--task-intent", help="Task intent: coding or reasoning"),
-    max_risk: str = typer.Option("local_offline", "--max-risk", help="Max allowed risk classification"),
+    max_risk: str = typer.Option("local_network", "--max-risk", help="Max allowed risk classification"),
     requires_tools: bool = typer.Option(True, "--requires-tools/--no-tools", help="Whether tool use is required"),
     output: Path | None = typer.Option(None, "--output", "-o", help="Write recommendation report JSON to this path"),
 ) -> None:
@@ -191,7 +191,7 @@ def dry_run(
         policy_path=policy_path,
         registry_path=registry_path,
         task_intent="coding",
-        max_risk="local_offline",
+        max_risk="local_network",
         requires_tools=True,
         output=output,
     )

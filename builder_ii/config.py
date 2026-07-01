@@ -169,6 +169,7 @@ class Settings:
     port: int
     temperature: float
     project_root: Path
+    allow_cloud_models: bool
 
     @property
     def active_model(self) -> str:
@@ -291,4 +292,5 @@ def load_settings(project_root: Path | None = None) -> Settings:
         port=int(_env("BUILDER_MODEL_PORT", "CORE_AGENT_PORT", "8080")),
         temperature=float(_env("BUILDER_MODEL_TEMPERATURE", "CORE_AGENT_TEMPERATURE", "0.0")),
         project_root=root,
+        allow_cloud_models=_env("BUILDER_ALLOW_CLOUD_MODELS", "CORE_AGENT_ALLOW_CLOUD_MODELS", "false").lower() in ("true", "1", "yes"),
     )

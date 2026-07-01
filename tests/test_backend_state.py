@@ -26,6 +26,7 @@ def settings_stub(tmp_path: Path, *, alias: str = "qwen-coder", model_id: str = 
         port=8080,
         temperature=0.0,
         project_root=tmp_path,
+        allow_cloud_models=False,
     )
 
 

@@ -27,6 +27,7 @@ def _settings_with_base_url(base_url: str) -> Settings:
         port=8080,
         temperature=0.0,
         project_root=existing_root,
+        allow_cloud_models=False,
     )
 
 

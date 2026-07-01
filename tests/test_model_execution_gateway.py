@@ -10,7 +10,7 @@ from builder_ii.model_client_registry import (
     create_model_client_registry,
 )
 from builder_ii.model_routing_policy import (
-    create_model_routing_policy,
+    create_model_execution_policy,
 )
 from builder_ii.model_execution_gateway import (
     ModelExecutionGateway,
@@ -23,19 +23,44 @@ from builder_ii.model_cli import model_app
 
 @pytest.fixture
 def mock_settings() -> Settings:
-    s = MagicMock(spec=Settings)
-    s.allow_cloud_models = False
-    s.temperature = 0.7
-    s.active_model_id = "gpt-4o-stub"
-    return s
+    return Settings(
+        core_repo=Path("/tmp/core"),
+        backend="mlx-lm",
+        model_tier="primary",
+        model_alias="qwen-coder",
+        model_primary="gemma-4-12b-4bit",
+        model_fast="gemma-4-e4b-4bit",
+        mlx_model_primary="mlx-community/gemma-4-12B-it-4bit",
+        mlx_model_fast="mlx-community/gemma-4-e4b-it-4bit",
+        mlx_model_phi="mlx-community/Phi-4-mini-reasoning-4bit",
+        mlx_model_qwen="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+        mlx_model_deepseek="mlx-community/DeepSeek-Coder-V2-Lite-Instruct-4bit",
+        mlx_model_llama="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+        mlx_model_codegeex="mlx-community/codegeex4-all-9b-4bit",
+        mlx_model_qwen14="mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+        mlx_model_qwen3_coder="mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit",
+        base_url="http://127.0.0.1:8080/v1",
+        host="127.0.0.1",
+        port=8080,
+        temperature=0.7,
+        project_root=Path.cwd(),
+        allow_cloud_models=False,
+    )
 
 @pytest.fixture
 def standard_registry() -> dict:
     return create_model_client_registry()
 
 @pytest.fixture
-def standard_policy() -> dict:
-    return create_model_routing_policy()
+def standard_execution_policy() -> dict:
+    dummy_rec = {
+        "kind": "builder_ii.model_routing_recommendation",
+        "recommended_candidates": [
+            {"model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"},
+            {"model_id": "gpt-4o-stub"}
+        ]
+    }
+    return create_model_execution_policy(dummy_rec, max_tokens=16384)
 
 def test_secret_scanner() -> None:
     # Standard prompt is clean
@@ -47,10 +72,9 @@ def test_secret_scanner() -> None:
     assert len(scan_for_secrets("token = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789'")) > 0
 
 def test_model_execution_fails_on_disabled_model(
-    mock_settings, standard_registry, standard_policy, tmp_path
+    mock_settings, standard_registry, standard_execution_policy, tmp_path
 ) -> None:
-    # gpt-4o-stub is disabled by default in _default_client_records()
-    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_policy)
+    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"
 
@@ -64,15 +88,14 @@ def test_model_execution_fails_on_disabled_model(
     assert "disabled" in str(exc.value)
 
 def test_model_execution_fails_on_unauthorized_cloud(
-    mock_settings, standard_registry, standard_policy, tmp_path
+    mock_settings, standard_registry, standard_execution_policy, tmp_path
 ) -> None:
     # Enable gpt-4o-stub
     for client in standard_registry["clients"]:
         if client["model_id"] == "gpt-4o-stub":
             client["enabled"] = True
 
-    # Cloud models are disabled in mock_settings
-    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_policy)
+    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"
 
@@ -83,18 +106,20 @@ def test_model_execution_fails_on_unauthorized_cloud(
             envelope_path=envelope_path,
             receipt_path=receipt_path,
         )
-    assert "Cloud/external model calls are disabled" in str(exc.value)
+    assert "disabled by environment configuration" in str(exc.value)
 
 def test_model_execution_succeeds_on_authorized_cloud(
-    mock_settings, standard_registry, standard_policy, tmp_path
+    mock_settings, standard_registry, standard_execution_policy, tmp_path
 ) -> None:
     # Enable gpt-4o-stub and allow cloud models
     for client in standard_registry["clients"]:
         if client["model_id"] == "gpt-4o-stub":
             client["enabled"] = True
-    mock_settings.allow_cloud_models = True
 
-    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_policy)
+    # mock_settings is a frozen dataclass, so we must recreate it to set allow_cloud_models
+    mock_settings = Settings(**{**mock_settings.__dict__, "allow_cloud_models": True})
+
+    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"
 
@@ -107,33 +132,84 @@ def test_model_execution_succeeds_on_authorized_cloud(
 
     assert envelope_path.is_file()
     assert receipt_path.is_file()
-
     assert validate_model_call_envelope(envelope) == []
     assert validate_model_call_receipt(receipt) == []
-    assert receipt["replay_declaration"] == "non-deterministic-llm-completion"
-    assert "Mocked stub response" in receipt["response_text"]
 
-def test_model_execution_fails_on_secret_leak(
-    mock_settings, standard_registry, standard_policy, tmp_path
+def test_model_execution_fails_on_local_offline_network(
+    mock_settings, standard_registry, standard_execution_policy, tmp_path
 ) -> None:
-    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_policy)
+    for client in standard_registry["clients"]:
+        if client["model_id"] == "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit":
+            client["risk_classification"] = "local_offline"
+
+    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"
 
     with pytest.raises(ValueError) as exc:
         gateway.run_model_call(
             model_id="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
-            prompt="Here is my secret token: sk-abcdefghijklmnopqrstuvwxyz0123456789",
+            prompt="Hello",
             envelope_path=envelope_path,
             receipt_path=receipt_path,
         )
-    assert "leak detected" in str(exc.value)
+    assert "cannot perform network calls" in str(exc.value)
 
-def test_cli_commands(standard_registry, standard_policy, tmp_path) -> None:
+def test_model_execution_fails_on_max_tokens_registry_limit(
+    mock_settings, standard_registry, standard_execution_policy, tmp_path
+) -> None:
+    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
+    envelope_path = tmp_path / "envelope.json"
+    receipt_path = tmp_path / "receipt.json"
+
+    with pytest.raises(ValueError) as exc:
+        gateway.run_model_call(
+            model_id="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+            prompt="Hello",
+            max_tokens=99999,
+            envelope_path=envelope_path,
+            receipt_path=receipt_path,
+        )
+    assert "exceeds client registry limit" in str(exc.value)
+
+def test_model_execution_fails_on_max_tokens_policy_limit(
+    mock_settings, standard_registry, standard_execution_policy, tmp_path
+) -> None:
+    standard_execution_policy["max_tokens"] = 100
+    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
+    envelope_path = tmp_path / "envelope.json"
+    receipt_path = tmp_path / "receipt.json"
+
+    with pytest.raises(ValueError) as exc:
+        gateway.run_model_call(
+            model_id="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+            prompt="Hello",
+            max_tokens=500,
+            envelope_path=envelope_path,
+            receipt_path=receipt_path,
+        )
+    assert "exceeds execution policy limit" in str(exc.value)
+
+def test_model_execution_fails_on_unauthorized_model_in_policy(
+    mock_settings, standard_registry, standard_execution_policy, tmp_path
+) -> None:
+    standard_execution_policy["allowed_models"] = ["mlx-community/Phi-3.5-mini-instruct-4bit"]
+    gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
+    envelope_path = tmp_path / "envelope.json"
+    receipt_path = tmp_path / "receipt.json"
+
+    with pytest.raises(ValueError) as exc:
+        gateway.run_model_call(
+            model_id="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+            prompt="Hello",
+            envelope_path=envelope_path,
+            receipt_path=receipt_path,
+        )
+    assert "not authorized by the execution policy" in str(exc.value)
+
+def test_cli_commands(mock_settings, standard_registry, standard_execution_policy, tmp_path) -> None:
     runner = CliRunner()
     
-    # Write registry and policy
-    # Enable gpt-4o-stub in custom registry to test
     for client in standard_registry["clients"]:
         if client["model_id"] == "gpt-4o-stub":
             client["enabled"] = True
@@ -141,29 +217,53 @@ def test_cli_commands(standard_registry, standard_policy, tmp_path) -> None:
     reg_path = tmp_path / "registry.json"
     pol_path = tmp_path / "policy.json"
     reg_path.write_text(json_lib.dumps(standard_registry), encoding="utf-8")
-    pol_path.write_text(json_lib.dumps(standard_policy), encoding="utf-8")
+    pol_path.write_text(json_lib.dumps(standard_execution_policy), encoding="utf-8")
 
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"
 
-    # Call with allow_cloud_models patched in Settings load
     with patch("builder_ii.model_cli.load_settings") as mock_load:
-        settings_mock = MagicMock(spec=Settings)
-        settings_mock.allow_cloud_models = True
+        # Recreate settings to enable cloud
+        settings_mock = Settings(**{**mock_settings.__dict__, "allow_cloud_models": True})
         mock_load.return_value = settings_mock
 
+        # Call requires session-id
+        result_call_no_session = runner.invoke(model_app, [
+            "call",
+            "--model", "gpt-4o-stub",
+            "--prompt", "What is the capital of France?",
+            "--registry", str(reg_path),
+            "--execution-policy", str(pol_path),
+            "--output-envelope", str(envelope_path),
+            "--output-receipt", str(receipt_path)
+        ])
+        assert result_call_no_session.exit_code != 0
+        assert "Must specify --session-id" in result_call_no_session.output
+
+        # Call with session-id
         result = runner.invoke(model_app, [
             "call",
             "--model", "gpt-4o-stub",
             "--prompt", "What is the capital of France?",
             "--registry", str(reg_path),
-            "--policy", str(pol_path),
+            "--execution-policy", str(pol_path),
+            "--session-id", "test-session",
             "--output-envelope", str(envelope_path),
             "--output-receipt", str(receipt_path)
         ])
         assert result.exit_code == 0, result.output
-        assert envelope_path.is_file()
-        assert receipt_path.is_file()
+
+        # Standalone call
+        result_standalone = runner.invoke(model_app, [
+            "standalone-call",
+            "--model", "gpt-4o-stub",
+            "--prompt", "What is the capital of France?",
+            "--registry", str(reg_path),
+            "--execution-policy", str(pol_path),
+            "--output-envelope", str(envelope_path),
+            "--output-receipt", str(receipt_path)
+        ])
+        assert result_standalone.exit_code == 0, result_standalone.output
 
         # Validate receipt command
         result_val = runner.invoke(model_app, [

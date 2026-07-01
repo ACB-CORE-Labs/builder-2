@@ -14,7 +14,7 @@ from builder_ii.model_client_registry import (
     validate_model_client_registry,
 )
 from builder_ii.model_routing_policy import (
-    validate_model_routing_policy,
+    validate_model_execution_policy,
 )
 from builder_ii.direct_chat import run_direct_chat, DirectChatResult
 
@@ -257,16 +257,16 @@ def validate_model_call_receipt_file(path: Path) -> list[str]:
     return validate_model_call_receipt(data)
 
 class ModelExecutionGateway:
-    def __init__(self, settings: Settings, registry: dict[str, Any], policy: dict[str, Any]):
+    def __init__(self, settings: Settings, registry: dict[str, Any], execution_policy: dict[str, Any]):
         reg_errs = validate_model_client_registry(registry)
         if reg_errs:
             raise ValueError(f"invalid model client registry: {'; '.join(reg_errs)}")
-        pol_errs = validate_model_routing_policy(policy)
+        pol_errs = validate_model_execution_policy(execution_policy)
         if pol_errs:
-            raise ValueError(f"invalid model routing policy: {'; '.join(pol_errs)}")
+            raise ValueError(f"invalid model execution policy: {'; '.join(pol_errs)}")
         self.settings = settings
         self.registry = registry
-        self.policy = policy
+        self.execution_policy = execution_policy
 
     def run_model_call(
         self,
@@ -301,12 +301,23 @@ class ModelExecutionGateway:
         if not client_record.get("enabled"):
             raise ValueError(f"Model '{model_id}' is disabled in client registry")
 
+        if model_id not in self.execution_policy.get("allowed_models", []):
+            raise ValueError(f"Model ID '{model_id}' is not authorized by the execution policy")
+
+        if max_tokens > client_record.get("max_output_tokens", 0):
+            raise ValueError(f"Requested max_tokens {max_tokens} exceeds client registry limit {client_record.get('max_output_tokens')}")
+
+        if max_tokens > self.execution_policy.get("max_tokens", 0):
+            raise ValueError(f"Requested max_tokens {max_tokens} exceeds execution policy limit {self.execution_policy.get('max_tokens')}")
+
         # Check policy risk classification constraints
         risk_level = client_record.get("risk_classification")
         if risk_level == "cloud_external":
             # Check policy / settings for permissions
             if not self.settings.allow_cloud_models:
                 raise ValueError("Cloud/external model calls are disabled by environment configuration")
+        elif risk_level == "local_offline":
+            raise ValueError("local_offline risk classification cannot perform network calls to execution backends")
 
         # Create envelope
         session_id = f"session-{_digest({'prompt': prompt})[:12]}"
@@ -340,6 +351,10 @@ class ModelExecutionGateway:
         }
         envelope["digest"] = _digest(envelope)
 
+        env_errors = validate_model_call_envelope(envelope)
+        if env_errors:
+            raise ValueError(f"Generated envelope failed validation: {'; '.join(env_errors)}")
+
         envelope_path.parent.mkdir(parents=True, exist_ok=True)
         envelope_path.write_text(json_lib.dumps(envelope, indent=2, sort_keys=True), encoding="utf-8")
 
@@ -351,16 +366,13 @@ class ModelExecutionGateway:
             output_tokens = len(result_text.split())
         else:
             # Run local offline/network call
-            # Use settings with overridden active_model_id
-            call_settings = Settings(
-                **{**self.settings.__dict__, "active_model_id": model_id}
-            )
             chat_res: DirectChatResult = run_direct_chat(
-                call_settings,
+                self.settings,
                 prompt=prompt,
                 system_prompt=system_prompt if system_prompt else "Answer helpfully.",
                 max_tokens=max_tokens,
                 temperature=temperature,
+                override_model_id=model_id,
             )
             if not chat_res.ok:
                 raise RuntimeError(f"Model execution failed: {chat_res.error}")
@@ -405,6 +417,10 @@ class ModelExecutionGateway:
             "governance": _default_governance("model_call"),
         }
         receipt["digest"] = _digest(receipt)
+
+        rec_errors = validate_model_call_receipt(receipt)
+        if rec_errors:
+            raise ValueError(f"Generated receipt failed validation: {'; '.join(rec_errors)}")
 
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         receipt_path.write_text(json_lib.dumps(receipt, indent=2, sort_keys=True), encoding="utf-8")

@@ -15,6 +15,8 @@ from builder_ii.model_client_registry import (
 from builder_ii.model_routing_policy import (
     create_model_routing_policy,
     validate_model_routing_policy,
+    validate_model_execution_policy,
+
 )
 from builder_ii.model_execution_gateway import (
     ModelExecutionGateway,
@@ -54,7 +56,7 @@ def call_cmd(
     max_tokens: int = typer.Option(256, "--max-tokens", help="Maximum tokens to generate."),
     temperature: float | None = typer.Option(None, "--temperature", help="Sampling temperature."),
     registry_path: Path | None = typer.Option(None, "--registry", help="Optional path to model client registry JSON."),
-    policy_path: Path | None = typer.Option(None, "--policy", help="Optional path to model routing policy JSON."),
+    execution_policy_path: Path | None = typer.Option(None, "--execution-policy", help="Path to model execution policy JSON."),
     output_envelope: Path = typer.Option(..., "--output-envelope", help="Path to write the generated envelope JSON."),
     output_receipt: Path = typer.Option(..., "--output-receipt", help="Path to write the execution receipt JSON."),
     session_id: str | None = typer.Option(None, "--session-id", help="Optional workflow session ID to log the event."),
@@ -79,10 +81,21 @@ def call_cmd(
 
     # Load registry and policy
     registry = _read_json(registry_path, create_model_client_registry)
-    policy = _read_json(policy_path, create_model_routing_policy)
+    if execution_policy_path is None:
+        console.print("[red]Must specify --execution-policy[/]")
+        raise typer.Exit(1)
+    if not execution_policy_path.is_file():
+        console.print(f"[red]Execution policy file not found: {execution_policy_path}[/]")
+        raise typer.Exit(1)
+    import json as json_lib
+    execution_policy = json_lib.loads(execution_policy_path.read_text(encoding="utf-8"))
 
     settings = load_settings()
-    gateway = ModelExecutionGateway(settings, registry, policy)
+    gateway = ModelExecutionGateway(settings, registry, execution_policy)
+    
+    if not session_id:
+        console.print("[red]Must specify --session-id for operational call. Use standalone-call if ledger is not required.[/]")
+        raise typer.Exit(1)
 
     try:
         envelope, receipt = gateway.run_model_call(
@@ -120,11 +133,11 @@ def call_cmd(
                 subject_refs=[],
                 command_surface="builder-model call",
                 policy_snapshot_ref={
-                    "kind": "builder_ii.model_routing_policy",
-                    "sha256": hashlib.sha256(json_lib.dumps(policy, sort_keys=True).encode("utf-8")).hexdigest(),
-                    "role": "model_routing_policy",
+                    "kind": "builder_ii.model_execution_policy",
+                    "sha256": hashlib.sha256(json_lib.dumps(execution_policy, sort_keys=True).encode("utf-8")).hexdigest(),
+                    "role": "model_execution_policy",
                     "required": True
-                } if policy else {},
+                } if execution_policy else {},
                 message=f"Model call failed: {exc}",
             )
             write_event_record(event_record, events_dir / f"{sequence:03d}_model_call_failed.json")
@@ -174,11 +187,75 @@ def call_cmd(
             stage=current_stage,
             subject_refs=[envelope_ref, receipt_ref],
             command_surface="builder-model call",
-            policy_snapshot_ref=_get_ref(policy, policy_path or Path("policy.json"), "model_routing_policy"),
+            policy_snapshot_ref=_get_ref(execution_policy, execution_policy_path, "model_execution_policy"),
             message=f"Model call executed: {model}",
         )
         write_event_record(event_record, events_dir / f"{sequence:03d}_model_call_executed.json")
         console.print(f"Workflow event logged to ledger.")
+
+
+@model_app.command("standalone-call")
+def standalone_call_cmd(
+    model: str = typer.Option(..., "--model", help="Model ID (e.g. gpt-4o-stub) to call."),
+    prompt: str | None = typer.Option(None, "--prompt", help="Text prompt to send to the model."),
+    prompt_file: Path | None = typer.Option(None, "--prompt-file", help="Path to a file containing the prompt text."),
+    system_prompt: str | None = typer.Option(None, "--system-prompt", help="System prompt to override defaults."),
+    max_tokens: int = typer.Option(256, "--max-tokens", help="Maximum tokens to generate."),
+    temperature: float | None = typer.Option(None, "--temperature", help="Sampling temperature."),
+    registry_path: Path | None = typer.Option(None, "--registry", help="Optional path to model client registry JSON."),
+    execution_policy_path: Path | None = typer.Option(None, "--execution-policy", help="Path to model execution policy JSON."),
+    output_envelope: Path = typer.Option(..., "--output-envelope", help="Path to write the generated envelope JSON."),
+    output_receipt: Path = typer.Option(..., "--output-receipt", help="Path to write the execution receipt JSON."),
+) -> None:
+    """Execute a governed model call without logging to the ledger."""
+    # Resolve prompt
+    actual_prompt = ""
+    if prompt is not None:
+        actual_prompt = prompt
+    elif prompt_file is not None:
+        if not prompt_file.is_file():
+            console.print(f"[red]Prompt file not found: {prompt_file}[/]")
+            raise typer.Exit(1)
+        actual_prompt = prompt_file.read_text(encoding="utf-8")
+    else:
+        console.print("[red]Must specify either --prompt or --prompt-file[/]")
+        raise typer.Exit(1)
+
+    if not actual_prompt.strip():
+        console.print("[red]Prompt must not be empty[/]")
+        raise typer.Exit(1)
+
+    # Load registry and policy
+    registry = _read_json(registry_path, create_model_client_registry)
+    if execution_policy_path is None:
+        console.print("[red]Must specify --execution-policy[/]")
+        raise typer.Exit(1)
+    if not execution_policy_path.is_file():
+        console.print(f"[red]Execution policy file not found: {execution_policy_path}[/]")
+        raise typer.Exit(1)
+    import json as json_lib
+    execution_policy = json_lib.loads(execution_policy_path.read_text(encoding="utf-8"))
+
+    settings = load_settings()
+    gateway = ModelExecutionGateway(settings, registry, execution_policy)
+
+    try:
+        envelope, receipt = gateway.run_model_call(
+            model_id=model,
+            prompt=actual_prompt,
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            envelope_path=output_envelope,
+            receipt_path=output_receipt,
+        )
+    except Exception as exc:
+        console.print(f"[red]Model execution failed: {exc}[/]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]Standalone model call executed successfully.[/]")
+    console.print(f"Envelope written to: {output_envelope}")
+    console.print(f"Receipt written to: {output_receipt}")
 
 @model_app.command("validate-receipt")
 def validate_receipt_cmd(
