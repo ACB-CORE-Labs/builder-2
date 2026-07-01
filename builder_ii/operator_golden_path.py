@@ -66,7 +66,8 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
     for row in REQUIRED_CAPABILITY_ROWS:
         # Check real evidence files
         has_evidence = len(row.evidence_files) > 0 and all(Path(f).exists() for f in row.evidence_files)
-        if has_evidence:
+        
+        if row.state == "OPERATIONALLY_VERIFIED" and has_evidence:
             if row.command_surfaces:
                 exercised.append({"capability": row.capability, "status": "exercised"})
             else:
@@ -74,31 +75,60 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
         else:
             if row.state == "DISABLED":
                 status = "skipped_disabled"
-            elif row.state in ("PASSIVE_FOUNDATION", "ARTIFACT_ONLY", "MERGED_BUT_NOT_OPERATIONAL", "DESIGN_ONLY"):
-                status = "skipped_missing_evidence"
             elif row.state == "NOT_STARTED":
                 status = "unavailable"
+            elif row.state in (
+                "PASSIVE_FOUNDATION",
+                "ARTIFACT_ONLY",
+                "MERGED_BUT_NOT_OPERATIONAL",
+                "DESIGN_ONLY",
+                "IMPLEMENTED_ON_BRANCH",
+                "PR_OPEN",
+                "OPERATIONALLY_VERIFIED",
+            ):
+                status = "skipped_missing_evidence"
             else:
                 status = "not_applicable"
 
-            skipped.append({
+            entry = {
                 "capability": row.capability,
                 "status": status,
-                "reason": f"State is {row.state} and evidence files are missing."
-            })
-            known_gaps.append(f"{row.capability} ({row.state})")
+            }
+            if has_evidence:
+                entry["surface_present"] = True
+                entry["reason"] = f"Surface exists (evidence files are present) but the capability state is '{row.state}', which is not operationally verified."
+            else:
+                entry["surface_present"] = False
+                entry["reason"] = f"State is {row.state} and evidence files are missing."
+
+            skipped.append(entry)
+            
+            if row.state != "OPERATIONALLY_VERIFIED":
+                known_gaps.append(f"{row.capability} ({row.state})")
 
     # 4. Check B8 memory index evidence
     memory_status = "skipped_missing_evidence"
     default_memory_index = Path(".builder/artifacts/memory-index.json")
     if default_memory_index.is_file():
         memory_status = "available"
+    else:
+        skipped.append({
+            "capability": "memory_status",
+            "status": "skipped_missing_evidence",
+            "reason": "Missing B8 memory index evidence."
+        })
 
     # 5. Check Ledger/artifact chain evidence
     ledger_status = "skipped_missing_evidence"
     default_ledger = Path(".builder/artifacts/event-ledger.json")
     if default_ledger.is_file():
         ledger_status = "available"
+    else:
+        skipped.append({
+            "capability": "ledger_status",
+            "status": "skipped_missing_evidence",
+            "reason": "Missing Ledger/artifact chain evidence."
+        })
 
     generated_artifacts = [
         {
@@ -224,6 +254,91 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
                 errors.append(f"governance.{key} must be false")
         if gov.get("no_source_truth_inflation") is not True:
             errors.append("governance.no_source_truth_inflation must be true")
+
+    known_gaps = record.get("known_gaps", [])
+    skipped_caps = record.get("skipped_capabilities", [])
+
+    # 1. Reject exercised capabilities that are not OPERATIONALLY_VERIFIED
+    capability_states = {row.capability: row.state for row in REQUIRED_CAPABILITY_ROWS}
+    exercised_caps = record.get("exercised_capabilities", [])
+    if isinstance(exercised_caps, list):
+        for entry in exercised_caps:
+            if isinstance(entry, dict):
+                cap_name = entry.get("capability")
+                state = capability_states.get(cap_name)
+                if state != "OPERATIONALLY_VERIFIED":
+                    errors.append(f"truth inflation: capability '{cap_name}' is in exercised_capabilities but its state is '{state}', not 'OPERATIONALLY_VERIFIED'")
+
+    # 2. Reject skipped capability statuses outside the allowed set
+    ALLOWED_SKIPPED_STATUSES = {"skipped_disabled", "skipped_missing_evidence", "unavailable", "not_applicable"}
+    if isinstance(skipped_caps, list):
+        for entry in skipped_caps:
+            if isinstance(entry, dict):
+                status = entry.get("status")
+                if status not in ALLOWED_SKIPPED_STATUSES:
+                    errors.append(f"invalid skipped status: status '{status}' for capability '{entry.get('capability')}' is not in allowed set {ALLOWED_SKIPPED_STATUSES}")
+
+    # 3. Load referenced next report if available
+    next_data = None
+    evidence_refs = record.get("evidence_refs", [])
+    if isinstance(evidence_refs, list):
+        for ref in evidence_refs:
+            if isinstance(ref, dict) and ref.get("artifact") == "builder_ii.operator_next_report":
+                next_path = ref.get("path")
+                if next_path and Path(next_path).is_file():
+                    try:
+                        import json
+                        next_data = json.loads(Path(next_path).read_text(encoding="utf-8"))
+                    except Exception:
+                        pass
+                    break
+
+    # 4. Reject empty known_gaps / empty skipped_capabilities if next report has incomplete actions (or fallback to codebase state)
+    if next_data is not None:
+        next_actions = next_data.get("ordered_next_actions", [])
+        if len(next_actions) > 0:
+            if isinstance(known_gaps, list) and len(known_gaps) == 0:
+                errors.append("truth inflation: known_gaps is empty but next report shows incomplete capabilities")
+            if isinstance(skipped_caps, list) and len(skipped_caps) == 0:
+                errors.append("truth inflation: skipped_capabilities is empty but next report has incomplete capabilities")
+    else:
+        # Fallback if next report file is not accessible
+        has_incomplete = any(row.state != "OPERATIONALLY_VERIFIED" for row in REQUIRED_CAPABILITY_ROWS)
+        if has_incomplete:
+            if isinstance(known_gaps, list) and len(known_gaps) == 0:
+                errors.append("truth inflation: known_gaps is empty but codebase has incomplete capabilities")
+            if isinstance(skipped_caps, list) and len(skipped_caps) == 0:
+                errors.append("truth inflation: skipped_capabilities is empty but codebase has incomplete capabilities")
+
+    # 5. Reject if memory_status/ledger_status is skipped but no entry in skipped_capabilities references them
+    memory_status = record.get("memory_status")
+    ledger_status = record.get("ledger_status")
+
+    if memory_status == "skipped_missing_evidence":
+        has_memory_ref = False
+        if isinstance(skipped_caps, list):
+            for entry in skipped_caps:
+                if isinstance(entry, dict):
+                    cap = str(entry.get("capability", "")).lower()
+                    reason = str(entry.get("reason", "")).lower()
+                    if "memory" in cap or "memory" in reason:
+                        has_memory_ref = True
+                        break
+        if not has_memory_ref:
+            errors.append("memory_status is skipped_missing_evidence but no entry in skipped_capabilities references memory evidence")
+
+    if ledger_status == "skipped_missing_evidence":
+        has_ledger_ref = False
+        if isinstance(skipped_caps, list):
+            for entry in skipped_caps:
+                if isinstance(entry, dict):
+                    cap = str(entry.get("capability", "")).lower()
+                    reason = str(entry.get("reason", "")).lower()
+                    if "ledger" in cap or "artifact-chain" in cap or "ledger" in reason or "artifact-chain" in reason:
+                        has_ledger_ref = True
+                        break
+        if not has_ledger_ref:
+            errors.append("ledger_status is skipped_missing_evidence but no entry in skipped_capabilities references ledger/artifact-chain evidence")
 
     digest = record.get("report_digest")
     if digest:
