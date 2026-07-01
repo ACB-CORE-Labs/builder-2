@@ -14,7 +14,7 @@ Capability state: artifact_only / validation_only
 ## The Eight Promotion Gates
 
 1. **Docs**: This document serves as the formal boundary specification.
-2. **Tests**: Validated via `pytest tests/test_orchestration_plan.py` and `tests/test_orchestration_dry_run.py`.
+2. **Tests**: Validated via assignment-specific coverage in `pytest tests/test_orchestration_plan.py` and integrated flow coverage in `tests/test_orchestration_dry_run.py`.
 3. **Command surface**: Managed through `builder-orchestration render-assignment`, `builder-orchestration validate`, and `builder-orchestration dry-run`.
 4. **Failure mode**: Fails closed upon encountering missing refs, unknown kinds, digest mismatches, invalid model recommendations, unsafe governance parameters, or authority escalation attempts.
 5. **Human approval boundary**: The operator must explicitly review the deterministic bindings, denied capabilities, required promotions, and expected evidence before attempting any separate execution proposal.
