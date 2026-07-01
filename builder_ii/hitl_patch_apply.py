@@ -53,7 +53,59 @@ def compute_digest(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
-def _verification_receipt_errors(path: Path) -> list[str]:
+def _validate_core_demo_verification_receipt(
+    data: Any, *, target_repo: Path | None
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["core demo verification receipt must be a JSON object"]
+    if data.get("kind") != "builder_ii.core_demo_verification_receipt":
+        errors.append("kind must be builder_ii.core_demo_verification_receipt")
+    if data.get("schema_version") != 1:
+        errors.append("schema_version must be 1")
+    if data.get("label") != "before_apply":
+        errors.append("label must be before_apply for HITL patch application")
+    if data.get("receipt_status") != "EXECUTED":
+        errors.append("receipt_status must be EXECUTED")
+
+    target = data.get("target")
+    if not isinstance(target, dict):
+        errors.append("target must be an object")
+    else:
+        if target.get("name") != "core":
+            errors.append("target.name must be core")
+        target_path = target.get("repo")
+        if not isinstance(target_path, str) or not target_path:
+            errors.append("target.repo must be a non-empty string")
+        elif target_repo is not None:
+            try:
+                if Path(target_path).expanduser().resolve() != target_repo.expanduser().resolve():
+                    errors.append("target.repo must match proposal target repo")
+            except OSError as exc:
+                errors.append(f"target.repo could not be resolved: {exc}")
+
+    checks = data.get("checks")
+    if not isinstance(checks, list) or not checks:
+        errors.append("checks must be a non-empty list")
+    elif any(not isinstance(check, dict) or check.get("status") != "PASS" for check in checks):
+        errors.append("all checks must be PASS")
+
+    governance = data.get("governance")
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        if governance.get("model_execution") != "DISABLED":
+            errors.append("governance.model_execution must be DISABLED")
+        if governance.get("source_writes") != "DISABLED":
+            errors.append("governance.source_writes must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
+    return errors
+
+
+def _verification_receipt_errors(path: Path, *, target_repo: Path | None = None) -> list[str]:
     errors = validate_verification_execution_receipt_file(path)
     if not errors:
         return []
@@ -61,12 +113,8 @@ def _verification_receipt_errors(path: Path) -> list[str]:
         data = json_lib.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return errors
-    if (
-        isinstance(data, dict)
-        and data.get("kind") == "builder_ii.core_demo_verification_receipt"
-        and data.get("receipt_status") == "EXECUTED"
-    ):
-        return []
+    if isinstance(data, dict) and data.get("kind") == "builder_ii.core_demo_verification_receipt":
+        return _validate_core_demo_verification_receipt(data, target_repo=target_repo)
     return errors
 
 
@@ -113,8 +161,10 @@ def create_patch_apply_receipt(
         },
     }
 
+
 def dumps_patch_apply_receipt(artifact: dict[str, Any]) -> str:
     return json_lib.dumps(artifact, indent=2, sort_keys=True) + "\n"
+
 
 def write_patch_apply_receipt(artifact: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -147,7 +197,7 @@ def apply_hitl_patch(
         raise ValueError("Target repository working tree is not clean")
         
     # 3. Read and validate verification receipt
-    v_errors = _verification_receipt_errors(verification_receipt_path)
+    v_errors = _verification_receipt_errors(verification_receipt_path, target_repo=target_repo)
     if v_errors:
         raise ValueError(f"Invalid verification receipt: {v_errors}")
     
@@ -223,6 +273,7 @@ def apply_hitl_patch(
     receipt_path = output_dir / "patch_apply_receipt.json"
     write_patch_apply_receipt(receipt, receipt_path)
 
+
 def validate_patch_apply_receipt(artifact: Any) -> list[str]:
     errors = []
     if not isinstance(artifact, dict):
@@ -230,6 +281,7 @@ def validate_patch_apply_receipt(artifact: Any) -> list[str]:
     if artifact.get("kind") != PATCH_APPLY_RECEIPT_KIND:
         errors.append(f"kind must be {PATCH_APPLY_RECEIPT_KIND}")
     return errors
+
 
 def validate_patch_apply_receipt_file(path: Path) -> list[str]:
     if not path.exists():
@@ -239,6 +291,7 @@ def validate_patch_apply_receipt_file(path: Path) -> list[str]:
     except Exception as exc:
         return [f"invalid json: {exc}"]
     return validate_patch_apply_receipt(data)
+
 
 def rollback_hitl_patch(
     rollback_plan_path: Path,
