@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
+import importlib
+import importlib.metadata as metadata
 import json as json_lib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 from builder_ii.deepagents_work_artifacts import (
     DEEPAGENTS_WORK_PLAN_KIND,
@@ -24,9 +25,14 @@ DEEPAGENTS_REPLAY_REPORT_KIND = "builder_ii.deepagents_replay_report"
 DEEPAGENTS_CHECKPOINT_KIND = "builder_ii.deepagents_checkpoint"
 DEEPAGENTS_EXECUTION_RECEIPT_KIND = "builder_ii.deepagents_execution_receipt"
 DEEPAGENTS_EVIDENCE_BUNDLE_KIND = "builder_ii.deepagents_evidence_bundle"
+DEEPAGENTS_BACKEND_READINESS_GATE_KIND = "builder_ii.deepagents_backend_readiness_gate"
 
 DEEPAGENTS_EXECUTION_SCHEMA_VERSION = 1
 DEEPAGENTS_APPROVAL_MODE = "hitl_deepagents_candidate_digest_approval"
+OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION = "builder-ii.deepagents.backend.v1"
+OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION_EXPORT = "BUILDER_II_DEEPAGENTS_PROTOCOL_VERSION"
+OPTIONAL_DEEPAGENTS_RUNNER_EXPORT = "builder_ii_run_protocol_subagent"
+OPTIONAL_DEEPAGENTS_FACTORY_EXPORT = "create_governed_deep_agent"
 
 PROTOCOL_FAKE_BACKEND = "protocol_fake"
 OPTIONAL_DEEPAGENTS_BACKEND = "optional_deepagents"
@@ -57,6 +63,50 @@ DENIED_CAPABILITIES = (
     "core workbench coupling",
 )
 
+OPTIONAL_DENIAL_PROBE_CAPABILITIES = (
+    "tool calls",
+    "model calls",
+    "shell execution",
+    "mcp calls",
+    "memory mutation",
+    "source writes",
+)
+
+CAPABILITY_PROMOTION_GATE_NAMES = (
+    "docs",
+    "tests",
+    "command_surface",
+    "failure_mode",
+    "human_approval_boundary",
+    "output_artifact",
+    "rollback_path",
+    "verification_path",
+)
+
+OPTIONAL_BACKEND_RESULT_FALSE_FIELDS = (
+    "writes_source",
+    "executes_shell",
+    "calls_models",
+    "calls_tools",
+    "calls_mcp",
+    "mutates_memory",
+    "constructs_deepagents",
+)
+
+OPTIONAL_BACKEND_RESULT_SCHEMA_FIELDS = (
+    "calls_mcp",
+    "calls_models",
+    "calls_tools",
+    "constructs_deepagents",
+    "executes_shell",
+    "mutates_memory",
+    "result_digest",
+    "result_mode",
+    "subagent_profile",
+    "summary",
+    "writes_source",
+)
+
 _SHA256_HEX = set("0123456789abcdef")
 _DIGEST_KEYS = {
     "candidate_digest",
@@ -68,6 +118,7 @@ _DIGEST_KEYS = {
     "checkpoint_digest",
     "receipt_digest",
     "evidence_bundle_digest",
+    "readiness_gate_digest",
     "result_digest",
 }
 
@@ -76,6 +127,7 @@ class DeepAgentsBackendDenied(RuntimeError):
     """Raised when a backend request is a governed denial, not a backend crash."""
 
 
+@runtime_checkable
 class DeepAgentsBackend(Protocol):
     name: str
 
@@ -100,6 +152,8 @@ class ProtocolFakeBackend:
             "executes_shell": False,
             "calls_models": False,
             "calls_tools": False,
+            "calls_mcp": False,
+            "mutates_memory": False,
             "constructs_deepagents": False,
         }
         payload["result_digest"] = _digest_jsonable(payload)
@@ -109,25 +163,62 @@ class ProtocolFakeBackend:
 @dataclass(frozen=True)
 class OptionalDeepAgentsBackend:
     name: str = OPTIONAL_DEEPAGENTS_BACKEND
+    readiness_gate: dict[str, Any] | None = None
+    module_name: str = "deepagents"
 
     def run_subagent(self, *, subagent_profile: str, task: str) -> dict[str, Any]:
-        spec = importlib.util.find_spec("deepagents")
-        if spec is None:
+        if self.readiness_gate is None:
             raise DeepAgentsBackendDenied(
-                "optional_deepagents backend is unavailable; install and promote the "
-                "real backend before using it"
+                "optional_deepagents requires a passing backend readiness gate"
             )
-        raise DeepAgentsBackendDenied(
-            "optional_deepagents backend is discovery-only in this slice; use "
-            "protocol_fake for the promoted proof lane"
+        gate_errors = validate_deepagents_backend_readiness_gate(self.readiness_gate)
+        if gate_errors or self.readiness_gate.get("gate_state") != "PASS":
+            raise DeepAgentsBackendDenied(
+                "optional_deepagents readiness gate is not passing; create a fresh "
+                "builder-deepagents backend-readiness artifact"
+            )
+        try:
+            module = importlib.import_module(self.module_name)
+        except ModuleNotFoundError as exc:
+            raise DeepAgentsBackendDenied(
+                "optional_deepagents dependency is unavailable at runtime"
+            ) from exc
+        runner = getattr(module, OPTIONAL_DEEPAGENTS_RUNNER_EXPORT, None)
+        if not callable(runner):
+            raise DeepAgentsBackendDenied(
+                f"optional_deepagents is missing {OPTIONAL_DEEPAGENTS_RUNNER_EXPORT}"
+            )
+        try:
+            payload = runner(subagent_profile=subagent_profile, task=task)
+        except TimeoutError as exc:
+            raise DeepAgentsBackendDenied(
+                "optional_deepagents protocol runner timed out"
+            ) from exc
+        if not isinstance(payload, dict):
+            raise ValueError("optional_deepagents protocol runner must return a JSON object")
+        result = dict(payload)
+        result_errors = _validate_backend_result_payload(
+            result,
+            expected_subagent_profile=subagent_profile,
         )
+        if result_errors:
+            raise ValueError("malformed optional_deepagents result: " + "; ".join(result_errors))
+        return result
 
 
-def backend_for(mode: str) -> DeepAgentsBackend:
+def backend_for(mode: str, *, readiness_gate: dict[str, Any] | None = None) -> DeepAgentsBackend:
     if mode == PROTOCOL_FAKE_BACKEND:
         return ProtocolFakeBackend()
     if mode == OPTIONAL_DEEPAGENTS_BACKEND:
-        return OptionalDeepAgentsBackend()
+        module_name = "deepagents"
+        if readiness_gate is not None and isinstance(readiness_gate.get("module"), dict):
+            observed = readiness_gate["module"].get("module")
+            if isinstance(observed, str) and observed:
+                module_name = observed
+        return OptionalDeepAgentsBackend(
+            readiness_gate=readiness_gate,
+            module_name=module_name,
+        )
     raise ValueError(f"unknown deepagents backend: {mode}")
 
 
@@ -167,6 +258,68 @@ def _attach_digest(data: dict[str, Any], key: str) -> dict[str, Any]:
     payload = dict(data)
     payload[key] = _digest_jsonable(payload)
     return payload
+
+
+def _result_schema_digest(value: dict[str, Any]) -> str:
+    schema = {
+        "fields": sorted(value),
+        "types": {key: type(value[key]).__name__ for key in sorted(value)},
+    }
+    raw = json_lib.dumps(schema, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _expected_optional_result_schema_digest() -> str:
+    expected = {
+        "fields": sorted(OPTIONAL_BACKEND_RESULT_SCHEMA_FIELDS),
+        "types": {
+            "calls_mcp": "bool",
+            "calls_models": "bool",
+            "calls_tools": "bool",
+            "constructs_deepagents": "bool",
+            "executes_shell": "bool",
+            "mutates_memory": "bool",
+            "result_digest": "str",
+            "result_mode": "str",
+            "subagent_profile": "str",
+            "summary": "str",
+            "writes_source": "bool",
+        },
+    }
+    raw = json_lib.dumps(expected, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _validate_backend_result_payload(
+    payload: Any, *, expected_subagent_profile: str | None = None
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(payload, dict):
+        return ["backend result must be a JSON object"]
+    missing = [field for field in OPTIONAL_BACKEND_RESULT_SCHEMA_FIELDS if field not in payload]
+    if missing:
+        errors.append("backend result missing fields: " + ", ".join(missing))
+    extra = [field for field in payload if field not in OPTIONAL_BACKEND_RESULT_SCHEMA_FIELDS]
+    if extra:
+        errors.append("backend result has unexpected fields: " + ", ".join(sorted(extra)))
+    if expected_subagent_profile is not None and payload.get("subagent_profile") != expected_subagent_profile:
+        errors.append("backend result subagent_profile must match scheduled subagent")
+    if not isinstance(payload.get("subagent_profile"), str) or not payload.get("subagent_profile"):
+        errors.append("backend result subagent_profile must be a non-empty string")
+    if payload.get("result_mode") != "PROPOSAL_ONLY":
+        errors.append("backend result result_mode must be PROPOSAL_ONLY")
+    if not isinstance(payload.get("summary"), str) or not payload.get("summary"):
+        errors.append("backend result summary must be a non-empty string")
+    for field in OPTIONAL_BACKEND_RESULT_FALSE_FIELDS:
+        if payload.get(field) is not False:
+            errors.append(f"backend result {field} must be false")
+    if not _is_sha256(payload.get("result_digest")):
+        errors.append("backend result result_digest must be a SHA-256 hex digest")
+    elif payload.get("result_digest") != _digest_jsonable(payload):
+        errors.append("backend result result_digest does not match canonical payload")
+    if _result_schema_digest(payload) != _expected_optional_result_schema_digest():
+        errors.append("backend result schema digest does not match expected optional_deepagents shape")
+    return errors
 
 
 def _is_sha256(value: Any) -> bool:
@@ -241,6 +394,245 @@ def _ref_errors(ref: Any, *, field: str, kind: str | None = None, role: str | No
     if not isinstance(ref.get("name", ""), str):
         errors.append(f"{field}.name must be a string")
     return errors
+
+
+def _package_version(package_name: str, module: Any | None = None) -> str:
+    try:
+        return metadata.version(package_name)
+    except metadata.PackageNotFoundError:
+        version = getattr(module, "__version__", "") if module is not None else ""
+        return version if isinstance(version, str) else ""
+
+
+def _capability_gate_records(*, passed: bool) -> list[dict[str, Any]]:
+    state = "PASS" if passed else "FAIL"
+    return [
+        {
+            "gate": gate,
+            "state": state,
+            "evidence": "operator asserted issue #195 promotion surface is covered" if passed else "not asserted",
+        }
+        for gate in CAPABILITY_PROMOTION_GATE_NAMES
+    ]
+
+
+def _denial_probe_records(module: Any | None) -> list[dict[str, Any]]:
+    raw = getattr(module, "BUILDER_II_DENIAL_PROBES", {}) if module is not None else {}
+    probes = raw if isinstance(raw, dict) else {}
+    records: list[dict[str, Any]] = []
+    for capability in OPTIONAL_DENIAL_PROBE_CAPABILITIES:
+        state = probes.get(capability, "UNKNOWN")
+        records.append(
+            {
+                "capability": capability,
+                "state": state,
+                "event_type": "action_denied",
+                "records_runtime_event": state == "DENIED",
+            }
+        )
+    return records
+
+
+def _readiness_gate_errors(gate: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    protocol = gate.get("protocol_compatibility", {})
+    contract = gate.get("contract_tests", {})
+    schema = gate.get("schema_drift_detection", {})
+    partial = gate.get("partial_failure_fixtures", {})
+    model = gate.get("model_gateway_routing", {})
+    replay = gate.get("replay_proof", {})
+    if protocol.get("version_compatible") is not True:
+        errors.append("protocol version is not compatible")
+    if protocol.get("factory_export_present") is not True:
+        errors.append(f"{OPTIONAL_DEEPAGENTS_FACTORY_EXPORT} export is missing")
+    if protocol.get("protocol_runner_export_present") is not True:
+        errors.append(f"{OPTIONAL_DEEPAGENTS_RUNNER_EXPORT} export is missing")
+    for key in ("backend_protocol_bound", "deterministic_shape", "proposal_only_payload"):
+        if contract.get(key) is not True:
+            errors.append(f"contract_tests.{key} must be true")
+    if schema.get("stable") is not True:
+        errors.append("schema drift detector is not stable")
+    for probe in gate.get("denial_probes", []):
+        if not isinstance(probe, dict) or probe.get("state") != "DENIED":
+            errors.append("all denial probes must be DENIED")
+            break
+        if probe.get("event_type") != "action_denied" or probe.get("records_runtime_event") is not True:
+            errors.append("all denial probes must record action_denied runtime events")
+            break
+    for key in (
+        "interrupted_run_failed_receipt",
+        "malformed_result_capped_or_rejected",
+        "timeout_or_dependency_absence_backend_denied",
+    ):
+        if partial.get(key) is not True:
+            errors.append(f"partial_failure_fixtures.{key} must be true")
+    if model.get("builder_ii_model_gateway_required") is not True:
+        errors.append("model gateway routing must require builder-II model gateway")
+    if model.get("native_deepagents_model_invocation") != "DENIED":
+        errors.append("native deepagents model invocation must be DENIED")
+    if model.get("model_work_expected") is True and not model.get("model_call_receipt_refs"):
+        errors.append("model_call_receipt_refs must be populated when backend performs model work")
+    if replay.get("replay_run_required") is not True or replay.get("replay_executes_runtime") is not False:
+        errors.append("replay proof must reconstruct without runtime execution")
+    for record in gate.get("capability_promotion_gates", []):
+        if not isinstance(record, dict) or record.get("state") != "PASS":
+            errors.append("all capability promotion gates must be PASS")
+            break
+    return errors
+
+
+def create_deepagents_backend_readiness_gate(
+    *,
+    module_name: str = "deepagents",
+    package_name: str = "deepagents",
+    capability_gates_passed: bool = False,
+    model_call_receipt_refs: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    module: Any | None = None
+    import_error = ""
+    try:
+        module = importlib.import_module(module_name)
+    except Exception as exc:
+        import_error = f"{type(exc).__name__}: {exc}"
+
+    observed_version = _package_version(package_name, module)
+    observed_protocol_version = (
+        getattr(module, OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION_EXPORT, "") if module is not None else ""
+    )
+    factory = getattr(module, OPTIONAL_DEEPAGENTS_FACTORY_EXPORT, None) if module is not None else None
+    runner = getattr(module, OPTIONAL_DEEPAGENTS_RUNNER_EXPORT, None) if module is not None else None
+    backend = backend_for(OPTIONAL_DEEPAGENTS_BACKEND)
+    backend_protocol_bound = isinstance(backend, DeepAgentsBackend)
+
+    first_result: dict[str, Any] | None = None
+    second_result: dict[str, Any] | None = None
+    contract_errors: list[str] = []
+    if callable(runner):
+        try:
+            first_raw = runner(
+                subagent_profile="readiness_probe",
+                task="builder-II optional_deepagents readiness probe",
+            )
+            second_raw = runner(
+                subagent_profile="readiness_probe",
+                task="builder-II optional_deepagents readiness probe",
+            )
+            if isinstance(first_raw, dict):
+                first_result = dict(first_raw)
+            if isinstance(second_raw, dict):
+                second_result = dict(second_raw)
+            contract_errors.extend(
+                _validate_backend_result_payload(
+                    first_result,
+                    expected_subagent_profile="readiness_probe",
+                )
+                if first_result is not None
+                else ["first contract probe did not return a JSON object"]
+            )
+            contract_errors.extend(
+                _validate_backend_result_payload(
+                    second_result,
+                    expected_subagent_profile="readiness_probe",
+                )
+                if second_result is not None
+                else ["second contract probe did not return a JSON object"]
+            )
+        except Exception as exc:
+            contract_errors.append(f"contract probe failed: {type(exc).__name__}: {exc}")
+    else:
+        contract_errors.append(f"{OPTIONAL_DEEPAGENTS_RUNNER_EXPORT} is not callable")
+    contract_errors = list(dict.fromkeys(contract_errors))
+
+    first_schema = _result_schema_digest(first_result) if first_result is not None else ""
+    second_schema = _result_schema_digest(second_result) if second_result is not None else ""
+    expected_schema = _expected_optional_result_schema_digest()
+    deterministic_shape = bool(first_schema and first_schema == second_schema)
+    proposal_only = first_result is not None and not _validate_backend_result_payload(
+        first_result,
+        expected_subagent_profile="readiness_probe",
+    )
+    model_work_expected = bool(getattr(module, "BUILDER_II_MODEL_WORK_EXPECTED", False)) if module is not None else False
+
+    content = {
+        "kind": DEEPAGENTS_BACKEND_READINESS_GATE_KIND,
+        "schema_version": DEEPAGENTS_EXECUTION_SCHEMA_VERSION,
+        "backend_mode": OPTIONAL_DEEPAGENTS_BACKEND,
+        "gate_state": "UNKNOWN",
+        "module": {
+            "package": package_name,
+            "module": module_name,
+            "available": module is not None,
+            "version": observed_version,
+            "import_error": import_error,
+        },
+        "protocol_compatibility": {
+            "required_version": OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION,
+            "version_export": OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION_EXPORT,
+            "observed_version": observed_protocol_version,
+            "version_compatible": observed_protocol_version == OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION,
+            "factory_export": OPTIONAL_DEEPAGENTS_FACTORY_EXPORT,
+            "factory_export_present": callable(factory),
+            "factory_constructed": False,
+            "protocol_runner_export": OPTIONAL_DEEPAGENTS_RUNNER_EXPORT,
+            "protocol_runner_export_present": callable(runner),
+        },
+        "contract_tests": {
+            "backend_protocol_bound": backend_protocol_bound,
+            "deterministic_shape": deterministic_shape,
+            "proposal_only_payload": proposal_only,
+            "result_schema_fields": list(OPTIONAL_BACKEND_RESULT_SCHEMA_FIELDS),
+            "contract_errors": contract_errors,
+        },
+        "schema_drift_detection": {
+            "expected_schema_digest": expected_schema,
+            "observed_schema_digest": first_schema,
+            "repeat_observed_schema_digest": second_schema,
+            "stable": bool(first_schema and first_schema == second_schema == expected_schema),
+        },
+        "denial_probes": _denial_probe_records(module),
+        "partial_failure_fixtures": {
+            "interrupted_run_failed_receipt": True,
+            "malformed_result_capped_or_rejected": True,
+            "timeout_or_dependency_absence_backend_denied": True,
+        },
+        "model_gateway_routing": {
+            "builder_ii_model_gateway_required": True,
+            "native_deepagents_model_invocation": "DENIED",
+            "model_work_expected": model_work_expected,
+            "model_call_receipt_refs": list(model_call_receipt_refs or []),
+        },
+        "replay_proof": {
+            "replay_run_required": True,
+            "replay_executes_runtime": False,
+        },
+        "capability_promotion_gates": _capability_gate_records(passed=capability_gates_passed),
+        "denied_capabilities": list(DENIED_CAPABILITIES),
+        **_common_authority_fields(protocol_execution=False),
+        "authority_boundary": _authority_boundary("deepagents_backend_readiness_gate"),
+        "governance": _base_governance("deepagents_backend_readiness_gate"),
+        "summary": {
+            "passed": False,
+            "errors": [],
+            "next_valid_command": "builder-deepagents execution-candidate --backend-mode optional_deepagents --backend-readiness-gate <gate.json>",
+        },
+    }
+    errors = _readiness_gate_errors(content)
+    content["gate_state"] = "PASS" if not errors else "FAIL"
+    content["summary"] = {
+        "passed": not errors,
+        "errors": errors,
+        "next_valid_command": (
+            "builder-deepagents execution-candidate --backend-mode optional_deepagents "
+            "--backend-readiness-gate <gate.json>"
+            if not errors
+            else "Fix readiness errors, rerun builder-deepagents backend-readiness, then create the candidate."
+        ),
+    }
+    gate = _attach_digest(content, "readiness_gate_digest")
+    gate_errors = validate_deepagents_backend_readiness_gate(gate)
+    if gate_errors:
+        raise ValueError("created invalid deepagents backend readiness gate: " + "; ".join(gate_errors))
+    return gate
 
 
 def _target_from_plan(work_plan: dict[str, Any]) -> str:
@@ -412,6 +804,8 @@ def create_deepagents_execution_candidate(
     work_plan_path: Path | None,
     output_root: Path,
     backend_mode: str = PROTOCOL_FAKE_BACKEND,
+    backend_readiness_gate: dict[str, Any] | None = None,
+    backend_readiness_gate_path: Path | None = None,
     allowed_subagents: list[str] | None = None,
     max_subagents: int = 8,
     max_events: int = 256,
@@ -429,6 +823,38 @@ def create_deepagents_execution_candidate(
         raise ValueError("max_subagents, max_events, and max_output_bytes must be positive")
     if len(subagents) > max_subagents:
         raise ValueError("allowed_subagents exceeds max_subagents budget")
+    model_call_receipt_refs: list[dict[str, Any]] = []
+    backend_readiness_ref: dict[str, Any] | None = None
+    backend_readiness_summary: dict[str, Any] | None = None
+    if backend_mode == OPTIONAL_DEEPAGENTS_BACKEND:
+        if backend_readiness_gate is None:
+            raise ValueError(
+                "optional_deepagents requires --backend-readiness-gate; run "
+                "builder-deepagents backend-readiness first"
+            )
+        gate_errors = validate_deepagents_backend_readiness_gate(backend_readiness_gate)
+        if gate_errors or backend_readiness_gate.get("gate_state") != "PASS":
+            details = "; ".join(gate_errors or backend_readiness_gate.get("summary", {}).get("errors", []))
+            raise ValueError(
+                "optional_deepagents backend readiness gate must PASS before candidate creation"
+                + (f": {details}" if details else "")
+            )
+        backend_readiness_ref = _artifact_ref(
+            backend_readiness_gate,
+            role="backend_readiness_gate",
+            path=backend_readiness_gate_path,
+            name="optional_deepagents backend readiness gate",
+        )
+        routing = backend_readiness_gate.get("model_gateway_routing", {})
+        model_call_receipt_refs = list(routing.get("model_call_receipt_refs", [])) if isinstance(routing, dict) else []
+        backend_readiness_summary = {
+            "gate_state": backend_readiness_gate.get("gate_state"),
+            "protocol_version": backend_readiness_gate.get("protocol_compatibility", {}).get("observed_version"),
+            "denial_probe_count": len(backend_readiness_gate.get("denial_probes", [])),
+            "model_work_expected": routing.get("model_work_expected") if isinstance(routing, dict) else False,
+        }
+    elif backend_readiness_gate is not None:
+        raise ValueError("backend_readiness_gate is only valid for optional_deepagents")
 
     content = {
         "kind": DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
@@ -438,6 +864,8 @@ def create_deepagents_execution_candidate(
         "target": _target_from_plan(work_plan),
         "task": str(work_plan.get("task", "")).strip(),
         "backend_mode": backend_mode,
+        "backend_readiness_ref": backend_readiness_ref,
+        "backend_readiness_summary": backend_readiness_summary,
         "work_plan_ref": _artifact_ref(work_plan, role="work_plan", path=work_plan_path, name="deepagents work plan"),
         "allowed_subagents": subagents,
         "output_root": str(output_root),
@@ -449,7 +877,7 @@ def create_deepagents_execution_candidate(
         "model_boundary": {
             "builder_ii_model_gateway_required": True,
             "native_deepagents_model_invocation": "DENIED",
-            "model_call_receipt_refs": [],
+            "model_call_receipt_refs": model_call_receipt_refs,
         },
         "denied_capabilities": list(DENIED_CAPABILITIES),
         **_common_authority_fields(protocol_execution=False),
@@ -840,6 +1268,34 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
         errors.append("task must be a non-empty string")
     if data.get("backend_mode") not in BACKEND_MODES:
         errors.append(f"backend_mode must be one of: {', '.join(BACKEND_MODES)}")
+    if data.get("backend_mode") == OPTIONAL_DEEPAGENTS_BACKEND:
+        errors.extend(
+            _ref_errors(
+                data.get("backend_readiness_ref"),
+                field="backend_readiness_ref",
+                kind=DEEPAGENTS_BACKEND_READINESS_GATE_KIND,
+                role="backend_readiness_gate",
+            )
+        )
+        summary = data.get("backend_readiness_summary")
+        if not isinstance(summary, dict):
+            errors.append("backend_readiness_summary must be an object for optional_deepagents")
+        else:
+            if summary.get("gate_state") != "PASS":
+                errors.append("backend_readiness_summary.gate_state must be PASS")
+            if summary.get("protocol_version") != OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION:
+                errors.append(
+                    f"backend_readiness_summary.protocol_version must be {OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION}"
+                )
+            if not isinstance(summary.get("denial_probe_count"), int) or summary["denial_probe_count"] < len(OPTIONAL_DENIAL_PROBE_CAPABILITIES):
+                errors.append("backend_readiness_summary.denial_probe_count must cover all denial probes")
+            if not isinstance(summary.get("model_work_expected"), bool):
+                errors.append("backend_readiness_summary.model_work_expected must be a boolean")
+    else:
+        if data.get("backend_readiness_ref") is not None:
+            errors.append("backend_readiness_ref must be null unless backend_mode is optional_deepagents")
+        if data.get("backend_readiness_summary") is not None:
+            errors.append("backend_readiness_summary must be null unless backend_mode is optional_deepagents")
     errors.extend(_ref_errors(data.get("work_plan_ref"), field="work_plan_ref", kind=DEEPAGENTS_WORK_PLAN_KIND, role="work_plan"))
     errors.extend(_string_list(data.get("allowed_subagents"), field="allowed_subagents", allow_empty=False))
     if not isinstance(data.get("output_root"), str) or not data.get("output_root"):
@@ -864,6 +1320,13 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
             errors.append("model_boundary.native_deepagents_model_invocation must be DENIED")
         if not isinstance(model_boundary.get("model_call_receipt_refs"), list):
             errors.append("model_boundary.model_call_receipt_refs must be a list")
+        else:
+            for index, ref in enumerate(model_boundary["model_call_receipt_refs"]):
+                errors.extend(_ref_errors(ref, field=f"model_boundary.model_call_receipt_refs[{index}]"))
+        summary = data.get("backend_readiness_summary")
+        if isinstance(summary, dict) and summary.get("model_work_expected") is True:
+            if not model_boundary.get("model_call_receipt_refs"):
+                errors.append("model_boundary.model_call_receipt_refs must be populated when optional backend performs model work")
     denied = data.get("denied_capabilities")
     if not isinstance(denied, list):
         errors.append("denied_capabilities must be a list")
@@ -1211,6 +1674,195 @@ def validate_deepagents_evidence_bundle(data: Any) -> list[str]:
     return errors
 
 
+def validate_deepagents_backend_readiness_gate(data: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["deepagents backend readiness gate must be a JSON object"]
+    if data.get("kind") != DEEPAGENTS_BACKEND_READINESS_GATE_KIND:
+        errors.append(f"kind must be {DEEPAGENTS_BACKEND_READINESS_GATE_KIND}")
+    if data.get("schema_version") != DEEPAGENTS_EXECUTION_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {DEEPAGENTS_EXECUTION_SCHEMA_VERSION}")
+    if data.get("backend_mode") != OPTIONAL_DEEPAGENTS_BACKEND:
+        errors.append(f"backend_mode must be {OPTIONAL_DEEPAGENTS_BACKEND}")
+    if data.get("gate_state") not in ("PASS", "FAIL"):
+        errors.append("gate_state must be PASS or FAIL")
+
+    module = data.get("module")
+    if not isinstance(module, dict):
+        errors.append("module must be an object")
+    else:
+        for field in ("package", "module", "version", "import_error"):
+            if not isinstance(module.get(field), str):
+                errors.append(f"module.{field} must be a string")
+        if not isinstance(module.get("available"), bool):
+            errors.append("module.available must be a boolean")
+
+    protocol = data.get("protocol_compatibility")
+    if not isinstance(protocol, dict):
+        errors.append("protocol_compatibility must be an object")
+    else:
+        expected_strings = {
+            "required_version": OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION,
+            "version_export": OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION_EXPORT,
+            "factory_export": OPTIONAL_DEEPAGENTS_FACTORY_EXPORT,
+            "protocol_runner_export": OPTIONAL_DEEPAGENTS_RUNNER_EXPORT,
+        }
+        for field, expected in expected_strings.items():
+            if protocol.get(field) != expected:
+                errors.append(f"protocol_compatibility.{field} must be {expected}")
+        if not isinstance(protocol.get("observed_version"), str):
+            errors.append("protocol_compatibility.observed_version must be a string")
+        for field in (
+            "version_compatible",
+            "factory_export_present",
+            "factory_constructed",
+            "protocol_runner_export_present",
+        ):
+            if not isinstance(protocol.get(field), bool):
+                errors.append(f"protocol_compatibility.{field} must be a boolean")
+        if protocol.get("factory_constructed") is not False:
+            errors.append("protocol_compatibility.factory_constructed must be false")
+
+    contract = data.get("contract_tests")
+    if not isinstance(contract, dict):
+        errors.append("contract_tests must be an object")
+    else:
+        for field in ("backend_protocol_bound", "deterministic_shape", "proposal_only_payload"):
+            if not isinstance(contract.get(field), bool):
+                errors.append(f"contract_tests.{field} must be a boolean")
+        if contract.get("result_schema_fields") != list(OPTIONAL_BACKEND_RESULT_SCHEMA_FIELDS):
+            errors.append("contract_tests.result_schema_fields must match optional backend schema")
+        errors.extend(_string_list(contract.get("contract_errors"), field="contract_tests.contract_errors"))
+
+    schema = data.get("schema_drift_detection")
+    if not isinstance(schema, dict):
+        errors.append("schema_drift_detection must be an object")
+    else:
+        for field in ("expected_schema_digest", "observed_schema_digest", "repeat_observed_schema_digest"):
+            value = schema.get(field)
+            if value and not _is_sha256(value):
+                errors.append(f"schema_drift_detection.{field} must be a SHA-256 hex digest or empty string")
+            if not isinstance(value, str):
+                errors.append(f"schema_drift_detection.{field} must be a string")
+        if schema.get("expected_schema_digest") != _expected_optional_result_schema_digest():
+            errors.append("schema_drift_detection.expected_schema_digest must match builder-II expected schema")
+        if not isinstance(schema.get("stable"), bool):
+            errors.append("schema_drift_detection.stable must be a boolean")
+
+    probes = data.get("denial_probes")
+    if not isinstance(probes, list) or len(probes) != len(OPTIONAL_DENIAL_PROBE_CAPABILITIES):
+        errors.append("denial_probes must include one record for each required capability")
+    else:
+        seen = set()
+        for index, probe in enumerate(probes):
+            if not isinstance(probe, dict):
+                errors.append(f"denial_probes[{index}] must be an object")
+                continue
+            capability = probe.get("capability")
+            if capability not in OPTIONAL_DENIAL_PROBE_CAPABILITIES:
+                errors.append(f"denial_probes[{index}].capability is not a required denial probe")
+            if capability in seen:
+                errors.append(f"denial_probes[{index}].capability must be unique")
+            seen.add(capability)
+            if probe.get("state") not in ("DENIED", "UNKNOWN", "ALLOWED"):
+                errors.append(f"denial_probes[{index}].state must be DENIED, UNKNOWN, or ALLOWED")
+            if probe.get("event_type") != "action_denied":
+                errors.append(f"denial_probes[{index}].event_type must be action_denied")
+            if not isinstance(probe.get("records_runtime_event"), bool):
+                errors.append(f"denial_probes[{index}].records_runtime_event must be a boolean")
+
+    partial = data.get("partial_failure_fixtures")
+    if not isinstance(partial, dict):
+        errors.append("partial_failure_fixtures must be an object")
+    else:
+        for field in (
+            "interrupted_run_failed_receipt",
+            "malformed_result_capped_or_rejected",
+            "timeout_or_dependency_absence_backend_denied",
+        ):
+            if not isinstance(partial.get(field), bool):
+                errors.append(f"partial_failure_fixtures.{field} must be a boolean")
+
+    model = data.get("model_gateway_routing")
+    if not isinstance(model, dict):
+        errors.append("model_gateway_routing must be an object")
+    else:
+        if model.get("builder_ii_model_gateway_required") is not True:
+            errors.append("model_gateway_routing.builder_ii_model_gateway_required must be true")
+        if model.get("native_deepagents_model_invocation") != "DENIED":
+            errors.append("model_gateway_routing.native_deepagents_model_invocation must be DENIED")
+        if not isinstance(model.get("model_work_expected"), bool):
+            errors.append("model_gateway_routing.model_work_expected must be a boolean")
+        refs = model.get("model_call_receipt_refs")
+        if not isinstance(refs, list):
+            errors.append("model_gateway_routing.model_call_receipt_refs must be a list")
+        else:
+            for index, ref in enumerate(refs):
+                errors.extend(_ref_errors(ref, field=f"model_gateway_routing.model_call_receipt_refs[{index}]"))
+
+    replay = data.get("replay_proof")
+    if not isinstance(replay, dict):
+        errors.append("replay_proof must be an object")
+    else:
+        if replay.get("replay_run_required") is not True:
+            errors.append("replay_proof.replay_run_required must be true")
+        if replay.get("replay_executes_runtime") is not False:
+            errors.append("replay_proof.replay_executes_runtime must be false")
+
+    gates = data.get("capability_promotion_gates")
+    if not isinstance(gates, list) or len(gates) != len(CAPABILITY_PROMOTION_GATE_NAMES):
+        errors.append("capability_promotion_gates must include all capability gates")
+    else:
+        seen = set()
+        for index, gate in enumerate(gates):
+            if not isinstance(gate, dict):
+                errors.append(f"capability_promotion_gates[{index}] must be an object")
+                continue
+            name = gate.get("gate")
+            if name not in CAPABILITY_PROMOTION_GATE_NAMES:
+                errors.append(f"capability_promotion_gates[{index}].gate is not a required gate")
+            if name in seen:
+                errors.append(f"capability_promotion_gates[{index}].gate must be unique")
+            seen.add(name)
+            if gate.get("state") not in ("PASS", "FAIL"):
+                errors.append(f"capability_promotion_gates[{index}].state must be PASS or FAIL")
+            if not isinstance(gate.get("evidence"), str):
+                errors.append(f"capability_promotion_gates[{index}].evidence must be a string")
+
+    denied = data.get("denied_capabilities")
+    if not isinstance(denied, list):
+        errors.append("denied_capabilities must be a list")
+    else:
+        for capability in DENIED_CAPABILITIES:
+            if capability not in denied:
+                errors.append(f"denied_capabilities must include {capability}")
+    summary = data.get("summary")
+    if not isinstance(summary, dict):
+        errors.append("summary must be an object")
+    else:
+        if not isinstance(summary.get("passed"), bool):
+            errors.append("summary.passed must be a boolean")
+        errors.extend(_string_list(summary.get("errors"), field="summary.errors"))
+        if not isinstance(summary.get("next_valid_command"), str) or not summary["next_valid_command"]:
+            errors.append("summary.next_valid_command must be a non-empty string")
+
+    errors.extend(
+        _validate_common_authority(
+            data,
+            capability_state="deepagents_backend_readiness_gate",
+            protocol_execution=False,
+        )
+    )
+    if data.get("readiness_gate_digest") != _digest_jsonable(data):
+        errors.append("readiness_gate_digest does not match canonical readiness gate payload")
+
+    if data.get("gate_state") == "PASS":
+        errors.extend(_readiness_gate_errors(data))
+        if isinstance(summary, dict) and summary.get("passed") is not True:
+            errors.append("summary.passed must be true when gate_state is PASS")
+    return errors
+
+
 def write_deepagents_execution_candidate(artifact: dict[str, Any], output: Path) -> None:
     _write_json(artifact, output)
 
@@ -1223,6 +1875,10 @@ def write_deepagents_evidence_bundle(artifact: dict[str, Any], output: Path) -> 
     _write_json(artifact, output)
 
 
+def write_deepagents_backend_readiness_gate(artifact: dict[str, Any], output: Path) -> None:
+    _write_json(artifact, output)
+
+
 def dumps_deepagents_execution_candidate(artifact: dict[str, Any]) -> str:
     return json_lib.dumps(artifact, indent=2, sort_keys=True) + "\n"
 
@@ -1232,6 +1888,10 @@ def dumps_deepagents_execution_approval(artifact: dict[str, Any]) -> str:
 
 
 def dumps_deepagents_evidence_bundle(artifact: dict[str, Any]) -> str:
+    return json_lib.dumps(artifact, indent=2, sort_keys=True) + "\n"
+
+
+def dumps_deepagents_backend_readiness_gate(artifact: dict[str, Any]) -> str:
     return json_lib.dumps(artifact, indent=2, sort_keys=True) + "\n"
 
 
@@ -1328,6 +1988,8 @@ def _cap_result_payload(candidate: dict[str, Any], payload: dict[str, Any]) -> d
         "executes_shell": False,
         "calls_models": False,
         "calls_tools": False,
+        "calls_mcp": False,
+        "mutates_memory": False,
         "constructs_deepagents": False,
     }
     capped["result_digest"] = _digest_jsonable(capped)
@@ -1347,6 +2009,47 @@ def _approval_guard(candidate: dict[str, Any], approval: dict[str, Any]) -> None
     )
     if errors:
         raise ValueError("approval does not bind to candidate: " + "; ".join(errors))
+
+
+def _load_candidate_backend_readiness_gate(candidate: dict[str, Any]) -> dict[str, Any] | None:
+    if candidate.get("backend_mode") != OPTIONAL_DEEPAGENTS_BACKEND:
+        return None
+    ref = candidate.get("backend_readiness_ref")
+    if not isinstance(ref, dict):
+        raise ValueError("optional_deepagents candidate is missing backend_readiness_ref")
+    path_text = ref.get("path")
+    if not isinstance(path_text, str) or not path_text:
+        raise ValueError("optional_deepagents backend_readiness_ref.path must be a non-empty string")
+    path = Path(path_text)
+    if not path.is_absolute():
+        path = (Path.cwd() / path).resolve()
+    gate = _load_json_object(path, label="deepagents backend readiness gate")
+    if ref.get("sha256") != _digest_jsonable(gate):
+        raise ValueError("backend readiness gate digest drifted after candidate creation")
+    gate_errors = validate_deepagents_backend_readiness_gate(gate)
+    if gate_errors or gate.get("gate_state") != "PASS":
+        raise ValueError(
+            "optional_deepagents backend readiness gate is not passing: "
+            + "; ".join(gate_errors or gate.get("summary", {}).get("errors", []))
+        )
+    return gate
+
+
+def _denial_probe_payloads(readiness_gate: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if readiness_gate is None:
+        return []
+    payloads: list[dict[str, Any]] = []
+    for probe in readiness_gate.get("denial_probes", []):
+        if isinstance(probe, dict) and probe.get("state") == "DENIED":
+            payloads.append(
+                {
+                    "denied_capability": str(probe.get("capability", "")),
+                    "source": "optional_deepagents_readiness_gate",
+                    "state": "DENIED",
+                    "next_valid_command": "builder-deepagents replay-run --events-dir <events> --output <replay.json>",
+                }
+            )
+    return payloads
 
 
 def _failure_payload(exc: Exception) -> dict[str, Any]:
@@ -1473,12 +2176,14 @@ def run_deepagents_approved_candidate(
     approval = _load_json_object(approval_path, label="deepagents execution approval")
     _approval_guard(candidate, approval)
     _assert_output_dir_allowed(candidate, output_dir)
+    readiness_gate = _load_candidate_backend_readiness_gate(candidate)
+    denial_probe_payloads = _denial_probe_payloads(readiness_gate)
     if stop_after is not None and stop_after <= 0:
         raise ValueError("stop_after must be positive when supplied")
     allowed = list(candidate["allowed_subagents"])
-    planned_events = 3 + (2 * len(allowed))
+    planned_events = 3 + len(denial_probe_payloads) + (2 * len(allowed))
     if stop_after is not None and stop_after < len(allowed):
-        planned_events = 3 + (2 * stop_after)
+        planned_events = 3 + len(denial_probe_payloads) + (2 * stop_after)
     _assert_event_budget(candidate, planned_events)
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -1487,7 +2192,7 @@ def run_deepagents_approved_candidate(
     if _load_event_records(events_dir):
         raise ValueError("output_dir already contains deepagents events; choose a fresh output-dir")
     session_id = _new_session_id(candidate)
-    backend = backend_for(str(candidate["backend_mode"]))
+    backend = backend_for(str(candidate["backend_mode"]), readiness_gate=readiness_gate)
     candidate_ref = _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate")
     approval_ref = _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval")
 
@@ -1510,11 +2215,26 @@ def run_deepagents_approved_candidate(
         sequence=sequence,
         event_type="backend_selected",
         subject_refs=[candidate_ref],
-        payload={"backend_mode": backend.name},
+        payload={
+            "backend_mode": backend.name,
+            "backend_readiness_gate_digest": readiness_gate.get("readiness_gate_digest") if readiness_gate else "",
+        },
         previous_ref=previous_ref,
         message="Protocol backend selected.",
     )
     sequence += 1
+    for payload in denial_probe_payloads:
+        _, _, previous_ref = _write_event(
+            events_dir=events_dir,
+            session_id=session_id,
+            sequence=sequence,
+            event_type="action_denied",
+            subject_refs=[candidate_ref],
+            payload=payload,
+            previous_ref=previous_ref,
+            message=f"Recorded optional_deepagents denial probe for {payload['denied_capability']}.",
+        )
+        sequence += 1
 
     completed: list[str] = []
     checkpoint: dict[str, Any] | None = None
@@ -1647,6 +2367,7 @@ def resume_deepagents_approved_candidate(
     approval = _load_json_object(approval_path, label="deepagents execution approval")
     checkpoint = _load_json_object(checkpoint_path, label="deepagents checkpoint")
     _approval_guard(candidate, approval)
+    readiness_gate = _load_candidate_backend_readiness_gate(candidate)
     checkpoint_errors = validate_deepagents_checkpoint(checkpoint)
     if checkpoint_errors:
         raise ValueError("invalid checkpoint: " + "; ".join(checkpoint_errors))
@@ -1671,7 +2392,7 @@ def resume_deepagents_approved_candidate(
     sequence = int(previous_event["sequence"]) + 1
     candidate_ref = _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate")
     approval_ref = _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval")
-    backend = backend_for(str(candidate["backend_mode"]))
+    backend = backend_for(str(candidate["backend_mode"]), readiness_gate=readiness_gate)
     remaining = list(checkpoint["remaining_subagents"])
     _assert_event_budget(candidate, len(event_records) + 2 + (2 * len(remaining)))
 
@@ -1920,6 +2641,7 @@ def validate_deepagents_execution_artifact(data: Any) -> list[str]:
         DEEPAGENTS_CHECKPOINT_KIND: validate_deepagents_checkpoint,
         DEEPAGENTS_EXECUTION_RECEIPT_KIND: validate_deepagents_execution_receipt,
         DEEPAGENTS_EVIDENCE_BUNDLE_KIND: validate_deepagents_evidence_bundle,
+        DEEPAGENTS_BACKEND_READINESS_GATE_KIND: validate_deepagents_backend_readiness_gate,
     }
     validator = validators.get(str(data.get("kind", "")))
     if validator is None:

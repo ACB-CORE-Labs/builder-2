@@ -510,7 +510,14 @@ The operator command surface is organized by phase. Every command operates stric
 - **Command name**: `builder-deepagents execution-candidate`
 - **Purpose**: Create the bounded protocol execution candidate from a passive deepagents work plan.
 - **Output artifact, if any**: `builder_ii.deepagents_execution_candidate`.
-- **Execution authority**: artifact-only; no backend run.
+- **Execution authority**: artifact-only; no backend run. `--backend-mode optional_deepagents` requires a passing `builder_ii.deepagents_backend_readiness_gate`.
+- **Writes**: Writes only explicit artifact output paths when `--output` is specified.
+
+#### `builder-deepagents backend-readiness`
+- **Command name**: `builder-deepagents backend-readiness`
+- **Purpose**: Inspect the optional deepagents protocol adapter exports and produce the promotion-readiness gate required before `optional_deepagents` candidate creation.
+- **Output artifact, if any**: `builder_ii.deepagents_backend_readiness_gate`.
+- **Execution authority**: artifact-only readiness probe; no native deepagents agent construction.
 - **Writes**: Writes only explicit artifact output paths when `--output` is specified.
 
 #### `builder-deepagents approve-candidate`
