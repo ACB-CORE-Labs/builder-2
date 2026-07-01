@@ -99,23 +99,21 @@ def missing() -> None:
     for item in checks:
         console.print(f"[red]{item.tool.name}[/] — install: {item.tool.install}")
     raise typer.Exit(1)
-
-
 @tools_app.command("invoke")
 def invoke(
     envelope: Path = typer.Argument(..., help="Path to the tool call envelope artifact"),
     policy_path: Path = typer.Argument(..., help="Path to the active tool policy artifact"),
-    receipt_output: Path | None = typer.Option(None, "--receipt-output", "-r", help="Path to save the receipt"),
-    session_id: str | None = typer.Option(None, "--session-id", help="Session ID for the operational ledger event"),
+    receipt_output: Path = typer.Option(..., "--receipt-output", "-r", help="Path to save the receipt"),
+    session_id: str = typer.Option(..., "--session-id", help="Session ID for the operational ledger event"),
 ) -> None:
-    """Executes an approved low-risk tool call defined in an envelope."""
+    """Executes an approved low-risk tool call defined in an envelope and logs to ledger."""
     try:
         env_data = json.loads(envelope.read_text(encoding="utf-8"))
         pol_data = json.loads(policy_path.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError) as e:
         console.print(f"[red]Error loading inputs:[/] {e}")
         raise typer.Exit(1)
-        
+
     try:
         receipt = execute_tool_envelope(
             envelope=env_data,
@@ -125,43 +123,8 @@ def invoke(
         )
     except ValueError as e:
         console.print(f"[red]Execution failed/denied:[/] {e}")
-        
-        if session_id:
-            import time
-            events_dir = Path(".builder/sessions") / session_id / "events"
-            events_dir.mkdir(parents=True, exist_ok=True)
-            existing_records = load_event_records(events_dir)
-            sequence = len(existing_records) + 1
-            current_stage = "initialized"
-            if existing_records:
-                replay_report = replay_events(existing_records, session_id=session_id)
-                if replay_report["valid"]:
-                    current_stage = replay_report["current_stage"]
-            event_id = f"evt_tool_fail_{int(time.time())}_{sequence}"
-            event_record = create_event_record(
-                event_id=event_id,
-                session_id=session_id,
-                sequence=sequence,
-                event_type="tool_call_failed",
-                stage=current_stage,
-                subject_refs=[],
-                command_surface="builder-tools invoke",
-                policy_snapshot_ref=_artifact_ref(pol_data, policy_path, "tool_invocation_policy"),
-                previous_event_ref=_previous_event_ref(existing_records),
-                message=f"Tool call failed: {e}",
-            )
-            write_event_record(event_record, events_dir / f"{sequence:03d}_tool_call_failed.json")
-            
-        raise typer.Exit(1)
-        
-    content = json.dumps(receipt, indent=2) + "\n"
-    if receipt_output:
-        receipt_output.write_text(content, encoding="utf-8")
-        console.print(f"Wrote receipt to {receipt_output}")
-    else:
-        typer.echo(content)
 
-    if session_id:
+        # Log failure to ledger since session_id is required
         import time
         events_dir = Path(".builder/sessions") / session_id / "events"
         events_dir.mkdir(parents=True, exist_ok=True)
@@ -172,24 +135,111 @@ def invoke(
             replay_report = replay_events(existing_records, session_id=session_id)
             if replay_report["valid"]:
                 current_stage = replay_report["current_stage"]
-                
-        env_ref = _artifact_ref(env_data, envelope, "tool_call_envelope")
-        rec_ref = _artifact_ref(receipt, receipt_output or Path("receipt.json"), "tool_call_receipt")
-        
-        event_id = f"evt_tool_exec_{int(time.time())}_{sequence}"
+        event_id = f"evt_tool_fail_{int(time.time())}_{sequence}"
         event_record = create_event_record(
             event_id=event_id,
             session_id=session_id,
             sequence=sequence,
-            event_type="tool_call_executed",
+            event_type="tool_call_failed",
             stage=current_stage,
-            subject_refs=[env_ref, rec_ref],
+            subject_refs=[],
             command_surface="builder-tools invoke",
             policy_snapshot_ref=_artifact_ref(pol_data, policy_path, "tool_invocation_policy"),
             previous_event_ref=_previous_event_ref(existing_records),
-            message="Tool call executed",
+            message=f"Tool call failed: {e}",
         )
-        write_event_record(event_record, events_dir / f"{sequence:03d}_tool_call_executed.json")
-        console.print("Workflow event logged to ledger.")
+        # Validate event before writing
+        from builder_ii.event_ledger import validate_event_record
+        event_errors = validate_event_record(event_record)
+        if event_errors:
+            console.print(f"[red]Event record validation failed:[/] {event_errors}")
+            raise typer.Exit(1)
+
+        write_event_record(event_record, events_dir / f"{sequence:03d}_tool_call_failed.json")
+        raise typer.Exit(1)
+
+    # Validate receipt before writing
+    from builder_ii.mcp_policy import validate_mcp_receipt
+    receipt_errors = validate_mcp_receipt(receipt)
+    if receipt_errors:
+        console.print(f"[red]Receipt validation failed:[/] {receipt_errors}")
+        raise typer.Exit(1)
+
+    content = json.dumps(receipt, indent=2) + "\n"
+    receipt_output.write_text(content, encoding="utf-8")
+    console.print(f"Wrote receipt to {receipt_output}")
+
+    # Log success to ledger since session_id is required
+    import time
+    events_dir = Path(".builder/sessions") / session_id / "events"
+    events_dir.mkdir(parents=True, exist_ok=True)
+    existing_records = load_event_records(events_dir)
+    sequence = len(existing_records) + 1
+    current_stage = "initialized"
+    if existing_records:
+        replay_report = replay_events(existing_records, session_id=session_id)
+        if replay_report["valid"]:
+            current_stage = replay_report["current_stage"]
+
+    env_ref = _artifact_ref(env_data, envelope, "tool_call_envelope")
+    rec_ref = _artifact_ref(receipt, receipt_output, "tool_call_receipt")
+
+    event_id = f"evt_tool_exec_{int(time.time())}_{sequence}"
+    event_record = create_event_record(
+        event_id=event_id,
+        session_id=session_id,
+        sequence=sequence,
+        event_type="tool_call_executed",
+        stage=current_stage,
+        subject_refs=[env_ref, rec_ref],
+        command_surface="builder-tools invoke",
+        policy_snapshot_ref=_artifact_ref(pol_data, policy_path, "tool_invocation_policy"),
+        previous_event_ref=_previous_event_ref(existing_records),
+        message="Tool call executed",
+    )
+    # Validate event before writing
+    from builder_ii.event_ledger import validate_event_record
+    event_errors = validate_event_record(event_record)
+    if event_errors:
+        console.print(f"[red]Event record validation failed:[/] {event_errors}")
+        raise typer.Exit(1)
+
+    write_event_record(event_record, events_dir / f"{sequence:03d}_tool_call_executed.json")
+    console.print("Workflow event logged to ledger.")
 
 
+@tools_app.command("standalone-invoke")
+def standalone_invoke(
+    envelope: Path = typer.Argument(..., help="Path to the tool call envelope artifact"),
+    policy_path: Path = typer.Argument(..., help="Path to the active tool policy artifact"),
+    receipt_output: Path = typer.Option(..., "--receipt-output", "-r", help="Path to save the receipt"),
+) -> None:
+    """Executes an approved low-risk tool call defined in an envelope without logging to the ledger."""
+    try:
+        env_data = json.loads(envelope.read_text(encoding="utf-8"))
+        pol_data = json.loads(policy_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        console.print(f"[red]Error loading inputs:[/] {e}")
+        raise typer.Exit(1)
+
+    try:
+        receipt = execute_tool_envelope(
+            envelope=env_data,
+            envelope_path=envelope,
+            policy=pol_data,
+            policy_path=policy_path
+        )
+    except ValueError as e:
+        console.print(f"[red]Execution failed/denied:[/] {e}")
+        raise typer.Exit(1)
+
+    # Validate receipt before writing
+    from builder_ii.mcp_policy import validate_mcp_receipt
+    receipt_errors = validate_mcp_receipt(receipt)
+    if receipt_errors:
+        console.print(f"[red]Receipt validation failed:[/] {receipt_errors}")
+        raise typer.Exit(1)
+
+    content = json.dumps(receipt, indent=2) + "\n"
+    receipt_output.write_text(content, encoding="utf-8")
+    console.print(f"Wrote receipt to {receipt_output}")

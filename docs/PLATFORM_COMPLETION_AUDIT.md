@@ -62,7 +62,8 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | model routing | `OPERATIONALLY_VERIFIED` | B7 |
 | model/provider execution | `OPERATIONALLY_VERIFIED` | B7 |
 | tool registry | `PASSIVE_FOUNDATION` | B7 |
-| MCP/tool invocation | `OPERATIONALLY_VERIFIED` | B7 |
+| low-risk tool invocation | `OPERATIONALLY_VERIFIED` | B7 |
+| MCP invocation | `PASSIVE_FOUNDATION` | B7 |
 | passive orchestration assignment | `PASSIVE_FOUNDATION` | B5 |
 | workflow/event ledger | `PASSIVE_FOUNDATION` | B1 then B6/B7/B8 |
 | replay/audit | `PASSIVE_FOUNDATION` | B1 |
