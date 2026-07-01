@@ -248,6 +248,7 @@ Canonical governed passive lanes include:
 - Verification profile reports via `builder-verification`
 - B1.3B verification plan, approval binding, receipt contract, and bounded `platform_status` runner via `builder-verify`
 - Handoff note lifecycle via `builder-notes`
+- Artifact memory atoms, indexes, deterministic search, and reconstruction via `builder-memory`
 - Passive profile-pack lifecycle via `builder-profile-pack`
 - Passive model client registry and routing policy via `builder-model-policy`
 - Platform truth matrix, status, and docs audit via `builder-platform`

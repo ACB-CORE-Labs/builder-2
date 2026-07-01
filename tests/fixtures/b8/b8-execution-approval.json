@@ -1,0 +1,49 @@
+{
+  "kind": "builder_ii.execution_plan_approval",
+  "schema_version": 1,
+  "approval_state": "APPROVED_ONLY",
+  "plan_path": "docs/plan/B8_B9_GOVERNED_EXECUTION_PLAN.md",
+  "plan_sha256": "11fdcb603fa76230c64ee56936593240f59e537bc8030801dcb9249c04d9b5eb",
+  "approved_scope": [
+    "builder_ii/artifact_memory.py",
+    "builder_ii/memory_cli.py",
+    "builder-memory console script",
+    "command authority registration and regenerated docs/COMMAND_AUTHORITY.md",
+    "artifact chain validator registration for B8 artifact kinds",
+    "platform truth/matrix/docs updates promoting artifact memory truthfully",
+    "tests for memory atoms, indexes, reconstruction, search, CLI, command authority, platform truth, docs truth, and chain validation"
+  ],
+  "denied_boundaries": [
+    "hidden memory",
+    "opaque vector store",
+    "autonomous memory writes",
+    "target repo mutation beyond explicit source changes required for the B8 implementation PR",
+    "CORE Workbench/UI work",
+    "Deephaven work",
+    "model/tool/MCP/Goose/deepagents runtime expansion",
+    "autonomous commit/push outside the explicit PR workflow",
+    "truth-matrix overclaiming",
+    "B9 implementation in this PR"
+  ],
+  "approved_at": "2026-07-01T17:38:31Z",
+  "approved_by": "human_operator_via_codex_thread",
+  "approval_source": "user message in active Codex thread authorizing B8 execution only",
+  "artifact_is_authority": false,
+  "grants_authority": false,
+  "governance": {
+    "capability_state": "execution_plan_approval",
+    "runtime_execution": "DISABLED",
+    "model_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "deepagents_runtime": "DISABLED",
+    "mcp_execution": "DISABLED",
+    "artifact_is_authority": false,
+    "grants_runtime_authority": false,
+    "grants_action_authority": false,
+    "core_workbench_coupling": "NONE"
+  }
+}

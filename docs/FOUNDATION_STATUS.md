@@ -26,6 +26,7 @@ This means source-backed governed artifacts, validators, passive planners, and d
 - research adapters
 - performance records
 - inspection design gate
+- artifact memory
 - platform completion truth matrix
 - docs truth enforcement
 

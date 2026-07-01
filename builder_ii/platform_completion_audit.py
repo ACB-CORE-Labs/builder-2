@@ -11,7 +11,7 @@ PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "B6 -> B7"
+NEXT_SEQUENCE = "B8 -> B9"
 
 StateLabel = Literal[
     "NOT_STARTED",
@@ -760,12 +760,28 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "artifact memory",
-        DESIGN_ONLY,
-        ("docs/plan/ARTIFACT_MEMORY_RFC.md",),
-        (),
-        ("tests/test_platform_completion_truth.py",),
+        PASSIVE_FOUNDATION,
         (
-            "Memory atom schema, memory index, reconstruction artifact, staleness policy, searchable handoffs, and mutation approval are missing.",
+            "builder_ii/artifact_memory.py",
+            "builder_ii/memory_cli.py",
+            "docs/ARTIFACT_MEMORY.md",
+            "docs/plan/ARTIFACT_MEMORY_RFC.md",
+        ),
+        (
+            "builder-memory",
+            "builder-memory atom",
+            "builder-memory index",
+            "builder-memory reconstruct",
+            "builder-memory search",
+        ),
+        (
+            "tests/test_artifact_memory.py",
+            "tests/test_memory_cli.py",
+            "tests/test_platform_completion_truth.py",
+        ),
+        (
+            "Artifact memory is explicit, content-addressed, and reviewable only.",
+            "No hidden memory, vector store, autonomous writes, or runtime authority are promoted.",
         ),
         "B8",
     ),

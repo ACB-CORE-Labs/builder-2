@@ -133,6 +133,16 @@ from builder_ii.handoff_notes import (
     HANDOFF_NOTE_KIND,
     validate_handoff_note,
 )
+from builder_ii.artifact_memory import (
+    MEMORY_ATOM_KIND,
+    MEMORY_INDEX_KIND,
+    MEMORY_RECONSTRUCTION_KIND,
+    MEMORY_SEARCH_RESULT_KIND,
+    validate_memory_atom,
+    validate_memory_index,
+    validate_memory_reconstruction,
+    validate_memory_search_result,
+)
 from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
     validate_deepagents_bridge_readiness_report,
@@ -376,6 +386,10 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     SESSION_WORKFLOW_PLAN_KIND: validate_session_workflow_plan,
     GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
     HANDOFF_NOTE_KIND: validate_handoff_note,
+    MEMORY_ATOM_KIND: validate_memory_atom,
+    MEMORY_INDEX_KIND: validate_memory_index,
+    MEMORY_RECONSTRUCTION_KIND: validate_memory_reconstruction,
+    MEMORY_SEARCH_RESULT_KIND: validate_memory_search_result,
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
     DEEPAGENTS_POLICY_KIND: validate_deepagents_policy_artifact,
     DEEPAGENTS_READINESS_KIND: validate_deepagents_readiness_artifact,

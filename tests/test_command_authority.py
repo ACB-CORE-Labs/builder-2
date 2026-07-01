@@ -227,3 +227,34 @@ def test_standalone_call_registered_in_authority() -> None:
     assert record.allows_model_execution, f"{name} must declare allows_model_execution=True"
     assert record.allows_artifact_writes, f"{name} must declare allows_artifact_writes=True"
     assert name in REQUIRED_SUBCOMMANDS, f"'{name}' must be in REQUIRED_SUBCOMMANDS"
+
+
+def test_builder_memory_commands_are_registered_as_tier1_surfaces() -> None:
+    registered = {r.name: r for r in COMMAND_AUTHORITY_REGISTRY}
+
+    root = registered["builder-memory"]
+    assert root.tier == TIER_1
+    assert not root.allows_artifact_writes
+    assert root.approval_mode == MODE_NONE
+
+    for name in (
+        "builder-memory atom",
+        "builder-memory index",
+        "builder-memory search",
+        "builder-memory reconstruct",
+    ):
+        record = registered[name]
+        assert record.tier == TIER_1
+        assert record.allows_artifact_writes is True
+        assert name in REQUIRED_SUBCOMMANDS
+
+    for name in (
+        "builder-memory validate-atom",
+        "builder-memory validate-index",
+        "builder-memory validate-reconstruction",
+        "builder-memory validate-search-result",
+    ):
+        record = registered[name]
+        assert record.tier == TIER_1
+        assert record.allows_artifact_writes is False
+        assert name in REQUIRED_SUBCOMMANDS

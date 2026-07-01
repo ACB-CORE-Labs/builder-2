@@ -84,7 +84,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | deepagents passive work artifacts | `PASSIVE_FOUNDATION` | B6 |
 | deepagents runtime/subagents | `OPERATIONALLY_VERIFIED` | B6 |
 | notes/handoff artifacts | `PASSIVE_FOUNDATION` | B8 |
-| artifact memory | `DESIGN_ONLY` | B8 |
+| artifact memory | `PASSIVE_FOUNDATION` | B8 |
 | operator quickstart/golden path | `PASSIVE_FOUNDATION` | B9 |
 | platform doctor/status/audit | `PASSIVE_FOUNDATION` | R1 then B1 |
 | release proof/quality gates | `PASSIVE_FOUNDATION` | B1 |
@@ -96,9 +96,10 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 - Passive model routing exists through `builder-model-policy`; provider execution remains unpromoted.
 - Legacy operator-managed helpers such as `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
 - Legacy `builder setup` is no longer operator-managed setup execution; it is a fail-closed redirect to the governed `builder-setup` path.
-- Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-setup overlay-plan`, `builder-setup rollback-snapshot`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, and `builder-platform`.
+- Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-setup overlay-plan`, `builder-setup rollback-snapshot`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, `builder-platform`, and `builder-memory`.
 - R1 Config + Onboarding Kernel must precede B1 verification execution because execution authority depends on canonical target roots, artifact roots, config source precedence, setup receipts, rollback artifacts, and auditable capability defaults.
 - `builder-setup plan`, `builder-setup overlay-plan`, and `builder-setup rollback-snapshot` are passive setup planning only. They record future planned overlays and prior-state snapshot metadata but cannot write Goose config, write `.goosehints`, copy skills, install recipes, apply setup, execute rollback, start models, start Goose, construct deepagents, call MCP/tools, or apply patches.
+- `builder-memory` records explicit memory atoms, indexes, deterministic search results, and replay-stable reconstructions only. Hidden memory, vector stores, and autonomous memory writes remain disabled.
 
 ## Validation
 
@@ -110,6 +111,10 @@ CORE_REPO_PATH=. uv run python scripts/verify_v0_release.py --output-dir /tmp/bu
 uv run builder-platform matrix
 uv run builder-platform status
 uv run builder-platform audit-docs
+uv run builder-memory atom /tmp/builder-ii-memory-source.json --output /tmp/builder-ii-memory-atom.json
+uv run builder-memory index /tmp/builder-ii-memory-atom.json --output /tmp/builder-ii-memory-index.json
+uv run builder-memory search /tmp/builder-ii-memory-index.json --query "artifact memory" --output /tmp/builder-ii-memory-search.json
+uv run builder-memory reconstruct /tmp/builder-ii-memory-index.json --query "artifact memory" --output /tmp/builder-ii-memory-reconstruction.json
 uv run builder-config schema
 uv run builder-config resolve
 uv run builder-setup plan --output /tmp/builder-ii-setup-plan-r1-4.json
@@ -139,3 +144,7 @@ B1.1 adds `builder_ii.verification_execution_plan` plus `builder-verify plan` an
 ## B7 update
 
 B7 implements `builder_ii.mcp_policy`, `builder_ii.tool_invocation_gateway`, and `builder-mcp` + `builder-tools invoke` to govern explicit low-risk MCP and tool execution. Invocation requires explicitly constructed JSON envelopes validated against a strictly constrained `MCPToolPolicy` (deny-by-default, fixed args, rollback classifications) before execution via the gateway. Receipts are written alongside operational event ledger entries `tool_call_executed`/`tool_call_denied`. Only safe stub operations (`echo`, `date`) are supported as a proof-of-capability. Shell execution, source writes, broader model automation, Goose runtime, deepagents orchestration, and patch application remain unpromoted and fully blocked.
+
+## B8 update
+
+B8 adds `builder_ii.artifact_memory`, `builder_ii.memory_cli`, and the `builder-memory` command group to convert explicit validated artifacts into governed memory atoms, deterministic indexes, lexical search results, and replay-stable reconstruction artifacts. This promotes `artifact memory` from `DESIGN_ONLY` to `PASSIVE_FOUNDATION`. The lane remains artifact-only: hidden memory, vector-store retrieval, autonomous memory writes, model authority, shell execution, runtime activation, and target-repo mutation remain disabled.

@@ -149,6 +149,16 @@ from builder_ii.handoff_notes import (
     HANDOFF_NOTE_KIND,
     validate_handoff_note,
 )
+from builder_ii.artifact_memory import (
+    MEMORY_ATOM_KIND,
+    MEMORY_INDEX_KIND,
+    MEMORY_RECONSTRUCTION_KIND,
+    MEMORY_SEARCH_RESULT_KIND,
+    validate_memory_atom,
+    validate_memory_index,
+    validate_memory_reconstruction,
+    validate_memory_search_result,
+)
 from builder_ii.goose_session import (
     GOOSE_SESSION_KIND,
     validate_goose_session_manifest,
@@ -399,6 +409,10 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     SESSION_WORKFLOW_PLAN_KIND: validate_session_workflow_plan,
     GOOSE_READONLY_SESSION_PLAN_KIND: validate_goose_readonly_session_plan,
     HANDOFF_NOTE_KIND: validate_handoff_note,
+    MEMORY_ATOM_KIND: validate_memory_atom,
+    MEMORY_INDEX_KIND: validate_memory_index,
+    MEMORY_RECONSTRUCTION_KIND: validate_memory_reconstruction,
+    MEMORY_SEARCH_RESULT_KIND: validate_memory_search_result,
     GOOSE_SESSION_KIND: validate_goose_session_manifest,
     HANDOFF_KIND: validate_handoff_artifact,
     VERIFICATION_PROFILE_REPORT_KIND: validate_verification_profile_report,
@@ -773,6 +787,55 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                             "expected_kind": value.get("kind"),
                         }
                     )
+
+    elif kind == MEMORY_ATOM_KIND:
+        append_artifact_ref("artifact_ref", record.get("artifact_ref"))
+        source_refs = record.get("source_refs")
+        if isinstance(source_refs, list):
+            for index, value in enumerate(source_refs):
+                append_artifact_ref(f"source_refs[{index}]", value)
+        parent_refs = record.get("parent_refs")
+        if isinstance(parent_refs, list):
+            for index, value in enumerate(parent_refs):
+                append_artifact_ref(f"parent_refs[{index}]", value, MEMORY_ATOM_KIND)
+        append_artifact_ref("superseded_by_ref", record.get("superseded_by_ref"), MEMORY_ATOM_KIND)
+
+    elif kind == MEMORY_INDEX_KIND:
+        entries = record.get("entries")
+        if isinstance(entries, list):
+            for index, entry in enumerate(entries):
+                if isinstance(entry, dict):
+                    append_artifact_ref(f"entries[{index}].atom_ref", entry.get("atom_ref"), MEMORY_ATOM_KIND)
+
+    elif kind == MEMORY_SEARCH_RESULT_KIND:
+        append_artifact_ref("index_ref", record.get("index_ref"), MEMORY_INDEX_KIND)
+        matches = record.get("matches")
+        if isinstance(matches, list):
+            for index, match in enumerate(matches):
+                if isinstance(match, dict):
+                    append_artifact_ref(f"matches[{index}].atom_ref", match.get("atom_ref"), MEMORY_ATOM_KIND)
+        excluded = record.get("excluded_atom_refs")
+        if isinstance(excluded, list):
+            for index, item in enumerate(excluded):
+                if isinstance(item, dict):
+                    append_artifact_ref(f"excluded_atom_refs[{index}].ref", item.get("ref"), MEMORY_ATOM_KIND)
+
+    elif kind == MEMORY_RECONSTRUCTION_KIND:
+        append_artifact_ref("index_ref", record.get("index_ref"), MEMORY_INDEX_KIND)
+        selected_refs = record.get("selected_atom_refs")
+        if isinstance(selected_refs, list):
+            for index, value in enumerate(selected_refs):
+                append_artifact_ref(f"selected_atom_refs[{index}]", value, MEMORY_ATOM_KIND)
+        excluded = record.get("excluded_atom_refs")
+        if isinstance(excluded, list):
+            for index, item in enumerate(excluded):
+                if isinstance(item, dict):
+                    append_artifact_ref(f"excluded_atom_refs[{index}].ref", item.get("ref"), MEMORY_ATOM_KIND)
+        context = record.get("reconstructed_context")
+        if isinstance(context, list):
+            for index, item in enumerate(context):
+                if isinstance(item, dict):
+                    append_artifact_ref(f"reconstructed_context[{index}].atom_ref", item.get("atom_ref"), MEMORY_ATOM_KIND)
 
     elif kind == CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND:
         handoff = record.get("handoff_note")

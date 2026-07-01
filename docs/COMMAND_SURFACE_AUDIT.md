@@ -10,6 +10,7 @@ This document lists current CLI command surfaces from `pyproject.toml`, grouped 
 - `builder-mcp`
 - `builder-git-state`
 - `builder-platform`
+- `builder-memory`
 - `builder-config`
 - `builder-setup`
 - `builder onboarding`
@@ -21,6 +22,17 @@ Governed platform subcommands:
 - `builder-platform audit-docs`
 - `builder-platform r1-closure`
 - `builder-platform validate-r1-closure`
+
+Governed memory subcommands:
+
+- `builder-memory atom`
+- `builder-memory index`
+- `builder-memory search`
+- `builder-memory reconstruct`
+- `builder-memory validate-atom`
+- `builder-memory validate-index`
+- `builder-memory validate-search-result`
+- `builder-memory validate-reconstruction`
 
 Governed setup subcommands:
 
@@ -123,6 +135,15 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder-platform r1-closure` runs the full passive R1 config/setup/onboarding pipeline, emitting canonical chain evidence and `r1-closure-report.json`.
 - `builder-platform validate-r1-closure` validates the closure report and referenced evidence files on disk.
 - R1.6 completes R1 golden-path proof without executing setup mutation or promoting B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority.
+
+## B8 command surface delta
+
+- `builder-memory atom` wraps one explicit validated source artifact as a governed memory atom.
+- `builder-memory index` builds a deterministic index from explicit memory atoms only.
+- `builder-memory search` emits explainable lexical search results without hidden retrieval or vector-store behavior.
+- `builder-memory reconstruct` emits replay-stable review context from an explicit index.
+- `builder-memory validate-*` validates emitted memory artifacts only.
+- B8 does not add hidden memory, autonomous memory writes, model authority, shell execution, runtime authority, MCP/tool execution, Goose runtime, deepagents runtime, or target-repo mutation.
 
 ## B1.1 command surface delta
 

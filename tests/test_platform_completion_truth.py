@@ -66,6 +66,7 @@ def test_r1_3a_matrix_state_changes_are_scoped() -> None:
     assert by_capability["interactive setup wizard"].state == NOT_STARTED
     assert by_capability["setup receipt + rollback artifact"].state == PASSIVE_FOUNDATION
     assert by_capability["skill generator/installer/validator"].state == MERGED_BUT_NOT_OPERATIONAL
+    assert by_capability["artifact memory"].state == PASSIVE_FOUNDATION
     # B2 verifies rollback execution and patch apply
     # assert by_capability["rollback execution"].state != OPERATIONALLY_VERIFIED
     assert by_capability["HITL-approved verification execution"].state != ("OPERATIONALLY" + "_VERIFIED")
@@ -113,6 +114,41 @@ def test_builder_platform_commands_are_registered_as_tier1_validation_only() -> 
     assert r1_record.allows_artifact_writes
 
 
+def test_builder_memory_commands_are_registered_as_tier1_artifact_or_validation_only() -> None:
+    by_name = {record.name: record for record in COMMAND_AUTHORITY_REGISTRY}
+    for name in (
+        "builder-memory",
+        "builder-memory atom",
+        "builder-memory index",
+        "builder-memory search",
+        "builder-memory reconstruct",
+        "builder-memory validate-atom",
+        "builder-memory validate-index",
+        "builder-memory validate-reconstruction",
+        "builder-memory validate-search-result",
+    ):
+        record = by_name[name]
+        assert record.tier == TIER_1
+        assert record.approval_mode == MODE_NONE
+        assert not record.allows_runtime_start
+        assert not record.allows_model_execution
+        assert not record.allows_shell_execution
+        assert not record.allows_source_writes
+        assert not record.allows_memory_mutation
+        assert not record.allows_git_mutation
+        assert not record.allows_state_writes
+        assert not record.allows_external_tool_invocation
+
+    assert by_name["builder-memory"].allows_artifact_writes is False
+    for name in (
+        "builder-memory atom",
+        "builder-memory index",
+        "builder-memory search",
+        "builder-memory reconstruct",
+    ):
+        assert by_name[name].allows_artifact_writes is True
+
+
 def test_matrix_rendering_is_json_safe() -> None:
     matrix = render_matrix_jsonable()
     encoded = json.dumps(matrix, sort_keys=True)
@@ -125,7 +161,7 @@ def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()
     assert "passive-foundation-complete" in summary
     assert "operationally incomplete" in summary
-    assert "B6 -> B7" in summary
+    assert "B8 -> B9" in summary
     assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in summary
 
 
@@ -142,4 +178,4 @@ def test_builder_platform_status_cli_is_honest() -> None:
     assert result.exit_code == 0, result.output
     assert "passive-foundation-complete" in result.output
     assert "operationally incomplete" in result.output
-    assert "B6 -> B7" in result.output
+    assert "B8 -> B9" in result.output

@@ -193,7 +193,7 @@ These are the next capability promotions. Each requires the full capability prom
 - Requires full verification evidence
 
 ### Phase: artifact memory and context reconstruction
-- Promote artifact-memory envelopes and context reconstruction artifacts as provenance-preserving continuity records
+- B8 adds explicit artifact-memory envelopes, indexes, deterministic search results, and replay-stable reconstructions via `builder-memory`
 - No hidden memory mutation; summaries remain derived and non-authoritative
 
 ### Phase: event ledger and observability
