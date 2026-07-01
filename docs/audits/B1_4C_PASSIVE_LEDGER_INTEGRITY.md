@@ -22,6 +22,6 @@ The command emits `builder_ii.verification_execution_ledger_integrity_report` JS
 
 B1.4C is passive validation only. It does not replay execution, re-run verification, run subprocesses, execute shell, call models/tools, invoke MCP, start Goose/deepagents, mutate source files, mutate target repos, mutate git, mutate memory, or promote B2 authority.
 
-## Remaining B1 Work
+## Follow-On B1 Work
 
-B1.4D should add the read-only reconstruction/report surface and B1 closure docs. B1 remains incomplete until closure docs, command authority, artifact-chain coverage, and validation evidence prove the ledger/reconstruction loop without authority creep.
+B1.4D adds the read-only reconstruction/report surface and B1 closure docs. B1 remains passive foundation only after that closure; broader runtime and write authorities remain disabled until later promotion gates.

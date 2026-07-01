@@ -28,6 +28,8 @@ VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND = "builder_ii.verification_execu
 VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_SCHEMA_VERSION = 1
 VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND = "builder_ii.verification_execution_ledger_integrity_report"
 VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_SCHEMA_VERSION = 1
+VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND = "builder_ii.verification_execution_ledger_reconstruction_report"
+VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_SCHEMA_VERSION = 1
 LEDGER_RECORD_STATE = "PASSIVE_INDEX_ONLY"
 _REQUIRED_SUBJECT_REF_ROLES = (
     "verification_execution_plan",
@@ -113,6 +115,26 @@ def _default_governance() -> dict[str, Any]:
 def _default_integrity_governance() -> dict[str, Any]:
     return {
         "capability_state": "verification_execution_ledger_integrity_report",
+        "runtime_execution": "DISABLED",
+        "model_execution": "DISABLED",
+        "shell_execution": "DISABLED",
+        "source_writes": "DISABLED",
+        "target_repo_writes": "DISABLED",
+        "memory_mutation": "DISABLED",
+        "goose_runtime_start": "DISABLED",
+        "deepagents_runtime": "DISABLED",
+        "mcp_execution": "DISABLED",
+        "replay_execution": "DISABLED",
+        "artifact_is_authority": False,
+        "grants_runtime_authority": False,
+        "grants_action_authority": False,
+        "core_workbench_coupling": "NONE",
+    }
+
+
+def _default_reconstruction_governance() -> dict[str, Any]:
+    return {
+        "capability_state": "verification_execution_ledger_reconstruction_report",
         "runtime_execution": "DISABLED",
         "model_execution": "DISABLED",
         "shell_execution": "DISABLED",
@@ -535,8 +557,12 @@ def _validate_optional_index_chain(rows: list[dict[str, Any]]) -> tuple[str, boo
     return ("invalid" if errors else "continuous"), True, errors
 
 
-def validate_verification_execution_ledger_integrity(*, ledger_root: Path) -> dict[str, Any]:
-    loaded = load_verification_execution_ledger_records(ledger_root)
+def validate_verification_execution_ledger_integrity(
+    *,
+    ledger_root: Path,
+    loaded_records: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    loaded = loaded_records if loaded_records is not None else load_verification_execution_ledger_records(ledger_root)
     rows = loaded["records"]
     rejected = loaded["rejected"]
     chain_errors: list[dict[str, Any]] = []
@@ -595,6 +621,113 @@ def validate_verification_execution_ledger_integrity(*, ledger_root: Path) -> di
         "mutates_target_repo": False,
         "replays_execution": False,
         "governance": _default_integrity_governance(),
+    }
+
+
+
+def _reconstructed_chain_row(row: dict[str, Any]) -> dict[str, Any]:
+    record = row.get("record") if isinstance(row.get("record"), dict) else {}
+    subject_refs = record.get("subject_refs") if isinstance(record.get("subject_refs"), list) else []
+    return {
+        "chain_digest": record.get("chain_digest", ""),
+        "ledger_record_id": record.get("ledger_record_id", ""),
+        "verification_execution_ledger_record_digest": _record_digest(record),
+        "recorded_at": record.get("recorded_at", ""),
+        "target_profile": record.get("target_profile", ""),
+        "verification_profile": record.get("verification_profile", ""),
+        "target_repo": record.get("target_repo", ""),
+        "artifact_root": record.get("artifact_root", ""),
+        "receipt_status": record.get("receipt_status", ""),
+        "runner_mode": record.get("runner_mode", ""),
+        "process_result_count": record.get("process_result_count", 0),
+        "process_result_statuses": list(record.get("process_result_statuses", []))
+        if isinstance(record.get("process_result_statuses"), list)
+        else [],
+        "workspace_mutation_detected": record.get("workspace_mutation_detected"),
+        "ledger_path": row.get("path", ""),
+        "subject_refs": subject_refs,
+        "evidence_ref": _ledger_record_evidence_ref(row),
+        "valid": record.get("valid", True),
+    }
+
+def _invalid_reconstruction_records(integrity_report: dict[str, Any]) -> list[dict[str, Any]]:
+    invalid: list[dict[str, Any]] = []
+    for item in integrity_report.get("rejected", []):
+        if isinstance(item, dict):
+            invalid.append({"source": "rejected", "path": item.get("path", ""), "errors": item.get("errors", [])})
+    for item in integrity_report.get("duplicates", []):
+        if isinstance(item, dict):
+            invalid.append(
+                {
+                    "source": "duplicate",
+                    "field": item.get("field", ""),
+                    "value": item.get("value", ""),
+                    "paths": item.get("paths", []),
+                    "errors": item.get("errors", []),
+                }
+            )
+    for item in integrity_report.get("chain_errors", []):
+        if isinstance(item, dict):
+            invalid.append(
+                {
+                    "source": "chain_error",
+                    "path": item.get("path", ""),
+                    "ledger_record_id": item.get("ledger_record_id", ""),
+                    "errors": item.get("errors", []),
+                }
+            )
+    return invalid
+
+
+def reconstruct_verification_execution_ledger(*, ledger_root: Path) -> dict[str, Any]:
+    loaded = load_verification_execution_ledger_records(ledger_root)
+    records = loaded["records"]
+    integrity_report = validate_verification_execution_ledger_integrity(ledger_root=ledger_root, loaded_records=loaded)
+    invalid_records = _invalid_reconstruction_records(integrity_report)
+    reconstructed_chains = [_reconstructed_chain_row(row) for row in records]
+    summary = summarize_verification_execution_ledger_records(
+        records,
+        available_record_count=len(records) + len(loaded["rejected"]),
+        rejected_count=len(loaded["rejected"]),
+    )
+    summary.update(
+        {
+            "reconstructed_chain_count": len(reconstructed_chains),
+            "invalid_record_count": len(invalid_records),
+            "duplicate_count": integrity_report.get("summary", {}).get("duplicate_count", 0),
+            "chain_error_count": integrity_report.get("summary", {}).get("chain_error_count", 0),
+            "chain_rule_applies": integrity_report.get("summary", {}).get("chain_rule_applies", False),
+            "chain_continuity_status": integrity_report.get("summary", {}).get(
+                "chain_continuity_status",
+                "not_applicable_no_sequence_rule",
+            ),
+        }
+    )
+    valid = bool(integrity_report.get("valid"))
+    return {
+        "kind": VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND,
+        "schema_version": VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_SCHEMA_VERSION,
+        "reconstruction_state": "RECONSTRUCTED_ONLY",
+        "ledger_root": loaded["ledger_root"],
+        "deterministic_order": ["recorded_at", "chain_digest", "ledger_record_id", "path"],
+        "summary": summary,
+        "chain_continuity_status": summary["chain_continuity_status"],
+        "integrity_summary": integrity_report.get("summary", {}),
+        "reconstructed_chains": reconstructed_chains,
+        "invalid_records": invalid_records,
+        "rejected": loaded["rejected"],
+        "evidence_refs": [_ledger_record_evidence_ref(row) for row in records],
+        "errors": list(integrity_report.get("errors", [])),
+        "valid": valid,
+        "status": "valid" if valid else "invalid",
+        "executes_model": False,
+        "executes_shell": False,
+        "invokes_goose": False,
+        "constructs_deepagents": False,
+        "invokes_mcp": False,
+        "mutates_target_repo": False,
+        "replays_execution": False,
+        "governance": _default_reconstruction_governance(),
     }
 
 
@@ -929,6 +1062,111 @@ def validate_verification_execution_ledger_integrity_report(record: Any) -> list
         errors.append("governance must be an object")
     else:
         expected = _default_integrity_governance()
+        for key, value in expected.items():
+            if governance.get(key) != value:
+                errors.append(f"governance.{key} must be {value}")
+    return _dedupe_errors(errors)
+
+
+def validate_verification_execution_ledger_reconstruction_report(record: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return ["verification execution ledger reconstruction report must be a JSON object"]
+    if record.get("kind") != VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND:
+        errors.append(f"kind must be {VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND}")
+    if record.get("schema_version") != VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_SCHEMA_VERSION}")
+    if record.get("reconstruction_state") != "RECONSTRUCTED_ONLY":
+        errors.append("reconstruction_state must be RECONSTRUCTED_ONLY")
+    if record.get("status") not in ("valid", "invalid"):
+        errors.append("status must be valid or invalid")
+    if not isinstance(record.get("ledger_root"), str) or not record["ledger_root"]:
+        errors.append("ledger_root must be a non-empty string")
+    if not isinstance(record.get("deterministic_order"), list):
+        errors.append("deterministic_order must be a list")
+    summary = record.get("summary")
+    if not isinstance(summary, dict):
+        errors.append("summary must be an object")
+    else:
+        for key in (
+            "record_count",
+            "available_record_count",
+            "rejected_count",
+            "reconstructed_chain_count",
+            "invalid_record_count",
+            "duplicate_count",
+            "chain_error_count",
+        ):
+            if not isinstance(summary.get(key), int) or summary[key] < 0:
+                errors.append(f"summary.{key} must be a non-negative integer")
+        if not isinstance(summary.get("chain_rule_applies"), bool):
+            errors.append("summary.chain_rule_applies must be a boolean")
+        if summary.get("chain_continuity_status") not in ("continuous", "invalid", "not_applicable_no_sequence_rule"):
+            errors.append("summary.chain_continuity_status must be continuous, invalid, or not_applicable_no_sequence_rule")
+    if record.get("chain_continuity_status") not in ("continuous", "invalid", "not_applicable_no_sequence_rule"):
+        errors.append("chain_continuity_status must be continuous, invalid, or not_applicable_no_sequence_rule")
+    for field in ("reconstructed_chains", "invalid_records", "rejected", "evidence_refs", "errors"):
+        if not isinstance(record.get(field), list):
+            errors.append(f"{field} must be a list")
+    if not isinstance(record.get("integrity_summary"), dict):
+        errors.append("integrity_summary must be an object")
+    for index, chain in enumerate(record.get("reconstructed_chains") if isinstance(record.get("reconstructed_chains"), list) else []):
+        if not isinstance(chain, dict):
+            errors.append(f"reconstructed_chains[{index}] must be an object")
+            continue
+        is_chain_valid = chain.get("valid", True)
+        if not isinstance(is_chain_valid, bool):
+            errors.append(f"reconstructed_chains[{index}].valid must be a boolean")
+            is_chain_valid = True
+        for key in ("ledger_record_id", "verification_execution_ledger_record_digest", "ledger_path"):
+            if not _is_non_empty_string(chain.get(key)):
+                errors.append(f"reconstructed_chains[{index}].{key} must be a non-empty string")
+        if is_chain_valid:
+            if not _is_non_empty_string(chain.get("chain_digest")):
+                errors.append(f"reconstructed_chains[{index}].chain_digest must be a non-empty string")
+            if not _is_sha256_hex(chain.get("chain_digest")):
+                errors.append(f"reconstructed_chains[{index}].chain_digest must be a SHA-256 hex digest")
+        if not _is_sha256_hex(chain.get("verification_execution_ledger_record_digest")):
+            errors.append(f"reconstructed_chains[{index}].verification_execution_ledger_record_digest must be a SHA-256 hex digest")
+        if not isinstance(chain.get("subject_refs"), list):
+            errors.append(f"reconstructed_chains[{index}].subject_refs must be a list")
+        evidence_ref = chain.get("evidence_ref")
+        if not isinstance(evidence_ref, dict):
+            errors.append(f"reconstructed_chains[{index}].evidence_ref must be an object")
+    for index, ref in enumerate(record.get("evidence_refs") if isinstance(record.get("evidence_refs"), list) else []):
+        if not isinstance(ref, dict):
+            errors.append(f"evidence_refs[{index}] must be an object")
+            continue
+        for key in ("role", "kind", "path", "sha256", "artifact_digest"):
+            if not _is_non_empty_string(ref.get(key)):
+                errors.append(f"evidence_refs[{index}].{key} must be a non-empty string")
+        if ref.get("role") != "verification_execution_ledger_record":
+            errors.append(f"evidence_refs[{index}].role must be verification_execution_ledger_record")
+        if ref.get("kind") != VERIFICATION_EXECUTION_LEDGER_RECORD_KIND:
+            errors.append(f"evidence_refs[{index}].kind must be {VERIFICATION_EXECUTION_LEDGER_RECORD_KIND}")
+        if not _is_sha256_hex(ref.get("sha256")):
+            errors.append(f"evidence_refs[{index}].sha256 must be a SHA-256 hex digest")
+        if not _is_sha256_hex(ref.get("artifact_digest")):
+            errors.append(f"evidence_refs[{index}].artifact_digest must be a SHA-256 hex digest")
+        if ref.get("required") is not True:
+            errors.append(f"evidence_refs[{index}].required must be true")
+    valid = record.get("valid")
+    report_errors = record.get("errors")
+    if not isinstance(valid, bool):
+        errors.append("valid must be a boolean")
+    elif isinstance(report_errors, list):
+        if valid is True and report_errors:
+            errors.append("errors must be empty when valid is true")
+        if valid is False and not report_errors:
+            errors.append("errors must be non-empty when valid is false")
+    for key in ("executes_model", "executes_shell", "invokes_goose", "constructs_deepagents", "invokes_mcp", "mutates_target_repo", "replays_execution"):
+        if record.get(key) is not False:
+            errors.append(f"{key} must be false")
+    governance = record.get("governance")
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        expected = _default_reconstruction_governance()
         for key, value in expected.items():
             if governance.get(key) != value:
                 errors.append(f"governance.{key} must be {value}")

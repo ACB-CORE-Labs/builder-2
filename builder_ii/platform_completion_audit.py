@@ -577,6 +577,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "builder-ledger index-receipt",
             "builder-ledger query-receipts",
             "builder-ledger validate-receipts",
+            "builder-ledger reconstruct-receipts",
         ),
         (
             "tests/test_verification_execution_plan.py",
@@ -597,11 +598,11 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "B1.2 adds a digest-bound HITL approval artifact only and remains non-authoritative.",
             "B1.3A adds a passive verification execution receipt contract and validate-receipt surface.",
             "B1.3B adds the first bounded approved verification runner for profile=platform_status.",
-            "B1.4A/B/C add passive verification ledger indexing, query, and integrity reporting.",
+            "B1.4A/B/C/D add passive verification ledger indexing, query, integrity, and reconstruction reporting.",
             "Receipt state may be NOT_EXECUTED, BLOCKED_BEFORE_EXECUTION, EXECUTED, or FAILED depending on runner outcome.",
-            "Read-only ledger reconstruction/B1 closure docs and broader runtime event classes remain missing.",
+            "B1 is closed as passive foundation only; broader execution profiles, live read authority, patching, model/MCP/Goose/deepagents runtime, and B2 write authority remain disabled.",
         ),
-        "B1.4D",
+        "B2.0",
     ),
     _row(
         "HITL patch proposal",

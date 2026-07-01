@@ -157,3 +157,10 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder ledger validate-receipts` is the root-command equivalent surface.
 - The report validates native record digests, rejected records, duplicates, required plan/approval/receipt subject refs, chain-digest consistency, and optional index-chain continuity when index-chain fields are present.
 - B1.4C is passive/read-only only: it does not write report artifacts, replay execution, run verification, run subprocesses, execute shell, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate source/target repo files, mutate git, mutate memory, or promote B2 authority.
+
+## B1.4D command surface delta
+
+- `builder-ledger reconstruct-receipts` emits a deterministic `builder_ii.verification_execution_ledger_reconstruction_report` over existing `builder_ii.verification_execution_ledger_record` artifacts under `.builder/ledger/`.
+- `builder ledger reconstruct-receipts` is the root-command equivalent surface.
+- The report reconstructs passive receipt-chain projections, summary counts, invalid/rejected record diagnostics, chain continuity status, and evidence refs.
+- B1.4D is passive/read-only only: it does not write report artifacts, replay execution, re-run verification, run subprocesses, execute shell, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate source/target repo files, mutate git, mutate memory, or promote B2 authority.

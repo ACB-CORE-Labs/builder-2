@@ -15,8 +15,8 @@ builder-II is a generic governed local agent/developer platform. CORE is a targe
 
 - Passive integrity validation over a set of verification execution ledger records.
 - Deterministic duplicate, digest-drift, required-ref, chain-digest, and continuity diagnostics.
-- Read-only reconstruction/reporting that summarizes invalid/rejected records, chain continuity, and evidence refs without re-running verification.
-- Closure docs proving what remains disabled after B1.
+- B1.4D is responsible for read-only reconstruction/reporting that summarizes invalid/rejected records, chain continuity, and evidence refs without re-running verification.
+- B1 closure docs must prove what remains disabled after B1 before B2 begins.
 - Artifact-chain validators for any new B1 report kinds.
 
 ## B2 Meaning In This Repo
@@ -51,4 +51,4 @@ B2 begins as governed live read, not patching. The first acceptable B2 capabilit
 
 ## Current Slice
 
-B1.4C should add the corrective operator for B1.4A/B: a deterministic validation report over the existing passive ledger medium. It validates the ledger set and emits diagnostics only. It may optionally be written as an explicit artifact in a later slice if command authority classifies that write as passive artifact output; the first B1.4C surface is read-only JSON stdout.
+B1.4D should add the reconstruction operator over B1.4C integrity: deterministic read-only receipt-chain projections with invalid/rejected records, chain continuity status, and evidence refs. It emits JSON only in this slice and does not promote execution replay.

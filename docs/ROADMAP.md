@@ -47,7 +47,7 @@ R1 Config + Onboarding Kernel must precede B1 verification execution because exe
 - B1.2 verification execution approval artifact (`builder_ii.verification_execution_approval`) — digest-bound HITL approval only, execution disabled
 - B1.3A verification execution receipt artifact (`builder_ii.verification_execution_receipt`) — passive receipt contract
 - B1.3B bounded approved verification runner (`builder-verify run-approved`) — one approved `platform_status` profile, fixed argv, `shell=False`, receipt-bound
-- B1.4A/B/C passive verification execution ledger indexing, query, and integrity report (`builder_ii.verification_execution_ledger_record`, `builder_ii.verification_execution_ledger_query_report`, `builder_ii.verification_execution_ledger_integrity_report`) — artifact reconstruction only, no execution replay
+- B1.4A/B/C/D passive verification execution ledger indexing, query, integrity, and reconstruction reports (`builder_ii.verification_execution_ledger_record`, `builder_ii.verification_execution_ledger_query_report`, `builder_ii.verification_execution_ledger_integrity_report`, `builder_ii.verification_execution_ledger_reconstruction_report`) — artifact reconstruction only, no execution replay
 - Full governed preparation lane scenario tests
 
 **HITL governance chain**
@@ -165,7 +165,7 @@ These are the next capability promotions. Each requires the full capability prom
 
 - R0: completion truth matrix, platform status CLI, docs truth audit, command authority coverage, and tests.
 - R1: Config + Onboarding Kernel for canonical source precedence, setup plan/apply/validate, receipts, rollback artifacts, and capability defaults.
-- B1: HITL-approved verification execution after R1 has made target roots, artifact roots, and setup state auditable. B1.1 is only a passive verification execution plan artifact, B1.2 is only a digest-bound HITL approval binding artifact, B1.3 adds the bounded `platform_status` runner receipt, and B1.4 completes the passive ledger/reconstruction layer before any broader execution authority.
+- B1: HITL-approved verification execution after R1 has made target roots, artifact roots, and setup state auditable. B1.1 is only a passive verification execution plan artifact, B1.2 is only a digest-bound HITL approval binding artifact, B1.3 adds the bounded `platform_status` runner receipt, and B1.4 completes the passive ledger/reconstruction layer before any broader execution authority. B2 starts with promotion gating and the smallest governed live-read template, not patching.
 
 ### Phase: profile-pack / capability-factory substrate (next planning spine)
 - Introduce user-created profile packs for target profiles, agents, subagents, tasks, tools, context, verification, approval, Goose projections, deepagents projections, MCP policies, and handoff profiles

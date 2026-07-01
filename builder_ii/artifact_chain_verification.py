@@ -72,8 +72,10 @@ from builder_ii.verification_execution_receipt import (
 )
 from builder_ii.verification_execution_ledger import (
     VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND,
+    VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND,
     VERIFICATION_EXECUTION_LEDGER_RECORD_KIND,
     validate_verification_execution_ledger_integrity_report,
+    validate_verification_execution_ledger_reconstruction_report,
     validate_verification_execution_ledger_record,
 )
 from builder_ii.git_state import GIT_STATE_RECORD_KIND, validate_git_state_record
@@ -375,6 +377,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     VERIFICATION_EXECUTION_RECEIPT_KIND: validate_verification_execution_receipt_artifact,
     VERIFICATION_EXECUTION_LEDGER_RECORD_KIND: validate_verification_execution_ledger_record,
     VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND: validate_verification_execution_ledger_integrity_report,
+    VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND: validate_verification_execution_ledger_reconstruction_report,
     CONTEXT_PACK_RECORD_KIND: validate_context_pack_record,
     AGENT_PROFILE_RECORD_KIND: validate_agent_profile_record,
     GIT_STATE_RECORD_KIND: validate_git_state_record,
@@ -1374,6 +1377,12 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         append_artifact_ref("last_event_ref", record.get("last_event_ref"), EVENT_RECORD_KIND)
 
     elif kind == VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND:
+        evidence_refs = record.get("evidence_refs")
+        if isinstance(evidence_refs, list):
+            for index, value in enumerate(evidence_refs):
+                append_artifact_ref(f"evidence_refs[{index}]", value, VERIFICATION_EXECUTION_LEDGER_RECORD_KIND)
+
+    elif kind == VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND:
         evidence_refs = record.get("evidence_refs")
         if isinstance(evidence_refs, list):
             for index, value in enumerate(evidence_refs):

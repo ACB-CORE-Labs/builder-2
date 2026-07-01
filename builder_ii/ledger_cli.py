@@ -20,6 +20,7 @@ from builder_ii.verification_execution_ledger import (
     default_verification_execution_ledger_output,
     index_verification_execution_receipt,
     query_verification_execution_ledger_records,
+    reconstruct_verification_execution_ledger,
     validate_verification_execution_ledger_integrity,
     validate_verification_execution_ledger_record,
     write_verification_execution_ledger_record,
@@ -295,6 +296,20 @@ def validate_receipts(
 
     root = ledger_root or (target_repo / ".builder" / "ledger")
     report = validate_verification_execution_ledger_integrity(ledger_root=root)
+    _emit(report)
+    if report.get("valid") is not True:
+        raise typer.Exit(1)
+
+
+@ledger_app.command("reconstruct-receipts")
+def reconstruct_receipts(
+    target_repo: Path = typer.Option(Path("."), "--target-repo", help="Target repository whose .builder/ledger directory should be read."),
+    ledger_root: Path | None = typer.Option(None, "--ledger-root", help="Explicit verification execution ledger root; defaults to --target-repo/.builder/ledger."),
+) -> None:
+    """Reconstruct verification execution ledger chains without replay execution or writes."""
+
+    root = ledger_root or (target_repo / ".builder" / "ledger")
+    report = reconstruct_verification_execution_ledger(ledger_root=root)
     _emit(report)
     if report.get("valid") is not True:
         raise typer.Exit(1)
