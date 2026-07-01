@@ -80,3 +80,72 @@ def test_validate_golden_path_rejects_directory(tmp_path):
     res = runner.invoke(platform_app, ["validate-golden-path", str(tmp_path)])
     assert res.exit_code != 0
     assert "report file is not a valid file" in res.output
+
+def test_operator_golden_path_truthfulness(tmp_path):
+    report = create_operator_golden_path_report("builder", tmp_path)
+
+    exercised_names = {c["capability"] for c in report["exercised_capabilities"]}
+    skipped_names = {c["capability"] for c in report["skipped_capabilities"]}
+
+    from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
+
+    for row in REQUIRED_CAPABILITY_ROWS:
+        if row.state == "PASSIVE_FOUNDATION":
+            assert row.capability not in exercised_names
+            assert row.capability in skipped_names
+        elif row.state == "ARTIFACT_ONLY":
+            assert row.capability not in exercised_names
+            assert row.capability in skipped_names
+        elif row.state == "MERGED_BUT_NOT_OPERATIONAL":
+            assert row.capability not in exercised_names
+            assert row.capability in skipped_names
+        elif row.state == "NOT_STARTED":
+            assert row.capability not in exercised_names
+            assert row.capability in skipped_names
+
+    # skipped statuses are all from the allowed B9 status set
+    ALLOWED_SKIPPED_STATUSES = {"skipped_disabled", "skipped_missing_evidence", "unavailable", "not_applicable"}
+    for entry in report["skipped_capabilities"]:
+        assert entry["status"] in ALLOWED_SKIPPED_STATUSES
+
+    # known_gaps is non-empty when operator-next reports incomplete capabilities
+    assert len(report["known_gaps"]) > 0
+
+    # memory/ledger missing evidence is represented in skipped_capabilities
+    if report["memory_status"] == "skipped_missing_evidence":
+        has_memory_entry = any(
+            "memory" in c["capability"].lower() or "memory" in c.get("reason", "").lower()
+            for c in report["skipped_capabilities"]
+        )
+        assert has_memory_entry
+
+    if report["ledger_status"] == "skipped_missing_evidence":
+        has_ledger_entry = any(
+            "ledger" in c["capability"].lower() or "artifact-chain" in c["capability"].lower() or
+            "ledger" in c.get("reason", "").lower() or "artifact-chain" in c.get("reason", "").lower()
+            for c in report["skipped_capabilities"]
+        )
+        assert has_ledger_entry
+
+def test_validator_rejects_malformed_report(tmp_path):
+    report = create_operator_golden_path_report("builder", tmp_path)
+
+    # Place a non-operational capability in exercised_capabilities
+    malformed = dict(report)
+    malformed["exercised_capabilities"] = report["exercised_capabilities"] + [
+        {"capability": "generic platform identity", "status": "exercised"}
+    ]
+    errors = validate_operator_golden_path_report(malformed)
+    assert any("truth inflation: capability 'generic platform identity' is in exercised_capabilities" in e for e in errors)
+
+    # Empty known_gaps
+    malformed_gaps = dict(report)
+    malformed_gaps["known_gaps"] = []
+    errors = validate_operator_golden_path_report(malformed_gaps)
+    assert any("truth inflation: known_gaps is empty" in e for e in errors)
+
+    # Empty skipped_capabilities
+    malformed_skipped = dict(report)
+    malformed_skipped["skipped_capabilities"] = []
+    errors = validate_operator_golden_path_report(malformed_skipped)
+    assert any("truth inflation: skipped_capabilities is empty" in e for e in errors)
