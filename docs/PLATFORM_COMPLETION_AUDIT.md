@@ -62,7 +62,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | model routing | `OPERATIONALLY_VERIFIED` | B7 |
 | model/provider execution | `OPERATIONALLY_VERIFIED` | B7 |
 | tool registry | `PASSIVE_FOUNDATION` | B7 |
-| MCP/tool invocation | `DESIGN_ONLY` | B7 |
+| MCP/tool invocation | `OPERATIONALLY_VERIFIED` | B7 |
 | passive orchestration assignment | `PASSIVE_FOUNDATION` | B5 |
 | workflow/event ledger | `PASSIVE_FOUNDATION` | B1 then B6/B7/B8 |
 | replay/audit | `PASSIVE_FOUNDATION` | B1 |
@@ -134,3 +134,7 @@ R1.5 adds `builder-setup init`, `builder-setup wizard`, `builder onboarding`, an
 R1.6 completes R1 by introducing `builder-platform r1-closure` and `builder-platform validate-r1-closure`. These commands execute the entire passive config/setup/onboarding chain and emit a canonical, auditable `r1-closure-report.json` alongside the full evidence artifact chain (`config-schema.json`, `config-resolution.json`, `setup-plan.json`, `setup-overlay.json`, `setup-rollback-snapshot.json`, and `onboarding-intent.json`). This proves the R1 golden path while ensuring that setup apply/rollback execution remains explicit and B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority remain unpromoted.
 
 B1.1 adds `builder_ii.verification_execution_plan` plus `builder-verify plan` and `builder-verify validate-plan` as a passive verification execution planning surface. B1.2 adds `builder_ii.verification_execution_approval` plus `builder-verify approve-plan` and `builder-verify validate-approval` as a digest-bound HITL approval binding surface. Both artifacts remain passive and non-authoritative: they do not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, or promote actual verification execution. B1.3A adds a passive receipt contract. B1.3B adds the first bounded approved verification runner for `platform_status`. B1.4A/B/C/D add passive verification execution ledger indexing, read-only query, read-only integrity reporting, read-only reconstruction reporting, and B1 closure docs. B1 is closed as passive foundation only; broader execution profiles, live read authority, patching, model/MCP/Goose/deepagents runtime, and B2 write authority remain disabled.
+
+## B7 update
+
+B7 implements `builder_ii.mcp_policy`, `builder_ii.tool_invocation_gateway`, and `builder-mcp` + `builder-tools invoke` to govern explicit low-risk MCP and tool execution. Invocation requires explicitly constructed JSON envelopes validated against a strictly constrained `MCPToolPolicy` (deny-by-default, fixed args, rollback classifications) before execution via the gateway. Receipts are written alongside operational event ledger entries `tool_call_executed`/`tool_call_denied`. Only safe stub operations (`echo`, `date`) are supported as a proof-of-capability. Shell execution, source writes, broader model automation, Goose runtime, deepagents orchestration, and patch application remain unpromoted and fully blocked.

@@ -448,7 +448,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "MCP/tool invocation",
-        DESIGN_ONLY,
+        OPERATIONALLY_VERIFIED,
         (
             "docs/plan/MCP_POLICY_ARTIFACT_RFC.md",
             "docs/plan/MCP_TOOL_INVENTORY_RFC.md",

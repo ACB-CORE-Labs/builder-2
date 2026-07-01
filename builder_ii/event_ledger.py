@@ -38,6 +38,12 @@ EVENT_TYPES = {
     "deepagents_runtime_failed",
     "model_call_executed",
     "model_call_failed",
+    "tool_call_executed",
+    "tool_call_denied",
+    "tool_call_failed",
+    "mcp_call_executed",
+    "mcp_call_denied",
+    "mcp_call_failed",
 }
 
 EVENT_TYPE_STAGE = {

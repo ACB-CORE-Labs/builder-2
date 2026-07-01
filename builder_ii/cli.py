@@ -35,6 +35,8 @@ from builder_ii.model_router import SESSION_MODES, explain_plan, plan_session, t
 from builder_ii.models import model_definitions, model_status_report
 from builder_ii.ledger_cli import ledger_app
 from builder_ii.workflow_cli import workflow_app
+from builder_ii.tools_cli import tools_app
+from builder_ii.mcp_cli import mcp_app
 
 app = typer.Typer(
     name="builder",
@@ -45,6 +47,8 @@ console = Console()
 
 app.add_typer(workflow_app, name="workflow")
 app.add_typer(ledger_app, name="ledger")
+app.add_typer(tools_app, name="tools")
+app.add_typer(mcp_app, name="mcp")
 
 
 def _backend_ready_for_selected_model(settings) -> tuple[bool, str]:
