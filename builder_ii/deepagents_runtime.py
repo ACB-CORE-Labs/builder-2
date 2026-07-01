@@ -57,6 +57,24 @@ def _string_list(value: Any, *, field: str) -> list[str]:
     return value
 
 
+def _assert_work_plan_ref_matches(
+    envelope: dict[str, Any], plan: dict[str, Any], work_plan_path: Path
+) -> None:
+    actual_ref = envelope.get("work_plan_ref")
+    if not isinstance(actual_ref, dict):
+        raise ValueError("Envelope work_plan_ref must be a JSON object reference")
+
+    expected_ref = _artifact_ref(
+        plan,
+        role="work_plan",
+        path=work_plan_path,
+        name="work plan",
+    )
+    for field in ("role", "kind", "path", "sha256"):
+        if actual_ref.get(field) != expected_ref[field]:
+            raise ValueError("Envelope work_plan_ref does not match requested work plan")
+
+
 def create_deepagents_runtime_envelope(
     session_id: str,
     work_plan_ref: dict[str, Any],
@@ -262,6 +280,7 @@ class DeepAgentsRuntimeHarness:
     def collect_results(self, envelope_path: Path, output_proposal_path: Path) -> dict[str, Any]:
         envelope = _load_json_object(envelope_path, label="Envelope")
         plan = _load_json_object(self.work_plan_path, label="Work plan")
+        _assert_work_plan_ref_matches(envelope, plan, self.work_plan_path)
 
         execution_receipt_refs = envelope.get("execution_receipt_refs")
         if not isinstance(execution_receipt_refs, list):
@@ -274,7 +293,9 @@ class DeepAgentsRuntimeHarness:
             receipt = _load_json_object(receipt_path, label="Subagent execution receipt")
 
             result_ref = receipt.get("result_ref")
-            result_path = _ref_path(result_ref, field=f"execution_receipt_refs[{idx}].result_ref")
+            result_path = _ref_path(
+                result_ref, field=f"execution_receipt_refs[{idx}].result_ref"
+            )
             result = _load_json_object(result_path, label="Subagent result")
             results.append(result)
             result_paths.append(result_path)
