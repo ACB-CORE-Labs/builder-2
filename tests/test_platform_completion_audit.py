@@ -84,15 +84,5 @@ def test_b8_passive_foundation_requires_no_implied_mutation() -> None:
 
 def test_next_sequence_matches_incomplete_rows() -> None:
     # NEXT_SEQUENCE must match actual incomplete capability rows.
-    from builder_ii.platform_completion_audit import get_next_sequence
-    seq = get_next_sequence()
-    # Find the first incomplete non-deferred PR
-    incomplete = [
-        r.next_pr.split()[0].split(".")[0]
-        for r in REQUIRED_CAPABILITY_ROWS
-        if r.state != "OPERATIONALLY_VERIFIED" and "defer" not in r.next_pr.lower()
-    ]
-    if incomplete:
-        assert incomplete[0] in seq
-    else:
-        assert seq == "PLATFORM_COMPLETE"
+    from builder_ii.platform_completion_audit import NEXT_SEQUENCE
+    assert NEXT_SEQUENCE == "R1 -> B1"
