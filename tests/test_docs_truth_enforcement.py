@@ -27,12 +27,12 @@ def test_audit_docs_fails_closed_on_false_completion_claim(tmp_path: Path) -> No
     docs = tmp_path / "docs"
     docs.mkdir()
     (tmp_path / "README.md").write_text("# bad\n", encoding="utf-8")
-    (docs / "bad.md").write_text("model routing is complete and operational.\n", encoding="utf-8")
+    (docs / "bad.md").write_text("tool registry is complete and operational.\n", encoding="utf-8")
 
     violations = scan_docs_for_false_completion(tmp_path)
     assert violations
     assert violations[0].path == "docs/bad.md"
-    assert "model routing" in violations[0].reason
+    assert "tool registry" in violations[0].reason
 
 
 def test_readme_no_longer_says_model_routing_is_only_an_rfc() -> None:

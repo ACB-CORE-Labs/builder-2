@@ -11,7 +11,7 @@ PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "B5 -> B6"
+NEXT_SEQUENCE = "B6 -> B7"
 
 StateLabel = Literal[
     "NOT_STARTED",
@@ -402,39 +402,36 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "model registry",
-        PASSIVE_FOUNDATION,
-        ("builder_ii/model_client_registry.py",),
-        ("builder-model-policy",),
-        ("tests/test_model_client_registry.py", "tests/test_model_policy_cli.py"),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/model_client_registry.py", "builder_ii/model_execution_gateway.py"),
+        ("builder-model-policy", "builder-model call"),
+        ("tests/test_model_client_registry.py", "tests/test_model_policy_cli.py", "tests/test_model_execution_gateway.py"),
         (
-            "Registry is recorded-only and disabled for provider calls.",
-            "Execution gateway is missing.",
+            "None. B6 completed model client registry verification under governed execution gateway.",
         ),
-        "B6",
+        "B7",
     ),
     _row(
         "model routing",
-        PASSIVE_FOUNDATION,
-        ("builder_ii/model_routing_policy.py", "builder_ii/model_policy_cli.py"),
-        ("builder-model-policy",),
-        ("tests/test_model_routing_policy.py", "tests/test_model_policy_cli.py"),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/model_routing_policy.py", "builder_ii/model_policy_cli.py", "builder_ii/model_execution_gateway.py"),
+        ("builder-model-policy", "builder-model call"),
+        ("tests/test_model_routing_policy.py", "tests/test_model_policy_cli.py", "tests/test_model_execution_gateway.py"),
         (
-            "Recommendation is advisory only.",
-            "Provider calls, cost budgets, prompt digests, receipts, and replay declaration are missing.",
+            "None. B6 completed routing verification under governed execution gateway.",
         ),
-        "B6",
+        "B7",
     ),
     _row(
         "model/provider execution",
-        MERGED_BUT_NOT_OPERATIONAL,
-        ("builder_ii/direct_chat.py", "builder_ii/backends.py"),
-        ("builder ask", "builder start"),
-        ("tests/test_direct_chat.py", "tests/test_backends.py"),
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/model_execution_gateway.py", "builder_ii/model_cli.py", "builder_ii/direct_chat.py", "builder_ii/backends.py"),
+        ("builder-model call", "builder-model validate-receipt"),
+        ("tests/test_model_execution_gateway.py", "tests/test_direct_chat.py", "tests/test_backends.py"),
         (
-            "Legacy live local model paths exist.",
-            "Governed provider envelope, prompt/context digest, budget, receipt, ledger, and replay statement are missing.",
+            "None. Governed provider execution gateway is active.",
         ),
-        "B6",
+        "B7",
     ),
     _row(
         "tool registry",
