@@ -557,8 +557,12 @@ def _validate_optional_index_chain(rows: list[dict[str, Any]]) -> tuple[str, boo
     return ("invalid" if errors else "continuous"), True, errors
 
 
-def validate_verification_execution_ledger_integrity(*, ledger_root: Path) -> dict[str, Any]:
-    loaded = load_verification_execution_ledger_records(ledger_root)
+def validate_verification_execution_ledger_integrity(
+    *,
+    ledger_root: Path,
+    loaded_records: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    loaded = loaded_records if loaded_records is not None else load_verification_execution_ledger_records(ledger_root)
     rows = loaded["records"]
     rejected = loaded["rejected"]
     chain_errors: list[dict[str, Any]] = []
@@ -620,6 +624,7 @@ def validate_verification_execution_ledger_integrity(*, ledger_root: Path) -> di
     }
 
 
+
 def _reconstructed_chain_row(row: dict[str, Any]) -> dict[str, Any]:
     record = row.get("record") if isinstance(row.get("record"), dict) else {}
     subject_refs = record.get("subject_refs") if isinstance(record.get("subject_refs"), list) else []
@@ -635,13 +640,15 @@ def _reconstructed_chain_row(row: dict[str, Any]) -> dict[str, Any]:
         "receipt_status": record.get("receipt_status", ""),
         "runner_mode": record.get("runner_mode", ""),
         "process_result_count": record.get("process_result_count", 0),
-        "process_result_statuses": list(record.get("process_result_statuses", [])) if isinstance(record.get("process_result_statuses"), list) else [],
+        "process_result_statuses": list(record.get("process_result_statuses", []))
+        if isinstance(record.get("process_result_statuses"), list)
+        else [],
         "workspace_mutation_detected": record.get("workspace_mutation_detected"),
         "ledger_path": row.get("path", ""),
         "subject_refs": subject_refs,
         "evidence_ref": _ledger_record_evidence_ref(row),
+        "valid": record.get("valid", True),
     }
-
 
 def _invalid_reconstruction_records(integrity_report: dict[str, Any]) -> list[dict[str, Any]]:
     invalid: list[dict[str, Any]] = []
@@ -675,7 +682,7 @@ def _invalid_reconstruction_records(integrity_report: dict[str, Any]) -> list[di
 def reconstruct_verification_execution_ledger(*, ledger_root: Path) -> dict[str, Any]:
     loaded = load_verification_execution_ledger_records(ledger_root)
     records = loaded["records"]
-    integrity_report = validate_verification_execution_ledger_integrity(ledger_root=ledger_root)
+    integrity_report = validate_verification_execution_ledger_integrity(ledger_root=ledger_root, loaded_records=loaded)
     invalid_records = _invalid_reconstruction_records(integrity_report)
     reconstructed_chains = [_reconstructed_chain_row(row) for row in records]
     summary = summarize_verification_execution_ledger_records(
@@ -1107,11 +1114,18 @@ def validate_verification_execution_ledger_reconstruction_report(record: Any) ->
         if not isinstance(chain, dict):
             errors.append(f"reconstructed_chains[{index}] must be an object")
             continue
-        for key in ("chain_digest", "ledger_record_id", "verification_execution_ledger_record_digest", "ledger_path"):
+        is_chain_valid = chain.get("valid", True)
+        if not isinstance(is_chain_valid, bool):
+            errors.append(f"reconstructed_chains[{index}].valid must be a boolean")
+            is_chain_valid = True
+        for key in ("ledger_record_id", "verification_execution_ledger_record_digest", "ledger_path"):
             if not _is_non_empty_string(chain.get(key)):
                 errors.append(f"reconstructed_chains[{index}].{key} must be a non-empty string")
-        if not _is_sha256_hex(chain.get("chain_digest")):
-            errors.append(f"reconstructed_chains[{index}].chain_digest must be a SHA-256 hex digest")
+        if is_chain_valid:
+            if not _is_non_empty_string(chain.get("chain_digest")):
+                errors.append(f"reconstructed_chains[{index}].chain_digest must be a non-empty string")
+            if not _is_sha256_hex(chain.get("chain_digest")):
+                errors.append(f"reconstructed_chains[{index}].chain_digest must be a SHA-256 hex digest")
         if not _is_sha256_hex(chain.get("verification_execution_ledger_record_digest")):
             errors.append(f"reconstructed_chains[{index}].verification_execution_ledger_record_digest must be a SHA-256 hex digest")
         if not isinstance(chain.get("subject_refs"), list):

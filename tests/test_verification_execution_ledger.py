@@ -697,6 +697,22 @@ def test_reconstruction_report_carries_chain_continuity_failure(tmp_path: Path) 
     assert any("ledger_index must be 2" in error for error in report["errors"])
 
 
+def test_reconstruction_report_allows_invalid_chain_row_without_chain_digest(tmp_path: Path) -> None:
+    record = _write_ledger_record(tmp_path, "receipt-ledger.json")
+    report = reconstruct_verification_execution_ledger(ledger_root=tmp_path / ".builder" / "ledger")
+    assert validate_verification_execution_ledger_reconstruction_report(report) == []
+
+    chain = dict(report["reconstructed_chains"][0])
+    chain["valid"] = False
+    chain["chain_digest"] = ""
+
+    mutated = dict(report)
+    mutated["reconstructed_chains"] = [chain]
+
+    assert validate_verification_execution_ledger_reconstruction_report(mutated) == []
+    assert record["verification_execution_ledger_record_digest"] == chain["verification_execution_ledger_record_digest"]
+
+
 def test_cli_reconstruct_receipts_prints_json_and_does_not_write(tmp_path: Path) -> None:
     _write_ledger_record(tmp_path, "receipt-ledger.json")
     before = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
