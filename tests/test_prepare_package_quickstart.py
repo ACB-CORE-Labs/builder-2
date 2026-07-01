@@ -114,16 +114,11 @@ def test_operator_quickstart_doc_names_complete_lane():
     doc = (ROOT / "docs" / "OPERATOR_QUICKSTART.md").read_text(encoding="utf-8")
 
     required = [
-        "builder-session prepare-package",
-        "builder-session validate-prepare-package",
-        "builder-session summarize-prepare-package",
-        "session-workflow.json",
-        "goose-readonly-session.json",
-        "verification-profile-report.json",
-        "handoff-note.json",
-        "deepagents-bridge-readiness.json",
-        "prepare-package.json",
-        "prepare-package-summary.json",
+        "builder-platform status",
+        "builder-platform operator-status",
+        "builder-platform next",
+        "builder-platform golden-path",
+        "builder-platform validate-golden-path",
     ]
 
     for phrase in required:
@@ -134,8 +129,6 @@ def test_operator_quickstart_doc_states_runtime_and_verification_boundaries():
     doc = (ROOT / "docs" / "OPERATOR_QUICKSTART.md").read_text(encoding="utf-8")
 
     required = [
-        "does not prove that planned verification commands have been run",
-        "does not convert planned verification into completed evidence",
         "execute shell commands",
         "import or use subprocess",
         "activate Goose",
@@ -144,8 +137,10 @@ def test_operator_quickstart_doc_states_runtime_and_verification_boundaries():
         "write to the target repository",
         "touch Deephaven",
         "grant runtime authority",
-        "couple builder-II to CORE Workbench/UI",
-        "future execution or source write remains HITL-gated",
+        "claim autonomous writes",
+        "invoke MCP or external tools",
+        "use hidden memory or vector stores",
+        "future execution or source write remains strictly HITL-gated",
     ]
 
     for phrase in required:

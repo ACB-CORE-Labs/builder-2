@@ -1,81 +1,44 @@
 # Operator Quickstart
 
-This guide shows the first complete operator lane for builder-II.
+This guide shows the complete operator golden path lane for builder-II.
 
 builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench, not CORE UI/UX, and not a second CORE runtime. CORE is only a target profile.
 
-For the canonical taxonomy of operator commands and governance boundaries, see the [Operator Command Surface Index](OPERATOR_COMMAND_SURFACE.md).
+For the canonical taxonomy of operator commands and governance boundaries, see the [Operator Command Surface Index](COMMAND_AUTHORITY.md) and [Platform Completion Audit](PLATFORM_COMPLETION_AUDIT.md).
 
 ## Purpose
 
-The governed prepare package lane gives an operator one bounded path to prepare, validate, and inspect a local development session package.
+The B9 governed operator quickstart (golden path) gives an operator one coherent local demonstration of the platform state, next required sequence, and a deterministic map of the setup closure without parsing the underlying truth matrices manually.
 
-This lane is artifact-first and human-governed.
+This lane is artifact-first and human-governed. It derives entirely from the truth matrix, command authority, and actual local evidence.
 
-## Lane
+## Golden Path
 
-    builder-session prepare-package
-    builder-session validate-prepare-package
-    builder-session summarize-prepare-package
+The golden path operates without starting runtimes, calling models, modifying the target repository, or claiming authority.
 
-## Example
+```bash
+builder-platform status
+builder-platform operator-status --output .builder/artifacts/operator-status.json
+builder-platform next --output .builder/artifacts/operator-next.json
+builder-platform golden-path --target builder --output-dir .builder/artifacts/b9-golden-path
+builder-platform validate-golden-path .builder/artifacts/b9-golden-path/golden-path-report.json
+```
 
-Create a governed package:
+## What the Golden Path Report Proves
 
-    builder-session prepare-package builder \
-      --repo-path . \
-      --task "prepare governed builder-II development session" \
-      --output-dir .builder/artifacts/prepare-package
+The golden path report explicitly categorizes every platform capability as:
+- `exercised`
+- `validated_only`
+- `skipped_disabled`
+- `skipped_missing_evidence`
+- `unavailable`
+- `not_applicable`
 
-Validate the package:
+It provides a no-mutation proof and an explicit summary of all disabled runtime authorities, ensuring complete operator transparency.
 
-    builder-session validate-prepare-package .builder/artifacts/prepare-package
-
-Summarize the package:
-
-    builder-session summarize-prepare-package .builder/artifacts/prepare-package \
-      --output .builder/artifacts/prepare-package/prepare-package-summary.json
-
-## Expected package artifacts
-
-The package directory contains:
-
-- session-workflow.json
-- goose-readonly-session.json
-- verification-profile-report.json
-- repo-map.json
-- context-pack.json
-- handoff-note.json
-- deepagents-bridge-readiness.json
-- prepare-package.json
-- optionally, prepare-package-summary.json
-
-## What validation proves
-
-Validation proves:
-
-- the package manifest is valid
-- referenced artifacts exist
-- referenced paths do not escape the package directory
-- referenced hashes match
-- referenced JSON artifacts validate by declared kind
-
-Validation does not prove that planned verification commands have been run.
-
-## What summarization proves
-
-Summarization proves:
-
-- the package was valid before summarization
-- the operator has a human-readable inspection record
-- the package state and artifact inventory are visible
-
-Summarization does not convert planned verification into completed evidence.
-
-## Runtime boundary
+## Runtime Boundary
 
 This quickstart lane does not:
-
 - execute shell commands
 - import or use subprocess
 - activate Goose
@@ -84,10 +47,12 @@ This quickstart lane does not:
 - write to the target repository
 - touch Deephaven
 - grant runtime authority
-- couple builder-II to CORE Workbench/UI
+- claim autonomous writes
+- invoke MCP or external tools
+- use hidden memory or vector stores
 
-## Human responsibility
+## Human Responsibility
 
-The operator must inspect the package, run planned verification manually where appropriate, and record evidence before making verification claims.
+The operator must inspect the generated JSON artifacts, read the next suggested action, and manually initiate any subsequent execution layers or governed setup flows using the exact explicit commands recommended by the `operator-next` primitive.
 
-Any future execution or source write remains HITL-gated.
+Any future execution or source write remains strictly HITL-gated by the B1-B8 execution primitives.
