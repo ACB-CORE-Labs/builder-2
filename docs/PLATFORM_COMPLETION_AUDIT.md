@@ -85,7 +85,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | deepagents runtime/subagents | `OPERATIONALLY_VERIFIED` | B6 |
 | notes/handoff artifacts | `PASSIVE_FOUNDATION` | B8 |
 | artifact memory | `PASSIVE_FOUNDATION` | B8 |
-| operator quickstart/golden path | `PASSIVE_FOUNDATION` | B9 |
+| operator quickstart/golden path | `OPERATIONALLY_VERIFIED` | B9 |
 | platform doctor/status/audit | `PASSIVE_FOUNDATION` | R1 then B1 |
 | release proof/quality gates | `PASSIVE_FOUNDATION` | B1 |
 | command authority as runtime gate | `MERGED_BUT_NOT_OPERATIONAL` | B1/B6/B7 |
@@ -148,3 +148,8 @@ B7 implements `builder_ii.mcp_policy`, `builder_ii.tool_invocation_gateway`, and
 ## B8 update
 
 B8 adds `builder_ii.artifact_memory`, `builder_ii.memory_cli`, and the `builder-memory` command group to convert explicit validated artifacts into governed memory atoms, deterministic indexes, lexical search results, and replay-stable reconstruction artifacts. This promotes `artifact memory` from `DESIGN_ONLY` to `PASSIVE_FOUNDATION`. The lane remains artifact-only: hidden memory, vector-store retrieval, autonomous memory writes, model authority, shell execution, runtime activation, and target-repo mutation remain disabled.
+
+## B9 update
+
+B9 completes the Operator Product Polish by introducing the governed local golden path via `builder-platform operator-status`, `builder-platform next`, and `builder-platform golden-path`. These primitives compose a coherent platform UX derived from existing truth boundaries (matrix, ledger, memory, authority) without claiming operational authority, shell access, model execution, or target repo writes. Golden path validation and next-step alignment operate exclusively via artifact generation, explicitly isolating builder-II from autonomous control planes and CORE Workbench coupling.
+

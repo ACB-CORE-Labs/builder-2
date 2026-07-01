@@ -21,6 +21,24 @@ from builder_ii.config_sources import (
     write_config_resolution_artifact,
 )
 from builder_ii.onboarding_intent import validate_onboarding_intent_report_artifact
+from builder_ii.operator_golden_path import (
+    create_operator_golden_path_report,
+    dumps_operator_golden_path_report,
+    validate_operator_golden_path_report,
+    write_operator_golden_path_report,
+)
+from builder_ii.operator_next import (
+    create_operator_next_action_report,
+    dumps_operator_next_action_report,
+    validate_operator_next_action_report,
+    write_operator_next_action_report,
+)
+from builder_ii.operator_status import (
+    create_operator_status_report,
+    dumps_operator_status_report,
+    validate_operator_status_report,
+    write_operator_status_report,
+)
 from builder_ii.platform_completion_audit import (
     dumps_docs_audit,
     dumps_matrix,
@@ -75,6 +93,118 @@ def status() -> None:
     """Print concise human-readable platform truth state."""
     _validate_or_exit(root=Path.cwd())
     console.out(render_human_summary(), end="")
+
+
+@platform_app.command("operator-status")
+def operator_status(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Optional path to write the operator status JSON artifact.",
+    )
+) -> None:
+    """Generate and validate the B9 governed operator status report."""
+    _validate_or_exit(root=Path.cwd())
+
+    report = create_operator_status_report()
+    errors = validate_operator_status_report(report)
+    
+    if errors:
+        for error in errors:
+            console.print(f"[red]operator status validation error:[/] {error}")
+        raise typer.Exit(1)
+        
+    if output:
+        write_operator_status_report(report, output.resolve())
+        
+    console.out(dumps_operator_status_report(report), end="")
+
+
+@platform_app.command("next")
+def next_action(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Optional path to write the operator next action JSON artifact.",
+    )
+) -> None:
+    """Generate and validate the B9 governed operator next action report."""
+    _validate_or_exit(root=Path.cwd())
+
+    report = create_operator_next_action_report()
+    errors = validate_operator_next_action_report(report)
+    
+    if errors:
+        for error in errors:
+            console.print(f"[red]operator next action validation error:[/] {error}")
+        raise typer.Exit(1)
+        
+    if output:
+        write_operator_next_action_report(report, output.resolve())
+        
+    console.out(dumps_operator_next_action_report(report), end="")
+
+
+@platform_app.command("golden-path")
+def golden_path(
+    target: str = typer.Option(
+        ...,
+        "--target",
+        "-t",
+        help="Target profile name to execute golden path against.",
+    ),
+    output_dir: Path = typer.Option(
+        ...,
+        "--output-dir",
+        "-o",
+        help="Path to write the operator golden path JSON artifact.",
+    )
+) -> None:
+    """Generate the B9 governed operator golden path report."""
+    _validate_or_exit(root=Path.cwd())
+
+    output_dir = output_dir.resolve()
+    report = create_operator_golden_path_report(target_profile=target, output_dir=output_dir)
+    errors = validate_operator_golden_path_report(report)
+    
+    if errors:
+        for error in errors:
+            console.print(f"[red]operator golden path validation error:[/] {error}")
+        raise typer.Exit(1)
+        
+    write_operator_golden_path_report(report, output_dir / "golden-path-report.json")
+    console.out(dumps_operator_golden_path_report(report), end="")
+
+
+@platform_app.command("validate-golden-path")
+def validate_golden_path(
+    report_file: Path = typer.Argument(
+        ...,
+        help="Path to the golden-path-report.json artifact to validate.",
+    )
+) -> None:
+    """Validate a B9 governed operator golden path report."""
+    report_file = report_file.resolve()
+    if not report_file.is_file():
+        console.print(f"[red]report file is not a valid file:[/] {report_file}")
+        raise typer.Exit(1)
+        
+    try:
+        data = json_lib.loads(report_file.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as e:
+        console.print(f"[red]report file is not valid JSON:[/] {e}")
+        raise typer.Exit(1)
+        
+    errors = validate_operator_golden_path_report(data)
+    
+    if errors:
+        for error in errors:
+            console.print(f"[red]operator golden path validation error:[/] {error}")
+        raise typer.Exit(1)
+        
+    console.out(json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n", end="")
 
 
 @platform_app.command("audit-docs")

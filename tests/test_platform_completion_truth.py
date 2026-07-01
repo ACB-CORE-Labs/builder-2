@@ -155,8 +155,8 @@ def test_matrix_rendering_is_json_safe() -> None:
     decoded = json.loads(encoded)
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
-    assert decoded["summary"]["operationally_verified_count"] == 12  # B7 verifies low-risk tool invocation
-    
+    assert decoded["summary"]["operationally_verified_count"] == 13  # B9 verifies operator golden path
+
 def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()
     assert "passive-foundation-complete" in summary
