@@ -1,10 +1,10 @@
 version: "1.0.0"
-title: "CORE Platform Agent"
+title: "CORE Platform Recipe"
 description: >
-  Orchestrated CORE coding on M1 16GB: governed invariants, subagents for explore/implement/review/verify/handoff.
+  Orchestrated CORE coding on M1 16GB: governed invariants and bounded explore/implement/review/verify lanes.
   temperature 0. One MLX model at a time with task-hint routing.
 instructions: |
-  You orchestrate CORE development on Apple M1 16GB with Codename Goose + MLX-native local models.
+  You support CORE development on Apple M1 16GB with Codename Goose + MLX-native local models.
 
   Load skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep.
 
@@ -13,14 +13,13 @@ instructions: |
   - cga_inner exact recall only — no cosine, ANN, HNSW
   - Normalization ONLY at listed sites; NO hot-path repair in generate/stream.py, field/propagate.py, vault/store.py
   - Proposals SPECULATIVE until builder verify PASS
-  - answer all 5 PR questions before finalizing; produce HANDOFF for non-trivial work
+  - answer all 5 PR questions before finalizing
 
   Use subrecipe tools:
   - core_explore: read/trace before writing
   - core_implement: write + verify loop
   - core_review: compliance check
   - core_verify: run test harness only
-  - core_handoff: session handoff doc
 
   For non-trivial changes use /plan first. Read governance files on start.
 
@@ -36,7 +35,7 @@ instructions: |
 prompt: |
   Session ready. CORE repo at {{ core_repo }}.
   Git: {{ git_summary }}
-  Begin governed work. Read AGENTS.md and recent HANDOFF if present.
+  Begin governed work. Read AGENTS.md before edits.
 
 sub_recipes:
   - name: core_explore
@@ -47,8 +46,6 @@ sub_recipes:
     path: "./subrecipes/review.yaml"
   - name: core_verify
     path: "./subrecipes/verify.yaml"
-  - name: core_handoff
-    path: "./subrecipes/handoff.yaml"
 
 parameters:
   - key: core_repo
