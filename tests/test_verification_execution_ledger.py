@@ -15,10 +15,18 @@ from builder_ii.verification_execution_approval import (
 from builder_ii.verification_execution_ledger import (
     LEDGER_RECORD_STATE,
     VERIFICATION_EXECUTION_LEDGER_RECORD_KIND,
+    VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND,
     default_verification_execution_ledger_output,
     index_verification_execution_receipt,
+    query_verification_execution_ledger_by_chain_digest,
+    query_verification_execution_ledger_by_receipt_digest,
+    query_verification_execution_ledger_by_receipt_status,
+    query_verification_execution_ledger_by_runner_mode,
+    query_verification_execution_ledger_records,
+    summarize_verification_execution_ledger_records,
     validate_receipt_chain_for_ledger,
     validate_verification_execution_ledger_record,
+    write_verification_execution_ledger_record,
 )
 from builder_ii.verification_execution_plan import (
     finalize_verification_execution_plan,
@@ -38,7 +46,13 @@ def _artifact_root(tmp_path: Path) -> Path:
     return root
 
 
-def _write_valid_chain(tmp_path: Path) -> tuple[Path, Path, Path]:
+def _write_valid_chain(
+    tmp_path: Path,
+    *,
+    receipt_status: str = "EXECUTED",
+    process_result_status: str = "success",
+    generated_at: str = "2026-06-30T00:02:00+00:00",
+) -> tuple[Path, Path, Path]:
     root = _artifact_root(tmp_path)
     plan = finalize_verification_execution_plan(
         target_profile="builder",
@@ -68,8 +82,8 @@ def _write_valid_chain(tmp_path: Path) -> tuple[Path, Path, Path]:
         plan_path=str(plan_path),
         approval_path=str(approval_path),
         runner_mode=RUNNER_MODE_BOUNDED_APPROVED,
-        generated_at="2026-06-30T00:02:00+00:00",
-        receipt_status="EXECUTED",
+        generated_at=generated_at,
+        receipt_status=receipt_status,
         executed_steps=[{"step_id": "platform_status", "status": "success", "profile": "platform_status"}],
         skipped_steps=[],
         process_results=[
@@ -77,7 +91,7 @@ def _write_valid_chain(tmp_path: Path) -> tuple[Path, Path, Path]:
                 "step_id": "platform_status",
                 "profile": "platform_status",
                 "command_profile_ref": "verification_profiles.builder_full.platform_status",
-                "status": "success",
+                "status": process_result_status,
                 "returncode": 0,
                 "timeout_seconds": 30,
                 "shell": False,
@@ -263,3 +277,175 @@ def test_cli_index_receipt_reports_malformed_input_cleanly(tmp_path: Path) -> No
     assert "failed to load receipt chain" in result.output
     assert "Traceback" not in result.output
     assert not output.exists()
+
+
+def _write_ledger_record(tmp_path: Path, filename: str, **chain_kwargs: Any) -> dict[str, Any]:
+    plan_path, approval_path, receipt_path = _write_valid_chain(tmp_path, **chain_kwargs)
+    record = index_verification_execution_receipt(
+        receipt_path=receipt_path,
+        plan_path=plan_path,
+        approval_path=approval_path,
+    )
+    write_verification_execution_ledger_record(record, tmp_path / ".builder" / "ledger" / filename)
+    return record
+
+
+def _receipt_digest(record: dict[str, Any]) -> str:
+    for ref in record["subject_refs"]:
+        if ref["role"] == "verification_execution_receipt":
+            return ref["artifact_digest"]
+    raise AssertionError("missing receipt ref")
+
+
+def test_query_returns_valid_records_deterministically(tmp_path: Path) -> None:
+    failed = _write_ledger_record(
+        tmp_path,
+        "z-failed.json",
+        receipt_status="FAILED",
+        process_result_status="timeout",
+        generated_at="2026-06-30T00:03:00+00:00",
+    )
+    executed = _write_ledger_record(tmp_path, "a-executed.json")
+
+    report = query_verification_execution_ledger_records(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["kind"] == VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND
+    assert report["valid"] is True
+    assert [row["chain_digest"] for row in report["records"]] == [
+        executed["chain_digest"],
+        failed["chain_digest"],
+    ]
+    assert report["summary"]["record_count"] == 2
+    assert report["summary"]["by_receipt_status"] == {"EXECUTED": 1, "FAILED": 1}
+    assert report["summary"]["by_process_result_status"] == {"success": 1, "timeout": 1}
+
+
+def test_query_rejects_invalid_ledger_record_cleanly(tmp_path: Path) -> None:
+    _write_ledger_record(tmp_path, "valid.json")
+    invalid_path = tmp_path / ".builder" / "ledger" / "invalid.json"
+    invalid_path.write_text(json.dumps({"kind": "wrong"}, indent=2) + "\n", encoding="utf-8")
+
+    report = query_verification_execution_ledger_records(ledger_root=tmp_path / ".builder" / "ledger")
+
+    assert report["valid"] is True
+    assert report["summary"]["record_count"] == 1
+    assert report["summary"]["rejected_count"] == 1
+    assert len(report["rejected"]) == 1
+    assert report["rejected"][0]["path"].endswith(".builder/ledger/invalid.json")
+    assert any("kind must be" in error for error in report["rejected"][0]["errors"])
+
+
+def test_query_by_receipt_digest_works(tmp_path: Path) -> None:
+    first = _write_ledger_record(tmp_path, "first.json")
+    second = _write_ledger_record(
+        tmp_path,
+        "second.json",
+        receipt_status="FAILED",
+        process_result_status="timeout",
+        generated_at="2026-06-30T00:03:00+00:00",
+    )
+
+    report = query_verification_execution_ledger_by_receipt_digest(
+        ledger_root=tmp_path / ".builder" / "ledger",
+        receipt_digest=_receipt_digest(second),
+    )
+
+    assert report["summary"]["record_count"] == 1
+    assert report["records"][0]["chain_digest"] == second["chain_digest"]
+    assert report["records"][0]["receipt_digest"] != _receipt_digest(first)
+
+
+def test_query_by_chain_digest_works(tmp_path: Path) -> None:
+    first = _write_ledger_record(tmp_path, "first.json")
+    second = _write_ledger_record(
+        tmp_path,
+        "second.json",
+        receipt_status="FAILED",
+        process_result_status="timeout",
+        generated_at="2026-06-30T00:03:00+00:00",
+    )
+
+    report = query_verification_execution_ledger_by_chain_digest(
+        ledger_root=tmp_path / ".builder" / "ledger",
+        chain_digest=first["chain_digest"],
+    )
+
+    assert report["summary"]["record_count"] == 1
+    assert report["records"][0]["chain_digest"] == first["chain_digest"]
+    assert report["records"][0]["chain_digest"] != second["chain_digest"]
+
+
+def test_query_by_status_and_summary_counts_are_stable(tmp_path: Path) -> None:
+    _write_ledger_record(tmp_path, "executed.json")
+    _write_ledger_record(
+        tmp_path,
+        "failed.json",
+        receipt_status="FAILED",
+        process_result_status="timeout",
+        generated_at="2026-06-30T00:03:00+00:00",
+    )
+
+    report = query_verification_execution_ledger_by_receipt_status(
+        ledger_root=tmp_path / ".builder" / "ledger",
+        receipt_status="FAILED",
+    )
+    summary = summarize_verification_execution_ledger_records(report["records"])
+
+    assert report["summary"]["record_count"] == 1
+    assert report["summary"]["available_record_count"] == 2
+    assert report["summary"]["by_receipt_status"] == {"FAILED": 1}
+    assert summary["by_runner_mode"] == {RUNNER_MODE_BOUNDED_APPROVED: 1}
+
+
+def test_query_by_runner_mode_works(tmp_path: Path) -> None:
+    record = _write_ledger_record(tmp_path, "receipt-ledger.json")
+
+    report = query_verification_execution_ledger_by_runner_mode(
+        ledger_root=tmp_path / ".builder" / "ledger",
+        runner_mode=RUNNER_MODE_BOUNDED_APPROVED,
+    )
+
+    assert report["summary"]["record_count"] == 1
+    assert report["records"][0]["chain_digest"] == record["chain_digest"]
+
+
+def test_cli_query_receipts_prints_json_and_does_not_write(tmp_path: Path) -> None:
+    record = _write_ledger_record(tmp_path, "receipt-ledger.json")
+    before = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+
+    result = CliRunner().invoke(
+        ledger_app,
+        [
+            "query-receipts",
+            "--target-repo",
+            str(tmp_path),
+            "--chain-digest",
+            record["chain_digest"],
+        ],
+    )
+    after = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["kind"] == VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND
+    assert data["summary"]["record_count"] == 1
+    assert data["records"][0]["chain_digest"] == record["chain_digest"]
+    assert before == after
+
+
+def test_query_reports_unresolvable_ledger_root_as_json_diagnostics(monkeypatch: Any, tmp_path: Path) -> None:
+    from builder_ii import verification_execution_ledger as ledger_module
+
+    def fail_resolve(self: Path) -> Path:
+        raise OSError("synthetic resolve failure")
+
+    monkeypatch.setattr(ledger_module.Path, "resolve", fail_resolve)
+
+    report = query_verification_execution_ledger_records(
+        ledger_root=tmp_path / ".builder" / "ledger",
+    )
+
+    assert report["valid"] is False
+    assert report["records"] == []
+    assert report["rejected"] == []
+    assert any("failed to resolve ledger_root" in error for error in report["errors"])

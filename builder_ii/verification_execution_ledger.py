@@ -19,6 +19,8 @@ from builder_ii.verification_execution_receipt import (
 
 VERIFICATION_EXECUTION_LEDGER_RECORD_KIND = "builder_ii.verification_execution_ledger_record"
 VERIFICATION_EXECUTION_LEDGER_RECORD_SCHEMA_VERSION = 1
+VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND = "builder_ii.verification_execution_ledger_query_report"
+VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_SCHEMA_VERSION = 1
 LEDGER_RECORD_STATE = "PASSIVE_INDEX_ONLY"
 
 
@@ -96,6 +98,222 @@ def _load_json_object(path: Path) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError(f"{path} must contain a JSON object")
     return data
+
+
+def _ledger_root_target_repo(resolved_ledger_root: Path) -> Path | None:
+    if resolved_ledger_root.name == "ledger" and resolved_ledger_root.parent.name == ".builder":
+        return resolved_ledger_root.parent.parent
+    return None
+
+
+def _ledger_json_paths(resolved_ledger_root: Path) -> list[Path]:
+    if not resolved_ledger_root.exists() or not resolved_ledger_root.is_dir():
+        return []
+    return sorted((path for path in resolved_ledger_root.glob("*.json") if path.is_file()), key=lambda path: str(path))
+
+
+def _record_receipt_digest(record: dict[str, Any]) -> str:
+    refs = record.get("subject_refs")
+    if not isinstance(refs, list):
+        return ""
+    for ref in refs:
+        if isinstance(ref, dict) and ref.get("role") == "verification_execution_receipt":
+            digest = ref.get("artifact_digest")
+            return digest if isinstance(digest, str) else ""
+    return ""
+
+
+def _ledger_row_path(path: Path, record: dict[str, Any] | None, display_repo: Path | None) -> str:
+    if record is not None and _is_non_empty_string(record.get("target_repo")):
+        display_repo = Path(str(record["target_repo"]))
+    return str(_display_path(path, display_repo))
+
+
+def _ledger_record_sort_key(row: dict[str, Any]) -> tuple[str, str, str, str]:
+    record = row.get("record") if isinstance(row.get("record"), dict) else {}
+    return (
+        str(record.get("recorded_at", "")),
+        str(record.get("chain_digest", "")),
+        str(record.get("ledger_record_id", "")),
+        str(row.get("path", "")),
+    )
+
+
+def load_verification_execution_ledger_records(ledger_root: Path) -> dict[str, Any]:
+    rejected: list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
+    errors: list[str] = []
+    try:
+        resolved = ledger_root.expanduser().resolve()
+    except OSError as exc:
+        errors.append(f"failed to resolve ledger_root: {exc}")
+        return {
+            "ledger_root": str(ledger_root),
+            "records": [],
+            "rejected": [],
+            "errors": errors,
+            "valid": False,
+        }
+
+    display_repo = _ledger_root_target_repo(resolved)
+    if resolved.exists() and not resolved.is_dir():
+        errors.append("ledger_root must be a directory")
+        rejected.append({"path": str(resolved), "errors": ["ledger_root must be a directory"]})
+    for path in _ledger_json_paths(resolved):
+        try:
+            record = _load_json_object(path)
+        except (OSError, ValueError, json_lib.JSONDecodeError) as exc:
+            rejected.append(
+                {
+                    "path": _ledger_row_path(path, None, display_repo),
+                    "errors": [f"failed to load verification execution ledger record: {exc}"],
+                }
+            )
+            continue
+        record_errors = validate_verification_execution_ledger_record(record)
+        if record_errors:
+            rejected.append(
+                {
+                    "path": _ledger_row_path(path, record, display_repo),
+                    "errors": record_errors,
+                }
+            )
+            continue
+        rows.append(
+            {
+                "path": _ledger_row_path(path, record, display_repo),
+                "receipt_digest": _record_receipt_digest(record),
+                "chain_digest": record.get("chain_digest", ""),
+                "receipt_status": record.get("receipt_status", ""),
+                "runner_mode": record.get("runner_mode", ""),
+                "record": record,
+            }
+        )
+    rows.sort(key=_ledger_record_sort_key)
+    rejected.sort(key=lambda item: str(item.get("path", "")))
+    return {
+        "ledger_root": str(resolved),
+        "records": rows,
+        "rejected": rejected,
+        "errors": errors,
+        "valid": not errors,
+    }
+
+
+def _count_by(records: list[dict[str, Any]], field: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in records:
+        value = row.get(field)
+        if isinstance(value, str) and value:
+            counts[value] = counts.get(value, 0) + 1
+    return {key: counts[key] for key in sorted(counts)}
+
+
+def _count_process_result_statuses(records: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in records:
+        record = row.get("record") if isinstance(row.get("record"), dict) else {}
+        statuses = record.get("process_result_statuses")
+        if not isinstance(statuses, list):
+            continue
+        for status in statuses:
+            if isinstance(status, str) and status:
+                counts[status] = counts.get(status, 0) + 1
+    return {key: counts[key] for key in sorted(counts)}
+
+
+def summarize_verification_execution_ledger_records(
+    records: list[dict[str, Any]],
+    *,
+    available_record_count: int | None = None,
+    rejected_count: int = 0,
+) -> dict[str, Any]:
+    return {
+        "record_count": len(records),
+        "available_record_count": len(records) if available_record_count is None else available_record_count,
+        "rejected_count": rejected_count,
+        "by_receipt_status": _count_by(records, "receipt_status"),
+        "by_runner_mode": _count_by(records, "runner_mode"),
+        "by_process_result_status": _count_process_result_statuses(records),
+    }
+
+
+def _matches_ledger_query(
+    row: dict[str, Any],
+    *,
+    receipt_digest: str | None = None,
+    chain_digest: str | None = None,
+    receipt_status: str | None = None,
+    runner_mode: str | None = None,
+) -> bool:
+    if receipt_digest is not None and row.get("receipt_digest") != receipt_digest:
+        return False
+    if chain_digest is not None and row.get("chain_digest") != chain_digest:
+        return False
+    if receipt_status is not None and row.get("receipt_status") != receipt_status:
+        return False
+    if runner_mode is not None and row.get("runner_mode") != runner_mode:
+        return False
+    return True
+
+
+def query_verification_execution_ledger_records(
+    *,
+    ledger_root: Path,
+    receipt_digest: str | None = None,
+    chain_digest: str | None = None,
+    receipt_status: str | None = None,
+    runner_mode: str | None = None,
+) -> dict[str, Any]:
+    loaded = load_verification_execution_ledger_records(ledger_root)
+    all_records = loaded["records"]
+    records = [
+        row
+        for row in all_records
+        if _matches_ledger_query(
+            row,
+            receipt_digest=receipt_digest,
+            chain_digest=chain_digest,
+            receipt_status=receipt_status,
+            runner_mode=runner_mode,
+        )
+    ]
+    return {
+        "kind": VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND,
+        "schema_version": VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_SCHEMA_VERSION,
+        "ledger_root": loaded["ledger_root"],
+        "filters": {
+            "receipt_digest": receipt_digest,
+            "chain_digest": chain_digest,
+            "receipt_status": receipt_status,
+            "runner_mode": runner_mode,
+        },
+        "summary": summarize_verification_execution_ledger_records(
+            records,
+            available_record_count=len(all_records),
+            rejected_count=len(loaded["rejected"]),
+        ),
+        "records": records,
+        "rejected": loaded["rejected"],
+        "errors": loaded["errors"],
+        "valid": loaded["valid"],
+    }
+
+
+def query_verification_execution_ledger_by_receipt_digest(*, ledger_root: Path, receipt_digest: str) -> dict[str, Any]:
+    return query_verification_execution_ledger_records(ledger_root=ledger_root, receipt_digest=receipt_digest)
+
+
+def query_verification_execution_ledger_by_chain_digest(*, ledger_root: Path, chain_digest: str) -> dict[str, Any]:
+    return query_verification_execution_ledger_records(ledger_root=ledger_root, chain_digest=chain_digest)
+
+
+def query_verification_execution_ledger_by_receipt_status(*, ledger_root: Path, receipt_status: str) -> dict[str, Any]:
+    return query_verification_execution_ledger_records(ledger_root=ledger_root, receipt_status=receipt_status)
+
+
+def query_verification_execution_ledger_by_runner_mode(*, ledger_root: Path, runner_mode: str) -> dict[str, Any]:
+    return query_verification_execution_ledger_records(ledger_root=ledger_root, runner_mode=runner_mode)
 
 
 def validate_receipt_chain_for_ledger(*, receipt: Any, plan: Any, approval: Any) -> list[str]:

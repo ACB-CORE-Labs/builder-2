@@ -19,6 +19,7 @@ from builder_ii.event_ledger import (
 from builder_ii.verification_execution_ledger import (
     default_verification_execution_ledger_output,
     index_verification_execution_receipt,
+    query_verification_execution_ledger_records,
     validate_verification_execution_ledger_record,
     write_verification_execution_ledger_record,
 )
@@ -258,6 +259,30 @@ def index_receipt(
         return record
 
     _run(action)
+
+
+@ledger_app.command("query-receipts")
+def query_receipts(
+    target_repo: Path = typer.Option(Path("."), "--target-repo", help="Target repository whose .builder/ledger directory should be read."),
+    ledger_root: Path | None = typer.Option(None, "--ledger-root", help="Explicit verification execution ledger root; defaults to --target-repo/.builder/ledger."),
+    receipt_digest: str | None = typer.Option(None, "--receipt-digest", help="Filter by referenced verification execution receipt digest."),
+    chain_digest: str | None = typer.Option(None, "--chain-digest", help="Filter by verification execution chain digest."),
+    receipt_status: str | None = typer.Option(None, "--receipt-status", help="Filter by receipt_status."),
+    runner_mode: str | None = typer.Option(None, "--runner-mode", help="Filter by runner_mode."),
+) -> None:
+    """Read existing verification execution ledger records without replay, execution, or writes."""
+
+    root = ledger_root or (target_repo / ".builder" / "ledger")
+    report = query_verification_execution_ledger_records(
+        ledger_root=root,
+        receipt_digest=receipt_digest,
+        chain_digest=chain_digest,
+        receipt_status=receipt_status,
+        runner_mode=runner_mode,
+    )
+    _emit(report)
+    if report.get("valid") is not True:
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

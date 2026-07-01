@@ -144,3 +144,9 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder-ledger index-receipt` passively indexes an existing validated B1.3 verification execution plan/approval/receipt chain into a deterministic `builder_ii.verification_execution_ledger_record` under `.builder/ledger/`.
 - `builder ledger index-receipt` is the root-command equivalent surface.
 - B1.4A does not replay execution, run subprocesses, execute shell, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 authority.
+
+## B1.4B command surface delta
+
+- `builder-ledger query-receipts` reads existing `builder_ii.verification_execution_ledger_record` artifacts under `.builder/ledger/`, validates records before inclusion, reports rejected records as JSON diagnostics, filters by receipt digest, chain digest, receipt status, and runner mode, and emits stable summary counts.
+- `builder ledger query-receipts` is the root-command equivalent surface.
+- B1.4B is passive/read-only only: it does not replay execution, run verification, run subprocesses, execute shell, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate source/target repo files, mutate git, mutate memory, or promote B2 authority.
