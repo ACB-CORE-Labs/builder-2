@@ -239,6 +239,32 @@ def test_deepagents_collect_results(
         assert validate_deepagents_proposal_result(proposal) == []
 
 
+def test_deepagents_collect_results_rejects_mismatched_work_plan(
+    test_env_setup, tmp_path: Path
+) -> None:
+    with patch(
+        "builder_ii.deepagents_runtime.deepagents_availability", return_value=_available()
+    ):
+        original_harness = DeepAgentsRuntimeHarness(
+            load_settings(), test_env_setup["plan_path"]
+        )
+        env_path = tmp_path / "envelope.json"
+        original_harness.run(env_path, tmp_path / "receipts")
+
+    other_plan = json_lib.loads(test_env_setup["plan_path"].read_text(encoding="utf-8"))
+    other_plan["task"] = "Different task must not inherit stale receipts"
+    other_plan_path = tmp_path / "other-plan.json"
+    other_plan_path.write_text(json_lib.dumps(other_plan), encoding="utf-8")
+
+    mismatched_harness = DeepAgentsRuntimeHarness(load_settings(), other_plan_path)
+    with pytest.raises(ValueError) as exc_info:
+        mismatched_harness.collect_results(env_path, tmp_path / "proposal.json")
+
+    assert "Envelope work_plan_ref does not match requested work plan" in str(
+        exc_info.value
+    )
+
+
 def test_deepagents_collect_results_rejects_non_object_envelope(
     test_env_setup, tmp_path: Path
 ) -> None:
@@ -257,7 +283,17 @@ def test_deepagents_collect_results_rejects_directory_receipt_ref(
 ) -> None:
     env_path = tmp_path / "envelope.json"
     env_path.write_text(
-        json_lib.dumps({"execution_receipt_refs": [{"path": str(tmp_path)}]}),
+        json_lib.dumps(
+            {
+                "work_plan_ref": {
+                    "role": "work_plan",
+                    "kind": "builder_ii.deepagents_work_plan",
+                    "path": str(test_env_setup["plan_path"]),
+                    "sha256": "invalid-for-this-test",
+                },
+                "execution_receipt_refs": [{"path": str(tmp_path)}],
+            }
+        ),
         encoding="utf-8",
     )
     harness = DeepAgentsRuntimeHarness(load_settings(), test_env_setup["plan_path"])
@@ -265,7 +301,7 @@ def test_deepagents_collect_results_rejects_directory_receipt_ref(
     with pytest.raises(ValueError) as exc_info:
         harness.collect_results(env_path, tmp_path / "proposal.json")
 
-    assert "execution_receipt_refs[0].path must point to a readable file" in str(
+    assert "Envelope work_plan_ref does not match requested work plan" in str(
         exc_info.value
     )
 
