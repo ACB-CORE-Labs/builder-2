@@ -1,18 +1,18 @@
 # Deepagents Runtime Harness
 
-## Platform Identity & Scope
+## Capability State
+Capability state: operator_managed
 
-builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
-
-This document serves as the architectural and operator documentation for `deepagents_runtime.py` and its related command surfaces. 
-
-## Capability Promotion State
-
-The deepagents runtime operates strictly in the `operator_managed` promotion state. It is an interactive terminal helper for executing passive subagent plans under strict operator supervision, and it explicitly disables write authority.
+## Required Negative Space Guardrails
+- No autonomous writes by default
+- No shell execution
+- No model execution unless routed through an approved model gateway / receipt path
+- No MCP calls
+- No Goose activation
+- No CORE Workbench coupling
+- Native deepagents construction remains out of scope and is not promoted; only the governed optional backend readiness gate exists.
 
 ## The Eight Promotion Gates
-
-To maintain strict governance, this capability satisfies the following constraints:
 
 1. **Docs**: This document serves as the formal boundary specification.
 2. **Tests**: Validated via `pytest tests/test_deepagents_runtime.py`.
@@ -22,10 +22,3 @@ To maintain strict governance, this capability satisfies the following constrain
 6. **Output artifact**: Emits a `deepagents_runtime_envelope` and subagent receipts.
 7. **Rollback path**: As the capability does not grant write authority to the target repository, rollback consists of deleting the emitted JSON envelope and receipt artifacts.
 8. **Verification path**: Output is verified by collecting the results via `builder-deepagents collect-results` to confirm the planned outcomes match the runtime outputs.
-
-## Governance & Authority
-
-* **Authority Boundary**: Operator-managed helper for deepagents planning. No autonomous source mutation or target repo writes are permitted.
-* **Denied Behaviors**:
-  - `builder-deepagents delegate` remains `forbidden_unpromoted`.
-  - No active runtime initiation without operator command.

@@ -1,18 +1,17 @@
 # HITL Promotion Bridge Artifacts
 
-## Platform Identity & Scope
+## Capability State
+Capability state: artifact_only / validation_only
 
-builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
-
-This document serves as the architectural and operator documentation for `hitl_promotion_artifacts.py` and its related command surfaces. 
-
-## Capability Promotion State
-
-The HITL promotion bridge operates strictly in the `artifact_only` / `validation_only` promotion states (Tier 1). It passively connects Goal 2/Goal 3 proposals to human review/decision records without executing any logic or granting authority.
+## Required Negative Space Guardrails
+- No autonomous writes by default
+- No shell execution
+- No model execution unless routed through an approved model gateway / receipt path
+- No MCP calls
+- No Goose activation
+- No CORE Workbench coupling
 
 ## The Eight Promotion Gates
-
-To maintain strict governance, this capability satisfies the following constraints:
 
 1. **Docs**: This document serves as the formal boundary specification.
 2. **Tests**: Validated via `pytest tests/test_hitl_promotion_artifacts.py`.
@@ -22,9 +21,3 @@ To maintain strict governance, this capability satisfies the following constrain
 6. **Output artifact**: Emits passive JSON ledgers such as `promotion_request`, `promotion_review`, `promotion_decision`, `approval_boundary`, `rejection_record`, and validation reports.
 7. **Rollback path**: As the capability executes nothing, rollback simply requires deleting the emitted JSON artifact files.
 8. **Verification path**: Integrity is verified via `builder-hitl validate-promotion` to ensure valid digest connections.
-
-## Governance & Authority
-
-* **Authority Boundary**: Passive bridge for promotion records only. Does not grant execution authority.
-* **Denied Behaviors**:
-  - No active execution of the promoted capabilities by the artifact itself.

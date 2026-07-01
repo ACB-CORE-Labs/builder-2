@@ -1,18 +1,17 @@
 # Artifact Chain Verification
 
-## Platform Identity & Scope
+## Capability State
+Capability state: validation_only
 
-builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
-
-This document serves as the architectural and operator documentation for `artifact_chain_verification.py` and its related command surfaces. 
-
-## Capability Promotion State
-
-The artifact chain verification capability operates strictly in the `validation_only` promotion state (Tier 1). It traces hash and cryptographic linkage across evidence sequences to prove integrity, without granting runtime permissions.
+## Required Negative Space Guardrails
+- No autonomous writes by default
+- No shell execution
+- No model execution unless routed through an approved model gateway / receipt path
+- No MCP calls
+- No Goose activation
+- No CORE Workbench coupling
 
 ## The Eight Promotion Gates
-
-To maintain strict governance, this capability satisfies the following constraints:
 
 1. **Docs**: This document serves as the formal boundary specification.
 2. **Tests**: Validated via `pytest tests/test_artifact_chain_verification.py`.
@@ -22,9 +21,3 @@ To maintain strict governance, this capability satisfies the following constrain
 6. **Output artifact**: Emits a validation report JSON and/or stdout summary of the chain status.
 7. **Rollback path**: Passive validation process; no rollback is required beyond deleting the invalid artifacts and correcting the chain generator process.
 8. **Verification path**: Integrity of the verifier itself is checked via `pytest tests/test_artifact_chain_verification.py` and manual confirmation of the validation output.
-
-## Governance & Authority
-
-* **Authority Boundary**: Validates cryptographic and hash linkages only. Does not grant authority.
-* **Denied Behaviors**:
-  - A valid artifact chain verification report does not authorize model execution, agent construction, shell execution, source mutation, or any active runtime behavior.
