@@ -83,9 +83,9 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | deepagents policy/readiness | `PASSIVE_FOUNDATION` | B6 |
 | deepagents passive work artifacts | `PASSIVE_FOUNDATION` | B6 |
 | deepagents runtime/subagents | `OPERATIONALLY_VERIFIED` | B6 |
-| notes/handoff artifacts | `PASSIVE_FOUNDATION` | B8 |
-| artifact memory | `PASSIVE_FOUNDATION` | B8 |
-| operator quickstart/golden path | `OPERATIONALLY_VERIFIED` | B9 |
+| notes/handoff artifacts | `PASSIVE_FOUNDATION` | defer operational memory |
+| artifact memory | `PASSIVE_FOUNDATION` | defer operational memory |
+| operator quickstart/golden path | `OPERATIONALLY_VERIFIED` | B9 complete |
 | platform doctor/status/audit | `PASSIVE_FOUNDATION` | R1 then B1 |
 | release proof/quality gates | `PASSIVE_FOUNDATION` | B1 |
 | command authority as runtime gate | `MERGED_BUT_NOT_OPERATIONAL` | B1/B6/B7 |

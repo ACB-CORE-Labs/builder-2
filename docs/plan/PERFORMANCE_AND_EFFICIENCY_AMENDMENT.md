@@ -72,7 +72,7 @@ R0 -> R1 -> B1
 -> B5 deepagents runtime harness
 -> B6 model/provider gateway
 -> B7 tool/MCP gateway
--> B8 artifact memory operational promotion
+-> B8 defer operational memory promotion
 -> B9 operator golden path
 ```
 

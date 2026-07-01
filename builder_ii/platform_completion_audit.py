@@ -11,7 +11,7 @@ PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "B8 -> B9"
+NEXT_SEQUENCE = "B8 deferred; B9 complete"
 
 StateLabel = Literal[
     "NOT_STARTED",
@@ -756,7 +756,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "Handoffs summarize and reference evidence.",
             "They do not mutate a memory store or prove execution.",
         ),
-        "B8",
+        "defer operational memory",
     ),
     _row(
         "artifact memory",
@@ -782,8 +782,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "Artifact memory is explicit, content-addressed, and reviewable only.",
             "No hidden memory, vector store, autonomous writes, or runtime authority are promoted.",
+            "Remains PASSIVE_FOUNDATION by design; docs and UX do not imply operational memory mutation.",
         ),
-        "B8",
+        "defer operational memory",
     ),
     _row(
         "operator quickstart/golden path",
@@ -794,8 +795,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "Golden path UX generated from truth matrix, command authority, and B8 memory artifacts.",
             "Demonstrates a complete governed local workflow without runtime execution.",
+            "Does not promote runtime execution or operational memory authority.",
         ),
-        "B9",
+        "B9 complete",
     ),
     _row(
         "platform doctor/status/audit",
@@ -898,6 +900,7 @@ def render_matrix_jsonable(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY
         },
         "capabilities": [row.to_jsonable() for row in rows],
     }
+
 
 
 def dumps_matrix(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:

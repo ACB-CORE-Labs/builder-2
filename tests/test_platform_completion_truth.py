@@ -161,7 +161,7 @@ def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()
     assert "passive-foundation-complete" in summary
     assert "operationally incomplete" in summary
-    assert "B8 -> B9" in summary
+    assert "B8 deferred; B9 complete" in summary
     assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in summary
 
 
@@ -178,4 +178,15 @@ def test_builder_platform_status_cli_is_honest() -> None:
     assert result.exit_code == 0, result.output
     assert "passive-foundation-complete" in result.output
     assert "operationally incomplete" in result.output
-    assert "B8 -> B9" in result.output
+    assert "B8 deferred; B9 complete" in result.output
+def test_next_sequence_rejects_r0_b5() -> None:
+    # Tests must reject R0 -> B5 and R1 -> B1 as the current next sequence
+    summary = render_human_summary()
+    assert "R0 -> B5" not in summary
+    assert "R1 -> B1" not in summary
+    result = runner.invoke(platform_app, ["status"])
+    assert "R0 -> B5" not in result.output
+    assert "R1 -> B1" not in result.output
+    result_matrix = runner.invoke(platform_app, ["matrix"])
+    assert "R0 -> B5" not in result_matrix.output
+    assert "R1 -> B1" not in result_matrix.output
