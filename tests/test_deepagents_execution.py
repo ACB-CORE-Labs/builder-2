@@ -7,6 +7,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from builder_ii import deepagents_execution as execution_module
 from builder_ii.artifact_index_records import (
     create_artifact_index_record,
     validate_artifact_index_record,
@@ -20,9 +21,11 @@ from builder_ii.deepagents_execution import (
     DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
     DEEPAGENTS_EXECUTION_RECEIPT_KIND,
     DEEPAGENTS_REPLAY_REPORT_KIND,
+    create_evidence_bundle_from_files,
     create_deepagents_execution_approval,
     create_deepagents_execution_candidate,
     replay_deepagents_run,
+    resume_deepagents_approved_candidate,
     run_deepagents_approved_candidate,
     validate_deepagents_evidence_bundle,
     validate_deepagents_execution_approval_against_candidate,
@@ -114,7 +117,9 @@ def test_approval_rejects_candidate_digest_drift(tmp_path: Path) -> None:
 def test_approval_expiry_blocks_runner(tmp_path: Path) -> None:
     candidate, _candidate_path, approval, _approval_path = _candidate_and_approval(tmp_path)
     expired = copy.deepcopy(approval)
-    expired["expires_at"] = (datetime.now(timezone.utc) - timedelta(minutes=1)).isoformat()
+    expired["expires_at"] = (
+        datetime.now() - timedelta(minutes=1)
+    ).replace(microsecond=0).isoformat()
     expired.pop("approval_digest")
     # Rebuild through the factory to keep the digest valid while expired.
     expired = create_deepagents_execution_approval(
@@ -151,6 +156,12 @@ def test_run_approved_golden_path_and_evidence_bundle_cli(tmp_path: Path) -> Non
     assert receipt["completed_subagents"] == ["repo_mapper", "code_reviewer"]
     assert validate_deepagents_execution_receipt(receipt) == []
     assert validate_deepagents_replay_report(replay) == []
+    result_event = json_lib.loads(
+        (output_dir / "events" / "event-0004-subagent_result_recorded.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert result_event["payload_sha256"] == result_event["payload"]["result_digest"]
 
     runner = CliRunner()
     bundle_path = output_dir / "deepagents-evidence-bundle.json"
@@ -287,9 +298,15 @@ def test_optional_backend_records_failure_without_widening_authority(tmp_path: P
         approval_path=approval_path,
         output_dir=tmp_path / "runs" / "optional",
     )
-    receipt = json_lib.loads((tmp_path / "runs" / "optional" / "deepagents-execution-receipt.json").read_text(encoding="utf-8"))
+    output_dir = tmp_path / "runs" / "optional"
+    receipt = json_lib.loads((output_dir / "deepagents-execution-receipt.json").read_text(encoding="utf-8"))
+    failed_event = json_lib.loads(
+        (output_dir / "events" / "event-0004-run_failed.json").read_text(encoding="utf-8")
+    )
 
     assert summary["status"] == "FAILED"
+    assert failed_event["payload"]["backend_denial"] is True
+    assert failed_event["payload"]["error_type"] == "DeepAgentsBackendDenied"
     assert receipt["executes_model"] is False
     assert receipt["constructs_deepagents"] is False
     assert validate_deepagents_execution_receipt(receipt) == []
@@ -315,6 +332,21 @@ def test_replay_detects_hash_chain_gap(tmp_path: Path) -> None:
 
     assert replay["valid"] is False
     assert any("previous_event_sha256" in error for error in replay["errors"])
+
+    runner = CliRunner()
+    cli_output = output_dir / "bad-replay-cli.json"
+    result = runner.invoke(
+        deepagents_app,
+        [
+            "replay-run",
+            "--events-dir",
+            str(output_dir / "events"),
+            "--output",
+            str(cli_output),
+        ],
+    )
+    assert result.exit_code != 0
+    assert json_lib.loads(cli_output.read_text(encoding="utf-8"))["valid"] is False
 
 
 def test_checkpoint_resume_cli_completes_same_candidate(tmp_path: Path) -> None:
@@ -354,6 +386,152 @@ def test_checkpoint_resume_cli_completes_same_candidate(tmp_path: Path) -> None:
     assert receipt["receipt_state"] == "COMPLETED"
     assert replay["kind"] == DEEPAGENTS_REPLAY_REPORT_KIND
     assert replay["completed_subagents"] == ["repo_mapper", "code_reviewer"]
+
+    second_result = runner.invoke(
+        deepagents_app,
+        [
+            "resume-approved",
+            "--candidate",
+            str(candidate_path),
+            "--approval",
+            str(approval_path),
+            "--checkpoint",
+            str(checkpoint_path),
+            "--output-dir",
+            str(output_dir),
+        ],
+    )
+    assert second_result.exit_code != 0
+    assert "run is already terminal; resume is not allowed" in second_result.output
+
+
+def test_resume_rejects_checkpoint_events_dir_escape(tmp_path: Path) -> None:
+    _candidate, candidate_path, _approval, approval_path = _candidate_and_approval(tmp_path)
+    output_dir = tmp_path / "runs" / "resume-escape"
+    run_deepagents_approved_candidate(
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=output_dir,
+        stop_after=1,
+    )
+    checkpoint_path = output_dir / "deepagents-checkpoint.json"
+    checkpoint = json_lib.loads(checkpoint_path.read_text(encoding="utf-8"))
+    checkpoint["events_dir"] = str(tmp_path / "outside-events")
+    checkpoint.pop("checkpoint_digest")
+    checkpoint = execution_module._attach_digest(checkpoint, "checkpoint_digest")
+    bad_checkpoint_path = _write(tmp_path / "bad-checkpoint.json", checkpoint)
+
+    try:
+        resume_deepagents_approved_candidate(
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            checkpoint_path=bad_checkpoint_path,
+            output_dir=output_dir,
+        )
+        assert False, "checkpoint events_dir escape should fail"
+    except ValueError as exc:
+        assert "checkpoint.events_dir must be inside candidate.output_root" in str(exc)
+
+
+def test_resume_failure_records_failed_receipt(monkeypatch, tmp_path: Path) -> None:
+    _candidate, candidate_path, _approval, approval_path = _candidate_and_approval(tmp_path)
+    output_dir = tmp_path / "runs" / "resume-failure"
+    run_deepagents_approved_candidate(
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=output_dir,
+        stop_after=1,
+    )
+
+    class FailingBackend:
+        name = "protocol_fake"
+
+        def run_subagent(self, *, subagent_profile: str, task: str) -> dict:
+            raise RuntimeError("resume backend failure")
+
+    monkeypatch.setattr(execution_module, "backend_for", lambda mode: FailingBackend())
+
+    summary = resume_deepagents_approved_candidate(
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        checkpoint_path=output_dir / "deepagents-checkpoint.json",
+        output_dir=output_dir,
+    )
+    receipt = json_lib.loads((output_dir / "deepagents-execution-receipt.json").read_text(encoding="utf-8"))
+    failed_event = json_lib.loads(
+        (output_dir / "events" / "event-0008-run_failed.json").read_text(encoding="utf-8")
+    )
+
+    assert summary["status"] == "FAILED"
+    assert receipt["receipt_state"] == "FAILED"
+    assert failed_event["payload"]["error"] == "resume backend failure"
+
+
+def test_repeated_runs_get_distinct_session_ids(tmp_path: Path) -> None:
+    _candidate, candidate_path, _approval, approval_path = _candidate_and_approval(tmp_path)
+
+    first = run_deepagents_approved_candidate(
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=tmp_path / "runs" / "first",
+    )
+    second = run_deepagents_approved_candidate(
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=tmp_path / "runs" / "second",
+    )
+
+    assert first["session_id"] != second["session_id"]
+
+
+def test_run_approved_rejects_existing_event_directory(tmp_path: Path) -> None:
+    _candidate, candidate_path, _approval, approval_path = _candidate_and_approval(tmp_path)
+    output_dir = tmp_path / "runs" / "duplicate-output"
+    run_deepagents_approved_candidate(
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=output_dir,
+    )
+
+    try:
+        run_deepagents_approved_candidate(
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            output_dir=output_dir,
+        )
+        assert False, "existing event directory should fail closed"
+    except ValueError as exc:
+        assert "already contains deepagents events" in str(exc)
+
+
+def test_evidence_bundle_rejects_mixed_run_chain(tmp_path: Path) -> None:
+    _candidate, candidate_path, _approval, approval_path = _candidate_and_approval(tmp_path)
+    first_dir = tmp_path / "runs" / "evidence-first"
+    second_dir = tmp_path / "runs" / "evidence-second"
+    run_deepagents_approved_candidate(
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=first_dir,
+    )
+    run_deepagents_approved_candidate(
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=second_dir,
+    )
+
+    try:
+        create_evidence_bundle_from_files(
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            envelope_path=first_dir / "deepagents-run-envelope.json",
+            receipt_path=first_dir / "deepagents-execution-receipt.json",
+            event_ledger_path=first_dir / "deepagents-event-ledger.json",
+            replay_report_path=second_dir / "deepagents-replay-report.json",
+            output_path=first_dir / "bad-evidence-bundle.json",
+        )
+        assert False, "mixed evidence chain should fail"
+    except ValueError as exc:
+        assert "invalid deepagents evidence chain" in str(exc)
 
 
 def test_generated_execution_artifacts_are_indexable(tmp_path: Path) -> None:

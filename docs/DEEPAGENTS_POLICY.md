@@ -97,6 +97,8 @@ The first backend is `protocol_fake`, a deterministic backend used to prove the 
 
 This lane still denies native deepagents construction, native model invocation, direct tool execution, shell execution, source writes, git mutation, Goose activation, MCP calls, hidden memory, and CORE Workbench/UI coupling.
 
+Structural validators check artifact shape and digest bindings only. They do not enforce approval expiry. Expiry is enforced at the runtime gate by `builder-deepagents run-approved` and `builder-deepagents resume-approved` before the bounded protocol lane can append events.
+
 ## Real backend readiness
 
 The future `optional_deepagents` backend must pass a separate readiness gate before it can replace `protocol_fake`. Readiness is not a successful import alone. It must include:

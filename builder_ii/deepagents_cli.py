@@ -792,6 +792,8 @@ def replay_run(
         console.print(f"Error: {exc}")
         raise typer.Exit(1)
     console.out(json_lib.dumps({"valid": replay["valid"], "status": replay["status"], "output": str(output)}, indent=2, sort_keys=True) + "\n", end="")
+    if replay["valid"] is not True:
+        raise typer.Exit(1)
 
 
 @deepagents_app.command("evidence-bundle")

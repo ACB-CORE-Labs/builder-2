@@ -68,7 +68,12 @@ _DIGEST_KEYS = {
     "checkpoint_digest",
     "receipt_digest",
     "evidence_bundle_digest",
+    "result_digest",
 }
+
+
+class DeepAgentsBackendDenied(RuntimeError):
+    """Raised when a backend request is a governed denial, not a backend crash."""
 
 
 class DeepAgentsBackend(Protocol):
@@ -108,11 +113,11 @@ class OptionalDeepAgentsBackend:
     def run_subagent(self, *, subagent_profile: str, task: str) -> dict[str, Any]:
         spec = importlib.util.find_spec("deepagents")
         if spec is None:
-            raise RuntimeError(
+            raise DeepAgentsBackendDenied(
                 "optional_deepagents backend is unavailable; install and promote the "
                 "real backend before using it"
             )
-        raise RuntimeError(
+        raise DeepAgentsBackendDenied(
             "optional_deepagents backend is discovery-only in this slice; use "
             "protocol_fake for the promoted proof lane"
         )
@@ -132,9 +137,12 @@ def _utc_now() -> str:
 
 def _parse_time(value: str) -> datetime | None:
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def _digest_jsonable(value: dict[str, Any]) -> str:
@@ -176,6 +184,7 @@ def _artifact_ref(
     path: Path | str | None,
     name: str = "",
 ) -> dict[str, Any]:
+    """Create a digest ref; path is empty only for in-memory/stdout artifacts."""
     return {
         "role": role,
         "kind": str(artifact.get("kind", "")),
@@ -269,6 +278,35 @@ def _base_governance(capability_state: str, *, protocol_execution: bool = False)
     }
 
 
+_AUTHORITY_FALSE_FIELDS = (
+    "executes_model",
+    "executes_tools",
+    "executes_shell",
+    "invokes_goose",
+    "constructs_deepagents",
+    "constructs_subagents",
+    "invokes_mcp",
+    "performs_network_calls",
+    "mutates_target_repo",
+    "mutates_memory",
+    "grants_authority",
+    "artifact_is_authority",
+)
+
+_GOVERNANCE_DISABLED_FIELDS = (
+    "model_execution",
+    "shell_execution",
+    "target_repo_writes",
+    "git_mutation",
+    "commit_push",
+    "goose_runtime_start",
+    "deepagents_construction",
+    "native_deepagents_model_invocation",
+    "mcp_tool_calls",
+    "memory_mutation",
+)
+
+
 def _authority_boundary(capability_state: str, *, protocol_execution: bool = False) -> dict[str, Any]:
     return {
         "capability_state": capability_state,
@@ -314,20 +352,7 @@ def _validate_common_authority(
     errors: list[str] = []
     if data.get("runs_protocol_backend") is not protocol_execution:
         errors.append(f"runs_protocol_backend must be {protocol_execution}")
-    for key in (
-        "executes_model",
-        "executes_tools",
-        "executes_shell",
-        "invokes_goose",
-        "constructs_deepagents",
-        "constructs_subagents",
-        "invokes_mcp",
-        "performs_network_calls",
-        "mutates_target_repo",
-        "mutates_memory",
-        "grants_authority",
-        "artifact_is_authority",
-    ):
+    for key in _AUTHORITY_FALSE_FIELDS:
         if data.get(key) is not False:
             errors.append(f"{key} must be false")
     if data.get("requires_human_promotion_for_execution") is not True:
@@ -340,20 +365,7 @@ def _validate_common_authority(
             errors.append(f"authority_boundary.capability_state must be {capability_state}")
         if boundary.get("runs_protocol_backend") is not protocol_execution:
             errors.append(f"authority_boundary.runs_protocol_backend must be {protocol_execution}")
-        for key in (
-            "executes_model",
-            "executes_tools",
-            "executes_shell",
-            "invokes_goose",
-            "constructs_deepagents",
-            "constructs_subagents",
-            "invokes_mcp",
-            "performs_network_calls",
-            "mutates_target_repo",
-            "mutates_memory",
-            "grants_authority",
-            "artifact_is_authority",
-        ):
+        for key in _AUTHORITY_FALSE_FIELDS:
             if boundary.get(key) is not False:
                 errors.append(f"authority_boundary.{key} must be false")
         if boundary.get("requires_human_promotion_for_execution") is not True:
@@ -381,18 +393,7 @@ def _validate_governance(
         errors.append(f"governance.runtime_execution must be {expected_protocol}")
     if governance.get("protocol_backend_execution") != expected_protocol:
         errors.append(f"governance.protocol_backend_execution must be {expected_protocol}")
-    for key in (
-        "model_execution",
-        "shell_execution",
-        "target_repo_writes",
-        "git_mutation",
-        "commit_push",
-        "goose_runtime_start",
-        "deepagents_construction",
-        "native_deepagents_model_invocation",
-        "mcp_tool_calls",
-        "memory_mutation",
-    ):
+    for key in _GOVERNANCE_DISABLED_FIELDS:
         if governance.get(key) != "DISABLED":
             errors.append(f"governance.{key} must be DISABLED")
     if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
@@ -1255,16 +1256,32 @@ def _path_within(child: Path, parent: Path) -> bool:
     return True
 
 
-def _assert_output_dir_allowed(candidate: dict[str, Any], output_dir: Path) -> None:
+def _candidate_output_root(candidate: dict[str, Any]) -> Path:
     output_root = Path(str(candidate.get("output_root", ""))).expanduser()
     if not output_root.is_absolute():
         output_root = (Path.cwd() / output_root).resolve()
-    resolved_output = output_dir.expanduser().resolve()
-    if not _path_within(resolved_output, output_root):
+    return output_root
+
+
+def _assert_candidate_path_allowed(candidate: dict[str, Any], path: Path, *, field: str) -> None:
+    output_root = _candidate_output_root(candidate)
+    resolved_path = path.expanduser().resolve()
+    if not _path_within(resolved_path, output_root):
         raise ValueError(
-            "output_dir must be inside candidate.output_root; use the candidate's "
+            f"{field} must be inside candidate.output_root; use the candidate's "
             "declared artifact root or create a new candidate"
         )
+
+
+def _assert_output_dir_allowed(candidate: dict[str, Any], output_dir: Path) -> None:
+    _assert_candidate_path_allowed(candidate, output_dir, field="output_dir")
+
+
+def _new_session_id(candidate: dict[str, Any]) -> str:
+    candidate_digest = str(candidate.get("candidate_digest") or _digest_jsonable(candidate))
+    nonce_source = f"{candidate_digest}:{datetime.now(timezone.utc).isoformat()}".encode("utf-8")
+    nonce = hashlib.sha256(nonce_source).hexdigest()[:8]
+    return f"deepagents-{candidate_digest[:12]}-{nonce}"
 
 
 def _candidate_budget(candidate: dict[str, Any], key: str) -> int:
@@ -1330,6 +1347,17 @@ def _approval_guard(candidate: dict[str, Any], approval: dict[str, Any]) -> None
     )
     if errors:
         raise ValueError("approval does not bind to candidate: " + "; ".join(errors))
+
+
+def _failure_payload(exc: Exception) -> dict[str, Any]:
+    payload = {
+        "error": str(exc),
+        "error_type": type(exc).__name__,
+    }
+    if isinstance(exc, DeepAgentsBackendDenied):
+        payload["backend_denial"] = True
+        payload["denied_capability"] = "optional_deepagents backend activation"
+    return payload
 
 
 def _write_event(
@@ -1456,7 +1484,9 @@ def run_deepagents_approved_candidate(
     output_dir.mkdir(parents=True, exist_ok=True)
     events_dir = output_dir / "events"
     events_dir.mkdir(parents=True, exist_ok=True)
-    session_id = f"deepagents-{_digest_jsonable(candidate)[:12]}"
+    if _load_event_records(events_dir):
+        raise ValueError("output_dir already contains deepagents events; choose a fresh output-dir")
+    session_id = _new_session_id(candidate)
     backend = backend_for(str(candidate["backend_mode"]))
     candidate_ref = _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate")
     approval_ref = _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval")
@@ -1544,6 +1574,7 @@ def run_deepagents_approved_candidate(
                     previous_ref=previous_ref,
                     message="Checkpoint recorded for explicit resume.",
                 )
+                sequence += 1
                 return _finalize_run_artifacts(
                     session_id=session_id,
                     candidate=candidate,
@@ -1556,7 +1587,7 @@ def run_deepagents_approved_candidate(
                     checkpoint_path=checkpoint_path,
                     status="CHECKPOINTED",
                 )
-        _write_event(
+        _, _, previous_ref = _write_event(
             events_dir=events_dir,
             session_id=session_id,
             sequence=sequence,
@@ -1566,6 +1597,7 @@ def run_deepagents_approved_candidate(
             previous_ref=previous_ref,
             message="Bounded protocol run completed.",
         )
+        sequence += 1
         return _finalize_run_artifacts(
             session_id=session_id,
             candidate=candidate,
@@ -1579,16 +1611,17 @@ def run_deepagents_approved_candidate(
             status="COMPLETED",
         )
     except Exception as exc:
-        _write_event(
+        _, _, previous_ref = _write_event(
             events_dir=events_dir,
             session_id=session_id,
             sequence=sequence,
             event_type="run_failed",
             subject_refs=[candidate_ref],
-            payload={"error": str(exc)},
+            payload=_failure_payload(exc),
             previous_ref=previous_ref,
             message="Bounded protocol run failed before completion.",
         )
+        sequence += 1
         return _finalize_run_artifacts(
             session_id=session_id,
             candidate=candidate,
@@ -1626,9 +1659,12 @@ def resume_deepagents_approved_candidate(
     events_dir = Path(str(checkpoint["events_dir"]))
     if not events_dir.is_absolute():
         events_dir = (Path.cwd() / events_dir).resolve()
+    _assert_candidate_path_allowed(candidate, events_dir, field="checkpoint.events_dir")
     event_records = _load_event_records(events_dir)
     if not event_records:
         raise ValueError("checkpoint events_dir has no events")
+    if any(event.get("event_type") in {"run_completed", "run_failed"} for event, _path in event_records):
+        raise ValueError("run is already terminal; resume is not allowed")
     previous_event, previous_event_path = sorted(event_records, key=lambda item: int(item[0]["sequence"]))[-1]
     previous_ref = _artifact_ref(previous_event, role="event", path=previous_event_path, name=str(previous_event["event_type"]))
     session_id = str(checkpoint["session_id"])
@@ -1651,57 +1687,83 @@ def resume_deepagents_approved_candidate(
     )
     sequence += 1
     completed = list(checkpoint["completed_subagents"])
-    for subagent in remaining:
-        _, _, previous_ref = _write_event(
-            events_dir=events_dir,
-            session_id=session_id,
-            sequence=sequence,
-            event_type="subagent_scheduled",
-            subject_refs=[candidate_ref],
-            payload={"subagent_profile": subagent},
-            previous_ref=previous_ref,
-            message=f"Scheduled proposal-only subagent {subagent}.",
-        )
-        sequence += 1
-        result = _cap_result_payload(
-            candidate,
-            backend.run_subagent(subagent_profile=subagent, task=str(candidate["task"])),
-        )
-        _, _, previous_ref = _write_event(
-            events_dir=events_dir,
-            session_id=session_id,
-            sequence=sequence,
-            event_type="subagent_result_recorded",
-            subject_refs=[candidate_ref],
-            payload=result,
-            previous_ref=previous_ref,
-            message=f"Recorded proposal-only result for {subagent}.",
-        )
-        sequence += 1
-        completed.append(subagent)
+    try:
+        for subagent in remaining:
+            _, _, previous_ref = _write_event(
+                events_dir=events_dir,
+                session_id=session_id,
+                sequence=sequence,
+                event_type="subagent_scheduled",
+                subject_refs=[candidate_ref],
+                payload={"subagent_profile": subagent},
+                previous_ref=previous_ref,
+                message=f"Scheduled proposal-only subagent {subagent}.",
+            )
+            sequence += 1
+            result = _cap_result_payload(
+                candidate,
+                backend.run_subagent(subagent_profile=subagent, task=str(candidate["task"])),
+            )
+            _, _, previous_ref = _write_event(
+                events_dir=events_dir,
+                session_id=session_id,
+                sequence=sequence,
+                event_type="subagent_result_recorded",
+                subject_refs=[candidate_ref],
+                payload=result,
+                previous_ref=previous_ref,
+                message=f"Recorded proposal-only result for {subagent}.",
+            )
+            sequence += 1
+            completed.append(subagent)
 
-    _write_event(
-        events_dir=events_dir,
-        session_id=session_id,
-        sequence=sequence,
-        event_type="run_completed",
-        subject_refs=[candidate_ref],
-        payload={"completed_subagents": completed},
-        previous_ref=previous_ref,
-        message="Bounded protocol run resumed and completed.",
-    )
-    return _finalize_run_artifacts(
-        session_id=session_id,
-        candidate=candidate,
-        approval=approval,
-        candidate_path=candidate_path,
-        approval_path=approval_path,
-        output_dir=output_dir,
-        events_dir=events_dir,
-        checkpoint=checkpoint,
-        checkpoint_path=checkpoint_path,
-        status="COMPLETED",
-    )
+        _, _, previous_ref = _write_event(
+            events_dir=events_dir,
+            session_id=session_id,
+            sequence=sequence,
+            event_type="run_completed",
+            subject_refs=[candidate_ref],
+            payload={"completed_subagents": completed},
+            previous_ref=previous_ref,
+            message="Bounded protocol run resumed and completed.",
+        )
+        sequence += 1
+        return _finalize_run_artifacts(
+            session_id=session_id,
+            candidate=candidate,
+            approval=approval,
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            output_dir=output_dir,
+            events_dir=events_dir,
+            checkpoint=checkpoint,
+            checkpoint_path=checkpoint_path,
+            status="COMPLETED",
+        )
+    except Exception as exc:
+        _, _, previous_ref = _write_event(
+            events_dir=events_dir,
+            session_id=session_id,
+            sequence=sequence,
+            event_type="run_failed",
+            subject_refs=[candidate_ref],
+            payload=_failure_payload(exc),
+            previous_ref=previous_ref,
+            message="Bounded protocol resume failed before completion.",
+        )
+        sequence += 1
+        return _finalize_run_artifacts(
+            session_id=session_id,
+            candidate=candidate,
+            approval=approval,
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            output_dir=output_dir,
+            events_dir=events_dir,
+            checkpoint=checkpoint,
+            checkpoint_path=checkpoint_path,
+            status="FAILED",
+        )
 
 
 def replay_deepagents_run(*, events_dir: Path, output: Path) -> dict[str, Any]:
@@ -1713,6 +1775,89 @@ def replay_deepagents_run(*, events_dir: Path, output: Path) -> dict[str, Any]:
     replay = create_deepagents_replay_report(session_id=session_id, event_records=event_records)
     _write_json(replay, output)
     return replay
+
+
+def _validate_or_raise(label: str, errors: list[str]) -> None:
+    if errors:
+        raise ValueError(f"invalid {label}: " + "; ".join(errors))
+
+
+def _ref_matches(artifact: dict[str, Any], field: str, expected: dict[str, Any]) -> bool:
+    ref = artifact.get(field)
+    return isinstance(ref, dict) and ref.get("sha256") == _digest_jsonable(expected)
+
+
+def _validate_ref_match(
+    errors: list[str],
+    *,
+    artifact: dict[str, Any],
+    field: str,
+    expected: dict[str, Any],
+    label: str,
+) -> None:
+    if not _ref_matches(artifact, field, expected):
+        errors.append(f"{label}.{field} must reference the supplied {expected.get('kind', 'artifact')}")
+
+
+def _validate_evidence_inputs(
+    *,
+    candidate: dict[str, Any],
+    approval: dict[str, Any],
+    envelope: dict[str, Any],
+    receipt: dict[str, Any],
+    ledger: dict[str, Any],
+    replay: dict[str, Any],
+    checkpoint: dict[str, Any] | None,
+) -> None:
+    _validate_or_raise("deepagents execution candidate", validate_deepagents_execution_candidate(candidate))
+    _validate_or_raise(
+        "deepagents execution approval",
+        validate_deepagents_execution_approval_against_candidate(approval, candidate),
+    )
+    _validate_or_raise("deepagents run envelope", validate_deepagents_run_envelope(envelope))
+    _validate_or_raise("deepagents execution receipt", validate_deepagents_execution_receipt(receipt))
+    _validate_or_raise("deepagents event ledger", validate_deepagents_event_ledger(ledger))
+    _validate_or_raise("deepagents replay report", validate_deepagents_replay_report(replay))
+    if replay.get("valid") is not True:
+        raise ValueError("deepagents replay report must be valid before evidence bundling")
+
+    errors: list[str] = []
+    for artifact, label in ((envelope, "envelope"), (receipt, "receipt")):
+        _validate_ref_match(errors, artifact=artifact, field="candidate_ref", expected=candidate, label=label)
+        _validate_ref_match(errors, artifact=artifact, field="approval_ref", expected=approval, label=label)
+        _validate_ref_match(errors, artifact=artifact, field="event_ledger_ref", expected=ledger, label=label)
+        _validate_ref_match(errors, artifact=artifact, field="replay_report_ref", expected=replay, label=label)
+    _validate_ref_match(errors, artifact=receipt, field="envelope_ref", expected=envelope, label="receipt")
+    _validate_ref_match(errors, artifact=ledger, field="replay_report_ref", expected=replay, label="ledger")
+
+    session_ids = {
+        str(envelope.get("session_id", "")),
+        str(receipt.get("session_id", "")),
+        str(ledger.get("session_id", "")),
+        str(replay.get("session_id", "")),
+    }
+    if len(session_ids) != 1 or "" in session_ids:
+        errors.append("envelope, receipt, ledger, and replay must share the same session_id")
+    if envelope.get("envelope_state") != receipt.get("receipt_state"):
+        errors.append("envelope.envelope_state must match receipt.receipt_state")
+    if replay.get("status") != receipt.get("receipt_state"):
+        errors.append("replay.status must match receipt.receipt_state")
+    if ledger.get("event_count") != replay.get("event_count"):
+        errors.append("ledger.event_count must match replay.event_count")
+
+    checkpoint_refs = (envelope.get("checkpoint_ref"), receipt.get("checkpoint_ref"))
+    if checkpoint is None:
+        if any(ref is not None for ref in checkpoint_refs):
+            errors.append("checkpoint artifact must be supplied when envelope or receipt references one")
+    else:
+        _validate_or_raise("deepagents checkpoint", validate_deepagents_checkpoint(checkpoint))
+        _validate_ref_match(errors, artifact=checkpoint, field="candidate_ref", expected=candidate, label="checkpoint")
+        _validate_ref_match(errors, artifact=checkpoint, field="approval_ref", expected=approval, label="checkpoint")
+        _validate_ref_match(errors, artifact=envelope, field="checkpoint_ref", expected=checkpoint, label="envelope")
+        _validate_ref_match(errors, artifact=receipt, field="checkpoint_ref", expected=checkpoint, label="receipt")
+
+    if errors:
+        raise ValueError("invalid deepagents evidence chain: " + "; ".join(errors))
 
 
 def create_evidence_bundle_from_files(
@@ -1733,6 +1878,15 @@ def create_evidence_bundle_from_files(
     ledger = _load_json_object(event_ledger_path, label="deepagents event ledger")
     replay = _load_json_object(replay_report_path, label="deepagents replay report")
     checkpoint = _load_json_object(checkpoint_path, label="deepagents checkpoint") if checkpoint_path is not None else None
+    _validate_evidence_inputs(
+        candidate=candidate,
+        approval=approval,
+        envelope=envelope,
+        receipt=receipt,
+        ledger=ledger,
+        replay=replay,
+        checkpoint=checkpoint,
+    )
     bundle = create_deepagents_evidence_bundle(
         candidate=candidate,
         approval=approval,
