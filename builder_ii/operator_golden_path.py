@@ -66,16 +66,19 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
     for row in REQUIRED_CAPABILITY_ROWS:
         # Check real evidence files
         has_evidence = len(row.evidence_files) > 0 and all(Path(f).exists() for f in row.evidence_files)
-        if has_evidence:
+        
+        if row.state == "OPERATIONALLY_VERIFIED" and has_evidence:
             if row.command_surfaces:
                 exercised.append({"capability": row.capability, "status": "exercised"})
             else:
                 exercised.append({"capability": row.capability, "status": "validated_only"})
         else:
-            if row.state == "DISABLED":
+            if row.state == "OPERATIONALLY_VERIFIED" and not has_evidence:
+                status = "skipped_missing_evidence"
+            elif row.state == "DISABLED":
                 status = "skipped_disabled"
             elif row.state in ("PASSIVE_FOUNDATION", "ARTIFACT_ONLY", "MERGED_BUT_NOT_OPERATIONAL", "DESIGN_ONLY"):
-                status = "skipped_missing_evidence"
+                status = "skipped_missing_evidence" if not has_evidence else f"skipped_{row.state.lower()}"
             elif row.state == "NOT_STARTED":
                 status = "unavailable"
             else:
@@ -84,21 +87,35 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
             skipped.append({
                 "capability": row.capability,
                 "status": status,
-                "reason": f"State is {row.state} and evidence files are missing."
+                "reason": f"State is {row.state} and evidence files are {'present' if has_evidence else 'missing'}."
             })
-            known_gaps.append(f"{row.capability} ({row.state})")
+            
+            if row.state != "OPERATIONALLY_VERIFIED":
+                known_gaps.append(f"{row.capability} ({row.state})")
 
     # 4. Check B8 memory index evidence
     memory_status = "skipped_missing_evidence"
     default_memory_index = Path(".builder/artifacts/memory-index.json")
     if default_memory_index.is_file():
         memory_status = "available"
+    else:
+        skipped.append({
+            "capability": "memory_status",
+            "status": "skipped_missing_evidence",
+            "reason": "Missing B8 memory index evidence."
+        })
 
     # 5. Check Ledger/artifact chain evidence
     ledger_status = "skipped_missing_evidence"
     default_ledger = Path(".builder/artifacts/event-ledger.json")
     if default_ledger.is_file():
         ledger_status = "available"
+    else:
+        skipped.append({
+            "capability": "ledger_status",
+            "status": "skipped_missing_evidence",
+            "reason": "Missing Ledger/artifact chain evidence."
+        })
 
     generated_artifacts = [
         {
@@ -224,6 +241,22 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
                 errors.append(f"governance.{key} must be false")
         if gov.get("no_source_truth_inflation") is not True:
             errors.append("governance.no_source_truth_inflation must be true")
+
+    known_gaps = record.get("known_gaps", [])
+    if isinstance(known_gaps, list) and len(known_gaps) == 0:
+        evidence_refs = record.get("evidence_refs", [])
+        if isinstance(evidence_refs, list):
+            for ref in evidence_refs:
+                if isinstance(ref, dict) and ref.get("artifact") == "builder_ii.operator_next_report":
+                    next_path = ref.get("path")
+                    if next_path and Path(next_path).is_file():
+                        try:
+                            import json
+                            next_data = json.loads(Path(next_path).read_text(encoding="utf-8"))
+                            if len(next_data.get("ordered_next_actions", [])) > 0:
+                                errors.append("truth inflation: known_gaps is empty but next report shows incomplete capabilities")
+                        except Exception:
+                            pass
 
     digest = record.get("report_digest")
     if digest:
