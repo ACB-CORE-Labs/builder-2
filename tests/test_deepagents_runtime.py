@@ -1,8 +1,8 @@
 import json as json_lib
 from pathlib import Path
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
@@ -13,12 +13,22 @@ from builder_ii.deepagents_readiness import create_deepagents_readiness_artifact
 from builder_ii.deepagents_runtime import DeepAgentsRuntimeHarness
 from builder_ii.deepagents_work_artifacts import (
     create_deepagents_work_plan,
+    validate_deepagents_blocked_action_record,
+    validate_deepagents_proposal_result,
     validate_deepagents_runtime_envelope,
     validate_deepagents_subagent_execution_receipt,
-    validate_deepagents_proposal_result,
-    validate_deepagents_blocked_action_record
 )
 from tests.orchestration_assignment_fixtures import build_goal2_assignment_fixture
+
+
+def _available() -> DeepAgentsAvailability:
+    return DeepAgentsAvailability(
+        available=True,
+        source="/mock/lib/deepagents",
+        detail="available",
+        import_status="PASS",
+    )
+
 
 @pytest.fixture
 def test_env_setup(tmp_path: Path):
@@ -65,8 +75,9 @@ def test_env_setup(tmp_path: Path):
         "readiness_path": readiness_path,
         "dry_run": orchestration_assignment_dry_run,
         "orchestration": orchestration_assignment_plan,
-        "goal2_fixture": goal2_fixture
+        "goal2_fixture": goal2_fixture,
     }
+
 
 def test_deepagents_runtime_fails_when_dependency_unavailable(
     test_env_setup, tmp_path: Path
@@ -75,7 +86,7 @@ def test_deepagents_runtime_fails_when_dependency_unavailable(
         available=False,
         source=None,
         detail="missing dependency",
-        import_status="MISS"
+        import_status="MISS",
     )
     with patch("builder_ii.deepagents_runtime.deepagents_availability", return_value=avail):
         harness = DeepAgentsRuntimeHarness(load_settings(), test_env_setup["plan_path"])
@@ -83,16 +94,13 @@ def test_deepagents_runtime_fails_when_dependency_unavailable(
             harness.run(tmp_path / "envelope.json", tmp_path / "receipts")
         assert "deepagents dependency is not available" in str(exc_info.value)
 
+
 def test_deepagents_runtime_executes_successfully_proposal_only(
     test_env_setup, tmp_path: Path
 ) -> None:
-    avail = DeepAgentsAvailability(
-        available=True,
-        source="/mock/lib/deepagents",
-        detail="available",
-        import_status="PASS"
-    )
-    with patch("builder_ii.deepagents_runtime.deepagents_availability", return_value=avail):
+    with patch(
+        "builder_ii.deepagents_runtime.deepagents_availability", return_value=_available()
+    ):
         harness = DeepAgentsRuntimeHarness(load_settings(), test_env_setup["plan_path"])
         env_path = tmp_path / "envelope.json"
         receipts_dir = tmp_path / "receipts"
@@ -108,6 +116,7 @@ def test_deepagents_runtime_executes_successfully_proposal_only(
         for path in receipt_paths:
             receipt = json_lib.loads(path.read_text(encoding="utf-8"))
             assert validate_deepagents_subagent_execution_receipt(receipt) == []
+
 
 def test_deepagents_runtime_fails_on_denied_tools(
     test_env_setup, tmp_path: Path
@@ -128,8 +137,12 @@ def test_deepagents_runtime_fails_on_denied_tools(
         orchestration_assignment_dry_run=test_env_setup["dry_run"],
         deepagents_policy=bad_policy,
         deepagents_readiness=create_deepagents_readiness_artifact(mode="metadata_only"),
-        orchestration_assignment_plan_path=test_env_setup["goal2_fixture"]["paths"]["orchestration"],
-        orchestration_assignment_dry_run_path=test_env_setup["goal2_fixture"]["paths"]["dry_run"],
+        orchestration_assignment_plan_path=test_env_setup["goal2_fixture"]["paths"][
+            "orchestration"
+        ],
+        orchestration_assignment_dry_run_path=test_env_setup["goal2_fixture"]["paths"][
+            "dry_run"
+        ],
         deepagents_policy_path=bad_policy_path,
         deepagents_readiness_path=test_env_setup["readiness_path"],
         proposed_subagents=["repo_mapper"],
@@ -140,13 +153,9 @@ def test_deepagents_runtime_fails_on_denied_tools(
     bad_plan_path = tmp_path / "bad_plan.json"
     bad_plan_path.write_text(json_lib.dumps(bad_work_plan), encoding="utf-8")
 
-    avail = DeepAgentsAvailability(
-        available=True,
-        source="/mock/lib/deepagents",
-        detail="available",
-        import_status="PASS"
-    )
-    with patch("builder_ii.deepagents_runtime.deepagents_availability", return_value=avail):
+    with patch(
+        "builder_ii.deepagents_runtime.deepagents_availability", return_value=_available()
+    ):
         harness = DeepAgentsRuntimeHarness(load_settings(), bad_plan_path)
         receipts_dir = tmp_path / "receipts"
         with pytest.raises(ValueError) as exc_info:
@@ -159,6 +168,7 @@ def test_deepagents_runtime_fails_on_denied_tools(
         blocked_record = json_lib.loads(blocked_path.read_text(encoding="utf-8"))
         assert validate_deepagents_blocked_action_record(blocked_record) == []
 
+
 def test_deepagents_runtime_fails_on_unapproved_capabilities(
     test_env_setup, tmp_path: Path
 ) -> None:
@@ -167,33 +177,58 @@ def test_deepagents_runtime_fails_on_unapproved_capabilities(
     plan_data["executes_model"] = True
     plan_data["blocked_capabilities"] = ["model execution"]
     plan_data["authority_boundary"]["executes_model"] = True
-    
+
     # Write directly (bypassing normal schema creation) to simulate a malformed/adversarial plan
     bad_plan_path = tmp_path / "adversarial_plan.json"
     bad_plan_path.write_text(json_lib.dumps(plan_data), encoding="utf-8")
 
-    avail = DeepAgentsAvailability(
-        available=True,
-        source="/mock/lib/deepagents",
-        detail="available",
-        import_status="PASS"
-    )
-    with patch("builder_ii.deepagents_runtime.deepagents_availability", return_value=avail):
+    with patch(
+        "builder_ii.deepagents_runtime.deepagents_availability", return_value=_available()
+    ):
         harness = DeepAgentsRuntimeHarness(load_settings(), bad_plan_path)
         with pytest.raises(ValueError) as exc_info:
             harness.run(tmp_path / "envelope.json", tmp_path / "receipts")
         assert "Plan contains blocked capability: model execution" in str(exc_info.value)
 
+
+def test_deepagents_runtime_rejects_non_object_work_plan(tmp_path: Path) -> None:
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text("[]", encoding="utf-8")
+
+    with patch(
+        "builder_ii.deepagents_runtime.deepagents_availability", return_value=_available()
+    ):
+        harness = DeepAgentsRuntimeHarness(load_settings(), plan_path)
+        with pytest.raises(ValueError) as exc_info:
+            harness.run(tmp_path / "envelope.json", tmp_path / "receipts")
+
+    assert "Work plan must be a JSON object" in str(exc_info.value)
+
+
+def test_deepagents_runtime_rejects_missing_policy_ref_path(
+    test_env_setup, tmp_path: Path
+) -> None:
+    plan_data = json_lib.loads(test_env_setup["plan_path"].read_text(encoding="utf-8"))
+    plan_data["deepagents_policy_ref"]["path"] = ""
+    bad_plan_path = tmp_path / "bad-policy-ref.json"
+    bad_plan_path.write_text(json_lib.dumps(plan_data), encoding="utf-8")
+
+    with patch(
+        "builder_ii.deepagents_runtime.deepagents_availability", return_value=_available()
+    ):
+        harness = DeepAgentsRuntimeHarness(load_settings(), bad_plan_path)
+        with pytest.raises(ValueError) as exc_info:
+            harness.run(tmp_path / "envelope.json", tmp_path / "receipts")
+
+    assert "deepagents_policy_ref.path must be a non-empty string" in str(exc_info.value)
+
+
 def test_deepagents_collect_results(
     test_env_setup, tmp_path: Path
 ) -> None:
-    avail = DeepAgentsAvailability(
-        available=True,
-        source="/mock/lib/deepagents",
-        detail="available",
-        import_status="PASS"
-    )
-    with patch("builder_ii.deepagents_runtime.deepagents_availability", return_value=avail):
+    with patch(
+        "builder_ii.deepagents_runtime.deepagents_availability", return_value=_available()
+    ):
         harness = DeepAgentsRuntimeHarness(load_settings(), test_env_setup["plan_path"])
         env_path = tmp_path / "envelope.json"
         proposal_path = tmp_path / "proposal.json"
@@ -203,35 +238,75 @@ def test_deepagents_collect_results(
         assert proposal_path.exists()
         assert validate_deepagents_proposal_result(proposal) == []
 
+
+def test_deepagents_collect_results_rejects_non_object_envelope(
+    test_env_setup, tmp_path: Path
+) -> None:
+    env_path = tmp_path / "envelope.json"
+    env_path.write_text("[]", encoding="utf-8")
+    harness = DeepAgentsRuntimeHarness(load_settings(), test_env_setup["plan_path"])
+
+    with pytest.raises(ValueError) as exc_info:
+        harness.collect_results(env_path, tmp_path / "proposal.json")
+
+    assert "Envelope must be a JSON object" in str(exc_info.value)
+
+
+def test_deepagents_collect_results_rejects_directory_receipt_ref(
+    test_env_setup, tmp_path: Path
+) -> None:
+    env_path = tmp_path / "envelope.json"
+    env_path.write_text(
+        json_lib.dumps({"execution_receipt_refs": [{"path": str(tmp_path)}]}),
+        encoding="utf-8",
+    )
+    harness = DeepAgentsRuntimeHarness(load_settings(), test_env_setup["plan_path"])
+
+    with pytest.raises(ValueError) as exc_info:
+        harness.collect_results(env_path, tmp_path / "proposal.json")
+
+    assert "execution_receipt_refs[0].path must point to a readable file" in str(
+        exc_info.value
+    )
+
+
 def test_cli_integration(test_env_setup, tmp_path: Path) -> None:
     runner = CliRunner()
-    avail = DeepAgentsAvailability(
-        available=True,
-        source="/mock/lib/deepagents",
-        detail="available",
-        import_status="PASS"
-    )
-    with patch("builder_ii.deepagents_runtime.deepagents_availability", return_value=avail):
+    with patch(
+        "builder_ii.deepagents_runtime.deepagents_availability", return_value=_available()
+    ):
         env_path = tmp_path / "envelope_cli.json"
         receipts_dir = tmp_path / "receipts_cli"
-        
+
         # Test run-plan
-        result_run = runner.invoke(deepagents_app, [
-            "run-plan",
-            "--work-plan", str(test_env_setup["plan_path"]),
-            "--output", str(env_path),
-            "--receipts-dir", str(receipts_dir)
-        ])
+        result_run = runner.invoke(
+            deepagents_app,
+            [
+                "run-plan",
+                "--work-plan",
+                str(test_env_setup["plan_path"]),
+                "--output",
+                str(env_path),
+                "--receipts-dir",
+                str(receipts_dir),
+            ],
+        )
         assert result_run.exit_code == 0
         assert env_path.exists()
 
         # Test collect-results
         proposal_path = tmp_path / "proposal_cli.json"
-        result_collect = runner.invoke(deepagents_app, [
-            "collect-results",
-            "--work-plan", str(test_env_setup["plan_path"]),
-            "--envelope", str(env_path),
-            "--output", str(proposal_path)
-        ])
+        result_collect = runner.invoke(
+            deepagents_app,
+            [
+                "collect-results",
+                "--work-plan",
+                str(test_env_setup["plan_path"]),
+                "--envelope",
+                str(env_path),
+                "--output",
+                str(proposal_path),
+            ],
+        )
         assert result_collect.exit_code == 0
         assert proposal_path.exists()
