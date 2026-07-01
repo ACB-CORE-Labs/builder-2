@@ -68,3 +68,31 @@ def test_platform_completion_audit_states_r1_before_b1() -> None:
     text = _text()
     assert "R0 -> R1 -> B1" in text
     assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in text
+
+
+def test_b9_operational_verification_requires_no_runtime_promotion() -> None:
+    # B9 can be OPERATIONALLY_VERIFIED only if its blockers explicitly state it does not promote runtime execution.
+    b9_row = next(r for r in REQUIRED_CAPABILITY_ROWS if r.capability == "operator quickstart/golden path")
+    if b9_row.state == "OPERATIONALLY_VERIFIED":
+        assert any("does not promote runtime execution" in b.lower() for b in b9_row.blockers)
+
+def test_b8_passive_foundation_requires_no_implied_mutation() -> None:
+    # B8 can remain PASSIVE_FOUNDATION only if blockers do not imply hidden memory or operational memory mutation.
+    b8_row = next(r for r in REQUIRED_CAPABILITY_ROWS if r.capability == "artifact memory")
+    if b8_row.state == "PASSIVE_FOUNDATION":
+        assert any("do not imply operational memory mutation" in b.lower() for b in b8_row.blockers)
+
+def test_next_sequence_matches_incomplete_rows() -> None:
+    # NEXT_SEQUENCE must match actual incomplete capability rows.
+    from builder_ii.platform_completion_audit import get_next_sequence
+    seq = get_next_sequence()
+    # Find the first incomplete non-deferred PR
+    incomplete = [
+        r.next_pr.split()[0].split(".")[0]
+        for r in REQUIRED_CAPABILITY_ROWS
+        if r.state != "OPERATIONALLY_VERIFIED" and "defer" not in r.next_pr.lower()
+    ]
+    if incomplete:
+        assert incomplete[0] in seq
+    else:
+        assert seq == "PLATFORM_COMPLETE"

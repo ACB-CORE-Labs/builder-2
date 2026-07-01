@@ -11,7 +11,6 @@ PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "B8 -> B9"
 
 StateLabel = Literal[
     "NOT_STARTED",
@@ -756,7 +755,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "Handoffs summarize and reference evidence.",
             "They do not mutate a memory store or prove execution.",
         ),
-        "B8",
+        "defer operational memory",
     ),
     _row(
         "artifact memory",
@@ -782,8 +781,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "Artifact memory is explicit, content-addressed, and reviewable only.",
             "No hidden memory, vector store, autonomous writes, or runtime authority are promoted.",
+            "Remains PASSIVE_FOUNDATION by design; docs and UX do not imply operational memory mutation.",
         ),
-        "B8",
+        "defer operational memory",
     ),
     _row(
         "operator quickstart/golden path",
@@ -794,8 +794,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "Golden path UX generated from truth matrix, command authority, and B8 memory artifacts.",
             "Demonstrates a complete governed local workflow without runtime execution.",
+            "Does not promote runtime execution or operational memory authority.",
         ),
-        "B9",
+        "B9 complete",
     ),
     _row(
         "platform doctor/status/audit",
@@ -889,7 +890,7 @@ def render_matrix_jsonable(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY
         "schema_version": SCHEMA_VERSION,
         "source_report": SOURCE_REPORT,
         "allowed_state_labels": list(ALLOWED_STATE_LABELS),
-        "next_sequence": NEXT_SEQUENCE,
+        "next_sequence": get_next_sequence(),
         "summary": {
             "passive_foundation_complete": True,
             "operationally_incomplete": True,
@@ -899,6 +900,15 @@ def render_matrix_jsonable(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY
         "capabilities": [row.to_jsonable() for row in rows],
     }
 
+
+def get_next_sequence() -> str:
+    needed = []
+    for row in REQUIRED_CAPABILITY_ROWS:
+        if row.state != OPERATIONALLY_VERIFIED:
+            pr = row.next_pr.split()[0].split(".")[0]
+            if "defer" not in pr.lower() and pr not in needed:
+                needed.append(pr)
+    return " -> ".join(needed[:2]) if needed else "PLATFORM_COMPLETE"
 
 def dumps_matrix(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:
     return json.dumps(render_matrix_jsonable(rows), indent=2, sort_keys=True) + "\n"
@@ -911,7 +921,7 @@ def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_R
         "",
         "builder-II is passive-foundation-complete for governed artifacts, but operationally incomplete.",
         "No runtime execution, patch application, model/provider call, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous write, or commit/push authority is promoted by R1.4.",
-        f"Next sequence: {NEXT_SEQUENCE}. R1 Config + Onboarding Kernel must precede B1 verification execution.",
+        f"Next sequence: {get_next_sequence()}. R1 Config + Onboarding Kernel must precede B1 verification execution.",
         "",
         "Capability states:",
     ]
