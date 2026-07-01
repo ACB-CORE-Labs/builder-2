@@ -1,6 +1,6 @@
 # Operator Quickstart
 
-This guide shows the complete operator golden path lane for builder-II.
+This guide shows the complete operator golden path lane for builder-II and points to the CORE demo loop used for a real-world recording.
 
 builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench, not CORE UI/UX, and not a second CORE runtime. CORE is only a target profile.
 
@@ -23,6 +23,28 @@ builder-platform next --output .builder/artifacts/operator-next.json
 builder-platform golden-path --target builder --output-dir .builder/artifacts/b9-golden-path
 builder-platform validate-golden-path .builder/artifacts/b9-golden-path/golden-path-report.json
 ```
+
+## CORE Demo Loop
+
+For a recordable real-world walkthrough against AssetOverflow/core, use the CORE demo loop instead of a fixture:
+
+```bash
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
+uv run builder-platform validate-demo-loop /tmp/builder-ii-core-demo/core-demo-loop-report.json
+```
+
+The same loop can be run as a one-command recording pass:
+
+```bash
+uv run builder-platform wow --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --approve --force
+```
+
+See [CORE Demo Walkthrough](CORE_DEMO_WALKTHROUGH.md) for the narrated flow, artifact map, and evidence-showing script.
 
 ## What the Golden Path Report Proves
 
@@ -50,6 +72,8 @@ This quickstart lane does not:
 - claim autonomous writes
 - invoke MCP or external tools
 - use hidden memory or vector stores
+
+The CORE demo loop is a separate governed execution lane. It may apply and roll back one digest-approved temporary documentation marker inside a detached CORE worktree only; it does not mutate the source CORE checkout, commit, push, call models, activate Goose, invoke MCP, or write hidden memory.
 
 ## Human Responsibility
 

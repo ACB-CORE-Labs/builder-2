@@ -20,6 +20,12 @@ from builder_ii.config_sources import (
     validate_config_resolution_artifact,
     write_config_resolution_artifact,
 )
+from builder_ii.config import load_settings
+from builder_ii.core_demo_loop import (
+    dumps_core_demo_report,
+    run_core_demo_loop,
+    validate_core_demo_report,
+)
 from builder_ii.onboarding_intent import validate_onboarding_intent_report_artifact
 from builder_ii.operator_golden_path import (
     create_operator_golden_path_report,
@@ -205,6 +211,113 @@ def validate_golden_path(
         raise typer.Exit(1)
         
     console.out(json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n", end="")
+
+
+@platform_app.command("demo-loop")
+def demo_loop(
+    output_dir: Path = typer.Option(
+        ...,
+        "--output-dir",
+        "-o",
+        help="Directory where the CORE demo evidence bundle will be written.",
+    ),
+    core_repo: Path | None = typer.Option(
+        None,
+        "--core-repo",
+        help="Path to the AssetOverflow/core checkout. Defaults to configured BUILDER_TARGET_REPO/CORE_REPO_PATH.",
+    ),
+    phase: str = typer.Option(
+        "prepare",
+        "--phase",
+        help="Guided phase: prepare, approve, apply, verify, rollback, finalize, or all.",
+    ),
+    approve: bool = typer.Option(
+        False,
+        "--approve",
+        help="Approve the exact demo patch digest for the temporary CORE worktree. Intended for recorded walkthrough checkpoints and tests.",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Replace an existing temporary CORE demo worktree under output-dir.",
+    ),
+    cleanup_worktree: bool = typer.Option(
+        False,
+        "--cleanup-worktree",
+        help="Remove the temporary CORE worktree after a completed finalize/all run.",
+    ),
+) -> None:
+    """Run the guided CORE demo loop against a temporary AssetOverflow/core worktree."""
+    _validate_or_exit(root=Path.cwd())
+    settings = load_settings()
+    selected_core_repo = (core_repo or settings.core_repo).expanduser().resolve()
+    try:
+        report = run_core_demo_loop(
+            core_repo=selected_core_repo,
+            output_dir=output_dir.resolve(),
+            phase=phase,  # type: ignore[arg-type]
+            approve=approve,
+            force=force,
+            cleanup_worktree=cleanup_worktree,
+        )
+    except Exception as exc:
+        console.print(f"[red]CORE demo loop failed:[/] {exc}")
+        raise typer.Exit(1)
+    console.out(dumps_core_demo_report(report), end="")
+
+
+@platform_app.command("validate-demo-loop")
+def validate_demo_loop(
+    report_file: Path = typer.Argument(
+        ...,
+        help="Path to core-demo-loop-report.json.",
+    )
+) -> None:
+    """Validate a CORE demo loop report artifact."""
+    report_file = report_file.resolve()
+    if not report_file.is_file():
+        console.print(f"[red]report file is not a valid file:[/] {report_file}")
+        raise typer.Exit(1)
+    try:
+        data = json_lib.loads(report_file.read_text(encoding="utf-8"))
+    except json_lib.JSONDecodeError as exc:
+        console.print(f"[red]report file is not valid JSON:[/] {exc}")
+        raise typer.Exit(1)
+    errors = validate_core_demo_report(data)
+    if errors:
+        for error in errors:
+            console.print(f"[red]CORE demo report validation error:[/] {error}")
+        raise typer.Exit(1)
+    console.out(json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n", end="")
+
+
+@platform_app.command("wow")
+def wow(
+    output_dir: Path = typer.Option(
+        ...,
+        "--output-dir",
+        "-o",
+        help="Directory where the CORE demo evidence bundle will be written.",
+    ),
+    core_repo: Path | None = typer.Option(None, "--core-repo", help="Path to AssetOverflow/core."),
+    approve: bool = typer.Option(False, "--approve", help="Approve the temporary CORE worktree patch."),
+    force: bool = typer.Option(False, "--force", help="Replace an existing temporary CORE demo worktree."),
+) -> None:
+    """Alias for the CORE demo loop, reserved for recording the product walkthrough."""
+    settings = load_settings()
+    selected_core_repo = (core_repo or settings.core_repo).expanduser().resolve()
+    try:
+        report = run_core_demo_loop(
+            core_repo=selected_core_repo,
+            output_dir=output_dir.resolve(),
+            phase="all" if approve else "prepare",
+            approve=approve,
+            force=force,
+        )
+    except Exception as exc:
+        console.print(f"[red]CORE demo loop failed:[/] {exc}")
+        raise typer.Exit(1)
+    console.out(dumps_core_demo_report(report), end="")
 
 
 @platform_app.command("audit-docs")

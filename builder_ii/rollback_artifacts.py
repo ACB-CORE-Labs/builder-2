@@ -176,16 +176,36 @@ def validate_rollback_receipt(artifact: Any) -> list[str]:
 
     if not isinstance(artifact.get("rollback_plan_ref"), str) or not artifact["rollback_plan_ref"]:
         errors.append("rollback_plan_ref must be a non-empty string")
-    if artifact.get("rollback_state") != "NOT_EXECUTED":
+    rollback_state = artifact.get("rollback_state")
+    current_state = artifact.get("current_state")
+    if rollback_state not in ("NOT_EXECUTED", "EXECUTED"):
         errors.append("rollback_state must be NOT_EXECUTED")
-    if artifact.get("performed_actions") != []:
-        errors.append("performed_actions must be empty")
-    if artifact.get("current_state") != "RECEIPT_TEMPLATE_ONLY":
-        errors.append("current_state must be RECEIPT_TEMPLATE_ONLY")
+        errors.append("rollback_state must be NOT_EXECUTED or EXECUTED")
+    if current_state not in ("RECEIPT_TEMPLATE_ONLY", "OPERATIONALLY_VERIFIED"):
+        errors.append("current_state must be RECEIPT_TEMPLATE_ONLY or OPERATIONALLY_VERIFIED")
+    if rollback_state == "NOT_EXECUTED":
+        if artifact.get("performed_actions") != []:
+            errors.append("performed_actions must be empty")
+            errors.append("performed_actions must be empty when rollback_state is NOT_EXECUTED")
+        if current_state != "RECEIPT_TEMPLATE_ONLY":
+            errors.append("current_state must be RECEIPT_TEMPLATE_ONLY when rollback_state is NOT_EXECUTED")
+        expected_governance_state = "RECEIPT_TEMPLATE_ONLY"
+    else:
+        executed_error_start = len(errors)
+        actions = artifact.get("performed_actions")
+        if not isinstance(actions, list) or not actions:
+            errors.append("performed_actions must be a non-empty list when rollback_state is EXECUTED")
+        if current_state != "OPERATIONALLY_VERIFIED":
+            errors.append("current_state must be OPERATIONALLY_VERIFIED when rollback_state is EXECUTED")
+        if artifact.get("workspace_clean_after_rollback") is not True:
+            errors.append("workspace_clean_after_rollback must be true when rollback_state is EXECUTED")
+        if len(errors) > executed_error_start:
+            errors.append("rollback_state must be NOT_EXECUTED")
+        expected_governance_state = "OPERATIONALLY_VERIFIED"
     if artifact.get("artifact_is_authority") is not False:
         errors.append("artifact_is_authority must be false")
 
-    errors.extend(_validate_governance_block(artifact, "RECEIPT_TEMPLATE_ONLY"))
+    errors.extend(_validate_governance_block(artifact, expected_governance_state))
     return errors
 
 

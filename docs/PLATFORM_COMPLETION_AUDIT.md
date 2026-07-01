@@ -15,11 +15,11 @@ builder-II is a generic governed local agent/developer platform. CORE is a targe
 Current platform truth:
 
 - passive foundation state: `PASSIVE_FOUNDATION`
-- runtime authority state: not `OPERATIONALLY_VERIFIED`
+- platform-wide ambient runtime authority state: not `OPERATIONALLY_VERIFIED`; operational authority is capability-scoped by the matrix
 - setup/config kernel state: R1.4 passive schema, source resolution, setup plan, overlay plan, rollback snapshot, digest-bound apply/rollback, and legacy setup-surface reconciliation exist; generic rollback remains non-operational
-- next sequence: `R0 -> R1 -> B1`
+- current sequence: `B8 deferred; B9 complete`; historical dependency spine: `R0 -> R1 -> B1`
 
-R1.4 keeps the setup/config kernel non-operational beyond the governed artifact chain. Legacy `builder setup` now fails closed and redirects to `builder-setup`, while runtime execution, Goose runtime promotion, model/provider calls, MCP/tool invocation, deepagents runtime, patch application, autonomous writes, and commit/push automation remain unpromoted.
+R1.4 keeps the setup/config kernel non-operational beyond the governed artifact chain. Legacy `builder setup` now fails closed and redirects to `builder-setup`. Ambient runtime execution, Goose runtime promotion, deepagents runtime, autonomous writes, source CORE checkout mutation, and commit/push automation remain unpromoted; model/provider calls, MCP/tool invocation, HITL patch application, rollback execution, and the CORE demo loop are operational only inside their explicit capability-scoped envelopes.
 
 ## State Labels
 
@@ -86,6 +86,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | notes/handoff artifacts | `PASSIVE_FOUNDATION` | defer operational memory |
 | artifact memory | `PASSIVE_FOUNDATION` | defer operational memory |
 | operator quickstart/golden path | `OPERATIONALLY_VERIFIED` | B9 complete |
+| CORE demo loop | `OPERATIONALLY_VERIFIED` | demo loop complete |
 | platform doctor/status/audit | `PASSIVE_FOUNDATION` | R1 then B1 |
 | release proof/quality gates | `PASSIVE_FOUNDATION` | B1 |
 | command authority as runtime gate | `MERGED_BUT_NOT_OPERATIONAL` | B1/B6/B7 |
@@ -97,6 +98,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 - Legacy operator-managed helpers such as `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
 - Legacy `builder setup` is no longer operator-managed setup execution; it is a fail-closed redirect to the governed `builder-setup` path.
 - Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-setup overlay-plan`, `builder-setup rollback-snapshot`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, `builder-platform`, and `builder-memory`.
+- Canonical governed CORE demo execution is limited to `builder-platform demo-loop` and `builder-platform wow`, both of which operate on a temporary detached AssetOverflow/core worktree and not the source CORE checkout.
 - R1 Config + Onboarding Kernel must precede B1 verification execution because execution authority depends on canonical target roots, artifact roots, config source precedence, setup receipts, rollback artifacts, and auditable capability defaults.
 - `builder-setup plan`, `builder-setup overlay-plan`, and `builder-setup rollback-snapshot` are passive setup planning only. They record future planned overlays and prior-state snapshot metadata but cannot write Goose config, write `.goosehints`, copy skills, install recipes, apply setup, execute rollback, start models, start Goose, construct deepagents, call MCP/tools, or apply patches.
 - `builder-memory` records explicit memory atoms, indexes, deterministic search results, and replay-stable reconstructions only. Hidden memory, vector stores, and autonomous memory writes remain disabled.
@@ -125,6 +127,13 @@ uv run builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay-r1-4.json -
 uv run builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot-r1-4.json
 uv run builder-platform r1-closure --output-dir /tmp/builder-ii-r1-6-proof
 uv run builder-platform validate-r1-closure /tmp/builder-ii-r1-6-proof/r1-closure-report.json
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
+uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
+uv run builder-platform validate-demo-loop /tmp/builder-ii-core-demo/core-demo-loop-report.json
 ```
 
 ## R1.4 update
@@ -153,3 +162,8 @@ B8 adds `builder_ii.artifact_memory`, `builder_ii.memory_cli`, and the `builder-
 
 B9 completes the Operator Product Polish by introducing the governed local golden path via `builder-platform operator-status`, `builder-platform next`, and `builder-platform golden-path`. These primitives compose a coherent platform UX derived from existing truth boundaries (matrix, ledger, memory, authority) without claiming operational authority, shell access, model execution, or target repo writes. Golden path validation and next-step alignment operate exclusively via artifact generation, explicitly isolating builder-II from autonomous control planes and CORE Workbench coupling.
 
+## CORE demo loop update
+
+The CORE demo loop introduces `builder-platform demo-loop`, `builder-platform validate-demo-loop`, and the recording alias `builder-platform wow`. The loop targets a real AssetOverflow/core checkout by creating a detached temporary worktree from the current CORE `HEAD`, then walks through preflight, repo map, context pack, deterministic planner, HITL patch proposal, explicit approval, patch apply receipt, bounded verification receipt, rollback receipt, final postflight, artifact index, chain verification, and `DEMO_EVIDENCE.md`.
+
+This is not a synthetic product tour. It uses real CORE repository structure and Git state, but the only approved mutation is a temporary documentation marker inside the detached worktree. The source CORE checkout is not mutated. The loop never commits, pushes, starts Goose, calls models, invokes MCP, writes hidden memory, or touches CORE Workbench/UI.
