@@ -95,6 +95,7 @@ REQUIRED_CAPABILITIES: tuple[str, ...] = (
     "notes/handoff artifacts",
     "artifact memory",
     "operator quickstart/golden path",
+    "CORE demo loop",
     "platform doctor/status/audit",
     "release proof/quality gates",
     "command authority as runtime gate",
@@ -800,6 +801,19 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         "B9 complete",
     ),
     _row(
+        "CORE demo loop",
+        OPERATIONALLY_VERIFIED,
+        ("builder_ii/core_demo_loop.py", "builder_ii/platform_status_cli.py", "docs/OPERATOR_QUICKSTART.md"),
+        ("builder-platform demo-loop", "builder-platform validate-demo-loop", "builder-platform wow"),
+        ("tests/test_core_demo_loop.py", "tests/test_platform_completion_truth.py", "tests/test_command_authority.py"),
+        (
+            "Runs against a temporary detached AssetOverflow/core worktree, not a synthetic fixture.",
+            "Mutation is limited to one approved temporary documentation marker patch and is paired with rollback plus final clean postflight.",
+            "No commit, push, model execution, Goose activation, MCP call, hidden memory, or source CORE checkout mutation is promoted.",
+        ),
+        "demo loop complete",
+    ),
+    _row(
         "platform doctor/status/audit",
         PASSIVE_FOUNDATION,
         (
@@ -909,11 +923,14 @@ def dumps_matrix(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> 
 
 def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:
     counts = state_counts(rows)
+    operational = sorted(row.capability for row in rows if row.state == OPERATIONALLY_VERIFIED)
+    incomplete_count = len([row for row in rows if row.state != OPERATIONALLY_VERIFIED])
     lines = [
         "builder-II platform truth state",
         "",
-        "builder-II is passive-foundation-complete for governed artifacts, but operationally incomplete.",
-        "No runtime execution, patch application, model/provider call, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous write, or commit/push authority is promoted by R1.4.",
+        f"builder-II is passive-foundation-complete and operationally incomplete: {counts[OPERATIONALLY_VERIFIED]} capabilities are operationally verified and {incomplete_count} remain incomplete.",
+        "Operational authority is capability-scoped by the matrix; commit/push automation, hidden memory, and source CORE checkout mutation remain unpromoted.",
+        "The CORE demo loop is promoted only for a temporary detached AssetOverflow/core worktree with explicit approval, rollback, and final postflight.",
         f"Next sequence: {NEXT_SEQUENCE}. R1 Config + Onboarding Kernel must precede B1 verification execution.",
         "",
         "Capability states:",
@@ -930,7 +947,7 @@ def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_R
             "- Goose config overlay/rollback planning: PASSIVE_FOUNDATION",
             "- setup receipt + rollback receipt artifacts: PASSIVE_FOUNDATION",
             "",
-            "Generic/B2 rollback execution, interactive setup wizard, runtime execution, and B1 verification execution remain non-operational; R1.4 reconciles only the legacy setup command surface.",
+            "Operationally verified highlights: " + ", ".join(operational) + ".",
         ]
     )
     return "\n".join(lines) + "\n"

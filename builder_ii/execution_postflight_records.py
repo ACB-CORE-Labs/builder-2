@@ -121,12 +121,20 @@ def validate_execution_postflight_record(artifact: Any) -> list[str]:
             errors.append(f"{field} must be a string")
 
     # State
-    if artifact.get("postflight_state") != "NOT_RUN":
+    postflight_state = artifact.get("postflight_state")
+    if postflight_state not in ("NOT_RUN", "RUN_COMPLETE"):
         errors.append("postflight_state must be NOT_RUN")
+        errors.append("postflight_state must be NOT_RUN or RUN_COMPLETE")
 
-    # Performed actions must be empty
-    if artifact.get("performed_actions") != []:
+    # Performed actions are empty for templates and populated for executed postflight records.
+    performed_actions = artifact.get("performed_actions")
+    if postflight_state == "NOT_RUN" and performed_actions != []:
         errors.append("performed_actions must be empty")
+        errors.append("performed_actions must be empty when postflight_state is NOT_RUN")
+    if postflight_state == "RUN_COMPLETE" and (
+        not isinstance(performed_actions, list) or not performed_actions
+    ):
+        errors.append("performed_actions must be a non-empty list when postflight_state is RUN_COMPLETE")
 
     # Authority
     if artifact.get("artifact_is_authority") is not False:

@@ -19,6 +19,7 @@ builder-II supports three distinct target profiles:
 This index links together the core governed operator lane documentation:
 
 - [Operator Quickstart](OPERATOR_QUICKSTART.md)
+- [CORE Demo Walkthrough](CORE_DEMO_WALKTHROUGH.md)
 - [Governed Prepare Package](GOVERNED_PREPARE_PACKAGE.md)
 - [Validate Prepare Package](VALIDATE_PREPARE_PACKAGE.md)
 - [Prepare Package Summary](PREPARE_PACKAGE_SUMMARY.md)
@@ -52,6 +53,20 @@ The canonical governed session lane binds together the platform preparation tool
 4. **Passive Chain Verification**: Cryptographically resolves and audits cross-record references across the emitted bundle using canonical JSON digests.
 5. **Agent Assignment / Orchestration v2**: Binds target, task, agent, model recommendation, context, verification, tool policy, HITL policy, outputs, and handoff refs into deterministic assignment artifacts without execution authority.
 6. **Fail-Closed Governance**: Throughout the entire sequence, runtime execution, model calls, shell invocations, and target repository modifications remain disabled, and planned verification checks remain strictly unexecuted (`NOT_RUN`).
+
+## CORE Demo Loop
+
+The real-world CORE recording lane is separate from the passive session lane:
+
+1. `builder-platform demo-loop --phase prepare`
+2. `builder-platform demo-loop --phase approve --approve`
+3. `builder-platform demo-loop --phase apply`
+4. `builder-platform demo-loop --phase verify`
+5. `builder-platform demo-loop --phase rollback`
+6. `builder-platform demo-loop --phase finalize`
+7. `builder-platform validate-demo-loop`
+
+The alias `builder-platform wow --approve` runs the full sequence for a continuous recording. This lane uses a detached temporary AssetOverflow/core worktree, applies one digest-approved documentation marker patch, rolls it back, and emits `DEMO_EVIDENCE.md`. It does not mutate the source CORE checkout, commit, push, call models, activate Goose, invoke MCP, write hidden memory, or couple to CORE Workbench/UI.
 
 
 ## Command Taxonomy by Phase

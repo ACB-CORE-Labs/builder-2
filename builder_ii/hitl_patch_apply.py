@@ -10,7 +10,12 @@ from typing import Any
 from builder_ii.config import Settings, load_settings
 from builder_ii.target_profiles import TargetName, target_profile
 from builder_ii.hitl_patch_proposal import validate_hitl_patch_proposal_file
-from builder_ii.rollback_artifacts import create_rollback_plan, write_rollback_plan
+from builder_ii.rollback_artifacts import (
+    create_rollback_plan,
+    create_rollback_receipt,
+    write_rollback_plan,
+    write_rollback_receipt,
+)
 from builder_ii.execution_postflight_records import create_execution_postflight_record, write_execution_postflight_record
 from builder_ii.verification_execution_receipt import validate_verification_execution_receipt_file
 
@@ -46,6 +51,71 @@ def get_git_head_sha(repo_path: Path) -> str:
 
 def compute_digest(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def _validate_core_demo_verification_receipt(
+    data: Any, *, target_repo: Path | None
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["core demo verification receipt must be a JSON object"]
+    if data.get("kind") != "builder_ii.core_demo_verification_receipt":
+        errors.append("kind must be builder_ii.core_demo_verification_receipt")
+    if data.get("schema_version") != 1:
+        errors.append("schema_version must be 1")
+    if data.get("label") != "before_apply":
+        errors.append("label must be before_apply for HITL patch application")
+    if data.get("receipt_status") != "EXECUTED":
+        errors.append("receipt_status must be EXECUTED")
+
+    target = data.get("target")
+    if not isinstance(target, dict):
+        errors.append("target must be an object")
+    else:
+        if target.get("name") != "core":
+            errors.append("target.name must be core")
+        target_path = target.get("repo")
+        if not isinstance(target_path, str) or not target_path:
+            errors.append("target.repo must be a non-empty string")
+        elif target_repo is not None:
+            try:
+                if Path(target_path).expanduser().resolve() != target_repo.expanduser().resolve():
+                    errors.append("target.repo must match proposal target repo")
+            except OSError as exc:
+                errors.append(f"target.repo could not be resolved: {exc}")
+
+    checks = data.get("checks")
+    if not isinstance(checks, list) or not checks:
+        errors.append("checks must be a non-empty list")
+    elif any(not isinstance(check, dict) or check.get("status") != "PASS" for check in checks):
+        errors.append("all checks must be PASS")
+
+    governance = data.get("governance")
+    if not isinstance(governance, dict):
+        errors.append("governance must be an object")
+    else:
+        if governance.get("model_execution") != "DISABLED":
+            errors.append("governance.model_execution must be DISABLED")
+        if governance.get("source_writes") != "DISABLED":
+            errors.append("governance.source_writes must be DISABLED")
+        if governance.get("artifact_is_authority") is not False:
+            errors.append("governance.artifact_is_authority must be false")
+        if governance.get("core_workbench_coupling") != "NONE":
+            errors.append("governance.core_workbench_coupling must be NONE")
+    return errors
+
+
+def _verification_receipt_errors(path: Path, *, target_repo: Path | None = None) -> list[str]:
+    errors = validate_verification_execution_receipt_file(path)
+    if not errors:
+        return []
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return errors
+    if isinstance(data, dict) and data.get("kind") == "builder_ii.core_demo_verification_receipt":
+        return _validate_core_demo_verification_receipt(data, target_repo=target_repo)
+    return errors
 
 
 def create_patch_apply_receipt(
@@ -91,8 +161,10 @@ def create_patch_apply_receipt(
         },
     }
 
+
 def dumps_patch_apply_receipt(artifact: dict[str, Any]) -> str:
     return json_lib.dumps(artifact, indent=2, sort_keys=True) + "\n"
+
 
 def write_patch_apply_receipt(artifact: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +197,7 @@ def apply_hitl_patch(
         raise ValueError("Target repository working tree is not clean")
         
     # 3. Read and validate verification receipt
-    v_errors = validate_verification_execution_receipt_file(verification_receipt_path)
+    v_errors = _verification_receipt_errors(verification_receipt_path, target_repo=target_repo)
     if v_errors:
         raise ValueError(f"Invalid verification receipt: {v_errors}")
     
@@ -135,6 +207,8 @@ def apply_hitl_patch(
     approval = json_lib.loads(approval_path.read_text())
     if approval.get("patch_digest") != patch_digest:
         raise ValueError("Approval digest does not match proposal digest")
+    if compute_digest(unified_diff) != patch_digest:
+        raise ValueError("Proposal patch digest does not match unified diff content")
         
     # 5. Reverse patch / Rollback plan
     reverse_diff_path = output_dir / "rollback.patch"
@@ -148,9 +222,7 @@ def apply_hitl_patch(
         operator_note="Auto-generated rollback plan before apply",
         generic_repo=target_repo if target_name == "generic" else None,
     )
-    # Transition rollback plan to OPERATIONALLY_VERIFIED
-    rollback_plan["current_state"] = "OPERATIONALLY_VERIFIED"
-    rollback_plan["governance"]["capability_state"] = "OPERATIONALLY_VERIFIED"
+    rollback_plan["target"] = dict(proposal["target"])
     rollback_plan_path = output_dir / "rollback_plan.json"
     write_rollback_plan(rollback_plan, rollback_plan_path)
 
@@ -174,14 +246,16 @@ def apply_hitl_patch(
         settings=settings,
         target_name=target_name,
         request_ref=str(proposal_path),
-        receipt_ref="",  # will fill next
+        receipt_ref=str(output_dir / "patch_apply_receipt.json"),
         preflight_ref=get_git_head_sha(target_repo),
         approval_ref=str(approval_path),
         expected_outcome="Patch applied successfully to working tree",
         observed_state_ref="working_tree",
         generic_repo=target_repo if target_name == "generic" else None,
     )
+    postflight["target"] = dict(proposal["target"])
     postflight["postflight_state"] = "RUN_COMPLETE"
+    postflight["performed_actions"] = ["git apply patch", "record postflight working tree state"]
     postflight["governance"]["capability_state"] = "OPERATIONALLY_VERIFIED"
     postflight_path = output_dir / "postflight_record.json"
     write_execution_postflight_record(postflight, postflight_path)
@@ -195,8 +269,10 @@ def apply_hitl_patch(
         postflight_ref=str(postflight_path),
         generic_repo=target_repo if target_name == "generic" else None,
     )
+    receipt["target"] = dict(proposal["target"])
     receipt_path = output_dir / "patch_apply_receipt.json"
     write_patch_apply_receipt(receipt, receipt_path)
+
 
 def validate_patch_apply_receipt(artifact: Any) -> list[str]:
     errors = []
@@ -206,6 +282,7 @@ def validate_patch_apply_receipt(artifact: Any) -> list[str]:
         errors.append(f"kind must be {PATCH_APPLY_RECEIPT_KIND}")
     return errors
 
+
 def validate_patch_apply_receipt_file(path: Path) -> list[str]:
     if not path.exists():
         return [f"file not found: {path}"]
@@ -214,6 +291,7 @@ def validate_patch_apply_receipt_file(path: Path) -> list[str]:
     except Exception as exc:
         return [f"invalid json: {exc}"]
     return validate_patch_apply_receipt(data)
+
 
 def rollback_hitl_patch(
     rollback_plan_path: Path,
@@ -237,8 +315,13 @@ def rollback_hitl_patch(
     target_repo = Path(plan["target"]["repo"])
     target_name = plan["target"]["name"]
     
-    if not is_git_clean(target_repo):
-        raise ValueError("Target repository working tree is not clean")
+    before_status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=target_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
         
     try:
         subprocess.run(
@@ -257,10 +340,21 @@ def rollback_hitl_patch(
         rollback_plan_ref=str(rollback_plan_path),
         generic_repo=target_repo if target_name == "generic" else None,
     )
+    receipt["target"] = dict(plan["target"])
+    after_status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=target_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
     receipt["rollback_state"] = "EXECUTED"
     receipt["current_state"] = "OPERATIONALLY_VERIFIED"
     receipt["governance"]["capability_state"] = "OPERATIONALLY_VERIFIED"
     receipt["performed_actions"] = ["git apply reverse_patch"]
+    receipt["pre_rollback_status_lines"] = before_status
+    receipt["post_rollback_status_lines"] = after_status
+    receipt["workspace_clean_after_rollback"] = len(after_status) == 0
     
     receipt_path = output_dir / "rollback_receipt.json"
     write_rollback_receipt(receipt, receipt_path)

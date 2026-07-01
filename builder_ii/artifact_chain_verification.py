@@ -115,6 +115,10 @@ from builder_ii.hitl_patch_proposal import (
     HITL_PATCH_PROPOSAL_KIND,
     validate_hitl_patch_proposal,
 )
+from builder_ii.hitl_patch_apply import (
+    PATCH_APPLY_RECEIPT_KIND,
+    validate_patch_apply_receipt,
+)
 from builder_ii.rollback_artifacts import ROLLBACK_PLAN_KIND, validate_rollback_plan
 from builder_ii.rollback_artifacts import (
     ROLLBACK_RECEIPT_KIND,
@@ -320,6 +324,18 @@ from builder_ii.readonly_founder_demo import (
     validate_target_patch_proposal,
     validate_target_verification_plan,
 )
+from builder_ii.core_demo_loop import (
+    CORE_DEMO_APPROVAL_KIND,
+    CORE_DEMO_PLANNER_KIND,
+    CORE_DEMO_PREFLIGHT_KIND,
+    CORE_DEMO_REPORT_KIND,
+    CORE_DEMO_VERIFICATION_RECEIPT_KIND,
+    validate_core_demo_approval,
+    validate_core_demo_planner,
+    validate_core_demo_preflight,
+    validate_core_demo_report,
+    validate_core_demo_verification_receipt,
+)
 
 
 
@@ -400,6 +416,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_EXECUTION_RECEIPT_KIND: validate_hitl_execution_receipt,
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND: validate_hitl_verification_execution_candidate,
     HITL_PATCH_PROPOSAL_KIND: validate_hitl_patch_proposal,
+    PATCH_APPLY_RECEIPT_KIND: validate_patch_apply_receipt,
     ROLLBACK_PLAN_KIND: validate_rollback_plan,
     ROLLBACK_RECEIPT_KIND: validate_rollback_receipt,
     EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
@@ -469,6 +486,11 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     TARGET_INSPECTION_PLAN_KIND: validate_target_inspection_plan,
     TARGET_PATCH_PROPOSAL_KIND: validate_target_patch_proposal,
     TARGET_VERIFICATION_PLAN_KIND: validate_target_verification_plan,
+    CORE_DEMO_APPROVAL_KIND: validate_core_demo_approval,
+    CORE_DEMO_PLANNER_KIND: validate_core_demo_planner,
+    CORE_DEMO_PREFLIGHT_KIND: validate_core_demo_preflight,
+    CORE_DEMO_VERIFICATION_RECEIPT_KIND: validate_core_demo_verification_receipt,
+    CORE_DEMO_REPORT_KIND: validate_core_demo_report,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 

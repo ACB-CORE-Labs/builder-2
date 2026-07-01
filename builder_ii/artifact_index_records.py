@@ -101,6 +101,10 @@ from builder_ii.hitl_patch_proposal import (
     HITL_PATCH_PROPOSAL_KIND,
     validate_hitl_patch_proposal,
 )
+from builder_ii.hitl_patch_apply import (
+    PATCH_APPLY_RECEIPT_KIND,
+    validate_patch_apply_receipt,
+)
 from builder_ii.rollback_artifacts import ROLLBACK_PLAN_KIND, validate_rollback_plan
 from builder_ii.rollback_artifacts import (
     ROLLBACK_RECEIPT_KIND,
@@ -272,6 +276,18 @@ from builder_ii.deepagents_work_artifacts import (
     DEEPAGENTS_WORK_VALIDATION_REPORT_KIND,
     validate_deepagents_work_validation_report,
 )
+from builder_ii.core_demo_loop import (
+    CORE_DEMO_APPROVAL_KIND,
+    CORE_DEMO_PLANNER_KIND,
+    CORE_DEMO_PREFLIGHT_KIND,
+    CORE_DEMO_REPORT_KIND,
+    CORE_DEMO_VERIFICATION_RECEIPT_KIND,
+    validate_core_demo_approval,
+    validate_core_demo_planner,
+    validate_core_demo_preflight,
+    validate_core_demo_report,
+    validate_core_demo_verification_receipt,
+)
 from builder_ii.hitl_promotion_artifacts import (
     HITL_PROMOTION_REQUEST_KIND,
     validate_hitl_promotion_request,
@@ -377,6 +393,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_EXECUTION_RECEIPT_KIND: validate_hitl_execution_receipt,
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND: validate_hitl_verification_execution_candidate,
     HITL_PATCH_PROPOSAL_KIND: validate_hitl_patch_proposal,
+    PATCH_APPLY_RECEIPT_KIND: validate_patch_apply_receipt,
     ROLLBACK_PLAN_KIND: validate_rollback_plan,
     ROLLBACK_RECEIPT_KIND: validate_rollback_receipt,
     EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
@@ -446,6 +463,11 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     TARGET_INSPECTION_PLAN_KIND: validate_target_inspection_plan,
     TARGET_PATCH_PROPOSAL_KIND: validate_target_patch_proposal,
     TARGET_VERIFICATION_PLAN_KIND: validate_target_verification_plan,
+    CORE_DEMO_APPROVAL_KIND: validate_core_demo_approval,
+    CORE_DEMO_PLANNER_KIND: validate_core_demo_planner,
+    CORE_DEMO_PREFLIGHT_KIND: validate_core_demo_preflight,
+    CORE_DEMO_VERIFICATION_RECEIPT_KIND: validate_core_demo_verification_receipt,
+    CORE_DEMO_REPORT_KIND: validate_core_demo_report,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
 
@@ -531,9 +553,10 @@ def _safe_entry(path: Path, root: Path) -> dict[str, Any]:
 
 
 def create_artifact_index_record(
-    root: Path, *, recursive: bool = False
+    root: Path, *, recursive: bool = False, exclude_paths: tuple[Path, ...] = ()
 ) -> dict[str, Any]:
     root = root.resolve()
+    excluded = tuple(path.resolve() for path in exclude_paths)
     entries: list[dict[str, Any]] = []
     issues: list[str] = []
     if not root.exists():
@@ -542,7 +565,12 @@ def create_artifact_index_record(
         issues.append(f"not a directory: {root}")
     else:
         paths = sorted(root.rglob("*.json") if recursive else root.glob("*.json"))
-        entries = [_safe_entry(path, root) for path in paths if path.is_file()]
+        entries = [
+            _safe_entry(path, root)
+            for path in paths
+            if path.is_file()
+            and not any(path.resolve().is_relative_to(excluded_path) for excluded_path in excluded)
+        ]
     invalid_count = sum(1 for entry in entries if not entry.get("valid"))
     known_count = sum(1 for entry in entries if entry.get("known"))
     return {
@@ -553,6 +581,7 @@ def create_artifact_index_record(
         "current_state": "DISABLED",
         "root": str(root),
         "recursive": recursive,
+        "excluded_paths": [str(path) for path in excluded],
         "status": "complete" if not issues and invalid_count == 0 else "incomplete",
         "complete": not issues and invalid_count == 0,
         "issues": issues,
