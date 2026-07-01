@@ -79,9 +79,9 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | governed read-only runtime | `OPERATIONALLY_VERIFIED` | B4 |
 | Goose readonly runtime | `OPERATIONALLY_VERIFIED` | B5 |
 | Goose command proposals | `PASSIVE_FOUNDATION` | B1/B4 |
-| deepagents policy/readiness | `PASSIVE_FOUNDATION` | B5 |
-| deepagents passive work artifacts | `PASSIVE_FOUNDATION` | B5 |
-| deepagents runtime/subagents | `DESIGN_ONLY` | B5 |
+| deepagents policy/readiness | `PASSIVE_FOUNDATION` | B6 |
+| deepagents passive work artifacts | `PASSIVE_FOUNDATION` | B6 |
+| deepagents runtime/subagents | `OPERATIONALLY_VERIFIED` | B6 |
 | notes/handoff artifacts | `PASSIVE_FOUNDATION` | B8 |
 | artifact memory | `DESIGN_ONLY` | B8 |
 | operator quickstart/golden path | `PASSIVE_FOUNDATION` | B9 |
