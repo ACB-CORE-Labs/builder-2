@@ -43,6 +43,8 @@ def create_session_workflow_plan(
     verification_profile_name: VerificationProfileName | None = None,
     repo_path: str | None = None,
 ) -> dict[str, Any]:
+    if repo_path is None and target_name == "core" and not settings.core_repo.exists():
+        repo_path = str(settings.project_root)
     # Use the unified profile resolver
     resolver = ProfileResolver(settings)
     resolved = resolver.resolve(

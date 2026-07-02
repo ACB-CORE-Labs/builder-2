@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.config import load_settings
+from builder_ii.command_authority import enforce_command_authority
 from builder_ii.model_client_registry import (
     create_model_client_registry,
     validate_model_client_registry,
@@ -97,6 +98,7 @@ def call_cmd(
     session_id: str | None = typer.Option(None, "--session-id", help="Optional workflow session ID to log the event."),
 ) -> None:
     """Execute a governed model call, generating an envelope and a receipt."""
+    enforce_command_authority("builder-model call", requested_effects=("model_execution", "artifact_write"))
     # Resolve prompt
     actual_prompt = ""
     if prompt is not None:
@@ -230,6 +232,7 @@ def standalone_call_cmd(
     output_receipt: Path = typer.Option(..., "--output-receipt", help="Path to write the execution receipt JSON."),
 ) -> None:
     """Execute a governed model call without logging to the ledger."""
+    enforce_command_authority("builder-model standalone-call", requested_effects=("model_execution", "artifact_write"))
     # Resolve prompt
     actual_prompt = ""
     if prompt is not None:

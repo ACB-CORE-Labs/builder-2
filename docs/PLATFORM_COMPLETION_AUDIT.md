@@ -21,6 +21,10 @@ Current platform truth:
 
 R1.4 keeps the setup/config kernel non-operational beyond the governed artifact chain. Legacy `builder setup` now fails closed and redirects to `builder-setup`. Ambient runtime execution, Goose runtime promotion, deepagents runtime, autonomous writes, source CORE checkout mutation, and commit/push automation remain unpromoted; model/provider calls, MCP/tool invocation, HITL patch application, rollback execution, and the CORE demo loop are operational only inside their explicit capability-scoped envelopes.
 
+`OPERATIONALLY_VERIFIED` is a legacy matrix state, not a life-safety or global-runtime clearance. Machine-readable matrix rows now also carry a sharper `assurance_state`: `PASSIVE_ARTIFACT_VERIFIED`, `READ_ONLY_RUNTIME_VERIFIED`, `BOUNDED_EXECUTION_VERIFIED`, `MUTATION_WITH_ROLLBACK_VERIFIED`, `LIVE_PROVIDER_VERIFIED`, `DEMO_ONLY_VERIFIED`, `BLOCKED_BY_EVIDENCE`, or `SAFETY_CRITICAL_PROHIBITED`.
+
+For high-consequence work, the assurance state is authoritative for risk interpretation. A live provider call, a patch mutation with rollback, and a temporary demo loop are not equivalent just because older rows may share the same legacy completion label.
+
 ## State Labels
 
 Allowed labels:

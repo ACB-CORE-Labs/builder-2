@@ -117,7 +117,9 @@ from builder_ii.hitl_patch_proposal import (
 )
 from builder_ii.hitl_patch_apply import (
     PATCH_APPLY_RECEIPT_KIND,
+    ROLLBACK_BUNDLE_KIND,
     validate_patch_apply_receipt,
+    validate_rollback_bundle,
 )
 from builder_ii.rollback_artifacts import ROLLBACK_PLAN_KIND, validate_rollback_plan
 from builder_ii.rollback_artifacts import (
@@ -439,6 +441,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND: validate_hitl_verification_execution_candidate,
     HITL_PATCH_PROPOSAL_KIND: validate_hitl_patch_proposal,
     PATCH_APPLY_RECEIPT_KIND: validate_patch_apply_receipt,
+    ROLLBACK_BUNDLE_KIND: validate_rollback_bundle,
     ROLLBACK_PLAN_KIND: validate_rollback_plan,
     ROLLBACK_RECEIPT_KIND: validate_rollback_receipt,
     EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
@@ -726,6 +729,17 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                     "expected_kind": RESEARCH_PLAN_KIND,
                 }
             )
+
+    elif kind == ROLLBACK_BUNDLE_KIND:
+        for field in (
+            "proposal_ref",
+            "approval_ref",
+            "verification_receipt_ref",
+            "rollback_plan_ref",
+            "postflight_ref",
+            "patch_apply_receipt_ref",
+        ):
+            append_artifact_ref(field, record.get(field))
 
     elif kind == HITL_EVIDENCE_BUNDLE_KIND:
         for field, expected in [

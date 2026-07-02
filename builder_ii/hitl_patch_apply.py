@@ -11,6 +11,7 @@ from builder_ii.config import Settings, load_settings
 from builder_ii.target_profiles import TargetName, target_profile
 from builder_ii.hitl_patch_proposal import validate_hitl_patch_proposal_file
 from builder_ii.rollback_artifacts import (
+    ROLLBACK_PLAN_KIND,
     create_rollback_plan,
     create_rollback_receipt,
     write_rollback_plan,
@@ -22,6 +23,8 @@ from builder_ii.verification_execution_receipt import validate_verification_exec
 # Constants
 PATCH_APPLY_RECEIPT_KIND = "builder_ii.hitl_patch_apply_receipt"
 PATCH_APPLY_RECEIPT_SCHEMA_VERSION = 1
+ROLLBACK_BUNDLE_KIND = "builder_ii.rollback_bundle"
+ROLLBACK_BUNDLE_SCHEMA_VERSION = 1
 
 
 def is_git_clean(repo_path: Path) -> bool:
@@ -51,6 +54,29 @@ def get_git_head_sha(repo_path: Path) -> str:
 
 def compute_digest(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def _json_digest(data: Any) -> str:
+    raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _file_digest(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _artifact_ref(*, kind: str, path: Path, sha256: str, role: str) -> dict[str, Any]:
+    return {
+        "kind": kind,
+        "path": str(path),
+        "sha256": sha256,
+        "role": role,
+        "required": True,
+    }
 
 
 def _validate_core_demo_verification_receipt(
@@ -195,6 +221,7 @@ def apply_hitl_patch(
     # 2. Verify git state is clean
     if not is_git_clean(target_repo):
         raise ValueError("Target repository working tree is not clean")
+    pre_head = get_git_head_sha(target_repo)
         
     # 3. Read and validate verification receipt
     v_errors = _verification_receipt_errors(verification_receipt_path, target_repo=target_repo)
@@ -205,6 +232,7 @@ def apply_hitl_patch(
     if not approval_path.exists():
         raise ValueError("Approval file does not exist")
     approval = json_lib.loads(approval_path.read_text())
+    verification_receipt = json_lib.loads(verification_receipt_path.read_text(encoding="utf-8"))
     if approval.get("patch_digest") != patch_digest:
         raise ValueError("Approval digest does not match proposal digest")
     if compute_digest(unified_diff) != patch_digest:
@@ -223,8 +251,9 @@ def apply_hitl_patch(
         generic_repo=target_repo if target_name == "generic" else None,
     )
     rollback_plan["target"] = dict(proposal["target"])
+    rollback_plan["patch_digest"] = patch_digest
+    rollback_plan["pre_head"] = pre_head
     rollback_plan_path = output_dir / "rollback_plan.json"
-    write_rollback_plan(rollback_plan, rollback_plan_path)
 
     temp_patch = output_dir / "apply.patch"
     temp_patch.write_text(unified_diff)
@@ -239,7 +268,32 @@ def apply_hitl_patch(
             text=True,
         )
     except subprocess.CalledProcessError as e:
+        failure_receipt = create_patch_apply_receipt(
+            settings=settings,
+            target_name=target_name,
+            proposal_ref=str(proposal_path),
+            rollback_plan_ref=str(rollback_plan_path),
+            postflight_ref="",
+            generic_repo=target_repo if target_name == "generic" else None,
+        )
+        failure_receipt["target"] = dict(proposal["target"])
+        failure_receipt["status"] = "failed"
+        failure_receipt["error_summary"] = (e.stderr or str(e))[:500]
+        failure_receipt["patch_digest"] = patch_digest
+        failure_receipt["pre_head"] = pre_head
+        write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
         raise RuntimeError(f"Patch application failed: {e.stderr}")
+
+    reverse_diff_path.write_text(unified_diff, encoding="utf-8")
+    reverse_digest = _file_digest(reverse_diff_path)
+    rollback_plan["reverse_patch_apply_mode"] = "git_apply_reverse_flag"
+    rollback_plan["reverse_patch_ref"] = _artifact_ref(
+        kind="unified_diff_reverse_patch",
+        path=reverse_diff_path,
+        sha256=reverse_digest,
+        role="rollback_reverse_patch",
+    )
+    write_rollback_plan(rollback_plan, rollback_plan_path)
         
     # 7. Create postflight record
     postflight = create_execution_postflight_record(
@@ -259,6 +313,7 @@ def apply_hitl_patch(
     postflight["governance"]["capability_state"] = "OPERATIONALLY_VERIFIED"
     postflight_path = output_dir / "postflight_record.json"
     write_execution_postflight_record(postflight, postflight_path)
+    postflight_digest = _file_digest(postflight_path)
     
     # 8. Create Receipt
     receipt = create_patch_apply_receipt(
@@ -270,8 +325,67 @@ def apply_hitl_patch(
         generic_repo=target_repo if target_name == "generic" else None,
     )
     receipt["target"] = dict(proposal["target"])
+    receipt["status"] = "succeeded"
+    receipt["patch_digest"] = patch_digest
+    receipt["pre_head"] = pre_head
+    receipt["proposal_digest"] = _json_digest(proposal)
+    receipt["approval_digest"] = _json_digest(approval)
+    receipt["verification_receipt_digest"] = _json_digest(verification_receipt)
+    receipt["postflight_digest"] = postflight_digest
+    receipt["reverse_patch_ref"] = rollback_plan["reverse_patch_ref"]
     receipt_path = output_dir / "patch_apply_receipt.json"
     write_patch_apply_receipt(receipt, receipt_path)
+
+    bundle = {
+        "kind": ROLLBACK_BUNDLE_KIND,
+        "schema_version": ROLLBACK_BUNDLE_SCHEMA_VERSION,
+        "target": dict(proposal["target"]),
+        "patch_digest": patch_digest,
+        "pre_head": pre_head,
+        "proposal_ref": _artifact_ref(
+            kind=proposal.get("kind", "builder_ii.hitl_patch_proposal"),
+            path=proposal_path,
+            sha256=_json_digest(proposal),
+            role="patch_proposal",
+        ),
+        "approval_ref": _artifact_ref(
+            kind=approval.get("kind", "builder_ii.approval_record"),
+            path=approval_path,
+            sha256=_json_digest(approval),
+            role="patch_approval",
+        ),
+        "verification_receipt_ref": _artifact_ref(
+            kind=verification_receipt.get("kind", "builder_ii.verification_execution_receipt"),
+            path=verification_receipt_path,
+            sha256=_json_digest(verification_receipt),
+            role="pre_apply_verification_receipt",
+        ),
+        "rollback_plan_ref": _artifact_ref(
+            kind=ROLLBACK_PLAN_KIND,
+            path=rollback_plan_path,
+            sha256=_file_digest(rollback_plan_path),
+            role="rollback_plan",
+        ),
+        "reverse_patch_ref": rollback_plan["reverse_patch_ref"],
+        "postflight_ref": _artifact_ref(
+            kind="builder_ii.execution_postflight_record",
+            path=postflight_path,
+            sha256=postflight_digest,
+            role="patch_apply_postflight",
+        ),
+        "patch_apply_receipt_ref": _artifact_ref(
+            kind=PATCH_APPLY_RECEIPT_KIND,
+            path=receipt_path,
+            sha256=_file_digest(receipt_path),
+            role="patch_apply_receipt",
+        ),
+        "governance": {
+            "capability_state": "MUTATION_WITH_ROLLBACK_VERIFIED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
+    }
+    write_rollback_bundle(bundle, output_dir / "rollback_bundle.json")
 
 
 def validate_patch_apply_receipt(artifact: Any) -> list[str]:
@@ -280,6 +394,14 @@ def validate_patch_apply_receipt(artifact: Any) -> list[str]:
         return ["receipt must be a dict"]
     if artifact.get("kind") != PATCH_APPLY_RECEIPT_KIND:
         errors.append(f"kind must be {PATCH_APPLY_RECEIPT_KIND}")
+    if artifact.get("schema_version") != PATCH_APPLY_RECEIPT_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {PATCH_APPLY_RECEIPT_SCHEMA_VERSION}")
+    if artifact.get("status") not in (None, "succeeded", "failed"):
+        errors.append("status must be succeeded or failed")
+    if "patch_digest" in artifact and (
+        not isinstance(artifact["patch_digest"], str) or len(artifact["patch_digest"]) != 64
+    ):
+        errors.append("patch_digest must be a SHA-256 hex digest")
     return errors
 
 
@@ -314,6 +436,11 @@ def rollback_hitl_patch(
     plan = json_lib.loads(rollback_plan_path.read_text())
     target_repo = Path(plan["target"]["repo"])
     target_name = plan["target"]["name"]
+    reverse_ref = plan.get("reverse_patch_ref")
+    if isinstance(reverse_ref, dict):
+        expected_digest = reverse_ref.get("sha256")
+        if expected_digest and _file_digest(reverse_patch_path) != expected_digest:
+            raise ValueError("Reverse patch digest does not match rollback plan binding")
     
     before_status = subprocess.run(
         ["git", "status", "--porcelain"],
@@ -324,8 +451,9 @@ def rollback_hitl_patch(
     ).stdout.splitlines()
         
     try:
+        command = ["git", "apply", "-R", str(reverse_patch_path)] if plan.get("reverse_patch_apply_mode") == "git_apply_reverse_flag" else ["git", "apply", str(reverse_patch_path)]
         subprocess.run(
-            ["git", "apply", str(reverse_patch_path)],
+            command,
             cwd=target_repo,
             check=True,
             capture_output=True,
@@ -355,6 +483,58 @@ def rollback_hitl_patch(
     receipt["pre_rollback_status_lines"] = before_status
     receipt["post_rollback_status_lines"] = after_status
     receipt["workspace_clean_after_rollback"] = len(after_status) == 0
+    receipt["reverse_patch_ref"] = _artifact_ref(
+        kind="unified_diff_reverse_patch",
+        path=reverse_patch_path,
+        sha256=_file_digest(reverse_patch_path),
+        role="rollback_reverse_patch",
+    )
     
     receipt_path = output_dir / "rollback_receipt.json"
     write_rollback_receipt(receipt, receipt_path)
+
+
+def dumps_rollback_bundle(bundle: dict[str, Any]) -> str:
+    return json_lib.dumps(bundle, indent=2, sort_keys=True) + "\n"
+
+
+def write_rollback_bundle(bundle: dict[str, Any], output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(dumps_rollback_bundle(bundle), encoding="utf-8")
+
+
+def validate_rollback_bundle(bundle: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(bundle, dict):
+        return ["rollback bundle must be a JSON object"]
+    if bundle.get("kind") != ROLLBACK_BUNDLE_KIND:
+        errors.append(f"kind must be {ROLLBACK_BUNDLE_KIND}")
+    if bundle.get("schema_version") != ROLLBACK_BUNDLE_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {ROLLBACK_BUNDLE_SCHEMA_VERSION}")
+    for field in (
+        "proposal_ref",
+        "approval_ref",
+        "verification_receipt_ref",
+        "rollback_plan_ref",
+        "reverse_patch_ref",
+        "postflight_ref",
+        "patch_apply_receipt_ref",
+    ):
+        ref = bundle.get(field)
+        if not isinstance(ref, dict):
+            errors.append(f"{field} must be an object")
+            continue
+        sha = ref.get("sha256")
+        if not isinstance(sha, str) or len(sha) != 64:
+            errors.append(f"{field}.sha256 must be a SHA-256 hex digest")
+    return errors
+
+
+def validate_rollback_bundle_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"invalid json: {exc}"]
+    return validate_rollback_bundle(data)

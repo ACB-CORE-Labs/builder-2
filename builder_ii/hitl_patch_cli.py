@@ -20,6 +20,8 @@ def register_patch_commands(app: typer.Typer) -> None:
         reason: str = typer.Option(..., "--reason", help="Reason for patch"),
     ) -> None:
         """Create a patch proposal."""
+        from builder_ii.command_authority import enforce_command_authority
+        enforce_command_authority("builder-hitl propose-patch", requested_effects=("artifact_write",))
         if not diff_file.exists():
             console.print(f"File not found: {diff_file}")
             raise typer.Exit(1)
@@ -43,6 +45,12 @@ def register_patch_commands(app: typer.Typer) -> None:
         output_dir: Path = typer.Option(..., "--output-dir", help="Output directory for generated artifacts"),
     ) -> None:
         """Apply a patch governed by HITL approval."""
+        from builder_ii.command_authority import enforce_command_authority
+        enforce_command_authority(
+            "builder-hitl apply-patch",
+            requested_effects=("patch_application", "artifact_write"),
+            approval_ref=str(approval),
+        )
         try:
             apply_hitl_patch(
                 proposal_path=proposal,
@@ -62,6 +70,12 @@ def register_patch_commands(app: typer.Typer) -> None:
         output_dir: Path = typer.Option(..., "--output-dir", help="Output directory for generated artifacts"),
     ) -> None:
         """Execute a rollback."""
+        from builder_ii.command_authority import enforce_command_authority
+        enforce_command_authority(
+            "builder-hitl rollback",
+            requested_effects=("patch_application",),
+            approval_ref=str(rollback_plan),
+        )
         try:
             rollback_hitl_patch(
                 rollback_plan_path=rollback_plan,

@@ -42,7 +42,7 @@ def create_read_policy(
             "name": target_name,
             "repo": str(target_repo.resolve()),
         },
-        "allowed_paths": allowed_paths or ["*"],
+        "allowed_paths": list(allowed_paths or []),
         "denied_paths": denied_paths or [".git/*", ".env*"],
         "max_bytes_budget": max_bytes_budget,
         "content_capture_allowed": content_capture_allowed,
@@ -185,6 +185,13 @@ def execute_governed_read(
             reason="Path is not a file",
         )
         
+    if not allowed_paths:
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="Read policy has no allowed paths; explicit allowlist is required",
+        )
+
     # Read size check
     file_size = resolved.stat().st_size
     if current_read_bytes + file_size > budget:
@@ -197,8 +204,20 @@ def execute_governed_read(
     # Verify modification time before read
     mtime_before = resolved.stat().st_mtime
     
+    sha = hashlib.sha256()
+    captured_chunks: list[bytes] = []
+    binary_detected = False
+    secret_detected = False
     try:
-        content = resolved.read_bytes()
+        with resolved.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(64 * 1024), b""):
+                sha.update(chunk)
+                if b"\x00" in chunk:
+                    binary_detected = True
+                if _check_secrets_content(chunk) is False:
+                    secret_detected = True
+                if content_capture:
+                    captured_chunks.append(chunk)
     except Exception as e:
         return create_denied_read(
             policy=policy,
@@ -216,7 +235,14 @@ def execute_governed_read(
         )
         
     # Secrets filtering
-    if not _check_secrets_content(content):
+    if binary_detected:
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="Security policy violation: binary content is not readable through governed read",
+        )
+
+    if secret_detected:
         return create_denied_read(
             policy=policy,
             file_path=file_path,
@@ -224,7 +250,7 @@ def execute_governed_read(
         )
         
     # Hash calculation
-    sha256 = hashlib.sha256(content).hexdigest()
+    sha256 = sha.hexdigest()
     
     # Build receipt
     receipt = {
@@ -232,10 +258,10 @@ def execute_governed_read(
         "schema_version": READ_RECEIPT_SCHEMA_VERSION,
         "policy_ref": policy.get("kind"),
         "target_file": str(resolved),
-        "bytes_read": len(content),
+        "bytes_read": file_size,
         "sha256": sha256,
         "captured_at": int(time.time()),
-        "content": content.decode("utf-8", errors="replace") if content_capture else None,
+        "content": b"".join(captured_chunks).decode("utf-8", errors="replace") if content_capture else None,
         "governance": {
             "capability_state": "OPERATIONALLY_VERIFIED",
             "runtime_execution": "EXPLICIT_READ_ONLY",

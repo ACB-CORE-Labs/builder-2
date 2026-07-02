@@ -228,6 +228,15 @@ def validate_model_call_receipt(data: Any) -> list[str]:
     if not isinstance(data.get("response_text"), str):
         errors.append("response_text must be a string")
 
+    if "status" in data and data.get("status") not in ("succeeded", "failed"):
+        errors.append("status must be succeeded or failed")
+
+    response_sha256 = data.get("response_sha256")
+    if response_sha256 is not None and (
+        not isinstance(response_sha256, str) or not _SHA256_RE.match(response_sha256)
+    ):
+        errors.append("response_sha256 must be a valid SHA-256 digest")
+
     cost = data.get("cost_report")
     if not isinstance(cost, dict):
         errors.append("cost_report must be an object")
@@ -398,6 +407,55 @@ class ModelExecutionGateway:
                 override_model_id=model_id,
             )
             if not chat_res.ok:
+                envelope_ref = {
+                    "kind": MODEL_CALL_ENVELOPE_KIND,
+                    "path": str(envelope_path),
+                    "sha256": envelope["digest"],
+                    "role": "model_call_envelope",
+                    "name": f"Model call envelope for {model_id}",
+                    "required": True,
+                }
+                failure_receipt = {
+                    "kind": MODEL_CALL_RECEIPT_KIND,
+                    "schema_version": MODEL_CALL_RECEIPT_SCHEMA_VERSION,
+                    "status": "failed",
+                    "envelope_ref": envelope_ref,
+                    "response_text": "",
+                    "response_sha256": hashlib.sha256(b"").hexdigest(),
+                    "response_storage_policy": "empty_failure_response",
+                    "error_summary": str(chat_res.error or "model execution failed")[:500],
+                    "cost_report": {
+                        "input_tokens": len(prompt.split()) + 10,
+                        "output_tokens": 0,
+                        "total_tokens": len(prompt.split()) + 10,
+                        "token_accounting": "estimated",
+                    },
+                    "replay_declaration": "non-deterministic-llm-completion",
+                    "executes_model": True,
+                    "executes_tools": False,
+                    "executes_shell": False,
+                    "invokes_goose": False,
+                    "constructs_deepagents": False,
+                    "constructs_subagents": False,
+                    "invokes_mcp": False,
+                    "mutates_target_repo": False,
+                    "mutates_memory": False,
+                    "grants_authority": False,
+                    "artifact_is_authority": False,
+                    "requires_human_promotion_for_execution": True,
+                    "authority_boundary": _default_authority_boundary(
+                        "model_call", performs_network_calls=performs_network
+                    ),
+                    "governance": _default_governance(
+                        "model_call", network_calls_enabled=performs_network
+                    ),
+                }
+                failure_receipt["digest"] = _digest(failure_receipt)
+                receipt_path.parent.mkdir(parents=True, exist_ok=True)
+                receipt_path.write_text(
+                    json_lib.dumps(failure_receipt, indent=2, sort_keys=True),
+                    encoding="utf-8",
+                )
                 raise RuntimeError(f"Model execution failed: {chat_res.error}")
             result_text = chat_res.content
             input_tokens = len(prompt.split()) + 10 # approximate estimate
@@ -413,15 +471,24 @@ class ModelExecutionGateway:
             "required": True
         }
 
+        output_cap = int(self.execution_policy.get("max_response_chars", 4000))
+        bounded_text = result_text[:output_cap]
+        output_truncated = len(result_text) > len(bounded_text)
+
         receipt = {
             "kind": MODEL_CALL_RECEIPT_KIND,
             "schema_version": MODEL_CALL_RECEIPT_SCHEMA_VERSION,
+            "status": "succeeded",
             "envelope_ref": envelope_ref,
-            "response_text": result_text,
+            "response_text": bounded_text,
+            "response_sha256": hashlib.sha256(result_text.encode("utf-8")).hexdigest(),
+            "response_text_truncated": output_truncated,
+            "response_storage_policy": "bounded_inline_response_text",
             "cost_report": {
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "total_tokens": input_tokens + output_tokens,
+                "token_accounting": "estimated",
             },
             "replay_declaration": "non-deterministic-llm-completion",
             "executes_model": True,

@@ -9,6 +9,8 @@ from builder_ii.context import load_session_context
 
 def _git_branch(repo: Path) -> str:
     """Return current branch name or 'unknown'."""
+    if not repo.exists():
+        return "unknown"
     proc = subprocess.run(
         ["git", "-C", str(repo), "rev-parse", "--abbrev-ref", "HEAD"],
         capture_output=True,
@@ -19,6 +21,8 @@ def _git_branch(repo: Path) -> str:
 
 def _git_diff_stat(repo: Path) -> tuple[int, int]:
     """Return (staged_count, unstaged_count) for repo."""
+    if not repo.exists():
+        return (0, 0)
     staged = subprocess.run(
         ["git", "-C", str(repo), "diff", "--cached", "--name-only"],
         capture_output=True,
@@ -36,6 +40,8 @@ def _git_diff_stat(repo: Path) -> tuple[int, int]:
 
 def _recent_handoffs(core_repo: Path, limit: int = 3) -> list[str]:
     """Return up to `limit` recent HANDOFF-*.md filenames, newest first."""
+    if not core_repo.exists():
+        return []
     handoffs = sorted(
         core_repo.glob("HANDOFF-*.md"),
         key=lambda path: path.stat().st_mtime,
