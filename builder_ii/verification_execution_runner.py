@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from builder_ii.command_authority import enforce_command_authority
+from builder_ii.command_authority import CommandAuthorityDecision, enforce_command_authority
 from builder_ii.config_schema import attach_digest, digest_jsonable
 from builder_ii.execution_postflight_records import (
     validate_execution_postflight_record,
@@ -258,6 +258,7 @@ def _receipt_for_block(
     artifact_root: Path | None,
     requested_profile: str,
     errors: list[str],
+    authority_decision: CommandAuthorityDecision | None = None,
 ) -> dict[str, Any]:
     profile = SUPPORTED_COMMAND_PROFILES.get(requested_profile)
     process_result = _blocked_process_result(
@@ -289,12 +290,14 @@ def _receipt_for_block(
     )
     receipt["errors"] = list(dict.fromkeys(list(receipt.get("errors") or []) + errors))
     receipt["valid"] = False
-    receipt["command_authority_decision"] = enforce_command_authority(
-        "builder-verify run-approved",
-        requested_effects=("artifact_writes", "readonly_subprocess"),
-        capability_ref="HITL-approved verification execution",
-        hitl_bound=True,
-    ).to_evidence()
+    if authority_decision is None:
+        authority_decision = enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_writes", "readonly_subprocess"),
+            capability_ref="HITL-approved verification execution",
+            hitl_bound=False,
+        )
+    receipt["command_authority_decision"] = authority_decision.to_evidence()
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     _maybe_write_blocked_receipt(
         receipt=receipt,
@@ -376,6 +379,7 @@ def run_approved_verification(
         errors.append("referenced verification execution approval must be valid (valid=true)")
     if not errors:
         errors.extend(validate_verification_execution_approval_against_plan(approval, plan))
+
     authority_decision = enforce_command_authority(
         "builder-verify run-approved",
         requested_effects=("artifact_writes", "readonly_subprocess"),
@@ -419,6 +423,7 @@ def run_approved_verification(
             artifact_root=artifact_root,
             requested_profile=requested_profile,
             errors=list(dict.fromkeys(errors)),
+            authority_decision=authority_decision,
         )
 
     preflight = _git_state(target_repo, "preflight")
@@ -433,6 +438,7 @@ def run_approved_verification(
             artifact_root=artifact_root,
             requested_profile=requested_profile,
             errors=["git preflight state could not be captured"],
+            authority_decision=authority_decision,
         )
 
     try:
@@ -494,21 +500,19 @@ def run_approved_verification(
         receipt["valid"] = False
         receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
 
+    postflight_path = output.with_name(output.stem + "-postflight.json")
+    receipt["postflight_ref"] = {
+        "path": str(postflight_path),
+        "kind": "builder_ii.execution_postflight_record",
+    }
+    receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     write_verification_execution_receipt(receipt, output)
-    postflight = create_verification_runner_postflight(
+
+    postflight_record = create_verification_runner_postflight(
         receipt=receipt,
         receipt_path=output,
         plan_path=plan_path,
         approval_path=approval_path,
     )
-    postflight_path = output.with_name(output.stem + "-postflight.json")
-    write_execution_postflight_record(postflight, postflight_path)
-    receipt["postflight_ref"] = {
-        "path": str(postflight_path),
-        "kind": postflight.get("kind"),
-        "sha256": _sha256_text(postflight_path.read_text(encoding="utf-8")),
-        "postflight_digest": postflight.get("postflight_digest"),
-    }
-    receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
-    write_verification_execution_receipt(receipt, output)
+    write_execution_postflight_record(postflight_record, postflight_path)
     return receipt
