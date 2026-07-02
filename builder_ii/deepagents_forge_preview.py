@@ -19,23 +19,31 @@ import yaml
 from dataclasses import dataclass, field
 from typing import Optional
 
-from builder_ii.deepagents_forge_schema import DeepAgentSpec
+from builder_ii.deepagents_forge_schema import (
+    SHELL_CAPABILITIES,
+    WRITE_CAPABILITIES,
+    DeepAgentSpec,
+    has_shell_capability,
+    has_write_capability,
+    is_valid_slug,
+    validate_spec,
+)
 
 
 # ---------------------------------------------------------------------------
 # Write / Shell capability sets (mirrors forge_wizard)
 # ---------------------------------------------------------------------------
 
-WRITE_CAPS = {"write_files", "write_memory", "write_artifacts"}
-SHELL_CAPS = {"run_shell", "run_tests", "run_commands"}
+WRITE_CAPS = WRITE_CAPABILITIES
+SHELL_CAPS = SHELL_CAPABILITIES
 
 
 def _has_write_cap(spec: DeepAgentSpec) -> bool:
-    return bool(set(spec.capabilities) & WRITE_CAPS)
+    return has_write_capability(spec.capabilities)
 
 
 def _has_shell_cap(spec: DeepAgentSpec) -> bool:
-    return bool(set(spec.capabilities) & SHELL_CAPS)
+    return has_shell_capability(spec.capabilities)
 
 
 # ---------------------------------------------------------------------------
@@ -51,6 +59,7 @@ class GovernanceCheck:
     checks: dict = field(default_factory=dict)
     all_pass: bool = False
     failing: list = field(default_factory=list)
+    validation_errors: list[str] = field(default_factory=list)
 
     def as_lines(self) -> list[str]:
         """Return human-readable checklist lines for TUI display."""
@@ -59,6 +68,9 @@ class GovernanceCheck:
             icon = "\u2705" if passed else "\u274c"
             label = key.replace("_", " ")
             lines.append(f"{icon}  {label}")
+        if self.validation_errors:
+            lines.append("\u274c  validation blockers")
+            lines.extend(f"     - {error}" for error in self.validation_errors)
         return lines
 
 
@@ -74,8 +86,13 @@ class ForgePreview:
     bridge_spec: dict = field(default_factory=dict)
     governance_check: Optional[GovernanceCheck] = None
     warnings: list = field(default_factory=list)
+    blockers: list = field(default_factory=list)
+    files_to_write: list[str] = field(default_factory=list)
     artifact_path: str = ""
     rollback_path: str = ""
+    dry_run: bool = True
+    runtime_status: str = "runtime disabled; promotion not granted by Forge"
+    next_action: str = "review preview blockers before emission"
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +111,9 @@ def check_governance(spec: DeepAgentSpec) -> GovernanceCheck:
       - HITL gate for shell ops
       - approval_required = True
     """
+    validation_errors = [issue.as_text() for issue in validate_spec(spec)]
     checks = {
+        "spec_validation": not validation_errors,
         "has_docs": bool(spec.description and spec.description.strip()),
         "has_output_artifact": bool(spec.output_artifact and spec.output_artifact.strip()),
         "has_rollback_path": bool(spec.rollback_path and spec.rollback_path.strip()),
@@ -115,6 +134,7 @@ def check_governance(spec: DeepAgentSpec) -> GovernanceCheck:
         checks=checks,
         all_pass=(len(failing) == 0),
         failing=failing,
+        validation_errors=validation_errors,
     )
 
 
@@ -174,24 +194,40 @@ def compute_profile_diff(spec: DeepAgentSpec) -> str:
     Describe what will change in agent_profiles when this spec is emitted.
     Returns a human-readable diff-style string.
     """
+    slug_for_path = spec.slug if is_valid_slug(spec.slug) else "<invalid-slug>"
     lines = [
-        f"+ profiles/deepagents/{spec.slug}.yaml  (new)",
-        f"+ agent_profiles registry: add entry '{spec.slug}'",
-        f"+ deepagents_bridge: register bridge spec for '{spec.slug}'",
-        f"+ event_ledger: forge_emit event",
-        f"+ handoff_notes: forge handoff for '{spec.slug}'",
+        f"+ profiles/deepagents/{slug_for_path}.yaml  (bounded profile artifact)",
+        f"? profiles/deepagents/forge_{slug_for_path}.handoff.json  (attempted if handoff API succeeds)",
+        f"~ agent_profiles hook for '{slug_for_path}'  (optional; reported as skipped/failed/succeeded)",
+        f"~ deepagents_bridge hook for '{slug_for_path}'  (optional; reported as skipped/failed/succeeded)",
+        "~ event ledger hook  (optional; reported as skipped/failed/succeeded)",
+        "! runtime promotion: not granted by Forge",
     ]
     return "\n".join(lines)
 
 
-def render_preview(spec: DeepAgentSpec) -> ForgePreview:
+def render_preview(spec: DeepAgentSpec, *, dry_run: bool = True) -> ForgePreview:
     """Build a complete ForgePreview for the preview TUI step."""
+    governance = check_governance(spec)
+    blockers = list(governance.validation_errors)
+    blockers.extend(f"governance failed: {item}" for item in governance.failing if item != "spec_validation")
+    slug_for_path = spec.slug if is_valid_slug(spec.slug) else "<invalid-slug>"
+    files_to_write = [f"profiles/deepagents/{slug_for_path}.yaml"]
+    files_to_write.append(f"profiles/deepagents/forge_{slug_for_path}.handoff.json")
     return ForgePreview(
         yaml_preview=spec_to_yaml(spec),
         profile_diff=compute_profile_diff(spec),
         bridge_spec=render_bridge_spec(spec),
-        governance_check=check_governance(spec),
+        governance_check=governance,
         warnings=collect_warnings(spec),
+        blockers=blockers,
+        files_to_write=files_to_write,
         artifact_path=spec.output_artifact,
         rollback_path=spec.rollback_path,
+        dry_run=dry_run,
+        next_action=(
+            "fix blockers before emission"
+            if blockers
+            else "emit bounded profile artifact or keep as dry-run preview"
+        ),
     )

@@ -121,7 +121,7 @@ Possible convention families:
 
 ```text
 builder plan
-builder inspect
+builder tui
 builder review
 builder verify-plan
 builder handoff

@@ -81,13 +81,21 @@ The operator command surface is organized by phase. Every command operates stric
 
 ### Discovery / Inspection
 
-#### Root TUI launcher
+#### Root governed inspector groups
 - **Command name**: `builder tui`
-- **Purpose**: Launch the Rich TUI command surface and its built-in status, roster, gates, HITL, handoff, and golden-path panels.
+- **Purpose**: Render the read-only status, roster, gates, HITL, handoff, and golden-path inspection panels.
 - **Output artifact, if any**: None; terminal UI only.
-- **Execution authority**: read-only at the launcher level; individual subcommands retain their own authority boundaries.
-- **Human responsibility**: Use the interactive TUI when you want a higher-fidelity presentation layer over the same governed state.
-- **Writes**: Read-only launcher; subcommands may have their own documented boundaries.
+- **Execution authority**: read-only observer; no runtime, model, shell, Goose, deepagents, MCP, tool, source-write, git, or memory authority.
+- **Human responsibility**: Use the inspector to understand current governed state before invoking separate artifact or HITL command surfaces.
+- **Writes**: Read-only; writes only stdout.
+
+#### STRATUM launcher
+- **Command name**: `builder stratum`
+- **Purpose**: Launch the full Textual STRATUM operator interface.
+- **Output artifact, if any**: None; terminal UI only.
+- **Execution authority**: operator-managed presentation layer; runtime-changing operations still require their own governed subcommand boundaries.
+- **Human responsibility**: Launch intentionally from an operator terminal when the full Textual app is desired.
+- **Writes**: No direct source, git, model, Goose, deepagents, or MCP authority at the launcher boundary.
 
 #### Root read-only TUI inspector
 - **Command names**: `builder hitl *`, `builder profile *`, `builder model routing *`, `builder model registry *`, `builder promote *`, `builder postflight *`, `builder goose *`
@@ -462,6 +470,13 @@ The operator command surface is organized by phase. Every command operates stric
 - **Output artifact, if any**: None.
 - **Execution authority**: validation-only
 - **Writes**: Read-only; writes diagnostic stdout/stderr only.
+
+#### `builder-deepagents forge`
+- **Command name**: `builder-deepagents forge`
+- **Purpose**: Preview or emit governed deepagent profile and handoff artifacts.
+- **Output artifact, if any**: `profiles/deepagents/{slug}.yaml` and optional `profiles/deepagents/forge_{slug}.handoff.json`.
+- **Execution authority**: artifact-only; no native deepagents construction, runtime promotion, model execution, shell execution, Goose activation, MCP/tool invocation, source mutation, or git mutation.
+- **Writes**: Dry-run writes nothing. Real emission writes only the bounded Forge artifacts under `profiles/deepagents/`.
 
 #### `builder-deepagents delegate`
 - **Command name**: `builder-deepagents delegate`

@@ -17,8 +17,51 @@ from typing import Optional
 
 import yaml
 
-_SAFE_SLUG_RE = re.compile(r"^[a-z0-9]+(?:_[a-z0-9]+)*$")
-_VALID_TARGET_PROFILES = {"generic", "builder", "core"}
+SAFE_SLUG_PATTERN = r"^[a-z0-9]+(?:_[a-z0-9]+)*$"
+SAFE_SLUG_RE = re.compile(SAFE_SLUG_PATTERN)
+VALID_TARGET_PROFILES = ("generic", "builder", "core")
+
+READ_CAPABILITIES = frozenset({"read_files", "read_git", "read_tests"})
+WRITE_CAPABILITIES = frozenset({"write_files", "write_memory", "write_artifacts"})
+SHELL_CAPABILITIES = frozenset({"run_shell", "run_tests", "run_commands"})
+TOOL_CAPABILITIES = frozenset({"call_mcp_tools", "emit_handoffs"})
+KNOWN_CAPABILITIES = frozenset(
+    (*READ_CAPABILITIES, *WRITE_CAPABILITIES, *SHELL_CAPABILITIES, *TOOL_CAPABILITIES)
+)
+KNOWN_HITL_GATES = frozenset(
+    {
+        "before_write",
+        "before_shell",
+        "before_promote",
+        "before_memory_write",
+        "on_error",
+    }
+)
+
+_SAFE_RELATIVE_PATH_RE = re.compile(r"^[A-Za-z0-9._/\-]+$")
+_WINDOWS_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
+_FORBIDDEN_PATH_TOKENS = ("\x00", "\n", "\r", "&&", "||", ";", "|", "`", "$(", ">", "<")
+_AUTHORIZING_PATH_PARTS = {
+    "approval",
+    "approved",
+    "authority",
+    "authorization",
+    "promote",
+    "promoted",
+    "promotion",
+}
+
+
+@dataclass(frozen=True)
+class ValidationIssue:
+    """Human-readable validation failure for a Forge spec."""
+
+    field: str
+    message: str
+    blocking: bool = True
+
+    def as_text(self) -> str:
+        return f"{self.field}: {self.message}"
 
 
 def derive_slug(name: str) -> str:
@@ -31,7 +74,147 @@ def derive_slug(name: str) -> str:
 
 def is_valid_slug(slug: str) -> bool:
     """Return True when slug is safe for profiles/deepagents/{slug}.yaml."""
-    return bool(isinstance(slug, str) and _SAFE_SLUG_RE.fullmatch(slug.strip()))
+    return bool(
+        isinstance(slug, str)
+        and slug == slug.strip()
+        and SAFE_SLUG_RE.fullmatch(slug)
+    )
+
+
+def validate_slug(slug: str) -> list[ValidationIssue]:
+    """Validate a flat, safe, lowercase profile slug."""
+    if not isinstance(slug, str):
+        return [ValidationIssue("slug", "must be a string")]
+    if not slug:
+        return [ValidationIssue("slug", "must be non-empty")]
+    if slug != slug.strip():
+        return [ValidationIssue("slug", "must not contain leading or trailing whitespace")]
+    if not SAFE_SLUG_RE.fullmatch(slug):
+        return [
+            ValidationIssue(
+                "slug",
+                f"must match {SAFE_SLUG_PATTERN}; use lowercase letters, digits, and single underscores only",
+            )
+        ]
+    return []
+
+
+def has_write_capability(capabilities: list[str]) -> bool:
+    return bool(set(capabilities) & WRITE_CAPABILITIES)
+
+
+def has_shell_capability(capabilities: list[str]) -> bool:
+    return bool(set(capabilities) & SHELL_CAPABILITIES)
+
+
+def validate_relative_artifact_path(value: str, *, field_name: str) -> list[ValidationIssue]:
+    """
+    Validate a sane relative artifact path.
+
+    These paths are declarations for future outputs/rollback evidence. They are
+    not command strings, approval artifacts, or authority grants.
+    """
+    if not isinstance(value, str):
+        return [ValidationIssue(field_name, "must be a string")]
+    if not value:
+        return [ValidationIssue(field_name, "must be non-empty")]
+    if value != value.strip():
+        return [ValidationIssue(field_name, "must not contain leading or trailing whitespace")]
+    if any(token in value for token in _FORBIDDEN_PATH_TOKENS):
+        return [ValidationIssue(field_name, "must not contain shell/control tokens")]
+    if "\\" in value:
+        return [ValidationIssue(field_name, "must use forward-slash relative paths")]
+    if value.startswith("/") or value.startswith("~") or _WINDOWS_ABSOLUTE_RE.match(value):
+        return [ValidationIssue(field_name, "must be relative, not absolute or home-relative")]
+    if not _SAFE_RELATIVE_PATH_RE.fullmatch(value):
+        return [ValidationIssue(field_name, "contains unsupported path characters")]
+
+    normalized = value.rstrip("/")
+    if not normalized:
+        return [ValidationIssue(field_name, "must include at least one path segment")]
+    if "//" in normalized:
+        return [ValidationIssue(field_name, "must not contain empty path segments")]
+
+    parts = normalized.split("/")
+    for part in parts:
+        if part in {"", ".", ".."}:
+            return [ValidationIssue(field_name, "must not contain '.', '..', or empty path segments")]
+        folded = part.lower().replace("_", "-")
+        if folded in _AUTHORIZING_PATH_PARTS:
+            return [
+                ValidationIssue(
+                    field_name,
+                    "must not point at approval, promotion, or authority artifacts",
+                )
+            ]
+    return []
+
+
+def validate_spec(spec: "DeepAgentSpec") -> list[ValidationIssue]:
+    """Validate a DeepAgentSpec before preview or emission."""
+    issues: list[ValidationIssue] = []
+    required_fields = (
+        "name",
+        "slug",
+        "persona",
+        "verification_profile",
+        "output_artifact",
+        "rollback_path",
+    )
+    for field_name in required_fields:
+        value = getattr(spec, field_name, "")
+        if not isinstance(value, str) or not value.strip():
+            issues.append(ValidationIssue(field_name, "is required"))
+        elif value != value.strip():
+            issues.append(ValidationIssue(field_name, "must not contain leading or trailing whitespace"))
+
+    if spec.slug:
+        issues.extend(validate_slug(spec.slug))
+
+    if spec.target_profile not in VALID_TARGET_PROFILES:
+        issues.append(
+            ValidationIssue(
+                "target_profile",
+                f"must be one of: {', '.join(VALID_TARGET_PROFILES)}",
+            )
+        )
+
+    if not isinstance(spec.capabilities, list):
+        issues.append(ValidationIssue("capabilities", "must be a list"))
+        capabilities: list[str] = []
+    else:
+        capabilities = spec.capabilities
+        for index, capability in enumerate(capabilities):
+            if not isinstance(capability, str) or not capability.strip():
+                issues.append(ValidationIssue(f"capabilities[{index}]", "must be a non-empty string"))
+            elif capability not in KNOWN_CAPABILITIES:
+                issues.append(ValidationIssue(f"capabilities[{index}]", f"unknown capability: {capability}"))
+
+    if not isinstance(spec.hitl_gates, list):
+        issues.append(ValidationIssue("hitl_gates", "must be a list"))
+        gates: list[str] = []
+    else:
+        gates = spec.hitl_gates
+        for index, gate in enumerate(gates):
+            if not isinstance(gate, str) or not gate.strip():
+                issues.append(ValidationIssue(f"hitl_gates[{index}]", "must be a non-empty string"))
+            elif gate not in KNOWN_HITL_GATES:
+                issues.append(ValidationIssue(f"hitl_gates[{index}]", f"unknown HITL gate: {gate}"))
+
+    if has_write_capability(capabilities) and "before_write" not in gates:
+        issues.append(ValidationIssue("hitl_gates", "write capability requires before_write"))
+    if has_shell_capability(capabilities) and "before_shell" not in gates:
+        issues.append(ValidationIssue("hitl_gates", "shell capability requires before_shell"))
+
+    if spec.output_artifact:
+        issues.extend(validate_relative_artifact_path(spec.output_artifact, field_name="output_artifact"))
+    if spec.rollback_path:
+        issues.extend(validate_relative_artifact_path(spec.rollback_path, field_name="rollback_path"))
+
+    if spec.approval_required is not True:
+        issues.append(ValidationIssue("approval_required", "must remain true"))
+
+    return issues
 
 
 @dataclass
@@ -98,16 +281,9 @@ class DeepAgentSpec:
         All required fields must be non-empty strings; slug and target profile
         must also be safe because the emitter writes durable repo artifacts.
         """
-        missing = [
-            field_name
-            for field_name in self._REQUIRED_FIELDS
-            if not str(getattr(self, field_name, "")).strip()
-        ]
-        if self.slug and not is_valid_slug(self.slug):
-            missing.append("slug")
-        if self.target_profile not in _VALID_TARGET_PROFILES:
-            missing.append("target_profile")
-        return (len(missing) == 0), missing
+        issues = validate_spec(self)
+        fields = list(dict.fromkeys(issue.field.split("[", 1)[0] for issue in issues))
+        return (len(issues) == 0), fields
 
     def auto_derive_slug(self) -> None:
         """Derive slug from name if slug is not yet set."""

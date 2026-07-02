@@ -122,7 +122,7 @@ The product may expose stable builder commands that wrap Goose conventions, such
 
 ```text
 builder plan
-builder inspect
+builder tui
 builder review
 builder verify-plan
 builder handoff

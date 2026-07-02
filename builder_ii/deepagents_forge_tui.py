@@ -57,14 +57,27 @@ class ForgePreviewWidget(Static):
         if gov is not None:
             lines.extend(gov.as_lines())
         lines.append("")
+        if preview.blockers:
+            lines.append("=== Blockers ===")
+            lines.extend(f"  - {blocker}" for blocker in preview.blockers)
+            lines.append("")
         if preview.warnings:
             lines.append("=== Warnings ===")
             lines.extend(f"  ⚠  {warning}" for warning in preview.warnings)
             lines.append("")
+        lines.append("=== Runtime / Promotion ===")
+        lines.append(preview.runtime_status)
+        lines.append("")
+        lines.append("=== Exact files ===")
+        lines.extend(f"  - {path}" for path in preview.files_to_write)
+        lines.append("")
         lines.append("=== Agent Spec (YAML) ===")
         lines.append(preview.yaml_preview)
         lines.append("=== What will be written ===")
         lines.append(preview.profile_diff)
+        lines.append("")
+        lines.append("=== Next action ===")
+        lines.append(preview.next_action)
         self.update("\n".join(lines))
 
 
@@ -350,6 +363,7 @@ def run_forge_tui(
     """
     wizard = ForgeWizard(seed_name=seed_name, seed_profile=seed_profile)
     app = ForgeApp(wizard=wizard, dry_run=dry_run)
-    app.run()
-    ready, _ = wizard.spec.is_emit_ready()
-    return wizard.spec if ready else None
+    result = app.run()
+    if isinstance(result, DeepAgentSpec):
+        return result
+    return None

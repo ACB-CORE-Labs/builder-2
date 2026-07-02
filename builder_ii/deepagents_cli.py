@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.config import load_settings
+from builder_ii.deepagents_forge_cli import app as deepagents_forge_app
 from builder_ii.deepagents_policy import (
     DeepAgentsMemoryMode,
     DeepAgentsSubagentResultMode,
@@ -103,6 +104,7 @@ deepagents_app = typer.Typer(
     help="Create and validate artifact-only governed deepagents JSON."
 )
 console = Console(width=240)
+deepagents_app.add_typer(deepagents_forge_app, name="forge")
 _VALID_TARGETS = set(target_names())
 _VALID_MEMORY_MODES = {"disabled", "proposal_only", "approved"}
 _VALID_SUBAGENT_MODES = {"trusted", "proposal_only"}

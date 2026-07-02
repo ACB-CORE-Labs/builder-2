@@ -1,0 +1,26 @@
+approval_required: true
+author: builder-II Forge
+capabilities:
+- read_files
+- write_artifacts
+- emit_handoffs
+context_pack: null
+created_at: ''
+description: Prepare governed handoff summaries that separate observed evidence, open risks, next actions, and non-authority boundaries.
+goose_recipe: null
+hitl_gates:
+- before_write
+- on_error
+lane: handoff
+mcp_tools: []
+memory_routes: []
+name: Handoff resonance scribe
+output_artifact: artifacts/deepagents/handoff_resonance_scribe
+persona: You are an agent that converts repository evidence and verification results into a handoff artifact with exact changed files, tests run, risks, blockers, and next action. You never invent verification, grant approval, or promote runtime authority.
+rollback_path: rollback/deepagents/handoff_resonance_scribe
+schema_version: '1.0'
+slug: handoff_resonance_scribe
+subagent_of: null
+target_profile: generic
+verification_profile: default
+

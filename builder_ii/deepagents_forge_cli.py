@@ -11,11 +11,12 @@ from typing import Optional
 
 import typer
 
+from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
 from builder_ii.deepagents_forge_emit import EmitResult, emit_agent
-from builder_ii.deepagents_forge_schema import DeepAgentSpec, derive_slug
+from builder_ii.deepagents_forge_schema import DeepAgentSpec, VALID_TARGET_PROFILES, derive_slug
 
 app = typer.Typer(help="deepagents Forge — create governed deepagent specs.")
-_VALID_PROFILES = {"generic", "builder", "core"}
+_VALID_PROFILES = set(VALID_TARGET_PROFILES)
 
 
 @app.callback(invoke_without_command=True)
@@ -40,6 +41,15 @@ def forge_agent(
     if profile not in _VALID_PROFILES:
         typer.echo("profile must be one of: generic, builder, core", err=True)
         raise typer.Exit(code=1)
+
+    try:
+        enforce_command_authority(
+            "builder-deepagents forge",
+            requested_effects=() if dry_run else ("artifact_write",),
+        )
+    except CommandAuthorityError as exc:
+        typer.echo(f"Command authority denied: {exc}", err=True)
+        raise typer.Exit(code=1) from None
 
     if non_interactive:
         result = run_headless_forge(

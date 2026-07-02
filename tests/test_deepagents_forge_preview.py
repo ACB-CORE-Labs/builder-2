@@ -208,3 +208,21 @@ class TestRenderPreview:
         spec = _valid_spec()
         preview = render_preview(spec)
         assert preview.governance_check.all_pass is True
+
+    def test_preview_lists_exact_bounded_files(self):
+        spec = _valid_spec()
+        preview = render_preview(spec)
+        assert "profiles/deepagents/test_agent.yaml" in preview.files_to_write
+        assert "profiles/deepagents/forge_test_agent.handoff.json" in preview.files_to_write
+
+    def test_preview_reports_runtime_not_promoted(self):
+        spec = _valid_spec()
+        preview = render_preview(spec)
+        assert "runtime disabled" in preview.runtime_status
+        assert "promotion not granted" in preview.runtime_status
+
+    def test_preview_exposes_validation_blockers(self):
+        spec = _valid_spec(slug="../escape")
+        preview = render_preview(spec)
+        assert preview.governance_check.all_pass is False
+        assert any("slug" in blocker for blocker in preview.blockers)

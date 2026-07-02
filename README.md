@@ -168,16 +168,16 @@ Key properties:
 
 ```bash
 # Interactive TUI wizard
-bii deepagents forge
+builder-deepagents forge
 
 # Pre-seed name and target profile
-bii deepagents forge --name pr_reviewer --profile core
+builder-deepagents forge --name pr_reviewer --profile core
 
 # Preview only — no writes
-bii deepagents forge --dry-run
+builder-deepagents forge --dry-run
 
 # Headless / CI mode
-bii deepagents forge \
+builder-deepagents forge \
   --non-interactive \
   --name test_writer \
   --persona "You are an agent that writes tests." \
@@ -318,7 +318,7 @@ Canonical governed passive lanes include:
 - External tool registry via `builder-tools`
 - Optional external tool installer via `scripts/install-tools.sh`
 - Repomix-backed context manifests via `builder-context`
-- **deepagents Forge** — interactive governed agent creation wizard via `bii deepagents forge`
+- **deepagents Forge** — interactive governed agent creation wizard via `builder-deepagents forge`
 
 ## Recommended model lanes
 

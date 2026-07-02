@@ -10,10 +10,20 @@ This module is generic-first and must not import CORE-specific modules.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field as dataclass_field
 from typing import Any, Callable, Optional
 
-from builder_ii.deepagents_forge_schema import DeepAgentSpec, derive_slug
+from builder_ii.deepagents_forge_schema import (
+    KNOWN_CAPABILITIES,
+    KNOWN_HITL_GATES,
+    SHELL_CAPABILITIES,
+    VALID_TARGET_PROFILES,
+    WRITE_CAPABILITIES,
+    DeepAgentSpec,
+    has_shell_capability,
+    has_write_capability,
+    validate_relative_artifact_path,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -42,7 +52,7 @@ class ForgeStep:
 
     # Field targeting
     field: Optional[str] = None           # single field on DeepAgentSpec
-    fields: list = field(default_factory=list)  # multiple fields (governance step)
+    fields: list = dataclass_field(default_factory=list)  # multiple fields (governance step)
 
     # Display
     hint: str = ""
@@ -56,7 +66,7 @@ class ForgeStep:
     default: Any = None
 
     # Options
-    options: list = field(default_factory=list)        # static options list
+    options: list = dataclass_field(default_factory=list)        # static options list
     options_from: Optional[str] = None                 # dynamic lookup hint (string)
 
     # Governance
@@ -96,16 +106,16 @@ class ForgeStep:
 # Capability helpers
 # ---------------------------------------------------------------------------
 
-WRITE_CAPS = {"write_files", "write_memory", "write_artifacts"}
-SHELL_CAPS = {"run_shell", "run_tests", "run_commands"}
+WRITE_CAPS = WRITE_CAPABILITIES
+SHELL_CAPS = SHELL_CAPABILITIES
 
 
 def _has_write_cap(spec: DeepAgentSpec) -> bool:
-    return bool(set(spec.capabilities) & WRITE_CAPS)
+    return has_write_capability(spec.capabilities)
 
 
 def _has_shell_cap(spec: DeepAgentSpec) -> bool:
-    return bool(set(spec.capabilities) & SHELL_CAPS)
+    return has_shell_capability(spec.capabilities)
 
 
 def _hitl_auto_required(spec: DeepAgentSpec) -> bool:
@@ -134,6 +144,12 @@ def _validate_output_artifact(value: Any) -> ValidationResult:
     output = value.get("output_artifact", "")
     if not output.strip():
         return ValidationResult(ok=False, error="output_artifact path is required.")
+    for field_name in ("output_artifact", "rollback_path"):
+        path_value = value.get(field_name, "")
+        if path_value:
+            issues = validate_relative_artifact_path(path_value, field_name=field_name)
+            if issues:
+                return ValidationResult(ok=False, error=issues[0].as_text())
     return ValidationResult(ok=True)
 
 
@@ -164,7 +180,7 @@ FORGE_STEPS: list[ForgeStep] = [
         title="Choose a target profile",
         prompt="Which repo/environment will this agent work in?",
         field="target_profile",
-        options=["generic", "builder", "core"],
+        options=list(VALID_TARGET_PROFILES),
         default="generic",
         hint="'generic' works for any repo. 'core' is for AssetOverflow/core only.",
     ),
@@ -174,19 +190,7 @@ FORGE_STEPS: list[ForgeStep] = [
         prompt="What can this agent do? Select all that apply.",
         field="capabilities",
         multi_select=True,
-        options=[
-            "read_files",
-            "read_git",
-            "read_tests",
-            "run_tests",
-            "write_files",
-            "write_memory",
-            "write_artifacts",
-            "run_shell",
-            "run_commands",
-            "call_mcp_tools",
-            "emit_handoffs",
-        ],
+        options=sorted(KNOWN_CAPABILITIES),
         hint="Write/shell caps require HITL gates — you will set those next.",
         governance_note="write_files, write_memory, run_shell require before_write/before_shell HITL gates.",
     ),
@@ -196,13 +200,7 @@ FORGE_STEPS: list[ForgeStep] = [
         prompt="Where must a human approve before the agent proceeds?",
         field="hitl_gates",
         multi_select=True,
-        options=[
-            "before_write",
-            "before_shell",
-            "before_promote",
-            "before_memory_write",
-            "on_error",
-        ],
+        options=sorted(KNOWN_HITL_GATES),
         hint="HITL gates are required for any write or shell capability.",
         auto_required_if=_hitl_auto_required,
         governance_note="Builder-II Capability Promotion Rule: write/shell caps require explicit HITL gates.",

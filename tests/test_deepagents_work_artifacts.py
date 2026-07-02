@@ -868,6 +868,7 @@ def test_deepagents_command_authority() -> None:
         "builder-deepagents validate",
         "builder-deepagents readiness",
         "builder-deepagents validate-readiness",
+        "builder-deepagents forge",
         "builder-deepagents delegate",
         "builder-deepagents work-plan",
         "builder-deepagents assign-subagent",

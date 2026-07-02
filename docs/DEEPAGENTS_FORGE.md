@@ -35,7 +35,7 @@ Forge follows builder-II platform rules:
 - CORE is a target profile, not platform identity. Forge modules must not import CORE-specific modules.
 - deepagents integration is optional and governed.
 - No autonomous shell execution by default — shell capabilities require a `before_shell` HITL gate.
-- No autonomous file writes by default — emit is constrained to `profiles/deepagents/{slug}.yaml`.
+- No autonomous file writes by default — emit is constrained to `profiles/deepagents/{slug}.yaml` and the optional Forge handoff note under `profiles/deepagents/`.
 - Editable slugs must match `^[a-z0-9]+(?:_[a-z0-9]+)*$`; path traversal and nested paths are rejected.
 - Verification and HITL boundaries must remain explicit.
 - `emit_agent(dry_run=True)` must always be safe to call with zero side effects.
@@ -74,27 +74,27 @@ Before emit, Forge checks seven conditions against builder-II's Capability Promo
 
 If any check fails, emit is blocked. The operator sees a checklist in the preview step before they can proceed. In dry-run mode the governance check is shown but no write happens.
 
-## CLI/module usage
+## CLI usage
 
-Forge is currently available as a module entrypoint. A first-class `builder-deepagents forge` command should be added only after command authority and docs registration are completed together.
+Forge is available as the registered `builder-deepagents forge` command. It is represented in command authority as Tier 1 artifact-only. It may preview or emit bounded profile/handoff artifacts; it does not construct native deepagents, start Goose, run models, invoke MCP/tools, execute shell commands, grant promotion, or authorize runtime use.
 
 ### Interactive TUI
 
 ```bash
 # Launch the full Textual TUI wizard
-uv run python -m builder_ii.deepagents_forge_cli
+builder-deepagents forge
 
 # Pre-seed name and target profile
-uv run python -m builder_ii.deepagents_forge_cli --name pr_reviewer --profile core
+builder-deepagents forge --name pr_reviewer --profile core
 
 # Preview only — governance check + YAML rendered, nothing written
-uv run python -m builder_ii.deepagents_forge_cli --dry-run
+builder-deepagents forge --dry-run
 ```
 
 ### Headless / CI mode
 
 ```bash
-uv run python -m builder_ii.deepagents_forge_cli \
+builder-deepagents forge \
   --non-interactive \
   --name test_writer \
   --profile generic \
@@ -122,10 +122,10 @@ When the operator confirms on the preview step, `emit_agent()` runs this sequenc
 6. register_bridge_spec(spec)    -> optional additive extension point
 7. write_forge_handoff(spec)     -> optional handoff extension point
 8. log_forge_event(spec)         -> optional event ledger extension point
-9. return EmitResult             -> ok=True, profile_path, slug, next review action
+9. return EmitResult             -> dry-run flag, exact paths, write flags, hook results, warnings, blockers, next review action
 ```
 
-Each registration/logging call is additive and gracefully skips if the target function is not yet wired.
+Each registration/logging call is additive and represented in `EmitResult.hook_results` as `succeeded`, `skipped`, or `failed`. Optional hook failure is reported as a warning; the core profile write remains the hard success/failure boundary.
 
 ## DeepAgentSpec fields
 
@@ -167,9 +167,10 @@ Forge enforces these rules at the preview step before emit and at emit time. The
 ## Safety guarantees
 
 - `emit_agent(dry_run=True)` is always safe — no files written, no registrations, no events.
-- Profile emission is constrained to `profiles/deepagents/` — Forge never writes outside this directory.
+- Real emission is constrained to `profiles/deepagents/` — Forge writes `profiles/deepagents/{slug}.yaml` and may write `profiles/deepagents/forge_{slug}.handoff.json`; it never writes outside this directory.
 - Slugs cannot contain path separators, `..`, leading/trailing separators, uppercase, or shell-like punctuation.
-- Bridge and profile registration is additive — existing profiles and bridge entries are not modified.
+- `output_artifact` and `rollback_path` must be safe relative declarations and must not point at approval, promotion, or authority artifacts.
+- Bridge and profile registration is additive and truth-reported — missing hooks are `skipped`, hook exceptions are `failed`, and neither state is presented as runtime promotion.
 - Shell execution is never triggered by Forge — it is a pure data construction and bounded file-write surface.
 
 ## Files
@@ -184,6 +185,7 @@ Forge enforces these rules at the preview step before emit and at emit time. The
 | `builder_ii/deepagents_forge_emit.py` | `emit_agent()`, `EmitResult`, bounded write/register helpers |
 | `builder_ii/deepagents_forge_tui.py` | Textual TUI wizard, `ForgeApp`, `ForgeScreen`, widget set |
 | `builder_ii/deepagents_forge_cli.py` | Typer CLI module, `forge_agent()`, `run_headless_forge()` |
+| `profiles/deepagents/*.yaml` | Curated passive Forge templates; examples only, not runtime authority |
 
 ### Output
 
@@ -199,6 +201,7 @@ Forge enforces these rules at the preview step before emit and at emit time. The
 | `tests/test_deepagents_forge_schema.py` | `DeepAgentSpec`, slug derivation/validation, `is_emit_ready()`, YAML, summaries |
 | `tests/test_deepagents_forge_preview.py` | `check_governance()`, `collect_warnings()`, `render_bridge_spec()`, `render_preview()` |
 | `tests/test_deepagents_forge_emit.py` | dry-run no-side-effect guarantee, bounded profile write, path traversal rejection |
+| `tests/test_deepagents_forge_cli.py` | registered command behavior, non-interactive dry-run, invalid-spec exits, TUI result semantics |
 
 ## Related docs
 

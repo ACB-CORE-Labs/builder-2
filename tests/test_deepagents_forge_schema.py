@@ -5,8 +5,14 @@ Tests for deepagents_forge_schema.py — DeepAgentSpec dataclass and helpers.
 """
 
 import yaml
+from pathlib import Path
 
-from builder_ii.deepagents_forge_schema import DeepAgentSpec, derive_slug, is_valid_slug
+from builder_ii.deepagents_forge_schema import (
+    DeepAgentSpec,
+    derive_slug,
+    is_valid_slug,
+    validate_spec,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -46,6 +52,19 @@ class TestSlugValidation:
 
     def test_rejects_trailing_underscore(self):
         assert is_valid_slug("agent_") is False
+
+    def test_rejects_whitespace_padded_slug(self):
+        assert is_valid_slug(" agent") is False
+        assert is_valid_slug("agent ") is False
+
+    def test_rejects_uppercase_and_punctuation(self):
+        assert is_valid_slug("Agent") is False
+        assert is_valid_slug("agent-name") is False
+        assert is_valid_slug("agent.name") is False
+
+    def test_rejects_backslash_and_absolute_forms(self):
+        assert is_valid_slug("nested\\agent") is False
+        assert is_valid_slug("/agent") is False
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +185,31 @@ class TestIsEmitReady:
         assert ready is False
         assert "persona" in missing
 
+    def test_write_capability_requires_before_write(self):
+        spec = self._full_spec()
+        spec.capabilities = ["write_files"]
+        spec.hitl_gates = []
+        issues = validate_spec(spec)
+        assert any(issue.field == "hitl_gates" and "before_write" in issue.message for issue in issues)
+
+    def test_shell_capability_requires_before_shell(self):
+        spec = self._full_spec()
+        spec.capabilities = ["run_tests"]
+        spec.hitl_gates = []
+        issues = validate_spec(spec)
+        assert any(issue.field == "hitl_gates" and "before_shell" in issue.message for issue in issues)
+
+    def test_output_path_rejects_traversal_and_authority_terms(self):
+        spec = self._full_spec()
+        spec.output_artifact = "../escape"
+        issues = validate_spec(spec)
+        assert any(issue.field == "output_artifact" and "path segments" in issue.message for issue in issues)
+
+        spec = self._full_spec()
+        spec.rollback_path = "approval/safe_agent"
+        issues = validate_spec(spec)
+        assert any(issue.field == "rollback_path" and "authority" in issue.message for issue in issues)
+
 
 # ---------------------------------------------------------------------------
 # to_yaml
@@ -224,3 +268,23 @@ class TestSummaryLines:
         persona_line = next((line for line in lines if "persona" in line), None)
         assert persona_line is not None
         assert len(persona_line) < 120  # truncated
+
+
+class TestForgeProfileTemplates:
+    def test_templates_validate_and_do_not_claim_runtime_authority(self):
+        root = Path(__file__).resolve().parent.parent
+        template_paths = sorted(
+            path
+            for path in (root / "profiles" / "deepagents").glob("*.yaml")
+            if path.name != ".gitkeep"
+        )
+
+        assert template_paths
+        for path in template_paths:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            spec = DeepAgentSpec(**data)
+            assert validate_spec(spec) == [], path
+            assert spec.approval_required is True
+            assert "runtime" not in spec.output_artifact.lower()
+            assert "approval" not in spec.output_artifact.lower()
+            assert "authority" not in spec.rollback_path.lower()
