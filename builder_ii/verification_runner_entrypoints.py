@@ -6,6 +6,7 @@ from pathlib import Path
 from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
 from builder_ii.platform_completion_audit import (
     render_human_summary,
+    scan_docs_for_false_completion,
     validate_command_surfaces,
     validate_completion_matrix,
 )
@@ -31,6 +32,10 @@ def run_docs_audit() -> int:
     """Run the docs truth audit used by the bounded docs_audit profile."""
     errors = validate_completion_matrix(root=Path.cwd())
     errors.extend(validate_command_surfaces(_registry_names()))
+    for violation in scan_docs_for_false_completion(Path.cwd()):
+        errors.append(
+            f"false completion claim in {violation.path}:{violation.line_number}: {violation.reason}"
+        )
     if errors:
         for error in errors:
             print(f"docs truth validation error: {error}", file=sys.stderr)
