@@ -31,7 +31,7 @@ class CLIPassthroughScreen(ModalScreen[str | None]):
         with Vertical(id="cli-container"):
             yield Static(
                 " [bold #3fb950]~ RAW CLI PASSTHROUGH[/]  [#484f58]Governed Context Injection[/]",
-                id="palette-title", # Reusing palette title style
+                id="palette-title",  # Reusing palette title style
             )
             # We show what context is being injected
             if self.prefix_context:
@@ -69,6 +69,7 @@ class CLIPassthroughScreen(ModalScreen[str | None]):
 
 # ── Utility Modals ───────────────────────────────────────────────────
 
+
 class ConfirmScreen(ModalScreen[bool]):
     """Two-key confirmation screen."""
 
@@ -88,7 +89,10 @@ class ConfirmScreen(ModalScreen[bool]):
         with Vertical(id="confirm-dialog"):
             yield Static(self.title_text, id="confirm-title")
             yield Static(self.body_text, id="confirm-body")
-            yield Static("[#484f58]Press [bold #3fb950]ENTER[/] to confirm, or [bold #f85149]ESC[/] to cancel[/]", id="confirm-hint")
+            yield Static(
+                "[#484f58]Press [bold #3fb950]ENTER[/] to confirm, or [bold #f85149]ESC[/] to cancel[/]",
+                id="confirm-hint",
+            )
 
     def action_confirm_true(self) -> None:
         self.dismiss(True)
@@ -114,7 +118,10 @@ class RejectScreen(ModalScreen[str | None]):
             yield Static(self.title_text, id="reject-title")
             self._input = Input(placeholder="Optional reason for rejection...", id="reject-input")
             yield self._input
-            yield Static("[#484f58]Press [bold #3fb950]ENTER[/] to reject, or [bold #f85149]ESC[/] to cancel[/]", id="reject-hint")
+            yield Static(
+                "[#484f58]Press [bold #3fb950]ENTER[/] to reject, or [bold #f85149]ESC[/] to cancel[/]",
+                id="reject-hint",
+            )
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self.dismiss(event.value.strip())

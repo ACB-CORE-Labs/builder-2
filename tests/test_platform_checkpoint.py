@@ -86,7 +86,13 @@ def test_platform_checkpoint_record_shape(tmp_path: Path) -> None:
 
 def test_platform_checkpoint_json_round_trip(tmp_path: Path) -> None:
     artifact_index, ledger, index_path, ledger_path = _write_snapshot_inputs(tmp_path)
-    record = create_snapshot_record(artifact_index, ledger, artifact_index_path=index_path, state_ledger_path=ledger_path, snapshot_name="snapshot-test")
+    record = create_snapshot_record(
+        artifact_index,
+        ledger,
+        artifact_index_path=index_path,
+        state_ledger_path=ledger_path,
+        snapshot_name="snapshot-test",
+    )
     data = json_lib.loads(dumps_snapshot_record(record))
 
     assert data["complete"] is True
@@ -95,7 +101,13 @@ def test_platform_checkpoint_json_round_trip(tmp_path: Path) -> None:
 
 def test_platform_checkpoint_file_validation(tmp_path: Path) -> None:
     artifact_index, ledger, index_path, ledger_path = _write_snapshot_inputs(tmp_path)
-    record = create_snapshot_record(artifact_index, ledger, artifact_index_path=index_path, state_ledger_path=ledger_path, snapshot_name="snapshot-test")
+    record = create_snapshot_record(
+        artifact_index,
+        ledger,
+        artifact_index_path=index_path,
+        state_ledger_path=ledger_path,
+        snapshot_name="snapshot-test",
+    )
     snapshot_path = tmp_path / "snapshot.json"
     write_snapshot_record(record, snapshot_path)
 
@@ -104,7 +116,13 @@ def test_platform_checkpoint_file_validation(tmp_path: Path) -> None:
 
 def test_platform_checkpoint_rejects_authority_changes(tmp_path: Path) -> None:
     artifact_index, ledger, index_path, ledger_path = _write_snapshot_inputs(tmp_path)
-    record = create_snapshot_record(artifact_index, ledger, artifact_index_path=index_path, state_ledger_path=ledger_path, snapshot_name="snapshot-test")
+    record = create_snapshot_record(
+        artifact_index,
+        ledger,
+        artifact_index_path=index_path,
+        state_ledger_path=ledger_path,
+        snapshot_name="snapshot-test",
+    )
     record["record_state"] = "ACTIVE"
     record["performed_actions"] = ["record_snapshot"]
     record["grants_runtime_authority"] = True
@@ -132,7 +150,9 @@ def test_platform_checkpoint_rejects_authority_changes(tmp_path: Path) -> None:
 
 def test_platform_checkpoint_requires_snapshot_name(tmp_path: Path) -> None:
     artifact_index, ledger, index_path, ledger_path = _write_snapshot_inputs(tmp_path)
-    record = create_snapshot_record(artifact_index, ledger, artifact_index_path=index_path, state_ledger_path=ledger_path, snapshot_name="")
+    record = create_snapshot_record(
+        artifact_index, ledger, artifact_index_path=index_path, state_ledger_path=ledger_path, snapshot_name=""
+    )
 
     assert record["status"] == "incomplete"
     assert record["complete"] is False

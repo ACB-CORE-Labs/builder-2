@@ -568,7 +568,11 @@ def create_setup_overlay_plan(
             target_repo=target_repo,
             artifact_root=artifact_root,
             user_config_dir=config_root,
-            metadata={"env_keys": [line.split("=", 1)[0] for line in env_recommendation.splitlines() if line.startswith("BUILDER_")]},
+            metadata={
+                "env_keys": [
+                    line.split("=", 1)[0] for line in env_recommendation.splitlines() if line.startswith("BUILDER_")
+                ]
+            },
         ),
         _planned_change(
             change_id="goose_config_overlay_candidate",

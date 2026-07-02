@@ -139,10 +139,7 @@ class ProtocolFakeBackend:
     name: str = PROTOCOL_FAKE_BACKEND
 
     def run_subagent(self, *, subagent_profile: str, task: str) -> dict[str, Any]:
-        summary = (
-            f"{subagent_profile} produced a proposal-only protocol result for: "
-            f"{task.strip()}"
-        )
+        summary = f"{subagent_profile} produced a proposal-only protocol result for: {task.strip()}"
         payload = {
             "subagent_profile": subagent_profile,
             "result_mode": "PROPOSAL_ONLY",
@@ -167,9 +164,7 @@ class OptionalDeepAgentsBackend:
 
     def run_subagent(self, *, subagent_profile: str, task: str) -> dict[str, Any]:
         if self.readiness_gate is None:
-            raise DeepAgentsBackendDenied(
-                "optional_deepagents requires a passing backend readiness gate"
-            )
+            raise DeepAgentsBackendDenied("optional_deepagents requires a passing backend readiness gate")
         gate_errors = validate_deepagents_backend_readiness_gate(self.readiness_gate)
         if gate_errors or self.readiness_gate.get("gate_state") != "PASS":
             raise DeepAgentsBackendDenied(
@@ -179,20 +174,14 @@ class OptionalDeepAgentsBackend:
         try:
             module = importlib.import_module(self.module_name)
         except ModuleNotFoundError as exc:
-            raise DeepAgentsBackendDenied(
-                "optional_deepagents dependency is unavailable at runtime"
-            ) from exc
+            raise DeepAgentsBackendDenied("optional_deepagents dependency is unavailable at runtime") from exc
         runner = getattr(module, OPTIONAL_DEEPAGENTS_RUNNER_EXPORT, None)
         if not callable(runner):
-            raise DeepAgentsBackendDenied(
-                f"optional_deepagents is missing {OPTIONAL_DEEPAGENTS_RUNNER_EXPORT}"
-            )
+            raise DeepAgentsBackendDenied(f"optional_deepagents is missing {OPTIONAL_DEEPAGENTS_RUNNER_EXPORT}")
         try:
             payload = runner(subagent_profile=subagent_profile, task=task)
         except TimeoutError as exc:
-            raise DeepAgentsBackendDenied(
-                "optional_deepagents protocol runner timed out"
-            ) from exc
+            raise DeepAgentsBackendDenied("optional_deepagents protocol runner timed out") from exc
         if not isinstance(payload, dict):
             raise ValueError("optional_deepagents protocol runner must return a JSON object")
         result = dict(payload)
@@ -243,11 +232,7 @@ def _digest_jsonable(value: dict[str, Any]) -> str:
 
 def _strip_digest_keys(value: Any) -> Any:
     if isinstance(value, dict):
-        return {
-            key: _strip_digest_keys(item)
-            for key, item in value.items()
-            if key not in _DIGEST_KEYS
-        }
+        return {key: _strip_digest_keys(item) for key, item in value.items() if key not in _DIGEST_KEYS}
     if isinstance(value, list):
         return [_strip_digest_keys(item) for item in value]
     return value
@@ -289,9 +274,7 @@ def _expected_optional_result_schema_digest() -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def _validate_backend_result_payload(
-    payload: Any, *, expected_subagent_profile: str | None = None
-) -> list[str]:
+def _validate_backend_result_payload(payload: Any, *, expected_subagent_profile: str | None = None) -> list[str]:
     errors: list[str] = []
     if not isinstance(payload, dict):
         return ["backend result must be a JSON object"]
@@ -322,11 +305,7 @@ def _validate_backend_result_payload(
 
 
 def _is_sha256(value: Any) -> bool:
-    return (
-        isinstance(value, str)
-        and len(value) == 64
-        and all(char in _SHA256_HEX for char in value.lower())
-    )
+    return isinstance(value, str) and len(value) == 64 and all(char in _SHA256_HEX for char in value.lower())
 
 
 def _artifact_ref(
@@ -550,7 +529,9 @@ def create_deepagents_backend_readiness_gate(
         first_result,
         expected_subagent_profile="readiness_probe",
     )
-    model_work_expected = bool(getattr(module, "BUILDER_II_MODEL_WORK_EXPECTED", False)) if module is not None else False
+    model_work_expected = (
+        bool(getattr(module, "BUILDER_II_MODEL_WORK_EXPECTED", False)) if module is not None else False
+    )
 
     content = {
         "kind": DEEPAGENTS_BACKEND_READINESS_GATE_KIND,
@@ -737,9 +718,7 @@ def _common_authority_fields(*, protocol_execution: bool = False) -> dict[str, A
     }
 
 
-def _validate_common_authority(
-    data: dict[str, Any], *, capability_state: str, protocol_execution: bool
-) -> list[str]:
+def _validate_common_authority(data: dict[str, Any], *, capability_state: str, protocol_execution: bool) -> list[str]:
     errors: list[str] = []
     if data.get("runs_protocol_backend") is not protocol_execution:
         errors.append(f"runs_protocol_backend must be {protocol_execution}")
@@ -771,9 +750,7 @@ def _validate_common_authority(
     return errors
 
 
-def _validate_governance(
-    governance: Any, *, capability_state: str, protocol_execution: bool
-) -> list[str]:
+def _validate_governance(governance: Any, *, capability_state: str, protocol_execution: bool) -> list[str]:
     errors: list[str] = []
     if not isinstance(governance, dict):
         return ["governance must be an object"]
@@ -828,8 +805,7 @@ def create_deepagents_execution_candidate(
     if backend_mode == OPTIONAL_DEEPAGENTS_BACKEND:
         if backend_readiness_gate is None:
             raise ValueError(
-                "optional_deepagents requires --backend-readiness-gate; run "
-                "builder-deepagents backend-readiness first"
+                "optional_deepagents requires --backend-readiness-gate; run builder-deepagents backend-readiness first"
             )
         gate_errors = validate_deepagents_backend_readiness_gate(backend_readiness_gate)
         if gate_errors or backend_readiness_gate.get("gate_state") != "PASS":
@@ -914,7 +890,9 @@ def create_deepagents_execution_approval(
         "expires_at": expires_at,
         "approval_actor": approval_actor.strip(),
         "approval_reason": approval_reason.strip(),
-        "candidate_ref": _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"),
+        "candidate_ref": _artifact_ref(
+            candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"
+        ),
         "candidate_digest": candidate_digest,
         "approved_backend_mode": candidate.get("backend_mode"),
         "approved_subagents": list(candidate.get("allowed_subagents", [])),
@@ -987,8 +965,12 @@ def create_deepagents_checkpoint(
         "schema_version": DEEPAGENTS_EXECUTION_SCHEMA_VERSION,
         "checkpoint_state": "INTERRUPT_RECORDED",
         "session_id": session_id,
-        "candidate_ref": _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"),
-        "approval_ref": _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval"),
+        "candidate_ref": _artifact_ref(
+            candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"
+        ),
+        "approval_ref": _artifact_ref(
+            approval, role="approval", path=approval_path, name="deepagents execution approval"
+        ),
         "event_tail_ref": event_tail_ref,
         "events_dir": str(events_dir),
         "completed_subagents": list(completed_subagents),
@@ -1054,8 +1036,7 @@ def create_deepagents_replay_report(
             status = "FAILED"
 
     event_refs = [
-        _artifact_ref(event, role="event", path=path, name=str(event.get("event_type", "")))
-        for event, path in ordered
+        _artifact_ref(event, role="event", path=path, name=str(event.get("event_type", ""))) for event, path in ordered
     ]
     content = {
         "kind": DEEPAGENTS_REPLAY_REPORT_KIND,
@@ -1103,7 +1084,9 @@ def create_deepagents_event_ledger(
         "event_count": len(event_refs),
         "event_refs": event_refs,
         "last_event_ref": event_refs[-1] if event_refs else None,
-        "replay_report_ref": _artifact_ref(replay_report, role="replay_report", path=replay_report_path, name="deepagents replay report"),
+        "replay_report_ref": _artifact_ref(
+            replay_report, role="replay_report", path=replay_report_path, name="deepagents replay report"
+        ),
         "reconstructed_status": {
             "valid": replay_report.get("valid", False),
             "status": replay_report.get("status", ""),
@@ -1143,11 +1126,23 @@ def create_deepagents_run_envelope(
         "session_id": session_id,
         "backend_mode": candidate.get("backend_mode"),
         "output_dir": str(output_dir),
-        "candidate_ref": _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"),
-        "approval_ref": _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval"),
-        "event_ledger_ref": _artifact_ref(event_ledger, role="event_ledger", path=event_ledger_path, name="deepagents event ledger"),
-        "replay_report_ref": _artifact_ref(replay_report, role="replay_report", path=replay_report_path, name="deepagents replay report"),
-        "checkpoint_ref": _artifact_ref(checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint") if checkpoint is not None else None,
+        "candidate_ref": _artifact_ref(
+            candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"
+        ),
+        "approval_ref": _artifact_ref(
+            approval, role="approval", path=approval_path, name="deepagents execution approval"
+        ),
+        "event_ledger_ref": _artifact_ref(
+            event_ledger, role="event_ledger", path=event_ledger_path, name="deepagents event ledger"
+        ),
+        "replay_report_ref": _artifact_ref(
+            replay_report, role="replay_report", path=replay_report_path, name="deepagents replay report"
+        ),
+        "checkpoint_ref": _artifact_ref(
+            checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint"
+        )
+        if checkpoint is not None
+        else None,
         **_common_authority_fields(protocol_execution=True),
         "authority_boundary": _authority_boundary("deepagents_run_envelope", protocol_execution=True),
         "governance": _base_governance("deepagents_run_envelope", protocol_execution=True),
@@ -1182,12 +1177,26 @@ def create_deepagents_execution_receipt(
         "receipt_state": status,
         "session_id": session_id,
         "backend_mode": candidate.get("backend_mode"),
-        "candidate_ref": _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"),
-        "approval_ref": _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval"),
-        "envelope_ref": _artifact_ref(envelope, role="run_envelope", path=envelope_path, name="deepagents run envelope"),
-        "event_ledger_ref": _artifact_ref(event_ledger, role="event_ledger", path=event_ledger_path, name="deepagents event ledger"),
-        "replay_report_ref": _artifact_ref(replay_report, role="replay_report", path=replay_report_path, name="deepagents replay report"),
-        "checkpoint_ref": _artifact_ref(checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint") if checkpoint is not None else None,
+        "candidate_ref": _artifact_ref(
+            candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"
+        ),
+        "approval_ref": _artifact_ref(
+            approval, role="approval", path=approval_path, name="deepagents execution approval"
+        ),
+        "envelope_ref": _artifact_ref(
+            envelope, role="run_envelope", path=envelope_path, name="deepagents run envelope"
+        ),
+        "event_ledger_ref": _artifact_ref(
+            event_ledger, role="event_ledger", path=event_ledger_path, name="deepagents event ledger"
+        ),
+        "replay_report_ref": _artifact_ref(
+            replay_report, role="replay_report", path=replay_report_path, name="deepagents replay report"
+        ),
+        "checkpoint_ref": _artifact_ref(
+            checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint"
+        )
+        if checkpoint is not None
+        else None,
         "completed_subagents": list(replay_report.get("completed_subagents", [])),
         "denied_capabilities": list(replay_report.get("denied_capabilities", [])),
         "no_mutation_proof": "protocol backend writes only explicit deepagents artifact outputs",
@@ -1226,13 +1235,27 @@ def create_deepagents_evidence_bundle(
         "schema_version": DEEPAGENTS_EXECUTION_SCHEMA_VERSION,
         "bundle_state": "EVIDENCE_ONLY",
         "status": receipt.get("receipt_state"),
-        "candidate_ref": _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"),
-        "approval_ref": _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval"),
-        "envelope_ref": _artifact_ref(envelope, role="run_envelope", path=envelope_path, name="deepagents run envelope"),
+        "candidate_ref": _artifact_ref(
+            candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"
+        ),
+        "approval_ref": _artifact_ref(
+            approval, role="approval", path=approval_path, name="deepagents execution approval"
+        ),
+        "envelope_ref": _artifact_ref(
+            envelope, role="run_envelope", path=envelope_path, name="deepagents run envelope"
+        ),
         "receipt_ref": _artifact_ref(receipt, role="receipt", path=receipt_path, name="deepagents execution receipt"),
-        "event_ledger_ref": _artifact_ref(event_ledger, role="event_ledger", path=event_ledger_path, name="deepagents event ledger"),
-        "replay_report_ref": _artifact_ref(replay_report, role="replay_report", path=replay_report_path, name="deepagents replay report"),
-        "checkpoint_ref": _artifact_ref(checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint") if checkpoint is not None else None,
+        "event_ledger_ref": _artifact_ref(
+            event_ledger, role="event_ledger", path=event_ledger_path, name="deepagents event ledger"
+        ),
+        "replay_report_ref": _artifact_ref(
+            replay_report, role="replay_report", path=replay_report_path, name="deepagents replay report"
+        ),
+        "checkpoint_ref": _artifact_ref(
+            checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint"
+        )
+        if checkpoint is not None
+        else None,
         "operator_summary": {
             "path": "candidate -> approval -> run-approved -> replay-run -> evidence-bundle",
             "completed_subagents": replay_report.get("completed_subagents", []),
@@ -1286,7 +1309,9 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
                 errors.append(
                     f"backend_readiness_summary.protocol_version must be {OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION}"
                 )
-            if not isinstance(summary.get("denial_probe_count"), int) or summary["denial_probe_count"] < len(OPTIONAL_DENIAL_PROBE_CAPABILITIES):
+            if not isinstance(summary.get("denial_probe_count"), int) or summary["denial_probe_count"] < len(
+                OPTIONAL_DENIAL_PROBE_CAPABILITIES
+            ):
                 errors.append("backend_readiness_summary.denial_probe_count must cover all denial probes")
             if not isinstance(summary.get("model_work_expected"), bool):
                 errors.append("backend_readiness_summary.model_work_expected must be a boolean")
@@ -1295,7 +1320,9 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
             errors.append("backend_readiness_ref must be null unless backend_mode is optional_deepagents")
         if data.get("backend_readiness_summary") is not None:
             errors.append("backend_readiness_summary must be null unless backend_mode is optional_deepagents")
-    errors.extend(_ref_errors(data.get("work_plan_ref"), field="work_plan_ref", kind=DEEPAGENTS_WORK_PLAN_KIND, role="work_plan"))
+    errors.extend(
+        _ref_errors(data.get("work_plan_ref"), field="work_plan_ref", kind=DEEPAGENTS_WORK_PLAN_KIND, role="work_plan")
+    )
     errors.extend(_string_list(data.get("allowed_subagents"), field="allowed_subagents", allow_empty=False))
     if not isinstance(data.get("output_root"), str) or not data.get("output_root"):
         errors.append("output_root must be a non-empty string")
@@ -1325,7 +1352,9 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
         summary = data.get("backend_readiness_summary")
         if isinstance(summary, dict) and summary.get("model_work_expected") is True:
             if not model_boundary.get("model_call_receipt_refs"):
-                errors.append("model_boundary.model_call_receipt_refs must be populated when optional backend performs model work")
+                errors.append(
+                    "model_boundary.model_call_receipt_refs must be populated when optional backend performs model work"
+                )
     denied = data.get("denied_capabilities")
     if not isinstance(denied, list):
         errors.append("denied_capabilities must be a list")
@@ -1365,7 +1394,11 @@ def validate_deepagents_execution_approval(data: Any) -> list[str]:
     if data.get("expires_at") is not None:
         if not isinstance(data.get("expires_at"), str) or _parse_time(data["expires_at"]) is None:
             errors.append("expires_at must be an ISO timestamp or null")
-    errors.extend(_ref_errors(data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"))
+    errors.extend(
+        _ref_errors(
+            data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"
+        )
+    )
     if not _is_sha256(data.get("candidate_digest")):
         errors.append("candidate_digest must be a SHA-256 hex digest")
     if data.get("approved_backend_mode") not in BACKEND_MODES:
@@ -1444,7 +1477,9 @@ def validate_deepagents_event_record(data: Any) -> list[str]:
             errors.extend(_ref_errors(ref, field=f"subject_refs[{index}]"))
     previous = data.get("previous_event_ref")
     if previous is not None:
-        errors.extend(_ref_errors(previous, field="previous_event_ref", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event"))
+        errors.extend(
+            _ref_errors(previous, field="previous_event_ref", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event")
+        )
     if data.get("previous_event_sha256") is not None and not _is_sha256(data.get("previous_event_sha256")):
         errors.append("previous_event_sha256 must be a SHA-256 hex digest or null")
     errors.extend(
@@ -1471,14 +1506,27 @@ def validate_deepagents_checkpoint(data: Any) -> list[str]:
         errors.append("checkpoint_state must be INTERRUPT_RECORDED")
     if not isinstance(data.get("session_id"), str) or not data["session_id"]:
         errors.append("session_id must be a non-empty string")
-    errors.extend(_ref_errors(data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"))
-    errors.extend(_ref_errors(data.get("approval_ref"), field="approval_ref", kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND, role="approval"))
-    errors.extend(_ref_errors(data.get("event_tail_ref"), field="event_tail_ref", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event"))
+    errors.extend(
+        _ref_errors(
+            data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("approval_ref"), field="approval_ref", kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND, role="approval"
+        )
+    )
+    errors.extend(
+        _ref_errors(data.get("event_tail_ref"), field="event_tail_ref", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event")
+    )
     if not isinstance(data.get("events_dir"), str) or not data["events_dir"]:
         errors.append("events_dir must be a non-empty string")
     errors.extend(_string_list(data.get("completed_subagents"), field="completed_subagents"))
     errors.extend(_string_list(data.get("remaining_subagents"), field="remaining_subagents"))
-    if not isinstance(data.get("resume_command"), str) or "builder-deepagents resume-approved" not in data["resume_command"]:
+    if (
+        not isinstance(data.get("resume_command"), str)
+        or "builder-deepagents resume-approved" not in data["resume_command"]
+    ):
         errors.append("resume_command must describe builder-deepagents resume-approved")
     errors.extend(
         _validate_common_authority(
@@ -1514,9 +1562,15 @@ def validate_deepagents_replay_report(data: Any) -> list[str]:
         errors.append("event_refs must be a list")
     else:
         for index, ref in enumerate(data["event_refs"]):
-            errors.extend(_ref_errors(ref, field=f"event_refs[{index}]", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event"))
+            errors.extend(
+                _ref_errors(ref, field=f"event_refs[{index}]", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event")
+            )
     if data.get("last_event_ref") is not None:
-        errors.extend(_ref_errors(data.get("last_event_ref"), field="last_event_ref", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event"))
+        errors.extend(
+            _ref_errors(
+                data.get("last_event_ref"), field="last_event_ref", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event"
+            )
+        )
     if data.get("replay_executes_runtime") is not False:
         errors.append("replay_executes_runtime must be false")
     errors.extend(
@@ -1549,10 +1603,23 @@ def validate_deepagents_event_ledger(data: Any) -> list[str]:
         errors.append("event_refs must be a list")
     else:
         for index, ref in enumerate(data["event_refs"]):
-            errors.extend(_ref_errors(ref, field=f"event_refs[{index}]", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event"))
+            errors.extend(
+                _ref_errors(ref, field=f"event_refs[{index}]", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event")
+            )
     if data.get("last_event_ref") is not None:
-        errors.extend(_ref_errors(data.get("last_event_ref"), field="last_event_ref", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event"))
-    errors.extend(_ref_errors(data.get("replay_report_ref"), field="replay_report_ref", kind=DEEPAGENTS_REPLAY_REPORT_KIND, role="replay_report"))
+        errors.extend(
+            _ref_errors(
+                data.get("last_event_ref"), field="last_event_ref", kind=DEEPAGENTS_EVENT_RECORD_KIND, role="event"
+            )
+        )
+    errors.extend(
+        _ref_errors(
+            data.get("replay_report_ref"),
+            field="replay_report_ref",
+            kind=DEEPAGENTS_REPLAY_REPORT_KIND,
+            role="replay_report",
+        )
+    )
     if not isinstance(data.get("reconstructed_status"), dict):
         errors.append("reconstructed_status must be an object")
     errors.extend(
@@ -1583,12 +1650,38 @@ def validate_deepagents_run_envelope(data: Any) -> list[str]:
         errors.append("session_id must be a non-empty string")
     if not isinstance(data.get("output_dir"), str) or not data["output_dir"]:
         errors.append("output_dir must be a non-empty string")
-    errors.extend(_ref_errors(data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"))
-    errors.extend(_ref_errors(data.get("approval_ref"), field="approval_ref", kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND, role="approval"))
-    errors.extend(_ref_errors(data.get("event_ledger_ref"), field="event_ledger_ref", kind=DEEPAGENTS_EVENT_LEDGER_KIND, role="event_ledger"))
-    errors.extend(_ref_errors(data.get("replay_report_ref"), field="replay_report_ref", kind=DEEPAGENTS_REPLAY_REPORT_KIND, role="replay_report"))
+    errors.extend(
+        _ref_errors(
+            data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("approval_ref"), field="approval_ref", kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND, role="approval"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("event_ledger_ref"),
+            field="event_ledger_ref",
+            kind=DEEPAGENTS_EVENT_LEDGER_KIND,
+            role="event_ledger",
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("replay_report_ref"),
+            field="replay_report_ref",
+            kind=DEEPAGENTS_REPLAY_REPORT_KIND,
+            role="replay_report",
+        )
+    )
     if data.get("checkpoint_ref") is not None:
-        errors.extend(_ref_errors(data.get("checkpoint_ref"), field="checkpoint_ref", kind=DEEPAGENTS_CHECKPOINT_KIND, role="checkpoint"))
+        errors.extend(
+            _ref_errors(
+                data.get("checkpoint_ref"), field="checkpoint_ref", kind=DEEPAGENTS_CHECKPOINT_KIND, role="checkpoint"
+            )
+        )
     errors.extend(
         _validate_common_authority(
             data,
@@ -1615,13 +1708,43 @@ def validate_deepagents_execution_receipt(data: Any) -> list[str]:
         errors.append("session_id must be a non-empty string")
     if data.get("backend_mode") not in BACKEND_MODES:
         errors.append(f"backend_mode must be one of: {', '.join(BACKEND_MODES)}")
-    errors.extend(_ref_errors(data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"))
-    errors.extend(_ref_errors(data.get("approval_ref"), field="approval_ref", kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND, role="approval"))
-    errors.extend(_ref_errors(data.get("envelope_ref"), field="envelope_ref", kind=DEEPAGENTS_RUN_ENVELOPE_KIND, role="run_envelope"))
-    errors.extend(_ref_errors(data.get("event_ledger_ref"), field="event_ledger_ref", kind=DEEPAGENTS_EVENT_LEDGER_KIND, role="event_ledger"))
-    errors.extend(_ref_errors(data.get("replay_report_ref"), field="replay_report_ref", kind=DEEPAGENTS_REPLAY_REPORT_KIND, role="replay_report"))
+    errors.extend(
+        _ref_errors(
+            data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("approval_ref"), field="approval_ref", kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND, role="approval"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("envelope_ref"), field="envelope_ref", kind=DEEPAGENTS_RUN_ENVELOPE_KIND, role="run_envelope"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("event_ledger_ref"),
+            field="event_ledger_ref",
+            kind=DEEPAGENTS_EVENT_LEDGER_KIND,
+            role="event_ledger",
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("replay_report_ref"),
+            field="replay_report_ref",
+            kind=DEEPAGENTS_REPLAY_REPORT_KIND,
+            role="replay_report",
+        )
+    )
     if data.get("checkpoint_ref") is not None:
-        errors.extend(_ref_errors(data.get("checkpoint_ref"), field="checkpoint_ref", kind=DEEPAGENTS_CHECKPOINT_KIND, role="checkpoint"))
+        errors.extend(
+            _ref_errors(
+                data.get("checkpoint_ref"), field="checkpoint_ref", kind=DEEPAGENTS_CHECKPOINT_KIND, role="checkpoint"
+            )
+        )
     for field in ("completed_subagents", "denied_capabilities"):
         errors.extend(_string_list(data.get(field), field=field))
     for field in ("no_mutation_proof", "rollback_path", "verification_path"):
@@ -1651,14 +1774,48 @@ def validate_deepagents_evidence_bundle(data: Any) -> list[str]:
         errors.append("bundle_state must be EVIDENCE_ONLY")
     if data.get("status") not in RUN_STATUSES:
         errors.append(f"status must be one of: {', '.join(RUN_STATUSES)}")
-    errors.extend(_ref_errors(data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"))
-    errors.extend(_ref_errors(data.get("approval_ref"), field="approval_ref", kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND, role="approval"))
-    errors.extend(_ref_errors(data.get("envelope_ref"), field="envelope_ref", kind=DEEPAGENTS_RUN_ENVELOPE_KIND, role="run_envelope"))
-    errors.extend(_ref_errors(data.get("receipt_ref"), field="receipt_ref", kind=DEEPAGENTS_EXECUTION_RECEIPT_KIND, role="receipt"))
-    errors.extend(_ref_errors(data.get("event_ledger_ref"), field="event_ledger_ref", kind=DEEPAGENTS_EVENT_LEDGER_KIND, role="event_ledger"))
-    errors.extend(_ref_errors(data.get("replay_report_ref"), field="replay_report_ref", kind=DEEPAGENTS_REPLAY_REPORT_KIND, role="replay_report"))
+    errors.extend(
+        _ref_errors(
+            data.get("candidate_ref"), field="candidate_ref", kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND, role="candidate"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("approval_ref"), field="approval_ref", kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND, role="approval"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("envelope_ref"), field="envelope_ref", kind=DEEPAGENTS_RUN_ENVELOPE_KIND, role="run_envelope"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("receipt_ref"), field="receipt_ref", kind=DEEPAGENTS_EXECUTION_RECEIPT_KIND, role="receipt"
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("event_ledger_ref"),
+            field="event_ledger_ref",
+            kind=DEEPAGENTS_EVENT_LEDGER_KIND,
+            role="event_ledger",
+        )
+    )
+    errors.extend(
+        _ref_errors(
+            data.get("replay_report_ref"),
+            field="replay_report_ref",
+            kind=DEEPAGENTS_REPLAY_REPORT_KIND,
+            role="replay_report",
+        )
+    )
     if data.get("checkpoint_ref") is not None:
-        errors.extend(_ref_errors(data.get("checkpoint_ref"), field="checkpoint_ref", kind=DEEPAGENTS_CHECKPOINT_KIND, role="checkpoint"))
+        errors.extend(
+            _ref_errors(
+                data.get("checkpoint_ref"), field="checkpoint_ref", kind=DEEPAGENTS_CHECKPOINT_KIND, role="checkpoint"
+            )
+        )
     if not isinstance(data.get("operator_summary"), dict):
         errors.append("operator_summary must be an object")
     errors.extend(
@@ -1901,6 +2058,25 @@ def _event_path(events_dir: Path, sequence: int, event_type: str) -> Path:
 def _load_event_records(events_dir: Path) -> list[tuple[dict[str, Any], Path]]:
     if not events_dir.is_dir():
         return []
+
+    wal_path = events_dir / "events.wal"
+    if wal_path.exists():
+        try:
+            from builder_ii.async_ledger_wal import AsyncLedgerWAL
+
+            wal = AsyncLedgerWAL(wal_path)
+            records = wal.read_records()
+            wal.close()
+            return [
+                (
+                    r,
+                    events_dir / f"event-{r.get('sequence', 0):04d}-{r.get('event_type', 'unknown')}.json",
+                )
+                for r in records
+            ]
+        except Exception:
+            pass
+
     records: list[tuple[dict[str, Any], Path]] = []
     for path in sorted(events_dir.glob("event-*.json")):
         records.append((_load_json_object(path, label="deepagents event record"), path))
@@ -2192,7 +2368,9 @@ def run_deepagents_approved_candidate(
         raise ValueError("output_dir already contains deepagents events; choose a fresh output-dir")
     session_id = _new_session_id(candidate)
     backend = backend_for(str(candidate["backend_mode"]), readiness_gate=readiness_gate)
-    candidate_ref = _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate")
+    candidate_ref = _artifact_ref(
+        candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"
+    )
     approval_ref = _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval")
 
     sequence = 1
@@ -2288,7 +2466,9 @@ def run_deepagents_approved_candidate(
                     session_id=session_id,
                     sequence=sequence,
                     event_type="checkpoint_recorded",
-                    subject_refs=[_artifact_ref(checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint")],
+                    subject_refs=[
+                        _artifact_ref(checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint")
+                    ],
                     payload={"completed_subagents": completed, "remaining_subagents": remaining},
                     previous_ref=previous_ref,
                     message="Checkpoint recorded for explicit resume.",
@@ -2386,10 +2566,14 @@ def resume_deepagents_approved_candidate(
     if any(event.get("event_type") in {"run_completed", "run_failed"} for event, _path in event_records):
         raise ValueError("run is already terminal; resume is not allowed")
     previous_event, previous_event_path = sorted(event_records, key=lambda item: int(item[0]["sequence"]))[-1]
-    previous_ref = _artifact_ref(previous_event, role="event", path=previous_event_path, name=str(previous_event["event_type"]))
+    previous_ref = _artifact_ref(
+        previous_event, role="event", path=previous_event_path, name=str(previous_event["event_type"])
+    )
     session_id = str(checkpoint["session_id"])
     sequence = int(previous_event["sequence"]) + 1
-    candidate_ref = _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate")
+    candidate_ref = _artifact_ref(
+        candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"
+    )
     approval_ref = _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval")
     backend = backend_for(str(candidate["backend_mode"]), readiness_gate=readiness_gate)
     remaining = list(checkpoint["remaining_subagents"])
@@ -2400,7 +2584,11 @@ def resume_deepagents_approved_candidate(
         session_id=session_id,
         sequence=sequence,
         event_type="resume_started",
-        subject_refs=[candidate_ref, approval_ref, _artifact_ref(checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint")],
+        subject_refs=[
+            candidate_ref,
+            approval_ref,
+            _artifact_ref(checkpoint, role="checkpoint", path=checkpoint_path, name="deepagents checkpoint"),
+        ],
         payload={"remaining_subagents": checkpoint["remaining_subagents"]},
         previous_ref=previous_ref,
         message="Resume accepted for the same candidate and approval.",
@@ -2597,7 +2785,9 @@ def create_evidence_bundle_from_files(
     receipt = _load_json_object(receipt_path, label="deepagents execution receipt")
     ledger = _load_json_object(event_ledger_path, label="deepagents event ledger")
     replay = _load_json_object(replay_report_path, label="deepagents replay report")
-    checkpoint = _load_json_object(checkpoint_path, label="deepagents checkpoint") if checkpoint_path is not None else None
+    checkpoint = (
+        _load_json_object(checkpoint_path, label="deepagents checkpoint") if checkpoint_path is not None else None
+    )
     _validate_evidence_inputs(
         candidate=candidate,
         approval=approval,

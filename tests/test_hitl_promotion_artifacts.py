@@ -2,6 +2,7 @@ import inspect
 import json
 from pathlib import Path
 
+from builder_ii.hitl_promotion_cli import hitl_promotion_app
 from typer.testing import CliRunner
 
 import builder_ii.hitl_promotion_artifacts as hitl_promo_mod
@@ -27,7 +28,6 @@ from builder_ii.hitl_promotion_artifacts import (
     validate_hitl_promotion_validation_report,
     validate_hitl_rejection_record,
 )
-from builder_ii.hitl_promotion_cli import hitl_promotion_app
 
 runner = CliRunner()
 
@@ -209,12 +209,8 @@ def test_create_and_validate_validation_report() -> None:
 
 def test_validation_failure_cases() -> None:
     assert validate_hitl_promotion_request({"kind": "wrong_kind"})
-    assert validate_hitl_promotion_review(
-        {"kind": HITL_PROMOTION_REVIEW_KIND, "disposition": "invalid_disposition"}
-    )
-    assert validate_hitl_promotion_decision(
-        {"kind": HITL_PROMOTION_DECISION_KIND, "decision_result": "invalid"}
-    )
+    assert validate_hitl_promotion_review({"kind": HITL_PROMOTION_REVIEW_KIND, "disposition": "invalid_disposition"})
+    assert validate_hitl_promotion_decision({"kind": HITL_PROMOTION_DECISION_KIND, "decision_result": "invalid"})
 
 
 def test_cli_promotion_request_flow(tmp_path: Path) -> None:
@@ -344,9 +340,7 @@ def test_approval_boundary_rejects_non_approved_decision_results() -> None:
             source_decision_record_state="DECISION_RECORDED_ONLY",
         )
         errors = validate_hitl_approval_boundary(bnd)
-        assert any(
-            "source_decision_result approved_for_candidate_design" in e for e in errors
-        )
+        assert any("source_decision_result approved_for_candidate_design" in e for e in errors)
 
 
 def test_active_state_guard_rejects_broad_authority_language() -> None:

@@ -46,9 +46,12 @@ class SessionBuilderScreen(ModalScreen[dict[str, Any]]):
 
     def compose(self) -> ComposeResult:
         with Vertical(id="builder-dialog"):
-            yield Static("╔══════════════════════════════════════════╗\n"
-                         "║      WORKSPACE SESSION CONFIGURATOR      ║\n"
-                         "╚══════════════════════════════════════════╝", id="builder-title")
+            yield Static(
+                "╔══════════════════════════════════════════╗\n"
+                "║      WORKSPACE SESSION CONFIGURATOR      ║\n"
+                "╚══════════════════════════════════════════╝",
+                id="builder-title",
+            )
 
             yield Static("Target URI:", classes="builder-label")
             yield Input(placeholder="e.g. file:///Users/you/project", id="input-uri")
@@ -58,8 +61,13 @@ class SessionBuilderScreen(ModalScreen[dict[str, Any]]):
 
             yield Static("Primary Model:", classes="builder-label")
             from builder_ii.model_client_registry import model_registry
+
             models = [(m.model_name, m.model_name) for m in model_registry()]
-            default_val = "claude-3-5-sonnet" if any(m[0] == "claude-3-5-sonnet" for m in models) else (models[0][0] if models else None)
+            default_val = (
+                "claude-3-5-sonnet"
+                if any(m[0] == "claude-3-5-sonnet" for m in models)
+                else (models[0][0] if models else None)
+            )
             yield Select(models, id="input-model", value=default_val)
 
             with Horizontal(id="builder-buttons"):

@@ -77,9 +77,7 @@ def test_release_artifact_kinds_are_declared_in_source():
 
 def test_release_artifact_kinds_are_registry_visible():
     registry_sources = (
-        _read("builder_ii/artifact_index_records.py")
-        + "\n"
-        + _read("builder_ii/artifact_chain_verification.py")
+        _read("builder_ii/artifact_index_records.py") + "\n" + _read("builder_ii/artifact_chain_verification.py")
     )
 
     expected_registry_tokens = [

@@ -2,9 +2,9 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.artifact_index_cli import index_app
 from typer.testing import CliRunner
 
-from builder_ii.artifact_index_cli import index_app
 from builder_ii.goose_command_proposal import create_goose_command_proposal
 
 _MANIFEST: dict[str, Any] = {

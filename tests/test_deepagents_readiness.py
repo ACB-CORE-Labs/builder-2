@@ -1,10 +1,10 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 
 import builder_ii.deepagents_readiness as readiness_mod
-from builder_ii.deepagents_cli import deepagents_app
 from builder_ii.deepagents_readiness import (
     create_deepagents_readiness_artifact,
     dumps_deepagents_readiness_artifact,
@@ -36,7 +36,9 @@ def test_create_metadata_only_readiness_artifact_shape() -> None:
 def test_import_check_readiness_artifact_available(monkeypatch) -> None:
     monkeypatch.setattr(readiness_mod, "_module_available", lambda module_name: True)
     monkeypatch.setattr(readiness_mod, "_package_version", lambda package_name: "0.1.0")
-    monkeypatch.setattr(readiness_mod, "_export_available", lambda module_name, export_name: export_name == "create_governed_deep_agent")
+    monkeypatch.setattr(
+        readiness_mod, "_export_available", lambda module_name, export_name: export_name == "create_governed_deep_agent"
+    )
 
     artifact = create_deepagents_readiness_artifact(mode="import_check")
 
@@ -102,7 +104,9 @@ def test_validate_rejects_runtime_authority() -> None:
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:
-    assert any("file not found" in error for error in validate_deepagents_readiness_artifact_file(tmp_path / "missing.json"))
+    assert any(
+        "file not found" in error for error in validate_deepagents_readiness_artifact_file(tmp_path / "missing.json")
+    )
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")
@@ -110,7 +114,9 @@ def test_validate_file_errors(tmp_path: Path) -> None:
 
     not_object = tmp_path / "array.json"
     not_object.write_text("[]", encoding="utf-8")
-    assert "deepagents readiness artifact must be a JSON object" in validate_deepagents_readiness_artifact_file(not_object)
+    assert "deepagents readiness artifact must be a JSON object" in validate_deepagents_readiness_artifact_file(
+        not_object
+    )
 
 
 def test_cli_readiness_stdout() -> None:

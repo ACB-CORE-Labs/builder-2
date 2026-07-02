@@ -197,4 +197,3 @@ def test_promoted_stage_authority_invariants(tmp_path: Path) -> None:
     assert gov["goose_runtime_start"] == "DISABLED"
     assert gov["deepagents_runtime"] == "DISABLED"
     assert gov["target_repo_writes"] == "DISABLED"
-

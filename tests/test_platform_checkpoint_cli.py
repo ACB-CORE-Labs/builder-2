@@ -1,12 +1,12 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.snap_cli import snap_app
 from typer.testing import CliRunner
 
 from builder_ii.artifact_index_records import create_artifact_index_record, write_artifact_index_record
 from builder_ii.promotion_decision_records import create_promotion_decision_record, write_promotion_decision_record
 from builder_ii.promotion_readiness_records import create_promotion_readiness_record, write_promotion_readiness_record
-from builder_ii.snap_cli import snap_app
 from builder_ii.state_ledger_records import create_state_ledger_record, write_state_ledger_record
 
 
@@ -29,7 +29,9 @@ def _write_snapshot_cli_inputs(tmp_path: Path) -> tuple[Path, Path]:
     )
     write_promotion_readiness_record(readiness, readiness_path)
 
-    decision = create_promotion_decision_record(readiness, readiness_path=readiness_path, decision="approved", decided_by="operator")
+    decision = create_promotion_decision_record(
+        readiness, readiness_path=readiness_path, decision="approved", decided_by="operator"
+    )
     write_promotion_decision_record(decision, decision_path)
 
     ledger = create_state_ledger_record([(decision, decision_path)], ledger_name="snapshot-cli")

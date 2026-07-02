@@ -276,7 +276,7 @@ class ForgeScreen(Screen):
     def on_input_changed(self, event: Input.Changed) -> None:
         step = self.wizard.current_step()
         if step.fields and event.input.id and event.input.id.startswith("gov_input_"):
-            field_name = event.input.id[len("gov_input_"):]
+            field_name = event.input.id[len("gov_input_") :]
             self._governance_fields[field_name] = event.value
 
     def on_button_pressed(self, event: Button.Pressed) -> None:

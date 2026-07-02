@@ -32,6 +32,7 @@ def test_script_registration_drift():
     for command in required_families:
         assert command in scripts, f"Command '{command}' must be registered in pyproject.toml"
 
+
 def test_docs_alignment_drift():
     """Verify docs/OPERATOR_PLAYBOOK.md and docs/ROADMAP.md mention the same operating-loop commands."""
     playbook_path = pathlib.Path("docs/OPERATOR_PLAYBOOK.md")
@@ -82,6 +83,7 @@ def test_docs_alignment_drift():
         assert cmd in playbook_content, f"Command '{cmd}' must be documented in docs/OPERATOR_PLAYBOOK.md"
         assert cmd in roadmap_content, f"Command '{cmd}' must be documented in docs/ROADMAP.md"
 
+
 def test_no_runtime_language_guard():
     """Assert that the playbook explicitly denies runtime behaviors and keeps future commands disabled."""
     playbook_path = pathlib.Path("docs/OPERATOR_PLAYBOOK.md")
@@ -122,7 +124,13 @@ def test_no_runtime_language_guard():
     after_future = content[future_section_index:]
 
     for cmd in future_commands:
-        assert cmd not in before_future, f"Future runtime command '{cmd}' must not appear before the Future Runtime Capabilities section"
-        assert cmd in after_future, f"Future runtime command '{cmd}' must be listed in the Future Runtime Capabilities section"
+        assert cmd not in before_future, (
+            f"Future runtime command '{cmd}' must not appear before the Future Runtime Capabilities section"
+        )
+        assert cmd in after_future, (
+            f"Future runtime command '{cmd}' must be listed in the Future Runtime Capabilities section"
+        )
 
-    assert "not enabled" in after_future.lower(), "Future capabilities section must explicitly note they are 'not enabled'"
+    assert "not enabled" in after_future.lower(), (
+        "Future capabilities section must explicitly note they are 'not enabled'"
+    )

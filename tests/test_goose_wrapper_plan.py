@@ -26,7 +26,14 @@ def _generic_repo(tmp_path: Path) -> Path:
 def _projection(tmp_path: Path) -> dict:
     settings = load_settings(project_root=tmp_path / "builder-II")
     repo = _generic_repo(tmp_path)
-    config = create_session_configuration(settings, "generic", agent_profile_name="patch_planner", repo_path=str(repo), task="prepare wrapper plan", generic_repo=repo)
+    config = create_session_configuration(
+        settings,
+        "generic",
+        agent_profile_name="patch_planner",
+        repo_path=str(repo),
+        task="prepare wrapper plan",
+        generic_repo=repo,
+    )
     return create_goose_projection(settings, config)
 
 

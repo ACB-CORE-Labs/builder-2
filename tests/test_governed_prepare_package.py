@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
@@ -12,7 +13,6 @@ from builder_ii.governed_prepare_package import (
     validate_governed_prepare_package,
     validate_governed_prepare_package_file,
 )
-from builder_ii.session_cli import session_app
 
 ROOT = Path(__file__).resolve().parents[1]
 

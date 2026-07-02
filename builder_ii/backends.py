@@ -266,10 +266,7 @@ def start_backend_process(settings: Settings) -> subprocess.Popen[str] | None:
 
 
 def backend_switch_hint(settings: Settings) -> str:
-    return (
-        f"Set CORE_AGENT_BACKEND={settings.backend!r} and "
-        f"CORE_AGENT_MODEL_TIER={settings.model_tier!r} in .env"
-    )
+    return f"Set CORE_AGENT_BACKEND={settings.backend!r} and CORE_AGENT_MODEL_TIER={settings.model_tier!r} in .env"
 
 
 def list_start_command(settings: Settings) -> Sequence[str]:

@@ -138,10 +138,7 @@ def format_benchmark_report(report: BenchmarkReport) -> str:
         f"compliance: init_literals={'PASS' if report.compliance['init_literals_ok'] else 'FAIL'} "
         f"refusal_probe={'PASS' if report.compliance['refusal_probe_ok'] else 'FAIL'}"
     )
-    lines.append(
-        f"memory: {report.memory_rss_gb} GB used "
-        f"({'GREEN' if report.memory_green else 'RED'}, limit 11.5 GB)"
-    )
+    lines.append(f"memory: {report.memory_rss_gb} GB used ({'GREEN' if report.memory_green else 'RED'}, limit 11.5 GB)")
     lines.append(f"wall: {report.wall_seconds}s")
     return "\n".join(lines)
 

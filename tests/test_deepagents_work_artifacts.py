@@ -39,16 +39,12 @@ from tests.orchestration_assignment_fixtures import build_goal2_assignment_fixtu
 
 def test_deepagents_work_plan_lifecycle(tmp_path: Path) -> None:
     # 1. Setup prerequisite fixtures
-    goal2_fixture = build_goal2_assignment_fixture(
-        tmp_path, task="Goal 3 passive work artifacts testing"
-    )
+    goal2_fixture = build_goal2_assignment_fixture(tmp_path, task="Goal 3 passive work artifacts testing")
 
     orchestration_assignment_plan = goal2_fixture["artifacts"]["orchestration"]
     orchestration_assignment_dry_run = goal2_fixture["artifacts"]["dry_run"]
 
-    deepagents_policy = create_deepagents_policy_artifact(
-        load_settings(), target_name="builder"
-    )
+    deepagents_policy = create_deepagents_policy_artifact(load_settings(), target_name="builder")
     deepagents_readiness = create_deepagents_readiness_artifact(mode="metadata_only")
 
     policy_path = tmp_path / "deepagents-policy.json"
@@ -95,22 +91,16 @@ def test_deepagents_work_plan_lifecycle(tmp_path: Path) -> None:
     assert len(validate_deepagents_work_plan(bad_plan_digests)) > 0
 
     bad_plan_wrong_kind = dict(work_plan)
-    bad_plan_wrong_kind["orchestration_assignment_plan_ref"] = dict(
-        work_plan["orchestration_assignment_plan_ref"]
-    )
+    bad_plan_wrong_kind["orchestration_assignment_plan_ref"] = dict(work_plan["orchestration_assignment_plan_ref"])
     bad_plan_wrong_kind["orchestration_assignment_plan_ref"]["kind"] = "wrong.kind"
     assert len(validate_deepagents_work_plan(bad_plan_wrong_kind)) > 0
 
     bad_plan_missing_source = dict(work_plan)
     bad_plan_missing_source["source_refs"] = [
-        ref
-        for ref in work_plan["source_refs"]
-        if ref["role"] != "orchestration_assignment_plan"
+        ref for ref in work_plan["source_refs"] if ref["role"] != "orchestration_assignment_plan"
     ]
     errors = validate_deepagents_work_plan(bad_plan_missing_source)
-    assert any(
-        "missing orchestration_assignment_plan source ref" in err for err in errors
-    )
+    assert any("missing orchestration_assignment_plan source ref" in err for err in errors)
 
     bad_plan_unknown_blocked = dict(work_plan)
     bad_plan_unknown_blocked["blocked_capabilities"] = ["telepathy"]
@@ -138,9 +128,7 @@ def test_subagent_assignment_and_result(tmp_path: Path) -> None:
     goal2_fixture = build_goal2_assignment_fixture(tmp_path)
     plan_data = goal2_fixture["artifacts"]["orchestration"]
     dry_run_data = goal2_fixture["artifacts"]["dry_run"]
-    policy_data = create_deepagents_policy_artifact(
-        load_settings(), target_name="builder"
-    )
+    policy_data = create_deepagents_policy_artifact(load_settings(), target_name="builder")
     readiness_data = create_deepagents_readiness_artifact(mode="metadata_only")
 
     work_plan = create_deepagents_work_plan(
@@ -207,9 +195,7 @@ def test_subagent_review_and_proposal_result(tmp_path: Path) -> None:
     goal2_fixture = build_goal2_assignment_fixture(tmp_path)
     plan_data = goal2_fixture["artifacts"]["orchestration"]
     dry_run_data = goal2_fixture["artifacts"]["dry_run"]
-    policy_data = create_deepagents_policy_artifact(
-        load_settings(), target_name="builder"
-    )
+    policy_data = create_deepagents_policy_artifact(load_settings(), target_name="builder")
     readiness_data = create_deepagents_readiness_artifact(mode="metadata_only")
 
     work_plan = create_deepagents_work_plan(
@@ -306,9 +292,7 @@ def test_human_gate_request_and_blocked_action(tmp_path: Path) -> None:
     goal2_fixture = build_goal2_assignment_fixture(tmp_path)
     plan_data = goal2_fixture["artifacts"]["orchestration"]
     dry_run_data = goal2_fixture["artifacts"]["dry_run"]
-    policy_data = create_deepagents_policy_artifact(
-        load_settings(), target_name="builder"
-    )
+    policy_data = create_deepagents_policy_artifact(load_settings(), target_name="builder")
     readiness_data = create_deepagents_readiness_artifact(mode="metadata_only")
 
     work_plan = create_deepagents_work_plan(
@@ -370,9 +354,7 @@ def test_work_validation_report(tmp_path: Path) -> None:
     goal2_fixture = build_goal2_assignment_fixture(tmp_path)
     plan_data = goal2_fixture["artifacts"]["orchestration"]
     dry_run_data = goal2_fixture["artifacts"]["dry_run"]
-    policy_data = create_deepagents_policy_artifact(
-        load_settings(), target_name="builder"
-    )
+    policy_data = create_deepagents_policy_artifact(load_settings(), target_name="builder")
     readiness_data = create_deepagents_readiness_artifact(mode="metadata_only")
 
     work_plan = create_deepagents_work_plan(
@@ -403,9 +385,8 @@ def test_work_validation_report(tmp_path: Path) -> None:
 
 
 def test_deepagents_work_cli(tmp_path: Path) -> None:
-    from typer.testing import CliRunner
-
     from builder_ii.deepagents_cli import deepagents_app
+    from typer.testing import CliRunner
 
     runner = CliRunner()
     command_names = {command.name for command in deepagents_app.registered_commands}
@@ -434,9 +415,7 @@ def test_deepagents_work_cli(tmp_path: Path) -> None:
     plan_path = goal2_fixture["paths"]["orchestration"]
     dry_run_path = goal2_fixture["paths"]["dry_run"]
 
-    deepagents_policy = create_deepagents_policy_artifact(
-        load_settings(), target_name="builder"
-    )
+    deepagents_policy = create_deepagents_policy_artifact(load_settings(), target_name="builder")
     deepagents_readiness = create_deepagents_readiness_artifact(mode="metadata_only")
 
     policy_path = tmp_path / "deepagents-policy.json"
@@ -607,9 +586,7 @@ def test_deepagents_chain_verification(tmp_path: Path) -> None:
     goal2_fixture = build_goal2_assignment_fixture(tmp_path)
     plan_data = goal2_fixture["artifacts"]["orchestration"]
     dry_run_data = goal2_fixture["artifacts"]["dry_run"]
-    policy_data = create_deepagents_policy_artifact(
-        load_settings(), target_name="builder"
-    )
+    policy_data = create_deepagents_policy_artifact(load_settings(), target_name="builder")
     readiness_data = create_deepagents_readiness_artifact(mode="metadata_only")
 
     work_plan = create_deepagents_work_plan(
@@ -730,9 +707,7 @@ def test_deepagents_artifact_index_and_chain_resolution(tmp_path: Path) -> None:
     goal2_fixture = build_goal2_assignment_fixture(tmp_path)
     plan_data = goal2_fixture["artifacts"]["orchestration"]
     dry_run_data = goal2_fixture["artifacts"]["dry_run"]
-    policy_data = create_deepagents_policy_artifact(
-        load_settings(), target_name="builder"
-    )
+    policy_data = create_deepagents_policy_artifact(load_settings(), target_name="builder")
     readiness_data = create_deepagents_readiness_artifact(mode="metadata_only")
 
     source_dir = tmp_path / "sources"

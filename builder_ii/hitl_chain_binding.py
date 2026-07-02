@@ -52,9 +52,7 @@ HITL_CHAIN_BINDING_SLOT_KIND_MAP: dict[str, str] = {
     "evidence_bundle": HITL_EVIDENCE_BUNDLE_KIND,
 }
 
-HITL_CHAIN_BINDING_SLOT_FIELDS = {
-    slot: f"{slot}_ref" for slot in HITL_CHAIN_BINDING_SLOT_KIND_MAP
-}
+HITL_CHAIN_BINDING_SLOT_FIELDS = {slot: f"{slot}_ref" for slot in HITL_CHAIN_BINDING_SLOT_KIND_MAP}
 
 _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_COMMAND_PROPOSAL_KIND: validate_goose_command_proposal,
@@ -377,13 +375,19 @@ def verify_hitl_chain_binding_files(artifact: dict[str, Any], *, base_dir: Path)
                             data = _read_json_artifact(target_path)
                             validator = _VALIDATORS.get(data.get("kind", ""))
                             if validator is None:
-                                errors.append(f"evidence_bundle_ref target artifact has unknown kind: {data.get('kind', '')}")
+                                errors.append(
+                                    f"evidence_bundle_ref target artifact has unknown kind: {data.get('kind', '')}"
+                                )
                             else:
                                 native_errors = validator(data)
                                 if native_errors:
-                                    errors.append(f"evidence_bundle_ref target artifact failed validation: {native_errors}")
+                                    errors.append(
+                                        f"evidence_bundle_ref target artifact failed validation: {native_errors}"
+                                    )
                             if data.get("kind") != HITL_EVIDENCE_BUNDLE_KIND:
-                                errors.append("evidence_bundle_ref target artifact kind must be builder_ii.hitl_evidence_bundle")
+                                errors.append(
+                                    "evidence_bundle_ref target artifact kind must be builder_ii.hitl_evidence_bundle"
+                                )
                             expected_sha = evidence_ref.get("sha256")
                             if isinstance(expected_sha, str) and expected_sha and _digest(data) != expected_sha:
                                 errors.append("evidence_bundle_ref target digest mismatch")

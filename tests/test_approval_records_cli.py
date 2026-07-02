@@ -1,10 +1,10 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.approval_records_cli import approval_app
 from typer.testing import CliRunner
 
 from builder_ii.approval_records import dumps_approval_record
-from builder_ii.approval_records_cli import approval_app
 from builder_ii.config import load_settings
 from builder_ii.goose_command_proposal import create_goose_command_proposal, write_goose_command_proposal
 from builder_ii.goose_session import create_goose_session_manifest

@@ -124,6 +124,7 @@ def test_resolver_missing_files(tmp_path: Path) -> None:
     settings = _mock_settings(tmp_path)
     # Delete core directory to simulate missing repository path
     import shutil
+
     shutil.rmtree(settings.core_repo)
 
     resolver = ProfileResolver(settings)

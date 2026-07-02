@@ -491,8 +491,14 @@ def _validate_model_record(record: Any, index: int) -> list[str]:
         unknown = sorted(set(record["capabilities"]) - _ALLOWED_CAPABILITIES)
         if unknown:
             errors.append(f"models[{index}].capabilities contains unsupported values: {', '.join(unknown)}")
-    errors.extend(_string_list_errors(record.get("recommended_roles"), field=f"models[{index}].recommended_roles", allow_empty=True))
-    errors.extend(_string_list_errors(record.get("capabilities"), field=f"models[{index}].capabilities", allow_empty=True))
+    errors.extend(
+        _string_list_errors(
+            record.get("recommended_roles"), field=f"models[{index}].recommended_roles", allow_empty=True
+        )
+    )
+    errors.extend(
+        _string_list_errors(record.get("capabilities"), field=f"models[{index}].capabilities", allow_empty=True)
+    )
     errors.extend(_string_list_errors(record.get("limitations"), field=f"models[{index}].limitations"))
     for field in ("memory_tier", "latency_tier", "cost_tier"):
         value = record.get(field)

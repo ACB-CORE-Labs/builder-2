@@ -57,14 +57,36 @@ def _c(code: str, text: str) -> str:
     return f"\033[{code}m{text}\033[0m"
 
 
-def sky(t: str) -> str:    return _c("96", t)
-def amber(t: str) -> str:  return _c("33", t)
-def green(t: str) -> str:  return _c("32", t)
-def red(t: str) -> str:    return _c("31", t)
-def dim(t: str) -> str:    return _c("2", t)
-def bold(t: str) -> str:   return _c("1", t)
-def cyan(t: str) -> str:   return _c("36", t)
-def magenta(t: str) -> str: return _c("35", t)
+def sky(t: str) -> str:
+    return _c("96", t)
+
+
+def amber(t: str) -> str:
+    return _c("33", t)
+
+
+def green(t: str) -> str:
+    return _c("32", t)
+
+
+def red(t: str) -> str:
+    return _c("31", t)
+
+
+def dim(t: str) -> str:
+    return _c("2", t)
+
+
+def bold(t: str) -> str:
+    return _c("1", t)
+
+
+def cyan(t: str) -> str:
+    return _c("36", t)
+
+
+def magenta(t: str) -> str:
+    return _c("35", t)
 
 
 # ---------------------------------------------------------------------------
@@ -72,21 +94,22 @@ def magenta(t: str) -> str: return _c("35", t)
 # ---------------------------------------------------------------------------
 
 GLYPH = {
-    "pass":    green("✔"),
-    "fail":    red("✘"),
-    "warn":    amber("⚠"),
+    "pass": green("✔"),
+    "fail": red("✘"),
+    "warn": amber("⚠"),
     "pending": amber("◉"),
-    "skip":    dim("–"),
-    "chain":   cyan("⛓"),
-    "evidence":magenta("🔍"),
-    "bullet":  dim("·"),
-    "arrow":   dim("→"),
+    "skip": dim("–"),
+    "chain": cyan("⛓"),
+    "evidence": magenta("🔍"),
+    "bullet": dim("·"),
+    "arrow": dim("→"),
 }
 
 
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
 
 def _builder_dir() -> Path:
     return _shared_builder_dir()
@@ -166,20 +189,21 @@ SLOTS = [
 ]
 
 SLOT_LABELS = {
-    "proposal":       "Proposal",
-    "approval":       "Approval",
-    "preflight":      "Preflight",
-    "request":        "Request",
-    "receipt":        "Receipt",
-    "postflight":     "Postflight",
-    "verification":   "Verification",
-    "evidence_bundle":"Evidence Bundle",
+    "proposal": "Proposal",
+    "approval": "Approval",
+    "preflight": "Preflight",
+    "request": "Request",
+    "receipt": "Receipt",
+    "postflight": "Postflight",
+    "verification": "Verification",
+    "evidence_bundle": "Evidence Bundle",
 }
 
 
 # ---------------------------------------------------------------------------
 # Chain binding helpers
 # ---------------------------------------------------------------------------
+
 
 def _find_chain_bindings(base: Path) -> list[Path]:
     """Discover chain binding JSON files under .builder/hitl/."""
@@ -230,15 +254,23 @@ def _render_chain(path: Path, *, verbose: bool) -> int:
     governance = data.get("governance", {})
 
     _section(f"HITL Chain Binding  {dim(path.name)}")
-    _kv("chain_state",    f"{_status_glyph(chain_state)}  {sky(chain_state)}")
+    _kv("chain_state", f"{_status_glyph(chain_state)}  {sky(chain_state)}")
     _kv("schema_version", str(schema_v))
 
     # governance quick-check
     gov_keys = [
-        "runtime_execution", "model_execution", "shell_execution",
-        "source_writes", "memory_mutation", "goose_runtime_start",
-        "command_execution", "git_mutation", "commit_push",
-        "network_access", "goose_runtime_activation", "deepagents_runtime",
+        "runtime_execution",
+        "model_execution",
+        "shell_execution",
+        "source_writes",
+        "memory_mutation",
+        "goose_runtime_start",
+        "command_execution",
+        "git_mutation",
+        "commit_push",
+        "network_access",
+        "goose_runtime_activation",
+        "deepagents_runtime",
     ]
     all_disabled = all(governance.get(k) == "DISABLED" for k in gov_keys)
     art_auth = governance.get("artifact_is_authority", None)
@@ -271,6 +303,7 @@ def _render_chain(path: Path, *, verbose: bool) -> int:
 # builder hitl status
 # ---------------------------------------------------------------------------
 
+
 def cmd_hitl_status(args: list[str]) -> int:
     """Show summary of all chain bindings found under .builder/hitl/."""
     verbose = "-v" in args or "--verbose" in args
@@ -284,13 +317,15 @@ def cmd_hitl_status(args: list[str]) -> int:
         print()
         return 0
 
-    print(_row(
-        (dim("  G"), 3),
-        (dim("File"), 36),
-        (dim("State"), 14),
-        (dim("Slots filled"), 14),
-        (dim("Governance"), 12),
-    ))
+    print(
+        _row(
+            (dim("  G"), 3),
+            (dim("File"), 36),
+            (dim("State"), 14),
+            (dim("Slots filled"), 14),
+            (dim("Governance"), 12),
+        )
+    )
     print(f"  {_hr('─', 80)}")
 
     any_fail = False
@@ -304,10 +339,18 @@ def cmd_hitl_status(args: list[str]) -> int:
         chain_state = data.get("chain_state", "")
         governance = data.get("governance", {})
         gov_keys = [
-            "runtime_execution", "model_execution", "shell_execution",
-            "source_writes", "memory_mutation", "goose_runtime_start",
-            "command_execution", "git_mutation", "commit_push",
-            "network_access", "goose_runtime_activation", "deepagents_runtime",
+            "runtime_execution",
+            "model_execution",
+            "shell_execution",
+            "source_writes",
+            "memory_mutation",
+            "goose_runtime_start",
+            "command_execution",
+            "git_mutation",
+            "commit_push",
+            "network_access",
+            "goose_runtime_activation",
+            "deepagents_runtime",
         ]
         all_disabled = all(governance.get(k) == "DISABLED" for k in gov_keys)
         art_auth = governance.get("artifact_is_authority", None)
@@ -327,13 +370,15 @@ def cmd_hitl_status(args: list[str]) -> int:
         gov_disp = green("OK") if gov_ok else red("VIOLATION")
         state_disp = sky(chain_state) if chain_state else dim("—")
 
-        print(_row(
-            (glyph, 3),
-            (path.name[:34], 36),
-            (state_disp, 14),
-            (slots_str, 14),
-            (gov_disp, 12),
-        ))
+        print(
+            _row(
+                (glyph, 3),
+                (path.name[:34], 36),
+                (state_disp, 14),
+                (slots_str, 14),
+                (gov_disp, 12),
+            )
+        )
         if verbose:
             print(f"       {dim('path:')}  {path}")
 
@@ -344,6 +389,7 @@ def cmd_hitl_status(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder hitl chain <id>
 # ---------------------------------------------------------------------------
+
 
 def cmd_hitl_chain(args: list[str]) -> int:
     """Render full 8-slot pipeline for a specific chain binding."""
@@ -386,6 +432,7 @@ def cmd_hitl_chain(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder hitl pending  — approval requests without a receipt
 # ---------------------------------------------------------------------------
+
 
 def _find_records(base: Path, subdir: str, kind_fragment: str) -> list[tuple[Path, dict]]:
     """Find JSON records under base/subdir matching kind_fragment."""
@@ -442,13 +489,15 @@ def cmd_hitl_pending(args: list[str]) -> int:
         print()
         return 0
 
-    print(_row(
-        (dim("  G"), 3),
-        (dim("ID"), 28),
-        (dim("Agent"), 20),
-        (dim("Status"), 12),
-        (dim("Timestamp"), 22),
-    ))
+    print(
+        _row(
+            (dim("  G"), 3),
+            (dim("ID"), 28),
+            (dim("Agent"), 20),
+            (dim("Status"), 12),
+            (dim("Timestamp"), 22),
+        )
+    )
     print(f"  {_hr('─', 88)}")
 
     pending_count = 0
@@ -463,13 +512,15 @@ def cmd_hitl_pending(args: list[str]) -> int:
         if effective_status.upper() in ("PENDING", "AWAITING"):
             pending_count += 1
 
-        print(_row(
-            (glyph, 3),
-            (str(rec_id)[:26], 28),
-            (str(agent)[:18], 20),
-            (sky(effective_status) if effective_status.upper() == "PENDING" else dim(effective_status), 12),
-            (dim(ts), 22),
-        ))
+        print(
+            _row(
+                (glyph, 3),
+                (str(rec_id)[:26], 28),
+                (str(agent)[:18], 20),
+                (sky(effective_status) if effective_status.upper() == "PENDING" else dim(effective_status), 12),
+                (dim(ts), 22),
+            )
+        )
         if verbose:
             print(f"       {dim('path:')}  {path}")
             for k in ("kind", "capability", "command", "reason"):
@@ -489,6 +540,7 @@ def cmd_hitl_pending(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder hitl approval <id>
 # ---------------------------------------------------------------------------
+
 
 def cmd_hitl_approval(args: list[str]) -> int:
     """Show detail for a specific approval record."""
@@ -518,8 +570,7 @@ def cmd_hitl_approval(args: list[str]) -> int:
         return 0
 
     target = id_args[0]
-    matches = [(p, d) for p, d in records
-               if target in str(d.get("id", "")) or target in p.name or target in str(p)]
+    matches = [(p, d) for p, d in records if target in str(d.get("id", "")) or target in p.name or target in str(p)]
     if not matches:
         print(f"{GLYPH['fail']}  {red(f'No approval record found matching: {target}')}")
         return 1
@@ -531,14 +582,14 @@ def cmd_hitl_approval(args: list[str]) -> int:
 def _render_approval_detail(path: Path, data: dict, *, verbose: bool) -> None:
     _section(f"Approval  {dim(path.name)}")
     fields = [
-        ("id",              data.get("id") or dim("—")),
-        ("kind",            dim(data.get("kind", "—"))),
-        ("agent",           data.get("agent") or data.get("agent_profile") or dim("—")),
-        ("capability",      data.get("capability") or dim("—")),
-        ("decision",        data.get("decision") or data.get("status") or dim("—")),
-        ("approved_by",     data.get("approved_by") or dim("—")),
-        ("timestamp",       _ts(data.get("timestamp") or data.get("created_at") or "")),
-        ("reason",          data.get("reason") or dim("—")),
+        ("id", data.get("id") or dim("—")),
+        ("kind", dim(data.get("kind", "—"))),
+        ("agent", data.get("agent") or data.get("agent_profile") or dim("—")),
+        ("capability", data.get("capability") or dim("—")),
+        ("decision", data.get("decision") or data.get("status") or dim("—")),
+        ("approved_by", data.get("approved_by") or dim("—")),
+        ("timestamp", _ts(data.get("timestamp") or data.get("created_at") or "")),
+        ("reason", data.get("reason") or dim("—")),
     ]
     for k, v in fields:
         _kv(k, str(v))
@@ -554,6 +605,7 @@ def _render_approval_detail(path: Path, data: dict, *, verbose: bool) -> None:
 # ---------------------------------------------------------------------------
 # builder hitl evidence <id>
 # ---------------------------------------------------------------------------
+
 
 def cmd_hitl_evidence(args: list[str]) -> int:
     """Show evidence bundle detail."""
@@ -582,8 +634,7 @@ def cmd_hitl_evidence(args: list[str]) -> int:
         return 0
 
     target = id_args[0]
-    matches = [(p, d) for p, d in records
-               if target in str(d.get("id", "")) or target in p.name or target in str(p)]
+    matches = [(p, d) for p, d in records if target in str(d.get("id", "")) or target in p.name or target in str(p)]
     if not matches:
         print(f"{GLYPH['fail']}  {red(f'No evidence bundle found matching: {target}')}")
         return 1
@@ -594,10 +645,10 @@ def cmd_hitl_evidence(args: list[str]) -> int:
 
 def _render_evidence_detail(path: Path, data: dict, *, verbose: bool) -> None:
     _section(f"Evidence Bundle  {dim(path.name)}")
-    _kv("id",          str(data.get("id") or dim("—")))
-    _kv("kind",        dim(data.get("kind", "—")))
-    _kv("agent",       str(data.get("agent") or data.get("agent_profile") or dim("—")))
-    _kv("timestamp",   _ts(data.get("timestamp") or data.get("created_at") or ""))
+    _kv("id", str(data.get("id") or dim("—")))
+    _kv("kind", dim(data.get("kind", "—")))
+    _kv("agent", str(data.get("agent") or data.get("agent_profile") or dim("—")))
+    _kv("timestamp", _ts(data.get("timestamp") or data.get("created_at") or ""))
 
     artifacts = data.get("artifacts") or data.get("entries") or []
     if artifacts:
@@ -626,8 +677,19 @@ def _render_evidence_detail(path: Path, data: dict, *, verbose: bool) -> None:
     if verbose:
         print()
         print(f"  {dim('raw path:')}  {path}")
-        shown = {"id", "kind", "agent", "agent_profile", "timestamp", "created_at",
-                 "artifacts", "entries", "checks", "schema_version", "governance"}
+        shown = {
+            "id",
+            "kind",
+            "agent",
+            "agent_profile",
+            "timestamp",
+            "created_at",
+            "artifacts",
+            "entries",
+            "checks",
+            "schema_version",
+            "governance",
+        }
         for k in data:
             if k not in shown:
                 print(f"  {dim(k + ':')}  {data[k]}")
@@ -637,6 +699,7 @@ def _render_evidence_detail(path: Path, data: dict, *, verbose: bool) -> None:
 # ---------------------------------------------------------------------------
 # builder hitl execution
 # ---------------------------------------------------------------------------
+
 
 def cmd_hitl_execution(args: list[str]) -> int:
     """Show HITL execution request/receipt records."""
@@ -669,13 +732,15 @@ def cmd_hitl_execution(args: list[str]) -> int:
 
     if requests:
         print(f"  {bold('Requests')}  ({len(requests)})")
-        print(_row(
-            (dim("  G"), 3),
-            (dim("ID"), 28),
-            (dim("Agent"), 20),
-            (dim("Command[:30]"), 32),
-            (dim("Timestamp"), 22),
-        ))
+        print(
+            _row(
+                (dim("  G"), 3),
+                (dim("ID"), 28),
+                (dim("Agent"), 20),
+                (dim("Command[:30]"), 32),
+                (dim("Timestamp"), 22),
+            )
+        )
         print(f"  {_hr('─', 108)}")
         for path, data in requests:
             rec_id = str(data.get("id") or data.get("request_id") or path.stem)[:26]
@@ -684,23 +749,23 @@ def cmd_hitl_execution(args: list[str]) -> int:
             ts = _ts(data.get("timestamp") or data.get("created_at") or "")
             status = data.get("status") or "PENDING"
             glyph = _status_glyph(status)
-            print(_row(
-                (glyph, 3), (rec_id, 28), (agent, 20), (cmd, 32), (dim(ts), 22)
-            ))
+            print(_row((glyph, 3), (rec_id, 28), (agent, 20), (cmd, 32), (dim(ts), 22)))
             if verbose:
                 print(f"       {dim('path:')}  {path}")
         print()
 
     if receipts:
         print(f"  {bold('Receipts')}  ({len(receipts)})")
-        print(_row(
-            (dim("  G"), 3),
-            (dim("ID"), 28),
-            (dim("Agent"), 20),
-            (dim("Exit"), 8),
-            (dim("Tokens"), 10),
-            (dim("Timestamp"), 22),
-        ))
+        print(
+            _row(
+                (dim("  G"), 3),
+                (dim("ID"), 28),
+                (dim("Agent"), 20),
+                (dim("Exit"), 8),
+                (dim("Tokens"), 10),
+                (dim("Timestamp"), 22),
+            )
+        )
         print(f"  {_hr('─', 94)}")
         for path, data in receipts:
             rec_id = str(data.get("id") or data.get("receipt_id") or path.stem)[:26]
@@ -710,9 +775,7 @@ def cmd_hitl_execution(args: list[str]) -> int:
             ts = _ts(data.get("timestamp") or data.get("created_at") or "")
             ok = str(exit_code) in ("0", "PASS", "PASSED", "dim(—)")
             glyph = GLYPH["pass"] if ok else GLYPH["fail"]
-            print(_row(
-                (glyph, 3), (rec_id, 28), (agent, 20), (exit_code, 8), (tokens, 10), (dim(ts), 22)
-            ))
+            print(_row((glyph, 3), (rec_id, 28), (agent, 20), (exit_code, 8), (tokens, 10), (dim(ts), 22)))
             if verbose:
                 print(f"       {dim('path:')}  {path}")
         print()
@@ -723,6 +786,7 @@ def cmd_hitl_execution(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder hitl promote status  — promotion readiness + decision pipeline
 # ---------------------------------------------------------------------------
+
 
 def cmd_hitl_promote(args: list[str]) -> int:
     """Show promotion readiness checks and decision pipeline."""
@@ -752,29 +816,36 @@ def cmd_hitl_promote(args: list[str]) -> int:
     # Readiness
     if readiness:
         print(f"  {bold('Readiness Checks')}  ({len(readiness)})")
-        print(_row(
-            (dim("  G"), 3),
-            (dim("File"), 36),
-            (dim("Status"), 14),
-            (dim("Checks Pass"), 14),
-            (dim("Timestamp"), 22),
-        ))
+        print(
+            _row(
+                (dim("  G"), 3),
+                (dim("File"), 36),
+                (dim("Status"), 14),
+                (dim("Checks Pass"), 14),
+                (dim("Timestamp"), 22),
+            )
+        )
         print(f"  {_hr('─', 92)}")
         for path, data in readiness:
             status = data.get("status") or data.get("readiness_status") or "?"
             checks = data.get("checks") or []
-            passed = sum(1 for c in checks if isinstance(c, dict) and
-                         c.get("result", c.get("status", "")).upper() in ("PASS", "PASSED", "OK"))
+            passed = sum(
+                1
+                for c in checks
+                if isinstance(c, dict) and c.get("result", c.get("status", "")).upper() in ("PASS", "PASSED", "OK")
+            )
             ts = _ts(data.get("timestamp") or data.get("created_at") or "")
             glyph = _status_glyph(status)
             checks_str = f"{passed}/{len(checks)}" if checks else dim("—")
-            print(_row(
-                (glyph, 3),
-                (path.name[:34], 36),
-                (sky(status)[:12], 14),
-                (checks_str, 14),
-                (dim(ts), 22),
-            ))
+            print(
+                _row(
+                    (glyph, 3),
+                    (path.name[:34], 36),
+                    (sky(status)[:12], 14),
+                    (checks_str, 14),
+                    (dim(ts), 22),
+                )
+            )
             if verbose:
                 for chk in checks:
                     if isinstance(chk, dict):
@@ -789,13 +860,15 @@ def cmd_hitl_promote(args: list[str]) -> int:
     # Decisions
     if decisions:
         print(f"  {bold('Promotion Decisions')}  ({len(decisions)})")
-        print(_row(
-            (dim("  G"), 3),
-            (dim("File"), 36),
-            (dim("Decision"), 14),
-            (dim("Compatible"), 12),
-            (dim("Timestamp"), 22),
-        ))
+        print(
+            _row(
+                (dim("  G"), 3),
+                (dim("File"), 36),
+                (dim("Decision"), 14),
+                (dim("Compatible"), 12),
+                (dim("Timestamp"), 22),
+            )
+        )
         print(f"  {_hr('─', 90)}")
         for path, data in decisions:
             decision = data.get("decision") or data.get("status") or "?"
@@ -803,13 +876,15 @@ def cmd_hitl_promote(args: list[str]) -> int:
             ts = _ts(data.get("timestamp") or data.get("created_at") or "")
             glyph = _status_glyph(decision)
             compat_g = GLYPH["pass"] if str(compat).upper() in ("TRUE", "COMPATIBLE", "YES") else GLYPH["warn"]
-            print(_row(
-                (glyph, 3),
-                (path.name[:34], 36),
-                (sky(decision)[:12], 14),
-                (f"{compat_g} {compat}", 12),
-                (dim(ts), 22),
-            ))
+            print(
+                _row(
+                    (glyph, 3),
+                    (path.name[:34], 36),
+                    (sky(decision)[:12], 14),
+                    (f"{compat_g} {compat}", 12),
+                    (dim(ts), 22),
+                )
+            )
             if verbose:
                 print(f"       {dim('path:')}  {path}")
         print()
@@ -823,6 +898,7 @@ def cmd_hitl_promote(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder hitl replay
 # ---------------------------------------------------------------------------
+
 
 def cmd_hitl_replay(args: list[str]) -> int:
     """Replay HITL-relevant events from the event ledger."""
@@ -864,7 +940,9 @@ def cmd_hitl_replay(args: list[str]) -> int:
             ledger_path = lp
             break
 
-    _section(f"HITL Event Replay  {dim(f'(last {n}' + (f', agent={agent_filter}' if agent_filter else '') + (f', kind={kind_filter}' if kind_filter else '') + ')')}")
+    _section(
+        f"HITL Event Replay  {dim(f'(last {n}' + (f', agent={agent_filter}' if agent_filter else '') + (f', kind={kind_filter}' if kind_filter else '') + ')')}"
+    )
 
     if ledger_path is None:
         print(f"  {GLYPH['skip']}  {dim('No event ledger found.')}")
@@ -872,8 +950,16 @@ def cmd_hitl_replay(args: list[str]) -> int:
         return 0
 
     hitl_kinds = {
-        "approval", "hitl", "preflight", "postflight", "evidence",
-        "proposal", "verification", "promotion", "request", "receipt",
+        "approval",
+        "hitl",
+        "preflight",
+        "postflight",
+        "evidence",
+        "proposal",
+        "verification",
+        "promotion",
+        "request",
+        "receipt",
     }
 
     events: list[dict] = []
@@ -909,13 +995,15 @@ def cmd_hitl_replay(args: list[str]) -> int:
         print()
         return 0
 
-    print(_row(
-        (dim("  G"), 3),
-        (dim("Timestamp"), 22),
-        (dim("Kind"), 36),
-        (dim("Agent"), 22),
-        (dim("Status"), 12),
-    ))
+    print(
+        _row(
+            (dim("  G"), 3),
+            (dim("Timestamp"), 22),
+            (dim("Kind"), 36),
+            (dim("Agent"), 22),
+            (dim("Status"), 12),
+        )
+    )
     print(f"  {_hr('─', 98)}")
 
     for ev in tail:
@@ -924,13 +1012,10 @@ def cmd_hitl_replay(args: list[str]) -> int:
         agent = str(ev.get("agent") or ev.get("agent_profile") or dim("—"))[:20]
         status = str(ev.get("status") or ev.get("result") or "")
         glyph = _status_glyph(status) if status else GLYPH["bullet"]
-        print(_row(
-            (glyph, 3), (dim(ts), 22), (kind, 36), (agent, 22), (dim(status) if status else dim("—"), 12)
-        ))
+        print(_row((glyph, 3), (dim(ts), 22), (kind, 36), (agent, 22), (dim(status) if status else dim("—"), 12)))
         if verbose:
             for k in ev:
-                if k not in {"timestamp", "ts", "kind", "event_kind", "agent",
-                              "agent_profile", "status", "result"}:
+                if k not in {"timestamp", "ts", "kind", "event_kind", "agent", "agent_profile", "status", "result"}:
                     print(f"       {dim(k + ':')}  {ev[k]}")
 
     print()
@@ -942,14 +1027,14 @@ def cmd_hitl_replay(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 _COMMANDS: dict[str, Any] = {
-    "status":    cmd_hitl_status,
-    "chain":     cmd_hitl_chain,
-    "pending":   cmd_hitl_pending,
-    "approval":  cmd_hitl_approval,
-    "evidence":  cmd_hitl_evidence,
+    "status": cmd_hitl_status,
+    "chain": cmd_hitl_chain,
+    "pending": cmd_hitl_pending,
+    "approval": cmd_hitl_approval,
+    "evidence": cmd_hitl_evidence,
     "execution": cmd_hitl_execution,
-    "promote":   cmd_hitl_promote,
-    "replay":    cmd_hitl_replay,
+    "promote": cmd_hitl_promote,
+    "replay": cmd_hitl_replay,
 }
 
 
@@ -957,14 +1042,14 @@ def _usage() -> None:
     print(bold("builder hitl") + "  —  HITL inspection surface")
     print()
     cmds = [
-        ("status",              "Active chain bindings summary"),
-        ("chain [id]",          "Full 8-slot pipeline for one (or all) chain binding(s)"),
-        ("pending",             "Pending approval requests"),
-        ("approval [id]",       "Approval record detail"),
-        ("evidence [id]",       "Evidence bundle detail"),
-        ("execution",           "HITL execution request/receipt records"),
-        ("promote",             "Promotion readiness + decision pipeline"),
-        ("replay",              "HITL event ledger replay (--n N --agent A --kind K)"),
+        ("status", "Active chain bindings summary"),
+        ("chain [id]", "Full 8-slot pipeline for one (or all) chain binding(s)"),
+        ("pending", "Pending approval requests"),
+        ("approval [id]", "Approval record detail"),
+        ("evidence [id]", "Evidence bundle detail"),
+        ("execution", "HITL execution request/receipt records"),
+        ("promote", "Promotion readiness + decision pipeline"),
+        ("replay", "HITL event ledger replay (--n N --agent A --kind K)"),
     ]
     for cmd, desc in cmds:
         print(f"  {sky('builder hitl ' + cmd):<42}  {dim(desc)}")

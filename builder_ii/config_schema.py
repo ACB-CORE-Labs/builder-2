@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json as json_lib
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field
 
 CONFIG_SCHEMA_KIND = "builder_ii.config_schema"
 CONFIG_SCHEMA_VERSION = "1.0.0"
@@ -32,14 +33,15 @@ CAPABILITY_DEFAULTS: dict[str, str] = {
 }
 
 
-@dataclass(frozen=True)
-class ConfigFieldSpec:
+class ConfigFieldSpec(BaseModel):
+    model_config = ConfigDict(strict=True, frozen=True)
+
     name: str
     value_type: str
     required: bool
-    primary_env: str | None
-    legacy_env_aliases: tuple[str, ...]
-    config_keys: tuple[str, ...]
+    primary_env: str | None = None
+    legacy_env_aliases: tuple[str, ...] = Field(default_factory=tuple)
+    config_keys: tuple[str, ...] = Field(default_factory=tuple)
     default: str | bool
     description: str
     path_like: bool = False

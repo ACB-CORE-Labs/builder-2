@@ -91,7 +91,9 @@ def validate_deepagents_bridge_readiness_report(report: Any) -> list[str]:
     if not isinstance(report.get("target_profile"), str) or not report.get("target_profile"):
         errors.append("target_profile must be a non-empty string")
 
-    if not isinstance(report.get("agent_profile_compatibility_summary"), str) or not report.get("agent_profile_compatibility_summary"):
+    if not isinstance(report.get("agent_profile_compatibility_summary"), str) or not report.get(
+        "agent_profile_compatibility_summary"
+    ):
         errors.append("agent_profile_compatibility_summary must be a non-empty string")
 
     if report.get("optional_dependency_state") not in ("PRESENT", "ABSENT", "UNKNOWN"):

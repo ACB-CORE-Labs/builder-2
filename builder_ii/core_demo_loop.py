@@ -562,7 +562,21 @@ def _write_verification_receipt(paths: CoreDemoPaths, worktree: Path, *, label: 
                 "name": "sensitive_core_modules_untouched",
                 "status_lines": status_lines,
                 "status": "PASS"
-                if all(not line[3:].startswith(("algebra/", "field/", "generate/", "core/cognition/", "vault/", "teaching/", "calibration/", "sensorium/")) for line in status_lines)
+                if all(
+                    not line[3:].startswith(
+                        (
+                            "algebra/",
+                            "field/",
+                            "generate/",
+                            "core/cognition/",
+                            "vault/",
+                            "teaching/",
+                            "calibration/",
+                            "sensorium/",
+                        )
+                    )
+                    for line in status_lines
+                )
                 else "FAIL",
             },
         ],
@@ -784,8 +798,7 @@ def _demo_json_artifact_paths(paths: CoreDemoPaths) -> list[Path]:
     return sorted(
         path
         for path in paths.output_dir.rglob("*.json")
-        if _is_demo_artifact_path(path, paths)
-        and path.resolve() != paths.report.resolve()
+        if _is_demo_artifact_path(path, paths) and path.resolve() != paths.report.resolve()
     )
 
 
@@ -795,7 +808,9 @@ def _clear_stale_final_outputs(paths: CoreDemoPaths) -> None:
             path.unlink()
 
 
-def _finalize(paths: CoreDemoPaths, source_repo: Path, worktree: Path, phase: DemoPhase, completed_steps: list[str]) -> dict[str, Any]:
+def _finalize(
+    paths: CoreDemoPaths, source_repo: Path, worktree: Path, phase: DemoPhase, completed_steps: list[str]
+) -> dict[str, Any]:
     from builder_ii.artifact_chain_verification import verify_artifact_chain
     from builder_ii.artifact_index_records import create_artifact_index_record, write_artifact_index_record
 
@@ -851,7 +866,14 @@ def run_core_demo_loop(
         patch_digest = _sha256_text(patch_text)
         _write_planner(paths, paths.worktree, patch_digest)
         _write_patch_proposal(paths, paths.worktree, patch_text, patch_digest)
-        completed.extend(["temporary CORE worktree created", "preflight recorded", "repo map and context pack emitted", "HITL patch proposal emitted"])
+        completed.extend(
+            [
+                "temporary CORE worktree created",
+                "preflight recorded",
+                "repo map and context pack emitted",
+                "HITL patch proposal emitted",
+            ]
+        )
         if phase == "prepare" and not approve:
             proposal = _read_json(paths.proposal)
             report = create_core_demo_report(
@@ -880,7 +902,9 @@ def run_core_demo_loop(
             proposal,
             proposal_path=paths.proposal,
             approved=approve,
-            reason="Operator approved the exact CORE demo patch digest." if approve else "Approval checkpoint reached; rerun with --approve.",
+            reason="Operator approved the exact CORE demo patch digest."
+            if approve
+            else "Approval checkpoint reached; rerun with --approve.",
         )
         errors = validate_core_demo_approval(approval)
         if errors:

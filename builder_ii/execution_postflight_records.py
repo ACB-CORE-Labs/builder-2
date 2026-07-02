@@ -34,6 +34,7 @@ _GOVERNANCE_DISABLED_KEYS = (
 #  Execution Postflight Record
 # ===================================================================
 
+
 def create_execution_postflight_record(
     settings: Settings | None = None,
     *,
@@ -49,6 +50,7 @@ def create_execution_postflight_record(
     """Create a design-only execution postflight record."""
     if settings is None:
         from builder_ii.config import load_settings
+
         settings = load_settings()
     selected = target_profile(settings, target_name, generic_repo=generic_repo)
     return {
@@ -131,9 +133,7 @@ def validate_execution_postflight_record(artifact: Any) -> list[str]:
     if postflight_state == "NOT_RUN" and performed_actions != []:
         errors.append("performed_actions must be empty")
         errors.append("performed_actions must be empty when postflight_state is NOT_RUN")
-    if postflight_state == "RUN_COMPLETE" and (
-        not isinstance(performed_actions, list) or not performed_actions
-    ):
+    if postflight_state == "RUN_COMPLETE" and (not isinstance(performed_actions, list) or not performed_actions):
         errors.append("performed_actions must be a non-empty list when postflight_state is RUN_COMPLETE")
 
     # Authority
@@ -150,6 +150,7 @@ def validate_execution_postflight_record(artifact: Any) -> list[str]:
 #  Execution Verification Record
 # ===================================================================
 
+
 def create_execution_verification_record(
     settings: Settings | None = None,
     *,
@@ -165,6 +166,7 @@ def create_execution_verification_record(
     """Create a design-only execution verification record."""
     if settings is None:
         from builder_ii.config import load_settings
+
         settings = load_settings()
     selected = target_profile(settings, target_name, generic_repo=generic_repo)
     return {
@@ -262,6 +264,7 @@ def validate_execution_verification_record(artifact: Any) -> list[str]:
 #  File I/O helpers
 # ===================================================================
 
+
 def validate_execution_postflight_record_file(path: Path) -> list[str]:
     if not path.exists():
         return [f"file not found: {path}"]
@@ -289,6 +292,7 @@ def validate_execution_verification_record_file(path: Path) -> list[str]:
 # ===================================================================
 #  Internal helpers
 # ===================================================================
+
 
 def _validate_governance_block(artifact: dict[str, Any]) -> list[str]:
     errors: list[str] = []

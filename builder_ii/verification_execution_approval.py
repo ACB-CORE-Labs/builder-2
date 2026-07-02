@@ -166,11 +166,7 @@ def finalize_verification_execution_approval(
         if approved_command_profiles is not None
         else _plan_allowed_command_profiles(plan)
     )
-    selected_steps = (
-        list(approved_step_ids)
-        if approved_step_ids is not None
-        else _plan_step_ids(plan)
-    )
+    selected_steps = list(approved_step_ids) if approved_step_ids is not None else _plan_step_ids(plan)
     statement = approval_statement or (
         f"Human approval binds only to verification execution plan digest {plan_digest} for future B1.3 runner consideration."
     )
@@ -424,9 +420,7 @@ def validate_verification_execution_approval_against_plan(
     if isinstance(approved_profiles, list):
         extras = sorted(profile for profile in approved_profiles if profile not in allowed_profiles)
         if extras:
-            errors.append(
-                "approved_command_profiles must be a subset of the referenced plan allowed_command_profiles"
-            )
+            errors.append("approved_command_profiles must be a subset of the referenced plan allowed_command_profiles")
 
     planned_step_ids = set(_plan_step_ids(plan))
     approved_step_ids = approval.get("approved_step_ids")

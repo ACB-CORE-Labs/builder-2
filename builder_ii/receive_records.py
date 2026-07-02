@@ -60,7 +60,9 @@ def create_receive_record(
             "complete": bundle.get("complete", False),
             "bundle_name": bundle.get("bundle_name", ""),
         },
-        "artifact_digests": bundle.get("artifact_digests", {}) if isinstance(bundle.get("artifact_digests"), dict) else {},
+        "artifact_digests": bundle.get("artifact_digests", {})
+        if isinstance(bundle.get("artifact_digests"), dict)
+        else {},
         "target": bundle.get("target", {}),
         "agent_profile": bundle.get("agent_profile", {}),
         "allowed_actions": ["validate_bundle", "render_receive_record", "validate_receive_record"],
@@ -92,7 +94,9 @@ def create_receive_record_from_file(
         return None, [f"bundle invalid JSON: {exc}"]
     if not isinstance(bundle, dict):
         return None, ["bundle must be a JSON object"]
-    record = create_receive_record(bundle, bundle_path=bundle_path, decision=decision, received_by=received_by, notes=notes)
+    record = create_receive_record(
+        bundle, bundle_path=bundle_path, decision=decision, received_by=received_by, notes=notes
+    )
     errors = validate_receive_record(record)
     if errors:
         return None, errors

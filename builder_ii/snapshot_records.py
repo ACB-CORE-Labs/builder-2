@@ -50,8 +50,20 @@ def create_snapshot_record(
         "complete": not issues,
         "issues": issues,
         "notes": _clean(notes),
-        "artifact_index": {"path": str(artifact_index_path), "kind": artifact_index.get("kind", ""), "expected_kind": ARTIFACT_INDEX_RECORD_KIND, "sha256": _digest(artifact_index), "counts": artifact_index.get("counts", {})},
-        "state_ledger": {"path": str(state_ledger_path), "kind": state_ledger.get("kind", ""), "expected_kind": STATE_LEDGER_RECORD_KIND, "sha256": _digest(state_ledger), "counts": state_ledger.get("counts", {})},
+        "artifact_index": {
+            "path": str(artifact_index_path),
+            "kind": artifact_index.get("kind", ""),
+            "expected_kind": ARTIFACT_INDEX_RECORD_KIND,
+            "sha256": _digest(artifact_index),
+            "counts": artifact_index.get("counts", {}),
+        },
+        "state_ledger": {
+            "path": str(state_ledger_path),
+            "kind": state_ledger.get("kind", ""),
+            "expected_kind": STATE_LEDGER_RECORD_KIND,
+            "sha256": _digest(state_ledger),
+            "counts": state_ledger.get("counts", {}),
+        },
         "allowed_actions": ["record_snapshot", "validate_snapshot"],
         "performed_actions": [],
         "grants_runtime_authority": False,
@@ -86,7 +98,14 @@ def create_snapshot_record_from_files(
         return None, ["artifact index must be a JSON object"]
     if not isinstance(state_ledger, dict):
         return None, ["state ledger must be a JSON object"]
-    record = create_snapshot_record(artifact_index, state_ledger, artifact_index_path=artifact_index_path, state_ledger_path=state_ledger_path, snapshot_name=snapshot_name, notes=notes)
+    record = create_snapshot_record(
+        artifact_index,
+        state_ledger,
+        artifact_index_path=artifact_index_path,
+        state_ledger_path=state_ledger_path,
+        snapshot_name=snapshot_name,
+        notes=notes,
+    )
     errors = validate_snapshot_record(record)
     if errors:
         return None, errors

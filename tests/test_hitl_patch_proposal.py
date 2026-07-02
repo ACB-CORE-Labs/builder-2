@@ -1,4 +1,5 @@
 """Tests for builder_ii.hitl_patch_proposal — design-only governance assertions."""
+
 from __future__ import annotations
 
 import ast
@@ -160,9 +161,7 @@ def test_no_function_applies_patches_or_writes_target_source() -> None:
         "patch_file",
     ]
     for token in forbidden_calls:
-        assert token not in _MODULE_SRC, (
-            f"Forbidden token {token!r} found in module source"
-        )
+        assert token not in _MODULE_SRC, f"Forbidden token {token!r} found in module source"
 
     # subprocess must not be imported or called (bare word appears in string constants,
     # so we check for import/call patterns specifically).

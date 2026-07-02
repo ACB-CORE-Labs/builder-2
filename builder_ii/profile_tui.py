@@ -24,6 +24,7 @@ Command surface
   builder profile resolve [profile]       — profile resolution chain
   builder profile history                 — all packs under .builder/
 """
+
 from __future__ import annotations
 
 import sys
@@ -69,14 +70,36 @@ def _hex_to_ansi(hex_colour: str, text: str) -> str:
 
 
 # Semantic colour helpers using active theme palette
-def _pass(t: str) -> str:   return _hex_to_ansi(_C["pass"],   t)
-def _warn(t: str) -> str:   return _hex_to_ansi(_C["warn"],   t)
-def _fail(t: str) -> str:   return _hex_to_ansi(_C["fail"],   t)
-def _hint(t: str) -> str:   return _hex_to_ansi(_C["hint"],   t)
-def _active(t: str) -> str: return _hex_to_ansi(_C["active"], t)
-def _dim(t: str) -> str:    return _hex_to_ansi(_C["dim"],    t)
-def _bold(t: str) -> str:   return _hex_to_ansi(_C["bold"],   t)
-def _accent(t: str) -> str: return _hex_to_ansi(_C["accent"], t)
+def _pass(t: str) -> str:
+    return _hex_to_ansi(_C["pass"], t)
+
+
+def _warn(t: str) -> str:
+    return _hex_to_ansi(_C["warn"], t)
+
+
+def _fail(t: str) -> str:
+    return _hex_to_ansi(_C["fail"], t)
+
+
+def _hint(t: str) -> str:
+    return _hex_to_ansi(_C["hint"], t)
+
+
+def _active(t: str) -> str:
+    return _hex_to_ansi(_C["active"], t)
+
+
+def _dim(t: str) -> str:
+    return _hex_to_ansi(_C["dim"], t)
+
+
+def _bold(t: str) -> str:
+    return _hex_to_ansi(_C["bold"], t)
+
+
+def _accent(t: str) -> str:
+    return _hex_to_ansi(_C["accent"], t)
 
 
 # ---------------------------------------------------------------------------
@@ -84,22 +107,23 @@ def _accent(t: str) -> str: return _hex_to_ansi(_C["accent"], t)
 # ---------------------------------------------------------------------------
 
 GLYPH = {
-    "pass":    _pass("✔"),
-    "fail":    _fail("✘"),
-    "warn":    _warn("⚠"),
+    "pass": _pass("✔"),
+    "fail": _fail("✘"),
+    "warn": _warn("⚠"),
     "pending": _warn("◉"),
-    "skip":    _dim("–"),
-    "pack":    _accent("▣"),
-    "arrow":   _dim("→"),
-    "bullet":  _dim("·"),
-    "stage":   _active("●"),
-    "locked":  _dim("○"),
+    "skip": _dim("–"),
+    "pack": _accent("▣"),
+    "arrow": _dim("→"),
+    "bullet": _dim("·"),
+    "stage": _active("●"),
+    "locked": _dim("○"),
 }
 
 
 # ---------------------------------------------------------------------------
 # Layout helpers
 # ---------------------------------------------------------------------------
+
 
 def _builder_dir() -> Path:
     return _shared_builder_dir()
@@ -147,6 +171,7 @@ def _stage_glyph(flag: bool | None) -> str:
 # ---------------------------------------------------------------------------
 # JSON I/O
 # ---------------------------------------------------------------------------
+
 
 def _load_json(path: Path) -> tuple[dict[str, Any] | None, str]:
     return _shared_load_json_object(path)
@@ -199,13 +224,13 @@ def _find_by_id(base: Path, target: str) -> list[tuple[Path, dict]]:
 # ---------------------------------------------------------------------------
 
 LIFECYCLE_STAGES = [
-    ("planned",    "Planned",    True),
-    ("rendered",   "Rendered",   True),
-    ("dry_run",    "Dry-run",    True),
-    ("validated",  "Validated",  True),
-    ("executed",   "Executed",   False),
+    ("planned", "Planned", True),
+    ("rendered", "Rendered", True),
+    ("dry_run", "Dry-run", True),
+    ("validated", "Validated", True),
+    ("executed", "Executed", False),
     ("authorized", "Authorized", False),
-    ("promoted",   "Promoted",   False),
+    ("promoted", "Promoted", False),
 ]
 
 
@@ -242,6 +267,7 @@ def _render_lifecycle(lifecycle: dict[str, Any]) -> None:
 # Binding digest renderer
 # ---------------------------------------------------------------------------
 
+
 def _render_bindings(bindings: dict[str, Any], *, verbose: bool) -> None:
     if not isinstance(bindings, dict):
         print(f"  {GLYPH['fail']}  {_fail('lifecycle_bindings missing or invalid')}")
@@ -249,13 +275,13 @@ def _render_bindings(bindings: dict[str, Any], *, verbose: bool) -> None:
     print()
     print(f"  {_bold('Digest bindings')}")
     checks = [
-        ("manifest_sha256",                  "manifest"),
-        ("render_plan_sha256",               "render_plan"),
-        ("dry_run_sha256",                   "dry_run"),
-        ("validation_report_sha256",         "validation_report"),
-        ("render_plan_manifest_sha256",      "render_plan → manifest"),
-        ("dry_run_manifest_sha256",          "dry_run → manifest"),
-        ("dry_run_render_plan_sha256",       "dry_run → render_plan"),
+        ("manifest_sha256", "manifest"),
+        ("render_plan_sha256", "render_plan"),
+        ("dry_run_sha256", "dry_run"),
+        ("validation_report_sha256", "validation_report"),
+        ("render_plan_manifest_sha256", "render_plan → manifest"),
+        ("dry_run_manifest_sha256", "dry_run → manifest"),
+        ("dry_run_render_plan_sha256", "dry_run → render_plan"),
         ("validation_report_subject_sha256", "report → subject"),
     ]
     all_ok = True
@@ -270,12 +296,13 @@ def _render_bindings(bindings: dict[str, Any], *, verbose: bool) -> None:
     if not verbose:
         g = GLYPH["pass"] if all_ok else GLYPH["fail"]
         label = _pass("all binding digests valid") if all_ok else _fail("binding digest errors")
-        print(f"    {g}  {label}  {_dim('(-v for detail)')  if all_ok else ''}")
+        print(f"    {g}  {label}  {_dim('(-v for detail)') if all_ok else ''}")
 
 
 # ---------------------------------------------------------------------------
 # Ref row renderer
 # ---------------------------------------------------------------------------
+
 
 def _render_ref_row(field: str, ref: Any, *, verbose: bool) -> None:
     label = field.replace("_ref", "").replace("_", " ")
@@ -294,6 +321,7 @@ def _render_ref_row(field: str, ref: Any, *, verbose: bool) -> None:
 # builder profile status
 # ---------------------------------------------------------------------------
 
+
 def cmd_profile_status(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     base = _builder_dir()
@@ -306,14 +334,16 @@ def cmd_profile_status(args: list[str]) -> int:
         print()
         return 0
 
-    print(_row(
-        (_dim("  G"), 3),
-        (_dim("Pack ID"), 32),
-        (_dim("Target Profile"), 22),
-        (_dim("State"), 14),
-        (_dim("Lifecycle"), 30),
-        (_dim("Valid"), 8),
-    ))
+    print(
+        _row(
+            (_dim("  G"), 3),
+            (_dim("Pack ID"), 32),
+            (_dim("Target Profile"), 22),
+            (_dim("State"), 14),
+            (_dim("Lifecycle"), 30),
+            (_dim("Valid"), 8),
+        )
+    )
     print(f"  {_hr('─', 114)}")
 
     any_fail = False
@@ -332,6 +362,7 @@ def cmd_profile_status(args: list[str]) -> int:
         # Validate against schema
         try:
             from builder_ii.profile_pack import validate_profile_pack
+
             errors = validate_profile_pack(data)
         except Exception:
             errors = []
@@ -342,8 +373,7 @@ def cmd_profile_status(args: list[str]) -> int:
         done_optional = sum(1 for s in optional_stages if lifecycle.get(s))
 
         stage_bar = "".join(
-            _pass("●") if lifecycle.get(s) else (_fail("○") if r else _dim("○"))
-            for s, _, r in LIFECYCLE_STAGES
+            _pass("●") if lifecycle.get(s) else (_fail("○") if r else _dim("○")) for s, _, r in LIFECYCLE_STAGES
         )
         stage_label = f"{stage_bar}  {done_optional}/{len(optional_stages)} optional"
 
@@ -353,14 +383,16 @@ def cmd_profile_status(args: list[str]) -> int:
         g = GLYPH["pass"] if ok else (GLYPH["warn"] if done_required else GLYPH["fail"])
         valid_txt = _pass("VALID") if not errors else _fail(f"{len(errors)} err")
 
-        print(_row(
-            (g, 3),
-            (pack_id, 32),
-            (target, 22),
-            (_active(state)[:12], 14),
-            (stage_label, 30),
-            (valid_txt, 8),
-        ))
+        print(
+            _row(
+                (g, 3),
+                (pack_id, 32),
+                (target, 22),
+                (_active(state)[:12], 14),
+                (stage_label, 30),
+                (valid_txt, 8),
+            )
+        )
         if verbose and errors:
             for e in errors[:5]:
                 print(f"       {GLYPH['fail']}  {_fail(e)}")
@@ -372,6 +404,7 @@ def cmd_profile_status(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder profile lifecycle [id]
 # ---------------------------------------------------------------------------
+
 
 def cmd_profile_lifecycle(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
@@ -407,10 +440,10 @@ def cmd_profile_lifecycle(args: list[str]) -> int:
 
 def _render_pack_lifecycle(path: Path, data: dict, *, verbose: bool) -> int:
     _section(f"Pack Lifecycle  {_dim(path.name)}")
-    _kv("pack_id",        str(data.get("pack_id") or _dim("—")))
+    _kv("pack_id", str(data.get("pack_id") or _dim("—")))
     _kv("target_profile", str(data.get("target_profile") or _dim("—")))
-    _kv("task",           str(data.get("task") or _dim("—")))
-    _kv("pack_state",     _active(str(data.get("pack_state") or _dim("—"))))
+    _kv("task", str(data.get("task") or _dim("—")))
+    _kv("pack_state", _active(str(data.get("pack_state") or _dim("—"))))
 
     lifecycle = data.get("lifecycle") or {}
     _render_lifecycle(lifecycle)
@@ -428,12 +461,17 @@ def _render_pack_lifecycle(path: Path, data: dict, *, verbose: bool) -> int:
 # builder profile validate [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_profile_validate(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
     base = _builder_dir()
 
-    targets = _find_by_id(base, id_args[0]) if id_args else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
+    targets = (
+        _find_by_id(base, id_args[0])
+        if id_args
+        else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
+    )
 
     if not targets:
         if id_args:
@@ -447,6 +485,7 @@ def cmd_profile_validate(args: list[str]) -> int:
     for path, data in targets:
         try:
             from builder_ii.profile_pack import validate_profile_pack
+
             errors = validate_profile_pack(data)
         except Exception as exc:
             errors = [str(exc)]
@@ -493,12 +532,17 @@ def _render_validation_report(data: dict) -> None:
 # builder profile render-plan [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_profile_render_plan(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
     base = _builder_dir()
 
-    targets = _find_by_id(base, id_args[0]) if id_args else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
+    targets = (
+        _find_by_id(base, id_args[0])
+        if id_args
+        else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
+    )
     if not targets:
         if id_args:
             print(f"{GLYPH['fail']}  {_fail(_shared_lookup_miss('profile pack', id_args[0]))}")
@@ -510,7 +554,11 @@ def cmd_profile_render_plan(args: list[str]) -> int:
     for path, pack in targets:
         rp_ref = pack.get("render_plan_ref") or {}
         rp_path_s = rp_ref.get("path", "")
-        rp_path = Path(rp_path_s) if rp_path_s and Path(rp_path_s).is_absolute() else (base / rp_path_s if rp_path_s else None)
+        rp_path = (
+            Path(rp_path_s)
+            if rp_path_s and Path(rp_path_s).is_absolute()
+            else (base / rp_path_s if rp_path_s else None)
+        )
         if rp_path is None or not rp_path.exists():
             print(f"  {GLYPH['skip']}  {_dim(path.name)}  render_plan artifact not found")
             continue
@@ -520,7 +568,9 @@ def cmd_profile_render_plan(args: list[str]) -> int:
             print(f"  {GLYPH['fail']}  {_fail(err)}")
             continue
 
-        print(f"  {GLYPH['pack']}  {_bold(str(pack.get('pack_id', '')))}  →  {_dim(str(pack.get('target_profile', '')))}")
+        print(
+            f"  {GLYPH['pack']}  {_bold(str(pack.get('pack_id', '')))}  →  {_dim(str(pack.get('target_profile', '')))}"
+        )
         steps = rp_data.get("steps") or rp_data.get("plan_steps") or []
         if not steps:
             print(f"    {GLYPH['skip']}  {_dim('No steps in render plan')}")
@@ -543,12 +593,17 @@ def cmd_profile_render_plan(args: list[str]) -> int:
 # builder profile dry-run [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_profile_dry_run(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
     base = _builder_dir()
 
-    targets = _find_by_id(base, id_args[0]) if id_args else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
+    targets = (
+        _find_by_id(base, id_args[0])
+        if id_args
+        else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
+    )
     if not targets:
         if id_args:
             print(f"{GLYPH['fail']}  {_fail(_shared_lookup_miss('profile pack', id_args[0]))}")
@@ -560,7 +615,11 @@ def cmd_profile_dry_run(args: list[str]) -> int:
     for path, pack in targets:
         dr_ref = pack.get("dry_run_ref") or {}
         dr_path_s = dr_ref.get("path", "")
-        dr_path = Path(dr_path_s) if dr_path_s and Path(dr_path_s).is_absolute() else (base / dr_path_s if dr_path_s else None)
+        dr_path = (
+            Path(dr_path_s)
+            if dr_path_s and Path(dr_path_s).is_absolute()
+            else (base / dr_path_s if dr_path_s else None)
+        )
         if dr_path is None or not dr_path.exists():
             print(f"  {GLYPH['skip']}  {_dim(path.name)}  dry_run artifact not found")
             continue
@@ -589,7 +648,7 @@ def cmd_profile_dry_run(args: list[str]) -> int:
         slots = dr_data.get("slots") or dr_data.get("context_slots") or {}
         if slots and verbose:
             print(f"    {_dim('context slots')}")
-            for k, v in (slots.items() if isinstance(slots, dict) else []):
+            for k, v in slots.items() if isinstance(slots, dict) else []:
                 print(f"      {_dim(k + ':')}  {str(v)[:80]}")
 
         # Deltas
@@ -598,7 +657,9 @@ def cmd_profile_dry_run(args: list[str]) -> int:
             added = sum(1 for d in deltas if isinstance(d, dict) and d.get("op") in ("add", "+"))
             removed = sum(1 for d in deltas if isinstance(d, dict) and d.get("op") in ("remove", "-"))
             modified = len(deltas) - added - removed
-            print(f"    {_dim('deltas')}  {_pass('+' + str(added))}  {_fail('-' + str(removed))}  {_dim('~' + str(modified))}")
+            print(
+                f"    {_dim('deltas')}  {_pass('+' + str(added))}  {_fail('-' + str(removed))}  {_dim('~' + str(modified))}"
+            )
             if verbose:
                 for d in deltas:
                     if isinstance(d, dict):
@@ -614,6 +675,7 @@ def cmd_profile_dry_run(args: list[str]) -> int:
 # builder profile resolve [profile]
 # ---------------------------------------------------------------------------
 
+
 def cmd_profile_resolve(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
@@ -624,6 +686,7 @@ def cmd_profile_resolve(args: list[str]) -> int:
     # Try profile_resolution module first
     try:
         import importlib
+
         pr = importlib.import_module("builder_ii.profile_resolution")
         if id_args:
             result = pr.resolve_profile(id_args[0])
@@ -694,20 +757,21 @@ def _render_resolution_dict(data: dict, *, verbose: bool) -> None:
     source = data.get("source") or data.get("source_file") or _dim("—")
 
     _kv("resolved profile", _active(str(profile)))
-    _kv("source",           _dim(str(source)))
+    _kv("source", _dim(str(source)))
     if base_profiles:
         print(f"  {_dim('base profiles')}")
         for bp in base_profiles:
             print(f"    {GLYPH['arrow']}  {bp}")
     if overrides and verbose:
         print(f"  {_dim('overrides')}")
-        for k, v in (overrides.items() if isinstance(overrides, dict) else []):
+        for k, v in overrides.items() if isinstance(overrides, dict) else []:
             print(f"    {_dim(k + ':')}  {v}")
 
 
 # ---------------------------------------------------------------------------
 # builder profile history
 # ---------------------------------------------------------------------------
+
 
 def cmd_profile_history(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
@@ -721,13 +785,15 @@ def cmd_profile_history(args: list[str]) -> int:
         print()
         return 0
 
-    print(_row(
-        (_dim("  G"), 3),
-        (_dim("Pack ID"), 32),
-        (_dim("Target"), 22),
-        (_dim("Task"), 32),
-        (_dim("State"), 14),
-    ))
+    print(
+        _row(
+            (_dim("  G"), 3),
+            (_dim("Pack ID"), 32),
+            (_dim("Target"), 22),
+            (_dim("Task"), 32),
+            (_dim("State"), 14),
+        )
+    )
     print(f"  {_hr('─', 106)}")
 
     for path in packs:
@@ -742,9 +808,7 @@ def cmd_profile_history(args: list[str]) -> int:
         lifecycle = data.get("lifecycle") or {}
         done_required = all(lifecycle.get(s) for s, _, r in LIFECYCLE_STAGES if r)
         g = GLYPH["pass"] if done_required else GLYPH["warn"]
-        print(_row(
-            (g, 3), (pack_id, 32), (target, 22), (task, 32), (_active(state), 14)
-        ))
+        print(_row((g, 3), (pack_id, 32), (target, 22), (task, 32), (_active(state), 14)))
         if verbose:
             print(f"       {_dim('path:')}  {path}")
 
@@ -755,6 +819,7 @@ def cmd_profile_history(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # Shared status glyph
 # ---------------------------------------------------------------------------
+
 
 def _status_glyph(status: str) -> str:
     s = status.upper()
@@ -772,13 +837,13 @@ def _status_glyph(status: str) -> str:
 # ---------------------------------------------------------------------------
 
 _COMMANDS: dict[str, Any] = {
-    "status":      cmd_profile_status,
-    "lifecycle":   cmd_profile_lifecycle,
-    "validate":    cmd_profile_validate,
+    "status": cmd_profile_status,
+    "lifecycle": cmd_profile_lifecycle,
+    "validate": cmd_profile_validate,
     "render-plan": cmd_profile_render_plan,
-    "dry-run":     cmd_profile_dry_run,
-    "resolve":     cmd_profile_resolve,
-    "history":     cmd_profile_history,
+    "dry-run": cmd_profile_dry_run,
+    "resolve": cmd_profile_resolve,
+    "history": cmd_profile_history,
 }
 
 
@@ -786,13 +851,13 @@ def _usage() -> None:
     print(_bold("builder profile") + "  —  Profile pack inspection surface")
     print()
     cmds = [
-        ("status",          "Active pack overview (id / target / lifecycle / validity)"),
-        ("lifecycle [id]",   "7-flag lifecycle stage pipeline"),
-        ("validate [id]",    "Validation report detail"),
+        ("status", "Active pack overview (id / target / lifecycle / validity)"),
+        ("lifecycle [id]", "7-flag lifecycle stage pipeline"),
+        ("validate [id]", "Validation report detail"),
         ("render-plan [id]", "Render plan steps"),
-        ("dry-run [id]",     "Dry-run output diff (files / slots / deltas)"),
-        ("resolve [profile]","Profile resolution chain"),
-        ("history",         "All packs discovered under .builder/"),
+        ("dry-run [id]", "Dry-run output diff (files / slots / deltas)"),
+        ("resolve [profile]", "Profile resolution chain"),
+        ("history", "All packs discovered under .builder/"),
     ]
     for cmd, desc in cmds:
         print(f"  {_active('builder profile ' + cmd):<46}  {_dim(desc)}")

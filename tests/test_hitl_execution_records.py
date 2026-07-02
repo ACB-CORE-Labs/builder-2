@@ -60,7 +60,9 @@ def test_valid_request_validates() -> None:
 
 def test_request_current_state_and_runtime() -> None:
     req = create_hitl_execution_request(
-        command_proposal_ref="p", approval_record_ref="a", preflight_record_ref="pf",
+        command_proposal_ref="p",
+        approval_record_ref="a",
+        preflight_record_ref="pf",
     )
     assert req["current_state"] == "REQUEST_RECORDED_ONLY"
     assert req["runtime_execution"] == "DISABLED"
@@ -69,7 +71,9 @@ def test_request_current_state_and_runtime() -> None:
 
 def test_request_governance_denies_all_execution() -> None:
     req = create_hitl_execution_request(
-        command_proposal_ref="p", approval_record_ref="a", preflight_record_ref="pf",
+        command_proposal_ref="p",
+        approval_record_ref="a",
+        preflight_record_ref="pf",
     )
     gov = req["governance"]
     assert gov["runtime_execution"] == "DISABLED"
@@ -97,7 +101,9 @@ def test_request_fails_missing_refs() -> None:
 
 def test_request_fails_if_governance_claims_execution_enabled() -> None:
     req = create_hitl_execution_request(
-        command_proposal_ref="p", approval_record_ref="a", preflight_record_ref="pf",
+        command_proposal_ref="p",
+        approval_record_ref="a",
+        preflight_record_ref="pf",
     )
     req["governance"]["runtime_execution"] = "ENABLED"
     errors = validate_hitl_execution_request(req)
@@ -106,7 +112,9 @@ def test_request_fails_if_governance_claims_execution_enabled() -> None:
 
 def test_request_fails_if_artifact_is_authority_true() -> None:
     req = create_hitl_execution_request(
-        command_proposal_ref="p", approval_record_ref="a", preflight_record_ref="pf",
+        command_proposal_ref="p",
+        approval_record_ref="a",
+        preflight_record_ref="pf",
     )
     req["artifact_is_authority"] = True
     errors = validate_hitl_execution_request(req)
@@ -115,7 +123,9 @@ def test_request_fails_if_artifact_is_authority_true() -> None:
 
 def test_request_fails_if_coupling_not_none() -> None:
     req = create_hitl_execution_request(
-        command_proposal_ref="p", approval_record_ref="a", preflight_record_ref="pf",
+        command_proposal_ref="p",
+        approval_record_ref="a",
+        preflight_record_ref="pf",
     )
     req["governance"]["core_workbench_coupling"] = "TIGHT"
     errors = validate_hitl_execution_request(req)
@@ -285,7 +295,9 @@ def test_docs_contain_required_statements() -> None:
 
 def test_request_file_io(tmp_path: Path) -> None:
     req = create_hitl_execution_request(
-        command_proposal_ref="p", approval_record_ref="a", preflight_record_ref="pf",
+        command_proposal_ref="p",
+        approval_record_ref="a",
+        preflight_record_ref="pf",
     )
     out = tmp_path / "request.json"
     write_hitl_execution_request(req, out)
@@ -309,7 +321,9 @@ def test_receipt_file_io(tmp_path: Path) -> None:
 
 def test_dumps_produces_valid_json() -> None:
     req = create_hitl_execution_request(
-        command_proposal_ref="p", approval_record_ref="a", preflight_record_ref="pf",
+        command_proposal_ref="p",
+        approval_record_ref="a",
+        preflight_record_ref="pf",
     )
     receipt = create_hitl_execution_receipt(request_ref="r")
 

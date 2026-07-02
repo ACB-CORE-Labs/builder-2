@@ -80,6 +80,7 @@ def test_target_profile_to_artifact_dict(tmp_path: Path) -> None:
         validate_target_profile_artifact_file,
         write_target_profile_artifact,
     )
+
     settings = _settings(tmp_path)
     profile = target_profile(settings, "builder")
 
@@ -148,7 +149,7 @@ def test_target_profile_validation_failures(tmp_path: Path) -> None:
             "shell_execution": "DISABLED",
             "writes": "DISABLED",
             "artifact_is_authority": True,
-        }
+        },
     }
     errors = validate_target_profile_artifact(bad_gov)
     assert any("runtime_execution must be DISABLED" in err for err in errors)

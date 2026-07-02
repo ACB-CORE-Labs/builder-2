@@ -2,9 +2,9 @@ import hashlib
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.readonly_inspection_cli import readonly_app
 from typer.testing import CliRunner
 
-from builder_ii.readonly_inspection_cli import readonly_app
 from builder_ii.readonly_inspection_reports import (
     READONLY_INSPECTION_REPORT_KIND,
     READONLY_INSPECTION_REPORT_SCHEMA_VERSION,
@@ -78,7 +78,11 @@ def test_report_records_missing_and_directory_without_content_capture(tmp_path: 
 def test_json_and_file_round_trip(tmp_path: Path) -> None:
     source = tmp_path / "file.txt"
     source.write_text("hello", encoding="utf-8")
-    report = json_lib.loads(dumps_readonly_inspection_report(create_readonly_inspection_report(target="builder", purpose="review", paths=[source])))
+    report = json_lib.loads(
+        dumps_readonly_inspection_report(
+            create_readonly_inspection_report(target="builder", purpose="review", paths=[source])
+        )
+    )
     assert validate_readonly_inspection_report(report) == []
 
     output = tmp_path / "report.json"
@@ -114,14 +118,19 @@ def test_cli_stdout_output_and_validate(tmp_path: Path) -> None:
     source.write_text("hello", encoding="utf-8")
     runner = CliRunner()
 
-    stdout_result = runner.invoke(readonly_app, ["report", "--target", "builder", "--purpose", "review", "--path", str(source)])
+    stdout_result = runner.invoke(
+        readonly_app, ["report", "--target", "builder", "--purpose", "review", "--path", str(source)]
+    )
     assert stdout_result.exit_code == 0
     data = json_lib.loads(stdout_result.stdout)
     assert data["kind"] == READONLY_INSPECTION_REPORT_KIND
     assert data["counts"]["recorded"] == 1
 
     output = tmp_path / "inspection.json"
-    file_result = runner.invoke(readonly_app, ["report", "--target", "builder", "--purpose", "review", "--path", str(source), "--output", str(output)])
+    file_result = runner.invoke(
+        readonly_app,
+        ["report", "--target", "builder", "--purpose", "review", "--path", str(source), "--output", str(output)],
+    )
     assert file_result.exit_code == 0
     assert output.exists()
 

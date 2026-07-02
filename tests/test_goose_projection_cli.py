@@ -3,10 +3,10 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
 from builder_ii.goose_projection import GOOSE_PROJECTION_KIND
-from builder_ii.session_cli import session_app
 from builder_ii.session_config import SESSION_CONFIG_KIND
 
 runner = CliRunner()
@@ -44,7 +44,9 @@ def test_goose_projection_cli_output_and_validate(tmp_path: Path) -> None:
     repo = _generic_repo(tmp_path)
     config_path = tmp_path / "session-config.json"
     projection_path = tmp_path / "goose-projection.json"
-    config_result = runner.invoke(session_app, ["config", "generic", "--repo-path", str(repo), "--output", str(config_path)])
+    config_result = runner.invoke(
+        session_app, ["config", "generic", "--repo-path", str(repo), "--output", str(config_path)]
+    )
     assert config_result.exit_code == 0
 
     projection_result = runner.invoke(

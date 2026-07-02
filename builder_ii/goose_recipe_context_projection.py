@@ -143,7 +143,14 @@ def validate_goose_recipe_context_projection(data: Any) -> list[str]:
     else:
         if governance.get("capability_state") != "goose_recipe_context_projection":
             errors.append("governance.capability_state must be goose_recipe_context_projection")
-        for key in ("runtime_execution", "goose_runtime_start", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
+        for key in (
+            "runtime_execution",
+            "goose_runtime_start",
+            "model_execution",
+            "shell_execution",
+            "source_writes",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:

@@ -6,6 +6,7 @@ macOS, Goose, Python, terminal buffers, and the agentic KV cache all compete
 for the same RAM. For that reason builder-II treats model selection as an
 explicit execution policy rather than a generic provider string.
 """
+
 from __future__ import annotations
 
 import os
@@ -182,9 +183,7 @@ def normalize_model_alias(raw: str | None, *, tier_fallback: str = "primary") ->
         candidate = "phi-reasoning" if tier_fallback == "fast" else "qwen-coder"
     candidate = _ALIAS_NORMALIZATION.get(candidate, candidate)
     if candidate not in MODEL_ALIASES:
-        raise ValueError(
-            f"BUILDER_MODEL_ALIAS must be one of {MODEL_ALIASES}, got {raw!r}"
-        )
+        raise ValueError(f"BUILDER_MODEL_ALIAS must be one of {MODEL_ALIASES}, got {raw!r}")
     return candidate
 
 
@@ -386,5 +385,6 @@ def load_settings(project_root: Path | None = None) -> Settings:
         port=int(_env("BUILDER_MODEL_PORT", "CORE_AGENT_PORT", "8080")),
         temperature=float(_env("BUILDER_MODEL_TEMPERATURE", "CORE_AGENT_TEMPERATURE", "0.0")),
         project_root=root,
-        allow_cloud_models=_env("BUILDER_ALLOW_CLOUD_MODELS", "CORE_AGENT_ALLOW_CLOUD_MODELS", "false").lower() in ("true", "1", "yes"),
+        allow_cloud_models=_env("BUILDER_ALLOW_CLOUD_MODELS", "CORE_AGENT_ALLOW_CLOUD_MODELS", "false").lower()
+        in ("true", "1", "yes"),
     )

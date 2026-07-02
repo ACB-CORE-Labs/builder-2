@@ -33,7 +33,12 @@ def _digest_path(path: Path) -> str:
 
 def _base_receipt(setup_receipt: dict[str, Any], snapshot: dict[str, Any], approve_digest: str) -> dict[str, Any]:
     ts = datetime.now(timezone.utc).isoformat()
-    basis = {"setup_receipt": setup_receipt.get("receipt_digest"), "snapshot": snapshot.get("snapshot_digest"), "approval": approve_digest, "ts": ts}
+    basis = {
+        "setup_receipt": setup_receipt.get("receipt_digest"),
+        "snapshot": snapshot.get("snapshot_digest"),
+        "approval": approve_digest,
+        "ts": ts,
+    }
     return {
         "rollback_receipt_id": digest_jsonable(basis, digest_key="rollback_receipt_id"),
         "timestamp": ts,
@@ -83,9 +88,15 @@ def _preflight_state(path: Path, state: dict[str, Any]) -> str | None:
     return "manual_restore_required: prior state is unsupported"
 
 
-def execute_setup_rollback(setup_receipt: dict[str, Any], snapshot: dict[str, Any], *, approve_digest: str, receipt_output: Path | None = None) -> dict[str, Any]:
+def execute_setup_rollback(
+    setup_receipt: dict[str, Any], snapshot: dict[str, Any], *, approve_digest: str, receipt_output: Path | None = None
+) -> dict[str, Any]:
     errors = validate_setup_receipt_artifact(setup_receipt) + validate_setup_rollback_snapshot_artifact(snapshot)
-    receipt = _base_receipt(setup_receipt if isinstance(setup_receipt, dict) else {}, snapshot if isinstance(snapshot, dict) else {}, approve_digest if isinstance(approve_digest, str) else "")
+    receipt = _base_receipt(
+        setup_receipt if isinstance(setup_receipt, dict) else {},
+        snapshot if isinstance(snapshot, dict) else {},
+        approve_digest if isinstance(approve_digest, str) else "",
+    )
     if setup_receipt.get("setup_apply_executed") is not True:
         errors.append("setup receipt setup_apply_executed must be true")
     if setup_receipt.get("rollback_executed") is not False:
@@ -103,9 +114,15 @@ def execute_setup_rollback(setup_receipt: dict[str, Any], snapshot: dict[str, An
     if setup_receipt.get("rollback_snapshot_digest") != snapshot.get("snapshot_digest"):
         errors.append("setup receipt rollback snapshot digest does not match supplied snapshot digest")
 
-    changed = set(setup_receipt.get("changed_paths", []) if isinstance(setup_receipt.get("changed_paths"), list) else [])
-    skipped = set(setup_receipt.get("skipped_paths", []) if isinstance(setup_receipt.get("skipped_paths"), list) else [])
-    states = {state.get("target_path"): state for state in snapshot.get("target_path_states", []) if isinstance(state, dict)}
+    changed = set(
+        setup_receipt.get("changed_paths", []) if isinstance(setup_receipt.get("changed_paths"), list) else []
+    )
+    skipped = set(
+        setup_receipt.get("skipped_paths", []) if isinstance(setup_receipt.get("skipped_paths"), list) else []
+    )
+    states = {
+        state.get("target_path"): state for state in snapshot.get("target_path_states", []) if isinstance(state, dict)
+    }
     covered = set(states)
     if not changed <= covered:
         errors.append("changed path not covered by snapshot")
@@ -114,7 +131,17 @@ def execute_setup_rollback(setup_receipt: dict[str, Any], snapshot: dict[str, An
     if errors:
         receipt["rollback_result"] = "denied"
         receipt["denied_paths"] = sorted(changed - covered) or ["<artifact>"]
-        receipt["operations"] = [{"target_path": path, "operation_type": "preflight", "result": "denied", "reason": "; ".join(errors), "before_digest": "", "after_digest": ""} for path in receipt["denied_paths"]]
+        receipt["operations"] = [
+            {
+                "target_path": path,
+                "operation_type": "preflight",
+                "result": "denied",
+                "reason": "; ".join(errors),
+                "before_digest": "",
+                "after_digest": "",
+            }
+            for path in receipt["denied_paths"]
+        ]
         finalized = finalize_setup_rollback_receipt(receipt)
         if receipt_output is not None:
             write_setup_rollback_receipt(finalized, receipt_output)
@@ -127,7 +154,14 @@ def execute_setup_rollback(setup_receipt: dict[str, Any], snapshot: dict[str, An
         path = Path(path_text)
         if reason is None:
             reason = _preflight_state(path, state)
-        op = {"target_path": path_text, "operation_type": "rollback", "before_digest": _digest_path(path), "after_digest": _digest_path(path), "result": "pending", "reason": ""}
+        op = {
+            "target_path": path_text,
+            "operation_type": "rollback",
+            "before_digest": _digest_path(path),
+            "after_digest": _digest_path(path),
+            "result": "pending",
+            "reason": "",
+        }
         if reason is not None:
             op["result"] = "denied"
             op["reason"] = reason
@@ -136,7 +170,16 @@ def execute_setup_rollback(setup_receipt: dict[str, Any], snapshot: dict[str, An
         plans.append((path, state, str(state.get("prior_existence_state"))))
     for path_text in sorted(skipped):
         receipt["skipped_paths"].append(path_text)
-        receipt["operations"].append({"target_path": path_text, "operation_type": "no-op", "before_digest": _digest_path(Path(path_text)), "after_digest": _digest_path(Path(path_text)), "result": "skipped_no_op", "reason": "setup apply skipped this path"})
+        receipt["operations"].append(
+            {
+                "target_path": path_text,
+                "operation_type": "no-op",
+                "before_digest": _digest_path(Path(path_text)),
+                "after_digest": _digest_path(Path(path_text)),
+                "result": "skipped_no_op",
+                "reason": "setup apply skipped this path",
+            }
+        )
     if receipt["denied_paths"]:
         receipt["rollback_result"] = "denied"
         receipt["deleted_paths"] = []
@@ -176,7 +219,16 @@ def execute_setup_rollback(setup_receipt: dict[str, Any], snapshot: dict[str, An
         if isinstance(exc, SetupRollbackError):
             raise
         receipt["rollback_result"] = "failed"
-        receipt["operations"].append({"target_path": "<rollback>", "operation_type": "failure", "result": "failed", "reason": str(exc), "before_digest": "", "after_digest": ""})
+        receipt["operations"].append(
+            {
+                "target_path": "<rollback>",
+                "operation_type": "failure",
+                "result": "failed",
+                "reason": str(exc),
+                "before_digest": "",
+                "after_digest": "",
+            }
+        )
         finalized = finalize_setup_rollback_receipt(receipt)
         if receipt_output is not None:
             write_setup_rollback_receipt(finalized, receipt_output)

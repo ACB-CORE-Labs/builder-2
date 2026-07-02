@@ -4,11 +4,11 @@ import json as json_lib
 from pathlib import Path
 
 import pytest
+from builder_ii.ledger_cli import ledger_app
+from builder_ii.workflow_cli import workflow_app
 from typer.testing import CliRunner
 
 from builder_ii.event_ledger import replay_events
-from builder_ii.ledger_cli import ledger_app
-from builder_ii.workflow_cli import workflow_app
 from builder_ii.workflow_orchestrator import (
     WorkflowError,
     candidate_workflow,
@@ -31,7 +31,7 @@ def _generic_repo(tmp_path: Path) -> Path:
     (repo / "src").mkdir(parents=True)
     (repo / "tests").mkdir()
     (repo / "README.md").write_text("# target\n", encoding="utf-8")
-    (repo / "pyproject.toml").write_text("[project]\nname = \"target\"\n", encoding="utf-8")
+    (repo / "pyproject.toml").write_text('[project]\nname = "target"\n', encoding="utf-8")
     (repo / "src" / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
     (repo / "tests" / "test_app.py").write_text("def test_value():\n    assert True\n", encoding="utf-8")
     return repo

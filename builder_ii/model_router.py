@@ -5,6 +5,7 @@ to load a second planner model. It selects one concrete model alias for the
 whole Goose session and records the routing rationale so the user can see why
 that model was chosen.
 """
+
 from __future__ import annotations
 
 import os

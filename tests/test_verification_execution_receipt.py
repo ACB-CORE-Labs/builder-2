@@ -161,9 +161,7 @@ def test_unapproved_profile_fails_against_approval() -> None:
 
 def test_unapproved_step_fails_against_approval() -> None:
     plan, approval, receipt = _sample_receipt()
-    receipt["skipped_steps"].append(
-        {"step_id": "not_approved", "status": "not_executed", "reason": "not approved"}
-    )
+    receipt["skipped_steps"].append({"step_id": "not_approved", "status": "not_executed", "reason": "not approved"})
     receipt = _resign(receipt)
 
     errors = validate_verification_execution_receipt_against_plan_and_approval(receipt, plan, approval)
@@ -173,9 +171,7 @@ def test_unapproved_step_fails_against_approval() -> None:
 
 def test_malformed_non_string_step_id_does_not_crash_binding_validation() -> None:
     plan, approval, receipt = _sample_receipt()
-    receipt["skipped_steps"].append(
-        {"step_id": None, "status": "not_executed", "reason": "malformed receipt"}
-    )
+    receipt["skipped_steps"].append({"step_id": None, "status": "not_executed", "reason": "malformed receipt"})
     receipt = _resign(receipt)
 
     artifact_errors = validate_verification_execution_receipt_artifact(receipt)
@@ -187,9 +183,7 @@ def test_malformed_non_string_step_id_does_not_crash_binding_validation() -> Non
 
 def test_process_result_shell_true_fails() -> None:
     _plan, _approval, receipt = _sample_receipt()
-    receipt["process_results"] = [
-        {"step_id": "pytest_full", "status": "not_executed", "shell": True}
-    ]
+    receipt["process_results"] = [{"step_id": "pytest_full", "status": "not_executed", "shell": True}]
     receipt = _resign(receipt)
 
     errors = validate_verification_execution_receipt_artifact(receipt)

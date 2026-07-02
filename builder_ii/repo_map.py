@@ -57,7 +57,8 @@ def _classify_role(rel_path: Path) -> str:
     # Artifact check
     if (
         any(d in {"artifacts", ".artifacts", "brain", ".system_generated"} for d in parent_dirs)
-        or name_lower in {
+        or name_lower
+        in {
             "prepare-package.json",
             "repo-map.json",
             "context-pack.json",
@@ -67,9 +68,7 @@ def _classify_role(rel_path: Path) -> str:
             "handoff-note.json",
             "deepagents-bridge-readiness.json",
         }
-        or name_lower.endswith(
-            ("-report.json", "-plan.json", "-note.json", "-package.json", "-map.json", "-pack.json")
-        )
+        or name_lower.endswith(("-report.json", "-plan.json", "-note.json", "-package.json", "-map.json", "-pack.json"))
     ):
         return "artifact"
 

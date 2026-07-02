@@ -42,7 +42,9 @@ def create_promotion_decision_record(
         blockers.append("decided_by is required")
     if decision == "approved" and blockers:
         decision = "blocked"
-    support_artifacts = readiness.get("support_artifacts", []) if isinstance(readiness.get("support_artifacts", []), list) else []
+    support_artifacts = (
+        readiness.get("support_artifacts", []) if isinstance(readiness.get("support_artifacts", []), list) else []
+    )
     return {
         "kind": PROMOTION_DECISION_RECORD_KIND,
         "schema_version": PROMOTION_DECISION_RECORD_SCHEMA_VERSION,
@@ -99,7 +101,9 @@ def create_promotion_decision_record_from_file(
         return None, [f"readiness invalid JSON: {exc}"]
     if not isinstance(readiness, dict):
         return None, ["readiness must be a JSON object"]
-    record = create_promotion_decision_record(readiness, readiness_path=readiness_path, decision=decision, decided_by=decided_by, reason=reason)
+    record = create_promotion_decision_record(
+        readiness, readiness_path=readiness_path, decision=decision, decided_by=decided_by, reason=reason
+    )
     errors = validate_promotion_decision_record(record)
     if errors:
         return None, errors
@@ -148,10 +152,14 @@ def _validate_readiness_ref(readiness: Any) -> list[str]:
     target = readiness.get("target", "")
     if target not in ("", "generic", "builder", "core"):
         errors.append("readiness.target must be one of: generic, builder, core")
-    if "support_artifact_count" in readiness and (not isinstance(readiness.get("support_artifact_count"), int) or readiness["support_artifact_count"] < 0):
+    if "support_artifact_count" in readiness and (
+        not isinstance(readiness.get("support_artifact_count"), int) or readiness["support_artifact_count"] < 0
+    ):
         errors.append("readiness.support_artifact_count must be a non-negative integer")
     if "support_artifact_kinds" in readiness:
-        errors.extend(_string_list_errors(readiness.get("support_artifact_kinds"), field="readiness.support_artifact_kinds"))
+        errors.extend(
+            _string_list_errors(readiness.get("support_artifact_kinds"), field="readiness.support_artifact_kinds")
+        )
     return errors
 
 

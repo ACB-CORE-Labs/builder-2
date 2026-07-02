@@ -2,9 +2,9 @@ import json as json_lib
 from pathlib import Path
 from types import SimpleNamespace
 
+from builder_ii.bundle_cli import bundle_app
 from typer.testing import CliRunner
 
-from builder_ii.bundle_cli import bundle_app
 from builder_ii.bundles import create_target_bundle, dumps_bundle, validate_target_bundle, validate_target_bundle_file
 
 
@@ -79,7 +79,9 @@ def test_cli_bundle_create_stdout(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("builder_ii.bundle_cli.load_settings", lambda: settings)
 
     runner = CliRunner()
-    result = runner.invoke(bundle_app, ["create", "--target", "builder", "--agent", "patch_planner", "--task", "test task"])
+    result = runner.invoke(
+        bundle_app, ["create", "--target", "builder", "--agent", "patch_planner", "--task", "test task"]
+    )
 
     assert result.exit_code == 0
     data = json_lib.loads(result.stdout)

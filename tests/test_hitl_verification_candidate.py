@@ -179,7 +179,9 @@ def test_chain_reference_extraction_and_resolution(tmp_path: Path) -> None:
         command="uv run pytest tests/test_hitl_verification_candidate.py -q",
         risk_level="low",
     )
-    approval = create_approval_record(proposal, proposal_path="proposal.json", decision="approved", decided_by="operator")
+    approval = create_approval_record(
+        proposal, proposal_path="proposal.json", decision="approved", decided_by="operator"
+    )
     preflight = create_preflight_record(
         proposal,
         approval,
@@ -250,4 +252,7 @@ def test_file_io_and_json_dump(tmp_path: Path) -> None:
     output = tmp_path / "candidate.json"
     write_hitl_verification_execution_candidate(candidate, output)
     assert validate_hitl_verification_execution_candidate_file(output) == []
-    assert json_lib.loads(dumps_hitl_verification_execution_candidate(candidate))["kind"] == HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND
+    assert (
+        json_lib.loads(dumps_hitl_verification_execution_candidate(candidate))["kind"]
+        == HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND
+    )

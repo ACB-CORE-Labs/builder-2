@@ -129,9 +129,7 @@ def test_generic_governed_engineering_session_flow_preserves_context_without_run
     _write_json(verification_report_path, verification_report)
     _write_json(handoff_path, handoff)
 
-    chain_report = verify_artifact_chain(
-        [session_plan_path, goose_plan_path, verification_report_path, handoff_path]
-    )
+    chain_report = verify_artifact_chain([session_plan_path, goose_plan_path, verification_report_path, handoff_path])
 
     assert chain_report["valid"] is True
     assert chain_report["status"] == "valid"

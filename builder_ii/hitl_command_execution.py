@@ -55,6 +55,7 @@ def create_hitl_command_execution_spec(
     """Create a design/spec artifact for future HITL command execution without enabling runtime execution."""
     if settings is None:
         from builder_ii.config import load_settings
+
         settings = load_settings()
     selected = target_profile(settings, target_name, generic_repo=generic_repo)
     return {

@@ -27,6 +27,7 @@ TIER_LABELS = {
 
 # ── Single Palette Entry ────────────────────────────────────────────
 
+
 class PaletteEntry(Static):
     """A single command entry in the palette."""
 
@@ -50,9 +51,7 @@ class PaletteEntry(Static):
         self.add_class("palette-item")
 
     def render(self) -> str:
-        tier_short, tier_color, tier_label = TIER_LABELS.get(
-            self.cmd_tier, ("??", "#484f58", "UNKNOWN")
-        )
+        tier_short, tier_color, tier_label = TIER_LABELS.get(self.cmd_tier, ("??", "#484f58", "UNKNOWN"))
 
         # Authority flag
         auth_glyph = " [bold #ffa657]⚡[/]" if self.cmd_requires_authority else "  "
@@ -64,14 +63,11 @@ class PaletteEntry(Static):
                 f"{auth_glyph}"
                 f"  [#484f58]{tier_label}[/]"
             )
-        return (
-            f"  [{tier_color}]{tier_short}[/]  "
-            f"[#484f58]{self.cmd_name:<40}[/]"
-            f"  [#484f58]⊘ {self.cmd_reason[:30]}[/]"
-        )
+        return f"  [{tier_color}]{tier_short}[/]  [#484f58]{self.cmd_name:<40}[/]  [#484f58]⊘ {self.cmd_reason[:30]}[/]"
 
 
 # ── Command Palette Modal ───────────────────────────────────────────
+
 
 class CommandPaletteScreen(ModalScreen[str | None]):
     """Full-screen command palette with fuzzy search and governed display."""
@@ -91,8 +87,7 @@ class CommandPaletteScreen(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
         with Vertical(id="palette-container"):
             yield Static(
-                "[bold #c9d1d9]⌘ COMMAND PALETTE[/]  "
-                "[#484f58]type to search · ESC to close[/]",
+                "[bold #c9d1d9]⌘ COMMAND PALETTE[/]  [#484f58]type to search · ESC to close[/]",
                 id="palette-title",
             )
             with Vertical(id="palette-search"):
@@ -142,6 +137,6 @@ class CommandPaletteScreen(ModalScreen[str | None]):
     def on_static_click(self, event: Static.Click) -> None:
         """Handle clicking on a palette entry."""
         # Walk up to find the PaletteEntry
-        widget = event.widget if hasattr(event, 'widget') else None
+        widget = event.widget if hasattr(event, "widget") else None
         if isinstance(widget, PaletteEntry) and widget.cmd_allowed:
             self.dismiss(widget.cmd_name)

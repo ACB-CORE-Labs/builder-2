@@ -57,9 +57,7 @@ def _string_list(value: Any, *, field: str) -> list[str]:
     return value
 
 
-def _assert_work_plan_ref_matches(
-    envelope: dict[str, Any], plan: dict[str, Any], work_plan_path: Path
-) -> None:
+def _assert_work_plan_ref_matches(envelope: dict[str, Any], plan: dict[str, Any], work_plan_path: Path) -> None:
     actual_ref = envelope.get("work_plan_ref")
     if not isinstance(actual_ref, dict):
         raise ValueError("Envelope work_plan_ref must be a JSON object reference")
@@ -293,9 +291,7 @@ class DeepAgentsRuntimeHarness:
             receipt = _load_json_object(receipt_path, label="Subagent execution receipt")
 
             result_ref = receipt.get("result_ref")
-            result_path = _ref_path(
-                result_ref, field=f"execution_receipt_refs[{idx}].result_ref"
-            )
+            result_path = _ref_path(result_ref, field=f"execution_receipt_refs[{idx}].result_ref")
             result = _load_json_object(result_path, label="Subagent result")
             results.append(result)
             result_paths.append(result_path)

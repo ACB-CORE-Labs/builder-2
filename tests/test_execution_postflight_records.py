@@ -43,6 +43,7 @@ def test_module_does_not_execute_anything() -> None:
 #  Non-dict validation fails clearly
 # ===================================================================
 
+
 def test_non_dict_validation_fails_clearly() -> None:
     for non_dict in (None, "string", [1, 2, 3], 42):
         errs1 = validate_execution_postflight_record(non_dict)
@@ -288,9 +289,7 @@ def test_postflight_file_io(tmp_path: Path) -> None:
 
 
 def test_verification_file_io(tmp_path: Path) -> None:
-    rec = create_execution_verification_record(
-        request_ref="req", receipt_ref="rcpt", postflight_ref="pf"
-    )
+    rec = create_execution_verification_record(request_ref="req", receipt_ref="rcpt", postflight_ref="pf")
     out = tmp_path / "verification.json"
     write_execution_verification_record(rec, out)
     assert out.exists()
@@ -304,9 +303,7 @@ def test_dumps_produces_valid_json() -> None:
     rec1 = create_execution_postflight_record(
         request_ref="req", receipt_ref="rcpt", preflight_ref="pf", approval_ref="ap"
     )
-    rec2 = create_execution_verification_record(
-        request_ref="req", receipt_ref="rcpt", postflight_ref="pf"
-    )
+    rec2 = create_execution_verification_record(request_ref="req", receipt_ref="rcpt", postflight_ref="pf")
 
     rec1_json = json.loads(dumps_execution_postflight_record(rec1))
     rec2_json = json.loads(dumps_execution_verification_record(rec2))

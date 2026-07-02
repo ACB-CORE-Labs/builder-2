@@ -23,6 +23,7 @@ from textual.widgets import RichLog, Static
 
 # ── Stratum Modes ────────────────────────────────────────────────────
 
+
 class StratumMode:
     IDLE = "idle"
     PREPARE = "prepare"
@@ -39,9 +40,6 @@ class StratumMode:
     QUALITY_GATES = "quality_gates"
     TOOLING_HEALTH = "tooling_health"
     HELP = "help"
-
-
-
 
 
 # ── Idle Report ──────────────────────────────────────────────────────
@@ -101,6 +99,7 @@ HITL_GATE_TEMPLATE = """\
 from builder_ii.tui.widgets.masterpiece import EpistemicMatrix, ThirdDoorGate
 
 # ── Active Stratum Widget ───────────────────────────────────────────
+
 
 class ActiveStratum(Vertical):
     """The morphing center panel of STRATUM."""
@@ -230,11 +229,7 @@ class ActiveStratum(Vertical):
             return
 
         digest_display = self._chain_digest[:12] + "…" if self._chain_digest else "—"
-        auth_display = (
-            "[bold #3fb950]GRANTED[/]"
-            if self._authority_granted
-            else "[#6e7681]NOT GRANTED[/]"
-        )
+        auth_display = "[bold #3fb950]GRANTED[/]" if self._authority_granted else "[#6e7681]NOT GRANTED[/]"
         gov_display = (
             "[#f85149 bold]artifact_is_authority = TRUE ⚠[/]"
             if self._authority_granted
@@ -287,9 +282,7 @@ class ActiveStratum(Vertical):
         assert self._content is not None
         if self._inspected_artifact:
             rendered = json.dumps(self._inspected_artifact, indent=2)
-            self._content.write(
-                "[bold #58a6ff]═══ ARTIFACT DATA ═══[/]\n"
-            )
+            self._content.write("[bold #58a6ff]═══ ARTIFACT DATA ═══[/]\n")
             # Use Syntax for JSON highlighting
             self._content.write(Syntax(rendered, "json", theme="monokai"))
         else:
@@ -312,9 +305,7 @@ class ActiveStratum(Vertical):
                         glyph = "✓" if status == "pass" else "✗"
                         color = "#3fb950" if status == "pass" else "#f85149"
                         name = data.get("name", path.stem)
-                        self._content.write(
-                            f"  [{color}]{glyph}[/]  [{color}]{name}[/]  [#484f58]{status}[/]"
-                        )
+                        self._content.write(f"  [{color}]{glyph}[/]  [{color}]{name}[/]  [#484f58]{status}[/]")
                     except (json.JSONDecodeError, OSError):
                         continue
             else:
@@ -374,8 +365,7 @@ class ActiveStratum(Vertical):
                     score = atom.get("relevance_score", 0.0)
                     pinned = "📌" if atom.get("pinned") else "  "
                     self._content.write(
-                        f"  {pinned} [#d2a8ff]{atom_type:<12}[/] "
-                        f"[#ffa657]{score:.2f}[/]  [#8b949e]{content}[/]"
+                        f"  {pinned} [#d2a8ff]{atom_type:<12}[/] [#ffa657]{score:.2f}[/]  [#8b949e]{content}[/]"
                     )
                 if not atoms:
                     self._content.write("  [#484f58]No memory atoms found.[/]")
@@ -389,6 +379,7 @@ class ActiveStratum(Vertical):
         )
         try:
             from builder_ii.model_client_registry import create_model_client_registry
+
             registry = create_model_client_registry()
             clients = registry.get("clients", [])
             for client in clients[:25]:
@@ -417,6 +408,7 @@ class ActiveStratum(Vertical):
         )
         try:
             from builder_ii.agent_profiles import agent_profiles
+
             profiles = agent_profiles()
             for profile in profiles:
                 name = profile.name
@@ -442,11 +434,12 @@ class ActiveStratum(Vertical):
         )
         try:
             from builder_ii.platform_completion_audit import capability_rows
+
             rows = capability_rows()
             for row in rows:
                 state_str = str(row.state)
                 # Parse StateLabel enum if needed or just use name
-                state_name = state_str.split('.')[-1] if '.' in state_str else state_str
+                state_name = state_str.split(".")[-1] if "." in state_str else state_str
 
                 if "VERIFIED" in state_name:
                     color = "#3fb950"
@@ -487,6 +480,7 @@ class ActiveStratum(Vertical):
         )
         try:
             from builder_ii.quality_gates import create_quality_gate_artifact
+
             gate = create_quality_gate_artifact("generic", "generic")
             self._content.write("  [bold #79c0ff]TARGET:[/] generic\n")
             for req in gate.get("required_evidence", []):
@@ -507,6 +501,7 @@ class ActiveStratum(Vertical):
         )
         try:
             from builder_ii.tool_registry import check_tools
+
             checks = check_tools()
             for chk in checks:
                 if chk.installed:
@@ -561,8 +556,6 @@ class ActiveStratum(Vertical):
             "    [bold #79c0ff][I][/]        Inspect gate payload details\n"
             "    [bold #79c0ff][D][/]        Diff candidate vs authority main"
         )
-
-
 
     # ── Public API ───────────────────────────────────────────────────
 

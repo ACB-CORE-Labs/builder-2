@@ -4,10 +4,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from builder_ii.ledger_cli import ledger_app
 from typer.testing import CliRunner
 
 from builder_ii.config_schema import attach_digest
-from builder_ii.ledger_cli import ledger_app
 from builder_ii.verification_execution_approval import (
     finalize_verification_execution_approval,
     write_verification_execution_approval,
@@ -110,8 +110,22 @@ def _write_valid_chain(
                 "stderr_truncated": False,
             }
         ],
-        preflight_git_state={"state_label": "preflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
-        postflight_git_state={"state_label": "postflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
+        preflight_git_state={
+            "state_label": "preflight",
+            "captured": True,
+            "returncode": 0,
+            "porcelain_sha256": "3" * 64,
+            "porcelain_lines": [],
+            "stderr_sha256": "4" * 64,
+        },
+        postflight_git_state={
+            "state_label": "postflight",
+            "captured": True,
+            "returncode": 0,
+            "porcelain_sha256": "3" * 64,
+            "porcelain_lines": [],
+            "stderr_sha256": "4" * 64,
+        },
         workspace_mutation_detected=False,
         execution_enabled=True,
         subprocess_mode=SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
@@ -542,7 +556,9 @@ def test_integrity_detects_mismatched_subject_digest_chain(tmp_path: Path) -> No
     report = validate_verification_execution_ledger_integrity(ledger_root=tmp_path / ".builder" / "ledger")
 
     assert report["valid"] is False
-    assert any("chain_digest does not match plan/approval/receipt subject digests" in error for error in report["errors"])
+    assert any(
+        "chain_digest does not match plan/approval/receipt subject digests" in error for error in report["errors"]
+    )
 
 
 def test_integrity_detects_index_chain_discontinuity_when_rule_applies(tmp_path: Path) -> None:
@@ -650,7 +666,10 @@ def test_reconstruction_report_projects_valid_ledger_chains(tmp_path: Path) -> N
         executed["chain_digest"],
         failed["chain_digest"],
     ]
-    assert all(row["evidence_ref"]["kind"] == VERIFICATION_EXECUTION_LEDGER_RECORD_KIND for row in report["reconstructed_chains"])
+    assert all(
+        row["evidence_ref"]["kind"] == VERIFICATION_EXECUTION_LEDGER_RECORD_KIND
+        for row in report["reconstructed_chains"]
+    )
 
 
 def test_reconstruction_report_carries_invalid_and_rejected_records(tmp_path: Path) -> None:

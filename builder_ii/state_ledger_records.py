@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json as json_lib
 from pathlib import Path
@@ -88,7 +89,9 @@ def create_state_ledger_record(
     }
 
 
-def create_state_ledger_record_from_files(decision_paths: list[Path], *, ledger_name: str, notes: str = "") -> tuple[dict[str, Any] | None, list[str]]:
+def create_state_ledger_record_from_files(
+    decision_paths: list[Path], *, ledger_name: str, notes: str = ""
+) -> tuple[dict[str, Any] | None, list[str]]:
     decisions: list[tuple[dict[str, Any], Path]] = []
     for path in decision_paths:
         try:
@@ -114,6 +117,21 @@ def dumps_state_ledger_record(record: dict[str, Any]) -> str:
 def write_state_ledger_record(record: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_state_ledger_record(record), encoding="utf-8")
+
+
+async def write_state_ledger_record_async(record: dict[str, Any], output: Path) -> None:
+    await asyncio.to_thread(write_state_ledger_record, record, output)
+
+
+async def create_state_ledger_record_from_files_async(
+    decision_paths: list[Path], *, ledger_name: str, notes: str = ""
+) -> tuple[dict[str, Any] | None, list[str]]:
+    return await asyncio.to_thread(
+        create_state_ledger_record_from_files,
+        decision_paths,
+        ledger_name=ledger_name,
+        notes=notes,
+    )
 
 
 def _validate_entry(entry: Any, index: int) -> list[str]:
@@ -203,3 +221,7 @@ def validate_state_ledger_record_file(path: Path) -> list[str]:
     except json_lib.JSONDecodeError as exc:
         return [f"invalid JSON: {exc}"]
     return validate_state_ledger_record(data)
+
+
+async def validate_state_ledger_record_file_async(path: Path) -> list[str]:
+    return await asyncio.to_thread(validate_state_ledger_record_file, path)

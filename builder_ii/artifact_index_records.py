@@ -365,9 +365,7 @@ _SOURCE_WRITES = "".join(("source_", "writes"))
 _MEMORY_MUTATION = "".join(("memory_", "mutation"))
 
 
-_ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = (
-    "builder_ii.artifact_chain_verification_report"
-)
+_ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = "builder_ii.artifact_chain_verification_report"
 
 
 def _validate_chain_verification_report(record: Any) -> list[str]:
@@ -599,8 +597,7 @@ def create_artifact_index_record(
         entries = [
             _safe_entry(path, root)
             for path in paths
-            if path.is_file()
-            and not any(path.resolve().is_relative_to(excluded_path) for excluded_path in excluded)
+            if path.is_file() and not any(path.resolve().is_relative_to(excluded_path) for excluded_path in excluded)
         ]
     invalid_count = sum(1 for entry in entries if not entry.get("valid"))
     known_count = sum(1 for entry in entries if entry.get("known"))

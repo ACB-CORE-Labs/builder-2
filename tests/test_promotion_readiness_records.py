@@ -262,7 +262,9 @@ def test_validate_rejects_non_object() -> None:
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:
-    assert any("file not found" in error for error in validate_promotion_readiness_record_file(tmp_path / "missing.json"))
+    assert any(
+        "file not found" in error for error in validate_promotion_readiness_record_file(tmp_path / "missing.json")
+    )
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")

@@ -28,7 +28,11 @@ class CLIRedirectFinder(importlib.abc.MetaPathFinder):
         path: Sequence[str] | None = None,
         target: ModuleType | None = None,
     ) -> importlib.machinery.ModuleSpec | None:
-        if fullname.startswith("builder_ii.") and fullname.endswith("_cli") and not fullname.startswith("builder_ii.cli."):
+        if (
+            fullname.startswith("builder_ii.")
+            and fullname.endswith("_cli")
+            and not fullname.startswith("builder_ii.cli.")
+        ):
             parts = fullname.split(".")
             cli_name = parts[-1]
             redirected_name = f"builder_ii.cli.{cli_name}"

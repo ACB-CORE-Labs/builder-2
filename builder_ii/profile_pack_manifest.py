@@ -64,7 +64,12 @@ PROFILE_KINDS_BY_AREA: dict[str, tuple[str, ...]] = {
     "mcp_inventory_policy_stubs": ("mcp_inventory_stub", "mcp_policy_stub"),
     "handoff_profiles": ("handoff_profile",),
     "packs": ("pack",),
-    "model_policies": ("model_policy_stub", "model_client_registry", "model_routing_policy", "model_routing_recommendation"),
+    "model_policies": (
+        "model_policy_stub",
+        "model_client_registry",
+        "model_routing_policy",
+        "model_routing_recommendation",
+    ),
 }
 
 EXPECTED_AUTHORITY_BY_KIND: dict[str, str] = {
@@ -187,8 +192,10 @@ def create_profile_pack_manifest(
     """
 
     root = project_root.resolve()
+
     def source(path, kind="module"):
         return [_source_ref(root, path, kind=kind)]
+
     areas: list[dict[str, Any]] = [
         {
             "area": "target_profiles",
@@ -230,7 +237,9 @@ def create_profile_pack_manifest(
                     profile_kind="subagent_profile",
                     title="Passive subagent profile contract",
                     description="Subagents remain profile contracts and never runtime actors in this pack.",
-                    source_refs=source("docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md", kind="doc"),
+                    source_refs=source(
+                        "docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md", kind="doc"
+                    ),
                     payload={
                         "runtime_binding": "UNBOUND",
                         "constructs_subagents": False,
@@ -570,7 +579,12 @@ def _validate_entry_payload(entry: dict[str, Any], *, field: str) -> list[str]:
             if payload.get(key) is not False:
                 errors.append(f"{field}.payload.{key} must be false")
 
-    if profile_kind in {"model_policy_stub", "model_client_registry", "model_routing_policy", "model_routing_recommendation"}:
+    if profile_kind in {
+        "model_policy_stub",
+        "model_client_registry",
+        "model_routing_policy",
+        "model_routing_recommendation",
+    }:
         if payload.get("calls_models") is not False:
             errors.append(f"{field}.payload.calls_models must be false")
         if payload.get("model_execution") != "DISABLED":
@@ -634,9 +648,7 @@ def _validate_entry(entry: Any, *, expected_area: str, field: str, seen_ids: set
     if authority not in ALLOWED_AUTHORITY_CLASSIFICATIONS:
         errors.append(f"{field}.authority_classification must be known")
     elif profile_kind in EXPECTED_AUTHORITY_BY_KIND and authority != EXPECTED_AUTHORITY_BY_KIND[profile_kind]:
-        errors.append(
-            f"{field}.authority_classification must be {EXPECTED_AUTHORITY_BY_KIND[profile_kind]}"
-        )
+        errors.append(f"{field}.authority_classification must be {EXPECTED_AUTHORITY_BY_KIND[profile_kind]}")
 
     refs = entry.get("source_refs")
     if not isinstance(refs, list) or not refs:

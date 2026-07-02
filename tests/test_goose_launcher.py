@@ -108,6 +108,7 @@ def test_goose_env_mlx_lm_backend():
 
     import os
     from unittest.mock import patch
+
     with patch.dict(os.environ, {"OPENAI_API_KEY": "dummy-secret-key"}):
         env, report = derive_goose_environment(settings)
         assert env["GOOSE_PROVIDER"] == "openai"
@@ -146,6 +147,7 @@ def test_goose_env_groq_backend():
 
     import os
     from unittest.mock import patch
+
     with patch.dict(os.environ, {"GROQ_API_KEY": "groq-secret"}):
         env, report = derive_goose_environment(settings)
         assert env["GOOSE_PROVIDER"] == "openai"
@@ -185,6 +187,7 @@ def test_goose_env_xai_backend():
 
     import os
     from unittest.mock import patch
+
     with patch.dict(os.environ, {"XAI_API_KEY": "xai-secret"}):
         env, report = derive_goose_environment(settings)
         assert env["GOOSE_PROVIDER"] == "openai"
@@ -224,6 +227,7 @@ def test_goose_env_openai_backend():
 
     import os
     from unittest.mock import patch
+
     with patch.dict(os.environ, {"OPENAI_API_KEY": "openai-secret"}):
         env, report = derive_goose_environment(settings)
         assert env["GOOSE_PROVIDER"] == "openai"
@@ -263,6 +267,7 @@ def test_goose_env_anthropic_backend():
 
     import os
     from unittest.mock import patch
+
     with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "anthropic-secret"}):
         env, report = derive_goose_environment(settings)
         assert env["GOOSE_PROVIDER"] == "anthropic"
@@ -302,6 +307,7 @@ def test_missing_provider_or_key_raises_error():
     from unittest.mock import patch
 
     import pytest
+
     with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=True):
         with patch("builder_ii.goose_launcher.find_goose_binary", return_value="/usr/local/bin/goose"):
             with pytest.raises(ValueError) as exc:
@@ -342,10 +348,12 @@ def test_stratum_action_launch_goose_uses_adapter():
     mock_proc = MagicMock()
     mock_proc.wait.return_value = 0
 
-    with patch("builder_ii.tui.app.StratumApp.suspend"), \
-         patch("builtins.print"), \
-         patch("builtins.input"), \
-         patch("builder_ii.goose_launcher.find_goose_binary", return_value="/usr/local/bin/goose"), \
-         patch("builder_ii.goose_launcher.launch_goose_session", return_value=mock_proc) as mock_launch_session:
+    with (
+        patch("builder_ii.tui.app.StratumApp.suspend"),
+        patch("builtins.print"),
+        patch("builtins.input"),
+        patch("builder_ii.goose_launcher.find_goose_binary", return_value="/usr/local/bin/goose"),
+        patch("builder_ii.goose_launcher.launch_goose_session", return_value=mock_proc) as mock_launch_session,
+    ):
         app.action_launch_goose()
         mock_launch_session.assert_called_once_with(app.settings)

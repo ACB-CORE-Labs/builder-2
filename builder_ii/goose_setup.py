@@ -6,6 +6,7 @@ passive configuration/overlay form and redirecting operators to the governed
 filesystem mutation, skill copying, recipe validation, Goose startup, or
 subprocess execution.
 """
+
 from __future__ import annotations
 
 from pathlib import Path

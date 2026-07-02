@@ -135,10 +135,14 @@ def run_direct_chat(
     try:
         body = response.json()
     except ValueError:
-        return DirectChatResult(False, "", url, settings.active_model_id, status_code=response.status_code, error="non-JSON response")
+        return DirectChatResult(
+            False, "", url, settings.active_model_id, status_code=response.status_code, error="non-JSON response"
+        )
 
     content = _extract_content(body)
     if not content:
-        return DirectChatResult(True, EMPTY_SANITIZED_OUTPUT_MESSAGE, url, settings.active_model_id, status_code=response.status_code)
+        return DirectChatResult(
+            True, EMPTY_SANITIZED_OUTPUT_MESSAGE, url, settings.active_model_id, status_code=response.status_code
+        )
 
     return DirectChatResult(True, content, url, settings.active_model_id, status_code=response.status_code)

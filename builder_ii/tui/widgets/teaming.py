@@ -49,12 +49,16 @@ class DeepAgentTeamingScreen(ModalScreen[list[str]]):
 
     def compose(self) -> ComposeResult:
         from builder_ii.agent_profiles import agent_profiles
+
         profiles = agent_profiles()
 
         with Vertical(id="teaming-dialog"):
-            yield Static("╔══════════════════════════════════════════╗\n"
-                         "║      DEEPAGENTS TEAMING & DISPATCH       ║\n"
-                         "╚══════════════════════════════════════════╝", id="teaming-title")
+            yield Static(
+                "╔══════════════════════════════════════════╗\n"
+                "║      DEEPAGENTS TEAMING & DISPATCH       ║\n"
+                "╚══════════════════════════════════════════╝",
+                id="teaming-title",
+            )
 
             with ScrollableContainer(id="teaming-list"):
                 for p in profiles:

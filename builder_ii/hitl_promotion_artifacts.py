@@ -53,9 +53,7 @@ _FORBIDDEN_ACTIVE_STATES = {
 }
 
 _FORBIDDEN_ACTIVE_STATE_RE = re.compile(
-    r"(?<![a-z0-9])("
-    + "|".join(re.escape(term) for term in sorted(_FORBIDDEN_ACTIVE_STATES))
-    + r")(?![a-z0-9])",
+    r"(?<![a-z0-9])(" + "|".join(re.escape(term) for term in sorted(_FORBIDDEN_ACTIVE_STATES)) + r")(?![a-z0-9])",
     re.IGNORECASE,
 )
 
@@ -211,10 +209,7 @@ def _should_skip_active_state_scan(path: str) -> bool:
     if path.startswith("subject_refs["):
         return True
 
-    return any(
-        path == root or path.startswith(f"{root}.")
-        for root in _ACTIVE_STATE_SCAN_SKIP_ROOTS
-    )
+    return any(path == root or path.startswith(f"{root}.") for root in _ACTIVE_STATE_SCAN_SKIP_ROOTS)
 
 
 def _validate_no_active_state_claims(value: Any, path: str) -> list[str]:
@@ -224,9 +219,7 @@ def _validate_no_active_state_claims(value: Any, path: str) -> list[str]:
 
     if isinstance(value, dict):
         for key, item in value.items():
-            errors.extend(
-                _validate_no_active_state_claims(item, f"{path}.{key}" if path else key)
-            )
+            errors.extend(_validate_no_active_state_claims(item, f"{path}.{key}" if path else key))
     elif isinstance(value, list):
         for index, item in enumerate(value):
             errors.extend(_validate_no_active_state_claims(item, f"{path}[{index}]"))
@@ -355,16 +348,8 @@ def validate_hitl_promotion_request(data: Any) -> list[str]:
             required=True,
         )
     )
-    errors.extend(
-        _validate_ref(
-            data.get("target_profile_ref"), "target_profile_ref", required=False
-        )
-    )
-    errors.extend(
-        _validate_ref(
-            data.get("session_manifest_ref"), "session_manifest_ref", required=False
-        )
-    )
+    errors.extend(_validate_ref(data.get("target_profile_ref"), "target_profile_ref", required=False))
+    errors.extend(_validate_ref(data.get("session_manifest_ref"), "session_manifest_ref", required=False))
 
     errors.extend(_validate_invariants(data, "REQUESTED_ONLY"))
     errors.extend(_validate_no_active_state_claims(data, ""))
@@ -386,9 +371,7 @@ def create_hitl_promotion_review(
     reviewed_by: str = "operator",
 ) -> dict[str, Any]:
     if promotion_request_ref is None and promotion_request is not None:
-        promotion_request_ref = _create_ref(
-            promotion_request, path=promotion_request_path, role="promotion_request"
-        )
+        promotion_request_ref = _create_ref(promotion_request, path=promotion_request_path, role="promotion_request")
     return {
         "kind": HITL_PROMOTION_REVIEW_KIND,
         "schema_version": HITL_PROMOTION_REVIEW_SCHEMA_VERSION,
@@ -429,9 +412,7 @@ def validate_hitl_promotion_review(data: Any) -> list[str]:
 
     disposition = data.get("disposition")
     if disposition not in ("acceptable_for_decision", "needs_revision", "blocked"):
-        errors.append(
-            "disposition must be acceptable_for_decision, needs_revision, or blocked"
-        )
+        errors.append("disposition must be acceptable_for_decision, needs_revision, or blocked")
 
     errors.extend(_validate_invariants(data, "REVIEWED_ONLY"))
     errors.extend(_validate_no_active_state_claims(data, ""))
@@ -476,9 +457,7 @@ def validate_hitl_promotion_decision(data: Any) -> list[str]:
     if data.get("kind") != HITL_PROMOTION_DECISION_KIND:
         errors.append(f"kind must be {HITL_PROMOTION_DECISION_KIND}")
     if data.get("schema_version") != HITL_PROMOTION_DECISION_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {HITL_PROMOTION_DECISION_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {HITL_PROMOTION_DECISION_SCHEMA_VERSION}")
     if data.get("record_state") != "DECISION_RECORDED_ONLY":
         errors.append("record_state must be DECISION_RECORDED_ONLY")
 
@@ -501,9 +480,7 @@ def validate_hitl_promotion_decision(data: Any) -> list[str]:
 
     result = data.get("decision_result")
     if result not in ("approved_for_candidate_design", "rejected", "needs_revision"):
-        errors.append(
-            "decision_result must be approved_for_candidate_design, rejected, or needs_revision"
-        )
+        errors.append("decision_result must be approved_for_candidate_design, rejected, or needs_revision")
 
     source_review_disposition = data.get("source_review_disposition")
     if source_review_disposition not in (
@@ -511,9 +488,7 @@ def validate_hitl_promotion_decision(data: Any) -> list[str]:
         "needs_revision",
         "blocked",
     ):
-        errors.append(
-            "source_review_disposition must be acceptable_for_decision, needs_revision, or blocked"
-        )
+        errors.append("source_review_disposition must be acceptable_for_decision, needs_revision, or blocked")
 
     source_review_blocking_issues = data.get("source_review_blocking_issues")
     if not isinstance(source_review_blocking_issues, list):
@@ -523,22 +498,13 @@ def validate_hitl_promotion_decision(data: Any) -> list[str]:
     if not isinstance(blockers, list):
         errors.append("blockers must be a list")
     elif len(blockers) > 0 and result == "approved_for_candidate_design":
-        errors.append(
-            "approved_for_candidate_design decision must not have unresolved blockers"
-        )
+        errors.append("approved_for_candidate_design decision must not have unresolved blockers")
 
     if result == "approved_for_candidate_design":
         if source_review_disposition != "acceptable_for_decision":
-            errors.append(
-                "approved_for_candidate_design requires source_review_disposition acceptable_for_decision"
-            )
-        if (
-            isinstance(source_review_blocking_issues, list)
-            and source_review_blocking_issues
-        ):
-            errors.append(
-                "approved_for_candidate_design requires empty source_review_blocking_issues"
-            )
+            errors.append("approved_for_candidate_design requires source_review_disposition acceptable_for_decision")
+        if isinstance(source_review_blocking_issues, list) and source_review_blocking_issues:
+            errors.append("approved_for_candidate_design requires empty source_review_blocking_issues")
 
     if data.get("records_human_decision") is not True:
         errors.append("records_human_decision must be true")
@@ -571,16 +537,14 @@ def create_hitl_approval_boundary(
         "promotion_request_ref": promotion_request_ref,
         "source_decision_result": source_decision_result,
         "source_decision_record_state": source_decision_record_state,
-        "permitted_candidate_scope": permitted_candidate_scope
-        or {"allowed_profiles": ["generic"]},
+        "permitted_candidate_scope": permitted_candidate_scope or {"allowed_profiles": ["generic"]},
         "denied_boundaries": denied_boundaries
         or [
             "runtime execution",
             "memory mutation",
             "target repo writes",
         ],
-        "required_future_artifacts": required_future_artifacts
-        or ["builder_ii.execution_candidate_manifest"],
+        "required_future_artifacts": required_future_artifacts or ["builder_ii.execution_candidate_manifest"],
         "rollback_requirements": rollback_requirements or {"required": True},
         "verification_requirements": verification_requirements or {"required": True},
         "requires_separate_execution_candidate": True,
@@ -618,13 +582,9 @@ def validate_hitl_approval_boundary(data: Any) -> list[str]:
     )
 
     if data.get("source_decision_result") != "approved_for_candidate_design":
-        errors.append(
-            "approval boundary requires source_decision_result approved_for_candidate_design"
-        )
+        errors.append("approval boundary requires source_decision_result approved_for_candidate_design")
     if data.get("source_decision_record_state") != "DECISION_RECORDED_ONLY":
-        errors.append(
-            "approval boundary requires source_decision_record_state DECISION_RECORDED_ONLY"
-        )
+        errors.append("approval boundary requires source_decision_record_state DECISION_RECORDED_ONLY")
 
     if data.get("requires_separate_execution_candidate") is not True:
         errors.append("requires_separate_execution_candidate must be true")
@@ -722,9 +682,7 @@ def validate_hitl_promotion_validation_report(data: Any) -> list[str]:
     if data.get("kind") != HITL_PROMOTION_VALIDATION_REPORT_KIND:
         errors.append(f"kind must be {HITL_PROMOTION_VALIDATION_REPORT_KIND}")
     if data.get("schema_version") != HITL_PROMOTION_VALIDATION_REPORT_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {HITL_PROMOTION_VALIDATION_REPORT_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {HITL_PROMOTION_VALIDATION_REPORT_SCHEMA_VERSION}")
     if data.get("record_state") != "VALIDATION_ONLY":
         errors.append("record_state must be VALIDATION_ONLY")
 
@@ -753,9 +711,7 @@ def write_hitl_promotion_artifact(data: dict[str, Any], output: Path) -> None:
     output.write_text(dumps_hitl_promotion_artifact(data), encoding="utf-8")
 
 
-def _read_and_validate_file(
-    path: Path, validator: Callable[[Any], list[str]]
-) -> list[str]:
+def _read_and_validate_file(path: Path, validator: Callable[[Any], list[str]]) -> list[str]:
     if not path.is_file():
         return [f"file not found or is not a file: {path}"]
     try:

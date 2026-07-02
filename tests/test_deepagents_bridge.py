@@ -2,11 +2,11 @@ import json as json_lib
 from pathlib import Path
 from types import SimpleNamespace
 
+from builder_ii.bridge_cli import bridge_app
 from typer.testing import CliRunner
 
 from builder_ii import deepagents_bridge
 from builder_ii.agent_profiles import agent_profile_names, get_agent_profile
-from builder_ii.bridge_cli import bridge_app
 from builder_ii.deepagents_bridge import (
     REQUIRED_DENIED_TOOLS,
     bridge_spec_for,
@@ -303,6 +303,7 @@ def test_cli_render_default_does_not_write(monkeypatch, tmp_path: Path) -> None:
         result = runner.invoke(bridge_app, ["render", "patch_planner", "--target", "builder"])
         assert result.exit_code == 0
         import os
+
         assert os.listdir(".") == []
 
 
@@ -422,7 +423,9 @@ def test_cli_validate_artifact_success(tmp_path: Path) -> None:
 
 def test_cli_validate_artifact_fail(tmp_path: Path) -> None:
     f = tmp_path / "smoke_bad.json"
-    f.write_text('{"kind": "builder_ii.deepagents_smoke", "schema_version": 1, "runtime_execution": "ENABLED"}', encoding="utf-8")
+    f.write_text(
+        '{"kind": "builder_ii.deepagents_smoke", "schema_version": 1, "runtime_execution": "ENABLED"}', encoding="utf-8"
+    )
 
     runner = CliRunner()
     result = runner.invoke(bridge_app, ["validate-artifact", str(f)])

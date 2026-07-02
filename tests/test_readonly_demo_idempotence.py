@@ -3,11 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from builder_ii.targets_cli import targets_app
 from typer.testing import CliRunner
 
 from builder_ii.event_ledger import load_event_records, replay_events
 from builder_ii.readonly_founder_demo import generate_readonly_founder_demo
-from builder_ii.targets_cli import targets_app
 
 runner = CliRunner()
 
@@ -16,9 +16,7 @@ def test_readonly_founder_demo_idempotence(tmp_path: Path) -> None:
     out = tmp_path / "core-readonly-idempotence"
     session_id = "wf-core-idempotence-test"
 
-    res1 = generate_readonly_founder_demo(
-        target="core", output_dir=out, session_id=session_id, force=False
-    )
+    res1 = generate_readonly_founder_demo(target="core", output_dir=out, session_id=session_id, force=False)
     assert res1["event_ledger"].exists()
     assert res1["workflow_status"].exists()
 
@@ -29,9 +27,7 @@ def test_readonly_founder_demo_idempotence(tmp_path: Path) -> None:
     assert replay1["current_stage"] == "candidate"
 
     with pytest.raises(ValueError) as excinfo:
-        generate_readonly_founder_demo(
-            target="core", output_dir=out, session_id=session_id, force=False
-        )
+        generate_readonly_founder_demo(target="core", output_dir=out, session_id=session_id, force=False)
     assert "already exists and is not empty" in str(excinfo.value)
     assert "Use --force to overwrite" in str(excinfo.value)
 
@@ -59,9 +55,7 @@ def test_readonly_founder_demo_idempotence(tmp_path: Path) -> None:
     assert replay_vc["valid"] is True
     assert replay_vc["current_stage"] == "chain_verified"
 
-    res2 = generate_readonly_founder_demo(
-        target="core", output_dir=out, session_id=session_id, force=True
-    )
+    res2 = generate_readonly_founder_demo(target="core", output_dir=out, session_id=session_id, force=True)
     assert res2["event_ledger"].exists()
 
     assert not event5_path.exists()

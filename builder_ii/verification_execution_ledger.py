@@ -28,7 +28,9 @@ VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND = "builder_ii.verification_execu
 VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_SCHEMA_VERSION = 1
 VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND = "builder_ii.verification_execution_ledger_integrity_report"
 VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_SCHEMA_VERSION = 1
-VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND = "builder_ii.verification_execution_ledger_reconstruction_report"
+VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_KIND = (
+    "builder_ii.verification_execution_ledger_reconstruction_report"
+)
 VERIFICATION_EXECUTION_LEDGER_RECONSTRUCTION_REPORT_SCHEMA_VERSION = 1
 LEDGER_RECORD_STATE = "PASSIVE_INDEX_ONLY"
 _REQUIRED_SUBJECT_REF_ROLES = (
@@ -496,10 +498,7 @@ def _duplicate_reports(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _validate_optional_index_chain(rows: list[dict[str, Any]]) -> tuple[str, bool, list[dict[str, Any]]]:
     applies = any(
         isinstance(row.get("record"), dict)
-        and (
-            "ledger_index" in row["record"]
-            or "previous_ledger_record_digest" in row["record"]
-        )
+        and ("ledger_index" in row["record"] or "previous_ledger_record_digest" in row["record"])
         for row in rows
     )
     if not applies:
@@ -515,7 +514,12 @@ def _validate_optional_index_chain(rows: list[dict[str, Any]]) -> tuple[str, boo
         path = str(row.get("path", ""))
         index = record.get("ledger_index")
         if not isinstance(index, int) or index < 1:
-            errors.append({"path": path, "errors": ["ledger_index must be a positive integer when index-chain fields are present"]})
+            errors.append(
+                {
+                    "path": path,
+                    "errors": ["ledger_index must be a positive integer when index-chain fields are present"],
+                }
+            )
             continue
         indexed_rows.append((index, row))
         paths_by_index.setdefault(index, []).append(path)
@@ -532,7 +536,9 @@ def _validate_optional_index_chain(rows: list[dict[str, Any]]) -> tuple[str, boo
             record = index_rows[0].get("record") if isinstance(index_rows[0].get("record"), dict) else {}
             digests_by_unique_index[index] = _record_digest(record)
 
-    for expected_index, (actual_index, row) in enumerate(sorted(indexed_rows, key=lambda item: (item[0], str(item[1].get("path", "")))), start=1):
+    for expected_index, (actual_index, row) in enumerate(
+        sorted(indexed_rows, key=lambda item: (item[0], str(item[1].get("path", "")))), start=1
+    ):
         record = row.get("record") if isinstance(row.get("record"), dict) else {}
         path = str(row.get("path", ""))
         row_errors: list[str] = []
@@ -547,7 +553,9 @@ def _validate_optional_index_chain(rows: list[dict[str, Any]]) -> tuple[str, boo
         else:
             expected_prior_digest = digests_by_unique_index.get(actual_index - 1)
             if expected_prior_digest is None:
-                row_errors.append("previous_ledger_record_digest cannot be validated because prior ledger_index is missing or duplicated")
+                row_errors.append(
+                    "previous_ledger_record_digest cannot be validated because prior ledger_index is missing or duplicated"
+                )
             elif previous != expected_prior_digest:
                 row_errors.append("previous_ledger_record_digest does not match prior indexed record digest")
 
@@ -624,7 +632,6 @@ def validate_verification_execution_ledger_integrity(
     }
 
 
-
 def _reconstructed_chain_row(row: dict[str, Any]) -> dict[str, Any]:
     record = row.get("record") if isinstance(row.get("record"), dict) else {}
     subject_refs = record.get("subject_refs") if isinstance(record.get("subject_refs"), list) else []
@@ -649,6 +656,7 @@ def _reconstructed_chain_row(row: dict[str, Any]) -> dict[str, Any]:
         "evidence_ref": _ledger_record_evidence_ref(row),
         "valid": record.get("valid", True),
     }
+
 
 def _invalid_reconstruction_records(integrity_report: dict[str, Any]) -> list[dict[str, Any]]:
     invalid: list[dict[str, Any]] = []
@@ -877,7 +885,9 @@ def index_verification_execution_receipt(
             "execution_enabled": receipt.get("execution_enabled") if isinstance(receipt, dict) else None,
             "shell_enabled": receipt.get("shell_enabled") if isinstance(receipt, dict) else None,
             "subprocess_mode": receipt.get("subprocess_mode") if isinstance(receipt, dict) else None,
-            "workspace_mutation_detected": receipt.get("workspace_mutation_detected") if isinstance(receipt, dict) else None,
+            "workspace_mutation_detected": receipt.get("workspace_mutation_detected")
+            if isinstance(receipt, dict)
+            else None,
             "chain_digest": "",
             "subject_refs": [],
             "process_result_count": 0,
@@ -933,7 +943,15 @@ def validate_verification_execution_ledger_record(record: Any) -> list[str]:
     for field in ("ledger_record_id", "recorded_at_source"):
         if not _is_non_empty_string(record.get(field)):
             errors.append(f"{field} must be a non-empty string")
-    for field in ("target_profile", "verification_profile", "target_repo", "artifact_root", "receipt_status", "runner_mode", "subprocess_mode"):
+    for field in (
+        "target_profile",
+        "verification_profile",
+        "target_repo",
+        "artifact_root",
+        "receipt_status",
+        "runner_mode",
+        "subprocess_mode",
+    ):
         if record.get("valid") is True and not _is_non_empty_string(record.get(field)):
             errors.append(f"{field} must be a non-empty string when valid is true")
     if record.get("valid") is True and record.get("runner_mode") != RUNNER_MODE_BOUNDED_APPROVED:
@@ -963,14 +981,32 @@ def validate_verification_execution_ledger_record(record: Any) -> list[str]:
         errors.append("process_result_statuses must be a list")
     if not isinstance(record.get("disabled_authority"), dict):
         errors.append("disabled_authority must be an object")
-    for key in ("executes_model", "executes_shell", "invokes_goose", "constructs_deepagents", "invokes_mcp", "mutates_target_repo", "replays_execution"):
+    for key in (
+        "executes_model",
+        "executes_shell",
+        "invokes_goose",
+        "constructs_deepagents",
+        "invokes_mcp",
+        "mutates_target_repo",
+        "replays_execution",
+    ):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        for key in ("runtime_execution", "model_execution", "shell_execution", "target_repo_writes", "memory_mutation", "goose_runtime_start", "deepagents_runtime", "mcp_execution", "replay_execution"):
+        for key in (
+            "runtime_execution",
+            "model_execution",
+            "shell_execution",
+            "target_repo_writes",
+            "memory_mutation",
+            "goose_runtime_start",
+            "deepagents_runtime",
+            "mcp_execution",
+            "replay_execution",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT LEDGER ARTIFACT OUTPUT PATH":
@@ -1024,7 +1060,9 @@ def validate_verification_execution_ledger_integrity_report(record: Any) -> list
         if not isinstance(summary.get("chain_rule_applies"), bool):
             errors.append("summary.chain_rule_applies must be a boolean")
         if summary.get("chain_continuity_status") not in ("continuous", "invalid", "not_applicable_no_sequence_rule"):
-            errors.append("summary.chain_continuity_status must be continuous, invalid, or not_applicable_no_sequence_rule")
+            errors.append(
+                "summary.chain_continuity_status must be continuous, invalid, or not_applicable_no_sequence_rule"
+            )
     for field in ("records", "rejected", "duplicates", "chain_errors", "evidence_refs", "errors"):
         if not isinstance(record.get(field), list):
             errors.append(f"{field} must be a list")
@@ -1054,7 +1092,15 @@ def validate_verification_execution_ledger_integrity_report(record: Any) -> list
             errors.append("errors must be empty when valid is true")
         if valid is False and not report_errors:
             errors.append("errors must be non-empty when valid is false")
-    for key in ("executes_model", "executes_shell", "invokes_goose", "constructs_deepagents", "invokes_mcp", "mutates_target_repo", "replays_execution"):
+    for key in (
+        "executes_model",
+        "executes_shell",
+        "invokes_goose",
+        "constructs_deepagents",
+        "invokes_mcp",
+        "mutates_target_repo",
+        "replays_execution",
+    ):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
     governance = record.get("governance")
@@ -1102,7 +1148,9 @@ def validate_verification_execution_ledger_reconstruction_report(record: Any) ->
         if not isinstance(summary.get("chain_rule_applies"), bool):
             errors.append("summary.chain_rule_applies must be a boolean")
         if summary.get("chain_continuity_status") not in ("continuous", "invalid", "not_applicable_no_sequence_rule"):
-            errors.append("summary.chain_continuity_status must be continuous, invalid, or not_applicable_no_sequence_rule")
+            errors.append(
+                "summary.chain_continuity_status must be continuous, invalid, or not_applicable_no_sequence_rule"
+            )
     if record.get("chain_continuity_status") not in ("continuous", "invalid", "not_applicable_no_sequence_rule"):
         errors.append("chain_continuity_status must be continuous, invalid, or not_applicable_no_sequence_rule")
     for field in ("reconstructed_chains", "invalid_records", "rejected", "evidence_refs", "errors"):
@@ -1110,7 +1158,9 @@ def validate_verification_execution_ledger_reconstruction_report(record: Any) ->
             errors.append(f"{field} must be a list")
     if not isinstance(record.get("integrity_summary"), dict):
         errors.append("integrity_summary must be an object")
-    for index, chain in enumerate(record.get("reconstructed_chains") if isinstance(record.get("reconstructed_chains"), list) else []):
+    for index, chain in enumerate(
+        record.get("reconstructed_chains") if isinstance(record.get("reconstructed_chains"), list) else []
+    ):
         if not isinstance(chain, dict):
             errors.append(f"reconstructed_chains[{index}] must be an object")
             continue
@@ -1127,7 +1177,9 @@ def validate_verification_execution_ledger_reconstruction_report(record: Any) ->
             if not _is_sha256_hex(chain.get("chain_digest")):
                 errors.append(f"reconstructed_chains[{index}].chain_digest must be a SHA-256 hex digest")
         if not _is_sha256_hex(chain.get("verification_execution_ledger_record_digest")):
-            errors.append(f"reconstructed_chains[{index}].verification_execution_ledger_record_digest must be a SHA-256 hex digest")
+            errors.append(
+                f"reconstructed_chains[{index}].verification_execution_ledger_record_digest must be a SHA-256 hex digest"
+            )
         if not isinstance(chain.get("subject_refs"), list):
             errors.append(f"reconstructed_chains[{index}].subject_refs must be a list")
         evidence_ref = chain.get("evidence_ref")
@@ -1159,7 +1211,15 @@ def validate_verification_execution_ledger_reconstruction_report(record: Any) ->
             errors.append("errors must be empty when valid is true")
         if valid is False and not report_errors:
             errors.append("errors must be non-empty when valid is false")
-    for key in ("executes_model", "executes_shell", "invokes_goose", "constructs_deepagents", "invokes_mcp", "mutates_target_repo", "replays_execution"):
+    for key in (
+        "executes_model",
+        "executes_shell",
+        "invokes_goose",
+        "constructs_deepagents",
+        "invokes_mcp",
+        "mutates_target_repo",
+        "replays_execution",
+    ):
         if record.get(key) is not False:
             errors.append(f"{key} must be false")
     governance = record.get("governance")

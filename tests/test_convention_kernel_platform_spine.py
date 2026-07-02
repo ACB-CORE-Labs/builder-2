@@ -195,7 +195,7 @@ def test_governance_safety_rejects_missing_keys():
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
 
     # Verify happy path
@@ -231,6 +231,7 @@ def test_command_match_exact_and_fallback_ambiguity():
     rec_none = find_matching_record("builder-context pack unregistered-subcommand")
     assert rec_none is None
 
+
 def test_platform_bundle_validation_checks_child_artifact_governance(tmp_path):
     repo = _make_repo(tmp_path)
     settings = load_settings(project_root=ROOT)
@@ -245,10 +246,7 @@ def test_platform_bundle_validation_checks_child_artifact_governance(tmp_path):
     bundle_dict["repo_map"]["governance"]["runtime_execution"] = "AUTHORIZED"
 
     errors = validate_convention_kernel_platform_bundle(bundle_dict)
-    assert any(
-        "repo_map: governance.runtime_execution must be DISABLED" in err
-        for err in errors
-    )
+    assert any("repo_map: governance.runtime_execution must be DISABLED" in err for err in errors)
 
 
 def test_platform_bundle_reference_extraction_handles_missing_handoff_note():

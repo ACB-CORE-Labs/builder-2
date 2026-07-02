@@ -80,9 +80,7 @@ def _write_newer_artifacts(tmp_path: Path) -> None:
         approval_boundary_refs=("metadata only",),
         output_artifact_refs=("artifact-index.json",),
         rollback_refs=("revert validator entry",),
-        verification_refs=(
-            "uv run pytest tests/test_artifact_index_records.py tests/test_artifact_index_cli.py -q",
-        ),
+        verification_refs=("uv run pytest tests/test_artifact_index_records.py tests/test_artifact_index_cli.py -q",),
     )
     write_promotion_readiness_record(readiness, readiness_path)
 
@@ -95,9 +93,7 @@ def _write_newer_artifacts(tmp_path: Path) -> None:
     )
     write_promotion_decision_record(decision, decision_path)
 
-    ledger = create_state_ledger_record(
-        [(decision, decision_path)], ledger_name="artifact-index-test"
-    )
+    ledger = create_state_ledger_record([(decision, decision_path)], ledger_name="artifact-index-test")
     write_state_ledger_record(ledger, ledger_path)
 
     artifact_index = create_artifact_index_record(tmp_path)
@@ -275,9 +271,7 @@ def test_index_rejects_malformed_verification_execution_approval_artifact(tmp_pa
 
 
 def test_index_marks_unknown_artifact_incomplete(tmp_path: Path) -> None:
-    (tmp_path / "unknown.json").write_text(
-        json_lib.dumps({"kind": "unknown", "schema_version": 1}), encoding="utf-8"
-    )
+    (tmp_path / "unknown.json").write_text(json_lib.dumps({"kind": "unknown", "schema_version": 1}), encoding="utf-8")
     record = create_artifact_index_record(tmp_path)
 
     assert record["status"] == "incomplete"
@@ -328,21 +322,12 @@ def test_validate_rejects_authority_changes(tmp_path: Path) -> None:
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:
-    assert any(
-        "file not found" in error
-        for error in validate_artifact_index_record_file(tmp_path / "missing.json")
-    )
+    assert any("file not found" in error for error in validate_artifact_index_record_file(tmp_path / "missing.json"))
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")
-    assert any(
-        "invalid JSON" in error
-        for error in validate_artifact_index_record_file(bad_json)
-    )
+    assert any("invalid JSON" in error for error in validate_artifact_index_record_file(bad_json))
 
     not_object = tmp_path / "array.json"
     not_object.write_text("[]", encoding="utf-8")
-    assert (
-        "artifact index record must be a JSON object"
-        in validate_artifact_index_record_file(not_object)
-    )
+    assert "artifact index record must be a JSON object" in validate_artifact_index_record_file(not_object)

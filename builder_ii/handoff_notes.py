@@ -159,9 +159,23 @@ def validate_handoff_note(data: Any) -> list[str]:
     elif verification_claim != "NOT_CLAIMED":
         errors.append("verification_claim must be NOT_CLAIMED when evidence refs are absent")
 
-    errors.extend(_validate_artifact_ref(data.get("session_ref"), field="session_ref", allowed_kinds={SESSION_WORKFLOW_PLAN_KIND}))
-    errors.extend(_validate_artifact_ref(data.get("goose_readonly_session_ref"), field="goose_readonly_session_ref", allowed_kinds={GOOSE_READONLY_SESSION_PLAN_KIND}))
-    errors.extend(_validate_artifact_ref(data.get("verification_report_ref"), field="verification_report_ref", allowed_kinds={VERIFICATION_PROFILE_REPORT_KIND}))
+    errors.extend(
+        _validate_artifact_ref(data.get("session_ref"), field="session_ref", allowed_kinds={SESSION_WORKFLOW_PLAN_KIND})
+    )
+    errors.extend(
+        _validate_artifact_ref(
+            data.get("goose_readonly_session_ref"),
+            field="goose_readonly_session_ref",
+            allowed_kinds={GOOSE_READONLY_SESSION_PLAN_KIND},
+        )
+    )
+    errors.extend(
+        _validate_artifact_ref(
+            data.get("verification_report_ref"),
+            field="verification_report_ref",
+            allowed_kinds={VERIFICATION_PROFILE_REPORT_KIND},
+        )
+    )
 
     if data.get("human_review_required") is not True:
         errors.append("human_review_required must be true")

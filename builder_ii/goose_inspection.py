@@ -76,7 +76,9 @@ def _validate_relative_repo_path(path: Path) -> list[str]:
     return errors
 
 
-def _read_file_metadata(repo_root: Path, relative_path: Path, *, max_bytes: int) -> tuple[dict[str, Any] | None, list[str]]:
+def _read_file_metadata(
+    repo_root: Path, relative_path: Path, *, max_bytes: int
+) -> tuple[dict[str, Any] | None, list[str]]:
     errors = _validate_relative_repo_path(relative_path)
     if errors:
         return None, errors
@@ -207,7 +209,9 @@ def create_readonly_inspection_audit(
         "denied_action_attempts": [],
         "approval_events": [],
         "verification_output_refs": [],
-        "rollback_refs": ["no source mutation performed; delete this inspection audit artifact to roll back the candidate output"],
+        "rollback_refs": [
+            "no source mutation performed; delete this inspection audit artifact to roll back the candidate output"
+        ],
         "handoff_ref": links.get("handoff", "") if isinstance(links.get("handoff", ""), str) else "",
         "governance": {
             "capability_state": "read_only_runtime_candidate",

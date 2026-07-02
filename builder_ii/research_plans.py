@@ -178,7 +178,15 @@ def validate_research_plan_artifact(artifact: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        for key in ("runtime_execution", "model_execution", "agent_construction", "search_execution", "mcp_execution", "source_collection", "shell_execution"):
+        for key in (
+            "runtime_execution",
+            "model_execution",
+            "agent_construction",
+            "search_execution",
+            "mcp_execution",
+            "source_collection",
+            "shell_execution",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:

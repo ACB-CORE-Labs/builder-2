@@ -270,17 +270,13 @@ def _require_stage(output_dir: Path, required_stage: str) -> tuple[dict[str, Any
     session, _session_path, paths = _session_context(output_dir)
     status = _write_status_from_events(session, output_dir)
     if status["current_stage"] != required_stage:
-        raise WorkflowError(
-            f"workflow must be at stage {required_stage}; current stage is {status['current_stage']}"
-        )
+        raise WorkflowError(f"workflow must be at stage {required_stage}; current stage is {status['current_stage']}")
     return session, status, paths
 
 
 def _artifact_paths(paths: dict[str, Path]) -> list[Path]:
     artifact_paths = [
-        path
-        for path in paths["artifacts"].glob("*.json")
-        if path.name != "chain-verification-report.json"
+        path for path in paths["artifacts"].glob("*.json") if path.name != "chain-verification-report.json"
     ]
     event_paths = list(paths["events"].glob("*.json"))
     return sorted([*artifact_paths, *event_paths])
@@ -319,7 +315,9 @@ def plan_workflow(
 
     selected_agent_name = agent or _default_agent_for_target(target)
     selected_agent = get_agent_profile(selected_agent_name)  # type: ignore[arg-type]
-    selected_verification = get_verification_profile(verification) if verification else default_profile_for_target(target)
+    selected_verification = (
+        get_verification_profile(verification) if verification else default_profile_for_target(target)
+    )
 
     session = create_workflow_session(
         session_id=session_id or _utc_id(),
@@ -470,7 +468,9 @@ def plan_workflow(
     orchestration_validation_path = paths["artifacts"] / "orchestration-assignment-validation-report.json"
     write_orchestration_assignment_validation_report(orchestration_validation, orchestration_validation_path)
 
-    deepagents_policy = create_deepagents_policy_artifact(settings, target_name=target, task=task, generic_repo=repo_path if target == "generic" else None)
+    deepagents_policy = create_deepagents_policy_artifact(
+        settings, target_name=target, task=task, generic_repo=repo_path if target == "generic" else None
+    )
     deepagents_policy_path = paths["artifacts"] / "deepagents-policy.json"
     _write_json(deepagents_policy, deepagents_policy_path)
 
@@ -511,9 +511,21 @@ def plan_workflow(
         subject_refs=[
             artifact_ref(session, path=paths["session"], role="workflow_session", name="workflow session"),
             artifact_ref(profile_pack, path=profile_pack_path, role="profile_pack", name="profile pack"),
-            artifact_ref(model_recommendation, path=model_recommendation_path, role="model_routing", name="model routing recommendation"),
-            artifact_ref(orchestration, path=orchestration_path, role="orchestration_assignment", name="orchestration assignment"),
-            artifact_ref(deepagents_work_plan, path=deepagents_work_plan_path, role="deepagents_work_plan", name="deepagents work plan"),
+            artifact_ref(
+                model_recommendation,
+                path=model_recommendation_path,
+                role="model_routing",
+                name="model routing recommendation",
+            ),
+            artifact_ref(
+                orchestration, path=orchestration_path, role="orchestration_assignment", name="orchestration assignment"
+            ),
+            artifact_ref(
+                deepagents_work_plan,
+                path=deepagents_work_plan_path,
+                role="deepagents_work_plan",
+                name="deepagents work plan",
+            ),
         ],
         reason="Passive workflow plan recorded without runtime authority.",
     )
@@ -524,7 +536,9 @@ def plan_workflow(
     write_workflow_record(transition, transition_path)
 
     event_subjects = list(transition["subject_refs"])
-    event_subjects.append(artifact_ref(transition, path=transition_path, role="workflow_transition", name="plan transition"))
+    event_subjects.append(
+        artifact_ref(transition, path=transition_path, role="workflow_transition", name="plan transition")
+    )
     _event, _event_path, status = _record_event(
         output_dir=output_dir,
         session=session,
@@ -544,7 +558,11 @@ def promote_workflow(*, output_dir: Path, requested_by: str = "operator") -> dic
     request = create_hitl_promotion_request(
         proposal=work_plan,
         proposal_path=work_plan_path,
-        target_profile_ref=artifact_ref(_read_json(paths["artifacts"] / "target-profile.json"), path=paths["artifacts"] / "target-profile.json", role="target_profile"),
+        target_profile_ref=artifact_ref(
+            _read_json(paths["artifacts"] / "target-profile.json"),
+            path=paths["artifacts"] / "target-profile.json",
+            role="target_profile",
+        ),
         requested_by=requested_by,
         reason="Promote passive deepagents work plan into candidate-design boundary.",
     )
@@ -626,7 +644,9 @@ def promote_workflow(*, output_dir: Path, requested_by: str = "operator") -> dic
         raise WorkflowError("created invalid workflow transition: " + "; ".join(transition_errors))
     write_workflow_record(transition, transition_path)
     subjects = list(transition["subject_refs"])
-    subjects.append(artifact_ref(transition, path=transition_path, role="workflow_transition", name="promotion transition"))
+    subjects.append(
+        artifact_ref(transition, path=transition_path, role="workflow_transition", name="promotion transition")
+    )
     _event, _event_path, status = _record_event(
         output_dir=output_dir,
         session=session,
@@ -660,14 +680,26 @@ def candidate_workflow(*, output_dir: Path) -> dict[str, Any]:
     }
 
     manifest = create_execution_candidate_manifest(
-        approval_boundary_ref=artifact_ref(boundary, path=artifacts / "hitl-approval-boundary.json", role="approval_boundary"),
-        promotion_decision_ref=artifact_ref(decision, path=artifacts / "hitl-promotion-decision.json", role="promotion_decision"),
-        promotion_review_ref=artifact_ref(review, path=artifacts / "hitl-promotion-review.json", role="promotion_review"),
-        promotion_request_ref=artifact_ref(request, path=artifacts / "hitl-promotion-request.json", role="promotion_request"),
-        source_proposal_refs=[artifact_ref(proposal, path=artifacts / "deepagents-work-plan.json", role="source_proposal")],
+        approval_boundary_ref=artifact_ref(
+            boundary, path=artifacts / "hitl-approval-boundary.json", role="approval_boundary"
+        ),
+        promotion_decision_ref=artifact_ref(
+            decision, path=artifacts / "hitl-promotion-decision.json", role="promotion_decision"
+        ),
+        promotion_review_ref=artifact_ref(
+            review, path=artifacts / "hitl-promotion-review.json", role="promotion_review"
+        ),
+        promotion_request_ref=artifact_ref(
+            request, path=artifacts / "hitl-promotion-request.json", role="promotion_request"
+        ),
+        source_proposal_refs=[
+            artifact_ref(proposal, path=artifacts / "deepagents-work-plan.json", role="source_proposal")
+        ],
         target_profile_ref=artifact_ref(target_artifact, path=artifacts / "target-profile.json", role="target_profile"),
         command_authority_ref=command_authority_ref,
-        verification_profile_ref=artifact_ref(verification_artifact, path=artifacts / "verification-profile.json", role="verification_profile"),
+        verification_profile_ref=artifact_ref(
+            verification_artifact, path=artifacts / "verification-profile.json", role="verification_profile"
+        ),
         rollback_requirements={
             "rollback_required": True,
             "no_mutation_assertion": True,
@@ -684,7 +716,9 @@ def candidate_workflow(*, output_dir: Path) -> dict[str, Any]:
         source_approval_boundary_record_state=str(boundary.get("record_state", "")),
         source_approval_boundary_decision_result=str(boundary.get("source_decision_result", "")),
         source_approval_boundary_decision_record_state=str(boundary.get("source_decision_record_state", "")),
-        source_approval_boundary_requires_separate_execution_candidate=bool(boundary.get("requires_separate_execution_candidate")),
+        source_approval_boundary_requires_separate_execution_candidate=bool(
+            boundary.get("requires_separate_execution_candidate")
+        ),
     )
     manifest_errors = validate_execution_candidate_manifest(manifest)
     if manifest_errors:
@@ -727,7 +761,9 @@ def candidate_workflow(*, output_dir: Path) -> dict[str, Any]:
         raise WorkflowError("created invalid workflow transition: " + "; ".join(transition_errors))
     write_workflow_record(transition, transition_path)
     subjects = list(transition["subject_refs"])
-    subjects.append(artifact_ref(transition, path=transition_path, role="workflow_transition", name="candidate transition"))
+    subjects.append(
+        artifact_ref(transition, path=transition_path, role="workflow_transition", name="candidate transition")
+    )
     _event, _event_path, status = _record_event(
         output_dir=output_dir,
         session=session,
@@ -771,7 +807,9 @@ def verify_chain_workflow(*, output_dir: Path) -> dict[str, Any]:
         raise WorkflowError("created invalid workflow transition: " + "; ".join(transition_errors))
     write_workflow_record(transition, transition_path)
     subjects = list(transition["subject_refs"])
-    subjects.append(artifact_ref(transition, path=transition_path, role="workflow_transition", name="verify-chain transition"))
+    subjects.append(
+        artifact_ref(transition, path=transition_path, role="workflow_transition", name="verify-chain transition")
+    )
     _event, _event_path, status = _record_event(
         output_dir=output_dir,
         session=session,
@@ -799,7 +837,9 @@ def handoff_workflow(*, output_dir: Path) -> dict[str, Any]:
         changed_files_summary=[],
         verification_summary="Artifact chain verification is referenced. Planned verification commands were not executed by this workflow.",
         verification_evidence_refs=[
-            artifact_ref(chain, path=chain_path, role="artifact_chain_verification_report", name="chain verification report")
+            artifact_ref(
+                chain, path=chain_path, role="artifact_chain_verification_report", name="chain verification report"
+            )
         ],
         open_risks=[
             "Runtime activation remains disabled.",
@@ -872,7 +912,9 @@ def handoff_workflow(*, output_dir: Path) -> dict[str, Any]:
         raise WorkflowError("created invalid workflow transition: " + "; ".join(transition_errors))
     write_workflow_record(transition, transition_path)
     subjects = list(transition["subject_refs"])
-    subjects.append(artifact_ref(transition, path=transition_path, role="workflow_transition", name="handoff transition"))
+    subjects.append(
+        artifact_ref(transition, path=transition_path, role="workflow_transition", name="handoff transition")
+    )
     _event, _event_path, status = _record_event(
         output_dir=output_dir,
         session=session,

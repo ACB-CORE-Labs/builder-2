@@ -217,7 +217,9 @@ class CommandAuthorityDecision:
         record = get_command_record(self.command_name)
         if record is None:
             return ()
-        return tuple(effect for effect, flags in _EFFECT_FLAGS.items() if any(bool(getattr(record, flag)) for flag in flags))
+        return tuple(
+            effect for effect, flags in _EFFECT_FLAGS.items() if any(bool(getattr(record, flag)) for flag in flags)
+        )
 
     @property
     def denied_effects(self) -> tuple[str, ...]:
@@ -3587,6 +3589,7 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
 def _generate_extra_records(base_registry: tuple[CommandAuthorityRecord, ...]) -> list[CommandAuthorityRecord]:
     extra_records = []
     import dataclasses
+
     for name in _EXTRA_COMMAND_NAMES:
         best_parent = None
         for r in base_registry:
@@ -3599,9 +3602,6 @@ def _generate_extra_records(base_registry: tuple[CommandAuthorityRecord, ...]) -
 
 
 COMMAND_AUTHORITY_REGISTRY = COMMAND_AUTHORITY_REGISTRY + tuple(_generate_extra_records(COMMAND_AUTHORITY_REGISTRY))
-
-
-
 
 
 def get_all_records() -> tuple[CommandAuthorityRecord, ...]:
@@ -3627,15 +3627,11 @@ def validate_registry_invariants() -> list[str]:
 
         # Promotion state check
         if r.promotion_state not in VALID_PROMOTION_STATES:
-            errors.append(
-                f"Record '{r.name}' has invalid promotion state '{r.promotion_state}'"
-            )
+            errors.append(f"Record '{r.name}' has invalid promotion state '{r.promotion_state}'")
 
         # Approval mode check
         if r.approval_mode not in VALID_APPROVAL_MODES:
-            errors.append(
-                f"Record '{r.name}' has invalid approval mode '{r.approval_mode}'"
-            )
+            errors.append(f"Record '{r.name}' has invalid approval mode '{r.approval_mode}'")
 
         # Missing required string check
         if not r.runtime_boundary.strip():
@@ -3660,9 +3656,7 @@ def validate_registry_invariants() -> list[str]:
         )
         if has_authority_flag:
             if r.approval_mode == MODE_NONE:
-                errors.append(
-                    f"Record '{r.name}' has authority flags enabled but approval mode is 'none'"
-                )
+                errors.append(f"Record '{r.name}' has authority flags enabled but approval mode is 'none'")
 
         # Tier 0 constraints
         if r.tier == TIER_0:
@@ -3679,9 +3673,7 @@ def validate_registry_invariants() -> list[str]:
                 or r.allows_external_tool_invocation
             )
             if has_risky:
-                errors.append(
-                    f"Tier 0 record '{r.name}' claims forbidden execution/mutation authority"
-                )
+                errors.append(f"Tier 0 record '{r.name}' claims forbidden execution/mutation authority")
 
         # Tier 1 constraints
         if r.tier == TIER_1:
@@ -3697,15 +3689,11 @@ def validate_registry_invariants() -> list[str]:
                 or r.allows_external_tool_invocation
             )
             if has_forbidden_tier1:
-                errors.append(
-                    f"Tier 1 record '{r.name}' claims forbidden execution/mutation authority"
-                )
+                errors.append(f"Tier 1 record '{r.name}' claims forbidden execution/mutation authority")
 
         # Contradiction check: write boundary text vs write flags
         wb_lower = r.write_boundary.lower()
-        has_any_write = (
-            r.allows_source_writes or r.allows_artifact_writes or r.allows_state_writes
-        )
+        has_any_write = r.allows_source_writes or r.allows_artifact_writes or r.allows_state_writes
         if not has_any_write:
             # Should not claim active writes in description
             if (
@@ -3715,16 +3703,10 @@ def validate_registry_invariants() -> list[str]:
                 and "without " not in wb_lower
                 and "read-only" not in wb_lower
             ):
-                errors.append(
-                    f"Record '{r.name}' write boundary text describes writes but no write flags are set"
-                )
+                errors.append(f"Record '{r.name}' write boundary text describes writes but no write flags are set")
         else:
             # Should not say "no changes" or "no modifications"
-            if (
-                "no changes" in wb_lower
-                or "no modifications" in wb_lower
-                or "no write" in wb_lower
-            ):
+            if "no changes" in wb_lower or "no modifications" in wb_lower or "no write" in wb_lower:
                 errors.append(
                     f"Record '{r.name}' write flags are enabled but write boundary text claims no writes/changes"
                 )
@@ -3743,9 +3725,7 @@ def validate_registry_invariants() -> list[str]:
             r.notes,
         ):
             if "CORE builder-II" in field_val or "CORE Builder-II" in field_val:
-                errors.append(
-                    f"Record '{r.name}' contains forbidden framing 'CORE builder-II'"
-                )
+                errors.append(f"Record '{r.name}' contains forbidden framing 'CORE builder-II'")
 
     return errors
 

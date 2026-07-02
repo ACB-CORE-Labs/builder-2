@@ -42,7 +42,20 @@ def finalize_setup_rollback_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
     receipt.setdefault("b1_verification_execution", "disabled")
     receipt.setdefault("b2_patch_rollback", "disabled")
     receipt.setdefault("autonomous_rollback", "disabled")
-    receipt.setdefault("governance", {"artifact_is_authority": False, **CAPABILITY_DEFAULTS, "setup_rollback_execution": "enabled_digest_bound_explicit_approval_only", "setup_apply": "disabled_after_receipt_consumption", "git_rollback": "disabled", "generic_repository_rollback": "disabled", "b1_verification_execution": "disabled", "b2_patch_rollback": "disabled", "autonomous_rollback": "disabled"})
+    receipt.setdefault(
+        "governance",
+        {
+            "artifact_is_authority": False,
+            **CAPABILITY_DEFAULTS,
+            "setup_rollback_execution": "enabled_digest_bound_explicit_approval_only",
+            "setup_apply": "disabled_after_receipt_consumption",
+            "git_rollback": "disabled",
+            "generic_repository_rollback": "disabled",
+            "b1_verification_execution": "disabled",
+            "b2_patch_rollback": "disabled",
+            "autonomous_rollback": "disabled",
+        },
+    )
     return attach_digest(receipt, digest_key="rollback_receipt_digest")
 
 
@@ -54,7 +67,14 @@ def validate_setup_rollback_receipt_artifact(data: Any) -> list[str]:
         errors.append(f"kind must be {SETUP_ROLLBACK_RECEIPT_KIND}")
     if data.get("schema_version") != SETUP_ROLLBACK_RECEIPT_SCHEMA_VERSION:
         errors.append(f"schema_version must be {SETUP_ROLLBACK_RECEIPT_SCHEMA_VERSION}")
-    for field in ("setup_receipt_digest", "setup_plan_digest", "overlay_plan_digest", "rollback_snapshot_digest", "approval_digest", "rollback_receipt_id"):
+    for field in (
+        "setup_receipt_digest",
+        "setup_plan_digest",
+        "overlay_plan_digest",
+        "rollback_snapshot_digest",
+        "approval_digest",
+        "rollback_receipt_id",
+    ):
         if not _is_sha256(data.get(field)):
             errors.append(f"{field} must be a SHA-256 hex string")
     if data.get("artifact_is_authority") is not False:
@@ -67,7 +87,21 @@ def validate_setup_rollback_receipt_artifact(data: Any) -> list[str]:
         errors.append("operation_attempted must be setup_rollback")
     if data.get("rollback_result") not in {"rolled_back", "denied", "failed"}:
         errors.append("rollback_result must be rolled_back, denied, or failed")
-    for disabled in ("runtime_execution", "model_execution", "shell_execution", "subprocess_execution", "goose_runtime", "deepagents_runtime", "mcp_tool_invocation", "patch_authority", "git_rollback", "generic_repository_rollback", "b1_verification_execution", "b2_patch_rollback", "autonomous_rollback"):
+    for disabled in (
+        "runtime_execution",
+        "model_execution",
+        "shell_execution",
+        "subprocess_execution",
+        "goose_runtime",
+        "deepagents_runtime",
+        "mcp_tool_invocation",
+        "patch_authority",
+        "git_rollback",
+        "generic_repository_rollback",
+        "b1_verification_execution",
+        "b2_patch_rollback",
+        "autonomous_rollback",
+    ):
         if data.get(disabled) != "disabled":
             errors.append(f"{disabled} must be disabled")
     for list_field in ("deleted_paths", "restored_paths", "skipped_paths", "denied_paths", "operations"):

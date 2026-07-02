@@ -5,6 +5,7 @@ import json as json_lib
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 
 from builder_ii import deepagents_execution as execution_module
@@ -13,7 +14,6 @@ from builder_ii.artifact_index_records import (
     validate_artifact_index_record,
 )
 from builder_ii.config import load_settings
-from builder_ii.deepagents_cli import deepagents_app
 from builder_ii.deepagents_execution import (
     DEEPAGENTS_CHECKPOINT_KIND,
     DEEPAGENTS_EVIDENCE_BUNDLE_KIND,
@@ -117,9 +117,7 @@ def test_approval_rejects_candidate_digest_drift(tmp_path: Path) -> None:
 def test_approval_expiry_blocks_runner(tmp_path: Path) -> None:
     candidate, _candidate_path, approval, _approval_path = _candidate_and_approval(tmp_path)
     expired = copy.deepcopy(approval)
-    expired["expires_at"] = (
-        datetime.now() - timedelta(minutes=1)
-    ).replace(microsecond=0).isoformat()
+    expired["expires_at"] = (datetime.now() - timedelta(minutes=1)).replace(microsecond=0).isoformat()
     expired.pop("approval_digest")
     # Rebuild through the factory to keep the digest valid while expired.
     expired = create_deepagents_execution_approval(
@@ -130,9 +128,7 @@ def test_approval_expiry_blocks_runner(tmp_path: Path) -> None:
         expires_at=expired["expires_at"],
     )
 
-    errors = validate_deepagents_execution_approval_against_candidate(
-        expired, candidate, check_expiry=True
-    )
+    errors = validate_deepagents_execution_approval_against_candidate(expired, candidate, check_expiry=True)
 
     assert "approval has expired" in errors
 
@@ -157,9 +153,7 @@ def test_run_approved_golden_path_and_evidence_bundle_cli(tmp_path: Path) -> Non
     assert validate_deepagents_execution_receipt(receipt) == []
     assert validate_deepagents_replay_report(replay) == []
     result_event = json_lib.loads(
-        (output_dir / "events" / "event-0004-subagent_result_recorded.json").read_text(
-            encoding="utf-8"
-        )
+        (output_dir / "events" / "event-0004-subagent_result_recorded.json").read_text(encoding="utf-8")
     )
     assert result_event["payload_sha256"] == result_event["payload"]["result_digest"]
 
@@ -189,7 +183,9 @@ def test_run_approved_golden_path_and_evidence_bundle_cli(tmp_path: Path) -> Non
     assert result.exit_code == 0, result.output
     bundle = json_lib.loads(bundle_path.read_text(encoding="utf-8"))
     assert bundle["kind"] == DEEPAGENTS_EVIDENCE_BUNDLE_KIND
-    assert bundle["operator_summary"]["path"] == "candidate -> approval -> run-approved -> replay-run -> evidence-bundle"
+    assert (
+        bundle["operator_summary"]["path"] == "candidate -> approval -> run-approved -> replay-run -> evidence-bundle"
+    )
     assert validate_deepagents_evidence_bundle(bundle) == []
 
 
@@ -264,9 +260,7 @@ def test_result_output_budget_truncates_with_digest(tmp_path: Path) -> None:
         output_dir=output_dir,
     )
     result_event = json_lib.loads(
-        (output_dir / "events" / "event-0004-subagent_result_recorded.json").read_text(
-            encoding="utf-8"
-        )
+        (output_dir / "events" / "event-0004-subagent_result_recorded.json").read_text(encoding="utf-8")
     )
 
     assert summary["status"] == "COMPLETED"
@@ -437,9 +431,7 @@ def test_resume_failure_records_failed_receipt(monkeypatch, tmp_path: Path) -> N
         output_dir=output_dir,
     )
     receipt = json_lib.loads((output_dir / "deepagents-execution-receipt.json").read_text(encoding="utf-8"))
-    failed_event = json_lib.loads(
-        (output_dir / "events" / "event-0008-run_failed.json").read_text(encoding="utf-8")
-    )
+    failed_event = json_lib.loads((output_dir / "events" / "event-0008-run_failed.json").read_text(encoding="utf-8"))
 
     assert summary["status"] == "FAILED"
     assert receipt["receipt_state"] == "FAILED"

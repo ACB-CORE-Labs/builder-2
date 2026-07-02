@@ -30,6 +30,7 @@ Command surface
   builder postflight refs [id]        — full ref chain display
   builder postflight validate         — schema validation
 """
+
 from __future__ import annotations
 
 import sys
@@ -78,36 +79,51 @@ def _hex_ansi(hex_colour: str, text: str) -> str:
 
 
 def _p(t):
-    return _hex_ansi(_C["pass"],   t)
+    return _hex_ansi(_C["pass"], t)
+
+
 def _w(t):
-    return _hex_ansi(_C["warn"],   t)
+    return _hex_ansi(_C["warn"], t)
+
+
 def _f(t):
-    return _hex_ansi(_C["fail"],   t)
+    return _hex_ansi(_C["fail"], t)
+
+
 def _h(t):
-    return _hex_ansi(_C["hint"],   t)
+    return _hex_ansi(_C["hint"], t)
+
+
 def _act(t):
     return _hex_ansi(_C["active"], t)
+
+
 def _d(t):
-    return _hex_ansi(_C["dim"],    t)
+    return _hex_ansi(_C["dim"], t)
+
+
 def _b(t):
-    return _hex_ansi(_C["bold"],   t)
+    return _hex_ansi(_C["bold"], t)
+
+
 def _acc(t):
     return _hex_ansi(_C["accent"], t)
 
+
 G = {
-    "pass":      _p("✔"),
-    "fail":      _f("✘"),
-    "warn":      _w("⚠"),
-    "skip":      _d("–"),
-    "pending":   _w("◉"),
-    "run":       _p("▶"),
-    "lock":      _d("□"),
-    "disabled":  _d("■"),
-    "ref":       _act("↳"),
-    "action":    _acc("●"),
-    "evidence":  _act("◊"),
-    "bullet":    _d("·"),
-    "arrow":     _d("→"),
+    "pass": _p("✔"),
+    "fail": _f("✘"),
+    "warn": _w("⚠"),
+    "skip": _d("–"),
+    "pending": _w("◉"),
+    "run": _p("▶"),
+    "lock": _d("□"),
+    "disabled": _d("■"),
+    "ref": _act("↳"),
+    "action": _acc("●"),
+    "evidence": _act("◊"),
+    "bullet": _d("·"),
+    "arrow": _d("→"),
 }
 
 # ---------------------------------------------------------------------------
@@ -131,14 +147,14 @@ _GOV_CAPS = (
 # ---------------------------------------------------------------------------
 
 POSTFLIGHT_STATES = {
-    "NOT_RUN":      (_d("NOT_RUN"),      G["pending"]),
+    "NOT_RUN": (_d("NOT_RUN"), G["pending"]),
     "RUN_COMPLETE": (_p("RUN_COMPLETE"), G["run"]),
 }
 
 VERIF_STATES = {
-    "NOT_RUN": (_d("NOT_RUN"),  G["pending"]),
-    "PASS":    (_p("PASS"),     G["pass"]),
-    "FAIL":    (_f("FAIL"),     G["fail"]),
+    "NOT_RUN": (_d("NOT_RUN"), G["pending"]),
+    "PASS": (_p("PASS"), G["pass"]),
+    "FAIL": (_f("FAIL"), G["fail"]),
 }
 
 
@@ -153,6 +169,7 @@ def _vr_state(state: str) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 # Layout helpers
 # ---------------------------------------------------------------------------
+
 
 def _builder_dir() -> Path:
     return _shared_builder_dir()
@@ -191,6 +208,7 @@ def _short(s: str, n: int = 16) -> str:
 # JSON I/O
 # ---------------------------------------------------------------------------
 
+
 def _load_json(path: Path) -> tuple[dict | None, str]:
     return _shared_load_json_object(path)
 
@@ -216,6 +234,7 @@ def _record_matches(target: str, path: Path, data: dict) -> bool:
 # Validation helpers (thin wrapper over the records module)
 # ---------------------------------------------------------------------------
 
+
 def _validate_artifact(data: dict) -> list[str]:
     kind = str(data.get("kind", ""))
     try:
@@ -225,6 +244,7 @@ def _validate_artifact(data: dict) -> list[str]:
             validate_execution_postflight_record,
             validate_execution_verification_record,
         )
+
         if kind == EXECUTION_POSTFLIGHT_RECORD_KIND:
             return validate_execution_postflight_record(data)
         if kind == EXECUTION_VERIFICATION_RECORD_KIND:
@@ -237,6 +257,7 @@ def _validate_artifact(data: dict) -> list[str]:
 # ---------------------------------------------------------------------------
 # Governance block renderer
 # ---------------------------------------------------------------------------
+
 
 def _render_governance(gov: dict, *, verbose: bool) -> None:
     for cap in _GOV_CAPS:
@@ -254,7 +275,7 @@ def _render_governance(gov: dict, *, verbose: bool) -> None:
             print(f"    {glyph}  {_col(_d(cap), 36)}  {label}")
 
     authority = gov.get("artifact_is_authority")
-    coupling  = gov.get("core_workbench_coupling", "?")
+    coupling = gov.get("core_workbench_coupling", "?")
     if authority is False:
         print(f"    {G['pass']}  {_col(_d('artifact_is_authority'), 36)}  {_p('false')}")
     else:
@@ -268,7 +289,7 @@ def _render_governance(gov: dict, *, verbose: bool) -> None:
 # ---------------------------------------------------------------------------
 
 _POSTFLIGHT_REFS = ["request_ref", "receipt_ref", "preflight_ref", "approval_ref"]
-_VERIF_REFS      = ["request_ref", "receipt_ref", "postflight_ref"]
+_VERIF_REFS = ["request_ref", "receipt_ref", "postflight_ref"]
 
 
 def _render_refs(data: dict, ref_chain: list[str]) -> None:
@@ -285,8 +306,9 @@ def _render_refs(data: dict, ref_chain: list[str]) -> None:
 # builder postflight status
 # ---------------------------------------------------------------------------
 
+
 def cmd_postflight_status(args: list[str]) -> int:
-    base    = _builder_dir()
+    base = _builder_dir()
 
     _section("Execution Postflight Status")
 
@@ -304,9 +326,9 @@ def cmd_postflight_status(args: list[str]) -> int:
     print(f"  {_b('Postflight Records')}  ({len(pf_records)})")
     pf_complete = False
     for path, data in pf_records:
-        state       = str(data.get("postflight_state") or "NOT_RUN").upper()
+        state = str(data.get("postflight_state") or "NOT_RUN").upper()
         target_name = str((data.get("target") or {}).get("name") or _d("—"))
-        actions     = data.get("performed_actions") or []
+        actions = data.get("performed_actions") or []
         state_txt, g = _pf_state(state)
         ts = _ts(data.get("timestamp") or data.get("created_at") or "")
         print(f"    {g}  {_col(_b(target_name), 22)}  {state_txt}  {_d(str(len(actions)) + ' action(s)')}  {_d(ts)}")
@@ -331,9 +353,9 @@ def cmd_postflight_status(args: list[str]) -> int:
 
     vr_pass = False
     for path, data in vr_records:
-        state   = str(data.get("verification_state") or "NOT_RUN").upper()
+        state = str(data.get("verification_state") or "NOT_RUN").upper()
         summary = str(data.get("verification_summary") or "")[:60]
-        evidence= data.get("evidence_refs") or []
+        evidence = data.get("evidence_refs") or []
         state_txt, g = _vr_state(state)
         print(f"    {g}  {state_txt}  {_d(str(len(evidence)) + ' evidence ref(s)')}")
         if summary:
@@ -348,8 +370,8 @@ def cmd_postflight_status(args: list[str]) -> int:
     print()
     print(f"  {_b('Pipeline')}")
     stages = [
-        ("Postflight",    pf_complete),
-        ("Verification",  vr_pass),
+        ("Postflight", pf_complete),
+        ("Verification", vr_pass),
     ]
     parts: list[str] = []
     for label, done in stages:
@@ -367,10 +389,11 @@ def cmd_postflight_status(args: list[str]) -> int:
 # builder postflight record [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_postflight_record(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
-    base    = _builder_dir()
+    base = _builder_dir()
 
     _section("Execution Postflight Record")
 
@@ -393,24 +416,24 @@ def cmd_postflight_record(args: list[str]) -> int:
 
     rc = 0
     for path, data in records:
-        state        = str(data.get("postflight_state") or "NOT_RUN").upper()
-        target_d     = data.get("target") or {}
-        target_name  = str(target_d.get("name") or _d("—"))
-        target_repo  = str(target_d.get("repo") or _d("—"))
-        target_desc  = str(target_d.get("description") or "")
-        actions      = data.get("performed_actions") or []
+        state = str(data.get("postflight_state") or "NOT_RUN").upper()
+        target_d = data.get("target") or {}
+        target_name = str(target_d.get("name") or _d("—"))
+        target_repo = str(target_d.get("repo") or _d("—"))
+        target_desc = str(target_d.get("description") or "")
+        actions = data.get("performed_actions") or []
         state_txt, g = _pf_state(state)
-        authority    = data.get("artifact_is_authority", "?")
+        authority = data.get("artifact_is_authority", "?")
 
         print(f"  {g}  {_b(target_name)}")
-        _kv("postflight_state",    state_txt)
-        _kv("target.name",         _act(target_name))
-        _kv("target.repo",         _d(target_repo))
+        _kv("postflight_state", state_txt)
+        _kv("target.name", _act(target_name))
+        _kv("target.repo", _d(target_repo))
         if target_desc:
             _kv("target.description", _h(target_desc[:60]))
         _kv("artifact_is_authority", _p("false") if authority is False else _f(str(authority)))
-        _kv("performed_actions",   _d(str(len(actions)) + " action(s)"))
-        _kv("kind",                _d(str(data.get("kind", ""))))
+        _kv("performed_actions", _d(str(len(actions)) + " action(s)"))
+        _kv("kind", _d(str(data.get("kind", ""))))
 
         # Refs
         print()
@@ -452,9 +475,10 @@ def cmd_postflight_record(args: list[str]) -> int:
 # builder postflight verify [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_postflight_verify(args: list[str]) -> int:
     id_args = [a for a in args if not a.startswith("-")]
-    base    = _builder_dir()
+    base = _builder_dir()
 
     _section("Execution Verification Record")
 
@@ -477,19 +501,19 @@ def cmd_postflight_verify(args: list[str]) -> int:
 
     rc = 0
     for path, data in records:
-        state   = str(data.get("verification_state") or "NOT_RUN").upper()
+        state = str(data.get("verification_state") or "NOT_RUN").upper()
         summary = str(data.get("verification_summary") or "")
-        evidence= data.get("evidence_refs") or []
-        target_d= data.get("target") or {}
+        evidence = data.get("evidence_refs") or []
+        target_d = data.get("target") or {}
         state_txt, g = _vr_state(state)
         authority = data.get("artifact_is_authority", "?")
 
         print(f"  {g}  {_b(str(target_d.get('name') or path.name))}")
-        _kv("verification_state",  state_txt)
-        _kv("verification_summary",_h(summary[:72]) if summary else _d("—"))
-        _kv("evidence_refs",       _d(str(len(evidence)) + " ref(s)"))
+        _kv("verification_state", state_txt)
+        _kv("verification_summary", _h(summary[:72]) if summary else _d("—"))
+        _kv("evidence_refs", _d(str(len(evidence)) + " ref(s)"))
         _kv("artifact_is_authority", _p("false") if authority is False else _f(str(authority)))
-        _kv("kind",                _d(str(data.get("kind", ""))))
+        _kv("kind", _d(str(data.get("kind", ""))))
 
         # Evidence refs
         if evidence:
@@ -523,16 +547,16 @@ def cmd_postflight_verify(args: list[str]) -> int:
 # builder postflight governance
 # ---------------------------------------------------------------------------
 
+
 def cmd_postflight_governance(args: list[str]) -> int:
-    base    = _builder_dir()
+    base = _builder_dir()
 
     _section("Governance Block Audit")
     print(f"  {_h('9 capability gates; all must be DISABLED in valid postflight artifacts.')}")
     print()
 
-    all_records = (
-        _glob_kind(base, "execution_postflight_record", "postflight", "exec") +
-        _glob_kind(base, "execution_verification_record", "postflight", "exec", "verification")
+    all_records = _glob_kind(base, "execution_postflight_record", "postflight", "exec") + _glob_kind(
+        base, "execution_verification_record", "postflight", "exec", "verification"
     )
 
     if not all_records:
@@ -542,9 +566,9 @@ def cmd_postflight_governance(args: list[str]) -> int:
 
     rc = 0
     for path, data in all_records:
-        kind        = str(data.get("kind", "")).split(".")[-1]
+        kind = str(data.get("kind", "")).split(".")[-1]
         target_name = str((data.get("target") or {}).get("name") or path.name)
-        gov         = data.get("governance") or {}
+        gov = data.get("governance") or {}
         print(f"  {_b(target_name)}  {_d('(' + kind + ')')}")
         if not gov:
             print(f"    {G['fail']}  {_f('governance block missing')}")
@@ -567,10 +591,11 @@ def cmd_postflight_governance(args: list[str]) -> int:
 # builder postflight actions [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_postflight_actions(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
-    base    = _builder_dir()
+    base = _builder_dir()
 
     _section("Performed Actions")
 
@@ -592,7 +617,7 @@ def cmd_postflight_actions(args: list[str]) -> int:
         return 0
 
     for path, data in records:
-        state   = str(data.get("postflight_state") or "NOT_RUN").upper()
+        state = str(data.get("postflight_state") or "NOT_RUN").upper()
         actions = data.get("performed_actions") or []
         target_name = str((data.get("target") or {}).get("name") or path.name)
         state_txt, g = _pf_state(state)
@@ -606,9 +631,11 @@ def cmd_postflight_actions(args: list[str]) -> int:
                     print(f"    {G['action']}  [{i}]  {_acc(action[:80])}")
                 elif isinstance(action, dict):
                     name = action.get("name") or action.get("action") or action.get("type") or f"action_{i}"
-                    ts   = _ts(action.get("timestamp") or "")
+                    ts = _ts(action.get("timestamp") or "")
                     result = str(action.get("result") or action.get("status") or "")
-                    result_label = _p(result) if result.upper() in ("OK", "PASS", "SUCCESS") else _w(result) if result else _d("")
+                    result_label = (
+                        _p(result) if result.upper() in ("OK", "PASS", "SUCCESS") else _w(result) if result else _d("")
+                    )
                     print(f"    {G['action']}  [{i}]  {_col(_acc(str(name)[:48]), 52)}  {result_label}  {_d(ts)}")
                     if verbose:
                         for k, v in action.items():
@@ -625,23 +652,20 @@ def cmd_postflight_actions(args: list[str]) -> int:
 # builder postflight refs [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_postflight_refs(args: list[str]) -> int:
     id_args = [a for a in args if not a.startswith("-")]
-    base    = _builder_dir()
+    base = _builder_dir()
 
     _section("Execution Ref Chain")
 
-    all_records = (
-        _glob_kind(base, "execution_postflight_record", "postflight", "exec") +
-        _glob_kind(base, "execution_verification_record", "postflight", "exec", "verification")
+    all_records = _glob_kind(base, "execution_postflight_record", "postflight", "exec") + _glob_kind(
+        base, "execution_verification_record", "postflight", "exec", "verification"
     )
 
     if id_args:
         target = id_args[0]
-        all_records = [
-            (p, d) for p, d in all_records
-            if _record_matches(target, p, d)
-        ]
+        all_records = [(p, d) for p, d in all_records if _record_matches(target, p, d)]
 
     if not all_records:
         if id_args:
@@ -653,7 +677,7 @@ def cmd_postflight_refs(args: list[str]) -> int:
         return 0
 
     for path, data in all_records:
-        kind        = str(data.get("kind", "")).split(".")[-1]
+        kind = str(data.get("kind", "")).split(".")[-1]
         target_name = str((data.get("target") or {}).get("name") or path.name)
         print(f"  {_b(target_name)}  {_d('(' + kind + ')')}")
         if "postflight" in kind:
@@ -669,14 +693,14 @@ def cmd_postflight_refs(args: list[str]) -> int:
 # builder postflight validate
 # ---------------------------------------------------------------------------
 
+
 def cmd_postflight_validate(args: list[str]) -> int:
     base = _builder_dir()
 
     _section("Schema Validation")
 
-    all_records = (
-        _glob_kind(base, "execution_postflight_record", "postflight", "exec") +
-        _glob_kind(base, "execution_verification_record", "postflight", "exec", "verification")
+    all_records = _glob_kind(base, "execution_postflight_record", "postflight", "exec") + _glob_kind(
+        base, "execution_verification_record", "postflight", "exec", "verification"
     )
 
     if not all_records:
@@ -686,7 +710,7 @@ def cmd_postflight_validate(args: list[str]) -> int:
 
     rc = 0
     for path, data in all_records:
-        kind        = str(data.get("kind", "")).split(".")[-1]
+        kind = str(data.get("kind", "")).split(".")[-1]
         target_name = str((data.get("target") or {}).get("name") or path.name)
         errors = _validate_artifact(data)
         if errors:
@@ -706,13 +730,13 @@ def cmd_postflight_validate(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 _COMMANDS: dict[str, Any] = {
-    "status":     cmd_postflight_status,
-    "record":     cmd_postflight_record,
-    "verify":     cmd_postflight_verify,
+    "status": cmd_postflight_status,
+    "record": cmd_postflight_record,
+    "verify": cmd_postflight_verify,
     "governance": cmd_postflight_governance,
-    "actions":    cmd_postflight_actions,
-    "refs":       cmd_postflight_refs,
-    "validate":   cmd_postflight_validate,
+    "actions": cmd_postflight_actions,
+    "refs": cmd_postflight_refs,
+    "validate": cmd_postflight_validate,
 }
 
 
@@ -720,13 +744,13 @@ def _usage() -> None:
     print(_b("builder postflight") + "  —  Execution postflight & verification surface  (read-only)")
     print()
     cmds = [
-        ("status",           "Full pipeline: postflight + verification state"),
-        ("record [id]",      "Postflight record detail (state, refs, governance, validation)"),
-        ("verify [id]",      "Verification record detail (state, summary, evidence refs)"),
-        ("governance",       "Full governance block audit — all 9 capability gates"),
-        ("actions [id]",     "Performed actions list from a completed postflight record"),
-        ("refs [id]",        "Full ref chain: request → receipt → preflight → approval"),
-        ("validate",         "Schema validation against both artifact kinds"),
+        ("status", "Full pipeline: postflight + verification state"),
+        ("record [id]", "Postflight record detail (state, refs, governance, validation)"),
+        ("verify [id]", "Verification record detail (state, summary, evidence refs)"),
+        ("governance", "Full governance block audit — all 9 capability gates"),
+        ("actions [id]", "Performed actions list from a completed postflight record"),
+        ("refs [id]", "Full ref chain: request → receipt → preflight → approval"),
+        ("validate", "Schema validation against both artifact kinds"),
     ]
     for cmd, desc in cmds:
         print(f"  {_act('builder postflight ' + cmd):<52}  {_d(desc)}")

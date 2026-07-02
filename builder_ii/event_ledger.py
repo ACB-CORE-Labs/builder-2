@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import importlib.metadata
 import json as json_lib
@@ -299,14 +300,39 @@ def replay_events(
 
 
 def load_event_records(events_dir: Path) -> list[tuple[dict[str, Any], Path]]:
+    wal_path = events_dir / "events.wal"
+    if wal_path.exists():
+        try:
+            from builder_ii.async_ledger_wal import AsyncLedgerWAL
+
+            wal = AsyncLedgerWAL(wal_path)
+            records = wal.read_records()
+            wal.close()
+            return [
+                (
+                    r,
+                    events_dir / f"{r.get('sequence', 0):04d}-{r.get('event_type', 'unknown')}.json",
+                )
+                for r in records
+            ]
+        except Exception:
+            pass
+
     records: list[tuple[dict[str, Any], Path]] = []
     if not events_dir.exists():
         return records
     for path in sorted(events_dir.glob("*.json")):
-        data = json_lib.loads(path.read_text(encoding="utf-8"))
-        if isinstance(data, dict) and data.get("kind") == EVENT_RECORD_KIND:
-            records.append((data, path))
+        try:
+            data = json_lib.loads(path.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and data.get("kind") == EVENT_RECORD_KIND:
+                records.append((data, path))
+        except Exception:
+            pass
     return records
+
+
+async def load_event_records_async(events_dir: Path) -> list[tuple[dict[str, Any], Path]]:
+    return await asyncio.to_thread(load_event_records, events_dir)
 
 
 def dumps_event_record(record: dict[str, Any]) -> str:
@@ -317,15 +343,49 @@ def write_event_record(record: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_event_record(record), encoding="utf-8")
 
+    wal_path = output.parent / "events.wal"
+    try:
+        from builder_ii.async_ledger_wal import AsyncLedgerWAL
+
+        wal = AsyncLedgerWAL(wal_path)
+        wal.write_record_sync(record)
+        wal.close()
+    except Exception:
+        pass
+
+
+async def write_event_record_async(record: dict[str, Any], output: Path) -> None:
+    wal_path = output.parent / "events.wal"
+    try:
+        from builder_ii.async_ledger_wal import AsyncLedgerWAL
+
+        wal = AsyncLedgerWAL(wal_path)
+        await wal.write_record(record)
+        wal.close()
+    except Exception:
+        pass
+    # Write the JSON file only — do NOT call write_event_record which would
+    # double-append to WAL.
+    output.parent.mkdir(parents=True, exist_ok=True)
+    await asyncio.to_thread(output.write_text, dumps_event_record(record), "utf-8")
+
 
 def write_event_ledger(record: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_event_record(record), encoding="utf-8")
 
 
+async def write_event_ledger_async(record: dict[str, Any], output: Path) -> None:
+    await asyncio.to_thread(write_event_ledger, record, output)
+
+
 def write_ledger_replay_report(record: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_event_record(record), encoding="utf-8")
+
+
+async def write_ledger_replay_report_async(record: dict[str, Any], output: Path) -> None:
+    await asyncio.to_thread(write_ledger_replay_report, record, output)
 
 
 def _validate_ref(value: Any, *, field: str, required: bool = True) -> list[str]:

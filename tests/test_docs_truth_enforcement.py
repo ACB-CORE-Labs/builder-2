@@ -1,12 +1,12 @@
 from pathlib import Path
 
+from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
 from builder_ii.platform_completion_audit import (
     render_docs_audit_jsonable,
     scan_docs_for_false_completion,
 )
-from builder_ii.platform_status_cli import platform_app
 
 runner = CliRunner()
 

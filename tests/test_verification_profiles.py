@@ -1,9 +1,9 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.verification_cli import verification_app
 from typer.testing import CliRunner
 
-from builder_ii.verification_cli import verification_app
 from builder_ii.verification_profiles import (
     default_profile_for_target,
     dumps_profile_artifact,
@@ -61,7 +61,10 @@ def test_render_profile_contains_boundary() -> None:
 
 
 def test_profile_json_round_trip() -> None:
-    text = dumps_profile_artifact(get_verification_profile("repo_mapper") if False else get_verification_profile("generic_basic"), target="generic")
+    text = dumps_profile_artifact(
+        get_verification_profile("repo_mapper") if False else get_verification_profile("generic_basic"),
+        target="generic",
+    )
     data = json_lib.loads(text)
 
     assert data["kind"] == "builder_ii.verification_profile"
@@ -115,7 +118,9 @@ def test_cli_list_show_and_registry_validate() -> None:
 def test_cli_artifact_stdout_output_and_validate(tmp_path: Path) -> None:
     runner = CliRunner()
 
-    stdout_result = runner.invoke(verification_app, ["artifact", "builder_full", "--target", "builder", "--task", "verify"])
+    stdout_result = runner.invoke(
+        verification_app, ["artifact", "builder_full", "--target", "builder", "--task", "verify"]
+    )
     assert stdout_result.exit_code == 0
     data = json_lib.loads(stdout_result.stdout)
     assert data["name"] == "builder_full"
@@ -181,7 +186,7 @@ def test_validate_profile_artifact_additional_failures() -> None:
             "writes": "ENABLED_ANYWHERE",
             "executes_commands": False,
             "artifact_is_authority": False,
-        }
+        },
     }
     errors = validate_profile_artifact(bad_gov)
     assert any("governance.writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH" in err for err in errors)

@@ -27,18 +27,25 @@ from builder_ii.verification_profiles import (
 
 class ProfileResolutionError(ValueError):
     """Base exception for profile resolution errors."""
+
     pass
+
 
 class UnknownProfileError(ProfileResolutionError):
     """Raised when a profile name is unknown."""
+
     pass
+
 
 class MissingFileError(ProfileResolutionError, FileNotFoundError):
     """Raised when a required file or directory is missing."""
+
     pass
+
 
 class ValidationError(ProfileResolutionError):
     """Raised when profiles are incompatible or invalid."""
+
     pass
 
 
@@ -139,9 +146,7 @@ class ProfileResolver:
             raise UnknownProfileError(str(exc)) from exc
 
         if target_name not in profile.compatible_targets:
-            raise ValidationError(
-                f"Agent profile '{name}' is not compatible with target '{target_name}'"
-            )
+            raise ValidationError(f"Agent profile '{name}' is not compatible with target '{target_name}'")
         return profile
 
     def resolve_prompt(self, name: str, target_name: str) -> PromptProfile:
@@ -151,9 +156,7 @@ class ProfileResolver:
             raise UnknownProfileError(str(exc)) from exc
 
         if target_name not in profile.compatible_targets:
-            raise ValidationError(
-                f"Prompt profile '{name}' is not compatible with target '{target_name}'"
-            )
+            raise ValidationError(f"Prompt profile '{name}' is not compatible with target '{target_name}'")
         return profile
 
     def resolve_verification(self, name: str, target_name: str) -> VerificationProfile:
@@ -163,9 +166,7 @@ class ProfileResolver:
             raise UnknownProfileError(str(exc)) from exc
 
         if target_name not in profile.compatible_targets:
-            raise ValidationError(
-                f"Verification profile '{name}' is not compatible with target '{target_name}'"
-            )
+            raise ValidationError(f"Verification profile '{name}' is not compatible with target '{target_name}'")
         return profile
 
     def resolve(
@@ -226,9 +227,7 @@ class ProfileResolver:
             "core": _CORE_CONTEXT_DEFAULTS,
         }
         raw_defaults = defaults_map[target_name]
-        context_defaults = tuple(
-            path for path in raw_defaults if (resolved_repo_path / path).exists()
-        )
+        context_defaults = tuple(path for path in raw_defaults if (resolved_repo_path / path).exists())
 
         return ResolutionResult(
             target_profile=t_profile,

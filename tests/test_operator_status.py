@@ -48,11 +48,13 @@ def test_create_operator_status_report():
     errors = validate_operator_status_report(report)
     assert not errors, f"Validation errors: {errors}"
 
+
 def test_validate_operator_status_report_missing_fields():
     report = create_operator_status_report()
     del report["platform_state_summary"]
     errors = validate_operator_status_report(report)
     assert any("missing required field: platform_state_summary" in e for e in errors)
+
 
 def test_validate_operator_status_report_invalid_digest():
     report = create_operator_status_report()
@@ -60,11 +62,13 @@ def test_validate_operator_status_report_invalid_digest():
     errors = validate_operator_status_report(report)
     assert "report_digest does not match canonical content" in errors
 
+
 def test_validate_operator_status_report_invalid_governance():
     report = create_operator_status_report()
     report["governance"]["artifact_is_authority"] = True
     errors = validate_operator_status_report(report)
     assert "governance.artifact_is_authority must be false" in errors
+
 
 def test_authority_overclaim_fails_validation():
     # Top-level authority flag overclaim

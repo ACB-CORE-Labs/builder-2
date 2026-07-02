@@ -77,6 +77,7 @@ def test_routing_recommendation_forbidden_execution():
     errors = validate_model_routing_recommendation(rec)
     assert any("model_execution" in err for err in errors)
 
+
 def test_routing_recommendation_invalid_source_ref():
     policy = create_model_routing_policy()
     registry = create_model_client_registry()
@@ -89,6 +90,7 @@ def test_routing_recommendation_invalid_source_ref():
     rec["source_policy_ref"]["sha256"] = "invalid_hash"
     errors = validate_model_routing_recommendation(rec)
     assert any("valid SHA-256 digest" in err for err in errors)
+
 
 def test_routing_policy_nested_execution():
     policy = create_model_routing_policy()
@@ -140,4 +142,3 @@ def test_routing_policy_risk_cap_enforcement():
 
     rec_relaxed = create_model_routing_recommendation(policy=policy, registry=registry, request=request)
     assert any(c["model_id"] == "gpt-4o-stub" for c in rec_relaxed["recommended_candidates"])
-

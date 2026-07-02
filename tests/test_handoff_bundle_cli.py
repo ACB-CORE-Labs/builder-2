@@ -2,12 +2,12 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.handoff_bundle_cli import handoff_app
 from typer.testing import CliRunner
 
 from builder_ii.approval_records import create_approval_record
 from builder_ii.chain_summary_records import create_chain_summary_record
 from builder_ii.goose_command_proposal import create_goose_command_proposal
-from builder_ii.handoff_bundle_cli import handoff_app
 from builder_ii.preflight_records import create_preflight_record
 from builder_ii.receipt_records import create_receipt_record
 
@@ -30,20 +30,27 @@ def _summary(tmp_path: Path) -> Path:
     a_path = tmp_path / "approval.json"
     a_path.write_text(json_lib.dumps(a))
 
-    pf = create_preflight_record(p, a, proposal_path="proposal.json", approval_path="approval.json", verification_refs=["ref"])
+    pf = create_preflight_record(
+        p, a, proposal_path="proposal.json", approval_path="approval.json", verification_refs=["ref"]
+    )
     pf_path = tmp_path / "preflight.json"
     pf_path.write_text(json_lib.dumps(pf))
 
-    r = create_receipt_record(pf, preflight_path="preflight.json", status="passed", recorded_by="operator", evidence_refs=["evidence"])
+    r = create_receipt_record(
+        pf, preflight_path="preflight.json", status="passed", recorded_by="operator", evidence_refs=["evidence"]
+    )
     r_path = tmp_path / "receipt.json"
     r_path.write_text(json_lib.dumps(r))
 
     s = create_chain_summary_record(
-        p, a, pf, r,
+        p,
+        a,
+        pf,
+        r,
         proposal_path="proposal.json",
         approval_path="approval.json",
         preflight_path="preflight.json",
-        receipt_path="receipt.json"
+        receipt_path="receipt.json",
     )
     s_path = tmp_path / "summary.json"
     s_path.write_text(json_lib.dumps(s))
@@ -64,8 +71,7 @@ def test_handoff_bundle_cli_record_and_validate(tmp_path: Path) -> None:
 
     # 1. Record command
     record_result = runner.invoke(
-        handoff_app,
-        ["record", str(s_path), "--bundle-name", "my-bundle", "--output", str(output)]
+        handoff_app, ["record", str(s_path), "--bundle-name", "my-bundle", "--output", str(output)]
     )
     assert record_result.exit_code == 0
     assert "Handoff bundle record written to" in record_result.stdout

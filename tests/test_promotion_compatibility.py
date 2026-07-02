@@ -1,3 +1,4 @@
+from builder_ii.promotion_readiness_cli import promotion_app
 from typer.testing import CliRunner
 
 from builder_ii.agent_profiles import AGENT_PROFILE_RECORD_KIND
@@ -5,7 +6,6 @@ from builder_ii.context_pack import CONTEXT_PACK_RECORD_KIND
 from builder_ii.git_state import GIT_STATE_RECORD_KIND
 from builder_ii.promotion_compatibility import create_support_artifact_ref
 from builder_ii.promotion_decision_records import create_promotion_decision_record, validate_promotion_decision_record
-from builder_ii.promotion_readiness_cli import promotion_app
 from builder_ii.promotion_readiness_records import (
     create_promotion_readiness_record,
     validate_promotion_readiness_record,
@@ -44,7 +44,9 @@ def _ready_kwargs() -> dict:
 
 
 def test_readiness_accepts_complete_target_compatible_support_set() -> None:
-    record = create_promotion_readiness_record(target="builder", support_artifacts=_support_refs("builder"), **_ready_kwargs())
+    record = create_promotion_readiness_record(
+        target="builder", support_artifacts=_support_refs("builder"), **_ready_kwargs()
+    )
 
     assert record["target"] == "builder"
     assert record["status"] == "ready"
@@ -74,7 +76,9 @@ def test_readiness_rejects_support_artifact_target_mismatch() -> None:
 
 
 def test_validation_rejects_ready_with_incompatible_support_artifacts() -> None:
-    record = create_promotion_readiness_record(target="builder", support_artifacts=_support_refs("builder")[:-1], **_ready_kwargs())
+    record = create_promotion_readiness_record(
+        target="builder", support_artifacts=_support_refs("builder")[:-1], **_ready_kwargs()
+    )
     record["status"] = "ready"
     record["ready"] = True
     record["missing"] = []
@@ -86,8 +90,12 @@ def test_validation_rejects_ready_with_incompatible_support_artifacts() -> None:
 
 
 def test_promotion_decision_carries_support_artifact_metadata() -> None:
-    readiness = create_promotion_readiness_record(target="builder", support_artifacts=_support_refs("builder"), **_ready_kwargs())
-    decision = create_promotion_decision_record(readiness, readiness_path="readiness.json", decision="approved", decided_by="operator")
+    readiness = create_promotion_readiness_record(
+        target="builder", support_artifacts=_support_refs("builder"), **_ready_kwargs()
+    )
+    decision = create_promotion_decision_record(
+        readiness, readiness_path="readiness.json", decision="approved", decided_by="operator"
+    )
 
     assert decision["approved"] is True
     assert decision["readiness"]["target"] == "builder"
@@ -99,7 +107,9 @@ def test_promotion_decision_carries_support_artifact_metadata() -> None:
 def test_promotion_cli_accepts_explicit_support_artifact_refs() -> None:
     support_args: list[str] = []
     for ref in _support_refs("builder"):
-        support_args.extend(["--support-artifact", f"{ref['kind']},{ref['path']},{ref['sha256']},{ref['target']},{ref['name']}"])
+        support_args.extend(
+            ["--support-artifact", f"{ref['kind']},{ref['path']},{ref['sha256']},{ref['target']},{ref['name']}"]
+        )
 
     result = CliRunner().invoke(
         promotion_app,
@@ -155,13 +165,17 @@ def test_readonly_inspection_report_promotion_support_cases(tmp_path) -> None:
     report_ref = create_support_artifact_ref(report, path="readonly-report.json")
 
     extended_support = baseline + [report_ref]
-    record_extended = create_promotion_readiness_record(target="builder", support_artifacts=extended_support, **_ready_kwargs())
+    record_extended = create_promotion_readiness_record(
+        target="builder", support_artifacts=extended_support, **_ready_kwargs()
+    )
     assert record_extended["status"] == "ready"
     assert record_extended["ready"] is True
     assert validate_promotion_readiness_record(record_extended) == []
 
     # 4. readonly_inspection_report alone is invalid because required baseline is missing
-    record_alone = create_promotion_readiness_record(target="builder", support_artifacts=[report_ref], **_ready_kwargs())
+    record_alone = create_promotion_readiness_record(
+        target="builder", support_artifacts=[report_ref], **_ready_kwargs()
+    )
     assert record_alone["status"] == "blocked"
     assert record_alone["ready"] is False
     assert any("missing support artifact kind" in item for item in record_alone["missing"])
@@ -171,7 +185,9 @@ def test_readonly_inspection_report_promotion_support_cases(tmp_path) -> None:
     report_wrong_target = create_readonly_inspection_report(target="core", purpose="review", paths=[source])
     report_wrong_ref = create_support_artifact_ref(report_wrong_target, path="readonly-report.json")
     extended_wrong = baseline + [report_wrong_ref]
-    record_wrong = create_promotion_readiness_record(target="builder", support_artifacts=extended_wrong, **_ready_kwargs())
+    record_wrong = create_promotion_readiness_record(
+        target="builder", support_artifacts=extended_wrong, **_ready_kwargs()
+    )
     assert record_wrong["status"] == "blocked"
     assert any("target must match readiness target builder" in item for item in record_wrong["missing"])
     assert validate_promotion_readiness_record(record_wrong) == []

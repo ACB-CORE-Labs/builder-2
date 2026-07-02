@@ -151,11 +151,7 @@ def test_manifest_rejects_missing_authority_source_refs_and_content_hash() -> No
 
 def test_manifest_rejects_authority_leakage_boundaries() -> None:
     manifest = _manifest()
-    by_kind = {
-        entry["profile_kind"]: entry
-        for area in manifest["areas"]
-        for entry in area["entries"]
-    }
+    by_kind = {entry["profile_kind"]: entry for area in manifest["areas"] for entry in area["entries"]}
     by_kind["tool_profile"]["payload"]["default_policy"] = "allowed"
     by_kind["mcp_policy_stub"]["payload"]["calls_tools"] = True
     by_kind["goose_projection_stub"]["payload"]["starts_goose"] = True

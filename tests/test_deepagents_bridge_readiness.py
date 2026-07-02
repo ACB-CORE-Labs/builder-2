@@ -23,6 +23,7 @@ def test_create_valid_report_when_absent():
 def test_create_valid_report_when_present():
     class DummySpec:
         pass
+
     with patch("importlib.util.find_spec", return_value=DummySpec()):
         report = create_deepagents_bridge_readiness_report(
             target_profile="core",

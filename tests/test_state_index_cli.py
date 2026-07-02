@@ -1,11 +1,11 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.state_index_cli import state_index_app
 from typer.testing import CliRunner
 
 from builder_ii.promotion_decision_records import create_promotion_decision_record, write_promotion_decision_record
 from builder_ii.promotion_readiness_records import create_promotion_readiness_record
-from builder_ii.state_index_cli import state_index_app
 
 
 def _write_decision(tmp_path: Path) -> Path:
@@ -20,7 +20,9 @@ def _write_decision(tmp_path: Path) -> Path:
         rollback_refs=("delete state-ledger.json",),
         verification_refs=("uv run pytest tests/test_state_index_cli.py -q",),
     )
-    decision = create_promotion_decision_record(readiness, readiness_path="readiness.json", decision="approved", decided_by="operator")
+    decision = create_promotion_decision_record(
+        readiness, readiness_path="readiness.json", decision="approved", decided_by="operator"
+    )
     decision_path = tmp_path / "decision.json"
     write_promotion_decision_record(decision, decision_path)
     return decision_path

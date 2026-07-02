@@ -1,9 +1,9 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.quality_cli import quality_app
 from typer.testing import CliRunner
 
-from builder_ii.quality_cli import quality_app
 from builder_ii.quality_gates import (
     create_quality_gate_artifact,
     dumps_quality_gate_artifact,

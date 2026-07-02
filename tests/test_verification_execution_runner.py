@@ -60,7 +60,9 @@ def _write_bound_artifacts(
     return plan_path, approval_path, receipt_path
 
 
-def _completed(args: list[str], returncode: int = 0, stdout: str = "", stderr: str = "") -> subprocess.CompletedProcess[str]:
+def _completed(
+    args: list[str], returncode: int = 0, stdout: str = "", stderr: str = ""
+) -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(args=args, returncode=returncode, stdout=stdout, stderr=stderr)
 
 
@@ -180,9 +182,8 @@ def test_workspace_mutation_marks_receipt_invalid(monkeypatch: Any, tmp_path: Pa
 
 
 def test_cli_run_approved_writes_receipt(monkeypatch: Any, tmp_path: Path) -> None:
-    from typer.testing import CliRunner
-
     from builder_ii.verification_execution_plan_cli import verify_app
+    from typer.testing import CliRunner
 
     (tmp_path / ".git").mkdir()
     plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)

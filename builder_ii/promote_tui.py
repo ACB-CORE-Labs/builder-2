@@ -24,6 +24,7 @@ Command surface
   builder promote history             — all promotion decision records
   builder promote gates               — blocked gate summary (failures only)
 """
+
 from __future__ import annotations
 
 import sys
@@ -75,40 +76,56 @@ def _hex_ansi(hex_colour: str, text: str) -> str:
 
 
 def _p(t):
-    return _hex_ansi(_C["pass"],   t)
+    return _hex_ansi(_C["pass"], t)
+
+
 def _w(t):
-    return _hex_ansi(_C["warn"],   t)
+    return _hex_ansi(_C["warn"], t)
+
+
 def _f(t):
-    return _hex_ansi(_C["fail"],   t)
+    return _hex_ansi(_C["fail"], t)
+
+
 def _h(t):
-    return _hex_ansi(_C["hint"],   t)
+    return _hex_ansi(_C["hint"], t)
+
+
 def _act(t):
     return _hex_ansi(_C["active"], t)
+
+
 def _d(t):
-    return _hex_ansi(_C["dim"],    t)
+    return _hex_ansi(_C["dim"], t)
+
+
 def _b(t):
-    return _hex_ansi(_C["bold"],   t)
+    return _hex_ansi(_C["bold"], t)
+
+
 def _acc(t):
     return _hex_ansi(_C["accent"], t)
 
+
 G = {
-    "pass":     _p("✔"),
-    "fail":     _f("✘"),
-    "warn":     _w("⚠"),
-    "skip":     _d("–"),
-    "pending":  _w("◉"),
-    "promote":  _p("▲"),
-    "reject":   _f("▼"),
-    "defer":    _d("●"),
-    "gate":     _act("▣"),
-    "arrow":    _d("→"),
-    "lock":     _d("○"),
-    "bullet":   _d("·"),
+    "pass": _p("✔"),
+    "fail": _f("✘"),
+    "warn": _w("⚠"),
+    "skip": _d("–"),
+    "pending": _w("◉"),
+    "promote": _p("▲"),
+    "reject": _f("▼"),
+    "defer": _d("●"),
+    "gate": _act("▣"),
+    "arrow": _d("→"),
+    "lock": _d("○"),
+    "bullet": _d("·"),
 }
 
 # ---------------------------------------------------------------------------
 # Layout helpers
 # ---------------------------------------------------------------------------
+
 
 def _builder_dir() -> Path:
     return _shared_builder_dir()
@@ -154,12 +171,12 @@ def _ts(ts: Any) -> str:
 # ---------------------------------------------------------------------------
 
 DECISION_STATES = {
-    "APPROVED":  (_p("APPROVED"),  G["promote"]),
-    "PROMOTED":  (_p("PROMOTED"),  G["promote"]),
-    "AUTHORIZED":(_act("AUTHORIZED"), G["gate"]),
-    "PENDING":   (_w("PENDING"),   G["pending"]),
-    "REJECTED":  (_f("REJECTED"),  G["reject"]),
-    "DEFERRED":  (_d("DEFERRED"),  G["defer"]),
+    "APPROVED": (_p("APPROVED"), G["promote"]),
+    "PROMOTED": (_p("PROMOTED"), G["promote"]),
+    "AUTHORIZED": (_act("AUTHORIZED"), G["gate"]),
+    "PENDING": (_w("PENDING"), G["pending"]),
+    "REJECTED": (_f("REJECTED"), G["reject"]),
+    "DEFERRED": (_d("DEFERRED"), G["defer"]),
 }
 
 
@@ -171,6 +188,7 @@ def _decision_display(state: str) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 # JSON I/O
 # ---------------------------------------------------------------------------
+
 
 def _load_json(path: Path) -> tuple[dict | None, str]:
     return _shared_load_json_object(path)
@@ -215,8 +233,8 @@ def _render_readiness(data: dict, *, verbose: bool, failures_only: bool = False)
     overall = data.get("ready") or data.get("promotion_ready") or data.get("all_gates_passed")
     label = data.get("label") or data.get("subject") or _d("—")
 
-    _kv("subject",  _b(str(label)))
-    _kv("ready",    _p("YES") if overall else _f("NO"))
+    _kv("subject", _b(str(label)))
+    _kv("ready", _p("YES") if overall else _f("NO"))
     ts = data.get("timestamp") or data.get("created_at") or ""
     if ts:
         _kv("evaluated", _d(_ts(ts)))
@@ -224,7 +242,11 @@ def _render_readiness(data: dict, *, verbose: bool, failures_only: bool = False)
     if isinstance(gates, dict):
         gate_items = gates.items()
     elif isinstance(gates, list):
-        gate_items = ((g.get("name", g.get("gate", f"gate_{i}")), g.get("passed", g.get("result"))) for i, g in enumerate(gates) if isinstance(g, dict))
+        gate_items = (
+            (g.get("name", g.get("gate", f"gate_{i}")), g.get("passed", g.get("result")))
+            for i, g in enumerate(gates)
+            if isinstance(g, dict)
+        )
     else:
         gate_items = iter([])
 
@@ -249,6 +271,7 @@ def _render_readiness(data: dict, *, verbose: bool, failures_only: bool = False)
 # builder promote status
 # ---------------------------------------------------------------------------
 
+
 def cmd_promote_status(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     base = _builder_dir()
@@ -267,7 +290,7 @@ def cmd_promote_status(args: list[str]) -> int:
         print(f"    {G['skip']}  {_d('No promotion_readiness.json found.')}")
         readiness_ok = False
     else:
-        readiness_ok = (_render_readiness(readiness, verbose=verbose) == 0)
+        readiness_ok = _render_readiness(readiness, verbose=verbose) == 0
 
     # --- Pending HITL promotion artifacts ---
     print()
@@ -331,9 +354,9 @@ def _render_hitl_promo_row(path: Path, data: dict) -> None:
 
 def _render_decision_row(path: Path, data: dict, *, verbose: bool) -> None:
     decision = str(data.get("decision") or data.get("outcome") or "?").upper()
-    subject  = str(data.get("subject") or data.get("pack_id") or data.get("artifact_id") or path.name)[:36]
+    subject = str(data.get("subject") or data.get("pack_id") or data.get("artifact_id") or path.name)[:36]
     operator = str(data.get("operator") or data.get("decided_by") or _d("—"))[:20]
-    ts       = _ts(data.get("timestamp") or data.get("decided_at") or "")
+    ts = _ts(data.get("timestamp") or data.get("decided_at") or "")
     dec_txt, g = _decision_display(decision)
     print(f"    {g}  {_col(_b(subject), 38)}  {dec_txt}  {_d(operator)}  {_d(ts)}")
     if verbose and data.get("rationale"):
@@ -342,13 +365,22 @@ def _render_decision_row(path: Path, data: dict, *, verbose: bool) -> None:
 
 def _render_pipeline_bar(readiness: dict | None, hitl_prom: list, decisions: list) -> None:
     stages = [
-        ("Readiness",  readiness is not None and bool(readiness.get("ready") or readiness.get("promotion_ready") or readiness.get("all_gates_passed"))),
-        ("HITL Gate",  bool(hitl_prom)),
-        ("Decision",   bool(decisions)),
-        ("Promoted",   any(
-            str(d.get("decision") or d.get("outcome") or "").upper() in ("APPROVED", "PROMOTED")
-            for _, d in decisions
-        ) if decisions else False),
+        (
+            "Readiness",
+            readiness is not None
+            and bool(readiness.get("ready") or readiness.get("promotion_ready") or readiness.get("all_gates_passed")),
+        ),
+        ("HITL Gate", bool(hitl_prom)),
+        ("Decision", bool(decisions)),
+        (
+            "Promoted",
+            any(
+                str(d.get("decision") or d.get("outcome") or "").upper() in ("APPROVED", "PROMOTED")
+                for _, d in decisions
+            )
+            if decisions
+            else False,
+        ),
     ]
     parts: list[str] = []
     for label, done in stages:
@@ -361,8 +393,9 @@ def _render_pipeline_bar(readiness: dict | None, hitl_prom: list, decisions: lis
 # builder promote readiness
 # ---------------------------------------------------------------------------
 
+
 def cmd_promote_readiness(args: list[str]) -> int:
-    verbose  = "-v" in args or "--verbose" in args
+    verbose = "-v" in args or "--verbose" in args
     base = _builder_dir()
 
     _, readiness = _find_artifact(
@@ -378,6 +411,7 @@ def cmd_promote_readiness(args: list[str]) -> int:
         # Try readiness_records module
         try:
             from builder_ii.promotion_readiness_records import evaluate_promotion_readiness
+
             readiness = evaluate_promotion_readiness(base)
         except Exception:
             pass
@@ -396,7 +430,7 @@ def cmd_promote_readiness(args: list[str]) -> int:
         if details:
             print()
             print(f"  {_b('Gate details')}")
-            for k, v in (details.items() if isinstance(details, dict) else []):
+            for k, v in details.items() if isinstance(details, dict) else []:
                 print(f"    {_d(k + ':')}  {str(v)[:80]}")
 
     print()
@@ -407,10 +441,11 @@ def cmd_promote_readiness(args: list[str]) -> int:
 # builder promote artifact [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_promote_artifact(args: list[str]) -> int:
-    verbose  = "-v" in args or "--verbose" in args
-    id_args  = [a for a in args if not a.startswith("-")]
-    base     = _builder_dir()
+    verbose = "-v" in args or "--verbose" in args
+    id_args = [a for a in args if not a.startswith("-")]
+    base = _builder_dir()
 
     _section("HITL Promotion Artifact")
 
@@ -433,15 +468,15 @@ def cmd_promote_artifact(args: list[str]) -> int:
 
     rc = 0
     for path, data in artifacts:
-        state   = str(data.get("promotion_state") or data.get("state") or "?").upper()
+        state = str(data.get("promotion_state") or data.get("state") or "?").upper()
         subject = str(data.get("subject") or data.get("pack_id") or path.name)
         state_txt, g = _decision_display(state)
 
         print(f"  {g}  {_b(subject)}")
         _kv("promotion_state", state_txt)
-        _kv("kind",            _d(str(data.get("kind", ""))))
-        _kv("created_at",      _d(_ts(data.get("created_at") or data.get("timestamp") or "")))
-        _kv("operator",        _d(str(data.get("operator") or _d("—"))))
+        _kv("kind", _d(str(data.get("kind", ""))))
+        _kv("created_at", _d(_ts(data.get("created_at") or data.get("timestamp") or "")))
+        _kv("operator", _d(str(data.get("operator") or _d("—"))))
 
         # Gate list
         gates = data.get("gates") or data.get("required_gates") or []
@@ -451,7 +486,7 @@ def cmd_promote_artifact(args: list[str]) -> int:
                 if isinstance(gate, str):
                     print(f"    {G['gate']}  {_d(gate)}")
                 elif isinstance(gate, dict):
-                    name   = gate.get("name") or gate.get("gate") or "?"
+                    name = gate.get("name") or gate.get("gate") or "?"
                     passed = gate.get("passed", gate.get("result"))
                     gg = G["pass"] if passed else G["fail"]
                     print(f"    {gg}  {_d(str(name))}")
@@ -480,10 +515,11 @@ def cmd_promote_artifact(args: list[str]) -> int:
 # builder promote decision [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_promote_decision(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
-    base    = _builder_dir()
+    base = _builder_dir()
 
     _section("Promotion Decision Records")
 
@@ -506,16 +542,16 @@ def cmd_promote_decision(args: list[str]) -> int:
 
     rc = 0
     for path, data in decisions:
-        decision  = str(data.get("decision") or data.get("outcome") or "?").upper()
-        subject   = str(data.get("subject") or data.get("pack_id") or path.name)
-        operator  = str(data.get("operator") or data.get("decided_by") or _d("—"))
-        ts        = _ts(data.get("decided_at") or data.get("timestamp") or "")
+        decision = str(data.get("decision") or data.get("outcome") or "?").upper()
+        subject = str(data.get("subject") or data.get("pack_id") or path.name)
+        operator = str(data.get("operator") or data.get("decided_by") or _d("—"))
+        ts = _ts(data.get("decided_at") or data.get("timestamp") or "")
         rationale = str(data.get("rationale") or "")
         dec_txt, g = _decision_display(decision)
 
         print(f"  {g}  {_b(subject)}")
-        _kv("decision",   dec_txt)
-        _kv("operator",   _d(operator))
+        _kv("decision", dec_txt)
+        _kv("operator", _d(operator))
         _kv("decided_at", _d(ts))
         if rationale:
             _kv("rationale", _h(rationale[:80]))
@@ -543,17 +579,19 @@ def cmd_promote_decision(args: list[str]) -> int:
 # builder promote compatibility [id]
 # ---------------------------------------------------------------------------
 
+
 def cmd_promote_compatibility(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
-    base    = _builder_dir()
-    target  = id_args[0] if id_args else None
+    base = _builder_dir()
+    target = id_args[0] if id_args else None
 
     _section("Promotion Compatibility")
 
     # Try module first
     try:
         from builder_ii.promotion_compatibility import check_promotion_compatibility
+
         result = check_promotion_compatibility(base)
         if isinstance(result, dict):
             if target is None or _shared_lookup_matches(target, result.get("subject", ""), result.get("pack_id", "")):
@@ -571,7 +609,10 @@ def cmd_promote_compatibility(args: list[str]) -> int:
     ]
     for cp in compat_paths:
         data, _ = _load_json(cp)
-        if data and (target is None or _shared_lookup_matches(target, cp.name, cp, data.get("subject", ""), data.get("pack_id", ""))):
+        if data and (
+            target is None
+            or _shared_lookup_matches(target, cp.name, cp, data.get("subject", ""), data.get("pack_id", ""))
+        ):
             _render_compat_report(data, verbose=verbose)
             print()
             return 0 if data.get("compatible") else 1
@@ -588,14 +629,14 @@ def cmd_promote_compatibility(args: list[str]) -> int:
 
 
 def _render_compat_report(data: dict, *, verbose: bool) -> None:
-    compat   = data.get("compatible")
-    issues   = data.get("issues") or data.get("incompatibilities") or []
+    compat = data.get("compatible")
+    issues = data.get("issues") or data.get("incompatibilities") or []
     warnings = data.get("warnings") or []
-    subject  = str(data.get("subject") or data.get("pack_id") or "")
+    subject = str(data.get("subject") or data.get("pack_id") or "")
 
     if subject:
-        _kv("subject",    _b(subject))
-    _kv("compatible",  _p("YES") if compat else _f("NO"))
+        _kv("subject", _b(subject))
+    _kv("compatible", _p("YES") if compat else _f("NO"))
     if issues:
         print(f"  {_b('Issues')}  ({len(issues)})")
         for issue in issues:
@@ -612,7 +653,7 @@ def _render_compat_report(data: dict, *, verbose: bool) -> None:
             print(f"  {_b('Checks')}")
             for c in checks:
                 if isinstance(c, dict):
-                    name   = c.get("name") or c.get("check") or "?"
+                    name = c.get("name") or c.get("check") or "?"
                     passed = c.get("passed", c.get("result"))
                     gg = G["pass"] if passed else G["fail"]
                     print(f"    {gg}  {_d(str(name))}")
@@ -622,9 +663,10 @@ def _render_compat_report(data: dict, *, verbose: bool) -> None:
 # builder promote history
 # ---------------------------------------------------------------------------
 
+
 def cmd_promote_history(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
-    base    = _builder_dir()
+    base = _builder_dir()
 
     _section("Promotion History")
 
@@ -639,24 +681,24 @@ def cmd_promote_history(args: list[str]) -> int:
         print()
         return 0
 
-    print(_row(
-        (_d("  G"),     3),
-        (_d("Subject"), 38),
-        (_d("Decision"), 14),
-        (_d("Operator"), 22),
-        (_d("Decided At"), 20),
-    ))
+    print(
+        _row(
+            (_d("  G"), 3),
+            (_d("Subject"), 38),
+            (_d("Decision"), 14),
+            (_d("Operator"), 22),
+            (_d("Decided At"), 20),
+        )
+    )
     print(f"  {_d('─' * 100)}")
 
     for path, data in decisions:
         decision = str(data.get("decision") or data.get("outcome") or "?").upper()
-        subject  = str(data.get("subject") or data.get("pack_id") or path.name)[:36]
+        subject = str(data.get("subject") or data.get("pack_id") or path.name)[:36]
         operator = str(data.get("operator") or data.get("decided_by") or _d("—"))[:20]
-        ts       = _ts(data.get("decided_at") or data.get("timestamp") or "")
+        ts = _ts(data.get("decided_at") or data.get("timestamp") or "")
         dec_txt, g = _decision_display(decision)
-        print(_row(
-            (g, 3), (_b(subject), 38), (dec_txt, 14), (_d(operator), 22), (_d(ts), 20)
-        ))
+        print(_row((g, 3), (_b(subject), 38), (dec_txt, 14), (_d(operator), 22), (_d(ts), 20)))
         if verbose:
             print(f"       {_d('path:')}  {path}")
 
@@ -667,6 +709,7 @@ def cmd_promote_history(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder promote gates  (failures only)
 # ---------------------------------------------------------------------------
+
 
 def cmd_promote_gates(args: list[str]) -> int:
     """Show only the failing/blocking gates — useful for quick CI-style checks."""
@@ -701,13 +744,13 @@ def cmd_promote_gates(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 _COMMANDS: dict[str, Any] = {
-    "status":        cmd_promote_status,
-    "readiness":     cmd_promote_readiness,
-    "artifact":      cmd_promote_artifact,
-    "decision":      cmd_promote_decision,
+    "status": cmd_promote_status,
+    "readiness": cmd_promote_readiness,
+    "artifact": cmd_promote_artifact,
+    "decision": cmd_promote_decision,
     "compatibility": cmd_promote_compatibility,
-    "history":       cmd_promote_history,
-    "gates":         cmd_promote_gates,
+    "history": cmd_promote_history,
+    "gates": cmd_promote_gates,
 }
 
 
@@ -715,13 +758,13 @@ def _usage() -> None:
     print(_b("builder promote") + "  —  Promotion pipeline inspection surface  (read-only)")
     print()
     cmds = [
-        ("status",             "Full pipeline state: readiness + HITL artifact + decision"),
-        ("readiness",          "All readiness gate checks"),
-        ("artifact [id]",      "HITL promotion artifact detail"),
-        ("decision [id]",      "Promotion decision record detail"),
+        ("status", "Full pipeline state: readiness + HITL artifact + decision"),
+        ("readiness", "All readiness gate checks"),
+        ("artifact [id]", "HITL promotion artifact detail"),
+        ("decision [id]", "Promotion decision record detail"),
         ("compatibility [id]", "Compatibility report"),
-        ("history",            "All promotion decision records"),
-        ("gates",              "Blocked gate summary (failures only)"),
+        ("history", "All promotion decision records"),
+        ("gates", "Blocked gate summary (failures only)"),
     ]
     for cmd, desc in cmds:
         print(f"  {_act('builder promote ' + cmd):<46}  {_d(desc)}")

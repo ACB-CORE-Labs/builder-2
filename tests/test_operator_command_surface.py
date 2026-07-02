@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from builder_ii.session_cli import session_app
+from typer.testing import CliRunner
 
 ROOT = Path(__file__).resolve().parents[1]
 DOC_PATH = ROOT / "docs" / "OPERATOR_COMMAND_SURFACE.md"

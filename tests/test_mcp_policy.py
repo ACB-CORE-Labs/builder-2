@@ -34,12 +34,11 @@ def test_validate_mcp_policy_valid_tool():
         "requires_approval_for_mutation": True,
         "requires_approval_for_external_network": True,
         "requires_approval_for_credentials": True,
-        "governance": {
-            "artifact_is_authority": False
-        }
+        "governance": {"artifact_is_authority": False},
     }
     errors = validate_mcp_policy(policy)
     assert not errors
+
 
 def test_validate_mcp_policy_invalid():
     policy = {
@@ -47,11 +46,12 @@ def test_validate_mcp_policy_invalid():
         "schema_version": 999,
         "denied_by_default": False,
         "artifact_is_authority": True,
-        "governance": {}
+        "governance": {},
     }
     errors = validate_mcp_policy(policy)
     assert any("schema_version" in e for e in errors)
     assert any("denied_by_default" in e for e in errors)
+
 
 def test_validate_mcp_envelope_valid_tool():
     envelope = {
@@ -77,6 +77,7 @@ def test_validate_mcp_envelope_valid_tool():
     errors = validate_mcp_envelope(envelope)
     assert not errors
 
+
 def test_validate_mcp_receipt_valid():
     receipt = {
         "kind": TOOL_RECEIPT_KIND,
@@ -95,24 +96,22 @@ def test_validate_mcp_receipt_valid():
         "rollback_classification": "none",
         "replay_declaration": "safe",
         "no_mutation_proof": "read_only",
-        "governance": {
-            "artifact_is_authority": False
-        }
+        "governance": {"artifact_is_authority": False},
     }
     errors = validate_mcp_receipt(receipt)
     assert not errors
+
 
 def test_validate_mcp_inventory_valid():
     inventory = {
         "kind": TOOL_INVENTORY_KIND,
         "schema_version": INVENTORY_SCHEMA_VERSION,
         "tools": ["echo", "date"],
-        "governance": {
-            "artifact_is_authority": False
-        }
+        "governance": {"artifact_is_authority": False},
     }
     errors = validate_mcp_inventory(inventory)
     assert not errors
+
 
 def test_validate_mcp_policy_invalid_risk_class():
     policy = {
@@ -134,12 +133,11 @@ def test_validate_mcp_policy_invalid_risk_class():
         "requires_approval_for_mutation": True,
         "requires_approval_for_external_network": True,
         "requires_approval_for_credentials": True,
-        "governance": {
-            "artifact_is_authority": False
-        }
+        "governance": {"artifact_is_authority": False},
     }
     errors = validate_mcp_policy(policy)
     assert any("invalid risk class in allowed_risk_classes" in e for e in errors)
+
 
 def test_validate_mcp_envelope_invalid_risk_and_effect():
     envelope = {
@@ -166,6 +164,7 @@ def test_validate_mcp_envelope_invalid_risk_and_effect():
     assert any("invalid risk_classification" in e for e in errors)
     assert any("invalid effect_classification" in e for e in errors)
 
+
 def test_validate_mcp_receipt_invalid_effect():
     receipt = {
         "kind": TOOL_RECEIPT_KIND,
@@ -184,9 +183,7 @@ def test_validate_mcp_receipt_invalid_effect():
         "rollback_classification": "none",
         "replay_declaration": "safe",
         "no_mutation_proof": "read_only",
-        "governance": {
-            "artifact_is_authority": False
-        }
+        "governance": {"artifact_is_authority": False},
     }
     errors = validate_mcp_receipt(receipt)
     assert any("invalid effect_classification" in e for e in errors)

@@ -4,7 +4,9 @@ from builder_ii.backend_state import check_backend_marker, read_backend_marker, 
 from builder_ii.config import Settings
 
 
-def settings_stub(tmp_path: Path, *, alias: str = "qwen-coder", model_id: str = "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit") -> Settings:
+def settings_stub(
+    tmp_path: Path, *, alias: str = "qwen-coder", model_id: str = "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"
+) -> Settings:
     return Settings(
         core_repo=tmp_path / "core",
         backend="mlx-lm",

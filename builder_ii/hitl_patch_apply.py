@@ -82,9 +82,7 @@ def _artifact_ref(*, kind: str, path: Path, sha256: str, role: str) -> dict[str,
     }
 
 
-def _validate_core_demo_verification_receipt(
-    data: Any, *, target_repo: Path | None
-) -> list[str]:
+def _validate_core_demo_verification_receipt(data: Any, *, target_repo: Path | None) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
         return ["core demo verification receipt must be a JSON object"]
@@ -454,7 +452,11 @@ def rollback_hitl_patch(
     ).stdout.splitlines()
 
     try:
-        command = ["git", "apply", "-R", str(reverse_patch_path)] if plan.get("rollback_patch_apply_mode") == "git_apply_reverse_flag" else ["git", "apply", str(reverse_patch_path)]
+        command = (
+            ["git", "apply", "-R", str(reverse_patch_path)]
+            if plan.get("rollback_patch_apply_mode") == "git_apply_reverse_flag"
+            else ["git", "apply", str(reverse_patch_path)]
+        )
         subprocess.run(
             command,
             cwd=target_repo,

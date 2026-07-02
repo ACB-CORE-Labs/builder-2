@@ -30,6 +30,7 @@ from builder_ii.deepagents_forge_schema import (
 # Validation result
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ValidationResult:
     ok: bool
@@ -40,24 +41,26 @@ class ValidationResult:
 # ForgeStep
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ForgeStep:
     """
     Descriptor for a single step in the Forge wizard.
     The TUI uses this to know what to render and how to validate input.
     """
+
     id: str
     title: str
     prompt: str
 
     # Field targeting
-    field: Optional[str] = None           # single field on DeepAgentSpec
+    field: Optional[str] = None  # single field on DeepAgentSpec
     fields: list = dataclass_field(default_factory=list)  # multiple fields (governance step)
 
     # Display
     hint: str = ""
     governance_note: str = ""
-    render_mode: str = "default"          # default | dry_run_preview
+    render_mode: str = "default"  # default | dry_run_preview
 
     # Input type
     multi_line: bool = False
@@ -66,12 +69,12 @@ class ForgeStep:
     default: Any = None
 
     # Options
-    options: list = dataclass_field(default_factory=list)        # static options list
-    options_from: Optional[str] = None                 # dynamic lookup hint (string)
+    options: list = dataclass_field(default_factory=list)  # static options list
+    options_from: Optional[str] = None  # dynamic lookup hint (string)
 
     # Governance
-    auto_required_if: Optional[Callable] = None        # callable(spec) -> bool
-    validator: Optional[Callable] = None               # callable(value) -> ValidationResult
+    auto_required_if: Optional[Callable] = None  # callable(spec) -> bool
+    validator: Optional[Callable] = None  # callable(value) -> ValidationResult
 
     def is_required(self, spec: DeepAgentSpec) -> bool:
         """Returns True if this step must not be skipped given current spec."""
@@ -246,6 +249,7 @@ FORGE_STEPS: list[ForgeStep] = [
 # ---------------------------------------------------------------------------
 # ForgeWizard
 # ---------------------------------------------------------------------------
+
 
 class ForgeWizard:
     """

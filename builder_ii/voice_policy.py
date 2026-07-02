@@ -126,7 +126,14 @@ def validate_voice_io_policy_artifact(artifact: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        for key in ("runtime_execution", "model_execution", "shell_execution", "network_access", "source_writes", "memory_mutation"):
+        for key in (
+            "runtime_execution",
+            "model_execution",
+            "shell_execution",
+            "network_access",
+            "source_writes",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:

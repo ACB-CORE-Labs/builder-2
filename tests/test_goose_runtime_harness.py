@@ -37,7 +37,7 @@ def test_goose_launch_enforces_read_only_env(
     mock_find_goose: MagicMock,
     mock_goose_env: MagicMock,
     mock_settings: MagicMock,
-    tmp_path: Path
+    tmp_path: Path,
 ) -> None:
     mock_find_goose.return_value = "/mock/bin/goose"
     mock_proc = MagicMock()
@@ -78,7 +78,7 @@ def test_goose_mutation_detected_fails_postflight(
     mock_find_goose: MagicMock,
     mock_goose_env: MagicMock,
     mock_settings: MagicMock,
-    tmp_path: Path
+    tmp_path: Path,
 ) -> None:
     mock_find_goose.return_value = "/mock/bin/goose"
     mock_proc = MagicMock()
@@ -102,10 +102,7 @@ def test_goose_mutation_detected_fails_postflight(
     assert len(postflight["mutations_detected"]) == 1
 
 
-def test_goose_launch_fails_without_goose_binary(
-    mock_settings: Settings,
-    tmp_path: Path
-) -> None:
+def test_goose_launch_fails_without_goose_binary(mock_settings: Settings, tmp_path: Path) -> None:
     with patch("builder_ii.goose_runtime_harness.find_goose_binary", return_value=None):
         plan = MockSessionPlan()
         harness = GooseRuntimeHarness(mock_settings, plan, tmp_path)

@@ -9,9 +9,11 @@ def _get_google_project_id() -> str:
     res = subprocess.run(["gcloud", "config", "get-value", "project"], capture_output=True, text=True, check=False)
     return res.stdout.strip()
 
+
 def _get_google_access_token() -> str:
     res = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=False)
     return res.stdout.strip()
+
 
 def verify_google_ultra():
     print("Fetching Google Project ID...")
@@ -33,15 +35,12 @@ def verify_google_ultra():
     # https://aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/global/endpoints/openapi
     url = f"https://aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/global/endpoints/openapi/chat/completions"
 
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-        "Content-Type": "application/json"
-    }
+    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
 
     # Request gemini-3.5-flash explicitly
     data = {
         "model": "google/gemini-3.5-flash",
-        "messages": [{"role": "user", "content": "What is 2+2? Reply only with the number."}]
+        "messages": [{"role": "user", "content": "What is 2+2? Reply only with the number."}],
     }
 
     print(f"\nSending test completion to {url}")
@@ -69,6 +68,7 @@ def verify_google_ultra():
     except urllib.error.URLError as e:
         print(f"URLError: {e.reason}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     verify_google_ultra()

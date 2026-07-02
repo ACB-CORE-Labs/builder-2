@@ -360,9 +360,7 @@ from builder_ii.workflow_records import (
     validate_workflow_transition,
 )
 
-ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = (
-    "builder_ii.artifact_chain_verification_report"
-)
+ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = "builder_ii.artifact_chain_verification_report"
 
 
 def validate_artifact_chain_verification_report(record: Any) -> list[str]:
@@ -818,12 +816,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                 )
         command_ref = record.get("verification_command_ref")
         command_ref_kind = record.get("verification_command_ref_kind")
-        if (
-            isinstance(command_ref, str)
-            and command_ref
-            and isinstance(command_ref_kind, str)
-            and command_ref_kind
-        ):
+        if isinstance(command_ref, str) and command_ref and isinstance(command_ref_kind, str) and command_ref_kind:
             refs.append(
                 {
                     "field": "verification_command_ref",
@@ -853,9 +846,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         evidence_refs = record.get("verification_evidence_refs")
         if isinstance(evidence_refs, list):
             for index, value in enumerate(evidence_refs):
-                if isinstance(value, dict) and (
-                    value.get("path") or value.get("sha256")
-                ):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"verification_evidence_refs[{index}]",
@@ -912,7 +903,9 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         if isinstance(context, list):
             for index, item in enumerate(context):
                 if isinstance(item, dict):
-                    append_artifact_ref(f"reconstructed_context[{index}].atom_ref", item.get("atom_ref"), MEMORY_ATOM_KIND)
+                    append_artifact_ref(
+                        f"reconstructed_context[{index}].atom_ref", item.get("atom_ref"), MEMORY_ATOM_KIND
+                    )
 
     elif kind == CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND:
         handoff = record.get("handoff_note")
@@ -923,9 +916,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                 ("verification_report_ref", VERIFICATION_PROFILE_REPORT_KIND),
             ):
                 value = handoff.get(field)
-                if isinstance(value, dict) and (
-                    value.get("path") or value.get("sha256")
-                ):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"handoff_note.{field}",
@@ -939,9 +930,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         refs_list = record.get("artifact_refs")
         if isinstance(refs_list, list):
             for index, value in enumerate(refs_list):
-                if isinstance(value, dict) and (
-                    value.get("path") or value.get("sha256")
-                ):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"artifact_refs[{index}]",
@@ -955,9 +944,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         refs_list = record.get("artifacts")
         if isinstance(refs_list, list):
             for index, value in enumerate(refs_list):
-                if isinstance(value, dict) and (
-                    value.get("path") or value.get("sha256")
-                ):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"artifacts[{index}]",
@@ -1053,11 +1040,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
     elif kind == PROFILE_PACK_VALIDATION_REPORT_KIND:
         value = record.get("subject_ref")
         expected_kind = record.get("subject_kind")
-        if (
-            isinstance(value, dict)
-            and isinstance(expected_kind, str)
-            and (value.get("path") or value.get("sha256"))
-        ):
+        if isinstance(value, dict) and isinstance(expected_kind, str) and (value.get("path") or value.get("sha256")):
             refs.append(
                 {
                     "field": "subject_ref",
@@ -1105,9 +1088,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         refs_list = record.get("source_refs")
         if isinstance(refs_list, list):
             for index, value in enumerate(refs_list):
-                if isinstance(value, dict) and (
-                    value.get("path") or value.get("sha256")
-                ):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"source_refs[{index}]",
@@ -1131,9 +1112,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         refs_list = record.get("bound_source_refs")
         if isinstance(refs_list, list):
             for index, value in enumerate(refs_list):
-                if isinstance(value, dict) and (
-                    value.get("path") or value.get("sha256")
-                ):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"bound_source_refs[{index}]",
@@ -1158,11 +1137,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
     elif kind == ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND:
         value = record.get("subject_ref")
         expected_kind = record.get("subject_kind")
-        if (
-            isinstance(value, dict)
-            and isinstance(expected_kind, str)
-            and (value.get("path") or value.get("sha256"))
-        ):
+        if isinstance(value, dict) and isinstance(expected_kind, str) and (value.get("path") or value.get("sha256")):
             refs.append(
                 {
                     "field": "subject_ref",
@@ -1271,9 +1246,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         reviewed_result_refs = record.get("reviewed_result_refs")
         if isinstance(reviewed_result_refs, list):
             for index, value in enumerate(reviewed_result_refs):
-                if isinstance(value, dict) and (
-                    value.get("path") or value.get("sha256")
-                ):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"reviewed_result_refs[{index}]",
@@ -1286,11 +1259,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
     elif kind == DEEPAGENTS_WORK_VALIDATION_REPORT_KIND:
         value = record.get("subject_ref")
         expected_kind = record.get("subject_kind")
-        if (
-            isinstance(value, dict)
-            and isinstance(expected_kind, str)
-            and (value.get("path") or value.get("sha256"))
-        ):
+        if isinstance(value, dict) and isinstance(expected_kind, str) and (value.get("path") or value.get("sha256")):
             refs.append(
                 {
                     "field": "subject_ref",
@@ -1387,9 +1356,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         subjects = record.get("subject_refs")
         if isinstance(subjects, list):
             for index, value in enumerate(subjects):
-                if isinstance(value, dict) and (
-                    value.get("path") or value.get("sha256")
-                ):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"subject_refs[{index}]",
@@ -1471,9 +1438,7 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         subjects = record.get("subject_refs")
         if isinstance(subjects, list):
             for index, value in enumerate(subjects):
-                if isinstance(value, dict) and (
-                    value.get("path") or value.get("sha256")
-                ):
+                if isinstance(value, dict) and (value.get("path") or value.get("sha256")):
                     refs.append(
                         {
                             "field": f"subject_refs[{index}]",
@@ -1633,9 +1598,7 @@ def resolve_reference(
         candidates = loaded_by_digest.get(expected_sha256, [])
         if candidates:
             matching_candidates = [
-                (path, data)
-                for path, data in candidates
-                if not expected_kind or data.get("kind") == expected_kind
+                (path, data) for path, data in candidates if not expected_kind or data.get("kind") == expected_kind
             ]
             if len(matching_candidates) > 1:
                 paths_set = {p.resolve() for p, _ in matching_candidates}
@@ -1794,9 +1757,7 @@ def verify_artifact_chain(paths: list[Path]) -> dict[str, Any]:
             native_valid_count += 1
         else:
             native_invalid_count += 1
-            global_errors.extend(
-                f"Native validation error in {path}: {e}" for e in native_errors
-            )
+            global_errors.extend(f"Native validation error in {path}: {e}" for e in native_errors)
 
         files_report.append(
             {
@@ -1835,7 +1796,10 @@ def verify_artifact_chain(paths: list[Path]) -> dict[str, Any]:
             )
 
             if target_data is not None:
-                if expected_kind == "unified_diff_reverse_patch" or target_data.get("kind") == "unified_diff_reverse_patch":
+                if (
+                    expected_kind == "unified_diff_reverse_patch"
+                    or target_data.get("kind") == "unified_diff_reverse_patch"
+                ):
                     try:
                         actual_sha256 = hashlib.sha256(target_path.read_bytes()).hexdigest()
                     except Exception as e:
@@ -1863,18 +1827,14 @@ def verify_artifact_chain(paths: list[Path]) -> dict[str, Any]:
                     )
 
                 for target_error in _target_native_errors(target_data):
-                    link_errors.append(
-                        f"Resolved target native validation failed: {target_error}"
-                    )
+                    link_errors.append(f"Resolved target native validation failed: {target_error}")
 
             link_valid = len(link_errors) == 0
             if link_valid:
                 resolved_links_count += 1
             else:
                 broken_links_count += 1
-                global_errors.extend(
-                    f"Link error in {path} (field '{field}'): {e}" for e in link_errors
-                )
+                global_errors.extend(f"Link error in {path} (field '{field}'): {e}" for e in link_errors)
 
             links_report.append(
                 {

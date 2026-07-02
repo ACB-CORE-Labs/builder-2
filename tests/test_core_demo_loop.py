@@ -2,6 +2,7 @@ import json
 import subprocess
 from pathlib import Path
 
+from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
 from builder_ii.core_demo_loop import (
@@ -10,7 +11,6 @@ from builder_ii.core_demo_loop import (
     validate_core_demo_report,
 )
 from builder_ii.hitl_patch_apply import _verification_receipt_errors
-from builder_ii.platform_status_cli import platform_app
 
 
 def _git(repo: Path, *args: str) -> str:

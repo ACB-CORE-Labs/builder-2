@@ -39,9 +39,7 @@ def create_context_pack(
         raise ValueError("target_name must be one of: generic, builder, core")
 
     if repo_map.get("target_name") != target_name:
-        raise ValueError(
-            f"target_name mismatch: repo map has {repo_map.get('target_name')}, requested {target_name}"
-        )
+        raise ValueError(f"target_name mismatch: repo map has {repo_map.get('target_name')}, requested {target_name}")
 
     files = list(repo_map.get("files", []))
     files.sort(key=lambda f: (ROLE_PRIORITY.get(str(f.get("role", "unknown")), 99), str(f.get("path", ""))))

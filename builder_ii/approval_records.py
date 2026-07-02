@@ -104,7 +104,9 @@ def create_approval_record_from_file(
     proposal_errors = validate_goose_command_proposal(proposal)
     if proposal_errors:
         return None, [f"proposal: {error}" for error in proposal_errors]
-    record = create_approval_record(proposal, proposal_path=proposal_path, decision=decision, decided_by=decided_by, reason=reason)
+    record = create_approval_record(
+        proposal, proposal_path=proposal_path, decision=decision, decided_by=decided_by, reason=reason
+    )
     errors = validate_approval_record(record)
     if errors:
         return None, errors
@@ -152,7 +154,12 @@ def validate_approval_record(record: Any) -> list[str]:
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     result = record.get("result")
-    if not isinstance(result, dict) or result.get("status") is not None or result.get("stdout") != "" or result.get("stderr") != "":
+    if (
+        not isinstance(result, dict)
+        or result.get("status") is not None
+        or result.get("stdout") != ""
+        or result.get("stderr") != ""
+    ):
         errors.append("result must be empty")
     governance = record.get("governance")
     if not isinstance(governance, dict):

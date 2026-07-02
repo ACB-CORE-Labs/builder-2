@@ -123,11 +123,15 @@ def validate_runtime_activation_approval_spec(data: Any) -> list[str]:
     if not isinstance(summary, dict):
         errors.append("operator_plan_summary must be an object")
     else:
-        if not isinstance(summary.get("argv_preview"), list) or any(not isinstance(item, str) or not item for item in summary.get("argv_preview", [])):
+        if not isinstance(summary.get("argv_preview"), list) or any(
+            not isinstance(item, str) or not item for item in summary.get("argv_preview", [])
+        ):
             errors.append("operator_plan_summary.argv_preview must be a list of non-empty strings")
         if not isinstance(summary.get("working_directory"), str) or not summary["working_directory"]:
             errors.append("operator_plan_summary.working_directory must be a non-empty string")
-        if not isinstance(summary.get("env_keys"), list) or any(not isinstance(item, str) or not item for item in summary.get("env_keys", [])):
+        if not isinstance(summary.get("env_keys"), list) or any(
+            not isinstance(item, str) or not item for item in summary.get("env_keys", [])
+        ):
             errors.append("operator_plan_summary.env_keys must be a list of non-empty strings")
         if summary.get("executes_now") is not False:
             errors.append("operator_plan_summary.executes_now must be false")

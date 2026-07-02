@@ -3,9 +3,9 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.orchestration_cli import orchestration_app
 from typer.testing import CliRunner
 
-from builder_ii.orchestration_cli import orchestration_app
 from builder_ii.orchestration_plan import ORCHESTRATION_PLAN_KIND
 
 runner = CliRunner()

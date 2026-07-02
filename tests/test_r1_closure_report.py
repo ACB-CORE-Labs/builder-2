@@ -32,8 +32,12 @@ def test_finalize_and_validate_r1_closure_report():
         command_authority_status={"valid": True, "errors": []},
         platform_matrix_status={"valid": True, "errors": []},
         docs_truth_status={"valid": True, "violations": []},
-        deferred_apply_command="builder-setup apply /tmp/ov.json --rollback-snapshot /tmp/snp.json --approve-digest " + ("b" * 64) + " --output /tmp/rec.json",
-        deferred_rollback_command="builder-setup rollback /tmp/rec.json --rollback-snapshot /tmp/snp.json --approve-digest " + ("c" * 64) + " --output /tmp/rb_rec.json",
+        deferred_apply_command="builder-setup apply /tmp/ov.json --rollback-snapshot /tmp/snp.json --approve-digest "
+        + ("b" * 64)
+        + " --output /tmp/rec.json",
+        deferred_rollback_command="builder-setup rollback /tmp/rec.json --rollback-snapshot /tmp/snp.json --approve-digest "
+        + ("c" * 64)
+        + " --output /tmp/rb_rec.json",
     )
 
     assert report["kind"] == R1_CLOSURE_REPORT_KIND
@@ -158,9 +162,9 @@ def test_missing_evidence_status_digest_fails():
 
 
 def _generate_valid_closure(tmp_path: Path):
+    from builder_ii.platform_status_cli import platform_app
     from typer.testing import CliRunner
 
-    from builder_ii.platform_status_cli import platform_app
     runner = CliRunner()
     output_dir = tmp_path / "r1-closure"
     res = runner.invoke(platform_app, ["r1-closure", "--output-dir", str(output_dir)])
@@ -171,6 +175,7 @@ def _generate_valid_closure(tmp_path: Path):
 
 def test_evidence_status_digest_mismatch_fails(tmp_path):
     from builder_ii.r1_closure_report import validate_r1_closure_evidence_chain
+
     report, output_dir = _generate_valid_closure(tmp_path)
 
     # Let's verify that the base evidence chain first validates cleanly
@@ -180,6 +185,7 @@ def test_evidence_status_digest_mismatch_fails(tmp_path):
     # Mutate a status digest to something wrong
     report["config_schema_status"]["digest"] = "b" * 64
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="r1_closure_digest")
     errors = validate_r1_closure_evidence_chain(report, base_dir=output_dir)
     assert any("digest mismatch" in e for e in errors)
@@ -187,6 +193,7 @@ def test_evidence_status_digest_mismatch_fails(tmp_path):
 
 def test_missing_evidence_file_fails(tmp_path):
     from builder_ii.r1_closure_report import validate_r1_closure_evidence_chain
+
     report, output_dir = _generate_valid_closure(tmp_path)
 
     # Move/delete one of the evidence files
@@ -221,14 +228,14 @@ def test_deferred_command_validation():
     # Valid
     report = get_report(
         deferred_apply="builder-setup apply /tmp/ov.json --approve-digest " + ("b" * 64),
-        deferred_rollback="builder-setup rollback /tmp/rec.json --approve-digest <setup_receipt_digest>"
+        deferred_rollback="builder-setup rollback /tmp/rec.json --approve-digest <setup_receipt_digest>",
     )
     assert not validate_r1_closure_report_artifact(report)
 
     # Missing approve digest
     report = get_report(
         deferred_apply="builder-setup apply /tmp/ov.json",
-        deferred_rollback="builder-setup rollback /tmp/rec.json --approve-digest <setup_receipt_digest>"
+        deferred_rollback="builder-setup rollback /tmp/rec.json --approve-digest <setup_receipt_digest>",
     )
     errors = validate_r1_closure_report_artifact(report)
     assert any("must contain '--approve-digest'" in e for e in errors)
@@ -237,7 +244,7 @@ def test_deferred_command_validation():
     for op in ("&&", "||", ";", "|", "`", "$(", "\n", "\r"):
         report = get_report(
             deferred_apply=f"builder-setup apply /tmp/ov.json --approve-digest bbb {op} touch /tmp/hacked",
-            deferred_rollback="builder-setup rollback /tmp/rec.json --approve-digest <setup_receipt_digest>"
+            deferred_rollback="builder-setup rollback /tmp/rec.json --approve-digest <setup_receipt_digest>",
         )
         errors = validate_r1_closure_report_artifact(report)
         assert any("forbidden chaining" in e for e in errors)

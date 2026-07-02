@@ -219,7 +219,9 @@ def validate_verification_profiles() -> tuple[str, ...]:
     return tuple(errors)
 
 
-def render_verification_profile(profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None) -> str:
+def render_verification_profile(
+    profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None
+) -> str:
     lines = [
         f"# Verification profile: {profile.name}",
         "",
@@ -243,21 +245,27 @@ def render_verification_profile(profile: VerificationProfile, *, target: TargetN
     lines.extend(f"- {item}" for item in profile.required_evidence)
     lines.extend(["", "## Failure mode", "", profile.failure_mode])
     lines.extend(["", "## Rollback hint", "", profile.rollback_hint])
-    lines.extend([
-        "",
-        "## Governance boundary",
-        "",
-        "This profile proposes verification commands only. It does not execute commands, run models, construct agents, write files except explicit artifacts, mutate memory, commit, push, or grant runtime authority.",
-        "",
-    ])
+    lines.extend(
+        [
+            "",
+            "## Governance boundary",
+            "",
+            "This profile proposes verification commands only. It does not execute commands, run models, construct agents, write files except explicit artifacts, mutate memory, commit, push, or grant runtime authority.",
+            "",
+        ]
+    )
     return "\n".join(lines)
 
 
-def dumps_profile_artifact(profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None) -> str:
+def dumps_profile_artifact(
+    profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None
+) -> str:
     return json_lib.dumps(profile.to_artifact_dict(target=target, task=task), indent=2, sort_keys=True) + "\n"
 
 
-def write_profile_artifact(profile: VerificationProfile, output: Path, *, target: TargetName | None = None, task: str | None = None) -> None:
+def write_profile_artifact(
+    profile: VerificationProfile, output: Path, *, target: TargetName | None = None, task: str | None = None
+) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_profile_artifact(profile, target=target, task=task), encoding="utf-8")
 

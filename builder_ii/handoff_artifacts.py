@@ -32,7 +32,8 @@ class HandoffArtifact:
         return {
             "kind": HANDOFF_KIND,
             "schema_version": HANDOFF_SCHEMA_VERSION,
-            "created_at": self.created_at or datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "created_at": self.created_at
+            or datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
             "target": self.target,
             "agent_profile": self.agent_profile,
             "task": self.task,

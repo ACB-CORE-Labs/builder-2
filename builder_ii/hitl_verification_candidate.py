@@ -301,7 +301,9 @@ def _validate_command_intent(artifact: dict[str, Any]) -> list[str]:
         return errors
 
     if command_ref:
-        errors.append("verification_command_ref must be empty unless allowed_command_kind is verification_profile_reference")
+        errors.append(
+            "verification_command_ref must be empty unless allowed_command_kind is verification_profile_reference"
+        )
     if command_ref_kind:
         errors.append("verification_command_ref_kind must be empty unless verification_command_ref is used")
     if not command:

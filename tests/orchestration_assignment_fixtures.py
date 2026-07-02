@@ -34,20 +34,14 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json_lib.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    path.write_text(json_lib.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def build_goal2_assignment_fixture(
-    tmp_path: Path, *, task: str = "test passive assignment"
-) -> dict[str, Any]:
+def build_goal2_assignment_fixture(tmp_path: Path, *, task: str = "test passive assignment") -> dict[str, Any]:
     repo = tmp_path / "generic-repo"
     (repo / "tests").mkdir(parents=True, exist_ok=True)
     (repo / "README.md").write_text("# Generic repo\n", encoding="utf-8")
-    (repo / "pyproject.toml").write_text(
-        "[project]\nname = 'generic-repo'\n", encoding="utf-8"
-    )
+    (repo / "pyproject.toml").write_text("[project]\nname = 'generic-repo'\n", encoding="utf-8")
 
     artifact_dir = tmp_path / "artifacts"
     paths = {
@@ -61,14 +55,12 @@ def build_goal2_assignment_fixture(
         "profile_pack_manifest": artifact_dir / "profile-pack-manifest.json",
         "profile_pack_render_plan": artifact_dir / "profile-pack-render-plan.json",
         "profile_pack_dry_run": artifact_dir / "profile-pack-dry-run.json",
-        "profile_pack_validation_report": artifact_dir
-        / "profile-pack-validation-report.json",
+        "profile_pack_validation_report": artifact_dir / "profile-pack-validation-report.json",
         "profile_pack": artifact_dir / "profile-pack.json",
         "assignment": artifact_dir / "agent-assignment-plan.json",
         "orchestration": artifact_dir / "orchestration-assignment-plan.json",
         "dry_run": artifact_dir / "orchestration-assignment-dry-run.json",
-        "validation_report": artifact_dir
-        / "orchestration-assignment-validation-report.json",
+        "validation_report": artifact_dir / "orchestration-assignment-validation-report.json",
     }
 
     settings = load_settings(project_root=ROOT)
@@ -80,9 +72,7 @@ def build_goal2_assignment_fixture(
     )
     repo_map = create_repo_map(repo, target_name="generic")
     context_pack = create_context_pack(repo_map, target_name="generic", task=task)
-    verification = get_verification_profile("generic_basic").to_artifact_dict(
-        target="generic", task=task
-    )
+    verification = get_verification_profile("generic_basic").to_artifact_dict(target="generic", task=task)
     model_registry = create_model_client_registry()
     model_policy = create_model_routing_policy()
     model_recommendation = create_model_routing_recommendation(
@@ -103,9 +93,7 @@ def build_goal2_assignment_fixture(
         task=task,
         project_root=ROOT,
     )
-    render_plan = create_profile_pack_render_plan(
-        manifest, manifest_path=paths["profile_pack_manifest"]
-    )
+    render_plan = create_profile_pack_render_plan(manifest, manifest_path=paths["profile_pack_manifest"])
     profile_pack_dry_run = create_profile_pack_dry_run(
         manifest,
         render_plan,
@@ -169,9 +157,7 @@ def build_goal2_assignment_fixture(
         profile_pack_validation_report_path=paths["profile_pack_validation_report"],
         profile_pack_path=paths["profile_pack"],
     )
-    orchestration = create_orchestration_assignment_plan(
-        assignment, assignment_plan_path=paths["assignment"]
-    )
+    orchestration = create_orchestration_assignment_plan(assignment, assignment_plan_path=paths["assignment"])
     dry_run = create_orchestration_assignment_dry_run(
         orchestration, orchestration_assignment_plan_path=paths["orchestration"]
     )

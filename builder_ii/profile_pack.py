@@ -259,7 +259,9 @@ def _validate_lifecycle_bindings(data: dict[str, Any]) -> list[str]:
         PROFILE_PACK_DRY_RUN_KIND: bindings.get("dry_run_sha256"),
     }
     if subject_kind not in expected_subjects:
-        errors.append("lifecycle_bindings.validation_report_subject_kind must reference manifest, render plan, or dry-run")
+        errors.append(
+            "lifecycle_bindings.validation_report_subject_kind must reference manifest, render plan, or dry-run"
+        )
     elif bindings.get("validation_report_subject_sha256") != expected_subjects[subject_kind]:
         errors.append("lifecycle_bindings.validation_report_subject_sha256 must match the referenced lifecycle digest")
 
@@ -311,8 +313,12 @@ def validate_profile_pack(data: Any) -> list[str]:
         if not isinstance(data.get(field), str) or not data[field]:
             errors.append(f"{field} must be a non-empty string")
 
-    errors.extend(_validate_ref(data.get("manifest_ref"), field="manifest_ref", expected_kind=PROFILE_PACK_MANIFEST_KIND))
-    errors.extend(_validate_ref(data.get("render_plan_ref"), field="render_plan_ref", expected_kind=PROFILE_PACK_RENDER_PLAN_KIND))
+    errors.extend(
+        _validate_ref(data.get("manifest_ref"), field="manifest_ref", expected_kind=PROFILE_PACK_MANIFEST_KIND)
+    )
+    errors.extend(
+        _validate_ref(data.get("render_plan_ref"), field="render_plan_ref", expected_kind=PROFILE_PACK_RENDER_PLAN_KIND)
+    )
     errors.extend(_validate_ref(data.get("dry_run_ref"), field="dry_run_ref", expected_kind=PROFILE_PACK_DRY_RUN_KIND))
     errors.extend(
         _validate_ref(

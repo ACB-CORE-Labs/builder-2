@@ -201,10 +201,7 @@ def create_setup_rollback_snapshot(overlay_plan: dict[str, Any]) -> dict[str, An
         raise ValueError("invalid setup overlay plan: " + "; ".join(overlay_errors))
 
     records = _merge_duplicate_records(
-        [
-            _snapshot_path(Path(change["target_path"]), change=change)
-            for change in overlay_plan["planned_changes"]
-        ]
+        [_snapshot_path(Path(change["target_path"]), change=change) for change in overlay_plan["planned_changes"]]
     )
     snapshot_basis = {
         "setup_plan_digest": overlay_plan["setup_plan_ref"]["digest"],

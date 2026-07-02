@@ -122,7 +122,18 @@ def validate_goose_projection(data: Any) -> list[str]:
         if not isinstance(env, dict):
             errors.append("goose_native_surface.env must be an object")
         else:
-            for key in ("GOOSE_PROVIDER", "GOOSE_MODEL", "GOOSE_TEMPERATURE", "GOOSE_PLANNER_PROVIDER", "GOOSE_PLANNER_MODEL", "GOOSE_RECIPE_PATH", "GOOSE_MOIM_MESSAGE_FILE", "BUILDER_MODEL_TIER", "BUILDER_MODEL_ALIAS", "BUILDER_SESSION_MODE"):
+            for key in (
+                "GOOSE_PROVIDER",
+                "GOOSE_MODEL",
+                "GOOSE_TEMPERATURE",
+                "GOOSE_PLANNER_PROVIDER",
+                "GOOSE_PLANNER_MODEL",
+                "GOOSE_RECIPE_PATH",
+                "GOOSE_MOIM_MESSAGE_FILE",
+                "BUILDER_MODEL_TIER",
+                "BUILDER_MODEL_ALIAS",
+                "BUILDER_SESSION_MODE",
+            ):
                 if not isinstance(env.get(key), str) or not env[key]:
                     errors.append(f"goose_native_surface.env.{key} must be a non-empty string")
         for field in ("recipe_name", "recipe_path", "working_directory", "session_name", "context_pack_ref"):
@@ -139,7 +150,14 @@ def validate_goose_projection(data: Any) -> list[str]:
     else:
         if governance.get("capability_state") != "goose_projection":
             errors.append("governance.capability_state must be goose_projection")
-        for key in ("runtime_execution", "goose_runtime_start", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
+        for key in (
+            "runtime_execution",
+            "goose_runtime_start",
+            "model_execution",
+            "shell_execution",
+            "source_writes",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:

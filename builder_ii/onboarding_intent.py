@@ -228,13 +228,17 @@ def validate_onboarding_intent_report_artifact(data: Any) -> list[str]:
     if isinstance(rollback_cmd, str) and rollback_cmd.strip():
         if not rollback_cmd.strip().startswith("builder-setup rollback "):
             errors.append("rollback_command must begin with 'builder-setup rollback '")
-        if "--approve-digest <setup_receipt_digest>" not in rollback_cmd and not re.search(r"--approve-digest\s+[0-9a-f]{64}", rollback_cmd):
+        if "--approve-digest <setup_receipt_digest>" not in rollback_cmd and not re.search(
+            r"--approve-digest\s+[0-9a-f]{64}", rollback_cmd
+        ):
             errors.append("rollback_command must include --approve-digest placeholder or setup receipt digest")
 
     val_rollback_cmd = data.get("validate_rollback_receipt_command")
     if isinstance(val_rollback_cmd, str) and val_rollback_cmd.strip():
         if not val_rollback_cmd.strip().startswith("builder-setup validate-rollback-receipt "):
-            errors.append("validate_rollback_receipt_command must begin with 'builder-setup validate-rollback-receipt '")
+            errors.append(
+                "validate_rollback_receipt_command must begin with 'builder-setup validate-rollback-receipt '"
+            )
 
     return errors
 

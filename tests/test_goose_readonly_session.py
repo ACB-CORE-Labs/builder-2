@@ -1,6 +1,7 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
@@ -15,7 +16,6 @@ from builder_ii.goose_readonly_session import (
     validate_goose_readonly_session_plan,
     validate_goose_readonly_session_plan_file,
 )
-from builder_ii.session_cli import session_app
 
 runner = CliRunner()
 
@@ -95,7 +95,9 @@ def test_validation_gates() -> None:
     bad_gov = plan.copy()
     bad_gov["governance"] = plan["governance"].copy()
     bad_gov["governance"]["runtime_execution"] = "ENABLED"
-    assert any("governance.runtime_execution must be DISABLED" in e for e in validate_goose_readonly_session_plan(bad_gov))
+    assert any(
+        "governance.runtime_execution must be DISABLED" in e for e in validate_goose_readonly_session_plan(bad_gov)
+    )
 
 
 def test_validate_file_helpers(tmp_path: Path) -> None:
@@ -186,7 +188,7 @@ def test_cli_goose_readonly_plan_with_context_pack(tmp_path: Path) -> None:
             str(c_record_file),
             "--output",
             str(output_file),
-        ]
+        ],
     )
     assert result.exit_code == 0
 

@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 
 import pytest
+from builder_ii.readonly_inspection_cli import readonly_app
 from typer.testing import CliRunner
 
 from builder_ii.event_ledger import load_event_records
@@ -15,7 +16,6 @@ from builder_ii.readonly_authority import (
     validate_read_policy,
     validate_read_receipt,
 )
-from builder_ii.readonly_inspection_cli import readonly_app
 
 
 def test_create_and_validate_read_policy(tmp_path: Path):
@@ -155,7 +155,7 @@ def test_execute_governed_read_exceeds_budget(tmp_path: Path):
 
 def test_cli_policy_and_read_governance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('BUILDER_TARGET_REPO', str(tmp_path))
+    monkeypatch.setenv("BUILDER_TARGET_REPO", str(tmp_path))
     runner = CliRunner()
 
     repo = tmp_path / "repo"
@@ -165,25 +165,30 @@ def test_cli_policy_and_read_governance(tmp_path: Path, monkeypatch: pytest.Monk
     policy_json = tmp_path / "policy.json"
 
     # 1. Create Policy via CLI
-    res = runner.invoke(readonly_app, [
-        "policy",
-        "--target", "generic",
-        "--allowed-path", "repo/*",
-        "--budget", "200",
-        "--content-capture",
-        "--output", str(policy_json)
-    ])
+    res = runner.invoke(
+        readonly_app,
+        [
+            "policy",
+            "--target",
+            "generic",
+            "--allowed-path",
+            "repo/*",
+            "--budget",
+            "200",
+            "--content-capture",
+            "--output",
+            str(policy_json),
+        ],
+    )
     assert res.exit_code == 0, res.output
     assert policy_json.exists()
 
     # 2. Read File via CLI
     out_dir = tmp_path / "receipts"
-    res = runner.invoke(readonly_app, [
-        "read",
-        "--policy", str(policy_json),
-        "--file", str(repo / "test.txt"),
-        "--output-dir", str(out_dir)
-    ])
+    res = runner.invoke(
+        readonly_app,
+        ["read", "--policy", str(policy_json), "--file", str(repo / "test.txt"), "--output-dir", str(out_dir)],
+    )
     assert res.exit_code == 0, res.output
 
     # Check that a receipt JSON was written
@@ -202,7 +207,7 @@ def test_cli_policy_and_read_governance(tmp_path: Path, monkeypatch: pytest.Monk
 
 def test_cli_read_logs_to_event_ledger(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv('BUILDER_TARGET_REPO', str(tmp_path))
+    monkeypatch.setenv("BUILDER_TARGET_REPO", str(tmp_path))
     runner = CliRunner()
 
     repo = tmp_path / "repo"
@@ -210,12 +215,9 @@ def test_cli_read_logs_to_event_ledger(tmp_path: Path, monkeypatch: pytest.Monke
     (repo / "test.txt").write_text("hello test", encoding="utf-8")
 
     policy_json = tmp_path / "policy.json"
-    res = runner.invoke(readonly_app, [
-        "policy",
-        "--target", "generic",
-        "--allowed-path", "repo/*",
-        "--output", str(policy_json)
-    ])
+    res = runner.invoke(
+        readonly_app, ["policy", "--target", "generic", "--allowed-path", "repo/*", "--output", str(policy_json)]
+    )
     assert res.exit_code == 0, res.output
 
     # Set up dummy workflow session directory
@@ -226,13 +228,20 @@ def test_cli_read_logs_to_event_ledger(tmp_path: Path, monkeypatch: pytest.Monke
 
     # Run CLI read with session ID
     out_dir = tmp_path / "receipts"
-    res = runner.invoke(readonly_app, [
-        "read",
-        "--policy", str(policy_json),
-        "--file", str(repo / "test.txt"),
-        "--output-dir", str(out_dir),
-        "--session-id", session_id
-    ])
+    res = runner.invoke(
+        readonly_app,
+        [
+            "read",
+            "--policy",
+            str(policy_json),
+            "--file",
+            str(repo / "test.txt"),
+            "--output-dir",
+            str(out_dir),
+            "--session-id",
+            session_id,
+        ],
+    )
     assert res.exit_code == 0, res.output
 
     # Verify event record was written

@@ -16,7 +16,10 @@ def test_command_surface_audit_covers_all_scripts():
     doc_content = doc_path.read_text("utf-8")
 
     for script in builder_scripts:
-        assert script in doc_content, f"Script '{script}' registered in pyproject.toml is missing from COMMAND_SURFACE_AUDIT.md"
+        assert script in doc_content, (
+            f"Script '{script}' registered in pyproject.toml is missing from COMMAND_SURFACE_AUDIT.md"
+        )
+
 
 def test_command_surface_audit_invariants():
     project_root = Path(__file__).parent.parent

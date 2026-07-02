@@ -120,7 +120,10 @@ def test_only_bounded_inspection_records_repository_read_metadata(tmp_path: Path
 
     assert "read_repository_files_as_runtime" in artifacts["goose_session"]["denied_actions"]
     assert artifacts["goose_readonly_audit"]["repository_files_read"] == []
-    assert artifacts["goose_readonly_audit"]["governance"]["repository_file_reads"] == "DISABLED_IN_THIS_CANDIDATE_ARTIFACT"
+    assert (
+        artifacts["goose_readonly_audit"]["governance"]["repository_file_reads"]
+        == "DISABLED_IN_THIS_CANDIDATE_ARTIFACT"
+    )
     assert "read_repository_files_as_runtime" in artifacts["deepagents_policy"]["denied_actions"]
     assert "read_repository_files_as_runtime" in artifacts["deepagents_readiness"]["denied_actions"]
 

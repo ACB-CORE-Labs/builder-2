@@ -320,11 +320,17 @@ def _receipt_for_block(
     return receipt
 
 
-def create_verification_runner_postflight(*, receipt: dict[str, Any], receipt_path: Path, plan_path: Path, approval_path: Path) -> dict[str, Any]:
+def create_verification_runner_postflight(
+    *, receipt: dict[str, Any], receipt_path: Path, plan_path: Path, approval_path: Path
+) -> dict[str, Any]:
     postflight = {
         "kind": "builder_ii.execution_postflight_record",
         "schema_version": 1,
-        "target": {"name": receipt.get("target_profile"), "repo": receipt.get("target_repo"), "description": "verification runner target"},
+        "target": {
+            "name": receipt.get("target_profile"),
+            "repo": receipt.get("target_repo"),
+            "description": "verification runner target",
+        },
         "request_ref": str(plan_path),
         "receipt_ref": str(receipt_path),
         "preflight_ref": "receipt.preflight_git_state",
@@ -417,7 +423,11 @@ def run_approved_verification(
     target_repo = Path(str(plan.get("target_repo", "."))).expanduser().resolve()
     artifact_root_value = str(plan.get("artifact_root", ".builder/verification"))
     artifact_root_path = Path(artifact_root_value).expanduser()
-    artifact_root = artifact_root_path.resolve() if artifact_root_path.is_absolute() else (target_repo / artifact_root_path).resolve()
+    artifact_root = (
+        artifact_root_path.resolve()
+        if artifact_root_path.is_absolute()
+        else (target_repo / artifact_root_path).resolve()
+    )
 
     if not target_repo.exists() or not target_repo.is_dir():
         errors.append("target_repo must exist and be a directory")

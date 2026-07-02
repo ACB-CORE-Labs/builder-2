@@ -1,6 +1,7 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.notes_cli import notes_app
 from typer.testing import CliRunner
 
 from builder_ii.handoff_artifacts import (
@@ -9,7 +10,6 @@ from builder_ii.handoff_artifacts import (
     validate_handoff_artifact,
     validate_handoff_artifact_file,
 )
-from builder_ii.notes_cli import notes_app
 
 
 def test_create_handoff_artifact_shape() -> None:

@@ -30,7 +30,9 @@ def _make_fixture_repo(tmp_path: Path) -> Path:
     (src_dir / "example.py").write_text("def add(a, b): return a + b\n", encoding="utf-8")
     tests_dir = repo / "tests"
     tests_dir.mkdir()
-    (tests_dir / "test_example.py").write_text("from src.example import add\ndef test_add(): assert add(1, 2) == 3\n", encoding="utf-8")
+    (tests_dir / "test_example.py").write_text(
+        "from src.example import add\ndef test_add(): assert add(1, 2) == 3\n", encoding="utf-8"
+    )
     return repo
 
 
@@ -141,7 +143,9 @@ def test_session_prepare_package_kernel_spine_e2e(tmp_path):
     # 5. Artifact index recognizes emitted artifacts
     index_record = create_artifact_index_record(output_dir)
     assert index_record["counts"]["invalid"] == 0, f"Invalid artifacts found in index: {index_record['issues']}"
-    assert index_record["counts"]["unknown"] == 0, f"Unknown artifacts found: {[e['path'] for e in index_record['artifacts'] if not e['known']]}"
+    assert index_record["counts"]["unknown"] == 0, (
+        f"Unknown artifacts found: {[e['path'] for e in index_record['artifacts'] if not e['known']]}"
+    )
     assert index_record["counts"]["known"] == index_record["counts"]["total"]
     assert index_record["counts"]["total"] >= 10  # 8 prepare files + summary + platform spine
 

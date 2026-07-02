@@ -224,7 +224,13 @@ def validate_goose_command_proposal(proposal: Any) -> list[str]:
         errors.append("risk_level must be low, medium, high, or critical")
     if proposal.get("commands_proposed") != [proposal.get("command")]:
         errors.append("commands_proposed must contain only command")
-    for field in ("commands_executed", "shell_commands_executed", "source_writes_applied", "patches_applied", "model_calls"):
+    for field in (
+        "commands_executed",
+        "shell_commands_executed",
+        "source_writes_applied",
+        "patches_applied",
+        "model_calls",
+    ):
         if proposal.get(field) != []:
             errors.append(f"{field} must be empty")
     result = proposal.get("execution_result")

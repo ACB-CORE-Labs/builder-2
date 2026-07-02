@@ -57,6 +57,7 @@ class HookResult:
 @dataclass
 class EmitResult:
     """Result of an emit_agent() call."""
+
     ok: bool
     error: Optional[str] = None
     profile_path: str = ""
@@ -207,7 +208,12 @@ def write_forge_handoff(spec: DeepAgentSpec) -> HookResult:
         )
         write_handoff_note(note, output_path)
     except (TypeError, ValueError, OSError) as exc:
-        return HookResult("handoff_notes.write_handoff_note", "failed", path=output_path.as_posix(), error=f"{type(exc).__name__}: {exc}")
+        return HookResult(
+            "handoff_notes.write_handoff_note",
+            "failed",
+            path=output_path.as_posix(),
+            error=f"{type(exc).__name__}: {exc}",
+        )
     return HookResult("handoff_notes.write_handoff_note", "succeeded", path=output_path.as_posix())
 
 
@@ -263,11 +269,7 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
     governance = check_governance(spec)
     if not governance.all_pass:
         blockers = list(governance.validation_errors)
-        blockers.extend(
-            f"governance failed: {item}"
-            for item in governance.failing
-            if item != "spec_validation"
-        )
+        blockers.extend(f"governance failed: {item}" for item in governance.failing if item != "spec_validation")
         return EmitResult(
             ok=False,
             error="Governance check failed. Fix failing checks before emitting.",
@@ -308,11 +310,7 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
         write_forge_handoff(spec),
         log_forge_event(spec),
     ]
-    hook_warnings = [
-        f"optional hook failed: {hook.as_line()}"
-        for hook in hook_results
-        if hook.status == "failed"
-    ]
+    hook_warnings = [f"optional hook failed: {hook.as_line()}" for hook in hook_results if hook.status == "failed"]
     handoff_hook = next(
         (hook for hook in hook_results if hook.name == "handoff_notes.write_handoff_note"),
         None,

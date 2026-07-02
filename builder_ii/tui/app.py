@@ -24,6 +24,7 @@ from builder_ii.tui.widgets.stratum import ActiveStratum, StratumMode
 
 class HeaderBanner(Static):
     """Custom Header Banner."""
+
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(id="stratum-header", **kwargs)
         self.target = "generic"
@@ -33,6 +34,7 @@ class HeaderBanner(Static):
 
     def render(self) -> str:
         from builder_ii.tui_theme import theme_palette
+
         p = theme_palette()
         now = datetime.now().strftime("%H:%M")
         return (
@@ -67,10 +69,6 @@ class StratumApp(App[None]):
         Binding("slash", "toggle_search", "Search", show=True),
         Binding("h", "toggle_help", "Help", show=True),
         Binding("f1", "toggle_help", "Help", show=False),
-
-
-
-
         # Pipeline actions
         Binding("p", "prepare_package", "Prepare", show=True),
         Binding("v", "validate_package", "Validate", show=True),
@@ -131,7 +129,7 @@ class StratumApp(App[None]):
                 "stratum-session": "#6e7681",
                 "stratum-selected-text": "#f0f6fc",
                 "stratum-disabled": "#30363d",
-            }
+            },
         )
         self.register_theme(default_theme)
 
@@ -171,7 +169,7 @@ class StratumApp(App[None]):
                     "stratum-session": p["hint"],
                     "stratum-selected-text": p["bold"],
                     "stratum-disabled": p["dim"],
-                }
+                },
             )
             self.register_theme(custom_theme)
             self.theme = "builder_custom"
@@ -203,6 +201,7 @@ class StratumApp(App[None]):
 
         # Display the splash screen
         from builder_ii.tui.widgets.splash import SplashScreen
+
         self.push_screen(SplashScreen())
 
         self.title = "STRATUM"
@@ -218,23 +217,28 @@ class StratumApp(App[None]):
             if self.signals:
                 await self.signals.refresh_data()
 
-            # Re-verify chain to update chain digest
-            self._verify_current_chain()
+            # Re-verify chain to update chain digest asynchronously
+            await self._verify_current_chain_async()
 
             if self.banner:
                 self.banner.refresh()
 
-    def _verify_current_chain(self) -> None:
-        """Run verify_artifact_chain on current artifacts."""
+    async def _verify_current_chain_async(self) -> None:
+        """Run verify_artifact_chain on current artifacts asynchronously in a thread."""
         if not self.artifacts_dir.exists():
             return
 
-        paths = [p for p in self.artifacts_dir.glob("*.json") if p.is_file()]
-        if not paths:
-            return
+        def _verify():
+            paths = [p for p in self.artifacts_dir.glob("*.json") if p.is_file()]
+            if not paths:
+                return None
+            return verify_artifact_chain(paths)
 
         try:
-            report = verify_artifact_chain(paths)
+            report = await asyncio.to_thread(_verify)
+            if report is None:
+                return
+
             valid = report.get("valid", False)
             counts = report.get("counts", {})
             length = counts.get("files", 0)
@@ -243,7 +247,7 @@ class StratumApp(App[None]):
                 # Fake a digest for display since report digest isn't in output of verify
                 fake_digest = f"SHA256:v{length}{str(valid).lower()}"
                 self.stratum.set_chain_digest(fake_digest)
-                self.stratum.set_authority_granted(False) # Default to false for UI
+                self.stratum.set_authority_granted(False)  # Default to false for UI
 
             # Update idle report stats
             if self.stratum and self.stratum.mode == StratumMode.IDLE:
@@ -258,17 +262,19 @@ class StratumApp(App[None]):
 
     def _update_idle_report(self) -> None:
         if self.stratum:
-            self.stratum.set_platform_info({
-                "platform": "builder-II",
-                "target": self.settings.core_repo.name,
-                "model": self.settings.model_alias,
-                "backend": self.settings.backend,
-                "session": self._current_session_id,
-                "memory_atoms": "0", # Would read from memory browser
-                "chain_length": "0",
-                "chain_valid_display": "[#6e7681]—[/]",
-                "ledger_display": "[#3fb950]ACTIVE ✓[/]" if self.artifacts_dir.exists() else "[#d29922]INACTIVE[/]"
-            })
+            self.stratum.set_platform_info(
+                {
+                    "platform": "builder-II",
+                    "target": self.settings.core_repo.name,
+                    "model": self.settings.model_alias,
+                    "backend": self.settings.backend,
+                    "session": self._current_session_id,
+                    "memory_atoms": "0",  # Would read from memory browser
+                    "chain_length": "0",
+                    "chain_valid_display": "[#6e7681]—[/]",
+                    "ledger_display": "[#3fb950]ACTIVE ✓[/]" if self.artifacts_dir.exists() else "[#d29922]INACTIVE[/]",
+                }
+            )
 
     def action_cycle_focus(self) -> None:
         """Cycle focus between the three columns."""
@@ -282,10 +288,14 @@ class StratumApp(App[None]):
     def action_quit_app(self) -> None:
         """Quit the application, prompting if a gate is open."""
         if self._hitl_active:
+
             def check_quit(confirm: bool) -> None:
                 if confirm:
                     self.exit()
-            self.push_screen(ConfirmScreen("GATE OPEN", "A HITL gate is currently open. Are you sure you want to quit?"), check_quit)
+
+            self.push_screen(
+                ConfirmScreen("GATE OPEN", "A HITL gate is currently open. Are you sure you want to quit?"), check_quit
+            )
         else:
             self.exit()
 
@@ -300,14 +310,16 @@ class StratumApp(App[None]):
                 allowed = False
                 reason = "requires HITL artifact"
 
-            cmds.append({
-                "name": rec.name,
-                "tier": rec.tier,
-                "promotion_state": rec.promotion_state,
-                "allowed": allowed,
-                "reason": reason,
-                "requires_authority": rec.tier in ("TIER_3", "TIER_4"),
-            })
+            cmds.append(
+                {
+                    "name": rec.name,
+                    "tier": rec.tier,
+                    "promotion_state": rec.promotion_state,
+                    "allowed": allowed,
+                    "reason": reason,
+                    "requires_authority": rec.tier in ("TIER_3", "TIER_4"),
+                }
+            )
 
         def run_cmd(cmd_name: str | None) -> None:
             if cmd_name:
@@ -342,7 +354,6 @@ class StratumApp(App[None]):
         """Toggle the spine search filter."""
         if self.spine:
             self.spine.toggle_search()
-
 
     def action_toggle_memory(self) -> None:
         """Toggle memory browser mode in the center panel."""
@@ -381,13 +392,17 @@ class StratumApp(App[None]):
                 target.write_text(json.dumps(payload, indent=2))
 
                 if self.signals:
-                    self.signals.append_event(datetime.now().strftime("%H:%M:%S"), "dispatch", f"Dispatched {len(selected_agents)} agents")
+                    self.signals.append_event(
+                        datetime.now().strftime("%H:%M:%S"), "dispatch", f"Dispatched {len(selected_agents)} agents"
+                    )
 
         self.push_screen(DeepAgentTeamingScreen(), on_dispatch)
 
     def action_toggle_platform_audit(self) -> None:
         if self.stratum:
-            self.stratum.mode = StratumMode.IDLE if self.stratum.mode == StratumMode.PLATFORM_AUDIT else StratumMode.PLATFORM_AUDIT
+            self.stratum.mode = (
+                StratumMode.IDLE if self.stratum.mode == StratumMode.PLATFORM_AUDIT else StratumMode.PLATFORM_AUDIT
+            )
 
     def action_toggle_workflow(self) -> None:
         if self.stratum:
@@ -395,16 +410,19 @@ class StratumApp(App[None]):
 
     def action_toggle_quality_gates(self) -> None:
         if self.stratum:
-            self.stratum.mode = StratumMode.IDLE if self.stratum.mode == StratumMode.QUALITY_GATES else StratumMode.QUALITY_GATES
+            self.stratum.mode = (
+                StratumMode.IDLE if self.stratum.mode == StratumMode.QUALITY_GATES else StratumMode.QUALITY_GATES
+            )
 
     def action_toggle_tooling(self) -> None:
         if self.stratum:
-            self.stratum.mode = StratumMode.IDLE if self.stratum.mode == StratumMode.TOOLING_HEALTH else StratumMode.TOOLING_HEALTH
+            self.stratum.mode = (
+                StratumMode.IDLE if self.stratum.mode == StratumMode.TOOLING_HEALTH else StratumMode.TOOLING_HEALTH
+            )
 
     def action_toggle_help(self) -> None:
         if self.stratum:
             self.stratum.mode = StratumMode.IDLE if self.stratum.mode == StratumMode.HELP else StratumMode.HELP
-
 
     def action_pin_artifact(self) -> None:
         """Pin the selected artifact from the spine into the center panel."""
@@ -431,10 +449,12 @@ class StratumApp(App[None]):
         if artifact_data:
             self.stratum.inspect_artifact(artifact_data)
         else:
-            self.stratum.inspect_artifact({
-                "status": "awaiting_generation",
-                "message": f"The '{selected.get('label')}' artifact has not been generated for this session yet."
-            })
+            self.stratum.inspect_artifact(
+                {
+                    "status": "awaiting_generation",
+                    "message": f"The '{selected.get('label')}' artifact has not been generated for this session yet.",
+                }
+            )
 
     # ── Pipeline Actions ──────────────────────────────────────────────────
 
@@ -451,13 +471,17 @@ class StratumApp(App[None]):
 
                 self.notify("Workspace Session Configuration saved.")
                 if self.signals:
-                    self.signals.append_event(datetime.now().strftime("%H:%M:%S"), "prepare", f"Configured workspace: {config.get('corpus_name', 'unknown')}")
+                    self.signals.append_event(
+                        datetime.now().strftime("%H:%M:%S"),
+                        "prepare",
+                        f"Configured workspace: {config.get('corpus_name', 'unknown')}",
+                    )
 
         self.push_screen(SessionBuilderScreen(), on_save)
 
-    def action_validate_package(self) -> None:
+    async def action_validate_package(self) -> None:
         self.notify("Validating package...")
-        self._verify_current_chain()
+        await self._verify_current_chain_async()
 
     def action_launch_goose(self) -> None:
         from datetime import datetime
@@ -468,15 +492,17 @@ class StratumApp(App[None]):
             actual_env, report = derive_goose_environment(self.settings)
         except Exception as e:
             with self.suspend():
-                print("\n" + "="*50)
+                print("\n" + "=" * 50)
                 print(f"Error deriving Goose environment: {e}")
-                print("No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure.")
-                print("="*50 + "\n")
+                print(
+                    "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
+                )
+                print("=" * 50 + "\n")
                 input("Press Enter to return to STRATUM...")
             return
 
         with self.suspend():
-            print("\n" + "="*50)
+            print("\n" + "=" * 50)
             print("Goose Launch Configuration (Governed):")
             print(f"  Selected Backend   : {report['selected_backend']}")
             print(f"  Selected Model     : {report['selected_model_alias']}")
@@ -487,10 +513,12 @@ class StratumApp(App[None]):
             print(f"  Recipe Path        : {report['recipe_path']}")
             print(f"  MOIM File          : {report['moim_file']}")
             print(f"  Launch Ready       : {'Yes' if report['launch_ready'] else 'No'}")
-            print("="*50 + "\n")
+            print("=" * 50 + "\n")
 
-            if not report['launch_ready']:
-                print("No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure.")
+            if not report["launch_ready"]:
+                print(
+                    "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
+                )
                 input("\nPress Enter to return to STRATUM...")
                 return
 
@@ -503,7 +531,9 @@ class StratumApp(App[None]):
                     input("Press Enter to return to STRATUM...")
             except Exception as e:
                 print(f"Error launching goose: {e}")
-                print("No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure.")
+                print(
+                    "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
+                )
                 input("Press Enter to return to STRATUM...")
 
         if self.stratum:
@@ -514,6 +544,7 @@ class StratumApp(App[None]):
 
     def action_operator_next(self) -> None:
         from builder_ii.operator_next import create_operator_next_action_report
+
         try:
             report = create_operator_next_action_report()
             actions = report.get("ordered_next_actions", [])
@@ -526,7 +557,9 @@ class StratumApp(App[None]):
                     if cmd:
                         self.notify(f"Raw CLI Exec: builder {cmd}")
                         if self.signals:
-                            self.signals.append_event(datetime.now().strftime("%H:%M:%S"), "cli_passthrough", f"builder {cmd}")
+                            self.signals.append_event(
+                                datetime.now().strftime("%H:%M:%S"), "cli_passthrough", f"builder {cmd}"
+                            )
 
                 self.push_screen(CLIPassthroughScreen(prefix_context=f"{next_cmd}"), run_cli)
             else:
@@ -549,7 +582,10 @@ class StratumApp(App[None]):
                 self.stratum.mode = StratumMode.IDLE
                 self._hitl_active = False
 
-        self.push_screen(ConfirmScreen("APPROVE EXECUTION", "Are you sure you want to grant authority for this execution proposal?"), on_confirm)
+        self.push_screen(
+            ConfirmScreen("APPROVE EXECUTION", "Are you sure you want to grant authority for this execution proposal?"),
+            on_confirm,
+        )
 
     def action_reject_hitl(self) -> None:
         if not self.stratum or self.stratum.mode != StratumMode.HITL_GATE:
@@ -559,7 +595,9 @@ class StratumApp(App[None]):
             if reason is not None:
                 self.notify(f"HITL Proposal REJECTED. Reason: {reason}")
                 if self.signals:
-                    self.signals.append_event(datetime.now().strftime("%H:%M:%S"), "hitl_reject", f"Authority denied: {reason}")
+                    self.signals.append_event(
+                        datetime.now().strftime("%H:%M:%S"), "hitl_reject", f"Authority denied: {reason}"
+                    )
                     self.signals.update_gate(False)
                 self.stratum.mode = StratumMode.IDLE
                 self._hitl_active = False
@@ -573,5 +611,3 @@ class StratumApp(App[None]):
 
     def action_diff_hitl(self) -> None:
         self.notify("Diff view not yet available in this mockup.")
-
-

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import subprocess
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -17,6 +19,7 @@ from builder_ii.goose_receipts import (
 from builder_ii.model_router import SessionPlan
 
 _DIGEST_CHUNK_SIZE = 1024 * 1024
+_executor = ThreadPoolExecutor(max_workers=4)
 
 
 def _current_time_utc() -> str:
@@ -47,6 +50,12 @@ def _get_target_files(target_root: Path) -> dict[str, str]:
     return snapshot
 
 
+async def _get_target_files_async(target_root: Path) -> dict[str, str]:
+    """Asynchronously snapshot target files using threadpool executor to avoid GIL blocks."""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_executor, _get_target_files, target_root)
+
+
 class GooseRuntimeHarness:
     def __init__(self, settings: Settings, session_plan: SessionPlan, target_root: Path):
         self.settings = settings
@@ -54,6 +63,7 @@ class GooseRuntimeHarness:
         self.target_root = target_root
         self.session_id = f"goose_{int(time.time())}"
         self._proc: subprocess.Popen[str] | None = None
+        self._async_proc: asyncio.subprocess.Process | None = None
         self._preflight_snapshot: dict[str, str] = {}
 
     def launch_readonly(self) -> dict[str, Any]:
@@ -85,8 +95,43 @@ class GooseRuntimeHarness:
         return create_goose_launch_receipt(
             session_id=self.session_id,
             target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
-            agent_profile=self.session_plan.agent_profile if hasattr(self.session_plan, "agent_profile") else "patch_planner",
+            agent_profile=self.session_plan.agent_profile
+            if hasattr(self.session_plan, "agent_profile")
+            else "patch_planner",
             pid=self._proc.pid,
+            start_time=start_time,
+        )
+
+    async def launch_readonly_async(self) -> dict[str, Any]:
+        """Launch Goose asynchronously in strict read-only mode, avoiding loop blockage."""
+        goose = find_goose_binary()
+        if not goose:
+            raise FileNotFoundError("Goose CLI not found.")
+
+        recipe = recipe_path(self.settings, self.session_plan)
+        env = goose_env(self.settings, session=self.session_plan)
+        env["GOOSE_MODE"] = "auto"
+
+        argv = [goose, "session", "--with-builtin", ""]
+        if recipe.exists():
+            argv.extend(["--recipe", str(recipe)])
+
+        self._preflight_snapshot = await _get_target_files_async(self.target_root)
+
+        start_time = _current_time_utc()
+        self._async_proc = await asyncio.create_subprocess_exec(
+            *argv,
+            cwd=self.target_root,
+            env=env,
+        )
+
+        return create_goose_launch_receipt(
+            session_id=self.session_id,
+            target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
+            agent_profile=self.session_plan.agent_profile
+            if hasattr(self.session_plan, "agent_profile")
+            else "patch_planner",
+            pid=self._async_proc.pid,
             start_time=start_time,
         )
 
@@ -117,6 +162,52 @@ class GooseRuntimeHarness:
             session_id=self.session_id,
             target_root=str(self.target_root),
             start_time=end_time,  # approximate for schema
+            end_time=end_time,
+            files_checked=len(post_snapshot),
+            mutations_detected=mutations,
+        )
+
+        transcript_path = str(Path.home() / ".config" / "goose" / "sessions" / self.session_id)
+
+        close_receipt = create_goose_close_receipt(
+            session_id=self.session_id,
+            launch_receipt_digest=launch_receipt_digest,
+            postflight_digest=postflight["digest"],
+            transcript_path=transcript_path,
+            end_time=end_time,
+            exit_code=exit_code,
+        )
+
+        return close_receipt, postflight
+
+    async def close_async(self, launch_receipt_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Asynchronously terminate Goose and check filesystem changes."""
+        end_time = _current_time_utc()
+        exit_code = 0
+        if self._async_proc:
+            if self._async_proc.returncode is None:
+                self._async_proc.terminate()
+                try:
+                    await asyncio.wait_for(self._async_proc.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    self._async_proc.kill()
+                    await self._async_proc.wait()
+            exit_code = self._async_proc.returncode
+
+        post_snapshot = await _get_target_files_async(self.target_root)
+
+        mutations: list[str] = []
+        for file_path, digest in post_snapshot.items():
+            if file_path not in self._preflight_snapshot or self._preflight_snapshot[file_path] != digest:
+                mutations.append(file_path)
+        for file_path in self._preflight_snapshot:
+            if file_path not in post_snapshot:
+                mutations.append(f"{file_path} (deleted)")
+
+        postflight = create_no_mutation_postflight(
+            session_id=self.session_id,
+            target_root=str(self.target_root),
+            start_time=end_time,
             end_time=end_time,
             files_checked=len(post_snapshot),
             mutations_detected=mutations,

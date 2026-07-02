@@ -1,7 +1,3 @@
-import os
-import sys
-import json
-from pathlib import Path
 from openai import OpenAI
 
 # The local MLX LM server usually runs on port 8080 or 8000 depending on how you launch it.
@@ -23,37 +19,38 @@ MLX_MODELS = [
     "mlx-community/DeepSeek-Coder-V2-Lite-Instruct-4bit",
 ]
 
-OLLAMA_MODELS = [
-    "gemma4:e4b",
-    "gemma4:e2b",
-    "qwen3.5:2b",
-    "qwen3.5:0.8b",
-    "ibm/granite4.1:3b"
-]
+OLLAMA_MODELS = ["gemma4:e4b", "gemma4:e2b", "qwen3.5:2b", "qwen3.5:0.8b", "ibm/granite4.1:3b"]
+
 
 def test_model(client: OpenAI, model_name: str, provider: str):
     print(f"\n--- Testing {provider} Model: {model_name} ---")
     try:
         response = client.chat.completions.create(
             model=model_name,
-            messages=[{"role": "user", "content": "Hello! Please reply with exactly the words 'Test passed' and nothing else."}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Hello! Please reply with exactly the words 'Test passed' and nothing else.",
+                }
+            ],
             max_tokens=20,
-            timeout=15.0
+            timeout=15.0,
         )
         content = response.choices[0].message.content.strip()
-        print(f"✅ SUCCESS! Response received:")
-        print(f"   \"{content}\"")
+        print("✅ SUCCESS! Response received:")
+        print(f'   "{content}"')
         return True
     except Exception as e:
         print(f"❌ FAILED: {str(e)}")
         return False
+
 
 def main():
     print("=" * 60)
     print("Builder-II Local Model API Verification Utility")
     print("=" * 60)
     print("\nThis script tests if the local endpoints are accepting requests and returning outputs properly.")
-    
+
     # Test Ollama
     print("\n[1] Testing Ollama Models (ensure 'ollama serve' is running)")
     try:
@@ -77,6 +74,7 @@ def main():
     print("Note: To run an MLX model locally via its server, use:")
     print("   python -m mlx_lm.server --model <model_id>")
     print("=" * 60)
+
 
 if __name__ == "__main__":
     main()

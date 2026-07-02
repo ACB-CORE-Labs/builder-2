@@ -1,4 +1,5 @@
 """Tests for builder_ii.hitl_evidence_bundle — design-only evidence bundle validation."""
+
 from __future__ import annotations
 
 import ast
@@ -49,6 +50,7 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 def test_valid_bundle_validates() -> None:
     """A standard complete bundle must pass validation."""
@@ -246,6 +248,7 @@ def test_no_forbidden_imports_or_execution() -> None:
 # Chain Verification Integration Tests
 # ---------------------------------------------------------------------------
 
+
 def test_bundle_chain_verification_resolves_all_links(tmp_path: Path) -> None:
     """A bundle pointing to valid artifacts must resolve and pass chain verification."""
     from builder_ii.approval_records import create_approval_record
@@ -269,8 +272,12 @@ def test_bundle_chain_verification_resolves_all_links(tmp_path: Path) -> None:
         generic_repo=tmp_path,
     )
     proposal = create_goose_command_proposal(manifest, manifest_path="manifest.json", command="test", risk_level="low")
-    approval = create_approval_record(proposal, proposal_path="proposal.json", decision="approved", decided_by="operator")
-    preflight = create_preflight_record(proposal, approval, proposal_path="proposal.json", approval_path="approval.json")
+    approval = create_approval_record(
+        proposal, proposal_path="proposal.json", decision="approved", decided_by="operator"
+    )
+    preflight = create_preflight_record(
+        proposal, approval, proposal_path="proposal.json", approval_path="approval.json"
+    )
     request = create_hitl_execution_request(
         target_name="generic",
         command_proposal_ref="proposal.json",

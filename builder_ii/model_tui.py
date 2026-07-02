@@ -17,6 +17,7 @@ Command surface
   builder model registry show             — model client registry overview
   builder model registry diff             — compare active registry against a target
 """
+
 from __future__ import annotations
 
 import json
@@ -60,34 +61,49 @@ def _hex_ansi(hex_colour: str, text: str) -> str:
 
 
 def _p(t):
-    return _hex_ansi(_C["pass"],   t)
+    return _hex_ansi(_C["pass"], t)
+
+
 def _w(t):
-    return _hex_ansi(_C["warn"],   t)
+    return _hex_ansi(_C["warn"], t)
+
+
 def _f(t):
-    return _hex_ansi(_C["fail"],   t)
+    return _hex_ansi(_C["fail"], t)
+
+
 def _h(t):
-    return _hex_ansi(_C["hint"],   t)
+    return _hex_ansi(_C["hint"], t)
+
+
 def _act(t):
     return _hex_ansi(_C["active"], t)
+
+
 def _d(t):
-    return _hex_ansi(_C["dim"],    t)
+    return _hex_ansi(_C["dim"], t)
+
+
 def _b(t):
-    return _hex_ansi(_C["bold"],   t)
+    return _hex_ansi(_C["bold"], t)
+
+
 def _acc(t):
     return _hex_ansi(_C["accent"], t)
 
+
 # Glyphs
 G = {
-    "pass":    _p("✔"),
-    "fail":    _f("✘"),
-    "warn":    _w("⚠"),
-    "skip":    _d("–"),
-    "bullet":  _d("·"),
-    "arrow":   _d("→"),
-    "rank":    _acc("▣"),
-    "rule":    _act("●"),
-    "lock":    _d("○"),
-    "cap":     _w("▲"),
+    "pass": _p("✔"),
+    "fail": _f("✘"),
+    "warn": _w("⚠"),
+    "skip": _d("–"),
+    "bullet": _d("·"),
+    "arrow": _d("→"),
+    "rank": _acc("▣"),
+    "rule": _act("●"),
+    "lock": _d("○"),
+    "cap": _w("▲"),
 }
 
 # ---------------------------------------------------------------------------
@@ -95,20 +111,21 @@ G = {
 # ---------------------------------------------------------------------------
 
 RISK_HIERARCHY = {
-    "local_offline":  1,
-    "local_network":  2,
+    "local_offline": 1,
+    "local_network": 2,
     "cloud_external": 3,
 }
 
 RISK_LABEL = {
-    "local_offline":  _p("local_offline"),
-    "local_network":  _w("local_network"),
+    "local_offline": _p("local_offline"),
+    "local_network": _w("local_network"),
     "cloud_external": _f("cloud_external"),
 }
 
 # ---------------------------------------------------------------------------
 # Layout helpers
 # ---------------------------------------------------------------------------
+
 
 def _builder_dir() -> Path:
     return _shared_builder_dir()
@@ -159,6 +176,7 @@ def _gov_flag(key: str, value: Any) -> None:
 # JSON I/O
 # ---------------------------------------------------------------------------
 
+
 def _load_json(path: Path) -> tuple[dict | None, str]:
     return _shared_load_json_object(path)
 
@@ -170,6 +188,7 @@ def _find_artifact(base: Path, *candidates: str) -> tuple[Path | None, dict | No
 # ---------------------------------------------------------------------------
 # builder model routing show
 # ---------------------------------------------------------------------------
+
 
 def cmd_routing_show(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
@@ -190,43 +209,45 @@ def cmd_routing_show(args: list[str]) -> int:
         print()
         return 0
 
-    _kv("kind",          _d(policy.get("kind", "")))
-    _kv("policy_name",   _b(str(policy.get("policy_name", _d("—")))))
-    _kv("policy_state",  _act(str(policy.get("policy_state", ""))))
+    _kv("kind", _d(policy.get("kind", "")))
+    _kv("policy_name", _b(str(policy.get("policy_name", _d("—")))))
+    _kv("policy_state", _act(str(policy.get("policy_state", ""))))
     _kv("executes_model", _p("false") if policy.get("executes_model") is False else _f("true"))
     _kv("grants_authority", _p("false") if policy.get("grants_authority") is False else _f("true"))
-    _kv("HITL required",
-        _p("yes") if policy.get("requires_human_promotion_for_execution") else _f("no")
-    )
+    _kv("HITL required", _p("yes") if policy.get("requires_human_promotion_for_execution") else _f("no"))
 
     rules = policy.get("rules") or []
     if rules:
         print()
         print(f"  {_b('Routing rules')}  ({len(rules)})")
-        print(_row(
-            (_d("  "), 3),
-            (_d("Rule ID"), 30),
-            (_d("Intent"), 16),
-            (_d("Max Risk"), 18),
-            (_d("Tools"), 7),
-            (_d("Preferred Model"), 50),
-        ))
+        print(
+            _row(
+                (_d("  "), 3),
+                (_d("Rule ID"), 30),
+                (_d("Intent"), 16),
+                (_d("Max Risk"), 18),
+                (_d("Tools"), 7),
+                (_d("Preferred Model"), 50),
+            )
+        )
         print(f"  {_hr(126)}")
         for rule in rules:
-            rule_id    = str(rule.get("rule_id") or _d("—"))[:28]
-            intent     = str(rule.get("task_intent") or _d("—"))[:14]
-            risk       = rule.get("max_risk_classification") or ""
-            tools      = rule.get("requires_tool_use")
-            model_id   = str(rule.get("preferred_model_id") or rule.get("preferred_model_family") or _d("—"))[:48]
-            tools_txt  = _p("yes") if tools else _d("no")
-            print(_row(
-                (G["rule"], 3),
-                (_b(rule_id), 30),
-                (_act(intent), 16),
-                (_risk_color(risk), 18),
-                (tools_txt, 7),
-                (_d(model_id), 50),
-            ))
+            rule_id = str(rule.get("rule_id") or _d("—"))[:28]
+            intent = str(rule.get("task_intent") or _d("—"))[:14]
+            risk = rule.get("max_risk_classification") or ""
+            tools = rule.get("requires_tool_use")
+            model_id = str(rule.get("preferred_model_id") or rule.get("preferred_model_family") or _d("—"))[:48]
+            tools_txt = _p("yes") if tools else _d("no")
+            print(
+                _row(
+                    (G["rule"], 3),
+                    (_b(rule_id), 30),
+                    (_act(intent), 16),
+                    (_risk_color(risk), 18),
+                    (tools_txt, 7),
+                    (_d(model_id), 50),
+                )
+            )
             if verbose and rule.get("rationale"):
                 print(f"       {_h(rule['rationale'])}")
 
@@ -250,12 +271,13 @@ def _row(*cells: tuple[str, int]) -> str:
 # builder model routing simulate [intent]
 # ---------------------------------------------------------------------------
 
+
 def cmd_routing_simulate(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     intent_args = [a for a in args if not a.startswith("-")]
     task_intent = intent_args[0] if intent_args else "coding"
-    risk        = intent_args[1] if len(intent_args) > 1 else "local_network"
-    tools_flag  = "--tools" in args or "-t" in args
+    risk = intent_args[1] if len(intent_args) > 1 else "local_network"
+    tools_flag = "--tools" in args or "-t" in args
 
     base = _builder_dir()
     _, policy = _find_artifact(
@@ -281,6 +303,7 @@ def cmd_routing_simulate(args: list[str]) -> int:
 
     try:
         from builder_ii.model_routing_policy import create_model_routing_recommendation
+
         request = {
             "task_intent": task_intent,
             "max_risk_classification": risk,
@@ -297,6 +320,7 @@ def cmd_routing_simulate(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder model routing candidates
 # ---------------------------------------------------------------------------
+
 
 def cmd_routing_candidates(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
@@ -326,14 +350,12 @@ def _render_recommendation(rec: dict, *, verbose: bool) -> None:
     executes = rec.get("executes_model")
     request = rec.get("request") or {}
 
-    _kv("state",         _act(str(state)))
+    _kv("state", _act(str(state)))
     _kv("executes_model", _p("false") if executes is False else _f("true"))
-    _kv("HITL required",
-        _p("yes") if rec.get("requires_human_promotion_for_execution") else _f("no")
-    )
+    _kv("HITL required", _p("yes") if rec.get("requires_human_promotion_for_execution") else _f("no"))
     _kv("request.intent", _b(str(request.get("task_intent", _d("—")))))
-    _kv("request.risk",   _risk_color(str(request.get("max_risk_classification", ""))))
-    _kv("request.tools",  _p("yes") if request.get("requires_tool_use") else _d("no"))
+    _kv("request.risk", _risk_color(str(request.get("max_risk_classification", ""))))
+    _kv("request.tools", _p("yes") if request.get("requires_tool_use") else _d("no"))
 
     # Source refs
     if verbose:
@@ -348,42 +370,47 @@ def _render_recommendation(rec: dict, *, verbose: bool) -> None:
 
     print()
     print(f"  {_b('Ranked candidates')}  ({len(candidates)})")
-    print(_row(
-        (_d("Rank"), 5),
-        (_d("Model ID"), 50),
-        (_d("Alias"), 20),
-        (_d("Risk"), 18),
-        (_d("Provider"), 16),
-    ))
+    print(
+        _row(
+            (_d("Rank"), 5),
+            (_d("Model ID"), 50),
+            (_d("Alias"), 20),
+            (_d("Risk"), 18),
+            (_d("Provider"), 16),
+        )
+    )
     print(f"  {_hr(114)}")
 
     for cand in candidates:
-        rank    = str(cand.get("rank", "?"))
-        model   = str(cand.get("model_id") or _d("—"))[:48]
-        alias   = str(cand.get("model_alias") or _d("—"))[:18]
-        risk    = str(cand.get("risk_classification") or "")
-        prov    = str(cand.get("provider_id") or _d("—"))[:14]
-        is_top  = cand.get("rank") == 1
+        rank = str(cand.get("rank", "?"))
+        model = str(cand.get("model_id") or _d("—"))[:48]
+        alias = str(cand.get("model_alias") or _d("—"))[:18]
+        risk = str(cand.get("risk_classification") or "")
+        prov = str(cand.get("provider_id") or _d("—"))[:14]
+        is_top = cand.get("rank") == 1
 
-        rank_g  = G["rank"] if is_top else _d(rank)
+        rank_g = G["rank"] if is_top else _d(rank)
         model_t = _act(model) if is_top else _b(model)
-        print(_row(
-            (rank_g, 5),
-            (model_t, 50),
-            (_d(alias), 20),
-            (_risk_color(risk), 18),
-            (_d(prov), 16),
-        ))
+        print(
+            _row(
+                (rank_g, 5),
+                (model_t, 50),
+                (_d(alias), 20),
+                (_risk_color(risk), 18),
+                (_d(prov), 16),
+            )
+        )
         if verbose:
-            for reason in (cand.get("reasons") or []):
+            for reason in cand.get("reasons") or []:
                 print(f"       {G['bullet']}  {_h(reason)}")
-            for constraint in (cand.get("constraints") or []):
+            for constraint in cand.get("constraints") or []:
                 print(f"       {G['cap']}  {_w(constraint)}")
 
 
 # ---------------------------------------------------------------------------
 # builder model routing policy
 # ---------------------------------------------------------------------------
+
 
 def cmd_routing_policy(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
@@ -406,11 +433,11 @@ def cmd_routing_policy(args: list[str]) -> int:
     for i, rule in enumerate(rules, 1):
         print()
         print(f"  {G['rule']}  {_b('Rule ' + str(i))}  {_d(rule.get('rule_id', ''))}")
-        _kv("task_intent",             _act(str(rule.get("task_intent", ""))), kw=28)
+        _kv("task_intent", _act(str(rule.get("task_intent", ""))), kw=28)
         _kv("max_risk_classification", _risk_color(str(rule.get("max_risk_classification", ""))), kw=28)
-        _kv("requires_tool_use",       _p("yes") if rule.get("requires_tool_use") else _d("no"), kw=28)
-        _kv("preferred_model_id",      _d(str(rule.get("preferred_model_id") or "—")), kw=28)
-        _kv("preferred_model_family",  _d(str(rule.get("preferred_model_family") or "—")), kw=28)
+        _kv("requires_tool_use", _p("yes") if rule.get("requires_tool_use") else _d("no"), kw=28)
+        _kv("preferred_model_id", _d(str(rule.get("preferred_model_id") or "—")), kw=28)
+        _kv("preferred_model_family", _d(str(rule.get("preferred_model_family") or "—")), kw=28)
         if verbose and rule.get("rationale"):
             _kv("rationale", _h(rule["rationale"]), kw=28)
 
@@ -421,6 +448,7 @@ def cmd_routing_policy(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder model routing execution-policy
 # ---------------------------------------------------------------------------
+
 
 def cmd_routing_execution_policy(args: list[str]) -> int:
     base = _builder_dir()
@@ -439,10 +467,10 @@ def cmd_routing_execution_policy(args: list[str]) -> int:
         print()
         return 0
 
-    state    = ep.get("policy_state", "")
+    state = ep.get("policy_state", "")
     executes = ep.get("executes_model")
-    grants   = ep.get("grants_authority")
-    max_tok  = ep.get("max_tokens")
+    grants = ep.get("grants_authority")
+    max_tok = ep.get("max_tokens")
 
     # State traffic light
     if state == "AUTHORIZED":
@@ -450,13 +478,11 @@ def cmd_routing_execution_policy(args: list[str]) -> int:
     else:
         state_txt = _w(state)
 
-    _kv("policy_state",  state_txt)
+    _kv("policy_state", state_txt)
     _kv("executes_model", _act("true") if executes else _d("false"))
     _kv("grants_authority", _f("true") if grants else _p("false"))
-    _kv("max_tokens",    _b(str(max_tok)) if max_tok else _d("—"))
-    _kv("HITL required",
-        _p("yes") if ep.get("requires_human_promotion_for_execution") else _f("no")
-    )
+    _kv("max_tokens", _b(str(max_tok)) if max_tok else _d("—"))
+    _kv("HITL required", _p("yes") if ep.get("requires_human_promotion_for_execution") else _f("no"))
 
     # Allowed models
     allowed = ep.get("allowed_models") or []
@@ -487,6 +513,7 @@ def cmd_routing_execution_policy(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder model routing validate
 # ---------------------------------------------------------------------------
+
 
 def cmd_routing_validate(args: list[str]) -> int:
     base = _builder_dir()
@@ -520,8 +547,9 @@ def cmd_routing_validate(args: list[str]) -> int:
             continue
         try:
             import importlib
+
             mod = importlib.import_module(mod_name)
-            fn  = getattr(mod, fn_name)
+            fn = getattr(mod, fn_name)
             errors = fn(data)
         except Exception as exc:
             errors = [str(exc)]
@@ -542,6 +570,7 @@ def cmd_routing_validate(args: list[str]) -> int:
 # builder model registry show
 # ---------------------------------------------------------------------------
 
+
 def cmd_registry_show(args: list[str]) -> int:
     verbose = "-v" in args or "--verbose" in args
     base = _builder_dir()
@@ -559,45 +588,49 @@ def cmd_registry_show(args: list[str]) -> int:
         return 0
 
     clients = registry.get("clients") or []
-    enabled  = [c for c in clients if c.get("enabled")]
+    enabled = [c for c in clients if c.get("enabled")]
     disabled = [c for c in clients if not c.get("enabled")]
 
-    _kv("total clients",   _b(str(len(clients))))
-    _kv("enabled",         _p(str(len(enabled))))
-    _kv("disabled",        _d(str(len(disabled))))
+    _kv("total clients", _b(str(len(clients))))
+    _kv("enabled", _p(str(len(enabled))))
+    _kv("disabled", _d(str(len(disabled))))
 
     if clients:
         print()
         print(f"  {_b('Client roster')}")
-        print(_row(
-            (_d("  "), 3),
-            (_d("Model ID"), 50),
-            (_d("Alias"), 20),
-            (_d("Provider"), 16),
-            (_d("Risk"), 18),
-            (_d("Tools"), 7),
-            (_d("Cost"), 10),
-        ))
+        print(
+            _row(
+                (_d("  "), 3),
+                (_d("Model ID"), 50),
+                (_d("Alias"), 20),
+                (_d("Provider"), 16),
+                (_d("Risk"), 18),
+                (_d("Tools"), 7),
+                (_d("Cost"), 10),
+            )
+        )
         print(f"  {_hr(126)}")
         for c in sorted(clients, key=lambda x: (not x.get("enabled"), x.get("risk_classification", ""))):
-            en    = c.get("enabled")
-            g     = G["rule"] if en else G["lock"]
+            en = c.get("enabled")
+            g = G["rule"] if en else G["lock"]
             model = str(c.get("model_id") or _d("—"))[:48]
             alias = str(c.get("model_alias") or _d("—"))[:18]
-            prov  = str(c.get("provider_id") or _d("—"))[:14]
-            risk  = str(c.get("risk_classification") or "")
+            prov = str(c.get("provider_id") or _d("—"))[:14]
+            risk = str(c.get("risk_classification") or "")
             tools = _p("yes") if c.get("tool_use_supported") else _d("no")
-            cost  = str(c.get("cost_class") or _d("—"))[:8]
+            cost = str(c.get("cost_class") or _d("—"))[:8]
             model_t = _act(model) if en else _d(model)
-            print(_row(
-                (g, 3),
-                (model_t, 50),
-                (_d(alias), 20),
-                (_d(prov), 16),
-                (_risk_color(risk), 18),
-                (tools, 7),
-                (_d(cost), 10),
-            ))
+            print(
+                _row(
+                    (g, 3),
+                    (model_t, 50),
+                    (_d(alias), 20),
+                    (_d(prov), 16),
+                    (_risk_color(risk), 18),
+                    (tools, 7),
+                    (_d(cost), 10),
+                )
+            )
             if verbose and c.get("notes"):
                 print(f"       {_h(c['notes'])}")
 
@@ -608,6 +641,7 @@ def cmd_registry_show(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 # builder model registry diff
 # ---------------------------------------------------------------------------
+
 
 def cmd_registry_diff(args: list[str]) -> int:
     """Compare the active registry against a target path or second registry file."""
@@ -634,12 +668,11 @@ def cmd_registry_diff(args: list[str]) -> int:
     clients_a = {c.get("model_id"): c for c in (reg_a.get("clients") or [])}
     clients_b = {c.get("model_id"): c for c in (reg_b.get("clients") or [])}
 
-    added   = set(clients_b) - set(clients_a)
+    added = set(clients_b) - set(clients_a)
     removed = set(clients_a) - set(clients_b)
-    common  = set(clients_a) & set(clients_b)
+    common = set(clients_a) & set(clients_b)
     changed = [
-        m for m in common
-        if json.dumps(clients_a[m], sort_keys=True) != json.dumps(clients_b[m], sort_keys=True)
+        m for m in common if json.dumps(clients_a[m], sort_keys=True) != json.dumps(clients_b[m], sort_keys=True)
     ]
 
     print(f"  {_p(f'+{len(added)} added')}  {_f(f'-{len(removed)} removed')}  {_d(f'~{len(changed)} modified')}")
@@ -666,12 +699,12 @@ def cmd_registry_diff(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 _ROUTING_COMMANDS = {
-    "show":             cmd_routing_show,
-    "simulate":         cmd_routing_simulate,
-    "candidates":       cmd_routing_candidates,
-    "policy":           cmd_routing_policy,
+    "show": cmd_routing_show,
+    "simulate": cmd_routing_simulate,
+    "candidates": cmd_routing_candidates,
+    "policy": cmd_routing_policy,
     "execution-policy": cmd_routing_execution_policy,
-    "validate":         cmd_routing_validate,
+    "validate": cmd_routing_validate,
 }
 
 _REGISTRY_COMMANDS = {
@@ -685,12 +718,12 @@ def _usage() -> None:
     print()
     print(_acc("routing"))
     for cmd, desc in [
-        ("routing show",             "Active policy rules overview"),
+        ("routing show", "Active policy rules overview"),
         ("routing simulate [intent]", "Dry-run recommendation for a task intent"),
-        ("routing candidates",        "Full ranked candidate list (last recommendation)"),
-        ("routing policy",            "Raw policy governance flags + rule detail"),
-        ("routing execution-policy",  "Execution policy envelope (if present)"),
-        ("routing validate",          "Validate all three routing artifacts on disk"),
+        ("routing candidates", "Full ranked candidate list (last recommendation)"),
+        ("routing policy", "Raw policy governance flags + rule detail"),
+        ("routing execution-policy", "Execution policy envelope (if present)"),
+        ("routing validate", "Validate all three routing artifacts on disk"),
     ]:
         print(f"  {_act('builder model ' + cmd):<50}  {_d(desc)}")
     print()
@@ -710,7 +743,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     group = args[0]
-    rest  = args[1:]
+    rest = args[1:]
 
     if group == "routing":
         if not rest:

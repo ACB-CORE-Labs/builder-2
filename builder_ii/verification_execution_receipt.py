@@ -41,7 +41,15 @@ REQUIRED_DISABLED_AUTHORITY: dict[str, str] = {
 }
 
 RECEIPT_STATUSES = {"NOT_EXECUTED", "BLOCKED_BEFORE_EXECUTION", "EXECUTED", "PARTIALLY_EXECUTED", "FAILED"}
-PROCESS_RESULT_STATUSES = {"success", "non_zero_exit", "timeout", "blocked_before_execution", "skipped_not_approved", "skipped_dependency_failed", "not_executed"}
+PROCESS_RESULT_STATUSES = {
+    "success",
+    "non_zero_exit",
+    "timeout",
+    "blocked_before_execution",
+    "skipped_not_approved",
+    "skipped_dependency_failed",
+    "not_executed",
+}
 RUNNER_MODES = {RUNNER_MODE_CONTRACT_ONLY, RUNNER_MODE_BOUNDED_APPROVED}
 SUBPROCESS_MODES = {SUBPROCESS_MODE_NOT_STARTED, SUBPROCESS_MODE_SHELL_FALSE_BOUNDED}
 
@@ -69,7 +77,14 @@ def _string_list(value: Any) -> list[str]:
 
 
 def _default_capture_policy(stream: str) -> dict[str, Any]:
-    return {"stream": stream, "capture_enabled": True, "max_bytes": 65536, "stores_full_output": False, "stores_digest": True, "redaction_required": True}
+    return {
+        "stream": stream,
+        "capture_enabled": True,
+        "max_bytes": 65536,
+        "stores_full_output": False,
+        "stores_digest": True,
+        "redaction_required": True,
+    }
 
 
 def _default_timeout_policy() -> dict[str, Any]:
@@ -77,7 +92,13 @@ def _default_timeout_policy() -> dict[str, Any]:
 
 
 def _default_environment_policy() -> dict[str, Any]:
-    return {"ambient_environment_forwarded": False, "allowlist_required": True, "secrets_forwarded": False, "model_provider_keys_forwarded": False, "mcp_credentials_forwarded": False}
+    return {
+        "ambient_environment_forwarded": False,
+        "allowlist_required": True,
+        "secrets_forwarded": False,
+        "model_provider_keys_forwarded": False,
+        "mcp_credentials_forwarded": False,
+    }
 
 
 def _default_cwd_policy() -> dict[str, Any]:
@@ -85,11 +106,22 @@ def _default_cwd_policy() -> dict[str, Any]:
 
 
 def _default_git_state(label: str) -> dict[str, Any]:
-    return {"state_label": label, "captured": False, "capture_reason": "B1.3A receipt artifact is passive and does not execute git inspection."}
+    return {
+        "state_label": label,
+        "captured": False,
+        "capture_reason": "B1.3A receipt artifact is passive and does not execute git inspection.",
+    }
 
 
 def _default_skipped_steps(approval: dict[str, Any]) -> list[dict[str, Any]]:
-    return [{"step_id": step_id, "status": "not_executed", "reason": "B1.3A defines the receipt contract only; B1.3B runner is required before execution."} for step_id in _string_list(approval.get("approved_step_ids"))]
+    return [
+        {
+            "step_id": step_id,
+            "status": "not_executed",
+            "reason": "B1.3A defines the receipt contract only; B1.3B runner is required before execution.",
+        }
+        for step_id in _string_list(approval.get("approved_step_ids"))
+    ]
 
 
 def finalize_verification_execution_receipt(
@@ -110,8 +142,14 @@ def finalize_verification_execution_receipt(
     execution_enabled: bool | None = None,
     subprocess_mode: str | None = None,
 ) -> dict[str, Any]:
-    effective_execution_enabled = execution_enabled if execution_enabled is not None else runner_mode == RUNNER_MODE_BOUNDED_APPROVED
-    effective_subprocess_mode = subprocess_mode or (SUBPROCESS_MODE_SHELL_FALSE_BOUNDED if runner_mode == RUNNER_MODE_BOUNDED_APPROVED else SUBPROCESS_MODE_NOT_STARTED)
+    effective_execution_enabled = (
+        execution_enabled if execution_enabled is not None else runner_mode == RUNNER_MODE_BOUNDED_APPROVED
+    )
+    effective_subprocess_mode = subprocess_mode or (
+        SUBPROCESS_MODE_SHELL_FALSE_BOUNDED
+        if runner_mode == RUNNER_MODE_BOUNDED_APPROVED
+        else SUBPROCESS_MODE_NOT_STARTED
+    )
     receipt: dict[str, Any] = {
         "kind": VERIFICATION_EXECUTION_RECEIPT_KIND,
         "schema_version": VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION,
@@ -150,7 +188,10 @@ def finalize_verification_execution_receipt(
         "valid": True,
     }
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
-    errors = _dedupe_errors(validate_verification_execution_receipt_artifact(receipt) + validate_verification_execution_receipt_against_plan_and_approval(receipt, plan, approval))
+    errors = _dedupe_errors(
+        validate_verification_execution_receipt_artifact(receipt)
+        + validate_verification_execution_receipt_against_plan_and_approval(receipt, plan, approval)
+    )
     if errors:
         receipt["errors"] = errors
         receipt["valid"] = False
@@ -171,7 +212,11 @@ def _validate_disabled_authority(data: dict[str, Any]) -> list[str]:
     disabled = data.get("disabled_authority")
     if not isinstance(disabled, dict):
         return ["disabled_authority must be an object"]
-    return [f"disabled_authority.{key} must remain {expected}" for key, expected in REQUIRED_DISABLED_AUTHORITY.items() if disabled.get(key) != expected]
+    return [
+        f"disabled_authority.{key} must remain {expected}"
+        for key, expected in REQUIRED_DISABLED_AUTHORITY.items()
+        if disabled.get(key) != expected
+    ]
 
 
 def _validate_string_list(field: str, value: Any) -> list[str]:
@@ -270,7 +315,14 @@ def validate_verification_execution_receipt_artifact(data: Any) -> list[str]:
         errors.append("generated_at must be a non-empty string")
     if data.get("receipt_status") not in RECEIPT_STATUSES:
         errors.append(f"receipt_status must be one of: {', '.join(sorted(RECEIPT_STATUSES))}")
-    for field in ("target_profile", "verification_profile", "target_repo", "artifact_root", "plan_path", "approval_path"):
+    for field in (
+        "target_profile",
+        "verification_profile",
+        "target_repo",
+        "artifact_root",
+        "plan_path",
+        "approval_path",
+    ):
         if not _is_non_empty_string(data.get(field)):
             errors.append(f"{field} must be a non-empty string")
     if data.get("plan_kind") != VERIFICATION_EXECUTION_PLAN_KIND:
@@ -298,7 +350,18 @@ def validate_verification_execution_receipt_artifact(data: Any) -> list[str]:
     errors.extend(_validate_policy("stderr_capture_policy", data.get("stderr_capture_policy"), ("stores_full_output",)))
     if not isinstance(data.get("timeout_policy"), dict):
         errors.append("timeout_policy must be an object")
-    errors.extend(_validate_policy("environment_policy", data.get("environment_policy"), ("ambient_environment_forwarded", "secrets_forwarded", "model_provider_keys_forwarded", "mcp_credentials_forwarded")))
+    errors.extend(
+        _validate_policy(
+            "environment_policy",
+            data.get("environment_policy"),
+            (
+                "ambient_environment_forwarded",
+                "secrets_forwarded",
+                "model_provider_keys_forwarded",
+                "mcp_credentials_forwarded",
+            ),
+        )
+    )
     errors.extend(_validate_policy("cwd_policy", data.get("cwd_policy"), ("cwd_escape_allowed",)))
     errors.extend(_validate_disabled_authority(data))
     artifact_errors = data.get("errors")
@@ -319,7 +382,9 @@ def validate_verification_execution_receipt_artifact(data: Any) -> list[str]:
     return _dedupe_errors(errors)
 
 
-def validate_verification_execution_receipt_against_plan_and_approval(receipt: Any, plan: Any, approval: Any) -> list[str]:
+def validate_verification_execution_receipt_against_plan_and_approval(
+    receipt: Any, plan: Any, approval: Any
+) -> list[str]:
     errors: list[str] = []
     if not isinstance(receipt, dict):
         return ["verification execution receipt artifact must be a JSON object"]
@@ -357,7 +422,13 @@ def validate_verification_execution_receipt_against_plan_and_approval(receipt: A
         records = receipt.get(field)
         if not isinstance(records, list):
             continue
-        extras = sorted(step_id for item in records if isinstance(item, dict) for step_id in (item.get("step_id"),) if isinstance(step_id, str) and step_id not in approved_steps)
+        extras = sorted(
+            step_id
+            for item in records
+            if isinstance(item, dict)
+            for step_id in (item.get("step_id"),)
+            if isinstance(step_id, str) and step_id not in approved_steps
+        )
         if extras:
             errors.append(f"{field}.step_id values must be approved by the referenced approval")
     return _dedupe_errors(errors)

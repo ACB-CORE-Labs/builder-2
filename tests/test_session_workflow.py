@@ -4,6 +4,7 @@ import json as json_lib
 from pathlib import Path
 
 import pytest
+from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
@@ -11,7 +12,6 @@ from builder_ii.profile_resolution import (
     get_prompt_profile,
     prompt_profiles,
 )
-from builder_ii.session_cli import session_app
 from builder_ii.session_workflow import (
     SESSION_WORKFLOW_PLAN_KIND,
     create_session_workflow_plan,

@@ -13,18 +13,18 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from builder_ii.artifact_chain_verification import verify_artifact_chain
+from builder_ii.artifact_index_records import create_artifact_index_record, write_artifact_index_record
 from builder_ii.config import load_settings
-from builder_ii.governed_prepare_package import (
-    create_governed_prepare_package,
-    validate_governed_prepare_package_directory,
-    summarize_governed_prepare_package_directory,
-)
 from builder_ii.convention_kernel import (
     ConventionKernel,
     validate_convention_kernel_platform_bundle,
 )
-from builder_ii.artifact_index_records import create_artifact_index_record, write_artifact_index_record
-from builder_ii.artifact_chain_verification import verify_artifact_chain
+from builder_ii.governed_prepare_package import (
+    create_governed_prepare_package,
+    summarize_governed_prepare_package_directory,
+    validate_governed_prepare_package_directory,
+)
 from builder_ii.release_manifest import create_v0_release_manifest, write_v0_release_manifest
 
 
@@ -39,7 +39,9 @@ def _make_fixture_repo(base_dir: Path) -> Path:
     (src_dir / "example.py").write_text("def add(a, b): return a + b\n", encoding="utf-8")
     tests_dir = repo / "tests"
     tests_dir.mkdir()
-    (tests_dir / "test_example.py").write_text("from src.example import add\ndef test_add(): assert add(1, 2) == 3\n", encoding="utf-8")
+    (tests_dir / "test_example.py").write_text(
+        "from src.example import add\ndef test_add(): assert add(1, 2) == 3\n", encoding="utf-8"
+    )
     return repo
 
 
@@ -142,7 +144,11 @@ def run_proof_harness(output_dir: Path, repo_path: Path | None = None) -> bool:
             ("repo_map_ref", "repo-map.json", "builder_ii.repo_map"),
             ("context_pack_ref", "context-pack.json", "builder_ii.context_pack"),
             ("handoff_note_ref", "handoff-note.json", "builder_ii.handoff_note"),
-            ("deepagents_readiness_ref", "deepagents-bridge-readiness.json", "builder_ii.deepagents_bridge_readiness_report"),
+            (
+                "deepagents_readiness_ref",
+                "deepagents-bridge-readiness.json",
+                "builder_ii.deepagents_bridge_readiness_report",
+            ),
         ]:
             fpath = output_dir / fname
             session_proof_refs[ref_key] = {"kind": kind_name, "path": fname, "sha256": _file_sha256(fpath)}
@@ -182,7 +188,11 @@ def run_proof_harness(output_dir: Path, repo_path: Path | None = None) -> bool:
         print("[Step 8] Re-running verify_artifact_chain across all emitted files including index and manifest...")
         all_emitted_files = sorted(list(output_dir.glob("*.json")))
         chain_report2 = verify_artifact_chain(all_emitted_files)
-        if not chain_report2["valid"] or chain_report2["counts"]["broken_links"] != 0 or chain_report2["counts"]["native_invalid"] != 0:
+        if (
+            not chain_report2["valid"]
+            or chain_report2["counts"]["broken_links"] != 0
+            or chain_report2["counts"]["native_invalid"] != 0
+        ):
             print(f"Error: Final chain verification failed: {chain_report2['errors']}", file=sys.stderr)
             return False
 
@@ -217,8 +227,18 @@ def run_proof_harness(output_dir: Path, repo_path: Path | None = None) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Repeatable v0 release proof harness for builder-II")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "dist" / "v0-release-proof", help="Output directory for generated release artifacts")
-    parser.add_argument("--repo-path", type=Path, default=None, help="Optional target repository path (defaults to creating isolated fixture repo)")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=ROOT / "dist" / "v0-release-proof",
+        help="Output directory for generated release artifacts",
+    )
+    parser.add_argument(
+        "--repo-path",
+        type=Path,
+        default=None,
+        help="Optional target repository path (defaults to creating isolated fixture repo)",
+    )
     args = parser.parse_args()
 
     success = run_proof_harness(args.output_dir, args.repo_path)

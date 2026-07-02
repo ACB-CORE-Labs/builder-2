@@ -56,7 +56,6 @@ def create_session_workflow_plan(
     v_profile = resolved.verification_profile
     resolved_repo = resolved.repo_path
 
-
     # Assemble planned commands
     planned_commands = [
         f"builder-context pack --target {target_name}",
@@ -71,7 +70,9 @@ def create_session_workflow_plan(
         "schema_version": SESSION_WORKFLOW_PLAN_SCHEMA_VERSION,
         "target_profile": t_profile_dict,
         "repo_path": resolved_repo,
-        "selected_agent_profile": create_agent_profile_record(a_profile, resolved.target_profile, task="governed session"),
+        "selected_agent_profile": create_agent_profile_record(
+            a_profile, resolved.target_profile, task="governed session"
+        ),
         "selected_prompt_profile": p_profile.to_dict(),
         "selected_verification_profile": v_profile.to_artifact_dict(target=target_name, task="governed session"),
         "planned_artifacts": [

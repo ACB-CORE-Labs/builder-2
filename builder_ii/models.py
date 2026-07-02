@@ -4,6 +4,7 @@ The cache inspector is intentionally filesystem-only. It does not phone home or
 assume a model exists remotely. Download scripts are allowed to fail loudly if a
 candidate repo name changed; the runtime should remain deterministic and honest.
 """
+
 from __future__ import annotations
 
 import re
@@ -278,9 +279,7 @@ def _large_safetensors(cache: Path) -> list[Path]:
     return [
         f
         for f in cache.rglob("*.safetensors")
-        if f.is_file()
-        and ".incomplete" not in str(f)
-        and f.stat().st_size > 50_000_000
+        if f.is_file() and ".incomplete" not in str(f) and f.stat().st_size > 50_000_000
     ]
 
 

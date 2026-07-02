@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from builder_ii.hitl_execution_cli import hitl_app
 from typer.testing import CliRunner
 
 from builder_ii.artifact_chain_verification import extract_references
@@ -16,7 +17,6 @@ from builder_ii.execution_candidate_manifest import (
     validate_execution_candidate_manifest,
     validate_execution_candidate_manifest_validation_report,
 )
-from builder_ii.hitl_execution_cli import hitl_app
 from builder_ii.hitl_promotion_artifacts import (
     HITL_APPROVAL_BOUNDARY_KIND,
     HITL_PROMOTION_DECISION_KIND,
@@ -154,14 +154,10 @@ def _mock_valid_manifest() -> dict:
         promotion_decision_ref=_ref(HITL_PROMOTION_DECISION_KIND, "decision.json"),
         promotion_review_ref=_ref(HITL_PROMOTION_REVIEW_KIND, "review.json"),
         promotion_request_ref=_ref(HITL_PROMOTION_REQUEST_KIND, "request.json"),
-        source_proposal_refs=[
-            _ref("builder_ii.orchestration_assignment_plan", "proposal.json")
-        ],
+        source_proposal_refs=[_ref("builder_ii.orchestration_assignment_plan", "proposal.json")],
         target_profile_ref=_ref("builder_ii.target_profile", "target.json"),
         command_authority_ref=_ref("builder_ii.command_authority", "cmd_auth.json"),
-        verification_profile_ref=_ref(
-            "builder_ii.verification_profile", "ver_profile.json"
-        ),
+        verification_profile_ref=_ref("builder_ii.verification_profile", "ver_profile.json"),
         rollback_requirements={
             "rollback_required": True,
             "no_mutation_assertion": True,
@@ -217,26 +213,19 @@ def test_manifest_authority_invariants() -> None:
 
     # Violating an invariant fails closed
     manifest["executes_model"] = True
-    assert "executes_model must be false" in validate_execution_candidate_manifest(
-        manifest
-    )
+    assert "executes_model must be false" in validate_execution_candidate_manifest(manifest)
 
 
 def test_requires_separate_activation_artifact_false_fails() -> None:
     manifest = _mock_valid_manifest()
     manifest["requires_separate_activation_artifact"] = False
-    assert (
-        "requires_separate_activation_artifact must be true"
-        in validate_execution_candidate_manifest(manifest)
-    )
+    assert "requires_separate_activation_artifact must be true" in validate_execution_candidate_manifest(manifest)
 
 
 def test_missing_approval_boundary_fails() -> None:
     manifest = _mock_valid_manifest()
     del manifest["approval_boundary_ref"]
-    assert "approval_boundary_ref is required" in validate_execution_candidate_manifest(
-        manifest
-    )
+    assert "approval_boundary_ref is required" in validate_execution_candidate_manifest(manifest)
 
 
 def test_wrong_approval_boundary_kind_fails() -> None:
@@ -260,37 +249,27 @@ def test_missing_promotion_refs_fail() -> None:
 def test_missing_source_proposal_refs_fail() -> None:
     manifest = _mock_valid_manifest()
     manifest["source_proposal_refs"] = []
-    assert (
-        "source_proposal_refs list cannot be empty"
-        in validate_execution_candidate_manifest(manifest)
-    )
+    assert "source_proposal_refs list cannot be empty" in validate_execution_candidate_manifest(manifest)
 
 
 def test_target_profile_outside_permitted_fails() -> None:
     manifest = _mock_valid_manifest()
     manifest["candidate_scope"]["target_profile"] = "unsupported_profile"
-    assert (
-        "candidate_scope.target_profile must be generic, builder, or core"
-        in validate_execution_candidate_manifest(manifest)
+    assert "candidate_scope.target_profile must be generic, builder, or core" in validate_execution_candidate_manifest(
+        manifest
     )
 
 
 def test_core_workbench_coupling_fails() -> None:
     manifest = _mock_valid_manifest()
     manifest["candidate_scope"]["core_workbench_coupling"] = "SOME_COUPLING"
-    assert (
-        "candidate_scope.core_workbench_coupling must be NONE"
-        in validate_execution_candidate_manifest(manifest)
-    )
+    assert "candidate_scope.core_workbench_coupling must be NONE" in validate_execution_candidate_manifest(manifest)
 
 
 def test_deephaven_rejection() -> None:
     manifest = _mock_valid_manifest()
     manifest["candidate_scope"]["deephaven_integration"] = "DeephavenEngine"
-    assert (
-        "Deephaven work is forbidden"
-        in validate_execution_candidate_manifest(manifest)[0]
-    )
+    assert "Deephaven work is forbidden" in validate_execution_candidate_manifest(manifest)[0]
 
 
 def test_tier_4_command_preview_fails() -> None:
@@ -302,9 +281,7 @@ def test_tier_4_command_preview_fails() -> None:
 
 def test_shell_control_syntax_in_preview_fails() -> None:
     manifest = _mock_valid_manifest()
-    manifest["candidate_scope"]["command_previews"] = [
-        "builder-hitl validate-candidate-manifest ; rm -rf /"
-    ]
+    manifest["candidate_scope"]["command_previews"] = ["builder-hitl validate-candidate-manifest ; rm -rf /"]
     errors = validate_execution_candidate_manifest(manifest)
     assert any("shell control syntax" in err for err in errors)
 
@@ -312,13 +289,9 @@ def test_shell_control_syntax_in_preview_fails() -> None:
 def test_forbidden_commands_in_preview_fails() -> None:
     for cmd in ("sh -c", "bash -c", "python -c", "curl", "wget", "chmod", "rm -rf"):
         manifest = _mock_valid_manifest()
-        manifest["candidate_scope"]["command_previews"] = [
-            f"builder-hitl validate-candidate-manifest --arg '{cmd}'"
-        ]
+        manifest["candidate_scope"]["command_previews"] = [f"builder-hitl validate-candidate-manifest --arg '{cmd}'"]
         errors = validate_execution_candidate_manifest(manifest)
-        assert any("forbidden active command" in err for err in errors), (
-            f"Expected rejection of '{cmd}'"
-        )
+        assert any("forbidden active command" in err for err in errors), f"Expected rejection of '{cmd}'"
 
 
 def test_active_claims_wording_fails() -> None:
@@ -338,26 +311,20 @@ def test_active_claims_wording_fails() -> None:
         manifest = _mock_valid_manifest()
         manifest["candidate_scope"]["some_reason"] = f"This was {term} by agent."
         errors = validate_execution_candidate_manifest(manifest)
-        assert any("claims active authority state" in err for err in errors), (
-            f"Expected rejection of term '{term}'"
-        )
+        assert any("claims active authority state" in err for err in errors), f"Expected rejection of term '{term}'"
 
 
 def test_rollback_requirements_missing_fail() -> None:
     manifest = _mock_valid_manifest()
     manifest["rollback_requirements"] = {}
-    assert (
-        "rollback_requirements.rollback_required must be true"
-        in validate_execution_candidate_manifest(manifest)
-    )
+    assert "rollback_requirements.rollback_required must be true" in validate_execution_candidate_manifest(manifest)
 
 
 def test_verification_requirements_missing_fail() -> None:
     manifest = _mock_valid_manifest()
     manifest["verification_requirements"] = {}
-    assert (
-        "verification_requirements.verification_required must be true"
-        in validate_execution_candidate_manifest(manifest)
+    assert "verification_requirements.verification_required must be true" in validate_execution_candidate_manifest(
+        manifest
     )
 
 
@@ -375,10 +342,7 @@ def test_validation_report_happy_path() -> None:
 
     # Fails closed on authority invariants
     report["executes_model"] = True
-    assert (
-        "executes_model must be false"
-        in validate_execution_candidate_manifest_validation_report(report)
-    )
+    assert "executes_model must be false" in validate_execution_candidate_manifest_validation_report(report)
 
 
 def test_artifact_chain_references() -> None:
@@ -489,10 +453,7 @@ def test_hitl_verification_candidate_sibling() -> None:
         validate_hitl_verification_execution_candidate,
     )
 
-    assert (
-        HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND
-        == "builder_ii.hitl_verification_execution_candidate"
-    )
+    assert HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND == "builder_ii.hitl_verification_execution_candidate"
     assert validate_hitl_verification_execution_candidate is not None
 
 
@@ -528,9 +489,7 @@ def test_unapproved_source_boundary_fails() -> None:
 
 def test_unclassified_command_preview_fails() -> None:
     manifest = _mock_valid_manifest()
-    manifest["candidate_scope"]["command_previews"] = [
-        "invalid-unregistered-command-xyz"
-    ]
+    manifest["candidate_scope"]["command_previews"] = ["invalid-unregistered-command-xyz"]
     errors = validate_execution_candidate_manifest(manifest)
     assert any("has no matching command authority record" in err for err in errors)
 
@@ -684,9 +643,7 @@ def test_active_ish_words_in_source_proposal_refs_path() -> None:
     # Path has active-ish words like "execute" and "run"
     manifest["source_proposal_refs"][0]["path"] = "execute_run_proposal.json"
     errors = validate_execution_candidate_manifest(manifest)
-    assert not errors, (
-        f"Expected active-ish words in source_proposal_refs path to be skipped, got errors: {errors}"
-    )
+    assert not errors, f"Expected active-ish words in source_proposal_refs path to be skipped, got errors: {errors}"
 
 
 def test_forbidden_command_detection_no_false_positives() -> None:
@@ -701,9 +658,7 @@ def test_forbidden_command_detection_no_false_positives() -> None:
 
 def test_chain_extraction_command_authority_snapshot_ref() -> None:
     manifest = _mock_valid_manifest()
-    manifest["command_authority_snapshot_ref"] = _ref(
-        "builder_ii.snapshot_record", "snapshot.json"
-    )
+    manifest["command_authority_snapshot_ref"] = _ref("builder_ii.snapshot_record", "snapshot.json")
 
     # command_authority_snapshot_ref should be extracted pointing to builder_ii.snapshot_record
     # command_authority_ref is metadata-only and should not be extracted
@@ -711,8 +666,5 @@ def test_chain_extraction_command_authority_snapshot_ref() -> None:
     fields = {r["field"]: r for r in refs}
 
     assert "command_authority_snapshot_ref" in fields
-    assert (
-        fields["command_authority_snapshot_ref"]["expected_kind"]
-        == "builder_ii.snapshot_record"
-    )
+    assert fields["command_authority_snapshot_ref"]["expected_kind"] == "builder_ii.snapshot_record"
     assert "command_authority_ref" not in fields

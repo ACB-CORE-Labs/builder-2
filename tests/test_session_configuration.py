@@ -3,10 +3,10 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
-from builder_ii.session_cli import session_app
 from builder_ii.session_config import (
     SESSION_CONFIG_KIND,
     create_session_configuration,

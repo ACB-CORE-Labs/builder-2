@@ -39,12 +39,14 @@ PIPELINE_STAGES: list[dict[str, str]] = [
 
 # ── Status Glyphs ────────────────────────────────────────────────────
 
+
 class ArtifactStatus:
     VERIFIED = "verified"
     GATE_OPEN = "gate"
     PENDING = "pending"
     FAILED = "failed"
     DISABLED = "disabled"
+
 
 GLYPH_MAP = {
     ArtifactStatus.VERIFIED: ("⚡", "artifact-verified"),
@@ -56,6 +58,7 @@ GLYPH_MAP = {
 
 
 # ── Single Spine Item ────────────────────────────────────────────────
+
 
 class SpineItem(Static):
     """A single artifact in the spine."""
@@ -95,6 +98,7 @@ class SpineItem(Static):
 
 
 # ── The Artifact Spine Widget ────────────────────────────────────────
+
 
 class ArtifactSpine(Vertical):
     """The left column: a live artifact chain rendered as a dependency graph."""

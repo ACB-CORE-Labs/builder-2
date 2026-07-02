@@ -21,7 +21,14 @@ def _create_valid_policy():
         "artifact_is_authority": False,
         "grants_authority": False,
         "allowed_operations": ["invoke"],
-        "allowed_risk_classes": ["low", "low_risk", "mutation", "external_network", "credential_sensitive", "cost_bearing"],
+        "allowed_risk_classes": [
+            "low",
+            "low_risk",
+            "mutation",
+            "external_network",
+            "credential_sensitive",
+            "cost_bearing",
+        ],
         "allowed_tools": ["builtin.echo", "builtin.utc_static"],
         "max_input_bytes": 1024,
         "max_output_bytes": 1024,
@@ -33,10 +40,9 @@ def _create_valid_policy():
         "requires_approval_for_mutation": True,
         "requires_approval_for_external_network": True,
         "requires_approval_for_credentials": True,
-        "governance": {
-            "artifact_is_authority": False
-        }
+        "governance": {"artifact_is_authority": False},
     }
+
 
 def _create_valid_envelope(policy):
     digest = canonical_digest(policy)
@@ -62,6 +68,7 @@ def _create_valid_envelope(policy):
         "arguments": {"text": "hello test"},
     }
 
+
 def test_execute_tool_success():
     policy = _create_valid_policy()
     envelope = _create_valid_envelope(policy)
@@ -74,6 +81,7 @@ def test_execute_tool_success():
     assert not receipt["timeout_hit"]
     assert validate_mcp_receipt(receipt) == []
 
+
 def test_execute_tool_denied_unknown_tool():
     policy = _create_valid_policy()
     envelope = _create_valid_envelope(policy)
@@ -83,6 +91,7 @@ def test_execute_tool_denied_unknown_tool():
     with pytest.raises(ValueError, match="Tool unknown_tool not permitted by policy"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
+
 def test_policy_digest_mismatch():
     policy = _create_valid_policy()
     envelope = _create_valid_envelope(policy)
@@ -90,6 +99,7 @@ def test_policy_digest_mismatch():
 
     with pytest.raises(ValueError, match="Policy digest mismatch"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
+
 
 def test_missing_requires_human_promotion():
     policy = _create_valid_policy()
@@ -99,6 +109,7 @@ def test_missing_requires_human_promotion():
     with pytest.raises(ValueError, match="requires_human_promotion_for_execution=True"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
+
 def test_mutation_without_approval():
     policy = _create_valid_policy()
     envelope = _create_valid_envelope(policy)
@@ -106,6 +117,7 @@ def test_mutation_without_approval():
 
     with pytest.raises(ValueError, match="requires an approval_ref"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
+
 
 def test_mutation_denied_by_policy():
     policy = _create_valid_policy()
@@ -117,6 +129,7 @@ def test_mutation_denied_by_policy():
     with pytest.raises(ValueError, match="Mutation is not allowed by policy"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
+
 def test_external_network_denied_by_policy():
     policy = _create_valid_policy()
     policy["network_allowed"] = False
@@ -126,6 +139,7 @@ def test_external_network_denied_by_policy():
 
     with pytest.raises(ValueError, match="External network is not allowed by policy"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
+
 
 def test_credential_sensitive_denied_by_policy():
     policy = _create_valid_policy()
@@ -137,6 +151,7 @@ def test_credential_sensitive_denied_by_policy():
     with pytest.raises(ValueError, match="Credential access is not allowed by policy"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
+
 def test_cost_bearing_denied_by_policy():
     policy = _create_valid_policy()
     policy["cost_allowed"] = False
@@ -147,6 +162,7 @@ def test_cost_bearing_denied_by_policy():
     with pytest.raises(ValueError, match="Cost-bearing operations are not allowed by policy"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
+
 def test_low_risk_path_invariants_envelope_mismatch():
     policy = _create_valid_policy()
     envelope = _create_valid_envelope(policy)
@@ -155,6 +171,7 @@ def test_low_risk_path_invariants_envelope_mismatch():
     with pytest.raises(ValueError, match="Invalid envelope:.*mutates_target_repo must be false"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
+
 def test_low_risk_path_invariants_policy_mismatch():
     policy = _create_valid_policy()
     policy["mutation_allowed"] = True
@@ -162,6 +179,7 @@ def test_low_risk_path_invariants_policy_mismatch():
 
     with pytest.raises(ValueError, match="Low-risk policy must have mutation_allowed=False"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
+
 
 def test_output_truncation():
     policy = _create_valid_policy()

@@ -42,7 +42,8 @@ def create_research_adapter_artifact(
         "research_plan": {"path": str(plan_path), "kind": RESEARCH_PLAN_KIND, "sha256": _clean(plan_sha256)},
         "adapter_relation": "PROJECTION_ONLY",
         "handoff_state": "NOT_INVOKED",
-        "output_contract": _clean_list(output_contract) or ["plan remains review-only", "collection requires later approval"],
+        "output_contract": _clean_list(output_contract)
+        or ["plan remains review-only", "collection requires later approval"],
         "review_notes": _clean_list(review_notes),
         "performed_actions": [],
         "governance": {
@@ -117,7 +118,16 @@ def validate_research_adapter_artifact(artifact: Any) -> list[str]:
     else:
         if governance.get("capability_state") != "research_adapter_artifact":
             errors.append("governance.capability_state must be research_adapter_artifact")
-        for key in ("runtime_execution", "model_execution", "agent_construction", "search_execution", "mcp_execution", "source_collection", "source_writes", "memory_mutation"):
+        for key in (
+            "runtime_execution",
+            "model_execution",
+            "agent_construction",
+            "search_execution",
+            "mcp_execution",
+            "source_collection",
+            "source_writes",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:

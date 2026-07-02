@@ -1,13 +1,12 @@
-
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
+from builder_ii.setup_cli import setup_app
 from typer.testing import CliRunner
 
 from builder_ii.onboarding_intent import validate_onboarding_intent_report_file
-from builder_ii.setup_cli import setup_app
 from builder_ii.setup_overlay import validate_setup_overlay_plan_file
 from builder_ii.setup_plan import validate_setup_plan_file
 from builder_ii.setup_rollback import validate_setup_rollback_snapshot_file
@@ -16,7 +15,7 @@ runner = CliRunner()
 
 
 def test_init_emits_all_artifacts_and_validates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv('CORE_REPO_PATH', raising=False)
+    monkeypatch.delenv("CORE_REPO_PATH", raising=False)
     out_dir = tmp_path / "init-artifacts"
     result = runner.invoke(setup_app, ["init", "--output-dir", str(out_dir), "--root", str(tmp_path)])
     assert result.exit_code == 0, f"init failed: {result.output}"
@@ -44,7 +43,7 @@ def test_init_emits_all_artifacts_and_validates(tmp_path: Path, monkeypatch: pyt
 
 
 def test_init_rejects_apply_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv('CORE_REPO_PATH', raising=False)
+    monkeypatch.delenv("CORE_REPO_PATH", raising=False)
     out_dir = tmp_path / "init-apply-fail"
     result = runner.invoke(setup_app, ["init", "--output-dir", str(out_dir), "--root", str(tmp_path), "--apply"])
     assert result.exit_code != 0

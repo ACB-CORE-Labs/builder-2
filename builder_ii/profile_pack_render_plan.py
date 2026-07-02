@@ -178,7 +178,11 @@ def validate_profile_pack_render_plan(data: Any) -> list[str]:
     for field in ("pack_id", "target_profile", "task"):
         if not isinstance(data.get(field), str) or not data[field]:
             errors.append(f"{field} must be a non-empty string")
-    errors.extend(_validate_ref(data.get("source_manifest_ref"), field="source_manifest_ref", expected_kind=PROFILE_PACK_MANIFEST_KIND))
+    errors.extend(
+        _validate_ref(
+            data.get("source_manifest_ref"), field="source_manifest_ref", expected_kind=PROFILE_PACK_MANIFEST_KIND
+        )
+    )
 
     outputs = data.get("planned_outputs")
     seen_ids: set[str] = set()
@@ -200,7 +204,9 @@ def validate_profile_pack_render_plan(data: Any) -> list[str]:
             for name in ("area", "profile_kind", "authority_classification", "output_path"):
                 if not isinstance(output.get(name), str) or not output[name]:
                     errors.append(f"{field}.{name} must be a non-empty string")
-            if not isinstance(output.get("source_content_hash"), str) or not _SHA256_RE.match(output["source_content_hash"]):
+            if not isinstance(output.get("source_content_hash"), str) or not _SHA256_RE.match(
+                output["source_content_hash"]
+            ):
                 errors.append(f"{field}.source_content_hash must be a SHA-256 hex digest")
             if output.get("output_state") != "RENDERED_ONLY":
                 errors.append(f"{field}.output_state must be RENDERED_ONLY")

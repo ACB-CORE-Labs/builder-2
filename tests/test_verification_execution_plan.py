@@ -76,10 +76,7 @@ def test_non_builder_full_profile_cannot_validate_with_builder_full_refs() -> No
     plan = _resign(plan)
     errors = validate_verification_execution_plan_artifact(plan)
     assert any("currently supports only target_profile=builder" in error for error in errors)
-    assert any(
-        "command_profile_ref must begin with verification_profiles.generic_basic." in error
-        for error in errors
-    )
+    assert any("command_profile_ref must begin with verification_profiles.generic_basic." in error for error in errors)
 
 
 def test_digest_drift_fails() -> None:

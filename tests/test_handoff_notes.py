@@ -38,9 +38,15 @@ def test_handoff_note_with_lifecycle_refs_and_evidence() -> None:
         summary="Prepared a governed handoff.",
         next_recommended_action="Review evidence and merge if clean.",
         session_ref=create_artifact_ref(kind=SESSION_WORKFLOW_PLAN_KIND, path=".builder/session.json"),
-        goose_readonly_session_ref=create_artifact_ref(kind=GOOSE_READONLY_SESSION_PLAN_KIND, path=".builder/goose.json"),
-        verification_report_ref=create_artifact_ref(kind=VERIFICATION_PROFILE_REPORT_KIND, path=".builder/verification.json"),
-        verification_evidence_refs=[create_artifact_ref(kind="builder_ii.operator_evidence", path=".builder/evidence.txt")],
+        goose_readonly_session_ref=create_artifact_ref(
+            kind=GOOSE_READONLY_SESSION_PLAN_KIND, path=".builder/goose.json"
+        ),
+        verification_report_ref=create_artifact_ref(
+            kind=VERIFICATION_PROFILE_REPORT_KIND, path=".builder/verification.json"
+        ),
+        verification_evidence_refs=[
+            create_artifact_ref(kind="builder_ii.operator_evidence", path=".builder/evidence.txt")
+        ],
         status="READY_FOR_REVIEW",
     )
 
@@ -67,7 +73,9 @@ def test_validation_rejects_unsupported_claims() -> None:
     bad_governance = dict(note)
     bad_governance["governance"] = dict(note["governance"])
     bad_governance["governance"]["runtime_execution"] = "ENABLED"
-    assert any("governance.runtime_execution must be DISABLED" in error for error in validate_handoff_note(bad_governance))
+    assert any(
+        "governance.runtime_execution must be DISABLED" in error for error in validate_handoff_note(bad_governance)
+    )
 
 
 def test_validation_rejects_wrong_reference_kind() -> None:
@@ -78,7 +86,9 @@ def test_validation_rejects_wrong_reference_kind() -> None:
         session_ref=create_artifact_ref(kind=GOOSE_READONLY_SESSION_PLAN_KIND, path=".builder/wrong.json"),
     )
 
-    assert any("session_ref.kind must be an allowed handoff reference kind" in error for error in validate_handoff_note(note))
+    assert any(
+        "session_ref.kind must be an allowed handoff reference kind" in error for error in validate_handoff_note(note)
+    )
 
 
 def test_validate_handoff_note_file(tmp_path: Path) -> None:

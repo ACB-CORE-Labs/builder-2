@@ -51,7 +51,9 @@ def _fail(role: str, guide: str, check: str, detail: str) -> LaneCheckResult:
     return LaneCheckResult(role, guide, check, "FAIL", detail)
 
 
-def check_role_lane_pair(role_name: str, guide_name: str, *, sample_context: str = "offline lane check context") -> tuple[LaneCheckResult, ...]:
+def check_role_lane_pair(
+    role_name: str, guide_name: str, *, sample_context: str = "offline lane check context"
+) -> tuple[LaneCheckResult, ...]:
     role = next(role for role in builder_roles() if role.name == role_name)
     guide = get_guide(guide_name)
     prompt = render_guide(guide_name, context=sample_context)
@@ -65,7 +67,9 @@ def check_role_lane_pair(role_name: str, guide_name: str, *, sample_context: str
     if role.model_alias == guide.model_alias:
         results.append(_pass(role_name, guide_name, "model alignment", role.model_alias))
     else:
-        results.append(_fail(role_name, guide_name, "model alignment", f"role={role.model_alias} guide={guide.model_alias}"))
+        results.append(
+            _fail(role_name, guide_name, "model alignment", f"role={role.model_alias} guide={guide.model_alias}")
+        )
 
     if sample_context in prompt:
         results.append(_pass(role_name, guide_name, "prompt renders context", "sample context rendered"))
@@ -85,7 +89,9 @@ def check_role_lane_pair(role_name: str, guide_name: str, *, sample_context: str
     if gate_for(role_name, CAPABILITY_GOOSE_TOOL_EXECUTION).status == "UNSUPPORTED":
         results.append(_pass(role_name, guide_name, "tool execution gate", "tool execution remains unsupported"))
     else:
-        results.append(_fail(role_name, guide_name, "tool execution gate", "tool execution is not explicitly unsupported"))
+        results.append(
+            _fail(role_name, guide_name, "tool execution gate", "tool execution is not explicitly unsupported")
+        )
 
     if gate_for(role_name, CAPABILITY_HEAVY_MODEL_ROUTING).status == "FORBIDDEN":
         results.append(_pass(role_name, guide_name, "heavy routing gate", "heavy routing remains forbidden"))
@@ -110,7 +116,9 @@ def check_role_lane_pair(role_name: str, guide_name: str, *, sample_context: str
     if actual_runtime == expected_runtime:
         results.append(_pass(role_name, guide_name, "runtime switch gate", actual_runtime))
     else:
-        results.append(_fail(role_name, guide_name, "runtime switch gate", f"expected={expected_runtime} actual={actual_runtime}"))
+        results.append(
+            _fail(role_name, guide_name, "runtime switch gate", f"expected={expected_runtime} actual={actual_runtime}")
+        )
 
     return tuple(results)
 

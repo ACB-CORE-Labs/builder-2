@@ -26,9 +26,7 @@ def _generic_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "generic-repo"
     (repo / "tests").mkdir(parents=True)
     (repo / "README.md").write_text("# Generic repo\n", encoding="utf-8")
-    (repo / "pyproject.toml").write_text(
-        "[project]\nname = 'generic-repo'\n", encoding="utf-8"
-    )
+    (repo / "pyproject.toml").write_text("[project]\nname = 'generic-repo'\n", encoding="utf-8")
     return repo
 
 
@@ -56,18 +54,9 @@ def test_create_orchestration_dry_run(tmp_path: Path) -> None:
         "context_planner",
         "patch_planner",
     ]
-    assert all(
-        step["session_configuration_kind"] == "builder_ii.session_configuration"
-        for step in dry_run["steps"]
-    )
-    assert all(
-        step["goose_projection_kind"] == "builder_ii.goose_projection"
-        for step in dry_run["steps"]
-    )
-    assert all(
-        step["goose_wrapper_plan_kind"] == "builder_ii.goose_wrapper_plan"
-        for step in dry_run["steps"]
-    )
+    assert all(step["session_configuration_kind"] == "builder_ii.session_configuration" for step in dry_run["steps"])
+    assert all(step["goose_projection_kind"] == "builder_ii.goose_projection" for step in dry_run["steps"])
+    assert all(step["goose_wrapper_plan_kind"] == "builder_ii.goose_wrapper_plan" for step in dry_run["steps"])
     assert all(step["operator_review_required"] is True for step in dry_run["steps"])
     assert all(step["executes_now"] is False for step in dry_run["steps"])
     assert all(step["validation_errors"] == [] for step in dry_run["steps"])
@@ -83,9 +72,7 @@ def test_orchestration_dry_run_rejects_runtime_escalation(tmp_path: Path) -> Non
     settings = load_settings(project_root=tmp_path / "builder-II")
     repo = _generic_repo(tmp_path)
     plan = create_orchestration_plan(target="generic", task="reject dry run escalation")
-    dry_run = create_orchestration_dry_run(
-        settings, plan, repo_path=str(repo), generic_repo=repo
-    )
+    dry_run = create_orchestration_dry_run(settings, plan, repo_path=str(repo), generic_repo=repo)
     bad = copy.deepcopy(dry_run)
     bad["dry_run_state"] = "EXECUTED"
     bad["steps"][0]["executes_now"] = True
@@ -104,24 +91,16 @@ def test_orchestration_dry_run_file_validation(tmp_path: Path) -> None:
     settings = load_settings(project_root=tmp_path / "builder-II")
     repo = _generic_repo(tmp_path)
     plan = create_orchestration_plan(target="generic", task="validate dry run file")
-    dry_run = create_orchestration_dry_run(
-        settings, plan, repo_path=str(repo), generic_repo=repo
-    )
+    dry_run = create_orchestration_dry_run(settings, plan, repo_path=str(repo), generic_repo=repo)
     output = tmp_path / "orchestration-dry-run.json"
     output.write_text(dumps_orchestration_dry_run(dry_run), encoding="utf-8")
 
     assert validate_orchestration_dry_run_file(output) == []
-    assert any(
-        "file not found" in error
-        for error in validate_orchestration_dry_run_file(tmp_path / "missing.json")
-    )
+    assert any("file not found" in error for error in validate_orchestration_dry_run_file(tmp_path / "missing.json"))
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")
-    assert any(
-        "invalid JSON" in error
-        for error in validate_orchestration_dry_run_file(bad_json)
-    )
+    assert any("invalid JSON" in error for error in validate_orchestration_dry_run_file(bad_json))
 
 
 def test_goal2_orchestration_assignment_dry_run_passes(tmp_path: Path) -> None:
@@ -210,18 +189,13 @@ def test_goal2_orchestration_assignment_dry_run_rejects_execution_claims(
     assert "execution_summary.verification_status must be NOT_RUN" in errors
     assert "execution_summary.authority_granted must be false" in errors
     assert "governance.runtime_execution must be DISABLED" in errors
-    assert (
-        "field 'orchestration_assignment_dry_run.dry_run_state' claims active authority state 'EXECUTED'"
-        in errors
-    )
+    assert "field 'orchestration_assignment_dry_run.dry_run_state' claims active authority state 'EXECUTED'" in errors
 
 
 def test_goal2_orchestration_assignment_dry_run_requires_valid_plan(
     tmp_path: Path,
 ) -> None:
-    orchestration = build_goal2_assignment_fixture(tmp_path)["artifacts"][
-        "orchestration"
-    ]
+    orchestration = build_goal2_assignment_fixture(tmp_path)["artifacts"]["orchestration"]
     bad_plan = copy.deepcopy(orchestration)
     bad_plan["planned_bindings"]["tools"]["executes_tools"] = True
 

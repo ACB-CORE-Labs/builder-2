@@ -283,10 +283,7 @@ def _validate_profile_consistency(data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     target_profile = data.get("target_profile")
     verification_profile = data.get("verification_profile")
-    if (
-        target_profile != B1_1_SUPPORTED_TARGET_PROFILE
-        or verification_profile != B1_1_SUPPORTED_VERIFICATION_PROFILE
-    ):
+    if target_profile != B1_1_SUPPORTED_TARGET_PROFILE or verification_profile != B1_1_SUPPORTED_VERIFICATION_PROFILE:
         errors.append(
             "B1.1 verification execution plan currently supports only "
             "target_profile=builder with verification_profile=builder_full"
@@ -305,9 +302,7 @@ def _validate_profile_consistency(data: dict[str, Any]) -> list[str]:
                 continue
             ref = item.get("command_profile_ref")
             if isinstance(ref, str) and not ref.startswith(expected_prefix):
-                errors.append(
-                    f"{collection_name}[{index}].command_profile_ref must begin with {expected_prefix}"
-                )
+                errors.append(f"{collection_name}[{index}].command_profile_ref must begin with {expected_prefix}")
     return errors
 
 
@@ -394,11 +389,7 @@ def _validate_planned_steps(data: dict[str, Any]) -> list[str]:
         return ["planned_steps must be a non-empty list"]
     raw_allowed_profiles = data.get("allowed_command_profiles")
     allowed_profile_items = raw_allowed_profiles if isinstance(raw_allowed_profiles, list) else []
-    allowed_profiles = {
-        profile.get("profile")
-        for profile in allowed_profile_items
-        if isinstance(profile, dict)
-    }
+    allowed_profiles = {profile.get("profile") for profile in allowed_profile_items if isinstance(profile, dict)}
     seen: set[str] = set()
     for index, step in enumerate(steps):
         prefix = f"planned_steps[{index}]"

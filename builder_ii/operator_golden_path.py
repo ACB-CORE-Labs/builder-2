@@ -96,7 +96,9 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
             }
             if has_evidence:
                 entry["surface_present"] = True
-                entry["reason"] = f"Surface exists (evidence files are present) but the capability state is '{row.state}', which is not operationally verified."
+                entry["reason"] = (
+                    f"Surface exists (evidence files are present) but the capability state is '{row.state}', which is not operationally verified."
+                )
             else:
                 entry["surface_present"] = False
                 entry["reason"] = f"State is {row.state} and evidence files are missing."
@@ -112,11 +114,13 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
     if default_memory_index.is_file():
         memory_status = "available"
     else:
-        skipped.append({
-            "capability": "memory_status",
-            "status": "skipped_missing_evidence",
-            "reason": "Missing B8 memory index evidence."
-        })
+        skipped.append(
+            {
+                "capability": "memory_status",
+                "status": "skipped_missing_evidence",
+                "reason": "Missing B8 memory index evidence.",
+            }
+        )
 
     # 5. Check Ledger/artifact chain evidence
     ledger_status = "skipped_missing_evidence"
@@ -124,41 +128,23 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
     if default_ledger.is_file():
         ledger_status = "available"
     else:
-        skipped.append({
-            "capability": "ledger_status",
-            "status": "skipped_missing_evidence",
-            "reason": "Missing Ledger/artifact chain evidence."
-        })
+        skipped.append(
+            {
+                "capability": "ledger_status",
+                "status": "skipped_missing_evidence",
+                "reason": "Missing Ledger/artifact chain evidence.",
+            }
+        )
 
     generated_artifacts = [
-        {
-            "name": "operator-status.json",
-            "path": str(status_path),
-            "digest": status_digest
-        },
-        {
-            "name": "operator-next.json",
-            "path": str(next_path),
-            "digest": next_digest
-        },
-        {
-            "name": "golden-path-report.json",
-            "path": str(output_dir / "golden-path-report.json"),
-            "digest": None
-        }
+        {"name": "operator-status.json", "path": str(status_path), "digest": status_digest},
+        {"name": "operator-next.json", "path": str(next_path), "digest": next_digest},
+        {"name": "golden-path-report.json", "path": str(output_dir / "golden-path-report.json"), "digest": None},
     ]
 
     evidence_refs = [
-        {
-            "artifact": "builder_ii.operator_status_report",
-            "path": str(status_path),
-            "digest": status_digest
-        },
-        {
-            "artifact": "builder_ii.operator_next_report",
-            "path": str(next_path),
-            "digest": next_digest
-        }
+        {"artifact": "builder_ii.operator_status_report", "path": str(status_path), "digest": status_digest},
+        {"artifact": "builder_ii.operator_next_report", "path": str(next_path), "digest": next_digest},
     ]
 
     report = {
@@ -223,7 +209,7 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
         "generated_artifacts",
         "known_gaps",
         "memory_status",
-        "ledger_status"
+        "ledger_status",
     ]:
         if field not in record:
             errors.append(f"missing required field: {field}")
@@ -267,7 +253,9 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
                 cap_name = entry.get("capability")
                 state = capability_states.get(cap_name)
                 if state != "OPERATIONALLY_VERIFIED":
-                    errors.append(f"truth inflation: capability '{cap_name}' is in exercised_capabilities but its state is '{state}', not 'OPERATIONALLY_VERIFIED'")
+                    errors.append(
+                        f"truth inflation: capability '{cap_name}' is in exercised_capabilities but its state is '{state}', not 'OPERATIONALLY_VERIFIED'"
+                    )
 
     # 2. Reject skipped capability statuses outside the allowed set
     ALLOWED_SKIPPED_STATUSES = {"skipped_disabled", "skipped_missing_evidence", "unavailable", "not_applicable"}
@@ -276,7 +264,9 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
             if isinstance(entry, dict):
                 status = entry.get("status")
                 if status not in ALLOWED_SKIPPED_STATUSES:
-                    errors.append(f"invalid skipped status: status '{status}' for capability '{entry.get('capability')}' is not in allowed set {ALLOWED_SKIPPED_STATUSES}")
+                    errors.append(
+                        f"invalid skipped status: status '{status}' for capability '{entry.get('capability')}' is not in allowed set {ALLOWED_SKIPPED_STATUSES}"
+                    )
 
     # 3. Load referenced next report if available
     next_data = None
@@ -288,6 +278,7 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
                 if next_path and Path(next_path).is_file():
                     try:
                         import json
+
                         next_data = json.loads(Path(next_path).read_text(encoding="utf-8"))
                     except Exception:
                         pass
@@ -300,7 +291,9 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
             if isinstance(known_gaps, list) and len(known_gaps) == 0:
                 errors.append("truth inflation: known_gaps is empty but next report shows incomplete capabilities")
             if isinstance(skipped_caps, list) and len(skipped_caps) == 0:
-                errors.append("truth inflation: skipped_capabilities is empty but next report has incomplete capabilities")
+                errors.append(
+                    "truth inflation: skipped_capabilities is empty but next report has incomplete capabilities"
+                )
     else:
         # Fallback if next report file is not accessible
         has_incomplete = any(row.state != "OPERATIONALLY_VERIFIED" for row in REQUIRED_CAPABILITY_ROWS)
@@ -325,7 +318,9 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
                         has_memory_ref = True
                         break
         if not has_memory_ref:
-            errors.append("memory_status is skipped_missing_evidence but no entry in skipped_capabilities references memory evidence")
+            errors.append(
+                "memory_status is skipped_missing_evidence but no entry in skipped_capabilities references memory evidence"
+            )
 
     if ledger_status == "skipped_missing_evidence":
         has_ledger_ref = False
@@ -338,7 +333,9 @@ def validate_operator_golden_path_report(record: Any) -> list[str]:
                         has_ledger_ref = True
                         break
         if not has_ledger_ref:
-            errors.append("ledger_status is skipped_missing_evidence but no entry in skipped_capabilities references ledger/artifact-chain evidence")
+            errors.append(
+                "ledger_status is skipped_missing_evidence but no entry in skipped_capabilities references ledger/artifact-chain evidence"
+            )
 
     digest = record.get("report_digest")
     if digest:

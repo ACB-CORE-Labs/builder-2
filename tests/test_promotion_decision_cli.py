@@ -1,9 +1,9 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.promotion_decision_cli import promotion_decision_app
 from typer.testing import CliRunner
 
-from builder_ii.promotion_decision_cli import promotion_decision_app
 from builder_ii.promotion_readiness_records import create_promotion_readiness_record
 
 
@@ -42,11 +42,15 @@ def test_promotion_decision_cli_record_and_validate(tmp_path: Path) -> None:
         [
             "record",
             str(readiness_path),
-            "--decision", "approved",
-            "--decided-by", "operator",
-            "--reason", "ready",
-            "--output", str(output)
-        ]
+            "--decision",
+            "approved",
+            "--decided-by",
+            "operator",
+            "--reason",
+            "ready",
+            "--output",
+            str(output),
+        ],
     )
     assert record_result.exit_code == 0
     assert "Promotion decision record written to" in record_result.stdout
@@ -79,8 +83,7 @@ def test_promotion_decision_cli_rejects_bad_decision(tmp_path: Path) -> None:
     runner = CliRunner()
 
     result = runner.invoke(
-        promotion_decision_app,
-        ["record", str(readiness_path), "--decision", "invalid-val", "--decided-by", "operator"]
+        promotion_decision_app, ["record", str(readiness_path), "--decision", "invalid-val", "--decided-by", "operator"]
     )
     assert result.exit_code == 1
     assert "decision must be approved or blocked" in result.stdout

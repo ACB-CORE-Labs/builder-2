@@ -74,7 +74,11 @@ def _make_atom(
         task="map artifact memory surfaces",
         created_at_utc=TIMESTAMP,
         claim_boundary=claim_boundary,
-        review_state="validated" if atom_state == "ACTIVE" else "superseded" if atom_state == "SUPERSEDED" else "operator_reviewed",
+        review_state="validated"
+        if atom_state == "ACTIVE"
+        else "superseded"
+        if atom_state == "SUPERSEDED"
+        else "operator_reviewed",
         atom_state=atom_state,
         source_truth_state="SOURCE_BOUND",
         summary_text=summary_text,
@@ -386,9 +390,7 @@ def test_memory_artifact_chain_verification_resolves_explicit_sources(tmp_path: 
     reconstruction_path = tmp_path / "memory-reconstruction.json"
     write_memory_reconstruction(reconstruction, reconstruction_path)
 
-    report = verify_artifact_chain(
-        [plan_path, atom_path, index_path, search_path, reconstruction_path]
-    )
+    report = verify_artifact_chain([plan_path, atom_path, index_path, search_path, reconstruction_path])
 
     assert report["valid"] is True, report["errors"]
     assert report["counts"]["native_invalid"] == 0
@@ -408,6 +410,7 @@ def test_b8_atom_state_rejected_and_invalidated() -> None:
     atom_rejected["review_state"] = "rejected"
     # Recalculate digest
     from builder_ii.workflow_records import canonical_digest
+
     atom_rejected.pop("atom_digest", None)
     atom_rejected["atom_digest"] = canonical_digest(atom_rejected)
     assert validate_memory_atom(atom_rejected) == []
@@ -423,14 +426,19 @@ def test_b8_atom_state_rejected_and_invalidated() -> None:
 
 def test_b8_ref_validation() -> None:
     ref = _plan_ref()
-    assert validate_memory_atom(create_memory_atom(
-        artifact_ref=ref,
-        target_profile="builder",
-        task="ref check",
-        created_at_utc=TIMESTAMP,
-        claim_boundary="proposal_only",
-        atom_id="atom-ref-ok"
-    )) == []
+    assert (
+        validate_memory_atom(
+            create_memory_atom(
+                artifact_ref=ref,
+                target_profile="builder",
+                task="ref check",
+                created_at_utc=TIMESTAMP,
+                claim_boundary="proposal_only",
+                atom_id="atom-ref-ok",
+            )
+        )
+        == []
+    )
 
     # Missing name in ref
     bad_ref_name = dict(ref)
@@ -441,7 +449,7 @@ def test_b8_ref_validation() -> None:
         task="ref check",
         created_at_utc=TIMESTAMP,
         claim_boundary="proposal_only",
-        atom_id="atom-ref-bad-name"
+        atom_id="atom-ref-bad-name",
     )
     assert any("artifact_ref.name is required" in err for err in validate_memory_atom(atom_bad_name))
 
@@ -454,7 +462,7 @@ def test_b8_ref_validation() -> None:
         task="ref check",
         created_at_utc=TIMESTAMP,
         claim_boundary="proposal_only",
-        atom_id="atom-ref-bad-req"
+        atom_id="atom-ref-bad-req",
     )
     assert any("artifact_ref.required is required" in err for err in validate_memory_atom(atom_bad_req))
 
@@ -466,7 +474,7 @@ def test_b8_atom_authority_rejection() -> None:
         task="ref check",
         created_at_utc=TIMESTAMP,
         claim_boundary="proposal_only",
-        atom_id="atom-auth-ok"
+        atom_id="atom-auth-ok",
     )
     assert validate_memory_atom(atom_ok) == []
 
@@ -475,6 +483,7 @@ def test_b8_atom_authority_rejection() -> None:
     bad_atom_summary["model_summary_is_authority"] = True
     bad_atom_summary.pop("atom_digest", None)
     from builder_ii.workflow_records import canonical_digest
+
     bad_atom_summary["atom_digest"] = canonical_digest(bad_atom_summary)
     assert any("model_summary_is_authority must be false" in err for err in validate_memory_atom(bad_atom_summary))
 
@@ -487,12 +496,7 @@ def test_b8_atom_authority_rejection() -> None:
 
 
 def test_b8_index_schema_fields() -> None:
-    active = _make_atom(
-        atom_id="atom-active",
-        path="active.json",
-        summary_text="active atom",
-        tags=("active",)
-    )
+    active = _make_atom(atom_id="atom-active", path="active.json", summary_text="active atom", tags=("active",))
     entries = [create_memory_index_entry(active, path="active.json")]
     index = create_memory_index(
         entries=entries,
@@ -510,12 +514,7 @@ def test_b8_index_schema_fields() -> None:
 
 
 def test_b8_reconstruction_schema_fields() -> None:
-    active = _make_atom(
-        atom_id="atom-active",
-        path="active.json",
-        summary_text="active atom",
-        tags=("active",)
-    )
+    active = _make_atom(atom_id="atom-active", path="active.json", summary_text="active atom", tags=("active",))
     entries = [create_memory_index_entry(active, path="active.json")]
     index = create_memory_index(
         entries=entries,
@@ -542,4 +541,7 @@ def test_b8_reconstruction_schema_fields() -> None:
     assert "source_refs" in reconstruction
     assert "stale_warnings" in reconstruction
     assert "supersession_warnings" in reconstruction
-    assert reconstruction["deterministic_ordering_declaration"] == "matches are sorted by score descending, then atom_id ascending"
+    assert (
+        reconstruction["deterministic_ordering_declaration"]
+        == "matches are sorted by score descending, then atom_id ascending"
+    )

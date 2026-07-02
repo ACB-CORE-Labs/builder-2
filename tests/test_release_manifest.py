@@ -14,27 +14,49 @@ from builder_ii.release_manifest import (
 
 def _sample_session_proof() -> dict:
     return {
-        "prepare_package_ref": create_artifact_ref(kind="builder_ii.governed_prepare_package", path="prepare-package.json", sha256="a" * 64),
-        "session_workflow_ref": create_artifact_ref(kind="builder_ii.session_workflow_plan", path="session-workflow.json", sha256="b" * 64),
-        "goose_readonly_session_ref": create_artifact_ref(kind="builder_ii.goose_readonly_session_plan", path="goose-readonly-session.json", sha256="c" * 64),
-        "verification_report_ref": create_artifact_ref(kind="builder_ii.verification_profile_report", path="verification-profile-report.json", sha256="d" * 64),
+        "prepare_package_ref": create_artifact_ref(
+            kind="builder_ii.governed_prepare_package", path="prepare-package.json", sha256="a" * 64
+        ),
+        "session_workflow_ref": create_artifact_ref(
+            kind="builder_ii.session_workflow_plan", path="session-workflow.json", sha256="b" * 64
+        ),
+        "goose_readonly_session_ref": create_artifact_ref(
+            kind="builder_ii.goose_readonly_session_plan", path="goose-readonly-session.json", sha256="c" * 64
+        ),
+        "verification_report_ref": create_artifact_ref(
+            kind="builder_ii.verification_profile_report", path="verification-profile-report.json", sha256="d" * 64
+        ),
         "repo_map_ref": create_artifact_ref(kind="builder_ii.repo_map", path="repo-map.json", sha256="e" * 64),
-        "context_pack_ref": create_artifact_ref(kind="builder_ii.context_pack", path="context-pack.json", sha256="f" * 64),
-        "handoff_note_ref": create_artifact_ref(kind="builder_ii.handoff_note", path="handoff-note.json", sha256="1" * 64),
-        "deepagents_readiness_ref": create_artifact_ref(kind="builder_ii.deepagents_bridge_readiness_report", path="deepagents-bridge-readiness.json", sha256="2" * 64),
+        "context_pack_ref": create_artifact_ref(
+            kind="builder_ii.context_pack", path="context-pack.json", sha256="f" * 64
+        ),
+        "handoff_note_ref": create_artifact_ref(
+            kind="builder_ii.handoff_note", path="handoff-note.json", sha256="1" * 64
+        ),
+        "deepagents_readiness_ref": create_artifact_ref(
+            kind="builder_ii.deepagents_bridge_readiness_report",
+            path="deepagents-bridge-readiness.json",
+            sha256="2" * 64,
+        ),
     }
 
 
 def _sample_spine_proof() -> dict:
     return {
-        "platform_spine_ref": create_artifact_ref(kind="builder_ii.convention_kernel_platform_bundle", path="platform-spine.json", sha256="3" * 64),
+        "platform_spine_ref": create_artifact_ref(
+            kind="builder_ii.convention_kernel_platform_bundle", path="platform-spine.json", sha256="3" * 64
+        ),
     }
 
 
 def _sample_audit_refs() -> dict:
     return {
-        "artifact_index_ref": create_artifact_ref(kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256=""),
-        "chain_verification_report_ref": create_artifact_ref(kind="builder_ii.artifact_chain_verification_report", path="chain-verification-report.json", sha256="4" * 64),
+        "artifact_index_ref": create_artifact_ref(
+            kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256=""
+        ),
+        "chain_verification_report_ref": create_artifact_ref(
+            kind="builder_ii.artifact_chain_verification_report", path="chain-verification-report.json", sha256="4" * 64
+        ),
     }
 
 
@@ -110,7 +132,9 @@ def test_v0_release_manifest_adversarial_mutations() -> None:
     m8 = dict(manifest)
     m8["governed_session_proof"] = dict(
         m8["governed_session_proof"],
-        prepare_package_ref=create_artifact_ref(kind="builder_ii.governed_prepare_package", path="prepare-package.json", sha256="")
+        prepare_package_ref=create_artifact_ref(
+            kind="builder_ii.governed_prepare_package", path="prepare-package.json", sha256=""
+        ),
     )
     assert any("governed_session_proof.prepare_package_ref.sha256" in e for e in validate_v0_release_manifest(m8))
 
@@ -118,9 +142,12 @@ def test_v0_release_manifest_adversarial_mutations() -> None:
     m9 = dict(manifest)
     m9["audit_references"] = dict(
         m9["audit_references"],
-        artifact_index_ref=create_artifact_ref(kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256="")
+        artifact_index_ref=create_artifact_ref(
+            kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256=""
+        ),
     )
     assert validate_v0_release_manifest(m9) == []
+
 
 def test_v0_release_manifest_requires_required_refs() -> None:
     manifest = create_v0_release_manifest(
@@ -141,8 +168,7 @@ def test_v0_release_manifest_requires_required_refs() -> None:
     missing_spine = dict(manifest)
     missing_spine["platform_spine_proof"] = {}
     assert any(
-        "platform_spine_proof.platform_spine_ref is required" in e
-        for e in validate_v0_release_manifest(missing_spine)
+        "platform_spine_proof.platform_spine_ref is required" in e for e in validate_v0_release_manifest(missing_spine)
     )
 
     missing_index = dict(manifest)
@@ -150,8 +176,7 @@ def test_v0_release_manifest_requires_required_refs() -> None:
     audit_refs.pop("artifact_index_ref")
     missing_index["audit_references"] = audit_refs
     assert any(
-        "audit_references.artifact_index_ref is required" in e
-        for e in validate_v0_release_manifest(missing_index)
+        "audit_references.artifact_index_ref is required" in e for e in validate_v0_release_manifest(missing_index)
     )
 
     missing_chain = dict(manifest)
@@ -175,6 +200,5 @@ def test_v0_release_manifest_validates_release_identity_fields() -> None:
         mutated = dict(manifest)
         mutated["release_identity"] = dict(mutated["release_identity"], **{field: ""})
         assert any(
-            f"release_identity.{field} must be a non-empty string" in e
-            for e in validate_v0_release_manifest(mutated)
+            f"release_identity.{field} must be a non-empty string" in e for e in validate_v0_release_manifest(mutated)
         )

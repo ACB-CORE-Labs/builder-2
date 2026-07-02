@@ -1,10 +1,10 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
-from builder_ii.deepagents_cli import deepagents_app
 from builder_ii.deepagents_policy import (
     create_deepagents_policy_artifact,
     dumps_deepagents_policy_artifact,
@@ -92,7 +92,9 @@ def test_validate_rejects_runtime_authority() -> None:
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:
-    assert any("file not found" in error for error in validate_deepagents_policy_artifact_file(tmp_path / "missing.json"))
+    assert any(
+        "file not found" in error for error in validate_deepagents_policy_artifact_file(tmp_path / "missing.json")
+    )
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")

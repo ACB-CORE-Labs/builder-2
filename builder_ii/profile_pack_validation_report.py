@@ -181,7 +181,9 @@ def validate_profile_pack_validation_report(data: Any) -> list[str]:
         errors.append("valid must be a boolean")
     if not isinstance(data.get("errors"), list) or any(not isinstance(item, str) for item in data.get("errors", [])):
         errors.append("errors must be a list of strings")
-    if not isinstance(data.get("warnings"), list) or any(not isinstance(item, str) for item in data.get("warnings", [])):
+    if not isinstance(data.get("warnings"), list) or any(
+        not isinstance(item, str) for item in data.get("warnings", [])
+    ):
         errors.append("warnings must be a list of strings")
     boundaries = data.get("checked_boundaries")
     if not isinstance(boundaries, list) or not boundaries:

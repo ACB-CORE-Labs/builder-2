@@ -3,9 +3,8 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from builder_ii.profile_pack_cli import profile_pack_app
+from typer.testing import CliRunner
 
 ROOT = Path(__file__).resolve().parents[1]
 

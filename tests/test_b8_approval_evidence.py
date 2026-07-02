@@ -24,7 +24,9 @@ def test_b8_approval_evidence_exists_and_validates() -> None:
     assert any("hidden memory" in d for d in denied_set), "Must deny hidden memory"
     assert any("vector store" in d or "vector db" in d for d in denied_set), "Must deny vector store"
     assert any("autonomous memory writes" in d for d in denied_set), "Must deny autonomous memory writes"
-    assert any("target repo mutation" in d or "target repository mutation" in d for d in denied_set), "Must deny target repo mutation"
+    assert any("target repo mutation" in d or "target repository mutation" in d for d in denied_set), (
+        "Must deny target repo mutation"
+    )
     assert any("core workbench" in d for d in denied_set), "Must deny CORE Workbench"
     assert any("deephaven" in d for d in denied_set), "Must deny Deephaven"
     assert any("b9" in d for d in denied_set), "Must deny B9"

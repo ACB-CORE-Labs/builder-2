@@ -42,11 +42,15 @@ def test_validation_rejects_completed_claims() -> None:
 
     bad_state = dict(report)
     bad_state["report_state"] = "COMPLETE"
-    assert any("report_state must be PLANNED_ONLY" in error for error in validate_verification_profile_report(bad_state))
+    assert any(
+        "report_state must be PLANNED_ONLY" in error for error in validate_verification_profile_report(bad_state)
+    )
 
     bad_completed = dict(report)
     bad_completed["completed_verification"] = True
-    assert any("completed_verification must be false" in error for error in validate_verification_profile_report(bad_completed))
+    assert any(
+        "completed_verification must be false" in error for error in validate_verification_profile_report(bad_completed)
+    )
 
     bad_check = dict(report)
     bad_check["planned_checks"] = [dict(report["planned_checks"][0])]
@@ -62,7 +66,9 @@ def test_validate_file_helpers(tmp_path: Path) -> None:
     report_file.write_text(json_lib.dumps(report), encoding="utf-8")
     assert validate_verification_profile_report_file(report_file) == []
 
-    assert any("file not found" in error for error in validate_verification_profile_report_file(tmp_path / "missing.json"))
+    assert any(
+        "file not found" in error for error in validate_verification_profile_report_file(tmp_path / "missing.json")
+    )
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("not json", encoding="utf-8")

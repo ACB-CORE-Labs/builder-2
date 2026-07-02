@@ -49,11 +49,13 @@ def test_create_operator_next_action_report():
     errors = validate_operator_next_action_report(report)
     assert not errors, f"Validation errors: {errors}"
 
+
 def test_validate_operator_next_action_report_missing_fields():
     report = create_operator_next_action_report()
     del report["ordered_next_actions"]
     errors = validate_operator_next_action_report(report)
     assert any("missing required field: ordered_next_actions" in e for e in errors)
+
 
 def test_validate_operator_next_action_report_invalid_digest():
     report = create_operator_next_action_report()
@@ -61,11 +63,13 @@ def test_validate_operator_next_action_report_invalid_digest():
     errors = validate_operator_next_action_report(report)
     assert "report_digest does not match canonical content" in errors
 
+
 def test_validate_operator_next_action_report_invalid_governance():
     report = create_operator_next_action_report()
     report["governance"]["artifact_is_authority"] = True
     errors = validate_operator_next_action_report(report)
     assert "governance.artifact_is_authority must be false" in errors
+
 
 def test_next_action_authority_overclaim_fails():
     report = create_operator_next_action_report()

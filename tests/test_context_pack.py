@@ -111,6 +111,7 @@ def test_context_pack_record_and_validation(tmp_path: Path) -> None:
         validate_context_pack_record_file,
         write_context_pack_record,
     )
+
     settings = SimpleNamespace(core_repo=Path.cwd(), project_root=tmp_path)
     result = build_context_pack(
         settings,
@@ -160,7 +161,7 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
     errors = validate_context_pack_record(bad_target)
     assert any("target must be one of" in err for err in errors)
@@ -180,7 +181,7 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "INVALID",
-        }
+        },
     }
     errors = validate_context_pack_record(bad_coupling)
     assert any("core_workbench_coupling must be NONE" in err for err in errors)
@@ -200,7 +201,7 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
     errors = validate_context_pack_record(bad_files)
     assert any("selected_files must be a list of non-empty strings" in err for err in errors)
@@ -209,9 +210,8 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
 
 
 def test_context_pack_cli_commands(tmp_path: Path) -> None:
-    from typer.testing import CliRunner
-
     from builder_ii.context_cli import context_app
+    from typer.testing import CliRunner
 
     runner = CliRunner()
 

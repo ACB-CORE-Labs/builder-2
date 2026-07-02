@@ -123,6 +123,7 @@ def derive_goose_environment(
     session: SessionPlan | None = None,
 ) -> tuple[dict[str, str], dict[str, any]]:
     from builder_ii.config import load_settings
+
     if settings is None:
         settings = load_settings()
 
@@ -312,8 +313,7 @@ def launch_goose_session(
     goose = find_goose_binary()
     if not goose:
         raise FileNotFoundError(
-            "Codename Goose CLI not found. Install: brew install block-goose-cli "
-            "or scripts/install-goose.sh"
+            "Codename Goose CLI not found. Install: brew install block-goose-cli or scripts/install-goose.sh"
         )
 
     plan = session or plan_session("orchestrator")

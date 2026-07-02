@@ -101,6 +101,7 @@ def test_agent_profile_record_and_validation(tmp_path: Path) -> None:
         validate_agent_profile_record_file,
         write_agent_profile_record,
     )
+
     settings = _settings(tmp_path)
     profile = get_agent_profile("patch_planner")
     t_profile = target_profile(settings, "builder")
@@ -154,7 +155,7 @@ def test_agent_profile_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
     errors = validate_agent_profile_record(bad_target)
     assert any("target must be one of" in err for err in errors)
@@ -179,7 +180,7 @@ def test_agent_profile_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "INVALID",
-        }
+        },
     }
     errors = validate_agent_profile_record(bad_coupling)
     assert any("core_workbench_coupling must be NONE" in err for err in errors)
@@ -204,7 +205,7 @@ def test_agent_profile_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
     errors = validate_agent_profile_record(bad_lists)
     assert any("compatible_targets must be a list of non-empty strings" in err for err in errors)
@@ -215,9 +216,8 @@ def test_agent_profile_validation_failures(tmp_path: Path) -> None:
 def test_agent_cli_commands(tmp_path: Path) -> None:
     import json as json_lib
 
-    from typer.testing import CliRunner
-
     from builder_ii.agent_cli import agent_app
+    from typer.testing import CliRunner
 
     runner = CliRunner()
 

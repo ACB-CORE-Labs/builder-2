@@ -19,6 +19,7 @@ from builder_ii.deepagents_forge_schema import (
 # derive_slug
 # ---------------------------------------------------------------------------
 
+
 class TestDeriveSlug:
     def test_basic(self):
         assert derive_slug("PR Reviewer") == "pr_reviewer"
@@ -71,6 +72,7 @@ class TestSlugValidation:
 # DeepAgentSpec construction
 # ---------------------------------------------------------------------------
 
+
 class TestDeepAgentSpecConstruction:
     def test_default_construction(self):
         spec = DeepAgentSpec()
@@ -99,6 +101,7 @@ class TestDeepAgentSpecConstruction:
 # auto_derive_slug
 # ---------------------------------------------------------------------------
 
+
 class TestAutoSlug:
     def test_derives_from_name(self):
         spec = DeepAgentSpec(name="PR Reviewer")
@@ -119,6 +122,7 @@ class TestAutoSlug:
 # ---------------------------------------------------------------------------
 # is_emit_ready
 # ---------------------------------------------------------------------------
+
 
 class TestIsEmitReady:
     def _full_spec(self) -> DeepAgentSpec:
@@ -215,6 +219,7 @@ class TestIsEmitReady:
 # to_yaml
 # ---------------------------------------------------------------------------
 
+
 class TestToYaml:
     def test_produces_valid_yaml(self):
         spec = DeepAgentSpec(
@@ -249,6 +254,7 @@ class TestToYaml:
 # summary_lines
 # ---------------------------------------------------------------------------
 
+
 class TestSummaryLines:
     def test_empty_spec_returns_empty(self):
         spec = DeepAgentSpec()
@@ -274,9 +280,7 @@ class TestForgeProfileTemplates:
     def test_templates_validate_and_do_not_claim_runtime_authority(self):
         root = Path(__file__).resolve().parent.parent
         template_paths = sorted(
-            path
-            for path in (root / "profiles" / "deepagents").glob("*.yaml")
-            if path.name != ".gitkeep"
+            path for path in (root / "profiles" / "deepagents").glob("*.yaml") if path.name != ".gitkeep"
         )
 
         assert template_paths

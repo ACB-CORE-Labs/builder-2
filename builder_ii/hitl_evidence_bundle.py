@@ -52,6 +52,7 @@ def create_hitl_evidence_bundle(
     """
     if settings is None:
         from builder_ii.config import load_settings
+
         settings = load_settings()
     selected = target_profile(settings, target_name, generic_repo=generic_repo)
     return {
@@ -157,7 +158,11 @@ def validate_hitl_evidence_bundle(artifact: Any) -> list[str]:
     if artifact.get("bundle_state") != "INDEX_ONLY":
         errors.append("bundle_state must be INDEX_ONLY")
 
-    if "execution_state" in artifact and artifact.get("execution_state") not in ("NOT_RUN", "NOT_EXECUTED", "INDEX_ONLY"):
+    if "execution_state" in artifact and artifact.get("execution_state") not in (
+        "NOT_RUN",
+        "NOT_EXECUTED",
+        "INDEX_ONLY",
+    ):
         errors.append("execution_state cannot imply execution authority")
 
     if "verification_state" in artifact and artifact.get("verification_state") not in ("NOT_RUN", "PASS", "FAIL"):

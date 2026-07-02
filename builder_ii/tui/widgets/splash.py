@@ -17,9 +17,6 @@ ASCII_ART = """
 """
 
 
-
-
-
 class SplashScreen(ModalScreen[None]):
     """A splash screen that shows on startup."""
 
@@ -107,9 +104,7 @@ app.run()
             os.close(fd)
 
             proc = await asyncio.create_subprocess_exec(
-                "swift", path, image_path,
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
+                "swift", path, image_path, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL
             )
 
             await proc.wait()

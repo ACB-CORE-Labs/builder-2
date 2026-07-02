@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
+from builder_ii.model_policy_cli import model_policy_app
 from typer.testing import CliRunner
 
 from builder_ii.model_client_registry import create_model_client_registry, write_model_client_registry
-from builder_ii.model_policy_cli import model_policy_app
 
 runner = CliRunner()
 
@@ -63,6 +63,7 @@ def test_model_policy_dry_run(tmp_path: Path):
 
 def test_model_policy_render_sibling_artifacts_and_verification(tmp_path: Path):
     from builder_ii.artifact_chain_verification import verify_artifact_chain
+
     out_path = tmp_path / "rec.json"
     result = runner.invoke(
         model_policy_app,
@@ -88,4 +89,3 @@ def test_model_policy_render_sibling_artifacts_and_verification(tmp_path: Path):
     # Verify artifact chain closure
     report = verify_artifact_chain([policy_path, registry_path, out_path])
     assert report["valid"] is True
-

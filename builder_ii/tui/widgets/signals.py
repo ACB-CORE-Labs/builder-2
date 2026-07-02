@@ -34,6 +34,7 @@ CAPABILITIES = [
 
 # ── HITL Gate Indicator ──────────────────────────────────────────────
 
+
 class HITLGateIndicator(Static):
     """Top-of-rail indicator for HITL gate status."""
 
@@ -42,17 +43,12 @@ class HITLGateIndicator(Static):
 
     def render(self) -> str:
         if self.gate_open:
-            return (
-                "\n [bold #d29922]● HITL GATE OPEN[/]\n"
-                f"   [#8b949e]{self.gate_label}[/]"
-            )
-        return (
-            "\n [#3fb950]● ALL GATES CLEAR[/]\n"
-            "   [#484f58]no pending authority[/]"
-        )
+            return f"\n [bold #d29922]● HITL GATE OPEN[/]\n   [#8b949e]{self.gate_label}[/]"
+        return "\n [#3fb950]● ALL GATES CLEAR[/]\n   [#484f58]no pending authority[/]"
 
 
 # ── Capability Item ──────────────────────────────────────────────────
+
 
 class CapabilityItem(Static):
     """Single capability status line."""
@@ -78,6 +74,7 @@ class CapabilityItem(Static):
 
 
 # ── Signal Rail (composite) ──────────────────────────────────────────
+
 
 class SignalRail(Vertical):
     """The right column of the STRATUM layout."""
@@ -195,9 +192,7 @@ class SignalRail(Vertical):
             color = "#8b949e"
             glyph = "·"
 
-        self._ledger_log.write(
-            f"[#484f58]{ts}[/] [{color}]{glyph} {summary[:40]}[/]"
-        )
+        self._ledger_log.write(f"[#484f58]{ts}[/] [{color}]{glyph} {summary[:40]}[/]")
 
     def update_gate(self, is_open: bool, label: str = "") -> None:
         """Update the HITL gate indicator."""

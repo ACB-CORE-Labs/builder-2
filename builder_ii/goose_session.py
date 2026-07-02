@@ -185,7 +185,14 @@ def validate_goose_session_manifest(manifest: Any) -> list[str]:
     if not isinstance(links, dict):
         errors.append("links must be an object")
     else:
-        for key in ("target_bundle", "verification_profile", "quality_gate", "research_plan", "handoff", "context_pack"):
+        for key in (
+            "target_bundle",
+            "verification_profile",
+            "quality_gate",
+            "research_plan",
+            "handoff",
+            "context_pack",
+        ):
             if key not in links:
                 errors.append(f"links.{key} is required")
             elif not isinstance(links.get(key), str):

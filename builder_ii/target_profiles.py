@@ -99,7 +99,11 @@ def build_target_profiles(settings: Settings, *, generic_repo: Path | None = Non
             description="builder-II self-development target profile.",
             repo=builder_root,
             context_defaults=_existing_defaults(builder_root, _BUILDER_CONTEXT_DEFAULTS),
-            verification_hints=("uv run pytest -q", "uv run builder-targets list", "uv run builder-context pack --target builder --no-repomix"),
+            verification_hints=(
+                "uv run pytest -q",
+                "uv run builder-targets list",
+                "uv run builder-context pack --target builder --no-repomix",
+            ),
             principles=(
                 "generic-first platform behavior",
                 "no CORE Workbench identity",
@@ -112,7 +116,11 @@ def build_target_profiles(settings: Settings, *, generic_repo: Path | None = Non
             description="AssetOverflow/core target profile. CORE is a target, not builder-II identity.",
             repo=core_root,
             context_defaults=_existing_defaults(core_root, _CORE_CONTEXT_DEFAULTS),
-            verification_hints=("builder verify <changed-path>", "run focused pytest suites", "preserve CORE invariants"),
+            verification_hints=(
+                "builder verify <changed-path>",
+                "run focused pytest suites",
+                "preserve CORE invariants",
+            ),
             principles=(
                 "treat CORE as target profile only",
                 "do not conflate with CORE Workbench/UI",
@@ -165,7 +173,9 @@ def render_target_profile(profile: TargetProfile) -> str:
         "## Context defaults",
         "",
     ]
-    lines.extend(f"- `{path}`" for path in profile.context_defaults) if profile.context_defaults else lines.append("(none found)")
+    lines.extend(f"- `{path}`" for path in profile.context_defaults) if profile.context_defaults else lines.append(
+        "(none found)"
+    )
     lines.extend(["", "## Verification hints", ""])
     lines.extend(f"- {hint}" for hint in profile.verification_hints)
     lines.extend(["", "## Principles", ""])

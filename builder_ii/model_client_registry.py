@@ -10,8 +10,28 @@ from builder_ii.config import MODEL_ALIASES
 MODEL_CLIENT_REGISTRY_KIND = "builder_ii.model_client_registry"
 MODEL_CLIENT_REGISTRY_SCHEMA_VERSION = 1
 
-KNOWN_PROVIDER_IDS = {"mlx_provider", "openai_stub_provider", "anthropic_stub_provider", "groq_provider", "xai_provider", "google_provider", "ollama_provider", "openai_provider", "anthropic_provider"}
-KNOWN_CLIENT_IDS = {"mlx_lm_client", "openai_compat_client", "anthropic_stub_client", "groq_client", "xai_client", "google_client", "ollama_client", "openai_client", "anthropic_client"}
+KNOWN_PROVIDER_IDS = {
+    "mlx_provider",
+    "openai_stub_provider",
+    "anthropic_stub_provider",
+    "groq_provider",
+    "xai_provider",
+    "google_provider",
+    "ollama_provider",
+    "openai_provider",
+    "anthropic_provider",
+}
+KNOWN_CLIENT_IDS = {
+    "mlx_lm_client",
+    "openai_compat_client",
+    "anthropic_stub_client",
+    "groq_client",
+    "xai_client",
+    "google_client",
+    "ollama_client",
+    "openai_client",
+    "anthropic_client",
+}
 KNOWN_MODEL_IDS = {
     "mlx-community/Phi-4-mini-reasoning-4bit",
     "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
@@ -773,7 +793,7 @@ def _obsolete_default_client_records() -> list[dict[str, Any]]:
             "executes_model": False,
             "grants_authority": False,
             "requires_human_promotion_for_execution": True,
-        }
+        },
     ]
 
 
@@ -856,7 +876,9 @@ def _validate_client_record(record: Any, index: int) -> list[str]:
 
     risk = record.get("risk_classification")
     if not risk or risk not in ALLOWED_RISK_CLASSIFICATIONS:
-        errors.append(f"{field_prefix}.risk_classification is missing or invalid; must be one of {sorted(ALLOWED_RISK_CLASSIFICATIONS)}")
+        errors.append(
+            f"{field_prefix}.risk_classification is missing or invalid; must be one of {sorted(ALLOWED_RISK_CLASSIFICATIONS)}"
+        )
 
     cost = record.get("cost_class")
     if not cost or cost not in ALLOWED_COST_CLASSES:
@@ -961,6 +983,8 @@ def validate_model_client_registry_file(path: Path) -> list[str]:
     except Exception as exc:
         return [f"failed to read file: {exc}"]
     return validate_model_client_registry(data)
+
+
 def _default_client_records() -> list[dict]:
     return [
         {
@@ -2237,5 +2261,5 @@ def _default_client_records() -> list[dict]:
             "executes_model": False,
             "grants_authority": False,
             "requires_human_promotion_for_execution": True,
-        }
+        },
     ]

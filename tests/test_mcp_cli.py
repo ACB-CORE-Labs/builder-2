@@ -1,8 +1,8 @@
 import json
 
+from builder_ii.mcp_cli import mcp_app
 from typer.testing import CliRunner
 
-from builder_ii.mcp_cli import mcp_app
 from builder_ii.mcp_policy import (
     ENVELOPE_SCHEMA_VERSION,
     POLICY_SCHEMA_VERSION,
@@ -13,17 +13,20 @@ from builder_ii.workflow_records import canonical_digest
 
 runner = CliRunner()
 
+
 def test_mcp_inventory():
     result = runner.invoke(mcp_app, ["inventory"])
     assert result.exit_code == 0
     data = json.loads(result.stdout)
     assert "servers" in data
 
+
 def test_mcp_policy():
     result = runner.invoke(mcp_app, ["policy"])
     assert result.exit_code == 0
     data = json.loads(result.stdout)
     assert "allowed_servers" in data
+
 
 def test_mcp_standalone_call_success(tmp_path):
     policy = {
@@ -45,9 +48,7 @@ def test_mcp_standalone_call_success(tmp_path):
         "requires_approval_for_mutation": True,
         "requires_approval_for_external_network": True,
         "requires_approval_for_credentials": True,
-        "governance": {
-            "artifact_is_authority": False
-        }
+        "governance": {"artifact_is_authority": False},
     }
     envelope = {
         "kind": TOOL_ENVELOPE_KIND,
@@ -78,12 +79,16 @@ def test_mcp_standalone_call_success(tmp_path):
     pol_path.write_text(json.dumps(policy))
     env_path.write_text(json.dumps(envelope))
 
-    result = runner.invoke(mcp_app, [
-        "standalone-call",
-        str(env_path),
-        str(pol_path),
-        "--receipt-output", str(rec_path),
-    ])
+    result = runner.invoke(
+        mcp_app,
+        [
+            "standalone-call",
+            str(env_path),
+            str(pol_path),
+            "--receipt-output",
+            str(rec_path),
+        ],
+    )
 
     assert result.exit_code == 0
     assert rec_path.is_file()

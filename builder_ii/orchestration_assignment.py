@@ -71,9 +71,7 @@ ORCHESTRATION_ASSIGNMENT_PLAN_SCHEMA_VERSION = 1
 ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND = "builder_ii.orchestration_assignment_dry_run"
 ORCHESTRATION_ASSIGNMENT_DRY_RUN_SCHEMA_VERSION = 1
 
-ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND = (
-    "builder_ii.orchestration_assignment_validation_report"
-)
+ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND = "builder_ii.orchestration_assignment_validation_report"
 ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_SCHEMA_VERSION = 1
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -247,18 +245,12 @@ def _validate_or_raise(label: str, errors: list[str]) -> None:
         raise ValueError(f"invalid {label}: " + "; ".join(errors))
 
 
-def _profile_pack_entry(
-    manifest: dict[str, Any], entry_id: str, profile_kind: str
-) -> dict[str, Any] | None:
+def _profile_pack_entry(manifest: dict[str, Any], entry_id: str, profile_kind: str) -> dict[str, Any] | None:
     for area in manifest.get("areas", []):
         if not isinstance(area, dict):
             continue
         for entry in area.get("entries", []):
-            if (
-                isinstance(entry, dict)
-                and entry.get("id") == entry_id
-                and entry.get("profile_kind") == profile_kind
-            ):
+            if isinstance(entry, dict) and entry.get("id") == entry_id and entry.get("profile_kind") == profile_kind:
                 return entry
     return None
 
@@ -280,17 +272,11 @@ def _profile_pack_lifecycle_errors(
     for field in ("pack_id", "target_profile", "task"):
         expected = manifest.get(field)
         if render_plan.get(field) != expected:
-            errors.append(
-                f"profile_pack_render_plan.{field} must match profile_pack_manifest.{field}"
-            )
+            errors.append(f"profile_pack_render_plan.{field} must match profile_pack_manifest.{field}")
         if dry_run.get(field) != expected:
-            errors.append(
-                f"profile_pack_dry_run.{field} must match profile_pack_manifest.{field}"
-            )
+            errors.append(f"profile_pack_dry_run.{field} must match profile_pack_manifest.{field}")
         if profile_pack.get(field) != expected:
-            errors.append(
-                f"profile_pack.{field} must match profile_pack_manifest.{field}"
-            )
+            errors.append(f"profile_pack.{field} must match profile_pack_manifest.{field}")
 
     checks = (
         (
@@ -340,17 +326,13 @@ def _profile_pack_lifecycle_errors(
         errors.append("profile_pack.lifecycle_bindings must be an object")
     else:
         if bindings.get("manifest_sha256") != manifest_digest:
-            errors.append(
-                "profile_pack.lifecycle_bindings.manifest_sha256 must match profile pack manifest digest"
-            )
+            errors.append("profile_pack.lifecycle_bindings.manifest_sha256 must match profile pack manifest digest")
         if bindings.get("render_plan_sha256") != render_digest:
             errors.append(
                 "profile_pack.lifecycle_bindings.render_plan_sha256 must match profile pack render plan digest"
             )
         if bindings.get("dry_run_sha256") != dry_run_digest:
-            errors.append(
-                "profile_pack.lifecycle_bindings.dry_run_sha256 must match profile pack dry-run digest"
-            )
+            errors.append("profile_pack.lifecycle_bindings.dry_run_sha256 must match profile pack dry-run digest")
         if bindings.get("validation_report_sha256") != report_digest:
             errors.append(
                 "profile_pack.lifecycle_bindings.validation_report_sha256 must match validation report digest"
@@ -404,36 +386,22 @@ def create_agent_assignment_plan(
     if not task_text:
         raise ValueError("task must be a non-empty string")
 
-    _validate_or_raise(
-        "target profile artifact", validate_target_profile_artifact(target_profile)
-    )
-    _validate_or_raise(
-        "agent profile record", validate_agent_profile_record(agent_profile)
-    )
+    _validate_or_raise("target profile artifact", validate_target_profile_artifact(target_profile))
+    _validate_or_raise("agent profile record", validate_agent_profile_record(agent_profile))
     _validate_or_raise("context pack", validate_context_pack(context_pack))
-    _validate_or_raise(
-        "verification profile artifact", validate_profile_artifact(verification_profile)
-    )
-    _validate_or_raise(
-        "model client registry", validate_model_client_registry(model_registry)
-    )
-    _validate_or_raise(
-        "model routing policy", validate_model_routing_policy(model_policy)
-    )
+    _validate_or_raise("verification profile artifact", validate_profile_artifact(verification_profile))
+    _validate_or_raise("model client registry", validate_model_client_registry(model_registry))
+    _validate_or_raise("model routing policy", validate_model_routing_policy(model_policy))
     _validate_or_raise(
         "model routing recommendation",
         validate_model_routing_recommendation(model_recommendation),
     )
-    _validate_or_raise(
-        "profile pack manifest", validate_profile_pack_manifest(profile_pack_manifest)
-    )
+    _validate_or_raise("profile pack manifest", validate_profile_pack_manifest(profile_pack_manifest))
     _validate_or_raise(
         "profile pack render plan",
         validate_profile_pack_render_plan(profile_pack_render_plan),
     )
-    _validate_or_raise(
-        "profile pack dry run", validate_profile_pack_dry_run(profile_pack_dry_run)
-    )
+    _validate_or_raise("profile pack dry run", validate_profile_pack_dry_run(profile_pack_dry_run))
     _validate_or_raise(
         "profile pack validation report",
         validate_profile_pack_validation_report(profile_pack_validation_report),
@@ -462,15 +430,10 @@ def create_agent_assignment_plan(
 
     compatible_agents = agent_profile.get("compatible_targets")
     if isinstance(compatible_agents, list) and target_name not in compatible_agents:
-        raise ValueError(
-            f"agent profile {agent_name} is not compatible with target profile {target_name}"
-        )
+        raise ValueError(f"agent profile {agent_name} is not compatible with target profile {target_name}")
 
     compatible_verification = verification_profile.get("compatible_targets")
-    if (
-        isinstance(compatible_verification, list)
-        and target_name not in compatible_verification
-    ):
+    if isinstance(compatible_verification, list) and target_name not in compatible_verification:
         raise ValueError(
             f"verification profile {verification_name} is not compatible with target profile {target_name}"
         )
@@ -482,20 +445,10 @@ def create_agent_assignment_plan(
     expected_policy_digest = canonical_digest(model_policy)
     rec_registry_ref = model_recommendation.get("source_registry_ref")
     rec_policy_ref = model_recommendation.get("source_policy_ref")
-    if (
-        not isinstance(rec_registry_ref, dict)
-        or rec_registry_ref.get("sha256") != expected_registry_digest
-    ):
-        raise ValueError(
-            "model routing recommendation source_registry_ref must be bound to the supplied registry"
-        )
-    if (
-        not isinstance(rec_policy_ref, dict)
-        or rec_policy_ref.get("sha256") != expected_policy_digest
-    ):
-        raise ValueError(
-            "model routing recommendation source_policy_ref must be bound to the supplied policy"
-        )
+    if not isinstance(rec_registry_ref, dict) or rec_registry_ref.get("sha256") != expected_registry_digest:
+        raise ValueError("model routing recommendation source_registry_ref must be bound to the supplied registry")
+    if not isinstance(rec_policy_ref, dict) or rec_policy_ref.get("sha256") != expected_policy_digest:
+        raise ValueError("model routing recommendation source_policy_ref must be bound to the supplied policy")
 
     for role, (entry_id, profile_kind) in _PROFILE_PACK_ENTRY_ROLES.items():
         if _profile_pack_entry(profile_pack_manifest, entry_id, profile_kind) is None:
@@ -602,9 +555,7 @@ def create_agent_assignment_plan(
     ]
 
     if orchestration_plan is not None:
-        _validate_or_raise(
-            "orchestration plan", validate_orchestration_plan(orchestration_plan)
-        )
+        _validate_or_raise("orchestration plan", validate_orchestration_plan(orchestration_plan))
         source_refs.append(
             _artifact_ref(
                 orchestration_plan,
@@ -641,9 +592,7 @@ def create_agent_assignment_plan(
         )
 
     source_digests = {ref["role"]: ref["sha256"] for ref in source_refs}
-    recommended_candidates = list(
-        model_recommendation.get("recommended_candidates", [])
-    )
+    recommended_candidates = list(model_recommendation.get("recommended_candidates", []))
     selected_model = recommended_candidates[0] if recommended_candidates else {}
 
     assignment = {
@@ -670,9 +619,7 @@ def create_agent_assignment_plan(
                 "task_state": "PLANNED_ONLY",
             },
             "model": {
-                "recommendation_state": model_recommendation.get(
-                    "recommendation_state", ""
-                ),
+                "recommendation_state": model_recommendation.get("recommendation_state", ""),
                 "selected_candidate": selected_model,
                 "source_ref_roles": [
                     "model_registry",
@@ -692,12 +639,8 @@ def create_agent_assignment_plan(
             },
             "verification": {
                 "name": verification_name,
-                "required_evidence": list(
-                    verification_profile.get("required_evidence", [])
-                ),
-                "proposed_commands": list(
-                    verification_profile.get("proposed_commands", [])
-                ),
+                "required_evidence": list(verification_profile.get("required_evidence", [])),
+                "proposed_commands": list(verification_profile.get("proposed_commands", [])),
                 "source_ref_role": "verification_profile",
                 "verification_status": "NOT_RUN",
                 "executes_commands": False,
@@ -737,9 +680,7 @@ def create_agent_assignment_plan(
             "manifest_sha256": canonical_digest(profile_pack_manifest),
             "render_plan_sha256": canonical_digest(profile_pack_render_plan),
             "dry_run_sha256": canonical_digest(profile_pack_dry_run),
-            "validation_report_sha256": canonical_digest(
-                profile_pack_validation_report
-            ),
+            "validation_report_sha256": canonical_digest(profile_pack_validation_report),
             "profile_pack_sha256": canonical_digest(profile_pack),
             "lifecycle_bindings": dict(profile_pack.get("lifecycle_bindings", {})),
         },
@@ -822,9 +763,7 @@ def create_orchestration_assignment_plan(
             "outputs",
             "handoff",
         ],
-        "expected_evidence": list(
-            bindings["verification"].get("required_evidence", [])
-        ),
+        "expected_evidence": list(bindings["verification"].get("required_evidence", [])),
         "denied_capabilities": list(_DENIED_CAPABILITIES),
         "required_promotions": [
             "HITL approval artifact before execution",
@@ -843,16 +782,12 @@ def create_orchestration_assignment_plan(
         "grants_authority": False,
         "artifact_is_authority": False,
         "requires_human_promotion_for_execution": True,
-        "authority_boundary": _default_authority_boundary(
-            "orchestration_assignment_plan"
-        ),
+        "authority_boundary": _default_authority_boundary("orchestration_assignment_plan"),
         "governance": _default_governance("orchestration_assignment_plan"),
     }
     errors = validate_orchestration_assignment_plan(plan)
     if errors:
-        raise ValueError(
-            "created invalid orchestration assignment plan: " + "; ".join(errors)
-        )
+        raise ValueError("created invalid orchestration assignment plan: " + "; ".join(errors))
     return plan
 
 
@@ -863,9 +798,7 @@ def create_orchestration_assignment_dry_run(
 ) -> dict[str, Any]:
     plan_errors = validate_orchestration_assignment_plan(orchestration_assignment_plan)
     if plan_errors:
-        raise ValueError(
-            "orchestration assignment plan is invalid: " + "; ".join(plan_errors)
-        )
+        raise ValueError("orchestration assignment plan is invalid: " + "; ".join(plan_errors))
 
     plan_ref = _artifact_ref(
         orchestration_assignment_plan,
@@ -893,16 +826,10 @@ def create_orchestration_assignment_dry_run(
             "model routing is advisory and not authorization",
             "dry-run is explanatory and cannot execute or mutate",
         ],
-        "denied_capabilities": list(
-            orchestration_assignment_plan["denied_capabilities"]
-        ),
-        "required_promotions": list(
-            orchestration_assignment_plan["required_promotions"]
-        ),
+        "denied_capabilities": list(orchestration_assignment_plan["denied_capabilities"]),
+        "required_promotions": list(orchestration_assignment_plan["required_promotions"]),
         "expected_evidence": list(orchestration_assignment_plan["expected_evidence"]),
-        "handoff_expectations": list(
-            orchestration_assignment_plan["handoff_expectations"]
-        ),
+        "handoff_expectations": list(orchestration_assignment_plan["handoff_expectations"]),
         "execution_summary": {
             "models_called": 0,
             "tools_called": 0,
@@ -926,16 +853,12 @@ def create_orchestration_assignment_dry_run(
         "grants_authority": False,
         "artifact_is_authority": False,
         "requires_human_promotion_for_execution": True,
-        "authority_boundary": _default_authority_boundary(
-            "orchestration_assignment_dry_run"
-        ),
+        "authority_boundary": _default_authority_boundary("orchestration_assignment_dry_run"),
         "governance": _default_governance("orchestration_assignment_dry_run"),
     }
     errors = validate_orchestration_assignment_dry_run(dry_run)
     if errors:
-        raise ValueError(
-            "created invalid orchestration assignment dry-run: " + "; ".join(errors)
-        )
+        raise ValueError("created invalid orchestration assignment dry-run: " + "; ".join(errors))
     return dry_run
 
 
@@ -959,14 +882,10 @@ def create_orchestration_assignment_validation_report(
         errors.append("subject must be a JSON object")
     else:
         subject_kind = str(subject.get("kind", ""))
-        subject_ref = _artifact_ref(
-            subject, role="subject", path=subject_path, name=subject_kind
-        )
+        subject_ref = _artifact_ref(subject, role="subject", path=subject_path, name=subject_kind)
         validator = _assignment_validators().get(subject_kind)
         if validator is None:
-            errors.append(
-                f"unknown orchestration assignment artifact kind: {subject_kind or '<missing>'}"
-            )
+            errors.append(f"unknown orchestration assignment artifact kind: {subject_kind or '<missing>'}")
         else:
             try:
                 errors.extend(validator(subject))
@@ -1001,10 +920,7 @@ def create_orchestration_assignment_validation_report(
     }
     report_errors = validate_orchestration_assignment_validation_report(report)
     if report_errors:
-        raise ValueError(
-            "created invalid orchestration assignment validation report: "
-            + "; ".join(report_errors)
-        )
+        raise ValueError("created invalid orchestration assignment validation report: " + "; ".join(report_errors))
     return report
 
 
@@ -1034,20 +950,14 @@ def write_orchestration_assignment_plan(plan: dict[str, Any], output: Path) -> N
     output.write_text(dumps_orchestration_assignment_plan(plan), encoding="utf-8")
 
 
-def write_orchestration_assignment_dry_run(
-    dry_run: dict[str, Any], output: Path
-) -> None:
+def write_orchestration_assignment_dry_run(dry_run: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_orchestration_assignment_dry_run(dry_run), encoding="utf-8")
 
 
-def write_orchestration_assignment_validation_report(
-    report: dict[str, Any], output: Path
-) -> None:
+def write_orchestration_assignment_validation_report(report: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        dumps_orchestration_assignment_validation_report(report), encoding="utf-8"
-    )
+    output.write_text(dumps_orchestration_assignment_validation_report(report), encoding="utf-8")
 
 
 def _validate_sha(value: Any, *, field: str) -> list[str]:
@@ -1145,13 +1055,9 @@ def _validate_required_source_refs(data: dict[str, Any]) -> list[str]:
         if role in _PROFILE_PACK_ENTRY_ROLES:
             expected_entry_id, expected_profile_kind = _PROFILE_PACK_ENTRY_ROLES[role]
             if ref.get("entry_id") != expected_entry_id:
-                errors.append(
-                    f"source_refs.{role}.entry_id must be {expected_entry_id}"
-                )
+                errors.append(f"source_refs.{role}.entry_id must be {expected_entry_id}")
             if ref.get("profile_kind") != expected_profile_kind:
-                errors.append(
-                    f"source_refs.{role}.profile_kind must be {expected_profile_kind}"
-                )
+                errors.append(f"source_refs.{role}.profile_kind must be {expected_profile_kind}")
 
     for role, ref in by_role.items():
         if role in _REQUIRED_ASSIGNMENT_REF_ROLES:
@@ -1168,17 +1074,13 @@ def _validate_required_source_refs(data: dict[str, Any]) -> list[str]:
                 expected_role=role,
             )
         )
-        if isinstance(source_digests, dict) and source_digests.get(role) != ref.get(
-            "sha256"
-        ):
+        if isinstance(source_digests, dict) and source_digests.get(role) != ref.get("sha256"):
             errors.append(f"source_digests.{role} must match {role} ref sha256")
 
     return errors
 
 
-def _validate_authority_boundary(
-    data: dict[str, Any], *, capability_state: str
-) -> list[str]:
+def _validate_authority_boundary(data: dict[str, Any], *, capability_state: str) -> list[str]:
     errors: list[str] = []
     for key in _AUTHORITY_FALSE_KEYS:
         if data.get(key) is not False:
@@ -1191,16 +1093,12 @@ def _validate_authority_boundary(
         errors.append("authority_boundary must be an object")
     else:
         if boundary.get("capability_state") != capability_state:
-            errors.append(
-                f"authority_boundary.capability_state must be {capability_state}"
-            )
+            errors.append(f"authority_boundary.capability_state must be {capability_state}")
         for key in _AUTHORITY_FALSE_KEYS:
             if boundary.get(key) is not False:
                 errors.append(f"authority_boundary.{key} must be false")
         if boundary.get("requires_human_promotion_for_execution") is not True:
-            errors.append(
-                "authority_boundary.requires_human_promotion_for_execution must be true"
-            )
+            errors.append("authority_boundary.requires_human_promotion_for_execution must be true")
     return errors
 
 
@@ -1227,13 +1125,8 @@ def _validate_governance(governance: Any, *, capability_state: str) -> list[str]
     ):
         if governance.get(key) != "DISABLED":
             errors.append(f"governance.{key} must be DISABLED")
-    if (
-        governance.get("source_writes")
-        != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH"
-    ):
-        errors.append(
-            "governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH"
-        )
+    if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
+        errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
     for key in ("artifact_is_authority", "grants_authority"):
         if governance.get(key) is not False:
             errors.append(f"governance.{key} must be false")
@@ -1248,9 +1141,7 @@ def _validate_no_active_state_claims(value: Any, path: str) -> list[str]:
     errors: list[str] = []
     if isinstance(value, dict):
         for key, item in value.items():
-            errors.extend(
-                _validate_no_active_state_claims(item, f"{path}.{key}" if path else key)
-            )
+            errors.extend(_validate_no_active_state_claims(item, f"{path}.{key}" if path else key))
     elif isinstance(value, list):
         for index, item in enumerate(value):
             errors.extend(_validate_no_active_state_claims(item, f"{path}[{index}]"))
@@ -1279,25 +1170,17 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
         errors.append("bindings must be an object")
     else:
         target_binding = bindings.get("target")
-        if (
-            not isinstance(target_binding, dict)
-            or target_binding.get("name") not in target_names()
-        ):
+        if not isinstance(target_binding, dict) or target_binding.get("name") not in target_names():
             errors.append("bindings.target.name must be a known target profile")
         agent_binding = bindings.get("agent")
-        if (
-            not isinstance(agent_binding, dict)
-            or agent_binding.get("name") not in agent_profile_names()
-        ):
+        if not isinstance(agent_binding, dict) or agent_binding.get("name") not in agent_profile_names():
             errors.append("bindings.agent.name must be a known agent profile")
         task_binding = bindings.get("task")
         if not isinstance(task_binding, dict):
             errors.append("bindings.task must be an object")
         else:
             if task_binding.get("profile_entry_id") != _TASK_PROFILE_ENTRY_ID:
-                errors.append(
-                    f"bindings.task.profile_entry_id must be {_TASK_PROFILE_ENTRY_ID}"
-                )
+                errors.append(f"bindings.task.profile_entry_id must be {_TASK_PROFILE_ENTRY_ID}")
             if task_binding.get("task_state") != "PLANNED_ONLY":
                 errors.append("bindings.task.task_state must be PLANNED_ONLY")
         verification_binding = bindings.get("verification")
@@ -1305,9 +1188,7 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
             not isinstance(verification_binding, dict)
             or verification_binding.get("name") not in verification_profile_names()
         ):
-            errors.append(
-                "bindings.verification.name must be a known verification profile"
-            )
+            errors.append("bindings.verification.name must be a known verification profile")
         elif verification_binding.get("verification_status") != "NOT_RUN":
             errors.append("bindings.verification.verification_status must be NOT_RUN")
         tools_binding = bindings.get("tools")
@@ -1348,9 +1229,7 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
             if model_binding.get("routing_grants_authority") is not False:
                 errors.append("bindings.model.routing_grants_authority must be false")
             if model_binding.get("recommendation_state") != "RECOMMENDATION_ONLY":
-                errors.append(
-                    "bindings.model.recommendation_state must be RECOMMENDATION_ONLY"
-                )
+                errors.append("bindings.model.recommendation_state must be RECOMMENDATION_ONLY")
             if not isinstance(model_binding.get("selected_candidate"), dict):
                 errors.append("bindings.model.selected_candidate must be an object")
 
@@ -1363,9 +1242,7 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
             if context_binding.get("source_ref_role") != "context_pack":
                 errors.append("bindings.context.source_ref_role must be context_pack")
             if context_binding.get("target_name") != data.get("target"):
-                errors.append(
-                    "bindings.context.target_name must match assignment target"
-                )
+                errors.append("bindings.context.target_name must match assignment target")
 
     errors.extend(_validate_required_source_refs(data))
 
@@ -1389,33 +1266,21 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
                 )
             )
             ref = by_role.get(role)
-            if isinstance(ref, dict) and lifecycle.get(lifecycle_field) != ref.get(
-                "sha256"
-            ):
-                errors.append(
-                    f"profile_pack_lifecycle.{lifecycle_field} must match {role} ref sha256"
-                )
+            if isinstance(ref, dict) and lifecycle.get(lifecycle_field) != ref.get("sha256"):
+                errors.append(f"profile_pack_lifecycle.{lifecycle_field} must match {role} ref sha256")
         bindings = lifecycle.get("lifecycle_bindings")
         if not isinstance(bindings, dict):
             errors.append("profile_pack_lifecycle.lifecycle_bindings must be an object")
         else:
             if bindings.get("manifest_sha256") != lifecycle.get("manifest_sha256"):
-                errors.append(
-                    "profile_pack_lifecycle.lifecycle_bindings.manifest_sha256 must match manifest_sha256"
-                )
-            if bindings.get("render_plan_sha256") != lifecycle.get(
-                "render_plan_sha256"
-            ):
+                errors.append("profile_pack_lifecycle.lifecycle_bindings.manifest_sha256 must match manifest_sha256")
+            if bindings.get("render_plan_sha256") != lifecycle.get("render_plan_sha256"):
                 errors.append(
                     "profile_pack_lifecycle.lifecycle_bindings.render_plan_sha256 must match render_plan_sha256"
                 )
             if bindings.get("dry_run_sha256") != lifecycle.get("dry_run_sha256"):
-                errors.append(
-                    "profile_pack_lifecycle.lifecycle_bindings.dry_run_sha256 must match dry_run_sha256"
-                )
-            if bindings.get("validation_report_sha256") != lifecycle.get(
-                "validation_report_sha256"
-            ):
+                errors.append("profile_pack_lifecycle.lifecycle_bindings.dry_run_sha256 must match dry_run_sha256")
+            if bindings.get("validation_report_sha256") != lifecycle.get("validation_report_sha256"):
                 errors.append(
                     "profile_pack_lifecycle.lifecycle_bindings.validation_report_sha256 must match validation_report_sha256"
                 )
@@ -1426,31 +1291,17 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
     else:
         recommendation = model_routing.get("recommendation")
         rec_errors = validate_model_routing_recommendation(recommendation)
-        errors.extend(
-            f"model_routing.recommendation invalid: {error}" for error in rec_errors
-        )
+        errors.extend(f"model_routing.recommendation invalid: {error}" for error in rec_errors)
         if isinstance(recommendation, dict):
             rec_ref = by_role.get("model_recommendation")
-            if isinstance(rec_ref, dict) and model_routing.get(
-                "recommendation_sha256"
-            ) != rec_ref.get("sha256"):
-                errors.append(
-                    "model_routing.recommendation_sha256 must match model_recommendation ref sha256"
-                )
+            if isinstance(rec_ref, dict) and model_routing.get("recommendation_sha256") != rec_ref.get("sha256"):
+                errors.append("model_routing.recommendation_sha256 must match model_recommendation ref sha256")
             registry_ref = by_role.get("model_registry")
             policy_ref = by_role.get("model_policy")
-            if isinstance(registry_ref, dict) and model_routing.get(
-                "registry_sha256"
-            ) != registry_ref.get("sha256"):
-                errors.append(
-                    "model_routing.registry_sha256 must match model_registry ref sha256"
-                )
-            if isinstance(policy_ref, dict) and model_routing.get(
-                "policy_sha256"
-            ) != policy_ref.get("sha256"):
-                errors.append(
-                    "model_routing.policy_sha256 must match model_policy ref sha256"
-                )
+            if isinstance(registry_ref, dict) and model_routing.get("registry_sha256") != registry_ref.get("sha256"):
+                errors.append("model_routing.registry_sha256 must match model_registry ref sha256")
+            if isinstance(policy_ref, dict) and model_routing.get("policy_sha256") != policy_ref.get("sha256"):
+                errors.append("model_routing.policy_sha256 must match model_policy ref sha256")
             source_registry_ref = recommendation.get("source_registry_ref")
             source_policy_ref = recommendation.get("source_policy_ref")
             if (
@@ -1458,26 +1309,16 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
                 and isinstance(source_registry_ref, dict)
                 and source_registry_ref.get("sha256") != registry_ref.get("sha256")
             ):
-                errors.append(
-                    "model routing recommendation must be bound to the model_registry source ref"
-                )
+                errors.append("model routing recommendation must be bound to the model_registry source ref")
             if (
                 isinstance(policy_ref, dict)
                 and isinstance(source_policy_ref, dict)
                 and source_policy_ref.get("sha256") != policy_ref.get("sha256")
             ):
-                errors.append(
-                    "model routing recommendation must be bound to the model_policy source ref"
-                )
+                errors.append("model routing recommendation must be bound to the model_policy source ref")
 
-    errors.extend(
-        _validate_authority_boundary(data, capability_state="agent_assignment_plan")
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="agent_assignment_plan"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="agent_assignment_plan"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="agent_assignment_plan"))
     errors.extend(_validate_no_active_state_claims(data, "assignment"))
     return errors
 
@@ -1489,9 +1330,7 @@ def validate_orchestration_assignment_plan(data: Any) -> list[str]:
     if data.get("kind") != ORCHESTRATION_ASSIGNMENT_PLAN_KIND:
         errors.append(f"kind must be {ORCHESTRATION_ASSIGNMENT_PLAN_KIND}")
     if data.get("schema_version") != ORCHESTRATION_ASSIGNMENT_PLAN_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {ORCHESTRATION_ASSIGNMENT_PLAN_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {ORCHESTRATION_ASSIGNMENT_PLAN_SCHEMA_VERSION}")
     if data.get("plan_state") != "BOUND_ONLY":
         errors.append("plan_state must be BOUND_ONLY")
     if data.get("orchestration_mode") != "passive_assignment_v2":
@@ -1511,14 +1350,11 @@ def validate_orchestration_assignment_plan(data: Any) -> list[str]:
     refs = data.get("source_refs")
     if not isinstance(refs, list) or len(refs) != 1:
         errors.append("source_refs must contain exactly the assignment plan ref")
-    elif isinstance(data.get("assignment_plan_ref"), dict) and refs[0].get(
+    elif isinstance(data.get("assignment_plan_ref"), dict) and refs[0].get("sha256") != data["assignment_plan_ref"].get(
         "sha256"
-    ) != data["assignment_plan_ref"].get("sha256"):
-        errors.append("source_refs[0] must match assignment_plan_ref")
-    if (
-        not isinstance(data.get("bound_source_refs"), list)
-        or not data["bound_source_refs"]
     ):
+        errors.append("source_refs[0] must match assignment_plan_ref")
+    if not isinstance(data.get("bound_source_refs"), list) or not data["bound_source_refs"]:
         errors.append("bound_source_refs must be a non-empty list")
     planned = data.get("planned_bindings")
     if not isinstance(planned, dict):
@@ -1542,13 +1378,8 @@ def validate_orchestration_assignment_plan(data: Any) -> list[str]:
         if isinstance(model, dict) and model.get("executes_model") is not False:
             errors.append("planned_bindings.model.executes_model must be false")
         verification = planned.get("verification")
-        if (
-            isinstance(verification, dict)
-            and verification.get("verification_status") != "NOT_RUN"
-        ):
-            errors.append(
-                "planned_bindings.verification.verification_status must be NOT_RUN"
-            )
+        if isinstance(verification, dict) and verification.get("verification_status") != "NOT_RUN":
+            errors.append("planned_bindings.verification.verification_status must be NOT_RUN")
         tools = planned.get("tools")
         if isinstance(tools, dict) and tools.get("executes_tools") is not False:
             errors.append("planned_bindings.tools.executes_tools must be false")
@@ -1556,19 +1387,11 @@ def validate_orchestration_assignment_plan(data: Any) -> list[str]:
         if isinstance(hitl, dict) and hitl.get("grants_authority") is not False:
             errors.append("planned_bindings.hitl.grants_authority must be false")
         outputs = planned.get("outputs")
-        if (
-            isinstance(outputs, dict)
-            and outputs.get("mutates_target_repo") is not False
-        ):
+        if isinstance(outputs, dict) and outputs.get("mutates_target_repo") is not False:
             errors.append("planned_bindings.outputs.mutates_target_repo must be false")
         handoff = planned.get("handoff")
-        if (
-            isinstance(handoff, dict)
-            and handoff.get("claims_verification_evidence") is not False
-        ):
-            errors.append(
-                "planned_bindings.handoff.claims_verification_evidence must be false"
-            )
+        if isinstance(handoff, dict) and handoff.get("claims_verification_evidence") is not False:
+            errors.append("planned_bindings.handoff.claims_verification_evidence must be false")
     if data.get("binding_order") != [
         "target",
         "task",
@@ -1594,19 +1417,9 @@ def validate_orchestration_assignment_plan(data: Any) -> list[str]:
             not isinstance(item, str) or not item for item in data.get(field, [])
         ):
             errors.append(f"{field} must be a list of non-empty strings")
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="orchestration_assignment_plan"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="orchestration_assignment_plan"
-        )
-    )
-    errors.extend(
-        _validate_no_active_state_claims(data, "orchestration_assignment_plan")
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="orchestration_assignment_plan"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="orchestration_assignment_plan"))
+    errors.extend(_validate_no_active_state_claims(data, "orchestration_assignment_plan"))
     return errors
 
 
@@ -1617,9 +1430,7 @@ def validate_orchestration_assignment_dry_run(data: Any) -> list[str]:
     if data.get("kind") != ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND:
         errors.append(f"kind must be {ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND}")
     if data.get("schema_version") != ORCHESTRATION_ASSIGNMENT_DRY_RUN_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {ORCHESTRATION_ASSIGNMENT_DRY_RUN_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {ORCHESTRATION_ASSIGNMENT_DRY_RUN_SCHEMA_VERSION}")
     if data.get("dry_run_state") != "DRY_RUN_ONLY":
         errors.append("dry_run_state must be DRY_RUN_ONLY")
     if data.get("target") not in target_names():
@@ -1636,17 +1447,11 @@ def validate_orchestration_assignment_dry_run(data: Any) -> list[str]:
     )
     refs = data.get("source_refs")
     if not isinstance(refs, list) or len(refs) != 1:
-        errors.append(
-            "source_refs must contain exactly the orchestration assignment plan ref"
-        )
-    elif isinstance(
-        data.get("source_orchestration_assignment_plan_ref"), dict
-    ) and refs[0].get("sha256") != data["source_orchestration_assignment_plan_ref"].get(
-        "sha256"
-    ):
-        errors.append(
-            "source_refs[0] must match source_orchestration_assignment_plan_ref"
-        )
+        errors.append("source_refs must contain exactly the orchestration assignment plan ref")
+    elif isinstance(data.get("source_orchestration_assignment_plan_ref"), dict) and refs[0].get("sha256") != data[
+        "source_orchestration_assignment_plan_ref"
+    ].get("sha256"):
+        errors.append("source_refs[0] must match source_orchestration_assignment_plan_ref")
     if not isinstance(data.get("planned_bindings"), dict):
         errors.append("planned_bindings must be an object")
     for field in (
@@ -1682,19 +1487,9 @@ def validate_orchestration_assignment_dry_run(data: Any) -> list[str]:
             errors.append("execution_summary.verification_status must be NOT_RUN")
         if summary.get("authority_granted") is not False:
             errors.append("execution_summary.authority_granted must be false")
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="orchestration_assignment_dry_run"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="orchestration_assignment_dry_run"
-        )
-    )
-    errors.extend(
-        _validate_no_active_state_claims(data, "orchestration_assignment_dry_run")
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="orchestration_assignment_dry_run"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="orchestration_assignment_dry_run"))
+    errors.extend(_validate_no_active_state_claims(data, "orchestration_assignment_dry_run"))
     return errors
 
 
@@ -1704,13 +1499,8 @@ def validate_orchestration_assignment_validation_report(data: Any) -> list[str]:
         return ["orchestration assignment validation report must be a JSON object"]
     if data.get("kind") != ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND:
         errors.append(f"kind must be {ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND}")
-    if (
-        data.get("schema_version")
-        != ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_SCHEMA_VERSION
-    ):
-        errors.append(
-            f"schema_version must be {ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_SCHEMA_VERSION}"
-        )
+    if data.get("schema_version") != ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_SCHEMA_VERSION}")
     if data.get("validation_state") != "VALIDATED_ONLY":
         errors.append("validation_state must be VALIDATED_ONLY")
     valid = data.get("valid")
@@ -1721,9 +1511,7 @@ def validate_orchestration_assignment_validation_report(data: Any) -> list[str]:
         elif not subject_kind:
             errors.append("subject_kind must be a non-empty string")
         elif subject_kind not in _assignment_validators():
-            errors.append(
-                "subject_kind must be a known orchestration assignment artifact kind"
-            )
+            errors.append("subject_kind must be a known orchestration assignment artifact kind")
     else:
         if subject_kind is not None and not isinstance(subject_kind, str):
             errors.append("subject_kind must be a string")
@@ -1745,9 +1533,7 @@ def validate_orchestration_assignment_validation_report(data: Any) -> list[str]:
     if data.get("valid") is False and data.get("status") != "invalid":
         errors.append("status must be invalid when valid is false")
     for field in ("errors", "warnings", "checked_boundaries"):
-        if not isinstance(data.get(field), list) or any(
-            not isinstance(item, str) for item in data.get(field, [])
-        ):
+        if not isinstance(data.get(field), list) or any(not isinstance(item, str) for item in data.get(field, [])):
             errors.append(f"{field} must be a list of strings")
     claims = data.get("claims")
     if not isinstance(claims, dict):
@@ -1764,11 +1550,7 @@ def validate_orchestration_assignment_validation_report(data: Any) -> list[str]:
             capability_state="orchestration_assignment_validation_report",
         )
     )
-    errors.extend(
-        _validate_no_active_state_claims(
-            data, "orchestration_assignment_validation_report"
-        )
-    )
+    errors.extend(_validate_no_active_state_claims(data, "orchestration_assignment_validation_report"))
     return errors
 
 

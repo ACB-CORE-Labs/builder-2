@@ -4,7 +4,6 @@ tests/test_deepagents_forge_preview.py
 Tests for deepagents_forge_preview.py — governance checker and dry-run renderer.
 """
 
-
 from builder_ii.deepagents_forge_preview import (
     check_governance,
     collect_warnings,
@@ -16,6 +15,7 @@ from builder_ii.deepagents_forge_schema import DeepAgentSpec
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _valid_spec(**overrides) -> DeepAgentSpec:
     """Return a fully valid spec that passes all governance checks."""
@@ -40,6 +40,7 @@ def _valid_spec(**overrides) -> DeepAgentSpec:
 # ---------------------------------------------------------------------------
 # check_governance — passing cases
 # ---------------------------------------------------------------------------
+
 
 class TestCheckGovernancePassing:
     def test_fully_valid_spec_passes(self):
@@ -78,6 +79,7 @@ class TestCheckGovernancePassing:
 # ---------------------------------------------------------------------------
 # check_governance — failing cases
 # ---------------------------------------------------------------------------
+
 
 class TestCheckGovernanceFailing:
     def test_write_cap_without_hitl_fails(self):
@@ -134,6 +136,7 @@ class TestCheckGovernanceFailing:
 # collect_warnings
 # ---------------------------------------------------------------------------
 
+
 class TestCollectWarnings:
     def test_no_warnings_for_complete_spec(self):
         spec = _valid_spec(
@@ -165,12 +168,21 @@ class TestCollectWarnings:
 # render_bridge_spec
 # ---------------------------------------------------------------------------
 
+
 class TestRenderBridgeSpec:
     def test_contains_required_keys(self):
         spec = _valid_spec()
         bridge = render_bridge_spec(spec)
-        for key in ["slug", "name", "persona", "capabilities", "hitl_gates",
-                    "verification_profile", "output_artifact", "rollback_path"]:
+        for key in [
+            "slug",
+            "name",
+            "persona",
+            "capabilities",
+            "hitl_gates",
+            "verification_profile",
+            "output_artifact",
+            "rollback_path",
+        ]:
             assert key in bridge
 
     def test_values_match_spec(self):
@@ -184,9 +196,11 @@ class TestRenderBridgeSpec:
 # render_preview
 # ---------------------------------------------------------------------------
 
+
 class TestRenderPreview:
     def test_returns_forge_preview(self):
         from builder_ii.deepagents_forge_preview import ForgePreview
+
         spec = _valid_spec()
         preview = render_preview(spec)
         assert isinstance(preview, ForgePreview)

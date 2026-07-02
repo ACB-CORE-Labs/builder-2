@@ -1,9 +1,9 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.promotion_readiness_cli import promotion_app
 from typer.testing import CliRunner
 
-from builder_ii.promotion_readiness_cli import promotion_app
 from builder_ii.promotion_readiness_records import validate_promotion_readiness_record
 
 
@@ -21,15 +21,24 @@ def test_cli_record_stdout() -> None:
         promotion_app,
         [
             "record",
-            "--capability-name", "test-cap",
-            "--docs-ref", "docs/README.md",
-            "--tests-ref", "tests/test_foo.py",
-            "--cli-ref", "builder-test",
-            "--failure-mode-ref", "reports error",
-            "--approval-boundary-ref", "no-authority",
-            "--output-artifact-ref", "output.json",
-            "--rollback-ref", "delete output.json",
-            "--verification-ref", "uv run pytest -q",
+            "--capability-name",
+            "test-cap",
+            "--docs-ref",
+            "docs/README.md",
+            "--tests-ref",
+            "tests/test_foo.py",
+            "--cli-ref",
+            "builder-test",
+            "--failure-mode-ref",
+            "reports error",
+            "--approval-boundary-ref",
+            "no-authority",
+            "--output-artifact-ref",
+            "output.json",
+            "--rollback-ref",
+            "delete output.json",
+            "--verification-ref",
+            "uv run pytest -q",
         ],
     )
 
@@ -52,16 +61,26 @@ def test_cli_record_and_validate_roundtrip(tmp_path: Path) -> None:
         promotion_app,
         [
             "record",
-            "--capability-name", "test-cap",
-            "--docs-ref", "docs/README.md",
-            "--tests-ref", "tests/test_foo.py",
-            "--cli-ref", "builder-test",
-            "--failure-mode-ref", "reports error",
-            "--approval-boundary-ref", "no-authority",
-            "--output-artifact-ref", "output.json",
-            "--rollback-ref", "delete output.json",
-            "--verification-ref", "uv run pytest -q",
-            "--output", str(output),
+            "--capability-name",
+            "test-cap",
+            "--docs-ref",
+            "docs/README.md",
+            "--tests-ref",
+            "tests/test_foo.py",
+            "--cli-ref",
+            "builder-test",
+            "--failure-mode-ref",
+            "reports error",
+            "--approval-boundary-ref",
+            "no-authority",
+            "--output-artifact-ref",
+            "output.json",
+            "--rollback-ref",
+            "delete output.json",
+            "--verification-ref",
+            "uv run pytest -q",
+            "--output",
+            str(output),
         ],
     )
 
@@ -86,9 +105,12 @@ def test_cli_record_blocked_output(tmp_path: Path) -> None:
         promotion_app,
         [
             "record",
-            "--capability-name", "partial-cap",
-            "--docs-ref", "docs/README.md",
-            "--output", str(output),
+            "--capability-name",
+            "partial-cap",
+            "--docs-ref",
+            "docs/README.md",
+            "--output",
+            str(output),
         ],
     )
 

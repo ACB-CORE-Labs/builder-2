@@ -345,10 +345,14 @@ def test_grants_authority_validators_reject_authority_drift(tmp_path: Path) -> N
         mutated["governance"]["artifact_is_authority"] = True
         mutated["governance"]["core_workbench_coupling"] = "COUPLED"
         errors = validator(mutated)
-        assert any("grants_runtime_authority" in e for e in errors), f"{label}: must reject grants_runtime_authority=true"
+        assert any("grants_runtime_authority" in e for e in errors), (
+            f"{label}: must reject grants_runtime_authority=true"
+        )
         assert any("grants_action_authority" in e for e in errors), f"{label}: must reject grants_action_authority=true"
         assert any("artifact_is_authority" in e for e in errors), f"{label}: must reject artifact_is_authority=true"
-        assert any("core_workbench_coupling" in e for e in errors), f"{label}: must reject core_workbench_coupling=COUPLED"
+        assert any("core_workbench_coupling" in e for e in errors), (
+            f"{label}: must reject core_workbench_coupling=COUPLED"
+        )
 
 
 def test_command_proposal_validator_rejects_execution_drift(tmp_path: Path) -> None:

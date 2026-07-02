@@ -19,9 +19,7 @@ from builder_ii.hitl_promotion_artifacts import (
 EXECUTION_CANDIDATE_MANIFEST_KIND = "builder_ii.execution_candidate_manifest"
 EXECUTION_CANDIDATE_MANIFEST_SCHEMA_VERSION = 1
 
-EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND = (
-    "builder_ii.execution_candidate_manifest_validation_report"
-)
+EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND = "builder_ii.execution_candidate_manifest_validation_report"
 EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_SCHEMA_VERSION = 1
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -65,9 +63,7 @@ _FORBIDDEN_ACTIVE_STATES = {
 }
 
 _FORBIDDEN_ACTIVE_STATE_RE = re.compile(
-    r"(?<![a-z0-9])("
-    + "|".join(re.escape(term) for term in sorted(_FORBIDDEN_ACTIVE_STATES))
-    + r")(?![a-z0-9])",
+    r"(?<![a-z0-9])(" + "|".join(re.escape(term) for term in sorted(_FORBIDDEN_ACTIVE_STATES)) + r")(?![a-z0-9])",
     re.IGNORECASE,
 )
 
@@ -170,9 +166,7 @@ def _validate_no_active_state_claims(value: Any, path: str) -> list[str]:
 
     if isinstance(value, dict):
         for key, item in value.items():
-            errors.extend(
-                _validate_no_active_state_claims(item, f"{path}.{key}" if path else key)
-            )
+            errors.extend(_validate_no_active_state_claims(item, f"{path}.{key}" if path else key))
     elif isinstance(value, list):
         for index, item in enumerate(value):
             errors.extend(_validate_no_active_state_claims(item, f"{path}[{index}]"))
@@ -207,9 +201,7 @@ def _scan_forbidden_boolean_keys(data: Any, path: str) -> list[str]:
     if isinstance(data, dict):
         for k, v in data.items():
             if k in forbidden_keys and v is True:
-                errors.append(
-                    f"field '{path}.{k}' claims forbidden active capability '{k}'"
-                )
+                errors.append(f"field '{path}.{k}' claims forbidden active capability '{k}'")
             errors.extend(_scan_forbidden_boolean_keys(v, f"{path}.{k}" if path else k))
     elif isinstance(data, list):
         for idx, item in enumerate(data):
@@ -221,17 +213,9 @@ def _scan_platform_identity_rejection(data: Any, path: str) -> list[str]:
     errors: list[str] = []
     if isinstance(data, dict):
         for k, v in data.items():
-            if (
-                k in ("platform_identity", "platform_name")
-                and isinstance(v, str)
-                and v.upper() == "CORE"
-            ):
-                errors.append(
-                    f"Forbidden CORE platform identity claim in field '{path}.{k}'"
-                )
-            errors.extend(
-                _scan_platform_identity_rejection(v, f"{path}.{k}" if path else k)
-            )
+            if k in ("platform_identity", "platform_name") and isinstance(v, str) and v.upper() == "CORE":
+                errors.append(f"Forbidden CORE platform identity claim in field '{path}.{k}'")
+            errors.extend(_scan_platform_identity_rejection(v, f"{path}.{k}" if path else k))
     elif isinstance(data, list):
         for idx, item in enumerate(data):
             errors.extend(_scan_platform_identity_rejection(item, f"{path}[{idx}]"))
@@ -242,9 +226,7 @@ def _scan_platform_identity_rejection(data: Any, path: str) -> list[str]:
             or "builder_ii is core" in normalized
             or "builder ii is core" in normalized
         ):
-            errors.append(
-                f"Forbidden text implying builder-II is CORE in field '{path}'"
-            )
+            errors.append(f"Forbidden text implying builder-II is CORE in field '{path}'")
     return errors
 
 
@@ -280,9 +262,7 @@ def _manifest_default_governance(capability_state: str) -> dict[str, Any]:
     return gov
 
 
-def _validate_manifest_invariants(
-    data: dict[str, Any], capability_state: str
-) -> list[str]:
+def _validate_manifest_invariants(data: dict[str, Any], capability_state: str) -> list[str]:
     errors: list[str] = []
     invariant_keys = (
         "executes_model",
@@ -323,9 +303,7 @@ def _validate_manifest_invariants(
             if gov.get(key) is not False:
                 errors.append(f"governance.{key} must be false")
         if gov.get("requires_separate_activation_artifact") is not True:
-            errors.append(
-                "governance.requires_separate_activation_artifact must be true"
-            )
+            errors.append("governance.requires_separate_activation_artifact must be true")
         if gov.get("core_workbench_coupling") != "NONE":
             errors.append("governance.core_workbench_coupling must be NONE")
     return errors
@@ -384,9 +362,7 @@ def create_execution_candidate_manifest(
     if preflight_ref is not None:
         manifest["preflight_ref"] = preflight_ref
     if artifact_chain_verification_report_ref is not None:
-        manifest["artifact_chain_verification_report_ref"] = (
-            artifact_chain_verification_report_ref
-        )
+        manifest["artifact_chain_verification_report_ref"] = artifact_chain_verification_report_ref
     if specialized_candidate_ref is not None:
         manifest["specialized_candidate_ref"] = specialized_candidate_ref
     return manifest
@@ -424,9 +400,7 @@ def _validate_command_previews(previews: Any, path: str) -> list[str]:
         # Check for shell control syntax
         for frag in _FORBIDDEN_COMMAND_FRAGMENTS:
             if frag in preview:
-                errors.append(
-                    f"shell control syntax '{frag}' detected in preview command '{preview}' at '{curr_path}'"
-                )
+                errors.append(f"shell control syntax '{frag}' detected in preview command '{preview}' at '{curr_path}'")
 
         # Check for forbidden commands/utilities
         for cmd in _FORBIDDEN_COMMANDS:
@@ -452,9 +426,7 @@ def _validate_command_previews(previews: Any, path: str) -> list[str]:
                         f"preview command '{preview}' references forbidden Tier 4 subcommand '{matched_record.name}' at '{curr_path}'"
                     )
             else:
-                errors.append(
-                    f"preview command '{preview}' has no matching command authority record at '{curr_path}'"
-                )
+                errors.append(f"preview command '{preview}' has no matching command authority record at '{curr_path}'")
     return errors
 
 
@@ -466,38 +438,19 @@ def validate_execution_candidate_manifest(data: Any) -> list[str]:
     if data.get("kind") != EXECUTION_CANDIDATE_MANIFEST_KIND:
         errors.append(f"kind must be {EXECUTION_CANDIDATE_MANIFEST_KIND}")
     if data.get("schema_version") != EXECUTION_CANDIDATE_MANIFEST_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {EXECUTION_CANDIDATE_MANIFEST_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {EXECUTION_CANDIDATE_MANIFEST_SCHEMA_VERSION}")
     if data.get("record_state") != "CANDIDATE_RECORDED_ONLY":
         errors.append("record_state must be CANDIDATE_RECORDED_ONLY")
 
     # Source approval boundary snapshot validation
     if data.get("source_approval_boundary_record_state") != "BOUNDARY_RECORDED_ONLY":
-        errors.append(
-            "source_approval_boundary_record_state must be BOUNDARY_RECORDED_ONLY"
-        )
-    if (
-        data.get("source_approval_boundary_decision_result")
-        != "approved_for_candidate_design"
-    ):
-        errors.append(
-            "source_approval_boundary_decision_result must be approved_for_candidate_design"
-        )
-    if (
-        data.get("source_approval_boundary_decision_record_state")
-        != "DECISION_RECORDED_ONLY"
-    ):
-        errors.append(
-            "source_approval_boundary_decision_record_state must be DECISION_RECORDED_ONLY"
-        )
-    if (
-        data.get("source_approval_boundary_requires_separate_execution_candidate")
-        is not True
-    ):
-        errors.append(
-            "source_approval_boundary_requires_separate_execution_candidate must be true"
-        )
+        errors.append("source_approval_boundary_record_state must be BOUNDARY_RECORDED_ONLY")
+    if data.get("source_approval_boundary_decision_result") != "approved_for_candidate_design":
+        errors.append("source_approval_boundary_decision_result must be approved_for_candidate_design")
+    if data.get("source_approval_boundary_decision_record_state") != "DECISION_RECORDED_ONLY":
+        errors.append("source_approval_boundary_decision_record_state must be DECISION_RECORDED_ONLY")
+    if data.get("source_approval_boundary_requires_separate_execution_candidate") is not True:
+        errors.append("source_approval_boundary_requires_separate_execution_candidate must be true")
 
     # Required refs validation
     errors.extend(
@@ -549,47 +502,27 @@ def validate_execution_candidate_manifest(data: Any) -> list[str]:
                 )
             )
 
-    errors.extend(
-        _validate_ref(
-            data.get("target_profile_ref"), "target_profile_ref", required=True
-        )
-    )
+    errors.extend(_validate_ref(data.get("target_profile_ref"), "target_profile_ref", required=True))
 
     cmd_auth_ref = data.get("command_authority_ref")
     cmd_auth_snap_ref = data.get("command_authority_snapshot_ref")
     if not cmd_auth_ref and not cmd_auth_snap_ref:
-        errors.append(
-            "either command_authority_ref or command_authority_snapshot_ref is required"
-        )
+        errors.append("either command_authority_ref or command_authority_snapshot_ref is required")
     else:
         if cmd_auth_ref:
-            errors.extend(
-                _validate_ref(cmd_auth_ref, "command_authority_ref", required=False)
-            )
+            errors.extend(_validate_ref(cmd_auth_ref, "command_authority_ref", required=False))
         if cmd_auth_snap_ref:
-            errors.extend(
-                _validate_ref(
-                    cmd_auth_snap_ref, "command_authority_snapshot_ref", required=False
-                )
-            )
+            errors.extend(_validate_ref(cmd_auth_snap_ref, "command_authority_snapshot_ref", required=False))
 
     ver_prof_ref = data.get("verification_profile_ref")
     ver_prof_rep_ref = data.get("verification_profile_report_ref")
     if not ver_prof_ref and not ver_prof_rep_ref:
-        errors.append(
-            "either verification_profile_ref or verification_profile_report_ref is required"
-        )
+        errors.append("either verification_profile_ref or verification_profile_report_ref is required")
     else:
         if ver_prof_ref:
-            errors.extend(
-                _validate_ref(ver_prof_ref, "verification_profile_ref", required=False)
-            )
+            errors.extend(_validate_ref(ver_prof_ref, "verification_profile_ref", required=False))
         if ver_prof_rep_ref:
-            errors.extend(
-                _validate_ref(
-                    ver_prof_rep_ref, "verification_profile_report_ref", required=False
-                )
-            )
+            errors.extend(_validate_ref(ver_prof_rep_ref, "verification_profile_report_ref", required=False))
 
     # Rollback requirements validation
     rollback_reqs = data.get("rollback_requirements")
@@ -601,9 +534,7 @@ def validate_execution_candidate_manifest(data: Any) -> list[str]:
         no_mutation = rollback_reqs.get("no_mutation_assertion") is True
         rollback_plan_ref = data.get("rollback_plan_ref")
         if not no_mutation and not rollback_plan_ref:
-            errors.append(
-                "rollback_plan_ref is required unless rollback_requirements.no_mutation_assertion is true"
-            )
+            errors.append("rollback_plan_ref is required unless rollback_requirements.no_mutation_assertion is true")
         if rollback_plan_ref:
             errors.extend(
                 _validate_ref(
@@ -620,13 +551,8 @@ def validate_execution_candidate_manifest(data: Any) -> list[str]:
         errors.append("verification_requirements must be a dictionary")
     else:
         if ver_reqs.get("verification_required") is not True:
-            errors.append(
-                "verification_requirements.verification_required must be true"
-            )
-        if (
-            ver_reqs.get("verification_executed") is True
-            or ver_reqs.get("verified") is True
-        ):
+            errors.append("verification_requirements.verification_required must be true")
+        if ver_reqs.get("verification_executed") is True or ver_reqs.get("verified") is True:
             errors.append("manifest must not claim verification has been executed")
 
     # Optional refs validation
@@ -674,25 +600,17 @@ def validate_execution_candidate_manifest(data: Any) -> list[str]:
     else:
         target_profile = scope.get("target_profile")
         if target_profile not in ("generic", "builder", "core"):
-            errors.append(
-                "candidate_scope.target_profile must be generic, builder, or core"
-            )
+            errors.append("candidate_scope.target_profile must be generic, builder, or core")
         if scope.get("core_workbench_coupling") != "NONE":
             errors.append("candidate_scope.core_workbench_coupling must be NONE")
         errors.extend(_validate_deephaven_rejection(scope, "candidate_scope"))
 
         if "command_previews" in scope:
-            errors.extend(
-                _validate_command_previews(
-                    scope.get("command_previews"), "candidate_scope.command_previews"
-                )
-            )
+            errors.extend(_validate_command_previews(scope.get("command_previews"), "candidate_scope.command_previews"))
 
     target_prof_ref = data.get("target_profile_ref")
     if isinstance(target_prof_ref, dict):
-        errors.extend(
-            _validate_deephaven_rejection(target_prof_ref, "target_profile_ref")
-        )
+        errors.extend(_validate_deephaven_rejection(target_prof_ref, "target_profile_ref"))
 
     errors.extend(_validate_manifest_invariants(data, "CANDIDATE_RECORDED_ONLY"))
     errors.extend(_validate_no_active_state_claims(data, ""))
@@ -741,16 +659,9 @@ def validate_execution_candidate_manifest_validation_report(data: Any) -> list[s
         return ["execution candidate manifest validation report must be a JSON object"]
 
     if data.get("kind") != EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND:
-        errors.append(
-            f"kind must be {EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND}"
-        )
-    if (
-        data.get("schema_version")
-        != EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_SCHEMA_VERSION
-    ):
-        errors.append(
-            f"schema_version must be {EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_SCHEMA_VERSION}"
-        )
+        errors.append(f"kind must be {EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND}")
+    if data.get("schema_version") != EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_SCHEMA_VERSION}")
     if data.get("record_state") != "VALIDATION_ONLY":
         errors.append("record_state must be VALIDATION_ONLY")
 
@@ -793,15 +704,9 @@ def validate_execution_candidate_manifest_validation_report_file(
 
 def write_execution_candidate_manifest(data: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json_lib.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    output.write_text(json_lib.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def write_execution_candidate_manifest_validation_report(
-    data: dict[str, Any], output: Path
-) -> None:
+def write_execution_candidate_manifest_validation_report(data: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        json_lib.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    output.write_text(json_lib.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")

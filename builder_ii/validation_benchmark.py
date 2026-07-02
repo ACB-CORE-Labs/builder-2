@@ -25,6 +25,7 @@ VALIDATORS = {
     "builder_ii.approval_record": validate_approval_record,
 }
 
+
 def validate_validation_benchmark(record: Any) -> list[str]:
     errors = []
     if not isinstance(record, dict):
@@ -47,20 +48,27 @@ def validate_validation_benchmark(record: Any) -> list[str]:
         errors.append("artifact_is_authority must be false")
     return errors
 
+
 def generate_mock_artifacts(kind: str, count: int) -> list[dict[str, Any]]:
     if kind == "builder_ii.goose_session_manifest":
         from builder_ii.config import load_settings
         from builder_ii.goose_session import create_goose_session_manifest
+
         settings = load_settings()
-        valid_tpl = create_goose_session_manifest(settings, target_name="builder", agent_profile="patch_planner", runtime_mode="read_only")
+        valid_tpl = create_goose_session_manifest(
+            settings, target_name="builder", agent_profile="patch_planner", runtime_mode="read_only"
+        )
         invalid_tpl = copy.deepcopy(valid_tpl)
         invalid_tpl["kind"] = "wrong"
     elif kind == "builder_ii.goose_readonly_runtime_audit":
         from builder_ii.config import load_settings
         from builder_ii.goose_readonly import create_readonly_runtime_audit
         from builder_ii.goose_session import create_goose_session_manifest
+
         settings = load_settings()
-        manifest = create_goose_session_manifest(settings, target_name="builder", agent_profile="patch_planner", runtime_mode="read_only")
+        manifest = create_goose_session_manifest(
+            settings, target_name="builder", agent_profile="patch_planner", runtime_mode="read_only"
+        )
         valid_tpl = create_readonly_runtime_audit(manifest, manifest_path="manifest.json")
         invalid_tpl = copy.deepcopy(valid_tpl)
         invalid_tpl["kind"] = "wrong"
@@ -83,18 +91,45 @@ def generate_mock_artifacts(kind: str, count: int) -> list[dict[str, Any]]:
             "linked_artifacts_declared": {},
             "expected_audit_artifact": "audit.json",
             "actual_audit_artifact": "actual.json",
-            "timestamps": {"created_at_utc": "2023-10-10T10:10:10Z", "runtime_started_at_utc": "", "runtime_ended_at_utc": ""},
-            "actions_performed": ["validate_goose_session_manifest", "read_explicit_operator_requested_repository_files", "emit_readonly_inspection_audit_artifact"],
-            "allowed_actions": ["validate_goose_session_manifest", "read_explicit_operator_requested_repository_files", "emit_readonly_inspection_audit_artifact"],
+            "timestamps": {
+                "created_at_utc": "2023-10-10T10:10:10Z",
+                "runtime_started_at_utc": "",
+                "runtime_ended_at_utc": "",
+            },
+            "actions_performed": [
+                "validate_goose_session_manifest",
+                "read_explicit_operator_requested_repository_files",
+                "emit_readonly_inspection_audit_artifact",
+            ],
+            "allowed_actions": [
+                "validate_goose_session_manifest",
+                "read_explicit_operator_requested_repository_files",
+                "emit_readonly_inspection_audit_artifact",
+            ],
             "denied_actions": [
-                "start_goose_process", "start_goose_runtime", "inspect_git_status", "read_linked_target_artifacts",
-                "execute_commands", "execute_shell", "write_source_files", "apply_patches", "mutate_memory",
-                "create_commits", "push_refs", "open_pull_requests", "construct_deepagents", "call_models",
-                "source_collection", "web_search", "mcp_execution"
+                "start_goose_process",
+                "start_goose_runtime",
+                "inspect_git_status",
+                "read_linked_target_artifacts",
+                "execute_commands",
+                "execute_shell",
+                "write_source_files",
+                "apply_patches",
+                "mutate_memory",
+                "create_commits",
+                "push_refs",
+                "open_pull_requests",
+                "construct_deepagents",
+                "call_models",
+                "source_collection",
+                "web_search",
+                "mcp_execution",
             ],
             "files_read": ["manifest.json", "file.py"],
             "requested_repository_paths": ["file.py"],
-            "repository_files_read": [{"path": "file.py", "bytes_read": 10, "sha256": "abc", "line_count": 1, "content_recorded": False}],
+            "repository_files_read": [
+                {"path": "file.py", "bytes_read": 10, "sha256": "abc", "line_count": 1, "content_recorded": False}
+            ],
             "repository_file_contents_recorded": False,
             "target_artifacts_read": [],
             "git_status_inspected": False,
@@ -131,33 +166,44 @@ def generate_mock_artifacts(kind: str, count: int) -> list[dict[str, Any]]:
                 "target_artifact_reads": "DISABLED_IN_THIS_CANDIDATE",
                 "git_status_inspection": "DISABLED_IN_THIS_CANDIDATE",
                 "artifact_is_authority": False,
-                "core_workbench_coupling": "NONE"
-            }
+                "core_workbench_coupling": "NONE",
+            },
         }
         invalid_tpl = copy.deepcopy(valid_tpl)
         invalid_tpl["kind"] = "wrong"
     elif kind == "builder_ii.performance_measurement":
         from builder_ii.performance_measurements import create_performance_measurement_record
+
         valid_tpl = create_performance_measurement_record(
-            target="generic", candidate_name="test", metric_name="test", metric_value=1.0, unit="ms",
-            method="test", source_ref="test"
+            target="generic",
+            candidate_name="test",
+            metric_name="test",
+            metric_value=1.0,
+            unit="ms",
+            method="test",
+            source_ref="test",
         )
         invalid_tpl = copy.deepcopy(valid_tpl)
         invalid_tpl["kind"] = "wrong"
     elif kind == "builder_ii.hitl_execution_request":
         from builder_ii.hitl_execution_records import create_hitl_execution_request
+
         valid_tpl = create_hitl_execution_request(
-            target_name="generic", command_proposal_ref="prop", approval_record_ref="app",
-            preflight_record_ref="pre", requested_by="me", requested_at="now",
-            explicit_operator_intent="intent", command_preview="cmd"
+            target_name="generic",
+            command_proposal_ref="prop",
+            approval_record_ref="app",
+            preflight_record_ref="pre",
+            requested_by="me",
+            requested_at="now",
+            explicit_operator_intent="intent",
+            command_preview="cmd",
         )
         invalid_tpl = copy.deepcopy(valid_tpl)
         invalid_tpl["kind"] = "wrong"
     elif kind == "builder_ii.hitl_execution_receipt":
         from builder_ii.hitl_execution_records import create_hitl_execution_receipt
-        valid_tpl = create_hitl_execution_receipt(
-            target_name="generic", request_ref="req"
-        )
+
+        valid_tpl = create_hitl_execution_receipt(target_name="generic", request_ref="req")
         invalid_tpl = copy.deepcopy(valid_tpl)
         invalid_tpl["kind"] = "wrong"
     elif kind == "builder_ii.approval_record":
@@ -165,10 +211,15 @@ def generate_mock_artifacts(kind: str, count: int) -> list[dict[str, Any]]:
         from builder_ii.config import load_settings
         from builder_ii.goose_command_proposal import create_goose_command_proposal
         from builder_ii.goose_session import create_goose_session_manifest
+
         settings = load_settings()
-        manifest = create_goose_session_manifest(settings, target_name="builder", agent_profile="patch_planner", runtime_mode="read_only")
+        manifest = create_goose_session_manifest(
+            settings, target_name="builder", agent_profile="patch_planner", runtime_mode="read_only"
+        )
         proposal = create_goose_command_proposal(manifest, manifest_path="manifest.json", command="echo 1")
-        valid_tpl = create_approval_record(proposal, proposal_path="proposal.json", decision="approved", decided_by="me")
+        valid_tpl = create_approval_record(
+            proposal, proposal_path="proposal.json", decision="approved", decided_by="me"
+        )
         invalid_tpl = copy.deepcopy(valid_tpl)
         invalid_tpl["kind"] = "wrong"
     else:
@@ -181,6 +232,7 @@ def generate_mock_artifacts(kind: str, count: int) -> list[dict[str, Any]]:
         else:
             artifacts.append(copy.deepcopy(valid_tpl))
     return artifacts
+
 
 def benchmark_validator(kind: str, count: int, backend: str = "python") -> dict[str, Any]:
     from builder_ii.rust_validator import validate_via_rust
@@ -241,8 +293,10 @@ def benchmark_validator(kind: str, count: int, backend: str = "python") -> dict[
         "artifact_is_authority": False,
     }
 
+
 VALIDATION_PARITY_REPORT_KIND = "builder_ii.validation_parity_report"
 VALIDATION_PARITY_REPORT_SCHEMA_VERSION = 1
+
 
 def validate_validation_parity_report(record: Any) -> list[str]:
     errors = []
@@ -266,6 +320,7 @@ def validate_validation_parity_report(record: Any) -> list[str]:
         errors.append("artifact_is_authority must be false")
     return errors
 
+
 def generate_parity_report(kind: str, count: int) -> dict[str, Any]:
     from builder_ii.rust_validator import validate_via_rust
 
@@ -286,11 +341,13 @@ def generate_parity_report(kind: str, count: int) -> dict[str, Any]:
         if py_valid == rust_valid and set(py_errors) == set(rust_errors):
             matches += 1
         else:
-            mismatches.append({
-                "case_index": idx,
-                "python_errors": py_errors,
-                "rust_errors": rust_errors,
-            })
+            mismatches.append(
+                {
+                    "case_index": idx,
+                    "python_errors": py_errors,
+                    "rust_errors": rust_errors,
+                }
+            )
 
     return {
         "kind": VALIDATION_PARITY_REPORT_KIND,
@@ -304,4 +361,3 @@ def generate_parity_report(kind: str, count: int) -> dict[str, Any]:
         "rust_promoted": False,
         "artifact_is_authority": False,
     }
-

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
 from builder_ii.operator_golden_path import (
@@ -8,7 +9,6 @@ from builder_ii.operator_golden_path import (
     create_operator_golden_path_report,
     validate_operator_golden_path_report,
 )
-from builder_ii.platform_status_cli import platform_app
 
 
 def test_create_operator_golden_path_report(tmp_path):
@@ -41,11 +41,13 @@ def test_create_operator_golden_path_report(tmp_path):
     errors = validate_operator_golden_path_report(report)
     assert not errors, f"Validation errors: {errors}"
 
+
 def test_validate_operator_golden_path_report_missing_fields(tmp_path):
     report = create_operator_golden_path_report("builder", tmp_path)
     del report["output_dir"]
     errors = validate_operator_golden_path_report(report)
     assert any("missing required field: output_dir" in e for e in errors)
+
 
 def test_validate_operator_golden_path_report_empty_refs(tmp_path):
     report = create_operator_golden_path_report("builder", tmp_path)
@@ -53,11 +55,13 @@ def test_validate_operator_golden_path_report_empty_refs(tmp_path):
     errors = validate_operator_golden_path_report(report)
     assert any("evidence_refs must be a non-empty list" in e for e in errors)
 
+
 def test_validate_operator_golden_path_report_invalid_digest(tmp_path):
     report = create_operator_golden_path_report("builder", tmp_path)
     report["report_digest"] = "bad"
     errors = validate_operator_golden_path_report(report)
     assert "report_digest does not match canonical content" in errors
+
 
 def test_validate_operator_golden_path_report_invalid_governance(tmp_path):
     report = create_operator_golden_path_report("builder", tmp_path)
@@ -65,20 +69,24 @@ def test_validate_operator_golden_path_report_invalid_governance(tmp_path):
     errors = validate_operator_golden_path_report(report)
     assert "governance.artifact_is_authority must be false" in errors
 
+
 def test_golden_path_authority_overclaim_fails(tmp_path):
     report = create_operator_golden_path_report("builder", tmp_path)
     report["grants_authority"] = True
     errors = validate_operator_golden_path_report(report)
     assert any("grants_authority must be false" in e for e in errors)
 
+
 def test_tmp_table_md_does_not_exist():
     assert not Path("tmp_table.md").exists(), "Accidental tmp_table.md must not exist in workspace!"
+
 
 def test_validate_golden_path_rejects_directory(tmp_path):
     runner = CliRunner()
     res = runner.invoke(platform_app, ["validate-golden-path", str(tmp_path)])
     assert res.exit_code != 0
     assert "report file is not a valid file" in res.output
+
 
 def test_operator_golden_path_truthfulness(tmp_path):
     report = create_operator_golden_path_report("builder", tmp_path)
@@ -120,11 +128,14 @@ def test_operator_golden_path_truthfulness(tmp_path):
 
     if report["ledger_status"] == "skipped_missing_evidence":
         has_ledger_entry = any(
-            "ledger" in c["capability"].lower() or "artifact-chain" in c["capability"].lower() or
-            "ledger" in c.get("reason", "").lower() or "artifact-chain" in c.get("reason", "").lower()
+            "ledger" in c["capability"].lower()
+            or "artifact-chain" in c["capability"].lower()
+            or "ledger" in c.get("reason", "").lower()
+            or "artifact-chain" in c.get("reason", "").lower()
             for c in report["skipped_capabilities"]
         )
         assert has_ledger_entry
+
 
 def test_validator_rejects_malformed_report(tmp_path):
     report = create_operator_golden_path_report("builder", tmp_path)
@@ -135,7 +146,9 @@ def test_validator_rejects_malformed_report(tmp_path):
         {"capability": "generic platform identity", "status": "exercised"}
     ]
     errors = validate_operator_golden_path_report(malformed)
-    assert any("truth inflation: capability 'generic platform identity' is in exercised_capabilities" in e for e in errors)
+    assert any(
+        "truth inflation: capability 'generic platform identity' is in exercised_capabilities" in e for e in errors
+    )
 
     # Empty known_gaps
     malformed_gaps = dict(report)

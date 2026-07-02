@@ -22,9 +22,7 @@ from builder_ii.orchestration_plan import (
 
 
 def test_create_default_orchestration_plan() -> None:
-    plan = create_orchestration_plan(
-        target="generic", task="coordinate a governed patch planning flow"
-    )
+    plan = create_orchestration_plan(target="generic", task="coordinate a governed patch planning flow")
 
     assert plan["kind"] == ORCHESTRATION_PLAN_KIND
     assert plan["plan_state"] == "PLANNED_ONLY"
@@ -83,23 +81,16 @@ def test_orchestration_plan_rejects_runtime_escalation() -> None:
 
 
 def test_orchestration_plan_file_validation(tmp_path: Path) -> None:
-    plan = create_orchestration_plan(
-        target="generic", task="validate orchestration file"
-    )
+    plan = create_orchestration_plan(target="generic", task="validate orchestration file")
     output = tmp_path / "orchestration-plan.json"
     output.write_text(dumps_orchestration_plan(plan), encoding="utf-8")
 
     assert validate_orchestration_plan_file(output) == []
-    assert any(
-        "file not found" in error
-        for error in validate_orchestration_plan_file(tmp_path / "missing.json")
-    )
+    assert any("file not found" in error for error in validate_orchestration_plan_file(tmp_path / "missing.json"))
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")
-    assert any(
-        "invalid JSON" in error for error in validate_orchestration_plan_file(bad_json)
-    )
+    assert any("invalid JSON" in error for error in validate_orchestration_plan_file(bad_json))
 
 
 def test_goal2_assignment_and_orchestration_plan_happy_path(tmp_path: Path) -> None:
@@ -111,10 +102,7 @@ def test_goal2_assignment_and_orchestration_plan_happy_path(tmp_path: Path) -> N
     assert assignment["assignment_state"] == "BOUND_ONLY"
     assert assignment["target"] == "generic"
     assert assignment["bindings"]["agent"]["name"] == "patch_planner"
-    assert (
-        assignment["bindings"]["task"]["profile_entry_id"]
-        == "task-profile-planning-contract"
-    )
+    assert assignment["bindings"]["task"]["profile_entry_id"] == "task-profile-planning-contract"
     assert assignment["bindings"]["tools"]["default_policy"] == "denied"
     assert assignment["bindings"]["hitl"]["approval_state"] == "NOT_GRANTED"
     assert assignment["bindings"]["verification"]["verification_status"] == "NOT_RUN"
@@ -163,41 +151,32 @@ def test_goal2_assignment_unknown_profiles_and_policy_refs_fail_closed(
 
     bad_target = copy.deepcopy(assignment)
     bad_target["bindings"]["target"]["name"] = "unknown"
-    assert (
-        "bindings.target.name must be a known target profile"
-        in validate_agent_assignment_plan(bad_target)
-    )
+    assert "bindings.target.name must be a known target profile" in validate_agent_assignment_plan(bad_target)
 
     bad_agent = copy.deepcopy(assignment)
     bad_agent["bindings"]["agent"]["name"] = "runtime_agent"
-    assert (
-        "bindings.agent.name must be a known agent profile"
-        in validate_agent_assignment_plan(bad_agent)
-    )
+    assert "bindings.agent.name must be a known agent profile" in validate_agent_assignment_plan(bad_agent)
 
     bad_task = copy.deepcopy(assignment)
     for ref in bad_task["source_refs"]:
         if ref["role"] == "task_profile":
             ref["entry_id"] = "unknown-task-profile"
-    assert (
-        "source_refs.task_profile.entry_id must be task-profile-planning-contract"
-        in validate_agent_assignment_plan(bad_task)
+    assert "source_refs.task_profile.entry_id must be task-profile-planning-contract" in validate_agent_assignment_plan(
+        bad_task
     )
 
     bad_verification = copy.deepcopy(assignment)
     bad_verification["bindings"]["verification"]["name"] = "unknown_verifier"
-    assert (
-        "bindings.verification.name must be a known verification profile"
-        in validate_agent_assignment_plan(bad_verification)
+    assert "bindings.verification.name must be a known verification profile" in validate_agent_assignment_plan(
+        bad_verification
     )
 
     bad_tool_policy = copy.deepcopy(assignment)
     for ref in bad_tool_policy["source_refs"]:
         if ref["role"] == "tool_policy":
             ref["profile_kind"] = "runtime_tool_policy"
-    assert (
-        "source_refs.tool_policy.profile_kind must be tool_profile"
-        in validate_agent_assignment_plan(bad_tool_policy)
+    assert "source_refs.tool_policy.profile_kind must be tool_profile" in validate_agent_assignment_plan(
+        bad_tool_policy
     )
 
 
@@ -214,9 +193,9 @@ def test_goal2_assignment_digest_mismatch_and_lifecycle_mismatch_fail_closed(
     )
 
     bad_pack = copy.deepcopy(assignment)
-    bad_pack["profile_pack_lifecycle"]["lifecycle_bindings"]["dry_run_sha256"] = (
-        bad_pack["profile_pack_lifecycle"]["manifest_sha256"]
-    )
+    bad_pack["profile_pack_lifecycle"]["lifecycle_bindings"]["dry_run_sha256"] = bad_pack["profile_pack_lifecycle"][
+        "manifest_sha256"
+    ]
     assert (
         "profile_pack_lifecycle.lifecycle_bindings.dry_run_sha256 must match dry_run_sha256"
         in validate_agent_assignment_plan(bad_pack)
@@ -229,16 +208,12 @@ def test_goal2_assignment_model_recommendation_binding_fails_closed(
     assignment = build_goal2_assignment_fixture(tmp_path)["artifacts"]["assignment"]
 
     bad_recommendation = copy.deepcopy(assignment)
-    bad_recommendation["model_routing"]["recommendation"]["recommended_candidates"][0][
-        "model_id"
-    ] = "unknown-model"
+    bad_recommendation["model_routing"]["recommendation"]["recommended_candidates"][0]["model_id"] = "unknown-model"
     errors = validate_agent_assignment_plan(bad_recommendation)
     assert any("model_routing.recommendation invalid" in error for error in errors)
 
     unbound_recommendation = copy.deepcopy(assignment)
-    unbound_recommendation["model_routing"]["recommendation"]["source_policy_ref"][
-        "sha256"
-    ] = "b" * 64
+    unbound_recommendation["model_routing"]["recommendation"]["source_policy_ref"]["sha256"] = "b" * 64
     assert (
         "model routing recommendation must be bound to the model_policy source ref"
         in validate_agent_assignment_plan(unbound_recommendation)
@@ -252,24 +227,15 @@ def test_goal2_assignment_rejects_unknown_kind_and_active_authority_states(
 
     bad_kind = copy.deepcopy(assignment)
     bad_kind["source_refs"][0]["kind"] = "builder_ii.unknown_artifact"
-    assert (
-        "source_refs.target_profile.kind is an unknown artifact kind"
-        in validate_agent_assignment_plan(bad_kind)
-    )
+    assert "source_refs.target_profile.kind is an unknown artifact kind" in validate_agent_assignment_plan(bad_kind)
 
     bad_active = copy.deepcopy(assignment)
     bad_active["bindings"]["hitl"]["approval_state"] = "AUTHORIZED"
     bad_active["governance"]["tool_execution"] = "ENABLED"
     errors = validate_agent_assignment_plan(bad_active)
 
-    assert (
-        "field 'assignment.bindings.hitl.approval_state' claims active authority state 'AUTHORIZED'"
-        in errors
-    )
-    assert (
-        "field 'assignment.governance.tool_execution' claims active authority state 'ENABLED'"
-        in errors
-    )
+    assert "field 'assignment.bindings.hitl.approval_state' claims active authority state 'AUTHORIZED'" in errors
+    assert "field 'assignment.governance.tool_execution' claims active authority state 'ENABLED'" in errors
     assert "governance.tool_execution must be DISABLED" in errors
 
 
@@ -290,10 +256,7 @@ def test_goal2_orchestration_assignment_plan_rejects_authority_escalation(
     assert "executes_tools must be false" in errors
     assert "planned_bindings.verification.verification_status must be NOT_RUN" in errors
     assert "governance.network_calls must be DISABLED" in errors
-    assert (
-        "field 'orchestration_assignment_plan.plan_state' claims active authority state 'EXECUTED'"
-        in errors
-    )
+    assert "field 'orchestration_assignment_plan.plan_state' claims active authority state 'EXECUTED'" in errors
 
 
 def test_goal2_assignment_model_binding_escalation_fails_closed(tmp_path: Path) -> None:
@@ -303,34 +266,24 @@ def test_goal2_assignment_model_binding_escalation_fails_closed(tmp_path: Path) 
     # executes_model = True
     bad_exec = copy.deepcopy(assignment)
     bad_exec["bindings"]["model"]["executes_model"] = True
-    assert (
-        "bindings.model.executes_model must be false"
-        in validate_agent_assignment_plan(bad_exec)
-    )
+    assert "bindings.model.executes_model must be false" in validate_agent_assignment_plan(bad_exec)
 
     # routing_grants_authority = True
     bad_grant = copy.deepcopy(assignment)
     bad_grant["bindings"]["model"]["routing_grants_authority"] = True
-    assert (
-        "bindings.model.routing_grants_authority must be false"
-        in validate_agent_assignment_plan(bad_grant)
-    )
+    assert "bindings.model.routing_grants_authority must be false" in validate_agent_assignment_plan(bad_grant)
 
     # recommendation_state != RECOMMENDATION_ONLY
     bad_state = copy.deepcopy(assignment)
     bad_state["bindings"]["model"]["recommendation_state"] = "AUTHORIZED"
-    assert (
-        "bindings.model.recommendation_state must be RECOMMENDATION_ONLY"
-        in validate_agent_assignment_plan(bad_state)
+    assert "bindings.model.recommendation_state must be RECOMMENDATION_ONLY" in validate_agent_assignment_plan(
+        bad_state
     )
 
     # selected_candidate not a dict
     bad_candidate = copy.deepcopy(assignment)
     bad_candidate["bindings"]["model"]["selected_candidate"] = "not a dict"
-    assert (
-        "bindings.model.selected_candidate must be an object"
-        in validate_agent_assignment_plan(bad_candidate)
-    )
+    assert "bindings.model.selected_candidate must be an object" in validate_agent_assignment_plan(bad_candidate)
 
 
 def test_goal2_assignment_context_binding_escalation_fails_closed(
@@ -342,26 +295,17 @@ def test_goal2_assignment_context_binding_escalation_fails_closed(
     # context_is_proof = True
     bad_proof = copy.deepcopy(assignment)
     bad_proof["bindings"]["context"]["context_is_proof"] = True
-    assert (
-        "bindings.context.context_is_proof must be false"
-        in validate_agent_assignment_plan(bad_proof)
-    )
+    assert "bindings.context.context_is_proof must be false" in validate_agent_assignment_plan(bad_proof)
 
     # source_ref_role != context_pack
     bad_role = copy.deepcopy(assignment)
     bad_role["bindings"]["context"]["source_ref_role"] = "wrong_role"
-    assert (
-        "bindings.context.source_ref_role must be context_pack"
-        in validate_agent_assignment_plan(bad_role)
-    )
+    assert "bindings.context.source_ref_role must be context_pack" in validate_agent_assignment_plan(bad_role)
 
     # target_name mismatch
     bad_target = copy.deepcopy(assignment)
     bad_target["bindings"]["context"]["target_name"] = "wrong_target"
-    assert (
-        "bindings.context.target_name must match assignment target"
-        in validate_agent_assignment_plan(bad_target)
-    )
+    assert "bindings.context.target_name must match assignment target" in validate_agent_assignment_plan(bad_target)
 
 
 def test_validation_report_for_invalid_unknown_malformed_subjects(
@@ -377,10 +321,7 @@ def test_validation_report_for_invalid_unknown_malformed_subjects(
     report = create_orchestration_assignment_validation_report(malformed_subject)
     assert report["valid"] is False
     assert report["status"] == "invalid"
-    assert any(
-        "unknown orchestration assignment artifact kind" in err
-        for err in report["errors"]
-    )
+    assert any("unknown orchestration assignment artifact kind" in err for err in report["errors"])
 
     # Validation report itself must pass validation
     report_errors = validate_orchestration_assignment_validation_report(report)
@@ -388,16 +329,12 @@ def test_validation_report_for_invalid_unknown_malformed_subjects(
 
     # 2. Subject is not a dict
     not_a_dict_subject = "not a dict"
-    report_not_dict = create_orchestration_assignment_validation_report(
-        not_a_dict_subject
-    )
+    report_not_dict = create_orchestration_assignment_validation_report(not_a_dict_subject)
     assert report_not_dict["valid"] is False
     assert report_not_dict["status"] == "invalid"
     assert "subject must be a JSON object" in report_not_dict["errors"]
 
-    report_not_dict_errors = validate_orchestration_assignment_validation_report(
-        report_not_dict
-    )
+    report_not_dict_errors = validate_orchestration_assignment_validation_report(report_not_dict)
     assert report_not_dict_errors == []
 
     # 3. Subject validation raises an exception
@@ -411,11 +348,7 @@ def test_validation_report_for_invalid_unknown_malformed_subjects(
     report_crash = create_orchestration_assignment_validation_report(crashing_subject)
     assert report_crash["valid"] is False
     assert report_crash["status"] == "invalid"
-    assert any(
-        "subject validation raised: mock crash" in err for err in report_crash["errors"]
-    )
+    assert any("subject validation raised: mock crash" in err for err in report_crash["errors"])
 
-    report_crash_errors = validate_orchestration_assignment_validation_report(
-        report_crash
-    )
+    report_crash_errors = validate_orchestration_assignment_validation_report(report_crash)
     assert report_crash_errors == []

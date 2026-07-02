@@ -51,7 +51,9 @@ def _artifact_fixtures(tmp_path: Path) -> dict[str, Path]:
         command="echo test",
         risk_level="low",
     )
-    approval = create_approval_record(proposal, proposal_path="proposal.json", decision="approved", decided_by="operator")
+    approval = create_approval_record(
+        proposal, proposal_path="proposal.json", decision="approved", decided_by="operator"
+    )
     preflight = create_preflight_record(
         proposal,
         approval,
@@ -155,7 +157,15 @@ def test_bind_helper_stores_relative_paths(tmp_path: Path) -> None:
         verification_path=paths["verification.json"].resolve(),
     )
 
-    for slot in ("proposal_ref", "approval_ref", "preflight_ref", "request_ref", "receipt_ref", "postflight_ref", "verification_ref"):
+    for slot in (
+        "proposal_ref",
+        "approval_ref",
+        "preflight_ref",
+        "request_ref",
+        "receipt_ref",
+        "postflight_ref",
+        "verification_ref",
+    ):
         path = binding[slot]["path"]
         assert path == Path(path).as_posix()
         assert not Path(path).is_absolute()
@@ -184,11 +194,17 @@ def test_validation_failures_cover_slots_and_governance(tmp_path: Path) -> None:
 
     wrong_kind = json_lib.loads(json_lib.dumps(binding))
     wrong_kind["request_ref"]["kind"] = "builder_ii.goose_session_manifest"
-    assert any("request_ref.kind must be builder_ii.hitl_execution_request" in error for error in validate_hitl_chain_binding(wrong_kind))
+    assert any(
+        "request_ref.kind must be builder_ii.hitl_execution_request" in error
+        for error in validate_hitl_chain_binding(wrong_kind)
+    )
 
     bad_sha = json_lib.loads(json_lib.dumps(binding))
     bad_sha["receipt_ref"]["sha256"] = "abc"
-    assert any("receipt_ref.sha256 must be a 64-character hex digest" in error for error in validate_hitl_chain_binding(bad_sha))
+    assert any(
+        "receipt_ref.sha256 must be a 64-character hex digest" in error
+        for error in validate_hitl_chain_binding(bad_sha)
+    )
 
     unsafe_path = json_lib.loads(json_lib.dumps(binding))
     unsafe_path["verification_ref"]["path"] = "../escape.json"
@@ -196,7 +212,10 @@ def test_validation_failures_cover_slots_and_governance(tmp_path: Path) -> None:
 
     runtime_enabled = json_lib.loads(json_lib.dumps(binding))
     runtime_enabled["governance"]["runtime_execution"] = "ENABLED"
-    assert any("governance.runtime_execution must be DISABLED" in error for error in validate_hitl_chain_binding(runtime_enabled))
+    assert any(
+        "governance.runtime_execution must be DISABLED" in error
+        for error in validate_hitl_chain_binding(runtime_enabled)
+    )
 
     absent_top_level = dict(binding)
     assert validate_hitl_chain_binding(absent_top_level) == []
@@ -207,7 +226,10 @@ def test_validation_failures_cover_slots_and_governance(tmp_path: Path) -> None:
 
     present_top_level = dict(binding)
     present_top_level["artifact_is_authority"] = True
-    assert any("artifact_is_authority must be false when present" in error for error in validate_hitl_chain_binding(present_top_level))
+    assert any(
+        "artifact_is_authority must be false when present" in error
+        for error in validate_hitl_chain_binding(present_top_level)
+    )
 
 
 def test_binding_helper_rejects_absolute_and_traversal_paths(tmp_path: Path) -> None:
@@ -282,13 +304,23 @@ def test_symlink_escape_fails(tmp_path: Path) -> None:
         "kind": HITL_CHAIN_BINDING_KIND,
         "schema_version": 1,
         "chain_state": "BOUND_ONLY",
-        "proposal_ref": create_artifact_ref(kind="builder_ii.goose_command_proposal", path="escape.json", sha256="f" * 64),
+        "proposal_ref": create_artifact_ref(
+            kind="builder_ii.goose_command_proposal", path="escape.json", sha256="f" * 64
+        ),
         "approval_ref": create_artifact_ref(kind="builder_ii.approval_record", path="escape.json", sha256="f" * 64),
         "preflight_ref": create_artifact_ref(kind="builder_ii.preflight_record", path="escape.json", sha256="f" * 64),
-        "request_ref": create_artifact_ref(kind="builder_ii.hitl_execution_request", path="escape.json", sha256="f" * 64),
-        "receipt_ref": create_artifact_ref(kind="builder_ii.hitl_execution_receipt", path="escape.json", sha256="f" * 64),
-        "postflight_ref": create_artifact_ref(kind="builder_ii.execution_postflight_record", path="escape.json", sha256="f" * 64),
-        "verification_ref": create_artifact_ref(kind="builder_ii.execution_verification_record", path="escape.json", sha256="f" * 64),
+        "request_ref": create_artifact_ref(
+            kind="builder_ii.hitl_execution_request", path="escape.json", sha256="f" * 64
+        ),
+        "receipt_ref": create_artifact_ref(
+            kind="builder_ii.hitl_execution_receipt", path="escape.json", sha256="f" * 64
+        ),
+        "postflight_ref": create_artifact_ref(
+            kind="builder_ii.execution_postflight_record", path="escape.json", sha256="f" * 64
+        ),
+        "verification_ref": create_artifact_ref(
+            kind="builder_ii.execution_verification_record", path="escape.json", sha256="f" * 64
+        ),
         "governance": {
             "capability_state": "hitl_chain_binding",
             "runtime_execution": "DISABLED",

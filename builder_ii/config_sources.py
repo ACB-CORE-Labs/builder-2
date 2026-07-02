@@ -248,11 +248,11 @@ def _source_lookup(
         ("dotenv", dotenv, str(dotenv_path)),
     ):
         if primary_env and primary_env in source_map and _clean_scalar(source_map[primary_env]) != "":
-            ignored = [alias for alias in legacy_env_aliases if alias in source_map and _clean_scalar(source_map[alias]) != ""]
+            ignored = [
+                alias for alias in legacy_env_aliases if alias in source_map and _clean_scalar(source_map[alias]) != ""
+            ]
             if ignored:
-                warnings.append(
-                    f"{primary_env} overrides legacy alias(es) {', '.join(ignored)} in {source_kind}"
-                )
+                warnings.append(f"{primary_env} overrides legacy alias(es) {', '.join(ignored)} in {source_kind}")
             return (
                 source_map[primary_env],
                 SourceRef(source_kind, primary_env, source_path),
@@ -383,9 +383,7 @@ def _validate_resolved_fields(fields: dict[str, ResolvedValue]) -> tuple[list[st
     if str(fields["runtime_mode"].value) not in _ALLOWED_RUNTIME_MODES:
         errors.append(f"runtime_mode must be one of {sorted(_ALLOWED_RUNTIME_MODES)}")
     if str(fields["goose_skills_destination_policy"].value) not in _ALLOWED_SKILLS_POLICIES:
-        errors.append(
-            f"goose_skills_destination_policy must be one of {sorted(_ALLOWED_SKILLS_POLICIES)}"
-        )
+        errors.append(f"goose_skills_destination_policy must be one of {sorted(_ALLOWED_SKILLS_POLICIES)}")
     if str(fields["deepagents_mode"].value) not in _ALLOWED_DEEPAGENTS_MODES:
         errors.append(f"deepagents_mode must be one of {sorted(_ALLOWED_DEEPAGENTS_MODES)}")
 
@@ -414,9 +412,7 @@ def _validate_resolved_fields(fields: dict[str, ResolvedValue]) -> tuple[list[st
                 "allowed by built-in artifact policy"
             )
         elif allow_inside:
-            warnings.append(
-                "platform_artifact_root is inside target_repo by explicit path policy opt-in"
-            )
+            warnings.append("platform_artifact_root is inside target_repo by explicit path policy opt-in")
         else:
             errors.append(
                 "platform_artifact_root is inside target_repo outside .builder/artifacts; "

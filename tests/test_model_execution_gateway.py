@@ -5,8 +5,8 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from builder_ii.cli.model_cli import model_app
 from builder_ii.config import Settings
-from builder_ii.model_cli import model_app
 from builder_ii.model_client_registry import (
     create_model_client_registry,
 )
@@ -47,9 +47,11 @@ def mock_settings() -> Settings:
         allow_cloud_models=False,
     )
 
+
 @pytest.fixture
 def standard_registry() -> dict:
     return create_model_client_registry()
+
 
 @pytest.fixture
 def standard_execution_policy() -> dict:
@@ -57,10 +59,11 @@ def standard_execution_policy() -> dict:
         "kind": "builder_ii.model_routing_recommendation",
         "recommended_candidates": [
             {"model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"},
-            {"model_id": "gpt-4o-stub"}
-        ]
+            {"model_id": "gpt-4o-stub"},
+        ],
     }
     return create_model_execution_policy(dummy_rec, max_tokens=16384)
+
 
 def test_secret_scanner() -> None:
     # Standard prompt is clean
@@ -70,6 +73,7 @@ def test_secret_scanner() -> None:
     assert len(scan_for_secrets("My OpenAI key is sk-1234567890abcdef1234567890abcdef")) > 0
     assert len(scan_for_secrets("Authorization: Bearer 1234567890abcdef")) > 0
     assert len(scan_for_secrets("token = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789'")) > 0
+
 
 def test_model_execution_fails_on_disabled_model(
     mock_settings, standard_registry, standard_execution_policy, tmp_path
@@ -86,6 +90,7 @@ def test_model_execution_fails_on_disabled_model(
             receipt_path=receipt_path,
         )
     assert "disabled" in str(exc.value)
+
 
 def test_model_execution_fails_on_unauthorized_cloud(
     mock_settings, standard_registry, standard_execution_policy, tmp_path
@@ -107,6 +112,7 @@ def test_model_execution_fails_on_unauthorized_cloud(
             receipt_path=receipt_path,
         )
     assert "disabled by environment configuration" in str(exc.value)
+
 
 def test_model_execution_succeeds_on_authorized_cloud(
     mock_settings, standard_registry, standard_execution_policy, tmp_path
@@ -135,6 +141,7 @@ def test_model_execution_succeeds_on_authorized_cloud(
     assert validate_model_call_envelope(envelope) == []
     assert validate_model_call_receipt(receipt) == []
 
+
 def test_model_execution_fails_on_local_offline_network(
     mock_settings, standard_registry, standard_execution_policy, tmp_path
 ) -> None:
@@ -155,6 +162,7 @@ def test_model_execution_fails_on_local_offline_network(
         )
     assert "cannot perform network calls" in str(exc.value)
 
+
 def test_model_execution_fails_on_max_tokens_registry_limit(
     mock_settings, standard_registry, standard_execution_policy, tmp_path
 ) -> None:
@@ -171,6 +179,7 @@ def test_model_execution_fails_on_max_tokens_registry_limit(
             receipt_path=receipt_path,
         )
     assert "exceeds client registry limit" in str(exc.value)
+
 
 def test_model_execution_fails_on_max_tokens_policy_limit(
     mock_settings, standard_registry, standard_execution_policy, tmp_path
@@ -190,6 +199,7 @@ def test_model_execution_fails_on_max_tokens_policy_limit(
         )
     assert "exceeds execution policy limit" in str(exc.value)
 
+
 def test_model_execution_fails_on_unauthorized_model_in_policy(
     mock_settings, standard_registry, standard_execution_policy, tmp_path
 ) -> None:
@@ -207,6 +217,7 @@ def test_model_execution_fails_on_unauthorized_model_in_policy(
         )
     assert "not authorized by the execution policy" in str(exc.value)
 
+
 def test_cli_commands(mock_settings, standard_registry, standard_execution_policy, tmp_path) -> None:
     runner = CliRunner()
 
@@ -222,58 +233,88 @@ def test_cli_commands(mock_settings, standard_registry, standard_execution_polic
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"
 
-    with patch("builder_ii.model_cli.load_settings") as mock_load:
+    with (
+        patch("builder_ii.cli.model_cli.load_settings") as mock_load_1,
+        patch("builder_ii.model_cli.load_settings") as mock_load_2,
+    ):
         # Recreate settings to enable cloud
         settings_mock = Settings(**{**mock_settings.__dict__, "allow_cloud_models": True})
-        mock_load.return_value = settings_mock
+        mock_load_1.return_value = settings_mock
+        mock_load_2.return_value = settings_mock
 
         # Call requires session-id
-        result_call_no_session = runner.invoke(model_app, [
-            "call",
-            "--model", "gpt-4o-stub",
-            "--prompt", "What is the capital of France?",
-            "--registry", str(reg_path),
-            "--execution-policy", str(pol_path),
-            "--output-envelope", str(envelope_path),
-            "--output-receipt", str(receipt_path)
-        ])
+        result_call_no_session = runner.invoke(
+            model_app,
+            [
+                "call",
+                "--model",
+                "gpt-4o-stub",
+                "--prompt",
+                "What is the capital of France?",
+                "--registry",
+                str(reg_path),
+                "--execution-policy",
+                str(pol_path),
+                "--output-envelope",
+                str(envelope_path),
+                "--output-receipt",
+                str(receipt_path),
+            ],
+        )
         assert result_call_no_session.exit_code != 0
         assert "Must specify --session-id" in result_call_no_session.output
 
         # Call with session-id
-        result = runner.invoke(model_app, [
-            "call",
-            "--model", "gpt-4o-stub",
-            "--prompt", "What is the capital of France?",
-            "--registry", str(reg_path),
-            "--execution-policy", str(pol_path),
-            "--session-id", "test-session",
-            "--output-envelope", str(envelope_path),
-            "--output-receipt", str(receipt_path)
-        ])
+        result = runner.invoke(
+            model_app,
+            [
+                "call",
+                "--model",
+                "gpt-4o-stub",
+                "--prompt",
+                "What is the capital of France?",
+                "--registry",
+                str(reg_path),
+                "--execution-policy",
+                str(pol_path),
+                "--session-id",
+                "test-session",
+                "--output-envelope",
+                str(envelope_path),
+                "--output-receipt",
+                str(receipt_path),
+            ],
+        )
         assert result.exit_code == 0, result.output
 
         # Standalone call
-        result_standalone = runner.invoke(model_app, [
-            "standalone-call",
-            "--model", "gpt-4o-stub",
-            "--prompt", "What is the capital of France?",
-            "--registry", str(reg_path),
-            "--execution-policy", str(pol_path),
-            "--output-envelope", str(envelope_path),
-            "--output-receipt", str(receipt_path)
-        ])
+        result_standalone = runner.invoke(
+            model_app,
+            [
+                "standalone-call",
+                "--model",
+                "gpt-4o-stub",
+                "--prompt",
+                "What is the capital of France?",
+                "--registry",
+                str(reg_path),
+                "--execution-policy",
+                str(pol_path),
+                "--output-envelope",
+                str(envelope_path),
+                "--output-receipt",
+                str(receipt_path),
+            ],
+        )
         assert result_standalone.exit_code == 0, result_standalone.output
 
         # Validate receipt command
-        result_val = runner.invoke(model_app, [
-            "validate-receipt",
-            str(receipt_path)
-        ])
+        result_val = runner.invoke(model_app, ["validate-receipt", str(receipt_path)])
         assert result_val.exit_code == 0, result_val.output
 
 
 # ── Network semantics ─────────────────────────────────────────────────────────
+
 
 def test_envelope_network_semantics_local_network(
     mock_settings, standard_registry, standard_execution_policy, tmp_path
@@ -282,6 +323,7 @@ def test_envelope_network_semantics_local_network(
     from unittest.mock import patch as _patch
 
     from builder_ii.direct_chat import DirectChatResult
+
     stub_result = DirectChatResult(ok=True, content="Paris", endpoint="http://x", model_id="m")
     gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
     envelope_path = tmp_path / "envelope.json"
@@ -330,15 +372,19 @@ def test_envelope_network_semantics_cloud_external(
 
 # ── Execution policy authority claims ─────────────────────────────────────────
 
+
 def test_execution_policy_does_not_claim_grants_authority(standard_execution_policy) -> None:
     assert standard_execution_policy.get("grants_authority") is False
+
 
 def test_execution_policy_artifact_is_not_authority(standard_execution_policy) -> None:
     gov = standard_execution_policy.get("governance", {})
     assert gov.get("artifact_is_authority") is False
 
+
 def test_execution_policy_requires_human_promotion(standard_execution_policy) -> None:
     assert standard_execution_policy.get("requires_human_promotion_for_execution") is True
+
 
 def test_execution_policy_governance_model_execution_is_under_envelope(standard_execution_policy) -> None:
     gov = standard_execution_policy.get("governance", {})

@@ -49,11 +49,7 @@ def _normalize_text(value: str | None) -> str:
 
 
 def _normalize_tags(values: list[str] | tuple[str, ...] | None) -> list[str]:
-    normalized = {
-        str(value).strip().lower()
-        for value in (values or [])
-        if str(value).strip()
-    }
+    normalized = {str(value).strip().lower() for value in (values or []) if str(value).strip()}
     return sorted(normalized)
 
 
@@ -196,17 +192,11 @@ def create_memory_index_entry(atom: dict[str, Any], *, path: str | Path) -> dict
 
 
 def _state_counts(entries: list[dict[str, Any]]) -> dict[str, int]:
-    return {
-        state: sum(1 for entry in entries if entry.get("atom_state") == state)
-        for state in ATOM_STATES
-    }
+    return {state: sum(1 for entry in entries if entry.get("atom_state") == state) for state in ATOM_STATES}
 
 
 def _review_counts(entries: list[dict[str, Any]]) -> dict[str, int]:
-    return {
-        state: sum(1 for entry in entries if entry.get("review_state") == state)
-        for state in REVIEW_STATES
-    }
+    return {state: sum(1 for entry in entries if entry.get("review_state") == state) for state in REVIEW_STATES}
 
 
 def _tag_counts(entries: list[dict[str, Any]]) -> dict[str, int]:
@@ -253,10 +243,14 @@ def create_memory_index(
         "review_counts": _review_counts(ordered_entries),
         "tag_counts": _tag_counts(ordered_entries),
         "atom_refs": [entry["atom_ref"] for entry in ordered_entries],
-        "source_artifact_refs": _sorted_refs([entry["artifact_ref"] for entry in ordered_entries if "artifact_ref" in entry]),
+        "source_artifact_refs": _sorted_refs(
+            [entry["artifact_ref"] for entry in ordered_entries if "artifact_ref" in entry]
+        ),
         "deterministic_sort_key": "atom_ref.sha256_atom_id",
         "stale_atom_ids": [entry["atom_id"] for entry in ordered_entries if entry.get("atom_state") == "STALE"],
-        "superseded_atom_ids": [entry["atom_id"] for entry in ordered_entries if entry.get("atom_state") == "SUPERSEDED"],
+        "superseded_atom_ids": [
+            entry["atom_id"] for entry in ordered_entries if entry.get("atom_state") == "SUPERSEDED"
+        ],
         "search_keys": ["tags", "task", "summary_text", "artifact_kind"],
         "artifact_is_authority": False,
         "grants_authority": False,
@@ -469,9 +463,19 @@ def create_memory_reconstruction(
         },
         "selected_atom_refs": selected_atom_refs,
         "excluded_atom_refs": list(search_result.get("excluded_atom_refs", [])),
-        "source_refs": _sorted_refs([dict(match["artifact_ref"]) for match in search_result.get("matches", []) if "artifact_ref" in match]),
-        "stale_warnings": [f"{match.get('atom_id', '')} is marked STALE" for match in search_result.get("matches", []) if match.get("atom_state") == "STALE"],
-        "supersession_warnings": [f"{item['ref']['name']} is superseded" for item in search_result.get("excluded_atom_refs", []) if "superseded" in item.get("reason", "")],
+        "source_refs": _sorted_refs(
+            [dict(match["artifact_ref"]) for match in search_result.get("matches", []) if "artifact_ref" in match]
+        ),
+        "stale_warnings": [
+            f"{match.get('atom_id', '')} is marked STALE"
+            for match in search_result.get("matches", [])
+            if match.get("atom_state") == "STALE"
+        ],
+        "supersession_warnings": [
+            f"{item['ref']['name']} is superseded"
+            for item in search_result.get("excluded_atom_refs", [])
+            if "superseded" in item.get("reason", "")
+        ],
         "no_source_truth_inflation": True,
         "deterministic_ordering_declaration": "matches are sorted by score descending, then atom_id ascending",
         "reconstructed_context": context,
@@ -532,7 +536,14 @@ def _validate_governance(value: Any, *, capability_state: str) -> list[str]:
             errors.append(f"governance.{key} must be DISABLED")
     if value.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
         errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
-    for key in ("hidden_memory", "model_summary_is_authority", "artifact_is_authority", "grants_runtime_authority", "grants_action_authority", "grants_authority"):
+    for key in (
+        "hidden_memory",
+        "model_summary_is_authority",
+        "artifact_is_authority",
+        "grants_runtime_authority",
+        "grants_action_authority",
+        "grants_authority",
+    ):
         if value.get(key) is not False:
             errors.append(f"governance.{key} must be false")
     if value.get("core_workbench_coupling") != "NONE":
@@ -700,7 +711,9 @@ def validate_memory_index(data: Any) -> list[str]:
                 continue
             if not isinstance(entry.get("atom_id"), str) or not entry["atom_id"]:
                 errors.append(f"{prefix}.atom_id must be a non-empty string")
-            errors.extend(_validate_ref(entry.get("atom_ref"), field=f"{prefix}.atom_ref", expected_kind=MEMORY_ATOM_KIND))
+            errors.extend(
+                _validate_ref(entry.get("atom_ref"), field=f"{prefix}.atom_ref", expected_kind=MEMORY_ATOM_KIND)
+            )
             errors.extend(_validate_ref(entry.get("artifact_ref"), field=f"{prefix}.artifact_ref"))
             ref = entry.get("atom_ref", {})
             ref_key = (str(ref.get("sha256", "")), str(ref.get("path", "")))
@@ -845,9 +858,19 @@ def validate_memory_search_result(data: Any) -> list[str]:
                 errors.append(f"{prefix}.rank must be contiguous starting at 1")
             if not isinstance(match.get("score"), int) or match["score"] <= 0:
                 errors.append(f"{prefix}.score must be a positive integer")
-            errors.extend(_validate_ref(match.get("atom_ref"), field=f"{prefix}.atom_ref", expected_kind=MEMORY_ATOM_KIND))
+            errors.extend(
+                _validate_ref(match.get("atom_ref"), field=f"{prefix}.atom_ref", expected_kind=MEMORY_ATOM_KIND)
+            )
             errors.extend(_validate_ref(match.get("artifact_ref"), field=f"{prefix}.artifact_ref"))
-            for field in ("atom_id", "artifact_kind", "task", "claim_boundary", "review_state", "atom_state", "source_truth_state"):
+            for field in (
+                "atom_id",
+                "artifact_kind",
+                "task",
+                "claim_boundary",
+                "review_state",
+                "atom_state",
+                "source_truth_state",
+            ):
                 if not isinstance(match.get(field), str) or not match[field]:
                     errors.append(f"{prefix}.{field} must be a non-empty string")
             if not isinstance(match.get("summary_text"), str):
@@ -956,9 +979,19 @@ def validate_memory_reconstruction(data: Any) -> list[str]:
                 continue
             if item.get("order") != index:
                 errors.append(f"{prefix}.order must be contiguous starting at 1")
-            errors.extend(_validate_ref(item.get("atom_ref"), field=f"{prefix}.atom_ref", expected_kind=MEMORY_ATOM_KIND))
+            errors.extend(
+                _validate_ref(item.get("atom_ref"), field=f"{prefix}.atom_ref", expected_kind=MEMORY_ATOM_KIND)
+            )
             errors.extend(_validate_ref(item.get("artifact_ref"), field=f"{prefix}.artifact_ref"))
-            for field in ("atom_id", "artifact_kind", "task", "claim_boundary", "review_state", "atom_state", "source_truth_state"):
+            for field in (
+                "atom_id",
+                "artifact_kind",
+                "task",
+                "claim_boundary",
+                "review_state",
+                "atom_state",
+                "source_truth_state",
+            ):
                 if not isinstance(item.get(field), str) or not item[field]:
                     errors.append(f"{prefix}.{field} must be a non-empty string")
             if not isinstance(item.get("summary_text"), str):
@@ -984,8 +1017,13 @@ def validate_memory_reconstruction(data: Any) -> list[str]:
     if data.get("no_source_truth_inflation") is not True:
         errors.append("no_source_truth_inflation must be true")
 
-    if data.get("deterministic_ordering_declaration") != "matches are sorted by score descending, then atom_id ascending":
-        errors.append("deterministic_ordering_declaration must be 'matches are sorted by score descending, then atom_id ascending'")
+    if (
+        data.get("deterministic_ordering_declaration")
+        != "matches are sorted by score descending, then atom_id ascending"
+    ):
+        errors.append(
+            "deterministic_ordering_declaration must be 'matches are sorted by score descending, then atom_id ascending'"
+        )
 
     errors.extend(_validate_string_list(data.get("warnings"), field="warnings"))
     errors.extend(_validate_string_list(data.get("known_gaps"), field="known_gaps"))

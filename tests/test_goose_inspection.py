@@ -2,10 +2,10 @@ import hashlib
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.goose_cli import goose_app
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
-from builder_ii.goose_cli import goose_app
 from builder_ii.goose_inspection import (
     create_readonly_inspection_audit,
     create_readonly_inspection_audit_from_manifest_file,
@@ -193,7 +193,9 @@ def test_validate_rejects_runtime_authority(tmp_path: Path) -> None:
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:
-    assert any("file not found" in error for error in validate_readonly_inspection_audit_file(tmp_path / "missing.json"))
+    assert any(
+        "file not found" in error for error in validate_readonly_inspection_audit_file(tmp_path / "missing.json")
+    )
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")
@@ -201,7 +203,9 @@ def test_validate_file_errors(tmp_path: Path) -> None:
 
     not_object = tmp_path / "array.json"
     not_object.write_text("[]", encoding="utf-8")
-    assert "Goose read-only inspection audit must be a JSON object" in validate_readonly_inspection_audit_file(not_object)
+    assert "Goose read-only inspection audit must be a JSON object" in validate_readonly_inspection_audit_file(
+        not_object
+    )
 
 
 def test_cli_inspect_readonly_stdout(tmp_path: Path) -> None:

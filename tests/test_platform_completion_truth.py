@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
 from builder_ii.command_authority import (
@@ -23,7 +24,6 @@ from builder_ii.platform_completion_audit import (
     validate_completion_matrix,
     validate_r1_config_onboarding_mapping,
 )
-from builder_ii.platform_status_cli import platform_app
 
 runner = CliRunner()
 
@@ -69,7 +69,10 @@ def test_r1_3a_matrix_state_changes_are_scoped() -> None:
     # B2 verifies rollback execution and patch apply
     # assert by_capability["rollback execution"].state != OPERATIONALLY_VERIFIED
     assert by_capability["HITL-approved verification execution"].state == ("OPERATIONALLY" + "_VERIFIED")
-    assert any("platform_status and docs_audit" in blocker for blocker in by_capability["HITL-approved verification execution"].blockers)
+    assert any(
+        "platform_status and docs_audit" in blocker
+        for blocker in by_capability["HITL-approved verification execution"].blockers
+    )
     assert by_capability["model registry"].state == OPERATIONALLY_VERIFIED
 
 
@@ -155,7 +158,9 @@ def test_matrix_rendering_is_json_safe() -> None:
     decoded = json.loads(encoded)
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
-    assert decoded["summary"]["operationally_verified_count"] == 15  # B1.5 promoted bounded verification, postflight, and command authority gates, with patch application/rollback unpromoted
+    assert (
+        decoded["summary"]["operationally_verified_count"] == 15
+    )  # B1.5 promoted bounded verification, postflight, and command authority gates, with patch application/rollback unpromoted
 
 
 def test_matrix_exposes_sharper_assurance_states() -> None:
@@ -168,6 +173,7 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     assert rows["governed read-only runtime"]["assurance_state"] == "READ_ONLY_RUNTIME_VERIFIED"
     assert rows["CORE demo loop"]["assurance_state"] == "DEMO_ONLY_VERIFIED"
     assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+
 
 def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()
@@ -191,6 +197,8 @@ def test_builder_platform_status_cli_is_honest() -> None:
     assert "passive-foundation-complete" in result.output
     assert "operationally incomplete" in result.output
     assert "B8 deferred; B9 complete" in result.output
+
+
 def test_next_sequence_rejects_r0_b5() -> None:
     # Tests must reject R0 -> B5 and R1 -> B1 as the current next sequence
     summary = render_human_summary()

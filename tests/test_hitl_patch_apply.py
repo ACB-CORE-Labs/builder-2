@@ -24,6 +24,7 @@ def test_validate_patch_apply_receipt():
     errors = validate_patch_apply_receipt(receipt)
     assert not errors
 
+
 @patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])
 def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
     repo = tmp_path / "repo"
@@ -47,6 +48,7 @@ def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
 
     with pytest.raises(ValueError, match="Target repository working tree is not clean"):
         apply_hitl_patch(prop_path, approval_path, vr_path, tmp_path / "out")
+
 
 @patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])
 def test_apply_hitl_patch_rejects_digest_mismatch(mock_validate, tmp_path: Path):

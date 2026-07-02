@@ -19,6 +19,7 @@ All themes expose the same 8 semantic token names:
 Only add tokens here when a semantic gap genuinely exists.
 Do not add purely decorative colours.
 """
+
 from __future__ import annotations
 
 import os
@@ -27,13 +28,14 @@ from typing import TypedDict
 
 class Palette(TypedDict):
     """The 8 semantic colour tokens every theme must supply."""
-    passX: str   # 'pass' is a reserved keyword; key stored as 'pass' in dict
-    warn:  str
-    fail:  str
-    hint:  str
+
+    passX: str  # 'pass' is a reserved keyword; key stored as 'pass' in dict
+    warn: str
+    fail: str
+    hint: str
     active: str
-    dim:   str
-    bold:  str
+    dim: str
+    bold: str
     accent: str
 
 
@@ -41,13 +43,13 @@ class Palette(TypedDict):
 # Default theme  — original slate / indigo / sky
 # ---------------------------------------------------------------------------
 _DEFAULT: dict[str, str] = {
-    "pass":   "#3fb950",
-    "warn":   "#d29922",
-    "fail":   "#f85149",
-    "hint":   "#8b949e",
+    "pass": "#3fb950",
+    "warn": "#d29922",
+    "fail": "#f85149",
+    "hint": "#8b949e",
     "active": "#58a6ff",
-    "dim":    "#484f58",
-    "bold":   "#c9d1d9",
+    "dim": "#484f58",
+    "bold": "#c9d1d9",
     "accent": "#d2a8ff",
 }
 
@@ -86,28 +88,28 @@ _DEFAULT: dict[str, str] = {
 #     cross-cultural convention we should not override.
 # ---------------------------------------------------------------------------
 _CHARGERS: dict[str, str] = {
-    "pass":   "#FFC20E",   # Bolt Gold (success / lightning bolts)
-    "warn":   "#FFC20E",   # Bolt Gold
-    "fail":   "#F85149",   # Red
-    "hint":   "#80CFFF",   # Light Blue (secondary text on navy)
-    "active": "#FFFFFF",   # White (active elements)
-    "dim":    "#0080C6",   # Powder Blue (borders / inactive surfaces)
-    "bold":   "#FFFFFF",   # White (primary text)
-    "accent": "#FFC20E",   # Bolt Gold
+    "pass": "#FFC20E",  # Bolt Gold (success / lightning bolts)
+    "warn": "#FFC20E",  # Bolt Gold
+    "fail": "#F85149",  # Red
+    "hint": "#80CFFF",  # Light Blue (secondary text on navy)
+    "active": "#FFFFFF",  # White (active elements)
+    "dim": "#0080C6",  # Powder Blue (borders / inactive surfaces)
+    "bold": "#FFFFFF",  # White (primary text)
+    "accent": "#FFC20E",  # Bolt Gold
     # Extended tokens available via theme_extras() only:
-    "_bg":          "#0080C6",  # Powder Blue app background
-    "_panel":       "#002244",  # Navy panels
+    "_bg": "#0080C6",  # Powder Blue app background
+    "_panel": "#002244",  # Navy panels
     "_panel_light": "#003366",  # Lighter navy headers/footers
-    "_border":      "#0080C6",  # Powder Blue panel border
-    "_selected":    "#0080C6",  # Powder Blue selection highlight
-    "_hover":       "#004080",  # Navy hover state
+    "_border": "#0080C6",  # Powder Blue panel border
+    "_selected": "#0080C6",  # Powder Blue selection highlight
+    "_hover": "#004080",  # Navy hover state
 }
 
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 _REGISTRY: dict[str, dict[str, str]] = {
-    "default":  _DEFAULT,
+    "default": _DEFAULT,
     "chargers": _CHARGERS,
 }
 
@@ -159,10 +161,12 @@ def list_themes() -> list[str]:
 # Rich Console factory
 # ---------------------------------------------------------------------------
 
+
 def make_console(**kwargs):
     """Return a Rich Console instance. Theme is ambient (applied via _C tokens)."""
     try:
         from rich.console import Console
+
         return Console(highlight=False, **kwargs)
     except ImportError as exc:
         raise ImportError("rich is required for builder-II TUI") from exc

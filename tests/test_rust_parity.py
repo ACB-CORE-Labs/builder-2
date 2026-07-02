@@ -12,6 +12,7 @@ def test_rust_binary_or_fail_closed_python_fallback_exists() -> None:
     assert binary is not None or "kind must be builder_ii.goose_session_manifest" in errors
     assert valid is False
 
+
 @pytest.mark.parametrize(
     "kind",
     [
@@ -32,5 +33,9 @@ def test_python_rust_parity(kind: str) -> None:
         rust_valid, rust_errors = validate_via_rust(kind, art)
 
         # Compare outcomes
-        assert (len(python_errors) == 0) == rust_valid, f"Validity mismatch for kind {kind}: python valid={len(python_errors) == 0}, rust valid={rust_valid}"
-        assert set(python_errors) == set(rust_errors), f"Errors mismatch for kind {kind}:\nPython: {python_errors}\nRust: {rust_errors}"
+        assert (len(python_errors) == 0) == rust_valid, (
+            f"Validity mismatch for kind {kind}: python valid={len(python_errors) == 0}, rust valid={rust_valid}"
+        )
+        assert set(python_errors) == set(rust_errors), (
+            f"Errors mismatch for kind {kind}:\nPython: {python_errors}\nRust: {rust_errors}"
+        )

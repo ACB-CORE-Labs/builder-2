@@ -122,7 +122,11 @@ def validate_performance_measurement_record(record: Any) -> list[str]:
     if baseline is not None:
         if not isinstance(baseline, dict):
             errors.append("baseline must be an object or null")
-        elif not isinstance(baseline.get("value"), (int, float)) or not isinstance(baseline.get("unit"), str) or not baseline["unit"]:
+        elif (
+            not isinstance(baseline.get("value"), (int, float))
+            or not isinstance(baseline.get("unit"), str)
+            or not baseline["unit"]
+        ):
             errors.append("baseline must include numeric value and non-empty unit")
     if record.get("status") not in _STATUSES:
         errors.append("status must be candidate, accepted, or rejected")
@@ -139,7 +143,15 @@ def validate_performance_measurement_record(record: Any) -> list[str]:
     else:
         if governance.get("capability_state") != "performance_measurement_record":
             errors.append("governance.capability_state must be performance_measurement_record")
-        for key in ("runtime_execution", "model_execution", "benchmark_execution", "hardware_probe", "shell_execution", "source_writes", "memory_mutation"):
+        for key in (
+            "runtime_execution",
+            "model_execution",
+            "benchmark_execution",
+            "hardware_probe",
+            "shell_execution",
+            "source_writes",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:

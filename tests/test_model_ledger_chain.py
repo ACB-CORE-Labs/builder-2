@@ -5,12 +5,14 @@ Verifies:
 2. When a model call is appended to an existing session, previous_event_ref.sha256
    matches the last recorded event's payload_sha256.
 """
+
 from __future__ import annotations
 
 import json as json_lib
 from pathlib import Path
 from unittest.mock import patch
 
+from builder_ii.model_cli import model_app
 from typer.testing import CliRunner
 
 from builder_ii.config import Settings
@@ -20,7 +22,6 @@ from builder_ii.event_ledger import (
     replay_events,
     write_event_record,
 )
-from builder_ii.model_cli import model_app
 from builder_ii.model_routing_policy import create_model_execution_policy
 
 
@@ -63,9 +64,7 @@ def _policy_path(tmp_path: Path) -> Path:
     return pol_path
 
 
-def _run_call_cmd(
-    tmp_path: Path, session_id: str, pol_path: Path, settings: Settings, monkeypatch
-) -> dict:
+def _run_call_cmd(tmp_path: Path, session_id: str, pol_path: Path, settings: Settings, monkeypatch) -> dict:
     """Invoke builder-model call in-process via CliRunner and return the last written ledger event."""
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
@@ -73,21 +72,31 @@ def _run_call_cmd(
     rec_path = tmp_path / f"receipt_{session_id}.json"
 
     from builder_ii.direct_chat import DirectChatResult
+
     stub = DirectChatResult(ok=True, content="Paris", endpoint="http://x", model_id="m")
 
     with (
         patch("builder_ii.model_cli.load_settings", return_value=settings),
         patch("builder_ii.model_execution_gateway.run_direct_chat", return_value=stub),
     ):
-        result = runner.invoke(model_app, [
-            "call",
-            "--model", "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
-            "--prompt", "What is 2+2?",
-            "--execution-policy", str(pol_path),
-            "--output-envelope", str(env_path),
-            "--output-receipt", str(rec_path),
-            "--session-id", session_id,
-        ])
+        result = runner.invoke(
+            model_app,
+            [
+                "call",
+                "--model",
+                "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+                "--prompt",
+                "What is 2+2?",
+                "--execution-policy",
+                str(pol_path),
+                "--output-envelope",
+                str(env_path),
+                "--output-receipt",
+                str(rec_path),
+                "--session-id",
+                session_id,
+            ],
+        )
 
     assert result.exit_code == 0, f"call_cmd failed: {result.output}"
 
@@ -153,8 +162,7 @@ def test_model_event_chains_to_prior_event(tmp_path: Path, monkeypatch) -> None:
 
     expected_digest = canonical_digest(prior_event)
     assert prev_ref["sha256"] == expected_digest, (
-        f"previous_event_ref.sha256 {prev_ref['sha256']!r} != "
-        f"expected digest {expected_digest!r}"
+        f"previous_event_ref.sha256 {prev_ref['sha256']!r} != expected digest {expected_digest!r}"
     )
     assert event["previous_event_sha256"] == expected_digest
 

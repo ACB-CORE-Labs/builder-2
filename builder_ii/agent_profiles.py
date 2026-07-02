@@ -145,7 +145,12 @@ def agent_profiles() -> tuple[AgentProfile, ...]:
             purpose="Map CORE proposal risks to exact verification commands and required evidence receipts.",
             authority="plan_only",
             compatible_targets=("core",),
-            required_context=("core target profile", "changed files or proposal", "invariant audit", "verification hints"),
+            required_context=(
+                "core target profile",
+                "changed files or proposal",
+                "invariant audit",
+                "verification hints",
+            ),
             allowed_tools=("git_status", "test_plan", "static_scan"),
             forbidden_tools=("write_file", "edit_file", "execute_shell", "commit", "push"),
             hitl_required_for=("running verification commands", "recording execution receipts"),
@@ -306,7 +311,13 @@ def validate_agent_profile_record(data: Any) -> list[str]:
     if data.get("target") and data.get("target") not in ("generic", "builder", "core"):
         errors.append("target must be one of: generic, builder, core")
 
-    for list_field in ("compatible_targets", "required_context", "allowed_tools", "forbidden_tools", "hitl_required_for"):
+    for list_field in (
+        "compatible_targets",
+        "required_context",
+        "allowed_tools",
+        "forbidden_tools",
+        "hitl_required_for",
+    ):
         errors.extend(_string_list_errors(data.get(list_field), field=list_field))
 
     governance = data.get("governance")

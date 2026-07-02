@@ -250,9 +250,7 @@ def _digest(value: dict[str, Any]) -> str:
 
 
 def _write(path: Path, value: dict[str, Any]) -> None:
-    path.write_text(
-        json_lib.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    path.write_text(json_lib.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _plan() -> dict[str, Any]:
@@ -393,18 +391,12 @@ def _hitl_chain_binding() -> dict[str, Any]:
             path="proposal.json",
             sha256="a" * 64,
         ),
-        "approval_ref": create_artifact_ref(
-            kind="builder_ii.approval_record", path="approval.json", sha256="a" * 64
-        ),
+        "approval_ref": create_artifact_ref(kind="builder_ii.approval_record", path="approval.json", sha256="a" * 64),
         "preflight_ref": create_artifact_ref(
             kind="builder_ii.preflight_record", path="preflight.json", sha256="a" * 64
         ),
-        "request_ref": create_artifact_ref(
-            kind=HITL_EXECUTION_REQUEST_KIND, path="request.json", sha256="a" * 64
-        ),
-        "receipt_ref": create_artifact_ref(
-            kind=HITL_EXECUTION_RECEIPT_KIND, path="receipt.json", sha256="a" * 64
-        ),
+        "request_ref": create_artifact_ref(kind=HITL_EXECUTION_REQUEST_KIND, path="request.json", sha256="a" * 64),
+        "receipt_ref": create_artifact_ref(kind=HITL_EXECUTION_RECEIPT_KIND, path="receipt.json", sha256="a" * 64),
         "postflight_ref": create_artifact_ref(
             kind=EXECUTION_POSTFLIGHT_RECORD_KIND,
             path="postflight.json",
@@ -807,9 +799,7 @@ def _orchestration_dry_run() -> dict[str, Any]:
     from builder_ii.config import load_settings
 
     plan = _orchestration_plan()
-    return create_orchestration_dry_run(
-        load_settings(), plan, repo_path=".", generic_repo=Path(".")
-    )
+    return create_orchestration_dry_run(load_settings(), plan, repo_path=".", generic_repo=Path("."))
 
 
 def _runtime_activation_approval_spec() -> dict[str, Any]:
@@ -821,9 +811,7 @@ def _runtime_activation_approval_spec() -> dict[str, Any]:
 def _goose_readonly_session_plan() -> dict[str, Any]:
     from builder_ii.config import load_settings
 
-    return create_goose_readonly_session_plan(
-        load_settings(), "generic", task="test task"
-    )
+    return create_goose_readonly_session_plan(load_settings(), "generic", task="test task")
 
 
 def _goose_projection() -> dict[str, Any]:
@@ -888,9 +876,7 @@ def _deepagents_bridge_readiness_report() -> dict[str, Any]:
 def _goose_session() -> dict[str, Any]:
     from builder_ii.config import load_settings
 
-    return create_goose_session_manifest(
-        load_settings(), target_name="generic", agent_profile="repo_mapper"
-    )
+    return create_goose_session_manifest(load_settings(), target_name="generic", agent_profile="repo_mapper")
 
 
 def _handoff_artifact() -> dict[str, Any]:
@@ -994,9 +980,7 @@ def test_artifact_index_recognizes_recent_artifacts(tmp_path: Path) -> None:
         "research-plan.json": plan,
         "research-adapter.json": _adapter(plan),
         "performance.json": _measurement(),
-        "readonly-spec.json": create_readonly_inspection_promotion_spec(
-            target="builder"
-        ),
+        "readonly-spec.json": create_readonly_inspection_promotion_spec(target="builder"),
     }.items():
         _write(tmp_path / filename, artifact)
 
@@ -1076,15 +1060,9 @@ def _v0_release_manifest() -> dict[str, Any]:
         path="verification-profile-report.json",
         sha256="a" * 64,
     )
-    repomap_ref = create_artifact_ref(
-        kind="builder_ii.repo_map", path="repo-map.json", sha256="a" * 64
-    )
-    context_ref = create_artifact_ref(
-        kind="builder_ii.context_pack", path="context-pack.json", sha256="a" * 64
-    )
-    handoff_ref = create_artifact_ref(
-        kind="builder_ii.handoff_note", path="handoff-note.json", sha256="a" * 64
-    )
+    repomap_ref = create_artifact_ref(kind="builder_ii.repo_map", path="repo-map.json", sha256="a" * 64)
+    context_ref = create_artifact_ref(kind="builder_ii.context_pack", path="context-pack.json", sha256="a" * 64)
+    handoff_ref = create_artifact_ref(kind="builder_ii.handoff_note", path="handoff-note.json", sha256="a" * 64)
     bridge_ref = create_artifact_ref(
         kind="builder_ii.deepagents_bridge_readiness_report",
         path="deepagents-bridge-readiness.json",
@@ -1095,9 +1073,7 @@ def _v0_release_manifest() -> dict[str, Any]:
         path="platform-spine.json",
         sha256="a" * 64,
     )
-    index_ref = create_artifact_ref(
-        kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256=""
-    )
+    index_ref = create_artifact_ref(kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256="")
     chain_ref = create_artifact_ref(
         kind="builder_ii.artifact_chain_verification_report",
         path="chain-verification-report.json",
@@ -1129,12 +1105,8 @@ def test_governance_artifact_kinds_are_registered_in_both_registries() -> None:
     """Fails if any governance artifact kind from PR W/X/Y is missing from
     either the artifact index or chain verification registry."""
     for kind in GOVERNANCE_ARTIFACT_KINDS:
-        assert kind in INDEX_VALIDATORS, (
-            f"{kind} missing from artifact index _VALIDATORS"
-        )
-        assert kind in CHAIN_VALIDATORS, (
-            f"{kind} missing from chain verification VALIDATORS"
-        )
+        assert kind in INDEX_VALIDATORS, f"{kind} missing from artifact index _VALIDATORS"
+        assert kind in CHAIN_VALIDATORS, f"{kind} missing from chain verification VALIDATORS"
 
 
 def test_governance_artifact_fixtures_validate_through_both_registries() -> None:
@@ -1219,9 +1191,7 @@ def test_governance_artifacts_recognized_by_artifact_index(tmp_path: Path) -> No
 
     index = create_artifact_index_record(tmp_path)
 
-    assert index["counts"]["invalid"] == 0, (
-        f"Artifact index validation failed: {index['issues']}"
-    )
+    assert index["counts"]["invalid"] == 0, f"Artifact index validation failed: {index['issues']}"
     assert validate_artifact_index_record(index) == []
 
     indexed_kinds = {entry["kind"] for entry in index["artifacts"]}
@@ -1261,9 +1231,7 @@ def test_governance_artifacts_are_not_chain_evidence() -> None:
 
     for record in fixtures:
         refs = extract_references(record)
-        assert refs == [], (
-            f"{record['kind']} unexpectedly produced chain references: {refs}"
-        )
+        assert refs == [], f"{record['kind']} unexpectedly produced chain references: {refs}"
 
 
 def test_governance_artifacts_chain_verify_natively(tmp_path: Path) -> None:
@@ -1313,10 +1281,7 @@ def test_docs_list_governance_artifact_kinds() -> None:
     content = docs_path.read_text(encoding="utf-8")
 
     for kind in GOVERNANCE_ARTIFACT_KINDS:
-        assert kind in content, (
-            f"{kind} not found in docs/ARTIFACT_INDEX.md — "
-            f"registry closure requires docs coverage"
-        )
+        assert kind in content, f"{kind} not found in docs/ARTIFACT_INDEX.md — registry closure requires docs coverage"
 
 
 def test_docs_list_goal2_assignment_artifact_kinds() -> None:
@@ -1325,6 +1290,5 @@ def test_docs_list_goal2_assignment_artifact_kinds() -> None:
 
     for kind in GOAL2_ASSIGNMENT_ARTIFACT_KINDS:
         assert kind in content, (
-            f"{kind} not found in docs/ARTIFACT_INDEX.md — "
-            f"Goal 2 registry closure requires docs coverage"
+            f"{kind} not found in docs/ARTIFACT_INDEX.md — Goal 2 registry closure requires docs coverage"
         )

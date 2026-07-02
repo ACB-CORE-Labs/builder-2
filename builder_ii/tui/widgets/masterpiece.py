@@ -105,6 +105,7 @@ class EpistemicMatrix(Static):
 
 # ── Mechanical Sympathy HUD ─────────────────────────────────────────
 
+
 class MechanicalSympathyHud(Static):
     """Low-overhead HUD for M1 unified memory pressure and MLX throughput.
 
@@ -126,6 +127,7 @@ class MechanicalSympathyHud(Static):
         """Try to read actual memory usage on mount."""
         try:
             import psutil
+
             mem = psutil.virtual_memory()
             self.memory_mb = mem.used / (1024 * 1024)
             self.memory_total_mb = mem.total / (1024 * 1024)
@@ -153,12 +155,7 @@ class MechanicalSympathyHud(Static):
         else:
             tok_display = "[#484f58]NO MODEL[/]"
 
-        return (
-            f" [#484f58]⚙[/]  "
-            f"RAM [{mem_color}]{mem_gb:.1f}/{total_gb:.0f}GB[/]  "
-            f"[#484f58]│[/]  "
-            f"MLX {tok_display}"
-        )
+        return f" [#484f58]⚙[/]  RAM [{mem_color}]{mem_gb:.1f}/{total_gb:.0f}GB[/]  [#484f58]│[/]  MLX {tok_display}"
 
 
 # ── Third Door Gate ─────────────────────────────────────────────────
@@ -188,9 +185,7 @@ class ThirdDoorGate(Static):
 
     def __init__(self, constraints: dict[str, bool] | None = None, **kwargs: Any) -> None:
         super().__init__(id="third-door-gate", **kwargs)
-        self._constraints: dict[str, bool] = constraints or {
-            name: False for name in THIRD_DOOR_CONSTRAINTS
-        }
+        self._constraints: dict[str, bool] = constraints or {name: False for name in THIRD_DOOR_CONSTRAINTS}
 
     def set_constraints(self, constraints: dict[str, bool]) -> None:
         """Update constraint state and re-render."""
@@ -199,8 +194,7 @@ class ThirdDoorGate(Static):
 
     def render(self) -> str:
         lines = [
-            "[bold #ffa657]THE THIRD DOOR[/]  "
-            "[#484f58]Every capability that changes authority requires all 8[/]\n"
+            "[bold #ffa657]THE THIRD DOOR[/]  [#484f58]Every capability that changes authority requires all 8[/]\n"
         ]
 
         # Draw a 4x2 grid of constraint slots
@@ -230,7 +224,9 @@ class ThirdDoorGate(Static):
         else:
             missing = sum(1 for k in THIRD_DOOR_CONSTRAINTS if not self._constraints.get(k, False))
             lines.append("\n  [bold #f85149]╔════════════════════════════════════════╗[/]")
-            lines.append(f"  [bold #f85149]║  VAULT LOCKED — {missing} CONSTRAINT{'S' if missing != 1 else ''} MISSING       ║[/]")
+            lines.append(
+                f"  [bold #f85149]║  VAULT LOCKED — {missing} CONSTRAINT{'S' if missing != 1 else ''} MISSING       ║[/]"
+            )
             lines.append("  [bold #f85149]╚════════════════════════════════════════╝[/]")
 
         return "\n".join(lines)

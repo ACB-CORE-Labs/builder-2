@@ -192,7 +192,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "target profiles",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/target_profiles.py", "builder_ii/targets_cli.py", "builder_ii/readonly_authority.py"),
+        ("builder_ii/target_profiles.py", "builder_ii/cli/targets_cli.py", "builder_ii/readonly_authority.py"),
         ("builder-targets", "builder-readonly"),
         ("tests/test_target_profiles.py", "tests/test_targets_cli.py", "tests/test_readonly_authority.py"),
         (
@@ -203,7 +203,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "agent profiles",
         PASSIVE_FOUNDATION,
-        ("builder_ii/agent_profiles.py", "builder_ii/agent_cli.py"),
+        ("builder_ii/agent_profiles.py", "builder_ii/cli/agent_cli.py"),
         ("builder-agent",),
         ("tests/test_agent_profiles.py",),
         (
@@ -217,7 +217,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         PASSIVE_FOUNDATION,
         (
             "builder_ii/verification_profiles.py",
-            "builder_ii/verification_cli.py",
+            "builder_ii/cli/verification_cli.py",
             "builder_ii/verification_profile_reports.py",
         ),
         ("builder-verification",),
@@ -231,12 +231,15 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "context packs",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/repo_map.py", "builder_ii/context_packs.py", "builder_ii/session_cli.py", "builder_ii/readonly_authority.py"),
+        (
+            "builder_ii/repo_map.py",
+            "builder_ii/context_packs.py",
+            "builder_ii/cli/session_cli.py",
+            "builder_ii/readonly_authority.py",
+        ),
         ("builder-session", "builder-context", "builder-readonly"),
         ("tests/test_repo_map.py", "tests/test_governed_prepare_package.py", "tests/test_readonly_authority.py"),
-        (
-            "Canonical context packs and read policies are operationally verified.",
-        ),
+        ("Canonical context packs and read policies are operationally verified.",),
         "B4",
     ),
     _row(
@@ -271,7 +274,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "config source precedence",
         PASSIVE_FOUNDATION,
-        ("builder_ii/config_sources.py", "builder_ii/config_cli.py", "docs/CONFIG_ONBOARDING.md"),
+        ("builder_ii/config_sources.py", "builder_ii/cli/config_cli.py", "docs/CONFIG_ONBOARDING.md"),
         ("builder-config",),
         ("tests/test_config_sources.py", "tests/test_config_setup_cli.py", "tests/test_platform_completion_truth.py"),
         (
@@ -295,14 +298,14 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         "non-interactive setup/apply/validate",
         MERGED_BUT_NOT_OPERATIONAL,
         (
-            "builder_ii/cli.py",
+            "builder_ii/cli/main.py",
             "builder_ii/goose_setup.py",
             "builder_ii/setup_plan.py",
             "builder_ii/setup_overlay.py",
             "builder_ii/setup_rollback.py",
             "builder_ii/setup_apply.py",
             "builder_ii/setup_receipt.py",
-            "builder_ii/setup_cli.py",
+            "builder_ii/cli/setup_cli.py",
         ),
         ("builder", "builder-setup"),
         (
@@ -365,7 +368,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "target profile wizard",
         NOT_STARTED,
-        ("builder_ii/target_profiles.py", "builder_ii/targets_cli.py"),
+        ("builder_ii/target_profiles.py", "builder_ii/cli/targets_cli.py"),
         ("builder-targets",),
         ("tests/test_target_profiles.py", "tests/test_platform_completion_truth.py"),
         (
@@ -376,18 +379,16 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "agent profile wizard",
         NOT_STARTED,
-        ("builder_ii/agent_profiles.py", "builder_ii/agent_cli.py"),
+        ("builder_ii/agent_profiles.py", "builder_ii/cli/agent_cli.py"),
         ("builder-agent",),
         ("tests/test_agent_profiles.py", "tests/test_platform_completion_truth.py"),
-        (
-            "Guided agent profile creation/editing with authority preview and disabled runtime defaults is missing.",
-        ),
+        ("Guided agent profile creation/editing with authority preview and disabled runtime defaults is missing.",),
         "R1",
     ),
     _row(
         "verification profile wizard",
         NOT_STARTED,
-        ("builder_ii/verification_profiles.py", "builder_ii/verification_cli.py"),
+        ("builder_ii/verification_profiles.py", "builder_ii/cli/verification_cli.py"),
         ("builder-verification",),
         ("tests/test_verification_profiles.py", "tests/test_platform_completion_truth.py"),
         (
@@ -424,7 +425,13 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "builder_ii/rollback_artifacts.py",
         ),
         ("builder-setup", "builder-receipt"),
-        ("tests/test_setup_rollback.py", "tests/test_setup_apply.py", "tests/test_setup_rollback_execute.py", "tests/test_receipt_records.py", "tests/test_rollback_artifacts.py"),
+        (
+            "tests/test_setup_rollback.py",
+            "tests/test_setup_apply.py",
+            "tests/test_setup_rollback_execute.py",
+            "tests/test_receipt_records.py",
+            "tests/test_rollback_artifacts.py",
+        ),
         (
             "Generic records exist.",
             "R1.2 adds setup rollback snapshot planning with plan/overlay digests, prior existence markers, content digests, redacted previews, and future rollback operations.",
@@ -437,38 +444,49 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         OPERATIONALLY_VERIFIED,
         ("builder_ii/model_client_registry.py", "builder_ii/model_execution_gateway.py"),
         ("builder-model-policy", "builder-model call"),
-        ("tests/test_model_client_registry.py", "tests/test_model_policy_cli.py", "tests/test_model_execution_gateway.py"),
         (
-            "None. B6 completed model client registry verification under governed execution gateway.",
+            "tests/test_model_client_registry.py",
+            "tests/test_model_policy_cli.py",
+            "tests/test_model_execution_gateway.py",
         ),
+        ("None. B6 completed model client registry verification under governed execution gateway.",),
         "B7",
     ),
     _row(
         "model routing",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/model_routing_policy.py", "builder_ii/model_policy_cli.py", "builder_ii/model_execution_gateway.py"),
-        ("builder-model-policy", "builder-model call"),
-        ("tests/test_model_routing_policy.py", "tests/test_model_policy_cli.py", "tests/test_model_execution_gateway.py"),
         (
-            "None. B6 completed routing verification under governed execution gateway.",
+            "builder_ii/model_routing_policy.py",
+            "builder_ii/cli/model_policy_cli.py",
+            "builder_ii/model_execution_gateway.py",
         ),
+        ("builder-model-policy", "builder-model call"),
+        (
+            "tests/test_model_routing_policy.py",
+            "tests/test_model_policy_cli.py",
+            "tests/test_model_execution_gateway.py",
+        ),
+        ("None. B6 completed routing verification under governed execution gateway.",),
         "B7",
     ),
     _row(
         "model/provider execution",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/model_execution_gateway.py", "builder_ii/model_cli.py", "builder_ii/direct_chat.py", "builder_ii/backends.py"),
+        (
+            "builder_ii/model_execution_gateway.py",
+            "builder_ii/cli/model_cli.py",
+            "builder_ii/direct_chat.py",
+            "builder_ii/backends.py",
+        ),
         ("builder-model call", "builder-model validate-receipt"),
         ("tests/test_model_execution_gateway.py", "tests/test_direct_chat.py", "tests/test_backends.py"),
-        (
-            "None. Governed provider execution gateway is active.",
-        ),
+        ("None. Governed provider execution gateway is active.",),
         "B7",
     ),
     _row(
         "tool registry",
         PASSIVE_FOUNDATION,
-        ("builder_ii/tool_registry.py", "builder_ii/tools_cli.py"),
+        ("builder_ii/tool_registry.py", "builder_ii/cli/tools_cli.py"),
         ("builder-tools",),
         ("tests/test_tool_registry.py",),
         (
@@ -488,9 +506,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ),
         ("builder-tools invoke",),
         ("tests/test_tool_invocation_gateway.py", "tests/test_mcp_policy.py"),
-        (
-            "Low-risk tool invocation is implemented via in-process stubs and verified with receipt and event replay.",
-        ),
+        ("Low-risk tool invocation is implemented via in-process stubs and verified with receipt and event replay.",),
         "B7",
     ),
     _row(
@@ -510,7 +526,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "passive orchestration assignment",
         PASSIVE_FOUNDATION,
-        ("builder_ii/orchestration_assignment.py", "builder_ii/orchestration_cli.py"),
+        ("builder_ii/orchestration_assignment.py", "builder_ii/cli/orchestration_cli.py"),
         ("builder-orchestration",),
         ("tests/test_orchestration_cli.py", "tests/test_orchestration_plan.py"),
         (
@@ -546,7 +562,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "readonly founder demo",
         PASSIVE_FOUNDATION,
-        ("builder_ii/readonly_founder_demo.py", "builder_ii/targets_cli.py"),
+        ("builder_ii/readonly_founder_demo.py", "builder_ii/cli/targets_cli.py"),
         ("builder-targets",),
         ("tests/test_readonly_demo.py", "tests/test_readonly_demo_idempotence.py"),
         (
@@ -570,7 +586,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "HITL promotion bridge",
         PASSIVE_FOUNDATION,
-        ("builder_ii/hitl_promotion_artifacts.py", "builder_ii/hitl_promotion_cli.py"),
+        ("builder_ii/hitl_promotion_artifacts.py", "builder_ii/cli/hitl_promotion_cli.py"),
         ("builder-hitl",),
         ("tests/test_hitl_promotion_artifacts.py",),
         (
@@ -582,7 +598,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "execution candidate manifests",
         PASSIVE_FOUNDATION,
-        ("builder_ii/execution_candidate_manifest.py", "builder_ii/execution_candidate_manifest_cli.py"),
+        ("builder_ii/execution_candidate_manifest.py", "builder_ii/cli/execution_candidate_manifest_cli.py"),
         ("builder-hitl",),
         ("tests/test_execution_candidate_manifest.py",),
         (
@@ -601,11 +617,11 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "builder_ii/verification_execution_runner.py",
             "builder_ii/verification_execution_ledger.py",
             "builder_ii/verification_runner_entrypoints.py",
-            "builder_ii/verification_execution_plan_cli.py",
+            "builder_ii/cli/verification_execution_plan_cli.py",
             "builder_ii/hitl_command_execution.py",
             "builder_ii/hitl_execution_records.py",
             "builder_ii/hitl_verification_candidate.py",
-            "builder_ii/hitl_execution_cli.py",
+            "builder_ii/cli/hitl_execution_cli.py",
         ),
         (
             "builder-hitl",
@@ -649,18 +665,25 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "HITL patch proposal",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/hitl_patch_proposal.py", "builder_ii/goose_command_proposal.py", "builder_ii/hitl_patch_cli.py"),
+        (
+            "builder_ii/hitl_patch_proposal.py",
+            "builder_ii/goose_command_proposal.py",
+            "builder_ii/cli/hitl_patch_cli.py",
+        ),
         ("builder-goose", "builder-hitl propose-patch"),
         ("tests/test_hitl_patch_proposal.py", "tests/test_goose_command_proposal.py"),
-        (
-            "Patch proposal artifact is operationally verified.",
-        ),
+        ("Patch proposal artifact is operationally verified.",),
         "B4",
     ),
     _row(
         "HITL patch application",
         MERGED_BUT_NOT_OPERATIONAL,
-        ("builder_ii/hitl_patch_apply.py", "builder_ii/hitl_patch_cli.py", "builder_ii/hitl_patch_proposal.py", "docs/HITL_PATCH_PROPOSAL.md"),
+        (
+            "builder_ii/hitl_patch_apply.py",
+            "builder_ii/cli/hitl_patch_cli.py",
+            "builder_ii/hitl_patch_proposal.py",
+            "docs/HITL_PATCH_PROPOSAL.md",
+        ),
         ("builder-hitl apply-patch",),
         ("tests/test_hitl_patch_proposal.py", "tests/test_hitl_patch_apply.py"),
         (
@@ -672,7 +695,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "rollback execution",
         MERGED_BUT_NOT_OPERATIONAL,
-        ("builder_ii/rollback_artifacts.py", "builder_ii/hitl_patch_cli.py", "builder_ii/hitl_patch_apply.py"),
+        ("builder_ii/rollback_artifacts.py", "builder_ii/cli/hitl_patch_cli.py", "builder_ii/hitl_patch_apply.py"),
         ("builder-hitl rollback",),
         ("tests/test_rollback_artifacts.py", "tests/test_hitl_patch_apply.py"),
         (
@@ -696,7 +719,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "Goose setup",
         MERGED_BUT_NOT_OPERATIONAL,
-        ("builder_ii/goose_setup.py", "builder_ii/cli.py"),
+        ("builder_ii/goose_setup.py", "builder_ii/cli/main.py"),
         ("builder",),
         ("tests/test_goose_setup.py",),
         (
@@ -708,23 +731,25 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "governed read-only runtime",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/readonly_authority.py", "builder_ii/readonly_inspection_cli.py"),
+        ("builder_ii/readonly_authority.py", "builder_ii/cli/readonly_inspection_cli.py"),
         ("builder-readonly policy", "builder-readonly read", "builder-readonly validate"),
         ("tests/test_readonly_authority.py",),
-        (
-            "Unified governed read-only runtime is operationally verified.",
-        ),
+        ("Unified governed read-only runtime is operationally verified.",),
         "B4",
     ),
     _row(
         "Goose readonly runtime",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/goose_session.py", "builder_ii/goose_readonly.py", "builder_ii/goose_inspection.py", "builder_ii/goose_cli.py", "builder_ii/goose_runtime_harness.py"),
+        (
+            "builder_ii/goose_session.py",
+            "builder_ii/goose_readonly.py",
+            "builder_ii/goose_inspection.py",
+            "builder_ii/cli/goose_cli.py",
+            "builder_ii/goose_runtime_harness.py",
+        ),
         ("builder-goose", "builder-goose start-readonly", "builder-goose close-readonly"),
         ("tests/test_goose_readonly.py", "tests/test_goose_inspection.py", "tests/test_goose_runtime_harness.py"),
-        (
-            "Goose readonly runtime is operationally verified with receipts and no-mutation postflight.",
-        ),
+        ("Goose readonly runtime is operationally verified with receipts and no-mutation postflight.",),
         "B5",
     ),
     _row(
@@ -754,7 +779,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "deepagents passive work artifacts",
         PASSIVE_FOUNDATION,
-        ("builder_ii/deepagents_work_artifacts.py", "builder_ii/deepagents_cli.py"),
+        ("builder_ii/deepagents_work_artifacts.py", "builder_ii/cli/deepagents_cli.py"),
         ("builder-deepagents",),
         ("tests/test_deepagents_work_artifacts.py",),
         (
@@ -766,19 +791,21 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "deepagents runtime/subagents",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/deepagents_cli.py", "docs/DEEPAGENTS_POLICY.md", "builder_ii/deepagents_runtime.py"),
+        ("builder_ii/cli/deepagents_cli.py", "docs/DEEPAGENTS_POLICY.md", "builder_ii/deepagents_runtime.py"),
         ("builder-deepagents", "builder-deepagents run-plan", "builder-deepagents collect-results"),
-        ("tests/test_deepagents_policy.py", "tests/test_deepagents_work_artifacts.py", "tests/test_deepagents_runtime.py"),
         (
-            "deepagents runtime is operationally verified with subagent execution receipts and proposal-only results.",
+            "tests/test_deepagents_policy.py",
+            "tests/test_deepagents_work_artifacts.py",
+            "tests/test_deepagents_runtime.py",
         ),
+        ("deepagents runtime is operationally verified with subagent execution receipts and proposal-only results.",),
         "B6",
     ),
     _row(
         "notes/handoff artifacts",
         PASSIVE_FOUNDATION,
         (
-            "builder_ii/notes_cli.py",
+            "builder_ii/cli/notes_cli.py",
             "builder_ii/handoff_artifacts.py",
             "builder_ii/handoff_notes.py",
             "builder_ii/handoff_bundle_records.py",
@@ -796,7 +823,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         PASSIVE_FOUNDATION,
         (
             "builder_ii/artifact_memory.py",
-            "builder_ii/memory_cli.py",
+            "builder_ii/cli/memory_cli.py",
             "docs/ARTIFACT_MEMORY.md",
             "docs/plan/ARTIFACT_MEMORY_RFC.md",
         ),
@@ -835,7 +862,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "CORE demo loop",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/core_demo_loop.py", "builder_ii/platform_status_cli.py", "docs/OPERATOR_QUICKSTART.md"),
+        ("builder_ii/core_demo_loop.py", "builder_ii/cli/platform_status_cli.py", "docs/OPERATOR_QUICKSTART.md"),
         ("builder-platform demo-loop", "builder-platform validate-demo-loop", "builder-platform wow"),
         ("tests/test_core_demo_loop.py", "tests/test_platform_completion_truth.py", "tests/test_command_authority.py"),
         (
@@ -850,7 +877,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         PASSIVE_FOUNDATION,
         (
             "builder_ii/platform_completion_audit.py",
-            "builder_ii/platform_status_cli.py",
+            "builder_ii/cli/platform_status_cli.py",
             "builder_ii/r1_closure_report.py",
             "docs/PLATFORM_COMPLETION_AUDIT.md",
         ),
@@ -872,7 +899,12 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "release proof/quality gates",
         PASSIVE_FOUNDATION,
-        ("scripts/verify_v0_release.py", "docs/RELEASE_PROOF.md", "builder_ii/quality_gates.py", "builder_ii/quality_cli.py"),
+        (
+            "scripts/verify_v0_release.py",
+            "docs/RELEASE_PROOF.md",
+            "builder_ii/quality_gates.py",
+            "builder_ii/cli/quality_cli.py",
+        ),
         ("builder-quality",),
         ("tests/test_v0_release_proof_harness.py", "tests/test_quality_gates.py"),
         (
@@ -887,7 +919,11 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         OPERATIONALLY_VERIFIED,
         ("builder_ii/command_authority.py", "docs/COMMAND_AUTHORITY.md"),
         ("builder-verify run-approved",),
-        ("tests/test_command_authority.py", "tests/test_verification_execution_runner.py", "tests/test_platform_completion_truth.py"),
+        (
+            "tests/test_command_authority.py",
+            "tests/test_verification_execution_runner.py",
+            "tests/test_platform_completion_truth.py",
+        ),
         (
             "Central fail-closed command authority decisions are implemented and machine-checkable.",
             "The bounded verification runner consults the gate before crossing subprocess/artifact-write authority.",
@@ -898,7 +934,11 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "docs truth enforcement",
         PASSIVE_FOUNDATION,
-        ("builder_ii/platform_completion_audit.py", "builder_ii/platform_status_cli.py", "docs/PLATFORM_COMPLETION_AUDIT.md"),
+        (
+            "builder_ii/platform_completion_audit.py",
+            "builder_ii/cli/platform_status_cli.py",
+            "docs/PLATFORM_COMPLETION_AUDIT.md",
+        ),
         ("builder-platform",),
         ("tests/test_docs_truth_enforcement.py", "tests/test_platform_completion_truth.py"),
         (
@@ -948,7 +988,6 @@ def render_matrix_jsonable(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY
         },
         "capabilities": [row.to_jsonable() for row in rows],
     }
-
 
 
 def dumps_matrix(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:
@@ -1062,9 +1101,18 @@ def validate_completion_matrix(root: Path | None = None) -> list[str]:
 _FALSE_COMPLETION_EXACT_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"\bfully completed and verified\b", re.IGNORECASE), "ambiguous completed-and-verified claim"),
     (re.compile(r"\bfoundation is complete\b", re.IGNORECASE), "ambiguous foundation completion claim"),
-    (re.compile(r"\bartifact-first foundation is complete\b", re.IGNORECASE), "ambiguous artifact foundation completion claim"),
-    (re.compile(r"\bfull governed artifact platform is built, tested, and proven\b", re.IGNORECASE), "ambiguous full-platform claim"),
-    (re.compile(r"\bModel routing policy artifact \(RFC exists, artifact not yet built\)", re.IGNORECASE), "stale model routing RFC claim"),
+    (
+        re.compile(r"\bartifact-first foundation is complete\b", re.IGNORECASE),
+        "ambiguous artifact foundation completion claim",
+    ),
+    (
+        re.compile(r"\bfull governed artifact platform is built, tested, and proven\b", re.IGNORECASE),
+        "ambiguous full-platform claim",
+    ),
+    (
+        re.compile(r"\bModel routing policy artifact \(RFC exists, artifact not yet built\)", re.IGNORECASE),
+        "stale model routing RFC claim",
+    ),
 )
 
 _CLAIM_PATTERN = re.compile(

@@ -4,10 +4,10 @@ import inspect
 import json as json_lib
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 import builder_ii.hitl_execution_cli as cli_mod
 from builder_ii.hitl_execution_cli import hitl_app
+from typer.testing import CliRunner
+
 from builder_ii.hitl_execution_records import (
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_EXECUTION_REQUEST_KIND,
@@ -56,15 +56,24 @@ def test_request_writes_valid_artifact_and_validates(tmp_path: Path) -> None:
         hitl_app,
         [
             "request",
-            "--target-name", "generic",
-            "--command-proposal-ref", "proposal-001",
-            "--approval-record-ref", "approval-001",
-            "--preflight-record-ref", "preflight-001",
-            "--requested-by", "operator",
-            "--requested-at", "2026-06-27T00:00:00Z",
-            "--explicit-operator-intent", "intent-001",
-            "--command-preview", "ls -la",
-            "--output", str(output_file),
+            "--target-name",
+            "generic",
+            "--command-proposal-ref",
+            "proposal-001",
+            "--approval-record-ref",
+            "approval-001",
+            "--preflight-record-ref",
+            "preflight-001",
+            "--requested-by",
+            "operator",
+            "--requested-at",
+            "2026-06-27T00:00:00Z",
+            "--explicit-operator-intent",
+            "intent-001",
+            "--command-preview",
+            "ls -la",
+            "--output",
+            str(output_file),
         ],
     )
 
@@ -93,9 +102,12 @@ def test_receipt_writes_valid_artifact_and_validates(tmp_path: Path) -> None:
         hitl_app,
         [
             "receipt",
-            "--target-name", "generic",
-            "--request-ref", "request-001",
-            "--output", str(output_file),
+            "--target-name",
+            "generic",
+            "--request-ref",
+            "request-001",
+            "--output",
+            str(output_file),
         ],
     )
 
@@ -136,15 +148,24 @@ def test_invalid_request_fields_fail_closed(tmp_path: Path) -> None:
         hitl_app,
         [
             "request",
-            "--target-name", "generic",
-            "--command-proposal-ref", "",  # Empty proposal ref is invalid
-            "--approval-record-ref", "approval-001",
-            "--preflight-record-ref", "preflight-001",
-            "--requested-by", "operator",
-            "--requested-at", "2026-06-27T00:00:00Z",
-            "--explicit-operator-intent", "intent-001",
-            "--command-preview", "ls -la",
-            "--output", str(output_file),
+            "--target-name",
+            "generic",
+            "--command-proposal-ref",
+            "",  # Empty proposal ref is invalid
+            "--approval-record-ref",
+            "approval-001",
+            "--preflight-record-ref",
+            "preflight-001",
+            "--requested-by",
+            "operator",
+            "--requested-at",
+            "2026-06-27T00:00:00Z",
+            "--explicit-operator-intent",
+            "intent-001",
+            "--command-preview",
+            "ls -la",
+            "--output",
+            str(output_file),
         ],
     )
 

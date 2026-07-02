@@ -48,12 +48,14 @@ def _has_shell_cap(spec: DeepAgentSpec) -> bool:
 # GovernanceCheck
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class GovernanceCheck:
     """
     Result of evaluating a DeepAgentSpec against the
     builder-II Capability Promotion Rule.
     """
+
     checks: dict = field(default_factory=dict)
     all_pass: bool = False
     failing: list = field(default_factory=list)
@@ -76,9 +78,11 @@ class GovernanceCheck:
 # ForgePreview
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ForgePreview:
     """Full dry-run preview of what emit_agent() will do."""
+
     yaml_preview: str = ""
     profile_diff: str = ""
     bridge_spec: dict = field(default_factory=dict)
@@ -96,6 +100,7 @@ class ForgePreview:
 # ---------------------------------------------------------------------------
 # Core functions
 # ---------------------------------------------------------------------------
+
 
 def check_governance(spec: DeepAgentSpec) -> GovernanceCheck:
     """
@@ -115,15 +120,9 @@ def check_governance(spec: DeepAgentSpec) -> GovernanceCheck:
         "has_docs": bool(spec.description and spec.description.strip()),
         "has_output_artifact": bool(spec.output_artifact and spec.output_artifact.strip()),
         "has_rollback_path": bool(spec.rollback_path and spec.rollback_path.strip()),
-        "has_verification_profile": bool(
-            spec.verification_profile and spec.verification_profile.strip()
-        ),
-        "hitl_for_write": (
-            not _has_write_cap(spec) or "before_write" in spec.hitl_gates
-        ),
-        "hitl_for_shell": (
-            not _has_shell_cap(spec) or "before_shell" in spec.hitl_gates
-        ),
+        "has_verification_profile": bool(spec.verification_profile and spec.verification_profile.strip()),
+        "hitl_for_write": (not _has_write_cap(spec) or "before_write" in spec.hitl_gates),
+        "hitl_for_shell": (not _has_shell_cap(spec) or "before_shell" in spec.hitl_gates),
         "approval_boundary": spec.approval_required is True,
     }
 
@@ -224,8 +223,6 @@ def render_preview(spec: DeepAgentSpec, *, dry_run: bool = True) -> ForgePreview
         rollback_path=spec.rollback_path,
         dry_run=dry_run,
         next_action=(
-            "fix blockers before emission"
-            if blockers
-            else "emit bounded profile artifact or keep as dry-run preview"
+            "fix blockers before emission" if blockers else "emit bounded profile artifact or keep as dry-run preview"
         ),
     )

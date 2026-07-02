@@ -75,13 +75,16 @@ def test_b9_operational_verification_requires_no_runtime_promotion() -> None:
     if b9_row.state == "OPERATIONALLY_VERIFIED":
         assert any("does not promote runtime execution" in b.lower() for b in b9_row.blockers)
 
+
 def test_b8_passive_foundation_requires_no_implied_mutation() -> None:
     # B8 can remain PASSIVE_FOUNDATION only if blockers do not imply hidden memory or operational memory mutation.
     b8_row = next(r for r in REQUIRED_CAPABILITY_ROWS if r.capability == "artifact memory")
     if b8_row.state == "PASSIVE_FOUNDATION":
         assert any("do not imply operational memory mutation" in b.lower() for b in b8_row.blockers)
 
+
 def test_next_sequence_matches_incomplete_rows() -> None:
     # NEXT_SEQUENCE must match actual incomplete capability rows.
     from builder_ii.platform_completion_audit import NEXT_SEQUENCE
+
     assert NEXT_SEQUENCE == "B8 deferred; B9 complete"

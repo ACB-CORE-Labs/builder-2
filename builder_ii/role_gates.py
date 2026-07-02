@@ -37,8 +37,14 @@ _DEFAULT_GATES: dict[str, tuple[GateStatus, str]] = {
     CAPABILITY_GOOSE_PLANNING: ("ALLOWED", "governed Goose planning and review sessions are allowed"),
     CAPABILITY_GOOSE_TOOL_EXECUTION: ("UNSUPPORTED", "local MLX Goose tool execution is not validated"),
     CAPABILITY_FILE_EDITING: ("OPERATOR_ONLY", "file edits require explicit operator action and verification"),
-    CAPABILITY_RUNTIME_SWITCH: ("OPERATOR_ONLY", "runtime and model switching must remain explicit via operator command"),
-    CAPABILITY_HEAVY_MODEL_ROUTING: ("FORBIDDEN", "heavy and candidate lanes are explicit opt-in and cannot be selected automatically"),
+    CAPABILITY_RUNTIME_SWITCH: (
+        "OPERATOR_ONLY",
+        "runtime and model switching must remain explicit via operator command",
+    ),
+    CAPABILITY_HEAVY_MODEL_ROUTING: (
+        "FORBIDDEN",
+        "heavy and candidate lanes are explicit opt-in and cannot be selected automatically",
+    ),
 }
 
 _ROLE_OVERRIDES: dict[str, dict[str, tuple[GateStatus, str]]] = {
@@ -54,7 +60,10 @@ _ROLE_OVERRIDES: dict[str, dict[str, tuple[GateStatus, str]]] = {
     },
     "lane_router": {
         CAPABILITY_RUNTIME_SWITCH: ("FORBIDDEN", "lane routing recommends only; the operator switches explicitly"),
-        CAPABILITY_HEAVY_MODEL_ROUTING: ("FORBIDDEN", "lane router must escalate heavy, candidate, and sidecar choices"),
+        CAPABILITY_HEAVY_MODEL_ROUTING: (
+            "FORBIDDEN",
+            "lane router must escalate heavy, candidate, and sidecar choices",
+        ),
     },
 }
 

@@ -32,10 +32,7 @@ def _get_utc_now() -> str:
 
 
 def execute_tool_envelope(
-    envelope: dict[str, Any],
-    envelope_path: Path,
-    policy: dict[str, Any],
-    policy_path: Path
+    envelope: dict[str, Any], envelope_path: Path, policy: dict[str, Any], policy_path: Path
 ) -> dict[str, Any]:
 
     env_errors = validate_mcp_envelope(envelope)
@@ -47,14 +44,16 @@ def execute_tool_envelope(
         raise ValueError(f"Invalid policy: {pol_errors}")
 
     kind = envelope.get("kind")
-    is_tool = (kind == TOOL_ENVELOPE_KIND)
+    is_tool = kind == TOOL_ENVELOPE_KIND
     receipt_kind = TOOL_RECEIPT_KIND if is_tool else MCP_RECEIPT_KIND
 
     # 1. Enforce Policy Restrictions and Drift Checks
     policy_digest = canonical_digest(policy)
     expected_digest = envelope.get("policy_ref", {}).get("sha256")
     if policy_digest != expected_digest:
-        raise ValueError(f"Policy digest mismatch: active policy is {policy_digest}, envelope expected {expected_digest}")
+        raise ValueError(
+            f"Policy digest mismatch: active policy is {policy_digest}, envelope expected {expected_digest}"
+        )
 
     if envelope.get("requires_human_promotion_for_execution") is not True:
         raise ValueError("Envelope must have requires_human_promotion_for_execution=True for execution")
@@ -160,9 +159,9 @@ def execute_tool_envelope(
             stdout = f"MCP server '{server_id}' or tool '{tool_id}' not available or denied by B7 safe allowlist."
 
     if status == "succeeded":
-        raw_bytes = stdout.encode('utf-8')
+        raw_bytes = stdout.encode("utf-8")
         if len(raw_bytes) > output_cap:
-            stdout = raw_bytes[:int(output_cap)].decode('utf-8', errors='replace')
+            stdout = raw_bytes[: int(output_cap)].decode("utf-8", errors="replace")
             truncated = True
 
     completed_at = _get_utc_now()
@@ -210,7 +209,7 @@ def execute_tool_envelope(
         "no_mutation_proof": no_mutation_proof,
         "credential_redaction_report": True,
         "replay_declaration": "deterministic_execution_recorded",
-        "governance": governance
+        "governance": governance,
     }
 
     # If approval was required and present in envelope, copy to receipt

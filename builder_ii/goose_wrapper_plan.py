@@ -33,7 +33,9 @@ def create_goose_wrapper_plan(projection: dict[str, Any]) -> dict[str, Any]:
             "argv": argv,
             "working_directory": surface["working_directory"],
             "env_keys": sorted(env.keys()),
-            "env_preview": {key: env[key] for key in sorted(env.keys()) if key.startswith("BUILDER_") or key.startswith("GOOSE_")},
+            "env_preview": {
+                key: env[key] for key in sorted(env.keys()) if key.startswith("BUILDER_") or key.startswith("GOOSE_")
+            },
             "requires_operator_execution": True,
             "executes_now": False,
         },
@@ -89,7 +91,9 @@ def validate_goose_wrapper_plan(data: Any) -> list[str]:
             errors.append("operator_launch.argv must be a list of non-empty strings")
         if not isinstance(launch.get("working_directory"), str) or not launch["working_directory"]:
             errors.append("operator_launch.working_directory must be a non-empty string")
-        if not isinstance(launch.get("env_keys"), list) or any(not isinstance(item, str) or not item for item in launch.get("env_keys", [])):
+        if not isinstance(launch.get("env_keys"), list) or any(
+            not isinstance(item, str) or not item for item in launch.get("env_keys", [])
+        ):
             errors.append("operator_launch.env_keys must be a list of non-empty strings")
         if not isinstance(launch.get("env_preview"), dict):
             errors.append("operator_launch.env_preview must be an object")
@@ -114,7 +118,14 @@ def validate_goose_wrapper_plan(data: Any) -> list[str]:
     else:
         if governance.get("capability_state") != "goose_wrapper_plan":
             errors.append("governance.capability_state must be goose_wrapper_plan")
-        for key in ("runtime_execution", "goose_runtime_start", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
+        for key in (
+            "runtime_execution",
+            "goose_runtime_start",
+            "model_execution",
+            "shell_execution",
+            "source_writes",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:

@@ -9,6 +9,7 @@ format_verify_report() renders the result for CLI display:
   - PASS: single-line summary
   - FAIL: suite + command + 30-line tail for upstream diagnosis
 """
+
 from __future__ import annotations
 
 import re
@@ -23,6 +24,7 @@ from builder_ii.routing import suite_for_module, suite_rationale
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class VerifyResult:
@@ -42,9 +44,7 @@ class VerifyResult:
 # Pytest output parsing
 # ---------------------------------------------------------------------------
 
-_PYTEST_SUMMARY = re.compile(
-    r"^(=+\s*)?(\d+)\s+(passed|failed|error|skipped).*$", re.MULTILINE
-)
+_PYTEST_SUMMARY = re.compile(r"^(=+\s*)?(\d+)\s+(passed|failed|error|skipped).*$", re.MULTILINE)
 _PYTEST_DURATION = re.compile(r"(\d+\.\d+)s", re.IGNORECASE)
 
 
@@ -74,6 +74,7 @@ def parse_pytest_summary(output: str) -> tuple[bool, str | None, float | None]:
 # CORE CLI invocation
 # ---------------------------------------------------------------------------
 
+
 def _core_invocation(settings: Settings, suite: str, extra_args: list[str]) -> list[str]:
     core_bin = shutil.which("core")
     base = ["test", "--suite", suite, *extra_args]
@@ -91,6 +92,7 @@ def _core_invocation(settings: Settings, suite: str, extra_args: list[str]) -> l
 # ---------------------------------------------------------------------------
 # Verification
 # ---------------------------------------------------------------------------
+
 
 def run_verification(
     settings: Settings,

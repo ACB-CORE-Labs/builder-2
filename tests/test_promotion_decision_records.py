@@ -65,7 +65,9 @@ def test_create_approved_promotion_decision_shape() -> None:
 
 
 def test_blocked_when_readiness_is_blocked() -> None:
-    readiness = create_promotion_readiness_record(capability_name="artifact_index", docs_refs=["docs/ARTIFACT_INDEX.md"])
+    readiness = create_promotion_readiness_record(
+        capability_name="artifact_index", docs_refs=["docs/ARTIFACT_INDEX.md"]
+    )
     record = create_promotion_decision_record(
         readiness,
         readiness_path="promotion-readiness.json",
@@ -82,7 +84,13 @@ def test_blocked_when_readiness_is_blocked() -> None:
 
 
 def test_manual_blocked_decision_is_valid() -> None:
-    record = create_promotion_decision_record(_ready(), readiness_path="promotion-readiness.json", decision="blocked", decided_by="operator", reason="manual hold")
+    record = create_promotion_decision_record(
+        _ready(),
+        readiness_path="promotion-readiness.json",
+        decision="blocked",
+        decided_by="operator",
+        reason="manual hold",
+    )
 
     assert record["decision"] == "blocked"
     assert record["approved"] is False
@@ -91,7 +99,13 @@ def test_manual_blocked_decision_is_valid() -> None:
 
 
 def test_promotion_decision_json_round_trip() -> None:
-    data = json_lib.loads(dumps_promotion_decision_record(create_promotion_decision_record(_ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator")))
+    data = json_lib.loads(
+        dumps_promotion_decision_record(
+            create_promotion_decision_record(
+                _ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator"
+            )
+        )
+    )
 
     assert data["approved"] is True
     assert validate_promotion_decision_record(data) == []
@@ -99,7 +113,9 @@ def test_promotion_decision_json_round_trip() -> None:
 
 def test_promotion_decision_file_validation(tmp_path: Path) -> None:
     path = tmp_path / "promotion-decision.json"
-    record = create_promotion_decision_record(_ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator")
+    record = create_promotion_decision_record(
+        _ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator"
+    )
     write_promotion_decision_record(record, path)
 
     assert validate_promotion_decision_record_file(path) == []
@@ -116,7 +132,9 @@ def test_write_readiness_fixture_remains_compatible(tmp_path: Path) -> None:
 
 
 def test_validate_rejects_authority_changes() -> None:
-    record = create_promotion_decision_record(_ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator")
+    record = create_promotion_decision_record(
+        _ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator"
+    )
     record["record_state"] = "ACTIVE"
     record["grants_runtime_authority"] = True
     record["grants_action_authority"] = True
@@ -143,7 +161,9 @@ def test_validate_rejects_authority_changes() -> None:
 
 
 def test_validate_rejects_readiness_shape_drift() -> None:
-    record = create_promotion_decision_record(_ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator")
+    record = create_promotion_decision_record(
+        _ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator"
+    )
     record["readiness"]["expected_kind"] = "wrong"
     record["readiness"]["kind"] = "wrong"
     record["readiness"]["path"] = ""
@@ -166,14 +186,18 @@ def test_validate_rejects_readiness_shape_drift() -> None:
 
 
 def test_validate_rejects_non_object_readiness() -> None:
-    record = create_promotion_decision_record(_ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator")
+    record = create_promotion_decision_record(
+        _ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator"
+    )
     record["readiness"] = []
 
     assert "readiness must be an object" in validate_promotion_decision_record(record)
 
 
 def test_validate_rejects_approved_with_blockers() -> None:
-    record = create_promotion_decision_record(_ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator")
+    record = create_promotion_decision_record(
+        _ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator"
+    )
     record["blockers"] = ["manual inconsistency"]
     record["approved"] = False
 
@@ -181,7 +205,9 @@ def test_validate_rejects_approved_with_blockers() -> None:
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:
-    assert any("file not found" in error for error in validate_promotion_decision_record_file(tmp_path / "missing.json"))
+    assert any(
+        "file not found" in error for error in validate_promotion_decision_record_file(tmp_path / "missing.json")
+    )
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")

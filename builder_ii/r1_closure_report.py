@@ -268,8 +268,18 @@ def validate_r1_closure_evidence_chain(data: dict[str, Any], base_dir: Path) -> 
         ("config_resolution_status", CONFIG_SOURCE_RESOLUTION_KIND, "digest", validate_config_resolution_artifact),
         ("setup_plan_status", SETUP_PLAN_KIND, "plan_digest", validate_setup_plan_artifact),
         ("overlay_plan_status", SETUP_OVERLAY_PLAN_KIND, "overlay_plan_digest", validate_setup_overlay_plan_artifact),
-        ("rollback_snapshot_status", SETUP_ROLLBACK_SNAPSHOT_KIND, "snapshot_digest", validate_setup_rollback_snapshot_artifact),
-        ("onboarding_intent_status", ONBOARDING_INTENT_KIND, "onboarding_intent_digest", validate_onboarding_intent_report_artifact),
+        (
+            "rollback_snapshot_status",
+            SETUP_ROLLBACK_SNAPSHOT_KIND,
+            "snapshot_digest",
+            validate_setup_rollback_snapshot_artifact,
+        ),
+        (
+            "onboarding_intent_status",
+            ONBOARDING_INTENT_KIND,
+            "onboarding_intent_digest",
+            validate_onboarding_intent_report_artifact,
+        ),
     )
 
     for field, expected_kind, digest_key, validator_func in evidence_mappings:
@@ -303,7 +313,9 @@ def validate_r1_closure_evidence_chain(data: dict[str, Any], base_dir: Path) -> 
             continue
 
         if loaded_data.get("kind") != expected_kind:
-            errors.append(f"{field} artifact ({target_path.name}): expected kind '{expected_kind}', got '{loaded_data.get('kind')}'")
+            errors.append(
+                f"{field} artifact ({target_path.name}): expected kind '{expected_kind}', got '{loaded_data.get('kind')}'"
+            )
         art_errors = validator_func(loaded_data)
         if art_errors:
             errors.extend(f"{field} artifact ({target_path.name}): {err}" for err in art_errors)
@@ -325,10 +337,14 @@ def validate_r1_closure_evidence_chain(data: dict[str, Any], base_dir: Path) -> 
                 snapshot_id = loaded_data.get("snapshot_id")
                 snapshot_digest = loaded_data.get("snapshot_digest")
                 if status_digest not in (snapshot_id, snapshot_digest):
-                    errors.append(f"{field}: digest mismatch for {target_path.name} (status has {status_digest}, file has snapshot_id={snapshot_id}, snapshot_digest={snapshot_digest})")
+                    errors.append(
+                        f"{field}: digest mismatch for {target_path.name} (status has {status_digest}, file has snapshot_id={snapshot_id}, snapshot_digest={snapshot_digest})"
+                    )
             else:
                 if status_digest != actual_digest:
-                    errors.append(f"{field}: digest mismatch for {target_path.name} (status has {status_digest}, file has {actual_digest})")
+                    errors.append(
+                        f"{field}: digest mismatch for {target_path.name} (status has {status_digest}, file has {actual_digest})"
+                    )
 
     return errors
 

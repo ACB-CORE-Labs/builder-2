@@ -4,13 +4,13 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.chain_summary_cli import chain_app
 from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 from typer.testing import CliRunner
 
 from builder_ii.approval_records import create_approval_record
 from builder_ii.artifact_chain_verification import verify_artifact_chain
 from builder_ii.artifact_index_records import create_artifact_index_record
-from builder_ii.chain_summary_cli import chain_app
 from builder_ii.chain_summary_records import create_chain_summary_record
 from builder_ii.config_schema import attach_digest
 from builder_ii.goose_command_proposal import create_goose_command_proposal
@@ -153,9 +153,7 @@ def _readiness() -> dict[str, Any]:
     )
 
 
-def _promotion_decision(
-    readiness: dict[str, Any], readiness_path: str
-) -> dict[str, Any]:
+def _promotion_decision(readiness: dict[str, Any], readiness_path: str) -> dict[str, Any]:
     return create_promotion_decision_record(
         readiness,
         readiness_path=readiness_path,
@@ -238,9 +236,7 @@ def test_valid_full_chain(tmp_path: Path) -> None:
     r_path = tmp_path / "receipt.json"
     r_path.write_text(json_lib.dumps(r))
 
-    s = _chain_summary(
-        p, a, pf, r, "proposal.json", "approval.json", "preflight.json", "receipt.json"
-    )
+    s = _chain_summary(p, a, pf, r, "proposal.json", "approval.json", "preflight.json", "receipt.json")
     s_path = tmp_path / "summary.json"
     s_path.write_text(json_lib.dumps(s))
 
@@ -395,18 +391,9 @@ def test_goal2_assignment_chain_resolves_source_refs(tmp_path: Path) -> None:
     assert report["counts"]["native_invalid"] == 0
     assert report["counts"]["broken_links"] == 0
     assert report["counts"]["links"] >= 20
-    assert any(
-        link["source_kind"] == "builder_ii.agent_assignment_plan"
-        for link in report["links"]
-    )
-    assert any(
-        link["source_kind"] == "builder_ii.orchestration_assignment_plan"
-        for link in report["links"]
-    )
-    assert any(
-        link["source_kind"] == "builder_ii.orchestration_assignment_dry_run"
-        for link in report["links"]
-    )
+    assert any(link["source_kind"] == "builder_ii.agent_assignment_plan" for link in report["links"])
+    assert any(link["source_kind"] == "builder_ii.orchestration_assignment_plan" for link in report["links"])
+    assert any(link["source_kind"] == "builder_ii.orchestration_assignment_dry_run" for link in report["links"])
 
 
 def test_goal2_assignment_chain_detects_source_ref_digest_mismatch(
@@ -416,9 +403,7 @@ def test_goal2_assignment_chain_detects_source_ref_digest_mismatch(
     target_path = fixture["paths"]["target_profile"]
     target = json_lib.loads(target_path.read_text(encoding="utf-8"))
     target["description"] = "changed after assignment binding"
-    target_path.write_text(
-        json_lib.dumps(target, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    target_path.write_text(json_lib.dumps(target, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     report = verify_artifact_chain([fixture["paths"]["assignment"], target_path])
 
@@ -572,8 +557,22 @@ def test_chain_accepts_verification_execution_ledger_record(tmp_path: Path) -> N
                 "stderr_truncated": False,
             }
         ],
-        preflight_git_state={"state_label": "preflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
-        postflight_git_state={"state_label": "postflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
+        preflight_git_state={
+            "state_label": "preflight",
+            "captured": True,
+            "returncode": 0,
+            "porcelain_sha256": "3" * 64,
+            "porcelain_lines": [],
+            "stderr_sha256": "4" * 64,
+        },
+        postflight_git_state={
+            "state_label": "postflight",
+            "captured": True,
+            "returncode": 0,
+            "porcelain_sha256": "3" * 64,
+            "porcelain_lines": [],
+            "stderr_sha256": "4" * 64,
+        },
         workspace_mutation_detected=False,
         execution_enabled=True,
         subprocess_mode=SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
@@ -652,8 +651,22 @@ def test_chain_accepts_verification_execution_ledger_integrity_report(tmp_path: 
                 "stderr_truncated": False,
             }
         ],
-        preflight_git_state={"state_label": "preflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
-        postflight_git_state={"state_label": "postflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
+        preflight_git_state={
+            "state_label": "preflight",
+            "captured": True,
+            "returncode": 0,
+            "porcelain_sha256": "3" * 64,
+            "porcelain_lines": [],
+            "stderr_sha256": "4" * 64,
+        },
+        postflight_git_state={
+            "state_label": "postflight",
+            "captured": True,
+            "returncode": 0,
+            "porcelain_sha256": "3" * 64,
+            "porcelain_lines": [],
+            "stderr_sha256": "4" * 64,
+        },
         workspace_mutation_detected=False,
         execution_enabled=True,
         subprocess_mode=SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
@@ -734,8 +747,22 @@ def test_chain_accepts_verification_execution_ledger_reconstruction_report(tmp_p
                 "stderr_truncated": False,
             }
         ],
-        preflight_git_state={"state_label": "preflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
-        postflight_git_state={"state_label": "postflight", "captured": True, "returncode": 0, "porcelain_sha256": "3" * 64, "porcelain_lines": [], "stderr_sha256": "4" * 64},
+        preflight_git_state={
+            "state_label": "preflight",
+            "captured": True,
+            "returncode": 0,
+            "porcelain_sha256": "3" * 64,
+            "porcelain_lines": [],
+            "stderr_sha256": "4" * 64,
+        },
+        postflight_git_state={
+            "state_label": "postflight",
+            "captured": True,
+            "returncode": 0,
+            "porcelain_sha256": "3" * 64,
+            "porcelain_lines": [],
+            "stderr_sha256": "4" * 64,
+        },
         workspace_mutation_detected=False,
         execution_enabled=True,
         subprocess_mode=SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
@@ -787,9 +814,7 @@ def test_cli_verify_artifacts_output_file(tmp_path: Path) -> None:
 
     out_file = tmp_path / "report.json"
     runner = CliRunner()
-    result = runner.invoke(
-        chain_app, ["verify-artifacts", str(p_path), "--output", str(out_file)]
-    )
+    result = runner.invoke(chain_app, ["verify-artifacts", str(p_path), "--output", str(out_file)])
 
     assert result.exit_code == 0
     assert "Verification report written to" in result.output

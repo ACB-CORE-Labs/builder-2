@@ -27,7 +27,9 @@ def _generic_repo(tmp_path: Path) -> Path:
 def _wrapper_plan(tmp_path: Path) -> dict:
     settings = load_settings(project_root=tmp_path / "builder-II")
     repo = _generic_repo(tmp_path)
-    config = create_session_configuration(settings, "generic", repo_path=str(repo), task="prepare approval boundary", generic_repo=repo)
+    config = create_session_configuration(
+        settings, "generic", repo_path=str(repo), task="prepare approval boundary", generic_repo=repo
+    )
     projection = create_goose_projection(settings, config)
     return create_goose_wrapper_plan(projection)
 
@@ -76,7 +78,9 @@ def test_runtime_activation_approval_spec_file_validation(tmp_path: Path) -> Non
     output.write_text(dumps_runtime_activation_approval_spec(spec), encoding="utf-8")
 
     assert validate_runtime_activation_approval_spec_file(output) == []
-    assert any("file not found" in error for error in validate_runtime_activation_approval_spec_file(tmp_path / "missing.json"))
+    assert any(
+        "file not found" in error for error in validate_runtime_activation_approval_spec_file(tmp_path / "missing.json")
+    )
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")

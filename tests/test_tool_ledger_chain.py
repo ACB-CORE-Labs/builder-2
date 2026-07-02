@@ -1,6 +1,7 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.tools_cli import tools_app
 from typer.testing import CliRunner
 
 from builder_ii.config import Settings
@@ -17,7 +18,6 @@ from builder_ii.mcp_policy import (
     TOOL_ENVELOPE_KIND,
     TOOL_POLICY_KIND,
 )
-from builder_ii.tools_cli import tools_app
 from builder_ii.workflow_records import canonical_digest
 
 
@@ -36,6 +36,7 @@ def _settings(tmp_path: Path) -> Settings:
         project_root=tmp_path,
         allow_cloud_models=False,
     )
+
 
 def _policy_path(tmp_path: Path) -> Path:
     policy = {
@@ -57,16 +58,16 @@ def _policy_path(tmp_path: Path) -> Path:
         "requires_approval_for_mutation": True,
         "requires_approval_for_external_network": True,
         "requires_approval_for_credentials": True,
-        "governance": {
-            "artifact_is_authority": False
-        }
+        "governance": {"artifact_is_authority": False},
     }
     pol_path = tmp_path / "policy.json"
     pol_path.write_text(json_lib.dumps(policy), encoding="utf-8")
     return pol_path
 
+
 def _envelope_path(tmp_path: Path, pol_path: Path) -> Path:
     import json as json_lib
+
     policy = json_lib.loads(pol_path.read_text())
     envelope = {
         "kind": TOOL_ENVELOPE_KIND,
@@ -93,6 +94,7 @@ def _envelope_path(tmp_path: Path, pol_path: Path) -> Path:
     env_path.write_text(json_lib.dumps(envelope), encoding="utf-8")
     return env_path
 
+
 def test_tool_event_as_first_in_session(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
@@ -101,13 +103,18 @@ def test_tool_event_as_first_in_session(tmp_path, monkeypatch):
     rec_path = tmp_path / "receipt.json"
     session_id = "session-first"
 
-    result = runner.invoke(tools_app, [
-        "invoke",
-        str(env_path),
-        str(pol_path),
-        "--receipt-output", str(rec_path),
-        "--session-id", session_id,
-    ])
+    result = runner.invoke(
+        tools_app,
+        [
+            "invoke",
+            str(env_path),
+            str(pol_path),
+            "--receipt-output",
+            str(rec_path),
+            "--session-id",
+            session_id,
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     events_dir = tmp_path / ".builder/sessions" / session_id / "events"
@@ -123,6 +130,7 @@ def test_tool_event_as_first_in_session(tmp_path, monkeypatch):
     assert validate_event_record(event) == []
     report = replay_events(records, session_id=session_id)
     assert report["valid"]
+
 
 def test_tool_event_chains_to_prior_event(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
@@ -157,13 +165,18 @@ def test_tool_event_chains_to_prior_event(tmp_path, monkeypatch):
     prior_path = events_dir / "001_workflow_planned.json"
     write_event_record(prior_event, prior_path)
 
-    result = runner.invoke(tools_app, [
-        "invoke",
-        str(env_path),
-        str(pol_path),
-        "--receipt-output", str(rec_path),
-        "--session-id", session_id,
-    ])
+    result = runner.invoke(
+        tools_app,
+        [
+            "invoke",
+            str(env_path),
+            str(pol_path),
+            "--receipt-output",
+            str(rec_path),
+            "--session-id",
+            session_id,
+        ],
+    )
 
     assert result.exit_code == 0, result.output
     records = load_event_records(events_dir)
@@ -181,6 +194,7 @@ def test_tool_event_chains_to_prior_event(tmp_path, monkeypatch):
     report = replay_events(records, session_id=session_id)
     assert report["valid"]
 
+
 def test_tool_event_failure_logs_failed_event(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
@@ -191,17 +205,23 @@ def test_tool_event_failure_logs_failed_event(tmp_path, monkeypatch):
 
     # Mismatch policy digest in envelope to trigger failure
     import json as json_lib
+
     envelope = json_lib.loads(env_path.read_text())
     envelope["policy_ref"]["sha256"] = "wrong" * 16
     env_path.write_text(json_lib.dumps(envelope))
 
-    result = runner.invoke(tools_app, [
-        "invoke",
-        str(env_path),
-        str(pol_path),
-        "--receipt-output", str(rec_path),
-        "--session-id", session_id,
-    ])
+    result = runner.invoke(
+        tools_app,
+        [
+            "invoke",
+            str(env_path),
+            str(pol_path),
+            "--receipt-output",
+            str(rec_path),
+            "--session-id",
+            session_id,
+        ],
+    )
 
     assert result.exit_code != 0
     events_dir = tmp_path / ".builder/sessions" / session_id / "events"

@@ -2,12 +2,12 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.receipt_records_cli import receipt_app
 from typer.testing import CliRunner
 
 from builder_ii.approval_records import create_approval_record
 from builder_ii.goose_command_proposal import create_goose_command_proposal
 from builder_ii.preflight_records import create_preflight_record
-from builder_ii.receipt_records_cli import receipt_app
 
 _MANIFEST: dict[str, Any] = {
     "kind": "builder_ii.goose_session_manifest",
@@ -28,7 +28,9 @@ def _preflight(tmp_path: Path) -> Path:
     a_path = tmp_path / "approval.json"
     a_path.write_text(json_lib.dumps(a))
 
-    pf = create_preflight_record(p, a, proposal_path="proposal.json", approval_path="approval.json", verification_refs=["ref"])
+    pf = create_preflight_record(
+        p, a, proposal_path="proposal.json", approval_path="approval.json", verification_refs=["ref"]
+    )
     pf_path = tmp_path / "preflight.json"
     pf_path.write_text(json_lib.dumps(pf))
     return pf_path
@@ -52,12 +54,17 @@ def test_receipt_cli_record_and_validate(tmp_path: Path) -> None:
         [
             "record",
             str(pf_path),
-            "--status", "passed",
-            "--recorded-by", "operator",
-            "--evidence-ref", "evidence-item",
-            "--summary", "test summary",
-            "--output", str(output)
-        ]
+            "--status",
+            "passed",
+            "--recorded-by",
+            "operator",
+            "--evidence-ref",
+            "evidence-item",
+            "--summary",
+            "test summary",
+            "--output",
+            str(output),
+        ],
     )
     assert record_result.exit_code == 0, record_result.stdout
     assert "Receipt record written to" in record_result.stdout

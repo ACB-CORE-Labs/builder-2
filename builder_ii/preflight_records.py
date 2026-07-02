@@ -199,7 +199,12 @@ def validate_preflight_record(record: Any) -> list[str]:
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     result = record.get("result")
-    if not isinstance(result, dict) or result.get("status") is not None or result.get("stdout") != "" or result.get("stderr") != "":
+    if (
+        not isinstance(result, dict)
+        or result.get("status") is not None
+        or result.get("stdout") != ""
+        or result.get("stderr") != ""
+    ):
         errors.append("result must be empty")
     governance = record.get("governance")
     if not isinstance(governance, dict):

@@ -1,10 +1,10 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.goose_cli import goose_app
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
-from builder_ii.goose_cli import goose_app
 from builder_ii.goose_session import (
     create_goose_session_manifest,
     dumps_goose_session_manifest,

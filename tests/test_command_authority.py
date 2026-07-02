@@ -48,21 +48,18 @@ def test_pyproject_scripts_fully_covered():
     for script_name in scripts.keys():
         # Verify that either the exact script name is registered,
         # or there is at least one subcommand record starting with it.
-        has_match = any(
-            name == script_name or name.startswith(f"{script_name} ")
-            for name in registered_names
-        )
+        has_match = any(name == script_name or name.startswith(f"{script_name} ") for name in registered_names)
         assert has_match, f"Script '{script_name}' from pyproject.toml is missing from registry"
 
 
 def test_root_builder_subcommands_fully_covered():
     """Ensure every root builder CLI command decorator has an explicit registry row."""
     root = _get_project_root()
-    cli_source = (root / "builder_ii" / "cli.py").read_text(encoding="utf-8")
-    root_commands = {
-        f"builder {match.group(1)}"
-        for match in re.finditer(r"@app\.command\(\"([^\"]+)\"\)", cli_source)
-    }
+    path = root / "builder_ii" / "cli" / "main.py"
+    if not path.exists():
+        path = root / "builder_ii" / "cli.py"
+    cli_source = path.read_text(encoding="utf-8")
+    root_commands = {f"builder {match.group(1)}" for match in re.finditer(r"@app\.command\(\"([^\"]+)\"\)", cli_source)}
     registered_names = {r.name for r in COMMAND_AUTHORITY_REGISTRY}
 
     assert root_commands
@@ -128,47 +125,47 @@ def test_all_cli_commands_fully_covered():
     # Tiny explicit allowlist for help-only or non-authority delegated cases
     # e.g., if a sub-typer app is registered as a group but has no standalone behavior
     allowlist = {
-        "builder",            # Root group wrapper, delegates to subcommands
-        "builder-targets",    # Group wrapper, delegates to subcommands
-        "builder-session",    # Group wrapper, delegates to subcommands
-        "builder-goose",      # Group wrapper, delegates to subcommands
-        "builder-mcp",        # Group wrapper, delegates to subcommands
-        "builder-tools",      # Group wrapper, delegates to subcommands
-        "builder-deepagents", # Group wrapper, delegates to subcommands
-        "builder-readonly",   # Group wrapper, delegates to subcommands
-        "builder-verify",     # Group wrapper, delegates to subcommands
-        "builder-research",   # Group wrapper, delegates to subcommands
-        "builder-agent",      # Group wrapper, delegates to subcommands
-        "builder-bridge",     # Group wrapper, delegates to subcommands
-        "builder-bundle",     # Group wrapper, delegates to subcommands
-        "builder-records",    # Group wrapper, delegates to subcommands
+        "builder",  # Root group wrapper, delegates to subcommands
+        "builder-targets",  # Group wrapper, delegates to subcommands
+        "builder-session",  # Group wrapper, delegates to subcommands
+        "builder-goose",  # Group wrapper, delegates to subcommands
+        "builder-mcp",  # Group wrapper, delegates to subcommands
+        "builder-tools",  # Group wrapper, delegates to subcommands
+        "builder-deepagents",  # Group wrapper, delegates to subcommands
+        "builder-readonly",  # Group wrapper, delegates to subcommands
+        "builder-verify",  # Group wrapper, delegates to subcommands
+        "builder-research",  # Group wrapper, delegates to subcommands
+        "builder-agent",  # Group wrapper, delegates to subcommands
+        "builder-bridge",  # Group wrapper, delegates to subcommands
+        "builder-bundle",  # Group wrapper, delegates to subcommands
+        "builder-records",  # Group wrapper, delegates to subcommands
         "builder-preflight",  # Group wrapper, delegates to subcommands
-        "builder-receipt",    # Group wrapper, delegates to subcommands
-        "builder-chain",      # Group wrapper, delegates to subcommands
-        "builder-handoff",    # Group wrapper, delegates to subcommands
-        "builder-intake",     # Group wrapper, delegates to subcommands
-        "builder-index",      # Group wrapper, delegates to subcommands
+        "builder-receipt",  # Group wrapper, delegates to subcommands
+        "builder-chain",  # Group wrapper, delegates to subcommands
+        "builder-handoff",  # Group wrapper, delegates to subcommands
+        "builder-intake",  # Group wrapper, delegates to subcommands
+        "builder-index",  # Group wrapper, delegates to subcommands
         "builder-promotion",  # Group wrapper, delegates to subcommands
-        "builder-promotion-decision", # Group wrapper, delegates to subcommands
-        "builder-state-index", # Group wrapper, delegates to subcommands
-        "builder-snapshot",   # Group wrapper, delegates to subcommands
-        "builder-notes",      # Group wrapper, delegates to subcommands
-        "builder-quality",    # Group wrapper, delegates to subcommands
-        "builder-performance", # Group wrapper, delegates to subcommands
-        "builder-verification", # Group wrapper, delegates to subcommands
-        "builder-hitl",       # Group wrapper, delegates to subcommands
-        "builder-orchestration", # Group wrapper, delegates to subcommands
-        "builder-profile-pack", # Group wrapper, delegates to subcommands
-        "builder-model-policy", # Group wrapper, delegates to subcommands
-        "builder-model",      # Group wrapper, delegates to subcommands
-        "builder-workflow",   # Group wrapper, delegates to subcommands
-        "builder-ledger",     # Group wrapper, delegates to subcommands
-        "builder-platform",   # Group wrapper, delegates to subcommands
-        "builder-memory",     # Group wrapper, delegates to subcommands
-        "builder-config",     # Group wrapper, delegates to subcommands
-        "builder-setup",      # Group wrapper, delegates to subcommands
+        "builder-promotion-decision",  # Group wrapper, delegates to subcommands
+        "builder-state-index",  # Group wrapper, delegates to subcommands
+        "builder-snapshot",  # Group wrapper, delegates to subcommands
+        "builder-notes",  # Group wrapper, delegates to subcommands
+        "builder-quality",  # Group wrapper, delegates to subcommands
+        "builder-performance",  # Group wrapper, delegates to subcommands
+        "builder-verification",  # Group wrapper, delegates to subcommands
+        "builder-hitl",  # Group wrapper, delegates to subcommands
+        "builder-orchestration",  # Group wrapper, delegates to subcommands
+        "builder-profile-pack",  # Group wrapper, delegates to subcommands
+        "builder-model-policy",  # Group wrapper, delegates to subcommands
+        "builder-model",  # Group wrapper, delegates to subcommands
+        "builder-workflow",  # Group wrapper, delegates to subcommands
+        "builder-ledger",  # Group wrapper, delegates to subcommands
+        "builder-platform",  # Group wrapper, delegates to subcommands
+        "builder-memory",  # Group wrapper, delegates to subcommands
+        "builder-config",  # Group wrapper, delegates to subcommands
+        "builder-setup",  # Group wrapper, delegates to subcommands
         "builder-git-state",  # Group wrapper, delegates to subcommands
-        "builder-runtime",    # Group wrapper, delegates to subcommands
+        "builder-runtime",  # Group wrapper, delegates to subcommands
     }
 
     normalized_discovered = []
@@ -204,6 +201,7 @@ def test_docs_contain_all_commands_and_table():
 
     # Verify every registered command name is mentioned in the docs
     from builder_ii.command_authority import _EXTRA_COMMAND_NAMES
+
     for r in COMMAND_AUTHORITY_REGISTRY:
         if r.name in _EXTRA_COMMAND_NAMES:
             continue
@@ -211,7 +209,9 @@ def test_docs_contain_all_commands_and_table():
 
     # Verify the table exists in the doc
     expected_table = render_registry_markdown_table()
-    assert expected_table in doc_content, "The table in docs/COMMAND_AUTHORITY.md does not match the rendered table from registry"
+    assert expected_table in doc_content, (
+        "The table in docs/COMMAND_AUTHORITY.md does not match the rendered table from registry"
+    )
 
 
 def test_no_forbidden_identity_framing():
@@ -299,6 +299,7 @@ def test_adversarial_validation_violations():
     )
 
     from builder_ii import command_authority
+
     original_registry = command_authority.COMMAND_AUTHORITY_REGISTRY
 
     try:

@@ -4,6 +4,7 @@ The inspection TUI is an observer surface.  Helpers here are deliberately
 small: they normalize path discovery, ANSI-safe width accounting, JSON loading,
 and artifact-store parse checks without importing Rich or granting authority.
 """
+
 from __future__ import annotations
 
 import json

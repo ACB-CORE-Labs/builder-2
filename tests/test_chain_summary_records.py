@@ -23,8 +23,12 @@ def _chain(tmp_path: Path) -> tuple[dict, dict, dict, dict]:
         runtime_mode="read_only",
         generic_repo=tmp_path,
     )
-    proposal = create_goose_command_proposal(manifest, manifest_path=tmp_path / "goose-session.json", command="verify", risk_level="low")
-    approval = create_approval_record(proposal, proposal_path=tmp_path / "proposal.json", decision="approved", decided_by="operator")
+    proposal = create_goose_command_proposal(
+        manifest, manifest_path=tmp_path / "goose-session.json", command="verify", risk_level="low"
+    )
+    approval = create_approval_record(
+        proposal, proposal_path=tmp_path / "proposal.json", decision="approved", decided_by="operator"
+    )
     preflight = create_preflight_record(
         proposal,
         approval,

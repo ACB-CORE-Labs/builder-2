@@ -171,7 +171,11 @@ def validate_receipt_record(record: Any) -> list[str]:
     observed = record.get("observed_result")
     if not isinstance(observed, dict):
         errors.append("observed_result must be an object")
-    elif observed.get("status") != record.get("status") or observed.get("stdout_ref") != "" or observed.get("stderr_ref") != "":
+    elif (
+        observed.get("status") != record.get("status")
+        or observed.get("stdout_ref") != ""
+        or observed.get("stderr_ref") != ""
+    ):
         errors.append("observed_result must match status and keep refs empty")
     governance = record.get("governance")
     if not isinstance(governance, dict):

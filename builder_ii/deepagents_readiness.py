@@ -159,7 +159,9 @@ def validate_deepagents_readiness_artifact(artifact: Any) -> list[str]:
             errors.append("package.module must be deepagents")
         if package.get("expected_factory") != "create_governed_deep_agent":
             errors.append("package.expected_factory must be create_governed_deep_agent")
-        if not isinstance(package.get("expected_exports"), list) or "create_governed_deep_agent" not in package.get("expected_exports", []):
+        if not isinstance(package.get("expected_exports"), list) or "create_governed_deep_agent" not in package.get(
+            "expected_exports", []
+        ):
             errors.append("package.expected_exports must include create_governed_deep_agent")
     observed = artifact.get("observed")
     if not isinstance(observed, dict):

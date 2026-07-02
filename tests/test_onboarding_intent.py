@@ -20,9 +20,13 @@ def _sample_report() -> dict:
         rollback_snapshot_path="/tmp/test/setup-rollback-snapshot.json",
         rollback_snapshot_digest="c" * 64,
         onboarding_mode="init",
-        apply_command="builder-setup apply /tmp/test/setup-overlay.json --rollback-snapshot /tmp/test/setup-rollback-snapshot.json --approve-digest " + ("b" * 64) + " --output /tmp/test/receipt.json",
+        apply_command="builder-setup apply /tmp/test/setup-overlay.json --rollback-snapshot /tmp/test/setup-rollback-snapshot.json --approve-digest "
+        + ("b" * 64)
+        + " --output /tmp/test/receipt.json",
         validate_receipt_command="builder-setup validate-receipt /tmp/test/receipt.json",
-        rollback_command="builder-setup rollback /tmp/test/receipt.json --rollback-snapshot /tmp/test/setup-rollback-snapshot.json --approve-digest " + ("d" * 64) + " --output /tmp/test/rollback-receipt.json",
+        rollback_command="builder-setup rollback /tmp/test/receipt.json --rollback-snapshot /tmp/test/setup-rollback-snapshot.json --approve-digest "
+        + ("d" * 64)
+        + " --output /tmp/test/rollback-receipt.json",
         validate_rollback_receipt_command="builder-setup validate-rollback-receipt /tmp/test/rollback-receipt.json",
         selected_summary={"target_profile": "generic"},
     )
@@ -57,6 +61,7 @@ def test_missing_disabled_authority_fails():
     report["disabled_authority"]["runtime_execution"] = "enabled"
     # Re-sign digest so failure is specifically from disabled authority check
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
     assert any("disabled_authority.runtime_execution must remain disabled" in err for err in errors)
@@ -66,9 +71,13 @@ def test_command_string_with_unmanaged_language_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup apply && bash -c 'echo bad'"
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
-    assert any("contains forbidden command pattern" in err or "must reference only governed builder-setup commands" in err for err in errors)
+    assert any(
+        "contains forbidden command pattern" in err or "must reference only governed builder-setup commands" in err
+        for err in errors
+    )
 
 
 def test_file_validation_and_write(tmp_path: Path):
@@ -83,6 +92,7 @@ def test_apply_command_missing_approve_digest_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup apply /tmp/test/setup-overlay.json"
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
     assert any("apply_command must include --approve-digest" in err for err in errors)
@@ -92,6 +102,7 @@ def test_apply_command_wrong_digest_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup apply /tmp/test/setup-overlay.json --approve-digest " + ("1" * 64)
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
     assert any("apply_command must include --approve-digest matching overlay_plan_digest" in err for err in errors)
@@ -101,6 +112,7 @@ def test_apply_command_wrong_subcommand_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup plan /tmp/test/setup-overlay.json --approve-digest " + ("b" * 64)
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
     assert any("apply_command must begin with 'builder-setup apply '" in err for err in errors)
@@ -110,6 +122,7 @@ def test_validate_receipt_command_wrong_subcommand_fails():
     report = _sample_report()
     report["validate_receipt_command"] = "builder-setup validate-plan /tmp/test/receipt.json"
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
     assert any("validate_receipt_command must begin with 'builder-setup validate-receipt '" in err for err in errors)
@@ -119,15 +132,19 @@ def test_rollback_command_missing_digest_placeholder_fails():
     report = _sample_report()
     report["rollback_command"] = "builder-setup rollback /tmp/test/receipt.json"
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
-    assert any("rollback_command must include --approve-digest placeholder or setup receipt digest" in err for err in errors)
+    assert any(
+        "rollback_command must include --approve-digest placeholder or setup receipt digest" in err for err in errors
+    )
 
 
 def test_shell_separator_still_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup apply /tmp/test/setup-overlay.json ; rm -rf /"
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
     assert any("contains forbidden command pattern" in err for err in errors)
@@ -136,9 +153,14 @@ def test_shell_separator_still_fails():
 def test_command_allowing_model_lab_and_git_safe_dir_paths():
     report = _sample_report()
     overlay_digest = report["overlay_plan_digest"]
-    report["apply_command"] = f"builder-setup apply /tmp/model-lab/setup-overlay.json --rollback-snapshot /tmp/git-safe-dir/snap.json --approve-digest {overlay_digest}"
-    report["rollback_command"] = "builder-setup rollback /tmp/git-safe-dir/setup-receipt.json --approve-digest <setup_receipt_digest>"
+    report["apply_command"] = (
+        f"builder-setup apply /tmp/model-lab/setup-overlay.json --rollback-snapshot /tmp/git-safe-dir/snap.json --approve-digest {overlay_digest}"
+    )
+    report["rollback_command"] = (
+        "builder-setup rollback /tmp/git-safe-dir/setup-receipt.json --approve-digest <setup_receipt_digest>"
+    )
     from builder_ii.config_schema import attach_digest
+
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
     assert errors == []

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from builder_ii.config_cli import _override_map
+from builder_ii.cli.config_cli import _override_map
 from builder_ii.config_sources import ConfigResolution, resolve_config_sources
 from builder_ii.onboarding_intent import (
     finalize_onboarding_intent_report,
@@ -52,9 +52,18 @@ class OnboardingResult:
             "output_dir": str(self.output_dir),
             "artifacts": {
                 "setup_plan": {"path": str(self.setup_plan_path), "digest": self.setup_plan.get("plan_digest")},
-                "setup_overlay": {"path": str(self.setup_overlay_path), "digest": self.overlay_plan.get("overlay_plan_digest")},
-                "rollback_snapshot": {"path": str(self.rollback_snapshot_path), "digest": self.rollback_snapshot.get("snapshot_id")},
-                "onboarding_intent": {"path": str(self.onboarding_intent_path), "digest": self.onboarding_intent.get("onboarding_intent_digest")},
+                "setup_overlay": {
+                    "path": str(self.setup_overlay_path),
+                    "digest": self.overlay_plan.get("overlay_plan_digest"),
+                },
+                "rollback_snapshot": {
+                    "path": str(self.rollback_snapshot_path),
+                    "digest": self.rollback_snapshot.get("snapshot_id"),
+                },
+                "onboarding_intent": {
+                    "path": str(self.onboarding_intent_path),
+                    "digest": self.onboarding_intent.get("onboarding_intent_digest"),
+                },
             },
             "next_commands": {
                 "apply": self.onboarding_intent.get("apply_command"),
@@ -106,17 +115,33 @@ def run_onboarding_pipeline(
     setup_plan = create_setup_plan(resolution)
     plan_errors = validate_setup_plan_artifact(setup_plan)
     if plan_errors:
-        return _error_result(output_dir, plan_errors, setup_plan={}, overlay_plan={}, rollback_snapshot={}, onboarding_intent={})
+        return _error_result(
+            output_dir, plan_errors, setup_plan={}, overlay_plan={}, rollback_snapshot={}, onboarding_intent={}
+        )
 
     overlay_plan = create_setup_overlay_plan(setup_plan)
     overlay_errors = validate_setup_overlay_plan_artifact(overlay_plan)
     if overlay_errors:
-        return _error_result(output_dir, overlay_errors, setup_plan=setup_plan, overlay_plan=overlay_plan, rollback_snapshot={}, onboarding_intent={})
+        return _error_result(
+            output_dir,
+            overlay_errors,
+            setup_plan=setup_plan,
+            overlay_plan=overlay_plan,
+            rollback_snapshot={},
+            onboarding_intent={},
+        )
 
     rollback_snapshot = create_setup_rollback_snapshot(overlay_plan)
     snapshot_errors = validate_setup_rollback_snapshot_artifact(rollback_snapshot)
     if snapshot_errors:
-        return _error_result(output_dir, snapshot_errors, setup_plan=setup_plan, overlay_plan=overlay_plan, rollback_snapshot=rollback_snapshot, onboarding_intent={})
+        return _error_result(
+            output_dir,
+            snapshot_errors,
+            setup_plan=setup_plan,
+            overlay_plan=overlay_plan,
+            rollback_snapshot=rollback_snapshot,
+            onboarding_intent={},
+        )
 
     output_dir.mkdir(parents=True, exist_ok=True)
     plan_path = output_dir / "setup-plan.json"
@@ -133,9 +158,29 @@ def run_onboarding_pipeline(
     snapshot_flag = "--rollback" + "-snapshot"
     receipt_digest_placeholder = "<" + "setup_receipt_digest" + ">"
 
-    apply_cmd = _cmd(setup_tool, "ap" + "ply", overlay_path, snapshot_flag, snapshot_path, approve_flag, overlay_digest, output_flag, receipt_path)
+    apply_cmd = _cmd(
+        setup_tool,
+        "ap" + "ply",
+        overlay_path,
+        snapshot_flag,
+        snapshot_path,
+        approve_flag,
+        overlay_digest,
+        output_flag,
+        receipt_path,
+    )
     validate_receipt_cmd = _cmd(setup_tool, "validate" + "-receipt", receipt_path)
-    rollback_cmd = _cmd(setup_tool, "roll" + "back", receipt_path, snapshot_flag, snapshot_path, approve_flag, receipt_digest_placeholder, output_flag, rollback_receipt_path)
+    rollback_cmd = _cmd(
+        setup_tool,
+        "roll" + "back",
+        receipt_path,
+        snapshot_flag,
+        snapshot_path,
+        approve_flag,
+        receipt_digest_placeholder,
+        output_flag,
+        rollback_receipt_path,
+    )
     validate_rollback_cmd = _cmd(setup_tool, "validate" + "-rollback" + "-receipt", rollback_receipt_path)
     selected_model = setup_plan.get("selected_model") or {}
 
@@ -162,7 +207,14 @@ def run_onboarding_pipeline(
     )
     intent_errors = validate_onboarding_intent_report_artifact(intent_report)
     if intent_errors:
-        return _error_result(output_dir, intent_errors, setup_plan=setup_plan, overlay_plan=overlay_plan, rollback_snapshot=rollback_snapshot, onboarding_intent=intent_report)
+        return _error_result(
+            output_dir,
+            intent_errors,
+            setup_plan=setup_plan,
+            overlay_plan=overlay_plan,
+            rollback_snapshot=rollback_snapshot,
+            onboarding_intent=intent_report,
+        )
 
     write_setup_plan(setup_plan, plan_path)
     write_setup_overlay_plan(overlay_plan, overlay_path)

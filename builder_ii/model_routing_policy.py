@@ -264,7 +264,11 @@ def create_model_routing_recommendation(
             continue
         if req.get("required_model_alias") and cand.get("model_alias") != req.get("required_model_alias"):
             continue
-        if req.get("required_lane") and cand.get("model_alias") != req.get("required_lane") and cand.get("model_id") != req.get("required_lane"):
+        if (
+            req.get("required_lane")
+            and cand.get("model_alias") != req.get("required_lane")
+            and cand.get("model_id") != req.get("required_lane")
+        ):
             continue
 
         score = 0
@@ -429,8 +433,10 @@ def validate_model_routing_recommendation(record: Any) -> list[str]:
 
     return errors
 
+
 MODEL_EXECUTION_POLICY_KIND = "builder_ii.model_execution_policy"
 MODEL_EXECUTION_POLICY_SCHEMA_VERSION = 1
+
 
 def create_model_execution_policy(recommendation: dict[str, Any], max_tokens: int = 4096) -> dict[str, Any]:
     """Create a bounded model execution policy artifact.
@@ -449,10 +455,7 @@ def create_model_execution_policy(recommendation: dict[str, Any], max_tokens: in
         "operator_approval_required": True,
         "requires_human_promotion_for_execution": True,
         "max_tokens": max_tokens,
-        "source_recommendation_ref": {
-            "kind": MODEL_ROUTING_RECOMMENDATION_KIND,
-            "sha256": _digest(recommendation)
-        },
+        "source_recommendation_ref": {"kind": MODEL_ROUTING_RECOMMENDATION_KIND, "sha256": _digest(recommendation)},
         "allowed_models": [cand["model_id"] for cand in recommendation.get("recommended_candidates", [])],
         "governance": {
             "model_execution": "ENABLED_UNDER_ENVELOPE",
@@ -465,12 +468,15 @@ def create_model_execution_policy(recommendation: dict[str, Any], max_tokens: in
         },
     }
 
+
 def dumps_model_execution_policy(policy: dict[str, Any]) -> str:
     return json_lib.dumps(policy, indent=2, sort_keys=True) + "\n"
+
 
 def write_model_execution_policy(policy: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_model_execution_policy(policy), encoding="utf-8")
+
 
 def validate_model_execution_policy(record: Any) -> list[str]:
     errors: list[str] = []
@@ -487,7 +493,9 @@ def validate_model_execution_policy(record: Any) -> list[str]:
     # Execution policy must NOT claim hidden authority; authority comes from command
     # authority registry and explicit operator invocation only.
     if record.get("grants_authority") is not False:
-        errors.append("grants_authority must be false — execution policy is a bounded artifact, not an authority source")
+        errors.append(
+            "grants_authority must be false — execution policy is a bounded artifact, not an authority source"
+        )
     if record.get("requires_human_promotion_for_execution") is not True:
         errors.append("requires_human_promotion_for_execution must be true")
 
@@ -528,6 +536,7 @@ def validate_model_execution_policy(record: Any) -> list[str]:
             errors.append("governance.core_workbench_coupling must be NONE")
 
     return errors
+
 
 def validate_model_execution_policy_file(path: Path) -> list[str]:
     if not path.exists():

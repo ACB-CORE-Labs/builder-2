@@ -125,10 +125,21 @@ def validate_orchestration_dry_run(data: Any) -> list[str]:
             if not isinstance(step, dict):
                 errors.append(f"steps[{index}] must be an object")
                 continue
-            for field in ("step_id", "role", "session_configuration_kind", "goose_projection_kind", "goose_wrapper_plan_kind", "session_name", "working_directory", "handoff_contract"):
+            for field in (
+                "step_id",
+                "role",
+                "session_configuration_kind",
+                "goose_projection_kind",
+                "goose_wrapper_plan_kind",
+                "session_name",
+                "working_directory",
+                "handoff_contract",
+            ):
                 if not isinstance(step.get(field), str) or not step[field]:
                     errors.append(f"steps[{index}].{field} must be a non-empty string")
-            if not isinstance(step.get("depends_on"), list) or any(not isinstance(item, str) for item in step.get("depends_on", [])):
+            if not isinstance(step.get("depends_on"), list) or any(
+                not isinstance(item, str) for item in step.get("depends_on", [])
+            ):
                 errors.append(f"steps[{index}].depends_on must be a list of strings")
             if step.get("operator_review_required") is not True:
                 errors.append(f"steps[{index}].operator_review_required must be true")
@@ -155,7 +166,17 @@ def validate_orchestration_dry_run(data: Any) -> list[str]:
     else:
         if governance.get("capability_state") != "orchestration_dry_run":
             errors.append("governance.capability_state must be orchestration_dry_run")
-        for key in ("runtime_execution", "goose_runtime_start", "deepagents_runtime_start", "agent_construction", "subagent_construction", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
+        for key in (
+            "runtime_execution",
+            "goose_runtime_start",
+            "deepagents_runtime_start",
+            "agent_construction",
+            "subagent_construction",
+            "model_execution",
+            "shell_execution",
+            "source_writes",
+            "memory_mutation",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:

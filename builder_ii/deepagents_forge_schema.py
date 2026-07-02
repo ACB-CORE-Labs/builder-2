@@ -25,9 +25,7 @@ READ_CAPABILITIES = frozenset({"read_files", "read_git", "read_tests"})
 WRITE_CAPABILITIES = frozenset({"write_files", "write_memory", "write_artifacts"})
 SHELL_CAPABILITIES = frozenset({"run_shell", "run_tests", "run_commands"})
 TOOL_CAPABILITIES = frozenset({"call_mcp_tools", "emit_handoffs"})
-KNOWN_CAPABILITIES = frozenset(
-    (*READ_CAPABILITIES, *WRITE_CAPABILITIES, *SHELL_CAPABILITIES, *TOOL_CAPABILITIES)
-)
+KNOWN_CAPABILITIES = frozenset((*READ_CAPABILITIES, *WRITE_CAPABILITIES, *SHELL_CAPABILITIES, *TOOL_CAPABILITIES))
 KNOWN_HITL_GATES = frozenset(
     {
         "before_write",
@@ -74,11 +72,7 @@ def derive_slug(name: str) -> str:
 
 def is_valid_slug(slug: str) -> bool:
     """Return True when slug is safe for profiles/deepagents/{slug}.yaml."""
-    return bool(
-        isinstance(slug, str)
-        and slug == slug.strip()
-        and SAFE_SLUG_RE.fullmatch(slug)
-    )
+    return bool(isinstance(slug, str) and slug == slug.strip() and SAFE_SLUG_RE.fullmatch(slug))
 
 
 def validate_slug(slug: str) -> list[ValidationIssue]:
@@ -226,13 +220,13 @@ class DeepAgentSpec:
 
     # --- Identity ---
     name: str = ""
-    slug: str = ""          # auto-derived from name; editable
+    slug: str = ""  # auto-derived from name; editable
     description: str = ""
-    target_profile: str = "generic"   # generic | builder | core
+    target_profile: str = "generic"  # generic | builder | core
 
     # --- Role / Persona ---
-    persona: str = ""       # system prompt seed: "You are an agent that..."
-    lane: str = "default"   # maps to existing lane_guides
+    persona: str = ""  # system prompt seed: "You are an agent that..."
+    lane: str = "default"  # maps to existing lane_guides
 
     # --- Capability grants ---
     capabilities: list[str] = field(default_factory=list)
@@ -243,7 +237,7 @@ class DeepAgentSpec:
     goose_recipe: Optional[str] = None
 
     # --- Subagent / orchestration ---
-    subagent_of: Optional[str] = None   # parent agent slug if nested
+    subagent_of: Optional[str] = None  # parent agent slug if nested
     hitl_gates: list[str] = field(default_factory=list)
     # e.g. ["before_write", "before_shell"]
 
@@ -255,7 +249,7 @@ class DeepAgentSpec:
     verification_profile: str = "default"
     approval_required: bool = True
     rollback_path: str = ""
-    output_artifact: str = ""   # where the agent writes its work
+    output_artifact: str = ""  # where the agent writes its work
 
     # --- Meta ---
     author: str = ""

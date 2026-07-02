@@ -1,19 +1,18 @@
-
 from __future__ import annotations
 
 from pathlib import Path
 
 import pytest
+from builder_ii.setup_cli import setup_app
 from typer.testing import CliRunner
 
 from builder_ii.onboarding_intent import validate_onboarding_intent_report_file
-from builder_ii.setup_cli import setup_app
 
 runner = CliRunner()
 
 
 def test_wizard_emits_artifacts_and_instructions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.delenv('CORE_REPO_PATH', raising=False)
+    monkeypatch.delenv("CORE_REPO_PATH", raising=False)
     out_dir = tmp_path / "wizard-out"
     inputs = f"{out_dir}\ngeneric\nrapid-mlx\nphi-reasoning\n"
     result = runner.invoke(setup_app, ["wizard", "--root", str(tmp_path)], input=inputs)

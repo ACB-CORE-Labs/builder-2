@@ -27,7 +27,9 @@ def _ready() -> dict:
 
 
 def _decision(decision: str = "approved") -> dict:
-    return create_promotion_decision_record(_ready(), readiness_path="promotion-readiness.json", decision=decision, decided_by="operator")
+    return create_promotion_decision_record(
+        _ready(), readiness_path="promotion-readiness.json", decision=decision, decided_by="operator"
+    )
 
 
 def test_create_complete_state_ledger_shape() -> None:
@@ -70,7 +72,11 @@ def test_create_blocked_state_ledger_entry() -> None:
 
 
 def test_state_ledger_json_round_trip() -> None:
-    data = json_lib.loads(dumps_state_ledger_record(create_state_ledger_record([(_decision(), "promotion-decision.json")], ledger_name="main-ledger")))
+    data = json_lib.loads(
+        dumps_state_ledger_record(
+            create_state_ledger_record([(_decision(), "promotion-decision.json")], ledger_name="main-ledger")
+        )
+    )
 
     assert data["complete"] is True
     assert validate_state_ledger_record(data) == []
@@ -160,7 +166,9 @@ def test_create_state_ledger_from_file_fixture(tmp_path: Path) -> None:
     decision_path = tmp_path / "decision.json"
     write_promotion_decision_record(_decision(), decision_path)
 
-    record = create_state_ledger_record([(json_lib.loads(decision_path.read_text(encoding="utf-8")), decision_path)], ledger_name="main-ledger")
+    record = create_state_ledger_record(
+        [(json_lib.loads(decision_path.read_text(encoding="utf-8")), decision_path)], ledger_name="main-ledger"
+    )
 
     assert record["status"] == "complete"
     assert validate_state_ledger_record(record) == []

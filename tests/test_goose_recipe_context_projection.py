@@ -82,7 +82,9 @@ def test_goose_recipe_context_projection_file_validation(tmp_path: Path) -> None
     output.write_text(dumps_goose_recipe_context_projection(projection), encoding="utf-8")
 
     assert validate_goose_recipe_context_projection_file(output) == []
-    assert any("file not found" in error for error in validate_goose_recipe_context_projection_file(tmp_path / "missing.json"))
+    assert any(
+        "file not found" in error for error in validate_goose_recipe_context_projection_file(tmp_path / "missing.json")
+    )
 
     bad_json = tmp_path / "bad.json"
     bad_json.write_text("{bad json", encoding="utf-8")

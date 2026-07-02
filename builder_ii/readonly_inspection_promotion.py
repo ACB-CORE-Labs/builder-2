@@ -29,7 +29,9 @@ _DENIED_ACTIONS = (
 )
 
 
-def create_readonly_inspection_promotion_spec(*, target: str = "builder", capability_name: str = "bounded_readonly_inspection") -> dict[str, Any]:
+def create_readonly_inspection_promotion_spec(
+    *, target: str = "builder", capability_name: str = "bounded_readonly_inspection"
+) -> dict[str, Any]:
     return {
         "kind": READONLY_INSPECTION_PROMOTION_SPEC_KIND,
         "schema_version": READONLY_INSPECTION_PROMOTION_SPEC_SCHEMA_VERSION,

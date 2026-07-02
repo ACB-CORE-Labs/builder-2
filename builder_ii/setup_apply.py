@@ -14,7 +14,15 @@ from builder_ii.setup_receipt import finalize_setup_receipt, write_setup_receipt
 from builder_ii.setup_rollback import validate_setup_rollback_snapshot_artifact
 
 SUPPORTED_OPERATIONS = {"create", "replace", "mkdir", "no-op"}
-UNSAFE_CONFLICTS = {"unsafe_path_traversal", "outside_declared_setup_scopes", "symlink_path", "parent_symlink", "parent_not_directory", "directory_file_conflict", "file_directory_conflict"}
+UNSAFE_CONFLICTS = {
+    "unsafe_path_traversal",
+    "outside_declared_setup_scopes",
+    "symlink_path",
+    "parent_symlink",
+    "parent_not_directory",
+    "directory_file_conflict",
+    "file_directory_conflict",
+}
 SECRET_MARKERS = ("secret", "token", "api_key", "apikey", "password", "credential", "bearer")
 
 
@@ -88,7 +96,12 @@ def _safe_target(change: dict[str, Any], overlay: dict[str, Any], *, operation: 
         errors.append("target path outside declared setup scopes")
     builder_root = Path(str(overlay.get("builder_repo_canonical_path", ""))).resolve(strict=False)
     artifact_root = Path(str(overlay.get("artifact_root_canonical_path", ""))).resolve(strict=False)
-    if operation != "no-op" and builder_root and _inside(resolved, builder_root) and not _inside(resolved, artifact_root):
+    if (
+        operation != "no-op"
+        and builder_root
+        and _inside(resolved, builder_root)
+        and not _inside(resolved, artifact_root)
+    ):
         errors.append("source repo mutation is disabled except declared artifact-root setup metadata")
     if target.is_symlink() or target.parent.is_symlink():
         errors.append("unsafe symlink target or parent")
@@ -114,7 +127,12 @@ def _preflight_filesystem_conflicts(target: Path, *, operation: str) -> list[str
 
 
 def _base_receipt(overlay: dict[str, Any], snapshot: dict[str, Any], approve_digest: str) -> dict[str, Any]:
-    basis = {"overlay": overlay.get("overlay_plan_digest"), "snapshot": snapshot.get("snapshot_digest"), "approval": approve_digest, "ts": datetime.now(timezone.utc).isoformat()}
+    basis = {
+        "overlay": overlay.get("overlay_plan_digest"),
+        "snapshot": snapshot.get("snapshot_digest"),
+        "approval": approve_digest,
+        "ts": datetime.now(timezone.utc).isoformat(),
+    }
     return {
         "receipt_id": digest_jsonable(basis, digest_key="receipt_id"),
         "timestamp": basis["ts"],
@@ -132,7 +150,9 @@ def _base_receipt(overlay: dict[str, Any], snapshot: dict[str, Any], approve_dig
     }
 
 
-def apply_setup_overlay(overlay: dict[str, Any], snapshot: dict[str, Any], *, approve_digest: str, receipt_output: Path | None = None) -> dict[str, Any]:
+def apply_setup_overlay(
+    overlay: dict[str, Any], snapshot: dict[str, Any], *, approve_digest: str, receipt_output: Path | None = None
+) -> dict[str, Any]:
     errors = validate_setup_overlay_plan_artifact(overlay) + validate_setup_rollback_snapshot_artifact(snapshot)
     if approve_digest != overlay.get("overlay_plan_digest"):
         errors.append("approve digest does not match overlay_plan_digest")
@@ -140,12 +160,27 @@ def apply_setup_overlay(overlay: dict[str, Any], snapshot: dict[str, Any], *, ap
         errors.append("rollback snapshot overlay digest does not match overlay")
     if snapshot.get("setup_plan_digest") != overlay.get("setup_plan_ref", {}).get("digest"):
         errors.append("rollback snapshot setup plan digest does not match overlay setup plan digest")
-    receipt = _base_receipt(overlay, snapshot, approve_digest if isinstance(approve_digest, str) else "") if isinstance(overlay, dict) and isinstance(snapshot, dict) and overlay.get("setup_plan_ref") else None
+    receipt = (
+        _base_receipt(overlay, snapshot, approve_digest if isinstance(approve_digest, str) else "")
+        if isinstance(overlay, dict) and isinstance(snapshot, dict) and overlay.get("setup_plan_ref")
+        else None
+    )
     if errors:
         if receipt is not None:
             receipt["operation_result"] = "denied"
             receipt["denied_paths"] = ["<artifact>" for _ in errors]
-            receipt["operations"] = [{"change_id": "artifact_validation", "operation_type": "validate", "result": "denied", "reason": error, "before_digest": "", "after_digest": "", "redacted_preview": ""} for error in errors]
+            receipt["operations"] = [
+                {
+                    "change_id": "artifact_validation",
+                    "operation_type": "validate",
+                    "result": "denied",
+                    "reason": error,
+                    "before_digest": "",
+                    "after_digest": "",
+                    "redacted_preview": "",
+                }
+                for error in errors
+            ]
             finalized = finalize_setup_receipt(receipt)
             if receipt_output is not None:
                 write_setup_receipt(finalized, receipt_output)
@@ -160,7 +195,9 @@ def apply_setup_overlay(overlay: dict[str, Any], snapshot: dict[str, Any], *, ap
         finalized = finalize_setup_receipt(receipt)
         if receipt_output is not None:
             write_setup_receipt(finalized, receipt_output)
-        raise SetupApplyError("setup apply denied: rollback snapshot target paths do not match declared changes", finalized)
+        raise SetupApplyError(
+            "setup apply denied: rollback snapshot target paths do not match declared changes", finalized
+        )
 
     try:
         preflight: list[tuple[dict[str, Any], Path, str, str]] = []
@@ -179,7 +216,16 @@ def apply_setup_overlay(overlay: dict[str, Any], snapshot: dict[str, Any], *, ap
                 reasons.append("replace requires rollback snapshot coverage")
             before = _digest_path(target)
             text = _content_text(change)
-            op_record = {"change_id": change["change_id"], "target_path": str(target), "operation_type": operation, "before_digest": before, "after_digest": before, "redacted_preview": _redact(text), "result": "pending", "reason": ""}
+            op_record = {
+                "change_id": change["change_id"],
+                "target_path": str(target),
+                "operation_type": operation,
+                "before_digest": before,
+                "after_digest": before,
+                "redacted_preview": _redact(text),
+                "result": "pending",
+                "reason": "",
+            }
             if reasons:
                 op_record["result"] = "denied"
                 op_record["reason"] = "; ".join(reasons)
@@ -196,7 +242,16 @@ def apply_setup_overlay(overlay: dict[str, Any], snapshot: dict[str, Any], *, ap
 
         for change, target, operation, text in preflight:
             before = _digest_path(target)
-            op_record = {"change_id": change["change_id"], "target_path": str(target), "operation_type": operation, "before_digest": before, "after_digest": before, "redacted_preview": _redact(text), "result": "pending", "reason": ""}
+            op_record = {
+                "change_id": change["change_id"],
+                "target_path": str(target),
+                "operation_type": operation,
+                "before_digest": before,
+                "after_digest": before,
+                "redacted_preview": _redact(text),
+                "result": "pending",
+                "reason": "",
+            }
             if operation == "no-op":
                 op_record["result"] = "skipped_no_op"
                 receipt["skipped_paths"].append(str(target))
@@ -232,7 +287,17 @@ def apply_setup_overlay(overlay: dict[str, Any], snapshot: dict[str, Any], *, ap
         if isinstance(exc, SetupApplyError):
             raise
         receipt["operation_result"] = "failed"
-        receipt["operations"].append({"change_id": "apply_failure", "operation_type": "failure", "result": "failed", "reason": str(exc), "before_digest": "", "after_digest": "", "redacted_preview": ""})
+        receipt["operations"].append(
+            {
+                "change_id": "apply_failure",
+                "operation_type": "failure",
+                "result": "failed",
+                "reason": str(exc),
+                "before_digest": "",
+                "after_digest": "",
+                "redacted_preview": "",
+            }
+        )
         finalized = finalize_setup_receipt(receipt)
         if receipt_output is not None:
             write_setup_receipt(finalized, receipt_output)

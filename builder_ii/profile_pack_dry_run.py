@@ -193,8 +193,18 @@ def validate_profile_pack_dry_run(data: Any) -> list[str]:
     for field in ("pack_id", "target_profile", "task"):
         if not isinstance(data.get(field), str) or not data[field]:
             errors.append(f"{field} must be a non-empty string")
-    errors.extend(_validate_ref(data.get("source_manifest_ref"), field="source_manifest_ref", expected_kind=PROFILE_PACK_MANIFEST_KIND))
-    errors.extend(_validate_ref(data.get("source_render_plan_ref"), field="source_render_plan_ref", expected_kind=PROFILE_PACK_RENDER_PLAN_KIND))
+    errors.extend(
+        _validate_ref(
+            data.get("source_manifest_ref"), field="source_manifest_ref", expected_kind=PROFILE_PACK_MANIFEST_KIND
+        )
+    )
+    errors.extend(
+        _validate_ref(
+            data.get("source_render_plan_ref"),
+            field="source_render_plan_ref",
+            expected_kind=PROFILE_PACK_RENDER_PLAN_KIND,
+        )
+    )
 
     checks = data.get("checks")
     seen: set[str] = set()

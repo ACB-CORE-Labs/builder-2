@@ -140,12 +140,18 @@ def runtime_clear_marker() -> None:
 
 @runtime_app.command("stop")
 def runtime_stop(
-    force_foreign: bool = typer.Option(False, "--force-foreign", help="Also stop non-builder processes listening on the configured port."),
-    confirm_force_foreign: str | None = typer.Option(None, "--confirm-force-foreign", help="Required literal confirmation when --force-foreign is used."),
+    force_foreign: bool = typer.Option(
+        False, "--force-foreign", help="Also stop non-builder processes listening on the configured port."
+    ),
+    confirm_force_foreign: str | None = typer.Option(
+        None, "--confirm-force-foreign", help="Required literal confirmation when --force-foreign is used."
+    ),
     keep_marker: bool = typer.Option(False, "--keep-marker", help="Do not clear the runtime marker after stopping."),
 ) -> None:
     """Stop the local MLX runtime process on the configured port and clear its marker."""
-    enforce_command_authority("builder-runtime stop", requested_effects=("process_control", "state_write", "readonly_subprocess"))
+    enforce_command_authority(
+        "builder-runtime stop", requested_effects=("process_control", "state_write", "readonly_subprocess")
+    )
     if force_foreign and confirm_force_foreign != "STOP_FOREIGN_RUNTIME":
         console.print("[red]--force-foreign requires --confirm-force-foreign STOP_FOREIGN_RUNTIME[/]")
         raise typer.Exit(1)
@@ -163,9 +169,15 @@ def runtime_stop(
 
 @runtime_app.command("reset")
 def runtime_reset(
-    force_foreign: bool = typer.Option(False, "--force-foreign", help="Also stop non-builder processes listening on the configured port."),
-    confirm_force_foreign: str | None = typer.Option(None, "--confirm-force-foreign", help="Required literal confirmation when --force-foreign is used."),
+    force_foreign: bool = typer.Option(
+        False, "--force-foreign", help="Also stop non-builder processes listening on the configured port."
+    ),
+    confirm_force_foreign: str | None = typer.Option(
+        None, "--confirm-force-foreign", help="Required literal confirmation when --force-foreign is used."
+    ),
 ) -> None:
     """Stop the local runtime if present and clear the marker."""
-    enforce_command_authority("builder-runtime reset", requested_effects=("process_control", "state_write", "readonly_subprocess"))
+    enforce_command_authority(
+        "builder-runtime reset", requested_effects=("process_control", "state_write", "readonly_subprocess")
+    )
     runtime_stop(force_foreign=force_foreign, confirm_force_foreign=confirm_force_foreign, keep_marker=False)

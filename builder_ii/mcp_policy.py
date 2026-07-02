@@ -16,9 +16,19 @@ ENVELOPE_SCHEMA_VERSION = 1
 RECEIPT_SCHEMA_VERSION = 1
 INVENTORY_SCHEMA_VERSION = 1
 
-VALID_RISK_CLASSES = {"low", "medium", "high", "low_risk", "medium_risk", "high_risk", "mutation", "external_network", "credential_sensitive", "cost_bearing"}
+VALID_RISK_CLASSES = {
+    "low",
+    "medium",
+    "high",
+    "low_risk",
+    "medium_risk",
+    "high_risk",
+    "mutation",
+    "external_network",
+    "credential_sensitive",
+    "cost_bearing",
+}
 VALID_EFFECTS = {"pure", "read_only", "idempotent", "side_effect", "mutation", "unknown"}
-
 
 
 def _validate_ref(value: Any, *, field: str, required: bool = True) -> list[str]:
@@ -96,7 +106,7 @@ def validate_mcp_policy(record: Any) -> list[str]:
         "cost_allowed",
         "requires_approval_for_mutation",
         "requires_approval_for_external_network",
-        "requires_approval_for_credentials"
+        "requires_approval_for_credentials",
     ):
         if not isinstance(record.get(field), bool):
             errors.append(f"{field} must be a boolean")

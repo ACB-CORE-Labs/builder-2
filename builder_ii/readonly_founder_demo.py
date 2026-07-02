@@ -334,11 +334,11 @@ def generate_readonly_founder_demo(
         if any(out.iterdir()):
             if not force:
                 raise ValueError(
-                    f"Output directory '{out}' already exists and is not empty. "
-                    "Use --force to overwrite/recreate."
+                    f"Output directory '{out}' already exists and is not empty. Use --force to overwrite/recreate."
                 )
             validate_safe_demo_directory_for_deletion(out, settings)
             import shutil
+
             shutil.rmtree(out)
 
     out.mkdir(parents=True, exist_ok=True)
@@ -387,10 +387,17 @@ def generate_readonly_founder_demo(
         target_profile=target,
         target_repo=str(profile.repo),
         agent_profile=f"{target}.invariant_auditor" if target == "core" else f"{target}.repo_mapper",
-        inspection_scope=["README.md", "AGENTS.md", "GROK.md", "CLAUDE.md", "docs", "tests"] if target == "core" else ["README.md", "src", "tests"],
+        inspection_scope=["README.md", "AGENTS.md", "GROK.md", "CLAUDE.md", "docs", "tests"]
+        if target == "core"
+        else ["README.md", "src", "tests"],
         target_profile_ref=target_ref,
         workflow_session_ref=sess_ref,
-        notes=["Passive inspection only; no execution authority granted.", "Inspect deterministic verification spine and versor condition gates."] if target == "core" else ["Passive inspection only."],
+        notes=[
+            "Passive inspection only; no execution authority granted.",
+            "Inspect deterministic verification spine and versor condition gates.",
+        ]
+        if target == "core"
+        else ["Passive inspection only."],
     )
     write_target_inspection_plan(inspection_plan, inspection_path)
     _write_json(inspection_plan, out / f"{prefix}_INSPECTION_PLAN_v1.json")
@@ -418,8 +425,15 @@ def generate_readonly_founder_demo(
         target_profile=target,
         target_repo=str(profile.repo),
         agent_profile=f"{target}.patch_planner",
-        proposed_changes=["Propose documentation alignment in AGENTS.md for passive inspection targets.", "Propose test fixture harness addition without modifying runtime execution engine."] if target == "core" else ["Propose non-mutating planning target setup."],
-        invariant_impact="Preserves exact CGA recall, versor_condition(F) < 1e-6, and temperature 0 deterministic boundaries. No runtime execution or model loops modified." if target == "core" else "Preserves repository local boundaries.",
+        proposed_changes=[
+            "Propose documentation alignment in AGENTS.md for passive inspection targets.",
+            "Propose test fixture harness addition without modifying runtime execution engine.",
+        ]
+        if target == "core"
+        else ["Propose non-mutating planning target setup."],
+        invariant_impact="Preserves exact CGA recall, versor_condition(F) < 1e-6, and temperature 0 deterministic boundaries. No runtime execution or model loops modified."
+        if target == "core"
+        else "Preserves repository local boundaries.",
         inspection_plan_ref=inspection_ref,
         target_profile_ref=target_ref,
         workflow_session_ref=sess_ref,
@@ -450,7 +464,9 @@ def generate_readonly_founder_demo(
         target_profile=target,
         target_repo=str(profile.repo),
         agent_profile=f"{target}.verification_planner",
-        proposed_commands=["builder verify <changed-path>", "uv run pytest -q focused_suite"] if target == "core" else ["pytest -q"],
+        proposed_commands=["builder verify <changed-path>", "uv run pytest -q focused_suite"]
+        if target == "core"
+        else ["pytest -q"],
         pass_criteria="All deterministic verification tests pass; no source writes or git mutations occur during verification planning.",
         patch_proposal_ref=proposal_ref,
         target_profile_ref=target_ref,

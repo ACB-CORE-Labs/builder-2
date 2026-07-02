@@ -357,21 +357,15 @@ def check_artifact_governance_safety(artifact: dict[str, Any]) -> list[str]:
             "target_repo_writes",
         ):
             if key not in gov:
-                errors.append(
-                    f"platform bundle governance block missing key: {key}"
-                )
+                errors.append(f"platform bundle governance block missing key: {key}")
     elif kind == "builder_ii.governed_prepare_package":
-        for key in (
-            "target_repo_writes",
-        ):
+        for key in ("target_repo_writes",):
             if key not in gov:
                 errors.append(f"prepare package governance block missing key: {key}")
     elif kind == "builder_ii.session_configuration":
         for key in ("goose_runtime_start",):
             if key not in gov:
-                errors.append(
-                    f"session configuration governance block missing key: {key}"
-                )
+                errors.append(f"session configuration governance block missing key: {key}")
 
     for key, val in gov.items():
         if key in (
@@ -393,9 +387,7 @@ def check_artifact_governance_safety(artifact: dict[str, Any]) -> list[str]:
                 errors.append(f"governance.{key} must be DISABLED")
         elif key == "runtime_activation":
             if val not in ("DISABLED", "NOT_AUTHORIZED"):
-                errors.append(
-                    "governance.runtime_activation must be DISABLED or NOT_AUTHORIZED"
-                )
+                errors.append("governance.runtime_activation must be DISABLED or NOT_AUTHORIZED")
         elif key == "source_writes":
             if val not in (
                 "DISABLED",
@@ -433,10 +425,7 @@ def find_matching_record(command_str: str) -> CommandAuthorityRecord | None:
 
     def match_words(rec_name: str) -> bool:
         rec_words = rec_name.split()
-        return (
-            len(rec_words) <= len(cmd_words)
-            and cmd_words[: len(rec_words)] == rec_words
-        )
+        return len(rec_words) <= len(cmd_words) and cmd_words[: len(rec_words)] == rec_words
 
     matching_record = None
     max_len = -1
@@ -456,10 +445,7 @@ def find_matching_record(command_str: str) -> CommandAuthorityRecord | None:
     if is_exact:
         return matching_record
 
-    if (
-        matching_record.is_command_group
-        and matching_record.authority_delegates_to_subcommands
-    ):
+    if matching_record.is_command_group and matching_record.authority_delegates_to_subcommands:
         return matching_record
 
     return None
@@ -471,13 +457,8 @@ def validate_convention_kernel_platform_bundle(data: Any) -> list[str]:
         return ["convention kernel platform bundle must be a JSON object"]
     if data.get("kind") != CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND:
         errors.append(f"kind must be {CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND}")
-    if (
-        data.get("schema_version")
-        != CONVENTION_KERNEL_PLATFORM_BUNDLE_SCHEMA_VERSION
-    ):
-        errors.append(
-            f"schema_version must be {CONVENTION_KERNEL_PLATFORM_BUNDLE_SCHEMA_VERSION}"
-        )
+    if data.get("schema_version") != CONVENTION_KERNEL_PLATFORM_BUNDLE_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {CONVENTION_KERNEL_PLATFORM_BUNDLE_SCHEMA_VERSION}")
     if data.get("bundle_state") != "PLANNED_ONLY":
         errors.append("bundle_state must be PLANNED_ONLY")
     if data.get("operator_review_required") is not True:
@@ -524,13 +505,9 @@ def validate_convention_kernel_platform_bundle(data: Any) -> list[str]:
         errors.append("command_authority_check must be a JSON object")
     else:
         if cac.get("kind") != "builder_ii.command_authority_check":
-            errors.append(
-                "command_authority_check.kind must be builder_ii.command_authority_check"
-            )
+            errors.append("command_authority_check.kind must be builder_ii.command_authority_check")
         if not isinstance(cac.get("referenced_commands"), list):
-            errors.append(
-                "command_authority_check.referenced_commands must be a list"
-            )
+            errors.append("command_authority_check.referenced_commands must be a list")
 
     governance = data.get("governance")
     if not isinstance(governance, dict):
@@ -623,7 +600,9 @@ class ConventionKernel:
             return ResolvedSessionSpine.from_artifact(artifact)
 
         legacy_target = str(settings or target_profile or "generic")
-        legacy_repo = str(target_profile if isinstance(settings, str) and target_profile is not None else repo_path or ".")
+        legacy_repo = str(
+            target_profile if isinstance(settings, str) and target_profile is not None else repo_path or "."
+        )
         legacy_agent = agent_profile or agent_profile_name or "default"
         return ResolvedSessionSpine(
             target_profile=legacy_target,
@@ -722,6 +701,7 @@ class ConventionKernel:
 
         # 2. Extract resolver and get repo_path
         from builder_ii.profile_resolution import ProfileResolver
+
         resolver = ProfileResolver(settings)
         resolved = resolver.resolve(
             target_name=target_profile,  # type: ignore[arg-type]
@@ -833,9 +813,7 @@ class ConventionKernel:
         if include_deepagents_readiness:
             deepagents_readiness_art = create_deepagents_bridge_readiness_report(
                 target_profile=target_profile,  # type: ignore[arg-type]
-                agent_profile_compatibility_summary=(
-                    "Prepared for readiness inspection only."
-                ),
+                agent_profile_compatibility_summary=("Prepared for readiness inspection only."),
                 readiness_verdict="NOT_READY",
             )
             deepagents_ref = _artifact_ref_from_dict(
@@ -902,19 +880,12 @@ class ConventionKernel:
         for art in all_composed:
             gov_errors = check_artifact_governance_safety(art)
             if gov_errors:
-                raise ValueError(
-                    "unsafe governance block in composed artifact: "
-                    + "; ".join(gov_errors)
-                )
+                raise ValueError("unsafe governance block in composed artifact: " + "; ".join(gov_errors))
 
         # 5. Extract and validate commands against registry
         referenced_cmds: list[str] = []
         referenced_cmds.extend(session_workflow_art.get("planned_commands", []))
-        referenced_cmds.extend(
-            verification_report_art.get("verification_profile", {}).get(
-                "proposed_commands", []
-            )
-        )
+        referenced_cmds.extend(verification_report_art.get("verification_profile", {}).get("proposed_commands", []))
 
         referenced_cmds = sorted(list(set(referenced_cmds)))
 
@@ -935,15 +906,11 @@ class ConventionKernel:
         all_registered = True
         for cmd in referenced_cmds:
             record = find_matching_record(cmd)
-            is_marked = (cmd in operator_managed_set) or (
-                record and record.name in operator_managed_set
-            )
+            is_marked = (cmd in operator_managed_set) or (record and record.name in operator_managed_set)
 
             if not record:
                 if not is_marked:
-                    raise ValueError(
-                        f"command '{cmd}' is unregistered in the command authority registry"
-                    )
+                    raise ValueError(f"command '{cmd}' is unregistered in the command authority registry")
                 all_registered = False
                 command_checks.append(
                     {
@@ -972,9 +939,7 @@ class ConventionKernel:
                     "promotion_state": record.promotion_state,
                     "approval_mode": record.approval_mode,
                     "allowed_in_planned_only": not is_tier_2_plus,
-                    "status": "not_invoked_requires_operator_invocation"
-                    if is_tier_2_plus
-                    else "available",
+                    "status": "not_invoked_requires_operator_invocation" if is_tier_2_plus else "available",
                 }
             )
 
@@ -1005,9 +970,7 @@ class ConventionKernel:
         bundle_dict = bundle.to_dict()
         errors = validate_convention_kernel_platform_bundle(bundle_dict)
         if errors:
-            raise ValueError(
-                "invalid platform spine bundle: " + "; ".join(errors)
-            )
+            raise ValueError("invalid platform spine bundle: " + "; ".join(errors))
 
         return bundle
 

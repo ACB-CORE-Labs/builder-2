@@ -121,11 +121,20 @@ def validate_orchestration_plan(data: Any) -> list[str]:
                 seen.add(step_id)
             if step.get("runtime_binding") != "UNBOUND":
                 errors.append(f"roles[{index}].runtime_binding must be UNBOUND")
-            for field in ("role", "purpose", "authority", "expected_output", "handoff_contract", "verification_expectation"):
+            for field in (
+                "role",
+                "purpose",
+                "authority",
+                "expected_output",
+                "handoff_contract",
+                "verification_expectation",
+            ):
                 if not isinstance(step.get(field), str) or not step[field]:
                     errors.append(f"roles[{index}].{field} must be a non-empty string")
             for field in ("depends_on", "input_context", "forbidden_tools"):
-                if not isinstance(step.get(field), list) or any(not isinstance(item, str) for item in step.get(field, [])):
+                if not isinstance(step.get(field), list) or any(
+                    not isinstance(item, str) for item in step.get(field, [])
+                ):
                     errors.append(f"roles[{index}].{field} must be a list of strings")
             if "execute_shell" not in step.get("forbidden_tools", []):
                 errors.append(f"roles[{index}].forbidden_tools must include execute_shell")

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from builder_ii.verification_execution_plan_cli import verify_app
 from typer.testing import CliRunner
 
 from builder_ii.verification_execution_approval import (
@@ -13,7 +14,6 @@ from builder_ii.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )
-from builder_ii.verification_execution_plan_cli import verify_app
 from builder_ii.verification_execution_receipt import (
     finalize_verification_execution_receipt,
     write_verification_execution_receipt,

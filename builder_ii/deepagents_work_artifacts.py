@@ -68,9 +68,7 @@ _FORBIDDEN_ACTIVE_STATES = {
     "truth",
 }
 _FORBIDDEN_ACTIVE_STATE_RE = re.compile(
-    r"(?<![a-z0-9])("
-    + "|".join(re.escape(term) for term in sorted(_FORBIDDEN_ACTIVE_STATES))
-    + r")(?![a-z0-9])",
+    r"(?<![a-z0-9])(" + "|".join(re.escape(term) for term in sorted(_FORBIDDEN_ACTIVE_STATES)) + r")(?![a-z0-9])",
     re.IGNORECASE,
 )
 
@@ -211,9 +209,7 @@ def create_deepagents_work_plan(
         "orchestration assignment dry run",
         validate_orchestration_assignment_dry_run(orchestration_assignment_dry_run),
     )
-    _validate_or_raise(
-        "deepagents policy", validate_deepagents_policy_artifact(deepagents_policy)
-    )
+    _validate_or_raise("deepagents policy", validate_deepagents_policy_artifact(deepagents_policy))
     _validate_or_raise(
         "deepagents readiness",
         validate_deepagents_readiness_artifact(deepagents_readiness),
@@ -335,9 +331,7 @@ def create_deepagents_subagent_assignment(
         "grants_authority": False,
         "artifact_is_authority": False,
         "requires_human_promotion_for_execution": True,
-        "authority_boundary": _default_authority_boundary(
-            "deepagents_subagent_assignment"
-        ),
+        "authority_boundary": _default_authority_boundary("deepagents_subagent_assignment"),
         "governance": _default_governance("deepagents_subagent_assignment"),
     }
     _validate_or_raise(
@@ -400,9 +394,7 @@ def create_deepagents_subagent_result(
         "authority_boundary": _default_authority_boundary("deepagents_subagent_result"),
         "governance": _default_governance("deepagents_subagent_result"),
     }
-    _validate_or_raise(
-        "deepagents subagent result", validate_deepagents_subagent_result(result)
-    )
+    _validate_or_raise("deepagents subagent result", validate_deepagents_subagent_result(result))
     return result
 
 
@@ -428,12 +420,10 @@ def create_deepagents_subagent_review(
         validate_deepagents_subagent_assignment(subagent_assignment),
     )
     result_assignment_ref = subagent_result.get("subagent_assignment_ref")
-    if not isinstance(result_assignment_ref, dict) or result_assignment_ref.get(
-        "sha256"
-    ) != canonical_digest(subagent_assignment):
-        raise ValueError(
-            "subagent_result must be bound to the supplied subagent_assignment"
-        )
+    if not isinstance(result_assignment_ref, dict) or result_assignment_ref.get("sha256") != canonical_digest(
+        subagent_assignment
+    ):
+        raise ValueError("subagent_result must be bound to the supplied subagent_assignment")
 
     result_ref = _artifact_ref(
         subagent_result,
@@ -480,9 +470,7 @@ def create_deepagents_subagent_review(
         "authority_boundary": _default_authority_boundary("deepagents_subagent_review"),
         "governance": _default_governance("deepagents_subagent_review"),
     }
-    _validate_or_raise(
-        "deepagents subagent review", validate_deepagents_subagent_review(review)
-    )
+    _validate_or_raise("deepagents subagent review", validate_deepagents_subagent_review(review))
     return review
 
 
@@ -528,14 +516,10 @@ def create_deepagents_human_gate_request(
         "grants_authority": False,
         "artifact_is_authority": False,
         "requires_human_promotion_for_execution": True,
-        "authority_boundary": _default_authority_boundary(
-            "deepagents_human_gate_request"
-        ),
+        "authority_boundary": _default_authority_boundary("deepagents_human_gate_request"),
         "governance": _default_governance("deepagents_human_gate_request"),
     }
-    _validate_or_raise(
-        "deepagents human gate request", validate_deepagents_human_gate_request(request)
-    )
+    _validate_or_raise("deepagents human gate request", validate_deepagents_human_gate_request(request))
     return request
 
 
@@ -556,9 +540,7 @@ def create_deepagents_blocked_action_record(
     source_digests = {}
 
     if triggering_artifact is not None:
-        _validate_known_deepagents_work_artifact(
-            "triggering artifact", triggering_artifact
-        )
+        _validate_known_deepagents_work_artifact("triggering artifact", triggering_artifact)
         trigger_ref = _artifact_ref(
             triggering_artifact,
             role="triggering_artifact",
@@ -589,9 +571,7 @@ def create_deepagents_blocked_action_record(
         "grants_authority": False,
         "artifact_is_authority": False,
         "requires_human_promotion_for_execution": True,
-        "authority_boundary": _default_authority_boundary(
-            "deepagents_blocked_action_record"
-        ),
+        "authority_boundary": _default_authority_boundary("deepagents_blocked_action_record"),
         "governance": _default_governance("deepagents_blocked_action_record"),
     }
     if triggering_artifact is not None:
@@ -617,9 +597,7 @@ def create_deepagents_proposal_result(
     _validate_or_raise("deepagents work plan", validate_deepagents_work_plan(work_plan))
     if not reviewed_results:
         raise ValueError("reviewed_results must contain at least one artifact")
-    if reviewed_result_paths is not None and len(reviewed_result_paths) != len(
-        reviewed_results
-    ):
+    if reviewed_result_paths is not None and len(reviewed_result_paths) != len(reviewed_results):
         raise ValueError("reviewed_result_paths length must match reviewed_results")
     reviewed_result_kinds = {
         DEEPAGENTS_SUBAGENT_RESULT_KIND,
@@ -680,9 +658,7 @@ def create_deepagents_proposal_result(
         "authority_boundary": _default_authority_boundary("deepagents_proposal_result"),
         "governance": _default_governance("deepagents_proposal_result"),
     }
-    _validate_or_raise(
-        "deepagents proposal result", validate_deepagents_proposal_result(proposal)
-    )
+    _validate_or_raise("deepagents proposal result", validate_deepagents_proposal_result(proposal))
     return proposal
 
 
@@ -706,14 +682,10 @@ def create_deepagents_work_validation_report(
         errors.append("subject must be a JSON object")
     else:
         subject_kind = str(subject.get("kind", ""))
-        subject_ref = _artifact_ref(
-            subject, role="subject", path=subject_path, name=subject_kind
-        )
+        subject_ref = _artifact_ref(subject, role="subject", path=subject_path, name=subject_kind)
         validator = _deepagents_validators().get(subject_kind)
         if validator is None:
-            errors.append(
-                f"unknown deepagents work artifact kind: {subject_kind or '<missing>'}"
-            )
+            errors.append(f"unknown deepagents work artifact kind: {subject_kind or '<missing>'}")
         else:
             try:
                 errors.extend(validator(subject))
@@ -746,17 +718,12 @@ def create_deepagents_work_validation_report(
         "grants_authority": False,
         "artifact_is_authority": False,
         "requires_human_promotion_for_execution": True,
-        "authority_boundary": _default_authority_boundary(
-            "deepagents_work_validation_report"
-        ),
+        "authority_boundary": _default_authority_boundary("deepagents_work_validation_report"),
         "governance": _default_governance("deepagents_work_validation_report"),
     }
     report_errors = validate_deepagents_work_validation_report(report)
     if report_errors:
-        raise ValueError(
-            "created invalid deepagents work validation report: "
-            + "; ".join(report_errors)
-        )
+        raise ValueError("created invalid deepagents work validation report: " + "; ".join(report_errors))
     return report
 
 
@@ -800,13 +767,9 @@ def write_deepagents_work_plan(plan: dict[str, Any], output: Path) -> None:
     output.write_text(dumps_deepagents_work_plan(plan), encoding="utf-8")
 
 
-def write_deepagents_subagent_assignment(
-    assignment: dict[str, Any], output: Path
-) -> None:
+def write_deepagents_subagent_assignment(assignment: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(
-        dumps_deepagents_subagent_assignment(assignment), encoding="utf-8"
-    )
+    output.write_text(dumps_deepagents_subagent_assignment(assignment), encoding="utf-8")
 
 
 def write_deepagents_subagent_result(result: dict[str, Any], output: Path) -> None:
@@ -824,9 +787,7 @@ def write_deepagents_human_gate_request(request: dict[str, Any], output: Path) -
     output.write_text(dumps_deepagents_human_gate_request(request), encoding="utf-8")
 
 
-def write_deepagents_blocked_action_record(
-    record: dict[str, Any], output: Path
-) -> None:
+def write_deepagents_blocked_action_record(record: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_deepagents_blocked_action_record(record), encoding="utf-8")
 
@@ -836,9 +797,7 @@ def write_deepagents_proposal_result(proposal: dict[str, Any], output: Path) -> 
     output.write_text(dumps_deepagents_proposal_result(proposal), encoding="utf-8")
 
 
-def write_deepagents_work_validation_report(
-    report: dict[str, Any], output: Path
-) -> None:
+def write_deepagents_work_validation_report(report: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_deepagents_work_validation_report(report), encoding="utf-8")
 
@@ -954,9 +913,7 @@ def _validate_source_ref_bindings(
     return errors
 
 
-def _validate_authority_boundary(
-    data: dict[str, Any], *, capability_state: str
-) -> list[str]:
+def _validate_authority_boundary(data: dict[str, Any], *, capability_state: str) -> list[str]:
     errors: list[str] = []
     authority_keys = (
         "executes_model",
@@ -983,16 +940,12 @@ def _validate_authority_boundary(
         errors.append("authority_boundary must be an object")
     else:
         if boundary.get("capability_state") != capability_state:
-            errors.append(
-                f"authority_boundary.capability_state must be {capability_state}"
-            )
+            errors.append(f"authority_boundary.capability_state must be {capability_state}")
         for key in authority_keys:
             if boundary.get(key) is not False:
                 errors.append(f"authority_boundary.{key} must be false")
         if boundary.get("requires_human_promotion_for_execution") is not True:
-            errors.append(
-                "authority_boundary.requires_human_promotion_for_execution must be true"
-            )
+            errors.append("authority_boundary.requires_human_promotion_for_execution must be true")
     return errors
 
 
@@ -1019,13 +972,8 @@ def _validate_governance(governance: Any, *, capability_state: str) -> list[str]
     ):
         if governance.get(key) != "DISABLED":
             errors.append(f"governance.{key} must be DISABLED")
-    if (
-        governance.get("source_writes")
-        != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH"
-    ):
-        errors.append(
-            "governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH"
-        )
+    if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
+        errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
     for key in ("artifact_is_authority", "grants_authority"):
         if governance.get(key) is not False:
             errors.append(f"governance.{key} must be false")
@@ -1040,9 +988,7 @@ def _validate_no_active_state_claims(value: Any, path: str) -> list[str]:
     errors: list[str] = []
     if isinstance(value, dict):
         for key, item in value.items():
-            errors.extend(
-                _validate_no_active_state_claims(item, f"{path}.{key}" if path else key)
-            )
+            errors.extend(_validate_no_active_state_claims(item, f"{path}.{key}" if path else key))
     elif isinstance(value, list):
         for index, item in enumerate(value):
             errors.extend(_validate_no_active_state_claims(item, f"{path}[{index}]"))
@@ -1061,9 +1007,7 @@ def _is_denial_context(text: str, start: int, end: int) -> bool:
     suffix = lower[end : min(len(lower), end + 48)]
     if re.search(r"(?:^|[\s_.,;:/-])(not|no|never|without|non)[\s_-]+$", prefix):
         return True
-    if re.search(
-        r"(blocked|denied|disabled|disallowed|prevented|refused|rejected)", prefix
-    ):
+    if re.search(r"(blocked|denied|disabled|disallowed|prevented|refused|rejected)", prefix):
         return True
     if re.search(
         r"^(?:[\s_.,;:/-]*(blocked|denied|disabled|disallowed|prevented|refused|rejected))",
@@ -1135,17 +1079,13 @@ def validate_deepagents_work_plan(data: Any) -> list[str]:
         "blocked_capabilities",
     ):
         value = data.get(list_field)
-        if not isinstance(value, list) or any(
-            not isinstance(item, str) or not item for item in value
-        ):
+        if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
             errors.append(f"{list_field} must be a list of non-empty strings")
     blocked_capabilities = data.get("blocked_capabilities")
     if isinstance(blocked_capabilities, list):
         for capability in blocked_capabilities:
             if capability not in _DENIED_CAPABILITIES:
-                errors.append(
-                    f"blocked_capabilities contains unknown denied capability: {capability}"
-                )
+                errors.append(f"blocked_capabilities contains unknown denied capability: {capability}")
 
     errors.extend(
         _validate_source_ref_bindings(
@@ -1171,14 +1111,8 @@ def validate_deepagents_work_plan(data: Any) -> list[str]:
         )
     )
 
-    errors.extend(
-        _validate_authority_boundary(data, capability_state="deepagents_work_plan")
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_work_plan"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_work_plan"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_work_plan"))
     errors.extend(_validate_no_active_state_claims(data, "work_plan"))
     return errors
 
@@ -1190,9 +1124,7 @@ def validate_deepagents_subagent_assignment(data: Any) -> list[str]:
     if data.get("kind") != DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND:
         errors.append(f"kind must be {DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND}")
     if data.get("schema_version") != DEEPAGENTS_SUBAGENT_ASSIGNMENT_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {DEEPAGENTS_SUBAGENT_ASSIGNMENT_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {DEEPAGENTS_SUBAGENT_ASSIGNMENT_SCHEMA_VERSION}")
     if data.get("assignment_state") != "ASSIGNED_ONLY":
         errors.append("assignment_state must be ASSIGNED_ONLY")
     if data.get("result_mode") != "PROPOSAL_ONLY":
@@ -1201,10 +1133,7 @@ def validate_deepagents_subagent_assignment(data: Any) -> list[str]:
         errors.append("target must be a known target profile")
     if not isinstance(data.get("task"), str) or not data["task"]:
         errors.append("task must be a non-empty string")
-    if (
-        not isinstance(data.get("subagent_profile"), str)
-        or not data["subagent_profile"]
-    ):
+    if not isinstance(data.get("subagent_profile"), str) or not data["subagent_profile"]:
         errors.append("subagent_profile must be a non-empty string")
 
     errors.extend(
@@ -1223,16 +1152,8 @@ def validate_deepagents_subagent_assignment(data: Any) -> list[str]:
         )
     )
 
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="deepagents_subagent_assignment"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_subagent_assignment"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_subagent_assignment"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_subagent_assignment"))
     errors.extend(_validate_no_active_state_claims(data, "subagent_assignment"))
     return errors
 
@@ -1244,17 +1165,12 @@ def validate_deepagents_subagent_result(data: Any) -> list[str]:
     if data.get("kind") != DEEPAGENTS_SUBAGENT_RESULT_KIND:
         errors.append(f"kind must be {DEEPAGENTS_SUBAGENT_RESULT_KIND}")
     if data.get("schema_version") != DEEPAGENTS_SUBAGENT_RESULT_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {DEEPAGENTS_SUBAGENT_RESULT_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {DEEPAGENTS_SUBAGENT_RESULT_SCHEMA_VERSION}")
     if data.get("result_state") != "RECORDED_ONLY":
         errors.append("result_state must be RECORDED_ONLY")
     if data.get("target") not in target_names():
         errors.append("target must be a known target profile")
-    if (
-        not isinstance(data.get("subagent_profile"), str)
-        or not data["subagent_profile"]
-    ):
+    if not isinstance(data.get("subagent_profile"), str) or not data["subagent_profile"]:
         errors.append("subagent_profile must be a non-empty string")
     if not isinstance(data.get("summary"), str):
         errors.append("summary must be a string")
@@ -1281,16 +1197,8 @@ def validate_deepagents_subagent_result(data: Any) -> list[str]:
         )
     )
 
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="deepagents_subagent_result"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_subagent_result"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_subagent_result"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_subagent_result"))
     errors.extend(_validate_no_active_state_claims(data, "subagent_result"))
     return errors
 
@@ -1302,9 +1210,7 @@ def validate_deepagents_subagent_review(data: Any) -> list[str]:
     if data.get("kind") != DEEPAGENTS_SUBAGENT_REVIEW_KIND:
         errors.append(f"kind must be {DEEPAGENTS_SUBAGENT_REVIEW_KIND}")
     if data.get("schema_version") != DEEPAGENTS_SUBAGENT_REVIEW_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {DEEPAGENTS_SUBAGENT_REVIEW_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {DEEPAGENTS_SUBAGENT_REVIEW_SCHEMA_VERSION}")
     if data.get("review_state") != "REVIEW_ONLY":
         errors.append("review_state must be REVIEW_ONLY")
     if data.get("target") not in target_names():
@@ -1314,9 +1220,7 @@ def validate_deepagents_subagent_review(data: Any) -> list[str]:
         "needs_revision",
         "rejected",
     ):
-        errors.append(
-            "disposition must be accepted_as_proposal, needs_revision, or rejected"
-        )
+        errors.append("disposition must be accepted_as_proposal, needs_revision, or rejected")
 
     errors.extend(
         _validate_ref(
@@ -1353,16 +1257,8 @@ def validate_deepagents_subagent_review(data: Any) -> list[str]:
         )
     )
 
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="deepagents_subagent_review"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_subagent_review"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_subagent_review"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_subagent_review"))
     errors.extend(_validate_no_active_state_claims(data, "subagent_review"))
     return errors
 
@@ -1374,9 +1270,7 @@ def validate_deepagents_human_gate_request(data: Any) -> list[str]:
     if data.get("kind") != DEEPAGENTS_HUMAN_GATE_REQUEST_KIND:
         errors.append(f"kind must be {DEEPAGENTS_HUMAN_GATE_REQUEST_KIND}")
     if data.get("schema_version") != DEEPAGENTS_HUMAN_GATE_REQUEST_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {DEEPAGENTS_HUMAN_GATE_REQUEST_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {DEEPAGENTS_HUMAN_GATE_REQUEST_SCHEMA_VERSION}")
     if data.get("gate_state") != "REQUESTED_ONLY":
         errors.append("gate_state must be REQUESTED_ONLY")
     if data.get("approval_state") != "NOT_GRANTED":
@@ -1395,9 +1289,7 @@ def validate_deepagents_human_gate_request(data: Any) -> list[str]:
     reviewed_ref = data.get("reviewed_artifact_ref")
     reviewed_kind = reviewed_ref.get("kind") if isinstance(reviewed_ref, dict) else None
     if isinstance(reviewed_kind, str) and reviewed_kind not in _deepagents_validators():
-        errors.append(
-            "reviewed_artifact_ref.kind must be a deepagents work artifact kind"
-        )
+        errors.append("reviewed_artifact_ref.kind must be a deepagents work artifact kind")
     errors.extend(
         _validate_source_ref_bindings(
             data,
@@ -1405,24 +1297,14 @@ def validate_deepagents_human_gate_request(data: Any) -> list[str]:
         )
     )
 
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="deepagents_human_gate_request"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_human_gate_request"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_human_gate_request"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_human_gate_request"))
 
     # Exclude reviewed_artifact_ref from active claim validation to avoid failures on valid subjects
     clean_data = dict(data)
     clean_data.pop("reviewed_artifact_ref", None)
     if "source_refs" in clean_data:
-        clean_data["source_refs"] = [
-            r for r in clean_data["source_refs"] if r.get("role") != "reviewed_artifact"
-        ]
+        clean_data["source_refs"] = [r for r in clean_data["source_refs"] if r.get("role") != "reviewed_artifact"]
     errors.extend(_validate_no_active_state_claims(clean_data, "human_gate_request"))
     return errors
 
@@ -1434,17 +1316,12 @@ def validate_deepagents_blocked_action_record(data: Any) -> list[str]:
     if data.get("kind") != DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND:
         errors.append(f"kind must be {DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND}")
     if data.get("schema_version") != DEEPAGENTS_BLOCKED_ACTION_RECORD_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {DEEPAGENTS_BLOCKED_ACTION_RECORD_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {DEEPAGENTS_BLOCKED_ACTION_RECORD_SCHEMA_VERSION}")
     if data.get("record_state") != "BLOCKED_ONLY":
         errors.append("record_state must be BLOCKED_ONLY")
     if data.get("target") not in target_names():
         errors.append("target must be a known target profile")
-    if (
-        not isinstance(data.get("denied_capability"), str)
-        or not data["denied_capability"]
-    ):
+    if not isinstance(data.get("denied_capability"), str) or not data["denied_capability"]:
         errors.append("denied_capability must be a non-empty string")
     denied_capability = data.get("denied_capability")
 
@@ -1457,23 +1334,15 @@ def validate_deepagents_blocked_action_record(data: Any) -> list[str]:
             )
         )
 
-    if (
-        isinstance(denied_capability, str)
-        and denied_capability not in _DENIED_CAPABILITIES
-    ):
+    if isinstance(denied_capability, str) and denied_capability not in _DENIED_CAPABILITIES:
         errors.append("denied_capability must be a known denied capability")
 
     has_trigger = "triggering_artifact_ref" in data
     trigger_ref = data.get("triggering_artifact_ref")
     trigger_kind = trigger_ref.get("kind") if isinstance(trigger_ref, dict) else None
     if has_trigger:
-        if (
-            isinstance(trigger_kind, str)
-            and trigger_kind not in _deepagents_validators()
-        ):
-            errors.append(
-                "triggering_artifact_ref.kind must be a deepagents work artifact kind"
-            )
+        if isinstance(trigger_kind, str) and trigger_kind not in _deepagents_validators():
+            errors.append("triggering_artifact_ref.kind must be a deepagents work artifact kind")
         errors.extend(
             _validate_source_ref_bindings(
                 data,
@@ -1486,30 +1355,16 @@ def validate_deepagents_blocked_action_record(data: Any) -> list[str]:
         if by_role:
             errors.append("source_refs must be empty without triggering_artifact_ref")
         if data.get("source_digests") != {}:
-            errors.append(
-                "source_digests must be empty without triggering_artifact_ref"
-            )
+            errors.append("source_digests must be empty without triggering_artifact_ref")
 
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="deepagents_blocked_action_record"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_blocked_action_record"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_blocked_action_record"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_blocked_action_record"))
 
     # Exclude triggering_artifact_ref from active claim validation to avoid false positives
     clean_data = dict(data)
     clean_data.pop("triggering_artifact_ref", None)
     if "source_refs" in clean_data:
-        clean_data["source_refs"] = [
-            r
-            for r in clean_data["source_refs"]
-            if r.get("role") != "triggering_artifact"
-        ]
+        clean_data["source_refs"] = [r for r in clean_data["source_refs"] if r.get("role") != "triggering_artifact"]
     errors.extend(_validate_no_active_state_claims(clean_data, "blocked_action_record"))
     return errors
 
@@ -1521,9 +1376,7 @@ def validate_deepagents_proposal_result(data: Any) -> list[str]:
     if data.get("kind") != DEEPAGENTS_PROPOSAL_RESULT_KIND:
         errors.append(f"kind must be {DEEPAGENTS_PROPOSAL_RESULT_KIND}")
     if data.get("schema_version") != DEEPAGENTS_PROPOSAL_RESULT_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {DEEPAGENTS_PROPOSAL_RESULT_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {DEEPAGENTS_PROPOSAL_RESULT_SCHEMA_VERSION}")
     if data.get("proposal_state") != "PROPOSAL_ONLY":
         errors.append("proposal_state must be PROPOSAL_ONLY")
     if data.get("target") not in target_names():
@@ -1555,9 +1408,7 @@ def validate_deepagents_proposal_result(data: Any) -> list[str]:
                 DEEPAGENTS_SUBAGENT_RESULT_KIND,
                 DEEPAGENTS_SUBAGENT_REVIEW_KIND,
             }:
-                errors.append(
-                    f"reviewed_result_refs[{idx}].kind must be a subagent result or review"
-                )
+                errors.append(f"reviewed_result_refs[{idx}].kind must be a subagent result or review")
 
     by_role, role_errors = _source_refs_by_role(data)
     errors.extend(role_errors)
@@ -1599,13 +1450,9 @@ def validate_deepagents_proposal_result(data: Any) -> list[str]:
             if source_ref is None:
                 errors.append(f"missing {role} source ref")
             elif source_ref != ref:
-                errors.append(
-                    f"source_refs.{role} must match reviewed_result_refs[{index}]"
-                )
+                errors.append(f"source_refs.{role} must match reviewed_result_refs[{index}]")
             if not role.startswith("reviewed_result_"):
-                errors.append(
-                    f"reviewed_result_refs[{index}].role must start with reviewed_result_"
-                )
+                errors.append(f"reviewed_result_refs[{index}].role must start with reviewed_result_")
         allowed_roles = {"work_plan", *expected_review_roles}
     else:
         allowed_roles = {"work_plan"}
@@ -1616,16 +1463,8 @@ def validate_deepagents_proposal_result(data: Any) -> list[str]:
         if role not in allowed_roles:
             errors.append(f"unknown source digest role: {role}")
 
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="deepagents_proposal_result"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_proposal_result"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_proposal_result"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_proposal_result"))
 
     # Exclude reviewed_result_refs and work_plan_ref from active claim validation
     clean_data = dict(data)
@@ -1644,9 +1483,7 @@ def validate_deepagents_work_validation_report(data: Any) -> list[str]:
     if data.get("kind") != DEEPAGENTS_WORK_VALIDATION_REPORT_KIND:
         errors.append(f"kind must be {DEEPAGENTS_WORK_VALIDATION_REPORT_KIND}")
     if data.get("schema_version") != DEEPAGENTS_WORK_VALIDATION_REPORT_SCHEMA_VERSION:
-        errors.append(
-            f"schema_version must be {DEEPAGENTS_WORK_VALIDATION_REPORT_SCHEMA_VERSION}"
-        )
+        errors.append(f"schema_version must be {DEEPAGENTS_WORK_VALIDATION_REPORT_SCHEMA_VERSION}")
     if data.get("validation_state") != "VALIDATION_ONLY":
         errors.append("validation_state must be VALIDATION_ONLY")
     if data.get("status") not in ("valid", "invalid"):
@@ -1675,23 +1512,13 @@ def validate_deepagents_work_validation_report(data: Any) -> list[str]:
         )
     )
 
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="deepagents_work_validation_report"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_work_validation_report"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_work_validation_report"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_work_validation_report"))
 
     # Exclude subject_ref from active claim validation
     clean_data = dict(data)
     clean_data.pop("subject_ref", None)
-    errors.extend(
-        _validate_no_active_state_claims(clean_data, "work_validation_report")
-    )
+    errors.extend(_validate_no_active_state_claims(clean_data, "work_validation_report"))
     return errors
 
 
@@ -1731,16 +1558,8 @@ def validate_deepagents_runtime_envelope(data: Any) -> list[str]:
                 )
             )
 
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="deepagents_runtime"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_runtime"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_runtime"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_runtime"))
     # The runtime envelope acts with runtime/execution authority, so we exclude it from no active state claims
     return errors
 
@@ -1778,16 +1597,8 @@ def validate_deepagents_subagent_execution_receipt(data: Any) -> list[str]:
         )
     )
 
-    errors.extend(
-        _validate_authority_boundary(
-            data, capability_state="deepagents_runtime"
-        )
-    )
-    errors.extend(
-        _validate_governance(
-            data.get("governance"), capability_state="deepagents_runtime"
-        )
-    )
+    errors.extend(_validate_authority_boundary(data, capability_state="deepagents_runtime"))
+    errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_runtime"))
     # The receipt has EXECUTED_ONLY state, so it does not check for no active state claims
     return errors
 
@@ -1795,9 +1606,7 @@ def validate_deepagents_subagent_execution_receipt(data: Any) -> list[str]:
 # File Load and Validators
 
 
-def _validate_file_generic(
-    path: Path, validator: Callable[[Any], list[str]]
-) -> list[str]:
+def _validate_file_generic(path: Path, validator: Callable[[Any], list[str]]) -> list[str]:
     if not path.exists():
         return [f"file not found: {path}"]
     try:

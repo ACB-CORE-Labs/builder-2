@@ -42,19 +42,21 @@ def create_operator_status_report(
 
     commands = []
     for cmd in COMMAND_AUTHORITY_REGISTRY:
-        commands.append({
-            "name": cmd.name,
-            "tier": cmd.tier,
-            "promotion_state": cmd.promotion_state,
-            "allows_runtime_start": cmd.allows_runtime_start,
-            "allows_model_execution": cmd.allows_model_execution,
-            "allows_shell_execution": cmd.allows_shell_execution,
-            "allows_source_writes": cmd.allows_source_writes,
-            "allows_memory_mutation": cmd.allows_memory_mutation,
-            "allows_target_repo_mutation": cmd.allows_git_mutation,
-            "allows_artifact_writes": cmd.allows_artifact_writes,
-            "allows_state_writes": cmd.allows_state_writes,
-        })
+        commands.append(
+            {
+                "name": cmd.name,
+                "tier": cmd.tier,
+                "promotion_state": cmd.promotion_state,
+                "allows_runtime_start": cmd.allows_runtime_start,
+                "allows_model_execution": cmd.allows_model_execution,
+                "allows_shell_execution": cmd.allows_shell_execution,
+                "allows_source_writes": cmd.allows_source_writes,
+                "allows_memory_mutation": cmd.allows_memory_mutation,
+                "allows_target_repo_mutation": cmd.allows_git_mutation,
+                "allows_artifact_writes": cmd.allows_artifact_writes,
+                "allows_state_writes": cmd.allows_state_writes,
+            }
+        )
 
     capability_counts = {}
     promoted = []
@@ -77,7 +79,7 @@ def create_operator_status_report(
         "status": "missing-evidence",
         "detail": "No memory artifacts supplied or found.",
         "index_ref": None,
-        "atom_count": 0
+        "atom_count": 0,
     }
 
     if memory_artifacts:
@@ -89,7 +91,7 @@ def create_operator_status_report(
                     "status": "available",
                     "detail": "Memory index verified and loaded.",
                     "index_ref": str(idx_path),
-                    "atom_count": idx_data.get("atom_count", 0)
+                    "atom_count": idx_data.get("atom_count", 0),
                 }
             except Exception as e:
                 warnings.append(f"Failed to parse memory index at {idx_path}: {e}")
@@ -104,7 +106,7 @@ def create_operator_status_report(
                     "status": "available",
                     "detail": "Default memory index verified and loaded.",
                     "index_ref": str(default_index_path),
-                    "atom_count": idx_data.get("atom_count", 0)
+                    "atom_count": idx_data.get("atom_count", 0),
                 }
             except Exception as e:
                 warnings.append(f"Failed to parse default memory index: {e}")

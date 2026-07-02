@@ -70,7 +70,9 @@ def test_secret_bearing_prior_file_is_redacted(tmp_path: Path) -> None:
     (target / ".env").write_text("BUILDER_MODEL_API_TOKEN=super-secret-value\nSAFE=yes\n", encoding="utf-8")
 
     snapshot = create_setup_rollback_snapshot(overlay)
-    env_state = next(state for state in snapshot["target_path_states"] if state["target_path"] == str((target / ".env").resolve()))
+    env_state = next(
+        state for state in snapshot["target_path_states"] if state["target_path"] == str((target / ".env").resolve())
+    )
 
     assert env_state["prior_existence_state"] == "file"
     assert env_state["prior_content_digest"]
@@ -113,7 +115,9 @@ def test_snapshot_requires_future_secure_storage_for_existing_files(tmp_path: Pa
 
     snapshot = create_setup_rollback_snapshot(overlay)
     state = next(
-        item for item in snapshot["target_path_states"] if item["target_path"] == str((target / ".goosehints").resolve())
+        item
+        for item in snapshot["target_path_states"]
+        if item["target_path"] == str((target / ".goosehints").resolve())
     )
 
     assert state["prior_existence_state"] == "file"

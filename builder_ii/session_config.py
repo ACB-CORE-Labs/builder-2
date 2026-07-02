@@ -227,7 +227,11 @@ def validate_session_configuration(data: Any) -> list[str]:
                 errors.append(f"model_policy.{field} must be a non-empty string")
         if not isinstance(model_policy.get("requires_opt_in"), bool):
             errors.append("model_policy.requires_opt_in must be a boolean")
-        errors.extend(_governance_disabled_errors(model_policy.get("governance"), "model_policy.", ("runtime_execution", "model_execution")))
+        errors.extend(
+            _governance_disabled_errors(
+                model_policy.get("governance"), "model_policy.", ("runtime_execution", "model_execution")
+            )
+        )
 
     projection = data.get("goose_projection_policy")
     if not isinstance(projection, dict):
@@ -247,11 +251,19 @@ def validate_session_configuration(data: Any) -> list[str]:
             else:
                 for key in ("GOOSE_PROVIDER", "GOOSE_MODEL", "GOOSE_TEMPERATURE", "BUILDER_SESSION_MODE"):
                     if not isinstance(env.get(key), str) or not env[key]:
-                        errors.append(f"goose_projection_policy.goose_native_surface.env.{key} must be a non-empty string")
+                        errors.append(
+                            f"goose_projection_policy.goose_native_surface.env.{key} must be a non-empty string"
+                        )
             for field in ("recipe", "context", "session_name"):
                 if not isinstance(surface.get(field), str) or not surface[field]:
                     errors.append(f"goose_projection_policy.goose_native_surface.{field} must be a non-empty string")
-        errors.extend(_governance_disabled_errors(projection.get("governance"), "goose_projection_policy.", ("runtime_execution", "goose_runtime_start", "model_execution")))
+        errors.extend(
+            _governance_disabled_errors(
+                projection.get("governance"),
+                "goose_projection_policy.",
+                ("runtime_execution", "goose_runtime_start", "model_execution"),
+            )
+        )
 
     errors.extend(_string_list_errors(data.get("required_evidence"), "required_evidence"))
     governance = data.get("governance")
@@ -260,7 +272,18 @@ def validate_session_configuration(data: Any) -> list[str]:
     else:
         if governance.get("capability_state") != "session_configuration":
             errors.append("governance.capability_state must be session_configuration")
-        for key in ("runtime_execution", "goose_runtime_start", "model_execution", "agent_construction", "subagent_construction", "shell_execution", "command_execution", "source_writes", "memory_mutation", "commit_push"):
+        for key in (
+            "runtime_execution",
+            "goose_runtime_start",
+            "model_execution",
+            "agent_construction",
+            "subagent_construction",
+            "shell_execution",
+            "command_execution",
+            "source_writes",
+            "memory_mutation",
+            "commit_push",
+        ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
         if governance.get("artifact_is_authority") is not False:

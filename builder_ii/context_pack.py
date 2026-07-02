@@ -17,7 +17,6 @@ CONTEXT_PACK_RECORD_KIND = "builder_ii.context_pack_record"
 CONTEXT_PACK_RECORD_SCHEMA_VERSION = 1
 
 
-
 @dataclass(frozen=True)
 class ContextPackSelection:
     task: str | None = None
@@ -51,7 +50,6 @@ def repo_for_target(settings: Settings, target: RepoTarget) -> Path:
     if target == "generic":
         return Path.cwd()
     raise ValueError(f"unknown context target: {target}")
-
 
 
 def _run_git(repo: Path, args: list[str]) -> str:

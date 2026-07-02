@@ -29,7 +29,12 @@ def test_registry_invariants_pass():
 
 def test_no_authority_overpromotion():
     for record in COMMAND_AUTHORITY_REGISTRY:
-        if record.name in ("builder onboarding", "builder-setup init", "builder-setup wizard", "builder-setup validate-onboarding-intent"):
+        if record.name in (
+            "builder onboarding",
+            "builder-setup init",
+            "builder-setup wizard",
+            "builder-setup validate-onboarding-intent",
+        ):
             assert not getattr(record, "allows_external_tool_invocation", False)
             assert not getattr(record, "allows_model_execution", False)
             assert not getattr(record, "allows_source_writes", False)

@@ -1,6 +1,7 @@
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.git_state_cli import git_state_app
 from typer.testing import CliRunner
 
 from builder_ii.git_state import (
@@ -11,7 +12,6 @@ from builder_ii.git_state import (
     validate_git_state_record_file,
     write_git_state_record,
 )
-from builder_ii.git_state_cli import git_state_app
 
 
 def test_git_state_record_creation_and_validation(tmp_path: Path) -> None:
@@ -110,7 +110,7 @@ def test_git_state_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
     errors = validate_git_state_record(bad_clean)
     assert "if state is clean, modified_files and untracked_files must both be empty" in errors
@@ -134,7 +134,7 @@ def test_git_state_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
     errors = validate_git_state_record(bad_dirty)
     assert "if state is dirty, at least one modified or untracked file must be present" in errors
@@ -158,7 +158,7 @@ def test_git_state_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": True,
             "core_workbench_coupling": "SOME",
-        }
+        },
     }
     errors = validate_git_state_record(bad_gov)
     assert any("governance.capability_state must be git_state_record" in err for err in errors)

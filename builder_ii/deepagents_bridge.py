@@ -53,7 +53,6 @@ class DeepAgentsAvailability:
         }
 
 
-
 @dataclass(frozen=True)
 class DeepAgentBridgeSpec:
     name: str
@@ -240,6 +239,7 @@ def validate_artifact_file(path: Path) -> list[str]:
 
     try:
         import json as json_lib
+
         data = json_lib.loads(path.read_text(encoding="utf-8"))
     except json_lib.JSONDecodeError as exc:
         errors.append(f"invalid JSON: {exc}")

@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 
 from builder_ii import deepagents_execution as execution_module
@@ -13,7 +14,6 @@ from builder_ii.artifact_index_records import (
     validate_artifact_index_record,
 )
 from builder_ii.config import load_settings
-from builder_ii.deepagents_cli import deepagents_app
 from builder_ii.deepagents_execution import (
     DEEPAGENTS_BACKEND_READINESS_GATE_KIND,
     DEEPAGENTS_EXECUTION_RECEIPT_KIND,
@@ -354,6 +354,7 @@ def test_optional_backend_readiness_gate_is_indexable(monkeypatch, tmp_path: Pat
     assert index["counts"]["unknown"] == 0
     assert index["counts"]["invalid"] == 0
     assert validate_artifact_index_record(index) == []
+
 
 def test_optional_backend_uses_module_bound_in_readiness_gate(monkeypatch, tmp_path: Path) -> None:
     custom_module_name = "builder_ii_custom_deepagents_backend"

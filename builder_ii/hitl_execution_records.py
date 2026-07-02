@@ -54,6 +54,7 @@ _REQUIRED_FUTURE_CHAIN = (
 #  Execution Request Artifact
 # ===================================================================
 
+
 def create_hitl_execution_request(
     settings: Settings | None = None,
     *,
@@ -75,6 +76,7 @@ def create_hitl_execution_request(
     """
     if settings is None:
         from builder_ii.config import load_settings
+
         settings = load_settings()
     selected = target_profile(settings, target_name, generic_repo=generic_repo)
     return {
@@ -170,6 +172,7 @@ def validate_hitl_execution_request(artifact: Any) -> list[str]:
 #  Execution Receipt Artifact
 # ===================================================================
 
+
 def create_hitl_execution_receipt(
     settings: Settings | None = None,
     *,
@@ -185,6 +188,7 @@ def create_hitl_execution_receipt(
     """
     if settings is None:
         from builder_ii.config import load_settings
+
         settings = load_settings()
     selected = target_profile(settings, target_name, generic_repo=generic_repo)
     return {
@@ -288,6 +292,7 @@ def validate_hitl_execution_receipt(artifact: Any) -> list[str]:
 #  File I/O helpers (shared)
 # ===================================================================
 
+
 def validate_hitl_execution_request_file(path: Path) -> list[str]:
     if not path.exists():
         return [f"file not found: {path}"]
@@ -315,6 +320,7 @@ def validate_hitl_execution_receipt_file(path: Path) -> list[str]:
 # ===================================================================
 #  Internal helpers
 # ===================================================================
+
 
 def _validate_governance_block(artifact: dict[str, Any], expected_capability_state: str) -> list[str]:
     """Validate the governance block shared by both artifact types."""

@@ -74,15 +74,17 @@ def render_goose_instructions(
         for principle in target_principles:
             lines.append(f"  - {principle}")
 
-    lines.extend([
-        "",
-        "------------------------------------------------------------------------",
-        f"Agent Profile: {agent_name}",
-        f"Description: {agent_description}",
-        f"Purpose: {agent_purpose}",
-        f"Authority level: {agent_authority} (READ-ONLY)",
-        "------------------------------------------------------------------------",
-    ])
+    lines.extend(
+        [
+            "",
+            "------------------------------------------------------------------------",
+            f"Agent Profile: {agent_name}",
+            f"Description: {agent_description}",
+            f"Purpose: {agent_purpose}",
+            f"Authority level: {agent_authority} (READ-ONLY)",
+            "------------------------------------------------------------------------",
+        ]
+    )
     if agent_allowed_tools:
         lines.append(f"Allowed Tools: {', '.join(agent_allowed_tools)}")
     if agent_forbidden_tools:
@@ -94,34 +96,38 @@ def render_goose_instructions(
     if agent_contract:
         lines.append(f"Output Contract: {agent_contract}")
 
-    lines.extend([
-        "",
-        "------------------------------------------------------------------------",
-        f"Prompt Profile: {prompt_name}",
-        f"Description: {prompt_description}",
-        "System prompt instruction:",
-        "------------------------------------------------------------------------",
-        system_prompt,
-        "",
-        "------------------------------------------------------------------------",
-        "Context Pack Details:",
-        "------------------------------------------------------------------------",
-    ])
+    lines.extend(
+        [
+            "",
+            "------------------------------------------------------------------------",
+            f"Prompt Profile: {prompt_name}",
+            f"Description: {prompt_description}",
+            "System prompt instruction:",
+            "------------------------------------------------------------------------",
+            system_prompt,
+            "",
+            "------------------------------------------------------------------------",
+            "Context Pack Details:",
+            "------------------------------------------------------------------------",
+        ]
+    )
     if context_path:
         lines.append(f"Context Pack Manifest: {context_path}")
     lines.append("Selected/Default files to inspect:")
     for path in context_files:
         lines.append(f"  - {path}")
 
-    lines.extend([
-        "",
-        "------------------------------------------------------------------------",
-        f"Verification Profile: {verification_name}",
-        f"Description: {verification_description}",
-        f"Purpose: {verification_purpose}",
-        "Proposed Verification Commands:",
-        "------------------------------------------------------------------------",
-    ])
+    lines.extend(
+        [
+            "",
+            "------------------------------------------------------------------------",
+            f"Verification Profile: {verification_name}",
+            f"Description: {verification_description}",
+            f"Purpose: {verification_purpose}",
+            "Proposed Verification Commands:",
+            "------------------------------------------------------------------------",
+        ]
+    )
     for cmd in verification_commands:
         lines.append(f"  - {cmd}")
     if verification_evidence:
@@ -129,19 +135,21 @@ def render_goose_instructions(
         for ev in verification_evidence:
             lines.append(f"  - {ev}")
 
-    lines.extend([
-        "",
-        "========================================================================",
-        "GOVERNANCE & RUNTIME RESTRICTIONS (MANDATORY)",
-        "========================================================================",
-        "Under the current session workflow: ",
-        "  - runtime_mode is strictly 'read_only'.",
-        "  - shell_execution is 'DISABLED'. No commands may be executed directly by Goose.",
-        "  - autonomous_writes is 'DISABLED'. No modifications to the filesystem may be committed by Goose.",
-        "  - HITL Boundaries: Any command run, or file write, requires a Human-in-the-Loop Proposal/Receipt cycle.",
-        "  - Verification Plan: Verification must be executed out-of-band by the human operator.",
-        "========================================================================",
-    ])
+    lines.extend(
+        [
+            "",
+            "========================================================================",
+            "GOVERNANCE & RUNTIME RESTRICTIONS (MANDATORY)",
+            "========================================================================",
+            "Under the current session workflow: ",
+            "  - runtime_mode is strictly 'read_only'.",
+            "  - shell_execution is 'DISABLED'. No commands may be executed directly by Goose.",
+            "  - autonomous_writes is 'DISABLED'. No modifications to the filesystem may be committed by Goose.",
+            "  - HITL Boundaries: Any command run, or file write, requires a Human-in-the-Loop Proposal/Receipt cycle.",
+            "  - Verification Plan: Verification must be executed out-of-band by the human operator.",
+            "========================================================================",
+        ]
+    )
 
     return "\n".join(lines)
 
@@ -193,7 +201,7 @@ def create_goose_readonly_session_plan(
         "hitl_boundaries": [
             "Goose process is executed in read-only mode and cannot perform autonomous modifications.",
             "Any command execution requires external verification profile execution by the operator.",
-            "File writes require a proposed HITL patch specification."
+            "File writes require a proposed HITL patch specification.",
         ],
         "verification_plan": {
             "profile_name": resolved.verification_profile.name,
@@ -208,7 +216,7 @@ def create_goose_readonly_session_plan(
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        }
+        },
     }
 
 

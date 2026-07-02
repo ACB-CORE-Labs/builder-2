@@ -56,13 +56,7 @@ def _git_status(core_repo: Path) -> str:
 def _top_level_dirs(core_repo: Path) -> tuple[str, ...]:
     if not core_repo.exists():
         return ()
-    return tuple(
-        sorted(
-            p.name
-            for p in core_repo.iterdir()
-            if p.is_dir() and not p.name.startswith(".")
-        )
-    )
+    return tuple(sorted(p.name for p in core_repo.iterdir() if p.is_dir() and not p.name.startswith(".")))
 
 
 def load_session_context(settings: Settings) -> SessionContext:

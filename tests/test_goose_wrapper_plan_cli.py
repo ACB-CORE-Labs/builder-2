@@ -3,11 +3,11 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 
+from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
 from builder_ii.goose_projection import GOOSE_PROJECTION_KIND
 from builder_ii.goose_wrapper_plan import GOOSE_WRAPPER_PLAN_KIND
-from builder_ii.session_cli import session_app
 
 runner = CliRunner()
 
@@ -24,9 +24,13 @@ def _write_projection(tmp_path: Path) -> Path:
     repo = _generic_repo(tmp_path)
     config_path = tmp_path / "session-config.json"
     projection_path = tmp_path / "goose-projection.json"
-    config_result = runner.invoke(session_app, ["config", "generic", "--repo-path", str(repo), "--output", str(config_path)])
+    config_result = runner.invoke(
+        session_app, ["config", "generic", "--repo-path", str(repo), "--output", str(config_path)]
+    )
     assert config_result.exit_code == 0
-    projection_result = runner.invoke(session_app, ["goose-projection", str(config_path), "--output", str(projection_path)])
+    projection_result = runner.invoke(
+        session_app, ["goose-projection", str(config_path), "--output", str(projection_path)]
+    )
     assert projection_result.exit_code == 0
     assert json_lib.loads(projection_path.read_text(encoding="utf-8"))["kind"] == GOOSE_PROJECTION_KIND
     return projection_path

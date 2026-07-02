@@ -17,6 +17,7 @@ from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hit
 @patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])
 def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
     from builder_ii.artifact_chain_verification import VALIDATORS
+
     VALIDATORS["builder_ii.approval_record"] = lambda data: []
     VALIDATORS["builder_ii.verification_execution_receipt"] = lambda data: []
 
@@ -55,25 +56,33 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
     prop_digest = hashlib.sha256(raw_prop).hexdigest()
 
     approval_path = tmp_path / "approval.json"
-    approval_path.write_text(json.dumps({
-        "kind": "builder_ii.approval_record",
-        "schema_version": "v1",
-        "patch_digest": patch_digest,
-        "valid": True,
-        "proposal": {
-            "path": str(prop_path),
-            "sha256": prop_digest,
-            "kind": "builder_ii.hitl_patch_proposal",
-        }
-    }))
+    approval_path.write_text(
+        json.dumps(
+            {
+                "kind": "builder_ii.approval_record",
+                "schema_version": "v1",
+                "patch_digest": patch_digest,
+                "valid": True,
+                "proposal": {
+                    "path": str(prop_path),
+                    "sha256": prop_digest,
+                    "kind": "builder_ii.hitl_patch_proposal",
+                },
+            }
+        )
+    )
 
     vr_path = tmp_path / "vr.json"
-    vr_path.write_text(json.dumps({
-        "kind": "builder_ii.verification_execution_receipt",
-        "schema_version": "v1",
-        "receipt_status": "EXECUTED",
-        "valid": True,
-    }))
+    vr_path.write_text(
+        json.dumps(
+            {
+                "kind": "builder_ii.verification_execution_receipt",
+                "schema_version": "v1",
+                "receipt_status": "EXECUTED",
+                "valid": True,
+            }
+        )
+    )
 
     # 4. Apply the patch
     out_dir = tmp_path / "out"

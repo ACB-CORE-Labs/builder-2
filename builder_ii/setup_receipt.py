@@ -37,7 +37,15 @@ def finalize_setup_receipt(receipt: dict[str, Any]) -> dict[str, Any]:
     receipt.setdefault("deepagents_runtime", "disabled")
     receipt.setdefault("mcp_tool_invocation", "disabled")
     receipt.setdefault("patch_authority", "disabled")
-    receipt.setdefault("governance", {"artifact_is_authority": False, **CAPABILITY_DEFAULTS, "setup_apply": "enabled_digest_bound_explicit_approval_only", "setup_rollback_execution": "disabled"})
+    receipt.setdefault(
+        "governance",
+        {
+            "artifact_is_authority": False,
+            **CAPABILITY_DEFAULTS,
+            "setup_apply": "enabled_digest_bound_explicit_approval_only",
+            "setup_rollback_execution": "disabled",
+        },
+    )
     return attach_digest(receipt, digest_key="receipt_digest")
 
 
@@ -49,7 +57,13 @@ def validate_setup_receipt_artifact(data: Any) -> list[str]:
         errors.append(f"kind must be {SETUP_RECEIPT_KIND}")
     if data.get("schema_version") != SETUP_RECEIPT_SCHEMA_VERSION:
         errors.append(f"schema_version must be {SETUP_RECEIPT_SCHEMA_VERSION}")
-    for field in ("setup_plan_digest", "overlay_plan_digest", "rollback_snapshot_digest", "approval_digest", "receipt_id"):
+    for field in (
+        "setup_plan_digest",
+        "overlay_plan_digest",
+        "rollback_snapshot_digest",
+        "approval_digest",
+        "receipt_id",
+    ):
         if not _is_sha256(data.get(field)):
             errors.append(f"{field} must be a SHA-256 hex string")
     if data.get("artifact_is_authority") is not False:
@@ -58,7 +72,16 @@ def validate_setup_receipt_artifact(data: Any) -> list[str]:
         errors.append("setup_apply_executed must be true")
     if data.get("rollback_executed") is not False:
         errors.append("rollback_executed must be false")
-    for disabled in ("runtime_execution", "model_execution", "shell_execution", "subprocess_execution", "goose_runtime", "deepagents_runtime", "mcp_tool_invocation", "patch_authority"):
+    for disabled in (
+        "runtime_execution",
+        "model_execution",
+        "shell_execution",
+        "subprocess_execution",
+        "goose_runtime",
+        "deepagents_runtime",
+        "mcp_tool_invocation",
+        "patch_authority",
+    ):
         if data.get(disabled) != "disabled":
             errors.append(f"{disabled} must be disabled")
     for list_field in ("changed_paths", "skipped_paths", "denied_paths", "operations"):

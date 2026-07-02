@@ -26,8 +26,12 @@ def _bundle(tmp_path: Path) -> dict:
         runtime_mode="read_only",
         generic_repo=tmp_path,
     )
-    proposal = create_goose_command_proposal(manifest, manifest_path=tmp_path / "goose-session.json", command="verify", risk_level="low")
-    approval = create_approval_record(proposal, proposal_path=tmp_path / "proposal.json", decision="approved", decided_by="operator")
+    proposal = create_goose_command_proposal(
+        manifest, manifest_path=tmp_path / "goose-session.json", command="verify", risk_level="low"
+    )
+    approval = create_approval_record(
+        proposal, proposal_path=tmp_path / "proposal.json", decision="approved", decided_by="operator"
+    )
     preflight = create_preflight_record(
         proposal,
         approval,
@@ -97,7 +101,9 @@ def test_blocked_receive_record_carries_blocker(tmp_path: Path) -> None:
 
 
 def test_receive_record_json_round_trip(tmp_path: Path) -> None:
-    record = create_receive_record(_bundle(tmp_path), bundle_path=tmp_path / "bundle.json", decision="accepted", received_by="receiver")
+    record = create_receive_record(
+        _bundle(tmp_path), bundle_path=tmp_path / "bundle.json", decision="accepted", received_by="receiver"
+    )
     data = json_lib.loads(dumps_receive_record(record))
 
     assert data["accepted"] is True
@@ -105,7 +111,9 @@ def test_receive_record_json_round_trip(tmp_path: Path) -> None:
 
 
 def test_validate_rejects_authority_changes(tmp_path: Path) -> None:
-    record = create_receive_record(_bundle(tmp_path), bundle_path=tmp_path / "bundle.json", decision="accepted", received_by="receiver")
+    record = create_receive_record(
+        _bundle(tmp_path), bundle_path=tmp_path / "bundle.json", decision="accepted", received_by="receiver"
+    )
     record["record_state"] = "ACTIVE"
     record["grants_runtime_authority"] = True
     record["grants_action_authority"] = True
