@@ -33,10 +33,6 @@ from builder_ii.deepagents_forge_preview import (
 from builder_ii.deepagents_forge_schema import DeepAgentSpec, is_valid_slug
 
 
-# ---------------------------------------------------------------------------
-# EmitResult
-# ---------------------------------------------------------------------------
-
 @dataclass
 class EmitResult:
     """Result of an emit_agent() call."""
@@ -66,10 +62,6 @@ class EmitResult:
         ]
 
 
-# ---------------------------------------------------------------------------
-# Profile output directory
-# ---------------------------------------------------------------------------
-
 DEEPAGENTS_PROFILES_DIR = Path("profiles/deepagents")
 
 
@@ -90,10 +82,6 @@ def _profile_path_for_slug(slug: str) -> Path:
         raise ValueError("slug must match ^[a-z0-9]+(?:_[a-z0-9]+)*$")
     return DEEPAGENTS_PROFILES_DIR / f"{slug}.yaml"
 
-
-# ---------------------------------------------------------------------------
-# Write helpers
-# ---------------------------------------------------------------------------
 
 def write_agent_profile(spec: DeepAgentSpec) -> str:
     """
@@ -135,27 +123,35 @@ def register_bridge_spec(spec: DeepAgentSpec) -> None:
 
 def write_forge_handoff(spec: DeepAgentSpec) -> None:
     """
-    Write a forge handoff note artifact.
-    Uses handoff_notes if available; silently skips if not.
+    Write a governed forge handoff note when the handoff note API is available.
+    The profile YAML remains the canonical Forge output.
     """
     try:
-        from builder_ii.handoff_notes import write_handoff_note
-        content = (
-            f"# Forge Handoff: {spec.name}\n\n"
+        from builder_ii.handoff_notes import create_handoff_note, write_handoff_note
+
+        summary = (
             f"Agent `{spec.slug}` was created via the deepagents Forge wizard.\n\n"
-            f"**Target profile:** {spec.target_profile}\n"
-            f"**Persona:** {spec.persona}\n"
-            f"**Capabilities:** {', '.join(spec.capabilities) or 'none'}\n"
-            f"**HITL gates:** {', '.join(spec.hitl_gates) or 'none'}\n"
-            f"**Output artifact:** {spec.output_artifact}\n"
-            f"**Rollback path:** {spec.rollback_path}\n"
-            f"**Next:** review `profiles/deepagents/{spec.slug}.yaml` before promotion.\n"
+            f"Target profile: {spec.target_profile}\n"
+            f"Persona: {spec.persona}\n"
+            f"Capabilities: {', '.join(spec.capabilities) or 'none'}\n"
+            f"HITL gates: {', '.join(spec.hitl_gates) or 'none'}\n"
+            f"Output artifact: {spec.output_artifact}\n"
+            f"Rollback path: {spec.rollback_path}"
         )
-        write_handoff_note(
-            slug=f"forge_{spec.slug}",
-            content=content,
+        note = create_handoff_note(
+            target_name=spec.target_profile,
+            summary=summary,
+            changed_files_summary=[f"profiles/deepagents/{spec.slug}.yaml"],
+            open_risks=[
+                "Forge emits a governed profile artifact only; runtime promotion still requires a separate reviewed path."
+            ],
+            next_recommended_action=f"review profiles/deepagents/{spec.slug}.yaml before promotion",
+            human_review_required=True,
+            status="DRAFT",
         )
-    except (ImportError, TypeError, AttributeError):
+        output_path = DEEPAGENTS_PROFILES_DIR / f"forge_{spec.slug}.handoff.json"
+        write_handoff_note(note, output_path)
+    except (ImportError, TypeError, AttributeError, ValueError, OSError):
         pass  # additive — safe to skip
 
 
@@ -181,10 +177,6 @@ def log_forge_event(spec: DeepAgentSpec) -> None:
         pass  # additive — safe to skip
 
 
-# ---------------------------------------------------------------------------
-# Main emit entry point
-# ---------------------------------------------------------------------------
-
 def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
     """
     Emit a deepagent from a completed DeepAgentSpec.
@@ -192,7 +184,6 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
     dry_run=True: validates and renders everything but writes nothing.
     Always safe to call with dry_run=True.
     """
-    # 1. Spec readiness check
     ready, missing = spec.is_emit_ready()
     if not ready:
         return EmitResult(
@@ -206,7 +197,6 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
     except ValueError as exc:
         return EmitResult(ok=False, error=str(exc), dry_run=dry_run)
 
-    # 2. Governance check
     governance = check_governance(spec)
     if not governance.all_pass and not dry_run:
         return EmitResult(
@@ -216,7 +206,6 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
             dry_run=dry_run,
         )
 
-    # Dry run stops here — no side effects
     if dry_run:
         return EmitResult(
             ok=True,
@@ -226,25 +215,16 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
             dry_run=True,
         )
 
-    # 3. Stamp timestamp
     spec.stamp_created_at()
 
-    # 4. Write profile YAML
     try:
         profile_path = write_agent_profile(spec)
     except (OSError, ValueError) as exc:
         return EmitResult(ok=False, error=f"Failed to write profile: {exc}")
 
-    # 5. Register in agent_profiles
     register_agent_profile(spec)
-
-    # 6. Register bridge spec
     register_bridge_spec(spec)
-
-    # 7. Write handoff note
     write_forge_handoff(spec)
-
-    # 8. Log to event ledger
     log_forge_event(spec)
 
     return EmitResult(
