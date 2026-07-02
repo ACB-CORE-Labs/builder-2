@@ -56,48 +56,51 @@ _DEFAULT: dict[str, str] = {
 #
 # Swatch reference
 # ----------------
-#   Powder Blue  #0080C6   — the iconic Chargers mid-blue (primary accent)
-#   Deep Blue    #005A8E   — deep border / inactive
-#   Muted Blue   #3399CC   — muted secondary blue
-#   Navy         #002244   — background / dark base
-#   Bolt Gold    #FFC20E   — warning / accent gold
-#   White        #FFFFFF   — text / foreground
+#   Powder Blue  #0080C6   — app background / selection / border
+#   Light Blue   #80CFFF   — secondary text on navy panels
+#   Navy         #002244   — panel background / dark base
+#   Navy Light   #003366   — lighter navy panel surface
+#   Navy Hover   #004080   — hover surface
+#   Bolt Gold    #FFC20E   — success glyphs / warnings / accents
+#   White        #FFFFFF   — active item / primary foreground
 #
 # Mapping rationale
 # -----------------
-#   pass   → Powder Blue   (affirmative = primary brand colour)
+#   pass   → Bolt Gold     (verified lightning glyphs read as success)
 #   warn   → Bolt Gold     (caution = lightning bolt gold energy)
 #   fail   → bright red    (failure stays red; universal danger signal)
-#   hint   → Muted Blue    (secondary highlights / hover states)
-#   active → Powder Blue   (active/highlight = same brand blue as pass)
-#   dim    → Deep Blue     (borders, dimmed panels, inactive widgets)
+#   hint   → Light Blue    (secondary text on navy panels)
+#   active → White         (active/highlight foreground contrast)
+#   dim    → Powder Blue   (borders, inactive widgets, app field)
 #   bold   → White         (primary text on navy background)
 #   accent → Bolt Gold     (alerts, key bindings, badges)
 #
 # Notes
 # -----
-#   - Navy (#002244) appears as border/panel hints via Rich markup when
-#     callers use theme_panel_border() helper below.
-#   - pass and active share Powder Blue intentionally; the glyph (not
-#     colour alone) distinguishes them semantically.
-#   - fail is kept at near-standard red (#f87171) because red = danger
-#     is a cross-cultural convention we should not override.
+#   - Extended tokens model the TUI surfaces that do not fit the core 8-token
+#     contract: app background, panel background, panel-light, border, selected,
+#     and hover.
+#   - Navy (#002244) is used for floating panels; Powder Blue (#0080C6) is used
+#     for the app field, selected state, and panel borders.
+#   - fail is kept at near-standard red (#F85149) because red = danger is a
+#     cross-cultural convention we should not override.
 # ---------------------------------------------------------------------------
 _CHARGERS: dict[str, str] = {
-    "pass":   "#FFC20E",   # Bolt Gold (Success/Lightning bolts)
+    "pass":   "#FFC20E",   # Bolt Gold (success / lightning bolts)
     "warn":   "#FFC20E",   # Bolt Gold
     "fail":   "#F85149",   # Red
-    "hint":   "#80CFFF",   # Light Blue (Secondary text on Navy)
-    "active": "#FFFFFF",   # White (Active elements)
-    "dim":    "#0080C6",   # Powder Blue (Borders/inactive)
-    "bold":   "#FFFFFF",   # White (Primary text)
+    "hint":   "#80CFFF",   # Light Blue (secondary text on navy)
+    "active": "#FFFFFF",   # White (active elements)
+    "dim":    "#0080C6",   # Powder Blue (borders / inactive surfaces)
+    "bold":   "#FFFFFF",   # White (primary text)
     "accent": "#FFC20E",   # Bolt Gold
     # Extended tokens available via theme_extras() only:
-    "_bg":    "#0080C6",   # Powder Blue (App Background - matching the jersey base)
-    "_panel": "#002244",   # Navy (Panels)
-    "_panel_light": "#003366", # Lighter Navy (Headers/Footers)
-    "_selected": "#0080C6", # Powder Blue selection highlight
-    "_hover": "#004080",    # Navy hover state
+    "_bg":          "#0080C6",  # Powder Blue app background
+    "_panel":       "#002244",  # Navy panels
+    "_panel_light": "#003366",  # Lighter navy headers/footers
+    "_border":      "#0080C6",  # Powder Blue panel border
+    "_selected":    "#0080C6",  # Powder Blue selection highlight
+    "_hover":       "#004080",  # Navy hover state
 }
 
 # ---------------------------------------------------------------------------
@@ -126,7 +129,7 @@ def theme_palette() -> dict[str, str]:
 
 
 def theme_extras() -> dict[str, str]:
-    """Return extended theme tokens (e.g. _navy) for the active theme.
+    """Return extended theme tokens (e.g. _bg, _panel, _border) for the active theme.
     Returns empty dict for themes with no extras.
     """
     name = active_theme_name()
@@ -137,10 +140,8 @@ def theme_extras() -> dict[str, str]:
 def theme_panel_border() -> str:
     """Return the recommended panel border colour for the active theme."""
     extras = theme_extras()
-    # Chargers: use navy for panel borders
-    if "_navy" in extras:
-        return extras["_navy"]
-    # Default: use dim
+    if "_border" in extras:
+        return extras["_border"]
     return theme_palette()["dim"]
 
 
