@@ -5,28 +5,20 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.agent_profiles import (
-    AgentProfile,
     AgentProfileName,
-    get_agent_profile,
-    validate_agent_profile_record,
     create_agent_profile_record,
+    validate_agent_profile_record,
 )
 from builder_ii.config import Settings
 from builder_ii.profile_resolution import (
-    PromptProfile,
-    get_prompt_profile,
-    prompt_profiles,
     ProfileResolver,
 )
 from builder_ii.target_profiles import (
     TargetName,
-    target_profile,
     validate_target_profile_artifact,
 )
 from builder_ii.verification_profiles import (
-    VerificationProfile,
     VerificationProfileName,
-    get_verification_profile,
     validate_profile_artifact,
 )
 
@@ -68,7 +60,7 @@ def create_session_workflow_plan(
     # Assemble planned commands
     planned_commands = [
         f"builder-context pack --target {target_name}",
-        f"builder start --task 'local development session' --mode coding",
+        "builder start --task 'local development session' --mode coding",
     ]
     planned_commands.extend(v_profile.proposed_commands)
     planned_commands.append(f"builder-handoff bundle --bundle-name handoff-session-{target_name}")

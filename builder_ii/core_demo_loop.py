@@ -18,7 +18,6 @@ from builder_ii.hitl_patch_apply import apply_hitl_patch, rollback_hitl_patch
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 from builder_ii.repo_map import create_repo_map, dumps_repo_map
 
-
 CORE_DEMO_APPROVAL_KIND = "builder_ii.core_demo_approval"
 CORE_DEMO_APPROVAL_SCHEMA_VERSION = 1
 CORE_DEMO_PLANNER_KIND = "builder_ii.core_demo_deterministic_planner"

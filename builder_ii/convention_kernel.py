@@ -1,25 +1,48 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from enum import Enum
 import hashlib
 import json as json_lib
+from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 from typing import Any, Literal
 
+from builder_ii.agent_profiles import AgentProfileName
+from builder_ii.command_authority import (
+    COMMAND_AUTHORITY_REGISTRY,
+    TIER_2,
+    TIER_3,
+    TIER_4,
+    CommandAuthorityRecord,
+)
 from builder_ii.config import Settings
-from builder_ii.goose_projection import create_goose_projection, validate_goose_projection, GOOSE_PROJECTION_KIND
-from builder_ii.goose_wrapper_plan import create_goose_wrapper_plan, validate_goose_wrapper_plan, GOOSE_WRAPPER_PLAN_KIND
-from builder_ii.profile_resolution import AgentProfileName, TargetName, VerificationProfileName
-from builder_ii.session_config import create_session_configuration, validate_session_configuration, SESSION_CONFIG_KIND
-from builder_ii.repo_map import create_repo_map, validate_repo_map, REPO_MAP_KIND
-from builder_ii.context_packs import create_context_pack, validate_context_pack, CONTEXT_PACK_KIND
-from builder_ii.session_workflow import create_session_workflow_plan, validate_session_workflow_plan, SESSION_WORKFLOW_PLAN_KIND
-from builder_ii.goose_readonly_session import create_goose_readonly_session_plan, validate_goose_readonly_session_plan, GOOSE_READONLY_SESSION_PLAN_KIND
-from builder_ii.verification_profile_reports import create_verification_profile_report, validate_verification_profile_report, VERIFICATION_PROFILE_REPORT_KIND
-from builder_ii.handoff_notes import create_handoff_note, validate_handoff_note, HANDOFF_NOTE_KIND, create_artifact_ref
-from builder_ii.deepagents_bridge_readiness import create_deepagents_bridge_readiness_report, validate_deepagents_bridge_readiness_report, DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, CommandAuthorityRecord, TIER_0, TIER_1, TIER_2, TIER_3, TIER_4
+from builder_ii.context_packs import CONTEXT_PACK_KIND, create_context_pack
+from builder_ii.deepagents_bridge_readiness import (
+    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
+    create_deepagents_bridge_readiness_report,
+)
+from builder_ii.goose_projection import create_goose_projection, validate_goose_projection
+from builder_ii.goose_readonly_session import (
+    GOOSE_READONLY_SESSION_PLAN_KIND,
+    create_goose_readonly_session_plan,
+)
+from builder_ii.goose_wrapper_plan import (
+    create_goose_wrapper_plan,
+    validate_goose_wrapper_plan,
+)
+from builder_ii.handoff_notes import HANDOFF_NOTE_KIND, create_artifact_ref, create_handoff_note
+from builder_ii.repo_map import REPO_MAP_KIND, create_repo_map
+from builder_ii.session_config import create_session_configuration, validate_session_configuration
+from builder_ii.session_workflow import (
+    SESSION_WORKFLOW_PLAN_KIND,
+    create_session_workflow_plan,
+)
+from builder_ii.target_profiles import TargetName
+from builder_ii.verification_profile_reports import (
+    VERIFICATION_PROFILE_REPORT_KIND,
+    create_verification_profile_report,
+)
+from builder_ii.verification_profiles import VerificationProfileName
 
 CONVENTION_KERNEL_BUNDLE_KIND = "builder_ii.convention_kernel_bundle"
 CONVENTION_KERNEL_BUNDLE_SCHEMA_VERSION = 1
@@ -880,7 +903,7 @@ class ConventionKernel:
             gov_errors = check_artifact_governance_safety(art)
             if gov_errors:
                 raise ValueError(
-                    f"unsafe governance block in composed artifact: "
+                    "unsafe governance block in composed artifact: "
                     + "; ".join(gov_errors)
                 )
 
@@ -899,11 +922,11 @@ class ConventionKernel:
         if operator_managed_commands is None:
             operator_managed_set = {
                 f"builder-context pack --target {target_profile}",
-                f"builder start --task 'local development session' --mode coding",
+                "builder start --task 'local development session' --mode coding",
                 f"builder-handoff bundle --bundle-name handoff-session-{target_profile}",
-                f"builder-handoff bundle --bundle-name handoff-session-generic",
-                f"builder-handoff bundle --bundle-name handoff-session-builder",
-                f"builder-handoff bundle --bundle-name handoff-session-core",
+                "builder-handoff bundle --bundle-name handoff-session-generic",
+                "builder-handoff bundle --bundle-name handoff-session-builder",
+                "builder-handoff bundle --bundle-name handoff-session-core",
             }
             for profile_cmd in resolved.verification_profile.proposed_commands:
                 operator_managed_set.add(profile_cmd)

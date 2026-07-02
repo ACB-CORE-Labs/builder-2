@@ -1,6 +1,7 @@
 import json as json_lib
 from pathlib import Path
 
+
 def test_b8_approval_evidence_exists_and_validates() -> None:
     approval_path = Path("tests/fixtures/b8/b8-execution-approval.json")
     receipt_path = Path("tests/fixtures/b8/b8-execution-approval-receipt.json")
@@ -19,7 +20,7 @@ def test_b8_approval_evidence_exists_and_validates() -> None:
     # Check boundaries
     denied = approval.get("denied_boundaries", [])
     denied_set = {d.lower() for d in denied}
-    
+
     assert any("hidden memory" in d for d in denied_set), "Must deny hidden memory"
     assert any("vector store" in d or "vector db" in d for d in denied_set), "Must deny vector store"
     assert any("autonomous memory writes" in d for d in denied_set), "Must deny autonomous memory writes"

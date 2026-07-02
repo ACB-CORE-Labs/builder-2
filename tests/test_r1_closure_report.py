@@ -159,6 +159,7 @@ def test_missing_evidence_status_digest_fails():
 
 def _generate_valid_closure(tmp_path: Path):
     from typer.testing import CliRunner
+
     from builder_ii.platform_status_cli import platform_app
     runner = CliRunner()
     output_dir = tmp_path / "r1-closure"

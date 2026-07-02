@@ -15,7 +15,6 @@ from builder_ii.verification_execution_plan import (
 )
 from builder_ii.verification_profiles import verification_profile_names
 
-
 VERIFICATION_EXECUTION_APPROVAL_KIND = "builder_ii.verification_execution_approval"
 VERIFICATION_EXECUTION_APPROVAL_SCHEMA_VERSION = 1
 APPROVAL_MODE = "hitl_plan_digest_approval"

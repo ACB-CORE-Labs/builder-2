@@ -11,7 +11,6 @@ from builder_ii.config_sources import (
     validate_config_resolution_artifact,
 )
 
-
 SETUP_PLAN_KIND = "builder_ii.setup_plan"
 SETUP_PLAN_SCHEMA_VERSION = 1
 

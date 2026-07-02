@@ -3,6 +3,8 @@ from pathlib import Path
 
 from builder_ii.artifact_chain_verification import (
     VALIDATORS as CHAIN_VALIDATORS,
+)
+from builder_ii.artifact_chain_verification import (
     extract_references,
     verify_artifact_chain,
 )
@@ -30,7 +32,6 @@ from builder_ii.artifact_memory import (
 from builder_ii.handoff_notes import HANDOFF_NOTE_KIND, create_handoff_note
 from builder_ii.research_plans import RESEARCH_PLAN_KIND, create_research_plan_artifact
 from builder_ii.workflow_records import canonical_digest
-
 
 TIMESTAMP = "2026-07-01T18:00:00Z"
 

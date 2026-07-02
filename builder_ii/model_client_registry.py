@@ -72,7 +72,7 @@ ALLOWED_COST_CLASSES = {"free_local", "low", "medium", "high", "placeholder"}
 _REF_NAME_RE = re.compile(r"^[A-Z0-9_]+$")
 
 
-def _default_client_records() -> list[dict[str, Any]]:
+def _obsolete_default_client_records() -> list[dict[str, Any]]:
     return [
         {
             "provider_id": "mlx_provider",

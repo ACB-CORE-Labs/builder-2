@@ -55,6 +55,7 @@ def test_orchestration_cli_output_and_validate(tmp_path) -> None:
 
 def test_orchestration_cli_render_assignment_sibling_output_and_chain(tmp_path: Path) -> None:
     from orchestration_assignment_fixtures import build_goal2_assignment_fixture
+
     from builder_ii.artifact_chain_verification import verify_artifact_chain
 
     # 1. Build all fixture source artifacts in tmp_path/artifacts/

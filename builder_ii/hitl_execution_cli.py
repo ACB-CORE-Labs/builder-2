@@ -6,6 +6,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.execution_candidate_manifest_cli import register_manifest_commands
+from builder_ii.hitl_command_runner import execute_hitl_command
 from builder_ii.hitl_execution_records import (
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_EXECUTION_REQUEST_KIND,
@@ -18,10 +20,8 @@ from builder_ii.hitl_execution_records import (
     write_hitl_execution_receipt,
     write_hitl_execution_request,
 )
-from builder_ii.hitl_promotion_cli import register_promotion_commands
-from builder_ii.execution_candidate_manifest_cli import register_manifest_commands
 from builder_ii.hitl_patch_cli import register_patch_commands
-from builder_ii.hitl_command_runner import execute_hitl_command
+from builder_ii.hitl_promotion_cli import register_promotion_commands
 
 hitl_app = typer.Typer(
     help="HITL execution request/receipt artifact CLI (No Execution)."

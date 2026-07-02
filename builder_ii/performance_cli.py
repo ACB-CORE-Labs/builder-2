@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json as json_lib
 from pathlib import Path
 
 import typer
@@ -15,12 +16,10 @@ from builder_ii.performance_measurements import (
 from builder_ii.target_profiles import TargetName, target_names
 from builder_ii.validation_benchmark import (
     benchmark_validator,
-    validate_validation_benchmark,
     generate_parity_report,
+    validate_validation_benchmark,
     validate_validation_parity_report,
 )
-import json as json_lib
-
 
 performance_app = typer.Typer(help="Create and validate explicit performance measurement records.")
 console = Console(width=240)

@@ -11,13 +11,13 @@ from builder_ii.deepagents_bridge import deepagents_availability
 from builder_ii.deepagents_work_artifacts import (
     DEEPAGENTS_RUNTIME_ENVELOPE_KIND,
     DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND,
+    _artifact_ref,
+    _default_authority_boundary,
+    _default_governance,
     create_deepagents_blocked_action_record,
     create_deepagents_proposal_result,
     create_deepagents_subagent_assignment,
     create_deepagents_subagent_result,
-    _artifact_ref,
-    _default_authority_boundary,
-    _default_governance,
 )
 
 

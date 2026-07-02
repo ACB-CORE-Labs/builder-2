@@ -9,7 +9,12 @@ from builder_ii.goose_session import create_goose_session_manifest
 from builder_ii.handoff_bundle_records import create_handoff_bundle_record
 from builder_ii.preflight_records import create_preflight_record
 from builder_ii.receipt_records import create_receipt_record
-from builder_ii.receive_records import create_receive_record, dumps_receive_record, validate_receive_record, validate_receive_record_file
+from builder_ii.receive_records import (
+    create_receive_record,
+    dumps_receive_record,
+    validate_receive_record,
+    validate_receive_record_file,
+)
 
 
 def _bundle(tmp_path: Path) -> dict:

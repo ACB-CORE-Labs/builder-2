@@ -11,7 +11,10 @@ from builder_ii.goose_wrapper_plan import create_goose_wrapper_plan, validate_go
 from builder_ii.handoff_artifacts import create_handoff_artifact, validate_handoff_artifact
 from builder_ii.orchestration_plan import create_orchestration_plan, validate_orchestration_plan
 from builder_ii.session_config import create_session_configuration, validate_session_configuration
-from builder_ii.verification_profile_reports import create_verification_profile_report, validate_verification_profile_report
+from builder_ii.verification_profile_reports import (
+    create_verification_profile_report,
+    validate_verification_profile_report,
+)
 
 
 def _generic_repo(tmp_path: Path) -> Path:

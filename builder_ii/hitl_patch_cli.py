@@ -4,10 +4,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 from builder_ii.hitl_patch_apply import apply_hitl_patch, rollback_hitl_patch
-from builder_ii.rollback_artifacts import validate_rollback_plan_file
-import subprocess
+from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 
 console = Console()
 
@@ -25,7 +23,7 @@ def register_patch_commands(app: typer.Typer) -> None:
         if not diff_file.exists():
             console.print(f"File not found: {diff_file}")
             raise typer.Exit(1)
-            
+
         diff_content = diff_file.read_text(encoding="utf-8")
         digest = hashlib.sha256(diff_content.encode("utf-8")).hexdigest()
         proposal = create_hitl_patch_proposal(

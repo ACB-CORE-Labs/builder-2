@@ -4,25 +4,22 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-import subprocess
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
-from textual.widgets import Footer, Header, Static
+from textual.widgets import Footer, Static
 
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, get_command_record
+from builder_ii.artifact_chain_verification import verify_artifact_chain
+from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
 from builder_ii.config import load_settings
 from builder_ii.tui.widgets.cli_passthrough import CLIPassthroughScreen, ConfirmScreen, RejectScreen
 from builder_ii.tui.widgets.palette import CommandPaletteScreen
 from builder_ii.tui.widgets.signals import SignalRail
 from builder_ii.tui.widgets.spine import ArtifactSpine
 from builder_ii.tui.widgets.stratum import ActiveStratum, StratumMode
-from builder_ii.artifact_chain_verification import verify_artifact_chain
 
 
 class HeaderBanner(Static):
@@ -104,8 +101,9 @@ class StratumApp(App[None]):
         self._apply_theme()
 
     def _apply_theme(self) -> None:
-        from builder_ii.tui_theme import active_theme_name, theme_palette, theme_extras, list_themes, _REGISTRY
         from textual.theme import Theme
+
+        from builder_ii.tui_theme import _REGISTRY, active_theme_name, list_themes, theme_extras, theme_palette
 
         # Register default theme
         default_palette = _REGISTRY["default"]
@@ -141,7 +139,7 @@ class StratumApp(App[None]):
         if theme_name in list_themes() and theme_name != "default":
             p = theme_palette()
             e = theme_extras()
-            
+
             bg = e.get("_bg", e.get("_navy", p["dim"]))
             panel = e.get("_panel", bg)
             panel_light = e.get("_panel_light", p["dim"])
@@ -369,8 +367,8 @@ class StratumApp(App[None]):
         def on_dispatch(selected_agents: list[str]) -> None:
             if selected_agents:
                 self.notify(f"Dispatched Squad: {', '.join(selected_agents)}")
-                from datetime import datetime, timezone
                 import json
+                from datetime import datetime, timezone
 
                 payload = {
                     "kind": "builder_ii.orchestration_assignment",
@@ -462,8 +460,9 @@ class StratumApp(App[None]):
         self._verify_current_chain()
 
     def action_launch_goose(self) -> None:
-        from builder_ii.goose_launcher import derive_goose_environment, launch_goose_session
         from datetime import datetime
+
+        from builder_ii.goose_launcher import derive_goose_environment, launch_goose_session
 
         try:
             actual_env, report = derive_goose_environment(self.settings)

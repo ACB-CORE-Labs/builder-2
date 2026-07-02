@@ -9,7 +9,6 @@ from typing import Any
 from builder_ii.config_schema import CAPABILITY_DEFAULTS, attach_digest, digest_jsonable
 from builder_ii.setup_plan import SETUP_PLAN_KIND, validate_setup_plan_artifact
 
-
 SETUP_OVERLAY_PLAN_KIND = "builder_ii.setup_overlay_plan"
 SETUP_OVERLAY_PLAN_SCHEMA_VERSION = 1
 

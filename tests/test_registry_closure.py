@@ -3,15 +3,101 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
-from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
+from orchestration_assignment_fixtures import build_goal2_assignment_fixture
+
 from builder_ii.artifact_chain_verification import (
+    ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
     extract_references,
     verify_artifact_chain,
 )
+from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
 from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
 from builder_ii.artifact_index_records import (
     create_artifact_index_record,
     validate_artifact_index_record,
+)
+from builder_ii.config import Settings
+from builder_ii.context_packs import CONTEXT_PACK_KIND
+from builder_ii.convention_kernel import CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND
+from builder_ii.deepagents_bridge_readiness import (
+    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
+    create_deepagents_bridge_readiness_report,
+)
+from builder_ii.event_ledger import (
+    EVENT_LEDGER_KIND,
+    EVENT_RECORD_KIND,
+    LEDGER_REPLAY_REPORT_KIND,
+)
+from builder_ii.execution_postflight_records import (
+    EXECUTION_POSTFLIGHT_RECORD_KIND,
+    EXECUTION_VERIFICATION_RECORD_KIND,
+    create_execution_postflight_record,
+    create_execution_verification_record,
+)
+from builder_ii.goose_projection import (
+    GOOSE_PROJECTION_KIND,
+    create_goose_projection,
+)
+from builder_ii.goose_readonly_session import (
+    GOOSE_READONLY_SESSION_PLAN_KIND,
+    create_goose_readonly_session_plan,
+)
+from builder_ii.goose_session import (
+    GOOSE_SESSION_KIND,
+    create_goose_session_manifest,
+)
+from builder_ii.goose_wrapper_plan import (
+    GOOSE_WRAPPER_PLAN_KIND,
+    create_goose_wrapper_plan,
+)
+from builder_ii.governed_prepare_package import (
+    GOVERNED_PREPARE_PACKAGE_KIND,
+    GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
+)
+from builder_ii.handoff_artifacts import (
+    HANDOFF_KIND,
+    create_handoff_artifact,
+)
+from builder_ii.handoff_notes import (
+    HANDOFF_NOTE_KIND,
+    create_handoff_note,
+)
+from builder_ii.hitl_chain_binding import HITL_CHAIN_BINDING_KIND
+from builder_ii.hitl_evidence_bundle import (
+    HITL_EVIDENCE_BUNDLE_KIND,
+    create_hitl_evidence_bundle,
+)
+from builder_ii.hitl_execution_records import (
+    HITL_EXECUTION_RECEIPT_KIND,
+    HITL_EXECUTION_REQUEST_KIND,
+    create_hitl_execution_receipt,
+    create_hitl_execution_request,
+)
+from builder_ii.hitl_patch_proposal import (
+    HITL_PATCH_PROPOSAL_KIND,
+    create_hitl_patch_proposal,
+)
+from builder_ii.hitl_verification_candidate import (
+    HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
+    create_hitl_verification_execution_candidate,
+)
+from builder_ii.model_capabilities import (
+    MODEL_CAPABILITY_REGISTRY_KIND,
+    create_model_capability_registry,
+)
+from builder_ii.orchestration_assignment import (
+    AGENT_ASSIGNMENT_PLAN_KIND,
+    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
+    ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
+    ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
+)
+from builder_ii.orchestration_dry_run import (
+    ORCHESTRATION_DRY_RUN_KIND,
+    create_orchestration_dry_run,
+)
+from builder_ii.orchestration_plan import (
+    ORCHESTRATION_PLAN_KIND,
+    create_orchestration_plan,
 )
 from builder_ii.performance_measurements import (
     PERFORMANCE_MEASUREMENT_KIND,
@@ -21,133 +107,45 @@ from builder_ii.readonly_inspection_promotion import (
     READONLY_INSPECTION_PROMOTION_SPEC_KIND,
     create_readonly_inspection_promotion_spec,
 )
+from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND
+from builder_ii.release_manifest import (
+    V0_RELEASE_MANIFEST_KIND,
+    create_artifact_ref,
+    create_v0_release_manifest,
+)
+from builder_ii.repo_map import REPO_MAP_KIND
 from builder_ii.research_adapters import (
     RESEARCH_ADAPTER_KIND,
     create_research_adapter_artifact,
 )
 from builder_ii.research_plans import RESEARCH_PLAN_KIND, create_research_plan_artifact
-from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND
-from builder_ii.hitl_execution_records import (
-    HITL_EXECUTION_REQUEST_KIND,
-    HITL_EXECUTION_RECEIPT_KIND,
-    create_hitl_execution_request,
-    create_hitl_execution_receipt,
-)
-from builder_ii.hitl_verification_candidate import (
-    HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
-    create_hitl_verification_execution_candidate,
-)
-from builder_ii.hitl_patch_proposal import (
-    HITL_PATCH_PROPOSAL_KIND,
-    create_hitl_patch_proposal,
-)
 from builder_ii.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
     ROLLBACK_RECEIPT_KIND,
     create_rollback_plan,
     create_rollback_receipt,
 )
-from builder_ii.execution_postflight_records import (
-    EXECUTION_POSTFLIGHT_RECORD_KIND,
-    EXECUTION_VERIFICATION_RECORD_KIND,
-    create_execution_postflight_record,
-    create_execution_verification_record,
-)
-from builder_ii.hitl_evidence_bundle import (
-    HITL_EVIDENCE_BUNDLE_KIND,
-    create_hitl_evidence_bundle,
-)
-from builder_ii.hitl_chain_binding import HITL_CHAIN_BINDING_KIND
-from builder_ii.session_workflow import (
-    SESSION_WORKFLOW_PLAN_KIND,
-    create_session_workflow_plan,
-)
-from builder_ii.repo_map import REPO_MAP_KIND
-from builder_ii.context_packs import CONTEXT_PACK_KIND
-from builder_ii.config import Settings
-from builder_ii.convention_kernel import CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND
-from builder_ii.governed_prepare_package import (
-    GOVERNED_PREPARE_PACKAGE_KIND,
-    GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
-)
-from builder_ii.orchestration_plan import (
-    ORCHESTRATION_PLAN_KIND,
-    create_orchestration_plan,
-)
-from builder_ii.orchestration_dry_run import (
-    ORCHESTRATION_DRY_RUN_KIND,
-    create_orchestration_dry_run,
-)
 from builder_ii.runtime_activation_approval import (
     RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND,
     create_runtime_activation_approval_spec,
-)
-from builder_ii.goose_readonly_session import (
-    GOOSE_READONLY_SESSION_PLAN_KIND,
-    create_goose_readonly_session_plan,
-)
-from builder_ii.goose_projection import (
-    GOOSE_PROJECTION_KIND,
-    create_goose_projection,
-)
-from builder_ii.goose_wrapper_plan import (
-    GOOSE_WRAPPER_PLAN_KIND,
-    create_goose_wrapper_plan,
-)
-from builder_ii.verification_profile_reports import (
-    VERIFICATION_PROFILE_REPORT_KIND,
-    create_verification_profile_report,
-)
-from builder_ii.handoff_notes import (
-    HANDOFF_NOTE_KIND,
-    create_handoff_note,
-)
-from builder_ii.deepagents_bridge_readiness import (
-    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
-    create_deepagents_bridge_readiness_report,
-)
-from builder_ii.goose_session import (
-    GOOSE_SESSION_KIND,
-    create_goose_session_manifest,
-)
-from builder_ii.handoff_artifacts import (
-    HANDOFF_KIND,
-    create_handoff_artifact,
 )
 from builder_ii.session_config import (
     SESSION_CONFIG_KIND,
     create_session_configuration,
 )
-from builder_ii.release_manifest import (
-    V0_RELEASE_MANIFEST_KIND,
-    create_artifact_ref,
-    create_v0_release_manifest,
+from builder_ii.session_workflow import (
+    SESSION_WORKFLOW_PLAN_KIND,
+    create_session_workflow_plan,
 )
-from builder_ii.artifact_chain_verification import (
-    ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND,
-)
-from builder_ii.model_capabilities import (
-    MODEL_CAPABILITY_REGISTRY_KIND,
-    create_model_capability_registry,
-)
-from builder_ii.event_ledger import (
-    EVENT_LEDGER_KIND,
-    EVENT_RECORD_KIND,
-    LEDGER_REPLAY_REPORT_KIND,
+from builder_ii.verification_profile_reports import (
+    VERIFICATION_PROFILE_REPORT_KIND,
+    create_verification_profile_report,
 )
 from builder_ii.workflow_records import (
     WORKFLOW_SESSION_KIND,
     WORKFLOW_STATUS_KIND,
     WORKFLOW_TRANSITION_KIND,
 )
-from builder_ii.orchestration_assignment import (
-    AGENT_ASSIGNMENT_PLAN_KIND,
-    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
-    ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
-    ORCHESTRATION_ASSIGNMENT_VALIDATION_REPORT_KIND,
-)
-from orchestration_assignment_fixtures import build_goal2_assignment_fixture
-
 
 CLOSURE_KINDS = {
     "builder_ii.target_profile",

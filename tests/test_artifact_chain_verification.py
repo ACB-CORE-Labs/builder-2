@@ -4,15 +4,15 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 from typer.testing import CliRunner
 
-from builder_ii.chain_summary_cli import chain_app
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from orchestration_assignment_fixtures import build_goal2_assignment_fixture
-
 from builder_ii.approval_records import create_approval_record
+from builder_ii.artifact_chain_verification import verify_artifact_chain
 from builder_ii.artifact_index_records import create_artifact_index_record
+from builder_ii.chain_summary_cli import chain_app
 from builder_ii.chain_summary_records import create_chain_summary_record
+from builder_ii.config_schema import attach_digest
 from builder_ii.goose_command_proposal import create_goose_command_proposal
 from builder_ii.handoff_bundle_records import create_handoff_bundle_record
 from builder_ii.preflight_records import create_preflight_record
@@ -22,7 +22,6 @@ from builder_ii.receipt_records import create_receipt_record
 from builder_ii.receive_records import create_receive_record
 from builder_ii.snapshot_records import create_snapshot_record
 from builder_ii.state_ledger_records import create_state_ledger_record
-from builder_ii.config_schema import attach_digest
 from builder_ii.verification_execution_approval import (
     finalize_verification_execution_approval,
     write_verification_execution_approval,

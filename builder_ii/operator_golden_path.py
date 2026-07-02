@@ -7,15 +7,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from builder_ii.operator_status import (
-    create_operator_status_report,
-    validate_operator_status_report,
-    write_operator_status_report,
-)
 from builder_ii.operator_next import (
     create_operator_next_action_report,
     validate_operator_next_action_report,
     write_operator_next_action_report,
+)
+from builder_ii.operator_status import (
+    create_operator_status_report,
+    validate_operator_status_report,
+    write_operator_status_report,
 )
 from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
 
@@ -66,7 +66,7 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
     for row in REQUIRED_CAPABILITY_ROWS:
         # Check real evidence files
         has_evidence = len(row.evidence_files) > 0 and all(Path(f).exists() for f in row.evidence_files)
-        
+
         if row.state == "OPERATIONALLY_VERIFIED" and has_evidence:
             if row.command_surfaces:
                 exercised.append({"capability": row.capability, "status": "exercised"})
@@ -102,7 +102,7 @@ def create_operator_golden_path_report(target_profile: str, output_dir: Path) ->
                 entry["reason"] = f"State is {row.state} and evidence files are missing."
 
             skipped.append(entry)
-            
+
             if row.state != "OPERATIONALLY_VERIFIED":
                 known_gaps.append(f"{row.capability} ({row.state})")
 

@@ -38,14 +38,30 @@ from typing import Any
 
 from builder_ii.tui_contract import (
     builder_dir as _shared_builder_dir,
+)
+from builder_ii.tui_contract import (
     col as _shared_col,
+)
+from builder_ii.tui_contract import (
     explicit_lookup_miss as _shared_lookup_miss,
+)
+from builder_ii.tui_contract import (
     find_artifact as _shared_find_artifact,
+)
+from builder_ii.tui_contract import (
     glob_kind as _shared_glob_kind,
+)
+from builder_ii.tui_contract import (
     hex_ansi as _shared_hex_ansi,
-    lookup_matches as _shared_lookup_matches,
+)
+from builder_ii.tui_contract import (
     load_json_object as _shared_load_json_object,
+)
+from builder_ii.tui_contract import (
     load_palette,
+)
+from builder_ii.tui_contract import (
+    lookup_matches as _shared_lookup_matches,
 )
 
 # ---------------------------------------------------------------------------
@@ -61,14 +77,22 @@ def _hex_ansi(hex_colour: str, text: str) -> str:
     return _shared_hex_ansi(hex_colour, text, _IS_TTY)
 
 
-_p   = lambda t: _hex_ansi(_C["pass"],   t)
-_w   = lambda t: _hex_ansi(_C["warn"],   t)
-_f   = lambda t: _hex_ansi(_C["fail"],   t)
-_h   = lambda t: _hex_ansi(_C["hint"],   t)
-_act = lambda t: _hex_ansi(_C["active"], t)
-_d   = lambda t: _hex_ansi(_C["dim"],    t)
-_b   = lambda t: _hex_ansi(_C["bold"],   t)
-_acc = lambda t: _hex_ansi(_C["accent"], t)
+def _p(t):
+    return _hex_ansi(_C["pass"],   t)
+def _w(t):
+    return _hex_ansi(_C["warn"],   t)
+def _f(t):
+    return _hex_ansi(_C["fail"],   t)
+def _h(t):
+    return _hex_ansi(_C["hint"],   t)
+def _act(t):
+    return _hex_ansi(_C["active"], t)
+def _d(t):
+    return _hex_ansi(_C["dim"],    t)
+def _b(t):
+    return _hex_ansi(_C["bold"],   t)
+def _acc(t):
+    return _hex_ansi(_C["accent"], t)
 
 G = {
     "pass":      _p("✔"),
@@ -196,10 +220,10 @@ def _validate_artifact(data: dict) -> list[str]:
     kind = str(data.get("kind", ""))
     try:
         from builder_ii.execution_postflight_records import (
-            validate_execution_postflight_record,
-            validate_execution_verification_record,
             EXECUTION_POSTFLIGHT_RECORD_KIND,
             EXECUTION_VERIFICATION_RECORD_KIND,
+            validate_execution_postflight_record,
+            validate_execution_verification_record,
         )
         if kind == EXECUTION_POSTFLIGHT_RECORD_KIND:
             return validate_execution_postflight_record(data)
@@ -216,7 +240,7 @@ def _validate_artifact(data: dict) -> list[str]:
 
 def _render_governance(gov: dict, *, verbose: bool) -> None:
     for cap in _GOV_CAPS:
-        val = gov.get(cap, "?")  
+        val = gov.get(cap, "?")
         if str(val).upper() == "DISABLED":
             glyph = G["disabled"]
             label = _d("DISABLED")
@@ -262,7 +286,6 @@ def _render_refs(data: dict, ref_chain: list[str]) -> None:
 # ---------------------------------------------------------------------------
 
 def cmd_postflight_status(args: list[str]) -> int:
-    verbose = "-v" in args or "--verbose" in args
     base    = _builder_dir()
 
     _section("Execution Postflight Status")
@@ -430,7 +453,6 @@ def cmd_postflight_record(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_postflight_verify(args: list[str]) -> int:
-    verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
     base    = _builder_dir()
 
@@ -502,7 +524,6 @@ def cmd_postflight_verify(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_postflight_governance(args: list[str]) -> int:
-    verbose = "-v" in args or "--verbose" in args
     base    = _builder_dir()
 
     _section("Governance Block Audit")

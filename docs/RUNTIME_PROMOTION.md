@@ -289,4 +289,4 @@ Examples:
 
 This document is itself `spec_only`. It does not enable any runtime mode.
 
-The current platform remains artifact-first. Bounded read-only inspection is a candidate surface that reads only explicit operator-requested relative file paths and records metadata without contents. Goose runtime start, git status inspection, linked target artifact reads, shell, commands, models, deepagents, source mutation, memory mutation, commits, pushes, pull requests, source collection, web search, and MCP remain unpromoted.
+The current platform remains artifact-first. Bounded read-only inspection is a candidate surface that reads only explicit operator-requested relative file paths and records metadata without contents. Goose runtime start, git status inspection, linked target artifact reads, shell, commands, models, deepagents, source mutation, patch application, rollback execution, memory mutation, commits, pushes, pull requests, source collection, web search, and MCP remain unpromoted.

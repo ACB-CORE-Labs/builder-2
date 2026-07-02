@@ -10,7 +10,8 @@ This module is generic-first and must not import CORE-specific modules.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field as dataclass_field
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from typing import Any, Callable, Optional
 
 from builder_ii.deepagents_forge_schema import (
@@ -24,7 +25,6 @@ from builder_ii.deepagents_forge_schema import (
     has_write_capability,
     validate_relative_artifact_path,
 )
-
 
 # ---------------------------------------------------------------------------
 # Validation result

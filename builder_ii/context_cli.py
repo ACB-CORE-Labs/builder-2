@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json as json_lib
 from pathlib import Path
 
 import typer
@@ -8,20 +9,17 @@ from rich.table import Table
 
 from builder_ii.config import load_settings
 from builder_ii.context_pack import (
-    ContextPackSelection,
     ContextPackResult,
+    ContextPackSelection,
     RepoTarget,
     build_context_pack,
     create_context_pack_record,
     dumps_context_pack_record,
-    write_context_pack_record,
     validate_context_pack_record,
     validate_context_pack_record_file,
+    write_context_pack_record,
 )
 from builder_ii.context_summarizer import summarize_context_pack, validate_context_summary
-import json as json_lib
-
-
 
 context_app = typer.Typer(help="Build task-scoped context packs for local agents.")
 console = Console()

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 
 from builder_ii.release_manifest import (

@@ -1,8 +1,7 @@
 import pytest
 
-from builder_ii.config import MODEL_ALIASES, normalize_model_alias
+from builder_ii.config import MODEL_ALIASES, load_settings, normalize_model_alias
 from builder_ii.models import model_definitions
-from builder_ii.config import load_settings
 
 
 def test_normalize_legacy_tiers():

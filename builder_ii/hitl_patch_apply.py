@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.config import Settings, load_settings
-from builder_ii.target_profiles import TargetName, target_profile
+from builder_ii.execution_postflight_records import (
+    create_execution_postflight_record,
+    write_execution_postflight_record,
+)
 from builder_ii.hitl_patch_proposal import validate_hitl_patch_proposal_file
 from builder_ii.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
@@ -17,7 +20,7 @@ from builder_ii.rollback_artifacts import (
     write_rollback_plan,
     write_rollback_receipt,
 )
-from builder_ii.execution_postflight_records import create_execution_postflight_record, write_execution_postflight_record
+from builder_ii.target_profiles import TargetName, target_profile
 from builder_ii.verification_execution_receipt import validate_verification_execution_receipt_file
 
 # Constants
@@ -206,28 +209,28 @@ def apply_hitl_patch(
 ) -> None:
     if settings is None:
         settings = load_settings()
-        
+
     # 1. Read and validate proposal
     errors = validate_hitl_patch_proposal_file(proposal_path)
     if errors:
         raise ValueError(f"Invalid proposal: {errors}")
-        
+
     proposal = json_lib.loads(proposal_path.read_text())
     target_name = proposal["target"]["name"]
     target_repo = Path(proposal["target"]["repo"])
     patch_digest = proposal["patch_digest"]
     unified_diff = proposal["unified_diff"]
-    
+
     # 2. Verify git state is clean
     if not is_git_clean(target_repo):
         raise ValueError("Target repository working tree is not clean")
     pre_head = get_git_head_sha(target_repo)
-        
+
     # 3. Read and validate verification receipt
     v_errors = _verification_receipt_errors(verification_receipt_path, target_repo=target_repo)
     if v_errors:
         raise ValueError(f"Invalid verification receipt: {v_errors}")
-    
+
     # 4. Check approval matching
     if not approval_path.exists():
         raise ValueError("Approval file does not exist")
@@ -237,11 +240,11 @@ def apply_hitl_patch(
         raise ValueError("Approval digest does not match proposal digest")
     if compute_digest(unified_diff) != patch_digest:
         raise ValueError("Proposal patch digest does not match unified diff content")
-        
+
     # 5. Reverse patch / Rollback plan
     reverse_diff_path = output_dir / "rollback.patch"
     reverse_diff_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     rollback_plan = create_rollback_plan(
         settings=settings,
         target_name=target_name,
@@ -257,7 +260,7 @@ def apply_hitl_patch(
 
     temp_patch = output_dir / "apply.patch"
     temp_patch.write_text(unified_diff)
-    
+
     # 6. Apply patch
     try:
         subprocess.run(
@@ -294,7 +297,7 @@ def apply_hitl_patch(
         role="rollback_reverse_patch",
     )
     write_rollback_plan(rollback_plan, rollback_plan_path)
-        
+
     # 7. Create postflight record
     postflight = create_execution_postflight_record(
         settings=settings,
@@ -314,7 +317,7 @@ def apply_hitl_patch(
     postflight_path = output_dir / "postflight_record.json"
     write_execution_postflight_record(postflight, postflight_path)
     postflight_digest = _file_digest(postflight_path)
-    
+
     # 8. Create Receipt
     receipt = create_patch_apply_receipt(
         settings=settings,
@@ -422,17 +425,17 @@ def rollback_hitl_patch(
     settings: Settings | None = None,
 ) -> None:
     from builder_ii.rollback_artifacts import validate_rollback_plan_file
-    
+
     if settings is None:
         settings = load_settings()
-        
+
     errors = validate_rollback_plan_file(rollback_plan_path)
     if errors:
         raise ValueError(f"Invalid rollback plan: {errors}")
-        
+
     if not reverse_patch_path.exists():
         raise ValueError(f"Reverse patch file not found: {reverse_patch_path}")
-        
+
     plan = json_lib.loads(rollback_plan_path.read_text())
     target_repo = Path(plan["target"]["repo"])
     target_name = plan["target"]["name"]
@@ -441,7 +444,7 @@ def rollback_hitl_patch(
         expected_digest = rollback_ref.get("sha256")
         if expected_digest and _file_digest(reverse_patch_path) != expected_digest:
             raise ValueError("Reverse patch digest does not match rollback plan binding")
-    
+
     before_status = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=target_repo,
@@ -449,7 +452,7 @@ def rollback_hitl_patch(
         capture_output=True,
         text=True,
     ).stdout.splitlines()
-        
+
     try:
         command = ["git", "apply", "-R", str(reverse_patch_path)] if plan.get("rollback_patch_apply_mode") == "git_apply_reverse_flag" else ["git", "apply", str(reverse_patch_path)]
         subprocess.run(
@@ -461,7 +464,7 @@ def rollback_hitl_patch(
         )
     except subprocess.CalledProcessError as e:
         raise RuntimeError(f"Rollback application failed: {e.stderr}")
-        
+
     receipt = create_rollback_receipt(
         settings=settings,
         target_name=target_name,
@@ -489,7 +492,7 @@ def rollback_hitl_patch(
         sha256=_file_digest(reverse_patch_path),
         role="rollback_reverse_patch",
     )
-    
+
     receipt_path = output_dir / "rollback_receipt.json"
     write_rollback_receipt(receipt, receipt_path)
 

@@ -19,7 +19,6 @@ from builder_ii.verification_execution_receipt import (
     write_verification_execution_receipt,
 )
 
-
 runner = CliRunner()
 
 

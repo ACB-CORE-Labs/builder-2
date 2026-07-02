@@ -2,26 +2,27 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 from typer.testing import CliRunner
 
+from builder_ii.artifact_chain_verification import extract_references
+from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
+from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, TIER_1
 from builder_ii.execution_candidate_manifest import (
     EXECUTION_CANDIDATE_MANIFEST_KIND,
     EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND,
     create_execution_candidate_manifest,
-    validate_execution_candidate_manifest,
     create_execution_candidate_manifest_validation_report,
+    validate_execution_candidate_manifest,
     validate_execution_candidate_manifest_validation_report,
 )
+from builder_ii.hitl_execution_cli import hitl_app
 from builder_ii.hitl_promotion_artifacts import (
     HITL_APPROVAL_BOUNDARY_KIND,
     HITL_PROMOTION_DECISION_KIND,
-    HITL_PROMOTION_REVIEW_KIND,
     HITL_PROMOTION_REQUEST_KIND,
+    HITL_PROMOTION_REVIEW_KIND,
 )
-from builder_ii.artifact_chain_verification import extract_references
-from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, TIER_1
-from builder_ii.hitl_execution_cli import hitl_app
 
 runner = CliRunner()
 

@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parent.parent
 RFC_PATH = ROOT / "docs" / "plan" / "PASSIVE_EXECUTION_CANDIDATE_MANIFEST_RFC.md"
 ROADMAP_PATH = ROOT / "docs" / "ROADMAP.md"

@@ -13,7 +13,11 @@ from builder_ii.quality_gates import (
     write_quality_gate_artifact,
 )
 from builder_ii.target_profiles import TargetName, target_names
-from builder_ii.verification_profiles import VerificationProfileName, get_verification_profile, verification_profile_names
+from builder_ii.verification_profiles import (
+    VerificationProfileName,
+    get_verification_profile,
+    verification_profile_names,
+)
 
 quality_app = typer.Typer(help="Create and validate no-execution quality gate artifacts.")
 console = Console()

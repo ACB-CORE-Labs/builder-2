@@ -19,11 +19,13 @@ Current platform truth:
 - setup/config kernel state: R1.4 passive schema, source resolution, setup plan, overlay plan, rollback snapshot, digest-bound apply/rollback, and legacy setup-surface reconciliation exist; generic rollback remains non-operational
 - current sequence: `B8 deferred; B9 complete`; historical dependency spine: `R0 -> R1 -> B1`
 
-R1.4 keeps the setup/config kernel non-operational beyond the governed artifact chain. Legacy `builder setup` now fails closed and redirects to `builder-setup`. Ambient runtime execution, Goose runtime promotion, deepagents runtime, autonomous writes, source CORE checkout mutation, and commit/push automation remain unpromoted; model/provider calls, MCP/tool invocation, HITL patch application, rollback execution, and the CORE demo loop are operational only inside their explicit capability-scoped envelopes.
+R1.4 keeps the setup/config kernel non-operational beyond the governed artifact chain. Legacy `builder setup` now fails closed and redirects to `builder-setup`. Ambient runtime execution, Goose runtime promotion, deepagents runtime, autonomous writes, source CORE checkout mutation, and commit/push automation remain unpromoted; model/provider calls, MCP/tool invocation, and the CORE demo loop are operational only inside their explicit capability-scoped envelopes.
+
+Similarly, operator-safe promoted patch application and rollback execution remain gated as unpromoted candidate behaviors (though passive patch proposal and apply artifacts exist with improved rollback bundle/evidence).
 
 `OPERATIONALLY_VERIFIED` is a legacy matrix state, not a life-safety or global-runtime clearance. Machine-readable matrix rows now also carry a sharper `assurance_state`: `PASSIVE_ARTIFACT_VERIFIED`, `READ_ONLY_RUNTIME_VERIFIED`, `BOUNDED_EXECUTION_VERIFIED`, `MUTATION_WITH_ROLLBACK_VERIFIED`, `LIVE_PROVIDER_VERIFIED`, `DEMO_ONLY_VERIFIED`, `BLOCKED_BY_EVIDENCE`, or `SAFETY_CRITICAL_PROHIBITED`.
 
-For high-consequence work, the assurance state is authoritative for risk interpretation. A live provider call, a patch mutation with rollback, and a temporary demo loop are not equivalent just because older rows may share the same legacy completion label.
+For high-consequence work, the assurance state is authoritative for risk interpretation. A live provider call, a temporary demo loop, and passive candidate specifications are not equivalent just because older rows may share the same legacy completion label.
 
 ## State Labels
 
@@ -77,8 +79,8 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | execution candidate manifests | `PASSIVE_FOUNDATION` | B1 |
 | HITL-approved verification execution | `OPERATIONALLY_VERIFIED` | B2.0 |
 | HITL patch proposal | `OPERATIONALLY_VERIFIED` | B4 |
-| HITL patch application | `OPERATIONALLY_VERIFIED` | B4 |
-| rollback execution | `OPERATIONALLY_VERIFIED` | B4 |
+| HITL patch application | `MERGED_BUT_NOT_OPERATIONAL` | B4 |
+| rollback execution | `MERGED_BUT_NOT_OPERATIONAL` | B4 |
 | postflight verification | `OPERATIONALLY_VERIFIED` | B1.5 |
 | Goose setup | `MERGED_BUT_NOT_OPERATIONAL` | B4 after R0/B3 |
 | governed read-only runtime | `OPERATIONALLY_VERIFIED` | B4 |

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json as json_lib
 from pathlib import Path
-import pytest
+
 from typer.testing import CliRunner
 
 from builder_ii.performance_cli import performance_app
@@ -10,10 +10,11 @@ from builder_ii.validation_benchmark import (
     VALIDATION_BENCHMARK_KIND,
     VALIDATION_PARITY_REPORT_KIND,
     benchmark_validator,
-    validate_validation_benchmark,
     generate_parity_report,
+    validate_validation_benchmark,
     validate_validation_parity_report,
 )
+
 
 def test_benchmark_validator_and_validate() -> None:
     # Test validator benchmarking logic directly
@@ -31,7 +32,7 @@ def test_benchmark_validator_and_validate() -> None:
     assert res["p95_ms"] >= 0.0
     assert res["p99_ms"] >= 0.0
     assert res["artifact_is_authority"] is False
-    
+
     assert validate_validation_benchmark(res) == []
 
 def test_validate_validation_benchmark_rejects_bad_data() -> None:
@@ -51,11 +52,11 @@ def test_validate_validation_benchmark_rejects_bad_data() -> None:
         "p99_ms": 0.0,
         "artifact_is_authority": False,
     }
-    
+
     errors = validate_validation_benchmark(bad_data)
     assert "artifact_kind is required" in errors
     assert "artifact_count must be a non-negative integer" in errors
-    
+
     not_dict = "not a dict"
     errors = validate_validation_benchmark(not_dict)
     assert "validation benchmark record must be a JSON object" in errors
@@ -77,7 +78,7 @@ def test_benchmark_all_supported_kinds() -> None:
 
 def test_cli_benchmark_validation(tmp_path: Path) -> None:
     runner = CliRunner()
-    
+
     # Check stdout print
     result = runner.invoke(
         performance_app,
@@ -110,7 +111,7 @@ def test_cli_benchmark_validation(tmp_path: Path) -> None:
     )
     assert result_file.exit_code == 0
     assert out_file.exists()
-    
+
     file_data = json_lib.loads(out_file.read_text(encoding="utf-8"))
     assert file_data["kind"] == VALIDATION_BENCHMARK_KIND
     assert file_data["artifact_count"] == 5
@@ -135,7 +136,7 @@ def test_generate_parity_report_and_validate() -> None:
 
 def test_cli_parity_report(tmp_path: Path) -> None:
     runner = CliRunner()
-    
+
     # Check stdout print
     result = runner.invoke(
         performance_app,
@@ -168,7 +169,7 @@ def test_cli_parity_report(tmp_path: Path) -> None:
     )
     assert result_file.exit_code == 0
     assert out_file.exists()
-    
+
     file_data = json_lib.loads(out_file.read_text(encoding="utf-8"))
     assert file_data["kind"] == VALIDATION_PARITY_REPORT_KIND
     assert file_data["cases_total"] == 5

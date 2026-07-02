@@ -1,16 +1,15 @@
-import json
 from pathlib import Path
-import pytest
+
 from typer.testing import CliRunner
 
 from builder_ii.operator_golden_path import (
+    OPERATOR_GOLDEN_PATH_REPORT_KIND,
+    SCHEMA_VERSION,
     create_operator_golden_path_report,
     validate_operator_golden_path_report,
-    dumps_operator_golden_path_report,
-    OPERATOR_GOLDEN_PATH_REPORT_KIND,
-    SCHEMA_VERSION
 )
 from builder_ii.platform_status_cli import platform_app
+
 
 def test_create_operator_golden_path_report(tmp_path):
     report = create_operator_golden_path_report("builder", tmp_path)
@@ -27,7 +26,7 @@ def test_create_operator_golden_path_report(tmp_path):
     assert "disabled_authority_summary" in report
     assert "memory_status" in report
     assert "ledger_status" in report
-    
+
     # Check non-empty evidence_refs and generated_artifacts
     assert isinstance(report["evidence_refs"], list)
     assert len(report["evidence_refs"]) > 0

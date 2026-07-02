@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+from test_hitl_chain_binding import _artifact_fixtures
+
 from builder_ii.hitl_chain_binding import (
     bind_hitl_chain_artifacts,
     validate_hitl_chain_binding,
     verify_hitl_chain_binding_files,
 )
-from test_hitl_chain_binding import _artifact_fixtures
 
 
 def test_verify_hitl_chain_binding_files_allows_absent_evidence_bundle(tmp_path):

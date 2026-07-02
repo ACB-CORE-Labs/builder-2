@@ -1,25 +1,25 @@
 import json as json_lib
 from pathlib import Path
-import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
 from builder_ii.config import Settings
+from builder_ii.model_cli import model_app
 from builder_ii.model_client_registry import (
     create_model_client_registry,
+)
+from builder_ii.model_execution_gateway import (
+    ModelExecutionGateway,
+    scan_for_secrets,
+    validate_model_call_envelope,
+    validate_model_call_receipt,
 )
 from builder_ii.model_routing_policy import (
     create_model_execution_policy,
 )
-from builder_ii.model_execution_gateway import (
-    ModelExecutionGateway,
-    validate_model_call_envelope,
-    validate_model_call_receipt,
-    validate_model_call_receipt_file,
-    scan_for_secrets,
-)
-from builder_ii.model_cli import model_app
+
 
 @pytest.fixture
 def mock_settings() -> Settings:
@@ -209,11 +209,11 @@ def test_model_execution_fails_on_unauthorized_model_in_policy(
 
 def test_cli_commands(mock_settings, standard_registry, standard_execution_policy, tmp_path) -> None:
     runner = CliRunner()
-    
+
     for client in standard_registry["clients"]:
         if client["model_id"] == "gpt-4o-stub":
             client["enabled"] = True
-    
+
     reg_path = tmp_path / "registry.json"
     pol_path = tmp_path / "policy.json"
     reg_path.write_text(json_lib.dumps(standard_registry), encoding="utf-8")
@@ -280,6 +280,7 @@ def test_envelope_network_semantics_local_network(
 ) -> None:
     """local_network risk: envelope + authority_boundary + governance must declare network enabled."""
     from unittest.mock import patch as _patch
+
     from builder_ii.direct_chat import DirectChatResult
     stub_result = DirectChatResult(ok=True, content="Paris", endpoint="http://x", model_id="m")
     gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)

@@ -1,6 +1,12 @@
-from builder_ii.command_authority import TIER_3, STATE_HITL_RUNTIME_CANDIDATE, MODE_HITL_ARTIFACT_REQUIRED
-from builder_ii.command_authority import STATE_VALIDATION_ONLY
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, MODE_NONE, TIER_1
+from builder_ii.command_authority import (
+    COMMAND_AUTHORITY_REGISTRY,
+    MODE_HITL_ARTIFACT_REQUIRED,
+    MODE_NONE,
+    STATE_HITL_RUNTIME_CANDIDATE,
+    STATE_VALIDATION_ONLY,
+    TIER_1,
+    TIER_3,
+)
 
 
 def test_verification_execution_approval_command_authority_rows_exist() -> None:

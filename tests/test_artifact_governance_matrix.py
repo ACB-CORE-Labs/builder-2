@@ -18,7 +18,10 @@ from builder_ii.goose_command_proposal import create_goose_command_proposal, val
 from builder_ii.handoff_bundle_records import create_handoff_bundle_record, validate_handoff_bundle_record
 from builder_ii.preflight_records import create_preflight_record, validate_preflight_record
 from builder_ii.promotion_decision_records import create_promotion_decision_record, validate_promotion_decision_record
-from builder_ii.promotion_readiness_records import create_promotion_readiness_record, validate_promotion_readiness_record
+from builder_ii.promotion_readiness_records import (
+    create_promotion_readiness_record,
+    validate_promotion_readiness_record,
+)
 from builder_ii.receipt_records import create_receipt_record, validate_receipt_record
 from builder_ii.receive_records import create_receive_record, validate_receive_record
 from builder_ii.snapshot_records import create_snapshot_record, validate_snapshot_record

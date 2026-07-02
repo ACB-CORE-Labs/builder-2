@@ -8,21 +8,21 @@ import typer
 
 from builder_ii.command_authority import enforce_command_authority
 from builder_ii.event_ledger import (
+    EVENT_RECORD_KIND,
     create_event_record,
     load_event_records,
     replay_events,
     write_event_record,
-    EVENT_RECORD_KIND,
 )
-from builder_ii.workflow_records import canonical_digest
 from builder_ii.mcp_policy import (
-    MCP_INVENTORY_KIND,
     INVENTORY_SCHEMA_VERSION,
+    MCP_INVENTORY_KIND,
     MCP_POLICY_KIND,
     POLICY_SCHEMA_VERSION,
     validate_mcp_policy,
 )
 from builder_ii.tool_invocation_gateway import execute_tool_envelope
+from builder_ii.workflow_records import canonical_digest
 
 mcp_app = typer.Typer(help="Manage MCP (Model Context Protocol) tool policies and execution.")
 

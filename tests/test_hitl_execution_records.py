@@ -2,8 +2,6 @@ import inspect
 import json
 from pathlib import Path
 
-import pytest
-
 import builder_ii.hitl_execution_records as hitl_records_mod
 from builder_ii.hitl_execution_records import (
     HITL_EXECUTION_RECEIPT_KIND,
@@ -19,7 +17,6 @@ from builder_ii.hitl_execution_records import (
     write_hitl_execution_receipt,
     write_hitl_execution_request,
 )
-
 
 # ===================================================================
 #  Module safety checks

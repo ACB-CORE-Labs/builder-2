@@ -8,10 +8,10 @@ from typing import Any
 from builder_ii.agent_profiles import AGENT_PROFILE_RECORD_KIND
 from builder_ii.context_pack import CONTEXT_PACK_RECORD_KIND
 from builder_ii.git_state import GIT_STATE_RECORD_KIND
+from builder_ii.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND
+from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND
 from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND
-from builder_ii.readonly_inspection_reports import READONLY_INSPECTION_REPORT_KIND
-from builder_ii.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND
 
 PROMOTION_SUPPORT_ARTIFACT_REQUIRED_KINDS: tuple[str, ...] = (
     TARGET_PROFILE_ARTIFACT_KIND,

@@ -1,17 +1,18 @@
 import json
-from pathlib import Path
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
 from builder_ii.hitl_patch_apply import (
+    PATCH_APPLY_RECEIPT_KIND,
     apply_hitl_patch,
-    rollback_hitl_patch,
     create_patch_apply_receipt,
     validate_patch_apply_receipt,
-    PATCH_APPLY_RECEIPT_KIND,
 )
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+
 
 def test_validate_patch_apply_receipt():
     receipt = create_patch_apply_receipt(
@@ -30,20 +31,20 @@ def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
     subprocess.run(["git", "init"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, check=True)
-    
+
     # Dirty repo
     (repo / "file.txt").write_text("content")
-    
+
     prop_path = tmp_path / "prop.json"
     prop = create_hitl_patch_proposal(generic_repo=repo, patch_digest="abc", unified_diff="patch")
     write_hitl_patch_proposal(prop, prop_path)
-    
+
     approval_path = tmp_path / "approval.json"
     approval_path.write_text(json.dumps({"patch_digest": "abc"}))
-    
+
     vr_path = tmp_path / "vr.json"
     vr_path.write_text(json.dumps({"kind": "builder_ii.verification_execution_receipt", "receipt_status": "EXECUTED"}))
-    
+
     with pytest.raises(ValueError, match="Target repository working tree is not clean"):
         apply_hitl_patch(prop_path, approval_path, vr_path, tmp_path / "out")
 
@@ -57,16 +58,16 @@ def test_apply_hitl_patch_rejects_digest_mismatch(mock_validate, tmp_path: Path)
     (repo / "file.txt").write_text("a")
     subprocess.run(["git", "add", "file.txt"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True)
-    
+
     prop_path = tmp_path / "prop.json"
     prop = create_hitl_patch_proposal(generic_repo=repo, patch_digest="abc", unified_diff="patch")
     write_hitl_patch_proposal(prop, prop_path)
-    
+
     approval_path = tmp_path / "approval.json"
     approval_path.write_text(json.dumps({"patch_digest": "def"}))  # mismatch
-    
+
     vr_path = tmp_path / "vr.json"
     vr_path.write_text(json.dumps({"kind": "builder_ii.verification_execution_receipt", "receipt_status": "EXECUTED"}))
-    
+
     with pytest.raises(ValueError, match="Approval digest does not match proposal digest"):
         apply_hitl_patch(prop_path, approval_path, vr_path, tmp_path / "out")

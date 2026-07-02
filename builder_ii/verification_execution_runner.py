@@ -11,9 +11,9 @@ from typing import Any
 
 from builder_ii.command_authority import (
     CommandAuthorityDecision,
-    enforce_command_authority,
-    check_command_authority,
     CommandAuthorityError,
+    check_command_authority,
+    enforce_command_authority,
 )
 from builder_ii.config_schema import attach_digest, digest_jsonable
 from builder_ii.execution_postflight_records import (
@@ -33,7 +33,6 @@ from builder_ii.verification_execution_receipt import (
     validate_verification_execution_receipt_artifact,
     write_verification_execution_receipt,
 )
-
 
 STDOUT_STDERR_CAPTURE_BYTES = 65536
 GIT_STATUS_TIMEOUT_SECONDS = 10

@@ -4,9 +4,9 @@ from typing import Any
 
 from typer.testing import CliRunner
 
+from builder_ii.approval_records import create_approval_record
 from builder_ii.chain_summary_cli import chain_app
 from builder_ii.goose_command_proposal import create_goose_command_proposal
-from builder_ii.approval_records import create_approval_record
 from builder_ii.preflight_records import create_preflight_record
 from builder_ii.receipt_records import create_receipt_record
 

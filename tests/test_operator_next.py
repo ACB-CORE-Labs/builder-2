@@ -1,18 +1,17 @@
-import json
-import pytest
 from builder_ii.operator_next import (
+    OPERATOR_NEXT_ACTION_REPORT_KIND,
+    SCHEMA_VERSION,
     create_operator_next_action_report,
     validate_operator_next_action_report,
-    OPERATOR_NEXT_ACTION_REPORT_KIND,
-    SCHEMA_VERSION
 )
+
 
 def test_create_operator_next_action_report():
     report = create_operator_next_action_report()
     assert report["kind"] == OPERATOR_NEXT_ACTION_REPORT_KIND
     assert report["schema_version"] == SCHEMA_VERSION
     assert "report_digest" in report
-    
+
     required_fields = (
         "created_at_utc",
         "current_state_digest",

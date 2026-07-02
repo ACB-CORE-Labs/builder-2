@@ -1,13 +1,12 @@
-import json
-import pytest
+from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
 from builder_ii.operator_status import (
+    OPERATOR_STATUS_REPORT_KIND,
+    SCHEMA_VERSION,
     create_operator_status_report,
     validate_operator_status_report,
-    OPERATOR_STATUS_REPORT_KIND,
-    SCHEMA_VERSION
 )
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
 from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
+
 
 def test_create_operator_status_report():
     report = create_operator_status_report(operator_name="test-op", target="generic")
@@ -19,7 +18,7 @@ def test_create_operator_status_report():
     assert len(report["capabilities"]) == len(REQUIRED_CAPABILITY_ROWS)
     assert len(report["commands"]) == len(COMMAND_AUTHORITY_REGISTRY)
     assert "report_digest" in report
-    
+
     # Must have all required fields
     required_fields = (
         "created_at_utc",

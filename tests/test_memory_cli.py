@@ -8,7 +8,6 @@ from builder_ii.memory_cli import memory_app
 from builder_ii.research_plans import create_research_plan_artifact
 from builder_ii.workflow_records import canonical_digest
 
-
 runner = CliRunner()
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import json as json_lib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -21,9 +21,9 @@ from builder_ii.deepagents_execution import (
     DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
     DEEPAGENTS_EXECUTION_RECEIPT_KIND,
     DEEPAGENTS_REPLAY_REPORT_KIND,
-    create_evidence_bundle_from_files,
     create_deepagents_execution_approval,
     create_deepagents_execution_candidate,
+    create_evidence_bundle_from_files,
     replay_deepagents_run,
     resume_deepagents_approved_candidate,
     run_deepagents_approved_candidate,
@@ -53,8 +53,8 @@ def _work_plan_fixture(
     goal2 = build_goal2_assignment_fixture(tmp_path, task="Deepagents governed protocol lane")
     policy = create_deepagents_policy_artifact(load_settings(), target_name="builder")
     readiness = create_deepagents_readiness_artifact(mode="metadata_only")
-    policy_path = _write(tmp_path / "deepagents-policy.json", policy)
-    readiness_path = _write(tmp_path / "deepagents-readiness.json", readiness)
+    _write(tmp_path / "deepagents-policy.json", policy)
+    _write(tmp_path / "deepagents-readiness.json", readiness)
     work_plan = create_deepagents_work_plan(
         target="builder",
         task=task,

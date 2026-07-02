@@ -14,9 +14,9 @@ from builder_ii.platform_completion_audit import (
     NOT_STARTED,
     OPERATIONALLY_VERIFIED,
     PASSIVE_FOUNDATION,
+    R1_CONFIG_ONBOARDING_CAPABILITIES,
     REQUIRED_CAPABILITIES,
     REQUIRED_CAPABILITY_ROWS,
-    R1_CONFIG_ONBOARDING_CAPABILITIES,
     render_human_summary,
     render_matrix_jsonable,
     validate_command_surfaces,
@@ -24,7 +24,6 @@ from builder_ii.platform_completion_audit import (
     validate_r1_config_onboarding_mapping,
 )
 from builder_ii.platform_status_cli import platform_app
-
 
 runner = CliRunner()
 
@@ -156,7 +155,7 @@ def test_matrix_rendering_is_json_safe() -> None:
     decoded = json.loads(encoded)
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
-    assert decoded["summary"]["operationally_verified_count"] == 17  # B1.5 promoted bounded verification, postflight, and command authority gates
+    assert decoded["summary"]["operationally_verified_count"] == 15  # B1.5 promoted bounded verification, postflight, and command authority gates, with patch application/rollback unpromoted
 
 
 def test_matrix_exposes_sharper_assurance_states() -> None:
@@ -164,8 +163,8 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     rows = {row["capability"]: row for row in matrix["capabilities"]}
     assert "SAFETY_CRITICAL_PROHIBITED" in matrix["allowed_assurance_states"]
     assert rows["model/provider execution"]["assurance_state"] == "LIVE_PROVIDER_VERIFIED"
-    assert rows["HITL patch application"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
-    assert rows["rollback execution"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
+    assert rows["HITL patch application"]["assurance_state"] == "BLOCKED_BY_EVIDENCE"
+    assert rows["rollback execution"]["assurance_state"] == "BLOCKED_BY_EVIDENCE"
     assert rows["governed read-only runtime"]["assurance_state"] == "READ_ONLY_RUNTIME_VERIFIED"
     assert rows["CORE demo loop"]["assurance_state"] == "DEMO_ONLY_VERIFIED"
     assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"

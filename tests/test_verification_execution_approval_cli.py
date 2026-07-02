@@ -16,7 +16,6 @@ from builder_ii.verification_execution_plan import (
 )
 from builder_ii.verification_execution_plan_cli import verify_app
 
-
 runner = CliRunner()
 
 

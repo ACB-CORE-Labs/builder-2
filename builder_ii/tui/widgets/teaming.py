@@ -1,12 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
-
 from textual.app import ComposeResult
+from textual.containers import Horizontal, ScrollableContainer, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Checkbox, Static, Label
-from textual.containers import Vertical, Horizontal, ScrollableContainer
+from textual.widgets import Button, Checkbox, Static
+
 
 class DeepAgentTeamingScreen(ModalScreen[list[str]]):
     """An interactive wizard to select agents for orchestration."""
@@ -52,16 +50,16 @@ class DeepAgentTeamingScreen(ModalScreen[list[str]]):
     def compose(self) -> ComposeResult:
         from builder_ii.agent_profiles import agent_profiles
         profiles = agent_profiles()
-        
+
         with Vertical(id="teaming-dialog"):
             yield Static("╔══════════════════════════════════════════╗\n"
                          "║      DEEPAGENTS TEAMING & DISPATCH       ║\n"
                          "╚══════════════════════════════════════════╝", id="teaming-title")
-            
+
             with ScrollableContainer(id="teaming-list"):
                 for p in profiles:
                     yield Checkbox(f"{p.name} [{p.authority}]", id=f"agent-{p.name}", classes="agent-checkbox")
-            
+
             with Horizontal(id="teaming-buttons"):
                 yield Button("Dispatch Squad", id="btn-dispatch", variant="primary")
                 yield Button("Cancel", id="btn-cancel", variant="error")

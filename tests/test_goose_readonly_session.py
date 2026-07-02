@@ -1,21 +1,21 @@
 import json as json_lib
 from pathlib import Path
-import pytest
+
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
-from builder_ii.session_cli import session_app
-from builder_ii.goose_readonly_session import (
-    create_goose_readonly_session_plan,
-    validate_goose_readonly_session_plan,
-    validate_goose_readonly_session_plan_file,
-    GOOSE_READONLY_SESSION_PLAN_KIND,
-)
 from builder_ii.context_pack import (
     ContextPackSelection,
     build_context_pack,
     create_context_pack_record,
 )
+from builder_ii.goose_readonly_session import (
+    GOOSE_READONLY_SESSION_PLAN_KIND,
+    create_goose_readonly_session_plan,
+    validate_goose_readonly_session_plan,
+    validate_goose_readonly_session_plan_file,
+)
+from builder_ii.session_cli import session_app
 
 runner = CliRunner()
 
@@ -43,7 +43,7 @@ def test_create_goose_readonly_session_plan_defaults() -> None:
 def test_create_goose_readonly_session_plan_with_context(tmp_path: Path) -> None:
     settings = load_settings()
     selection = ContextPackSelection(task="test task", changed=False)
-    
+
     # Build a mock context pack
     result = build_context_pack(
         settings,

@@ -171,20 +171,20 @@ def test_validation_errors() -> None:
 def test_promoted_stage_authority_invariants(tmp_path: Path) -> None:
     # Generate the demo to inspect replay report governance details
     out = tmp_path / "core-demo"
-    res = generate_readonly_founder_demo(target="core", output_dir=out)
-    
+    generate_readonly_founder_demo(target="core", output_dir=out)
+
     events_dir = out / "events"
     events = load_event_records(events_dir)
-    
+
     # Verify events sequence
     # 0003-workflow_promoted.json represents the 'promoted' transition
     promoted_event_file = events_dir / "0003-workflow_promoted.json"
     assert promoted_event_file.exists()
-    
+
     # Replay events to get replay report
     replay = replay_events(events, session_id="wf-core-readonly-founder-demo")
     assert replay["valid"] is True
-    
+
     # Assert that no authority promotion or active runtime execution is authorized at the 'promoted' stage
     # In particular, all command-surface / runtime execution flags must remain disabled/false.
     gov = replay["governance"]

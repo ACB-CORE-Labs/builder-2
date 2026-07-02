@@ -9,59 +9,6 @@ import typer
 from rich.console import Console
 
 from builder_ii.config import load_settings
-from builder_ii.deepagents_forge_cli import app as deepagents_forge_app
-from builder_ii.deepagents_policy import (
-    DeepAgentsMemoryMode,
-    DeepAgentsSubagentResultMode,
-    create_deepagents_policy_artifact,
-    dumps_deepagents_policy_artifact,
-    validate_deepagents_policy_artifact,
-    validate_deepagents_policy_artifact_file,
-    write_deepagents_policy_artifact,
-)
-from builder_ii.deepagents_readiness import (
-    DeepAgentsReadinessMode,
-    create_deepagents_readiness_artifact,
-    dumps_deepagents_readiness_artifact,
-    validate_deepagents_readiness_artifact,
-    validate_deepagents_readiness_artifact_file,
-    write_deepagents_readiness_artifact,
-)
-from builder_ii.target_profiles import TargetName, target_names
-from builder_ii.deepagents_work_artifacts import (
-    create_deepagents_work_plan,
-    create_deepagents_subagent_assignment,
-    create_deepagents_subagent_result,
-    create_deepagents_subagent_review,
-    create_deepagents_human_gate_request,
-    create_deepagents_blocked_action_record,
-    create_deepagents_proposal_result,
-    validate_deepagents_work_plan,
-    validate_deepagents_subagent_assignment,
-    validate_deepagents_subagent_result,
-    validate_deepagents_subagent_review,
-    validate_deepagents_human_gate_request,
-    validate_deepagents_blocked_action_record,
-    validate_deepagents_proposal_result,
-    validate_deepagents_work_validation_report,
-    validate_deepagents_runtime_envelope,
-    validate_deepagents_subagent_execution_receipt,
-    write_deepagents_work_plan,
-    write_deepagents_subagent_assignment,
-    write_deepagents_subagent_result,
-    write_deepagents_subagent_review,
-    write_deepagents_human_gate_request,
-    write_deepagents_blocked_action_record,
-    write_deepagents_proposal_result,
-    dumps_deepagents_work_plan,
-    dumps_deepagents_subagent_assignment,
-    dumps_deepagents_subagent_result,
-    dumps_deepagents_subagent_review,
-    dumps_deepagents_human_gate_request,
-    dumps_deepagents_blocked_action_record,
-    dumps_deepagents_proposal_result,
-)
-from builder_ii.deepagents_runtime import DeepAgentsRuntimeHarness
 from builder_ii.deepagents_execution import (
     BACKEND_MODES,
     DEEPAGENTS_BACKEND_READINESS_GATE_KIND,
@@ -85,8 +32,8 @@ from builder_ii.deepagents_execution import (
     replay_deepagents_run,
     resume_deepagents_approved_candidate,
     run_deepagents_approved_candidate,
-    validate_deepagents_checkpoint,
     validate_deepagents_backend_readiness_gate,
+    validate_deepagents_checkpoint,
     validate_deepagents_event_ledger,
     validate_deepagents_event_record,
     validate_deepagents_evidence_bundle,
@@ -95,10 +42,63 @@ from builder_ii.deepagents_execution import (
     validate_deepagents_execution_receipt,
     validate_deepagents_replay_report,
     validate_deepagents_run_envelope,
+    write_deepagents_backend_readiness_gate,
     write_deepagents_execution_approval,
     write_deepagents_execution_candidate,
-    write_deepagents_backend_readiness_gate,
 )
+from builder_ii.deepagents_forge_cli import app as deepagents_forge_app
+from builder_ii.deepagents_policy import (
+    DeepAgentsMemoryMode,
+    DeepAgentsSubagentResultMode,
+    create_deepagents_policy_artifact,
+    dumps_deepagents_policy_artifact,
+    validate_deepagents_policy_artifact,
+    validate_deepagents_policy_artifact_file,
+    write_deepagents_policy_artifact,
+)
+from builder_ii.deepagents_readiness import (
+    DeepAgentsReadinessMode,
+    create_deepagents_readiness_artifact,
+    dumps_deepagents_readiness_artifact,
+    validate_deepagents_readiness_artifact,
+    validate_deepagents_readiness_artifact_file,
+    write_deepagents_readiness_artifact,
+)
+from builder_ii.deepagents_runtime import DeepAgentsRuntimeHarness
+from builder_ii.deepagents_work_artifacts import (
+    create_deepagents_blocked_action_record,
+    create_deepagents_human_gate_request,
+    create_deepagents_proposal_result,
+    create_deepagents_subagent_assignment,
+    create_deepagents_subagent_result,
+    create_deepagents_subagent_review,
+    create_deepagents_work_plan,
+    dumps_deepagents_blocked_action_record,
+    dumps_deepagents_human_gate_request,
+    dumps_deepagents_proposal_result,
+    dumps_deepagents_subagent_assignment,
+    dumps_deepagents_subagent_result,
+    dumps_deepagents_subagent_review,
+    dumps_deepagents_work_plan,
+    validate_deepagents_blocked_action_record,
+    validate_deepagents_human_gate_request,
+    validate_deepagents_proposal_result,
+    validate_deepagents_runtime_envelope,
+    validate_deepagents_subagent_assignment,
+    validate_deepagents_subagent_execution_receipt,
+    validate_deepagents_subagent_result,
+    validate_deepagents_subagent_review,
+    validate_deepagents_work_plan,
+    validate_deepagents_work_validation_report,
+    write_deepagents_blocked_action_record,
+    write_deepagents_human_gate_request,
+    write_deepagents_proposal_result,
+    write_deepagents_subagent_assignment,
+    write_deepagents_subagent_result,
+    write_deepagents_subagent_review,
+    write_deepagents_work_plan,
+)
+from builder_ii.target_profiles import TargetName, target_names
 
 deepagents_app = typer.Typer(
     help="Create and validate artifact-only governed deepagents JSON."

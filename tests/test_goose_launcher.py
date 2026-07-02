@@ -2,11 +2,11 @@ from pathlib import Path
 
 from builder_ii.config import Settings, load_settings
 from builder_ii.goose_launcher import (
+    derive_goose_environment,
     goose_env,
     goose_status,
-    recipe_path,
-    derive_goose_environment,
     launch_goose_session,
+    recipe_path,
 )
 
 
@@ -299,8 +299,9 @@ def test_missing_provider_or_key_raises_error():
     )
 
     import os
-    import pytest
     from unittest.mock import patch
+
+    import pytest
     with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=True):
         with patch("builder_ii.goose_launcher.find_goose_binary", return_value="/usr/local/bin/goose"):
             with pytest.raises(ValueError) as exc:
@@ -309,8 +310,9 @@ def test_missing_provider_or_key_raises_error():
 
 
 def test_stratum_action_launch_goose_uses_adapter():
+    from unittest.mock import MagicMock, patch
+
     from builder_ii.tui.app import StratumApp
-    from unittest.mock import patch, MagicMock
 
     app = StratumApp()
     app.settings = Settings(
@@ -340,9 +342,9 @@ def test_stratum_action_launch_goose_uses_adapter():
     mock_proc = MagicMock()
     mock_proc.wait.return_value = 0
 
-    with patch("builder_ii.tui.app.StratumApp.suspend") as mock_suspend, \
-         patch("builtins.print") as mock_print, \
-         patch("builtins.input") as mock_input, \
+    with patch("builder_ii.tui.app.StratumApp.suspend"), \
+         patch("builtins.print"), \
+         patch("builtins.input"), \
          patch("builder_ii.goose_launcher.find_goose_binary", return_value="/usr/local/bin/goose"), \
          patch("builder_ii.goose_launcher.launch_goose_session", return_value=mock_proc) as mock_launch_session:
         app.action_launch_goose()

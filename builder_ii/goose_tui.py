@@ -44,14 +44,30 @@ from typing import Any
 
 from builder_ii.tui_contract import (
     builder_dir as _shared_builder_dir,
+)
+from builder_ii.tui_contract import (
     col as _shared_col,
+)
+from builder_ii.tui_contract import (
     explicit_lookup_miss as _shared_lookup_miss,
+)
+from builder_ii.tui_contract import (
     find_artifact as _shared_find_artifact,
+)
+from builder_ii.tui_contract import (
     glob_kind as _shared_glob_kind,
+)
+from builder_ii.tui_contract import (
     hex_ansi as _shared_hex_ansi,
-    lookup_matches as _shared_lookup_matches,
+)
+from builder_ii.tui_contract import (
     load_json_object as _shared_load_json_object,
+)
+from builder_ii.tui_contract import (
     load_palette,
+)
+from builder_ii.tui_contract import (
+    lookup_matches as _shared_lookup_matches,
 )
 
 # ---------------------------------------------------------------------------
@@ -67,14 +83,22 @@ def _hex_ansi(hex_colour: str, text: str) -> str:
     return _shared_hex_ansi(hex_colour, text, _IS_TTY)
 
 
-_p   = lambda t: _hex_ansi(_C["pass"],   t)
-_w   = lambda t: _hex_ansi(_C["warn"],   t)
-_f   = lambda t: _hex_ansi(_C["fail"],   t)
-_h   = lambda t: _hex_ansi(_C["hint"],   t)
-_act = lambda t: _hex_ansi(_C["active"], t)
-_d   = lambda t: _hex_ansi(_C["dim"],    t)
-_b   = lambda t: _hex_ansi(_C["bold"],   t)
-_acc = lambda t: _hex_ansi(_C["accent"], t)
+def _p(t):
+    return _hex_ansi(_C["pass"],   t)
+def _w(t):
+    return _hex_ansi(_C["warn"],   t)
+def _f(t):
+    return _hex_ansi(_C["fail"],   t)
+def _h(t):
+    return _hex_ansi(_C["hint"],   t)
+def _act(t):
+    return _hex_ansi(_C["active"], t)
+def _d(t):
+    return _hex_ansi(_C["dim"],    t)
+def _b(t):
+    return _hex_ansi(_C["bold"],   t)
+def _acc(t):
+    return _hex_ansi(_C["accent"], t)
 
 G = {
     "pass":      _p("✔"),
@@ -266,7 +290,6 @@ def _render_governance(gov: dict, *, verbose: bool) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_goose_status(args: list[str]) -> int:
-    verbose = "-v" in args or "--verbose" in args
     base    = _builder_dir()
 
     manifests = _glob_kind(base, "goose_session_manifest", "goose", "sessions")
@@ -314,7 +337,7 @@ def cmd_goose_status(args: list[str]) -> int:
         filled  = sum(1 for k in _LINK_SLOTS if links.get(k))
         total   = len(_LINK_SLOTS)
         link_label = _p(f"{filled}/{total}") if filled == total else _w(f"{filled}/{total}")
-        _kv("links", link_label + _d(f"  slots filled"))
+        _kv("links", link_label + _d("  slots filled"))
 
         # Governance summary
         enabled_caps = [
@@ -498,7 +521,6 @@ def cmd_goose_links(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_goose_actions(args: list[str]) -> int:
-    verbose = "-v" in args or "--verbose" in args
     id_args = [a for a in args if not a.startswith("-")]
     base    = _builder_dir()
 
@@ -568,7 +590,6 @@ def cmd_goose_actions(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_goose_governance(args: list[str]) -> int:
-    verbose = "-v" in args or "--verbose" in args
     base    = _builder_dir()
 
     manifests = _glob_kind(base, "goose_session_manifest", "goose", "sessions")

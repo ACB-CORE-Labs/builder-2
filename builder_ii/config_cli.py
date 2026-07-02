@@ -9,7 +9,6 @@ from rich.console import Console
 
 from builder_ii.config_schema import (
     CONFIG_SCHEMA_KIND,
-    create_config_schema_artifact,
     dumps_config_schema,
     validate_config_schema_artifact,
     write_config_schema_artifact,
@@ -21,7 +20,6 @@ from builder_ii.config_sources import (
     validate_config_resolution_artifact,
     write_config_resolution_artifact,
 )
-
 
 config_app = typer.Typer(
     help="Render and validate passive builder-II config artifacts without runtime authority.",

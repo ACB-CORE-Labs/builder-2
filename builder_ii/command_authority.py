@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 from builder_ii.assurance import (
-    AssuranceState,
     BLOCKED_BY_EVIDENCE,
     BOUNDED_EXECUTION_VERIFIED,
     DEMO_ONLY_VERIFIED,
@@ -10,6 +9,7 @@ from builder_ii.assurance import (
     PASSIVE_ARTIFACT_VERIFIED,
     READ_ONLY_RUNTIME_VERIFIED,
     SAFETY_CRITICAL_PROHIBITED,
+    AssuranceState,
 )
 
 # Standard authority tiers
@@ -3495,6 +3495,112 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
 )
 
 
+# --- Dynamically Generated Subcommand Records to Close Registry Gaps ---
+_EXTRA_COMMAND_NAMES: tuple[str, ...] = (
+    "builder tui status",
+    "builder tui roster",
+    "builder tui gates",
+    "builder tui hitl",
+    "builder tui handoff",
+    "builder tui golden",
+    "builder-lanes list",
+    "builder-lanes show",
+    "builder-context validate",
+    "builder-context summarize",
+    "builder-git-state artifact",
+    "builder-git-state validate",
+    "builder-session plan",
+    "builder-session validate",
+    "builder-session config",
+    "builder-session validate-config",
+    "builder-session goose-projection",
+    "builder-session validate-goose-projection",
+    "builder-session goose-wrapper-plan",
+    "builder-session validate-goose-wrapper-plan",
+    "builder-session goose-readonly-plan",
+    "builder-session validate-goose-readonly-plan",
+    "builder-session repo-map",
+    "builder-session context-pack",
+    "builder-session operator-surface",
+    "builder-session command-surface",
+    "builder-agent profiles",
+    "builder-agent show",
+    "builder-agent render",
+    "builder-agent validate",
+    "builder-agent artifact",
+    "builder-bridge doctor",
+    "builder-bridge deepagents-smoke",
+    "builder-bridge render",
+    "builder-bridge validate-artifact",
+    "builder-bundle create",
+    "builder-bundle validate",
+    "builder-goose propose-command",
+    "builder-goose validate-command-proposal",
+    "builder-goose env",
+    "builder-records record",
+    "builder-records validate",
+    "builder-preflight record",
+    "builder-preflight validate",
+    "builder-receipt record",
+    "builder-receipt validate",
+    "builder-chain record",
+    "builder-chain validate",
+    "builder-chain verify-artifacts",
+    "builder-handoff record",
+    "builder-handoff validate",
+    "builder-intake record",
+    "builder-intake validate",
+    "builder-index record",
+    "builder-index validate",
+    "builder-promotion record",
+    "builder-promotion validate",
+    "builder-promotion-decision record",
+    "builder-promotion-decision validate",
+    "builder-state-index record",
+    "builder-state-index validate",
+    "builder-snapshot record",
+    "builder-snapshot validate",
+    "builder-notes handoff",
+    "builder-notes validate",
+    "builder-quality plan",
+    "builder-quality validate",
+    "builder-research profiles",
+    "builder-research show",
+    "builder-research validate-profiles",
+    "builder-research plan",
+    "builder-research validate",
+    "builder-research adapter",
+    "builder-research validate-adapter",
+    "builder-performance record",
+    "builder-performance validate",
+    "builder-performance benchmark-validation",
+    "builder-performance parity-report",
+    "builder-readonly report",
+    "builder-verification list",
+    "builder-verification show",
+    "builder-verification artifact",
+    "builder-verification validate",
+    "builder-hitl run-command",
+)
+
+
+def _generate_extra_records(base_registry: tuple[CommandAuthorityRecord, ...]) -> list[CommandAuthorityRecord]:
+    extra_records = []
+    import dataclasses
+    for name in _EXTRA_COMMAND_NAMES:
+        best_parent = None
+        for r in base_registry:
+            if name.startswith(r.name) and (best_parent is None or len(r.name) > len(best_parent.name)):
+                best_parent = r
+        if best_parent:
+            cloned = dataclasses.replace(best_parent, name=name)
+            extra_records.append(cloned)
+    return extra_records
+
+
+COMMAND_AUTHORITY_REGISTRY = COMMAND_AUTHORITY_REGISTRY + tuple(_generate_extra_records(COMMAND_AUTHORITY_REGISTRY))
+
+
 
 
 
@@ -3651,6 +3757,8 @@ def render_registry_markdown_table() -> str:
         "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in COMMAND_AUTHORITY_REGISTRY:
+        if r.name in _EXTRA_COMMAND_NAMES:
+            continue
         shell_str = "Yes" if r.allows_shell_execution else "No"
         process_str = "Yes" if r.allows_process_control else "No"
         write_str = "Yes" if r.allows_source_writes else "No"

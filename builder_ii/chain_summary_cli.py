@@ -63,7 +63,7 @@ def verify_artifacts(
     from builder_ii.artifact_chain_verification import verify_artifact_chain
 
     report = verify_artifact_chain(paths)
-    
+
     report_json = json.dumps(report, indent=2, sort_keys=True)
     if output is not None:
         output.parent.mkdir(parents=True, exist_ok=True)

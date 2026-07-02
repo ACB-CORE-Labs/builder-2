@@ -4,7 +4,6 @@ import inspect
 import json as json_lib
 from pathlib import Path
 
-import pytest
 from typer.testing import CliRunner
 
 import builder_ii.hitl_execution_cli as cli_mod
@@ -71,7 +70,7 @@ def test_request_writes_valid_artifact_and_validates(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, f"CLI command failed: {result.stdout}"
     assert output_file.exists(), "Output file was not written"
-    
+
     # Read output and verify contents
     data = json_lib.loads(output_file.read_text(encoding="utf-8"))
     assert data["kind"] == HITL_EXECUTION_REQUEST_KIND

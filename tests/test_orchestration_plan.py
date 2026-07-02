@@ -3,13 +3,8 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-from builder_ii.orchestration_plan import (
-    ORCHESTRATION_PLAN_KIND,
-    create_orchestration_plan,
-    dumps_orchestration_plan,
-    validate_orchestration_plan,
-    validate_orchestration_plan_file,
-)
+from orchestration_assignment_fixtures import build_goal2_assignment_fixture
+
 from builder_ii.orchestration_assignment import (
     AGENT_ASSIGNMENT_PLAN_KIND,
     ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
@@ -17,7 +12,13 @@ from builder_ii.orchestration_assignment import (
     validate_agent_assignment_plan,
     validate_orchestration_assignment_plan,
 )
-from orchestration_assignment_fixtures import build_goal2_assignment_fixture
+from builder_ii.orchestration_plan import (
+    ORCHESTRATION_PLAN_KIND,
+    create_orchestration_plan,
+    dumps_orchestration_plan,
+    validate_orchestration_plan,
+    validate_orchestration_plan_file,
+)
 
 
 def test_create_default_orchestration_plan() -> None:

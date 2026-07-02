@@ -15,14 +15,10 @@
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
-from textual.app import ComposeResult
-from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.widgets import Static
-
 
 # ── Epistemic Matrix (Semantic Rigor) ───────────────────────────────
 
@@ -233,8 +229,8 @@ class ThirdDoorGate(Static):
             lines.append("  [bold #3fb950]╚════════════════════════════════════════╝[/]")
         else:
             missing = sum(1 for k in THIRD_DOOR_CONSTRAINTS if not self._constraints.get(k, False))
-            lines.append(f"\n  [bold #f85149]╔════════════════════════════════════════╗[/]")
+            lines.append("\n  [bold #f85149]╔════════════════════════════════════════╗[/]")
             lines.append(f"  [bold #f85149]║  VAULT LOCKED — {missing} CONSTRAINT{'S' if missing != 1 else ''} MISSING       ║[/]")
-            lines.append(f"  [bold #f85149]╚════════════════════════════════════════╝[/]")
+            lines.append("  [bold #f85149]╚════════════════════════════════════════╝[/]")
 
         return "\n".join(lines)

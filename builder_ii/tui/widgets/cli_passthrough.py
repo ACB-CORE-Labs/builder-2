@@ -6,7 +6,6 @@ as flags so the operator can drop to raw CLI without losing location context.
 
 from __future__ import annotations
 
-import shlex
 from typing import Any
 
 from textual.app import ComposeResult

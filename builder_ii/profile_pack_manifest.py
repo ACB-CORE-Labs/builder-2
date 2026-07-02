@@ -187,7 +187,8 @@ def create_profile_pack_manifest(
     """
 
     root = project_root.resolve()
-    source = lambda path, kind="module": [_source_ref(root, path, kind=kind)]
+    def source(path, kind="module"):
+        return [_source_ref(root, path, kind=kind)]
     areas: list[dict[str, Any]] = [
         {
             "area": "target_profiles",

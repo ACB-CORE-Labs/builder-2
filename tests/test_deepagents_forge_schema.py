@@ -4,8 +4,9 @@ tests/test_deepagents_forge_schema.py
 Tests for deepagents_forge_schema.py — DeepAgentSpec dataclass and helpers.
 """
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 from builder_ii.deepagents_forge_schema import (
     DeepAgentSpec,
@@ -13,7 +14,6 @@ from builder_ii.deepagents_forge_schema import (
     is_valid_slug,
     validate_spec,
 )
-
 
 # ---------------------------------------------------------------------------
 # derive_slug

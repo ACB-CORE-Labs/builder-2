@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json as json_lib
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console

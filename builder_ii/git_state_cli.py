@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import typer
 from rich.console import Console
 
 from builder_ii.git_state import (
     create_git_state_record,
+    dumps_git_state_record,
     validate_git_state_record,
     validate_git_state_record_file,
     write_git_state_record,
-    dumps_git_state_record,
 )
 
 git_state_app = typer.Typer(help="Manage governed git state artifacts.")
@@ -56,7 +57,6 @@ def artifact(
         write_git_state_record(record, output)
         console.print(f"Git state record written to {output}")
     else:
-        import json as json_lib
         console.out(dumps_git_state_record(record), end="")
 
 

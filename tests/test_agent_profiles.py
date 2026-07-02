@@ -92,15 +92,14 @@ def test_render_agent_profile_with_target(tmp_path: Path) -> None:
 
 
 def test_agent_profile_record_and_validation(tmp_path: Path) -> None:
-    import json as json_lib
     from builder_ii.agent_profiles import (
+        AGENT_PROFILE_RECORD_KIND,
+        AGENT_PROFILE_RECORD_SCHEMA_VERSION,
         create_agent_profile_record,
+        get_agent_profile,
         validate_agent_profile_record,
         validate_agent_profile_record_file,
         write_agent_profile_record,
-        get_agent_profile,
-        AGENT_PROFILE_RECORD_KIND,
-        AGENT_PROFILE_RECORD_SCHEMA_VERSION,
     )
     settings = _settings(tmp_path)
     profile = get_agent_profile("patch_planner")
@@ -215,7 +214,9 @@ def test_agent_profile_validation_failures(tmp_path: Path) -> None:
 
 def test_agent_cli_commands(tmp_path: Path) -> None:
     import json as json_lib
+
     from typer.testing import CliRunner
+
     from builder_ii.agent_cli import agent_app
 
     runner = CliRunner()

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 import subprocess
 import time
 from datetime import datetime, timezone
@@ -16,7 +15,6 @@ from builder_ii.goose_receipts import (
     create_no_mutation_postflight,
 )
 from builder_ii.model_router import SessionPlan
-
 
 _DIGEST_CHUNK_SIZE = 1024 * 1024
 

@@ -6,14 +6,13 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from builder_ii.config import Settings
-from builder_ii.context_pack import build_context_pack, ContextPackSelection, create_context_pack_record
+from builder_ii.context_cli import context_app
+from builder_ii.context_pack import ContextPackSelection, build_context_pack, create_context_pack_record
 from builder_ii.context_summarizer import (
     CONTEXT_SUMMARY_KIND,
-    validate_context_summary,
     summarize_context_pack,
+    validate_context_summary,
 )
-from builder_ii.context_cli import context_app
 
 
 def test_validate_context_summary() -> None:
@@ -42,6 +41,7 @@ def test_validate_context_summary() -> None:
 
 def test_summarize_context_pack_logic(tmp_path: Path) -> None:
     from dataclasses import replace
+
     from builder_ii.config import load_settings
     settings = replace(
         load_settings(),
@@ -49,7 +49,7 @@ def test_summarize_context_pack_logic(tmp_path: Path) -> None:
         core_repo=tmp_path / "core",
         allow_cloud_models=False,
     )
-    
+
     # Create mock context pack record
     pack_res = build_context_pack(
         settings,
@@ -59,14 +59,14 @@ def test_summarize_context_pack_logic(tmp_path: Path) -> None:
         repomix_output=Path("context-pack.xml"),
         run_repomix=False,
     )
-    
+
     record = create_context_pack_record(pack_res, task="test summary")
     record_path = tmp_path / "context-pack-record.json"
     record_path.write_text(json_lib.dumps(record, indent=2), encoding="utf-8")
-    
+
     # Run summarizer with gpt-4o-stub
     summary = summarize_context_pack(record_path, model_id="gpt-4o-stub", settings=settings)
-    
+
     assert summary["kind"] == CONTEXT_SUMMARY_KIND
     assert summary["target_profile"] == "generic"
     assert summary["model_alias"] == "gpt-4o-stub"
@@ -75,8 +75,9 @@ def test_summarize_context_pack_logic(tmp_path: Path) -> None:
 
 def test_cli_summarize(tmp_path: Path) -> None:
     runner = CliRunner()
-    
+
     from dataclasses import replace
+
     from builder_ii.config import load_settings
     settings = replace(
         load_settings(),
@@ -84,14 +85,14 @@ def test_cli_summarize(tmp_path: Path) -> None:
         core_repo=tmp_path / "core",
         allow_cloud_models=False,
     )
-    
+
     # Create record via CLI
     record_path = tmp_path / "context-pack-record.json"
-    
+
     with patch("builder_ii.context_cli.load_settings", return_value=settings):
         # We need mock repositories to exist
         tmp_path.joinpath("README.md").write_text("Test", encoding="utf-8")
-        
+
         result_art = runner.invoke(
             context_app,
             [
@@ -103,7 +104,7 @@ def test_cli_summarize(tmp_path: Path) -> None:
             ]
         )
         assert result_art.exit_code == 0, result_art.output
-        
+
         # Call summarize
         result_sum = runner.invoke(
             context_app,

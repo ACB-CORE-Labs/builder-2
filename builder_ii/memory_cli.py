@@ -10,12 +10,12 @@ from rich.console import Console
 
 from builder_ii.artifact_chain_verification import VALIDATORS, extract_references
 from builder_ii.artifact_memory import (
+    ATOM_STATES,
     CLAIM_BOUNDARIES,
     MEMORY_INDEX_KIND,
     REVIEW_STATES,
     SOURCE_TRUTH_STATES,
     SUMMARY_ORIGINS,
-    ATOM_STATES,
     create_memory_atom,
     create_memory_index,
     create_memory_index_entry,
@@ -37,7 +37,6 @@ from builder_ii.artifact_memory import (
     write_memory_search_result,
 )
 from builder_ii.workflow_records import canonical_digest
-
 
 memory_app = typer.Typer(
     help="Create and validate governed artifact-memory atoms, indexes, reconstructions, and deterministic search results.",

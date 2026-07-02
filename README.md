@@ -264,7 +264,9 @@ The machine does not have 16GB free for weights. macOS, Goose, Python, terminal 
 
 ## What Is Present
 
-builder-II v0 includes an active governed artifact foundation, complete with full runtime execution for models and Goose operator sessions.
+builder-II v0 includes an active governed artifact foundation. It supports governed local model ask, health-probe, and OpenAI-compatible chat-completion transport paths where validated, alongside Goose operator-session launch and recipe path wiring.
+
+Note that operator-managed runtime helpers and manual verification workflows are distinct from promoted autonomous runtime authority, which remains unpromoted. The release proof harness (`scripts/verify_v0_release.py`) serves as a structural artifact/governance validation proof, rather than a live model autonomy or autonomous Goose tool-execution proof.
 
 Legacy operator-managed helpers remain explicit and separate:
 

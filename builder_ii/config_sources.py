@@ -22,7 +22,6 @@ from builder_ii.config_schema import (
 from builder_ii.target_profiles import target_names
 from builder_ii.verification_profiles import default_profile_for_target, verification_profile_names
 
-
 CONFIG_SOURCE_RESOLUTION_KIND = "builder_ii.config_source_resolution"
 CONFIG_SOURCE_RESOLUTION_SCHEMA_VERSION = 1
 

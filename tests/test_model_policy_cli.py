@@ -78,13 +78,13 @@ def test_model_policy_render_sibling_artifacts_and_verification(tmp_path: Path):
     )
     assert result.exit_code == 0
     assert out_path.exists()
-    
+
     # Check sibling files
     policy_path = tmp_path / "rec.json.model-routing-policy.json"
     registry_path = tmp_path / "rec.json.model-client-registry.json"
     assert policy_path.exists()
     assert registry_path.exists()
-    
+
     # Verify artifact chain closure
     report = verify_artifact_chain([policy_path, registry_path, out_path])
     assert report["valid"] is True

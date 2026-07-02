@@ -1,6 +1,6 @@
 import pytest
 
-from builder_ii.model_router import classify_task, choose_model_alias, plan_session, tier_for_mode
+from builder_ii.model_router import choose_model_alias, classify_task, plan_session, tier_for_mode
 
 
 @pytest.fixture(autouse=True)

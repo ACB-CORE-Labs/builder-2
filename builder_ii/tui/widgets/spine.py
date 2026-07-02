@@ -20,8 +20,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import ScrollableContainer, Vertical
 from textual.reactive import reactive
-from textual.widget import Widget
-from textual.widgets import Static, Input
+from textual.widgets import Input, Static
 
 # ── Artifact type definitions for the canonical pipeline ─────────────
 

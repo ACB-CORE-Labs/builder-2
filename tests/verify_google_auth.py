@@ -1,9 +1,9 @@
 import json
-import os
 import subprocess
 import sys
-import urllib.request
 import urllib.error
+import urllib.request
+
 
 def _get_google_project_id() -> str:
     res = subprocess.run(["gcloud", "config", "get-value", "project"], capture_output=True, text=True, check=False)
@@ -43,10 +43,10 @@ def verify_google_ultra():
         "model": "google/gemini-3.5-flash",
         "messages": [{"role": "user", "content": "What is 2+2? Reply only with the number."}]
     }
-    
+
     print(f"\nSending test completion to {url}")
-    print(f"Model: google/gemini-3.5-flash\n")
-    
+    print("Model: google/gemini-3.5-flash\n")
+
     req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers, method="POST")
 
     try:

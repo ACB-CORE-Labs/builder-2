@@ -4,10 +4,12 @@ import json as json_lib
 from pathlib import Path
 from typing import Any, Literal
 
+from builder_ii.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND
+from builder_ii.session_workflow import SESSION_WORKFLOW_PLAN_KIND
 from builder_ii.target_profiles import target_names
-from builder_ii.session_workflow import SESSION_WORKFLOW_PLAN_KIND, validate_session_workflow_plan
-from builder_ii.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND, validate_goose_readonly_session_plan
-from builder_ii.verification_profile_reports import VERIFICATION_PROFILE_REPORT_KIND, validate_verification_profile_report
+from builder_ii.verification_profile_reports import (
+    VERIFICATION_PROFILE_REPORT_KIND,
+)
 
 HANDOFF_NOTE_KIND = "builder_ii.handoff_note"
 HANDOFF_NOTE_SCHEMA_VERSION = 1

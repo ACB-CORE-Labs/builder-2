@@ -18,7 +18,6 @@ from builder_ii.verification_execution_plan import (
     validate_verification_execution_plan_artifact,
 )
 
-
 VERIFICATION_EXECUTION_RECEIPT_KIND = "builder_ii.verification_execution_receipt"
 VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION = 1
 RUNNER_MODE_CONTRACT_ONLY = "receipt_contract_only"

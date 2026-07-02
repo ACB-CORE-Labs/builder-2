@@ -7,19 +7,22 @@ from rich.console import Console
 from rich.table import Table
 
 from builder_ii.config import load_settings
-from builder_ii.target_profile_demos import get_target_profile_demo, render_target_profile_demo, validate_target_profile_demos
+from builder_ii.target_profile_demos import (
+    get_target_profile_demo,
+    render_target_profile_demo,
+    validate_target_profile_demos,
+)
 from builder_ii.target_profiles import (
     TargetName,
     build_target_profiles,
+    dumps_target_profile_artifact,
     render_target_profile,
     target_profile,
-    validate_target_profiles,
-    dumps_target_profile_artifact,
-    write_target_profile_artifact,
     validate_target_profile_artifact,
     validate_target_profile_artifact_file,
+    validate_target_profiles,
+    write_target_profile_artifact,
 )
-
 
 targets_app = typer.Typer(help="Inspect builder-II target profiles.")
 console = Console()

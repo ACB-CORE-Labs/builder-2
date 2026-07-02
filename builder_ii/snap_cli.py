@@ -5,7 +5,12 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from builder_ii.snapshot_records import create_snapshot_record_from_files, dumps_snapshot_record, validate_snapshot_record_file, write_snapshot_record
+from builder_ii.snapshot_records import (
+    create_snapshot_record_from_files,
+    dumps_snapshot_record,
+    validate_snapshot_record_file,
+    write_snapshot_record,
+)
 
 snap_app = typer.Typer(help="Snapshot record commands.")
 console = Console()

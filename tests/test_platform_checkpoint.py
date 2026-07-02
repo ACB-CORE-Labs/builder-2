@@ -4,7 +4,14 @@ from pathlib import Path
 from builder_ii.artifact_index_records import create_artifact_index_record, write_artifact_index_record
 from builder_ii.promotion_decision_records import create_promotion_decision_record, write_promotion_decision_record
 from builder_ii.promotion_readiness_records import create_promotion_readiness_record, write_promotion_readiness_record
-from builder_ii.snapshot_records import SNAPSHOT_RECORD_KIND, create_snapshot_record, dumps_snapshot_record, validate_snapshot_record, validate_snapshot_record_file, write_snapshot_record
+from builder_ii.snapshot_records import (
+    SNAPSHOT_RECORD_KIND,
+    create_snapshot_record,
+    dumps_snapshot_record,
+    validate_snapshot_record,
+    validate_snapshot_record_file,
+    write_snapshot_record,
+)
 from builder_ii.state_ledger_records import create_state_ledger_record, write_state_ledger_record
 
 

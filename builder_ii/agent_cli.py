@@ -9,19 +9,18 @@ from rich.table import Table
 from builder_ii.agent_profiles import (
     AgentProfileName,
     agent_profiles,
+    create_agent_profile_record,
+    dumps_agent_profile_record,
     get_agent_profile,
     profiles_for_target,
     render_agent_profile,
-    validate_agent_profiles,
-    create_agent_profile_record,
-    dumps_agent_profile_record,
-    write_agent_profile_record,
     validate_agent_profile_record,
     validate_agent_profile_record_file,
+    validate_agent_profiles,
+    write_agent_profile_record,
 )
 from builder_ii.config import load_settings
 from builder_ii.target_profiles import TargetName, target_profile
-
 
 agent_app = typer.Typer(help="Inspect and render generic builder-II agent profiles.")
 console = Console()

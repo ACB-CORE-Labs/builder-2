@@ -6,15 +6,14 @@ import shlex
 import subprocess
 import time
 from pathlib import Path
-from typing import Any
 
 from builder_ii.approval_records import validate_approval_record_file
 from builder_ii.config import Settings, load_settings
 from builder_ii.goose_command_proposal import validate_goose_command_proposal_file
 from builder_ii.hitl_execution_records import (
+    _GOVERNANCE_DENIED_KEYS,
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_EXECUTION_RECEIPT_SCHEMA_VERSION,
-    _GOVERNANCE_DENIED_KEYS,
     validate_hitl_execution_request_file,
     write_hitl_execution_receipt,
 )

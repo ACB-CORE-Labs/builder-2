@@ -1,18 +1,18 @@
-import json
 import hashlib
-from pathlib import Path
+import json
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+from builder_ii.artifact_chain_verification import verify_artifact_chain
 from builder_ii.hitl_patch_apply import (
     apply_hitl_patch,
     rollback_hitl_patch,
-    validate_rollback_bundle_file,
 )
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.config import Settings
+
 
 @patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])
 def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
@@ -26,12 +26,12 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
     subprocess.run(["git", "init"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, check=True)
-    
+
     test_file = repo / "file.txt"
     test_file.write_text("Line 1\nLine 2\n")
     subprocess.run(["git", "add", "file.txt"], cwd=repo, check=True)
     subprocess.run(["git", "commit", "-m", "initial commit"], cwd=repo, check=True)
-    
+
     # 2. Create patch proposal
     # Diff to apply: change "Line 2" to "Line 2 modified"
     diff = (
@@ -45,15 +45,15 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
         "+Line 2 modified\n"
     )
     patch_digest = hashlib.sha256(diff.encode("utf-8")).hexdigest()
-    
+
     prop_path = tmp_path / "prop.json"
     prop = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=diff)
     write_hitl_patch_proposal(prop, prop_path)
-    
+
     # 3. Create approval and verification receipt artifacts
     raw_prop = json.dumps(prop, sort_keys=True, separators=(",", ":")).encode("utf-8")
     prop_digest = hashlib.sha256(raw_prop).hexdigest()
-    
+
     approval_path = tmp_path / "approval.json"
     approval_path.write_text(json.dumps({
         "kind": "builder_ii.approval_record",
@@ -66,7 +66,7 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
             "kind": "builder_ii.hitl_patch_proposal",
         }
     }))
-    
+
     vr_path = tmp_path / "vr.json"
     vr_path.write_text(json.dumps({
         "kind": "builder_ii.verification_execution_receipt",
@@ -74,14 +74,14 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
         "receipt_status": "EXECUTED",
         "valid": True,
     }))
-    
+
     # 4. Apply the patch
     out_dir = tmp_path / "out"
     apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)
-    
+
     # Verify the patch is applied to file.txt
     assert test_file.read_text() == "Line 1\nLine 2 modified\n"
-    
+
     # Verify metadata contains renamed rollback keys
     rollback_plan_path = out_dir / "rollback_plan.json"
     assert rollback_plan_path.exists()
@@ -96,28 +96,28 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
     bundle_data = json.loads(bundle_path.read_text())
     assert "rollback_patch_ref" in bundle_data
     assert "reverse_patch_ref" not in bundle_data
-    
+
     # Verify the reverse patch file was written
     reverse_patch_file = out_dir / "rollback.patch"
     assert reverse_patch_file.exists()
-    
+
     # 5. Rollback verification: test digest mismatch rejection
     # If we corrupt the rollback patch file, rollback should be rejected
     original_reverse_patch_content = reverse_patch_file.read_text()
     reverse_patch_file.write_text("corrupted content")
-    
+
     with pytest.raises(ValueError, match="Reverse patch digest does not match rollback plan binding"):
         rollback_hitl_patch(rollback_plan_path, reverse_patch_file, out_dir / "rollback_out")
-        
+
     # Restore the original rollback patch content
     reverse_patch_file.write_text(original_reverse_patch_content)
-    
+
     # 6. Execute successful rollback
     rollback_hitl_patch(rollback_plan_path, reverse_patch_file, out_dir / "rollback_out")
-    
+
     # Verify file is restored to the initial state
     assert test_file.read_text() == "Line 1\nLine 2\n"
-    
+
     # 7. Validate artifact chain verification
     # Compile the list of paths to verify
     paths_to_verify = [
@@ -131,7 +131,7 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
         out_dir / "postflight_record.json",
         out_dir / "rollback_out" / "rollback_receipt.json",
     ]
-    
+
     # Run chain verification
     report = verify_artifact_chain(paths_to_verify)
     print("CHAIN VERIFICATION ERRORS:", json.dumps(report.get("errors"), indent=2))

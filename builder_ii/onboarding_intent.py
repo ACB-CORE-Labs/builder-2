@@ -8,7 +8,6 @@ from typing import Any
 
 from builder_ii.config_schema import attach_digest, digest_jsonable
 
-
 ONBOARDING_INTENT_KIND = "builder_ii.onboarding_intent_report"
 ONBOARDING_INTENT_SCHEMA_VERSION = 1
 
@@ -128,7 +127,7 @@ def _check_command_string(cmd: Any, field_name: str) -> list[str]:
     errors: list[str] = []
     if not isinstance(cmd, str) or not cmd.strip():
         return [f"{field_name} must be a non-empty command string"]
-    
+
     first_token = cmd.strip().split()[0]
     if not first_token.endswith("builder-setup"):
         errors.append(f"{field_name} must reference only governed builder-setup commands")

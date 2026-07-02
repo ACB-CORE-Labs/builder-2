@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from textual.app import ComposeResult
+from textual.containers import Horizontal, Vertical
 from textual.screen import ModalScreen
-from textual.widgets import Button, Input, Static, Select
-from textual.containers import Vertical, Horizontal
+from textual.widgets import Button, Input, Select, Static
+
 
 class SessionBuilderScreen(ModalScreen[dict[str, Any]]):
     """An interactive wizard to configure a new workspace session."""
@@ -50,19 +49,19 @@ class SessionBuilderScreen(ModalScreen[dict[str, Any]]):
             yield Static("╔══════════════════════════════════════════╗\n"
                          "║      WORKSPACE SESSION CONFIGURATOR      ║\n"
                          "╚══════════════════════════════════════════╝", id="builder-title")
-            
+
             yield Static("Target URI:", classes="builder-label")
             yield Input(placeholder="e.g. file:///Users/you/project", id="input-uri")
-            
+
             yield Static("Corpus Name:", classes="builder-label")
             yield Input(placeholder="e.g. MyProject", id="input-corpus")
-            
+
             yield Static("Primary Model:", classes="builder-label")
             from builder_ii.model_client_registry import model_registry
             models = [(m.model_name, m.model_name) for m in model_registry()]
             default_val = "claude-3-5-sonnet" if any(m[0] == "claude-3-5-sonnet" for m in models) else (models[0][0] if models else None)
             yield Select(models, id="input-model", value=default_val)
-            
+
             with Horizontal(id="builder-buttons"):
                 yield Button("Save & Prepare", id="btn-save", variant="primary")
                 yield Button("Cancel", id="btn-cancel", variant="error")
@@ -74,7 +73,7 @@ class SessionBuilderScreen(ModalScreen[dict[str, Any]]):
             uri_input = self.query_one("#input-uri", Input)
             corpus_input = self.query_one("#input-corpus", Input)
             model_input = self.query_one("#input-model", Select)
-            
+
             config = {
                 "kind": "builder_ii.session_config",
                 "schema_version": "1.0",

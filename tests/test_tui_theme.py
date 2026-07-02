@@ -1,14 +1,15 @@
 import os
 from unittest import mock
+
 import pytest
+
+from builder_ii.tui.app import HeaderBanner, StratumApp
 from builder_ii.tui_theme import (
     active_theme_name,
-    list_themes,
     theme_extras,
     theme_palette,
     theme_panel_border,
 )
-from builder_ii.tui.app import HeaderBanner, StratumApp
 
 
 def test_default_theme_palette_matches_stratum_css_defaults():

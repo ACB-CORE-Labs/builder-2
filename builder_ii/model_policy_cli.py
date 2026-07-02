@@ -9,7 +9,6 @@ from rich.console import Console
 from builder_ii.model_client_registry import (
     MODEL_CLIENT_REGISTRY_KIND,
     create_model_client_registry,
-    dumps_model_client_registry,
     validate_model_client_registry,
     write_model_client_registry,
 )
@@ -18,7 +17,6 @@ from builder_ii.model_routing_policy import (
     MODEL_ROUTING_RECOMMENDATION_KIND,
     create_model_routing_policy,
     create_model_routing_recommendation,
-    dumps_model_routing_policy,
     dumps_model_routing_recommendation,
     validate_model_routing_policy,
     validate_model_routing_recommendation,

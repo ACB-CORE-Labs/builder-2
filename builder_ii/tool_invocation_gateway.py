@@ -1,25 +1,19 @@
 from __future__ import annotations
 
 import hashlib
-import json
-import subprocess
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from builder_ii.mcp_policy import (
-    MCP_ENVELOPE_KIND,
-    MCP_POLICY_KIND,
     MCP_RECEIPT_KIND,
     RECEIPT_SCHEMA_VERSION,
     TOOL_ENVELOPE_KIND,
-    TOOL_POLICY_KIND,
     TOOL_RECEIPT_KIND,
     validate_mcp_envelope,
     validate_mcp_policy,
 )
-from builder_ii.workflow_records import canonical_digest, artifact_ref
+from builder_ii.workflow_records import artifact_ref, canonical_digest
 
 # This is the strict allowlist of deterministic, non-mutating "stub" tools that we allow
 # for proving the B7 capability before broader rollout.
@@ -120,7 +114,7 @@ def execute_tool_envelope(
         if policy.get("network_allowed") is not False:
             raise ValueError("Low-risk policy must have network_allowed=False")
 
-    timeout_limit = min(policy.get("timeout_seconds", 30), envelope.get("timeout", 30))
+    min(policy.get("timeout_seconds", 30), envelope.get("timeout", 30))
     output_cap = min(policy.get("max_output_bytes", 1024), envelope.get("output_cap", 1024))
 
     started_at = _get_utc_now()

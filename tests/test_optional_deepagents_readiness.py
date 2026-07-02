@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json as json_lib
 import sys
-from types import ModuleType
 from pathlib import Path
+from types import ModuleType
 
 from typer.testing import CliRunner
 

@@ -1,3 +1,7 @@
+# NOTE: Branch protection is an external repository-level setting managed on GitHub.com.
+# It is NOT a code-level guarantee and cannot be fully enforced by this file.
+# Administrators must manually configure branch protection settings.
+
 name: CI
 
 on:
@@ -11,6 +15,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -70,6 +76,21 @@ jobs:
               print("\n".join(hits))
               sys.exit(1)
           PY
+
+      - name: Run Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true # Keep as warning/information unless explicitly blocked by repo admin
+
+      - name: Run Ruff Linter
+        run: uv run ruff check builder_ii tests
+
+      - name: Run Targeted MyPy Typecheck
+        run: uv run mypy builder_ii/command_authority.py builder_ii/compliance.py builder_ii/hitl_patch_apply.py builder_ii/model_execution_gateway.py builder_ii/readonly_authority.py
+
+      - name: Run Targeted Bandit Security Scan
+        run: uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
 
       - name: Test suite
         run: uv run pytest -q

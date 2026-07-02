@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-import pytest
 from unittest.mock import patch
-import subprocess
-import os
 
 from builder_ii.deepagents_bridge_readiness import (
     create_deepagents_bridge_readiness_report,
     validate_deepagents_bridge_readiness_report,
-    DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
 )
 
 

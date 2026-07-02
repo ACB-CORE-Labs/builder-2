@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
-from pathlib import Path
 from dataclasses import dataclass
 from importlib import metadata
+from pathlib import Path
 from typing import Any
 
 from builder_ii.agent_profiles import AgentProfile, AgentProfileName, get_agent_profile, render_agent_profile

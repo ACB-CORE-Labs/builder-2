@@ -4,11 +4,11 @@ import json as json_lib
 from pathlib import Path
 from typing import Any, Literal
 
-from builder_ii.agent_profiles import validate_agent_profile_record
-from builder_ii.config import Settings, MODEL_ALIASES, normalize_model_alias
-from builder_ii.profile_resolution import AgentProfileName, ProfileResolver, TargetName, VerificationProfileName
+from builder_ii.agent_profiles import AgentProfileName, validate_agent_profile_record
+from builder_ii.config import MODEL_ALIASES, Settings, normalize_model_alias
+from builder_ii.profile_resolution import ProfileResolver, TargetName
 from builder_ii.target_profiles import validate_target_profile_artifact
-from builder_ii.verification_profiles import validate_profile_artifact
+from builder_ii.verification_profiles import VerificationProfileName, validate_profile_artifact
 
 SESSION_CONFIG_KIND = "builder_ii.session_configuration"
 SESSION_CONFIG_SCHEMA_VERSION = 1

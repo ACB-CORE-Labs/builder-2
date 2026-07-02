@@ -37,7 +37,7 @@ def test_artifact_index_cli_record_and_validate(tmp_path: Path) -> None:
 
     output = tmp_path / "index.json"
     runner = CliRunner()
-    
+
     # 1. Record command
     record_result = runner.invoke(index_app, ["record", str(tmp_path), "--output", str(output)])
     assert record_result.exit_code == 0

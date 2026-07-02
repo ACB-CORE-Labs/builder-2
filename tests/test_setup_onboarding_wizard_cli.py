@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+
 import pytest
 from typer.testing import CliRunner
 
 from builder_ii.onboarding_intent import validate_onboarding_intent_report_file
 from builder_ii.setup_cli import setup_app
-
 
 runner = CliRunner()
 

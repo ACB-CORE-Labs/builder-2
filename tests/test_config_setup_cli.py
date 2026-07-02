@@ -7,7 +7,6 @@ from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, MODE_NONE, 
 from builder_ii.config_cli import config_app
 from builder_ii.setup_cli import setup_app
 
-
 runner = CliRunner()
 
 

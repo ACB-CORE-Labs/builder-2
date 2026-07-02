@@ -1,15 +1,15 @@
-from pathlib import Path
 import json as json_lib
-import pytest
+from pathlib import Path
+
 from typer.testing import CliRunner
 
 from builder_ii.git_state import (
+    GIT_STATE_RECORD_KIND,
+    GIT_STATE_RECORD_SCHEMA_VERSION,
     create_git_state_record,
     validate_git_state_record,
     validate_git_state_record_file,
     write_git_state_record,
-    GIT_STATE_RECORD_KIND,
-    GIT_STATE_RECORD_SCHEMA_VERSION,
 )
 from builder_ii.git_state_cli import git_state_app
 

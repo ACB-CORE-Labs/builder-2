@@ -33,8 +33,14 @@ from typing import Any
 
 from builder_ii.tui_contract import (
     builder_dir as _shared_builder_dir,
+)
+from builder_ii.tui_contract import (
     col as _shared_col,
+)
+from builder_ii.tui_contract import (
     load_json_object as _shared_load_json_object,
+)
+from builder_ii.tui_contract import (
     row as _shared_row,
 )
 
@@ -826,7 +832,7 @@ def cmd_hitl_replay(args: list[str]) -> int:
     kind_filter: str | None = None
 
     i = 0
-    positional = [a for a in args if not a.startswith("-")]
+    [a for a in args if not a.startswith("-")]
     while i < len(args):
         a = args[i]
         if a in ("--n", "-n") and i + 1 < len(args):

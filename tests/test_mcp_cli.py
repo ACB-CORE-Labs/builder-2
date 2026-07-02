@@ -1,12 +1,13 @@
 import json
-from pathlib import Path
+
 from typer.testing import CliRunner
+
 from builder_ii.mcp_cli import mcp_app
 from builder_ii.mcp_policy import (
-    TOOL_POLICY_KIND,
+    ENVELOPE_SCHEMA_VERSION,
     POLICY_SCHEMA_VERSION,
     TOOL_ENVELOPE_KIND,
-    ENVELOPE_SCHEMA_VERSION,
+    TOOL_POLICY_KIND,
 )
 from builder_ii.workflow_records import canonical_digest
 

@@ -8,6 +8,11 @@ from rich.console import Console
 from rich.table import Table
 
 from builder_ii.config import load_settings
+from builder_ii.context_packs import (
+    create_context_pack,
+    dumps_context_pack,
+    validate_context_pack,
+)
 from builder_ii.goose_projection import (
     create_goose_projection,
     dumps_goose_projection,
@@ -20,6 +25,18 @@ from builder_ii.goose_wrapper_plan import (
     validate_goose_wrapper_plan,
     validate_goose_wrapper_plan_file,
 )
+from builder_ii.governed_prepare_package import (
+    create_governed_prepare_package,
+    dumps_governed_prepare_package_summary,
+    summarize_governed_prepare_package_directory,
+    validate_governed_prepare_package_directory,
+)
+from builder_ii.profile_resolution import ProfileResolver
+from builder_ii.repo_map import (
+    create_repo_map,
+    dumps_repo_map,
+    validate_repo_map,
+)
 from builder_ii.session_config import (
     create_session_configuration,
     dumps_session_configuration,
@@ -31,24 +48,6 @@ from builder_ii.session_workflow import (
     validate_session_workflow_plan,
     validate_session_workflow_plan_file,
 )
-
-from builder_ii.governed_prepare_package import (
-    create_governed_prepare_package,
-    dumps_governed_prepare_package_summary,
-    summarize_governed_prepare_package_directory,
-    validate_governed_prepare_package_directory,
-)
-from builder_ii.repo_map import (
-    create_repo_map,
-    dumps_repo_map,
-    validate_repo_map,
-)
-from builder_ii.context_packs import (
-    create_context_pack,
-    dumps_context_pack,
-    validate_context_pack,
-)
-from builder_ii.profile_resolution import ProfileResolver
 
 session_app = typer.Typer(help="Inspect and plan governed local developer sessions.")
 console = Console(width=240)
@@ -310,7 +309,10 @@ def goose_readonly_plan(
             raise typer.Exit(1)
 
     try:
-        from builder_ii.goose_readonly_session import create_goose_readonly_session_plan, validate_goose_readonly_session_plan
+        from builder_ii.goose_readonly_session import (
+            create_goose_readonly_session_plan,
+            validate_goose_readonly_session_plan,
+        )
         plan = create_goose_readonly_session_plan(
             settings,
             target_norm,  # type: ignore[arg-type]

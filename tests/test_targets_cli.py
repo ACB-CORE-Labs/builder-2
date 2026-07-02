@@ -1,9 +1,10 @@
 import json as json_lib
 from pathlib import Path
+
 from typer.testing import CliRunner
 
-from builder_ii.targets_cli import targets_app
 from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, TARGET_PROFILE_SCHEMA_VERSION
+from builder_ii.targets_cli import targets_app
 
 
 def test_targets_cli_help() -> None:

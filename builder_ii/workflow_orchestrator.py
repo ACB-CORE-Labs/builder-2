@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import json as json_lib
 import hashlib
+import json as json_lib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -18,8 +18,6 @@ from builder_ii.deepagents_work_artifacts import (
     create_deepagents_work_validation_report,
 )
 from builder_ii.event_ledger import (
-    EVENT_LEDGER_KIND,
-    EVENT_RECORD_KIND,
     EVENT_TYPE_STAGE,
     create_event_ledger,
     create_event_record,
@@ -78,11 +76,13 @@ from builder_ii.profile_pack_validation_report import (
 )
 from builder_ii.repo_map import create_repo_map
 from builder_ii.target_profiles import TargetName, target_profile, write_target_profile_artifact
-from builder_ii.verification_profiles import default_profile_for_target, get_verification_profile, write_profile_artifact
+from builder_ii.verification_profiles import (
+    default_profile_for_target,
+    get_verification_profile,
+    write_profile_artifact,
+)
 from builder_ii.workflow_records import (
-    WORKFLOW_STAGE_ORDER,
     artifact_ref,
-    canonical_digest,
     create_workflow_session,
     create_workflow_status,
     create_workflow_transition,

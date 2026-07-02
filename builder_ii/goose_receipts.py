@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json as json_lib
 import hashlib
-from typing import Any, Literal
-from pathlib import Path
+import json as json_lib
+from typing import Any
 
 GOOSE_LAUNCH_RECEIPT_KIND = "builder_ii.goose_launch_receipt"
 GOOSE_CLOSE_RECEIPT_KIND = "builder_ii.goose_close_receipt"

@@ -9,7 +9,6 @@ from builder_ii.config_schema import attach_digest, digest_jsonable
 from builder_ii.target_profiles import target_names
 from builder_ii.verification_profiles import verification_profile_names
 
-
 VERIFICATION_EXECUTION_PLAN_KIND = "builder_ii.verification_execution_plan"
 VERIFICATION_EXECUTION_PLAN_SCHEMA_VERSION = 1
 B1_1_SUPPORTED_TARGET_PROFILE = "builder"
@@ -373,7 +372,7 @@ def _validate_allowed_command_profiles(data: dict[str, Any]) -> list[str]:
             errors.append(f"{prefix} must be an object")
             continue
         profile_id = profile.get("profile")
-        if not _is_non_empty_string(profile_id):
+        if not isinstance(profile_id, str) or not profile_id.strip():
             errors.append(f"{prefix}.profile must be a non-empty string")
         elif profile_id in seen:
             errors.append(f"{prefix}.profile must be unique")
@@ -407,7 +406,7 @@ def _validate_planned_steps(data: dict[str, Any]) -> list[str]:
             errors.append(f"{prefix} must be an object")
             continue
         step_id = step.get("step_id")
-        if not _is_non_empty_string(step_id):
+        if not isinstance(step_id, str) or not step_id.strip():
             errors.append(f"{prefix}.step_id must be a non-empty string")
         elif step_id in seen:
             errors.append(f"{prefix}.step_id must be unique")

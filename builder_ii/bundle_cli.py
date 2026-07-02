@@ -6,7 +6,13 @@ import typer
 from rich.console import Console
 
 from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
-from builder_ii.bundles import create_target_bundle, dumps_bundle, validate_target_bundle, validate_target_bundle_file, write_bundle
+from builder_ii.bundles import (
+    create_target_bundle,
+    dumps_bundle,
+    validate_target_bundle,
+    validate_target_bundle_file,
+    write_bundle,
+)
 from builder_ii.config import load_settings
 from builder_ii.target_profiles import TargetName, target_names
 

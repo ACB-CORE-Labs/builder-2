@@ -2,7 +2,6 @@ from pathlib import Path
 
 from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
 
-
 DOC = Path("docs/PLATFORM_COMPLETION_AUDIT.md")
 
 

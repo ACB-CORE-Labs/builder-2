@@ -10,23 +10,29 @@ Design contract (same as tui.py)
 """
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Iterable, Optional, Sequence
 
-from rich.console import Console
 from rich.panel import Panel
-from rich.rule import Rule
 from rich.table import Table
-from rich.text import Text
-from rich.tree import Tree
 
 # Re-use the palette and glyphs from tui.py
 from builder_ii.tui_cli import (
-    _C, _G_PASS, _G_WARN, _G_FAIL, _G_HINT, _G_DIM, _G_ACT,
-    _glyph, _label, _value, _hint, _section, render_header, render_errors,
+    _C,
+    _G_ACT,
+    _G_DIM,
+    _G_FAIL,
+    _G_HINT,
+    _G_PASS,
+    _G_WARN,
+    _glyph,
+    _hint,
+    _label,
+    _section,
+    _value,
     console,
+    render_errors,
+    render_header,
 )
-
 
 # ---------------------------------------------------------------------------
 # Internal helpers (agent layer)
@@ -1073,8 +1079,8 @@ try:
         verbose: bool = _typer.Option(False, "--verbose", "-v"),
     ) -> None:
         """Artifact index breadcrumb table."""
-        from builder_ii.config import load_settings
         from builder_ii.artifact_index_records import load_artifact_index
+        from builder_ii.config import load_settings
         render_header(subtitle="artifact index")
         settings = load_settings()
         try:
@@ -1089,8 +1095,8 @@ try:
         verbose: bool = _typer.Option(False, "--verbose", "-v"),
     ) -> None:
         """Artifact chain verification digest."""
-        from builder_ii.config import load_settings
         from builder_ii.chain_summary_records import load_chain_summaries
+        from builder_ii.config import load_settings
         render_header(subtitle="chain summary")
         settings = load_settings()
         try:
@@ -1141,8 +1147,8 @@ try:
     ) -> None:
         """Handoff notes and bundle records."""
         from builder_ii.config import load_settings
-        from builder_ii.handoff_notes import load_latest_handoff_note
         from builder_ii.handoff_bundle_records import load_handoff_bundle_records
+        from builder_ii.handoff_notes import load_latest_handoff_note
         render_header(subtitle="handoff notes")
         settings = load_settings()
         try:

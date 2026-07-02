@@ -9,18 +9,16 @@ Contains three sections:
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from textual.app import ComposeResult
-from textual.containers import ScrollableContainer, Vertical
+from textual.containers import Vertical
 from textual.reactive import reactive
 from textual.widgets import RichLog, Static
 
 from builder_ii.tui.widgets.masterpiece import MechanicalSympathyHud
-
-
 
 # ── Capability definitions ───────────────────────────────────────────
 

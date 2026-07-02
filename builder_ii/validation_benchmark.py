@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 import copy
-import hashlib
 import json as json_lib
 import time
-from pathlib import Path
 from typing import Any
 
-from builder_ii.goose_session import validate_goose_session_manifest
-from builder_ii.goose_readonly import validate_readonly_runtime_audit
-from builder_ii.goose_inspection import validate_readonly_inspection_audit
-from builder_ii.performance_measurements import validate_performance_measurement_record
-from builder_ii.hitl_execution_records import validate_hitl_execution_request, validate_hitl_execution_receipt
 from builder_ii.approval_records import validate_approval_record
+from builder_ii.goose_inspection import validate_readonly_inspection_audit
+from builder_ii.goose_readonly import validate_readonly_runtime_audit
+from builder_ii.goose_session import validate_goose_session_manifest
+from builder_ii.hitl_execution_records import validate_hitl_execution_receipt, validate_hitl_execution_request
+from builder_ii.performance_measurements import validate_performance_measurement_record
 
 VALIDATION_BENCHMARK_KIND = "builder_ii.validation_benchmark"
 VALIDATION_BENCHMARK_SCHEMA_VERSION = 1
@@ -59,8 +57,8 @@ def generate_mock_artifacts(kind: str, count: int) -> list[dict[str, Any]]:
         invalid_tpl["kind"] = "wrong"
     elif kind == "builder_ii.goose_readonly_runtime_audit":
         from builder_ii.config import load_settings
-        from builder_ii.goose_session import create_goose_session_manifest
         from builder_ii.goose_readonly import create_readonly_runtime_audit
+        from builder_ii.goose_session import create_goose_session_manifest
         settings = load_settings()
         manifest = create_goose_session_manifest(settings, target_name="builder", agent_profile="patch_planner", runtime_mode="read_only")
         valid_tpl = create_readonly_runtime_audit(manifest, manifest_path="manifest.json")
@@ -165,8 +163,8 @@ def generate_mock_artifacts(kind: str, count: int) -> list[dict[str, Any]]:
     elif kind == "builder_ii.approval_record":
         from builder_ii.approval_records import create_approval_record
         from builder_ii.config import load_settings
-        from builder_ii.goose_session import create_goose_session_manifest
         from builder_ii.goose_command_proposal import create_goose_command_proposal
+        from builder_ii.goose_session import create_goose_session_manifest
         settings = load_settings()
         manifest = create_goose_session_manifest(settings, target_name="builder", agent_profile="patch_planner", runtime_mode="read_only")
         proposal = create_goose_command_proposal(manifest, manifest_path="manifest.json", command="echo 1")
@@ -192,7 +190,7 @@ def benchmark_validator(kind: str, count: int, backend: str = "python") -> dict[
         raise ValueError(f"No validator registered for kind: {kind}")
 
     artifacts = generate_mock_artifacts(kind, count)
-    
+
     bytes_total = 0
     for art in artifacts:
         bytes_total += len(json_lib.dumps(art).encode("utf-8"))
@@ -208,7 +206,7 @@ def benchmark_validator(kind: str, count: int, backend: str = "python") -> dict[
         else:
             errors = validator(art)
         durations.append((time.perf_counter() - t0) * 1000.0)
-        
+
         # Determine validity
         if backend == "rust":
             if valid:
@@ -276,14 +274,14 @@ def generate_parity_report(kind: str, count: int) -> dict[str, Any]:
         raise ValueError(f"No validator registered for kind: {kind}")
 
     artifacts = generate_mock_artifacts(kind, count)
-    
+
     matches = 0
     mismatches = []
 
     for idx, art in enumerate(artifacts):
         py_errors = validator(art)
         rust_valid, rust_errors = validate_via_rust(kind, art)
-        
+
         py_valid = len(py_errors) == 0
         if py_valid == rust_valid and set(py_errors) == set(rust_errors):
             matches += 1

@@ -13,7 +13,7 @@ import typer
 
 from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
 from builder_ii.deepagents_forge_emit import EmitResult, emit_agent
-from builder_ii.deepagents_forge_schema import DeepAgentSpec, VALID_TARGET_PROFILES, derive_slug
+from builder_ii.deepagents_forge_schema import VALID_TARGET_PROFILES, DeepAgentSpec, derive_slug
 
 app = typer.Typer(help="deepagents Forge — create governed deepagent specs.")
 _VALID_PROFILES = set(VALID_TARGET_PROFILES)

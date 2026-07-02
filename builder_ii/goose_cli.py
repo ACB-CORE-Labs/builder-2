@@ -1,13 +1,9 @@
 from __future__ import annotations
 
+import json as json_lib
 from pathlib import Path
 
 import typer
-
-import json as json_lib
-import time
-from builder_ii.goose_runtime_harness import GooseRuntimeHarness
-from builder_ii.goose_receipts import GOOSE_LAUNCH_RECEIPT_KIND
 from rich.console import Console
 
 from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
@@ -18,12 +14,6 @@ from builder_ii.goose_command_proposal import (
     validate_goose_command_proposal_file,
     write_goose_command_proposal,
 )
-from builder_ii.goose_readonly import (
-    create_readonly_runtime_audit_from_manifest_file,
-    dumps_readonly_runtime_audit,
-    validate_readonly_runtime_audit_file,
-    write_readonly_runtime_audit,
-)
 from builder_ii.goose_inspection import (
     DEFAULT_MAX_READ_BYTES,
     create_readonly_inspection_audit_from_manifest_file,
@@ -31,6 +21,13 @@ from builder_ii.goose_inspection import (
     validate_readonly_inspection_audit_file,
     write_readonly_inspection_audit,
 )
+from builder_ii.goose_readonly import (
+    create_readonly_runtime_audit_from_manifest_file,
+    dumps_readonly_runtime_audit,
+    validate_readonly_runtime_audit_file,
+    write_readonly_runtime_audit,
+)
+from builder_ii.goose_runtime_harness import GooseRuntimeHarness
 from builder_ii.goose_session import (
     GooseRuntimeMode,
     create_goose_session_manifest,
@@ -40,7 +37,6 @@ from builder_ii.goose_session import (
     write_goose_session_manifest,
 )
 from builder_ii.target_profiles import TargetName, target_names
-
 
 goose_app = typer.Typer(help="Create and validate governed Goose artifacts without starting Goose.")
 console = Console()
@@ -244,19 +240,19 @@ def start_readonly(
     if not manifest_path.exists():
         console.print(f"Manifest not found: {manifest_path}")
         raise typer.Exit(1)
-        
+
     try:
         manifest_data = json_lib.loads(manifest_path.read_text(encoding="utf-8"))
     except Exception as e:
         console.print(f"Invalid manifest JSON: {e}")
         raise typer.Exit(1)
-        
+
     if manifest_data.get("requested_runtime_mode") != "read_only":
         console.print("Manifest does not specify read_only mode.")
         raise typer.Exit(1)
-        
+
     settings = load_settings()
-    
+
     # Simple struct to simulate SessionPlan
     class MockPlan:
         target_name = manifest_data.get("target", {}).get("name", "builder")
@@ -264,37 +260,37 @@ def start_readonly(
         recipe_name = "core-platform.yaml" # Default
         model_tier = "3"
         mode = "read_only"
-        
+
     plan = MockPlan()
     harness = GooseRuntimeHarness(settings, plan, settings.project_root)
-    
+
     try:
         receipt = harness.launch_readonly()
         console.print(f"Launched Goose readonly session {receipt['session_id']}")
-        
+
         # Write receipt so close-readonly can find it
         receipt_path = settings.project_root / ".builder" / "receipts" / f"{receipt['session_id']}_launch.json"
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         receipt_path.write_text(json_lib.dumps(receipt, indent=2), encoding="utf-8")
-        
+
         console.print(f"Launch receipt: {receipt_path}")
-        
+
         # Wait for Goose to exit
         if harness._proc:
             harness._proc.wait()
-            
+
         close_receipt, postflight = harness.close(receipt["digest"])
-        
+
         close_path = settings.project_root / ".builder" / "receipts" / f"{receipt['session_id']}_close.json"
         close_path.write_text(json_lib.dumps(close_receipt, indent=2), encoding="utf-8")
         console.print(f"Close receipt: {close_path}")
-        
+
         if not postflight["valid"]:
             console.print("WARNING: Mutations detected during read-only session!")
             for m in postflight["mutations_detected"]:
                 console.print(f" - {m}")
             raise typer.Exit(1)
-            
+
     except Exception as e:
         console.print(f"Failed to launch Goose: {e}")
         raise typer.Exit(1)
@@ -307,13 +303,13 @@ def close_readonly(
     """Close a governed Goose read-only session and verify no-mutation postflight."""
     settings = load_settings()
     receipt_path = settings.project_root / ".builder" / "receipts" / f"{session_id}_launch.json"
-    
+
     if not receipt_path.exists():
         console.print(f"Launch receipt not found: {receipt_path}")
         raise typer.Exit(1)
-        
-    # We can't fully reconstruct the Harness state (PID, preflight snapshot), 
-    # but the start-readonly naturally waits and closes. 
+
+    # We can't fully reconstruct the Harness state (PID, preflight snapshot),
+    # but the start-readonly naturally waits and closes.
     # If the user explicitly calls close-readonly, we simulate a postflight error if it's already closed.
     console.print("close-readonly is automatically handled by start-readonly termination.")
     console.print("If a session was forcefully detached, it must be killed manually and postflight is invalid.")

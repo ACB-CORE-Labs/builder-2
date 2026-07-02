@@ -3,7 +3,15 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
+from orchestration_assignment_fixtures import build_goal2_assignment_fixture
+
 from builder_ii.config import load_settings
+from builder_ii.orchestration_assignment import (
+    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
+    create_orchestration_assignment_dry_run,
+    validate_orchestration_assignment_dry_run,
+    validate_orchestration_assignment_validation_report,
+)
 from builder_ii.orchestration_dry_run import (
     ORCHESTRATION_DRY_RUN_KIND,
     create_orchestration_dry_run,
@@ -12,13 +20,6 @@ from builder_ii.orchestration_dry_run import (
     validate_orchestration_dry_run_file,
 )
 from builder_ii.orchestration_plan import create_orchestration_plan
-from builder_ii.orchestration_assignment import (
-    ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
-    create_orchestration_assignment_dry_run,
-    validate_orchestration_assignment_dry_run,
-    validate_orchestration_assignment_validation_report,
-)
-from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 
 def _generic_repo(tmp_path: Path) -> Path:

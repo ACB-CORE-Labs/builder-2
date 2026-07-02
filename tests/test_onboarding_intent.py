@@ -1,11 +1,9 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from builder_ii.onboarding_intent import (
     ONBOARDING_INTENT_KIND,
-    dumps_onboarding_intent_report,
     finalize_onboarding_intent_report,
     validate_onboarding_intent_report_artifact,
     validate_onboarding_intent_report_file,

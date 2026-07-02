@@ -8,7 +8,6 @@ from builder_ii.approval_records import create_approval_record
 from builder_ii.artifact_chain_verification import verify_artifact_chain
 from builder_ii.goose_command_proposal import create_goose_command_proposal
 
-
 _MANIFEST: dict[str, Any] = {
     "kind": "builder_ii.goose_session_manifest",
     "schema_version": 1,

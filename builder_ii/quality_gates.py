@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.target_profiles import TargetName, target_names
-from builder_ii.verification_profiles import VerificationProfileName, get_verification_profile, validate_profile_artifact
+from builder_ii.verification_profiles import (
+    VerificationProfileName,
+    get_verification_profile,
+    validate_profile_artifact,
+)
 
 QUALITY_GATE_KIND = "builder_ii.quality_gate"
 QUALITY_GATE_SCHEMA_VERSION = 1

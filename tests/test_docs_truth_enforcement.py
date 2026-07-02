@@ -8,7 +8,6 @@ from builder_ii.platform_completion_audit import (
 )
 from builder_ii.platform_status_cli import platform_app
 
-
 runner = CliRunner()
 
 

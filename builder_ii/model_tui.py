@@ -26,11 +26,23 @@ from typing import Any
 
 from builder_ii.tui_contract import (
     builder_dir as _shared_builder_dir,
+)
+from builder_ii.tui_contract import (
     col as _shared_col,
+)
+from builder_ii.tui_contract import (
     find_artifact as _shared_find_artifact,
+)
+from builder_ii.tui_contract import (
     hex_ansi as _shared_hex_ansi,
+)
+from builder_ii.tui_contract import (
     load_json_object as _shared_load_json_object,
+)
+from builder_ii.tui_contract import (
     load_palette,
+)
+from builder_ii.tui_contract import (
     row as _shared_row,
 )
 
@@ -47,14 +59,22 @@ def _hex_ansi(hex_colour: str, text: str) -> str:
     return _shared_hex_ansi(hex_colour, text, _IS_TTY)
 
 
-_p   = lambda t: _hex_ansi(_C["pass"],   t)
-_w   = lambda t: _hex_ansi(_C["warn"],   t)
-_f   = lambda t: _hex_ansi(_C["fail"],   t)
-_h   = lambda t: _hex_ansi(_C["hint"],   t)
-_act = lambda t: _hex_ansi(_C["active"], t)
-_d   = lambda t: _hex_ansi(_C["dim"],    t)
-_b   = lambda t: _hex_ansi(_C["bold"],   t)
-_acc = lambda t: _hex_ansi(_C["accent"], t)
+def _p(t):
+    return _hex_ansi(_C["pass"],   t)
+def _w(t):
+    return _hex_ansi(_C["warn"],   t)
+def _f(t):
+    return _hex_ansi(_C["fail"],   t)
+def _h(t):
+    return _hex_ansi(_C["hint"],   t)
+def _act(t):
+    return _hex_ansi(_C["active"], t)
+def _d(t):
+    return _hex_ansi(_C["dim"],    t)
+def _b(t):
+    return _hex_ansi(_C["bold"],   t)
+def _acc(t):
+    return _hex_ansi(_C["accent"], t)
 
 # Glyphs
 G = {
@@ -403,7 +423,6 @@ def cmd_routing_policy(args: list[str]) -> int:
 # ---------------------------------------------------------------------------
 
 def cmd_routing_execution_policy(args: list[str]) -> int:
-    verbose = "-v" in args or "--verbose" in args
     base = _builder_dir()
     _, ep = _find_artifact(
         base,

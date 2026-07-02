@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Literal
 
-
 AssuranceState = Literal[
     "PASSIVE_ARTIFACT_VERIFIED",
     "READ_ONLY_RUNTIME_VERIFIED",

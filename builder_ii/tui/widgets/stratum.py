@@ -16,13 +16,10 @@ from pathlib import Path
 from typing import Any
 
 from rich.syntax import Syntax
-from rich.text import Text
-
 from textual.app import ComposeResult
 from textual.containers import ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.widgets import RichLog, Static
-
 
 # ── Stratum Modes ────────────────────────────────────────────────────
 
@@ -116,7 +113,7 @@ class ActiveStratum(Vertical):
         self._content: RichLog | None = None
         self._title_bar: Static | None = None
         self._chain_bar: Static | None = None
-        
+
         # Masterpiece widgets
         self._epistemic_matrix: EpistemicMatrix | None = None
         self._third_door: ThirdDoorGate | None = None
@@ -135,7 +132,7 @@ class ActiveStratum(Vertical):
             self._epistemic_matrix = EpistemicMatrix()
             self._epistemic_matrix.display = False
             yield self._epistemic_matrix
-            
+
             self._content = RichLog(
                 highlight=True,
                 markup=True,
@@ -143,11 +140,11 @@ class ActiveStratum(Vertical):
                 max_lines=500,
             )
             yield self._content
-            
+
             self._third_door = ThirdDoorGate()
             self._third_door.display = False
             yield self._third_door
-            
+
         self._chain_bar = Static(
             "  [#484f58]CHAIN DIGEST:[/]  [#6e7681]—[/]     "
             "[#484f58]AUTHORITY:[/]  [#6e7681]NOT GRANTED[/]     "
@@ -450,7 +447,7 @@ class ActiveStratum(Vertical):
                 state_str = str(row.state)
                 # Parse StateLabel enum if needed or just use name
                 state_name = state_str.split('.')[-1] if '.' in state_str else state_str
-                
+
                 if "VERIFIED" in state_name:
                     color = "#3fb950"
                     glyph = "✓"
@@ -465,7 +462,7 @@ class ActiveStratum(Vertical):
                     glyph = "▶"
 
                 self._content.write(f"  [{color}]{glyph}[/] [bold #79c0ff]{row.name:<32}[/] [{color}]{state_name}[/]")
-            
+
             if not rows:
                 self._content.write("  [#484f58]No capability rows defined.[/]")
         except Exception as e:
@@ -497,7 +494,7 @@ class ActiveStratum(Vertical):
             self._content.write("\n  [bold #f85149]MERGE BLOCKERS:[/]\n")
             for blk in gate.get("merge_blockers", []):
                 self._content.write(f"  [#f85149]✗[/] [#c9d1d9]{blk}[/]")
-            
+
         except Exception as e:
             self._content.write(f"  [#f85149]Error loading quality gates:[/] {e}")
 

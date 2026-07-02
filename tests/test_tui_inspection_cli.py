@@ -7,7 +7,6 @@ from typer.testing import CliRunner
 
 from builder_ii.cli import app
 
-
 runner = CliRunner()
 
 

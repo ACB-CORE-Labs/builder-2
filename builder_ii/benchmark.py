@@ -103,7 +103,7 @@ def run_benchmark(settings: Settings) -> BenchmarkReport:
         ttft, tps, tool_ok = _measure_perf(settings)
 
     compliance = run_compliance_checks()
-    rss_gb = psutil.Process().memory_info().rss / (1024**3)
+    psutil.Process().memory_info().rss / (1024**3)
     proc = psutil.virtual_memory()
     used_gb = (proc.total - proc.available) / (1024**3)
 

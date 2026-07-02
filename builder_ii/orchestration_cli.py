@@ -8,13 +8,6 @@ import typer
 from rich.console import Console
 
 from builder_ii.agent_profiles import AgentProfileName
-from builder_ii.orchestration_plan import (
-    ORCHESTRATION_PLAN_KIND,
-    create_orchestration_plan,
-    dumps_orchestration_plan,
-    validate_orchestration_plan,
-    validate_orchestration_plan_file,
-)
 from builder_ii.orchestration_assignment import (
     AGENT_ASSIGNMENT_PLAN_KIND,
     ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
@@ -33,6 +26,13 @@ from builder_ii.orchestration_assignment import (
     write_agent_assignment_plan,
     write_orchestration_assignment_dry_run,
     write_orchestration_assignment_plan,
+)
+from builder_ii.orchestration_plan import (
+    ORCHESTRATION_PLAN_KIND,
+    create_orchestration_plan,
+    dumps_orchestration_plan,
+    validate_orchestration_plan,
+    validate_orchestration_plan_file,
 )
 from builder_ii.target_profiles import TargetName
 

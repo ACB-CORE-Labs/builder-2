@@ -1,6 +1,7 @@
 import tomllib
 from pathlib import Path
 
+
 def test_command_surface_audit_covers_all_scripts():
     project_root = Path(__file__).parent.parent
     pyproject_path = project_root / "pyproject.toml"

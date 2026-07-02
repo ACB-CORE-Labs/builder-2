@@ -18,11 +18,9 @@ from pathlib import Path
 from typing import Any, Iterable, Optional, Sequence
 
 from rich.console import Console
-from rich.padding import Padding
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
-from rich.text import Text
 
 # ---------------------------------------------------------------------------
 # Palette — 8 semantic tokens, nothing more
@@ -145,7 +143,6 @@ def render_platform_status(
     from builder_ii.compliance import run_compliance_checks
     from builder_ii.goose_launcher import goose_status
     from builder_ii.goose_recipe_validation import validate_recipes
-    from builder_ii.models import model_status_report
 
     render_header(subtitle="platform status")
 
@@ -215,6 +212,7 @@ def render_doctor(
 ) -> list[str]:
     """Structured readiness check. Returns list of failure strings."""
     import shutil
+
     from builder_ii.backends import check_health, check_serves_active_model
     from builder_ii.compliance import run_compliance_checks
     from builder_ii.goose_launcher import find_goose_binary, goose_status
@@ -631,8 +629,8 @@ try:
     ) -> None:
         """Capability gate grid."""
         from builder_ii.capabilities import capability_gates
-        from builder_ii.config import load_settings
         from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
+        from builder_ii.config import load_settings
         try:
             enforce_command_authority(
                 "builder tui gates",
@@ -698,6 +696,7 @@ try:
     ) -> None:
         """Golden path summary."""
         from pathlib import Path as _Path
+
         from builder_ii.operator_golden_path import (
             create_operator_golden_path_report,
             validate_operator_golden_path_report,

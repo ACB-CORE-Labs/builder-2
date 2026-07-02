@@ -8,10 +8,8 @@ from typing import Any
 
 from builder_ii.config_schema import CAPABILITY_DEFAULTS, attach_digest, digest_jsonable
 from builder_ii.setup_overlay import (
-    SETUP_OVERLAY_PLAN_KIND,
     validate_setup_overlay_plan_artifact,
 )
-
 
 SETUP_ROLLBACK_SNAPSHOT_KIND = "builder_ii.setup_rollback_snapshot"
 SETUP_ROLLBACK_SNAPSHOT_SCHEMA_VERSION = 1

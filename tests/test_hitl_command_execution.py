@@ -1,15 +1,10 @@
 import inspect
-import json
-import sys
 from pathlib import Path
-
-import pytest
 
 import builder_ii.hitl_command_execution as hitl_mod
 from builder_ii.hitl_command_execution import (
     HITL_COMMAND_EXECUTION_SPEC_KIND,
     create_hitl_command_execution_spec,
-    dumps_hitl_command_execution_spec,
     validate_hitl_command_execution_spec,
     validate_hitl_command_execution_spec_file,
 )

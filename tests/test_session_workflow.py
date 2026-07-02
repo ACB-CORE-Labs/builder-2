@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import json as json_lib
 from pathlib import Path
+
 import pytest
 from typer.testing import CliRunner
 
 from builder_ii.config import load_settings
+from builder_ii.profile_resolution import (
+    get_prompt_profile,
+    prompt_profiles,
+)
+from builder_ii.session_cli import session_app
 from builder_ii.session_workflow import (
+    SESSION_WORKFLOW_PLAN_KIND,
     create_session_workflow_plan,
     validate_session_workflow_plan,
     validate_session_workflow_plan_file,
-    get_prompt_profile,
-    prompt_profiles,
-    SESSION_WORKFLOW_PLAN_KIND,
 )
-from builder_ii.session_cli import session_app
 
 runner = CliRunner()
 

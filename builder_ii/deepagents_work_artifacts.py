@@ -1705,7 +1705,7 @@ def validate_deepagents_runtime_envelope(data: Any) -> list[str]:
         errors.append(f"schema_version must be {DEEPAGENTS_RUNTIME_ENVELOPE_SCHEMA_VERSION}")
     if data.get("envelope_state") not in ("RUNNING", "COMPLETED"):
         errors.append("envelope_state must be RUNNING or COMPLETED")
-    
+
     # Check work_plan_ref
     errors.extend(
         _validate_ref(

@@ -7,7 +7,6 @@ from pathlib import Path
 from builder_ii.config import Settings
 from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT
 
-
 GOVERNANCE_FILES: tuple[str, ...] = (
     "AGENTS.md",
     "docs/runtime_contracts.md",

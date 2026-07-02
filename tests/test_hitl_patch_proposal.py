@@ -5,8 +5,6 @@ import ast
 import inspect
 from pathlib import Path
 
-import pytest
-
 import builder_ii.hitl_patch_proposal as hitl_mod
 from builder_ii.hitl_patch_proposal import (
     HITL_PATCH_PROPOSAL_KIND,

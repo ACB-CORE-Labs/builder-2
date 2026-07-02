@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json as json_lib
-import time
 import re
+import time
 from pathlib import Path
 from typing import Any
-
-from builder_ii.config import Settings
 
 READ_POLICY_KIND = "builder_ii.read_policy"
 READ_POLICY_SCHEMA_VERSION = 1
@@ -69,7 +67,7 @@ def validate_read_policy(policy: Any) -> list[str]:
         errors.append(f"kind must be {READ_POLICY_KIND}")
     if policy.get("schema_version") != READ_POLICY_SCHEMA_VERSION:
         errors.append(f"schema_version must be {READ_POLICY_SCHEMA_VERSION}")
-    
+
     target = policy.get("target")
     if not isinstance(target, dict):
         errors.append("target must be a dictionary")
@@ -78,7 +76,7 @@ def validate_read_policy(policy: Any) -> list[str]:
             errors.append("target.name is required")
         if not target.get("repo"):
             errors.append("target.repo is required")
-            
+
     if not isinstance(policy.get("allowed_paths"), list):
         errors.append("allowed_paths must be a list")
     if not isinstance(policy.get("denied_paths"), list):
@@ -87,7 +85,7 @@ def validate_read_policy(policy: Any) -> list[str]:
         errors.append("max_bytes_budget must be a non-negative integer")
     if not isinstance(policy.get("content_capture_allowed"), bool):
         errors.append("content_capture_allowed must be a boolean")
-        
+
     return errors
 
 
@@ -105,30 +103,30 @@ def _is_path_allowed(path: Path, root: Path, allowed_patterns: list[str], denied
     try:
         resolved = path.resolve()
         resolved_root = root.resolve()
-        
+
         # Prevent path traversal
         if not str(resolved).startswith(str(resolved_root)):
             return False
-            
+
         # Secrets checks: filenames
         if resolved.suffix in SECRET_FILE_SUFFIXES:
             return False
-            
+
         # Convert path to relative for pattern matching
         rel_path = resolved.relative_to(resolved_root).as_posix()
-        
+
         # Check against denied patterns (glob matching)
         for pattern in denied_patterns:
             if path.match(pattern) or Path(rel_path).match(pattern):
                 return False
-                
+
         # Check against allowed patterns (glob matching)
         allowed = False
         for pattern in allowed_patterns:
             if pattern == "*" or path.match(pattern) or Path(rel_path).match(pattern):
                 allowed = True
                 break
-                
+
         return allowed
     except Exception:
         return False
@@ -151,7 +149,7 @@ def execute_governed_read(
     current_read_bytes: int = 0,
 ) -> dict[str, Any]:
     """Execute a governed read operation on a single file, enforcing the read policy.
-    
+
     Returns a read_receipt or denied_read artifact.
     """
     target_repo = Path(policy["target"]["repo"])
@@ -159,10 +157,10 @@ def execute_governed_read(
     denied_paths = policy["denied_paths"]
     budget = policy["max_bytes_budget"]
     content_capture = policy["content_capture_allowed"]
-    
+
     # Pre-read metadata
     resolved = file_path.resolve()
-    
+
     # 1. Path Travel / Allowlist validation
     if not _is_path_allowed(resolved, target_repo, allowed_paths, denied_paths):
         return create_denied_read(
@@ -170,21 +168,21 @@ def execute_governed_read(
             file_path=file_path,
             reason="Path not allowed or security policy violation (traversal, .git, secret suffixes)",
         )
-        
+
     if not resolved.exists():
         return create_denied_read(
             policy=policy,
             file_path=file_path,
             reason="File not found",
         )
-        
+
     if not resolved.is_file():
         return create_denied_read(
             policy=policy,
             file_path=file_path,
             reason="Path is not a file",
         )
-        
+
     if not allowed_paths:
         return create_denied_read(
             policy=policy,
@@ -200,10 +198,10 @@ def execute_governed_read(
             file_path=file_path,
             reason=f"Read budget exceeded (limit: {budget} bytes, requested size: {file_size} bytes)",
         )
-        
+
     # Verify modification time before read
     mtime_before = resolved.stat().st_mtime
-    
+
     sha = hashlib.sha256()
     captured_chunks: list[bytes] = []
     binary_detected = False
@@ -224,7 +222,7 @@ def execute_governed_read(
             file_path=file_path,
             reason=f"Failed to read file: {e}",
         )
-        
+
     # Verify modification time after read to check for concurrent writes
     mtime_after = resolved.stat().st_mtime
     if mtime_before != mtime_after:
@@ -233,7 +231,7 @@ def execute_governed_read(
             file_path=file_path,
             reason="File was modified during read",
         )
-        
+
     # Secrets filtering
     if binary_detected:
         return create_denied_read(
@@ -248,10 +246,10 @@ def execute_governed_read(
             file_path=file_path,
             reason="Security policy violation: detected potential secrets in content",
         )
-        
+
     # Hash calculation
     sha256 = sha.hexdigest()
-    
+
     # Build receipt
     receipt = {
         "kind": READ_RECEIPT_KIND,

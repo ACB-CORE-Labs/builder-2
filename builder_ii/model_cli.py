@@ -4,33 +4,25 @@ import hashlib
 import json as json_lib
 import time
 from pathlib import Path
+
 import typer
 from rich.console import Console
 
-from builder_ii.config import load_settings
 from builder_ii.command_authority import enforce_command_authority
-from builder_ii.model_client_registry import (
-    create_model_client_registry,
-    validate_model_client_registry,
-)
-from builder_ii.model_routing_policy import (
-    create_model_routing_policy,
-    validate_model_routing_policy,
-    validate_model_execution_policy,
-
-)
-from builder_ii.model_execution_gateway import (
-    ModelExecutionGateway,
-    validate_model_call_envelope,
-    validate_model_call_receipt,
-    validate_model_call_receipt_file,
-)
+from builder_ii.config import load_settings
 from builder_ii.event_ledger import (
+    EVENT_RECORD_KIND,
     create_event_record,
     load_event_records,
     replay_events,
     write_event_record,
-    EVENT_RECORD_KIND,
+)
+from builder_ii.model_client_registry import (
+    create_model_client_registry,
+)
+from builder_ii.model_execution_gateway import (
+    ModelExecutionGateway,
+    validate_model_call_receipt_file,
 )
 from builder_ii.workflow_records import canonical_digest
 
@@ -129,7 +121,7 @@ def call_cmd(
 
     settings = load_settings()
     gateway = ModelExecutionGateway(settings, registry, execution_policy)
-    
+
     if not session_id:
         console.print("[red]Must specify --session-id for operational call. Use standalone-call if ledger is not required.[/]")
         raise typer.Exit(1)
@@ -146,7 +138,7 @@ def call_cmd(
         )
     except Exception as exc:
         console.print(f"[red]Model execution failed: {exc}[/]")
-        
+
         # Log failure to ledger if session_id is provided
         if session_id:
             events_dir = Path(".builder/sessions") / session_id / "events"
@@ -179,7 +171,7 @@ def call_cmd(
 
         raise typer.Exit(1)
 
-    console.print(f"[green]Model call executed successfully.[/]")
+    console.print("[green]Model call executed successfully.[/]")
     console.print(f"Envelope written to: {output_envelope}")
     console.print(f"Receipt written to: {output_receipt}")
 
@@ -215,7 +207,7 @@ def call_cmd(
             message=f"Model call executed: {model}",
         )
         write_event_record(event_record, events_dir / f"{sequence:03d}_model_call_executed.json")
-        console.print(f"Workflow event logged to ledger.")
+        console.print("Workflow event logged to ledger.")
 
 
 @model_app.command("standalone-call")
@@ -278,7 +270,7 @@ def standalone_call_cmd(
         console.print(f"[red]Model execution failed: {exc}[/]")
         raise typer.Exit(1)
 
-    console.print(f"[green]Standalone model call executed successfully.[/]")
+    console.print("[green]Standalone model call executed successfully.[/]")
     console.print(f"Envelope written to: {output_envelope}")
     console.print(f"Receipt written to: {output_receipt}")
 

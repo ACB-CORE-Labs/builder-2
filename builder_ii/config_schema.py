@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
 CONFIG_SCHEMA_KIND = "builder_ii.config_schema"
 CONFIG_SCHEMA_VERSION = "1.0.0"
 

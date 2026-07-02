@@ -2,18 +2,19 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+
 import pytest
 
+from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
+from builder_ii.artifact_index_records import _VALIDATORS
 from builder_ii.config import load_settings
 from builder_ii.convention_kernel import (
+    CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
     ConventionKernel,
     ConventionKernelPlatformBundle,
-    CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
-    validate_convention_kernel_platform_bundle,
     check_artifact_governance_safety,
+    validate_convention_kernel_platform_bundle,
 )
-from builder_ii.artifact_index_records import _VALIDATORS
-from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -100,7 +101,6 @@ def test_prepare_platform_spine_rejects_unsafe_governance(tmp_path, monkeypatch)
     kernel = ConventionKernel()
 
     # Mock create_session_workflow_plan to return an unsafe governance block
-    from builder_ii import convention_kernel
     import builder_ii.convention_kernel
 
     orig_create_session = builder_ii.convention_kernel.create_session_workflow_plan
@@ -126,7 +126,6 @@ def test_prepare_platform_spine_rejects_unregistered_command(tmp_path, monkeypat
     kernel = ConventionKernel()
 
     # Mock create_session_workflow_plan to inject an unregistered planned command
-    from builder_ii import convention_kernel
     import builder_ii.convention_kernel
 
     orig_create_session = builder_ii.convention_kernel.create_session_workflow_plan
@@ -152,7 +151,6 @@ def test_prepare_platform_spine_rejects_unmarked_tier2_command(tmp_path, monkeyp
     kernel = ConventionKernel()
 
     # Mock create_session_workflow_plan to inject a Tier 2 command
-    from builder_ii import convention_kernel
     import builder_ii.convention_kernel
 
     orig_create_session = builder_ii.convention_kernel.create_session_workflow_plan

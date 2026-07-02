@@ -10,6 +10,7 @@ from builder_ii.command_authority import (
     COMMAND_AUTHORITY_REGISTRY,
     validate_registry_invariants,
 )
+from builder_ii.config import load_settings
 from builder_ii.config_schema import (
     create_config_schema_artifact,
     validate_config_schema_artifact,
@@ -20,7 +21,6 @@ from builder_ii.config_sources import (
     validate_config_resolution_artifact,
     write_config_resolution_artifact,
 )
-from builder_ii.config import load_settings
 from builder_ii.core_demo_loop import (
     dumps_core_demo_report,
     run_core_demo_loop,
@@ -65,7 +65,6 @@ from builder_ii.setup_onboarding import run_onboarding_pipeline
 from builder_ii.setup_overlay import validate_setup_overlay_plan_artifact
 from builder_ii.setup_plan import validate_setup_plan_artifact
 from builder_ii.setup_rollback import validate_setup_rollback_snapshot_artifact
-
 
 platform_app = typer.Typer(
     help="Render builder-II platform completion truth without runtime, model, tool, Goose, or deepagents execution.",
@@ -115,15 +114,15 @@ def operator_status(
 
     report = create_operator_status_report()
     errors = validate_operator_status_report(report)
-    
+
     if errors:
         for error in errors:
             console.print(f"[red]operator status validation error:[/] {error}")
         raise typer.Exit(1)
-        
+
     if output:
         write_operator_status_report(report, output.resolve())
-        
+
     console.out(dumps_operator_status_report(report), end="")
 
 
@@ -141,15 +140,15 @@ def next_action(
 
     report = create_operator_next_action_report()
     errors = validate_operator_next_action_report(report)
-    
+
     if errors:
         for error in errors:
             console.print(f"[red]operator next action validation error:[/] {error}")
         raise typer.Exit(1)
-        
+
     if output:
         write_operator_next_action_report(report, output.resolve())
-        
+
     console.out(dumps_operator_next_action_report(report), end="")
 
 
@@ -174,12 +173,12 @@ def golden_path(
     output_dir = output_dir.resolve()
     report = create_operator_golden_path_report(target_profile=target, output_dir=output_dir)
     errors = validate_operator_golden_path_report(report)
-    
+
     if errors:
         for error in errors:
             console.print(f"[red]operator golden path validation error:[/] {error}")
         raise typer.Exit(1)
-        
+
     write_operator_golden_path_report(report, output_dir / "golden-path-report.json")
     console.out(dumps_operator_golden_path_report(report), end="")
 
@@ -196,20 +195,20 @@ def validate_golden_path(
     if not report_file.is_file():
         console.print(f"[red]report file is not a valid file:[/] {report_file}")
         raise typer.Exit(1)
-        
+
     try:
         data = json_lib.loads(report_file.read_text(encoding="utf-8"))
     except json_lib.JSONDecodeError as e:
         console.print(f"[red]report file is not valid JSON:[/] {e}")
         raise typer.Exit(1)
-        
+
     errors = validate_operator_golden_path_report(data)
-    
+
     if errors:
         for error in errors:
             console.print(f"[red]operator golden path validation error:[/] {error}")
         raise typer.Exit(1)
-        
+
     console.out(json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n", end="")
 
 

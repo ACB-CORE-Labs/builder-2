@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from textual.app import ComposeResult
+from textual.containers import Center, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Static
-from textual.containers import Vertical, Center
 
 ASCII_ART = """
 [#00f0ff]██████╗ [#00e0ff]██╗   ██╗[#00d0ff]██╗[#00c0ff]██╗     [#00a0ff]██████╗ [#0080ff]███████╗[#0060ff]██████╗ [#0040ff]       ██╗██╗
@@ -59,15 +59,15 @@ class SplashScreen(ModalScreen[None]):
         import asyncio
         import os
         import tempfile
-        
+
         container = self.query_one("#splash-container")
         container.display = False
-        
+
         image_path = "images/builder-ii-splash-hero.jpeg"
         if not os.path.exists(image_path):
             container.display = True
             return
-            
+
         swift_code = """
 import Cocoa
 class SplashDelegate: NSObject, NSApplicationDelegate {
@@ -105,26 +105,26 @@ app.run()
             fd, path = tempfile.mkstemp(suffix=".swift")
             os.write(fd, swift_code.encode())
             os.close(fd)
-            
+
             proc = await asyncio.create_subprocess_exec(
                 "swift", path, image_path,
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL
             )
-            
+
             await proc.wait()
             try:
                 os.remove(path)
             except Exception:
                 pass
-                
+
         except Exception:
             pass
-            
+
         container.display = True
 
     def on_key(self, event) -> None:
         self.dismiss(None)
-    
+
     def on_mouse_down(self, event) -> None:
         self.dismiss(None)

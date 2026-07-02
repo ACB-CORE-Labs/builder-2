@@ -6,7 +6,12 @@ from typing import Any
 
 from builder_ii.agent_profiles import AgentProfile, AgentProfileName, agent_profile_names, get_agent_profile
 from builder_ii.config import Settings
-from builder_ii.deepagents_bridge import REQUIRED_DENIED_TOOLS, bridge_spec_for, deepagents_availability, validate_bridge_spec
+from builder_ii.deepagents_bridge import (
+    REQUIRED_DENIED_TOOLS,
+    bridge_spec_for,
+    deepagents_availability,
+    validate_bridge_spec,
+)
 from builder_ii.target_profiles import TargetName, TargetProfile, target_names, target_profile
 from builder_ii.verification_profiles import default_profile_for_target, validate_profile_artifact
 

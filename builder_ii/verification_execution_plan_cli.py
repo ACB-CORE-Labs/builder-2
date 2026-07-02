@@ -30,7 +30,6 @@ from builder_ii.verification_execution_receipt import (
 from builder_ii.verification_execution_runner import run_approved_verification
 from builder_ii.verification_profiles import verification_profile_names
 
-
 verify_app = typer.Typer(help="Render, approve, validate, and run bounded verification artifacts.")
 console = Console()
 

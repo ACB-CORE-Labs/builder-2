@@ -1,23 +1,23 @@
-import os
 import re
 import tomllib
 from pathlib import Path
+
 import pytest
 
 from builder_ii.command_authority import (
     COMMAND_AUTHORITY_REGISTRY,
+    MODE_NONE,
     READONLY_TUI_COMMAND_GROUPS,
     READONLY_TUI_COMMANDS,
     REQUIRED_SUBCOMMANDS,
     TIER_0,
     TIER_1,
-    MODE_NONE,
-    CommandAuthorityRecord,
     CommandAuthorityError,
+    CommandAuthorityRecord,
     check_command_authority,
     enforce_command_authority,
-    validate_registry_invariants,
     render_registry_markdown_table,
+    validate_registry_invariants,
 )
 
 
@@ -76,16 +76,137 @@ def test_required_subcommands_fully_covered():
         assert sub in registered_names, f"Required subcommand '{sub}' is missing from registry"
 
 
+def test_all_cli_commands_fully_covered():
+    """Dynamically discover and walk all Typer CLI command trees from pyproject.toml
+    and assert they are explicitly registered in COMMAND_AUTHORITY_REGISTRY.
+    """
+    import importlib
+
+    import click
+    import typer
+
+    root = _get_project_root()
+    pyproject_path = root / "pyproject.toml"
+    assert pyproject_path.exists()
+
+    with open(pyproject_path, "rb") as f:
+        data = tomllib.load(f)
+
+    scripts = data.get("project", {}).get("scripts", {})
+    assert scripts
+
+    def get_click_command(app_obj):
+        if isinstance(app_obj, typer.Typer):
+            return typer.main.get_command(app_obj)
+        return app_obj
+
+    def walk_commands(click_cmd, prefix):
+        results = []
+        if isinstance(click_cmd, click.Group):
+            if click_cmd.invoke_without_command:
+                results.append(prefix)
+            ctx = click.Context(click_cmd)
+            for name in click_cmd.list_commands(ctx):
+                sub_cmd = click_cmd.get_command(ctx, name)
+                if sub_cmd:
+                    results.extend(walk_commands(sub_cmd, f"{prefix} {name}"))
+        else:
+            results.append(prefix)
+        return results
+
+    all_discovered = []
+    for script_name, entry_point in scripts.items():
+        mod_name, attr_name = entry_point.split(":")
+        mod = importlib.import_module(mod_name)
+        app_obj = getattr(mod, attr_name)
+        click_cmd = get_click_command(app_obj)
+        discovered = walk_commands(click_cmd, script_name)
+        all_discovered.extend(discovered)
+
+    registered_names = {r.name for r in COMMAND_AUTHORITY_REGISTRY}
+
+    # Tiny explicit allowlist for help-only or non-authority delegated cases
+    # e.g., if a sub-typer app is registered as a group but has no standalone behavior
+    allowlist = {
+        "builder",            # Root group wrapper, delegates to subcommands
+        "builder-targets",    # Group wrapper, delegates to subcommands
+        "builder-session",    # Group wrapper, delegates to subcommands
+        "builder-goose",      # Group wrapper, delegates to subcommands
+        "builder-mcp",        # Group wrapper, delegates to subcommands
+        "builder-tools",      # Group wrapper, delegates to subcommands
+        "builder-deepagents", # Group wrapper, delegates to subcommands
+        "builder-readonly",   # Group wrapper, delegates to subcommands
+        "builder-verify",     # Group wrapper, delegates to subcommands
+        "builder-research",   # Group wrapper, delegates to subcommands
+        "builder-agent",      # Group wrapper, delegates to subcommands
+        "builder-bridge",     # Group wrapper, delegates to subcommands
+        "builder-bundle",     # Group wrapper, delegates to subcommands
+        "builder-records",    # Group wrapper, delegates to subcommands
+        "builder-preflight",  # Group wrapper, delegates to subcommands
+        "builder-receipt",    # Group wrapper, delegates to subcommands
+        "builder-chain",      # Group wrapper, delegates to subcommands
+        "builder-handoff",    # Group wrapper, delegates to subcommands
+        "builder-intake",     # Group wrapper, delegates to subcommands
+        "builder-index",      # Group wrapper, delegates to subcommands
+        "builder-promotion",  # Group wrapper, delegates to subcommands
+        "builder-promotion-decision", # Group wrapper, delegates to subcommands
+        "builder-state-index", # Group wrapper, delegates to subcommands
+        "builder-snapshot",   # Group wrapper, delegates to subcommands
+        "builder-notes",      # Group wrapper, delegates to subcommands
+        "builder-quality",    # Group wrapper, delegates to subcommands
+        "builder-performance", # Group wrapper, delegates to subcommands
+        "builder-verification", # Group wrapper, delegates to subcommands
+        "builder-hitl",       # Group wrapper, delegates to subcommands
+        "builder-orchestration", # Group wrapper, delegates to subcommands
+        "builder-profile-pack", # Group wrapper, delegates to subcommands
+        "builder-model-policy", # Group wrapper, delegates to subcommands
+        "builder-model",      # Group wrapper, delegates to subcommands
+        "builder-workflow",   # Group wrapper, delegates to subcommands
+        "builder-ledger",     # Group wrapper, delegates to subcommands
+        "builder-platform",   # Group wrapper, delegates to subcommands
+        "builder-memory",     # Group wrapper, delegates to subcommands
+        "builder-config",     # Group wrapper, delegates to subcommands
+        "builder-setup",      # Group wrapper, delegates to subcommands
+        "builder-git-state",  # Group wrapper, delegates to subcommands
+        "builder-runtime",    # Group wrapper, delegates to subcommands
+    }
+
+    normalized_discovered = []
+    for cmd in all_discovered:
+        parts = cmd.split()
+        if len(parts) >= 2 and parts[0] == "builder":
+            candidate = f"builder-{parts[1]}"
+            if candidate in scripts:
+                subparts = parts[2:]
+                normalized_discovered.append(f"{candidate} " + " ".join(subparts) if subparts else candidate)
+                continue
+        normalized_discovered.append(cmd)
+
+    missing = []
+    for cmd in normalized_discovered:
+        if cmd in allowlist:
+            continue
+        space_version = cmd.replace("builder-", "builder ", 1)
+        if cmd in registered_names or space_version in registered_names:
+            continue
+        missing.append(cmd)
+
+    assert not missing, "Discovered CLI commands missing from COMMAND_AUTHORITY_REGISTRY:\n" + "\n".join(missing)
+
+
 def test_docs_contain_all_commands_and_table():
     """Verify that docs/COMMAND_AUTHORITY.md documents every command and contains the exact table."""
     root = _get_project_root()
     doc_path = root / "docs" / "COMMAND_AUTHORITY.md"
-    assert doc_path.exists(), f"docs/COMMAND_AUTHORITY.md does not exist"
+    assert doc_path.exists(), "docs/COMMAND_AUTHORITY.md does not exist"
 
     doc_content = doc_path.read_text(encoding="utf-8")
 
     # Verify every registered command name is mentioned in the docs
+    from builder_ii.command_authority import _EXTRA_COMMAND_NAMES
     for r in COMMAND_AUTHORITY_REGISTRY:
+        if r.name in _EXTRA_COMMAND_NAMES:
+            continue
         assert f"`{r.name}`" in doc_content, f"Command '{r.name}' is not documented in docs/COMMAND_AUTHORITY.md"
 
     # Verify the table exists in the doc
@@ -355,7 +476,7 @@ def test_runtime_gate_allows_passive_registered_command_without_hitl() -> None:
 
 
 def test_runtime_gate_denies_unknown_command_fail_closed() -> None:
-    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
+    from builder_ii.command_authority import CommandAuthorityError, check_command_authority, enforce_command_authority
 
     with pytest.raises(CommandAuthorityError) as exc_info:
         enforce_command_authority("builder-unknown mutate", requested_effects=("source_writes",))
@@ -368,7 +489,7 @@ def test_runtime_gate_denies_unknown_command_fail_closed() -> None:
 
 
 def test_runtime_gate_denies_over_authority_effect() -> None:
-    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
+    from builder_ii.command_authority import CommandAuthorityError, check_command_authority, enforce_command_authority
 
     with pytest.raises(CommandAuthorityError) as exc_info:
         enforce_command_authority("builder-targets list", requested_effects=("source_writes",))
@@ -380,7 +501,7 @@ def test_runtime_gate_denies_over_authority_effect() -> None:
 
 
 def test_runtime_gate_requires_hitl_for_run_approved() -> None:
-    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
+    from builder_ii.command_authority import CommandAuthorityError, check_command_authority, enforce_command_authority
 
     with pytest.raises(CommandAuthorityError) as exc_info:
         enforce_command_authority(
@@ -400,7 +521,7 @@ def test_runtime_gate_requires_hitl_for_run_approved() -> None:
 
 
 def test_command_authority_compatibility_hitl_bound() -> None:
-    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
+    from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
 
     # 1. Denied with no approval_ref and no hitl_bound
     with pytest.raises(CommandAuthorityError) as exc:

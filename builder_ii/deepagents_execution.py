@@ -15,7 +15,6 @@ from builder_ii.deepagents_work_artifacts import (
 )
 from builder_ii.target_profiles import target_names
 
-
 DEEPAGENTS_EXECUTION_CANDIDATE_KIND = "builder_ii.deepagents_execution_candidate"
 DEEPAGENTS_EXECUTION_APPROVAL_KIND = "builder_ii.deepagents_execution_approval"
 DEEPAGENTS_RUN_ENVELOPE_KIND = "builder_ii.deepagents_run_envelope"

@@ -5,8 +5,8 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from builder_ii.session_cli import session_app
 from builder_ii.goose_projection import GOOSE_PROJECTION_KIND
+from builder_ii.session_cli import session_app
 from builder_ii.session_config import SESSION_CONFIG_KIND
 
 runner = CliRunner()

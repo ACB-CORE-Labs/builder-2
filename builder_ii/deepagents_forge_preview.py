@@ -15,7 +15,6 @@ This module is generic-first and must not import CORE-specific modules.
 
 from __future__ import annotations
 
-import yaml
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -28,7 +27,6 @@ from builder_ii.deepagents_forge_schema import (
     is_valid_slug,
     validate_spec,
 )
-
 
 # ---------------------------------------------------------------------------
 # Write / Shell capability sets (mirrors forge_wizard)

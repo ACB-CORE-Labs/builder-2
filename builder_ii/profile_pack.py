@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.profile_pack_dry_run import PROFILE_PACK_DRY_RUN_KIND, validate_profile_pack_dry_run
-from builder_ii.profile_pack_manifest import PROFILE_PACK_MANIFEST_KIND, canonical_digest, validate_profile_pack_manifest
+from builder_ii.profile_pack_manifest import (
+    PROFILE_PACK_MANIFEST_KIND,
+    canonical_digest,
+    validate_profile_pack_manifest,
+)
 from builder_ii.profile_pack_render_plan import PROFILE_PACK_RENDER_PLAN_KIND, validate_profile_pack_render_plan
 from builder_ii.profile_pack_validation_report import (
     PROFILE_PACK_VALIDATION_REPORT_KIND,

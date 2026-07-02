@@ -6,13 +6,15 @@ from builder_ii.git_state import GIT_STATE_RECORD_KIND
 from builder_ii.promotion_compatibility import create_support_artifact_ref
 from builder_ii.promotion_decision_records import create_promotion_decision_record, validate_promotion_decision_record
 from builder_ii.promotion_readiness_cli import promotion_app
-from builder_ii.promotion_readiness_records import create_promotion_readiness_record, validate_promotion_readiness_record
-from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND
-from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND
+from builder_ii.promotion_readiness_records import (
+    create_promotion_readiness_record,
+    validate_promotion_readiness_record,
+)
 from builder_ii.readonly_inspection_reports import (
-    READONLY_INSPECTION_REPORT_KIND,
     create_readonly_inspection_report,
 )
+from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND
+from builder_ii.verification_profiles import VERIFICATION_ARTIFACT_KIND
 
 
 def _support_refs(target: str = "builder") -> list[dict]:

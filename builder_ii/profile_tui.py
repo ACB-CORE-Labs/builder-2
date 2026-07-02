@@ -32,12 +32,26 @@ from typing import Any
 
 from builder_ii.tui_contract import (
     builder_dir as _shared_builder_dir,
+)
+from builder_ii.tui_contract import (
     col as _shared_col,
+)
+from builder_ii.tui_contract import (
     explicit_lookup_miss as _shared_lookup_miss,
+)
+from builder_ii.tui_contract import (
     hex_ansi as _shared_hex_ansi,
-    lookup_matches as _shared_lookup_matches,
+)
+from builder_ii.tui_contract import (
     load_json_object as _shared_load_json_object,
+)
+from builder_ii.tui_contract import (
     load_palette,
+)
+from builder_ii.tui_contract import (
+    lookup_matches as _shared_lookup_matches,
+)
+from builder_ii.tui_contract import (
     row as _shared_row,
 )
 
@@ -198,9 +212,9 @@ LIFECYCLE_STAGES = [
 def _render_lifecycle(lifecycle: dict[str, Any]) -> None:
     print()
     print(f"  {_bold('Lifecycle stages')}")
-    stages = [s for s, _, _ in LIFECYCLE_STAGES]
+    [s for s, _, _ in LIFECYCLE_STAGES]
     flags = [lifecycle.get(s) for s, _, _ in LIFECYCLE_STAGES]
-    labels = [l for _, l, _ in LIFECYCLE_STAGES]
+    labels = [lbl for _, lbl, _ in LIFECYCLE_STAGES]
     required = [r for _, _, r in LIFECYCLE_STAGES]
 
     # Pipeline bar

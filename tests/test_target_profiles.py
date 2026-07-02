@@ -1,7 +1,13 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from builder_ii.target_profiles import build_target_profiles, render_target_profile, target_names, target_profile, validate_target_profiles
+from builder_ii.target_profiles import (
+    build_target_profiles,
+    render_target_profile,
+    target_names,
+    target_profile,
+    validate_target_profiles,
+)
 
 
 def _settings(tmp_path: Path):
@@ -71,8 +77,8 @@ def test_target_profile_to_artifact_dict(tmp_path: Path) -> None:
         TARGET_PROFILE_ARTIFACT_KIND,
         TARGET_PROFILE_SCHEMA_VERSION,
         validate_target_profile_artifact,
-        write_target_profile_artifact,
         validate_target_profile_artifact_file,
+        write_target_profile_artifact,
     )
     settings = _settings(tmp_path)
     profile = target_profile(settings, "builder")

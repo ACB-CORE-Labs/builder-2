@@ -1,9 +1,11 @@
-import json
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from builder_ii.config import Settings
 from builder_ii.goose_runtime_harness import GooseRuntimeHarness
+
 
 class MockSessionPlan:
     def __init__(self):
@@ -46,14 +48,14 @@ def test_goose_launch_enforces_read_only_env(
 
     plan = MockSessionPlan()
     harness = GooseRuntimeHarness(mock_settings, plan, tmp_path)
-    
+
     # Touch a file to simulate repo content
     (tmp_path / "README.md").write_text("hello", encoding="utf-8")
 
     launch_receipt = harness.launch_readonly()
     assert launch_receipt["kind"] == "builder_ii.goose_launch_receipt"
     assert launch_receipt["pid"] == 12345
-    
+
     # Verify environment restrictions and args
     mock_popen.assert_called_once()
     args, kwargs = mock_popen.call_args
@@ -87,11 +89,11 @@ def test_goose_mutation_detected_fails_postflight(
 
     plan = MockSessionPlan()
     harness = GooseRuntimeHarness(mock_settings, plan, tmp_path)
-    
+
     (tmp_path / "README.md").write_text("hello", encoding="utf-8")
 
     launch_receipt = harness.launch_readonly()
-    
+
     # Simulate a mutation (Goose edited the file)
     (tmp_path / "README.md").write_text("hello world", encoding="utf-8")
 

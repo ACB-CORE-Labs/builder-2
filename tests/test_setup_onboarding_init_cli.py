@@ -1,8 +1,8 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
+
 import pytest
 from typer.testing import CliRunner
 
@@ -11,7 +11,6 @@ from builder_ii.setup_cli import setup_app
 from builder_ii.setup_overlay import validate_setup_overlay_plan_file
 from builder_ii.setup_plan import validate_setup_plan_file
 from builder_ii.setup_rollback import validate_setup_rollback_snapshot_file
-
 
 runner = CliRunner()
 

@@ -7,8 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.model_client_registry import (
-    ALLOWED_COST_CLASSES,
-    ALLOWED_ENDPOINT_KINDS,
     ALLOWED_RISK_CLASSIFICATIONS,
     KNOWN_CLIENT_IDS,
     KNOWN_MODEL_IDS,
@@ -212,20 +210,20 @@ def create_model_routing_recommendation(
     req_max_risk = req.get("max_risk_classification", "local_network")
     if req_max_risk not in _RISK_HIERARCHY:
         raise ValueError(f"Unknown max_risk_classification in request: '{req_max_risk}'")
-    max_risk_num = _RISK_HIERARCHY[req_max_risk]
+    _RISK_HIERARCHY[req_max_risk]
     req_tools = req.get("requires_tool_use", False)
 
     # Validate explicit constraints against known universes before filtering
     from builder_ii.model_client_registry import MODEL_ALIASES
-    
+
     req_model_id = req.get("required_model_id")
     if req_model_id and req_model_id not in KNOWN_MODEL_IDS:
         raise ValueError(f"Unknown required_model_id: '{req_model_id}'")
-        
+
     req_alias = req.get("required_model_alias")
     if req_alias and req_alias not in MODEL_ALIASES:
         raise ValueError(f"Unknown required_model_alias: '{req_alias}'")
-        
+
     req_lane = req.get("required_lane")
     if req_lane and req_lane not in KNOWN_MODEL_IDS and req_lane not in MODEL_ALIASES:
         raise ValueError(f"Unknown required_lane (neither known model ID nor alias): '{req_lane}'")

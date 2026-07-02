@@ -8,7 +8,6 @@ from typing import Any
 from builder_ii.target_profiles import target_names
 from builder_ii.workflow_records import canonical_digest, file_ref
 
-
 MEMORY_ATOM_KIND = "builder_ii.memory_atom"
 MEMORY_INDEX_KIND = "builder_ii.memory_index"
 MEMORY_RECONSTRUCTION_KIND = "builder_ii.memory_reconstruction"

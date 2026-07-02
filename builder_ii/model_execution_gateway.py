@@ -7,16 +7,13 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.config import Settings
+from builder_ii.direct_chat import DirectChatResult, run_direct_chat
 from builder_ii.model_client_registry import (
-    KNOWN_CLIENT_IDS,
-    KNOWN_MODEL_IDS,
-    KNOWN_PROVIDER_IDS,
     validate_model_client_registry,
 )
 from builder_ii.model_routing_policy import (
     validate_model_execution_policy,
 )
-from builder_ii.direct_chat import run_direct_chat, DirectChatResult
 
 MODEL_CALL_ENVELOPE_KIND = "builder_ii.model_call_envelope"
 MODEL_CALL_ENVELOPE_SCHEMA_VERSION = 1
@@ -299,7 +296,7 @@ class ModelExecutionGateway:
         *,
         model_id: str,
         prompt: str,
-        system_prompt: str = None,
+        system_prompt: str | None = None,
         max_tokens: int = 256,
         temperature: float | None = None,
         envelope_path: Path,

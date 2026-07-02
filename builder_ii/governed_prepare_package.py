@@ -6,6 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.config import Settings
+from builder_ii.context_packs import (
+    CONTEXT_PACK_KIND,
+    create_context_pack,
+    validate_context_pack,
+)
 from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
     create_deepagents_bridge_readiness_report,
@@ -22,6 +27,12 @@ from builder_ii.handoff_notes import (
     create_handoff_note,
     validate_handoff_note,
 )
+from builder_ii.profile_resolution import ProfileResolver
+from builder_ii.repo_map import (
+    REPO_MAP_KIND,
+    create_repo_map,
+    validate_repo_map,
+)
 from builder_ii.session_workflow import (
     SESSION_WORKFLOW_PLAN_KIND,
     create_session_workflow_plan,
@@ -32,17 +43,6 @@ from builder_ii.verification_profile_reports import (
     create_verification_profile_report,
     validate_verification_profile_report,
 )
-from builder_ii.repo_map import (
-    REPO_MAP_KIND,
-    create_repo_map,
-    validate_repo_map,
-)
-from builder_ii.context_packs import (
-    CONTEXT_PACK_KIND,
-    create_context_pack,
-    validate_context_pack,
-)
-from builder_ii.profile_resolution import ProfileResolver
 
 GOVERNED_PREPARE_PACKAGE_KIND = "builder_ii.governed_prepare_package"
 GOVERNED_PREPARE_PACKAGE_SCHEMA_VERSION = 1

@@ -1,21 +1,18 @@
 from builder_ii.mcp_policy import (
-    validate_mcp_policy,
-    validate_mcp_envelope,
-    validate_mcp_receipt,
-    validate_mcp_inventory,
-    TOOL_POLICY_KIND,
-    MCP_POLICY_KIND,
-    TOOL_ENVELOPE_KIND,
-    MCP_ENVELOPE_KIND,
-    TOOL_RECEIPT_KIND,
-    MCP_RECEIPT_KIND,
-    TOOL_INVENTORY_KIND,
-    MCP_INVENTORY_KIND,
-    POLICY_SCHEMA_VERSION,
     ENVELOPE_SCHEMA_VERSION,
-    RECEIPT_SCHEMA_VERSION,
     INVENTORY_SCHEMA_VERSION,
+    POLICY_SCHEMA_VERSION,
+    RECEIPT_SCHEMA_VERSION,
+    TOOL_ENVELOPE_KIND,
+    TOOL_INVENTORY_KIND,
+    TOOL_POLICY_KIND,
+    TOOL_RECEIPT_KIND,
+    validate_mcp_envelope,
+    validate_mcp_inventory,
+    validate_mcp_policy,
+    validate_mcp_receipt,
 )
+
 
 def test_validate_mcp_policy_valid_tool():
     policy = {

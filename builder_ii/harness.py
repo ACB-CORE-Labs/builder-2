@@ -20,7 +20,6 @@ from pathlib import Path
 from builder_ii.config import Settings
 from builder_ii.routing import suite_for_module, suite_rationale
 
-
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------

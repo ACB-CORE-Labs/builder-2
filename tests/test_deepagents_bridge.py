@@ -5,8 +5,8 @@ from types import SimpleNamespace
 from typer.testing import CliRunner
 
 from builder_ii import deepagents_bridge
-from builder_ii.bridge_cli import bridge_app
 from builder_ii.agent_profiles import agent_profile_names, get_agent_profile
+from builder_ii.bridge_cli import bridge_app
 from builder_ii.deepagents_bridge import (
     REQUIRED_DENIED_TOOLS,
     bridge_spec_for,

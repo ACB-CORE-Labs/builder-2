@@ -1,4 +1,7 @@
-from builder_ii.promotion_readiness_records import create_promotion_readiness_record, validate_promotion_readiness_record
+from builder_ii.promotion_readiness_records import (
+    create_promotion_readiness_record,
+    validate_promotion_readiness_record,
+)
 
 
 def _ready_record() -> dict:

@@ -82,24 +82,24 @@ def validate_deepagents_bridge_readiness_report(report: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(report, dict):
         return ["deepagents bridge readiness report must be a JSON object"]
-    
+
     if report.get("kind") != DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND:
         errors.append(f"kind must be {DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND}")
     if report.get("schema_version") != DEEPAGENTS_BRIDGE_READINESS_REPORT_SCHEMA_VERSION:
         errors.append(f"schema_version must be {DEEPAGENTS_BRIDGE_READINESS_REPORT_SCHEMA_VERSION}")
-        
+
     if not isinstance(report.get("target_profile"), str) or not report.get("target_profile"):
         errors.append("target_profile must be a non-empty string")
-        
+
     if not isinstance(report.get("agent_profile_compatibility_summary"), str) or not report.get("agent_profile_compatibility_summary"):
         errors.append("agent_profile_compatibility_summary must be a non-empty string")
-        
+
     if report.get("optional_dependency_state") not in ("PRESENT", "ABSENT", "UNKNOWN"):
         errors.append("optional_dependency_state must be PRESENT, ABSENT, or UNKNOWN")
-        
+
     if report.get("bridge_mode") != "READINESS_ONLY":
         errors.append("bridge_mode must be READINESS_ONLY")
-        
+
     disabled_caps = report.get("disabled_capabilities")
     if not isinstance(disabled_caps, list):
         errors.append("disabled_capabilities must be a list")
@@ -109,7 +109,7 @@ def validate_deepagents_bridge_readiness_report(report: Any) -> list[str]:
                 errors.append(f"disabled_capabilities must include {cap}")
         if len(disabled_caps) != len(_DISABLED_CAPABILITIES):
             errors.append("disabled_capabilities contains unexpected items")
-            
+
     gates = report.get("required_promotion_gates")
     if not isinstance(gates, list):
         errors.append("required_promotion_gates must be a list")
@@ -119,10 +119,10 @@ def validate_deepagents_bridge_readiness_report(report: Any) -> list[str]:
                 errors.append(f"required_promotion_gates must include {gate}")
         if len(gates) != len(_REQUIRED_PROMOTION_GATES):
             errors.append("required_promotion_gates contains unexpected items")
-            
+
     if report.get("readiness_verdict") not in ("READY_FOR_DRY_RUN_SPEC", "BLOCKED_PENDING_HITL", "NOT_READY"):
         errors.append("readiness_verdict must be READY_FOR_DRY_RUN_SPEC, BLOCKED_PENDING_HITL, or NOT_READY")
-        
+
     governance = report.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
@@ -138,12 +138,12 @@ def validate_deepagents_bridge_readiness_report(report: Any) -> list[str]:
         ):
             if governance.get(key) != "DISABLED":
                 errors.append(f"governance.{key} must be DISABLED")
-                
+
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false")
         if governance.get("core_workbench_coupling") != "NONE":
             errors.append("governance.core_workbench_coupling must be NONE")
-            
+
     return errors
 
 

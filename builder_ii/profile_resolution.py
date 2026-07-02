@@ -1,32 +1,29 @@
 from __future__ import annotations
 
-import json as json_lib
-import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
+from builder_ii.agent_profiles import (
+    AgentProfile,
+    get_agent_profile,
+)
 from builder_ii.config import Settings
 from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT
 from builder_ii.target_profiles import (
-    TargetName,
-    TargetProfile,
-    target_profile,
-    target_names,
-    _GENERIC_CONTEXT_DEFAULTS,
     _BUILDER_CONTEXT_DEFAULTS,
     _CORE_CONTEXT_DEFAULTS,
-)
-from builder_ii.agent_profiles import (
-    AgentProfile,
-    AgentProfileName,
-    get_agent_profile,
+    _GENERIC_CONTEXT_DEFAULTS,
+    TargetName,
+    TargetProfile,
+    target_names,
+    target_profile,
 )
 from builder_ii.verification_profiles import (
     VerificationProfile,
-    VerificationProfileName,
     get_verification_profile,
 )
+
 
 class ProfileResolutionError(ValueError):
     """Base exception for profile resolution errors."""
@@ -103,11 +100,11 @@ class ResolutionResult:
 
     def to_dict(self) -> dict[str, Any]:
         from builder_ii.agent_profiles import create_agent_profile_record
-        
+
         t_profile_dict = self.target_profile.to_artifact_dict()
         t_profile_dict["repo"] = self.repo_path
         t_profile_dict["context_defaults"] = list(self.context_defaults)
-        
+
         return {
             "target_profile": t_profile_dict,
             "selected_agent_profile": create_agent_profile_record(
@@ -140,7 +137,7 @@ class ProfileResolver:
             profile = get_agent_profile(name)  # type: ignore[arg-type]
         except ValueError as exc:
             raise UnknownProfileError(str(exc)) from exc
-        
+
         if target_name not in profile.compatible_targets:
             raise ValidationError(
                 f"Agent profile '{name}' is not compatible with target '{target_name}'"
@@ -152,7 +149,7 @@ class ProfileResolver:
             profile = get_prompt_profile(name)
         except ValueError as exc:
             raise UnknownProfileError(str(exc)) from exc
-        
+
         if target_name not in profile.compatible_targets:
             raise ValidationError(
                 f"Prompt profile '{name}' is not compatible with target '{target_name}'"
@@ -164,7 +161,7 @@ class ProfileResolver:
             profile = get_verification_profile(name)  # type: ignore[arg-type]
         except ValueError as exc:
             raise UnknownProfileError(str(exc)) from exc
-        
+
         if target_name not in profile.compatible_targets:
             raise ValidationError(
                 f"Verification profile '{name}' is not compatible with target '{target_name}'"
@@ -182,11 +179,11 @@ class ProfileResolver:
     ) -> ResolutionResult:
         # 1. Resolve Target
         t_profile = self.resolve_target(target_name)
-        
+
         # Determine actual repo path and check directory existence
         resolved_repo_str = repo_path or str(t_profile.repo)
         resolved_repo_path = Path(resolved_repo_str).resolve()
-        
+
         if not resolved_repo_path.exists():
             raise MissingFileError(f"repository path does not exist: {resolved_repo_path}")
         if not resolved_repo_path.is_dir():

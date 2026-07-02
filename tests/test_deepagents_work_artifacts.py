@@ -7,31 +7,31 @@ from builder_ii.config import load_settings
 from builder_ii.deepagents_policy import create_deepagents_policy_artifact
 from builder_ii.deepagents_readiness import create_deepagents_readiness_artifact
 from builder_ii.deepagents_work_artifacts import (
-    DEEPAGENTS_WORK_PLAN_KIND,
+    DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND,
+    DEEPAGENTS_HUMAN_GATE_REQUEST_KIND,
+    DEEPAGENTS_PROPOSAL_RESULT_KIND,
     DEEPAGENTS_SUBAGENT_ASSIGNMENT_KIND,
     DEEPAGENTS_SUBAGENT_RESULT_KIND,
     DEEPAGENTS_SUBAGENT_REVIEW_KIND,
-    DEEPAGENTS_HUMAN_GATE_REQUEST_KIND,
-    DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND,
-    DEEPAGENTS_PROPOSAL_RESULT_KIND,
+    DEEPAGENTS_WORK_PLAN_KIND,
     DEEPAGENTS_WORK_VALIDATION_REPORT_KIND,
-    create_deepagents_work_plan,
+    create_deepagents_blocked_action_record,
+    create_deepagents_human_gate_request,
+    create_deepagents_proposal_result,
     create_deepagents_subagent_assignment,
     create_deepagents_subagent_result,
     create_deepagents_subagent_review,
-    create_deepagents_human_gate_request,
-    create_deepagents_blocked_action_record,
-    create_deepagents_proposal_result,
+    create_deepagents_work_plan,
     create_deepagents_work_validation_report,
-    validate_deepagents_work_plan,
+    validate_deepagents_blocked_action_record,
+    validate_deepagents_human_gate_request,
+    validate_deepagents_proposal_result,
     validate_deepagents_subagent_assignment,
     validate_deepagents_subagent_result,
     validate_deepagents_subagent_review,
-    validate_deepagents_human_gate_request,
-    validate_deepagents_blocked_action_record,
-    validate_deepagents_proposal_result,
-    validate_deepagents_work_validation_report,
+    validate_deepagents_work_plan,
     validate_deepagents_work_plan_file,
+    validate_deepagents_work_validation_report,
     write_deepagents_work_plan,
 )
 from tests.orchestration_assignment_fixtures import build_goal2_assignment_fixture
@@ -404,6 +404,7 @@ def test_work_validation_report(tmp_path: Path) -> None:
 
 def test_deepagents_work_cli(tmp_path: Path) -> None:
     from typer.testing import CliRunner
+
     from builder_ii.deepagents_cli import deepagents_app
 
     runner = CliRunner()
@@ -715,10 +716,14 @@ def test_deepagents_chain_verification(tmp_path: Path) -> None:
 def test_deepagents_artifact_index_and_chain_resolution(tmp_path: Path) -> None:
     from builder_ii.artifact_chain_verification import (
         VALIDATORS as CHAIN_VALIDATORS,
+    )
+    from builder_ii.artifact_chain_verification import (
         verify_artifact_chain,
     )
     from builder_ii.artifact_index_records import (
         _VALIDATORS as INDEX_VALIDATORS,
+    )
+    from builder_ii.artifact_index_records import (
         create_artifact_index_record,
     )
 
@@ -854,13 +859,13 @@ def test_deepagents_artifact_index_and_chain_resolution(tmp_path: Path) -> None:
 def test_deepagents_command_authority() -> None:
     from builder_ii.command_authority import (
         COMMAND_AUTHORITY_REGISTRY,
-        TIER_4,
-        TIER_1,
+        STATE_ARTIFACT_ONLY,
         STATE_FORBIDDEN_UNPROMOTED,
         STATE_HITL_RUNTIME_CANDIDATE,
         STATE_VALIDATION_ONLY,
-        STATE_ARTIFACT_ONLY,
+        TIER_1,
         TIER_3,
+        TIER_4,
     )
 
     expected_cmds = {

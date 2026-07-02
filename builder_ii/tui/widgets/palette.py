@@ -9,11 +9,10 @@ from __future__ import annotations
 from typing import Any
 
 from textual.app import ComposeResult
-from textual.containers import Vertical, ScrollableContainer
+from textual.binding import Binding
+from textual.containers import ScrollableContainer, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Input, Static
-from textual.binding import Binding
-
 
 # ── Tier display info ────────────────────────────────────────────────
 
