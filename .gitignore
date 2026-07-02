@@ -9,3 +9,6 @@ scratch/
 .builder/
 dist/
 
+# Rust build artifacts
+target/
+**/target/

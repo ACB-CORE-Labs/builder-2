@@ -18,6 +18,9 @@ from builder_ii.context_pack import (
     validate_context_pack_record,
     validate_context_pack_record_file,
 )
+from builder_ii.context_summarizer import summarize_context_pack, validate_context_summary
+import json as json_lib
+
 
 
 context_app = typer.Typer(help="Build task-scoped context packs for local agents.")
@@ -148,3 +151,33 @@ def validate(path: Path = typer.Argument(..., help="Path to context pack record 
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     console.print(f"Context pack record {path} is valid.")
+
+
+@context_app.command("summarize")
+def summarize(
+    context_pack: Path = typer.Option(..., "--context-pack", help="Path to context pack record JSON"),
+    model: str = typer.Option("gpt-4o-stub", "--model", help="Model ID to run context compression"),
+    output: Path | None = typer.Option(None, "--output", help="Write JSON summary artifact to path"),
+) -> None:
+    """Run model-backed summarization/compression over a repository context pack."""
+    try:
+        summary_artifact = summarize_context_pack(
+            context_pack_record_path=context_pack,
+            model_id=model,
+            output_summary_path=output,
+        )
+    except Exception as e:
+        console.print(f"[red]Failed to summarize context pack: {e}[/]")
+        raise typer.Exit(1)
+
+    errors = validate_context_summary(summary_artifact)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Summary validation error: {error}[/]")
+        raise typer.Exit(1)
+
+    if output is not None:
+        console.print(f"Context summary written to {output}")
+    else:
+        console.out(json_lib.dumps(summary_artifact, indent=2, sort_keys=True) + "\n", end="")
+
