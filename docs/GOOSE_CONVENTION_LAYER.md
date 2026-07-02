@@ -186,3 +186,72 @@ I still own execution authority.
 ```
 
 That is the convention layer standard.
+
+
+## Governed Goose Launcher & Environment Derivation
+
+builder-II provides a canonical, governed environment launcher for Codename Goose. Instead of running a naked `goose session` or requiring a persistent `goose configure` setup, builder-II automatically derives a governed Goose provider/model environment from the project `.env` and `Settings`.
+
+### Optional Native Setup
+`goose configure` remains fully supported for optional, persistent native Goose configuration, but is not required. If builder-II finds valid keys and endpoints in `.env` / settings, it projects these automatically.
+
+### Key Derivation and Environment Variables
+Modern Goose environment variables and compatibility mappings are resolved deterministically, while preventing secret leakages in diagnostics and logs:
+- `GOOSE_PROVIDER` & `GOOSE_PROVIDER__TYPE`: Maps to the provider name (e.g. `openai`, `anthropic`, `ollama`).
+- `GOOSE_MODEL`: Mapped from the active model alias.
+- `GOOSE_TEMPERATURE`: Mapped from `Settings.temperature`.
+- `GOOSE_FAST_MODEL`: Resolved automatically from the active backend's fast-tier model mapping (if configured).
+- `GOOSE_PROVIDER__HOST` & `GOOSE_PROVIDER__API_KEY`: Sets modern Goose variables.
+- Legacy Compatibility Aliases: Preserves variables like `OPENAI_API_KEY`, `OPENAI_HOST`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `XAI_API_KEY` for backwards compatibility.
+
+### Launch Readiness & STRATUM Integration
+Both `builder start` and STRATUM TUI Goose launch use the exact same canonical Goose launcher (`launch_goose_session`).
+
+1. Before launching, a redacted configuration preview is shown.
+2. If keys or endpoints cannot be derived, builder-II blocks launch and displays a controlled diagnostic:
+   > "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
+
+### Example Environment Configurations
+
+#### Local MLX (Default)
+```env
+BUILDER_MODEL_BACKEND=mlx-lm
+BUILDER_MODEL_ALIAS=qwen-coder
+BUILDER_MODEL_BASE_URL=http://127.0.0.1:8080/v1
+```
+
+#### OpenAI
+```env
+BUILDER_MODEL_BACKEND=openai
+BUILDER_MODEL_ALIAS=gpt-4o
+OPENAI_API_KEY=sk-...
+```
+
+#### Anthropic
+```env
+BUILDER_MODEL_BACKEND=anthropic
+BUILDER_MODEL_ALIAS=claude-sonnet-5
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+#### Groq
+```env
+BUILDER_MODEL_BACKEND=groq
+BUILDER_MODEL_ALIAS=groq-llama
+GROQ_API_KEY=gsk_...
+```
+
+#### xAI
+```env
+BUILDER_MODEL_BACKEND=xai
+BUILDER_MODEL_ALIAS=grok-beta
+XAI_API_KEY=xai-...
+```
+
+#### Gemini / Google Cloud Vertex AI
+```env
+BUILDER_MODEL_BACKEND=google
+BUILDER_MODEL_ALIAS=gemini-3.5-flash
+# Optional: direct API key or uses local gcloud Application Default Credentials / OAuth
+GEMINI_API_KEY=AIzaSy...
+```
