@@ -287,7 +287,7 @@ class ForgeScreen(Screen):
             return
 
         if button_id == "btn-next":
-            if self._emitted:
+            if self._emitted or str(event.button.label) == "Done":
                 self.app.exit(result=self.wizard.spec)
                 return
 
