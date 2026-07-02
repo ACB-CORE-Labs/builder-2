@@ -632,9 +632,15 @@ try:
         """Capability gate grid."""
         from builder_ii.capabilities import capability_gates
         from builder_ii.config import load_settings
-        from builder_ii.command_authority import enforce_command_authority
-        effects = ("external_tool",) + (("model_execution",) if chat else ())
-        enforce_command_authority("builder tui gates", requested_effects=effects)
+        from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
+        try:
+            enforce_command_authority(
+                "builder tui gates",
+                requested_effects=("model_execution",) if chat else (),
+            )
+        except CommandAuthorityError as exc:
+            render_errors([str(exc)], title="command authority")
+            raise _typer.Exit(1) from None
         render_header(subtitle="capability gates")
         settings = load_settings()
         gates = capability_gates(settings, run_chat_smoke=chat)

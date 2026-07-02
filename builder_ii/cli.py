@@ -77,7 +77,7 @@ app.add_typer(tui_promote_app, name="promote")
 app.add_typer(tui_postflight_app, name="postflight")
 app.add_typer(tui_goose_app, name="goose")
 if builder_tui_app is not None:
-    app.add_typer(builder_tui_app, name="inspect")
+    app.add_typer(builder_tui_app, name="tui")
 
 try:
     from builder_ii.tui.app import StratumApp
@@ -128,18 +128,6 @@ def _ensure_backend(settings, no_backend: bool) -> None:
     raise typer.Exit(1)
 
 
-@app.command("tui")
-def tui() -> None:
-    """Launch STRATUM: The Builder-II Operator TUI."""
-    enforce_command_authority("builder tui")
-    if not HAS_TUI:
-        console.print("[red]TUI dependencies not found.[/] Run [bold]uv sync[/] to install textual.")
-        raise typer.Exit(1)
-    
-    tui_app = StratumApp()
-    tui_app.run()
-
-
 @app.command("setup")
 def setup() -> None:
     """Legacy compatibility wrapper for the governed R1 setup path."""
@@ -148,10 +136,10 @@ def setup() -> None:
     raise typer.Exit(1)
 
 
-@app.command("tui")
-def tui() -> None:
+@app.command("stratum")
+def stratum() -> None:
     """Launch STRATUM: The Builder-II Operator TUI."""
-    enforce_command_authority("builder tui")
+    enforce_command_authority("builder stratum")
     if not HAS_TUI:
         console.print("[red]TUI dependencies not found.[/] Run [bold]uv sync[/] to install textual.")
         raise typer.Exit(1)

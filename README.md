@@ -154,6 +154,39 @@ builder-II treats local and future remote models as model/provider adapters.
 
 Models may help reason, propose, review, plan, summarize, and explain. They must not silently become approvers, verifiers, command authorities, patch appliers, or promotion engines. Future model routing begins as policy and artifact metadata before it becomes execution behavior.
 
+## deepagents Forge
+
+deepagents Forge is builder-II's interactive creation surface for defining new deepagents without hand-authoring raw YAML. It walks the operator through identity, persona, target profile, capabilities, HITL gates, context, governance, and preview — then emits a governed agent profile in one shot.
+
+Key properties:
+
+- Interactive Textual TUI and headless CLI mode (`--non-interactive`).
+- Governance-first: write and shell capabilities require explicit HITL gates before the governance check passes.
+- Dry-run safe: `--dry-run` previews the full spec, governance checklist, and profile diff without writing anything.
+- Generic-first design: works for any repo; CORE is a target profile, not platform identity.
+- Additive: wraps existing `deepagents_bridge` and `agent_profiles` surfaces without replacing them.
+
+```bash
+# Interactive TUI wizard
+builder-deepagents forge
+
+# Pre-seed name and target profile
+builder-deepagents forge --name pr_reviewer --profile core
+
+# Preview only — no writes
+builder-deepagents forge --dry-run
+
+# Headless / CI mode
+builder-deepagents forge \
+  --non-interactive \
+  --name test_writer \
+  --persona "You are an agent that writes tests." \
+  --output-artifact artifacts/test_writer/ \
+  --rollback-path rollback/test_writer/
+```
+
+See [`docs/DEEPAGENTS_FORGE.md`](docs/DEEPAGENTS_FORGE.md) for the full guide.
+
 ## Supported Models & Execution Backends
 
 `builder-II` stands out by deeply integrating a robust, native registry of over 25+ models across diverse local and cloud execution backends. Unlike generic AI coding tools, `builder-II` classifies, routes, and sandboxes these models through a strict governance gateway to ensure mechanical sympathy and predictable artifact outcomes.
@@ -207,6 +240,7 @@ The builder convention layer should track Goose's official docs as Goose evolves
 | [`docs/GOOSE_INSPECTION.md`](docs/GOOSE_INSPECTION.md) | Bounded read-only inspection artifacts for explicit operator-requested files. |
 | [`docs/DEEPAGENTS_POLICY.md`](docs/DEEPAGENTS_POLICY.md) | Governed deepagents policy artifacts; no agent construction. |
 | [`docs/DEEPAGENTS_READINESS.md`](docs/DEEPAGENTS_READINESS.md) | Optional deepagents bridge readiness reports; no runtime authority. |
+| [`docs/DEEPAGENTS_FORGE.md`](docs/DEEPAGENTS_FORGE.md) | Interactive deepagents Forge wizard: creation flow, governance model, CLI usage, and design boundaries. |
 | [`docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md`](docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md) | Design-only seam for Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated external capability surface. |
 | [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) | Capability promotion states and non-authority rule. |
 | [`docs/RUNTIME_PROMOTION.md`](docs/RUNTIME_PROMOTION.md) | Runtime-specific promotion gates for Goose, deepagents, commands, and patches. |
@@ -284,6 +318,7 @@ Canonical governed passive lanes include:
 - External tool registry via `builder-tools`
 - Optional external tool installer via `scripts/install-tools.sh`
 - Repomix-backed context manifests via `builder-context`
+- **deepagents Forge** — interactive governed agent creation wizard via `builder-deepagents forge`
 
 ## Recommended model lanes
 

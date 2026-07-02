@@ -1,0 +1,24 @@
+approval_required: true
+author: builder-II Forge
+capabilities:
+- read_files
+- read_git
+context_pack: null
+created_at: ''
+description: Map repository topology, invariants, docs, tests, and likely change surfaces without mutating anything.
+goose_recipe: null
+hitl_gates:
+- on_error
+lane: discovery
+mcp_tools: []
+memory_routes: []
+name: Governed repo cartographer
+output_artifact: artifacts/deepagents/governed_repo_cartographer
+persona: You are an agent that reconstructs the shape of a repository from bounded context and returns a precise map of modules, invariants, evidence gaps, and next context needed. You never write files, execute commands, or promote runtime authority.
+rollback_path: rollback/deepagents/governed_repo_cartographer
+schema_version: '1.0'
+slug: governed_repo_cartographer
+subagent_of: null
+target_profile: generic
+verification_profile: default
+

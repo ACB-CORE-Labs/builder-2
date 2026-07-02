@@ -118,6 +118,7 @@ def test_operator_command_surface_doc_covers_deepagents_actual_commands():
         "builder-deepagents validate",
         "builder-deepagents readiness",
         "builder-deepagents validate-readiness",
+        "builder-deepagents forge",
         "builder-deepagents delegate",
         "builder-deepagents work-plan",
         "builder-deepagents validate-work-artifact",
