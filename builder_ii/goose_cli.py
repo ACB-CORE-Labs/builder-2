@@ -318,3 +318,32 @@ def close_readonly(
     console.print("close-readonly is automatically handled by start-readonly termination.")
     console.print("If a session was forcefully detached, it must be killed manually and postflight is invalid.")
 
+
+@goose_app.command("env")
+def env_cmd() -> None:
+    """Print redacted Goose launch environment report."""
+    from builder_ii.goose_launcher import derive_goose_environment
+    settings = load_settings()
+    _, report = derive_goose_environment(settings)
+    console.print(f"selected backend: {report['selected_backend']}")
+    console.print(f"selected model alias: {report['selected_model_alias']}")
+    console.print(f"Goose provider: {report['goose_provider']}")
+    console.print(f"Goose model: {report['goose_model']}")
+    console.print(f"provider host: {report['provider_host']}")
+    console.print(f"key present: {report['key_present']}")
+    console.print(f"recipe path: {report['recipe_path']}")
+    console.print(f"MOIM file: {report['moim_file']}")
+    console.print(f"whether launch is ready: {'yes' if report['launch_ready'] else 'no'}")
+
+
+@goose_app.command("status")
+def status_cmd(
+    env_flag: bool = typer.Option(False, "--env", help="Print redacted environment report")
+) -> None:
+    """Print Goose status or environment report."""
+    if env_flag:
+        env_cmd()
+    else:
+        from builder_ii.goose_launcher import goose_status
+        console.print(goose_status())
+

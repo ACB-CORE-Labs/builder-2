@@ -462,40 +462,49 @@ class StratumApp(App[None]):
         self._verify_current_chain()
 
     def action_launch_goose(self) -> None:
-        import os
-        import json
+        from builder_ii.goose_launcher import derive_goose_environment, launch_goose_session
+        from datetime import datetime
 
-        env_vars = ""
-        config_path = self.artifacts_dir / "session_config.json"
-        if config_path.exists():
-            try:
-                config = json.loads(config_path.read_text())
-                model = config.get("primary_model")
-                if model:
-                    provider = "openai"
-                    if "claude" in model.lower():
-                        provider = "anthropic"
-                    elif "gemini" in model.lower():
-                        provider = "google"
-
-                    env_vars = f"GOOSE_PROVIDER={provider} GOOSE_MODEL={model} "
-            except Exception:
-                pass
+        try:
+            actual_env, report = derive_goose_environment(self.settings)
+        except Exception as e:
+            with self.suspend():
+                print("\n" + "="*50)
+                print(f"Error deriving Goose environment: {e}")
+                print("No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure.")
+                print("="*50 + "\n")
+                input("Press Enter to return to STRATUM...")
+            return
 
         with self.suspend():
             print("\n" + "="*50)
-            if env_vars:
-                print(f"Launching Goose with dynamically injected model: {model}...")
-            else:
-                print("Launching Goose Session (governed context)...")
+            print("Goose Launch Configuration (Governed):")
+            print(f"  Selected Backend   : {report['selected_backend']}")
+            print(f"  Selected Model     : {report['selected_model_alias']}")
+            print(f"  Goose Provider     : {report['goose_provider']}")
+            print(f"  Goose Model        : {report['goose_model']}")
+            print(f"  Provider Host      : {report['provider_host']}")
+            print(f"  Key Present        : {report['key_present']}")
+            print(f"  Recipe Path        : {report['recipe_path']}")
+            print(f"  MOIM File          : {report['moim_file']}")
+            print(f"  Launch Ready       : {'Yes' if report['launch_ready'] else 'No'}")
             print("="*50 + "\n")
+
+            if not report['launch_ready']:
+                print("No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure.")
+                input("\nPress Enter to return to STRATUM...")
+                return
+
+            print("Launching Goose Session...")
             try:
-                ret = os.system(f"{env_vars}goose session")
+                proc = launch_goose_session(self.settings)
+                ret = proc.wait()
                 if ret != 0:
                     print(f"\n[Goose exited with code {ret}]")
                     input("Press Enter to return to STRATUM...")
             except Exception as e:
                 print(f"Error launching goose: {e}")
+                print("No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure.")
                 input("Press Enter to return to STRATUM...")
 
         if self.stratum:
