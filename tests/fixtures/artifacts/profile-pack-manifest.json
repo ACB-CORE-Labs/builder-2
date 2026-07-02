@@ -1,0 +1,462 @@
+{
+  "areas": [
+    {
+      "area": "target_profiles",
+      "entries": [
+        {
+          "area": "target_profiles",
+          "authority_classification": "spec_only",
+          "content_hash": "7b0129ce6c72b9d852d8b476d4ed11a574b25dd0f20cce8ef3b13ecfee0cf6f1",
+          "description": "References generic, builder, and core target profile definitions.",
+          "id": "target-profile-bundle",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "core_specific_behavior_scope": "core target profile only",
+            "supported_targets": [
+              "generic",
+              "builder",
+              "core"
+            ]
+          },
+          "profile_kind": "target_profile",
+          "source_refs": [
+            {
+              "kind": "module",
+              "path": "builder_ii/target_profiles.py",
+              "required": true,
+              "sha256": "b67a8fe2cd6bd3d6455dc86555ebf7eab1cb9629e4e1df5d381aafb9d675aa3b"
+            }
+          ],
+          "title": "Target profile bundle"
+        }
+      ]
+    },
+    {
+      "area": "agent_profiles",
+      "entries": [
+        {
+          "area": "agent_profiles",
+          "authority_classification": "profile_spec_only",
+          "content_hash": "654fe51da77120419a1b5a1f95185bba24ebaf378b79a4729f89452cc6c7f14e",
+          "description": "Static agent role contracts rendered without runtime activation.",
+          "id": "generic-agent-profile-bundle",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "constructs_agents": false,
+            "renders_profiles": true
+          },
+          "profile_kind": "agent_profile",
+          "source_refs": [
+            {
+              "kind": "module",
+              "path": "builder_ii/agent_profiles.py",
+              "required": true,
+              "sha256": "d935c4ab9cd21357d070b7d082a56ddcb32d22327eeaab672a868c6105cadf6f"
+            }
+          ],
+          "title": "Generic agent profile bundle"
+        }
+      ]
+    },
+    {
+      "area": "subagent_profiles",
+      "entries": [
+        {
+          "area": "subagent_profiles",
+          "authority_classification": "profile_spec_only",
+          "content_hash": "e1caf60cb8df9b81f163ed8695e554a39627f8cfcf554ee6a90780a9e78b0846",
+          "description": "Subagents remain profile contracts and never runtime actors in this pack.",
+          "id": "passive-subagent-profile-contract",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "constructs_subagents": false,
+            "delegates": false,
+            "runtime_binding": "UNBOUND"
+          },
+          "profile_kind": "subagent_profile",
+          "source_refs": [
+            {
+              "kind": "doc",
+              "path": "docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md",
+              "required": true,
+              "sha256": "11eff4a8ac246c82903d2a0e61b3db54e18e16fd019805951f18655a63135beb"
+            }
+          ],
+          "title": "Passive subagent profile contract"
+        }
+      ]
+    },
+    {
+      "area": "task_profiles",
+      "entries": [
+        {
+          "area": "task_profiles",
+          "authority_classification": "plan_only",
+          "content_hash": "964bb83aeab10f5ad3789477db32f42fc5010527ef38024bd85b2150e063bf86",
+          "description": "Task profiles organize intent and expected artifacts without executing work.",
+          "id": "task-profile-planning-contract",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "executes_tasks": false,
+            "task_state": "PLANNED_ONLY"
+          },
+          "profile_kind": "task_profile",
+          "source_refs": [
+            {
+              "kind": "module",
+              "path": "builder_ii/session_workflow.py",
+              "required": true,
+              "sha256": "b539b08fc4d0d24b5c8a6b3ffd2fc98f9a902aa1f27d0fabaee6ed0958139b87"
+            }
+          ],
+          "title": "Task profile planning contract"
+        }
+      ]
+    },
+    {
+      "area": "tool_profiles",
+      "entries": [
+        {
+          "area": "tool_profiles",
+          "authority_classification": "denied_by_default",
+          "content_hash": "4b2224f5c3c193be51c4544c131f2fcb06f636164b1a8d28137459f14078f50d",
+          "description": "Tool profiles are declarations; all tool use is denied unless separately promoted.",
+          "id": "deny-by-default-tool-profile",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "allowed_tools": [],
+            "default_policy": "denied",
+            "denied_actions": [
+              "shell_execution",
+              "source_writes",
+              "model_execution",
+              "runtime_start",
+              "mcp_tool_call"
+            ]
+          },
+          "profile_kind": "tool_profile",
+          "source_refs": [
+            {
+              "kind": "doc",
+              "path": "docs/COMMAND_AUTHORITY.md",
+              "required": true,
+              "sha256": "ca9a46874d664048ef0cb586fd4586d7369d01dc4b266b306eefef5e2420f4c0"
+            }
+          ],
+          "title": "Deny-by-default tool profile"
+        }
+      ]
+    },
+    {
+      "area": "context_definitions",
+      "entries": [
+        {
+          "area": "context_definitions",
+          "authority_classification": "spec_only",
+          "content_hash": "56830b78264b6a201d86cd80ba0ac90eb1b8b9e9276d94639995934f47ca78e7",
+          "description": "Context definitions describe bounded context artifacts without proving correctness.",
+          "id": "context-definition-contract",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "artifact_is_proof": false,
+            "reads_source_for_context": false
+          },
+          "profile_kind": "context_definition",
+          "source_refs": [
+            {
+              "kind": "module",
+              "path": "builder_ii/context_packs.py",
+              "required": true,
+              "sha256": "9c62328290dfc11392e52f954f9f2fb33da032ddc840a73f45435f76e93a3070"
+            }
+          ],
+          "title": "Context definition contract"
+        }
+      ]
+    },
+    {
+      "area": "verification_profiles",
+      "entries": [
+        {
+          "area": "verification_profiles",
+          "authority_classification": "plan_only",
+          "content_hash": "73e49c466050b7844e230cc323a9353aa9ad88ccfe89a70b062c2dc648a96210",
+          "description": "Verification profiles propose commands and evidence requirements only.",
+          "id": "verification-profile-contract",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "executes_commands": false,
+            "verification_status": "NOT_RUN"
+          },
+          "profile_kind": "verification_profile",
+          "source_refs": [
+            {
+              "kind": "module",
+              "path": "builder_ii/verification_profiles.py",
+              "required": true,
+              "sha256": "ca79c0cbbd60dbc7f4f60273de176368fc161243efab4d8d0dceb54ca99f4687"
+            }
+          ],
+          "title": "Verification profile contract"
+        }
+      ]
+    },
+    {
+      "area": "approval_policies",
+      "entries": [
+        {
+          "area": "approval_policies",
+          "authority_classification": "policy_stub_only",
+          "content_hash": "afa481c5452ed47602ab671a17ad10f8ee1a1b0f414cd7e0363d92135b24e293",
+          "description": "Approval policies describe required human gates without granting approval.",
+          "id": "approval-policy-contract",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "approval_state": "NOT_GRANTED",
+            "grants_authority": false
+          },
+          "profile_kind": "approval_policy",
+          "source_refs": [
+            {
+              "kind": "doc",
+              "path": "docs/CAPABILITY_PROMOTION.md",
+              "required": true,
+              "sha256": "e5e885d991967d49cdc5c867befd9b8202f88dcc76720e5de5195dda8d129e67"
+            }
+          ],
+          "title": "Approval policy contract"
+        }
+      ]
+    },
+    {
+      "area": "goose_projection_stubs",
+      "entries": [
+        {
+          "area": "goose_projection_stubs",
+          "authority_classification": "projection_stub_only",
+          "content_hash": "66af9f76bce1484469fb33409f259402313b26d6cd95ee5deb4bb2d49b4ca017",
+          "description": "Goose projection data is rendered as planned-only configuration.",
+          "id": "goose-projection-stub",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "runtime_execution": "DISABLED",
+            "starts_goose": false
+          },
+          "profile_kind": "goose_projection_stub",
+          "source_refs": [
+            {
+              "kind": "module",
+              "path": "builder_ii/goose_projection.py",
+              "required": true,
+              "sha256": "42fb59ff6c8ec747d1c064964adeb3c4375ad2e67e34dddae13512a1ea601521"
+            }
+          ],
+          "title": "Goose projection stub"
+        }
+      ]
+    },
+    {
+      "area": "deepagents_projection_stubs",
+      "entries": [
+        {
+          "area": "deepagents_projection_stubs",
+          "authority_classification": "projection_stub_only",
+          "content_hash": "82c0b1ae63ccb511ec507c2f5043c3933b7783303c5f011af398e9ba65678aa1",
+          "description": "deepagents projection data never constructs agents or delegates work.",
+          "id": "deepagents-projection-stub",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "constructs_agents": false,
+            "constructs_subagents": false,
+            "delegates": false
+          },
+          "profile_kind": "deepagents_projection_stub",
+          "source_refs": [
+            {
+              "kind": "doc",
+              "path": "docs/DEEPAGENTS_POLICY.md",
+              "required": true,
+              "sha256": "50d365fd27885bbb40a51cd97289448d6829c2a1177e603ebc04d3039f302355"
+            }
+          ],
+          "title": "deepagents projection stub"
+        }
+      ]
+    },
+    {
+      "area": "mcp_inventory_policy_stubs",
+      "entries": [
+        {
+          "area": "mcp_inventory_policy_stubs",
+          "authority_classification": "inventory_stub_only",
+          "content_hash": "3e6c38d21693ad4108d092188da7d79a8116766923993cee408650d16964e574",
+          "description": "MCP inventory is a passive policy precursor and never calls tools.",
+          "id": "mcp-inventory-stub",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "calls_tools": false,
+            "connects_to_mcp": false,
+            "default_policy": "denied",
+            "fetches_resources": false,
+            "sampling": "disabled",
+            "stub_only": true
+          },
+          "profile_kind": "mcp_inventory_stub",
+          "source_refs": [
+            {
+              "kind": "doc",
+              "path": "docs/plan/MCP_TOOL_INVENTORY_RFC.md",
+              "required": true,
+              "sha256": "28c1e88a06f28f4f264ca5883478ff9ca618778d803cb0333fc86022616d7c10"
+            }
+          ],
+          "title": "MCP inventory stub"
+        },
+        {
+          "area": "mcp_inventory_policy_stubs",
+          "authority_classification": "policy_stub_only",
+          "content_hash": "6dec1e26707db58c85797b6e72aada60dde7d366324de9be5f38209fbe9df001",
+          "description": "MCP policy remains deny-by-default metadata without invocation authority.",
+          "id": "mcp-policy-stub",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "calls_tools": false,
+            "connects_to_mcp": false,
+            "default_policy": "denied",
+            "fetches_resources": false,
+            "sampling": "disabled",
+            "stub_only": true
+          },
+          "profile_kind": "mcp_policy_stub",
+          "source_refs": [
+            {
+              "kind": "doc",
+              "path": "docs/plan/MCP_POLICY_ARTIFACT_RFC.md",
+              "required": true,
+              "sha256": "63031e1358ff883d668d2bbb752b4be8e705229821030d2efcc687b973593cd2"
+            }
+          ],
+          "title": "MCP policy stub"
+        }
+      ]
+    },
+    {
+      "area": "handoff_profiles",
+      "entries": [
+        {
+          "area": "handoff_profiles",
+          "authority_classification": "handoff_only",
+          "content_hash": "468315c5abc71dc9bacb6637a9108f520a1d128e0f46601944491644ba8cc902",
+          "description": "Handoff profiles preserve continuity without claiming verification evidence.",
+          "id": "handoff-profile-contract",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "claims_verification_evidence": false,
+            "verification_claim": "NOT_CLAIMED"
+          },
+          "profile_kind": "handoff_profile",
+          "source_refs": [
+            {
+              "kind": "module",
+              "path": "builder_ii/handoff_notes.py",
+              "required": true,
+              "sha256": "60b0c4d6543b1b5d2f06d08a187d07b5f57464c9f529ef677ce3f43e8922178a"
+            }
+          ],
+          "title": "Handoff profile contract"
+        }
+      ]
+    },
+    {
+      "area": "packs",
+      "entries": [
+        {
+          "area": "packs",
+          "authority_classification": "artifact_only",
+          "content_hash": "b88d027c463bb504eef6c7de5dec8281a625aa68cc891a931517bc4f8f1ca6aa",
+          "description": "Pack lifecycle artifacts remain passive, deterministic, and reviewable.",
+          "id": "profile-pack-lifecycle",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "artifact_is_authority": false,
+            "lifecycle": "passive_only"
+          },
+          "profile_kind": "pack",
+          "source_refs": [
+            {
+              "kind": "doc",
+              "path": "docs/ARTIFACT_INDEX.md",
+              "required": true,
+              "sha256": "788d63176ee4727821235a882a2344c75c880a14c150db9a897df042773bf7d6"
+            }
+          ],
+          "title": "Profile pack lifecycle"
+        }
+      ]
+    },
+    {
+      "area": "model_policies",
+      "entries": [
+        {
+          "area": "model_policies",
+          "authority_classification": "policy_stub_only",
+          "content_hash": "2745a3f0b38621aaacf9cd680fbdbfa3cf373d4c6bdc961533ee9c327fd41a2e",
+          "description": "Model policy metadata never calls models or routes requests by itself.",
+          "id": "model-policy-stub",
+          "lifecycle_state": "PLANNED_ONLY",
+          "payload": {
+            "calls_models": false,
+            "model_execution": "DISABLED"
+          },
+          "profile_kind": "model_policy_stub",
+          "source_refs": [
+            {
+              "kind": "doc",
+              "path": "docs/model_operating_policy.md",
+              "required": true,
+              "sha256": "eb3e4bc9ac0fb61a28aaa19a35bcd46c4391c2e6498259584edecf6facb7400d"
+            }
+          ],
+          "title": "Model policy stub"
+        }
+      ]
+    }
+  ],
+  "description": "Passive profile-pack substrate scaffold.",
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "authorized": false,
+    "capability_state": "profile_pack_manifest",
+    "core_workbench_coupling": "NONE",
+    "deepagents_runtime_start": "DISABLED",
+    "executed": false,
+    "goose_runtime_start": "DISABLED",
+    "mcp_tool_calls": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "promoted": false,
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
+    "subagent_construction": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "verification_execution": "DISABLED"
+  },
+  "kind": "builder_ii.profile_pack_manifest",
+  "lifecycle_boundaries": {
+    "authorized": false,
+    "dry_run": false,
+    "executed": false,
+    "planned": true,
+    "promoted": false,
+    "rendered": false,
+    "validated": false
+  },
+  "manifest_state": "PLANNED_ONLY",
+  "name": "goal2-test-profile-pack",
+  "pack_id": "goal2-test-profile-pack",
+  "schema_version": 1,
+  "target_profile": "generic",
+  "task": "test passive assignment"
+}

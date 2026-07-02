@@ -57,7 +57,7 @@ def test_routing_recommendation_no_candidate():
         "task_intent": "coding",
         "max_risk_classification": "local_network",
         "requires_tool_use": True,
-        "required_model_id": "claude-3-5-sonnet-stub",
+        "required_model_id": "gpt-5.5",
     }
     with pytest.raises(ValueError, match="No candidate model client satisfies"):
         create_model_routing_recommendation(policy=policy, registry=registry, request=request)

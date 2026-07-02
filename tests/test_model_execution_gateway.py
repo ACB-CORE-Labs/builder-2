@@ -193,7 +193,7 @@ def test_model_execution_fails_on_max_tokens_policy_limit(
 def test_model_execution_fails_on_unauthorized_model_in_policy(
     mock_settings, standard_registry, standard_execution_policy, tmp_path
 ) -> None:
-    standard_execution_policy["allowed_models"] = ["mlx-community/Phi-3.5-mini-instruct-4bit"]
+    standard_execution_policy["allowed_models"] = ["mlx-community/Phi-4-mini-reasoning-4bit"]
     gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"

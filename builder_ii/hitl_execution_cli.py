@@ -21,6 +21,7 @@ from builder_ii.hitl_execution_records import (
 from builder_ii.hitl_promotion_cli import register_promotion_commands
 from builder_ii.execution_candidate_manifest_cli import register_manifest_commands
 from builder_ii.hitl_patch_cli import register_patch_commands
+from builder_ii.hitl_command_runner import execute_hitl_command
 
 hitl_app = typer.Typer(
     help="HITL execution request/receipt artifact CLI (No Execution)."
@@ -127,6 +128,28 @@ def receipt(
     except Exception as exc:
         console.print(f"Write error: {exc}")
         raise typer.Exit(1)
+
+
+@hitl_app.command("run-command")
+def run_command(
+    request: Path = typer.Option(..., "--request", help="HITL execution request artifact JSON path"),
+    proposal: Path = typer.Option(..., "--proposal", help="Goose command proposal artifact JSON path"),
+    approval: Path = typer.Option(..., "--approval", help="Approval record artifact JSON path"),
+    output_dir: Path = typer.Option(..., "--output-dir", help="Output directory for generated artifacts"),
+) -> None:
+    """Execute an approved command under governed HITL authority."""
+    try:
+        execute_hitl_command(
+            request_path=request,
+            proposal_path=proposal,
+            approval_path=approval,
+            output_dir=output_dir,
+        )
+        console.print(f"Command executed. Artifacts written to {output_dir}")
+    except Exception as e:
+        console.print(f"Failed to execute command: {e}")
+        raise typer.Exit(1)
+
 
 
 @hitl_app.command("validate")

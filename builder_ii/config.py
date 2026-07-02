@@ -14,7 +14,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-BACKENDS = ("rapid-mlx", "mlx-lm", "ollama")
+BACKENDS = ("rapid-mlx", "mlx-lm", "ollama", "groq", "xai", "google", "openai", "anthropic")
 MODEL_TIERS = ("primary", "fast")
 
 # Public aliases accepted by BUILDER_MODEL_ALIAS / CORE_AGENT_MODEL_ALIAS and
@@ -30,6 +30,47 @@ MODEL_ALIASES = (
     "qwen-coder-14b",
     "qwen3-coder-heavy",
     "deepseek",
+    "groq-llama",
+    "groq-mixtral",
+    "grok-reasoning",
+    "grok-beta",
+    "gemini-pro",
+    "gemini-flash",
+    "gemini-ultra",
+    "gemini-3.5-flash",
+    "gemini-3.1-pro",
+    "gemini-3.1-flash",
+    "gemini-3-flash",
+    "gemma4:e4b",
+    "gemma4:e2b",
+    "qwen3.5:2b",
+    "qwen3.5:0.8b",
+    "ibm/granite4.1:3b",
+    "groq-llama-instant",
+    "groq-gpt-oss-20b",
+    "groq-llama-scout",
+    "groq-gpt-oss-120b",
+    "groq-qwen3-32b",
+    "groq-kimi-k2",
+    "grok-4.3",
+    "grok-build-0.1",
+    "grok-4.1-fast",
+    "gpt-5.5",
+    "gpt-5.5-pro",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.4-nano",
+    "gpt-5.3-codex",
+    "gpt-4o",
+    "o3",
+    "claude-fable-5",
+    "claude-opus-4.8",
+    "claude-opus-4.7",
+    "claude-opus-4.6",
+    "claude-sonnet-5",
+    "claude-sonnet-4.6",
+    "claude-sonnet-4.5",
+    "claude-haiku-4.5",
 )
 
 _ALIAS_NORMALIZATION = {
@@ -199,6 +240,59 @@ class Settings:
     @property
     def active_model_id(self) -> str:
         """Provider-facing model id used by Goose's OpenAI-compatible client."""
+        if self.backend == "groq":
+            return {
+                "groq-llama": "llama-3.3-70b-versatile",
+                "groq-mixtral": "mixtral-8x7b-32768",
+                "groq-llama-instant": "llama-3.1-8b-instant",
+                "groq-gpt-oss-20b": "openai/gpt-oss-20b",
+                "groq-llama-scout": "meta-llama/llama-4-scout-17b-16e-instruct",
+                "groq-gpt-oss-120b": "openai/gpt-oss-120b",
+                "groq-qwen3-32b": "qwen/qwen3-32b",
+                "groq-kimi-k2": "moonshotai/kimi-k2-instruct-0905",
+            }.get(self.model_alias, "llama-3.3-70b-versatile")
+        if self.backend == "xai":
+            return {
+                "grok-reasoning": "grok-2-1212",
+                "grok-beta": "grok-beta",
+                "grok-4.3": "grok-4.3",
+                "grok-build-0.1": "grok-build-0.1",
+                "grok-4.1-fast": "grok-4.1-fast",
+            }.get(self.model_alias, "grok-4.3")
+        if self.backend == "openai":
+            return {
+                "gpt-5.5": "gpt-5.5",
+                "gpt-5.5-pro": "gpt-5.5-pro",
+                "gpt-5.4": "gpt-5.4",
+                "gpt-5.4-mini": "gpt-5.4-mini",
+                "gpt-5.4-nano": "gpt-5.4-nano",
+                "gpt-5.3-codex": "gpt-5.3-codex",
+                "gpt-4o": "gpt-4o",
+                "o3": "o3",
+            }.get(self.model_alias, "gpt-5.5")
+        if self.backend == "anthropic":
+            return {
+                "claude-fable-5": "claude-fable-5",
+                "claude-opus-4.8": "claude-opus-4-8",
+                "claude-opus-4.7": "claude-opus-4-7",
+                "claude-opus-4.6": "claude-opus-4-6",
+                "claude-sonnet-5": "claude-sonnet-5",
+                "claude-sonnet-4.6": "claude-sonnet-4-6",
+                "claude-sonnet-4.5": "claude-sonnet-4-5",
+                "claude-haiku-4.5": "claude-haiku-4-5-20251001",
+            }.get(self.model_alias, "claude-opus-4-8")
+        if self.backend == "google":
+            return {
+                "gemini-pro": "gemini-1.5-pro",
+                "gemini-flash": "gemini-1.5-flash",
+                "gemini-ultra": "gemini-1.0-ultra",
+                "gemini-3.5-flash": "gemini-3.5-flash",
+                "gemini-3.1-pro": "gemini-3.1-pro-preview",
+                "gemini-3.1-flash": "gemini-3.1-flash-lite",
+                "gemini-3-flash": "gemini-3-flash-preview",
+            }.get(self.model_alias, "gemini-1.5-pro")
+        if self.backend == "ollama":
+            return self.model_alias
         return self.active_mlx_model if self.backend == "mlx-lm" else self.active_model
 
 

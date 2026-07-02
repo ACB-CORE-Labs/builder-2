@@ -1,0 +1,36 @@
+{
+  "compatible_targets": [
+    "generic"
+  ],
+  "description": "Generic repository verification planning profile.",
+  "failure_mode": "If project tooling is unclear, stop and ask for the repo's canonical verification path.",
+  "governance": {
+    "artifact_is_authority": false,
+    "capability_state": "verification_profile_artifact",
+    "core_workbench_coupling": "NONE",
+    "executes_commands": false,
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED",
+    "writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH"
+  },
+  "kind": "builder_ii.verification_profile",
+  "name": "generic_basic",
+  "proposed_commands": [
+    "inspect project config for test command",
+    "run the smallest relevant test command after human approval",
+    "run formatting/static checks only if the repo defines them"
+  ],
+  "purpose": "Propose minimal repo-local verification without assuming project-specific tooling.",
+  "required_evidence": [
+    "project config inspected",
+    "selected command rationale recorded",
+    "pass/fail output captured by the operator"
+  ],
+  "rollback_hint": "Do not modify files; discard the artifact if the selected verification path is wrong.",
+  "schema_version": 1,
+  "target": "generic",
+  "task": "test passive assignment"
+}

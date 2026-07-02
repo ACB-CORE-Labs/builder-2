@@ -27,6 +27,22 @@ def _server_root_url(base_url: str) -> str:
     return base
 
 
+def _get_google_project_id() -> str:
+    if os.getenv("GOOGLE_PROJECT_ID"):
+        return os.environ["GOOGLE_PROJECT_ID"]
+    res = subprocess.run(["gcloud", "config", "get-value", "project"], capture_output=True, text=True, check=False)
+    return res.stdout.strip()
+
+
+def _get_google_access_token() -> str:
+    if os.getenv("GOOGLE_ACCESS_TOKEN"):
+        return os.environ["GOOGLE_ACCESS_TOKEN"]
+    if os.getenv("GOOGLE_OAUTH_TOKEN"):
+        return os.environ["GOOGLE_OAUTH_TOKEN"]
+    res = subprocess.run(["gcloud", "auth", "print-access-token"], capture_output=True, text=True, check=False)
+    return res.stdout.strip()
+
+
 def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict[str, str]:
     env = os.environ.copy()
 
@@ -34,6 +50,20 @@ def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict
         host = _server_root_url(settings.base_url)
         env["GOOSE_PROVIDER"] = "ollama"
         env["OLLAMA_HOST"] = host
+    elif settings.backend == "groq":
+        env["GOOSE_PROVIDER"] = "openai"
+        env["OPENAI_API_KEY"] = env.get("GROQ_API_KEY", "")
+        env["OPENAI_HOST"] = "https://api.groq.com/openai"
+    elif settings.backend == "xai":
+        env["GOOSE_PROVIDER"] = "openai"
+        env["OPENAI_API_KEY"] = env.get("XAI_API_KEY", "")
+        env["OPENAI_HOST"] = "https://api.x.ai"
+    elif settings.backend == "google":
+        project_id = _get_google_project_id()
+        access_token = _get_google_access_token()
+        env["GOOSE_PROVIDER"] = "openai"
+        env["OPENAI_API_KEY"] = access_token
+        env["OPENAI_HOST"] = f"https://aiplatform.googleapis.com/v1beta1/projects/{project_id}/locations/global/endpoints/openapi"
     else:
         env["GOOSE_PROVIDER"] = "openai"
         env["OPENAI_API_KEY"] = env.get("OPENAI_API_KEY", "not-needed")

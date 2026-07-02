@@ -1,0 +1,274 @@
+{
+  "executes_model": false,
+  "governance": {
+    "artifact_is_authority": false,
+    "core_workbench_coupling": "NONE",
+    "model_execution": "DISABLED",
+    "network_calls": "DISABLED",
+    "provider_calls": "DISABLED",
+    "recommendation_executes": false,
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED"
+  },
+  "grants_authority": false,
+  "kind": "builder_ii.model_routing_recommendation",
+  "recommendation_state": "RECOMMENDATION_ONLY",
+  "recommended_candidates": [
+    {
+      "client_id": "mlx_lm_client",
+      "constraints": [
+        "Endpoint kind: local_mlx",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "qwen-coder",
+      "model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+      "provider_id": "mlx_provider",
+      "rank": 1,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use",
+        "Exact match for policy preferred model id"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "mlx_lm_client",
+      "constraints": [
+        "Endpoint kind: local_mlx",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "phi-reasoning",
+      "model_id": "mlx-community/Phi-4-mini-reasoning-4bit",
+      "provider_id": "mlx_provider",
+      "rank": 2,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "mlx_lm_client",
+      "constraints": [
+        "Endpoint kind: local_mlx",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "gemma-fast",
+      "model_id": "mlx-community/gemma-4-e4b-it-4bit",
+      "provider_id": "mlx_provider",
+      "rank": 3,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "mlx_lm_client",
+      "constraints": [
+        "Endpoint kind: local_mlx",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "gemma-primary",
+      "model_id": "mlx-community/gemma-4-12B-it-4bit",
+      "provider_id": "mlx_provider",
+      "rank": 4,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "mlx_lm_client",
+      "constraints": [
+        "Endpoint kind: local_mlx",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "llama",
+      "model_id": "mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+      "provider_id": "mlx_provider",
+      "rank": 5,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "mlx_lm_client",
+      "constraints": [
+        "Endpoint kind: local_mlx",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "codegeex",
+      "model_id": "mlx-community/codegeex4-all-9b-4bit",
+      "provider_id": "mlx_provider",
+      "rank": 6,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "mlx_lm_client",
+      "constraints": [
+        "Endpoint kind: local_mlx",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "qwen-coder-14b",
+      "model_id": "mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+      "provider_id": "mlx_provider",
+      "rank": 7,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "mlx_lm_client",
+      "constraints": [
+        "Endpoint kind: local_mlx",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "qwen3-coder-heavy",
+      "model_id": "mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit",
+      "provider_id": "mlx_provider",
+      "rank": 8,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "mlx_lm_client",
+      "constraints": [
+        "Endpoint kind: local_mlx",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "deepseek",
+      "model_id": "mlx-community/DeepSeek-Coder-V2-Lite-Instruct-4bit",
+      "provider_id": "mlx_provider",
+      "rank": 9,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "ollama_client",
+      "constraints": [
+        "Endpoint kind: openai_compatible_local",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "gemma4:e4b",
+      "model_id": "gemma4:e4b",
+      "provider_id": "ollama_provider",
+      "rank": 10,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "ollama_client",
+      "constraints": [
+        "Endpoint kind: openai_compatible_local",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "gemma4:e2b",
+      "model_id": "gemma4:e2b",
+      "provider_id": "ollama_provider",
+      "rank": 11,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "ollama_client",
+      "constraints": [
+        "Endpoint kind: openai_compatible_local",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "qwen3.5:2b",
+      "model_id": "qwen3.5:2b",
+      "provider_id": "ollama_provider",
+      "rank": 12,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "ollama_client",
+      "constraints": [
+        "Endpoint kind: openai_compatible_local",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "qwen3.5:0.8b",
+      "model_id": "qwen3.5:0.8b",
+      "provider_id": "ollama_provider",
+      "rank": 13,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    },
+    {
+      "client_id": "ollama_client",
+      "constraints": [
+        "Endpoint kind: openai_compatible_local",
+        "Cost class: free_local",
+        "Passive recommendation only; requires human promotion before execution"
+      ],
+      "model_alias": "ibm/granite4.1:3b",
+      "model_id": "ibm/granite4.1:3b",
+      "provider_id": "ollama_provider",
+      "rank": 14,
+      "reasons": [
+        "Risk level 'local_network' satisfies requirement 'local_network'",
+        "Supports required tool use"
+      ],
+      "risk_classification": "local_network"
+    }
+  ],
+  "request": {
+    "max_risk_classification": "local_network",
+    "requires_tool_use": true,
+    "task_intent": "coding"
+  },
+  "requires_human_promotion_for_execution": true,
+  "schema_version": 1,
+  "source_policy_ref": {
+    "kind": "builder_ii.model_routing_policy",
+    "path": "tests/fixtures/artifacts/model-policy.json",
+    "sha256": "754de8261f1f4bf5c10482f07330d222d18b8925a42a09bc2e78fbc075ecbe5b"
+  },
+  "source_registry_ref": {
+    "kind": "builder_ii.model_client_registry",
+    "path": "tests/fixtures/artifacts/model-registry.json",
+    "sha256": "e2ac12d3b084828250080dd580b73fbf024b057968eba958a59e353fb81e66ee"
+  }
+}

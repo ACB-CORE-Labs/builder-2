@@ -41,9 +41,8 @@ def ensure_backend_supports_model(settings: Settings) -> tuple[bool, str]:
 
 
 def health_path_for_backend(settings: Settings) -> str:
-    if settings.backend == "mlx-lm":
-        # mlx_lm.server exposes OpenAI-compatible endpoints under /v1.
-        # Polling /models returns 404 even when the server is healthy.
+    if settings.backend in ("mlx-lm", "groq", "xai"):
+        # OpenAI-compatible /v1/models endpoints
         return "/v1/models"
     if settings.backend == "ollama":
         return "/api/tags"
@@ -86,6 +85,27 @@ def build_backend_spec(settings: Settings) -> BackendSpec:
             health_path=health_path_for_backend(settings),
         )
 
+    if settings.backend == "groq":
+        return BackendSpec(
+            name="groq",
+            start_argv=(),
+            health_path=health_path_for_backend(settings),
+        )
+
+    if settings.backend == "xai":
+        return BackendSpec(
+            name="xai",
+            start_argv=(),
+            health_path=health_path_for_backend(settings),
+        )
+
+    if settings.backend == "google":
+        return BackendSpec(
+            name="google",
+            start_argv=(),
+            health_path=health_path_for_backend(settings),
+        )
+
     # Ollama MLX engine — OpenAI-compatible via /v1 when OLLAMA_HOST points here.
     return BackendSpec(
         name="ollama",
@@ -107,6 +127,10 @@ def _without_v1_suffix(base_url: str) -> str:
 def health_url(settings: Settings, path: str) -> str:
     if settings.backend == "ollama":
         return f"http://{settings.host}:{11434}{path}"
+    if settings.backend == "groq":
+        return f"https://api.groq.com/openai{path}"
+    if settings.backend == "xai":
+        return f"https://api.x.ai{path}"
 
     root = _without_v1_suffix(settings.base_url)
     return f"{root}{path}"
@@ -222,7 +246,9 @@ def check_serves_active_model(settings: Settings, timeout: float = 3.0) -> tuple
     )
 
 
-def start_backend_process(settings: Settings) -> subprocess.Popen[str]:
+def start_backend_process(settings: Settings) -> subprocess.Popen[str] | None:
+    if settings.backend in ("groq", "xai", "google"):
+        return None
     spec = build_backend_spec(settings)
     env = None
     if settings.backend == "ollama":
