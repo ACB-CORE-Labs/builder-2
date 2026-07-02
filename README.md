@@ -148,6 +148,20 @@ builder-II treats local and future remote models as model/provider adapters.
 
 Models may help reason, propose, review, plan, summarize, and explain. They must not silently become approvers, verifiers, command authorities, patch appliers, or promotion engines. Future model routing begins as policy and artifact metadata before it becomes execution behavior.
 
+## Supported Models & Execution Backends
+
+`builder-II` stands out by deeply integrating a robust, native registry of over 25+ models across diverse local and cloud execution backends. Unlike generic AI coding tools, `builder-II` classifies, routes, and sandboxes these models through a strict governance gateway to ensure mechanical sympathy and predictable artifact outcomes.
+
+### Local Apple Silicon (M1) Execution
+- **MLX Framework (In-Memory)**: Seamless integration with `mlx_lm.server` for high-throughput, low-latency local execution directly on Apple unified memory. Includes natively supported lanes for `mlx-community/Phi-4-mini-reasoning-4bit`, `mlx-community/Qwen2.5-Coder-7B-Instruct-4bit`, and heavy candidate lanes like `Qwen3-Coder-30B` and `DeepSeek-Coder-V2`.
+- **Ollama (Local Network)**: Complete integration with the Ollama daemon for running lightweight candidates like `gemma4:e4b`, `qwen3.5:2b`, and `ibm/granite4.1:3b` entirely offline.
+
+### Cloud Egress & Enterprise Execution
+- **Google Vertex AI**: Rock-solid, enterprise-grade integration with Google Cloud Vertex AI using `global` openapi routing. Flawlessly supports `gemini-3.5-flash`, `gemini-3.1-pro-preview`, and the full Gemini reasoning stack securely through ADC (Application Default Credentials).
+- **Groq & xAI**: Out-of-the-box support for lightning-fast API endpoints routing ultra-heavy frontier models (`Llama-3.3-70b-specdec`, `Grok-2`, `gpt-oss-120b`).
+
+Every single backend is automatically governed by `builder-II`'s policy engine, assigning explicit routing rules, `local_network` / `cloud_egress` isolation envelopes, and dynamic tool-use capabilities to each model.
+
 ## Canonical Goose references
 
 Keep the public Goose docs close during design and implementation:
