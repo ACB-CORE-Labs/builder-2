@@ -54,6 +54,12 @@ The canonical governed session lane binds together the platform preparation tool
 5. **Agent Assignment / Orchestration v2**: Binds target, task, agent, model recommendation, context, verification, tool policy, HITL policy, outputs, and handoff refs into deterministic assignment artifacts without execution authority.
 6. **Fail-Closed Governance**: Throughout the entire sequence, runtime execution, model calls, shell invocations, and target repository modifications remain disabled, and planned verification checks remain strictly unexecuted (`NOT_RUN`).
 
+## Bounded Approved Verification Lane
+
+`builder-verify run-approved` is the current approved verification execution lane. It is not arbitrary shell. The operator must first create a passive plan with `builder-verify plan`, bind human approval with `builder-verify approve-plan`, then run one fixed profile with `builder-verify run-approved --profile platform_status` or `--profile docs_audit`. The runner validates command authority, uses `shell=False`, forwards only an environment allowlist, captures bounded output, compares git preflight/postflight state, writes an honest receipt for success, failure, timeout, or pre-execution denial, and emits a generated postflight sidecar.
+
+Still gated: arbitrary argv, broad shell execution, patch authority, model/MCP/Goose/deepagents runtime, commit/push automation, and model-driven file mutation.
+
 ## CORE Demo Loop
 
 The real-world CORE recording lane is separate from the passive session lane:

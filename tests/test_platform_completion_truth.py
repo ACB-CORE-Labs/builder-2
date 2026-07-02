@@ -69,7 +69,8 @@ def test_r1_3a_matrix_state_changes_are_scoped() -> None:
     assert by_capability["artifact memory"].state == PASSIVE_FOUNDATION
     # B2 verifies rollback execution and patch apply
     # assert by_capability["rollback execution"].state != OPERATIONALLY_VERIFIED
-    assert by_capability["HITL-approved verification execution"].state != ("OPERATIONALLY" + "_VERIFIED")
+    assert by_capability["HITL-approved verification execution"].state == ("OPERATIONALLY" + "_VERIFIED")
+    assert any("platform_status and docs_audit" in blocker for blocker in by_capability["HITL-approved verification execution"].blockers)
     assert by_capability["model registry"].state == OPERATIONALLY_VERIFIED
 
 
@@ -155,7 +156,7 @@ def test_matrix_rendering_is_json_safe() -> None:
     decoded = json.loads(encoded)
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
-    assert decoded["summary"]["operationally_verified_count"] == 14  # B9 + CORE demo loop
+    assert decoded["summary"]["operationally_verified_count"] == 17  # B1.5 promoted bounded verification, postflight, and command authority gates
 
 def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()

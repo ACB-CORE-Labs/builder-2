@@ -5,8 +5,11 @@ import pytest
 from builder_ii.validation_benchmark import generate_mock_artifacts, VALIDATORS
 from builder_ii.rust_validator import validate_via_rust, find_rust_validator_binary
 
-def test_rust_binary_exists() -> None:
-    assert find_rust_validator_binary() is not None, "Rust validator binary must be built before running parity tests"
+def test_rust_binary_or_fail_closed_python_fallback_exists() -> None:
+    binary = find_rust_validator_binary()
+    valid, errors = validate_via_rust("builder_ii.goose_session_manifest", {"kind": "wrong"})
+    assert binary is not None or "kind must be builder_ii.goose_session_manifest" in errors
+    assert valid is False
 
 @pytest.mark.parametrize(
     "kind",

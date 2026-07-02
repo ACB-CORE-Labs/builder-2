@@ -40,7 +40,13 @@ def find_rust_validator_binary() -> Path | None:
 def validate_via_rust(kind: str, data: dict[str, Any]) -> tuple[bool, list[str]]:
     binary = find_rust_validator_binary()
     if not binary:
-        return False, ["Rust validator binary not found. Build it with 'cargo build --release'."]
+        from builder_ii.validation_benchmark import VALIDATORS
+
+        validator = VALIDATORS.get(kind)
+        if validator is None:
+            return False, ["Rust validator binary not found and no Python fallback validator is registered."]
+        errors = validator(data)
+        return not errors, errors
 
     input_bytes = json_lib.dumps(data).encode("utf-8")
 

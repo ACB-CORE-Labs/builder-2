@@ -9,7 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from builder_ii.config_schema import attach_digest
+from builder_ii.command_authority import CommandAuthorityDecision, enforce_command_authority
+from builder_ii.config_schema import attach_digest, digest_jsonable
+from builder_ii.execution_postflight_records import (
+    validate_execution_postflight_record,
+    write_execution_postflight_record,
+)
 from builder_ii.verification_execution_approval import (
     validate_verification_execution_approval_against_plan,
     validate_verification_execution_approval_artifact,
@@ -64,7 +69,14 @@ SUPPORTED_COMMAND_PROFILES: dict[str, BoundedCommandProfile] = {
         command_profile_ref="verification_profiles.builder_full.platform_status",
         argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "platform-status"),
         timeout_seconds=30,
-    )
+    ),
+    "docs_audit": BoundedCommandProfile(
+        profile="docs_audit",
+        step_id="docs_audit",
+        command_profile_ref="verification_profiles.builder_full.docs_audit",
+        argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "docs-audit"),
+        timeout_seconds=30,
+    ),
 }
 
 
@@ -118,12 +130,13 @@ def _minimal_env(target_repo: Path) -> dict[str, str]:
 
 def _validate_fixed_profile(profile: BoundedCommandProfile) -> list[str]:
     errors: list[str] = []
-    if profile.profile != "platform_status":
-        errors.append("B1.3B initially supports only profile=platform_status")
-    if profile.step_id != "platform_status":
-        errors.append("B1.3B initially supports only step_id=platform_status")
-    if profile.command_profile_ref != "verification_profiles.builder_full.platform_status":
-        errors.append("profile command_profile_ref must remain verification_profiles.builder_full.platform_status")
+    if profile.profile not in SUPPORTED_COMMAND_PROFILES:
+        errors.append("unsupported verification command profile")
+    if profile.step_id != profile.profile:
+        errors.append("step_id must match fixed profile id")
+    expected_ref = f"verification_profiles.builder_full.{profile.profile}"
+    if profile.command_profile_ref != expected_ref:
+        errors.append(f"profile command_profile_ref must remain {expected_ref}")
     if not profile.argv or not all(isinstance(item, str) and item for item in profile.argv):
         errors.append("fixed argv must be a non-empty tuple of non-empty strings")
         return errors
@@ -245,6 +258,7 @@ def _receipt_for_block(
     artifact_root: Path | None,
     requested_profile: str,
     errors: list[str],
+    authority_decision: CommandAuthorityDecision | None = None,
 ) -> dict[str, Any]:
     profile = SUPPORTED_COMMAND_PROFILES.get(requested_profile)
     process_result = _blocked_process_result(
@@ -276,6 +290,14 @@ def _receipt_for_block(
     )
     receipt["errors"] = list(dict.fromkeys(list(receipt.get("errors") or []) + errors))
     receipt["valid"] = False
+    if authority_decision is None:
+        authority_decision = enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_writes", "readonly_subprocess"),
+            capability_ref="HITL-approved verification execution",
+            hitl_bound=False,
+        )
+    receipt["command_authority_decision"] = authority_decision.to_evidence()
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     _maybe_write_blocked_receipt(
         receipt=receipt,
@@ -284,6 +306,55 @@ def _receipt_for_block(
         artifact_root=artifact_root,
     )
     return receipt
+
+
+def create_verification_runner_postflight(*, receipt: dict[str, Any], receipt_path: Path, plan_path: Path, approval_path: Path) -> dict[str, Any]:
+    postflight = {
+        "kind": "builder_ii.execution_postflight_record",
+        "schema_version": 1,
+        "target": {"name": receipt.get("target_profile"), "repo": receipt.get("target_repo"), "description": "verification runner target"},
+        "request_ref": str(plan_path),
+        "receipt_ref": str(receipt_path),
+        "preflight_ref": "receipt.preflight_git_state",
+        "approval_ref": str(approval_path),
+        "expected_outcome": "bounded verification command completes without workspace mutation",
+        "observed_state_ref": "receipt.postflight_git_state",
+        "postflight_state": "RUN_COMPLETE",
+        "performed_actions": [
+            "validated receipt linkage",
+            "compared preflight and postflight git fingerprints",
+            "recorded no-mutation or mutation evidence",
+        ],
+        "receipt_digest": receipt.get("verification_execution_receipt_digest"),
+        "workspace_mutation_detected": receipt.get("workspace_mutation_detected"),
+        "preflight_git_state": receipt.get("preflight_git_state"),
+        "postflight_git_state": receipt.get("postflight_git_state"),
+        "artifact_is_authority": False,
+        "governance": {
+            "runtime_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "command_execution": "DISABLED",
+            "model_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "git_mutation": "DISABLED",
+            "network_access": "DISABLED",
+            "goose_runtime_activation": "DISABLED",
+            "deepagents_runtime": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
+        "valid": True,
+        "errors": [],
+    }
+    if receipt.get("workspace_mutation_detected") is True:
+        postflight["valid"] = False
+        postflight["errors"] = ["postflight detected workspace mutation"]
+    errors = validate_execution_postflight_record(postflight)
+    if errors:
+        postflight["valid"] = False
+        postflight["errors"] = list(dict.fromkeys(list(postflight.get("errors") or []) + errors))
+    postflight["postflight_digest"] = digest_jsonable(postflight, digest_key="postflight_digest")
+    return postflight
 
 
 def run_approved_verification(
@@ -308,8 +379,17 @@ def run_approved_verification(
         errors.append("referenced verification execution approval must be valid (valid=true)")
     if not errors:
         errors.extend(validate_verification_execution_approval_against_plan(approval, plan))
+
+    authority_decision = enforce_command_authority(
+        "builder-verify run-approved",
+        requested_effects=("artifact_writes", "readonly_subprocess"),
+        capability_ref="HITL-approved verification execution",
+        hitl_bound=isinstance(approval_data, dict) and approval_data.get("valid") is True,
+    )
+    if not authority_decision.allowed:
+        errors.append(f"command authority denied: {authority_decision.reason}")
     if profile is None:
-        errors.append("B1.3B initially supports only profile=platform_status")
+        errors.append("unsupported verification command profile")
     else:
         errors.extend(_validate_fixed_profile(profile))
 
@@ -343,6 +423,7 @@ def run_approved_verification(
             artifact_root=artifact_root,
             requested_profile=requested_profile,
             errors=list(dict.fromkeys(errors)),
+            authority_decision=authority_decision,
         )
 
     preflight = _git_state(target_repo, "preflight")
@@ -357,6 +438,7 @@ def run_approved_verification(
             artifact_root=artifact_root,
             requested_profile=requested_profile,
             errors=["git preflight state could not be captured"],
+            authority_decision=authority_decision,
         )
 
     try:
@@ -404,6 +486,8 @@ def run_approved_verification(
         execution_enabled=True,
         subprocess_mode=SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
     )
+    receipt["command_authority_decision"] = authority_decision.to_evidence()
+    receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     if workspace_mutation_detected:
         receipt["errors"] = list(dict.fromkeys(list(receipt.get("errors") or []) + ["workspace mutation detected"]))
         receipt["valid"] = False
@@ -416,5 +500,19 @@ def run_approved_verification(
         receipt["valid"] = False
         receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
 
+    postflight_path = output.with_name(output.stem + "-postflight.json")
+    receipt["postflight_ref"] = {
+        "path": str(postflight_path),
+        "kind": "builder_ii.execution_postflight_record",
+    }
+    receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     write_verification_execution_receipt(receipt, output)
+
+    postflight_record = create_verification_runner_postflight(
+        receipt=receipt,
+        receipt_path=output,
+        plan_path=plan_path,
+        approval_path=approval_path,
+    )
+    write_execution_postflight_record(postflight_record, postflight_path)
     return receipt
