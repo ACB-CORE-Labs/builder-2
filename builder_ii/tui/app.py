@@ -128,8 +128,9 @@ class StratumApp(App[None]):
         self.push_screen(SplashScreen())
 
         # --- Theme Injection Layer ---
-        from builder_ii.tui_theme import active_theme_name, theme_palette, theme_extras
-        if active_theme_name() != "default":
+        from builder_ii.tui_theme import active_theme_name, theme_palette, theme_extras, list_themes
+        theme_name = active_theme_name()
+        if theme_name in list_themes() and theme_name != "default":
             from textual.theme import Theme
             p = theme_palette()
             e = theme_extras()
@@ -149,7 +150,7 @@ class StratumApp(App[None]):
                     "stratum-accent": p["accent"],
                     "stratum-bg": navy,
                     "stratum-panel": navy,
-                    "stratum-border": navy,
+                    "stratum-border": p["dim"],
                     "stratum-panel-light": p["dim"],
                     "stratum-selected": p["active"],
                     "stratum-hover": p["dim"],
