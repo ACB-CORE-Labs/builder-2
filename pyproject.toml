@@ -71,6 +71,7 @@ builder-setup = "builder_ii.setup_cli:setup_app"
 dev = [
     "pytest>=9.0",
     "pytest-cov>=6.0",
+    "pytest-asyncio>=0.23.0",
 ]
 
 [tool.setuptools.packages.find]

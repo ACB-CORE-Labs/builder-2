@@ -41,14 +41,14 @@ class Palette(TypedDict):
 # Default theme  — original slate / indigo / sky
 # ---------------------------------------------------------------------------
 _DEFAULT: dict[str, str] = {
-    "pass":   "#4ade80",   # green
-    "warn":   "#fbbf24",   # amber
-    "fail":   "#f87171",   # red
-    "hint":   "#94a3b8",   # slate
-    "active": "#38bdf8",   # sky
-    "dim":    "#475569",   # muted slate
-    "bold":   "#f1f5f9",   # near-white
-    "accent": "#818cf8",   # indigo
+    "pass":   "#3fb950",
+    "warn":   "#d29922",
+    "fail":   "#f85149",
+    "hint":   "#8b949e",
+    "active": "#58a6ff",
+    "dim":    "#484f58",
+    "bold":   "#c9d1d9",
+    "accent": "#d2a8ff",
 }
 
 # ---------------------------------------------------------------------------
