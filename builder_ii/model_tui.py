@@ -195,7 +195,7 @@ def cmd_routing_show(args: list[str]) -> int:
 
     if policy is None:
         print(f"  {G['skip']}  {_d('No model_routing_policy.json found under')} {base}")
-        print(f"  {_h('hint: builder model routing init')}")
+        print(f"  {_h('hint: builder-model-policy dry-run  to emit passive routing artifacts')}")
         print()
         return 0
 

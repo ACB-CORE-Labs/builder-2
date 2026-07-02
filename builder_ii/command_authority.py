@@ -55,6 +55,53 @@ VALID_APPROVAL_MODES = {
     MODE_FORBIDDEN_UNPROMOTED,
 }
 
+READONLY_TUI_COMMANDS: tuple[str, ...] = (
+    "builder hitl status",
+    "builder hitl chain",
+    "builder hitl pending",
+    "builder hitl approval",
+    "builder hitl evidence",
+    "builder hitl execution",
+    "builder hitl promote",
+    "builder hitl replay",
+    "builder profile status",
+    "builder profile lifecycle",
+    "builder profile validate",
+    "builder profile render-plan",
+    "builder profile dry-run",
+    "builder profile resolve",
+    "builder profile history",
+    "builder model routing show",
+    "builder model routing simulate",
+    "builder model routing candidates",
+    "builder model routing policy",
+    "builder model routing execution-policy",
+    "builder model routing validate",
+    "builder model registry show",
+    "builder model registry diff",
+    "builder promote status",
+    "builder promote readiness",
+    "builder promote artifact",
+    "builder promote decision",
+    "builder promote compatibility",
+    "builder promote history",
+    "builder promote gates",
+    "builder postflight status",
+    "builder postflight record",
+    "builder postflight verify",
+    "builder postflight governance",
+    "builder postflight actions",
+    "builder postflight refs",
+    "builder postflight validate",
+    "builder goose status",
+    "builder goose manifest",
+    "builder goose links",
+    "builder goose actions",
+    "builder goose governance",
+    "builder goose validate",
+    "builder goose approval",
+)
+
 
 @dataclass(frozen=True)
 class CommandAuthorityRecord:
@@ -107,6 +154,36 @@ class CommandAuthorityRecord:
     @property
     def authority_delegates_to_subcommands(self) -> bool:
         return self.is_command_group
+
+
+def _readonly_tui_record(name: str) -> CommandAuthorityRecord:
+    return CommandAuthorityRecord(
+        name=name,
+        entrypoint="builder_ii.tui_inspection_cli",
+        tier=TIER_0,
+        promotion_state=STATE_SPEC_ONLY,
+        runtime_boundary="Reads existing governed artifact files and renders terminal inspection output only; no runtime, model, shell, Goose, deepagents, MCP, or tool execution.",
+        write_boundary="No changes to workspace, artifact store, runtime state, target repository, git, or memory.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints read-only inspection status, validation diagnostics, and real next-command hints to stdout.",
+        failure_mode="Exits non-zero on invalid JSON, schema errors, governance violations, failed present gates, command authority drift, or explicit lookup misses.",
+        notes="First-class governed TUI inspector surface. It observes and explains only; artifact creation and execution remain on separate governed CLIs.",
+    )
+
+
+READONLY_TUI_COMMAND_GROUPS: tuple[str, ...] = (
+    "builder hitl",
+    "builder profile",
+    "builder model",
+    "builder promote",
+    "builder postflight",
+    "builder goose",
+)
+
+READONLY_TUI_AUTHORITY_RECORDS: tuple[CommandAuthorityRecord, ...] = tuple(
+    _readonly_tui_record(name) for name in (*READONLY_TUI_COMMAND_GROUPS, *READONLY_TUI_COMMANDS)
+)
 
 
 class CommandAuthorityError(PermissionError):
@@ -282,6 +359,7 @@ def enforce_command_authority(
 
 # A curated list of subcommands that must be explicitly classified
 REQUIRED_SUBCOMMANDS = {
+    *READONLY_TUI_COMMANDS,
     "builder-targets list",
     "builder-targets show",
     "builder-targets validate",
@@ -468,6 +546,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         failure_mode="Exits non-zero with diagnostic logs; leaves target system unchanged.",
         notes="Root command of builder-II developer platform. Delegates execution to subcommands.",
     ),
+    *READONLY_TUI_AUTHORITY_RECORDS,
     CommandAuthorityRecord(
         name="builder-runtime",
         entrypoint="builder_ii.runtime_control:runtime_app",

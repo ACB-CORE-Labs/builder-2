@@ -72,6 +72,20 @@ Governed setup subcommands:
 ## Inspection/Read-Only Candidate
 - `builder-readonly`
 
+Root read-only TUI inspector subcommands:
+
+- `builder hitl`
+- `builder profile`
+- `builder model`
+- `builder promote`
+- `builder postflight`
+- `builder goose`
+
+These root inspector groups are Tier 0 observer surfaces. They read existing
+governed artifacts from `$BUILDER_DIR`, render terminal diagnostics, and do not
+write artifacts, start runtimes, invoke models/tools/MCP, activate Goose or
+deepagents, apply patches, mutate git, or change source/target repositories.
+
 ## Research/Performance/Verification
 - `builder-agent`
 - `builder-bundle`

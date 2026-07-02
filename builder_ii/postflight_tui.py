@@ -367,6 +367,8 @@ def cmd_postflight_status(args: list[str]) -> int:
     print("    " + "".join(parts[:-1]))
 
     print()
+    if not pf_records and not vr_records:
+        return 0
     return 0 if (pf_complete and vr_pass) else 1
 
 
@@ -394,7 +396,7 @@ def cmd_postflight_record(args: list[str]) -> int:
 
     if not records:
         print(f"  {G['skip']}  {_d('No execution_postflight_record artifacts found.')}")
-        return 0
+        return 1 if id_args else 0
 
     rc = 0
     for path, data in records:
@@ -477,7 +479,7 @@ def cmd_postflight_verify(args: list[str]) -> int:
 
     if not records:
         print(f"  {G['skip']}  {_d('No execution_verification_record artifacts found.')}")
-        return 0
+        return 1 if id_args else 0
 
     rc = 0
     for path, data in records:
@@ -592,7 +594,7 @@ def cmd_postflight_actions(args: list[str]) -> int:
 
     if not records:
         print(f"  {G['skip']}  {_d('No execution_postflight_record artifacts found.')}")
-        return 0
+        return 1 if id_args else 0
 
     for path, data in records:
         state   = str(data.get("postflight_state") or "NOT_RUN").upper()
@@ -649,7 +651,7 @@ def cmd_postflight_refs(args: list[str]) -> int:
     if not all_records:
         print(f"  {G['skip']}  {_d('No postflight artifacts found.')}")
         print()
-        return 0
+        return 1 if id_args else 0
 
     for path, data in all_records:
         kind        = str(data.get("kind", "")).split(".")[-1]

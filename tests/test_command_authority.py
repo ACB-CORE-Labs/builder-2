@@ -6,6 +6,8 @@ import pytest
 
 from builder_ii.command_authority import (
     COMMAND_AUTHORITY_REGISTRY,
+    READONLY_TUI_COMMAND_GROUPS,
+    READONLY_TUI_COMMANDS,
     REQUIRED_SUBCOMMANDS,
     TIER_0,
     TIER_1,
@@ -228,6 +230,29 @@ def test_tier_0_and_tier_1_boundaries():
             assert not r.allows_external_tool_invocation, f"{r.name} (Tier 1) cannot invoke external tools"
 
 
+def test_readonly_tui_surfaces_are_registered_tier0_observers() -> None:
+    registered = {r.name: r for r in COMMAND_AUTHORITY_REGISTRY}
+    for name in (*READONLY_TUI_COMMAND_GROUPS, *READONLY_TUI_COMMANDS):
+        assert name in registered, f"{name} missing from COMMAND_AUTHORITY_REGISTRY"
+        record = registered[name]
+        assert record.tier == TIER_0
+        assert record.approval_mode == MODE_NONE
+        assert not record.allows_runtime_start
+        assert not record.allows_process_control
+        assert not record.allows_model_execution
+        assert not record.allows_shell_execution
+        assert not record.allows_source_writes
+        assert not record.allows_memory_mutation
+        assert not record.allows_git_mutation
+        assert not record.allows_artifact_writes
+        assert not record.allows_state_writes
+        assert not record.allows_readonly_subprocess
+        assert not record.allows_external_tool_invocation
+
+    for name in READONLY_TUI_COMMANDS:
+        assert name in REQUIRED_SUBCOMMANDS
+
+
 def test_standalone_call_registered_in_authority() -> None:
     """builder-model standalone-call must be registered as Tier 3, declare model execution
     and artifact writes, and be in REQUIRED_SUBCOMMANDS."""
@@ -414,4 +439,3 @@ def test_command_authority_compatibility_hitl_bound() -> None:
     with pytest.raises(CommandAuthorityError) as exc:
         enforce_command_authority("builder-missing-command")
     assert "not registered" in str(exc.value)
-

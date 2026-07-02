@@ -41,6 +41,14 @@ from builder_ii.ledger_cli import ledger_app
 from builder_ii.workflow_cli import workflow_app
 from builder_ii.tools_cli import tools_app
 from builder_ii.mcp_cli import mcp_app
+from builder_ii.tui_inspection_cli import (
+    goose_app as tui_goose_app,
+    hitl_app as tui_hitl_app,
+    model_app as tui_model_app,
+    postflight_app as tui_postflight_app,
+    profile_app as tui_profile_app,
+    promote_app as tui_promote_app,
+)
 
 app = typer.Typer(
     name="builder",
@@ -53,6 +61,12 @@ app.add_typer(workflow_app, name="workflow")
 app.add_typer(ledger_app, name="ledger")
 app.add_typer(tools_app, name="tools")
 app.add_typer(mcp_app, name="mcp")
+app.add_typer(tui_hitl_app, name="hitl")
+app.add_typer(tui_profile_app, name="profile")
+app.add_typer(tui_model_app, name="model")
+app.add_typer(tui_promote_app, name="promote")
+app.add_typer(tui_postflight_app, name="postflight")
+app.add_typer(tui_goose_app, name="goose")
 
 
 def _backend_ready_for_selected_model(settings) -> tuple[bool, str]:

@@ -315,7 +315,7 @@ def cmd_goose_status(args: list[str]) -> int:
 
     if not manifests:
         print(f"  {G['skip']}  {_d('No goose_session_manifest artifacts found.')}")
-        print(f"  {_h('hint: builder goose init  to create a session manifest')}")
+        print(f"  {_h('hint: builder-goose manifest  to create a passive session manifest')}")
         print()
         return 0
 
@@ -404,7 +404,7 @@ def cmd_goose_manifest(args: list[str]) -> int:
 
     if not manifests:
         print(f"  {G['skip']}  {_d('No goose_session_manifest artifacts found.')}")
-        return 0
+        return 1 if id_args else 0
 
     rc = 0
     for path, data in manifests:
@@ -505,7 +505,7 @@ def cmd_goose_links(args: list[str]) -> int:
 
     if not manifests:
         print(f"  {G['skip']}  {_d('No goose_session_manifest artifacts found.')}")
-        return 0
+        return 1 if id_args else 0
 
     for path, data in manifests:
         agent_name = str((data.get("agent_profile") or {}).get("name") or path.name)
@@ -548,7 +548,7 @@ def cmd_goose_actions(args: list[str]) -> int:
 
     if not manifests:
         print(f"  {G['skip']}  {_d('No goose_session_manifest artifacts found.')}")
-        return 0
+        return 1 if id_args else 0
 
     rc = 0
     for path, data in manifests:
@@ -695,7 +695,7 @@ def cmd_goose_approval(args: list[str]) -> int:
 
     if not manifests:
         print(f"  {G['skip']}  {_d('No goose_session_manifest artifacts found.')}")
-        return 0
+        return 1 if id_args else 0
 
     for path, data in manifests:
         agent_name = str((data.get("agent_profile") or {}).get("name") or path.name)

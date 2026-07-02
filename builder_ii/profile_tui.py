@@ -453,7 +453,7 @@ def cmd_profile_validate(args: list[str]) -> int:
 
     if not targets:
         print(f"{GLYPH['skip']}  {_dim('No profile packs found.')}")
-        return 0
+        return 1 if id_args else 0
 
     _section("Profile Pack Validation")
     rc = 0
@@ -514,7 +514,7 @@ def cmd_profile_render_plan(args: list[str]) -> int:
     targets = _find_by_id(base, id_args[0]) if id_args else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
     if not targets:
         print(f"{GLYPH['skip']}  {_dim('No profile packs found.')}")
-        return 0
+        return 1 if id_args else 0
 
     _section("Render Plan")
     for path, pack in targets:
@@ -561,7 +561,7 @@ def cmd_profile_dry_run(args: list[str]) -> int:
     targets = _find_by_id(base, id_args[0]) if id_args else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
     if not targets:
         print(f"{GLYPH['skip']}  {_dim('No profile packs found.')}")
-        return 0
+        return 1 if id_args else 0
 
     _section("Dry-Run Output")
     for path, pack in targets:

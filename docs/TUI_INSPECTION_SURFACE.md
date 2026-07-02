@@ -16,9 +16,9 @@ without writing, executing, or promoting anything.
 
 | Module | Command prefix | Artifact kinds covered |
 |---|---|---|
-| `hitl_tui.py` | `builder hitl` | HITL execution records, verification candidates, promotion artifacts, patch proposals |
-| `profile_tui.py` | `builder profile` | Target profiles, agent profiles, verification profiles, profile packs |
-| `model_tui.py` | `builder model` | Model routing tables, model role matrix, model operating policy |
+| `hitl_tui.py` | `builder hitl` | HITL chain bindings, approvals, evidence bundles, execution records, promotion summaries, event replay |
+| `profile_tui.py` | `builder profile` | Profile-pack lifecycle, validation reports, render plans, dry-runs, resolution, history |
+| `model_tui.py` | `builder model` | Model routing policy/recommendation/execution-policy artifacts and model client registry artifacts |
 | `promote_tui.py` | `builder promote` | Promotion readiness, HITL promotion artifacts, promotion decisions, compatibility |
 | `postflight_tui.py` | `builder postflight` | Execution postflight records, execution verification records |
 | `goose_tui.py` | `builder goose` | Goose session manifests |
@@ -40,10 +40,11 @@ never changes behaviour.
 ### Every command is a gate
 
 Every command returns a meaningful exit code. `0` means the inspected
-artifacts are in a healthy, expected state. `1` means something requires
-operator attention — a missing artifact, a failed gate, an invalid schema,
-an unexpected governance value. This makes every command directly usable in
-CI preflight scripts, Makefiles, and shell pipelines.
+artifacts are in a healthy, expected state, or an overview command found no
+artifacts to inspect. `1` means something requires operator attention — an
+explicit missing ID, invalid JSON, a failed gate, an invalid schema, or an
+unexpected governance value. This makes every command directly usable in CI
+preflight scripts, Makefiles, and shell pipelines.
 
 ### Schema authority stays in the records module
 
@@ -51,9 +52,9 @@ Each TUI module delegates validation to the corresponding records module:
 
 | TUI module | Validation source |
 |---|---|
-| `hitl_tui.py` | `hitl_execution_records`, `hitl_verification_candidate`, `hitl_promotion_artifacts`, `hitl_patch_proposal` |
-| `profile_tui.py` | `target_profiles`, `agent_profiles`, `verification_profiles`, `profile_packs` |
-| `model_tui.py` | `model_routing`, `model_role_matrix` |
+| `hitl_tui.py` | `hitl_chain_binding`, `approval_records`, `hitl_evidence_bundle`, `hitl_execution_records`, promotion/event ledgers |
+| `profile_tui.py` | `profile_pack`, profile-pack render/dry-run/validation artifacts |
+| `model_tui.py` | `model_routing_policy`, `model_client_registry`, `model_execution_policy` |
 | `promote_tui.py` | `promotion_readiness_records`, `hitl_promotion_artifacts`, `promotion_decision_records`, `promotion_compatibility` |
 | `postflight_tui.py` | `execution_postflight_records` |
 | `goose_tui.py` | `goose_session` |
@@ -140,154 +141,68 @@ builder goose status || exit 1
 ## `builder hitl` — HITL Inspection
 
 **Module:** `builder_ii/hitl_tui.py`  
-**Artifact kinds:** `builder_ii.hitl_execution_record`, `builder_ii.hitl_verification_candidate`,
-`builder_ii.hitl_promotion_artifact`, `builder_ii.hitl_patch_proposal`
+**Artifact kinds:** HITL chain bindings, approval records, evidence bundles,
+execution request/receipt records, promotion readiness/decision records, and
+HITL-relevant event ledger entries.
 
 ### Commands
 
-#### `builder hitl status`
+- `builder hitl status`: active chain binding summary; empty store exits `0`.
+- `builder hitl chain [id]`: full 8-slot chain binding pipeline.
+- `builder hitl pending`: approval records without corresponding receipts.
+- `builder hitl approval [id]`: approval record detail.
+- `builder hitl evidence [id]`: evidence bundle detail.
+- `builder hitl execution`: HITL execution request/receipt records.
+- `builder hitl promote`: promotion readiness and decision summary.
+- `builder hitl replay --n N --agent A --kind K`: filtered HITL event ledger replay.
 
-Full HITL pipeline overview. Shows four panels: execution records, verification
-candidates, promotion artifacts, and patch proposals. Each row shows artifact
-name/target, state glyph, and timestamp. A **Pipeline Bar** at the bottom
-shows the four stages: `Execution → Verification → Promotion → Patch`. Completed
-stages render in pass-green; pending stages are dim.
-
-Flags: `-v` / `--verbose` — show governance block and rationale fields.
-
-Exit `1` if any required artifact is missing, in a failed state, or has
-validation errors.
-
-#### `builder hitl record [id]`
-
-Renders HITL execution record detail. Shows state, target, refs, governance
-block, and validation errors. The `[id]` argument filters by filename or
-target name.
-
-#### `builder hitl candidate [id]`
-
-Renders HITL verification candidate detail. Shows candidate state, quality
-gates, evidence refs, and the ref chain linking to the execution record.
-
-#### `builder hitl promotion [id]`
-
-Renders HITL promotion artifact detail. Shows promotion state with five-glyph
-traffic light (`▲ APPROVED`, `▣ AUTHORIZED`, `◉ PENDING`, `▼ REJECTED`,
-`● DEFERRED`), required gates with individual pass/fail glyphs, and the
-governing ref chain.
-
-Under `--verbose`: governance block and `subject_ref.sha256` digest.
-
-Exit `1` if no artifact is in an approved/authorized state.
-
-#### `builder hitl patch [id]`
-
-Renders HITL patch proposal detail. Shows patch state, target, diff summary,
-review notes, and the ref chain. Under `--verbose`: full governance block.
-
-#### `builder hitl governance`
-
-Full governance block audit across all HITL artifact kinds found in
-`.builder/`. Reports every capability per artifact, flagging any non-DISABLED
-value in red. Exit `1` if any violations found.
-
-#### `builder hitl validate`
-
-Schema validation against all HITL artifact kinds. Delegates to each kind's
-`validate_*()` function. Reports errors per artifact with red `✘` lines.
-Exit `1` if any validation errors.
+All commands are read-only. Explicit ID misses exit `1`; empty overview
+commands exit `0`.
 
 ---
 
 ## `builder profile` — Profile Pack Inspection
 
 **Module:** `builder_ii/profile_tui.py`  
-**Artifact kinds / data sources:** Target profiles (from `target_profiles.py`),
-agent profiles (from `agent_profiles.py`), verification profiles (from
-`verification_profiles.py`), profile packs (from `profile_packs.py`)
+**Artifact kinds / data sources:** profile-pack manifests, lifecycle bindings,
+render plans, dry-run artifacts, validation reports, resolution metadata, and
+profile-pack history discovered under `$BUILDER_DIR`.
 
 ### Commands
 
-#### `builder profile status`
+- `builder profile status`: active pack overview.
+- `builder profile lifecycle [id]`: 7-stage lifecycle pipeline.
+- `builder profile validate [id]`: profile-pack schema and report validation.
+- `builder profile render-plan [id]`: render-plan steps.
+- `builder profile dry-run [id]`: dry-run outputs, slots, and deltas.
+- `builder profile resolve [profile]`: profile resolution chain.
+- `builder profile history`: all discovered profile packs.
 
-Overview of all configured profiles: target profiles (generic / builder /
-core), agent profiles (repo_mapper, context_planner, code_reviewer,
-patch_planner, verification_planner, handoff_scribe), and any profile pack
-artifacts found in `.builder/`.
-
-Flags: `-v` / `--verbose` — show description and authority fields.
-
-#### `builder profile target [name]`
-
-Renders a specific target profile. Shows name, repo path, description, and
-whether the repo exists on disk. Valid names: `generic`, `builder`, `core`.
-Without an argument, shows all three.
-
-#### `builder profile agent [name]`
-
-Renders agent profile detail: name, description, authority string. Valid
-names: `repo_mapper`, `context_planner`, `code_reviewer`, `patch_planner`,
-`verification_planner`, `handoff_scribe`. CORE-extension profiles
-(`core.invariant_auditor`, `core.patch_planner`, `core.verification_planner`)
-are shown if registered.
-
-#### `builder profile verification [target]`
-
-Renders the default verification profile for a given target. Shows profile
-kind, state, and the full artifact dict under `--verbose`.
-
-#### `builder profile pack [id]`
-
-Renders profile pack artifacts discovered in `.builder/`. Shows pack name,
-target, agent profile binding, and linked artifact refs. Under `--verbose`:
-full context pack content and verification profile binding.
-
-#### `builder profile validate`
-
-Schema validation across all profile artifact kinds. Reports per-profile
-errors. Exit `1` if any errors.
+Profile artifact creation remains on `builder-profile-pack`; this surface
+inspects only.
 
 ---
 
 ## `builder model` — Model Routing Inspection
 
 **Module:** `builder_ii/model_tui.py`  
-**Data sources:** `model_routing.py` (routing table), `model_role_matrix.py`
-(role matrix), `model_operating_policy.md` / policy artifacts
+**Data sources:** passive model routing policy, routing recommendation,
+execution policy, and model client registry artifacts discovered under
+`$BUILDER_DIR`.
 
 ### Commands
 
-#### `builder model status`
+- `builder model routing show`: active routing policy overview.
+- `builder model routing simulate [intent] [risk] [--tools]`: dry-run recommendation from passive policy/registry artifacts.
+- `builder model routing candidates`: ranked candidate list from the latest recommendation artifact.
+- `builder model routing policy`: raw policy governance and rule detail.
+- `builder model routing execution-policy`: execution-policy envelope detail, if present.
+- `builder model routing validate`: validate routing artifacts on disk.
+- `builder model registry show`: model client registry overview.
+- `builder model registry diff [target_registry.json]`: compare active registry with a target registry file.
 
-Overview of the model routing table: each lane (planning, execution, review,
-verification, etc.) with its assigned model, provider, and context window.
-Shows policy compliance state and whether any lanes have unresolved models.
-
-Flags: `-v` / `--verbose` — show full model metadata per lane.
-
-#### `builder model route [lane]`
-
-Renders a specific lane's routing entry. Shows model name, provider, context
-window, temperature policy, and any lane-specific constraints. Without a lane
-argument, shows all lanes.
-
-#### `builder model matrix`
-
-Renders the full model role matrix as a table: rows are roles/lanes, columns
-are models, cells show assignment state. Useful for spotting gaps or
-unexpected assignments.
-
-#### `builder model policy`
-
-Renders the model operating policy artifact or policy document. Shows
-governance constraints on model usage: which models are permitted for which
-purposes, context window limits, and call authority boundaries.
-
-#### `builder model validate`
-
-Validates routing table and role matrix for internal consistency: all
-referenced models exist, all lanes have assignments, no conflicting policies.
-Exit `1` if any errors.
+Passive artifact generation remains on `builder-model-policy`; this surface
+does not call models or provider endpoints.
 
 ---
 
@@ -583,7 +498,7 @@ builder goose status
 inspect-all:
 	builder hitl status
 	builder profile status
-	builder model status
+	builder model routing show
 	builder promote status
 	builder postflight status
 	builder goose status
@@ -600,15 +515,14 @@ goose-check:
 	builder goose governance
 ```
 
-### Governance audit (all surfaces)
+### Governance audit
 
 ```sh
-builder hitl governance
 builder postflight governance
 builder goose governance
 ```
 
-All three commands exit `1` on any governance violation, making them
+Both commands exit `1` on any governance violation, making them
 composable into a single governance sweep.
 
 ---
@@ -629,15 +543,18 @@ behaviour — it expands output only:
 
 ### The `[id]` positional argument
 
-Every `record`, `artifact`, `manifest`, `verify`, `links`, `actions`, and
-`refs` command accepts an optional `[id]` argument. It is matched against:
+Every `chain`, `approval`, `evidence`, `lifecycle`, `validate`,
+`render-plan`, `dry-run`, `artifact`, `decision`, `manifest`, `verify`,
+`links`, `actions`, and `refs` command accepts an optional `[id]` argument.
+It is matched against:
 
 - Filename (stem or full)
 - `target.name` field
 - `agent_profile.name` field (where applicable)
 
-If no match is found, the command falls back to showing all discovered
-artifacts of that kind.
+If an ID is supplied and no match is found, the command exits `1`. If no ID
+is supplied and no artifacts exist, overview/list commands print an empty
+state and exit `0`.
 
 ### Governance block structure (cross-module)
 

@@ -81,6 +81,14 @@ The operator command surface is organized by phase. Every command operates stric
 
 ### Discovery / Inspection
 
+#### Root read-only TUI inspector
+- **Command names**: `builder hitl *`, `builder profile *`, `builder model routing *`, `builder model registry *`, `builder promote *`, `builder postflight *`, `builder goose *`
+- **Purpose**: Inspect existing governed artifacts from `$BUILDER_DIR` through first-class root `builder` command groups without creating, executing, promoting, or mutating anything.
+- **Output artifact, if any**: None; stdout inspection only.
+- **Execution authority**: read-only observer; invalid JSON, explicit lookup misses, schema failures, failed present gates, and governance violations exit non-zero.
+- **Human responsibility**: Use the inspector to understand current state and then invoke separate governed artifact CLIs only when artifact creation or HITL execution is explicitly intended.
+- **Writes**: Read-only; writes only stdout.
+
 #### `builder-targets list`
 - **Command name**: `builder-targets list`
 - **Purpose**: Enumerate available target profiles (`generic`, `builder`, `core`) and their default configuration settings.

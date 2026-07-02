@@ -320,6 +320,8 @@ def cmd_promote_status(args: list[str]) -> int:
     _render_pipeline_bar(readiness, hitl_prom, decisions)
 
     print()
+    if readiness is None and not hitl_prom and not decisions:
+        return 0
     return 0 if readiness_ok else 1
 
 
@@ -386,7 +388,7 @@ def cmd_promote_readiness(args: list[str]) -> int:
 
     if readiness is None:
         print(f"  {G['skip']}  {_d('No promotion_readiness.json found and live evaluation unavailable.')}")
-        print(f"  {_h('hint: builder promote init  or  builder promote check')}")
+        print(f"  {_h('hint: builder-promotion record  to create a passive readiness record')}")
         print()
         return 1
 
@@ -429,7 +431,7 @@ def cmd_promote_artifact(args: list[str]) -> int:
 
     if not artifacts:
         print(f"  {G['skip']}  {_d('No HITL promotion artifacts found.')}")
-        return 0
+        return 1 if id_args else 0
 
     rc = 0
     for path, data in artifacts:
@@ -500,7 +502,7 @@ def cmd_promote_decision(args: list[str]) -> int:
 
     if not decisions:
         print(f"  {G['skip']}  {_d('No promotion decision records found.')}")
-        return 0
+        return 1 if id_args else 0
 
     rc = 0
     for path, data in decisions:
@@ -573,9 +575,9 @@ def cmd_promote_compatibility(args: list[str]) -> int:
             return 0 if data.get("compatible") else 1
 
     print(f"  {G['skip']}  {_d('No promotion_compatibility artifact found.')}")
-    print(f"  {_h('hint: builder promote check  to generate compatibility report')}")
+    print(f"  {_h('hint: builder-promotion record  to create passive promotion readiness evidence')}")
     print()
-    return 0
+    return 1 if id_args else 0
 
 
 def _render_compat_report(data: dict, *, verbose: bool) -> None:
