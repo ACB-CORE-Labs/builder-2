@@ -24,29 +24,32 @@ export BUILDER_THEME=default    # original slate/indigo (default when unset)
 | Theme      | pass         | warn         | accent       | border  |
 |------------|-------------|-------------|-------------|--------|
 | `default`  | `#4ade80` green | `#fbbf24` amber | `#818cf8` indigo | `#475569` slate |
-| `chargers` | `#0073CF` powder blue | `#FFB612` bolt gold | `#FFB612` bolt gold | `#002244` navy |
+| `chargers` | `#FFC20E` bolt gold | `#FFC20E` bolt gold | `#FFC20E` bolt gold | `#0080C6` powder blue |
 
 ## Swatch
 
 ```
 Chargers palette
-  pass/active   ████  #0073CF  Powder Blue
-  warn/accent   ████  #FFB612  Bolt Gold
-  fail          ████  #f87171  Red (universal danger, unchanged)
-  bold          ████  #FFFFFF  White
-  hint          ████  #A5ACAF  Light Grey
-  dim           ████  #6C757D  Dark Grey
-  _navy (border)████  #002244  Navy
+  app bg        ████  #0080C6  Powder Blue
+  panel         ████  #002244  Navy
+  panel-light   ████  #003366  Lighter Navy
+  hover         ████  #004080  Navy Hover
+  pass/warn     ████  #FFC20E  Bolt Gold
+  fail          ████  #F85149  Red (universal danger, unchanged)
+  active/bold   ████  #FFFFFF  White
+  hint          ████  #80CFFF  Light Blue
+  dim/border    ████  #0080C6  Powder Blue
 ```
 
 ## Design decisions
 
 - `fail` is kept red across all themes. Red = danger is a universal convention
   that should not be overridden by brand colour.
-- `pass` and `active` share Powder Blue in the Chargers theme intentionally;
-  the glyph (●/◆) carries the semantic distinction, not colour alone.
-- Navy (#002244) is an *extended* token (`_navy`), not a core token. It appears
-  only as panel borders and section rules via `theme_panel_border()`. This keeps
-  the 8-token contract clean while still using the full Chargers palette.
-- Grey (#A5ACAF / #6C757D) surfaces naturally as `hint` and `dim` — the same
-  structural role they play in the default theme.
+- Verified/success glyphs use Bolt Gold in the Chargers theme to preserve the
+  lightning-bolt read while keeping failure red and HITL/warning states visible.
+- Navy (#002244) is used for floating panels. Powder Blue (#0080C6) is used for
+  the app field, selected state, dim token, and panel border. This keeps the
+  8-token contract clean while still letting the TUI consume extended surface
+  tokens through `theme_extras()`.
+- Light/Powder Blue surfaces naturally as `hint` and `dim` — the same structural
+  role muted/secondary colors play in the default theme.
