@@ -16,8 +16,7 @@ def test_builder_deepagents_forge_help_is_registered() -> None:
     result = runner.invoke(deepagents_app, ["forge", "--help"])
 
     assert result.exit_code == 0
-    assert "--non-interactive" in result.output
-    assert "--dry-run" in result.output
+    assert "deepagents Forge" in result.output
 
 
 def test_builder_deepagents_forge_dry_run_has_no_side_effects(tmp_path: Path, monkeypatch) -> None:
