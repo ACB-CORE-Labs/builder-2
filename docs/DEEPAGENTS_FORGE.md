@@ -4,7 +4,7 @@ deepagents Forge is the governed creation surface for defining new deepagents in
 
 ## What it does
 
-Forge builds a `DeepAgentSpec` through an interactive TUI wizard or headless CLI flow, then:
+Forge builds a `DeepAgentSpec` through an interactive TUI wizard or headless CLI module flow, then:
 
 - validates all required fields are present,
 - rejects unsafe slugs before any file path is constructed,
@@ -74,25 +74,27 @@ Before emit, Forge checks seven conditions against builder-II's Capability Promo
 
 If any check fails, emit is blocked. The operator sees a checklist in the preview step before they can proceed. In dry-run mode the governance check is shown but no write happens.
 
-## CLI usage
+## CLI/module usage
+
+Forge is currently available as a module entrypoint. A first-class `builder-deepagents forge` command should be added only after command authority and docs registration are completed together.
 
 ### Interactive TUI
 
 ```bash
 # Launch the full Textual TUI wizard
-builder-deepagents-forge
+uv run python -m builder_ii.deepagents_forge_cli
 
 # Pre-seed name and target profile
-builder-deepagents-forge --name pr_reviewer --profile core
+uv run python -m builder_ii.deepagents_forge_cli --name pr_reviewer --profile core
 
 # Preview only — governance check + YAML rendered, nothing written
-builder-deepagents-forge --dry-run
+uv run python -m builder_ii.deepagents_forge_cli --dry-run
 ```
 
 ### Headless / CI mode
 
 ```bash
-builder-deepagents-forge \
+uv run python -m builder_ii.deepagents_forge_cli \
   --non-interactive \
   --name test_writer \
   --profile generic \
@@ -181,13 +183,14 @@ Forge enforces these rules at the preview step before emit and at emit time. The
 | `builder_ii/deepagents_forge_preview.py` | `check_governance()`, `render_preview()`, `GovernanceCheck`, `ForgePreview` |
 | `builder_ii/deepagents_forge_emit.py` | `emit_agent()`, `EmitResult`, bounded write/register helpers |
 | `builder_ii/deepagents_forge_tui.py` | Textual TUI wizard, `ForgeApp`, `ForgeScreen`, widget set |
-| `builder_ii/deepagents_forge_cli.py` | Typer CLI, `forge_agent()`, `run_headless_forge()` |
+| `builder_ii/deepagents_forge_cli.py` | Typer CLI module, `forge_agent()`, `run_headless_forge()` |
 
 ### Output
 
 | Path | Contents |
 |---|---|
 | `profiles/deepagents/{slug}.yaml` | Emitted agent profile YAML |
+| `profiles/deepagents/forge_{slug}.handoff.json` | Optional governed handoff note if the handoff API is available |
 
 ### Tests
 
