@@ -1,5 +1,5 @@
 """
-deeagents_forge_schema.py
+deepagents_forge_schema.py
 
 Defines DeepAgentSpec — the incrementally-buildable agent specification
 that the Forge wizard populates step by step. All fields are optional at
@@ -11,10 +11,14 @@ This module is generic-first and must not import CORE-specific modules.
 from __future__ import annotations
 
 import re
-import yaml
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
+
+import yaml
+
+_SAFE_SLUG_RE = re.compile(r"^[a-z0-9]+(?:_[a-z0-9]+)*$")
+_VALID_TARGET_PROFILES = {"generic", "builder", "core"}
 
 
 def derive_slug(name: str) -> str:
@@ -23,6 +27,11 @@ def derive_slug(name: str) -> str:
     slug = re.sub(r"[^a-z0-9]+", "_", slug)
     slug = slug.strip("_")
     return slug
+
+
+def is_valid_slug(slug: str) -> bool:
+    """Return True when slug is safe for profiles/deepagents/{slug}.yaml."""
+    return bool(isinstance(slug, str) and _SAFE_SLUG_RE.fullmatch(slug.strip()))
 
 
 @dataclass
@@ -43,21 +52,21 @@ class DeepAgentSpec:
     lane: str = "default"   # maps to existing lane_guides
 
     # --- Capability grants ---
-    capabilities: list = field(default_factory=list)
+    capabilities: list[str] = field(default_factory=list)
     # e.g. ["read_files", "run_tests"] — write/shell require HITL gates
 
     # --- Tool wiring ---
-    mcp_tools: list = field(default_factory=list)
+    mcp_tools: list[str] = field(default_factory=list)
     goose_recipe: Optional[str] = None
 
     # --- Subagent / orchestration ---
     subagent_of: Optional[str] = None   # parent agent slug if nested
-    hitl_gates: list = field(default_factory=list)
+    hitl_gates: list[str] = field(default_factory=list)
     # e.g. ["before_write", "before_shell"]
 
     # --- Memory / context ---
     context_pack: Optional[str] = None
-    memory_routes: list = field(default_factory=list)
+    memory_routes: list[str] = field(default_factory=list)
 
     # --- Governance (required at emit) ---
     verification_profile: str = "default"
@@ -71,7 +80,7 @@ class DeepAgentSpec:
     schema_version: str = "1.0"
 
     # --- Required fields for emit ---
-    _REQUIRED_FIELDS: list = field(
+    _REQUIRED_FIELDS: list[str] = field(
         default_factory=lambda: [
             "name",
             "slug",
@@ -85,18 +94,19 @@ class DeepAgentSpec:
 
     def is_emit_ready(self) -> tuple[bool, list[str]]:
         """
-        Returns (ready, list_of_missing_fields).
-        All required fields must be non-empty strings.
+        Returns (ready, list_of_missing_or_invalid_fields).
+        All required fields must be non-empty strings; slug and target profile
+        must also be safe because the emitter writes durable repo artifacts.
         """
-        required = [
-            "name",
-            "slug",
-            "persona",
-            "verification_profile",
-            "output_artifact",
-            "rollback_path",
+        missing = [
+            field_name
+            for field_name in self._REQUIRED_FIELDS
+            if not str(getattr(self, field_name, "")).strip()
         ]
-        missing = [f for f in required if not getattr(self, f, "").strip()]
+        if self.slug and not is_valid_slug(self.slug):
+            missing.append("slug")
+        if self.target_profile not in _VALID_TARGET_PROFILES:
+            missing.append("target_profile")
         return (len(missing) == 0), missing
 
     def auto_derive_slug(self) -> None:
