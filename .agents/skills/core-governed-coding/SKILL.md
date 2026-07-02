@@ -19,7 +19,7 @@ Never modify: `algebra/`, `field/`, `generate/`, `core/cognition/`, `vault/`, `t
 
 ## Workflow
 1. `/plan` for non-trivial sensitive changes
-2. Read AGENTS.md, GROK.md, `docs/runtime_contracts.md` before edits
+2. Read AGENTS.md, `docs/runtime_contracts.md` before edits
 3. Trace call sites before writing
 4. Label outputs [SPECULATIVE] until verification PASS
 5. Run `builder verify <module>` — fix upstream cause on failure

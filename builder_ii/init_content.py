@@ -25,7 +25,7 @@ WORKFLOW:
 
 REFUSAL EXAMPLE: cosine similarity in vault/store.py → REFUSE. Name versor_condition + exact-recall invariant; cite cga_inner-only vault recall.
 
-GOVERNANCE FILES (read on session start): AGENTS.md, GROK.md, docs/runtime_contracts.md.
+GOVERNANCE FILES (read on session start): AGENTS.md, docs/runtime_contracts.md.
 
 CANONICAL ROUTES: algebra/ -> algebra; vault/ -> teaching.
 

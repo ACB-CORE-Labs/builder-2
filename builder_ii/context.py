@@ -10,7 +10,6 @@ from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT
 
 GOVERNANCE_FILES: tuple[str, ...] = (
     "AGENTS.md",
-    "GROK.md",
     "docs/runtime_contracts.md",
 )
 

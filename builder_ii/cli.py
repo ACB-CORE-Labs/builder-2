@@ -217,7 +217,7 @@ def start(
 
     console.print(f"CORE repo: {settings.core_repo}")
     console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")
-    console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep, core-handoff")
+    console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep")
     proc = launch_goose_session(settings, resume=resume, session=session, name=name)
     proc.wait()
 
