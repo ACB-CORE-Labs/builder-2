@@ -46,7 +46,25 @@ def test_readonly_tui_explicit_missing_id_fails(tmp_path: Path) -> None:
     result = runner.invoke(app, ["postflight", "record", "missing-record"], env=_env(tmp_path))
 
     assert result.exit_code == 1
-    assert "No execution_postflight_record artifacts found" in result.output
+    assert "Execution Postflight Record" in result.output
+    assert "No execution postflight record found matching: missing-record" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_readonly_tui_profile_explicit_missing_pack_fails(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["profile", "validate", "missing-pack"], env=_env(tmp_path))
+
+    assert result.exit_code == 1
+    assert "No profile pack found matching: missing-pack" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_readonly_tui_goose_explicit_missing_manifest_fails(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["goose", "manifest", "missing-session"], env=_env(tmp_path))
+
+    assert result.exit_code == 1
+    assert "Goose Session Manifest" in result.output
+    assert "No goose session manifest found matching: missing-session" in result.output
     assert "Traceback" not in result.output
 
 
@@ -81,3 +99,34 @@ def test_readonly_tui_goose_hint_uses_real_artifact_cli(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "builder-goose manifest" in result.output
     assert "builder goose init" not in result.output
+
+
+def test_readonly_tui_promote_status_empty_sections_are_stable(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["promote", "status"], env=_env(tmp_path))
+
+    assert result.exit_code == 0
+    for section in (
+        "Promotion Pipeline Status",
+        "Readiness",
+        "HITL Promotion Artifacts",
+        "Latest Decision",
+        "Pipeline Gate",
+    ):
+        assert section in result.output
+    assert "Traceback" not in result.output
+
+
+def test_readonly_tui_promote_hint_uses_real_artifact_cli(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["promote", "compatibility"], env=_env(tmp_path))
+
+    assert result.exit_code == 0
+    assert "builder-promotion record" in result.output
+    assert "builder promote check" not in result.output
+
+
+def test_readonly_tui_model_hint_uses_real_artifact_cli(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["model", "routing", "show"], env=_env(tmp_path))
+
+    assert result.exit_code == 0
+    assert "builder-model-policy dry-run" in result.output
+    assert "Traceback" not in result.output

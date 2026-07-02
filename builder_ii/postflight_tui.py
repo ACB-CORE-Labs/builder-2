@@ -32,11 +32,21 @@ Command surface
 """
 from __future__ import annotations
 
-import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
+
+from builder_ii.tui_contract import (
+    builder_dir as _shared_builder_dir,
+    col as _shared_col,
+    explicit_lookup_miss as _shared_lookup_miss,
+    find_artifact as _shared_find_artifact,
+    glob_kind as _shared_glob_kind,
+    hex_ansi as _shared_hex_ansi,
+    lookup_matches as _shared_lookup_matches,
+    load_json_object as _shared_load_json_object,
+    load_palette,
+)
 
 # ---------------------------------------------------------------------------
 # Palette — theme-aware, shares contract with tui.py / hitl_tui.py / promote_tui.py
@@ -44,33 +54,11 @@ from typing import Any
 
 _IS_TTY = sys.stdout.isatty()
 
-try:
-    from builder_ii.tui_theme import theme_palette as _theme_palette
-    _C = _theme_palette()
-except Exception:
-    _C = {
-        "pass":   "#4ade80",
-        "warn":   "#fbbf24",
-        "fail":   "#f87171",
-        "hint":   "#94a3b8",
-        "active": "#38bdf8",
-        "dim":    "#475569",
-        "bold":   "#f1f5f9",
-        "accent": "#818cf8",
-    }
+_C = load_palette()
 
 
 def _hex_ansi(hex_colour: str, text: str) -> str:
-    if not _IS_TTY:
-        return text
-    h = hex_colour.lstrip("#")
-    if len(h) != 6:
-        return text
-    try:
-        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-        return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
-    except ValueError:
-        return text
+    return _shared_hex_ansi(hex_colour, text, _IS_TTY)
 
 
 _p   = lambda t: _hex_ansi(_C["pass"],   t)
@@ -143,13 +131,11 @@ def _vr_state(state: str) -> tuple[str, str]:
 # ---------------------------------------------------------------------------
 
 def _builder_dir() -> Path:
-    return Path(os.environ.get("BUILDER_DIR", ".builder"))
+    return _shared_builder_dir()
 
 
 def _col(text: str, width: int) -> str:
-    import re as _re
-    plain = _re.sub(r"\033\[[0-9;]*m", "", text)
-    return text + " " * max(0, width - len(plain))
+    return _shared_col(text, width)
 
 
 def _hr(w: int = 72) -> str:
@@ -182,42 +168,24 @@ def _short(s: str, n: int = 16) -> str:
 # ---------------------------------------------------------------------------
 
 def _load_json(path: Path) -> tuple[dict | None, str]:
-    if not path.exists():
-        return None, f"not found: {path}"
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return (data, "") if isinstance(data, dict) else (None, f"not a JSON object: {path}")
-    except json.JSONDecodeError as exc:
-        return None, f"invalid JSON in {path}: {exc}"
-    except Exception as exc:
-        return None, f"failed to read {path}: {exc}"
+    return _shared_load_json_object(path)
 
 
 def _find_artifact(base: Path, *candidates: str) -> tuple[Path | None, dict | None]:
-    for name in candidates:
-        p = base / name
-        data, _ = _load_json(p)
-        if data:
-            return p, data
-    return None, None
+    return _shared_find_artifact(base, *candidates)
 
 
 def _glob_kind(base: Path, kind_fragment: str, *subdirs: str) -> list[tuple[Path, dict]]:
-    results: list[tuple[Path, dict]] = []
-    search_dirs = [base / s for s in subdirs] + [base]
-    seen: set[Path] = set()
-    for d in search_dirs:
-        if not d.exists():
-            continue
-        for p in sorted(d.glob("*.json")):
-            rp = p.resolve()
-            if rp in seen:
-                continue
-            seen.add(rp)
-            data, _ = _load_json(p)
-            if data and kind_fragment in str(data.get("kind", "")):
-                results.append((p, data))
-    return results
+    return _shared_glob_kind(base, kind_fragment, *subdirs)
+
+
+def _record_matches(target: str, path: Path, data: dict) -> bool:
+    return _shared_lookup_matches(
+        target,
+        path.name,
+        path,
+        (data.get("target") or {}).get("name", ""),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -391,12 +359,14 @@ def cmd_postflight_record(args: list[str]) -> int:
 
     if id_args:
         target = id_args[0]
-        records = [(p, d) for p, d in records
-                   if target in p.name or target in str((d.get("target") or {}).get("name", ""))]
+        records = [(p, d) for p, d in records if _record_matches(target, p, d)]
 
     if not records:
+        if id_args:
+            print(f"  {G['fail']}  {_f(_shared_lookup_miss('execution postflight record', id_args[0]))}")
+            return 1
         print(f"  {G['skip']}  {_d('No execution_postflight_record artifacts found.')}")
-        return 1 if id_args else 0
+        return 0
 
     rc = 0
     for path, data in records:
@@ -474,12 +444,14 @@ def cmd_postflight_verify(args: list[str]) -> int:
 
     if id_args:
         target = id_args[0]
-        records = [(p, d) for p, d in records
-                   if target in p.name or target in str((d.get("target") or {}).get("name", ""))]
+        records = [(p, d) for p, d in records if _record_matches(target, p, d)]
 
     if not records:
+        if id_args:
+            print(f"  {G['fail']}  {_f(_shared_lookup_miss('execution verification record', id_args[0]))}")
+            return 1
         print(f"  {G['skip']}  {_d('No execution_verification_record artifacts found.')}")
-        return 1 if id_args else 0
+        return 0
 
     rc = 0
     for path, data in records:
@@ -589,12 +561,14 @@ def cmd_postflight_actions(args: list[str]) -> int:
 
     if id_args:
         target = id_args[0]
-        records = [(p, d) for p, d in records
-                   if target in p.name or target in str((d.get("target") or {}).get("name", ""))]
+        records = [(p, d) for p, d in records if _record_matches(target, p, d)]
 
     if not records:
+        if id_args:
+            print(f"  {G['fail']}  {_f(_shared_lookup_miss('execution postflight record', id_args[0]))}")
+            return 1
         print(f"  {G['skip']}  {_d('No execution_postflight_record artifacts found.')}")
-        return 1 if id_args else 0
+        return 0
 
     for path, data in records:
         state   = str(data.get("postflight_state") or "NOT_RUN").upper()
@@ -645,13 +619,17 @@ def cmd_postflight_refs(args: list[str]) -> int:
         target = id_args[0]
         all_records = [
             (p, d) for p, d in all_records
-            if target in p.name or target in str((d.get("target") or {}).get("name", ""))
+            if _record_matches(target, p, d)
         ]
 
     if not all_records:
+        if id_args:
+            print(f"  {G['fail']}  {_f(_shared_lookup_miss('postflight artifact', id_args[0]))}")
+            print()
+            return 1
         print(f"  {G['skip']}  {_d('No postflight artifacts found.')}")
         print()
-        return 1 if id_args else 0
+        return 0
 
     for path, data in all_records:
         kind        = str(data.get("kind", "")).split(".")[-1]

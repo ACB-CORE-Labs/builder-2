@@ -26,11 +26,20 @@ Command surface
 """
 from __future__ import annotations
 
-import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
+
+from builder_ii.tui_contract import (
+    builder_dir as _shared_builder_dir,
+    col as _shared_col,
+    explicit_lookup_miss as _shared_lookup_miss,
+    hex_ansi as _shared_hex_ansi,
+    lookup_matches as _shared_lookup_matches,
+    load_json_object as _shared_load_json_object,
+    load_palette,
+    row as _shared_row,
+)
 
 # ---------------------------------------------------------------------------
 # Palette — theme-aware, shares contract with tui.py / agent_tui.py / hitl_tui.py
@@ -38,40 +47,11 @@ from typing import Any
 
 _IS_TTY = sys.stdout.isatty()
 
-try:
-    from builder_ii.tui_theme import theme_palette as _theme_palette
-    _C = _theme_palette()
-except Exception:
-    _C = {
-        "pass":   "#4ade80",
-        "warn":   "#fbbf24",
-        "fail":   "#f87171",
-        "hint":   "#94a3b8",
-        "active": "#38bdf8",
-        "dim":    "#475569",
-        "bold":   "#f1f5f9",
-        "accent": "#818cf8",
-    }
-
-
-def _ansi(code: str, text: str) -> str:
-    if not _IS_TTY:
-        return text
-    return f"\033[{code}m{text}\033[0m"
+_C = load_palette()
 
 
 def _hex_to_ansi(hex_colour: str, text: str) -> str:
-    """Best-effort 24-bit ANSI fg from #rrggbb. Falls back to plain text if not TTY."""
-    if not _IS_TTY:
-        return text
-    h = hex_colour.lstrip("#")
-    if len(h) != 6:
-        return text
-    try:
-        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-        return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
-    except ValueError:
-        return text
+    return _shared_hex_ansi(hex_colour, text, _IS_TTY)
 
 
 # Semantic colour helpers using active theme palette
@@ -108,7 +88,7 @@ GLYPH = {
 # ---------------------------------------------------------------------------
 
 def _builder_dir() -> Path:
-    return Path(os.environ.get("BUILDER_DIR", ".builder"))
+    return _shared_builder_dir()
 
 
 def _short(digest: str, n: int = 14) -> str:
@@ -125,10 +105,7 @@ def _ts(ts: Any) -> str:
 
 
 def _col(text: str, width: int) -> str:
-    import re
-    plain = re.sub(r"\033\[[0-9;]*m", "", text)
-    deficit = max(0, width - len(plain))
-    return text + " " * deficit
+    return _shared_col(text, width)
 
 
 def _hr(char: str = "─", width: int = 72) -> str:
@@ -146,7 +123,7 @@ def _kv(key: str, value: str, key_w: int = 24) -> None:
 
 
 def _row(*cells: tuple[str, int]) -> str:
-    return "  " + "  ".join(_col(text, w) for text, w in cells)
+    return _shared_row(*cells)
 
 
 def _stage_glyph(flag: bool | None) -> str:
@@ -158,15 +135,7 @@ def _stage_glyph(flag: bool | None) -> str:
 # ---------------------------------------------------------------------------
 
 def _load_json(path: Path) -> tuple[dict[str, Any] | None, str]:
-    if not path.exists():
-        return None, f"not found: {path}"
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return (data, "") if isinstance(data, dict) else (None, f"not a JSON object: {path}")
-    except json.JSONDecodeError as exc:
-        return None, f"invalid JSON in {path}: {exc}"
-    except Exception as exc:
-        return None, f"failed to read {path}: {exc}"
+    return _shared_load_json_object(path)
 
 
 def _glob_json(directory: Path, pattern: str = "*.json") -> list[Path]:
@@ -200,11 +169,12 @@ def _find_by_id(base: Path, target: str) -> list[tuple[Path, dict]]:
         data, _ = _load_json(p)
         if data is None:
             continue
-        if (
-            target in p.name
-            or target in str(p)
-            or target in str(data.get("pack_id", ""))
-            or target in str(data.get("target_profile", ""))
+        if _shared_lookup_matches(
+            target,
+            p.name,
+            p,
+            data.get("pack_id", ""),
+            data.get("target_profile", ""),
         ):
             matches.append((p, data))
     return matches
@@ -411,7 +381,7 @@ def cmd_profile_lifecycle(args: list[str]) -> int:
 
     matches = _find_by_id(base, id_args[0])
     if not matches:
-        print(f"{GLYPH['fail']}  {_fail(f'No pack found matching: {id_args[0]}')}")
+        print(f"{GLYPH['fail']}  {_fail(_shared_lookup_miss('profile pack', id_args[0]))}")
         return 1
     rc = 0
     for p, data in matches:
@@ -452,6 +422,9 @@ def cmd_profile_validate(args: list[str]) -> int:
     targets = _find_by_id(base, id_args[0]) if id_args else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
 
     if not targets:
+        if id_args:
+            print(f"{GLYPH['fail']}  {_fail(_shared_lookup_miss('profile pack', id_args[0]))}")
+            return 1
         print(f"{GLYPH['skip']}  {_dim('No profile packs found.')}")
         return 1 if id_args else 0
 
@@ -513,6 +486,9 @@ def cmd_profile_render_plan(args: list[str]) -> int:
 
     targets = _find_by_id(base, id_args[0]) if id_args else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
     if not targets:
+        if id_args:
+            print(f"{GLYPH['fail']}  {_fail(_shared_lookup_miss('profile pack', id_args[0]))}")
+            return 1
         print(f"{GLYPH['skip']}  {_dim('No profile packs found.')}")
         return 1 if id_args else 0
 
@@ -560,6 +536,9 @@ def cmd_profile_dry_run(args: list[str]) -> int:
 
     targets = _find_by_id(base, id_args[0]) if id_args else [(p, d) for p in _find_packs(base) for d, _ in [_load_json(p)] if d]
     if not targets:
+        if id_args:
+            print(f"{GLYPH['fail']}  {_fail(_shared_lookup_miss('profile pack', id_args[0]))}")
+            return 1
         print(f"{GLYPH['skip']}  {_dim('No profile packs found.')}")
         return 1 if id_args else 0
 
@@ -658,14 +637,35 @@ def cmd_profile_resolve(args: list[str]) -> int:
     # Last resort: show target_profile from all packs
     packs = _find_packs(base)
     if not packs:
+        if id_args:
+            print(f"  {GLYPH['fail']}  {_fail(_shared_lookup_miss('profile pack', id_args[0]))}")
+            print()
+            return 1
         print(f"  {GLYPH['skip']}  {_dim('No profile resolution data found.')}")
         print()
         return 0
 
+    pack_rows: list[tuple[Path, dict[str, Any]]] = []
     for p in packs:
         data, _ = _load_json(p)
         if not data:
             continue
+        if id_args and not _shared_lookup_matches(
+            id_args[0],
+            p.name,
+            p,
+            data.get("pack_id", ""),
+            data.get("target_profile", ""),
+        ):
+            continue
+        pack_rows.append((p, data))
+
+    if not pack_rows:
+        print(f"  {GLYPH['fail']}  {_fail(_shared_lookup_miss('profile pack', id_args[0]))}")
+        print()
+        return 1
+
+    for p, data in pack_rows:
         target = data.get("target_profile") or _dim("—")
         pack_id = data.get("pack_id") or p.name
         print(f"  {GLYPH['pack']}  {_bold(str(pack_id))}  {GLYPH['arrow']}  {_active(str(target))}")

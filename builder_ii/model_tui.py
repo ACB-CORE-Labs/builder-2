@@ -20,10 +20,19 @@ Command surface
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
+
+from builder_ii.tui_contract import (
+    builder_dir as _shared_builder_dir,
+    col as _shared_col,
+    find_artifact as _shared_find_artifact,
+    hex_ansi as _shared_hex_ansi,
+    load_json_object as _shared_load_json_object,
+    load_palette,
+    row as _shared_row,
+)
 
 # ---------------------------------------------------------------------------
 # Palette — theme-aware
@@ -31,33 +40,11 @@ from typing import Any
 
 _IS_TTY = sys.stdout.isatty()
 
-try:
-    from builder_ii.tui_theme import theme_palette as _theme_palette
-    _C = _theme_palette()
-except Exception:
-    _C = {
-        "pass":   "#4ade80",
-        "warn":   "#fbbf24",
-        "fail":   "#f87171",
-        "hint":   "#94a3b8",
-        "active": "#38bdf8",
-        "dim":    "#475569",
-        "bold":   "#f1f5f9",
-        "accent": "#818cf8",
-    }
+_C = load_palette()
 
 
 def _hex_ansi(hex_colour: str, text: str) -> str:
-    if not _IS_TTY:
-        return text
-    h = hex_colour.lstrip("#")
-    if len(h) != 6:
-        return text
-    try:
-        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
-        return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
-    except ValueError:
-        return text
+    return _shared_hex_ansi(hex_colour, text, _IS_TTY)
 
 
 _p   = lambda t: _hex_ansi(_C["pass"],   t)
@@ -104,7 +91,7 @@ RISK_LABEL = {
 # ---------------------------------------------------------------------------
 
 def _builder_dir() -> Path:
-    return Path(os.environ.get("BUILDER_DIR", ".builder"))
+    return _shared_builder_dir()
 
 
 def _short(digest: str, n: int = 14) -> str:
@@ -114,9 +101,7 @@ def _short(digest: str, n: int = 14) -> str:
 
 
 def _col(text: str, width: int) -> str:
-    import re as _re
-    plain = _re.sub(r"\033\[[0-9;]*m", "", text)
-    return text + " " * max(0, width - len(plain))
+    return _shared_col(text, width)
 
 
 def _hr(w: int = 72) -> str:
@@ -155,25 +140,11 @@ def _gov_flag(key: str, value: Any) -> None:
 # ---------------------------------------------------------------------------
 
 def _load_json(path: Path) -> tuple[dict | None, str]:
-    if not path.exists():
-        return None, f"not found: {path}"
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return (data, "") if isinstance(data, dict) else (None, f"not a JSON object: {path}")
-    except json.JSONDecodeError as exc:
-        return None, f"invalid JSON in {path}: {exc}"
-    except Exception as exc:
-        return None, f"failed to read {path}: {exc}"
+    return _shared_load_json_object(path)
 
 
 def _find_artifact(base: Path, *candidates: str) -> tuple[Path | None, dict | None]:
-    """Find first readable JSON artifact from a list of candidate filenames."""
-    for name in candidates:
-        p = base / name
-        data, err = _load_json(p)
-        if data:
-            return p, data
-    return None, None
+    return _shared_find_artifact(base, *candidates)
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +223,7 @@ def cmd_routing_show(args: list[str]) -> int:
 
 
 def _row(*cells: tuple[str, int]) -> str:
-    return "  " + "  ".join(_col(text, w) for text, w in cells)
+    return _shared_row(*cells)
 
 
 # ---------------------------------------------------------------------------

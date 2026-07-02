@@ -27,10 +27,16 @@ Command surface:
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 from typing import Any
+
+from builder_ii.tui_contract import (
+    builder_dir as _shared_builder_dir,
+    col as _shared_col,
+    load_json_object as _shared_load_json_object,
+    row as _shared_row,
+)
 
 # ---------------------------------------------------------------------------
 # Palette — identical token names as tui.py / agent_tui.py
@@ -77,7 +83,7 @@ GLYPH = {
 # ---------------------------------------------------------------------------
 
 def _builder_dir() -> Path:
-    return Path(os.environ.get("BUILDER_DIR", ".builder"))
+    return _shared_builder_dir()
 
 
 def _short(digest: str, n: int = 14) -> str:
@@ -107,18 +113,7 @@ def _status_glyph(status: str) -> str:
 
 
 def _load_json(path: Path) -> tuple[dict[str, Any] | None, str]:
-    """Load a JSON file; return (data, error_message)."""
-    if not path.exists():
-        return None, f"not found: {path}"
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            return None, f"not a JSON object: {path}"
-        return data, ""
-    except json.JSONDecodeError as exc:
-        return None, f"invalid JSON in {path}: {exc}"
-    except Exception as exc:
-        return None, f"failed to read {path}: {exc}"
+    return _shared_load_json_object(path)
 
 
 def _glob_json(directory: Path, pattern: str = "*.json") -> list[Path]:
@@ -128,11 +123,7 @@ def _glob_json(directory: Path, pattern: str = "*.json") -> list[Path]:
 
 
 def _col(text: str, width: int, pad: str = " ") -> str:
-    """Left-align text in a fixed column, stripping ANSI for width calc."""
-    import re
-    plain = re.sub(r"\033\[[0-9;]*m", "", text)
-    deficit = max(0, width - len(plain))
-    return text + pad * deficit
+    return _shared_col(text, width, pad=pad)
 
 
 def _hr(char: str = "─", width: int = 72) -> str:
@@ -150,7 +141,7 @@ def _kv(key: str, value: str, key_w: int = 22) -> None:
 
 
 def _row(*cells: tuple[str, int]) -> str:
-    return "  " + "  ".join(_col(text, w) for text, w in cells)
+    return _shared_row(*cells)
 
 
 # ---------------------------------------------------------------------------
