@@ -84,17 +84,20 @@ _DEFAULT: dict[str, str] = {
 #     is a cross-cultural convention we should not override.
 # ---------------------------------------------------------------------------
 _CHARGERS: dict[str, str] = {
-    "pass":   "#0080C6",   # Powder Blue
+    "pass":   "#FFC20E",   # Bolt Gold (Success/Lightning bolts)
     "warn":   "#FFC20E",   # Bolt Gold
-    "fail":   "#f87171",   # red (universal danger; unchanged)
-    "hint":   "#3399CC",   # Muted Blue
-    "active": "#0080C6",   # Powder Blue
-    "dim":    "#005A8E",   # Deep Blue
-    "bold":   "#FFFFFF",   # White
+    "fail":   "#F85149",   # Red
+    "hint":   "#80CFFF",   # Light Blue (Secondary text on Navy)
+    "active": "#FFFFFF",   # White (Active elements)
+    "dim":    "#0080C6",   # Powder Blue (Borders/inactive)
+    "bold":   "#FFFFFF",   # White (Primary text)
     "accent": "#FFC20E",   # Bolt Gold
     # Extended tokens available via theme_extras() only:
-    "_navy":  "#002244",   # Navy  — panel borders, deep backgrounds
-    "_lgrey": "#3399CC",   # Muted Blue alias
+    "_bg":    "#0080C6",   # Powder Blue (App Background - matching the jersey base)
+    "_panel": "#002244",   # Navy (Panels)
+    "_panel_light": "#003366", # Lighter Navy (Headers/Footers)
+    "_selected": "#0080C6", # Powder Blue selection highlight
+    "_hover": "#004080",    # Navy hover state
 }
 
 # ---------------------------------------------------------------------------

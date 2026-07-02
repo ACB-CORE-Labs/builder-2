@@ -66,6 +66,7 @@ class StratumApp(App[None]):
         Binding("e", "toggle_quality_gates", "Gates", show=True),
         Binding("t", "toggle_tooling", "Tools", show=True),
         Binding("space", "pin_artifact", "Pin", show=True),
+        Binding("enter", "pin_artifact", "Pin (Enter)", show=False),
         Binding("slash", "toggle_search", "Search", show=True),
         Binding("h", "toggle_help", "Help", show=True),
         Binding("f1", "toggle_help", "Help", show=False),
@@ -140,7 +141,13 @@ class StratumApp(App[None]):
         if theme_name in list_themes() and theme_name != "default":
             p = theme_palette()
             e = theme_extras()
-            navy = e.get("_navy", p["dim"])
+            
+            bg = e.get("_bg", e.get("_navy", p["dim"]))
+            panel = e.get("_panel", bg)
+            panel_light = e.get("_panel_light", p["dim"])
+            border = e.get("_border", p["dim"])
+            selected = e.get("_selected", p["active"])
+            hover = e.get("_hover", p["dim"])
 
             custom_theme = Theme(
                 name="builder_custom",
@@ -154,12 +161,12 @@ class StratumApp(App[None]):
                     "stratum-dim": p["dim"],
                     "stratum-bold": p["bold"],
                     "stratum-accent": p["accent"],
-                    "stratum-bg": navy,
-                    "stratum-panel": navy,
-                    "stratum-border": p["dim"],
-                    "stratum-panel-light": p["dim"],
-                    "stratum-selected": p["active"],
-                    "stratum-hover": p["dim"],
+                    "stratum-bg": bg,
+                    "stratum-panel": panel,
+                    "stratum-border": border,
+                    "stratum-panel-light": panel_light,
+                    "stratum-selected": selected,
+                    "stratum-hover": hover,
                     "stratum-brand": p["active"],
                     "stratum-model": p["pass"],
                     "stratum-tier": p["warn"],
@@ -560,6 +567,3 @@ class StratumApp(App[None]):
         self.notify("Diff view not yet available in this mockup.")
 
 
-if __name__ == "__main__":
-    app = StratumApp()
-    app.run()

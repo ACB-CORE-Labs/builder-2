@@ -3,7 +3,7 @@
 The left column of STRATUM. Each row is a governed artifact from the
 artifact chain. Status glyphs are derived directly from the verification system.
 
-  ✓  green  = SHA-verified, chain-valid
+  ⚡  green  = SHA-verified, chain-valid
   ●  amber  = gate open / HITL required
   ○  dim    = not yet reachable (blocked upstream)
   ✗  red    = verification failed, chain broken
@@ -48,7 +48,7 @@ class ArtifactStatus:
     DISABLED = "disabled"
 
 GLYPH_MAP = {
-    ArtifactStatus.VERIFIED: ("✓", "artifact-verified"),
+    ArtifactStatus.VERIFIED: ("⚡", "artifact-verified"),
     ArtifactStatus.GATE_OPEN: ("●", "artifact-gate"),
     ArtifactStatus.PENDING: ("○", "artifact-pending"),
     ArtifactStatus.FAILED: ("✗", "artifact-failed"),
