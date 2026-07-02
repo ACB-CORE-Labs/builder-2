@@ -56,23 +56,23 @@ _DEFAULT: dict[str, str] = {
 #
 # Swatch reference
 # ----------------
-#   Powder Blue  #0073CF   — the iconic Chargers mid-blue
-#   Bolt Gold    #FFB612   — lightning bolt / number trim
-#   White        #FFFFFF   — jersey white
-#   Navy         #002244   — helmet / collar navy
-#   Light Grey   #A5ACAF   — subtle separator / secondary
-#   Dark Grey    #6C757D   — muted / dim surfaces
+#   Powder Blue  #0080C6   — the iconic Chargers mid-blue (primary accent)
+#   Deep Blue    #005A8E   — deep border / inactive
+#   Muted Blue   #3399CC   — muted secondary blue
+#   Navy         #002244   — background / dark base
+#   Bolt Gold    #FFC20E   — warning / accent gold
+#   White        #FFFFFF   — text / foreground
 #
 # Mapping rationale
 # -----------------
-#   pass   → Powder Blue   (affirmative = the primary brand colour; confident)
-#   warn   → Bolt Gold     (caution = lightning bolt energy; unmissable)
+#   pass   → Powder Blue   (affirmative = primary brand colour)
+#   warn   → Bolt Gold     (caution = lightning bolt gold energy)
 #   fail   → bright red    (failure stays red; universal danger signal)
-#   hint   → Light Grey    (secondary text; recedes without disappearing)
+#   hint   → Muted Blue    (secondary highlights / hover states)
 #   active → Powder Blue   (active/highlight = same brand blue as pass)
-#   dim    → Dark Grey     (muted separators, structural chrome)
-#   bold   → White         (primary foreground; jersey white)
-#   accent → Bolt Gold     (structural headings, section rules = gold)
+#   dim    → Deep Blue     (borders, dimmed panels, inactive widgets)
+#   bold   → White         (primary text on navy background)
+#   accent → Bolt Gold     (alerts, key bindings, badges)
 #
 # Notes
 # -----
@@ -84,17 +84,17 @@ _DEFAULT: dict[str, str] = {
 #     is a cross-cultural convention we should not override.
 # ---------------------------------------------------------------------------
 _CHARGERS: dict[str, str] = {
-    "pass":   "#0073CF",   # Powder Blue
-    "warn":   "#FFB612",   # Bolt Gold
+    "pass":   "#0080C6",   # Powder Blue
+    "warn":   "#FFC20E",   # Bolt Gold
     "fail":   "#f87171",   # red (universal danger; unchanged)
-    "hint":   "#A5ACAF",   # Light Grey
-    "active": "#0073CF",   # Powder Blue
-    "dim":    "#6C757D",   # Dark Grey
+    "hint":   "#3399CC",   # Muted Blue
+    "active": "#0080C6",   # Powder Blue
+    "dim":    "#005A8E",   # Deep Blue
     "bold":   "#FFFFFF",   # White
-    "accent": "#FFB612",   # Bolt Gold
+    "accent": "#FFC20E",   # Bolt Gold
     # Extended tokens available via theme_extras() only:
     "_navy":  "#002244",   # Navy  — panel borders, deep backgrounds
-    "_lgrey": "#A5ACAF",   # Light Grey alias
+    "_lgrey": "#3399CC",   # Muted Blue alias
 }
 
 # ---------------------------------------------------------------------------

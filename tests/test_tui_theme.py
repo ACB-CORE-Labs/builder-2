@@ -21,8 +21,8 @@ def test_active_theme_name_chargers():
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "chargers"}):
         assert active_theme_name() == "chargers"
         p = theme_palette()
-        assert p["active"] == "#0073CF"
-        assert p["warn"] == "#FFB612"
+        assert p["active"] == "#0080C6"
+        assert p["warn"] == "#FFC20E"
 
 def test_header_banner_colors():
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "chargers"}):
@@ -32,8 +32,8 @@ def test_header_banner_colors():
         banner.tier = "tr"
         banner.session = "sess"
         res = banner.render()
-        assert "#0073CF" in res
-        assert "#FFB612" in res
+        assert "#0080C6" in res
+        assert "#FFC20E" in res
 
 @pytest.mark.asyncio
 async def test_stratum_app_theme():
@@ -70,13 +70,13 @@ async def test_stratum_app_theme():
             assert app_chargers.theme == "builder_custom"
             assert "builder_custom" in app_chargers.available_themes
             t = app_chargers.get_theme("builder_custom")
-            assert t.variables["stratum-pass"] == "#0073CF"
-            assert t.variables["stratum-border"] == "#6C757D"
+            assert t.variables["stratum-pass"] == "#0080C6"
+            assert t.variables["stratum-border"] == "#005A8E"
 
             # Assert the theme_variables contains custom colors
             assert app_chargers.theme_variables["stratum-bg"] == "#002244"
             assert app_chargers.theme_variables["stratum-panel"] == "#002244"
-            assert app_chargers.theme_variables["stratum-border"] == "#6C757D"
+            assert app_chargers.theme_variables["stratum-border"] == "#005A8E"
 
             # Assert resolved style for structural widgets uses Chargers values
             center_widget = app_chargers.query_one("#stratum-center")

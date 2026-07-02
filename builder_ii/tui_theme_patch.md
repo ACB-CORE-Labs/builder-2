@@ -24,18 +24,18 @@ export BUILDER_THEME=default    # original slate/indigo (default when unset)
 | Theme      | pass         | warn         | accent       | border  |
 |------------|-------------|-------------|-------------|--------|
 | `default`  | `#4ade80` green | `#fbbf24` amber | `#818cf8` indigo | `#475569` slate |
-| `chargers` | `#0073CF` powder blue | `#FFB612` bolt gold | `#FFB612` bolt gold | `#002244` navy |
+| `chargers` | `#0080C6` powder blue | `#FFC20E` bolt gold | `#FFC20E` bolt gold | `#002244` navy |
 
 ## Swatch
 
 ```
 Chargers palette
-  pass/active   ████  #0073CF  Powder Blue
-  warn/accent   ████  #FFB612  Bolt Gold
+  pass/active   ████  #0080C6  Powder Blue
+  warn/accent   ████  #FFC20E  Bolt Gold
   fail          ████  #f87171  Red (universal danger, unchanged)
   bold          ████  #FFFFFF  White
-  hint          ████  #A5ACAF  Light Grey
-  dim           ████  #6C757D  Dark Grey
+  hint          ████  #3399CC  Muted Blue
+  dim           ████  #005A8E  Deep Blue
   _navy (border)████  #002244  Navy
 ```
 
@@ -48,5 +48,5 @@ Chargers palette
 - Navy (#002244) is an *extended* token (`_navy`), not a core token. It appears
   only as panel borders and section rules via `theme_panel_border()`. This keeps
   the 8-token contract clean while still using the full Chargers palette.
-- Grey (#A5ACAF / #6C757D) surfaces naturally as `hint` and `dim` — the same
+- Blue (#3399CC / #005A8E) surfaces naturally as `hint` and `dim` — the same
   structural role they play in the default theme.
