@@ -43,7 +43,7 @@ def build_goal2_assignment_fixture(
     tmp_path: Path, *, task: str = "test passive assignment"
 ) -> dict[str, Any]:
     repo = tmp_path / "generic-repo"
-    (repo / "tests").mkdir(parents=True)
+    (repo / "tests").mkdir(parents=True, exist_ok=True)
     (repo / "README.md").write_text("# Generic repo\n", encoding="utf-8")
     (repo / "pyproject.toml").write_text(
         "[project]\nname = 'generic-repo'\n", encoding="utf-8"

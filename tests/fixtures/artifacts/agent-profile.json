@@ -1,0 +1,52 @@
+{
+  "allowed_tools": [
+    "context_pack",
+    "read_file",
+    "repo_search",
+    "git_status",
+    "test_plan"
+  ],
+  "authority": "proposal_only",
+  "compatible_targets": [
+    "generic",
+    "builder",
+    "core"
+  ],
+  "description": "Plan a bounded implementation slice before edits.",
+  "forbidden_tools": [
+    "write_file",
+    "edit_file",
+    "execute_shell",
+    "commit",
+    "push"
+  ],
+  "governance": {
+    "artifact_is_authority": false,
+    "capability_state": "agent_profile_record",
+    "core_workbench_coupling": "NONE",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED"
+  },
+  "hitl_required_for": [
+    "applying patches",
+    "running commands",
+    "changing durable notes"
+  ],
+  "kind": "builder_ii.agent_profile_record",
+  "name": "patch_planner",
+  "output_contract": "Return a patch plan only: files, ordered steps, expected tests, rollback path, and stop conditions.",
+  "purpose": "Translate a task into a minimal patch plan with files, risks, rollback, and tests.",
+  "rendered_profile_sha256": "3d702cbf8023534a104a8b8f9c66246a961cac148ae5cb828050fcc2eaa481db",
+  "required_context": [
+    "target profile",
+    "task",
+    "context pack",
+    "git status"
+  ],
+  "schema_version": 1,
+  "target": "generic",
+  "task": "test passive assignment"
+}

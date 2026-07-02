@@ -53,8 +53,8 @@ def _default_routing_rules() -> list[dict[str, Any]]:
             "task_intent": "reasoning",
             "max_risk_classification": "local_network",
             "requires_tool_use": False,
-            "preferred_model_family": "phi3",
-            "preferred_model_id": "mlx-community/Phi-3.5-mini-instruct-4bit",
+            "preferred_model_family": "phi4",
+            "preferred_model_id": "mlx-community/Phi-4-mini-reasoning-4bit",
             "rationale": "Reasoning tasks prefer local offline Phi 3.5 Mini.",
         },
     ]

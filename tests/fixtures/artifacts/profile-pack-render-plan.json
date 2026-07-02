@@ -1,0 +1,210 @@
+{
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "authorized": false,
+    "capability_state": "profile_pack_render_plan",
+    "core_workbench_coupling": "NONE",
+    "deepagents_runtime_start": "DISABLED",
+    "executed": false,
+    "goose_runtime_start": "DISABLED",
+    "mcp_tool_calls": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "promoted": false,
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
+    "subagent_construction": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "verification_execution": "DISABLED"
+  },
+  "kind": "builder_ii.profile_pack_render_plan",
+  "pack_id": "goal2-test-profile-pack",
+  "planned_outputs": [
+    {
+      "area": "target_profiles",
+      "authority_classification": "spec_only",
+      "entry_id": "target-profile-bundle",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/target_profiles/target-profile-bundle.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "target_profile",
+      "source_content_hash": "7b0129ce6c72b9d852d8b476d4ed11a574b25dd0f20cce8ef3b13ecfee0cf6f1",
+      "writes_source": false
+    },
+    {
+      "area": "agent_profiles",
+      "authority_classification": "profile_spec_only",
+      "entry_id": "generic-agent-profile-bundle",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/agent_profiles/generic-agent-profile-bundle.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "agent_profile",
+      "source_content_hash": "654fe51da77120419a1b5a1f95185bba24ebaf378b79a4729f89452cc6c7f14e",
+      "writes_source": false
+    },
+    {
+      "area": "subagent_profiles",
+      "authority_classification": "profile_spec_only",
+      "entry_id": "passive-subagent-profile-contract",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/subagent_profiles/passive-subagent-profile-contract.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "subagent_profile",
+      "source_content_hash": "e1caf60cb8df9b81f163ed8695e554a39627f8cfcf554ee6a90780a9e78b0846",
+      "writes_source": false
+    },
+    {
+      "area": "task_profiles",
+      "authority_classification": "plan_only",
+      "entry_id": "task-profile-planning-contract",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/task_profiles/task-profile-planning-contract.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "task_profile",
+      "source_content_hash": "964bb83aeab10f5ad3789477db32f42fc5010527ef38024bd85b2150e063bf86",
+      "writes_source": false
+    },
+    {
+      "area": "tool_profiles",
+      "authority_classification": "denied_by_default",
+      "entry_id": "deny-by-default-tool-profile",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/tool_profiles/deny-by-default-tool-profile.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "tool_profile",
+      "source_content_hash": "4b2224f5c3c193be51c4544c131f2fcb06f636164b1a8d28137459f14078f50d",
+      "writes_source": false
+    },
+    {
+      "area": "context_definitions",
+      "authority_classification": "spec_only",
+      "entry_id": "context-definition-contract",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/context_definitions/context-definition-contract.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "context_definition",
+      "source_content_hash": "56830b78264b6a201d86cd80ba0ac90eb1b8b9e9276d94639995934f47ca78e7",
+      "writes_source": false
+    },
+    {
+      "area": "verification_profiles",
+      "authority_classification": "plan_only",
+      "entry_id": "verification-profile-contract",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/verification_profiles/verification-profile-contract.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "verification_profile",
+      "source_content_hash": "73e49c466050b7844e230cc323a9353aa9ad88ccfe89a70b062c2dc648a96210",
+      "writes_source": false
+    },
+    {
+      "area": "approval_policies",
+      "authority_classification": "policy_stub_only",
+      "entry_id": "approval-policy-contract",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/approval_policies/approval-policy-contract.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "approval_policy",
+      "source_content_hash": "afa481c5452ed47602ab671a17ad10f8ee1a1b0f414cd7e0363d92135b24e293",
+      "writes_source": false
+    },
+    {
+      "area": "goose_projection_stubs",
+      "authority_classification": "projection_stub_only",
+      "entry_id": "goose-projection-stub",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/goose_projection_stubs/goose-projection-stub.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "goose_projection_stub",
+      "source_content_hash": "66af9f76bce1484469fb33409f259402313b26d6cd95ee5deb4bb2d49b4ca017",
+      "writes_source": false
+    },
+    {
+      "area": "deepagents_projection_stubs",
+      "authority_classification": "projection_stub_only",
+      "entry_id": "deepagents-projection-stub",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/deepagents_projection_stubs/deepagents-projection-stub.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "deepagents_projection_stub",
+      "source_content_hash": "82c0b1ae63ccb511ec507c2f5043c3933b7783303c5f011af398e9ba65678aa1",
+      "writes_source": false
+    },
+    {
+      "area": "mcp_inventory_policy_stubs",
+      "authority_classification": "inventory_stub_only",
+      "entry_id": "mcp-inventory-stub",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/mcp_inventory_policy_stubs/mcp-inventory-stub.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "mcp_inventory_stub",
+      "source_content_hash": "3e6c38d21693ad4108d092188da7d79a8116766923993cee408650d16964e574",
+      "writes_source": false
+    },
+    {
+      "area": "mcp_inventory_policy_stubs",
+      "authority_classification": "policy_stub_only",
+      "entry_id": "mcp-policy-stub",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/mcp_inventory_policy_stubs/mcp-policy-stub.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "mcp_policy_stub",
+      "source_content_hash": "6dec1e26707db58c85797b6e72aada60dde7d366324de9be5f38209fbe9df001",
+      "writes_source": false
+    },
+    {
+      "area": "handoff_profiles",
+      "authority_classification": "handoff_only",
+      "entry_id": "handoff-profile-contract",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/handoff_profiles/handoff-profile-contract.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "handoff_profile",
+      "source_content_hash": "468315c5abc71dc9bacb6637a9108f520a1d128e0f46601944491644ba8cc902",
+      "writes_source": false
+    },
+    {
+      "area": "packs",
+      "authority_classification": "artifact_only",
+      "entry_id": "profile-pack-lifecycle",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/packs/profile-pack-lifecycle.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "pack",
+      "source_content_hash": "b88d027c463bb504eef6c7de5dec8281a625aa68cc891a931517bc4f8f1ca6aa",
+      "writes_source": false
+    },
+    {
+      "area": "model_policies",
+      "authority_classification": "policy_stub_only",
+      "entry_id": "model-policy-stub",
+      "executes_now": false,
+      "output_path": "profile-pack-rendered/model_policies/model-policy-stub.json",
+      "output_state": "RENDERED_ONLY",
+      "profile_kind": "model_policy_stub",
+      "source_content_hash": "2745a3f0b38621aaacf9cd680fbdbfa3cf373d4c6bdc961533ee9c327fd41a2e",
+      "writes_source": false
+    }
+  ],
+  "render_boundary": {
+    "calls_mcp_tools": false,
+    "calls_models": false,
+    "claims_authority": false,
+    "constructs_deepagents": false,
+    "executes_commands": false,
+    "renders_profiles": true,
+    "starts_goose": false,
+    "writes_only_explicit_artifact_output": true
+  },
+  "render_state": "RENDERED_ONLY",
+  "schema_version": 1,
+  "source_manifest_ref": {
+    "kind": "builder_ii.profile_pack_manifest",
+    "path": "tests/fixtures/artifacts/profile-pack-manifest.json",
+    "sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+  },
+  "target_profile": "generic",
+  "task": "test passive assignment"
+}

@@ -50,3 +50,15 @@ builder ask --model qwen-coder --prompt "Draft a small patch plan."
 builder-runtime reset
 builder start --model qwen-coder --task "review a targeted CLI patch"
 ```
+
+## Cloud Egress Lanes
+
+| Provider | Alias | Role | Use for | Avoid |
+| --- | --- | --- | --- | --- |
+| OpenAI | `gpt-5.5` | Flagship reasoning / agentic | Deep reasoning, autonomous workflows | High-frequency low-latency loops |
+| Anthropic | `claude-opus-4.8` | Flagship reasoning / coding | Heavy agentic coding work | Local-only offline work |
+| Anthropic | `claude-sonnet-5` | High-throughput agentic | High-frequency agentic loops | Local-only offline work |
+| xAI | `grok-build-0.1` | Agentic Coding | Agentic coding workflows | Local-only offline work |
+| xAI | `grok-4.3` | Flagship Chat/Reasoning | Fast and deep reasoning | Local-only offline work |
+| Groq | `groq-llama` | High-speed Llama | Speculative decoding, high-throughput | Tasks needing 1M+ context |
+| Google | `gemini-3.5-flash` | Multimodal agentic | Multimodal inputs, large context | Local-only offline work |

@@ -1,0 +1,52 @@
+{
+  "checked_boundaries": [
+    "assignment_is_artifact_only",
+    "dry_run_is_not_execution",
+    "model_routing_is_not_authorization",
+    "source_refs_require_hashes",
+    "artifact_is_not_authority"
+  ],
+  "claims": {
+    "authorized": false,
+    "executed": false,
+    "promoted": false,
+    "validated": true
+  },
+  "errors": [],
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "capability_state": "orchestration_assignment_validation_report",
+    "core_workbench_coupling": "NONE",
+    "deepagents_runtime_start": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "grants_authority": false,
+    "mcp_tool_calls": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "network_calls": "DISABLED",
+    "requires_human_promotion_for_execution": true,
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
+    "subagent_construction": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "tool_execution": "DISABLED",
+    "verification_execution": "DISABLED"
+  },
+  "kind": "builder_ii.orchestration_assignment_validation_report",
+  "schema_version": 1,
+  "status": "valid",
+  "subject_kind": "builder_ii.orchestration_assignment_plan",
+  "subject_ref": {
+    "kind": "builder_ii.orchestration_assignment_plan",
+    "name": "builder_ii.orchestration_assignment_plan",
+    "path": "tests/fixtures/artifacts/orchestration-assignment-plan.json",
+    "required": true,
+    "role": "subject",
+    "sha256": "93c345472e7c8677664fa0f4a7257bc56b667e447248a5112f2de52c039d824f"
+  },
+  "valid": true,
+  "validation_state": "VALIDATED_ONLY",
+  "warnings": []
+}

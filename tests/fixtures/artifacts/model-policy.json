@@ -1,0 +1,40 @@
+{
+  "bound_registry_kind": "builder_ii.model_client_registry",
+  "executes_model": false,
+  "governance": {
+    "artifact_is_authority": false,
+    "core_workbench_coupling": "NONE",
+    "model_execution": "DISABLED",
+    "network_calls": "DISABLED",
+    "provider_calls": "DISABLED",
+    "routing_decision_executes": false,
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED"
+  },
+  "grants_authority": false,
+  "kind": "builder_ii.model_routing_policy",
+  "policy_name": "passive_model_routing_policy",
+  "policy_state": "RECOMMENDATION_ONLY",
+  "requires_human_promotion_for_execution": true,
+  "rules": [
+    {
+      "max_risk_classification": "local_network",
+      "preferred_model_family": "qwen2.5",
+      "preferred_model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+      "rationale": "Default coding tasks prefer local offline tool-capable Qwen 2.5 Coder.",
+      "requires_tool_use": true,
+      "rule_id": "coding_local_default",
+      "task_intent": "coding"
+    },
+    {
+      "max_risk_classification": "local_network",
+      "preferred_model_family": "phi4",
+      "preferred_model_id": "mlx-community/Phi-4-mini-reasoning-4bit",
+      "rationale": "Reasoning tasks prefer local offline Phi 3.5 Mini.",
+      "requires_tool_use": false,
+      "rule_id": "reasoning_local_default",
+      "task_intent": "reasoning"
+    }
+  ],
+  "schema_version": 1
+}

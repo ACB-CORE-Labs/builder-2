@@ -1,0 +1,52 @@
+{
+  "checked_boundaries": [
+    "planned_is_not_executed",
+    "rendered_is_not_authorized",
+    "dry_run_is_not_execution",
+    "validated_is_not_promoted",
+    "artifact_is_not_authority",
+    "source_refs_require_hashes"
+  ],
+  "claims": {
+    "authorized": false,
+    "dry_run": false,
+    "executed": false,
+    "planned": true,
+    "promoted": false,
+    "rendered": false,
+    "validated": true
+  },
+  "errors": [],
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "authorized": false,
+    "capability_state": "profile_pack_validation_report",
+    "core_workbench_coupling": "NONE",
+    "deepagents_runtime_start": "DISABLED",
+    "executed": false,
+    "goose_runtime_start": "DISABLED",
+    "mcp_tool_calls": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "promoted": false,
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
+    "subagent_construction": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "verification_execution": "DISABLED"
+  },
+  "kind": "builder_ii.profile_pack_validation_report",
+  "schema_version": 1,
+  "status": "valid",
+  "subject_kind": "builder_ii.profile_pack_manifest",
+  "subject_ref": {
+    "kind": "builder_ii.profile_pack_manifest",
+    "path": "tests/fixtures/artifacts/profile-pack-manifest.json",
+    "sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+  },
+  "valid": true,
+  "validation_state": "VALIDATED_ONLY",
+  "warnings": []
+}

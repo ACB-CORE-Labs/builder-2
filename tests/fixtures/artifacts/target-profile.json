@@ -1,0 +1,32 @@
+{
+  "context_defaults": [
+    "README.md",
+    "pyproject.toml",
+    "tests"
+  ],
+  "description": "Generic software repository target with no project-specific doctrine.",
+  "governance": {
+    "artifact_is_authority": false,
+    "capability_state": "target_profile_artifact",
+    "core_workbench_coupling": "NONE",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED"
+  },
+  "kind": "builder_ii.target_profile",
+  "name": "generic",
+  "notes": [],
+  "principles": [
+    "stay repo-local",
+    "prefer minimal patches",
+    "do not invent project policy"
+  ],
+  "repo": "/Users/kaizenpro/Projects/builder-II/tests/fixtures/generic-repo",
+  "schema_version": 1,
+  "verification_hints": [
+    "inspect project config",
+    "run the smallest relevant tests"
+  ]
+}
