@@ -1,8 +1,15 @@
 import os
 from unittest import mock
 import pytest
-from builder_ii.tui_theme import active_theme_name, theme_palette, list_themes
+from builder_ii.tui_theme import (
+    active_theme_name,
+    list_themes,
+    theme_extras,
+    theme_palette,
+    theme_panel_border,
+)
 from builder_ii.tui.app import HeaderBanner, StratumApp
+
 
 def test_default_theme_palette_matches_stratum_css_defaults():
     # Set default theme explicitly
@@ -17,12 +24,26 @@ def test_default_theme_palette_matches_stratum_css_defaults():
         assert p["bold"] == "#c9d1d9"
         assert p["accent"] == "#d2a8ff"
 
+
 def test_active_theme_name_chargers():
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "chargers"}):
         assert active_theme_name() == "chargers"
         p = theme_palette()
         assert p["active"] == "#FFFFFF"
         assert p["warn"] == "#FFC20E"
+
+
+def test_chargers_theme_extras_match_tui_surface_contract():
+    with mock.patch.dict(os.environ, {"BUILDER_THEME": "chargers"}):
+        e = theme_extras()
+        assert e["_bg"] == "#0080C6"
+        assert e["_panel"] == "#002244"
+        assert e["_panel_light"] == "#003366"
+        assert e["_border"] == "#0080C6"
+        assert e["_selected"] == "#0080C6"
+        assert e["_hover"] == "#004080"
+        assert theme_panel_border() == "#0080C6"
+
 
 def test_header_banner_colors():
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "chargers"}):
@@ -34,6 +55,7 @@ def test_header_banner_colors():
         res = banner.render()
         assert "#FFFFFF" in res
         assert "#FFC20E" in res
+
 
 @pytest.mark.asyncio
 async def test_stratum_app_theme():
