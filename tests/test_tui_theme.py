@@ -5,7 +5,6 @@ from builder_ii.tui_theme import active_theme_name, theme_palette, list_themes
 from builder_ii.tui.app import HeaderBanner, StratumApp
 
 def test_default_theme_palette_matches_stratum_css_defaults():
-    # 1. default theme palette matches STRATUM CSS defaults
     # Set default theme explicitly
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "default"}):
         p = theme_palette()
@@ -33,24 +32,38 @@ def test_header_banner_colors():
         banner.tier = "tr"
         banner.session = "sess"
         res = banner.render()
-        # 5. HeaderBanner includes Chargers powder blue and bolt gold
         assert "#0073CF" in res
         assert "#FFB612" in res
 
 @pytest.mark.asyncio
 async def test_stratum_app_theme():
-    # test default
+    # test default theme preserves original palette and registers builder_default
     with mock.patch.dict(os.environ, clear=True):
         app = StratumApp()
-        assert app.theme == "textual-dark"
-    
-    # 2. invalid BUILDER_THEME falls back without registering builder_custom
+        async with app.run_test():
+            assert app.theme == "builder_default"
+            # Assert default mode still resolves to existing default palette
+            assert app.theme_variables["stratum-bg"] == "#0a0e14"
+            assert app.theme_variables["stratum-panel"] == "#0d1117"
+
+            # Assert resolved styles for structural widgets match default values
+            center_widget = app.query_one("#stratum-center")
+            header_widget = app.query_one("#stratum-header")
+            assert center_widget.styles.background.hex.lower() == "#0a0e14"
+            assert header_widget.styles.background.hex.lower() == "#0d1117"
+
+            # Assert theme_variables and actual resolved widget style agree
+            assert app.theme_variables["stratum-bg"].lower() == center_widget.styles.background.hex.lower()
+            assert app.theme_variables["stratum-panel"].lower() == header_widget.styles.background.hex.lower()
+
+    # test invalid BUILDER_THEME falls back safely to builder_default
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "invalid_theme_name"}):
         app_invalid = StratumApp()
-        assert app_invalid.theme == "textual-dark"
-        assert "builder_custom" not in app_invalid.available_themes
+        async with app_invalid.run_test():
+            assert app_invalid.theme == "builder_default"
+            assert "builder_custom" not in app_invalid.available_themes
 
-    # 3. Chargers registers builder_custom
+    # test Chargers registers and drives theme variables
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "chargers"}):
         app_chargers = StratumApp()
         async with app_chargers.run_test():
@@ -58,5 +71,19 @@ async def test_stratum_app_theme():
             assert "builder_custom" in app_chargers.available_themes
             t = app_chargers.get_theme("builder_custom")
             assert t.variables["stratum-pass"] == "#0073CF"
-            # 4. Chargers stratum-border == #6C757D (which is p["dim"])
             assert t.variables["stratum-border"] == "#6C757D"
+
+            # Assert the theme_variables contains custom colors
+            assert app_chargers.theme_variables["stratum-bg"] == "#002244"
+            assert app_chargers.theme_variables["stratum-panel"] == "#002244"
+            assert app_chargers.theme_variables["stratum-border"] == "#6C757D"
+
+            # Assert resolved style for structural widgets uses Chargers values
+            center_widget = app_chargers.query_one("#stratum-center")
+            header_widget = app_chargers.query_one("#stratum-header")
+            assert center_widget.styles.background.hex.lower() == "#002244"
+            assert header_widget.styles.background.hex.lower() == "#002244"
+
+            # Assert theme_variables and actual resolved widget style agree
+            assert app_chargers.theme_variables["stratum-bg"].lower() == center_widget.styles.background.hex.lower()
+            assert app_chargers.theme_variables["stratum-panel"].lower() == header_widget.styles.background.hex.lower()

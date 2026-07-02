@@ -100,38 +100,44 @@ class StratumApp(App[None]):
         self._current_session_id = "idle"
         self._hitl_active = False
 
-    def compose(self) -> ComposeResult:
-        self.banner = HeaderBanner()
-        self.banner.target = self.settings.core_repo.name
-        self.banner.model = self.settings.model_alias
-        self.banner.tier = self.settings.model_tier
-        yield self.banner
+        self._apply_theme()
 
-        with Horizontal(id="main-layout"):
-            self.spine = ArtifactSpine(artifacts_dir=self.artifacts_dir)
-            yield self.spine
+    def _apply_theme(self) -> None:
+        from builder_ii.tui_theme import active_theme_name, theme_palette, theme_extras, list_themes, _REGISTRY
+        from textual.theme import Theme
 
-            self.stratum = ActiveStratum(artifacts_dir=self.artifacts_dir)
-            yield self.stratum
+        # Register default theme
+        default_palette = _REGISTRY["default"]
+        default_theme = Theme(
+            name="builder_default",
+            primary=default_palette["active"],
+            variables={
+                "stratum-pass": default_palette["pass"],
+                "stratum-warn": default_palette["warn"],
+                "stratum-fail": default_palette["fail"],
+                "stratum-hint": default_palette["hint"],
+                "stratum-active": default_palette["active"],
+                "stratum-dim": default_palette["dim"],
+                "stratum-bold": default_palette["bold"],
+                "stratum-accent": default_palette["accent"],
+                "stratum-bg": "#0a0e14",
+                "stratum-panel": "#0d1117",
+                "stratum-border": "#21262d",
+                "stratum-panel-light": "#161b22",
+                "stratum-selected": "#1f2937",
+                "stratum-hover": "#1c2333",
+                "stratum-brand": "#79c0ff",
+                "stratum-model": "#7ee787",
+                "stratum-tier": "#ffa657",
+                "stratum-session": "#6e7681",
+                "stratum-selected-text": "#f0f6fc",
+                "stratum-disabled": "#30363d",
+            }
+        )
+        self.register_theme(default_theme)
 
-            self.signals = SignalRail(artifacts_dir=self.artifacts_dir)
-            yield self.signals
-
-        yield Footer(id="command-footer")
-
-    async def on_mount(self) -> None:
-        """Run on startup."""
-        self.notify("STRATUM Operational Surface Active.")
-
-        # Display the splash screen
-        from builder_ii.tui.widgets.splash import SplashScreen
-        self.push_screen(SplashScreen())
-
-        # --- Theme Injection Layer ---
-        from builder_ii.tui_theme import active_theme_name, theme_palette, theme_extras, list_themes
         theme_name = active_theme_name()
         if theme_name in list_themes() and theme_name != "default":
-            from textual.theme import Theme
             p = theme_palette()
             e = theme_extras()
             navy = e.get("_navy", p["dim"])
@@ -164,7 +170,35 @@ class StratumApp(App[None]):
             )
             self.register_theme(custom_theme)
             self.theme = "builder_custom"
-        # -----------------------------
+        else:
+            self.theme = "builder_default"
+
+    def compose(self) -> ComposeResult:
+        self.banner = HeaderBanner()
+        self.banner.target = self.settings.core_repo.name
+        self.banner.model = self.settings.model_alias
+        self.banner.tier = self.settings.model_tier
+        yield self.banner
+
+        with Horizontal(id="main-layout"):
+            self.spine = ArtifactSpine(artifacts_dir=self.artifacts_dir)
+            yield self.spine
+
+            self.stratum = ActiveStratum(artifacts_dir=self.artifacts_dir)
+            yield self.stratum
+
+            self.signals = SignalRail(artifacts_dir=self.artifacts_dir)
+            yield self.signals
+
+        yield Footer(id="command-footer")
+
+    async def on_mount(self) -> None:
+        """Run on startup."""
+        self.notify("STRATUM Operational Surface Active.")
+
+        # Display the splash screen
+        from builder_ii.tui.widgets.splash import SplashScreen
+        self.push_screen(SplashScreen())
 
         self.title = "STRATUM"
         self._refresh_task = asyncio.create_task(self._periodic_refresh())
