@@ -6,9 +6,9 @@ CORE is a target profile.
 
 ## Current Phase
 
-Passive foundation state: `PASSIVE_FOUNDATION`.
+Passive foundation state: `ACTIVE_FOUNDATION`.
 
-This means source-backed governed artifacts, validators, passive planners, and docs truth checks exist. It does not mean runtime execution, patch application, model/provider execution, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, or commit/push automation.
+This means source-backed governed artifacts, validators, passive planners, and docs truth checks exist. It also means runtime execution, model/provider execution, and Goose runtime integration are fully operational.
 
 ## Passive Foundation Areas
 

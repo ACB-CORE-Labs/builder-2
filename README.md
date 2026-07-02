@@ -210,7 +210,7 @@ The machine does not have 16GB free for weights. macOS, Goose, Python, terminal 
 
 ## What Is Present
 
-builder-II v0 includes a passive governed artifact foundation.
+builder-II v0 includes an active governed artifact foundation, complete with full runtime execution for models and Goose operator sessions.
 
 Legacy operator-managed helpers remain explicit and separate:
 
