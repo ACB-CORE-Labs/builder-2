@@ -1,3 +1,24 @@
+$stratum-pass: #3fb950;
+$stratum-warn: #d29922;
+$stratum-fail: #f85149;
+$stratum-hint: #8b949e;
+$stratum-active: #58a6ff;
+$stratum-dim: #484f58;
+$stratum-bold: #c9d1d9;
+$stratum-accent: #d2a8ff;
+$stratum-bg: #0a0e14;
+$stratum-panel: #0d1117;
+$stratum-border: #21262d;
+$stratum-panel-light: #161b22;
+$stratum-selected: #1f2937;
+$stratum-hover: #1c2333;
+$stratum-brand: #79c0ff;
+$stratum-model: #7ee787;
+$stratum-tier: #ffa657;
+$stratum-session: #6e7681;
+$stratum-selected-text: #f0f6fc;
+$stratum-disabled: #30363d;
+
 /* ═══════════════════════════════════════════════════════════════
    STRATUM — The Builder-II TUI Stylesheet
    Operator-grade. Dark. High-contrast. Alive.
@@ -6,7 +27,7 @@
 /* ─── Root & Global ────────────────────────────────────── */
 
 Screen {
-    background: #0a0e14;
+    background: $stratum-bg;
     color: #c5c8c6;
 }
 
@@ -15,58 +36,58 @@ Screen {
 #stratum-header {
     dock: top;
     height: 2;
-    background: #0d1117;
-    color: #8b949e;
-    border-bottom: solid #21262d;
+    background: $stratum-panel;
+    color: $stratum-hint;
+    border-bottom: solid $stratum-border;
     padding: 0 1;
 }
 
 #stratum-header .header-primary {
-    color: #58a6ff;
+    color: $stratum-active;
     text-style: bold;
 }
 
 #stratum-header .header-session {
-    color: #6e7681;
+    color: $stratum-session;
 }
 
 HeaderBanner {
     dock: top;
     height: 2;
-    background: #0d1117;
-    color: #8b949e;
-    border-bottom: solid #21262d;
+    background: $stratum-panel;
+    color: $stratum-hint;
+    border-bottom: solid $stratum-border;
     padding: 0 1;
 }
 
 HeaderBanner .banner-brand {
-    color: #79c0ff;
+    color: $stratum-brand;
     text-style: bold;
 }
 
 HeaderBanner .banner-target {
-    color: #d2a8ff;
+    color: $stratum-accent;
 }
 
 HeaderBanner .banner-model {
-    color: #7ee787;
+    color: $stratum-model;
 }
 
 HeaderBanner .banner-tier {
-    color: #ffa657;
+    color: $stratum-tier;
     text-style: bold;
 }
 
 HeaderBanner .banner-dim {
-    color: #484f58;
+    color: $stratum-dim;
 }
 
 HeaderBanner .banner-session {
-    color: #6e7681;
+    color: $stratum-session;
 }
 
 HeaderBanner .banner-time {
-    color: #484f58;
+    color: $stratum-dim;
 }
 
 
@@ -83,19 +104,19 @@ HeaderBanner .banner-time {
     width: 22;
     min-width: 18;
     max-width: 28;
-    background: #0d1117;
-    border-right: solid #21262d;
+    background: $stratum-panel;
+    border-right: solid $stratum-border;
     padding: 0;
 }
 
 #spine-title {
     height: 1;
-    background: #161b22;
-    color: #8b949e;
+    background: $stratum-panel-light;
+    color: $stratum-hint;
     text-style: bold;
     text-align: center;
     padding: 0 1;
-    border-bottom: solid #21262d;
+    border-bottom: solid $stratum-border;
 }
 
 #spine-list {
@@ -106,14 +127,14 @@ HeaderBanner .banner-time {
 
 #spine-search {
     height: 3;
-    border: tall #21262d;
+    border: tall $stratum-border;
     margin: 0;
-    background: #0d1117;
-    color: #c9d1d9;
+    background: $stratum-panel;
+    color: $stratum-bold;
 }
 
 #spine-search:focus {
-    border: tall #58a6ff;
+    border: tall $stratum-active;
 }
 
 .spine-item {
@@ -122,39 +143,39 @@ HeaderBanner .banner-time {
 }
 
 .spine-item:hover {
-    background: #161b22;
+    background: $stratum-panel-light;
 }
 
 .spine-item.-selected {
-    background: #1f2937;
-    color: #f0f6fc;
+    background: $stratum-selected;
+    color: $stratum-selected-text;
 }
 
 .spine-item.-active {
-    background: #1c2333;
+    background: $stratum-hover;
 }
 
 /* Artifact status glyphs */
 .artifact-verified {
-    color: #3fb950;
+    color: $stratum-pass;
 }
 
 .artifact-gate {
-    color: #d29922;
+    color: $stratum-warn;
     text-style: bold;
 }
 
 .artifact-pending {
-    color: #484f58;
+    color: $stratum-dim;
 }
 
 .artifact-failed {
-    color: #f85149;
+    color: $stratum-fail;
     text-style: bold;
 }
 
 .artifact-disabled {
-    color: #30363d;
+    color: $stratum-disabled;
 }
 
 
@@ -163,18 +184,18 @@ HeaderBanner .banner-time {
 #stratum-center {
     width: 1fr;
     min-width: 40;
-    background: #0a0e14;
+    background: $stratum-bg;
     padding: 0;
 }
 
 #stratum-title-bar {
     height: 1;
-    background: #161b22;
-    color: #c9d1d9;
+    background: $stratum-panel-light;
+    color: $stratum-bold;
     text-style: bold;
     text-align: center;
     padding: 0 1;
-    border-bottom: solid #21262d;
+    border-bottom: solid $stratum-border;
 }
 
 /* The morphing content area */
@@ -187,26 +208,26 @@ HeaderBanner .banner-time {
 /* Chain status footer inside the stratum */
 #stratum-chain-bar {
     height: 3;
-    background: #0d1117;
-    border-top: solid #21262d;
+    background: $stratum-panel;
+    border-top: solid $stratum-border;
     padding: 0 2;
-    color: #6e7681;
+    color: $stratum-session;
 }
 
 .chain-label {
-    color: #484f58;
+    color: $stratum-dim;
 }
 
 .chain-value {
-    color: #8b949e;
+    color: $stratum-hint;
 }
 
 .chain-value-false {
-    color: #3fb950;
+    color: $stratum-pass;
 }
 
 .chain-value-true {
-    color: #f85149;
+    color: $stratum-fail;
     text-style: bold;
 }
 
@@ -214,32 +235,32 @@ HeaderBanner .banner-time {
 /* ─── HITL Gate Panel (Ceremony Mode) ────────────────── */
 
 .hitl-gate-panel {
-    background: #0d1117;
-    border: solid #d29922;
+    background: $stratum-panel;
+    border: solid $stratum-warn;
     padding: 1 2;
     margin: 1 2;
 }
 
 .hitl-gate-panel .gate-header {
-    color: #d29922;
+    color: $stratum-warn;
     text-style: bold;
     text-align: center;
 }
 
 .hitl-gate-panel .gate-cmd {
-    color: #79c0ff;
+    color: $stratum-brand;
 }
 
 .hitl-gate-panel .gate-tier {
-    color: #d2a8ff;
+    color: $stratum-accent;
 }
 
 .hitl-gate-panel .gate-authority {
-    color: #ffa657;
+    color: $stratum-tier;
 }
 
 .hitl-gate-panel .gate-digest {
-    color: #6e7681;
+    color: $stratum-session;
 }
 
 .hitl-gate-panel .gate-actions {
@@ -248,21 +269,21 @@ HeaderBanner .banner-time {
 }
 
 .hitl-action-approve {
-    color: #3fb950;
+    color: $stratum-pass;
     text-style: bold;
 }
 
 .hitl-action-reject {
-    color: #f85149;
+    color: $stratum-fail;
     text-style: bold;
 }
 
 .hitl-action-inspect {
-    color: #58a6ff;
+    color: $stratum-active;
 }
 
 .hitl-action-diff {
-    color: #d2a8ff;
+    color: $stratum-accent;
 }
 
 
@@ -272,44 +293,44 @@ HeaderBanner .banner-time {
     width: 34;
     min-width: 28;
     max-width: 40;
-    background: #0d1117;
-    border-left: solid #21262d;
+    background: $stratum-panel;
+    border-left: solid $stratum-border;
     padding: 0;
 }
 
 /* HITL Gate Indicator */
 #hitl-gate-indicator {
     height: 3;
-    background: #161b22;
-    border-bottom: solid #21262d;
+    background: $stratum-panel-light;
+    border-bottom: solid $stratum-border;
     padding: 0 1;
     text-align: center;
 }
 
 .gate-open {
-    color: #d29922;
+    color: $stratum-warn;
     text-style: bold;
 }
 
 .gate-closed {
-    color: #3fb950;
+    color: $stratum-pass;
 }
 
 /* Event Ledger */
 #ledger-section {
     height: 1fr;
-    border-bottom: solid #21262d;
+    border-bottom: solid $stratum-border;
     padding: 0;
 }
 
 #ledger-title {
     height: 1;
-    background: #161b22;
-    color: #8b949e;
+    background: $stratum-panel-light;
+    color: $stratum-hint;
     text-style: bold;
     text-align: center;
     padding: 0 1;
-    border-bottom: solid #21262d;
+    border-bottom: solid $stratum-border;
 }
 
 #ledger-log {
@@ -319,23 +340,23 @@ HeaderBanner .banner-time {
 }
 
 .ledger-timestamp {
-    color: #484f58;
+    color: $stratum-dim;
 }
 
 .ledger-event-pass {
-    color: #3fb950;
+    color: $stratum-pass;
 }
 
 .ledger-event-fail {
-    color: #f85149;
+    color: $stratum-fail;
 }
 
 .ledger-event-gate {
-    color: #d29922;
+    color: $stratum-warn;
 }
 
 .ledger-event-info {
-    color: #8b949e;
+    color: $stratum-hint;
 }
 
 
@@ -348,12 +369,12 @@ HeaderBanner .banner-time {
 
 #capability-title {
     height: 1;
-    background: #161b22;
-    color: #8b949e;
+    background: $stratum-panel-light;
+    color: $stratum-hint;
     text-style: bold;
     text-align: center;
     padding: 0 1;
-    border-bottom: solid #21262d;
+    border-bottom: solid $stratum-border;
 }
 
 #capability-list {
@@ -361,16 +382,16 @@ HeaderBanner .banner-time {
 }
 
 .cap-active {
-    color: #3fb950;
+    color: $stratum-pass;
     text-style: bold;
 }
 
 .cap-disabled {
-    color: #f85149;
+    color: $stratum-fail;
 }
 
 .cap-blocked {
-    color: #d29922;
+    color: $stratum-warn;
 }
 
 
@@ -379,19 +400,19 @@ HeaderBanner .banner-time {
 #command-footer {
     dock: bottom;
     height: 1;
-    background: #161b22;
-    color: #8b949e;
-    border-top: solid #21262d;
+    background: $stratum-panel-light;
+    color: $stratum-hint;
+    border-top: solid $stratum-border;
     padding: 0 1;
 }
 
 .footer-key {
-    color: #58a6ff;
+    color: $stratum-active;
     text-style: bold;
 }
 
 .footer-action {
-    color: #6e7681;
+    color: $stratum-session;
 }
 
 
@@ -406,15 +427,15 @@ CommandPaletteScreen {
     max-width: 90%;
     height: 28;
     max-height: 80%;
-    background: #161b22;
-    border: solid #30363d;
+    background: $stratum-panel-light;
+    border: solid $stratum-disabled;
     padding: 0;
 }
 
 #palette-title {
     height: 1;
-    background: #21262d;
-    color: #c9d1d9;
+    background: $stratum-border;
+    color: $stratum-bold;
     text-style: bold;
     text-align: center;
     padding: 0 1;
@@ -425,9 +446,9 @@ CommandPaletteScreen {
 }
 
 #palette-search Input {
-    background: #0d1117;
-    color: #c9d1d9;
-    border: solid #30363d;
+    background: $stratum-panel;
+    color: $stratum-bold;
+    border: solid $stratum-disabled;
 }
 
 #palette-results {
@@ -443,27 +464,27 @@ CommandPaletteScreen {
 }
 
 .palette-item:hover {
-    background: #1f2937;
+    background: $stratum-selected;
 }
 
 .palette-item.-highlight {
-    background: #1c2333;
+    background: $stratum-hover;
 }
 
 .palette-cmd {
-    color: #79c0ff;
+    color: $stratum-brand;
 }
 
 .palette-tier {
-    color: #d2a8ff;
+    color: $stratum-accent;
 }
 
 .palette-blocked {
-    color: #484f58;
+    color: $stratum-dim;
 }
 
 .palette-authority-flag {
-    color: #ffa657;
+    color: $stratum-tier;
     text-style: bold;
 }
 
@@ -477,24 +498,24 @@ CLIPassthroughScreen {
 #cli-container {
     width: 90%;
     height: auto;
-    background: #161b22;
-    border: solid #30363d;
+    background: $stratum-panel-light;
+    border: solid $stratum-disabled;
     padding: 1 2;
 }
 
 #cli-prefix {
-    color: #3fb950;
+    color: $stratum-pass;
     text-style: bold;
 }
 
 #cli-input {
-    background: #0d1117;
-    color: #c9d1d9;
-    border: solid #30363d;
+    background: $stratum-panel;
+    color: $stratum-bold;
+    border: solid $stratum-disabled;
 }
 
 #cli-hint {
-    color: #484f58;
+    color: $stratum-dim;
     text-align: right;
 }
 
@@ -511,23 +532,23 @@ CLIPassthroughScreen {
 }
 
 .memory-atom:hover {
-    background: #161b22;
+    background: $stratum-panel-light;
 }
 
 .memory-type {
-    color: #d2a8ff;
+    color: $stratum-accent;
 }
 
 .memory-score {
-    color: #ffa657;
+    color: $stratum-tier;
 }
 
 .memory-content-preview {
-    color: #8b949e;
+    color: $stratum-hint;
 }
 
 .memory-pinned {
-    color: #3fb950;
+    color: $stratum-pass;
     text-style: bold;
 }
 
@@ -535,7 +556,7 @@ CLIPassthroughScreen {
 /* ─── Idle Report / Status ───────────────────────────── */
 
 .status-section-title {
-    color: #58a6ff;
+    color: $stratum-active;
     text-style: bold;
     margin-bottom: 1;
 }
@@ -545,20 +566,20 @@ CLIPassthroughScreen {
 }
 
 .status-label {
-    color: #8b949e;
+    color: $stratum-hint;
     width: 20;
 }
 
 .status-value-ok {
-    color: #3fb950;
+    color: $stratum-pass;
 }
 
 .status-value-warn {
-    color: #d29922;
+    color: $stratum-warn;
 }
 
 .status-value-fail {
-    color: #f85149;
+    color: $stratum-fail;
 }
 
 
@@ -571,26 +592,26 @@ ConfirmScreen {
 #confirm-dialog {
     width: 50;
     height: 8;
-    background: #161b22;
-    border: solid #d29922;
+    background: $stratum-panel-light;
+    border: solid $stratum-warn;
     padding: 1 2;
 }
 
 #confirm-title {
-    color: #d29922;
+    color: $stratum-warn;
     text-style: bold;
     text-align: center;
     margin-bottom: 1;
 }
 
 #confirm-body {
-    color: #c9d1d9;
+    color: $stratum-bold;
     text-align: center;
     margin-bottom: 1;
 }
 
 #confirm-hint {
-    color: #484f58;
+    color: $stratum-dim;
     text-align: center;
 }
 
@@ -604,27 +625,27 @@ RejectScreen {
 #reject-dialog {
     width: 60;
     height: 12;
-    background: #161b22;
-    border: solid #f85149;
+    background: $stratum-panel-light;
+    border: solid $stratum-fail;
     padding: 1 2;
 }
 
 #reject-title {
-    color: #f85149;
+    color: $stratum-fail;
     text-style: bold;
     text-align: center;
     margin-bottom: 1;
 }
 
 #reject-input {
-    background: #0d1117;
-    color: #c9d1d9;
-    border: solid #30363d;
+    background: $stratum-panel;
+    color: $stratum-bold;
+    border: solid $stratum-disabled;
     height: 5;
 }
 
 #reject-hint {
-    color: #484f58;
+    color: $stratum-dim;
     text-align: center;
     margin-top: 1;
 }
@@ -633,32 +654,32 @@ RejectScreen {
 /* ─── Diff View ──────────────────────────────────────── */
 
 .diff-add {
-    color: #3fb950;
+    color: $stratum-pass;
     background: #0d2818;
 }
 
 .diff-remove {
-    color: #f85149;
+    color: $stratum-fail;
     background: #3d0c0c;
 }
 
 .diff-header {
-    color: #79c0ff;
+    color: $stratum-brand;
     text-style: bold;
 }
 
 .diff-context {
-    color: #8b949e;
+    color: $stratum-hint;
 }
 
 
 /* ─── Scrollbar Theming ──────────────────────────────── */
 
 * {
-    scrollbar-background: #0a0e14;
-    scrollbar-color: #21262d;
-    scrollbar-color-hover: #30363d;
-    scrollbar-color-active: #484f58;
+    scrollbar-background: $stratum-bg;
+    scrollbar-color: $stratum-border;
+    scrollbar-color-hover: $stratum-disabled;
+    scrollbar-color-active: $stratum-dim;
 }
 
 
@@ -678,8 +699,8 @@ RejectScreen {
 
 #mechanical-sympathy {
     height: 1;
-    background: #0d1117;
-    border-top: solid #21262d;
+    background: $stratum-panel;
+    border-top: solid $stratum-border;
     padding: 0 1;
 }
 
@@ -689,18 +710,18 @@ RejectScreen {
 
 #mech-mem {
     width: 15;
-    color: #8b949e;
+    color: $stratum-hint;
 }
 
 #mech-tok {
     width: 15;
-    color: #8b949e;
+    color: $stratum-hint;
 }
 
 #third-door-gate {
     margin: 1 2;
     padding: 1 2;
-    background: #0d1117;
-    border: solid #3fb950;
+    background: $stratum-panel;
+    border: solid $stratum-pass;
 }
 
