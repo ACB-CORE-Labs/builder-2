@@ -6,28 +6,46 @@ import subprocess
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from builder_ii.config import Settings
+from builder_ii.goose_launcher import find_goose_binary, goose_env, recipe_path
 from builder_ii.goose_receipts import (
     create_goose_close_receipt,
     create_goose_launch_receipt,
     create_no_mutation_postflight,
 )
-from builder_ii.goose_launcher import find_goose_binary, goose_env, recipe_path
 from builder_ii.model_router import SessionPlan
-from typing import Any
+
+
+_DIGEST_CHUNK_SIZE = 1024 * 1024
 
 
 def _current_time_utc() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _file_sha256(path: Path) -> str | None:
+    """Return a streaming SHA-256 digest, or None when the file is unreadable."""
+    try:
+        hasher = hashlib.sha256()
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(_DIGEST_CHUNK_SIZE), b""):
+                hasher.update(chunk)
+        return hasher.hexdigest()
+    except OSError:
+        return None
+
+
 def _get_target_files(target_root: Path) -> dict[str, str]:
     """Snapshot target files by content digest, not timestamp granularity."""
     snapshot: dict[str, str] = {}
     for p in target_root.rglob("*"):
-        if p.is_file() and ".git" not in p.parts:
-            snapshot[str(p)] = hashlib.sha256(p.read_bytes()).hexdigest()
+        if not p.is_file() or ".git" in p.parts:
+            continue
+        digest = _file_sha256(p)
+        if digest is not None:
+            snapshot[str(p)] = digest
     return snapshot
 
 
@@ -48,18 +66,17 @@ class GooseRuntimeHarness:
 
         recipe = recipe_path(self.settings, self.session_plan)
         env = goose_env(self.settings, session=self.session_plan)
-        
-        # Enforce read-only bounds in the environment
+
+        # Enforce read-only bounds in the environment.
         env["GOOSE_MODE"] = "auto"
-        
-        # We restrict the capabilities by not supplying `developer` builtin
+
+        # We restrict the capabilities by not supplying `developer` builtin.
         argv = [goose, "session", "--with-builtin", ""]
         if recipe.exists():
             argv.extend(["--recipe", str(recipe)])
 
-        # Snapshot before launch
         self._preflight_snapshot = _get_target_files(self.target_root)
-        
+
         start_time = _current_time_utc()
         self._proc = subprocess.Popen(
             argv,
@@ -89,27 +106,26 @@ class GooseRuntimeHarness:
                     self._proc.wait()
             exit_code = self._proc.returncode
 
-        # Postflight mutation check
         post_snapshot = _get_target_files(self.target_root)
-        mutations = []
-        for f, mtime in post_snapshot.items():
-            if f not in self._preflight_snapshot or self._preflight_snapshot[f] != mtime:
-                mutations.append(f)
-        for f in self._preflight_snapshot:
-            if f not in post_snapshot:
-                mutations.append(f"{f} (deleted)")
+        mutations: list[str] = []
+        for file_path, digest in post_snapshot.items():
+            if file_path not in self._preflight_snapshot or self._preflight_snapshot[file_path] != digest:
+                mutations.append(file_path)
+        for file_path in self._preflight_snapshot:
+            if file_path not in post_snapshot:
+                mutations.append(f"{file_path} (deleted)")
 
         postflight = create_no_mutation_postflight(
             session_id=self.session_id,
             target_root=str(self.target_root),
-            start_time=end_time, # approximate for schema
+            start_time=end_time,  # approximate for schema
             end_time=end_time,
             files_checked=len(post_snapshot),
             mutations_detected=mutations,
         )
 
         transcript_path = str(Path.home() / ".config" / "goose" / "sessions" / self.session_id)
-        
+
         close_receipt = create_goose_close_receipt(
             session_id=self.session_id,
             launch_receipt_digest=launch_receipt_digest,
