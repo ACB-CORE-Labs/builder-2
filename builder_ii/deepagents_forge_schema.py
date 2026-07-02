@@ -136,11 +136,12 @@ class DeepAgentSpec:
     def summary_lines(self) -> list[str]:
         """Return short human-readable summary lines for TUI display."""
         lines = []
+        has_identity = bool(self.name or self.slug)
         if self.name:
             lines.append(f"name:    {self.name}")
         if self.slug:
             lines.append(f"slug:    {self.slug}")
-        if self.target_profile:
+        if self.target_profile and (has_identity or self.target_profile != "generic"):
             lines.append(f"target:  {self.target_profile}")
         if self.persona:
             preview = self.persona[:60] + ("..." if len(self.persona) > 60 else "")
