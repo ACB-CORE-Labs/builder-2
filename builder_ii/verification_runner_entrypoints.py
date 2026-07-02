@@ -27,10 +27,24 @@ def run_platform_status() -> int:
     return 0
 
 
+def run_docs_audit() -> int:
+    """Run the docs truth audit used by the bounded docs_audit profile."""
+    errors = validate_completion_matrix(root=Path.cwd())
+    errors.extend(validate_command_surfaces(_registry_names()))
+    if errors:
+        for error in errors:
+            print(f"docs truth validation error: {error}", file=sys.stderr)
+        return 1
+    print("docs truth audit passed")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if args == ["platform-status"]:
         return run_platform_status()
+    if args == ["docs-audit"]:
+        return run_docs_audit()
     print("unsupported verification runner entrypoint", file=sys.stderr)
     return 2
 

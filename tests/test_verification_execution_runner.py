@@ -362,3 +362,63 @@ def test_output_equal_to_artifact_root_blocks_without_write_or_subprocess(monkey
     assert any("artifact root" in error for error in receipt["errors"])
     assert unsafe_output.is_dir()
     assert calls == []
+
+
+def test_docs_audit_profile_runs_and_writes_postflight(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)
+    receipt_path = receipt_path.with_name("docs-audit-receipt.json")
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if args[:3] == ["git", "status", "--porcelain=v1"]:
+            return _completed(args, stdout="")
+        assert args[-1] == "docs-audit"
+        assert kwargs.get("shell") is False
+        return _completed(args, stdout="docs truth audit passed\n")
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path,
+        approval_path=approval_path,
+        output=receipt_path,
+        requested_profile="docs_audit",
+    )
+
+    postflight_path = receipt_path.with_name(receipt_path.stem + "-postflight.json")
+    postflight = json.loads(postflight_path.read_text(encoding="utf-8"))
+    assert receipt["valid"] is True
+    assert receipt["process_results"][0]["profile"] == "docs_audit"
+    assert receipt["command_authority_decision"]["allowed"] is True
+    assert receipt["postflight_ref"]["path"] == str(postflight_path)
+    assert postflight["postflight_state"] == "RUN_COMPLETE"
+    assert postflight["receipt_digest"]
+    assert postflight["valid"] is True
+
+
+def test_postflight_marks_mutation_mismatch_invalid(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)
+    git_calls = 0
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal git_calls
+        if args[:3] == ["git", "status", "--porcelain=v1"]:
+            git_calls += 1
+            return _completed(args, stdout="" if git_calls == 1 else "?? new-file\n")
+        return _completed(args, stdout="builder-II platform status\n")
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path,
+        approval_path=approval_path,
+        output=receipt_path,
+        requested_profile="platform_status",
+    )
+
+    postflight_path = receipt_path.with_name(receipt_path.stem + "-postflight.json")
+    postflight = json.loads(postflight_path.read_text(encoding="utf-8"))
+    assert receipt["valid"] is False
+    assert postflight["valid"] is False
+    assert "postflight detected workspace mutation" in postflight["errors"]

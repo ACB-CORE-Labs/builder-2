@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 import time
@@ -21,12 +22,12 @@ def _current_time_utc() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _get_target_files(target_root: Path) -> dict[str, float]:
-    """Snapshot the target root files modification times."""
-    snapshot: dict[str, float] = {}
+def _get_target_files(target_root: Path) -> dict[str, str]:
+    """Snapshot target files by content digest, not timestamp granularity."""
+    snapshot: dict[str, str] = {}
     for p in target_root.rglob("*"):
         if p.is_file() and ".git" not in p.parts:
-            snapshot[str(p)] = p.stat().st_mtime
+            snapshot[str(p)] = hashlib.sha256(p.read_bytes()).hexdigest()
     return snapshot
 
 
@@ -37,7 +38,7 @@ class GooseRuntimeHarness:
         self.target_root = target_root
         self.session_id = f"goose_{int(time.time())}"
         self._proc: subprocess.Popen[str] | None = None
-        self._preflight_snapshot: dict[str, float] = {}
+        self._preflight_snapshot: dict[str, str] = {}
 
     def launch_readonly(self) -> dict[str, Any]:
         """Launch Goose in a strict read-only mode, without shell access."""

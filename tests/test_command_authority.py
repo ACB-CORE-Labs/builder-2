@@ -258,3 +258,46 @@ def test_builder_memory_commands_are_registered_as_tier1_surfaces() -> None:
         assert record.tier == TIER_1
         assert record.allows_artifact_writes is False
         assert name in REQUIRED_SUBCOMMANDS
+
+
+def test_runtime_gate_allows_passive_registered_command_without_hitl() -> None:
+    from builder_ii.command_authority import enforce_command_authority
+
+    decision = enforce_command_authority("builder-targets list", requested_effects=())
+
+    assert decision.allowed is True
+    assert decision.to_evidence()["allowed"] is True
+    assert decision.to_evidence()["fail_closed"] is False
+
+
+def test_runtime_gate_denies_unknown_command_fail_closed() -> None:
+    from builder_ii.command_authority import enforce_command_authority
+
+    decision = enforce_command_authority("builder-unknown mutate", requested_effects=("source_writes",))
+
+    assert decision.allowed is False
+    assert "not registered" in decision.reason
+    assert decision.to_evidence()["fail_closed"] is True
+
+
+def test_runtime_gate_denies_over_authority_effect() -> None:
+    from builder_ii.command_authority import enforce_command_authority
+
+    decision = enforce_command_authority("builder-targets list", requested_effects=("source_writes",))
+
+    assert decision.allowed is False
+    assert "exceeds" in decision.reason
+    assert decision.denied_effects == ("source_writes",)
+
+
+def test_runtime_gate_requires_hitl_for_run_approved() -> None:
+    from builder_ii.command_authority import enforce_command_authority
+
+    decision = enforce_command_authority(
+        "builder-verify run-approved",
+        requested_effects=("artifact_writes", "readonly_subprocess"),
+        hitl_bound=False,
+    )
+
+    assert decision.allowed is False
+    assert "HITL" in decision.reason

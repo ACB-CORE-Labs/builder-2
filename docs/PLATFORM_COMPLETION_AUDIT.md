@@ -71,11 +71,11 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | orchestration founder demo wrapper | `PASSIVE_FOUNDATION` | B9 |
 | HITL promotion bridge | `PASSIVE_FOUNDATION` | B1 |
 | execution candidate manifests | `PASSIVE_FOUNDATION` | B1 |
-| HITL-approved verification execution | `PASSIVE_FOUNDATION` | B2.0 |
+| HITL-approved verification execution | `OPERATIONALLY_VERIFIED` | B2.0 |
 | HITL patch proposal | `OPERATIONALLY_VERIFIED` | B4 |
 | HITL patch application | `OPERATIONALLY_VERIFIED` | B4 |
 | rollback execution | `OPERATIONALLY_VERIFIED` | B4 |
-| postflight verification | `ARTIFACT_ONLY` | B1 |
+| postflight verification | `OPERATIONALLY_VERIFIED` | B1.5 |
 | Goose setup | `MERGED_BUT_NOT_OPERATIONAL` | B4 after R0/B3 |
 | governed read-only runtime | `OPERATIONALLY_VERIFIED` | B4 |
 | Goose readonly runtime | `OPERATIONALLY_VERIFIED` | B5 |
@@ -89,7 +89,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | CORE demo loop | `OPERATIONALLY_VERIFIED` | demo loop complete |
 | platform doctor/status/audit | `PASSIVE_FOUNDATION` | R1 then B1 |
 | release proof/quality gates | `PASSIVE_FOUNDATION` | B1 |
-| command authority as runtime gate | `MERGED_BUT_NOT_OPERATIONAL` | B1/B6/B7 |
+| command authority as runtime gate | `OPERATIONALLY_VERIFIED` | B1.5 |
 | docs truth enforcement | `PASSIVE_FOUNDATION` | R1 then B1 |
 
 ## Corrections
@@ -148,7 +148,7 @@ R1.5 adds `builder-setup init`, `builder-setup wizard`, `builder onboarding`, an
 
 R1.6 completes R1 by introducing `builder-platform r1-closure` and `builder-platform validate-r1-closure`. These commands execute the entire passive config/setup/onboarding chain and emit a canonical, auditable `r1-closure-report.json` alongside the full evidence artifact chain (`config-schema.json`, `config-resolution.json`, `setup-plan.json`, `setup-overlay.json`, `setup-rollback-snapshot.json`, and `onboarding-intent.json`). This proves the R1 golden path while ensuring that setup apply/rollback execution remains explicit and B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority remain unpromoted.
 
-B1.1 adds `builder_ii.verification_execution_plan` plus `builder-verify plan` and `builder-verify validate-plan` as a passive verification execution planning surface. B1.2 adds `builder_ii.verification_execution_approval` plus `builder-verify approve-plan` and `builder-verify validate-approval` as a digest-bound HITL approval binding surface. Both artifacts remain passive and non-authoritative: they do not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, or promote actual verification execution. B1.3A adds a passive receipt contract. B1.3B adds the first bounded approved verification runner for `platform_status`. B1.4A/B/C/D add passive verification execution ledger indexing, read-only query, read-only integrity reporting, read-only reconstruction reporting, and B1 closure docs. B1 is closed as passive foundation only; broader execution profiles, live read authority, patching, model/MCP/Goose/deepagents runtime, and B2 write authority remain disabled.
+B1.1 adds `builder_ii.verification_execution_plan` plus `builder-verify plan` and `builder-verify validate-plan` as a passive verification execution planning surface. B1.2 adds `builder_ii.verification_execution_approval` plus `builder-verify approve-plan` and `builder-verify validate-approval` as a digest-bound HITL approval binding surface. Those planning and approval artifacts remain non-authoritative by themselves. B1.3A adds a receipt contract. B1.3B adds the first bounded approved verification runner for `platform_status`. B1.5 broadens the same fixed-profile, `shell=False`, HITL-bound runner to `docs_audit`, routes the lane through the central command authority gate, and emits a generated postflight sidecar bound to receipt/git preflight/postflight evidence. Arbitrary argv, broad shell execution, live read authority, patching, model/MCP/Goose/deepagents runtime, and B2 write authority remain disabled.
 
 ## B7 update
 
@@ -167,3 +167,8 @@ B9 completes the Operator Product Polish by introducing the governed local golde
 The CORE demo loop introduces `builder-platform demo-loop`, `builder-platform validate-demo-loop`, and the recording alias `builder-platform wow`. The loop targets a real AssetOverflow/core checkout by creating a detached temporary worktree from the current CORE `HEAD`, then walks through preflight, repo map, context pack, deterministic planner, HITL patch proposal, explicit approval, patch apply receipt, bounded verification receipt, rollback receipt, final postflight, artifact index, chain verification, and `DEMO_EVIDENCE.md`.
 
 This is not a synthetic product tour. It uses real CORE repository structure and Git state, but the only approved mutation is a temporary documentation marker inside the detached worktree. The source CORE checkout is not mutated. The loop never commits, pushes, starts Goose, calls models, invokes MCP, writes hidden memory, or touches CORE Workbench/UI.
+
+
+## B1.5 readiness pass update
+
+B1.5 closes the smallest foundational authority gap without promoting ambient autonomy. `builder_ii.command_authority.enforce_command_authority()` is now a central fail-closed runtime gate that allows registered passive commands, denies unknown commands, denies unknown or over-authority effects, and requires HITL binding for HITL-gated lanes. `builder-verify run-approved` consults this gate before crossing subprocess/artifact-write authority. The approved verification runner now supports exactly two fixed profiles, `platform_status` and `docs_audit`; it still rejects arbitrary argv and shell strings. Real verification execution now produces a postflight record sidecar that links the receipt, plan, approval, preflight git fingerprint, postflight git fingerprint, and mutation verdict. This promotes the verification-runner postflight lane only; broad shell, broad Goose autonomy, broad MCP/live tool execution, hidden/autonomous memory, source CORE checkout mutation, commit/push automation, and model-driven file mutation remain unpromoted.
