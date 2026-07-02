@@ -5,9 +5,8 @@ Tests for deepagents_forge_schema.py — DeepAgentSpec dataclass and helpers.
 """
 
 import yaml
-import pytest
 
-from builder_ii.deepagents_forge_schema import DeepAgentSpec, derive_slug
+from builder_ii.deepagents_forge_schema import DeepAgentSpec, derive_slug, is_valid_slug
 
 
 # ---------------------------------------------------------------------------
@@ -22,7 +21,7 @@ class TestDeriveSlug:
         assert derive_slug("my_agent") == "my_agent"
 
     def test_hyphens_and_spaces(self):
-        assert derive_slug("My-Cool Agent!") == "my_cool_agent_"
+        assert derive_slug("My-Cool Agent!") == "my_cool_agent"
 
     def test_leading_trailing_underscores_stripped(self):
         result = derive_slug("  agent  ")
@@ -33,6 +32,20 @@ class TestDeriveSlug:
 
     def test_empty_string(self):
         assert derive_slug("") == ""
+
+
+class TestSlugValidation:
+    def test_valid_slug(self):
+        assert is_valid_slug("pr_reviewer_v2") is True
+
+    def test_rejects_path_traversal(self):
+        assert is_valid_slug("../escape") is False
+
+    def test_rejects_separator(self):
+        assert is_valid_slug("nested/agent") is False
+
+    def test_rejects_trailing_underscore(self):
+        assert is_valid_slug("agent_") is False
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +139,20 @@ class TestIsEmitReady:
         assert ready is False
         assert "rollback_path" in missing
 
+    def test_returns_false_invalid_slug(self):
+        spec = self._full_spec()
+        spec.slug = "../escape"
+        ready, missing = spec.is_emit_ready()
+        assert ready is False
+        assert "slug" in missing
+
+    def test_returns_false_invalid_target_profile(self):
+        spec = self._full_spec()
+        spec.target_profile = "coreish"
+        ready, missing = spec.is_emit_ready()
+        assert ready is False
+        assert "target_profile" in missing
+
     def test_returns_true_all_required_present(self):
         spec = self._full_spec()
         ready, missing = spec.is_emit_ready()
@@ -194,6 +221,6 @@ class TestSummaryLines:
             persona="x" * 100,
         )
         lines = spec.summary_lines()
-        persona_line = next((l for l in lines if "persona" in l), None)
+        persona_line = next((line for line in lines if "persona" in line), None)
         assert persona_line is not None
         assert len(persona_line) < 120  # truncated
