@@ -1,5 +1,11 @@
 # builder-II
 
+<p align="center">
+  <img src="images/builder-ii-splash-hero.jpeg" alt="builder-II opening splash artwork" width="960">
+</p>
+
+<p align="center"><em>Opening splash artwork from the governed builder-II TUI.</em></p>
+
 `builder-II` is a generic governed platform for local agent-assisted software development.
 
 It is CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet. CORE is supported as a first-class target profile, but builder-II itself is not CORE, not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime.
