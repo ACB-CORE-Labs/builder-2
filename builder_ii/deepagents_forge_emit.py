@@ -1,5 +1,5 @@
 """
-deeagents_forge_emit.py
+deepagents_forge_emit.py
 
 Governed artifact writer and registrar for the Forge wizard.
 Only called after governance check passes and operator confirms.
@@ -8,10 +8,10 @@ Emit pipeline:
   1. Validate spec is emit-ready
   2. Run governance check (unless dry_run)
   3. Write profiles/deepagents/{slug}.yaml
-  4. Register in agent_profiles
-  5. Register bridge spec in deepagents_bridge
-  6. Write forge handoff note
-  7. Log forge event to event_ledger
+  4. Register in agent_profiles if that optional bridge exists
+  5. Register bridge spec in deepagents_bridge if that optional bridge exists
+  6. Write forge handoff note if that optional surface exists
+  7. Log forge event if that optional surface exists
   8. Return EmitResult
 
 dry_run=True is always safe — no side effects, returns what WOULD happen.
@@ -21,17 +21,16 @@ This module is generic-first and must not import CORE-specific modules.
 
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional
 
-from builder_ii.deepagents_forge_schema import DeepAgentSpec
 from builder_ii.deepagents_forge_preview import (
+    GovernanceCheck,
     check_governance,
     render_bridge_spec,
-    GovernanceCheck,
 )
+from builder_ii.deepagents_forge_schema import DeepAgentSpec, is_valid_slug
 
 
 # ---------------------------------------------------------------------------
@@ -55,12 +54,12 @@ class EmitResult:
             lines = ["\u274c  Emit failed:", f"   {self.error}"]
             if isinstance(self.detail, GovernanceCheck):
                 lines.append("   Failing governance checks:")
-                for f in self.detail.failing:
-                    lines.append(f"     - {f}")
+                for failing_check in self.detail.failing:
+                    lines.append(f"     - {failing_check}")
             return lines
         prefix = "[DRY-RUN] " if self.dry_run else ""
         return [
-            f"\u2705  {prefix}Agent emitted successfully",
+            f"\u2705  {prefix}Agent profile prepared successfully",
             f"   profile: {self.profile_path}",
             f"   slug:    {self.slug}",
             f"   next:    {self.next_command}",
@@ -71,13 +70,25 @@ class EmitResult:
 # Profile output directory
 # ---------------------------------------------------------------------------
 
-DEEPAGENTS_PROFILES_DIR = "profiles/deepagents"
+DEEPAGENTS_PROFILES_DIR = Path("profiles/deepagents")
 
 
-def _profiles_dir() -> str:
+def _profiles_dir() -> Path:
     """Return the profiles/deepagents directory, creating it if needed."""
-    os.makedirs(DEEPAGENTS_PROFILES_DIR, exist_ok=True)
+    DEEPAGENTS_PROFILES_DIR.mkdir(parents=True, exist_ok=True)
     return DEEPAGENTS_PROFILES_DIR
+
+
+def _profile_path_for_slug(slug: str) -> Path:
+    """
+    Resolve the profile path for a safe slug.
+
+    The slug is validated separately from the filesystem path so an editable
+    slug can never traverse out of profiles/deepagents/ or smuggle separators.
+    """
+    if not is_valid_slug(slug):
+        raise ValueError("slug must match ^[a-z0-9]+(?:_[a-z0-9]+)*$")
+    return DEEPAGENTS_PROFILES_DIR / f"{slug}.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -90,10 +101,11 @@ def write_agent_profile(spec: DeepAgentSpec) -> str:
     Returns the path written.
     """
     profiles_dir = _profiles_dir()
-    path = os.path.join(profiles_dir, f"{spec.slug}.yaml")
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(spec.to_yaml())
-    return path
+    path = _profile_path_for_slug(spec.slug)
+    if path.parent != profiles_dir:
+        raise ValueError("profile path escaped profiles/deepagents")
+    path.write_text(spec.to_yaml(), encoding="utf-8")
+    return path.as_posix()
 
 
 def register_agent_profile(spec: DeepAgentSpec) -> None:
@@ -105,7 +117,7 @@ def register_agent_profile(spec: DeepAgentSpec) -> None:
         from builder_ii.agent_profiles import register_from_forge_spec
         register_from_forge_spec(spec)
     except (ImportError, AttributeError):
-        pass  # additive — safe to skip if function not yet wired
+        pass  # additive — safe to skip if function is not wired yet
 
 
 def register_bridge_spec(spec: DeepAgentSpec) -> None:
@@ -118,7 +130,7 @@ def register_bridge_spec(spec: DeepAgentSpec) -> None:
         bridge_spec = render_bridge_spec(spec)
         register_forge_spec(bridge_spec)
     except (ImportError, AttributeError):
-        pass  # additive — safe to skip if function not yet wired
+        pass  # additive — safe to skip if function is not wired yet
 
 
 def write_forge_handoff(spec: DeepAgentSpec) -> None:
@@ -137,7 +149,7 @@ def write_forge_handoff(spec: DeepAgentSpec) -> None:
             f"**HITL gates:** {', '.join(spec.hitl_gates) or 'none'}\n"
             f"**Output artifact:** {spec.output_artifact}\n"
             f"**Rollback path:** {spec.rollback_path}\n"
-            f"**Next command:** `{spec.slug and f'bii agent run {spec.slug}'}`\n"
+            f"**Next:** review `profiles/deepagents/{spec.slug}.yaml` before promotion.\n"
         )
         write_handoff_note(
             slug=f"forge_{spec.slug}",
@@ -185,9 +197,14 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
     if not ready:
         return EmitResult(
             ok=False,
-            error=f"Spec incomplete. Missing required fields: {', '.join(missing)}",
+            error=f"Spec incomplete or invalid. Fields: {', '.join(missing)}",
             dry_run=dry_run,
         )
+
+    try:
+        profile_path_obj = _profile_path_for_slug(spec.slug)
+    except ValueError as exc:
+        return EmitResult(ok=False, error=str(exc), dry_run=dry_run)
 
     # 2. Governance check
     governance = check_governance(spec)
@@ -201,12 +218,11 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
 
     # Dry run stops here — no side effects
     if dry_run:
-        profile_path = os.path.join(DEEPAGENTS_PROFILES_DIR, f"{spec.slug}.yaml")
         return EmitResult(
             ok=True,
-            profile_path=profile_path,
+            profile_path=profile_path_obj.as_posix(),
             slug=spec.slug,
-            next_command=f"bii agent run {spec.slug}",
+            next_command=f"review profiles/deepagents/{spec.slug}.yaml before promotion",
             dry_run=True,
         )
 
@@ -214,7 +230,10 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
     spec.stamp_created_at()
 
     # 4. Write profile YAML
-    profile_path = write_agent_profile(spec)
+    try:
+        profile_path = write_agent_profile(spec)
+    except (OSError, ValueError) as exc:
+        return EmitResult(ok=False, error=f"Failed to write profile: {exc}")
 
     # 5. Register in agent_profiles
     register_agent_profile(spec)
@@ -232,6 +251,6 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
         ok=True,
         profile_path=profile_path,
         slug=spec.slug,
-        next_command=f"bii agent run {spec.slug}",
+        next_command=f"review profiles/deepagents/{spec.slug}.yaml before promotion",
         dry_run=False,
     )
