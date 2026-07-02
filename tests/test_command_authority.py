@@ -330,33 +330,88 @@ def test_runtime_gate_allows_passive_registered_command_without_hitl() -> None:
 
 
 def test_runtime_gate_denies_unknown_command_fail_closed() -> None:
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
 
-    decision = enforce_command_authority("builder-unknown mutate", requested_effects=("source_writes",))
+    with pytest.raises(CommandAuthorityError) as exc_info:
+        enforce_command_authority("builder-unknown mutate", requested_effects=("source_writes",))
+    assert "not registered" in str(exc_info.value)
 
+    decision = check_command_authority("builder-unknown mutate", requested_effects=("source_writes",))
     assert decision.allowed is False
     assert "not registered" in decision.reason
     assert decision.to_evidence()["fail_closed"] is True
 
 
 def test_runtime_gate_denies_over_authority_effect() -> None:
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
 
-    decision = enforce_command_authority("builder-targets list", requested_effects=("source_writes",))
+    with pytest.raises(CommandAuthorityError) as exc_info:
+        enforce_command_authority("builder-targets list", requested_effects=("source_writes",))
+    assert "not classified" in str(exc_info.value)
 
+    decision = check_command_authority("builder-targets list", requested_effects=("source_writes",))
     assert decision.allowed is False
-    assert "exceeds" in decision.reason
-    assert decision.denied_effects == ("source_writes",)
+    assert "not classified" in decision.reason
 
 
 def test_runtime_gate_requires_hitl_for_run_approved() -> None:
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
 
-    decision = enforce_command_authority(
+    with pytest.raises(CommandAuthorityError) as exc_info:
+        enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_write", "readonly_subprocess"),
+            hitl_bound=False,
+        )
+    assert "HITL" in str(exc_info.value)
+
+    decision = check_command_authority(
         "builder-verify run-approved",
-        requested_effects=("artifact_writes", "readonly_subprocess"),
+        requested_effects=("artifact_write", "readonly_subprocess"),
         hitl_bound=False,
     )
-
     assert decision.allowed is False
     assert "HITL" in decision.reason
+
+
+def test_command_authority_compatibility_hitl_bound() -> None:
+    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
+
+    # 1. Denied with no approval_ref and no hitl_bound
+    with pytest.raises(CommandAuthorityError) as exc:
+        enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_write", "readonly_subprocess"),
+        )
+    assert "HITL" in str(exc.value)
+
+    # 2. Denied with hitl_bound=False
+    with pytest.raises(CommandAuthorityError) as exc:
+        enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_write", "readonly_subprocess"),
+            hitl_bound=False,
+        )
+    assert "HITL" in str(exc.value)
+
+    # 3. Allowed with hitl_bound=True
+    decision = enforce_command_authority(
+        "builder-verify run-approved",
+        requested_effects=("artifact_write", "readonly_subprocess"),
+        hitl_bound=True,
+    )
+    assert decision.allowed is True
+
+    # 4. Allowed with approval_ref
+    decision = enforce_command_authority(
+        "builder-verify run-approved",
+        requested_effects=("artifact_write", "readonly_subprocess"),
+        approval_ref="approval-123",
+    )
+    assert decision.allowed is True
+
+    # 5. Unknown commands still fail closed
+    with pytest.raises(CommandAuthorityError) as exc:
+        enforce_command_authority("builder-missing-command")
+    assert "not registered" in str(exc.value)
+

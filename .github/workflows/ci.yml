@@ -31,7 +31,9 @@ jobs:
         run: uv run python -m compileall -q builder_ii tests
 
       - name: Documentation truth audit
-        run: uv run builder-platform audit-docs
+        run: |
+          uv run builder-platform audit-docs
+          uv run builder-platform matrix
 
       - name: High-confidence secret scan
         run: |

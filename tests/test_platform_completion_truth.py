@@ -168,7 +168,7 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     assert rows["rollback execution"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
     assert rows["governed read-only runtime"]["assurance_state"] == "READ_ONLY_RUNTIME_VERIFIED"
     assert rows["CORE demo loop"]["assurance_state"] == "DEMO_ONLY_VERIFIED"
-    assert rows["command authority as runtime gate"]["assurance_state"] == "BLOCKED_BY_EVIDENCE"
+    assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
 
 def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()

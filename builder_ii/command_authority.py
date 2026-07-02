@@ -123,6 +123,42 @@ class CommandAuthorityDecision:
     assurance_state: AssuranceState
     requested_effects: tuple[str, ...]
     reasons: tuple[str, ...]
+    capability_ref: str = ""
+
+    @property
+    def command(self) -> str:
+        return self.command_name
+
+    @property
+    def reason(self) -> str:
+        return "; ".join(self.reasons) if self.reasons else ""
+
+    @property
+    def allowed_effects(self) -> tuple[str, ...]:
+        record = get_command_record(self.command_name)
+        if record is None:
+            return ()
+        return tuple(effect for effect, flags in _EFFECT_FLAGS.items() if any(bool(getattr(record, flag)) for flag in flags))
+
+    @property
+    def denied_effects(self) -> tuple[str, ...]:
+        allowed = self.allowed_effects
+        return tuple(eff for eff in self.requested_effects if eff not in allowed)
+
+    def to_evidence(self) -> dict[str, object]:
+        return {
+            "kind": "builder_ii.command_authority_decision",
+            "command": self.command,
+            "allowed": self.allowed,
+            "reason": self.reason,
+            "tier": self.tier,
+            "promotion_state": self.promotion_state,
+            "approval_mode": self.approval_mode,
+            "allowed_effects": list(self.allowed_effects),
+            "denied_effects": list(self.denied_effects),
+            "capability_ref": self.capability_ref,
+            "fail_closed": not self.allowed,
+        }
 
 
 _EFFECT_FLAGS: dict[str, tuple[str, ...]] = {
@@ -131,13 +167,17 @@ _EFFECT_FLAGS: dict[str, tuple[str, ...]] = {
     "model_execution": ("allows_model_execution",),
     "shell_execution": ("allows_shell_execution",),
     "source_write": ("allows_source_writes",),
+    "source_writes": ("allows_source_writes",),
     "patch_application": ("allows_source_writes",),
     "git_mutation": ("allows_git_mutation",),
     "memory_mutation": ("allows_memory_mutation",),
     "artifact_write": ("allows_artifact_writes",),
+    "artifact_writes": ("allows_artifact_writes",),
     "state_write": ("allows_state_writes",),
+    "state_writes": ("allows_state_writes",),
     "readonly_subprocess": ("allows_readonly_subprocess",),
     "external_tool": ("allows_external_tool_invocation",),
+    "external_tool_invocation": ("allows_external_tool_invocation",),
 }
 
 
@@ -169,6 +209,8 @@ def check_command_authority(
     requested_effects: tuple[str, ...] = (),
     approval_ref: str | None = None,
     safety_critical_claim: bool = False,
+    hitl_bound: bool | None = None,
+    capability_ref: str = "",
 ) -> CommandAuthorityDecision:
     record = get_command_record(command_name)
     if record is None:
@@ -181,6 +223,7 @@ def check_command_authority(
             assurance_state=BLOCKED_BY_EVIDENCE,
             requested_effects=tuple(requested_effects),
             reasons=(f"command is not registered in COMMAND_AUTHORITY_REGISTRY: {command_name}",),
+            capability_ref=capability_ref,
         )
 
     reasons: list[str] = []
@@ -197,8 +240,9 @@ def check_command_authority(
         if not any(bool(getattr(record, flag)) for flag in flags):
             reasons.append(f"command is not classified for requested effect: {effect}")
 
-    if record.approval_mode == MODE_HITL_ARTIFACT_REQUIRED and not approval_ref:
-        reasons.append("command requires a HITL approval artifact reference")
+    if record.approval_mode == MODE_HITL_ARTIFACT_REQUIRED:
+        if not approval_ref and hitl_bound is not True:
+            reasons.append("command requires a HITL approval artifact reference")
 
     assurance = SAFETY_CRITICAL_PROHIBITED if safety_critical_claim else assurance_state_for_record(record)
     return CommandAuthorityDecision(
@@ -210,6 +254,7 @@ def check_command_authority(
         assurance_state=assurance,
         requested_effects=tuple(requested_effects),
         reasons=tuple(reasons),
+        capability_ref=capability_ref,
     )
 
 
@@ -219,12 +264,16 @@ def enforce_command_authority(
     requested_effects: tuple[str, ...] = (),
     approval_ref: str | None = None,
     safety_critical_claim: bool = False,
+    hitl_bound: bool | None = None,
+    capability_ref: str = "",
 ) -> CommandAuthorityDecision:
     decision = check_command_authority(
         command_name,
         requested_effects=requested_effects,
         approval_ref=approval_ref,
         safety_critical_claim=safety_critical_claim,
+        hitl_bound=hitl_bound,
+        capability_ref=capability_ref,
     )
     if not decision.allowed:
         raise CommandAuthorityError("; ".join(decision.reasons))
@@ -3336,106 +3385,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
 )
 
 
-@dataclass(frozen=True)
-class CommandAuthorityDecision:
-    command: str
-    allowed: bool
-    reason: str
-    tier: str | None = None
-    promotion_state: str | None = None
-    approval_mode: str | None = None
-    allowed_effects: tuple[str, ...] = ()
-    denied_effects: tuple[str, ...] = ()
-    capability_ref: str = ""
 
-    def to_evidence(self) -> dict[str, object]:
-        return {
-            "kind": "builder_ii.command_authority_decision",
-            "command": self.command,
-            "allowed": self.allowed,
-            "reason": self.reason,
-            "tier": self.tier,
-            "promotion_state": self.promotion_state,
-            "approval_mode": self.approval_mode,
-            "allowed_effects": list(self.allowed_effects),
-            "denied_effects": list(self.denied_effects),
-            "capability_ref": self.capability_ref,
-            "fail_closed": not self.allowed,
-        }
-
-
-_EFFECT_FLAGS: dict[str, str] = {
-    "runtime_start": "allows_runtime_start",
-    "model_execution": "allows_model_execution",
-    "shell_execution": "allows_shell_execution",
-    "source_writes": "allows_source_writes",
-    "memory_mutation": "allows_memory_mutation",
-    "git_mutation": "allows_git_mutation",
-    "artifact_writes": "allows_artifact_writes",
-    "state_writes": "allows_state_writes",
-    "readonly_subprocess": "allows_readonly_subprocess",
-    "external_tool_invocation": "allows_external_tool_invocation",
-}
-
-
-def command_allowed_effects(record: CommandAuthorityRecord) -> tuple[str, ...]:
-    return tuple(effect for effect, attr in _EFFECT_FLAGS.items() if getattr(record, attr))
-
-
-def enforce_command_authority(
-    command: str,
-    *,
-    requested_effects: tuple[str, ...] = (),
-    capability_ref: str = "",
-    hitl_bound: bool = False,
-) -> CommandAuthorityDecision:
-    """Central fail-closed runtime command authority gate.
-
-    This is pure policy: it does not execute commands. Callers cross authority only
-    after receiving an allowed decision and should persist ``to_evidence()`` in
-    their own receipts/ledgers. Unknown commands and unknown effects deny.
-    """
-    record = get_command_record(command)
-    if record is None:
-        return CommandAuthorityDecision(
-            command=command,
-            allowed=False,
-            reason="command is not registered in command authority registry",
-            denied_effects=tuple(requested_effects),
-            capability_ref=capability_ref,
-        )
-    unknown = tuple(effect for effect in requested_effects if effect not in _EFFECT_FLAGS)
-    if unknown:
-        return CommandAuthorityDecision(
-            command=command,
-            allowed=False,
-            reason="requested effect is unknown to command authority registry",
-            tier=record.tier,
-            promotion_state=record.promotion_state,
-            approval_mode=record.approval_mode,
-            allowed_effects=command_allowed_effects(record),
-            denied_effects=unknown,
-            capability_ref=capability_ref,
-        )
-    allowed_effects = command_allowed_effects(record)
-    denied = tuple(effect for effect in requested_effects if effect not in allowed_effects)
-    if denied:
-        return CommandAuthorityDecision(
-            command=command,
-            allowed=False,
-            reason="requested effect exceeds registered command authority",
-            tier=record.tier,
-            promotion_state=record.promotion_state,
-            approval_mode=record.approval_mode,
-            allowed_effects=allowed_effects,
-            denied_effects=denied,
-            capability_ref=capability_ref,
-        )
-    if record.approval_mode == MODE_FORBIDDEN_UNPROMOTED:
-        return CommandAuthorityDecision(command=command, allowed=False, reason="command is forbidden/unpromoted", tier=record.tier, promotion_state=record.promotion_state, approval_mode=record.approval_mode, allowed_effects=allowed_effects, capability_ref=capability_ref)
-    if record.approval_mode == MODE_HITL_ARTIFACT_REQUIRED and not hitl_bound:
-        return CommandAuthorityDecision(command=command, allowed=False, reason="command requires HITL artifact binding", tier=record.tier, promotion_state=record.promotion_state, approval_mode=record.approval_mode, allowed_effects=allowed_effects, denied_effects=tuple(requested_effects), capability_ref=capability_ref)
-    return CommandAuthorityDecision(command=command, allowed=True, reason="registered command authority permits requested effects", tier=record.tier, promotion_state=record.promotion_state, approval_mode=record.approval_mode, allowed_effects=allowed_effects, capability_ref=capability_ref)
 
 
 def get_all_records() -> tuple[CommandAuthorityRecord, ...]:

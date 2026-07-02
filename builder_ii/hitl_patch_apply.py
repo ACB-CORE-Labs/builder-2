@@ -286,8 +286,8 @@ def apply_hitl_patch(
 
     reverse_diff_path.write_text(unified_diff, encoding="utf-8")
     reverse_digest = _file_digest(reverse_diff_path)
-    rollback_plan["reverse_patch_apply_mode"] = "git_apply_reverse_flag"
-    rollback_plan["reverse_patch_ref"] = _artifact_ref(
+    rollback_plan["rollback_patch_apply_mode"] = "git_apply_reverse_flag"
+    rollback_plan["rollback_patch_ref"] = _artifact_ref(
         kind="unified_diff_reverse_patch",
         path=reverse_diff_path,
         sha256=reverse_digest,
@@ -332,7 +332,7 @@ def apply_hitl_patch(
     receipt["approval_digest"] = _json_digest(approval)
     receipt["verification_receipt_digest"] = _json_digest(verification_receipt)
     receipt["postflight_digest"] = postflight_digest
-    receipt["reverse_patch_ref"] = rollback_plan["reverse_patch_ref"]
+    receipt["rollback_patch_ref"] = rollback_plan["rollback_patch_ref"]
     receipt_path = output_dir / "patch_apply_receipt.json"
     write_patch_apply_receipt(receipt, receipt_path)
 
@@ -366,7 +366,7 @@ def apply_hitl_patch(
             sha256=_file_digest(rollback_plan_path),
             role="rollback_plan",
         ),
-        "reverse_patch_ref": rollback_plan["reverse_patch_ref"],
+        "rollback_patch_ref": rollback_plan["rollback_patch_ref"],
         "postflight_ref": _artifact_ref(
             kind="builder_ii.execution_postflight_record",
             path=postflight_path,
@@ -436,9 +436,9 @@ def rollback_hitl_patch(
     plan = json_lib.loads(rollback_plan_path.read_text())
     target_repo = Path(plan["target"]["repo"])
     target_name = plan["target"]["name"]
-    reverse_ref = plan.get("reverse_patch_ref")
-    if isinstance(reverse_ref, dict):
-        expected_digest = reverse_ref.get("sha256")
+    rollback_ref = plan.get("rollback_patch_ref")
+    if isinstance(rollback_ref, dict):
+        expected_digest = rollback_ref.get("sha256")
         if expected_digest and _file_digest(reverse_patch_path) != expected_digest:
             raise ValueError("Reverse patch digest does not match rollback plan binding")
     
@@ -451,7 +451,7 @@ def rollback_hitl_patch(
     ).stdout.splitlines()
         
     try:
-        command = ["git", "apply", "-R", str(reverse_patch_path)] if plan.get("reverse_patch_apply_mode") == "git_apply_reverse_flag" else ["git", "apply", str(reverse_patch_path)]
+        command = ["git", "apply", "-R", str(reverse_patch_path)] if plan.get("rollback_patch_apply_mode") == "git_apply_reverse_flag" else ["git", "apply", str(reverse_patch_path)]
         subprocess.run(
             command,
             cwd=target_repo,
@@ -483,7 +483,7 @@ def rollback_hitl_patch(
     receipt["pre_rollback_status_lines"] = before_status
     receipt["post_rollback_status_lines"] = after_status
     receipt["workspace_clean_after_rollback"] = len(after_status) == 0
-    receipt["reverse_patch_ref"] = _artifact_ref(
+    receipt["rollback_patch_ref"] = _artifact_ref(
         kind="unified_diff_reverse_patch",
         path=reverse_patch_path,
         sha256=_file_digest(reverse_patch_path),
@@ -516,7 +516,7 @@ def validate_rollback_bundle(bundle: Any) -> list[str]:
         "approval_ref",
         "verification_receipt_ref",
         "rollback_plan_ref",
-        "reverse_patch_ref",
+        "rollback_patch_ref",
         "postflight_ref",
         "patch_apply_receipt_ref",
     ):
