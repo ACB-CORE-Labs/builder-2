@@ -7,12 +7,13 @@ deepagents Forge is the governed creation surface for defining new deepagents in
 Forge builds a `DeepAgentSpec` through an interactive TUI wizard or headless CLI flow, then:
 
 - validates all required fields are present,
+- rejects unsafe slugs before any file path is constructed,
 - runs the governance checklist against the Capability Promotion Rule,
 - renders a full dry-run preview (YAML, profile diff, bridge spec, governance check, warnings),
 - writes the agent YAML to `profiles/deepagents/{slug}.yaml`,
-- registers the agent additively in `agent_profiles` and `deepagents_bridge`,
-- writes a forge handoff note artifact,
-- logs the emit event to the event ledger.
+- attempts optional additive registration in `agent_profiles` and `deepagents_bridge` when those extension points exist,
+- writes a forge handoff note artifact when that extension point exists,
+- logs the emit event to the event ledger when that extension point exists.
 
 Forge is additive. It wraps existing builder-II profile and bridge surfaces — it does not replace them.
 
@@ -35,6 +36,7 @@ Forge follows builder-II platform rules:
 - deepagents integration is optional and governed.
 - No autonomous shell execution by default — shell capabilities require a `before_shell` HITL gate.
 - No autonomous file writes by default — emit is constrained to `profiles/deepagents/{slug}.yaml`.
+- Editable slugs must match `^[a-z0-9]+(?:_[a-z0-9]+)*$`; path traversal and nested paths are rejected.
 - Verification and HITL boundaries must remain explicit.
 - `emit_agent(dry_run=True)` must always be safe to call with zero side effects.
 
@@ -44,7 +46,7 @@ Forge uses nine steps:
 
 | Step | Id | Notes |
 |---|---|---|
-| 1 | `identity` | Name + auto-derived slug (editable) |
+| 1 | `identity` | Name + auto-derived slug |
 | 2 | `persona` | Multi-line system prompt seed |
 | 3 | `target_profile` | Single select: `generic` / `builder` / `core` |
 | 4 | `capabilities` | Multi-select from capability registry |
@@ -70,7 +72,7 @@ Before emit, Forge checks seven conditions against builder-II's Capability Promo
 | `hitl_for_shell` | No shell cap, or `before_shell` in `hitl_gates` |
 | `approval_boundary` | `approval_required` is `True` |
 
-If any check fails, emit is blocked. The operator sees a ✅/❌ checklist in the preview step before they can proceed. In dry-run mode the governance check is shown but emit is not blocked.
+If any check fails, emit is blocked. The operator sees a checklist in the preview step before they can proceed. In dry-run mode the governance check is shown but no write happens.
 
 ## CLI usage
 
@@ -78,19 +80,19 @@ If any check fails, emit is blocked. The operator sees a ✅/❌ checklist in th
 
 ```bash
 # Launch the full Textual TUI wizard
-bii deepagents forge
+builder-deepagents-forge
 
 # Pre-seed name and target profile
-bii deepagents forge --name pr_reviewer --profile core
+builder-deepagents-forge --name pr_reviewer --profile core
 
 # Preview only — governance check + YAML rendered, nothing written
-bii deepagents forge --dry-run
+builder-deepagents-forge --dry-run
 ```
 
 ### Headless / CI mode
 
 ```bash
-bii deepagents forge \
+builder-deepagents-forge \
   --non-interactive \
   --name test_writer \
   --profile generic \
@@ -105,70 +107,48 @@ bii deepagents forge \
 
 All `--non-interactive` flags map directly onto `DeepAgentSpec` fields. If required fields are missing, the command exits non-zero with a clear error.
 
-## TUI layout
-
-```
-┌─────────────────────────────────────────────────────┐
-│  🛠  deepagents Forge — Name your agent  [Step 1/9]  │
-│  ▓▓░░░░░░░░░░░░░░░░░░░                               │
-│─────────────────────────────────────────────────────│
-│  What should this agent be called?                  │
-│                                                     │
-│  > pr_reviewer_                                     │
-│                                                     │
-│  💡 Use snake_case. Slug is auto-derived.            │
-│─────────────────────────────────────────────────────│
-│  Spec so far:                                       │
-│    (no fields set yet)                              │
-│─────────────────────────────────────────────────────│
-│  [← Back]  [Skip]  [Next →]          [✗ Abort]     │
-└─────────────────────────────────────────────────────┘
-```
-
-The bottom pane shows the accumulating spec summary on every keystroke. The preview step (step 9) replaces the input area with the full governance checklist and rendered YAML.
-
 ## Emit pipeline
 
 When the operator confirms on the preview step, `emit_agent()` runs this sequence:
 
-```
-1. spec.is_emit_ready()          → block if required fields missing
-2. check_governance(spec)        → block if Capability Promotion Rule fails
-3. spec.stamp_created_at()       → UTC ISO timestamp
-4. write_agent_profile(spec)     → profiles/deepagents/{slug}.yaml
-5. register_agent_profile(spec)  → agent_profiles registry (additive)
-6. register_bridge_spec(spec)    → deepagents_bridge (additive)
-7. write_forge_handoff(spec)     → handoff_notes artifact
-8. log_forge_event(spec)         → event_ledger
-9. return EmitResult             → ok=True, profile_path, slug, next_command
+```text
+1. spec.is_emit_ready()          -> block if required fields are missing or unsafe
+2. check_governance(spec)        -> block if Capability Promotion Rule fails
+3. spec.stamp_created_at()       -> UTC ISO timestamp
+4. write_agent_profile(spec)     -> profiles/deepagents/{slug}.yaml
+5. register_agent_profile(spec)  -> optional additive extension point
+6. register_bridge_spec(spec)    -> optional additive extension point
+7. write_forge_handoff(spec)     -> optional handoff extension point
+8. log_forge_event(spec)         -> optional event ledger extension point
+9. return EmitResult             -> ok=True, profile_path, slug, next review action
 ```
 
-Each registration call is additive and gracefully skips if the target function is not yet wired.
+Each registration/logging call is additive and gracefully skips if the target function is not yet wired.
 
 ## DeepAgentSpec fields
 
 | Field | Required | Default | Notes |
 |---|---|---|---|
-| `name` | ✅ | `""` | Human display name |
-| `slug` | ✅ | auto | Derived from name; editable |
-| `description` | — | `""` | Needed for `has_docs` governance check |
-| `target_profile` | — | `"generic"` | `generic` / `builder` / `core` |
-| `persona` | ✅ | `""` | System prompt seed |
-| `lane` | — | `"default"` | Maps to lane_guides |
-| `capabilities` | — | `[]` | See capability registry |
-| `mcp_tools` | — | `[]` | Approved MCP tools only |
-| `goose_recipe` | — | `None` | Optional Goose recipe name |
-| `subagent_of` | — | `None` | Parent agent slug if nested |
-| `hitl_gates` | — | `[]` | Required if write/shell caps selected |
-| `context_pack` | — | `None` | Context pack slug |
-| `memory_routes` | — | `[]` | Memory route identifiers |
-| `verification_profile` | ✅ | `"default"` | Must be non-empty at emit |
-| `approval_required` | — | `True` | Must be `True` for governance check |
-| `rollback_path` | ✅ | `""` | Path for rollback artifacts |
-| `output_artifact` | ✅ | `""` | Where agent writes its work |
-| `author` | — | `""` | Set automatically or by operator |
-| `created_at` | — | `""` | Stamped at emit time |
-| `schema_version` | — | `"1.0"` | Forge schema version |
+| `name` | yes | `""` | Human display name |
+| `slug` | yes | auto | Derived from name; must be a safe flat slug |
+| `description` | governance | `""` | Needed for `has_docs` governance check |
+| `target_profile` | yes | `"generic"` | `generic` / `builder` / `core` |
+| `persona` | yes | `""` | System prompt seed |
+| `lane` | no | `"default"` | Maps to lane_guides |
+| `capabilities` | no | `[]` | See capability registry |
+| `mcp_tools` | no | `[]` | Approved MCP tools only |
+| `goose_recipe` | no | `None` | Optional Goose recipe name |
+| `subagent_of` | no | `None` | Parent agent slug if nested |
+| `hitl_gates` | no | `[]` | Required if write/shell caps selected |
+| `context_pack` | no | `None` | Context pack slug |
+| `memory_routes` | no | `[]` | Memory route identifiers |
+| `verification_profile` | yes | `"default"` | Must be non-empty at emit |
+| `approval_required` | governance | `True` | Must be `True` for governance check |
+| `rollback_path` | yes | `""` | Path for rollback artifacts |
+| `output_artifact` | yes | `""` | Where agent writes its work |
+| `author` | no | `""` | Set automatically or by operator |
+| `created_at` | no | `""` | Stamped at emit time |
+| `schema_version` | no | `"1.0"` | Forge schema version |
 
 ## Write and shell capability rules
 
@@ -186,8 +166,9 @@ Forge enforces these rules at the preview step before emit and at emit time. The
 
 - `emit_agent(dry_run=True)` is always safe — no files written, no registrations, no events.
 - Profile emission is constrained to `profiles/deepagents/` — Forge never writes outside this directory.
+- Slugs cannot contain path separators, `..`, leading/trailing separators, uppercase, or shell-like punctuation.
 - Bridge and profile registration is additive — existing profiles and bridge entries are not modified.
-- Shell execution is never triggered by Forge — it is a pure data construction and file-write surface.
+- Shell execution is never triggered by Forge — it is a pure data construction and bounded file-write surface.
 
 ## Files
 
@@ -195,10 +176,10 @@ Forge enforces these rules at the preview step before emit and at emit time. The
 
 | File | Role |
 |---|---|
-| `builder_ii/deepagents_forge_schema.py` | `DeepAgentSpec` dataclass, `derive_slug()`, `is_emit_ready()`, `to_yaml()` |
+| `builder_ii/deepagents_forge_schema.py` | `DeepAgentSpec` dataclass, `derive_slug()`, `is_valid_slug()`, `is_emit_ready()`, `to_yaml()` |
 | `builder_ii/deepagents_forge_wizard.py` | `ForgeStep`, `ForgeWizard`, `FORGE_STEPS`, `ValidationResult` |
 | `builder_ii/deepagents_forge_preview.py` | `check_governance()`, `render_preview()`, `GovernanceCheck`, `ForgePreview` |
-| `builder_ii/deepagents_forge_emit.py` | `emit_agent()`, `EmitResult`, write/register helpers |
+| `builder_ii/deepagents_forge_emit.py` | `emit_agent()`, `EmitResult`, bounded write/register helpers |
 | `builder_ii/deepagents_forge_tui.py` | Textual TUI wizard, `ForgeApp`, `ForgeScreen`, widget set |
 | `builder_ii/deepagents_forge_cli.py` | Typer CLI, `forge_agent()`, `run_headless_forge()` |
 
@@ -212,8 +193,9 @@ Forge enforces these rules at the preview step before emit and at emit time. The
 
 | File | Coverage |
 |---|---|
-| `tests/test_deepagents_forge_schema.py` | `DeepAgentSpec`, `derive_slug()`, `is_emit_ready()`, `to_yaml()`, `summary_lines()` |
+| `tests/test_deepagents_forge_schema.py` | `DeepAgentSpec`, slug derivation/validation, `is_emit_ready()`, YAML, summaries |
 | `tests/test_deepagents_forge_preview.py` | `check_governance()`, `collect_warnings()`, `render_bridge_spec()`, `render_preview()` |
+| `tests/test_deepagents_forge_emit.py` | dry-run no-side-effect guarantee, bounded profile write, path traversal rejection |
 
 ## Related docs
 
