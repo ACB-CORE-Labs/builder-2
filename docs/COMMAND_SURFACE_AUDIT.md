@@ -74,6 +74,7 @@ Governed setup subcommands:
 
 Root read-only TUI inspector subcommands:
 
+- `builder tui`
 - `builder hitl`
 - `builder profile`
 - `builder model`

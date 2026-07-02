@@ -41,6 +41,7 @@ from builder_ii.ledger_cli import ledger_app
 from builder_ii.workflow_cli import workflow_app
 from builder_ii.tools_cli import tools_app
 from builder_ii.mcp_cli import mcp_app
+from builder_ii.tui import tui_app as builder_tui_app
 from builder_ii.tui_inspection_cli import (
     goose_app as tui_goose_app,
     hitl_app as tui_hitl_app,
@@ -67,6 +68,8 @@ app.add_typer(tui_model_app, name="model")
 app.add_typer(tui_promote_app, name="promote")
 app.add_typer(tui_postflight_app, name="postflight")
 app.add_typer(tui_goose_app, name="goose")
+if builder_tui_app is not None:
+    app.add_typer(builder_tui_app, name="tui")
 
 
 def _backend_ready_for_selected_model(settings) -> tuple[bool, str]:

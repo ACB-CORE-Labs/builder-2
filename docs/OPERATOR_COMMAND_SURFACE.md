@@ -81,6 +81,14 @@ The operator command surface is organized by phase. Every command operates stric
 
 ### Discovery / Inspection
 
+#### Root TUI launcher
+- **Command name**: `builder tui`
+- **Purpose**: Launch the Rich TUI command surface and its built-in status, roster, gates, HITL, handoff, and golden-path panels.
+- **Output artifact, if any**: None; terminal UI only.
+- **Execution authority**: read-only at the launcher level; individual subcommands retain their own authority boundaries.
+- **Human responsibility**: Use the interactive TUI when you want a higher-fidelity presentation layer over the same governed state.
+- **Writes**: Read-only launcher; subcommands may have their own documented boundaries.
+
 #### Root read-only TUI inspector
 - **Command names**: `builder hitl *`, `builder profile *`, `builder model routing *`, `builder model registry *`, `builder promote *`, `builder postflight *`, `builder goose *`
 - **Purpose**: Inspect existing governed artifacts from `$BUILDER_DIR` through first-class root `builder` command groups without creating, executing, promoting, or mutating anything.

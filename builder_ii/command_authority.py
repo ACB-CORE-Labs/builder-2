@@ -132,6 +132,7 @@ class CommandAuthorityRecord:
     def is_command_group(self) -> bool:
         return self.name in (
             "builder",
+            "builder-tui",
             "builder-context",
             "builder-goose",
             "builder-deepagents",
@@ -173,6 +174,7 @@ def _readonly_tui_record(name: str) -> CommandAuthorityRecord:
 
 
 READONLY_TUI_COMMAND_GROUPS: tuple[str, ...] = (
+    "builder tui",
     "builder hitl",
     "builder profile",
     "builder model",

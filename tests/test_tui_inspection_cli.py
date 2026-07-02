@@ -101,6 +101,16 @@ def test_readonly_tui_goose_hint_uses_real_artifact_cli(tmp_path: Path) -> None:
     assert "builder goose init" not in result.output
 
 
+def test_builder_tui_launcher_is_registered(tmp_path: Path) -> None:
+    result = runner.invoke(app, ["tui", "--help"], env=_env(tmp_path))
+
+    assert result.exit_code == 0
+    assert "status" in result.output
+    assert "roster" in result.output
+    assert "gates" in result.output
+    assert "Traceback" not in result.output
+
+
 def test_readonly_tui_promote_status_empty_sections_are_stable(tmp_path: Path) -> None:
     result = runner.invoke(app, ["promote", "status"], env=_env(tmp_path))
 
