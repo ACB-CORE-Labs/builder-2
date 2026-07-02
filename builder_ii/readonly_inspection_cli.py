@@ -35,6 +35,7 @@ from builder_ii.event_ledger import (
     replay_events,
 )
 from builder_ii.workflow_records import artifact_ref
+from builder_ii.command_authority import enforce_command_authority
 
 readonly_app = typer.Typer(help="Create and validate explicit read-only inspection reports.")
 console = Console(width=240)
@@ -87,6 +88,7 @@ def policy_cmd(
     output: Path = typer.Option(..., "--output", help="Output path for read policy JSON."),
 ) -> None:
     """Create a read policy for B3 governed runtime."""
+    enforce_command_authority("builder-readonly policy", requested_effects=("artifact_write",))
     settings = load_settings()
     selected_target = target_profile(settings, _target(target))
     
@@ -119,6 +121,7 @@ def read_cmd(
     session_id: str | None = typer.Option(None, "--session-id", help="Optional workflow session ID to log event to."),
 ) -> None:
     """Execute a governed read operation, producing a receipt and optional ledger event."""
+    enforce_command_authority("builder-readonly read", requested_effects=("artifact_write",))
     if not policy_path.exists():
         console.print(f"Policy file not found: {policy_path}")
         raise typer.Exit(1)

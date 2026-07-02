@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  high-assurance-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Sync Python environment
+        run: uv sync --all-groups
+
+      - name: Build Rust validator
+        run: cargo build --manifest-path builder_ii_validation_rs/Cargo.toml
+
+      - name: Python bytecode compile
+        run: uv run python -m compileall -q builder_ii tests
+
+      - name: Documentation truth audit
+        run: |
+          uv run builder-platform audit-docs
+          uv run builder-platform matrix
+
+      - name: High-confidence secret scan
+        run: |
+          uv run python - <<'PY'
+          import pathlib
+          import re
+          import subprocess
+          import sys
+
+          patterns = [
+              re.compile(r"sk-[A-Za-z0-9_]{32,}"),
+              re.compile(r"gsk_[A-Za-z0-9_]{32,}"),
+              re.compile(r"AIza[A-Za-z0-9_-]{35}"),
+              re.compile(r"ghp_[A-Za-z0-9]{36}"),
+          ]
+          excluded_prefixes = ("tests/", "docs/", ".github/workflows/ci.yml")
+          files = subprocess.check_output(["git", "ls-files"], text=True).splitlines()
+          hits = []
+          for name in files:
+              if name.startswith(excluded_prefixes):
+                  continue
+              path = pathlib.Path(name)
+              if path.suffix in {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".lock"}:
+                  continue
+              try:
+                  text = path.read_text(encoding="utf-8", errors="ignore")
+              except OSError:
+                  continue
+              for pattern in patterns:
+                  if pattern.search(text):
+                      hits.append(f"{name}: {pattern.pattern}")
+          if hits:
+              print("Potential secrets detected:")
+              print("\n".join(hits))
+              sys.exit(1)
+          PY
+
+      - name: Test suite
+        run: uv run pytest -q

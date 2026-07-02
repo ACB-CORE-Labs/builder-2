@@ -115,6 +115,10 @@ class CoreDemoPaths:
         return self.patch_apply_dir / "rollback_plan.json"
 
     @property
+    def generated_reverse_patch_file(self) -> Path:
+        return self.patch_apply_dir / "rollback.patch"
+
+    @property
     def rollback_dir(self) -> Path:
         return self.output_dir / "rollback"
 
@@ -925,7 +929,7 @@ def run_core_demo_loop(
     if phase in ("rollback", "all"):
         rollback_hitl_patch(
             rollback_plan_path=paths.rollback_plan,
-            reverse_patch_path=paths.reverse_patch_file,
+            reverse_patch_path=paths.generated_reverse_patch_file,
             output_dir=paths.rollback_dir,
         )
         _write_final_postflight(paths, paths.worktree)

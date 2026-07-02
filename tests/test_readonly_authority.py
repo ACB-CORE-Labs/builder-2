@@ -44,6 +44,7 @@ def test_execute_governed_read_success(tmp_path: Path):
     policy = create_read_policy(
         target_name="generic",
         target_repo=repo,
+        allowed_paths=["allowed.txt"],
         content_capture_allowed=True,
     )
     
@@ -65,6 +66,7 @@ def test_execute_governed_read_metadata_only(tmp_path: Path):
     policy = create_read_policy(
         target_name="generic",
         target_repo=repo,
+        allowed_paths=["allowed.txt"],
         content_capture_allowed=False,
     )
     
@@ -86,6 +88,7 @@ def test_execute_governed_read_denies_path_traversal(tmp_path: Path):
     policy = create_read_policy(
         target_name="generic",
         target_repo=repo,
+        allowed_paths=["*"],
     )
     
     receipt = execute_governed_read(policy, outside_file)
@@ -103,6 +106,7 @@ def test_execute_governed_read_denies_secrets_suffix(tmp_path: Path):
     policy = create_read_policy(
         target_name="generic",
         target_repo=repo,
+        allowed_paths=["private.key"],
     )
     
     receipt = execute_governed_read(policy, secret_file)
@@ -120,6 +124,7 @@ def test_execute_governed_read_denies_secrets_content(tmp_path: Path):
     policy = create_read_policy(
         target_name="generic",
         target_repo=repo,
+        allowed_paths=["config.txt"],
         content_capture_allowed=True,
     )
     
@@ -138,6 +143,7 @@ def test_execute_governed_read_exceeds_budget(tmp_path: Path):
     policy = create_read_policy(
         target_name="generic",
         target_repo=repo,
+        allowed_paths=["large.txt"],
         max_bytes_budget=50,
     )
     
@@ -161,6 +167,7 @@ def test_cli_policy_and_read_governance(tmp_path: Path, monkeypatch: pytest.Monk
     res = runner.invoke(readonly_app, [
         "policy",
         "--target", "generic",
+        "--allowed-path", "repo/*",
         "--budget", "200",
         "--content-capture",
         "--output", str(policy_json)
@@ -205,6 +212,7 @@ def test_cli_read_logs_to_event_ledger(tmp_path: Path, monkeypatch: pytest.Monke
     res = runner.invoke(readonly_app, [
         "policy",
         "--target", "generic",
+        "--allowed-path", "repo/*",
         "--output", str(policy_json)
     ])
     assert res.exit_code == 0, res.output

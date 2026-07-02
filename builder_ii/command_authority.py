@@ -1,5 +1,17 @@
 from dataclasses import dataclass
 
+from builder_ii.assurance import (
+    AssuranceState,
+    BLOCKED_BY_EVIDENCE,
+    BOUNDED_EXECUTION_VERIFIED,
+    DEMO_ONLY_VERIFIED,
+    LIVE_PROVIDER_VERIFIED,
+    MUTATION_WITH_ROLLBACK_VERIFIED,
+    PASSIVE_ARTIFACT_VERIFIED,
+    READ_ONLY_RUNTIME_VERIFIED,
+    SAFETY_CRITICAL_PROHIBITED,
+)
+
 # Standard authority tiers
 TIER_0 = "Tier 0 — read-only inspection"
 TIER_1 = "Tier 1 — artifact-only planning/validation"
@@ -58,6 +70,7 @@ class CommandAuthorityRecord:
     failure_mode: str  # How errors are propagated and state recovered
     notes: str  # Details on limitations and deprecated/legacy logic
     allows_runtime_start: bool = False
+    allows_process_control: bool = False
     allows_model_execution: bool = False
     allows_shell_execution: bool = False
     allows_source_writes: bool = False
@@ -96,6 +109,177 @@ class CommandAuthorityRecord:
         return self.is_command_group
 
 
+class CommandAuthorityError(PermissionError):
+    """Raised when a command attempts an unregistered or under-classified effect."""
+
+
+@dataclass(frozen=True)
+class CommandAuthorityDecision:
+    command_name: str
+    allowed: bool
+    tier: str
+    promotion_state: str
+    approval_mode: str
+    assurance_state: AssuranceState
+    requested_effects: tuple[str, ...]
+    reasons: tuple[str, ...]
+    capability_ref: str = ""
+
+    @property
+    def command(self) -> str:
+        return self.command_name
+
+    @property
+    def reason(self) -> str:
+        return "; ".join(self.reasons) if self.reasons else ""
+
+    @property
+    def allowed_effects(self) -> tuple[str, ...]:
+        record = get_command_record(self.command_name)
+        if record is None:
+            return ()
+        return tuple(effect for effect, flags in _EFFECT_FLAGS.items() if any(bool(getattr(record, flag)) for flag in flags))
+
+    @property
+    def denied_effects(self) -> tuple[str, ...]:
+        allowed = self.allowed_effects
+        return tuple(eff for eff in self.requested_effects if eff not in allowed)
+
+    def to_evidence(self) -> dict[str, object]:
+        return {
+            "kind": "builder_ii.command_authority_decision",
+            "command": self.command,
+            "allowed": self.allowed,
+            "reason": self.reason,
+            "tier": self.tier,
+            "promotion_state": self.promotion_state,
+            "approval_mode": self.approval_mode,
+            "allowed_effects": list(self.allowed_effects),
+            "denied_effects": list(self.denied_effects),
+            "capability_ref": self.capability_ref,
+            "fail_closed": not self.allowed,
+        }
+
+
+_EFFECT_FLAGS: dict[str, tuple[str, ...]] = {
+    "runtime_start": ("allows_runtime_start",),
+    "process_control": ("allows_process_control",),
+    "model_execution": ("allows_model_execution",),
+    "shell_execution": ("allows_shell_execution",),
+    "source_write": ("allows_source_writes",),
+    "source_writes": ("allows_source_writes",),
+    "patch_application": ("allows_source_writes",),
+    "git_mutation": ("allows_git_mutation",),
+    "memory_mutation": ("allows_memory_mutation",),
+    "artifact_write": ("allows_artifact_writes",),
+    "artifact_writes": ("allows_artifact_writes",),
+    "state_write": ("allows_state_writes",),
+    "state_writes": ("allows_state_writes",),
+    "readonly_subprocess": ("allows_readonly_subprocess",),
+    "external_tool": ("allows_external_tool_invocation",),
+    "external_tool_invocation": ("allows_external_tool_invocation",),
+}
+
+
+def assurance_state_for_record(record: CommandAuthorityRecord) -> AssuranceState:
+    """Map legacy authority metadata into the sharper high-assurance state lattice."""
+    if record.tier == TIER_4 or record.promotion_state == STATE_FORBIDDEN_UNPROMOTED:
+        return BLOCKED_BY_EVIDENCE
+    if "demo" in record.name or "demo" in record.notes.lower():
+        return DEMO_ONLY_VERIFIED
+    if record.allows_source_writes or record.allows_git_mutation:
+        return MUTATION_WITH_ROLLBACK_VERIFIED
+    if record.allows_model_execution:
+        return LIVE_PROVIDER_VERIFIED
+    if record.allows_runtime_start or record.promotion_state == STATE_READ_ONLY_RUNTIME_CANDIDATE:
+        return READ_ONLY_RUNTIME_VERIFIED
+    if (
+        record.allows_process_control
+        or record.allows_shell_execution
+        or record.allows_external_tool_invocation
+        or record.allows_readonly_subprocess
+    ):
+        return BOUNDED_EXECUTION_VERIFIED
+    return PASSIVE_ARTIFACT_VERIFIED
+
+
+def check_command_authority(
+    command_name: str,
+    *,
+    requested_effects: tuple[str, ...] = (),
+    approval_ref: str | None = None,
+    safety_critical_claim: bool = False,
+    hitl_bound: bool | None = None,
+    capability_ref: str = "",
+) -> CommandAuthorityDecision:
+    record = get_command_record(command_name)
+    if record is None:
+        return CommandAuthorityDecision(
+            command_name=command_name,
+            allowed=False,
+            tier=TIER_4,
+            promotion_state=STATE_FORBIDDEN_UNPROMOTED,
+            approval_mode=MODE_FORBIDDEN_UNPROMOTED,
+            assurance_state=BLOCKED_BY_EVIDENCE,
+            requested_effects=tuple(requested_effects),
+            reasons=(f"command is not registered in COMMAND_AUTHORITY_REGISTRY: {command_name}",),
+            capability_ref=capability_ref,
+        )
+
+    reasons: list[str] = []
+    if safety_critical_claim:
+        reasons.append("life-safety or safety-critical authority is prohibited by builder-II")
+    if record.tier == TIER_4 or record.promotion_state == STATE_FORBIDDEN_UNPROMOTED:
+        reasons.append("command is forbidden or unpromoted")
+
+    for effect in requested_effects:
+        flags = _EFFECT_FLAGS.get(effect)
+        if flags is None:
+            reasons.append(f"unknown requested effect: {effect}")
+            continue
+        if not any(bool(getattr(record, flag)) for flag in flags):
+            reasons.append(f"command is not classified for requested effect: {effect}")
+
+    if record.approval_mode == MODE_HITL_ARTIFACT_REQUIRED:
+        if not approval_ref and hitl_bound is not True:
+            reasons.append("command requires a HITL approval artifact reference")
+
+    assurance = SAFETY_CRITICAL_PROHIBITED if safety_critical_claim else assurance_state_for_record(record)
+    return CommandAuthorityDecision(
+        command_name=command_name,
+        allowed=not reasons,
+        tier=record.tier,
+        promotion_state=record.promotion_state,
+        approval_mode=record.approval_mode,
+        assurance_state=assurance,
+        requested_effects=tuple(requested_effects),
+        reasons=tuple(reasons),
+        capability_ref=capability_ref,
+    )
+
+
+def enforce_command_authority(
+    command_name: str,
+    *,
+    requested_effects: tuple[str, ...] = (),
+    approval_ref: str | None = None,
+    safety_critical_claim: bool = False,
+    hitl_bound: bool | None = None,
+    capability_ref: str = "",
+) -> CommandAuthorityDecision:
+    decision = check_command_authority(
+        command_name,
+        requested_effects=requested_effects,
+        approval_ref=approval_ref,
+        safety_critical_claim=safety_critical_claim,
+        hitl_bound=hitl_bound,
+        capability_ref=capability_ref,
+    )
+    if not decision.allowed:
+        raise CommandAuthorityError("; ".join(decision.reasons))
+    return decision
+
+
 # A curated list of subcommands that must be explicitly classified
 REQUIRED_SUBCOMMANDS = {
     "builder-targets list",
@@ -112,9 +296,22 @@ REQUIRED_SUBCOMMANDS = {
     "builder-context artifact",
     "builder setup",
     "builder onboarding",
+    "builder pull",
     "builder start",
     "builder ask",
     "builder verify",
+    "builder benchmark",
+    "builder capabilities",
+    "builder switch-model",
+    "builder models",
+    "builder doctor",
+    "builder status",
+    "builder config",
+    "builder init-prompt",
+    "builder-runtime status",
+    "builder-runtime clear-marker",
+    "builder-runtime stop",
+    "builder-runtime reset",
     "builder-goose manifest",
     "builder-goose validate",
     "builder-goose readonly-audit",
@@ -249,6 +446,9 @@ REQUIRED_SUBCOMMANDS = {
     "builder-mcp policy",
     "builder-mcp call",
     "builder-mcp standalone-call",
+    "builder-tools list",
+    "builder-tools check",
+    "builder-tools missing",
     "builder-tools invoke",
     "builder-tools standalone-invoke",
 }
@@ -280,8 +480,71 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints server status and active process logs to stdout.",
         failure_mode="Reports failure to talk to the local background process; exits non-zero.",
         notes="Inspects and controls runtime agent sessions locally.",
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
         allows_runtime_start=True,
         allows_state_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-runtime status",
+        entrypoint="builder_ii.runtime_control:runtime_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Inspects local server endpoints, marker files, and listener processes using read-only probes.",
+        write_boundary="No changes to workspace, runtime marker, or target repository.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; no autonomous runtime probing.",
+        output_behavior="Prints runtime health, served model status, marker status, and listener process details.",
+        failure_mode="Reports probe failures as DOWN/WARN rows without starting or stopping any process.",
+        notes="Operator-managed runtime inspection. It does not grant start, stop, model, patch, or setup authority.",
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-runtime clear-marker",
+        entrypoint="builder_ii.runtime_control:runtime_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Does not touch live processes; only clears the local runtime marker artifact.",
+        write_boundary="Deletes or rewrites the builder runtime marker under configured local state paths.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only.",
+        output_behavior="Prints the cleared marker path.",
+        failure_mode="Exits non-zero if marker state cannot be cleared.",
+        notes="High-authority state cleanup surface; no process control is granted.",
+        allows_state_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-runtime stop",
+        entrypoint="builder_ii.runtime_control:runtime_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Stops local runtime listener processes selected by the configured port and marker heuristics.",
+        write_boundary="Clears local runtime marker unless --keep-marker is used; does not mutate source repositories.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; foreign process termination requires literal confirmation.",
+        output_behavior="Prints stopped process IDs and marker cleanup status.",
+        failure_mode="Exits non-zero or reports no match; failed process termination leaves marker handling explicit.",
+        notes="High-authority operator-managed process control. --force-foreign is denied unless confirmed.",
+        allows_process_control=True,
+        allows_state_writes=True,
+        allows_readonly_subprocess=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-runtime reset",
+        entrypoint="builder_ii.runtime_control:runtime_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Composes stop plus marker cleanup for the local runtime listener.",
+        write_boundary="Clears local runtime marker after attempted stop; does not mutate source repositories.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; foreign process termination requires literal confirmation.",
+        output_behavior="Prints stopped process IDs and marker cleanup status.",
+        failure_mode="Exits non-zero or reports no match; failed process termination leaves marker handling explicit.",
+        notes="High-authority operator-managed process control. --force-foreign is denied unless confirmed.",
+        allows_process_control=True,
+        allows_state_writes=True,
+        allows_readonly_subprocess=True,
     ),
     CommandAuthorityRecord(
         name="builder-lanes",
@@ -308,6 +571,51 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Dispatches to tool subcommands.",
         failure_mode="Exits non-zero on failure.",
         notes="Tool execution gateway.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-tools list",
+        entrypoint="builder_ii.tools_cli:tools_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Runs local PATH/version probes for known external developer tools.",
+        write_boundary="No changes to workspace, target repository, or external tool state.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only.",
+        output_behavior="Prints tool metadata and detected install paths.",
+        failure_mode="Exits non-zero only if CLI option validation fails.",
+        notes="Read-only external tool inspection. It does not invoke tool work modes.",
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-tools check",
+        entrypoint="builder_ii.tools_cli:tools_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Runs bounded local version probes for known external developer tools.",
+        write_boundary="No changes to workspace, target repository, or external tool state.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only.",
+        output_behavior="Prints detected status, path, and version for each tool.",
+        failure_mode="Exits non-zero when required tools are missing.",
+        notes="Read-only external tool inspection. It does not invoke tool work modes.",
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-tools missing",
+        entrypoint="builder_ii.tools_cli:tools_app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Runs bounded local version probes to identify missing required tools.",
+        write_boundary="No changes to workspace, target repository, or external tool state.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only.",
+        output_behavior="Prints missing tool install guidance.",
+        failure_mode="Exits non-zero when required tools are missing.",
+        notes="Read-only external tool inspection. It does not install or invoke tool work modes.",
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
     ),
     CommandAuthorityRecord(
         name="builder-context",
@@ -1223,6 +1531,21 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
+        name="builder pull",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Runs model-cache download helpers for explicitly selected local model tiers.",
+        write_boundary="Writes model cache files outside the target repository through operator-invoked helper scripts.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; no autonomous download or runtime authority.",
+        output_behavior="Streams helper output to the terminal and exits with the helper status.",
+        failure_mode="Exits non-zero if the helper script or model pull fails.",
+        notes="Network and cache mutation helper. It is not source mutation, patch authority, or model execution.",
+        allows_external_tool_invocation=True,
+        allows_state_writes=True,
+    ),
+    CommandAuthorityRecord(
         name="builder start",
         entrypoint="builder_ii.cli:app",
         tier=TIER_2,
@@ -1267,6 +1590,120 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         notes="Audits repo testing state.",
         allows_readonly_subprocess=True,
         allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder benchmark",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Runs bounded local benchmark probes and may call the configured chat-completions endpoint if reachable.",
+        write_boundary="Writes a benchmark report only when an explicit output path is provided.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; no autonomous benchmark or model probing.",
+        output_behavior="Prints benchmark metrics and optionally writes a report artifact.",
+        failure_mode="Reports unreachable runtime as DOWN/SKIP and exits non-zero only for command errors.",
+        notes="Operator-managed live probe. It is not production assurance or life-safety validation.",
+        allows_model_execution=True,
+        allows_artifact_writes=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder capabilities",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Checks served-model capability gates and optionally runs a live chat smoke when --chat is passed.",
+        write_boundary="No changes to workspace, target repository, or runtime state.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only; --chat is a live model probe.",
+        output_behavior="Prints capability gate results.",
+        failure_mode="Exits non-zero if any gate fails.",
+        notes="Operator-managed live capability probe. It is not model promotion or certification.",
+        allows_model_execution=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder switch-model",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Normalizes model aliases and prints environment lines only.",
+        write_boundary="No changes to workspace, environment files, runtime state, or target repository.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints suggested environment variable lines.",
+        failure_mode="Exits non-zero if the requested backend is invalid.",
+        notes="Passive helper. Operators must apply environment changes themselves.",
+    ),
+    CommandAuthorityRecord(
+        name="builder models",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Inspects local model cache directories with bounded read-only filesystem and size probes.",
+        write_boundary="No changes to workspace, cache contents, or target repository.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only.",
+        output_behavior="Prints configured model roster and cache status.",
+        failure_mode="Reports missing or incomplete cache state without mutation.",
+        notes="Read-only model cache inspection. It does not download, execute, or promote models.",
+        allows_readonly_subprocess=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder doctor",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Runs local readiness probes across repo path, Goose availability, backend health, recipes, compliance, and model cache state.",
+        write_boundary="No changes to workspace, runtime state, or target repository.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only.",
+        output_behavior="Prints a readiness table and failure details.",
+        failure_mode="Exits non-zero if required readiness checks fail.",
+        notes="Operator-managed diagnostic. It does not start runtimes, call model completions, or mutate setup.",
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder status",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_2,
+        promotion_state=STATE_OPERATOR_MANAGED,
+        runtime_boundary="Reads backend health, Goose status, recipe validation, compliance, and local model cache status.",
+        write_boundary="No changes to workspace, runtime state, or target repository.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation only.",
+        output_behavior="Prints status lines for runtime, compliance, recipes, and model cache.",
+        failure_mode="Reports DOWN/WARN states without mutating local state.",
+        notes="Operator-managed read-only status probe.",
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder config",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Renders passive configuration and legacy setup redirect metadata.",
+        write_boundary="No changes to workspace, runtime state, or target repository.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints JSON configuration metadata.",
+        failure_mode="Exits non-zero if configuration loading fails.",
+        notes="Passive config introspection only.",
+    ),
+    CommandAuthorityRecord(
+        name="builder init-prompt",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Renders the governed initialization prompt text.",
+        write_boundary="No changes to workspace, runtime state, or target repository.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints the prompt and estimated token count.",
+        failure_mode="Exits non-zero only on unexpected output errors.",
+        notes="Passive prompt inspection only.",
     ),
     CommandAuthorityRecord(
         name="builder-goose manifest",
@@ -2948,106 +3385,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
 )
 
 
-@dataclass(frozen=True)
-class CommandAuthorityDecision:
-    command: str
-    allowed: bool
-    reason: str
-    tier: str | None = None
-    promotion_state: str | None = None
-    approval_mode: str | None = None
-    allowed_effects: tuple[str, ...] = ()
-    denied_effects: tuple[str, ...] = ()
-    capability_ref: str = ""
 
-    def to_evidence(self) -> dict[str, object]:
-        return {
-            "kind": "builder_ii.command_authority_decision",
-            "command": self.command,
-            "allowed": self.allowed,
-            "reason": self.reason,
-            "tier": self.tier,
-            "promotion_state": self.promotion_state,
-            "approval_mode": self.approval_mode,
-            "allowed_effects": list(self.allowed_effects),
-            "denied_effects": list(self.denied_effects),
-            "capability_ref": self.capability_ref,
-            "fail_closed": not self.allowed,
-        }
-
-
-_EFFECT_FLAGS: dict[str, str] = {
-    "runtime_start": "allows_runtime_start",
-    "model_execution": "allows_model_execution",
-    "shell_execution": "allows_shell_execution",
-    "source_writes": "allows_source_writes",
-    "memory_mutation": "allows_memory_mutation",
-    "git_mutation": "allows_git_mutation",
-    "artifact_writes": "allows_artifact_writes",
-    "state_writes": "allows_state_writes",
-    "readonly_subprocess": "allows_readonly_subprocess",
-    "external_tool_invocation": "allows_external_tool_invocation",
-}
-
-
-def command_allowed_effects(record: CommandAuthorityRecord) -> tuple[str, ...]:
-    return tuple(effect for effect, attr in _EFFECT_FLAGS.items() if getattr(record, attr))
-
-
-def enforce_command_authority(
-    command: str,
-    *,
-    requested_effects: tuple[str, ...] = (),
-    capability_ref: str = "",
-    hitl_bound: bool = False,
-) -> CommandAuthorityDecision:
-    """Central fail-closed runtime command authority gate.
-
-    This is pure policy: it does not execute commands. Callers cross authority only
-    after receiving an allowed decision and should persist ``to_evidence()`` in
-    their own receipts/ledgers. Unknown commands and unknown effects deny.
-    """
-    record = get_command_record(command)
-    if record is None:
-        return CommandAuthorityDecision(
-            command=command,
-            allowed=False,
-            reason="command is not registered in command authority registry",
-            denied_effects=tuple(requested_effects),
-            capability_ref=capability_ref,
-        )
-    unknown = tuple(effect for effect in requested_effects if effect not in _EFFECT_FLAGS)
-    if unknown:
-        return CommandAuthorityDecision(
-            command=command,
-            allowed=False,
-            reason="requested effect is unknown to command authority registry",
-            tier=record.tier,
-            promotion_state=record.promotion_state,
-            approval_mode=record.approval_mode,
-            allowed_effects=command_allowed_effects(record),
-            denied_effects=unknown,
-            capability_ref=capability_ref,
-        )
-    allowed_effects = command_allowed_effects(record)
-    denied = tuple(effect for effect in requested_effects if effect not in allowed_effects)
-    if denied:
-        return CommandAuthorityDecision(
-            command=command,
-            allowed=False,
-            reason="requested effect exceeds registered command authority",
-            tier=record.tier,
-            promotion_state=record.promotion_state,
-            approval_mode=record.approval_mode,
-            allowed_effects=allowed_effects,
-            denied_effects=denied,
-            capability_ref=capability_ref,
-        )
-    if record.approval_mode == MODE_FORBIDDEN_UNPROMOTED:
-        return CommandAuthorityDecision(command=command, allowed=False, reason="command is forbidden/unpromoted", tier=record.tier, promotion_state=record.promotion_state, approval_mode=record.approval_mode, allowed_effects=allowed_effects, capability_ref=capability_ref)
-    if record.approval_mode == MODE_HITL_ARTIFACT_REQUIRED and not hitl_bound:
-        return CommandAuthorityDecision(command=command, allowed=False, reason="command requires HITL artifact binding", tier=record.tier, promotion_state=record.promotion_state, approval_mode=record.approval_mode, allowed_effects=allowed_effects, denied_effects=tuple(requested_effects), capability_ref=capability_ref)
-    return CommandAuthorityDecision(command=command, allowed=True, reason="registered command authority permits requested effects", tier=record.tier, promotion_state=record.promotion_state, approval_mode=record.approval_mode, allowed_effects=allowed_effects, capability_ref=capability_ref)
 
 
 def get_all_records() -> tuple[CommandAuthorityRecord, ...]:
@@ -3098,6 +3436,7 @@ def validate_registry_invariants() -> list[str]:
         # Human approval requirements
         has_authority_flag = (
             r.allows_runtime_start
+            or r.allows_process_control
             or r.allows_model_execution
             or r.allows_shell_execution
             or r.allows_source_writes
@@ -3113,6 +3452,7 @@ def validate_registry_invariants() -> list[str]:
         if r.tier == TIER_0:
             has_risky = (
                 r.allows_runtime_start
+                or r.allows_process_control
                 or r.allows_model_execution
                 or r.allows_shell_execution
                 or r.allows_source_writes
@@ -3131,6 +3471,7 @@ def validate_registry_invariants() -> list[str]:
         if r.tier == TIER_1:
             has_forbidden_tier1 = (
                 r.allows_runtime_start
+                or r.allows_process_control
                 or r.allows_model_execution
                 or r.allows_shell_execution
                 or r.allows_source_writes
@@ -3196,15 +3537,16 @@ def validate_registry_invariants() -> list[str]:
 def render_registry_markdown_table() -> str:
     """Helper function to render the command registry into a Markdown table for docs."""
     lines = [
-        "| Command Name | Tier | State | Runtime Boundary | Write Boundary | Approval Mode | Approval Boundary | Allows Shell | Allows Writes | Artifact Writes | State Writes |",
-        "|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Command Name | Tier | State | Runtime Boundary | Write Boundary | Approval Mode | Approval Boundary | Allows Shell | Process Control | Allows Writes | Artifact Writes | State Writes |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in COMMAND_AUTHORITY_REGISTRY:
         shell_str = "Yes" if r.allows_shell_execution else "No"
+        process_str = "Yes" if r.allows_process_control else "No"
         write_str = "Yes" if r.allows_source_writes else "No"
         art_str = "Yes" if r.allows_artifact_writes else "No"
         state_str = "Yes" if r.allows_state_writes else "No"
         lines.append(
-            f"| `{r.name}` | {r.tier} | `{r.promotion_state}` | {r.runtime_boundary} | {r.write_boundary} | `{r.approval_mode}` | {r.approval_boundary} | {shell_str} | {write_str} | {art_str} | {state_str} |"
+            f"| `{r.name}` | {r.tier} | `{r.promotion_state}` | {r.runtime_boundary} | {r.write_boundary} | `{r.approval_mode}` | {r.approval_boundary} | {shell_str} | {process_str} | {write_str} | {art_str} | {state_str} |"
         )
     return "\n".join(lines)

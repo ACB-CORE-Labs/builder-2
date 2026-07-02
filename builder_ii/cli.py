@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import time
+import hashlib
 from pathlib import Path
 from typing import Optional
 
@@ -15,9 +16,9 @@ from rich.table import Table
 from builder_ii.backends import check_health, check_serves_active_model, list_start_command
 from builder_ii.benchmark import format_benchmark_report, run_benchmark, write_benchmark_report
 from builder_ii.capabilities import capability_gates
+from builder_ii.command_authority import enforce_command_authority
 from builder_ii.compliance import run_compliance_checks
 from builder_ii.config import BACKENDS, MODEL_TIERS, load_settings, normalize_model_alias
-from builder_ii.direct_chat import run_direct_chat
 from builder_ii.goose_launcher import (
     find_goose_binary,
     goose_status,
@@ -33,6 +34,9 @@ from builder_ii.harness import format_verify_report, run_verification
 from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT, estimate_tokens
 from builder_ii.model_router import SESSION_MODES, explain_plan, plan_session, tier_for_alias
 from builder_ii.models import model_definitions, model_status_report
+from builder_ii.model_client_registry import create_model_client_registry
+from builder_ii.model_execution_gateway import ModelExecutionGateway
+from builder_ii.model_routing_policy import create_model_execution_policy
 from builder_ii.ledger_cli import ledger_app
 from builder_ii.workflow_cli import workflow_app
 from builder_ii.tools_cli import tools_app
@@ -125,6 +129,7 @@ def pull(
     tier: str = typer.Option("recommended", "--tier", "-t", help="recommended|fast|primary|all-safe|status|legacy"),
 ) -> None:
     """Download/cache local models. Prefer scripts/pull-roster.sh for MLX-LM."""
+    enforce_command_authority("builder pull", requested_effects=("external_tool", "state_write"))
     settings = load_settings()
     script = settings.project_root / "scripts" / "pull-roster.sh"
     if script.exists() and tier != "legacy":
@@ -144,6 +149,7 @@ def start(
     name: Optional[str] = typer.Option(None, "--name", "-n", help="Goose session name"),
 ) -> None:
     """Start MLX backend + Goose session with governed CORE recipes."""
+    enforce_command_authority("builder start", requested_effects=("runtime_start", "state_write", "external_tool"))
     if mode not in SESSION_MODES:
         console.print(f"mode must be one of {SESSION_MODES}")
         raise typer.Exit(1)
@@ -181,6 +187,7 @@ def ask(
     no_backend: bool = typer.Option(False, "--no-backend"),
 ) -> None:
     """Ask the selected local model directly through /v1/chat/completions."""
+    enforce_command_authority("builder ask", requested_effects=("model_execution", "artifact_write"))
     if model_alias:
         selected_alias = normalize_model_alias(model_alias)
         os.environ["CORE_AGENT_MODEL_ALIAS"] = selected_alias
@@ -190,16 +197,55 @@ def ask(
     console.print(f"[bold]Builder ask[/] alias={settings.model_alias} backend={settings.backend} model={settings.active_model_id}")
     _ensure_backend(settings, no_backend)
 
-    result = run_direct_chat(settings, prompt=prompt, system_prompt=system_prompt, max_tokens=max_tokens, timeout=timeout)
-    if not result.ok:
-        console.print(f"[red]Direct ask failed[/] {result.error}")
+    registry = create_model_client_registry()
+    active_model = settings.active_model_id
+    active_client = None
+    for client in registry["clients"]:
+        if client.get("model_id") == active_model:
+            client["enabled"] = True
+            active_client = client
+            break
+    if active_client is None:
+        console.print(f"[red]Active model is not registered[/] {active_model}")
         raise typer.Exit(1)
-    console.print(result.content)
+
+    recommendation = {
+        "kind": "builder_ii.model_routing_recommendation",
+        "recommended_candidates": [
+            {
+                "model_id": active_model,
+                "provider_id": active_client.get("provider_id"),
+                "client_id": active_client.get("client_id"),
+                "risk_classification": active_client.get("risk_classification"),
+            }
+        ],
+    }
+    execution_policy = create_model_execution_policy(recommendation, max_tokens=max_tokens)
+    ask_root = settings.project_root / ".builder" / "ask"
+    session_id = hashlib.sha256(f"{time.time_ns()}:{prompt}".encode("utf-8")).hexdigest()[:16]
+    envelope_path = ask_root / f"{session_id}.envelope.json"
+    receipt_path = ask_root / f"{session_id}.receipt.json"
+
+    try:
+        _envelope, receipt = ModelExecutionGateway(settings, registry, execution_policy).run_model_call(
+            model_id=active_model,
+            prompt=prompt,
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+            temperature=None,
+            envelope_path=envelope_path,
+            receipt_path=receipt_path,
+        )
+    except Exception as exc:
+        console.print(f"[red]Governed ask failed[/] {exc}")
+        raise typer.Exit(1)
+    console.print(receipt.get("response_text", ""))
 
 
 @app.command("verify")
 def verify(module: Optional[str] = typer.Argument(None), suite: Optional[str] = typer.Option(None, "--suite", "-s"), fail_fast: bool = typer.Option(False, "--fail-fast", "-x")) -> None:
     """Run CORE verification harness."""
+    enforce_command_authority("builder verify", requested_effects=("readonly_subprocess", "external_tool"))
     settings = load_settings()
     result = run_verification(settings, module=module, suite=suite, fail_fast=fail_fast)
     console.print(format_verify_report(result))
@@ -209,6 +255,8 @@ def verify(module: Optional[str] = typer.Argument(None), suite: Optional[str] = 
 @app.command("benchmark")
 def benchmark(output: Optional[Path] = typer.Option(None, "--output", "-o")) -> None:
     """Benchmark TTFT, tool-calling, compliance, memory."""
+    effects = ("model_execution", "external_tool") + (("artifact_write",) if output else ())
+    enforce_command_authority("builder benchmark", requested_effects=effects)
     settings = load_settings()
     report = run_benchmark(settings)
     console.print(format_benchmark_report(report))
@@ -220,6 +268,8 @@ def benchmark(output: Optional[Path] = typer.Option(None, "--output", "-o")) -> 
 @app.command("capabilities")
 def capabilities(chat: bool = typer.Option(False, "--chat", help="Run a live /v1/chat/completions smoke")) -> None:
     """Check local model capability gates without modifying CORE."""
+    effects = ("external_tool",) + (("model_execution",) if chat else ())
+    enforce_command_authority("builder capabilities", requested_effects=effects)
     settings = load_settings()
     table = Table("Gate", "Result", "Details")
     gates = capability_gates(settings, run_chat_smoke=chat)
@@ -232,6 +282,7 @@ def capabilities(chat: bool = typer.Option(False, "--chat", help="Run a live /v1
 @app.command("switch-model")
 def switch_model(alias: str = typer.Argument(..., help="Model alias or legacy tier; run `builder models`"), backend: Optional[str] = typer.Option(None, "--backend", "-b")) -> None:
     """Print .env lines to switch model alias/tier. Restart backend after."""
+    enforce_command_authority("builder switch-model")
     if alias in MODEL_TIERS:
         normalized = normalize_model_alias(None, tier_fallback=alias)
         tier = alias
@@ -251,6 +302,7 @@ def switch_model(alias: str = typer.Argument(..., help="Model alias or legacy ti
 @app.command("models")
 def models() -> None:
     """Show the configured model roster and cache status."""
+    enforce_command_authority("builder models", requested_effects=("readonly_subprocess",))
     settings = load_settings()
     status_by_alias = {m.alias: m for m in model_status_report(settings)}
     table = Table("Alias", "Tier", "Policy", "Repo", "Cache", "Expected", "Note")
@@ -267,6 +319,7 @@ def models() -> None:
 @app.command("doctor")
 def doctor() -> None:
     """Run a local platform readiness check without editing CORE."""
+    enforce_command_authority("builder doctor", requested_effects=("readonly_subprocess", "external_tool"))
     settings = load_settings()
     failures: list[str] = []
     table = Table("Check", "Result", "Details")
@@ -322,6 +375,7 @@ def doctor() -> None:
 @app.command("status")
 def status() -> None:
     """Backend, Goose, compliance, recipe, and model status."""
+    enforce_command_authority("builder status", requested_effects=("readonly_subprocess", "external_tool"))
     settings = load_settings()
     ok, msg = check_health(settings)
     served_ok, served_msg = check_serves_active_model(settings) if ok else (False, "backend down")
@@ -346,6 +400,7 @@ def status() -> None:
 @app.command("config")
 def config_dump() -> None:
     """Print passive config and legacy setup reconciliation metadata as JSON."""
+    enforce_command_authority("builder config")
     settings = load_settings()
     payload = legacy_setup_redirect_payload(settings)
     payload["settings"] = {
@@ -362,6 +417,7 @@ def config_dump() -> None:
 @app.command("init-prompt")
 def init_prompt() -> None:
     """Print governed system prompt."""
+    enforce_command_authority("builder init-prompt")
     console.print(CORE_INIT_SYSTEM_PROMPT)
     console.print(f"\n# ~{estimate_tokens(CORE_INIT_SYSTEM_PROMPT)} tokens")
 

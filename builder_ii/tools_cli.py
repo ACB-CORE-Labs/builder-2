@@ -9,6 +9,7 @@ from builder_ii.tool_invocation_gateway import execute_tool_envelope
 import json
 from pathlib import Path
 
+from builder_ii.command_authority import enforce_command_authority
 from builder_ii.event_ledger import (
     create_event_record,
     load_event_records,
@@ -61,6 +62,7 @@ def _normalize_tier(value: str | None) -> ToolTier | None:
 @tools_app.command("list")
 def list_tools(tier: str | None = typer.Option(None, "--tier", help="tier1, tier2, or notes")) -> None:
     """List external tools and intended builder-II integrations."""
+    enforce_command_authority("builder-tools list", requested_effects=("readonly_subprocess", "external_tool"))
     table = Table("Tool", "Tier", "Category", "Integration", "Required", "Open", "Install")
     for check in check_tools(tier=_normalize_tier(tier)):
         tool = check.tool
@@ -79,6 +81,7 @@ def list_tools(tier: str | None = typer.Option(None, "--tier", help="tier1, tier
 @tools_app.command("check")
 def check(tier: str | None = typer.Option(None, "--tier", help="tier1, tier2, or notes")) -> None:
     """Check whether external tools are installed on PATH."""
+    enforce_command_authority("builder-tools check", requested_effects=("readonly_subprocess", "external_tool"))
     table = Table("Tool", "Status", "Path", "Version", "Install")
     checks = check_tools(tier=_normalize_tier(tier))
     for item in checks:
@@ -92,6 +95,7 @@ def check(tier: str | None = typer.Option(None, "--tier", help="tier1, tier2, or
 @tools_app.command("missing")
 def missing() -> None:
     """Print required tools that are missing."""
+    enforce_command_authority("builder-tools missing", requested_effects=("readonly_subprocess", "external_tool"))
     checks = missing_required_tools()
     if not checks:
         console.print("[green]All required external tools are available[/]")
@@ -107,6 +111,7 @@ def invoke(
     session_id: str = typer.Option(..., "--session-id", help="Session ID for the operational ledger event"),
 ) -> None:
     """Executes an approved low-risk tool call defined in an envelope and logs to ledger."""
+    enforce_command_authority("builder-tools invoke", requested_effects=("external_tool", "artifact_write", "state_write"))
     try:
         env_data = json.loads(envelope.read_text(encoding="utf-8"))
         pol_data = json.loads(policy_path.read_text(encoding="utf-8"))
@@ -215,6 +220,7 @@ def standalone_invoke(
     receipt_output: Path = typer.Option(..., "--receipt-output", "-r", help="Path to save the receipt"),
 ) -> None:
     """Executes an approved low-risk tool call defined in an envelope without logging to the ledger."""
+    enforce_command_authority("builder-tools standalone-invoke", requested_effects=("external_tool", "artifact_write"))
     try:
         env_data = json.loads(envelope.read_text(encoding="utf-8"))
         pol_data = json.loads(policy_path.read_text(encoding="utf-8"))

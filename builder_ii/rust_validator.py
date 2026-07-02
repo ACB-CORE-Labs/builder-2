@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json as json_lib
+import shutil
 import subprocess
 import sys
 from functools import lru_cache
@@ -34,6 +35,18 @@ def find_rust_validator_binary() -> Path | None:
         return release_path
     if debug_path.exists():
         return debug_path
+    cargo = shutil.which("cargo")
+    manifest = settings.project_root / "builder_ii_validation_rs" / "Cargo.toml"
+    if cargo and manifest.exists():
+        subprocess.run(
+            [cargo, "build", "--manifest-path", str(manifest)],
+            cwd=settings.project_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if debug_path.exists():
+            return debug_path
     return None
 
 

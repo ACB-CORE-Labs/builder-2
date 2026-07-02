@@ -158,6 +158,18 @@ def test_matrix_rendering_is_json_safe() -> None:
     assert decoded["summary"]["operationally_incomplete"] is True
     assert decoded["summary"]["operationally_verified_count"] == 17  # B1.5 promoted bounded verification, postflight, and command authority gates
 
+
+def test_matrix_exposes_sharper_assurance_states() -> None:
+    matrix = render_matrix_jsonable()
+    rows = {row["capability"]: row for row in matrix["capabilities"]}
+    assert "SAFETY_CRITICAL_PROHIBITED" in matrix["allowed_assurance_states"]
+    assert rows["model/provider execution"]["assurance_state"] == "LIVE_PROVIDER_VERIFIED"
+    assert rows["HITL patch application"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
+    assert rows["rollback execution"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
+    assert rows["governed read-only runtime"]["assurance_state"] == "READ_ONLY_RUNTIME_VERIFIED"
+    assert rows["CORE demo loop"]["assurance_state"] == "DEMO_ONLY_VERIFIED"
+    assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+
 def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()
     assert "passive-foundation-complete" in summary

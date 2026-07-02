@@ -6,6 +6,17 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
 
+from builder_ii.assurance import (
+    ASSURANCE_STATES,
+    BLOCKED_BY_EVIDENCE,
+    BOUNDED_EXECUTION_VERIFIED,
+    DEMO_ONLY_VERIFIED,
+    LIVE_PROVIDER_VERIFIED,
+    MUTATION_WITH_ROLLBACK_VERIFIED,
+    PASSIVE_ARTIFACT_VERIFIED,
+    READ_ONLY_RUNTIME_VERIFIED,
+    AssuranceState,
+)
 
 PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
@@ -119,7 +130,26 @@ class CapabilityRow:
         data["command_surfaces"] = list(self.command_surfaces)
         data["tests"] = list(self.tests)
         data["blockers"] = list(self.blockers)
+        data["assurance_state"] = assurance_state_for_row(self)
         return data
+
+
+def assurance_state_for_row(row: CapabilityRow) -> AssuranceState:
+    if row.state != OPERATIONALLY_VERIFIED:
+        if row.state in (PASSIVE_FOUNDATION, ARTIFACT_ONLY):
+            return PASSIVE_ARTIFACT_VERIFIED
+        return BLOCKED_BY_EVIDENCE
+    if row.capability in {"HITL patch application", "rollback execution"}:
+        return MUTATION_WITH_ROLLBACK_VERIFIED
+    if row.capability == "model/provider execution":
+        return LIVE_PROVIDER_VERIFIED
+    if row.capability in {"governed read-only runtime", "Goose readonly runtime"}:
+        return READ_ONLY_RUNTIME_VERIFIED
+    if row.capability in {"low-risk tool invocation", "MCP invocation"}:
+        return BOUNDED_EXECUTION_VERIFIED
+    if row.capability == "CORE demo loop":
+        return DEMO_ONLY_VERIFIED
+    return PASSIVE_ARTIFACT_VERIFIED
 
 
 def _row(
@@ -907,6 +937,7 @@ def render_matrix_jsonable(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY
         "schema_version": SCHEMA_VERSION,
         "source_report": SOURCE_REPORT,
         "allowed_state_labels": list(ALLOWED_STATE_LABELS),
+        "allowed_assurance_states": list(ASSURANCE_STATES),
         "next_sequence": NEXT_SEQUENCE,
         "summary": {
             "passive_foundation_complete": True,

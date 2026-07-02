@@ -1,4 +1,5 @@
 import os
+import re
 import tomllib
 from pathlib import Path
 import pytest
@@ -10,6 +11,9 @@ from builder_ii.command_authority import (
     TIER_1,
     MODE_NONE,
     CommandAuthorityRecord,
+    CommandAuthorityError,
+    check_command_authority,
+    enforce_command_authority,
     validate_registry_invariants,
     render_registry_markdown_table,
 )
@@ -47,6 +51,20 @@ def test_pyproject_scripts_fully_covered():
             for name in registered_names
         )
         assert has_match, f"Script '{script_name}' from pyproject.toml is missing from registry"
+
+
+def test_root_builder_subcommands_fully_covered():
+    """Ensure every root builder CLI command decorator has an explicit registry row."""
+    root = _get_project_root()
+    cli_source = (root / "builder_ii" / "cli.py").read_text(encoding="utf-8")
+    root_commands = {
+        f"builder {match.group(1)}"
+        for match in re.finditer(r"@app\.command\(\"([^\"]+)\"\)", cli_source)
+    }
+    registered_names = {r.name for r in COMMAND_AUTHORITY_REGISTRY}
+
+    assert root_commands
+    assert root_commands <= registered_names
 
 
 def test_required_subcommands_fully_covered():
@@ -189,6 +207,7 @@ def test_tier_0_and_tier_1_boundaries():
             assert not r.allows_artifact_writes, f"{r.name} (Tier 0) cannot write artifacts"
             assert not r.allows_state_writes, f"{r.name} (Tier 0) cannot write state"
             assert not r.allows_runtime_start, f"{r.name} (Tier 0) cannot start runtime"
+            assert not r.allows_process_control, f"{r.name} (Tier 0) cannot control processes"
             assert not r.allows_model_execution, f"{r.name} (Tier 0) cannot execute models"
             assert not r.allows_shell_execution, f"{r.name} (Tier 0) cannot execute shell"
             assert not r.allows_source_writes, f"{r.name} (Tier 0) cannot write source"
@@ -200,6 +219,7 @@ def test_tier_0_and_tier_1_boundaries():
             # May artifact-write, but absolutely nothing else
             assert not r.allows_state_writes, f"{r.name} (Tier 1) cannot write state"
             assert not r.allows_runtime_start, f"{r.name} (Tier 1) cannot start runtime"
+            assert not r.allows_process_control, f"{r.name} (Tier 1) cannot control processes"
             assert not r.allows_model_execution, f"{r.name} (Tier 1) cannot execute models"
             assert not r.allows_shell_execution, f"{r.name} (Tier 1) cannot execute shell"
             assert not r.allows_source_writes, f"{r.name} (Tier 1) cannot write source"
@@ -227,6 +247,45 @@ def test_standalone_call_registered_in_authority() -> None:
     assert record.allows_model_execution, f"{name} must declare allows_model_execution=True"
     assert record.allows_artifact_writes, f"{name} must declare allows_artifact_writes=True"
     assert name in REQUIRED_SUBCOMMANDS, f"'{name}' must be in REQUIRED_SUBCOMMANDS"
+
+
+def test_enforce_command_authority_fails_closed_for_unknown_command() -> None:
+    decision = check_command_authority("builder-missing command")
+    assert decision.allowed is False
+    assert "not registered" in decision.reasons[0]
+    with pytest.raises(CommandAuthorityError):
+        enforce_command_authority("builder-missing command")
+
+
+def test_enforce_command_authority_rejects_unclassified_effect() -> None:
+    decision = check_command_authority("builder ask", requested_effects=("patch_application",))
+    assert decision.allowed is False
+    assert any("patch_application" in reason for reason in decision.reasons)
+
+
+def test_enforce_command_authority_rejects_safety_critical_claim() -> None:
+    decision = check_command_authority("builder ask", safety_critical_claim=True)
+    assert decision.allowed is False
+    assert decision.assurance_state == "SAFETY_CRITICAL_PROHIBITED"
+
+
+def test_enforce_command_authority_allows_classified_effect() -> None:
+    decision = enforce_command_authority("builder ask", requested_effects=("model_execution", "artifact_write"))
+    assert decision.allowed is True
+    assert decision.assurance_state == "LIVE_PROVIDER_VERIFIED"
+
+
+def test_process_control_requires_explicit_process_control_flag() -> None:
+    denied = check_command_authority("builder-runtime clear-marker", requested_effects=("process_control",))
+    assert denied.allowed is False
+    assert any("process_control" in reason for reason in denied.reasons)
+
+    allowed = enforce_command_authority(
+        "builder-runtime stop",
+        requested_effects=("process_control", "state_write", "readonly_subprocess"),
+    )
+    assert allowed.allowed is True
+    assert allowed.assurance_state == "BOUNDED_EXECUTION_VERIFIED"
 
 
 def test_builder_memory_commands_are_registered_as_tier1_surfaces() -> None:
@@ -271,33 +330,88 @@ def test_runtime_gate_allows_passive_registered_command_without_hitl() -> None:
 
 
 def test_runtime_gate_denies_unknown_command_fail_closed() -> None:
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
 
-    decision = enforce_command_authority("builder-unknown mutate", requested_effects=("source_writes",))
+    with pytest.raises(CommandAuthorityError) as exc_info:
+        enforce_command_authority("builder-unknown mutate", requested_effects=("source_writes",))
+    assert "not registered" in str(exc_info.value)
 
+    decision = check_command_authority("builder-unknown mutate", requested_effects=("source_writes",))
     assert decision.allowed is False
     assert "not registered" in decision.reason
     assert decision.to_evidence()["fail_closed"] is True
 
 
 def test_runtime_gate_denies_over_authority_effect() -> None:
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
 
-    decision = enforce_command_authority("builder-targets list", requested_effects=("source_writes",))
+    with pytest.raises(CommandAuthorityError) as exc_info:
+        enforce_command_authority("builder-targets list", requested_effects=("source_writes",))
+    assert "not classified" in str(exc_info.value)
 
+    decision = check_command_authority("builder-targets list", requested_effects=("source_writes",))
     assert decision.allowed is False
-    assert "exceeds" in decision.reason
-    assert decision.denied_effects == ("source_writes",)
+    assert "not classified" in decision.reason
 
 
 def test_runtime_gate_requires_hitl_for_run_approved() -> None:
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
 
-    decision = enforce_command_authority(
+    with pytest.raises(CommandAuthorityError) as exc_info:
+        enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_write", "readonly_subprocess"),
+            hitl_bound=False,
+        )
+    assert "HITL" in str(exc_info.value)
+
+    decision = check_command_authority(
         "builder-verify run-approved",
-        requested_effects=("artifact_writes", "readonly_subprocess"),
+        requested_effects=("artifact_write", "readonly_subprocess"),
         hitl_bound=False,
     )
-
     assert decision.allowed is False
     assert "HITL" in decision.reason
+
+
+def test_command_authority_compatibility_hitl_bound() -> None:
+    from builder_ii.command_authority import check_command_authority, enforce_command_authority, CommandAuthorityError
+
+    # 1. Denied with no approval_ref and no hitl_bound
+    with pytest.raises(CommandAuthorityError) as exc:
+        enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_write", "readonly_subprocess"),
+        )
+    assert "HITL" in str(exc.value)
+
+    # 2. Denied with hitl_bound=False
+    with pytest.raises(CommandAuthorityError) as exc:
+        enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_write", "readonly_subprocess"),
+            hitl_bound=False,
+        )
+    assert "HITL" in str(exc.value)
+
+    # 3. Allowed with hitl_bound=True
+    decision = enforce_command_authority(
+        "builder-verify run-approved",
+        requested_effects=("artifact_write", "readonly_subprocess"),
+        hitl_bound=True,
+    )
+    assert decision.allowed is True
+
+    # 4. Allowed with approval_ref
+    decision = enforce_command_authority(
+        "builder-verify run-approved",
+        requested_effects=("artifact_write", "readonly_subprocess"),
+        approval_ref="approval-123",
+    )
+    assert decision.allowed is True
+
+    # 5. Unknown commands still fail closed
+    with pytest.raises(CommandAuthorityError) as exc:
+        enforce_command_authority("builder-missing-command")
+    assert "not registered" in str(exc.value)
+

@@ -11,6 +11,7 @@ from rich.table import Table
 
 from builder_ii.backend_state import backend_marker_path, check_backend_marker, clear_backend_marker
 from builder_ii.backends import check_health, check_serves_active_model
+from builder_ii.command_authority import enforce_command_authority
 from builder_ii.config import Settings, load_settings
 
 runtime_app = typer.Typer(help="Inspect and control the local MLX runtime process.")
@@ -109,6 +110,7 @@ def terminate_runtime_processes(processes: Iterable[RuntimeProcess], *, timeout:
 @runtime_app.command("status")
 def runtime_status() -> None:
     """Show local runtime health, served-model state, marker, and listener process."""
+    enforce_command_authority("builder-runtime status", requested_effects=("readonly_subprocess", "external_tool"))
     settings = load_settings()
     health_ok, health_msg = check_health(settings)
     served_ok, served_msg = check_serves_active_model(settings) if health_ok else (False, "runtime down")
@@ -130,6 +132,7 @@ def runtime_status() -> None:
 @runtime_app.command("clear-marker")
 def runtime_clear_marker() -> None:
     """Clear the recorded runtime marker without touching any process."""
+    enforce_command_authority("builder-runtime clear-marker", requested_effects=("state_write",))
     settings = load_settings()
     clear_backend_marker(settings)
     console.print(f"[green]Cleared runtime marker[/] {backend_marker_path(settings)}")
@@ -138,9 +141,14 @@ def runtime_clear_marker() -> None:
 @runtime_app.command("stop")
 def runtime_stop(
     force_foreign: bool = typer.Option(False, "--force-foreign", help="Also stop non-builder processes listening on the configured port."),
+    confirm_force_foreign: str | None = typer.Option(None, "--confirm-force-foreign", help="Required literal confirmation when --force-foreign is used."),
     keep_marker: bool = typer.Option(False, "--keep-marker", help="Do not clear the runtime marker after stopping."),
 ) -> None:
     """Stop the local MLX runtime process on the configured port and clear its marker."""
+    enforce_command_authority("builder-runtime stop", requested_effects=("process_control", "state_write", "readonly_subprocess"))
+    if force_foreign and confirm_force_foreign != "STOP_FOREIGN_RUNTIME":
+        console.print("[red]--force-foreign requires --confirm-force-foreign STOP_FOREIGN_RUNTIME[/]")
+        raise typer.Exit(1)
     settings = load_settings()
     processes = find_runtime_processes(settings, include_foreign=force_foreign)
     if not processes:
@@ -156,6 +164,8 @@ def runtime_stop(
 @runtime_app.command("reset")
 def runtime_reset(
     force_foreign: bool = typer.Option(False, "--force-foreign", help="Also stop non-builder processes listening on the configured port."),
+    confirm_force_foreign: str | None = typer.Option(None, "--confirm-force-foreign", help="Required literal confirmation when --force-foreign is used."),
 ) -> None:
     """Stop the local runtime if present and clear the marker."""
-    runtime_stop(force_foreign=force_foreign, keep_marker=False)
+    enforce_command_authority("builder-runtime reset", requested_effects=("process_control", "state_write", "readonly_subprocess"))
+    runtime_stop(force_foreign=force_foreign, confirm_force_foreign=confirm_force_foreign, keep_marker=False)

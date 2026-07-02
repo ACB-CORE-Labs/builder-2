@@ -6,6 +6,7 @@ from typing import Optional
 
 import typer
 
+from builder_ii.command_authority import enforce_command_authority
 from builder_ii.event_ledger import (
     create_event_record,
     load_event_records,
@@ -56,6 +57,7 @@ def inventory(
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Output JSON artifact path"),
 ) -> None:
     """Emits an MCP inventory artifact for known active servers (stub for B7)."""
+    enforce_command_authority("builder-mcp inventory", requested_effects=("artifact_write",))
     # For B7, we implement a passive stub inventory.
     # Real implementations would probe active MCP server registries.
     record = {
@@ -81,6 +83,8 @@ def policy(
     validate: Optional[Path] = typer.Option(None, "--validate", "-v", help="Path to policy artifact to validate"),
 ) -> None:
     """Emits or validates an MCP tool policy artifact."""
+    requested_effects = ("artifact_write",) if output else ()
+    enforce_command_authority("builder-mcp policy", requested_effects=requested_effects)
     if validate:
         try:
             data = json.loads(validate.read_text(encoding="utf-8"))
@@ -136,6 +140,7 @@ def call(
     session_id: str = typer.Option(..., "--session-id", help="Session ID for the operational ledger event"),
 ) -> None:
     """Executes an MCP call defined in an envelope, validated against a policy and logs to ledger."""
+    enforce_command_authority("builder-mcp call", requested_effects=("external_tool", "artifact_write", "state_write"))
     try:
         env_data = json.loads(envelope.read_text(encoding="utf-8"))
         pol_data = json.loads(policy_path.read_text(encoding="utf-8"))
@@ -244,6 +249,7 @@ def standalone_call(
     receipt_output: Path = typer.Option(..., "--receipt-output", "-r", help="Path to save the receipt"),
 ) -> None:
     """Executes an MCP call defined in an envelope without logging to the ledger."""
+    enforce_command_authority("builder-mcp standalone-call", requested_effects=("external_tool", "artifact_write"))
     try:
         env_data = json.loads(envelope.read_text(encoding="utf-8"))
         pol_data = json.loads(policy_path.read_text(encoding="utf-8"))

@@ -35,6 +35,8 @@ def _read_text(path: Path, max_chars: int = 4000) -> str:
 
 
 def _recent_handoff(core_repo: Path) -> str | None:
+    if not core_repo.exists():
+        return None
     candidates = sorted(core_repo.glob("HANDOFF-*.md"), reverse=True)
     return _read_text(candidates[0], max_chars=6000) if candidates else None
 
@@ -54,6 +56,8 @@ def _git_status(core_repo: Path) -> str:
 
 
 def _top_level_dirs(core_repo: Path) -> tuple[str, ...]:
+    if not core_repo.exists():
+        return ()
     return tuple(
         sorted(
             p.name

@@ -117,7 +117,9 @@ from builder_ii.hitl_patch_proposal import (
 )
 from builder_ii.hitl_patch_apply import (
     PATCH_APPLY_RECEIPT_KIND,
+    ROLLBACK_BUNDLE_KIND,
     validate_patch_apply_receipt,
+    validate_rollback_bundle,
 )
 from builder_ii.rollback_artifacts import ROLLBACK_PLAN_KIND, validate_rollback_plan
 from builder_ii.rollback_artifacts import (
@@ -439,8 +441,10 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND: validate_hitl_verification_execution_candidate,
     HITL_PATCH_PROPOSAL_KIND: validate_hitl_patch_proposal,
     PATCH_APPLY_RECEIPT_KIND: validate_patch_apply_receipt,
+    ROLLBACK_BUNDLE_KIND: validate_rollback_bundle,
     ROLLBACK_PLAN_KIND: validate_rollback_plan,
     ROLLBACK_RECEIPT_KIND: validate_rollback_receipt,
+    "unified_diff_reverse_patch": lambda data: [],
     EXECUTION_POSTFLIGHT_RECORD_KIND: validate_execution_postflight_record,
     EXECUTION_VERIFICATION_RECORD_KIND: validate_execution_verification_record,
     HITL_EVIDENCE_BUNDLE_KIND: validate_hitl_evidence_bundle,
@@ -553,13 +557,13 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
 
     if kind == APPROVAL_RECORD_KIND:
         prop = record.get("proposal", {})
-        if isinstance(prop, dict):
+        if isinstance(prop, dict) and prop:
             refs.append(
                 {
                     "field": "proposal",
                     "sha256": prop.get("sha256"),
                     "path": prop.get("path"),
-                    "expected_kind": GOOSE_COMMAND_PROPOSAL_KIND,
+                    "expected_kind": prop.get("kind") or GOOSE_COMMAND_PROPOSAL_KIND,
                 }
             )
 
@@ -726,6 +730,28 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
                     "expected_kind": RESEARCH_PLAN_KIND,
                 }
             )
+
+    elif kind == ROLLBACK_BUNDLE_KIND:
+        for field in (
+            "proposal_ref",
+            "approval_ref",
+            "verification_receipt_ref",
+            "rollback_plan_ref",
+            "rollback_patch_ref",
+            "postflight_ref",
+            "patch_apply_receipt_ref",
+        ):
+            append_artifact_ref(field, record.get(field))
+
+    elif kind == PATCH_APPLY_RECEIPT_KIND:
+        append_artifact_ref("proposal_ref", record.get("proposal_ref"), HITL_PATCH_PROPOSAL_KIND)
+        append_artifact_ref("rollback_plan_ref", record.get("rollback_plan_ref"), ROLLBACK_PLAN_KIND)
+        append_artifact_ref("postflight_ref", record.get("postflight_ref"), EXECUTION_POSTFLIGHT_RECORD_KIND)
+        append_artifact_ref("rollback_patch_ref", record.get("rollback_patch_ref"), "unified_diff_reverse_patch")
+
+    elif kind == ROLLBACK_RECEIPT_KIND:
+        append_artifact_ref("rollback_plan_ref", record.get("rollback_plan_ref"), ROLLBACK_PLAN_KIND)
+        append_artifact_ref("rollback_patch_ref", record.get("rollback_patch_ref"), "unified_diff_reverse_patch")
 
     elif kind == HITL_EVIDENCE_BUNDLE_KIND:
         for field, expected in [
@@ -1557,6 +1583,8 @@ def resolve_reference(
                 return rel_path, loaded_by_path[rel_path], "relative_path", []
             if rel_path.is_file():
                 try:
+                    if expected_kind == "unified_diff_reverse_patch":
+                        return rel_path, {"kind": "unified_diff_reverse_patch"}, "relative_path", []
                     data = json_lib.loads(rel_path.read_text(encoding="utf-8"))
                     if isinstance(data, dict):
                         return rel_path, data, "relative_path", []
@@ -1583,6 +1611,8 @@ def resolve_reference(
                 return as_is_path, loaded_by_path[as_is_path], "as_is_path", []
             if as_is_path.is_file():
                 try:
+                    if expected_kind == "unified_diff_reverse_patch":
+                        return as_is_path, {"kind": "unified_diff_reverse_patch"}, "as_is_path", []
                     data = json_lib.loads(as_is_path.read_text(encoding="utf-8"))
                     if isinstance(data, dict):
                         return as_is_path, data, "as_is_path", []
@@ -1682,55 +1712,74 @@ def verify_artifact_chain(paths: list[Path]) -> dict[str, Any]:
             native_invalid_count += 1
             continue
 
-        try:
-            content = path.read_text(encoding="utf-8")
-            data = json_lib.loads(content)
-        except json_lib.JSONDecodeError as exc:
-            err_msg = f"Invalid JSON in {path}: {exc}"
-            global_errors.append(err_msg)
-            files_report.append(
-                {
-                    "path": str(path),
-                    "kind": "",
-                    "sha256": "",
-                    "native_valid": False,
-                    "native_errors": [err_msg],
-                }
-            )
-            native_invalid_count += 1
-            continue
-        except Exception as exc:
-            err_msg = f"Failed to read {path}: {exc}"
-            global_errors.append(err_msg)
-            files_report.append(
-                {
-                    "path": str(path),
-                    "kind": "",
-                    "sha256": "",
-                    "native_valid": False,
-                    "native_errors": [err_msg],
-                }
-            )
-            native_invalid_count += 1
-            continue
+        if path.suffix == ".patch":
+            data = {"kind": "unified_diff_reverse_patch"}
+            try:
+                digest_val = hashlib.sha256(resolved_path.read_bytes()).hexdigest()
+            except Exception as exc:
+                err_msg = f"Failed to read patch file {path}: {exc}"
+                global_errors.append(err_msg)
+                files_report.append(
+                    {
+                        "path": str(path),
+                        "kind": "unified_diff_reverse_patch",
+                        "sha256": "",
+                        "native_valid": False,
+                        "native_errors": [err_msg],
+                    }
+                )
+                native_invalid_count += 1
+                continue
+        else:
+            try:
+                content = path.read_text(encoding="utf-8")
+                data = json_lib.loads(content)
+            except json_lib.JSONDecodeError as exc:
+                err_msg = f"Invalid JSON in {path}: {exc}"
+                global_errors.append(err_msg)
+                files_report.append(
+                    {
+                        "path": str(path),
+                        "kind": "",
+                        "sha256": "",
+                        "native_valid": False,
+                        "native_errors": [err_msg],
+                    }
+                )
+                native_invalid_count += 1
+                continue
+            except Exception as exc:
+                err_msg = f"Failed to read {path}: {exc}"
+                global_errors.append(err_msg)
+                files_report.append(
+                    {
+                        "path": str(path),
+                        "kind": "",
+                        "sha256": "",
+                        "native_valid": False,
+                        "native_errors": [err_msg],
+                    }
+                )
+                native_invalid_count += 1
+                continue
 
-        if not isinstance(data, dict):
-            err_msg = f"Artifact {path} must be a JSON object"
-            global_errors.append(err_msg)
-            files_report.append(
-                {
-                    "path": str(path),
-                    "kind": "",
-                    "sha256": "",
-                    "native_valid": False,
-                    "native_errors": [err_msg],
-                }
-            )
-            native_invalid_count += 1
-            continue
+            if not isinstance(data, dict):
+                err_msg = f"Artifact {path} must be a JSON object"
+                global_errors.append(err_msg)
+                files_report.append(
+                    {
+                        "path": str(path),
+                        "kind": "",
+                        "sha256": "",
+                        "native_valid": False,
+                        "native_errors": [err_msg],
+                    }
+                )
+                native_invalid_count += 1
+                continue
+            digest_val = _digest(data)
 
         kind = data.get("kind", "")
-        digest_val = _digest(data)
 
         loaded_by_path[resolved_path] = data
         loaded_by_digest.setdefault(digest_val, []).append((resolved_path, data))
@@ -1789,7 +1838,22 @@ def verify_artifact_chain(paths: list[Path]) -> dict[str, Any]:
             )
 
             if target_data is not None:
-                actual_sha256 = _digest(target_data)
+                if expected_kind == "unified_diff_reverse_patch" or target_data.get("kind") == "unified_diff_reverse_patch":
+                    try:
+                        actual_sha256 = hashlib.sha256(target_path.read_bytes()).hexdigest()
+                    except Exception as e:
+                        actual_sha256 = ""
+                        link_errors.append(f"Failed to read reverse patch file: {e}")
+                else:
+                    json_digest = _digest(target_data)
+                    try:
+                        raw_digest = hashlib.sha256(target_path.read_bytes()).hexdigest()
+                    except Exception:
+                        raw_digest = ""
+                    if expected_sha256 and expected_sha256 == raw_digest:
+                        actual_sha256 = raw_digest
+                    else:
+                        actual_sha256 = json_digest
                 if expected_sha256 and actual_sha256 != expected_sha256:
                     link_errors.append(
                         f"Digest mismatch: referenced '{expected_sha256}', resolved file '{target_path}' has '{actual_sha256}'"

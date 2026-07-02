@@ -9,7 +9,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from builder_ii.command_authority import CommandAuthorityDecision, enforce_command_authority
+from builder_ii.command_authority import (
+    CommandAuthorityDecision,
+    enforce_command_authority,
+    check_command_authority,
+    CommandAuthorityError,
+)
 from builder_ii.config_schema import attach_digest, digest_jsonable
 from builder_ii.execution_postflight_records import (
     validate_execution_postflight_record,
@@ -291,12 +296,20 @@ def _receipt_for_block(
     receipt["errors"] = list(dict.fromkeys(list(receipt.get("errors") or []) + errors))
     receipt["valid"] = False
     if authority_decision is None:
-        authority_decision = enforce_command_authority(
-            "builder-verify run-approved",
-            requested_effects=("artifact_writes", "readonly_subprocess"),
-            capability_ref="HITL-approved verification execution",
-            hitl_bound=False,
-        )
+        try:
+            authority_decision = enforce_command_authority(
+                "builder-verify run-approved",
+                requested_effects=("artifact_writes", "readonly_subprocess"),
+                capability_ref="HITL-approved verification execution",
+                hitl_bound=False,
+            )
+        except CommandAuthorityError:
+            authority_decision = check_command_authority(
+                "builder-verify run-approved",
+                requested_effects=("artifact_writes", "readonly_subprocess"),
+                capability_ref="HITL-approved verification execution",
+                hitl_bound=False,
+            )
     receipt["command_authority_decision"] = authority_decision.to_evidence()
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     _maybe_write_blocked_receipt(
@@ -380,12 +393,21 @@ def run_approved_verification(
     if not errors:
         errors.extend(validate_verification_execution_approval_against_plan(approval, plan))
 
-    authority_decision = enforce_command_authority(
-        "builder-verify run-approved",
-        requested_effects=("artifact_writes", "readonly_subprocess"),
-        capability_ref="HITL-approved verification execution",
-        hitl_bound=isinstance(approval_data, dict) and approval_data.get("valid") is True,
-    )
+    try:
+        authority_decision = enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_writes", "readonly_subprocess"),
+            capability_ref="HITL-approved verification execution",
+            hitl_bound=isinstance(approval_data, dict) and approval_data.get("valid") is True,
+        )
+    except CommandAuthorityError as e:
+        authority_decision = check_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_writes", "readonly_subprocess"),
+            capability_ref="HITL-approved verification execution",
+            hitl_bound=isinstance(approval_data, dict) and approval_data.get("valid") is True,
+        )
+        errors.append(str(e))
     if not authority_decision.allowed:
         errors.append(f"command authority denied: {authority_decision.reason}")
     if profile is None:

@@ -8,7 +8,9 @@ CORE is a target profile.
 
 Passive foundation state: `PASSIVE_FOUNDATION`.
 
-This means source-backed governed artifacts, validators, passive planners, and docs truth checks exist. It does not mean ambient runtime authority. The following remain disabled or capability-scoped rather than globally promoted: runtime execution, patch application, model/provider execution, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, and commit/push automation.
+This means source-backed governed artifacts, validators, passive planners, and docs truth checks exist. It does not mean life-safety readiness, platform-wide runtime authority, or production-grade execution assurance.
+
+The following remain denied, gated, or evidence-blocked until their own digest-bound proof chains pass: runtime execution, patch application, model/provider execution, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, and commit/push automation.
 
 ## Passive Foundation Areas
 
