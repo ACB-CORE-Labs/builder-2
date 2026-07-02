@@ -1,15 +1,7 @@
 """
-deeagents_forge_tui.py
+deepagents_forge_tui.py
 
 Textual TUI wizard for the deepagents Forge.
-Follows the exact patterns of agent_tui.py, goose_tui.py, hitl_tui.py.
-
-Layout:
-  - Header:  step title + progress bar
-  - Body:    current ForgeStep rendered as input/select/multiselect/preview
-  - Footer:  live spec summary pane (always visible)
-  - Nav bar: [← Back] [Skip] [Next →] [✗ Abort]
-
 This module is generic-first and must not import CORE-specific modules.
 """
 
@@ -19,13 +11,11 @@ from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
+from textual.containers import Container, Horizontal, ScrollableContainer
 from textual.screen import Screen
 from textual.widgets import (
     Button,
     Checkbox,
-    Footer,
-    Header,
     Input,
     Label,
     RadioButton,
@@ -34,56 +24,42 @@ from textual.widgets import (
     TextArea,
 )
 
+from builder_ii.deepagents_forge_emit import emit_agent
+from builder_ii.deepagents_forge_preview import render_preview
 from builder_ii.deepagents_forge_schema import DeepAgentSpec
-from builder_ii.deepagents_forge_wizard import ForgeStep, ForgeWizard, FORGE_STEPS
-from builder_ii.deepagents_forge_preview import render_preview, check_governance
-from builder_ii.deepagents_forge_emit import emit_agent, EmitResult
+from builder_ii.deepagents_forge_wizard import ForgeWizard
 
-
-# ---------------------------------------------------------------------------
-# ForgeProgressBar
-# ---------------------------------------------------------------------------
 
 class ForgeProgressBar(Static):
     """Renders a step counter and filled progress bar."""
 
     def set_progress(self, current: int, total: int) -> None:
-        filled = int((current / total) * 20)
-        bar = "\u2593" * filled + "\u2591" * (20 - filled)
+        filled = int((current / total) * 20) if total else 0
+        bar = "▓" * filled + "░" * (20 - filled)
         self.update(f"Step {current}/{total}  [{bar}]")
 
-
-# ---------------------------------------------------------------------------
-# ForgeSpecPane
-# ---------------------------------------------------------------------------
 
 class ForgeSpecPane(Static):
     """Always-visible bottom pane showing accumulated spec summary."""
 
     def refresh_spec(self, spec: DeepAgentSpec) -> None:
         lines = spec.summary_lines()
-        if lines:
-            self.update("\n".join(lines))
-        else:
-            self.update("(no fields set yet)")
+        self.update("\n".join(lines) if lines else "(no fields set yet)")
 
-
-# ---------------------------------------------------------------------------
-# ForgePreviewWidget
-# ---------------------------------------------------------------------------
 
 class ForgePreviewWidget(Static):
-    """Renders governance checklist + YAML preview for the preview step."""
+    """Renders governance checklist, warnings, YAML preview, and write summary."""
 
     def set_spec(self, spec: DeepAgentSpec) -> None:
         preview = render_preview(spec)
         gov = preview.governance_check
         lines = ["=== Governance Checklist ==="]
-        lines.extend(gov.as_lines())
+        if gov is not None:
+            lines.extend(gov.as_lines())
         lines.append("")
         if preview.warnings:
             lines.append("=== Warnings ===")
-            lines.extend(f"  \u26a0  {w}" for w in preview.warnings)
+            lines.extend(f"  ⚠  {warning}" for warning in preview.warnings)
             lines.append("")
         lines.append("=== Agent Spec (YAML) ===")
         lines.append(preview.yaml_preview)
@@ -92,15 +68,8 @@ class ForgePreviewWidget(Static):
         self.update("\n".join(lines))
 
 
-# ---------------------------------------------------------------------------
-# ForgeScreen
-# ---------------------------------------------------------------------------
-
 class ForgeScreen(Screen):
-    """
-    Main Textual screen for the Forge wizard.
-    Renders each ForgeStep in sequence with appropriate input widgets.
-    """
+    """Main Textual screen for the Forge wizard."""
 
     BINDINGS = [
         Binding("escape", "abort", "Abort"),
@@ -164,12 +133,12 @@ class ForgeScreen(Screen):
         self.wizard = wizard
         self.dry_run = dry_run
         self._current_checkboxes: dict[str, Checkbox] = {}
-        self._current_multi_values: list[str] = []
         self._governance_fields: dict[str, str] = {}
+        self._emitted = False
 
     def compose(self) -> ComposeResult:
         with Container(id="forge-header"):
-            yield Label("🛠  deepagents Forge", id="forge-title")
+            yield Label("deepagents Forge", id="forge-title")
             yield ForgeProgressBar(id="forge-progress")
         with ScrollableContainer(id="forge-body"):
             yield Static("", id="forge-prompt")
@@ -196,26 +165,18 @@ class ForgeScreen(Screen):
         step = self.wizard.current_step()
         current, total = self.wizard.get_progress()
 
-        # Update header
-        self.query_one("#forge-title", Label).update(
-            f"\U0001f6e0  deepagents Forge \u2014 {step.title}"
-        )
+        self.query_one("#forge-title", Label).update(f"deepagents Forge — {step.title}")
         self.query_one("#forge-progress", ForgeProgressBar).set_progress(current, total)
-
-        # Update prompts
         self.query_one("#forge-prompt", Static).update(step.prompt)
         self.query_one("#forge-hint", Static).update(step.hint or "")
-        self.query_one("#forge-governance-note", Static).update(
-            step.governance_note or ""
-        )
+        self.query_one("#forge-governance-note", Static).update(step.governance_note or "")
         self.query_one("#forge-result", Static).update("")
 
-        # Clear and rebuild input area
         input_area = self.query_one("#forge-input-area", Container)
         input_area.remove_children()
         self._current_checkboxes = {}
-        self._current_multi_values = []
         self._governance_fields = {}
+        self._emitted = False
 
         if step.render_mode == "dry_run_preview":
             preview_widget = ForgePreviewWidget(id="forge-preview")
@@ -223,62 +184,57 @@ class ForgeScreen(Screen):
             preview_widget.set_spec(self.wizard.spec)
         elif step.multi_select:
             current_vals = getattr(self.wizard.spec, step.field or "", []) or []
-            for opt in step.options:
-                cb = Checkbox(opt, value=(opt in current_vals), id=f"cb_{opt}")
-                self._current_checkboxes[opt] = cb
-                input_area.mount(cb)
+            for option in step.options:
+                checkbox = Checkbox(option, value=(option in current_vals), id=f"cb_{option}")
+                self._current_checkboxes[option] = checkbox
+                input_area.mount(checkbox)
         elif step.options and not step.multi_select and not step.fields:
             current_val = getattr(self.wizard.spec, step.field or "", "") or step.default or ""
-            rs = RadioSet(id="forge-radioset")
-            input_area.mount(rs)
-            for opt in step.options:
-                rb = RadioButton(opt, value=(opt == current_val))
-                rs.mount(rb)
+            radio_set = RadioSet(id="forge-radioset")
+            input_area.mount(radio_set)
+            for option in step.options:
+                radio_set.mount(RadioButton(option, value=(option == current_val)))
         elif step.multi_line:
             current_val = getattr(self.wizard.spec, step.field or "", "") or ""
-            ta = TextArea(current_val, id="forge-textarea")
-            input_area.mount(ta)
+            input_area.mount(TextArea(current_val, id="forge-textarea"))
         elif step.fields:
-            # Multi-field step (governance)
-            for fname in step.fields:
-                current_val = getattr(self.wizard.spec, fname, "") or ""
-                input_area.mount(Label(fname.replace("_", " ").title() + ":"))
-                inp = Input(
-                    value=str(current_val),
-                    placeholder=fname,
-                    id=f"gov_input_{fname}",
+            for field_name in step.fields:
+                current_val = getattr(self.wizard.spec, field_name, "") or ""
+                input_area.mount(Label(field_name.replace("_", " ").title() + ":"))
+                self._governance_fields[field_name] = str(current_val)
+                input_area.mount(
+                    Input(
+                        value=str(current_val),
+                        placeholder=field_name,
+                        id=f"gov_input_{field_name}",
+                    )
                 )
-                self._governance_fields[fname] = str(current_val)
-                input_area.mount(inp)
         else:
             current_val = getattr(self.wizard.spec, step.field or "", "") or ""
-            inp = Input(
-                value=str(current_val),
-                placeholder=step.hint or step.field or "",
-                id="forge-input",
+            input_area.mount(
+                Input(
+                    value=str(current_val),
+                    placeholder=step.hint or step.field or "",
+                    id="forge-input",
+                )
             )
-            input_area.mount(inp)
 
-        # Refresh spec pane
-        self.query_one("#forge-spec-display", ForgeSpecPane).refresh_spec(
-            self.wizard.spec
-        )
+        self.query_one("#forge-spec-display", ForgeSpecPane).refresh_spec(self.wizard.spec)
 
     def _collect_current_value(self):
-        """Collect the current input value from whatever widget is active."""
         step = self.wizard.current_step()
 
         if step.render_mode == "dry_run_preview":
-            return True  # preview step just needs confirmation
+            return True
 
         if step.multi_select:
-            return [opt for opt, cb in self._current_checkboxes.items() if cb.value]
+            return [option for option, checkbox in self._current_checkboxes.items() if checkbox.value]
 
         if step.options and not step.multi_select and not step.fields:
             try:
-                rs = self.query_one("#forge-radioset", RadioSet)
-                if rs.pressed_button:
-                    return rs.pressed_button.label
+                radio_set = self.query_one("#forge-radioset", RadioSet)
+                if radio_set.pressed_button:
+                    return str(radio_set.pressed_button.label)
             except Exception:
                 pass
             return step.default or (step.options[0] if step.options else "")
@@ -291,12 +247,12 @@ class ForgeScreen(Screen):
 
         if step.fields:
             result = {}
-            for fname in step.fields:
+            for field_name in step.fields:
                 try:
-                    inp = self.query_one(f"#gov_input_{fname}", Input)
-                    result[fname] = inp.value
+                    input_widget = self.query_one(f"#gov_input_{field_name}", Input)
+                    result[field_name] = input_widget.value
                 except Exception:
-                    result[fname] = self._governance_fields.get(fname, "")
+                    result[field_name] = self._governance_fields.get(field_name, "")
             return result
 
         try:
@@ -305,38 +261,37 @@ class ForgeScreen(Screen):
             return ""
 
     def on_input_changed(self, event: Input.Changed) -> None:
-        """Update governance_fields dict on change for multi-field steps."""
         step = self.wizard.current_step()
         if step.fields and event.input.id and event.input.id.startswith("gov_input_"):
-            fname = event.input.id[len("gov_input_"):]
-            self._governance_fields[fname] = event.value
+            field_name = event.input.id[len("gov_input_"):]
+            self._governance_fields[field_name] = event.value
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        btn_id = event.button.id
+        button_id = event.button.id
 
-        if btn_id == "btn-abort":
+        if button_id == "btn-abort":
             self.app.exit(result=None)
             return
 
-        if btn_id == "btn-back":
+        if button_id == "btn-back":
             self.wizard.back()
             self._render_current_step()
             return
 
-        if btn_id == "btn-skip":
+        if button_id == "btn-skip":
             skipped = self.wizard.skip()
-            if not skipped:
-                self.query_one("#forge-result", Static).update(
-                    "\u26a0  This step is required and cannot be skipped."
-                )
-            else:
+            if skipped:
                 self._render_current_step()
+            else:
+                self.query_one("#forge-result", Static).update("⚠  This step is required and cannot be skipped.")
             return
 
-        if btn_id == "btn-next":
-            step = self.wizard.current_step()
+        if button_id == "btn-next":
+            if self._emitted:
+                self.app.exit(result=self.wizard.spec)
+                return
 
-            # Preview step = confirm & emit
+            step = self.wizard.current_step()
             if step.render_mode == "dry_run_preview":
                 self._do_emit()
                 return
@@ -346,26 +301,20 @@ class ForgeScreen(Screen):
             if result.ok:
                 self._render_current_step()
             else:
-                self.query_one("#forge-result", Static).update(
-                    f"\u274c  {result.error}"
-                )
+                self.query_one("#forge-result", Static).update(f"\u274c  {result.error}")
 
     def _do_emit(self) -> None:
-        """Run emit_agent and show result."""
+        """Run emit_agent once and show result."""
         emit_result = emit_agent(self.wizard.spec, dry_run=self.dry_run)
-        lines = emit_result.as_lines()
-        self.query_one("#forge-result", Static).update("\n".join(lines))
+        self.query_one("#forge-result", Static).update("\n".join(emit_result.as_lines()))
         if emit_result.ok:
+            self._emitted = True
             input_area = self.query_one("#forge-input-area", Container)
             input_area.remove_children()
             self.query_one("#btn-next", Button).label = "Done"
-            self.query_one("#btn-next", Button).action = "app.exit"
 
     def _render_complete(self) -> None:
-        """Render a completion message when wizard is done."""
-        self.query_one("#forge-prompt", Static).update(
-            "\u2705  Agent spec complete. Press Next to emit."
-        )
+        self.query_one("#forge-prompt", Static).update("Agent spec complete. Press Next to emit.")
 
     def action_abort(self) -> None:
         self.app.exit(result=None)
@@ -374,10 +323,6 @@ class ForgeScreen(Screen):
         self.wizard.back()
         self._render_current_step()
 
-
-# ---------------------------------------------------------------------------
-# ForgeApp
-# ---------------------------------------------------------------------------
 
 class ForgeApp(App):
     """Textual application that hosts the ForgeScreen."""
@@ -393,10 +338,6 @@ class ForgeApp(App):
     def on_mount(self) -> None:
         self.push_screen(ForgeScreen(self._wizard, dry_run=self._dry_run))
 
-
-# ---------------------------------------------------------------------------
-# Entry point
-# ---------------------------------------------------------------------------
 
 def run_forge_tui(
     seed_name: str = "",
