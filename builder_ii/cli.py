@@ -41,7 +41,7 @@ from builder_ii.ledger_cli import ledger_app
 from builder_ii.workflow_cli import workflow_app
 from builder_ii.tools_cli import tools_app
 from builder_ii.mcp_cli import mcp_app
-from builder_ii.tui import tui_app as builder_tui_app
+from builder_ii.tui_cli import tui_app as builder_tui_app
 from builder_ii.tui_inspection_cli import (
     goose_app as tui_goose_app,
     hitl_app as tui_hitl_app,
@@ -50,6 +50,14 @@ from builder_ii.tui_inspection_cli import (
     profile_app as tui_profile_app,
     promote_app as tui_promote_app,
 )
+
+# Try importing the TUI, which relies on the `textual` dependency.
+try:
+    from builder_ii.tui.app import StratumApp
+    HAS_TUI = True
+except ImportError:
+    HAS_TUI = False
+
 
 app = typer.Typer(
     name="builder",
@@ -69,7 +77,14 @@ app.add_typer(tui_promote_app, name="promote")
 app.add_typer(tui_postflight_app, name="postflight")
 app.add_typer(tui_goose_app, name="goose")
 if builder_tui_app is not None:
-    app.add_typer(builder_tui_app, name="tui")
+    app.add_typer(builder_tui_app, name="inspect")
+
+try:
+    from builder_ii.tui.app import StratumApp
+    HAS_TUI = True
+except ImportError:
+    HAS_TUI = False
+
 
 
 def _backend_ready_for_selected_model(settings) -> tuple[bool, str]:
@@ -113,12 +128,37 @@ def _ensure_backend(settings, no_backend: bool) -> None:
     raise typer.Exit(1)
 
 
+@app.command("tui")
+def tui() -> None:
+    """Launch STRATUM: The Builder-II Operator TUI."""
+    enforce_command_authority("builder tui")
+    if not HAS_TUI:
+        console.print("[red]TUI dependencies not found.[/] Run [bold]uv sync[/] to install textual.")
+        raise typer.Exit(1)
+    
+    tui_app = StratumApp()
+    tui_app.run()
+
+
 @app.command("setup")
 def setup() -> None:
     """Legacy compatibility wrapper for the governed R1 setup path."""
     settings = load_settings()
     console.out(render_legacy_setup_redirect_text(settings), end="")
     raise typer.Exit(1)
+
+
+@app.command("tui")
+def tui() -> None:
+    """Launch STRATUM: The Builder-II Operator TUI."""
+    enforce_command_authority("builder tui")
+    if not HAS_TUI:
+        console.print("[red]TUI dependencies not found.[/] Run [bold]uv sync[/] to install textual.")
+        raise typer.Exit(1)
+    
+    tui_app = StratumApp()
+    tui_app.run()
+
 
 
 @app.command("onboarding")

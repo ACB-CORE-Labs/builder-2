@@ -1,0 +1,706 @@
+/* ═══════════════════════════════════════════════════════════════
+   STRATUM — The Builder-II TUI Stylesheet
+   Operator-grade. Dark. High-contrast. Alive.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Root & Global ────────────────────────────────────── */
+
+Screen {
+    background: #0a0e14;
+    color: #c5c8c6;
+}
+
+/* ─── Header Bar (The Stratum Banner) ──────────────────── */
+
+#stratum-header {
+    dock: top;
+    height: 2;
+    background: #0d1117;
+    color: #8b949e;
+    border-bottom: solid #21262d;
+    padding: 0 1;
+}
+
+#stratum-header .header-primary {
+    color: #58a6ff;
+    text-style: bold;
+}
+
+#stratum-header .header-session {
+    color: #6e7681;
+}
+
+HeaderBanner {
+    dock: top;
+    height: 2;
+    background: #0d1117;
+    color: #8b949e;
+    border-bottom: solid #21262d;
+    padding: 0 1;
+}
+
+HeaderBanner .banner-brand {
+    color: #79c0ff;
+    text-style: bold;
+}
+
+HeaderBanner .banner-target {
+    color: #d2a8ff;
+}
+
+HeaderBanner .banner-model {
+    color: #7ee787;
+}
+
+HeaderBanner .banner-tier {
+    color: #ffa657;
+    text-style: bold;
+}
+
+HeaderBanner .banner-dim {
+    color: #484f58;
+}
+
+HeaderBanner .banner-session {
+    color: #6e7681;
+}
+
+HeaderBanner .banner-time {
+    color: #484f58;
+}
+
+
+/* ─── Main Layout (3-Column Spatial Governance) ───────── */
+
+#main-layout {
+    layout: horizontal;
+    height: 1fr;
+}
+
+/* ─── Left Column: Artifact Spine ─────────────────────── */
+
+#spine-container {
+    width: 22;
+    min-width: 18;
+    max-width: 28;
+    background: #0d1117;
+    border-right: solid #21262d;
+    padding: 0;
+}
+
+#spine-title {
+    height: 1;
+    background: #161b22;
+    color: #8b949e;
+    text-style: bold;
+    text-align: center;
+    padding: 0 1;
+    border-bottom: solid #21262d;
+}
+
+#spine-list {
+    height: 1fr;
+    padding: 0;
+    scrollbar-size: 1 1;
+}
+
+#spine-search {
+    height: 3;
+    border: tall #21262d;
+    margin: 0;
+    background: #0d1117;
+    color: #c9d1d9;
+}
+
+#spine-search:focus {
+    border: tall #58a6ff;
+}
+
+.spine-item {
+    height: 1;
+    padding: 0 1;
+}
+
+.spine-item:hover {
+    background: #161b22;
+}
+
+.spine-item.-selected {
+    background: #1f2937;
+    color: #f0f6fc;
+}
+
+.spine-item.-active {
+    background: #1c2333;
+}
+
+/* Artifact status glyphs */
+.artifact-verified {
+    color: #3fb950;
+}
+
+.artifact-gate {
+    color: #d29922;
+    text-style: bold;
+}
+
+.artifact-pending {
+    color: #484f58;
+}
+
+.artifact-failed {
+    color: #f85149;
+    text-style: bold;
+}
+
+.artifact-disabled {
+    color: #30363d;
+}
+
+
+/* ─── Center Column: The Active Stratum ──────────────── */
+
+#stratum-center {
+    width: 1fr;
+    min-width: 40;
+    background: #0a0e14;
+    padding: 0;
+}
+
+#stratum-title-bar {
+    height: 1;
+    background: #161b22;
+    color: #c9d1d9;
+    text-style: bold;
+    text-align: center;
+    padding: 0 1;
+    border-bottom: solid #21262d;
+}
+
+/* The morphing content area */
+#stratum-content {
+    height: 1fr;
+    padding: 1 2;
+    scrollbar-size: 1 1;
+}
+
+/* Chain status footer inside the stratum */
+#stratum-chain-bar {
+    height: 3;
+    background: #0d1117;
+    border-top: solid #21262d;
+    padding: 0 2;
+    color: #6e7681;
+}
+
+.chain-label {
+    color: #484f58;
+}
+
+.chain-value {
+    color: #8b949e;
+}
+
+.chain-value-false {
+    color: #3fb950;
+}
+
+.chain-value-true {
+    color: #f85149;
+    text-style: bold;
+}
+
+
+/* ─── HITL Gate Panel (Ceremony Mode) ────────────────── */
+
+.hitl-gate-panel {
+    background: #0d1117;
+    border: solid #d29922;
+    padding: 1 2;
+    margin: 1 2;
+}
+
+.hitl-gate-panel .gate-header {
+    color: #d29922;
+    text-style: bold;
+    text-align: center;
+}
+
+.hitl-gate-panel .gate-cmd {
+    color: #79c0ff;
+}
+
+.hitl-gate-panel .gate-tier {
+    color: #d2a8ff;
+}
+
+.hitl-gate-panel .gate-authority {
+    color: #ffa657;
+}
+
+.hitl-gate-panel .gate-digest {
+    color: #6e7681;
+}
+
+.hitl-gate-panel .gate-actions {
+    margin-top: 1;
+    text-align: center;
+}
+
+.hitl-action-approve {
+    color: #3fb950;
+    text-style: bold;
+}
+
+.hitl-action-reject {
+    color: #f85149;
+    text-style: bold;
+}
+
+.hitl-action-inspect {
+    color: #58a6ff;
+}
+
+.hitl-action-diff {
+    color: #d2a8ff;
+}
+
+
+/* ─── Right Column: Signal Rail ──────────────────────── */
+
+#signal-rail {
+    width: 34;
+    min-width: 28;
+    max-width: 40;
+    background: #0d1117;
+    border-left: solid #21262d;
+    padding: 0;
+}
+
+/* HITL Gate Indicator */
+#hitl-gate-indicator {
+    height: 3;
+    background: #161b22;
+    border-bottom: solid #21262d;
+    padding: 0 1;
+    text-align: center;
+}
+
+.gate-open {
+    color: #d29922;
+    text-style: bold;
+}
+
+.gate-closed {
+    color: #3fb950;
+}
+
+/* Event Ledger */
+#ledger-section {
+    height: 1fr;
+    border-bottom: solid #21262d;
+    padding: 0;
+}
+
+#ledger-title {
+    height: 1;
+    background: #161b22;
+    color: #8b949e;
+    text-style: bold;
+    text-align: center;
+    padding: 0 1;
+    border-bottom: solid #21262d;
+}
+
+#ledger-log {
+    height: 1fr;
+    padding: 0 1;
+    scrollbar-size: 1 1;
+}
+
+.ledger-timestamp {
+    color: #484f58;
+}
+
+.ledger-event-pass {
+    color: #3fb950;
+}
+
+.ledger-event-fail {
+    color: #f85149;
+}
+
+.ledger-event-gate {
+    color: #d29922;
+}
+
+.ledger-event-info {
+    color: #8b949e;
+}
+
+
+/* Capability Rail */
+#capability-section {
+    height: auto;
+    max-height: 12;
+    padding: 0;
+}
+
+#capability-title {
+    height: 1;
+    background: #161b22;
+    color: #8b949e;
+    text-style: bold;
+    text-align: center;
+    padding: 0 1;
+    border-bottom: solid #21262d;
+}
+
+#capability-list {
+    padding: 0 1;
+}
+
+.cap-active {
+    color: #3fb950;
+    text-style: bold;
+}
+
+.cap-disabled {
+    color: #f85149;
+}
+
+.cap-blocked {
+    color: #d29922;
+}
+
+
+/* ─── Footer (Command Bar) ───────────────────────────── */
+
+#command-footer {
+    dock: bottom;
+    height: 1;
+    background: #161b22;
+    color: #8b949e;
+    border-top: solid #21262d;
+    padding: 0 1;
+}
+
+.footer-key {
+    color: #58a6ff;
+    text-style: bold;
+}
+
+.footer-action {
+    color: #6e7681;
+}
+
+
+/* ─── Command Palette Modal ──────────────────────────── */
+
+CommandPaletteScreen {
+    align: center middle;
+}
+
+#palette-container {
+    width: 72;
+    max-width: 90%;
+    height: 28;
+    max-height: 80%;
+    background: #161b22;
+    border: solid #30363d;
+    padding: 0;
+}
+
+#palette-title {
+    height: 1;
+    background: #21262d;
+    color: #c9d1d9;
+    text-style: bold;
+    text-align: center;
+    padding: 0 1;
+}
+
+#palette-search {
+    margin: 1 1 0 1;
+}
+
+#palette-search Input {
+    background: #0d1117;
+    color: #c9d1d9;
+    border: solid #30363d;
+}
+
+#palette-results {
+    height: 1fr;
+    padding: 0 1;
+    scrollbar-size: 1 1;
+    margin: 1 0;
+}
+
+.palette-item {
+    height: 2;
+    padding: 0 1;
+}
+
+.palette-item:hover {
+    background: #1f2937;
+}
+
+.palette-item.-highlight {
+    background: #1c2333;
+}
+
+.palette-cmd {
+    color: #79c0ff;
+}
+
+.palette-tier {
+    color: #d2a8ff;
+}
+
+.palette-blocked {
+    color: #484f58;
+}
+
+.palette-authority-flag {
+    color: #ffa657;
+    text-style: bold;
+}
+
+
+/* ─── Raw CLI Passthrough Modal ──────────────────────── */
+
+CLIPassthroughScreen {
+    align: center bottom;
+}
+
+#cli-container {
+    width: 90%;
+    height: auto;
+    background: #161b22;
+    border: solid #30363d;
+    padding: 1 2;
+}
+
+#cli-prefix {
+    color: #3fb950;
+    text-style: bold;
+}
+
+#cli-input {
+    background: #0d1117;
+    color: #c9d1d9;
+    border: solid #30363d;
+}
+
+#cli-hint {
+    color: #484f58;
+    text-align: right;
+}
+
+
+/* ─── Memory Atom Browser ────────────────────────────── */
+
+#memory-browser {
+    padding: 0;
+}
+
+.memory-atom {
+    height: 2;
+    padding: 0 1;
+}
+
+.memory-atom:hover {
+    background: #161b22;
+}
+
+.memory-type {
+    color: #d2a8ff;
+}
+
+.memory-score {
+    color: #ffa657;
+}
+
+.memory-content-preview {
+    color: #8b949e;
+}
+
+.memory-pinned {
+    color: #3fb950;
+    text-style: bold;
+}
+
+
+/* ─── Idle Report / Status ───────────────────────────── */
+
+.status-section-title {
+    color: #58a6ff;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.status-matrix-row {
+    height: 1;
+}
+
+.status-label {
+    color: #8b949e;
+    width: 20;
+}
+
+.status-value-ok {
+    color: #3fb950;
+}
+
+.status-value-warn {
+    color: #d29922;
+}
+
+.status-value-fail {
+    color: #f85149;
+}
+
+
+/* ─── Confirm Modal ──────────────────────────────────── */
+
+ConfirmScreen {
+    align: center middle;
+}
+
+#confirm-dialog {
+    width: 50;
+    height: 8;
+    background: #161b22;
+    border: solid #d29922;
+    padding: 1 2;
+}
+
+#confirm-title {
+    color: #d29922;
+    text-style: bold;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#confirm-body {
+    color: #c9d1d9;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#confirm-hint {
+    color: #484f58;
+    text-align: center;
+}
+
+
+/* ─── Reject Annotation Modal ────────────────────────── */
+
+RejectScreen {
+    align: center middle;
+}
+
+#reject-dialog {
+    width: 60;
+    height: 12;
+    background: #161b22;
+    border: solid #f85149;
+    padding: 1 2;
+}
+
+#reject-title {
+    color: #f85149;
+    text-style: bold;
+    text-align: center;
+    margin-bottom: 1;
+}
+
+#reject-input {
+    background: #0d1117;
+    color: #c9d1d9;
+    border: solid #30363d;
+    height: 5;
+}
+
+#reject-hint {
+    color: #484f58;
+    text-align: center;
+    margin-top: 1;
+}
+
+
+/* ─── Diff View ──────────────────────────────────────── */
+
+.diff-add {
+    color: #3fb950;
+    background: #0d2818;
+}
+
+.diff-remove {
+    color: #f85149;
+    background: #3d0c0c;
+}
+
+.diff-header {
+    color: #79c0ff;
+    text-style: bold;
+}
+
+.diff-context {
+    color: #8b949e;
+}
+
+
+/* ─── Scrollbar Theming ──────────────────────────────── */
+
+* {
+    scrollbar-background: #0a0e14;
+    scrollbar-color: #21262d;
+    scrollbar-color-hover: #30363d;
+    scrollbar-color-active: #484f58;
+}
+
+
+/* ─── Animations & Pulse ─────────────────────────────── */
+/* (Animations removed for CSS parser compatibility) */
+
+
+/* Removed .cap-just-activated */
+
+/* ─── Masterpiece Widgets ────────────────────────────── */
+
+#epistemic-matrix {
+    height: 4;
+    margin: 1 2;
+    padding: 0;
+}
+
+#mechanical-sympathy {
+    height: 1;
+    background: #0d1117;
+    border-top: solid #21262d;
+    padding: 0 1;
+}
+
+#mech-icon {
+    width: 3;
+}
+
+#mech-mem {
+    width: 15;
+    color: #8b949e;
+}
+
+#mech-tok {
+    width: 15;
+    color: #8b949e;
+}
+
+#third-door-gate {
+    margin: 1 2;
+    padding: 1 2;
+    background: #0d1117;
+    border: solid #3fb950;
+}
+

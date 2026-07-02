@@ -21,7 +21,7 @@ from rich.text import Text
 from rich.tree import Tree
 
 # Re-use the palette and glyphs from tui.py
-from builder_ii.tui import (
+from builder_ii.tui_cli import (
     _C, _G_PASS, _G_WARN, _G_FAIL, _G_HINT, _G_DIM, _G_ACT,
     _glyph, _label, _value, _hint, _section, render_header, render_errors,
     console,
@@ -1148,7 +1148,7 @@ try:
         try:
             note = load_latest_handoff_note(settings)
             if note:
-                from builder_ii.tui import render_handoff_summary
+                from builder_ii.tui_cli import render_handoff_summary
                 render_handoff_summary(note, verbose=verbose)
         except Exception:
             pass
