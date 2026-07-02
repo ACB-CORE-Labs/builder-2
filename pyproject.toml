@@ -48,7 +48,6 @@ builder-promotion-decision = "builder_ii.promotion_decision_cli:promotion_decisi
 builder-state-index = "builder_ii.state_index_cli:state_index_app"
 builder-snapshot = "builder_ii.snap_cli:snap_app"
 builder-deepagents = "builder_ii.deepagents_cli:deepagents_app"
-builder-deepagents-forge = "builder_ii.deepagents_forge_cli:app"
 builder-notes = "builder_ii.notes_cli:notes_app"
 builder-quality = "builder_ii.quality_cli:quality_app"
 builder-research = "builder_ii.research_cli:research_app"
