@@ -16,6 +16,17 @@ This walkthrough produces a **recordable, read-only** evidence bundle that prove
 - `uv` environment ready (`uv sync`)
 - Terminal suitable for recording (TTY colors optional; output remains parseable when piped)
 
+## Output directory safety
+
+`--force` removes **only** known demo artifact filenames (never arbitrary directory contents). The command rejects dangerous output directories:
+
+- `output_dir == repo_path`
+- `output_dir` is a parent of `repo_path`
+- filesystem root (`/`)
+- home directory
+
+Always use a dedicated demos path such as `.builder/demos/code-vault-determinism`.
+
 ## One-command demo generation
 
 From the repository you want to scan (builder-II itself is a strong demo target):
