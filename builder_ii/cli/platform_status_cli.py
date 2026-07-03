@@ -33,6 +33,11 @@ from builder_ii.operator_golden_path import (
     validate_operator_golden_path_report,
     write_operator_golden_path_report,
 )
+from builder_ii.operator_lane import (
+    dumps_operator_lane_report,
+    run_operator_lane,
+    validate_operator_lane_report,
+)
 from builder_ii.operator_next import (
     create_operator_next_action_report,
     dumps_operator_next_action_report,
@@ -90,14 +95,14 @@ def _validate_or_exit(root: Path | None = None) -> None:
 def matrix() -> None:
     """Print the source-derived platform capability matrix as JSON."""
     _validate_or_exit(root=Path.cwd())
-    console.out(dumps_matrix(), end="")
+    typer.echo(dumps_matrix(), nl=False)
 
 
 @platform_app.command("status")
 def status() -> None:
     """Print concise human-readable platform truth state."""
     _validate_or_exit(root=Path.cwd())
-    console.out(render_human_summary(), end="")
+    typer.echo(render_human_summary(), nl=False)
 
 
 @platform_app.command("operator-status")
@@ -150,6 +155,45 @@ def next_action(
         write_operator_next_action_report(report, output.resolve())
 
     console.out(dumps_operator_next_action_report(report), end="")
+
+
+@platform_app.command("operator-lane")
+def operator_lane(
+    target: str = typer.Option("generic", "--target", "-t", help="Target profile: generic or builder."),
+    output_dir: Path = typer.Option(..., "--output-dir", "-o", help="Evidence output directory."),
+    dry_run: bool = typer.Option(True, "--dry-run/--execute", help="Dry-run composes artifacts only."),
+    path: list[Path] = typer.Option(None, "--path", help="Explicit file path for inspection or content-read."),
+    content_read: bool = typer.Option(False, "--content-read", help="Emit bounded content-read receipts for --path files."),
+) -> None:
+    """Compose governed platform capabilities into one evidence directory."""
+    _validate_or_exit(root=Path.cwd())
+    if target not in {"generic", "builder"}:
+        console.print("[red]operator-lane supports --target generic or builder only[/]")
+        raise typer.Exit(1)
+
+    explicit_paths = list(path or [])
+    content_paths = explicit_paths if content_read else []
+    inspection_paths = [] if content_read else explicit_paths
+
+    try:
+        report = run_operator_lane(
+            target_name=target,  # type: ignore[arg-type]
+            output_dir=output_dir.resolve(),
+            dry_run=dry_run,
+            explicit_paths=inspection_paths or None,
+            content_read_paths=content_paths or None,
+        )
+    except Exception as exc:
+        console.print(f"[red]operator lane failed:[/] {exc}")
+        raise typer.Exit(1)
+
+    errors = validate_operator_lane_report(report)
+    if errors:
+        for error in errors:
+            console.print(f"[red]operator lane validation error:[/] {error}")
+        raise typer.Exit(1)
+
+    typer.echo(dumps_operator_lane_report(report), nl=False)
 
 
 @platform_app.command("golden-path")

@@ -115,7 +115,9 @@ class CoreDemoPaths:
 
     @property
     def generated_reverse_patch_file(self) -> Path:
-        return self.patch_apply_dir / "rollback.patch"
+        from builder_ii.hitl_patch_apply import FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME
+
+        return self.patch_apply_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME
 
     @property
     def rollback_dir(self) -> Path:

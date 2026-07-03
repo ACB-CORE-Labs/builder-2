@@ -28,6 +28,7 @@ PATCH_APPLY_RECEIPT_KIND = "builder_ii.hitl_patch_apply_receipt"
 PATCH_APPLY_RECEIPT_SCHEMA_VERSION = 1
 ROLLBACK_BUNDLE_KIND = "builder_ii.rollback_bundle"
 ROLLBACK_BUNDLE_SCHEMA_VERSION = 1
+FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME = "forward_patch_for_reverse_apply.patch"
 
 
 def is_git_clean(repo_path: Path) -> bool:
@@ -223,6 +224,14 @@ def apply_hitl_patch(
     if not is_git_clean(target_repo):
         raise ValueError("Target repository working tree is not clean")
     pre_head = get_git_head_sha(target_repo)
+    pre_apply_status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=target_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    pre_apply_status_digest = compute_digest("\n".join(pre_apply_status))
 
     # 3. Read and validate verification receipt
     v_errors = _verification_receipt_errors(verification_receipt_path, target_repo=target_repo)
@@ -239,8 +248,8 @@ def apply_hitl_patch(
     if compute_digest(unified_diff) != patch_digest:
         raise ValueError("Proposal patch digest does not match unified diff content")
 
-    # 5. Reverse patch / Rollback plan
-    reverse_diff_path = output_dir / "rollback.patch"
+    # 5. Forward patch stored for git apply -R rollback
+    reverse_diff_path = output_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME
     reverse_diff_path.parent.mkdir(parents=True, exist_ok=True)
 
     rollback_plan = create_rollback_plan(
@@ -254,6 +263,9 @@ def apply_hitl_patch(
     rollback_plan["target"] = dict(proposal["target"])
     rollback_plan["patch_digest"] = patch_digest
     rollback_plan["pre_head"] = pre_head
+    rollback_plan["pre_apply_status_digest"] = pre_apply_status_digest
+    rollback_plan["pre_apply_status_lines"] = pre_apply_status
+    rollback_plan["expected_workspace_clean_after_rollback"] = True
     rollback_plan_path = output_dir / "rollback_plan.json"
 
     temp_patch = output_dir / "apply.patch"
@@ -329,6 +341,7 @@ def apply_hitl_patch(
     receipt["status"] = "succeeded"
     receipt["patch_digest"] = patch_digest
     receipt["pre_head"] = pre_head
+    receipt["pre_apply_status_digest"] = pre_apply_status_digest
     receipt["proposal_digest"] = _json_digest(proposal)
     receipt["approval_digest"] = _json_digest(approval)
     receipt["verification_receipt_digest"] = _json_digest(verification_receipt)
@@ -437,6 +450,8 @@ def rollback_hitl_patch(
     plan = json_lib.loads(rollback_plan_path.read_text())
     target_repo = Path(plan["target"]["repo"])
     target_name = plan["target"]["name"]
+    if not target_repo.exists() or not target_repo.is_dir():
+        raise ValueError(f"Target repository {target_repo} does not exist or is not a directory")
     rollback_ref = plan.get("rollback_patch_ref")
     if isinstance(rollback_ref, dict):
         expected_digest = rollback_ref.get("sha256")
@@ -489,11 +504,26 @@ def rollback_hitl_patch(
     receipt["post_rollback_status_lines"] = after_status
     receipt["workspace_clean_after_rollback"] = len(after_status) == 0
     receipt["rollback_patch_ref"] = _artifact_ref(
-        kind="unified_diff_reverse_patch",
+        kind="unified_diff_forward_patch_for_reverse_apply",
         path=reverse_patch_path,
         sha256=_file_digest(reverse_patch_path),
-        role="rollback_reverse_patch",
+        role="forward_patch_for_reverse_apply",
     )
+    post_rollback_status_digest = compute_digest("\n".join(after_status))
+    receipt["pre_apply_head"] = plan.get("pre_head")
+    receipt["pre_apply_status_digest"] = plan.get("pre_apply_status_digest")
+    receipt["post_rollback_status_digest"] = post_rollback_status_digest
+    receipt["rollback_equivalence_verified"] = (
+        plan.get("pre_apply_status_digest") == post_rollback_status_digest
+        and len(after_status) == 0
+        if plan.get("expected_workspace_clean_after_rollback")
+        else plan.get("pre_apply_status_digest") == post_rollback_status_digest
+    )
+    if plan.get("pre_apply_status_digest") and post_rollback_status_digest != plan.get("pre_apply_status_digest"):
+        raise RuntimeError(
+            "Rollback did not restore pre-apply working tree state "
+            f"(expected digest {plan.get('pre_apply_status_digest')}, got {post_rollback_status_digest})"
+        )
 
     receipt_path = output_dir / "rollback_receipt.json"
     write_rollback_receipt(receipt, receipt_path)

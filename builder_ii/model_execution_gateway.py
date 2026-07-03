@@ -307,6 +307,8 @@ class ModelExecutionGateway:
         temperature: float | None = None,
         envelope_path: Path,
         receipt_path: Path,
+        approval_path: Path | None = None,
+        ledger_bound: bool = False,
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         # Fail closed on empty prompt or invalid outputs
         if not prompt.strip():
@@ -345,10 +347,21 @@ class ModelExecutionGateway:
 
         # Check policy risk classification constraints
         risk_level = client_record.get("risk_classification")
+        is_stub_provider = client_record.get("provider_id") in (
+            "openai_stub_provider",
+            "anthropic_stub_provider",
+        )
+        human_approval_required = (
+            risk_level in ("cloud_external", "cost_bearing", "credential_sensitive") and not is_stub_provider
+        )
+        human_approval_supplied = approval_path is not None and approval_path.is_file()
         if risk_level == "cloud_external":
-            # Check policy / settings for permissions
             if not self.settings.allow_cloud_models:
                 raise ValueError("Cloud/external model calls are disabled by environment configuration")
+            if human_approval_required and not human_approval_supplied:
+                raise ValueError(
+                    "Cloud/external model calls require an explicit approval artifact via approval_path"
+                )
         elif risk_level == "local_offline":
             raise ValueError("local_offline risk classification cannot perform network calls to execution backends")
 
@@ -381,6 +394,9 @@ class ModelExecutionGateway:
             "grants_authority": False,
             "artifact_is_authority": False,
             "requires_human_promotion_for_execution": True,
+            "human_approval_required": human_approval_required,
+            "human_approval_supplied": human_approval_supplied,
+            "ledger_bound": ledger_bound,
             "authority_boundary": _default_authority_boundary("model_call", performs_network_calls=performs_network),
             "governance": _default_governance("model_call", network_calls_enabled=performs_network),
         }
@@ -504,9 +520,23 @@ class ModelExecutionGateway:
             "grants_authority": False,
             "artifact_is_authority": False,
             "requires_human_promotion_for_execution": True,
+            "human_approval_required": human_approval_required,
+            "human_approval_supplied": human_approval_supplied,
+            "ledger_bound": ledger_bound,
+            "output_truth_authority": False,
+            "promotion_authority": False,
             "authority_boundary": _default_authority_boundary("model_call", performs_network_calls=performs_network),
             "governance": _default_governance("model_call", network_calls_enabled=performs_network),
         }
+        if approval_path is not None and approval_path.is_file():
+            approval_raw = approval_path.read_bytes()
+            receipt["approval_ref"] = {
+                "kind": "builder_ii.approval_record",
+                "path": str(approval_path),
+                "sha256": hashlib.sha256(approval_raw).hexdigest(),
+                "role": "model_call_approval",
+                "required": human_approval_required,
+            }
         receipt["digest"] = _digest(receipt)
 
         rec_errors = validate_model_call_receipt(receipt)

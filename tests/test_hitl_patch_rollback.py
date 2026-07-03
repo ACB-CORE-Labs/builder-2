@@ -107,7 +107,9 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
     assert "reverse_patch_ref" not in bundle_data
 
     # Verify the reverse patch file was written
-    reverse_patch_file = out_dir / "rollback.patch"
+    from builder_ii.hitl_patch_apply import FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME
+
+    reverse_patch_file = out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME
     assert reverse_patch_file.exists()
 
     # 5. Rollback verification: test digest mismatch rejection

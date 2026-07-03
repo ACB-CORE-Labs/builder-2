@@ -75,7 +75,7 @@ def _resolve_output_dir(
 
 
 def _emit_status(status: dict[str, Any]) -> None:
-    console.out(json_lib.dumps(status, indent=2, sort_keys=True), end="\n")
+    typer.echo(json_lib.dumps(status, indent=2, sort_keys=True))
 
 
 def _run(action) -> None:
