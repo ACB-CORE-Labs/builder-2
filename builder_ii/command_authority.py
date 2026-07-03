@@ -100,6 +100,14 @@ READONLY_TUI_COMMANDS: tuple[str, ...] = (
     "builder goose governance",
     "builder goose validate",
     "builder goose approval",
+    "builder code-vault status",
+    "builder code-vault frame",
+    "builder code-vault determinism",
+    "builder code-vault recall",
+    "builder code-vault lint",
+    "builder code-vault context",
+    "builder code-vault governance",
+    "builder code-vault validate",
 )
 
 
@@ -182,6 +190,7 @@ READONLY_TUI_COMMAND_GROUPS: tuple[str, ...] = (
     "builder promote",
     "builder postflight",
     "builder goose",
+    "builder code-vault",
 )
 
 READONLY_TUI_AUTHORITY_RECORDS: tuple[CommandAuthorityRecord, ...] = tuple(
@@ -3547,6 +3556,8 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
     "builder-code-vault validate-lint",
     "builder-code-vault validate-context",
     "builder-code-vault validate-recall",
+    "builder-code-vault demo",
+    "builder-code-vault validate-demo",
     "builder-session operator-surface",
     "builder-session command-surface",
     "builder-agent profiles",
