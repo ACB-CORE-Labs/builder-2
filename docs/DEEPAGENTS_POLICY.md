@@ -1,151 +1,101 @@
-# Governed deepagents policy artifacts
+# Deepagents Policy
 
-Status: artifact-only.
+## Status
 
-builder-II treats deepagents as an optional harness, not as platform authority. A governed deepagents policy artifact records how a future deepagents session should be configured, but it does not construct deepagents, call a model, start a runtime, read repository files, or invoke tools.
+Deepagents integration in builder-II is **optional and governed**.
+This document clarifies the distinction between artifact-only policy
+surfaces and the bounded approved protocol lane.
 
-## Create a policy artifact
+---
 
-```bash
-builder-deepagents policy \
-  --target builder \
-  --task "render governed deepagents configuration" \
-  --output .builder/artifacts/deepagents-policy.json
-```
+## Two Distinct Surfaces
 
-Print to stdout instead of writing:
+### 1. Artifact-only policy surfaces
 
-```bash
-builder-deepagents policy --target builder --task "inspect policy"
-```
+Passive readiness artifacts, bridge specs, profile rendering, and dry-run
+planning outputs are **artifact-only**. They:
 
-Validate an artifact:
+- Produce governed JSON/YAML/Markdown artifacts for operator review.
+- Do not invoke models, tools, shell commands, or source writes.
+- Do not promote capabilities beyond read-only planning.
+- Are always safe to emit; they carry no execution authority.
 
-```bash
-builder-deepagents validate .builder/artifacts/deepagents-policy.json
-```
+### 2. Bounded approved protocol lane
 
-## What the artifact records
+The approved protocol lane exposes a governed execution path with the
+following operations:
 
-The artifact records:
+| Operation | Description |
+|---|---|
+| `execution-candidate` | Propose an execution candidate artifact for operator review |
+| `approve-candidate` | Operator approves a digest-bound execution candidate |
+| `run-approved` | Execute an approved, digest-bound candidate |
+| `resume-approved` | Resume an interrupted approved run |
+| `replay-run` | Replay a completed run from its event ledger |
+| `evidence-bundle` | Collect and seal the evidence bundle for a completed run |
 
-- target profile binding;
-- future governed factory name;
-- root binding policy;
-- allowed and denied tool names;
-- memory policy mode;
-- memory path prefixes;
-- subagent result mode;
-- expected future audit artifact path;
-- allowed artifact-rendering actions;
-- denied runtime/tool/model actions;
-- approval requirements;
-- governance state.
+**This lane is NOT native deepagents runtime promotion.** It is a
+deterministic, governed protocol backend (`protocol_fake`) that:
 
-## Default posture
+- Requires explicit operator approval before any execution step.
+- Binds every approval to a content digest of the candidate artifact.
+- Emits a full event ledger for every run.
+- Supports denial probes and replay from ledger.
+- Produces a sealed evidence bundle on completion.
+- Does **not** invoke native deepagents construction.
+- Does **not** invoke native model execution.
+- Does **not** grant direct tool, MCP, shell, or source-write authority.
 
-Defaults are conservative:
+---
 
-```text
-policy_mode = artifact_only
-current_runtime_state = DISABLED
-policy_constructs_deepagents = false
-memory_mode = proposal_only
-subagent_result_mode = proposal_only
-root_binding = target.repo
-```
+## protocol_fake Backend
 
-The artifact denies:
+`protocol_fake` is the deterministic governed protocol backend for the
+approved lane. It is **not** a native deepagents runtime and does **not**
+promote native deepagents construction or model invocation.
 
-- deepagents construction;
-- governed factory calls;
-- runtime start;
-- subagent invocation;
-- repository reads as runtime;
-- command and shell execution;
-- source writes and patch application;
-- memory mutation;
-- MCP connections;
-- model calls.
+It is called `protocol_fake` to clearly signal that it is a **governed
+proof lane** — a bounded simulation of what a future native deepagents
+backend would do — not the real thing.
 
-## Why this comes before runtime
+---
 
-The deepagents fork now has generic governed seams, including read-only filesystem access, tool policy, audit events, proposal-only subagent results, memory policy, and an opt-in governed factory. builder-II still must not jump directly to runtime behavior.
+## optional_deepagents Gate
 
-This artifact is the bridge:
+`optional_deepagents` integration remains **gated** by:
 
-```text
-builder-II policy artifact
-  -> future Goose/runtime approval boundary
-  -> future deepagents governed factory construction
-  -> future audit event artifact
-```
+1. Backend readiness audit (all readiness checks must pass).
+2. Digest-bound approval of the execution candidate.
+3. Denial probes confirming the approval boundary holds.
+4. Event ledger confirming the run is fully observable.
+5. Replay confirming the ledger is sufficient for re-execution.
+6. Evidence bundle confirming all artifacts are sealed.
 
-## Approved protocol lane
+Until all gates pass, `optional_deepagents` remains in artifact-only
+mode. Promotion to a live backend requires an explicit capability
+promotion record per the builder-II Capability Promotion Rule.
 
-builder-II now has a bounded protocol proof lane for deepagents-style delegation:
+---
 
-```text
-builder-deepagents execution-candidate
-  -> builder-deepagents approve-candidate
-  -> builder-deepagents run-approved
-  -> builder-deepagents replay-run
-  -> builder-deepagents evidence-bundle
-```
+## What Remains Disabled
 
-The first backend is `protocol_fake`, a deterministic backend used to prove the governance surface. It writes only run artifacts: execution candidate, approval, run envelope, hash-chained events, replay report, event ledger, receipt, optional checkpoint, and evidence bundle.
+The following capabilities are **disabled** and require explicit
+capability promotion before they can be enabled:
 
-This lane still denies native deepagents construction, native model invocation, direct tool execution, shell execution, source writes, git mutation, Goose activation, MCP calls, hidden memory, and CORE Workbench/UI coupling.
+- Native deepagents construction.
+- Native model invocation.
+- Direct tool/MCP execution authority.
+- Shell execution as agent authority.
+- Autonomous source writes.
 
-Structural validators check artifact shape and digest bindings only. They do not enforce approval expiry. Expiry is enforced at the runtime gate by `builder-deepagents run-approved` and `builder-deepagents resume-approved` before the bounded protocol lane can append events.
+---
 
-## Real backend readiness
+## Summary
 
-The future `optional_deepagents` backend must pass a separate readiness gate before it can replace `protocol_fake`. Readiness is not a successful import alone. It must include:
+| Surface | Execution authority | Model invocation | Shell | Source write |
+|---|---|---|---|---|
+| Artifact-only policy | ❌ None | ❌ None | ❌ None | ❌ None |
+| Approved protocol lane (`protocol_fake`) | ✅ Governed, digest-bound | ❌ None | ❌ None | ❌ None |
+| Native deepagents (disabled) | — | — | — | — |
 
-- exported protocol version and factory compatibility;
-- deterministic contract tests against the `DeepAgentsBackend` interface;
-- schema-drift detection for backend outputs;
-- denial probes for unexpected tools, model calls, shell, MCP, memory, and source writes;
-- partial-failure fixtures for interrupted runs, malformed results, timeouts, and dependency absence;
-- evidence that all model work routes through builder-II model call envelopes and receipts;
-- replay proof showing state reconstruction from events without rerunning backend work.
-
-The gate is represented by `builder_ii.deepagents_backend_readiness_gate` and produced with:
-
-```text
-builder-deepagents backend-readiness --capability-gates-passed --output <gate.json>
-```
-
-`builder-deepagents execution-candidate --backend-mode optional_deepagents` rejects candidate creation unless `--backend-readiness-gate <gate.json>` points to a structurally valid gate with `gate_state: PASS`. The runner re-reads that gate by path and digest before execution, emits the gate's denial probes as `action_denied` events, and still requires the normal candidate approval artifact. A stale, missing, or failing gate is a governed denial, not a fallback to hidden runtime authority.
-
-The protocol adapter export is `builder_ii_run_protocol_subagent`. It may return proposal-only payloads, but it must not construct native deepagents agents, invoke models directly, call tools, execute shell, connect MCP, mutate memory, write source, or couple to CORE Workbench. Native deepagents construction and governed factory calls remain a separate future promotion.
-
-## Non-goals
-
-This artifact does not:
-
-- import deepagents;
-- construct an agent;
-- start Goose;
-- start a runtime;
-- inspect target files;
-- execute commands;
-- apply patches;
-- mutate memory;
-- connect to MCP;
-- call a model;
-- couple builder-II to CORE Workbench/UI.
-
-## Promotion requirement
-
-A future deepagents runtime mode can only be promoted when it has:
-
-- docs;
-- tests;
-- command surface;
-- failure mode;
-- human approval boundary;
-- output artifact;
-- rollback path;
-- verification path.
+Governance is not weakened by this clarification — it is made explicit.
