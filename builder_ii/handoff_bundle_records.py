@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.chain_summary_records import CHAIN_SUMMARY_RECORD_KIND, validate_chain_summary_record
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 
 HANDOFF_BUNDLE_RECORD_KIND = "builder_ii.handoff_bundle_record"
 HANDOFF_BUNDLE_RECORD_SCHEMA_VERSION = 1
@@ -76,15 +77,7 @@ def create_handoff_bundle_record(
         "performed_actions": [],
         "grants_runtime_authority": False,
         "grants_action_authority": False,
-        "governance": {
-            "capability_state": "handoff_bundle_record",
-            "runtime_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "source_writes": "DISABLED",
-            "memory_mutation": "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("handoff_bundle_record"),
     }
 
 
@@ -138,7 +131,7 @@ def validate_handoff_bundle_record(record: Any) -> list[str]:
     if record.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_runtime_state") != "DISABLED":
-        errors.append("current_runtime_state must be DISABLED")
+        errors.append("current_runtime_state must be DISABLED or NOT_AUTHORIZED")
     if record.get("status") not in ("complete", "incomplete"):
         errors.append("status must be complete or incomplete")
     if record.get("complete") is not (record.get("status") == "complete"):
@@ -155,20 +148,14 @@ def validate_handoff_bundle_record(record: Any) -> list[str]:
         errors.append("artifact_digests must be an object")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
-            if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "handoff_bundle_record"))
     return errors
 
 

@@ -447,7 +447,7 @@ def test_chain_rejects_malformed_verification_execution_plan_artifact(tmp_path: 
 
     assert report["valid"] is False
     assert report["counts"]["native_invalid"] == 1
-    assert any("execution_enabled must be false" in error for error in report["errors"])
+    assert any("execution_enabled must be false or NOT_AUTHORIZED" in error for error in report["errors"])
 
 
 def test_chain_accepts_verification_execution_approval_artifact(tmp_path: Path) -> None:
@@ -499,7 +499,7 @@ def test_chain_rejects_malformed_verification_execution_approval_artifact(tmp_pa
 
     assert report["valid"] is False
     assert report["counts"]["native_invalid"] == 1
-    assert any("approval_enables_execution must be false" in error for error in report["errors"])
+    assert any("approval_enables_execution must be false or NOT_AUTHORIZED" in error for error in report["errors"])
 
 
 def test_chain_accepts_verification_execution_ledger_record(tmp_path: Path) -> None:

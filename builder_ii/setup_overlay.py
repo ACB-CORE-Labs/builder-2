@@ -726,7 +726,7 @@ def validate_setup_overlay_plan_artifact(data: Any) -> list[str]:
     if data.get("schema_version") != SETUP_OVERLAY_PLAN_SCHEMA_VERSION:
         errors.append(f"schema_version must be {SETUP_OVERLAY_PLAN_SCHEMA_VERSION}")
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if data.get("planned_only") is not True:
         errors.append("planned_only must be true")
 
@@ -820,7 +820,7 @@ def validate_setup_overlay_plan_artifact(data: Any) -> list[str]:
         errors.append("skill_install_plan must be an object")
     else:
         if skill_plan.get("copy_skills") is not False:
-            errors.append("skill_install_plan.copy_skills must be false")
+            errors.append("skill_install_plan.copy_skills must be false or NOT_AUTHORIZED")
         entries = skill_plan.get("entries")
         if not isinstance(entries, list):
             errors.append("skill_install_plan.entries must be a list")
@@ -847,13 +847,13 @@ def validate_setup_overlay_plan_artifact(data: Any) -> list[str]:
                 if value is not True:
                     errors.append(f"no_mutation_proof.{key} must be true")
             elif value is not False:
-                errors.append(f"no_mutation_proof.{key} must be false")
+                errors.append(f"no_mutation_proof.{key} must be false or NOT_AUTHORIZED")
 
     governance = data.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     elif governance.get("artifact_is_authority") is not False:
-        errors.append("governance.artifact_is_authority must be false")
+        errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
 
     digest = data.get("overlay_plan_digest")
     if not _is_sha256(digest):

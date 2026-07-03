@@ -287,11 +287,11 @@ def _validate_manifest_invariants(data: dict[str, Any], capability_state: str) -
     )
     for key in invariant_keys:
         if data.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if data.get("requires_separate_activation_artifact") is not True:
         errors.append("requires_separate_activation_artifact must be true")
     if data.get("core_workbench_coupling") != "NONE":
-        errors.append("core_workbench_coupling must be NONE")
+        errors.append("core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     gov = data.get("governance")
     if not isinstance(gov, dict):
@@ -301,11 +301,11 @@ def _validate_manifest_invariants(data: dict[str, Any], capability_state: str) -
             errors.append(f"governance.capability_state must be {capability_state}")
         for key in invariant_keys:
             if gov.get(key) is not False:
-                errors.append(f"governance.{key} must be false")
+                errors.append(f"governance.{key} must be false or NOT_AUTHORIZED")
         if gov.get("requires_separate_activation_artifact") is not True:
             errors.append("governance.requires_separate_activation_artifact must be true")
         if gov.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 
@@ -602,7 +602,7 @@ def validate_execution_candidate_manifest(data: Any) -> list[str]:
         if target_profile not in ("generic", "builder", "core"):
             errors.append("candidate_scope.target_profile must be generic, builder, or core")
         if scope.get("core_workbench_coupling") != "NONE":
-            errors.append("candidate_scope.core_workbench_coupling must be NONE")
+            errors.append("candidate_scope.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
         errors.extend(_validate_deephaven_rejection(scope, "candidate_scope"))
 
         if "command_previews" in scope:

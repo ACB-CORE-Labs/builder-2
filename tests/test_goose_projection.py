@@ -84,9 +84,9 @@ def test_goose_projection_rejects_runtime_escalation(tmp_path: Path) -> None:
     errors = validate_goose_projection(bad)
 
     assert "projection_state must be PLANNED_ONLY" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.goose_runtime_start must be DISABLED" in errors
-    assert "governance.model_execution must be DISABLED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.goose_runtime_start must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.model_execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_goose_projection_file_validation(tmp_path: Path) -> None:

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from builder_ii.goose_command_proposal import GOOSE_COMMAND_PROPOSAL_KIND, validate_goose_command_proposal
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 
 ApprovalDecision = Literal["approved", "rejected"]
 
@@ -77,12 +78,7 @@ def create_approval_record(
         "grants_runtime_authority": False,
         "grants_action_authority": False,
         "rollback_refs": ["delete this record to roll back the recorded decision"],
-        "governance": {
-            "capability_state": "approval_record",
-            **{key: "DISABLED" for key in _OFF_KEYS},
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("approval_record"),
     }
 
 
@@ -133,7 +129,7 @@ def validate_approval_record(record: Any) -> list[str]:
     if record.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_runtime_state") != "DISABLED":
-        errors.append("current_runtime_state must be DISABLED")
+        errors.append("current_runtime_state must be DISABLED or NOT_AUTHORIZED")
     proposal = record.get("proposal")
     if not isinstance(proposal, dict) or proposal.get("kind") != GOOSE_COMMAND_PROPOSAL_KIND:
         errors.append(f"proposal.kind must be {GOOSE_COMMAND_PROPOSAL_KIND}")
@@ -150,7 +146,7 @@ def validate_approval_record(record: Any) -> list[str]:
             errors.append("decision.decided_by is required")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     result = record.get("result")
@@ -165,13 +161,7 @@ def validate_approval_record(record: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        for key in _OFF_KEYS:
-            if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "approval_record"))
     return errors
 
 

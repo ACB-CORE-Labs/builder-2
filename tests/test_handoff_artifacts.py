@@ -73,12 +73,12 @@ def test_validate_handoff_artifact_rejects_runtime_authority() -> None:
 
     errors = validate_handoff_artifact(artifact)
 
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.model_execution must be DISABLED" in errors
-    assert "governance.agent_construction must be DISABLED" in errors
-    assert "governance.notes_vault_mutation must be DISABLED" in errors
-    assert "governance.shell_execution must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.model_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.agent_construction must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.notes_vault_mutation must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.shell_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_validate_handoff_artifact_file_errors(tmp_path: Path) -> None:

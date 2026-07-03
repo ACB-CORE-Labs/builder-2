@@ -102,9 +102,9 @@ def validate_model_routing_policy(record: Any) -> list[str]:
     if record.get("policy_state") != "RECOMMENDATION_ONLY":
         errors.append("policy_state must be RECOMMENDATION_ONLY")
     if record.get("executes_model") is not False:
-        errors.append("executes_model must be false")
+        errors.append("executes_model must be false or NOT_AUTHORIZED")
     if record.get("grants_authority") is not False:
-        errors.append("grants_authority must be false")
+        errors.append("grants_authority must be false or NOT_AUTHORIZED")
     if record.get("requires_human_promotion_for_execution") is not True:
         errors.append("requires_human_promotion_for_execution must be true")
 
@@ -153,13 +153,13 @@ def validate_model_routing_policy(record: Any) -> list[str]:
     else:
         for key in ("model_execution", "runtime_execution", "network_calls", "shell_execution", "provider_calls"):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("routing_decision_executes") is not False:
-            errors.append("governance.routing_decision_executes must be false")
+            errors.append("governance.routing_decision_executes must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     def _check_no_active_states(obj: Any, path: str) -> None:
         if isinstance(obj, dict):
@@ -367,9 +367,9 @@ def validate_model_routing_recommendation(record: Any) -> list[str]:
     if record.get("recommendation_state") != "RECOMMENDATION_ONLY":
         errors.append("recommendation_state must be RECOMMENDATION_ONLY")
     if record.get("executes_model") is not False:
-        errors.append("executes_model must be false")
+        errors.append("executes_model must be false or NOT_AUTHORIZED")
     if record.get("grants_authority") is not False:
-        errors.append("grants_authority must be false")
+        errors.append("grants_authority must be false or NOT_AUTHORIZED")
     if record.get("requires_human_promotion_for_execution") is not True:
         errors.append("requires_human_promotion_for_execution must be true")
 
@@ -418,13 +418,13 @@ def validate_model_routing_recommendation(record: Any) -> list[str]:
     else:
         for key in ("model_execution", "runtime_execution", "network_calls", "shell_execution", "provider_calls"):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("recommendation_executes") is not False:
-            errors.append("governance.recommendation_executes must be false")
+            errors.append("governance.recommendation_executes must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     for k, v in record.items():
         if isinstance(v, str) and v in {"EXECUTED", "AUTHORIZED", "PROMOTED", "ENABLED"}:
@@ -494,7 +494,7 @@ def validate_model_execution_policy(record: Any) -> list[str]:
     # authority registry and explicit operator invocation only.
     if record.get("grants_authority") is not False:
         errors.append(
-            "grants_authority must be false — execution policy is a bounded artifact, not an authority source"
+            "grants_authority must be false or NOT_AUTHORIZED — execution policy is a bounded artifact, not an authority source"
         )
     if record.get("requires_human_promotion_for_execution") is not True:
         errors.append("requires_human_promotion_for_execution must be true")
@@ -529,11 +529,11 @@ def validate_model_execution_policy(record: Any) -> list[str]:
             errors.append("governance.model_execution must be ENABLED_UNDER_ENVELOPE")
         for key in ("runtime_execution", "network_calls", "shell_execution", "provider_calls"):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     return errors
 

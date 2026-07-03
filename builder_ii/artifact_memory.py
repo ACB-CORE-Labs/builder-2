@@ -533,9 +533,9 @@ def _validate_governance(value: Any, *, capability_state: str) -> list[str]:
         "autonomous_memory_writes",
     ):
         if value.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
     if value.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
-        errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
+        errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
     for key in (
         "hidden_memory",
         "model_summary_is_authority",
@@ -545,9 +545,9 @@ def _validate_governance(value: Any, *, capability_state: str) -> list[str]:
         "grants_authority",
     ):
         if value.get(key) is not False:
-            errors.append(f"governance.{key} must be false")
+            errors.append(f"governance.{key} must be false or NOT_AUTHORIZED")
     if value.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 
@@ -623,9 +623,9 @@ def validate_memory_atom(data: Any) -> list[str]:
         errors.append("stale_reason is required when atom_state is REJECTED")
 
     if data.get("model_summary_is_authority") is not False:
-        errors.append("model_summary_is_authority must be false")
+        errors.append("model_summary_is_authority must be false or NOT_AUTHORIZED")
     if data.get("target_repo_mutation") is not False:
-        errors.append("target_repo_mutation must be false")
+        errors.append("target_repo_mutation must be false or NOT_AUTHORIZED")
 
     if data.get("claim_boundary") == "derived_summary":
         if data.get("source_truth_state") != "DERIVED_SUMMARY":
@@ -649,9 +649,9 @@ def validate_memory_atom(data: Any) -> list[str]:
             errors.append("handoff-derived memory atoms require source_refs to avoid source-truth inflation")
 
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if data.get("grants_authority") is not False:
-        errors.append("grants_authority must be false")
+        errors.append("grants_authority must be false or NOT_AUTHORIZED")
     errors.extend(_validate_governance(data.get("governance"), capability_state="memory_atom"))
 
     digest = data.get("atom_digest")
@@ -692,11 +692,11 @@ def validate_memory_index(data: Any) -> list[str]:
         if search_policy.get("mode") != SEARCH_MODE:
             errors.append(f"search_policy.mode must be {SEARCH_MODE}")
         if search_policy.get("opaque_vector_store") != "DISABLED":
-            errors.append("search_policy.opaque_vector_store must be DISABLED")
+            errors.append("search_policy.opaque_vector_store must be DISABLED or NOT_AUTHORIZED")
         if search_policy.get("autonomous_memory_writes") != "DISABLED":
-            errors.append("search_policy.autonomous_memory_writes must be DISABLED")
+            errors.append("search_policy.autonomous_memory_writes must be DISABLED or NOT_AUTHORIZED")
         if search_policy.get("hidden_memory") is not False:
-            errors.append("search_policy.hidden_memory must be false")
+            errors.append("search_policy.hidden_memory must be false or NOT_AUTHORIZED")
 
     entries = data.get("entries")
     if not isinstance(entries, list) or not entries:
@@ -791,9 +791,9 @@ def validate_memory_index(data: Any) -> list[str]:
         errors.append("search_keys must be ['tags', 'task', 'summary_text', 'artifact_kind']")
 
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if data.get("grants_authority") is not False:
-        errors.append("grants_authority must be false")
+        errors.append("grants_authority must be false or NOT_AUTHORIZED")
     errors.extend(_validate_governance(data.get("governance"), capability_state="memory_index"))
 
     digest = data.get("index_digest")
@@ -837,9 +837,9 @@ def validate_memory_search_result(data: Any) -> list[str]:
         if policy.get("excluded_states") != ["SUPERSEDED", "REJECTED"]:
             errors.append("search_policy.excluded_states must be ['SUPERSEDED', 'REJECTED']")
         if policy.get("opaque_vector_store") != "DISABLED":
-            errors.append("search_policy.opaque_vector_store must be DISABLED")
+            errors.append("search_policy.opaque_vector_store must be DISABLED or NOT_AUTHORIZED")
         if policy.get("hidden_memory") is not False:
-            errors.append("search_policy.hidden_memory must be false")
+            errors.append("search_policy.hidden_memory must be false or NOT_AUTHORIZED")
 
     if not isinstance(data.get("total_indexed_atoms"), int) or data["total_indexed_atoms"] < 0:
         errors.append("total_indexed_atoms must be a non-negative integer")
@@ -895,9 +895,9 @@ def validate_memory_search_result(data: Any) -> list[str]:
                 errors.append(f"{prefix}.reason must be a non-empty string")
 
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if data.get("grants_authority") is not False:
-        errors.append("grants_authority must be false")
+        errors.append("grants_authority must be false or NOT_AUTHORIZED")
     errors.extend(_validate_governance(data.get("governance"), capability_state="memory_search_result"))
 
     digest = data.get("search_result_digest")
@@ -940,11 +940,11 @@ def validate_memory_reconstruction(data: Any) -> list[str]:
         if policy.get("excluded_states") != ["SUPERSEDED", "REJECTED"]:
             errors.append("reconstruction_policy.excluded_states must be ['SUPERSEDED', 'REJECTED']")
         if policy.get("opaque_vector_store") != "DISABLED":
-            errors.append("reconstruction_policy.opaque_vector_store must be DISABLED")
+            errors.append("reconstruction_policy.opaque_vector_store must be DISABLED or NOT_AUTHORIZED")
         if policy.get("hidden_memory") is not False:
-            errors.append("reconstruction_policy.hidden_memory must be false")
+            errors.append("reconstruction_policy.hidden_memory must be false or NOT_AUTHORIZED")
         if policy.get("autonomous_memory_writes") != "DISABLED":
-            errors.append("reconstruction_policy.autonomous_memory_writes must be DISABLED")
+            errors.append("reconstruction_policy.autonomous_memory_writes must be DISABLED or NOT_AUTHORIZED")
 
     selected_refs = data.get("selected_atom_refs")
     if not isinstance(selected_refs, list):
@@ -1029,9 +1029,9 @@ def validate_memory_reconstruction(data: Any) -> list[str]:
     errors.extend(_validate_string_list(data.get("known_gaps"), field="known_gaps"))
 
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if data.get("grants_authority") is not False:
-        errors.append("grants_authority must be false")
+        errors.append("grants_authority must be false or NOT_AUTHORIZED")
     errors.extend(_validate_governance(data.get("governance"), capability_state="memory_reconstruction"))
 
     digest = data.get("reconstruction_digest")

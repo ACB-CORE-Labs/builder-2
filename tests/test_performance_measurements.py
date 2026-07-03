@@ -71,13 +71,13 @@ def test_validate_performance_measurement_rejects_authority_and_execution_drift(
     errors = validate_performance_measurement_record(record)
 
     assert "performed_actions must be empty" in errors
-    assert "grants_runtime_authority must be false" in errors
-    assert "grants_action_authority must be false" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.benchmark_execution must be DISABLED" in errors
-    assert "governance.hardware_probe must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
-    assert "governance.core_workbench_coupling must be NONE" in errors
+    assert "grants_runtime_authority must be false or NOT_AUTHORIZED" in errors
+    assert "grants_action_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.benchmark_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.hardware_probe must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in errors
 
 
 def test_validate_performance_measurement_rejects_bad_metric() -> None:

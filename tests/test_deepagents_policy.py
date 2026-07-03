@@ -78,17 +78,17 @@ def test_validate_rejects_runtime_authority() -> None:
     errors = validate_deepagents_policy_artifact(artifact)
 
     assert "policy_mode must be artifact_only" in errors
-    assert "current_runtime_state must be DISABLED" in errors
-    assert "policy_constructs_deepagents must be false" in errors
+    assert "current_runtime_state must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "policy_constructs_deepagents must be false or NOT_AUTHORIZED" in errors
     assert "governed_factory.factory must be create_governed_deep_agent" in errors
     assert "governed_factory.allow_tools must be a non-empty list" in errors
     assert "governed_factory.memory_mode must be disabled, proposal_only, or approved" in errors
     assert "governed_factory.subagent_result_mode must be trusted or proposal_only" in errors
     assert "denied_actions must include call_models" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.deepagents_runtime_start must be DISABLED" in errors
-    assert "governance.agent_construction must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.deepagents_runtime_start must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.agent_construction must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:

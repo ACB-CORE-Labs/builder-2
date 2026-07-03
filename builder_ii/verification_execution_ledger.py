@@ -991,7 +991,7 @@ def validate_verification_execution_ledger_record(record: Any) -> list[str]:
         "replays_execution",
     ):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
@@ -1008,14 +1008,14 @@ def validate_verification_execution_ledger_record(record: Any) -> list[str]:
             "replay_execution",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT LEDGER ARTIFACT OUTPUT PATH":
-            errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT LEDGER ARTIFACT OUTPUT PATH")
+            errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT LEDGER ARTIFACT OUTPUT PATH")
         for key in ("artifact_is_authority", "grants_runtime_authority", "grants_action_authority"):
             if governance.get(key) is not False:
-                errors.append(f"governance.{key} must be false")
+                errors.append(f"governance.{key} must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     artifact_errors = record.get("errors")
     if not isinstance(artifact_errors, list) or not all(isinstance(item, str) for item in artifact_errors):
         errors.append("errors must be a list of strings")
@@ -1102,7 +1102,7 @@ def validate_verification_execution_ledger_integrity_report(record: Any) -> list
         "replays_execution",
     ):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
@@ -1221,7 +1221,7 @@ def validate_verification_execution_ledger_reconstruction_report(record: Any) ->
         "replays_execution",
     ):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")

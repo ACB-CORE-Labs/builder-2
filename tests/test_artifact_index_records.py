@@ -213,7 +213,7 @@ def test_index_rejects_malformed_verification_execution_plan_artifact(tmp_path: 
     assert record["counts"]["known"] == 1
     assert record["counts"]["invalid"] == 1
     assert record["artifacts"][0]["kind"] == "builder_ii.verification_execution_plan"
-    assert any("execution_enabled must be false" in error for error in record["artifacts"][0]["errors"])
+    assert any("execution_enabled must be false or NOT_AUTHORIZED" in error for error in record["artifacts"][0]["errors"])
 
 
 def test_index_recognizes_verification_execution_approval_artifact(tmp_path: Path) -> None:
@@ -267,7 +267,7 @@ def test_index_rejects_malformed_verification_execution_approval_artifact(tmp_pa
     assert record["counts"]["known"] == 1
     assert record["counts"]["invalid"] == 1
     assert record["artifacts"][0]["kind"] == "builder_ii.verification_execution_approval"
-    assert any("execution_enabled must be false" in error for error in record["artifacts"][0]["errors"])
+    assert any("execution_enabled must be false or NOT_AUTHORIZED" in error for error in record["artifacts"][0]["errors"])
 
 
 def test_index_marks_unknown_artifact_incomplete(tmp_path: Path) -> None:
@@ -315,10 +315,10 @@ def test_validate_rejects_authority_changes(tmp_path: Path) -> None:
     errors = validate_artifact_index_record(record)
 
     assert "record_state must be RECORDED_ONLY" in errors
-    assert "grants_runtime_authority must be false" in errors
-    assert "grants_action_authority must be false" in errors
+    assert "grants_runtime_authority must be false or NOT_AUTHORIZED" in errors
+    assert "grants_action_authority must be false or NOT_AUTHORIZED" in errors
     assert "performed_actions must be empty" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:

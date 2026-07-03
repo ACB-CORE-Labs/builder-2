@@ -68,12 +68,12 @@ def test_validate_research_adapter_rejects_authority_changes() -> None:
     assert "adapter_relation must be PROJECTION_ONLY" in errors
     assert "handoff_state must be NOT_INVOKED" in errors
     assert "performed_actions must be empty" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.model_execution must be DISABLED" in errors
-    assert "governance.search_execution must be DISABLED" in errors
-    assert "governance.source_collection must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
-    assert "governance.core_workbench_coupling must be NONE" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.model_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.search_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.source_collection must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in errors
 
 
 def test_research_plan_digest_fixture_is_stable_shape() -> None:

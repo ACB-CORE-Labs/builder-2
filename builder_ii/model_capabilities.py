@@ -523,11 +523,11 @@ def validate_model_capability_registry(registry: Any) -> list[str]:
     if registry.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if registry.get("current_state") != "DISABLED":
-        errors.append("current_state must be DISABLED")
+        errors.append("current_state must be DISABLED or NOT_AUTHORIZED")
     if registry.get("scope") != "MODEL_METADATA_ONLY":
         errors.append("scope must be MODEL_METADATA_ONLY")
     if registry.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     models = registry.get("models")
     if not isinstance(models, list) or not models:
         errors.append("models must be a non-empty list")
@@ -560,11 +560,11 @@ def validate_model_capability_registry(registry: Any) -> list[str]:
             "memory_mutation",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

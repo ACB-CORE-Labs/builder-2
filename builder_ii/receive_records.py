@@ -5,6 +5,7 @@ import json as json_lib
 from pathlib import Path
 from typing import Any, Literal
 
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.handoff_bundle_records import HANDOFF_BUNDLE_RECORD_KIND, validate_handoff_bundle_record
 
 ReceiveDecision = Literal["accepted", "blocked"]
@@ -69,13 +70,7 @@ def create_receive_record(
         "performed_actions": [],
         "grants_runtime_authority": False,
         "grants_action_authority": False,
-        "governance": {
-            "capability_state": "receive_record",
-            "runtime_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("receive_record"),
     }
 
 
@@ -123,7 +118,7 @@ def validate_receive_record(record: Any) -> list[str]:
     if record.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_state") != "DISABLED":
-        errors.append("current_state must be DISABLED")
+        errors.append("current_state must be DISABLED or NOT_AUTHORIZED")
     if record.get("decision") not in ("accepted", "blocked"):
         errors.append("decision must be accepted or blocked")
     if record.get("accepted") is not (record.get("decision") == "accepted" and record.get("blockers") == []):
@@ -136,17 +131,14 @@ def validate_receive_record(record: Any) -> list[str]:
         errors.append(f"bundle.expected_kind must be {HANDOFF_BUNDLE_RECORD_KIND}")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "receive_record"))
     return errors
 
 

@@ -141,6 +141,7 @@ from builder_ii.goose_wrapper_plan import (
     GOOSE_WRAPPER_PLAN_KIND,
     validate_goose_wrapper_plan,
 )
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.governed_prepare_package import (
     GOVERNED_PREPARE_PACKAGE_KIND,
     GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
@@ -629,15 +630,7 @@ def create_artifact_index_record(
         "performed_actions": [],
         _GRANTS_RUNTIME_AUTHORITY: False,
         "grants_action_authority": False,
-        "governance": {
-            "capability_state": "artifact_index_record",
-            _RUNTIME_EXECUTION: "DISABLED",
-            _MODEL_EXECUTION: "DISABLED",
-            _SOURCE_WRITES: "DISABLED",
-            _MEMORY_MUTATION: "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("artifact_index_record"),
     }
 
 
@@ -661,7 +654,7 @@ def validate_artifact_index_record(record: Any) -> list[str]:
     if record.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_state") != "DISABLED":
-        errors.append("current_state must be DISABLED")
+        errors.append("current_state must be DISABLED or NOT_AUTHORIZED")
     if record.get("status") not in ("complete", "incomplete"):
         errors.append("status must be complete or incomplete")
     if record.get("complete") is not (record.get("status") == "complete"):
@@ -674,17 +667,14 @@ def validate_artifact_index_record(record: Any) -> list[str]:
         errors.append("artifacts must be a list")
     for key in (_GRANTS_RUNTIME_AUTHORITY, "grants_action_authority"):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "artifact_index_record"))
     return errors
 
 

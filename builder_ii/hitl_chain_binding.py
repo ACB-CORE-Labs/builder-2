@@ -151,11 +151,11 @@ def _validate_governance(governance: Any) -> list[str]:
         return ["governance must be an object"]
     for key in _SAFE_GOVERNANCE_KEYS:
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
     if governance.get("artifact_is_authority") is not False:
-        errors.append("governance.artifact_is_authority must be false")
+        errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 
@@ -286,7 +286,7 @@ def validate_hitl_chain_binding(artifact: Any) -> list[str]:
         )
 
     if "artifact_is_authority" in artifact and artifact["artifact_is_authority"] is not False:
-        errors.append("artifact_is_authority must be false when present")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED when present")
 
     errors.extend(_validate_governance(artifact.get("governance")))
     return errors

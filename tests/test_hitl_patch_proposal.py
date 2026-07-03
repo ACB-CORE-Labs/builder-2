@@ -44,7 +44,7 @@ def test_invalid_enabled_runtime_fails() -> None:
     spec = create_hitl_patch_proposal()
     spec["current_state"]["runtime"] = "ENABLED"
     errors = validate_hitl_patch_proposal(spec)
-    assert any("current_state.runtime must be DISABLED" in e for e in errors)
+    assert any("current_state.runtime must be DISABLED or NOT_AUTHORIZED" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +55,7 @@ def test_source_writes_enabled_fails() -> None:
     spec = create_hitl_patch_proposal()
     spec["governance"]["source_writes"] = "ENABLED"
     errors = validate_hitl_patch_proposal(spec)
-    assert any("governance.source_writes must be DISABLED" in e for e in errors)
+    assert any("governance.source_writes must be DISABLED or NOT_AUTHORIZED" in e for e in errors)
 
 
 # ---------------------------------------------------------------------------
@@ -67,13 +67,13 @@ def test_artifact_is_authority_true_fails() -> None:
     spec = create_hitl_patch_proposal()
     spec["governance"]["artifact_is_authority"] = True
     errors = validate_hitl_patch_proposal(spec)
-    assert any("governance.artifact_is_authority must be false" in e for e in errors)
+    assert any("governance.artifact_is_authority must be false or NOT_AUTHORIZED" in e for e in errors)
 
     # current_state block
     spec2 = create_hitl_patch_proposal()
     spec2["current_state"]["artifact_is_authority"] = True
     errors2 = validate_hitl_patch_proposal(spec2)
-    assert any("current_state.artifact_is_authority must be false" in e for e in errors2)
+    assert any("current_state.artifact_is_authority must be false or NOT_AUTHORIZED" in e for e in errors2)
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +85,7 @@ def test_core_workbench_coupling_non_none_fails() -> None:
         spec = create_hitl_patch_proposal()
         spec["governance"]["core_workbench_coupling"] = bad_value
         errors = validate_hitl_patch_proposal(spec)
-        assert any("governance.core_workbench_coupling must be NONE" in e for e in errors), (
+        assert any("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in e for e in errors), (
             f"Expected failure for coupling={bad_value!r}, got: {errors}"
         )
 
@@ -202,7 +202,7 @@ def test_governance_defaults_fully_disabled() -> None:
         "goose_runtime_activation",
         "deepagents_runtime",
     ):
-        assert gov[key] == "DISABLED", f"governance.{key} must be DISABLED by default"
+        assert gov[key] == "DISABLED", f"governance.{key} must be DISABLED or NOT_AUTHORIZED by default"
     assert gov["artifact_is_authority"] is False
     assert gov["core_workbench_coupling"] == "NONE"
 

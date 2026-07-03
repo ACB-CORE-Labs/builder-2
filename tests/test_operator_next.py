@@ -68,11 +68,11 @@ def test_validate_operator_next_action_report_invalid_governance():
     report = create_operator_next_action_report()
     report["governance"]["artifact_is_authority"] = True
     errors = validate_operator_next_action_report(report)
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_next_action_authority_overclaim_fails():
     report = create_operator_next_action_report()
     report["grants_authority"] = True
     errors = validate_operator_next_action_report(report)
-    assert any("grants_authority must be false" in e for e in errors)
+    assert any("grants_authority must be false or NOT_AUTHORIZED" in e for e in errors)

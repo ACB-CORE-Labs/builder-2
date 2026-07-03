@@ -334,9 +334,9 @@ def validate_governed_prepare_package(data: Any) -> list[str]:
     if data.get("package_state") != "PREPARED_ONLY":
         errors.append("package_state must be PREPARED_ONLY")
     if data.get("runtime_execution_performed") is not False:
-        errors.append("runtime_execution_performed must be false")
+        errors.append("runtime_execution_performed must be false or NOT_AUTHORIZED")
     if data.get("target_repo_writes_performed") is not False:
-        errors.append("target_repo_writes_performed must be false")
+        errors.append("target_repo_writes_performed must be false or NOT_AUTHORIZED")
 
     governance = data.get("governance")
     if not isinstance(governance, dict):
@@ -351,19 +351,19 @@ def validate_governed_prepare_package(data: Any) -> list[str]:
             "memory_mutation",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY":
-            errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY")
+            errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY")
         if governance.get("target_repo_writes") != "DISABLED":
-            errors.append("governance.target_repo_writes must be DISABLED")
+            errors.append("governance.target_repo_writes must be DISABLED or NOT_AUTHORIZED")
         if governance.get("goose_activation") != "DISABLED":
-            errors.append("governance.goose_activation must be DISABLED")
+            errors.append("governance.goose_activation must be DISABLED or NOT_AUTHORIZED")
         if governance.get("deepagents_delegation") != "DISABLED":
-            errors.append("governance.deepagents_delegation must be DISABLED")
+            errors.append("governance.deepagents_delegation must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     return errors
 
@@ -589,9 +589,9 @@ def validate_governed_prepare_package_summary(data: Any) -> list[str]:
     if data.get("package_state") != "PREPARED_ONLY":
         errors.append("package_state must be PREPARED_ONLY")
     if data.get("runtime_execution_performed") is not False:
-        errors.append("runtime_execution_performed must be false")
+        errors.append("runtime_execution_performed must be false or NOT_AUTHORIZED")
     if data.get("target_repo_writes_performed") is not False:
-        errors.append("target_repo_writes_performed must be false")
+        errors.append("target_repo_writes_performed must be false or NOT_AUTHORIZED")
 
     artifacts = data.get("artifacts")
     if not isinstance(artifacts, list) or not artifacts:
@@ -645,19 +645,19 @@ def validate_governed_prepare_package_summary(data: Any) -> list[str]:
             "memory_mutation",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH":
-            errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT SUMMARY OUTPUT PATH")
+            errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT SUMMARY OUTPUT PATH")
         if governance.get("target_repo_writes") != "DISABLED":
-            errors.append("governance.target_repo_writes must be DISABLED")
+            errors.append("governance.target_repo_writes must be DISABLED or NOT_AUTHORIZED")
         if governance.get("goose_activation") != "DISABLED":
-            errors.append("governance.goose_activation must be DISABLED")
+            errors.append("governance.goose_activation must be DISABLED or NOT_AUTHORIZED")
         if governance.get("deepagents_delegation") != "DISABLED":
-            errors.append("governance.deepagents_delegation must be DISABLED")
+            errors.append("governance.deepagents_delegation must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     return errors
 

@@ -184,7 +184,7 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
         },
     }
     errors = validate_context_pack_record(bad_coupling)
-    assert any("core_workbench_coupling must be NONE" in err for err in errors)
+    assert any("core_workbench_coupling must be NONE or NOT_AUTHORIZED" in err for err in errors)
 
     # selected_files list validation failures
     bad_files = {

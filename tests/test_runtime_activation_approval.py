@@ -68,8 +68,8 @@ def test_runtime_activation_approval_spec_rejects_approval_escalation(tmp_path: 
     assert "approval_state must be PROPOSED_ONLY" in errors
     assert "approval_boundary.runtime_activation must be NOT_AUTHORIZED" in errors
     assert "approval_boundary.approval_evidence_ref must be null" in errors
-    assert "operator_plan_summary.executes_now must be false" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
+    assert "operator_plan_summary.executes_now must be false or NOT_AUTHORIZED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_runtime_activation_approval_spec_file_validation(tmp_path: Path) -> None:

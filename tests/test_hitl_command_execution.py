@@ -88,9 +88,9 @@ def test_validation_rejects_bad_spec() -> None:
     spec["governance"]["core_workbench_coupling"] = "TIGHT"
 
     errors = validate_hitl_command_execution_spec(spec)
-    assert "current_state.runtime must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
-    assert "governance.core_workbench_coupling must be NONE" in errors
+    assert "current_state.runtime must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in errors
 
 
 def test_file_io_helpers(tmp_path: Path) -> None:

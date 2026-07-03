@@ -44,4 +44,4 @@ def test_resolved_referenced_file_must_pass_native_validation(tmp_path: Path) ->
     assert report["counts"]["native_invalid"] == 0
     assert report["counts"]["broken_links"] == 1
     assert any("Resolved target native validation failed" in error for error in report["errors"])
-    assert any("governance.model_execution must be DISABLED" in error for error in report["errors"])
+    assert any("governance.model_execution must be DISABLED or NOT_AUTHORIZED" in error for error in report["errors"])

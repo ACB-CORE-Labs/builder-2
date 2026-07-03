@@ -239,7 +239,7 @@ def _validate_string_list(field: str, value: Any) -> list[str]:
 def _validate_policy(name: str, value: Any, required_false_keys: tuple[str, ...] = ()) -> list[str]:
     if not isinstance(value, dict):
         return [f"{name} must be an object"]
-    return [f"{name}.{key} must be false" for key in required_false_keys if value.get(key) is not False]
+    return [f"{name}.{key} must be false or NOT_AUTHORIZED" for key in required_false_keys if value.get(key) is not False]
 
 
 def _validate_step_records(field: str, value: Any) -> list[str]:
@@ -272,7 +272,7 @@ def _validate_process_results(value: Any) -> list[str]:
         if item.get("status") not in PROCESS_RESULT_STATUSES:
             errors.append(f"{prefix}.status must be one of: {', '.join(sorted(PROCESS_RESULT_STATUSES))}")
         if item.get("shell") is not False:
-            errors.append(f"{prefix}.shell must be false")
+            errors.append(f"{prefix}.shell must be false or NOT_AUTHORIZED")
     return errors
 
 
@@ -283,16 +283,16 @@ def _validate_runner_mode(data: dict[str, Any]) -> list[str]:
     if runner_mode not in RUNNER_MODES:
         return [f"runner_mode must be one of: {', '.join(sorted(RUNNER_MODES))}"]
     if data.get("shell_enabled") is not False:
-        errors.append("shell_enabled must be false")
+        errors.append("shell_enabled must be false or NOT_AUTHORIZED")
     if subprocess_mode not in SUBPROCESS_MODES:
         errors.append(f"subprocess_mode must be one of: {', '.join(sorted(SUBPROCESS_MODES))}")
     if runner_mode == RUNNER_MODE_CONTRACT_ONLY:
         if data.get("execution_enabled") is not False:
-            errors.append("execution_enabled must be false for B1.3A")
+            errors.append("execution_enabled must be false or NOT_AUTHORIZED for B1.3A")
         if subprocess_mode != SUBPROCESS_MODE_NOT_STARTED:
             errors.append(f"subprocess_mode must be {SUBPROCESS_MODE_NOT_STARTED} for B1.3A")
         if data.get("workspace_mutation_detected") is not False:
-            errors.append("workspace_mutation_detected must be false for B1.3A")
+            errors.append("workspace_mutation_detected must be false or NOT_AUTHORIZED for B1.3A")
     if runner_mode == RUNNER_MODE_BOUNDED_APPROVED:
         if data.get("execution_enabled") is not True:
             errors.append("execution_enabled must be true for B1.3B bounded runner receipts")

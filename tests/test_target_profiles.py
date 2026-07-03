@@ -152,8 +152,8 @@ def test_target_profile_validation_failures(tmp_path: Path) -> None:
         },
     }
     errors = validate_target_profile_artifact(bad_gov)
-    assert any("runtime_execution must be DISABLED" in err for err in errors)
-    assert any("artifact_is_authority must be false" in err for err in errors)
+    assert any("runtime_execution must be DISABLED or NOT_AUTHORIZED" in err for err in errors)
+    assert any("artifact_is_authority must be false or NOT_AUTHORIZED" in err for err in errors)
 
     # Missing file validation
     assert "file not found" in validate_target_profile_artifact_file(tmp_path / "non_existent.json")[0]

@@ -367,10 +367,10 @@ def test_validate_artifact_file_smoke_invalid(tmp_path: Path) -> None:
     }
     f.write_text(json_lib.dumps(bad_data), encoding="utf-8")
     errors = validate_artifact_file(f)
-    assert "runtime execution must be DISABLED" in errors
+    assert "runtime execution must be DISABLED or NOT_AUTHORIZED" in errors
     assert "builder-II dependency mode must be OPTIONAL" in errors
-    assert "file writes must be DISABLED" in errors
-    assert "shell execution must be DISABLED" in errors
+    assert "file writes must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "shell execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_validate_artifact_file_spec_valid(tmp_path: Path) -> None:
@@ -391,14 +391,14 @@ def test_validate_artifact_file_spec_invalid(tmp_path: Path) -> None:
     data["runtime_enabled"] = True
     f = tmp_path / "spec_bad1.json"
     f.write_text(json_lib.dumps(data), encoding="utf-8")
-    assert "runtime_enabled must be false" in validate_artifact_file(f)
+    assert "runtime_enabled must be false or NOT_AUTHORIZED" in validate_artifact_file(f)
 
     # Enable runtime in subagent metadata
     data["runtime_enabled"] = False
     data["subagent"]["metadata"]["runtime_enabled"] = True
     f2 = tmp_path / "spec_bad2.json"
     f2.write_text(json_lib.dumps(data), encoding="utf-8")
-    assert "subagent metadata runtime_enabled must be false" in validate_artifact_file(f2)
+    assert "subagent metadata runtime_enabled must be false or NOT_AUTHORIZED" in validate_artifact_file(f2)
 
     # Remove denied tools
     data["subagent"]["metadata"]["runtime_enabled"] = False

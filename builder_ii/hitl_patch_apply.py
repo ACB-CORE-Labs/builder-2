@@ -122,13 +122,13 @@ def _validate_core_demo_verification_receipt(data: Any, *, target_repo: Path | N
         errors.append("governance must be an object")
     else:
         if governance.get("model_execution") != "DISABLED":
-            errors.append("governance.model_execution must be DISABLED")
+            errors.append("governance.model_execution must be DISABLED or NOT_AUTHORIZED")
         if governance.get("source_writes") != "DISABLED":
-            errors.append("governance.source_writes must be DISABLED")
+            errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

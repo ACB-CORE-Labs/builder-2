@@ -201,17 +201,17 @@ def test_governance_block_must_be_disabled() -> None:
     bundle = create_hitl_evidence_bundle(**_valid_bundle_args())
     bundle["governance"]["shell_execution"] = "ENABLED"
     errors = validate_hitl_evidence_bundle(bundle)
-    assert any("governance.shell_execution must be DISABLED" in e for e in errors)
+    assert any("governance.shell_execution must be DISABLED or NOT_AUTHORIZED" in e for e in errors)
 
     bundle2 = create_hitl_evidence_bundle(**_valid_bundle_args())
     bundle2["governance"]["artifact_is_authority"] = True
     errors2 = validate_hitl_evidence_bundle(bundle2)
-    assert any("governance.artifact_is_authority must be false" in e for e in errors2)
+    assert any("governance.artifact_is_authority must be false or NOT_AUTHORIZED" in e for e in errors2)
 
     bundle3 = create_hitl_evidence_bundle(**_valid_bundle_args())
     bundle3["governance"]["core_workbench_coupling"] = "DIRECT"
     errors3 = validate_hitl_evidence_bundle(bundle3)
-    assert any("governance.core_workbench_coupling must be NONE" in e for e in errors3)
+    assert any("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in e for e in errors3)
 
 
 def test_docs_exist_and_claim_generic_platform() -> None:

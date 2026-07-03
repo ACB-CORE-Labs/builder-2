@@ -76,10 +76,10 @@ def test_validate_quality_gate_rejects_execution_authority() -> None:
 
     errors = validate_quality_gate_artifact(artifact)
 
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.command_execution must be DISABLED" in errors
-    assert "governance.quality_gate_executes_commands must be false" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.command_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.quality_gate_executes_commands must be false or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_validate_quality_gate_rejects_incompatible_profile() -> None:

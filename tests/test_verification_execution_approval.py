@@ -103,7 +103,7 @@ def test_execution_enabled_true_fails() -> None:
     approval["execution_enabled"] = True
     approval = _resign(approval)
     errors = validate_verification_execution_approval_artifact(approval)
-    assert any("execution_enabled must be false" in error for error in errors)
+    assert any("execution_enabled must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_approval_enables_execution_true_fails() -> None:
@@ -111,7 +111,7 @@ def test_approval_enables_execution_true_fails() -> None:
     approval["approval_enables_execution"] = True
     approval = _resign(approval)
     errors = validate_verification_execution_approval_artifact(approval)
-    assert any("approval_enables_execution must be false" in error for error in errors)
+    assert any("approval_enables_execution must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_artifact_is_authority_true_fails() -> None:
@@ -119,7 +119,7 @@ def test_artifact_is_authority_true_fails() -> None:
     approval["artifact_is_authority"] = True
     approval = _resign(approval)
     errors = validate_verification_execution_approval_artifact(approval)
-    assert any("artifact_is_authority must be false" in error for error in errors)
+    assert any("artifact_is_authority must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_missing_disabled_authority_fails() -> None:

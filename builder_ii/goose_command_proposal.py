@@ -217,7 +217,7 @@ def validate_goose_command_proposal(proposal: Any) -> list[str]:
         errors.append("requires_human_approval must be true")
     for key in ("executed", "runtime_started", "goose_process_started", "deepagents_constructed"):
         if proposal.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if not proposal.get("command") or not isinstance(proposal.get("command"), str):
         errors.append("command is required")
     if proposal.get("risk_level") not in ("low", "medium", "high", "critical"):
@@ -250,7 +250,7 @@ def validate_goose_command_proposal(proposal: Any) -> list[str]:
         if approval.get("required") is not True:
             errors.append("approval.required must be true")
         if approval.get("approved") is not False:
-            errors.append("approval.approved must be false")
+            errors.append("approval.approved must be false or NOT_AUTHORIZED")
     denied = proposal.get("denied_actions")
     if isinstance(denied, list):
         for required in _DENIED_ACTIONS:
@@ -266,11 +266,11 @@ def validate_goose_command_proposal(proposal: Any) -> list[str]:
             errors.append("governance.capability_state must be command_proposal")
         for key in _DISABLED_GOVERNANCE_KEYS:
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

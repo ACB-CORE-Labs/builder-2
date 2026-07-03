@@ -90,14 +90,14 @@ def test_rejects_enabled_command_execution() -> None:
     candidate = _candidate()
     candidate["governance"]["command_execution"] = "ENABLED"
     errors = validate_hitl_verification_execution_candidate(candidate)
-    assert "governance.command_execution must be DISABLED" in errors
+    assert "governance.command_execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_rejects_enabled_shell_execution() -> None:
     candidate = _candidate()
     candidate["governance"]["shell_execution"] = "ENABLED"
     errors = validate_hitl_verification_execution_candidate(candidate)
-    assert "governance.shell_execution must be DISABLED" in errors
+    assert "governance.shell_execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_rejects_source_and_target_repo_writes() -> None:
@@ -105,8 +105,8 @@ def test_rejects_source_and_target_repo_writes() -> None:
     candidate["source_writes"] = "ENABLED"
     candidate["governance"]["target_repo_writes"] = "ENABLED"
     errors = validate_hitl_verification_execution_candidate(candidate)
-    assert "source_writes must be DISABLED" in errors
-    assert "governance.target_repo_writes must be DISABLED" in errors
+    assert "source_writes must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.target_repo_writes must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_unknown_or_unsafe_command_fails_closed() -> None:
@@ -137,8 +137,8 @@ def test_artifact_is_authority_true_fails_closed() -> None:
     candidate["artifact_is_authority"] = True
     candidate["governance"]["artifact_is_authority"] = True
     errors = validate_hitl_verification_execution_candidate(candidate)
-    assert "artifact_is_authority must be false" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "artifact_is_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_unknown_top_level_fields_fail_closed() -> None:

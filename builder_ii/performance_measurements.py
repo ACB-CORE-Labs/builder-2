@@ -111,7 +111,7 @@ def validate_performance_measurement_record(record: Any) -> list[str]:
     if record.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_state") != "DISABLED":
-        errors.append("current_state must be DISABLED")
+        errors.append("current_state must be DISABLED or NOT_AUTHORIZED")
     if record.get("target") not in target_names():
         errors.append("target must be one of: generic, builder, core")
     for field in ("candidate_name", "method", "source_ref"):
@@ -136,7 +136,7 @@ def validate_performance_measurement_record(record: Any) -> list[str]:
         errors.append("performed_actions must be empty")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
@@ -153,11 +153,11 @@ def validate_performance_measurement_record(record: Any) -> list[str]:
             "memory_mutation",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

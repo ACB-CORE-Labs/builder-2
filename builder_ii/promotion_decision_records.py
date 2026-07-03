@@ -5,6 +5,7 @@ import json as json_lib
 from pathlib import Path
 from typing import Any, Literal
 
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.promotion_compatibility import support_artifact_kinds
 from builder_ii.promotion_readiness_records import PROMOTION_READINESS_RECORD_KIND, validate_promotion_readiness_record
 
@@ -74,15 +75,7 @@ def create_promotion_decision_record(
         "performed_actions": [],
         "grants_runtime_authority": False,
         "grants_action_authority": False,
-        "governance": {
-            "capability_state": "promotion_decision_record",
-            "runtime_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "source_writes": "DISABLED",
-            "memory_mutation": "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("promotion_decision_record"),
     }
 
 
@@ -146,7 +139,7 @@ def _validate_readiness_ref(readiness: Any) -> list[str]:
     elif readiness.get("status") == "ready" and readiness.get("ready") is not True:
         errors.append("readiness.ready must be true when status is ready")
     elif readiness.get("status") == "blocked" and readiness.get("ready") is not False:
-        errors.append("readiness.ready must be false when status is blocked")
+        errors.append("readiness.ready must be false or NOT_AUTHORIZED when status is blocked")
     if not readiness.get("capability_name"):
         errors.append("readiness.capability_name is required")
     target = readiness.get("target", "")
@@ -174,7 +167,7 @@ def validate_promotion_decision_record(record: Any) -> list[str]:
     if record.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_state") != "DISABLED":
-        errors.append("current_state must be DISABLED")
+        errors.append("current_state must be DISABLED or NOT_AUTHORIZED")
     if record.get("decision") not in ("approved", "blocked"):
         errors.append("decision must be approved or blocked")
     blockers = record.get("blockers")
@@ -192,20 +185,14 @@ def validate_promotion_decision_record(record: Any) -> list[str]:
         errors.append("checks must be a list")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
-            if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "promotion_decision_record"))
     return errors
 
 

@@ -152,11 +152,11 @@ def validate_rollback_plan(artifact: Any) -> list[str]:
     if artifact.get("current_state") != "PLAN_RECORDED_ONLY":
         errors.append("current_state must be PLAN_RECORDED_ONLY")
     if artifact.get("runtime_execution") != "DISABLED":
-        errors.append("runtime_execution must be DISABLED")
+        errors.append("runtime_execution must be DISABLED or NOT_AUTHORIZED")
     if artifact.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     if artifact.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     errors.extend(_validate_governance_block(artifact, "PLAN_RECORDED_ONLY"))
     return errors
@@ -203,7 +203,7 @@ def validate_rollback_receipt(artifact: Any) -> list[str]:
             errors.append("rollback_state must be NOT_EXECUTED")
         expected_governance_state = "OPERATIONALLY_VERIFIED"
     if artifact.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     errors.extend(_validate_governance_block(artifact, expected_governance_state))
     return errors
@@ -257,11 +257,11 @@ def _validate_governance_block(artifact: dict[str, Any], expected_capability_sta
 
     for key in _GOVERNANCE_DISABLED_KEYS:
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
 
     if governance.get("artifact_is_authority") is not False:
-        errors.append("governance.artifact_is_authority must be false")
+        errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     return errors

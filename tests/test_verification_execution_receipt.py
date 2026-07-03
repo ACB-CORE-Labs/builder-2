@@ -86,7 +86,7 @@ def test_execution_enabled_true_fails_for_b1_3a() -> None:
 
     errors = validate_verification_execution_receipt_artifact(receipt)
 
-    assert any("execution_enabled must be false" in error for error in errors)
+    assert any("execution_enabled must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_shell_enabled_true_fails() -> None:
@@ -96,7 +96,7 @@ def test_shell_enabled_true_fails() -> None:
 
     errors = validate_verification_execution_receipt_artifact(receipt)
 
-    assert any("shell_enabled must be false" in error for error in errors)
+    assert any("shell_enabled must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_subprocess_mode_started_fails_for_b1_3a() -> None:
@@ -116,7 +116,7 @@ def test_workspace_mutation_detected_fails_for_b1_3a() -> None:
 
     errors = validate_verification_execution_receipt_artifact(receipt)
 
-    assert any("workspace_mutation_detected must be false" in error for error in errors)
+    assert any("workspace_mutation_detected must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_missing_disabled_authority_fails() -> None:
@@ -188,7 +188,7 @@ def test_process_result_shell_true_fails() -> None:
 
     errors = validate_verification_execution_receipt_artifact(receipt)
 
-    assert any("shell must be false" in error for error in errors)
+    assert any("shell must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_environment_policy_cannot_forward_secrets() -> None:
@@ -198,7 +198,7 @@ def test_environment_policy_cannot_forward_secrets() -> None:
 
     errors = validate_verification_execution_receipt_artifact(receipt)
 
-    assert any("environment_policy.secrets_forwarded must be false" in error for error in errors)
+    assert any("environment_policy.secrets_forwarded must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_file_validation_round_trip(tmp_path: Path) -> None:

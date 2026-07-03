@@ -94,13 +94,13 @@ def test_validate_rejects_runtime_authority() -> None:
     assert "package.name must be deepagents" in errors
     assert "package.expected_factory must be create_governed_deep_agent" in errors
     assert "observed.dependency_state must be unknown, available, or unavailable" in errors
-    assert "current_runtime_state must be DISABLED" in errors
-    assert "readiness_constructs_deepagents must be false" in errors
+    assert "current_runtime_state must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "readiness_constructs_deepagents must be false or NOT_AUTHORIZED" in errors
     assert "readiness_imports_deepagents must be boolean" in errors
     assert "denied_actions must include call_models" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.agent_construction must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.agent_construction must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:

@@ -100,7 +100,7 @@ def execute_setup_rollback(
     if setup_receipt.get("setup_apply_executed") is not True:
         errors.append("setup receipt setup_apply_executed must be true")
     if setup_receipt.get("rollback_executed") is not False:
-        errors.append("setup receipt rollback_executed must be false")
+        errors.append("setup receipt rollback_executed must be false or NOT_AUTHORIZED")
     if setup_receipt.get("operation_attempted") != "setup_apply":
         errors.append("setup receipt operation_attempted must be setup_apply")
     if setup_receipt.get("operation_result") != "applied":

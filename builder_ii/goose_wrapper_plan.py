@@ -100,7 +100,7 @@ def validate_goose_wrapper_plan(data: Any) -> list[str]:
         if launch.get("requires_operator_execution") is not True:
             errors.append("operator_launch.requires_operator_execution must be true")
         if launch.get("executes_now") is not False:
-            errors.append("operator_launch.executes_now must be false")
+            errors.append("operator_launch.executes_now must be false or NOT_AUTHORIZED")
 
     handoff = data.get("handoff")
     if not isinstance(handoff, dict):
@@ -127,11 +127,11 @@ def validate_goose_wrapper_plan(data: Any) -> list[str]:
             "memory_mutation",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

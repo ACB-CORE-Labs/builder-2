@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.target_profiles import TargetName, target_names
 
 HANDOFF_KIND = "builder_ii.handoff_artifact"
@@ -41,17 +42,7 @@ class HandoffArtifact:
             "next_steps": _clean_items(self.next_steps),
             "blockers": _clean_items(self.blockers),
             "verification": _clean_items(self.verification),
-            "governance": {
-                "runtime_execution": "DISABLED",
-                "model_execution": "DISABLED",
-                "agent_construction": "DISABLED",
-                "notes_vault_mutation": "DISABLED",
-                "shell_execution": "DISABLED",
-                "file_writes": "DISABLED_EXCEPT_EXPLICIT_ARTIFACT_OUTPUT_PATH",
-                "commit_push": "DISABLED",
-                "artifact_is_authority": False,
-                "core_workbench_coupling": "NONE",
-            },
+            "governance": build_standard_governance("UNKNOWN"),
         }
 
 
@@ -115,20 +106,7 @@ def validate_handoff_artifact(artifact: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        if governance.get("runtime_execution") != "DISABLED":
-            errors.append("governance.runtime_execution must be DISABLED")
-        if governance.get("model_execution") != "DISABLED":
-            errors.append("governance.model_execution must be DISABLED")
-        if governance.get("agent_construction") != "DISABLED":
-            errors.append("governance.agent_construction must be DISABLED")
-        if governance.get("notes_vault_mutation") != "DISABLED":
-            errors.append("governance.notes_vault_mutation must be DISABLED")
-        if governance.get("shell_execution") != "DISABLED":
-            errors.append("governance.shell_execution must be DISABLED")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "UNKNOWN"))
 
     return errors
 

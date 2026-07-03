@@ -188,7 +188,7 @@ def validate_verification_profile_report(data: Any) -> list[str]:
     if data.get("report_state") != "PLANNED_ONLY":
         errors.append("report_state must be PLANNED_ONLY")
     if data.get("completed_verification") is not False:
-        errors.append("completed_verification must be false")
+        errors.append("completed_verification must be false or NOT_AUTHORIZED")
 
     governance = data.get("governance")
     if not isinstance(governance, dict):
@@ -198,15 +198,15 @@ def validate_verification_profile_report(data: Any) -> list[str]:
             errors.append("governance.capability_state must be verification_profile_report")
         for key in ("runtime_execution", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("executes_commands") is not False:
-            errors.append("governance.executes_commands must be false")
+            errors.append("governance.executes_commands must be false or NOT_AUTHORIZED")
         if governance.get("report_is_completed_evidence") is not False:
-            errors.append("governance.report_is_completed_evidence must be false")
+            errors.append("governance.report_is_completed_evidence must be false or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     return errors
 

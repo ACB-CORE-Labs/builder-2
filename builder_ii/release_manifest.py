@@ -4,6 +4,8 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
+
 V0_RELEASE_MANIFEST_KIND = "builder_ii.v0_release_manifest"
 V0_RELEASE_MANIFEST_SCHEMA_VERSION = 1
 
@@ -72,24 +74,7 @@ def create_v0_release_manifest(
             "verified_chain_valid": True,
             "verified_index_valid": True,
         },
-        "governance": {
-            "capability_state": "v0_release_manifest",
-            "runtime_execution": "DISABLED",
-            "runtime_authority": "DISABLED",
-            "model_execution": "DISABLED",
-            "model_execution_loops": "DISABLED",
-            "shell_execution": "DISABLED",
-            "source_writes": "DISABLED",
-            "source_patches_applied": "DISABLED",
-            "target_repo_writes": "DISABLED",
-            "memory_mutation": "DISABLED",
-            "autonomous_agent_authority": "DISABLED",
-            "deephaven_touch": "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-            "proof_of_capability_only": True,
-            "runtime_executor": False,
-        },
+        "governance": build_standard_governance("v0_release_manifest"),
     }
     errors = validate_v0_release_manifest(manifest)
     if errors:
@@ -203,29 +188,7 @@ def validate_v0_release_manifest(data: Any) -> list[str]:
     if not isinstance(gov, dict):
         errors.append("governance must be an object")
     else:
-        for k in (
-            "runtime_execution",
-            "runtime_authority",
-            "model_execution",
-            "model_execution_loops",
-            "shell_execution",
-            "source_writes",
-            "source_patches_applied",
-            "target_repo_writes",
-            "memory_mutation",
-            "autonomous_agent_authority",
-            "deephaven_touch",
-        ):
-            if gov.get(k) != "DISABLED":
-                errors.append(f"governance.{k} must be DISABLED")
-        if gov.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if gov.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
-        if gov.get("proof_of_capability_only") is not True:
-            errors.append("governance.proof_of_capability_only must be true")
-        if gov.get("runtime_executor") is not False:
-            errors.append("governance.runtime_executor must be false")
+        errors.extend(validate_standard_governance(gov, "v0_release_manifest"))
 
     return errors
 

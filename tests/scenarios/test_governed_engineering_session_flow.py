@@ -177,8 +177,8 @@ def test_governed_engineering_session_rejects_false_verification_and_runtime_cla
     report_errors = validate_verification_profile_report(false_report)
 
     assert "report_state must be PLANNED_ONLY" in report_errors
-    assert "completed_verification must be false" in report_errors
-    assert "governance.report_is_completed_evidence must be false" in report_errors
+    assert "completed_verification must be false or NOT_AUTHORIZED" in report_errors
+    assert "governance.report_is_completed_evidence must be false or NOT_AUTHORIZED" in report_errors
     assert any("execution_state must be NOT_RUN" in error for error in report_errors)
     assert any("completed_evidence_ref must be null" in error for error in report_errors)
 
@@ -194,5 +194,5 @@ def test_governed_engineering_session_rejects_false_verification_and_runtime_cla
     assert chain_report["valid"] is False
     assert chain_report["status"] == "invalid"
     assert chain_report["counts"]["native_invalid"] == 1
-    assert any("shell_execution must be DISABLED" in error for error in chain_report["errors"])
-    assert any("governance.runtime_execution must be DISABLED" in error for error in chain_report["errors"])
+    assert any("shell_execution must be DISABLED or NOT_AUTHORIZED" in error for error in chain_report["errors"])
+    assert any("governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in error for error in chain_report["errors"])

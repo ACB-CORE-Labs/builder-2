@@ -176,9 +176,9 @@ def validate_goose_session_manifest(manifest: Any) -> list[str]:
     if manifest.get("requested_runtime_mode") not in ("disabled", "read_only"):
         errors.append("requested_runtime_mode must be disabled or read_only")
     if manifest.get("current_runtime_state") != "DISABLED":
-        errors.append("current_runtime_state must be DISABLED")
+        errors.append("current_runtime_state must be DISABLED or NOT_AUTHORIZED")
     if manifest.get("manifest_starts_goose") is not False:
-        errors.append("manifest_starts_goose must be false")
+        errors.append("manifest_starts_goose must be false or NOT_AUTHORIZED")
     profile_errors = validate_profile_artifact(manifest.get("verification_profile"))
     errors.extend(f"verification_profile: {error}" for error in profile_errors)
     links = manifest.get("links")
@@ -224,11 +224,11 @@ def validate_goose_session_manifest(manifest: Any) -> list[str]:
             "commit_push",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

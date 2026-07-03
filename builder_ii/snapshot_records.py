@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.artifact_index_records import ARTIFACT_INDEX_RECORD_KIND, validate_artifact_index_record
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.state_ledger_records import STATE_LEDGER_RECORD_KIND, validate_state_ledger_record
 
 SNAPSHOT_RECORD_KIND = "builder_ii.snapshot_record"
@@ -68,15 +69,7 @@ def create_snapshot_record(
         "performed_actions": [],
         "grants_runtime_authority": False,
         "grants_action_authority": False,
-        "governance": {
-            "capability_state": "snapshot_record",
-            "runtime_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "source_writes": "DISABLED",
-            "memory_mutation": "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("snapshot_record"),
     }
 
 
@@ -132,7 +125,7 @@ def validate_snapshot_record(record: Any) -> list[str]:
     if record.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_state") != "DISABLED":
-        errors.append("current_state must be DISABLED")
+        errors.append("current_state must be DISABLED or NOT_AUTHORIZED")
     if record.get("status") not in ("complete", "incomplete"):
         errors.append("status must be complete or incomplete")
     if record.get("complete") is not (record.get("status") == "complete"):
@@ -144,20 +137,14 @@ def validate_snapshot_record(record: Any) -> list[str]:
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     if record.get("grants_runtime_authority") is not False:
-        errors.append("grants_runtime_authority must be false")
+        errors.append("grants_runtime_authority must be false or NOT_AUTHORIZED")
     if record.get("grants_action_authority") is not False:
-        errors.append("grants_action_authority must be false")
+        errors.append("grants_action_authority must be false or NOT_AUTHORIZED")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
-            if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "snapshot_record"))
     return errors
 
 

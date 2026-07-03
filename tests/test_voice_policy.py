@@ -65,10 +65,10 @@ def test_voice_io_policy_disabled_enforcement() -> None:
 
     errors = validate_voice_io_policy_artifact(invalid)
 
-    assert "runtime_status must be DISABLED" in errors
-    assert "governance.shell_execution must be DISABLED" in errors
-    assert "governance.source_writes must be DISABLED" in errors
-    assert "governance.core_workbench_coupling must be NONE" in errors
+    assert "runtime_status must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.shell_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.source_writes must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in errors
 
 
 def test_voice_io_policy_future_capabilities_are_declarations_only() -> None:

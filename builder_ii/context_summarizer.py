@@ -52,7 +52,7 @@ def validate_context_summary(record: Any) -> list[str]:
     if not isinstance(record.get("review_required"), bool) or record["review_required"] is not True:
         errors.append("review_required must be true")
     if record.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     return errors
 

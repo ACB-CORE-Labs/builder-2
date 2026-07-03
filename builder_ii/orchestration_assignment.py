@@ -1084,7 +1084,7 @@ def _validate_authority_boundary(data: dict[str, Any], *, capability_state: str)
     errors: list[str] = []
     for key in _AUTHORITY_FALSE_KEYS:
         if data.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if data.get("requires_human_promotion_for_execution") is not True:
         errors.append("requires_human_promotion_for_execution must be true")
 
@@ -1096,7 +1096,7 @@ def _validate_authority_boundary(data: dict[str, Any], *, capability_state: str)
             errors.append(f"authority_boundary.capability_state must be {capability_state}")
         for key in _AUTHORITY_FALSE_KEYS:
             if boundary.get(key) is not False:
-                errors.append(f"authority_boundary.{key} must be false")
+                errors.append(f"authority_boundary.{key} must be false or NOT_AUTHORIZED")
         if boundary.get("requires_human_promotion_for_execution") is not True:
             errors.append("authority_boundary.requires_human_promotion_for_execution must be true")
     return errors
@@ -1124,16 +1124,16 @@ def _validate_governance(governance: Any, *, capability_state: str) -> list[str]
         "verification_execution",
     ):
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
     if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
-        errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
+        errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
     for key in ("artifact_is_authority", "grants_authority"):
         if governance.get(key) is not False:
-            errors.append(f"governance.{key} must be false")
+            errors.append(f"governance.{key} must be false or NOT_AUTHORIZED")
     if governance.get("requires_human_promotion_for_execution") is not True:
         errors.append("governance.requires_human_promotion_for_execution must be true")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 
@@ -1200,7 +1200,7 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
             if tools_binding.get("allowed_tools") != []:
                 errors.append("bindings.tools.allowed_tools must be empty")
             if tools_binding.get("executes_tools") is not False:
-                errors.append("bindings.tools.executes_tools must be false")
+                errors.append("bindings.tools.executes_tools must be false or NOT_AUTHORIZED")
         hitl_binding = bindings.get("hitl")
         if not isinstance(hitl_binding, dict):
             errors.append("bindings.hitl must be an object")
@@ -1208,26 +1208,26 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
             if hitl_binding.get("approval_state") != "NOT_GRANTED":
                 errors.append("bindings.hitl.approval_state must be NOT_GRANTED")
             if hitl_binding.get("grants_authority") is not False:
-                errors.append("bindings.hitl.grants_authority must be false")
+                errors.append("bindings.hitl.grants_authority must be false or NOT_AUTHORIZED")
         outputs_binding = bindings.get("outputs")
         if not isinstance(outputs_binding, dict):
             errors.append("bindings.outputs must be an object")
         elif outputs_binding.get("mutates_target_repo") is not False:
-            errors.append("bindings.outputs.mutates_target_repo must be false")
+            errors.append("bindings.outputs.mutates_target_repo must be false or NOT_AUTHORIZED")
         handoff_binding = bindings.get("handoff")
         if not isinstance(handoff_binding, dict):
             errors.append("bindings.handoff must be an object")
         elif handoff_binding.get("claims_verification_evidence") is not False:
-            errors.append("bindings.handoff.claims_verification_evidence must be false")
+            errors.append("bindings.handoff.claims_verification_evidence must be false or NOT_AUTHORIZED")
 
         model_binding = bindings.get("model")
         if not isinstance(model_binding, dict):
             errors.append("bindings.model must be an object")
         else:
             if model_binding.get("executes_model") is not False:
-                errors.append("bindings.model.executes_model must be false")
+                errors.append("bindings.model.executes_model must be false or NOT_AUTHORIZED")
             if model_binding.get("routing_grants_authority") is not False:
-                errors.append("bindings.model.routing_grants_authority must be false")
+                errors.append("bindings.model.routing_grants_authority must be false or NOT_AUTHORIZED")
             if model_binding.get("recommendation_state") != "RECOMMENDATION_ONLY":
                 errors.append("bindings.model.recommendation_state must be RECOMMENDATION_ONLY")
             if not isinstance(model_binding.get("selected_candidate"), dict):
@@ -1238,7 +1238,7 @@ def validate_agent_assignment_plan(data: Any) -> list[str]:
             errors.append("bindings.context must be an object")
         else:
             if context_binding.get("context_is_proof") is not False:
-                errors.append("bindings.context.context_is_proof must be false")
+                errors.append("bindings.context.context_is_proof must be false or NOT_AUTHORIZED")
             if context_binding.get("source_ref_role") != "context_pack":
                 errors.append("bindings.context.source_ref_role must be context_pack")
             if context_binding.get("target_name") != data.get("target"):
@@ -1376,22 +1376,22 @@ def validate_orchestration_assignment_plan(data: Any) -> list[str]:
                 errors.append(f"planned_bindings.{key} is required")
         model = planned.get("model")
         if isinstance(model, dict) and model.get("executes_model") is not False:
-            errors.append("planned_bindings.model.executes_model must be false")
+            errors.append("planned_bindings.model.executes_model must be false or NOT_AUTHORIZED")
         verification = planned.get("verification")
         if isinstance(verification, dict) and verification.get("verification_status") != "NOT_RUN":
             errors.append("planned_bindings.verification.verification_status must be NOT_RUN")
         tools = planned.get("tools")
         if isinstance(tools, dict) and tools.get("executes_tools") is not False:
-            errors.append("planned_bindings.tools.executes_tools must be false")
+            errors.append("planned_bindings.tools.executes_tools must be false or NOT_AUTHORIZED")
         hitl = planned.get("hitl")
         if isinstance(hitl, dict) and hitl.get("grants_authority") is not False:
-            errors.append("planned_bindings.hitl.grants_authority must be false")
+            errors.append("planned_bindings.hitl.grants_authority must be false or NOT_AUTHORIZED")
         outputs = planned.get("outputs")
         if isinstance(outputs, dict) and outputs.get("mutates_target_repo") is not False:
-            errors.append("planned_bindings.outputs.mutates_target_repo must be false")
+            errors.append("planned_bindings.outputs.mutates_target_repo must be false or NOT_AUTHORIZED")
         handoff = planned.get("handoff")
         if isinstance(handoff, dict) and handoff.get("claims_verification_evidence") is not False:
-            errors.append("planned_bindings.handoff.claims_verification_evidence must be false")
+            errors.append("planned_bindings.handoff.claims_verification_evidence must be false or NOT_AUTHORIZED")
     if data.get("binding_order") != [
         "target",
         "task",
@@ -1486,7 +1486,7 @@ def validate_orchestration_assignment_dry_run(data: Any) -> list[str]:
         if summary.get("verification_status") != "NOT_RUN":
             errors.append("execution_summary.verification_status must be NOT_RUN")
         if summary.get("authority_granted") is not False:
-            errors.append("execution_summary.authority_granted must be false")
+            errors.append("execution_summary.authority_granted must be false or NOT_AUTHORIZED")
     errors.extend(_validate_authority_boundary(data, capability_state="orchestration_assignment_dry_run"))
     errors.extend(_validate_governance(data.get("governance"), capability_state="orchestration_assignment_dry_run"))
     errors.extend(_validate_no_active_state_claims(data, "orchestration_assignment_dry_run"))
@@ -1543,7 +1543,7 @@ def validate_orchestration_assignment_validation_report(data: Any) -> list[str]:
             errors.append("claims.validated must be true")
         for key in ("executed", "authorized", "promoted"):
             if claims.get(key) is not False:
-                errors.append(f"claims.{key} must be false")
+                errors.append(f"claims.{key} must be false or NOT_AUTHORIZED")
     errors.extend(
         _validate_governance(
             data.get("governance"),

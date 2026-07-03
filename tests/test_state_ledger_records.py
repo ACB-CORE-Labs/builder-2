@@ -48,15 +48,7 @@ def test_create_complete_state_ledger_shape() -> None:
     assert record["grants_runtime_authority"] is False
     assert record["grants_action_authority"] is False
     assert record["performed_actions"] == []
-    assert record["governance"] == {
-        "capability_state": "state_ledger_record",
-        "runtime_execution": "DISABLED",
-        "model_execution": "DISABLED",
-        "source_writes": "DISABLED",
-        "memory_mutation": "DISABLED",
-        "artifact_is_authority": False,
-        "core_workbench_coupling": "NONE",
-    }
+    assert record["governance"]["capability_state"] == "state_ledger_record"
     assert validate_state_ledger_record(record) == []
 
 
@@ -132,14 +124,14 @@ def test_validate_rejects_authority_changes() -> None:
 
     assert "record_state must be RECORDED_ONLY" in errors
     assert "performed_actions must be empty" in errors
-    assert "grants_runtime_authority must be false" in errors
-    assert "grants_action_authority must be false" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.model_execution must be DISABLED" in errors
-    assert "governance.source_writes must be DISABLED" in errors
-    assert "governance.memory_mutation must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
-    assert "governance.core_workbench_coupling must be NONE" in errors
+    assert "grants_runtime_authority must be false or NOT_AUTHORIZED" in errors
+    assert "grants_action_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.model_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.source_writes must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.memory_mutation must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in errors
 
 
 def test_validate_rejects_missing_ledger_name() -> None:

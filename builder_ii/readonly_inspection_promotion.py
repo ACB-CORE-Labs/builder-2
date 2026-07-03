@@ -96,7 +96,7 @@ def validate_readonly_inspection_promotion_spec(spec: Any) -> list[str]:
     if spec.get("candidate_state") != "DESIGN_ONLY":
         errors.append("candidate_state must be DESIGN_ONLY")
     if spec.get("current_state") != "DISABLED":
-        errors.append("current_state must be DISABLED")
+        errors.append("current_state must be DISABLED or NOT_AUTHORIZED")
     if spec.get("runtime_promotion") != "BLOCKED_UNTIL_APPROVED":
         errors.append("runtime_promotion must be BLOCKED_UNTIL_APPROVED")
     errors.extend(_string_list_errors(spec.get("required_gates"), field="required_gates"))
@@ -119,16 +119,16 @@ def validate_readonly_inspection_promotion_spec(spec: Any) -> list[str]:
         errors.append("performed_actions must be empty")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if spec.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     governance = spec.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
         for key in ("runtime_execution", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors

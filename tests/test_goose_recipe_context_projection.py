@@ -69,7 +69,7 @@ def test_goose_recipe_context_projection_rejects_authority_escalation(tmp_path: 
 
     assert "projection_state must be PLANNED_ONLY" in errors
     assert "recipe_projection.forbidden_tools must include execute_shell" in errors
-    assert "governance.model_execution must be DISABLED" in errors
+    assert "governance.model_execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_goose_recipe_context_projection_file_validation(tmp_path: Path) -> None:

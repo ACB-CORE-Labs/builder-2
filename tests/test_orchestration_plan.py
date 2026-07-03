@@ -76,8 +76,8 @@ def test_orchestration_plan_rejects_runtime_escalation() -> None:
 
     assert "plan_state must be PLANNED_ONLY" in errors
     assert "roles[0].runtime_binding must be UNBOUND" in errors
-    assert "governance.deepagents_runtime_start must be DISABLED" in errors
-    assert "governance.subagent_construction must be DISABLED" in errors
+    assert "governance.deepagents_runtime_start must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.subagent_construction must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_orchestration_plan_file_validation(tmp_path: Path) -> None:
@@ -236,7 +236,7 @@ def test_goal2_assignment_rejects_unknown_kind_and_active_authority_states(
 
     assert "field 'assignment.bindings.hitl.approval_state' claims active authority state 'AUTHORIZED'" in errors
     assert "field 'assignment.governance.tool_execution' claims active authority state 'ENABLED'" in errors
-    assert "governance.tool_execution must be DISABLED" in errors
+    assert "governance.tool_execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_goal2_orchestration_assignment_plan_rejects_authority_escalation(
@@ -253,9 +253,9 @@ def test_goal2_orchestration_assignment_plan_rejects_authority_escalation(
     errors = validate_orchestration_assignment_plan(bad)
 
     assert "plan_state must be BOUND_ONLY" in errors
-    assert "executes_tools must be false" in errors
+    assert "executes_tools must be false or NOT_AUTHORIZED" in errors
     assert "planned_bindings.verification.verification_status must be NOT_RUN" in errors
-    assert "governance.network_calls must be DISABLED" in errors
+    assert "governance.network_calls must be DISABLED or NOT_AUTHORIZED" in errors
     assert "field 'orchestration_assignment_plan.plan_state' claims active authority state 'EXECUTED'" in errors
 
 
@@ -266,12 +266,12 @@ def test_goal2_assignment_model_binding_escalation_fails_closed(tmp_path: Path) 
     # executes_model = True
     bad_exec = copy.deepcopy(assignment)
     bad_exec["bindings"]["model"]["executes_model"] = True
-    assert "bindings.model.executes_model must be false" in validate_agent_assignment_plan(bad_exec)
+    assert "bindings.model.executes_model must be false or NOT_AUTHORIZED" in validate_agent_assignment_plan(bad_exec)
 
     # routing_grants_authority = True
     bad_grant = copy.deepcopy(assignment)
     bad_grant["bindings"]["model"]["routing_grants_authority"] = True
-    assert "bindings.model.routing_grants_authority must be false" in validate_agent_assignment_plan(bad_grant)
+    assert "bindings.model.routing_grants_authority must be false or NOT_AUTHORIZED" in validate_agent_assignment_plan(bad_grant)
 
     # recommendation_state != RECOMMENDATION_ONLY
     bad_state = copy.deepcopy(assignment)
@@ -295,7 +295,7 @@ def test_goal2_assignment_context_binding_escalation_fails_closed(
     # context_is_proof = True
     bad_proof = copy.deepcopy(assignment)
     bad_proof["bindings"]["context"]["context_is_proof"] = True
-    assert "bindings.context.context_is_proof must be false" in validate_agent_assignment_plan(bad_proof)
+    assert "bindings.context.context_is_proof must be false or NOT_AUTHORIZED" in validate_agent_assignment_plan(bad_proof)
 
     # source_ref_role != context_pack
     bad_role = copy.deepcopy(assignment)

@@ -92,16 +92,16 @@ def test_validate_rejects_execution_authority(tmp_path: Path) -> None:
     errors = validate_goose_command_proposal(proposal)
 
     assert "execution_state must be PROPOSED_ONLY" in errors
-    assert "executed must be false" in errors
+    assert "executed must be false or NOT_AUTHORIZED" in errors
     assert "requires_human_approval must be true" in errors
     assert "commands_executed must be empty" in errors
     assert "shell_commands_executed must be empty" in errors
     assert "execution_result.exit_code must be null" in errors
     assert "execution_result.stdout must be empty" in errors
-    assert "approval.approved must be false" in errors
-    assert "governance.command_execution must be DISABLED" in errors
-    assert "governance.shell_execution must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "approval.approved must be false or NOT_AUTHORIZED" in errors
+    assert "governance.command_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.shell_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.config import Settings
+from builder_ii.governance_standard import build_standard_governance
 from builder_ii.target_profiles import TargetName, target_names, target_profile
 
 # ---------------------------------------------------------------------------
@@ -98,13 +99,7 @@ def create_hitl_execution_request(
         "runtime_execution": "DISABLED",
         "artifact_is_authority": False,
         "required_future_chain": list(_REQUIRED_FUTURE_CHAIN),
-        "governance": {
-            "capability_state": "REQUEST_RECORDED_ONLY",
-            "runtime_execution": "DISABLED",
-            **{key: "DISABLED" for key in _GOVERNANCE_DENIED_KEYS},
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("REQUEST_RECORDED_ONLY"),
     }
 
 
@@ -156,11 +151,11 @@ def validate_hitl_execution_request(artifact: Any) -> list[str]:
     if artifact.get("current_state") != "REQUEST_RECORDED_ONLY":
         errors.append("current_state must be REQUEST_RECORDED_ONLY")
     if artifact.get("runtime_execution") != "DISABLED":
-        errors.append("runtime_execution must be DISABLED")
+        errors.append("runtime_execution must be DISABLED or NOT_AUTHORIZED")
 
     # Authority and coupling
     if artifact.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     # Governance block
     errors.extend(_validate_governance_block(artifact, "REQUEST_RECORDED_ONLY"))
@@ -209,13 +204,7 @@ def create_hitl_execution_receipt(
         "performed_actions": [],
         "current_state": "RECEIPT_TEMPLATE_ONLY",
         "artifact_is_authority": False,
-        "governance": {
-            "capability_state": "RECEIPT_TEMPLATE_ONLY",
-            "runtime_execution": "DISABLED",
-            **{key: "DISABLED" for key in _GOVERNANCE_DENIED_KEYS},
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("RECEIPT_TEMPLATE_ONLY"),
     }
 
 
@@ -280,7 +269,7 @@ def validate_hitl_execution_receipt(artifact: Any) -> list[str]:
     if artifact.get("current_state") != "RECEIPT_TEMPLATE_ONLY":
         errors.append("current_state must be RECEIPT_TEMPLATE_ONLY")
     if artifact.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     # Governance block
     errors.extend(_validate_governance_block(artifact, "RECEIPT_TEMPLATE_ONLY"))
@@ -335,11 +324,11 @@ def _validate_governance_block(artifact: dict[str, Any], expected_capability_sta
 
     for key in ("runtime_execution", *_GOVERNANCE_DENIED_KEYS):
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
 
     if governance.get("artifact_is_authority") is not False:
-        errors.append("governance.artifact_is_authority must be false")
+        errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     return errors

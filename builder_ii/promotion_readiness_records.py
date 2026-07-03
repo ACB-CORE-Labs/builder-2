@@ -4,6 +4,7 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.promotion_compatibility import validate_support_artifacts
 
 PROMOTION_READINESS_RECORD_KIND = "builder_ii.promotion_readiness_record"
@@ -88,15 +89,7 @@ def create_promotion_readiness_record(
         "performed_actions": [],
         "grants_runtime_authority": False,
         "grants_action_authority": False,
-        "governance": {
-            "capability_state": "promotion_readiness_record",
-            "runtime_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "source_writes": "DISABLED",
-            "memory_mutation": "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("promotion_readiness_record"),
     }
 
 
@@ -158,7 +151,7 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
     if record.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_state") != "DISABLED":
-        errors.append("current_state must be DISABLED")
+        errors.append("current_state must be DISABLED or NOT_AUTHORIZED")
     if record.get("capability_state") != "promotion_readiness_record":
         errors.append("capability_state must be promotion_readiness_record")
     if not isinstance(record.get("capability_name"), str) or not record["capability_name"]:
@@ -200,7 +193,7 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
     if isinstance(record.get("missing"), list):
         compatibility_missing = [f"support_artifacts: {error}" for error in support_errors]
         if compatibility_missing and record.get("ready") is True:
-            errors.append("ready must be false when support_artifacts are incompatible")
+            errors.append("ready must be false or NOT_AUTHORIZED when support_artifacts are incompatible")
         for item in compatibility_missing:
             if item not in record["missing"]:
                 errors.append(f"missing must include compatibility item: {item}")
@@ -208,22 +201,14 @@ def validate_promotion_readiness_record(record: Any) -> list[str]:
         errors.extend(support_errors)
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        if governance.get("capability_state") != "promotion_readiness_record":
-            errors.append("governance.capability_state must be promotion_readiness_record")
-        for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
-            if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "promotion_readiness_record"))
     return errors
 
 

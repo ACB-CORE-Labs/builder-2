@@ -104,13 +104,13 @@ def test_validator_rejects_scope_and_governance_drift(tmp_path: Path) -> None:
 
     errors = validate_readonly_inspection_report(report)
 
-    assert "scope.recursive_discovery must be false" in errors
-    assert "scope.content_capture must be false" in errors
+    assert "scope.recursive_discovery must be false or NOT_AUTHORIZED" in errors
+    assert "scope.content_capture must be false or NOT_AUTHORIZED" in errors
     assert "performed_actions must record only explicit metadata/hash reads" in errors
-    assert "governance.shell_execution must be DISABLED" in errors
-    assert "governance.model_execution must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
-    assert "governance.core_workbench_coupling must be NONE" in errors
+    assert "governance.shell_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.model_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in errors
 
 
 def test_cli_stdout_output_and_validate(tmp_path: Path) -> None:

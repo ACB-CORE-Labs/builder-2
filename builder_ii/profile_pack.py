@@ -288,14 +288,14 @@ def _validate_governance(governance: Any) -> list[str]:
         "verification_execution",
     ):
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
     if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
-        errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
+        errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
     for key in ("artifact_is_authority", "executed", "authorized", "promoted"):
         if governance.get(key) is not False:
-            errors.append(f"governance.{key} must be false")
+            errors.append(f"governance.{key} must be false or NOT_AUTHORIZED")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

@@ -91,7 +91,7 @@ def test_execution_enabled_true_fails() -> None:
     plan["execution_enabled"] = True
     plan = _resign(plan)
     errors = validate_verification_execution_plan_artifact(plan)
-    assert any("execution_enabled must be false" in error for error in errors)
+    assert any("execution_enabled must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_approval_required_false_fails() -> None:
@@ -107,7 +107,7 @@ def test_artifact_is_authority_true_fails() -> None:
     plan["artifact_is_authority"] = True
     plan = _resign(plan)
     errors = validate_verification_execution_plan_artifact(plan)
-    assert any("artifact_is_authority must be false" in error for error in errors)
+    assert any("artifact_is_authority must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
 def test_missing_disabled_authority_fails() -> None:

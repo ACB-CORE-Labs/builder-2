@@ -57,9 +57,9 @@ def test_validate_target_bundle_rejects_runtime_authority(tmp_path: Path) -> Non
 
     errors = validate_target_bundle(bundle)
 
-    assert "bridge_spec.runtime_enabled must be false" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.artifacts_are_authority must be false" in errors
+    assert "bridge_spec.runtime_enabled must be false or NOT_AUTHORIZED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifacts_are_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_validate_target_bundle_file_errors(tmp_path: Path) -> None:

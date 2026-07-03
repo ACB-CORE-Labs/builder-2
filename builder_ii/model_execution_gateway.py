@@ -137,7 +137,7 @@ def validate_model_call_envelope(data: Any) -> list[str]:
         "artifact_is_authority",
     ):
         if data.get(f_false) is not False:
-            errors.append(f"{f_false} must be false")
+            errors.append(f"{f_false} must be false or NOT_AUTHORIZED")
 
     if data.get("executes_model") is not True:
         errors.append("executes_model must be true")
@@ -169,7 +169,7 @@ def validate_model_call_envelope(data: Any) -> list[str]:
             "artifact_is_authority",
         ):
             if boundary.get(f_false) is not False:
-                errors.append(f"authority_boundary.{f_false} must be false")
+                errors.append(f"authority_boundary.{f_false} must be false or NOT_AUTHORIZED")
         # performs_network_calls in authority_boundary must match top-level
         top_network = data.get("performs_network_calls")
         if isinstance(top_network, bool) and boundary.get("performs_network_calls") != top_network:
@@ -202,7 +202,7 @@ def validate_model_call_envelope(data: Any) -> list[str]:
             "verification_execution",
         ):
             if gov.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
 
     return errors
 
@@ -262,7 +262,7 @@ def validate_model_call_receipt(data: Any) -> list[str]:
         "artifact_is_authority",
     ):
         if data.get(f_false) is not False:
-            errors.append(f"{f_false} must be false")
+            errors.append(f"{f_false} must be false or NOT_AUTHORIZED")
 
     if data.get("executes_model") is not True:
         errors.append("executes_model must be true")

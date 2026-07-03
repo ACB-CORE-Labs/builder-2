@@ -79,13 +79,13 @@ def test_validate_rejects_runtime_authority() -> None:
 
     errors = validate_goose_session_manifest(manifest)
 
-    assert "current_runtime_state must be DISABLED" in errors
-    assert "manifest_starts_goose must be false" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.goose_runtime_start must be DISABLED" in errors
-    assert "governance.command_execution must be DISABLED" in errors
-    assert "governance.source_writes must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "current_runtime_state must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "manifest_starts_goose must be false or NOT_AUTHORIZED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.goose_runtime_start must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.command_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.source_writes must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
     assert "denied_actions must include execute_shell" in errors
 
 

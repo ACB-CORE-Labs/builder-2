@@ -132,7 +132,7 @@ def test_postflight_artifact_is_authority_true_fails() -> None:
         request_ref="req-001", receipt_ref="rcpt", preflight_ref="pf", approval_ref="ap"
     )
     rec["artifact_is_authority"] = True
-    assert "artifact_is_authority must be false" in validate_execution_postflight_record(rec)
+    assert "artifact_is_authority must be false or NOT_AUTHORIZED" in validate_execution_postflight_record(rec)
 
 
 def test_postflight_each_governance_field_enabled_fails() -> None:
@@ -218,7 +218,7 @@ def test_verification_artifact_is_authority_true_fails() -> None:
         postflight_ref="postflight-001",
     )
     rec["artifact_is_authority"] = True
-    assert "artifact_is_authority must be false" in validate_execution_verification_record(rec)
+    assert "artifact_is_authority must be false or NOT_AUTHORIZED" in validate_execution_verification_record(rec)
 
 
 def test_verification_each_governance_field_enabled_fails() -> None:

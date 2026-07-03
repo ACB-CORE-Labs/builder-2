@@ -160,7 +160,7 @@ def validate_target_bundle(bundle: Any) -> list[str]:
         if bridge_spec.get("kind") != "builder_ii.deepagents_bridge_spec":
             errors.append("bridge_spec.kind must be builder_ii.deepagents_bridge_spec")
         if bridge_spec.get("runtime_enabled") is not False:
-            errors.append("bridge_spec.runtime_enabled must be false")
+            errors.append("bridge_spec.runtime_enabled must be false or NOT_AUTHORIZED")
         denied_tools = bridge_spec.get("denied_tools")
         if not isinstance(denied_tools, list):
             errors.append("bridge_spec.denied_tools must be a list")
@@ -178,9 +178,9 @@ def validate_target_bundle(bundle: Any) -> list[str]:
         if readiness.get("builder_ii_dependency_mode") != "OPTIONAL":
             errors.append("deepagents dependency mode must be OPTIONAL")
         if readiness.get("runtime_execution") != "DISABLED":
-            errors.append("deepagents runtime execution must be DISABLED")
+            errors.append("deepagents runtime execution must be DISABLED or NOT_AUTHORIZED")
         if readiness.get("shell_execution") != "DISABLED":
-            errors.append("deepagents shell execution must be DISABLED")
+            errors.append("deepagents shell execution must be DISABLED or NOT_AUTHORIZED")
 
     governance = bundle.get("governance")
     if not isinstance(governance, dict):
@@ -189,15 +189,15 @@ def validate_target_bundle(bundle: Any) -> list[str]:
         if governance.get("capability_state") != "validation_only":
             errors.append("governance.capability_state must be validation_only")
         if governance.get("runtime_execution") != "DISABLED":
-            errors.append("governance.runtime_execution must be DISABLED")
+            errors.append("governance.runtime_execution must be DISABLED or NOT_AUTHORIZED")
         if governance.get("model_execution") != "DISABLED":
-            errors.append("governance.model_execution must be DISABLED")
+            errors.append("governance.model_execution must be DISABLED or NOT_AUTHORIZED")
         if governance.get("agent_construction") != "DISABLED":
-            errors.append("governance.agent_construction must be DISABLED")
+            errors.append("governance.agent_construction must be DISABLED or NOT_AUTHORIZED")
         if governance.get("shell_execution") != "DISABLED":
-            errors.append("governance.shell_execution must be DISABLED")
+            errors.append("governance.shell_execution must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifacts_are_authority") is not False:
-            errors.append("governance.artifacts_are_authority must be false")
+            errors.append("governance.artifacts_are_authority must be false or NOT_AUTHORIZED")
 
     bridge_errors = bundle.get("bridge_spec_validation_errors")
     if bridge_errors not in ([], None):

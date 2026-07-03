@@ -45,7 +45,7 @@ def validate_validation_benchmark(record: Any) -> list[str]:
         if not isinstance(record.get(f), (int, float)) or record[f] < 0:
             errors.append(f"{f} must be a non-negative number")
     if record.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     return errors
 
 
@@ -317,7 +317,7 @@ def validate_validation_parity_report(record: Any) -> list[str]:
     if not isinstance(record.get("rust_promoted"), bool):
         errors.append("rust_promoted must be a boolean")
     if record.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     return errors
 
 

@@ -931,7 +931,7 @@ def _validate_authority_boundary(data: dict[str, Any], *, capability_state: str)
     )
     for key in authority_keys:
         if data.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if data.get("requires_human_promotion_for_execution") is not True:
         errors.append("requires_human_promotion_for_execution must be true")
 
@@ -943,7 +943,7 @@ def _validate_authority_boundary(data: dict[str, Any], *, capability_state: str)
             errors.append(f"authority_boundary.capability_state must be {capability_state}")
         for key in authority_keys:
             if boundary.get(key) is not False:
-                errors.append(f"authority_boundary.{key} must be false")
+                errors.append(f"authority_boundary.{key} must be false or NOT_AUTHORIZED")
         if boundary.get("requires_human_promotion_for_execution") is not True:
             errors.append("authority_boundary.requires_human_promotion_for_execution must be true")
     return errors
@@ -971,16 +971,16 @@ def _validate_governance(governance: Any, *, capability_state: str) -> list[str]
         "verification_execution",
     ):
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
     if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
-        errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
+        errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
     for key in ("artifact_is_authority", "grants_authority"):
         if governance.get(key) is not False:
-            errors.append(f"governance.{key} must be false")
+            errors.append(f"governance.{key} must be false or NOT_AUTHORIZED")
     if governance.get("requires_human_promotion_for_execution") is not True:
         errors.append("governance.requires_human_promotion_for_execution must be true")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

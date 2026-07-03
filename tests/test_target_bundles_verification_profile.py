@@ -36,4 +36,4 @@ def test_target_bundle_rejects_executable_verification_profile(tmp_path: Path) -
 
     errors = validate_target_bundle(bundle)
 
-    assert "verification_profile: governance.executes_commands must be false" in errors
+    assert "verification_profile: governance.executes_commands must be false or NOT_AUTHORIZED" in errors

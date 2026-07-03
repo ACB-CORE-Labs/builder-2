@@ -183,7 +183,7 @@ def test_agent_profile_validation_failures(tmp_path: Path) -> None:
         },
     }
     errors = validate_agent_profile_record(bad_coupling)
-    assert any("core_workbench_coupling must be NONE" in err for err in errors)
+    assert any("core_workbench_coupling must be NONE or NOT_AUTHORIZED" in err for err in errors)
 
     # bad list entries in compatible_targets
     bad_lists = {

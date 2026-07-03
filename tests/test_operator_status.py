@@ -67,7 +67,7 @@ def test_validate_operator_status_report_invalid_governance():
     report = create_operator_status_report()
     report["governance"]["artifact_is_authority"] = True
     errors = validate_operator_status_report(report)
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_authority_overclaim_fails_validation():
@@ -75,10 +75,10 @@ def test_authority_overclaim_fails_validation():
     report = create_operator_status_report()
     report["artifact_is_authority"] = True
     errors = validate_operator_status_report(report)
-    assert any("artifact_is_authority must be false" in e for e in errors)
+    assert any("artifact_is_authority must be false or NOT_AUTHORIZED" in e for e in errors)
 
     # Governance authority flag overclaim
     report2 = create_operator_status_report()
     report2["governance"]["grants_authority"] = True
     errors2 = validate_operator_status_report(report2)
-    assert any("governance.grants_authority must be false" in e for e in errors2)
+    assert any("governance.grants_authority must be false or NOT_AUTHORIZED" in e for e in errors2)

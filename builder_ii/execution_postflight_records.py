@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.config import Settings
+from builder_ii.governance_standard import build_standard_governance
 from builder_ii.target_profiles import TargetName, target_names, target_profile
 
 # ---------------------------------------------------------------------------
@@ -70,11 +71,7 @@ def create_execution_postflight_record(
         "postflight_state": "NOT_RUN",
         "performed_actions": [],
         "artifact_is_authority": False,
-        "governance": {
-            **{key: "DISABLED" for key in _GOVERNANCE_DISABLED_KEYS},
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("UNKNOWN"),
     }
 
 
@@ -138,7 +135,7 @@ def validate_execution_postflight_record(artifact: Any) -> list[str]:
 
     # Authority
     if artifact.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     # Governance block
     errors.extend(_validate_governance_block(artifact))
@@ -185,11 +182,7 @@ def create_execution_verification_record(
         "evidence_refs": list(evidence_refs or []),
         "performed_actions": [],
         "artifact_is_authority": False,
-        "governance": {
-            **{key: "DISABLED" for key in _GOVERNANCE_DISABLED_KEYS},
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("UNKNOWN"),
     }
 
 
@@ -252,7 +245,7 @@ def validate_execution_verification_record(artifact: Any) -> list[str]:
 
     # Authority
     if artifact.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     # Governance block
     errors.extend(_validate_governance_block(artifact))
@@ -303,11 +296,11 @@ def _validate_governance_block(artifact: dict[str, Any]) -> list[str]:
 
     for key in _GOVERNANCE_DISABLED_KEYS:
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
 
     if governance.get("artifact_is_authority") is not False:
-        errors.append("governance.artifact_is_authority must be false")
+        errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     return errors

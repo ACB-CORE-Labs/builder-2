@@ -91,15 +91,15 @@ def test_validation_rejects_premature_runtime_promotion() -> None:
     errors = validate_readonly_inspection_promotion_spec(spec)
 
     assert "candidate_state must be DESIGN_ONLY" in errors
-    assert "current_state must be DISABLED" in errors
+    assert "current_state must be DISABLED or NOT_AUTHORIZED" in errors
     assert "runtime_promotion must be BLOCKED_UNTIL_APPROVED" in errors
     assert "performed_actions must be empty" in errors
-    assert "grants_runtime_authority must be false" in errors
-    assert "grants_action_authority must be false" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.source_writes must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
-    assert "governance.core_workbench_coupling must be NONE" in errors
+    assert "grants_runtime_authority must be false or NOT_AUTHORIZED" in errors
+    assert "grants_action_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.source_writes must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in errors
 
 
 def test_validation_rejects_missing_required_gate_and_denied_action() -> None:

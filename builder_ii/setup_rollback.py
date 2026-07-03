@@ -257,7 +257,7 @@ def validate_setup_rollback_snapshot_artifact(data: Any) -> list[str]:
     if data.get("schema_version") != SETUP_ROLLBACK_SNAPSHOT_SCHEMA_VERSION:
         errors.append(f"schema_version must be {SETUP_ROLLBACK_SNAPSHOT_SCHEMA_VERSION}")
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if data.get("snapshot_only") is not True:
         errors.append("snapshot_only must be true")
     for digest_field in ("setup_plan_digest", "overlay_plan_digest", "snapshot_id"):
@@ -288,11 +288,11 @@ def validate_setup_rollback_snapshot_artifact(data: Any) -> list[str]:
             if storage_policy not in _STORAGE_POLICIES:
                 errors.append(f"target_path_states[{idx}].prior_content_storage_policy is unsupported")
             if state.get("raw_content_included") is not False:
-                errors.append(f"target_path_states[{idx}].raw_content_included must be false")
+                errors.append(f"target_path_states[{idx}].raw_content_included must be false or NOT_AUTHORIZED")
             if state.get("snapshot_only") is not True:
                 errors.append(f"target_path_states[{idx}].snapshot_only must be true")
             if state.get("artifact_is_authority") is not False:
-                errors.append(f"target_path_states[{idx}].artifact_is_authority must be false")
+                errors.append(f"target_path_states[{idx}].artifact_is_authority must be false or NOT_AUTHORIZED")
             for marker in (
                 "missing_file_marker",
                 "directory_marker",
@@ -316,9 +316,9 @@ def validate_setup_rollback_snapshot_artifact(data: Any) -> list[str]:
         errors.append("secret_policy must be an object")
     else:
         if secret_policy.get("raw_secrets_stored_in_json") is not False:
-            errors.append("secret_policy.raw_secrets_stored_in_json must be false")
+            errors.append("secret_policy.raw_secrets_stored_in_json must be false or NOT_AUTHORIZED")
         if secret_policy.get("raw_prior_content_stored_in_json") is not False:
-            errors.append("secret_policy.raw_prior_content_stored_in_json must be false")
+            errors.append("secret_policy.raw_prior_content_stored_in_json must be false or NOT_AUTHORIZED")
         if secret_policy.get("redacted_preview_only") is not True:
             errors.append("secret_policy.redacted_preview_only must be true")
 
@@ -331,13 +331,13 @@ def validate_setup_rollback_snapshot_artifact(data: Any) -> list[str]:
                 if value is not True:
                     errors.append(f"no_mutation_proof.{key} must be true")
             elif value is not False:
-                errors.append(f"no_mutation_proof.{key} must be false")
+                errors.append(f"no_mutation_proof.{key} must be false or NOT_AUTHORIZED")
 
     governance = data.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     elif governance.get("artifact_is_authority") is not False:
-        errors.append("governance.artifact_is_authority must be false")
+        errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
 
     digest = data.get("snapshot_digest")
     if not _is_sha256(digest):

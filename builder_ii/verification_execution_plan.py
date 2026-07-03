@@ -378,7 +378,7 @@ def _validate_allowed_command_profiles(data: dict[str, Any]) -> list[str]:
         if profile.get("requires_approval") is not True:
             errors.append(f"{prefix}.requires_approval must be true")
         if profile.get("execution_enabled") is not False:
-            errors.append(f"{prefix}.execution_enabled must be false")
+            errors.append(f"{prefix}.execution_enabled must be false or NOT_AUTHORIZED")
     return errors
 
 
@@ -414,7 +414,7 @@ def _validate_planned_steps(data: dict[str, Any]) -> list[str]:
         if step.get("requires_approval") is not True:
             errors.append(f"{prefix}.requires_approval must be true")
         if step.get("execution_enabled") is not False:
-            errors.append(f"{prefix}.execution_enabled must be false")
+            errors.append(f"{prefix}.execution_enabled must be false or NOT_AUTHORIZED")
         errors.extend(_scan_planned_step(step, prefix))
     return errors
 
@@ -449,9 +449,9 @@ def validate_verification_execution_plan_artifact(data: Any) -> list[str]:
     if data.get("approval_required") is not True:
         errors.append("approval_required must be true")
     if data.get("execution_enabled") is not False:
-        errors.append("execution_enabled must be false")
+        errors.append("execution_enabled must be false or NOT_AUTHORIZED")
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     errors.extend(_validate_disabled_authority(data))
     errors.extend(_validate_profile_consistency(data))

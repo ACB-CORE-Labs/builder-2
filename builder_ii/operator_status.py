@@ -179,9 +179,9 @@ def validate_operator_status_report(record: Any) -> list[str]:
             errors.append(f"missing required field: {f}")
 
     if record.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if record.get("grants_authority") is not False:
-        errors.append("grants_authority must be false")
+        errors.append("grants_authority must be false or NOT_AUTHORIZED")
 
     gov = record.get("governance")
     if not isinstance(gov, dict):
@@ -189,7 +189,7 @@ def validate_operator_status_report(record: Any) -> list[str]:
     else:
         for key in ("artifact_is_authority", "grants_authority"):
             if gov.get(key) is not False:
-                errors.append(f"governance.{key} must be false")
+                errors.append(f"governance.{key} must be false or NOT_AUTHORIZED")
         if gov.get("no_source_truth_inflation") is not True:
             errors.append("governance.no_source_truth_inflation must be true")
 

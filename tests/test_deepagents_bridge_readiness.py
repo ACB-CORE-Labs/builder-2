@@ -92,9 +92,9 @@ def test_validation_enforces_governance_no_authority():
     )
     report["governance"]["artifact_is_authority"] = True
     errors = validate_deepagents_bridge_readiness_report(report)
-    assert any("artifact_is_authority must be false" in e for e in errors)
+    assert any("artifact_is_authority must be false or NOT_AUTHORIZED" in e for e in errors)
 
     report["governance"]["artifact_is_authority"] = False
     report["governance"]["shell_execution"] = "ENABLED"
     errors = validate_deepagents_bridge_readiness_report(report)
-    assert any("shell_execution must be DISABLED" in e for e in errors)
+    assert any("shell_execution must be DISABLED or NOT_AUTHORIZED" in e for e in errors)

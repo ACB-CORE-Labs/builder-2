@@ -176,9 +176,9 @@ def validate_deepagents_readiness_artifact(artifact: Any) -> list[str]:
         if not isinstance(observed.get("exports"), dict):
             errors.append("observed.exports must be an object")
     if artifact.get("current_runtime_state") != "DISABLED":
-        errors.append("current_runtime_state must be DISABLED")
+        errors.append("current_runtime_state must be DISABLED or NOT_AUTHORIZED")
     if artifact.get("readiness_constructs_deepagents") is not False:
-        errors.append("readiness_constructs_deepagents must be false")
+        errors.append("readiness_constructs_deepagents must be false or NOT_AUTHORIZED")
     if not isinstance(artifact.get("readiness_imports_deepagents"), bool):
         errors.append("readiness_imports_deepagents must be boolean")
     for field in ("allowed_actions", "denied_actions", "approval_requirements"):
@@ -206,11 +206,11 @@ def validate_deepagents_readiness_artifact(artifact: Any) -> list[str]:
             "mcp_connections",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

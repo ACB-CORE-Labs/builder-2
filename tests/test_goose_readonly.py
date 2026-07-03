@@ -126,23 +126,23 @@ def test_validate_rejects_runtime_authority() -> None:
 
     errors = validate_readonly_runtime_audit(audit)
 
-    assert "current_runtime_state must be DISABLED" in errors
-    assert "runtime_started must be false" in errors
-    assert "goose_process_started must be false" in errors
+    assert "current_runtime_state must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "runtime_started must be false or NOT_AUTHORIZED" in errors
+    assert "goose_process_started must be false or NOT_AUTHORIZED" in errors
     assert "repository_files_read must be empty" in errors
     assert "target_artifacts_read must be empty" in errors
-    assert "git_status_inspected must be false" in errors
+    assert "git_status_inspected must be false or NOT_AUTHORIZED" in errors
     assert "commands_executed must be empty" in errors
     assert "shell_commands_executed must be empty" in errors
     assert "source_writes_applied must be empty" in errors
     assert "patches_applied must be empty" in errors
     assert "model_calls must be empty" in errors
-    assert "deepagents_constructed must be false" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.goose_runtime_start must be DISABLED" in errors
-    assert "governance.command_execution must be DISABLED" in errors
-    assert "governance.source_writes must be DISABLED" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "deepagents_constructed must be false or NOT_AUTHORIZED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.goose_runtime_start must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.command_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.source_writes must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
     assert "denied_actions must include execute_shell" in errors
 
 

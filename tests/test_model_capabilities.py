@@ -92,7 +92,7 @@ def test_enabling_model_execution_fails() -> None:
 
     errors = validate_model_capability_registry(registry)
 
-    assert "governance.model_execution must be DISABLED" in errors
+    assert "governance.model_execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_enabling_model_routing_authority_fails() -> None:
@@ -101,7 +101,7 @@ def test_enabling_model_routing_authority_fails() -> None:
 
     errors = validate_model_capability_registry(registry)
 
-    assert "governance.model_routing_authority must be DISABLED" in errors
+    assert "governance.model_routing_authority must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_malformed_model_record_fails() -> None:

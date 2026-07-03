@@ -67,9 +67,9 @@ def test_goose_wrapper_plan_rejects_authority_escalation(tmp_path: Path) -> None
     errors = validate_goose_wrapper_plan(bad)
 
     assert "plan_state must be PLANNED_ONLY" in errors
-    assert "operator_launch.executes_now must be false" in errors
+    assert "operator_launch.executes_now must be false or NOT_AUTHORIZED" in errors
     assert "operator_launch.requires_operator_execution must be true" in errors
-    assert "governance.goose_runtime_start must be DISABLED" in errors
+    assert "governance.goose_runtime_start must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_goose_wrapper_plan_file_validation(tmp_path: Path) -> None:

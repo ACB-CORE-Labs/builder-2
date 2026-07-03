@@ -552,7 +552,7 @@ def cmd_postflight_governance(args: list[str]) -> int:
     base = _builder_dir()
 
     _section("Governance Block Audit")
-    print(f"  {_h('9 capability gates; all must be DISABLED in valid postflight artifacts.')}")
+    print(f"  {_h('9 capability gates; all must be DISABLED or NOT_AUTHORIZED in valid postflight artifacts.')}")
     print()
 
     all_records = _glob_kind(base, "execution_postflight_record", "postflight", "exec") + _glob_kind(

@@ -82,8 +82,8 @@ def test_orchestration_dry_run_rejects_runtime_escalation(tmp_path: Path) -> Non
     errors = validate_orchestration_dry_run(bad)
 
     assert "dry_run_state must be PLANNED_ONLY" in errors
-    assert "steps[0].executes_now must be false" in errors
-    assert "governance.deepagents_runtime_start must be DISABLED" in errors
+    assert "steps[0].executes_now must be false or NOT_AUTHORIZED" in errors
+    assert "governance.deepagents_runtime_start must be DISABLED or NOT_AUTHORIZED" in errors
     assert "final_handoff.verification_status must be NOT_RUN" in errors
 
 
@@ -171,13 +171,13 @@ def test_goal2_orchestration_assignment_dry_run_rejects_execution_claims(
     errors = validate_orchestration_assignment_dry_run(bad)
 
     assert "dry_run_state must be DRY_RUN_ONLY" in errors
-    assert "executes_model must be false" in errors
-    assert "invokes_goose must be false" in errors
-    assert "constructs_deepagents must be false" in errors
-    assert "invokes_mcp must be false" in errors
-    assert "performs_network_calls must be false" in errors
-    assert "mutates_target_repo must be false" in errors
-    assert "grants_authority must be false" in errors
+    assert "executes_model must be false or NOT_AUTHORIZED" in errors
+    assert "invokes_goose must be false or NOT_AUTHORIZED" in errors
+    assert "constructs_deepagents must be false or NOT_AUTHORIZED" in errors
+    assert "invokes_mcp must be false or NOT_AUTHORIZED" in errors
+    assert "performs_network_calls must be false or NOT_AUTHORIZED" in errors
+    assert "mutates_target_repo must be false or NOT_AUTHORIZED" in errors
+    assert "grants_authority must be false or NOT_AUTHORIZED" in errors
     assert "execution_summary.models_called must be 0" in errors
     assert "execution_summary.tools_called must be 0" in errors
     assert "execution_summary.shell_commands_run must be 0" in errors
@@ -187,8 +187,8 @@ def test_goal2_orchestration_assignment_dry_run_rejects_execution_claims(
     assert "execution_summary.network_calls must be 0" in errors
     assert "execution_summary.target_repo_mutations must be 0" in errors
     assert "execution_summary.verification_status must be NOT_RUN" in errors
-    assert "execution_summary.authority_granted must be false" in errors
-    assert "governance.runtime_execution must be DISABLED" in errors
+    assert "execution_summary.authority_granted must be false or NOT_AUTHORIZED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
     assert "field 'orchestration_assignment_dry_run.dry_run_state' claims active authority state 'EXECUTED'" in errors
 
 
@@ -202,6 +202,6 @@ def test_goal2_orchestration_assignment_dry_run_requires_valid_plan(
     try:
         create_orchestration_assignment_dry_run(bad_plan)
     except ValueError as exc:
-        assert "planned_bindings.tools.executes_tools must be false" in str(exc)
+        assert "planned_bindings.tools.executes_tools must be false or NOT_AUTHORIZED" in str(exc)
     else:
         raise AssertionError("invalid orchestration assignment plan should not dry-run")

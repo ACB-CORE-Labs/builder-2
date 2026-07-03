@@ -136,7 +136,7 @@ def validate_hitl_command_execution_spec(artifact: Any) -> list[str]:
         if curr_state.get("mode") != "DESIGN_ONLY":
             errors.append("current_state.mode must be DESIGN_ONLY")
         if curr_state.get("runtime") != "DISABLED":
-            errors.append("current_state.runtime must be DISABLED")
+            errors.append("current_state.runtime must be DISABLED or NOT_AUTHORIZED")
 
     denied = artifact.get("denied_current_behavior")
     if not isinstance(denied, list):
@@ -174,11 +174,11 @@ def validate_hitl_command_execution_spec(artifact: Any) -> list[str]:
             "subprocess_execution",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     return errors
 

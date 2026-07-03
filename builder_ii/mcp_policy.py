@@ -54,7 +54,7 @@ def _validate_governance(record: dict[str, Any], prefix: str = "governance.") ->
         return [f"{prefix} must be an object"]
 
     if governance.get("artifact_is_authority") is not False:
-        errors.append(f"{prefix}artifact_is_authority must be false")
+        errors.append(f"{prefix}artifact_is_authority must be false or NOT_AUTHORIZED")
 
     return errors
 
@@ -75,10 +75,10 @@ def validate_mcp_policy(record: Any) -> list[str]:
         errors.append("denied_by_default must be true")
 
     if record.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     if record.get("grants_authority") is not False:
-        errors.append("grants_authority must be false")
+        errors.append("grants_authority must be false or NOT_AUTHORIZED")
 
     for field in ("allowed_operations", "allowed_risk_classes"):
         if not isinstance(record.get(field), list):
@@ -168,16 +168,16 @@ def validate_mcp_envelope(record: Any) -> list[str]:
             errors.append(f"{field} must be a boolean")
 
     if record.get("executes_shell") is not False:
-        errors.append("executes_shell must be false")
+        errors.append("executes_shell must be false or NOT_AUTHORIZED")
 
     if record.get("mutates_target_repo") is not False:
-        errors.append("mutates_target_repo must be false")
+        errors.append("mutates_target_repo must be false or NOT_AUTHORIZED")
 
     if record.get("grants_authority") is not False:
-        errors.append("grants_authority must be false")
+        errors.append("grants_authority must be false or NOT_AUTHORIZED")
 
     if record.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
 
     return errors
 

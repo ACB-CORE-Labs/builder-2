@@ -85,7 +85,7 @@ def test_validation_rejects_ready_with_incompatible_support_artifacts() -> None:
 
     errors = validate_promotion_readiness_record(record)
 
-    assert "ready must be false when support_artifacts are incompatible" in errors
+    assert "ready must be false or NOT_AUTHORIZED when support_artifacts are incompatible" in errors
     assert any("missing must include compatibility item" in error for error in errors)
 
 

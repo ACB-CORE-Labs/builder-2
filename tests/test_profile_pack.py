@@ -164,13 +164,13 @@ def test_manifest_rejects_authority_leakage_boundaries() -> None:
     errors = validate_profile_pack_manifest(manifest)
 
     assert any("payload.default_policy must be denied" in error for error in errors)
-    assert any("payload.calls_tools must be false" in error for error in errors)
-    assert any("payload.starts_goose must be false" in error for error in errors)
-    assert any("payload.constructs_agents must be false" in error for error in errors)
-    assert any("payload.calls_models must be false" in error for error in errors)
-    assert any("payload.executes_commands must be false" in error for error in errors)
-    assert any("payload.claims_verification_evidence must be false" in error for error in errors)
-    assert "governance.runtime_execution must be DISABLED" in errors
+    assert any("payload.calls_tools must be false or NOT_AUTHORIZED" in error for error in errors)
+    assert any("payload.starts_goose must be false or NOT_AUTHORIZED" in error for error in errors)
+    assert any("payload.constructs_agents must be false or NOT_AUTHORIZED" in error for error in errors)
+    assert any("payload.calls_models must be false or NOT_AUTHORIZED" in error for error in errors)
+    assert any("payload.executes_commands must be false or NOT_AUTHORIZED" in error for error in errors)
+    assert any("payload.claims_verification_evidence must be false or NOT_AUTHORIZED" in error for error in errors)
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_render_plan_and_dry_run_reject_execution_claims(tmp_path: Path) -> None:
@@ -183,13 +183,13 @@ def test_render_plan_and_dry_run_reject_execution_claims(tmp_path: Path) -> None
     bad_plan = copy.deepcopy(plan)
     bad_plan["planned_outputs"][0]["executes_now"] = True
     bad_plan["render_boundary"]["starts_goose"] = True
-    assert "planned_outputs[0].executes_now must be false" in validate_profile_pack_render_plan(bad_plan)
-    assert "render_boundary.starts_goose must be false" in validate_profile_pack_render_plan(bad_plan)
+    assert "planned_outputs[0].executes_now must be false or NOT_AUTHORIZED" in validate_profile_pack_render_plan(bad_plan)
+    assert "render_boundary.starts_goose must be false or NOT_AUTHORIZED" in validate_profile_pack_render_plan(bad_plan)
 
     bad_dry_run = copy.deepcopy(dry_run)
     bad_dry_run["checks"][0]["calls_models"] = True
     bad_dry_run["summary"]["verification_status"] = "PASSED"
-    assert "checks[0].calls_models must be false" in validate_profile_pack_dry_run(bad_dry_run)
+    assert "checks[0].calls_models must be false or NOT_AUTHORIZED" in validate_profile_pack_dry_run(bad_dry_run)
     assert "summary.verification_status must be NOT_RUN" in validate_profile_pack_dry_run(bad_dry_run)
 
 

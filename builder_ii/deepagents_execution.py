@@ -294,7 +294,7 @@ def _validate_backend_result_payload(payload: Any, *, expected_subagent_profile:
         errors.append("backend result summary must be a non-empty string")
     for field in OPTIONAL_BACKEND_RESULT_FALSE_FIELDS:
         if payload.get(field) is not False:
-            errors.append(f"backend result {field} must be false")
+            errors.append(f"backend result {field} must be false or NOT_AUTHORIZED")
     if not _is_sha256(payload.get("result_digest")):
         errors.append("backend result result_digest must be a SHA-256 hex digest")
     elif payload.get("result_digest") != _digest_jsonable(payload):
@@ -724,7 +724,7 @@ def _validate_common_authority(data: dict[str, Any], *, capability_state: str, p
         errors.append(f"runs_protocol_backend must be {protocol_execution}")
     for key in _AUTHORITY_FALSE_FIELDS:
         if data.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if data.get("requires_human_promotion_for_execution") is not True:
         errors.append("requires_human_promotion_for_execution must be true")
     boundary = data.get("authority_boundary")
@@ -737,7 +737,7 @@ def _validate_common_authority(data: dict[str, Any], *, capability_state: str, p
             errors.append(f"authority_boundary.runs_protocol_backend must be {protocol_execution}")
         for key in _AUTHORITY_FALSE_FIELDS:
             if boundary.get(key) is not False:
-                errors.append(f"authority_boundary.{key} must be false")
+                errors.append(f"authority_boundary.{key} must be false or NOT_AUTHORIZED")
         if boundary.get("requires_human_promotion_for_execution") is not True:
             errors.append("authority_boundary.requires_human_promotion_for_execution must be true")
     errors.extend(
@@ -763,14 +763,14 @@ def _validate_governance(governance: Any, *, capability_state: str, protocol_exe
         errors.append(f"governance.protocol_backend_execution must be {expected_protocol}")
     for key in _GOVERNANCE_DISABLED_FIELDS:
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
     if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
-        errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
+        errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
     for key in ("artifact_is_authority", "grants_runtime_authority", "grants_action_authority"):
         if governance.get(key) is not False:
-            errors.append(f"governance.{key} must be false")
+            errors.append(f"governance.{key} must be false or NOT_AUTHORIZED")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 
@@ -1405,7 +1405,7 @@ def validate_deepagents_execution_approval(data: Any) -> list[str]:
         errors.append(f"approved_backend_mode must be one of: {', '.join(BACKEND_MODES)}")
     errors.extend(_string_list(data.get("approved_subagents"), field="approved_subagents", allow_empty=False))
     if data.get("approval_enables_direct_deepagents") is not False:
-        errors.append("approval_enables_direct_deepagents must be false")
+        errors.append("approval_enables_direct_deepagents must be false or NOT_AUTHORIZED")
     errors.extend(
         _validate_common_authority(
             data,
@@ -1572,7 +1572,7 @@ def validate_deepagents_replay_report(data: Any) -> list[str]:
             )
         )
     if data.get("replay_executes_runtime") is not False:
-        errors.append("replay_executes_runtime must be false")
+        errors.append("replay_executes_runtime must be false or NOT_AUTHORIZED")
     errors.extend(
         _validate_common_authority(
             data,
@@ -1877,7 +1877,7 @@ def validate_deepagents_backend_readiness_gate(data: Any) -> list[str]:
             if not isinstance(protocol.get(field), bool):
                 errors.append(f"protocol_compatibility.{field} must be a boolean")
         if protocol.get("factory_constructed") is not False:
-            errors.append("protocol_compatibility.factory_constructed must be false")
+            errors.append("protocol_compatibility.factory_constructed must be false or NOT_AUTHORIZED")
 
     contract = data.get("contract_tests")
     if not isinstance(contract, dict):
@@ -1963,7 +1963,7 @@ def validate_deepagents_backend_readiness_gate(data: Any) -> list[str]:
         if replay.get("replay_run_required") is not True:
             errors.append("replay_proof.replay_run_required must be true")
         if replay.get("replay_executes_runtime") is not False:
-            errors.append("replay_proof.replay_executes_runtime must be false")
+            errors.append("replay_proof.replay_executes_runtime must be false or NOT_AUTHORIZED")
 
     gates = data.get("capability_promotion_gates")
     if not isinstance(gates, list) or len(gates) != len(CAPABILITY_PROMOTION_GATE_NAMES):

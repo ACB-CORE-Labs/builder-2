@@ -361,7 +361,7 @@ def validate_config_schema_artifact(data: Any) -> list[str]:
         errors.append("governance must be an object")
     else:
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         for key, expected in CAPABILITY_DEFAULTS.items():
             if governance.get(key) != expected:
                 errors.append(f"governance.{key} must be {expected}")

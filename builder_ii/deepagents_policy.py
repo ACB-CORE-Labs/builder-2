@@ -143,9 +143,9 @@ def validate_deepagents_policy_artifact(artifact: Any) -> list[str]:
     if artifact.get("policy_mode") != "artifact_only":
         errors.append("policy_mode must be artifact_only")
     if artifact.get("current_runtime_state") != "DISABLED":
-        errors.append("current_runtime_state must be DISABLED")
+        errors.append("current_runtime_state must be DISABLED or NOT_AUTHORIZED")
     if artifact.get("policy_constructs_deepagents") is not False:
-        errors.append("policy_constructs_deepagents must be false")
+        errors.append("policy_constructs_deepagents must be false or NOT_AUTHORIZED")
     factory = artifact.get("governed_factory")
     if not isinstance(factory, dict):
         errors.append("governed_factory must be an object")
@@ -191,11 +191,11 @@ def validate_deepagents_policy_artifact(artifact: Any) -> list[str]:
             "mcp_connections",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

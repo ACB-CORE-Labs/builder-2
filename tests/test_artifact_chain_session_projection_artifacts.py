@@ -95,4 +95,4 @@ def test_artifact_chain_rejects_registered_artifact_authority_escalation(tmp_pat
     assert report["counts"]["native_valid"] == 0
     assert report["counts"]["native_invalid"] == 1
     assert any("projection_state must be PLANNED_ONLY" in error for error in report["errors"])
-    assert any("governance.model_execution must be DISABLED" in error for error in report["errors"])
+    assert any("governance.model_execution must be DISABLED or NOT_AUTHORIZED" in error for error in report["errors"])

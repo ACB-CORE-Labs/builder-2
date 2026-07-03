@@ -144,7 +144,7 @@ def validate_orchestration_dry_run(data: Any) -> list[str]:
             if step.get("operator_review_required") is not True:
                 errors.append(f"steps[{index}].operator_review_required must be true")
             if step.get("executes_now") is not False:
-                errors.append(f"steps[{index}].executes_now must be false")
+                errors.append(f"steps[{index}].executes_now must be false or NOT_AUTHORIZED")
             if not isinstance(step.get("validation_errors"), list):
                 errors.append(f"steps[{index}].validation_errors must be a list")
             elif step["validation_errors"]:
@@ -178,11 +178,11 @@ def validate_orchestration_dry_run(data: Any) -> list[str]:
             "memory_mutation",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

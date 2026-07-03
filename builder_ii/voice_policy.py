@@ -99,7 +99,7 @@ def validate_voice_io_policy_artifact(artifact: Any) -> list[str]:
     if artifact.get("current_state") != "DESIGN_ONLY":
         errors.append("current_state must be DESIGN_ONLY")
     if artifact.get("runtime_status") != "DISABLED":
-        errors.append("runtime_status must be DISABLED")
+        errors.append("runtime_status must be DISABLED or NOT_AUTHORIZED")
     if artifact.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     errors.extend(_require_list_contains(artifact, "denied_current_behavior", _DENIED_CURRENT_BEHAVIOR))
@@ -135,11 +135,11 @@ def validate_voice_io_policy_artifact(artifact: Any) -> list[str]:
             "memory_mutation",
         ):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

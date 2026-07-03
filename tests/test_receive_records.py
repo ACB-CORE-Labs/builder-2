@@ -123,10 +123,10 @@ def test_validate_rejects_authority_changes(tmp_path: Path) -> None:
     errors = validate_receive_record(record)
 
     assert "record_state must be RECORDED_ONLY" in errors
-    assert "grants_runtime_authority must be false" in errors
-    assert "grants_action_authority must be false" in errors
+    assert "grants_runtime_authority must be false or NOT_AUTHORIZED" in errors
+    assert "grants_action_authority must be false or NOT_AUTHORIZED" in errors
     assert "performed_actions must be empty" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_validate_file_errors(tmp_path: Path) -> None:

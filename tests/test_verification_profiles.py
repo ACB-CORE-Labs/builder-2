@@ -80,10 +80,10 @@ def test_validate_profile_artifact_rejects_runtime_authority() -> None:
 
     errors = validate_profile_artifact(data)
 
-    assert "governance.runtime_execution must be DISABLED" in errors
-    assert "governance.shell_execution must be DISABLED" in errors
-    assert "governance.executes_commands must be false" in errors
-    assert "governance.artifact_is_authority must be false" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.shell_execution must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "governance.executes_commands must be false or NOT_AUTHORIZED" in errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_validate_profile_artifact_file_errors(tmp_path: Path) -> None:
@@ -189,4 +189,4 @@ def test_validate_profile_artifact_additional_failures() -> None:
         },
     }
     errors = validate_profile_artifact(bad_gov)
-    assert any("governance.writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH" in err for err in errors)
+    assert any("governance.writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH" in err for err in errors)

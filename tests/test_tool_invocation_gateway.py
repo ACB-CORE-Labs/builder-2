@@ -168,7 +168,7 @@ def test_low_risk_path_invariants_envelope_mismatch():
     envelope = _create_valid_envelope(policy)
     envelope["mutates_target_repo"] = True
 
-    with pytest.raises(ValueError, match="Invalid envelope:.*mutates_target_repo must be false"):
+    with pytest.raises(ValueError, match="Invalid envelope:.*mutates_target_repo must be false or NOT_AUTHORIZED"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
 

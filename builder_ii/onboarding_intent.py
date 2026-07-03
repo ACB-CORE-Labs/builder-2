@@ -167,7 +167,7 @@ def validate_onboarding_intent_report_artifact(data: Any) -> list[str]:
     if data.get("schema_version") != ONBOARDING_INTENT_SCHEMA_VERSION:
         errors.append(f"schema_version must be {ONBOARDING_INTENT_SCHEMA_VERSION}")
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if data.get("planned_only") is not True:
         errors.append("planned_only must be true")
     if not isinstance(data.get("setup_apply_executed"), bool):

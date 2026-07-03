@@ -160,7 +160,7 @@ def validate_setup_plan_artifact(data: Any) -> list[str]:
     if data.get("schema_version") != SETUP_PLAN_SCHEMA_VERSION:
         errors.append(f"schema_version must be {SETUP_PLAN_SCHEMA_VERSION}")
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     ref = data.get("config_source_resolution_ref")
     if not isinstance(ref, dict):
         errors.append("config_source_resolution_ref must be an object")
@@ -216,7 +216,7 @@ def validate_setup_plan_artifact(data: Any) -> list[str]:
                 errors.append(f"planned_writes_if_later_applied[{idx}] must be an object")
                 continue
             if write.get("r1_1_performs_write") is not False:
-                errors.append(f"planned_writes_if_later_applied[{idx}].r1_1_performs_write must be false")
+                errors.append(f"planned_writes_if_later_applied[{idx}].r1_1_performs_write must be false or NOT_AUTHORIZED")
             if write.get("state") != "planned_only":
                 errors.append(f"planned_writes_if_later_applied[{idx}].state must be planned_only")
     proof = data.get("no_mutation_proof")
@@ -228,12 +228,12 @@ def validate_setup_plan_artifact(data: Any) -> list[str]:
                 if value is not True:
                     errors.append(f"no_mutation_proof.{key} must be true")
             elif value is not False:
-                errors.append(f"no_mutation_proof.{key} must be false")
+                errors.append(f"no_mutation_proof.{key} must be false or NOT_AUTHORIZED")
     governance = data.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     elif governance.get("artifact_is_authority") is not False:
-        errors.append("governance.artifact_is_authority must be false")
+        errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
     plan_digest = data.get("plan_digest")
     if not isinstance(plan_digest, str) or len(plan_digest) != 64:
         errors.append("plan_digest must be a SHA-256 hex string")

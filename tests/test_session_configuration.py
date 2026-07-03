@@ -78,10 +78,10 @@ def test_session_configuration_rejects_authority_escalation(tmp_path: Path) -> N
 
     errors = validate_session_configuration(config)
 
-    assert "governance.runtime_execution must be DISABLED" in errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in errors
     assert "goose_projection_policy.projection_state must be PLANNED_ONLY" in errors
-    assert "goose_projection_policy.governance.goose_runtime_start must be DISABLED" in errors
-    assert "model_policy.governance.model_execution must be DISABLED" in errors
+    assert "goose_projection_policy.governance.goose_runtime_start must be DISABLED or NOT_AUTHORIZED" in errors
+    assert "model_policy.governance.model_execution must be DISABLED or NOT_AUTHORIZED" in errors
 
 
 def test_session_configuration_file_validation(tmp_path: Path) -> None:

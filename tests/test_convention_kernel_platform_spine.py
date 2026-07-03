@@ -246,7 +246,10 @@ def test_platform_bundle_validation_checks_child_artifact_governance(tmp_path):
     bundle_dict["repo_map"]["governance"]["runtime_execution"] = "AUTHORIZED"
 
     errors = validate_convention_kernel_platform_bundle(bundle_dict)
-    assert any("repo_map: governance.runtime_execution must be DISABLED" in err for err in errors)
+    assert any(
+        "repo_map: governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in err
+        for err in errors
+    )
 
 
 def test_platform_bundle_reference_extraction_handles_missing_handoff_note():

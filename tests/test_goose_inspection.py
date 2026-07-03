@@ -173,22 +173,22 @@ def test_validate_rejects_runtime_authority(tmp_path: Path) -> None:
 
     validation_errors = validate_readonly_inspection_audit(audit)
 
-    assert "runtime_started must be false" in validation_errors
-    assert "goose_process_started must be false" in validation_errors
-    assert "repository_file_contents_recorded must be false" in validation_errors
+    assert "runtime_started must be false or NOT_AUTHORIZED" in validation_errors
+    assert "goose_process_started must be false or NOT_AUTHORIZED" in validation_errors
+    assert "repository_file_contents_recorded must be false or NOT_AUTHORIZED" in validation_errors
     assert "target_artifacts_read must be empty" in validation_errors
-    assert "git_status_inspected must be false" in validation_errors
+    assert "git_status_inspected must be false or NOT_AUTHORIZED" in validation_errors
     assert "commands_executed must be empty" in validation_errors
     assert "shell_commands_executed must be empty" in validation_errors
     assert "source_writes_applied must be empty" in validation_errors
     assert "patches_applied must be empty" in validation_errors
     assert "model_calls must be empty" in validation_errors
-    assert "deepagents_constructed must be false" in validation_errors
-    assert "repository_files_read[0].content_recorded must be false" in validation_errors
-    assert "governance.goose_runtime_start must be DISABLED" in validation_errors
-    assert "governance.command_execution must be DISABLED" in validation_errors
-    assert "governance.source_writes must be DISABLED" in validation_errors
-    assert "governance.artifact_is_authority must be false" in validation_errors
+    assert "deepagents_constructed must be false or NOT_AUTHORIZED" in validation_errors
+    assert "repository_files_read[0].content_recorded must be false or NOT_AUTHORIZED" in validation_errors
+    assert "governance.goose_runtime_start must be DISABLED or NOT_AUTHORIZED" in validation_errors
+    assert "governance.command_execution must be DISABLED or NOT_AUTHORIZED" in validation_errors
+    assert "governance.source_writes must be DISABLED or NOT_AUTHORIZED" in validation_errors
+    assert "governance.artifact_is_authority must be false or NOT_AUTHORIZED" in validation_errors
     assert "denied_actions must include execute_shell" in validation_errors
 
 

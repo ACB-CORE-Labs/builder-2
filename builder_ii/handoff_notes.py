@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from builder_ii.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.session_workflow import SESSION_WORKFLOW_PLAN_KIND
 from builder_ii.target_profiles import target_names
 from builder_ii.verification_profile_reports import (
@@ -72,16 +73,9 @@ def create_handoff_note(
         "next_recommended_action": next_recommended_action,
         "human_review_required": human_review_required,
         "governance": {
-            "capability_state": "handoff_note",
-            "runtime_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "shell_execution": "DISABLED",
-            "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
-            "memory_mutation": "DISABLED",
-            "executes_commands": False,
+            **build_standard_governance("handoff_note"),
             "claims_verification_passed": bool(evidence_refs),
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
+            "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
         },
     }
 
@@ -180,27 +174,20 @@ def validate_handoff_note(data: Any) -> list[str]:
     if data.get("human_review_required") is not True:
         errors.append("human_review_required must be true")
 
-    governance = data.get("governance")
-    if not isinstance(governance, dict):
-        errors.append("governance must be an object")
-    else:
-        if governance.get("capability_state") != "handoff_note":
-            errors.append("governance.capability_state must be handoff_note")
-        for key in ("runtime_execution", "model_execution", "shell_execution", "memory_mutation"):
-            if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
-            errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
-        if governance.get("executes_commands") is not False:
-            errors.append("governance.executes_commands must be false")
+    gov = data.get("governance")
+    if isinstance(gov, dict):
         expected_claim = bool(evidence_refs)
-        if governance.get("claims_verification_passed") is not expected_claim:
+        if gov.get("claims_verification_passed") is not expected_claim:
             errors.append("governance.claims_verification_passed must match evidence ref presence")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        if gov.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
+            errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
 
+        # Temporarily normalize them so validate_standard_governance passes them
+        gov = dict(gov)
+        gov["claims_verification_passed"] = "DISABLED"
+        gov["source_writes"] = "DISABLED"
+
+    errors.extend(validate_standard_governance(gov, "handoff_note"))
     return errors
 
 

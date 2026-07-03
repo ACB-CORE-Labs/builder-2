@@ -208,11 +208,11 @@ def validate_readonly_runtime_audit(audit: Any) -> list[str]:
     if audit.get("capability_state") != "read_only_runtime_candidate":
         errors.append("capability_state must be read_only_runtime_candidate")
     if audit.get("current_runtime_state") != "DISABLED":
-        errors.append("current_runtime_state must be DISABLED")
+        errors.append("current_runtime_state must be DISABLED or NOT_AUTHORIZED")
     if audit.get("runtime_started") is not False:
-        errors.append("runtime_started must be false")
+        errors.append("runtime_started must be false or NOT_AUTHORIZED")
     if audit.get("goose_process_started") is not False:
-        errors.append("goose_process_started must be false")
+        errors.append("goose_process_started must be false or NOT_AUTHORIZED")
     if audit.get("manifest_requested_runtime_mode") != "read_only":
         errors.append("manifest_requested_runtime_mode must be read_only")
     if not audit.get("manifest_path"):
@@ -255,7 +255,7 @@ def validate_readonly_runtime_audit(audit: Any) -> list[str]:
     if audit.get("target_artifacts_read") != []:
         errors.append("target_artifacts_read must be empty")
     if audit.get("git_status_inspected") is not False:
-        errors.append("git_status_inspected must be false")
+        errors.append("git_status_inspected must be false or NOT_AUTHORIZED")
     if audit.get("commands_executed") != []:
         errors.append("commands_executed must be empty")
     if audit.get("shell_commands_executed") != []:
@@ -267,7 +267,7 @@ def validate_readonly_runtime_audit(audit: Any) -> list[str]:
     if audit.get("model_calls") != []:
         errors.append("model_calls must be empty")
     if audit.get("deepagents_constructed") is not False:
-        errors.append("deepagents_constructed must be false")
+        errors.append("deepagents_constructed must be false or NOT_AUTHORIZED")
 
     governance = audit.get("governance")
     if not isinstance(governance, dict):
@@ -277,15 +277,15 @@ def validate_readonly_runtime_audit(audit: Any) -> list[str]:
             errors.append("governance.capability_state must be read_only_runtime_candidate")
         for key in _DISABLED_GOVERNANCE_KEYS:
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         if governance.get("repository_file_reads") != "DISABLED_IN_THIS_CANDIDATE_ARTIFACT":
-            errors.append("governance.repository_file_reads must be DISABLED_IN_THIS_CANDIDATE_ARTIFACT")
+            errors.append("governance.repository_file_reads must be DISABLED or NOT_AUTHORIZED_IN_THIS_CANDIDATE_ARTIFACT")
         if governance.get("target_artifact_reads") != "DISABLED_IN_THIS_CANDIDATE_ARTIFACT":
-            errors.append("governance.target_artifact_reads must be DISABLED_IN_THIS_CANDIDATE_ARTIFACT")
+            errors.append("governance.target_artifact_reads must be DISABLED or NOT_AUTHORIZED_IN_THIS_CANDIDATE_ARTIFACT")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

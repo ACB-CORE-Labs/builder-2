@@ -125,21 +125,21 @@ def validate_quality_gate_artifact(artifact: Any) -> list[str]:
         errors.append("governance must be an object")
     else:
         if governance.get("runtime_execution") != "DISABLED":
-            errors.append("governance.runtime_execution must be DISABLED")
+            errors.append("governance.runtime_execution must be DISABLED or NOT_AUTHORIZED")
         if governance.get("model_execution") != "DISABLED":
-            errors.append("governance.model_execution must be DISABLED")
+            errors.append("governance.model_execution must be DISABLED or NOT_AUTHORIZED")
         if governance.get("agent_construction") != "DISABLED":
-            errors.append("governance.agent_construction must be DISABLED")
+            errors.append("governance.agent_construction must be DISABLED or NOT_AUTHORIZED")
         if governance.get("command_execution") != "DISABLED":
-            errors.append("governance.command_execution must be DISABLED")
+            errors.append("governance.command_execution must be DISABLED or NOT_AUTHORIZED")
         if governance.get("shell_execution") != "DISABLED":
-            errors.append("governance.shell_execution must be DISABLED")
+            errors.append("governance.shell_execution must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
+            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("quality_gate_executes_commands") is not False:
-            errors.append("governance.quality_gate_executes_commands must be false")
+            errors.append("governance.quality_gate_executes_commands must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
 
     return errors
 

@@ -213,7 +213,7 @@ def test_validation_failures_cover_slots_and_governance(tmp_path: Path) -> None:
     runtime_enabled = json_lib.loads(json_lib.dumps(binding))
     runtime_enabled["governance"]["runtime_execution"] = "ENABLED"
     assert any(
-        "governance.runtime_execution must be DISABLED" in error
+        "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in error
         for error in validate_hitl_chain_binding(runtime_enabled)
     )
 
@@ -227,7 +227,7 @@ def test_validation_failures_cover_slots_and_governance(tmp_path: Path) -> None:
     present_top_level = dict(binding)
     present_top_level["artifact_is_authority"] = True
     assert any(
-        "artifact_is_authority must be false when present" in error
+        "artifact_is_authority must be false or NOT_AUTHORIZED when present" in error
         for error in validate_hitl_chain_binding(present_top_level)
     )
 

@@ -562,7 +562,7 @@ def _validate_entry_payload(entry: dict[str, Any], *, field: str) -> list[str]:
                 errors.append(f"{field}.payload.{key} must be true")
         for key in ("connects_to_mcp", "calls_tools", "fetches_resources"):
             if payload.get(key) is not False:
-                errors.append(f"{field}.payload.{key} must be false")
+                errors.append(f"{field}.payload.{key} must be false or NOT_AUTHORIZED")
         if payload.get("sampling") != "disabled":
             errors.append(f"{field}.payload.sampling must be disabled")
         if payload.get("default_policy") != "denied":
@@ -570,14 +570,14 @@ def _validate_entry_payload(entry: dict[str, Any], *, field: str) -> list[str]:
 
     if profile_kind == "goose_projection_stub":
         if payload.get("starts_goose") is not False:
-            errors.append(f"{field}.payload.starts_goose must be false")
+            errors.append(f"{field}.payload.starts_goose must be false or NOT_AUTHORIZED")
         if payload.get("runtime_execution") != "DISABLED":
-            errors.append(f"{field}.payload.runtime_execution must be DISABLED")
+            errors.append(f"{field}.payload.runtime_execution must be DISABLED or NOT_AUTHORIZED")
 
     if profile_kind == "deepagents_projection_stub":
         for key in ("constructs_agents", "constructs_subagents", "delegates"):
             if payload.get(key) is not False:
-                errors.append(f"{field}.payload.{key} must be false")
+                errors.append(f"{field}.payload.{key} must be false or NOT_AUTHORIZED")
 
     if profile_kind in {
         "model_policy_stub",
@@ -586,31 +586,31 @@ def _validate_entry_payload(entry: dict[str, Any], *, field: str) -> list[str]:
         "model_routing_recommendation",
     }:
         if payload.get("calls_models") is not False:
-            errors.append(f"{field}.payload.calls_models must be false")
+            errors.append(f"{field}.payload.calls_models must be false or NOT_AUTHORIZED")
         if payload.get("model_execution") != "DISABLED":
-            errors.append(f"{field}.payload.model_execution must be DISABLED")
+            errors.append(f"{field}.payload.model_execution must be DISABLED or NOT_AUTHORIZED")
 
     if profile_kind == "verification_profile":
         if payload.get("executes_commands") is not False:
-            errors.append(f"{field}.payload.executes_commands must be false")
+            errors.append(f"{field}.payload.executes_commands must be false or NOT_AUTHORIZED")
         if payload.get("verification_status") != "NOT_RUN":
             errors.append(f"{field}.payload.verification_status must be NOT_RUN")
 
     if profile_kind == "handoff_profile":
         if payload.get("claims_verification_evidence") is not False:
-            errors.append(f"{field}.payload.claims_verification_evidence must be false")
+            errors.append(f"{field}.payload.claims_verification_evidence must be false or NOT_AUTHORIZED")
         if payload.get("verification_claim") != "NOT_CLAIMED":
             errors.append(f"{field}.payload.verification_claim must be NOT_CLAIMED")
 
     if profile_kind == "approval_policy":
         if payload.get("grants_authority") is not False:
-            errors.append(f"{field}.payload.grants_authority must be false")
+            errors.append(f"{field}.payload.grants_authority must be false or NOT_AUTHORIZED")
         if payload.get("approval_state") in {"APPROVED", "AUTHORIZED"}:
             errors.append(f"{field}.payload.approval_state must not grant approval")
 
     if profile_kind == "pack":
         if payload.get("artifact_is_authority") is not False:
-            errors.append(f"{field}.payload.artifact_is_authority must be false")
+            errors.append(f"{field}.payload.artifact_is_authority must be false or NOT_AUTHORIZED")
 
     return errors
 
@@ -688,14 +688,14 @@ def _validate_governance(governance: Any, *, capability_state: str) -> list[str]
         "verification_execution",
     ):
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
     if governance.get("source_writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
-        errors.append("governance.source_writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
+        errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
     for key in ("artifact_is_authority", "executed", "authorized", "promoted"):
         if governance.get(key) is not False:
-            errors.append(f"governance.{key} must be false")
+            errors.append(f"governance.{key} must be false or NOT_AUTHORIZED")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

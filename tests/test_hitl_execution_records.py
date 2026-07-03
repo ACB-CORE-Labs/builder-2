@@ -118,7 +118,7 @@ def test_request_fails_if_artifact_is_authority_true() -> None:
     )
     req["artifact_is_authority"] = True
     errors = validate_hitl_execution_request(req)
-    assert "artifact_is_authority must be false" in errors
+    assert "artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_request_fails_if_coupling_not_none() -> None:
@@ -129,7 +129,7 @@ def test_request_fails_if_coupling_not_none() -> None:
     )
     req["governance"]["core_workbench_coupling"] = "TIGHT"
     errors = validate_hitl_execution_request(req)
-    assert "governance.core_workbench_coupling must be NONE" in errors
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in errors
 
 
 # ===================================================================
@@ -228,14 +228,14 @@ def test_receipt_fails_if_artifact_is_authority_true() -> None:
     receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["artifact_is_authority"] = True
     errors = validate_hitl_execution_receipt(receipt)
-    assert "artifact_is_authority must be false" in errors
+    assert "artifact_is_authority must be false or NOT_AUTHORIZED" in errors
 
 
 def test_receipt_fails_if_coupling_not_none() -> None:
     receipt = create_hitl_execution_receipt(request_ref="request-001")
     receipt["governance"]["core_workbench_coupling"] = "TIGHT"
     errors = validate_hitl_execution_receipt(receipt)
-    assert "governance.core_workbench_coupling must be NONE" in errors
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in errors
 
 
 # ===================================================================

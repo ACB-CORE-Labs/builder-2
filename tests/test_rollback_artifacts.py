@@ -81,7 +81,7 @@ def test_plan_governance_enabled_fields_fail() -> None:
     ):
         plan = create_rollback_plan(related_artifact_refs=["artifact-1"], rollback_strategy="restore")
         plan["governance"][key] = "ENABLED"
-        assert f"governance.{key} must be DISABLED" in validate_rollback_plan(plan)
+        assert f"governance.{key} must be DISABLED or NOT_AUTHORIZED" in validate_rollback_plan(plan)
 
 
 def test_receipt_governance_enabled_fields_fail() -> None:
@@ -97,17 +97,17 @@ def test_receipt_governance_enabled_fields_fail() -> None:
     ):
         receipt = create_rollback_receipt(rollback_plan_ref="rollback-plan-1")
         receipt["governance"][key] = "ENABLED"
-        assert f"governance.{key} must be DISABLED" in validate_rollback_receipt(receipt)
+        assert f"governance.{key} must be DISABLED or NOT_AUTHORIZED" in validate_rollback_receipt(receipt)
 
 
 def test_artifact_authority_and_workbench_coupling_fail() -> None:
     plan = create_rollback_plan(related_artifact_refs=["artifact-1"], rollback_strategy="restore")
     plan["artifact_is_authority"] = True
-    assert "artifact_is_authority must be false" in validate_rollback_plan(plan)
+    assert "artifact_is_authority must be false or NOT_AUTHORIZED" in validate_rollback_plan(plan)
 
     receipt = create_rollback_receipt(rollback_plan_ref="rollback-plan-1")
     receipt["governance"]["core_workbench_coupling"] = "COUPLED"
-    assert "governance.core_workbench_coupling must be NONE" in validate_rollback_receipt(receipt)
+    assert "governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in validate_rollback_receipt(receipt)
 
 
 def test_file_round_trips(tmp_path: Path) -> None:

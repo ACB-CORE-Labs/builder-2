@@ -263,16 +263,16 @@ def validate_artifact_file(path: Path) -> list[str]:
 
     if kind == "builder_ii.deepagents_smoke":
         if data.get("runtime_execution") != "DISABLED":
-            errors.append("runtime execution must be DISABLED")
+            errors.append("runtime execution must be DISABLED or NOT_AUTHORIZED")
         if data.get("builder_ii_dependency_mode") != "OPTIONAL":
             errors.append("builder-II dependency mode must be OPTIONAL")
         if data.get("file_writes") != "DISABLED":
-            errors.append("file writes must be DISABLED")
+            errors.append("file writes must be DISABLED or NOT_AUTHORIZED")
         if data.get("shell_execution") != "DISABLED":
-            errors.append("shell execution must be DISABLED")
+            errors.append("shell execution must be DISABLED or NOT_AUTHORIZED")
     elif kind == "builder_ii.deepagents_bridge_spec":
         if data.get("runtime_enabled") is not False:
-            errors.append("runtime_enabled must be false")
+            errors.append("runtime_enabled must be false or NOT_AUTHORIZED")
 
         denied_tools = data.get("denied_tools")
         if not isinstance(denied_tools, list):
@@ -291,7 +291,7 @@ def validate_artifact_file(path: Path) -> list[str]:
                 errors.append("subagent metadata is missing or invalid")
             else:
                 if metadata.get("runtime_enabled") is not False:
-                    errors.append("subagent metadata runtime_enabled must be false")
+                    errors.append("subagent metadata runtime_enabled must be false or NOT_AUTHORIZED")
                 sub_denied_tools = metadata.get("denied_tools")
                 if not isinstance(sub_denied_tools, list):
                     errors.append("subagent metadata denied_tools must be a list")

@@ -300,7 +300,7 @@ def _validate_approval_scope(scope: Any) -> list[str]:
     if scope.get("future_execution_path") != "b1_3_runner_required":
         errors.append("approval_scope.future_execution_path must be b1_3_runner_required")
     if scope.get("grants_execution_authority") is not False:
-        errors.append("approval_scope.grants_execution_authority must be false")
+        errors.append("approval_scope.grants_execution_authority must be false or NOT_AUTHORIZED")
     return errors
 
 
@@ -353,11 +353,11 @@ def validate_verification_execution_approval_artifact(data: Any) -> list[str]:
     if expires_at is not None and not _is_non_empty_string(expires_at):
         errors.append("expires_at must be null or a non-empty string")
     if data.get("execution_enabled") is not False:
-        errors.append("execution_enabled must be false")
+        errors.append("execution_enabled must be false or NOT_AUTHORIZED")
     if data.get("approval_enables_execution") is not False:
-        errors.append("approval_enables_execution must be false")
+        errors.append("approval_enables_execution must be false or NOT_AUTHORIZED")
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if data.get("requires_b1_3_runner") is not True:
         errors.append("requires_b1_3_runner must be true")
 

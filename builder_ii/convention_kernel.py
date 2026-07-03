@@ -119,15 +119,15 @@ class GovernanceBlock:
         for key, value in self.to_dict().items():
             if key == "artifact_is_authority":
                 if value is not False:
-                    errors.append("governance.artifact_is_authority must be false")
+                    errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
             elif key == "core_workbench_coupling":
                 if value != "NONE":
-                    errors.append("governance.core_workbench_coupling must be NONE")
+                    errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
             elif key == "runtime_activation":
                 if value not in ("DISABLED", "NOT_AUTHORIZED"):
                     errors.append("governance.runtime_activation must be DISABLED or NOT_AUTHORIZED")
             elif value != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         return errors
 
     def is_safe_for_projection(self) -> bool:
@@ -291,7 +291,7 @@ def validate_convention_kernel_bundle(data: Any) -> list[str]:
     if data.get("operator_review_required") is not True:
         errors.append("operator_review_required must be true")
     if data.get("executes_now") is not False:
-        errors.append("executes_now must be false")
+        errors.append("executes_now must be false or NOT_AUTHORIZED")
 
     for field_name in (
         "session_configuration_kind",
@@ -384,7 +384,7 @@ def check_artifact_governance_safety(artifact: dict[str, Any]) -> list[str]:
             "commit_push",
         ):
             if val != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
+                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
         elif key == "runtime_activation":
             if val not in ("DISABLED", "NOT_AUTHORIZED"):
                 errors.append("governance.runtime_activation must be DISABLED or NOT_AUTHORIZED")
@@ -395,14 +395,14 @@ def check_artifact_governance_safety(artifact: dict[str, Any]) -> list[str]:
                 "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
             ):
                 errors.append(
-                    "governance.source_writes must be DISABLED, DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY, or DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH"
+                    "governance.source_writes must be DISABLED or NOT_AUTHORIZED, DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT DIRECTORY, or DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH"
                 )
         elif key == "artifact_is_authority":
             if val is not False:
-                errors.append("governance.artifact_is_authority must be false")
+                errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         elif key == "core_workbench_coupling":
             if val != "NONE":
-                errors.append("governance.core_workbench_coupling must be NONE")
+                errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 
@@ -464,7 +464,7 @@ def validate_convention_kernel_platform_bundle(data: Any) -> list[str]:
     if data.get("operator_review_required") is not True:
         errors.append("operator_review_required must be true")
     if data.get("executes_now") is not False:
-        errors.append("executes_now must be false")
+        errors.append("executes_now must be false or NOT_AUTHORIZED")
     if data.get("verification_status") not in ("NOT_RUN", "planned-only"):
         errors.append("verification_status must be NOT_RUN or planned-only")
 

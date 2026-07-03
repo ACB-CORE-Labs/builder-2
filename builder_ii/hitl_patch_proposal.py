@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.config import Settings
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.target_profiles import TargetName, target_names, target_profile
 
 HITL_PATCH_PROPOSAL_KIND = "builder_ii.hitl_patch_proposal"
@@ -98,23 +99,7 @@ def create_hitl_patch_proposal(
         },
         "denied_current_behavior": list(_DENIED_CURRENT_BEHAVIORS),
         "required_future_gates": list(_REQUIRED_FUTURE_GATES),
-        "governance": {
-            "capability_state": "PASSIVE_FOUNDATION",
-            "runtime_execution": "DISABLED",
-            "patch_application": "DISABLED",
-            "source_writes": "DISABLED",
-            "file_mutation": "DISABLED",
-            "git_mutation": "DISABLED",
-            "commit_push": "DISABLED",
-            "shell_execution": "DISABLED",
-            "subprocess_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "network_mcp_execution": "DISABLED",
-            "goose_runtime_activation": "DISABLED",
-            "deepagents_runtime": "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("PASSIVE_FOUNDATION"),
     }
 
 
@@ -174,9 +159,9 @@ def validate_hitl_patch_proposal(artifact: Any) -> list[str]:
         if curr_state.get("mode") != "PASSIVE_FOUNDATION":
             errors.append("current_state.mode must be PASSIVE_FOUNDATION")
         if curr_state.get("runtime") != "DISABLED":
-            errors.append("current_state.runtime must be DISABLED")
+            errors.append("current_state.runtime must be DISABLED or NOT_AUTHORIZED")
         if curr_state.get("artifact_is_authority") is not False:
-            errors.append("current_state.artifact_is_authority must be false")
+            errors.append("current_state.artifact_is_authority must be false or NOT_AUTHORIZED")
 
     # denied behaviors
     denied = artifact.get("denied_current_behavior")
@@ -201,28 +186,7 @@ def validate_hitl_patch_proposal(artifact: Any) -> list[str]:
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        if governance.get("capability_state") != "PASSIVE_FOUNDATION":
-            errors.append("governance.capability_state must be PASSIVE_FOUNDATION")
-        for key in (
-            "runtime_execution",
-            "patch_application",
-            "source_writes",
-            "file_mutation",
-            "git_mutation",
-            "commit_push",
-            "shell_execution",
-            "subprocess_execution",
-            "model_execution",
-            "network_mcp_execution",
-            "goose_runtime_activation",
-            "deepagents_runtime",
-        ):
-            if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "PASSIVE_FOUNDATION"))
 
     return errors
 

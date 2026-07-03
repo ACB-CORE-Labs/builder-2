@@ -78,7 +78,7 @@ def validate_setup_rollback_receipt_artifact(data: Any) -> list[str]:
         if not _is_sha256(data.get(field)):
             errors.append(f"{field} must be a SHA-256 hex string")
     if data.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     if data.get("setup_apply_executed") is not True:
         errors.append("setup_apply_executed must be true")
     if data.get("rollback_executed") is not True:

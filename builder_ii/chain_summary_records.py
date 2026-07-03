@@ -7,6 +7,7 @@ from typing import Any
 
 from builder_ii.approval_records import APPROVAL_RECORD_KIND, validate_approval_record
 from builder_ii.goose_command_proposal import GOOSE_COMMAND_PROPOSAL_KIND, validate_goose_command_proposal
+from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.preflight_records import PREFLIGHT_RECORD_KIND, validate_preflight_record
 from builder_ii.receipt_records import RECEIPT_RECORD_KIND, validate_receipt_record
 
@@ -105,15 +106,7 @@ def create_chain_summary_record(
         "performed_actions": [],
         "grants_runtime_authority": False,
         "grants_action_authority": False,
-        "governance": {
-            "capability_state": "chain_summary_record",
-            "runtime_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "source_writes": "DISABLED",
-            "memory_mutation": "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
+        "governance": build_standard_governance("chain_summary_record"),
     }
 
 
@@ -175,7 +168,7 @@ def validate_chain_summary_record(record: Any) -> list[str]:
     if record.get("record_state") != "RECORDED_ONLY":
         errors.append("record_state must be RECORDED_ONLY")
     if record.get("current_runtime_state") != "DISABLED":
-        errors.append("current_runtime_state must be DISABLED")
+        errors.append("current_runtime_state must be DISABLED or NOT_AUTHORIZED")
     if record.get("status") not in ("complete", "incomplete"):
         errors.append("status must be complete or incomplete")
     if record.get("complete") is not (record.get("status") == "complete"):
@@ -196,20 +189,14 @@ def validate_chain_summary_record(record: Any) -> list[str]:
                 errors.append(f"artifacts.{key} requires path and sha256")
     for key in ("grants_runtime_authority", "grants_action_authority"):
         if record.get(key) is not False:
-            errors.append(f"{key} must be false")
+            errors.append(f"{key} must be false or NOT_AUTHORIZED")
     if record.get("performed_actions") != []:
         errors.append("performed_actions must be empty")
     governance = record.get("governance")
     if not isinstance(governance, dict):
         errors.append("governance must be an object")
     else:
-        for key in ("runtime_execution", "model_execution", "source_writes", "memory_mutation"):
-            if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE")
+        errors.extend(validate_standard_governance(governance, "chain_summary_record"))
     return errors
 
 

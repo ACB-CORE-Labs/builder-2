@@ -162,9 +162,9 @@ def test_git_state_validation_failures(tmp_path: Path) -> None:
     }
     errors = validate_git_state_record(bad_gov)
     assert any("governance.capability_state must be git_state_record" in err for err in errors)
-    assert any("governance.runtime_execution must be DISABLED" in err for err in errors)
-    assert any("governance.artifact_is_authority must be false" in err for err in errors)
-    assert any("governance.core_workbench_coupling must be NONE" in err for err in errors)
+    assert any("governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in err for err in errors)
+    assert any("governance.artifact_is_authority must be false or NOT_AUTHORIZED" in err for err in errors)
+    assert any("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in err for err in errors)
 
     # 5. Missing file error
     assert "file not found" in validate_git_state_record_file(tmp_path / "missing.json")[0]

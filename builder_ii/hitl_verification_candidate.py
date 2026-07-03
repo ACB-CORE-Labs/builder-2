@@ -387,9 +387,9 @@ def _validate_verification_scope(scope: Any) -> list[str]:
     if not isinstance(scope.get("target_repo"), str) or not scope["target_repo"]:
         errors.append("verification_scope.target_repo must be a non-empty string")
     if scope.get("source_mutation_expected") is not False:
-        errors.append("verification_scope.source_mutation_expected must be false")
+        errors.append("verification_scope.source_mutation_expected must be false or NOT_AUTHORIZED")
     if scope.get("target_repo_writes_expected") is not False:
-        errors.append("verification_scope.target_repo_writes_expected must be false")
+        errors.append("verification_scope.target_repo_writes_expected must be false or NOT_AUTHORIZED")
     return errors
 
 
@@ -460,12 +460,12 @@ def _validate_no_authority_fields(artifact: dict[str, Any]) -> list[str]:
     if artifact.get("operator_review_required") is not True:
         errors.append("operator_review_required must be true")
     if artifact.get("executes_now") is not False:
-        errors.append("executes_now must be false")
+        errors.append("executes_now must be false or NOT_AUTHORIZED")
     for field in ("runtime_execution", "command_execution", "source_writes", "target_repo_writes"):
         if artifact.get(field) != "DISABLED":
-            errors.append(f"{field} must be DISABLED")
+            errors.append(f"{field} must be DISABLED or NOT_AUTHORIZED")
     if artifact.get("artifact_is_authority") is not False:
-        errors.append("artifact_is_authority must be false")
+        errors.append("artifact_is_authority must be false or NOT_AUTHORIZED")
     return errors
 
 
@@ -478,11 +478,11 @@ def _validate_governance_block(artifact: dict[str, Any], expected_state: Any) ->
         errors.append(f"governance.capability_state must be {expected_state}")
     for key in _GOVERNANCE_DISABLED_KEYS:
         if governance.get(key) != "DISABLED":
-            errors.append(f"governance.{key} must be DISABLED")
+            errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
     if governance.get("artifact_is_authority") is not False:
-        errors.append("governance.artifact_is_authority must be false")
+        errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
     if governance.get("core_workbench_coupling") != "NONE":
-        errors.append("governance.core_workbench_coupling must be NONE")
+        errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 

@@ -73,9 +73,7 @@ def test_validation_rejects_unsupported_claims() -> None:
     bad_governance = dict(note)
     bad_governance["governance"] = dict(note["governance"])
     bad_governance["governance"]["runtime_execution"] = "ENABLED"
-    assert any(
-        "governance.runtime_execution must be DISABLED" in error for error in validate_handoff_note(bad_governance)
-    )
+    assert any("governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in error for error in validate_handoff_note(bad_governance))
 
 
 def test_validation_rejects_wrong_reference_kind() -> None:

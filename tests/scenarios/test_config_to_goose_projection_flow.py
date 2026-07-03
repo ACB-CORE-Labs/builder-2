@@ -79,18 +79,18 @@ def test_config_to_goose_projection_flow_rejects_late_authority_escalation(tmp_p
 
     bad_config = copy.deepcopy(config)
     bad_config["governance"]["goose_runtime_start"] = "ENABLED"
-    assert "governance.goose_runtime_start must be DISABLED" in validate_session_configuration(bad_config)
+    assert "governance.goose_runtime_start must be DISABLED or NOT_AUTHORIZED" in validate_session_configuration(bad_config)
 
     bad_projection = copy.deepcopy(projection)
     bad_projection["projection_state"] = "EXECUTED"
     bad_projection["governance"]["model_execution"] = "ENABLED"
     projection_errors = validate_goose_projection(bad_projection)
     assert "projection_state must be PLANNED_ONLY" in projection_errors
-    assert "governance.model_execution must be DISABLED" in projection_errors
+    assert "governance.model_execution must be DISABLED or NOT_AUTHORIZED" in projection_errors
 
     bad_wrapper = copy.deepcopy(wrapper_plan)
     bad_wrapper["operator_launch"]["executes_now"] = True
     bad_wrapper["governance"]["runtime_execution"] = "ENABLED"
     wrapper_errors = validate_goose_wrapper_plan(bad_wrapper)
-    assert "operator_launch.executes_now must be false" in wrapper_errors
-    assert "governance.runtime_execution must be DISABLED" in wrapper_errors
+    assert "operator_launch.executes_now must be false or NOT_AUTHORIZED" in wrapper_errors
+    assert "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in wrapper_errors
