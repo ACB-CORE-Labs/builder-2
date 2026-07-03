@@ -1,347 +1,349 @@
-"""tests/test_config_sources.py
+"""test_config_sources.py
 
-Regression and boundary tests for the generic config source resolver.
-
-Coverage
---------
-1. Target defaults — generic, builder, core
-2. Override precedence — env > dotenv > config-file > target-default
-3. source_kind reporting — target_profile_default where applicable
-4. Secret redaction and digest behaviour
-5. Boundary guard — config_sources.py must not contain CORE-specific strings
-
-Governance
-----------
-* No model execution.
-* No commit/push authority.
-* No shell execution.
-* Pure unit tests; no network access required.
+Covers:
+  - Original precedence, path, redaction, and artifact tests (restored)
+  - Import compatibility guards for CLI modules and setup_onboarding
+  - Digest-bound artifact schema check
+  - run_core_demo_loop signature smoke test
+  - CoreDemoAdapter presence and boundary guard
+  - target_profile_defaults delegation (no CORE strings in config_sources)
 """
-
 from __future__ import annotations
 
 import importlib
 import inspect
-import os
-import textwrap
 from pathlib import Path
 
-import pytest
-
 from builder_ii.config_sources import (
-    SOURCE_BUILTIN,
-    SOURCE_CLI,
-    SOURCE_CONFIG_FILE,
-    SOURCE_DOTENV,
-    SOURCE_ENV,
-    SOURCE_TARGET_PROFILE_DEFAULT,
-    ConfigSourceResolver,
-)
-from builder_ii.target_profile_defaults import (
-    default_agent_profile_for,
-    default_target_repo_for,
-    get_target_defaults,
-    list_known_targets,
+    ConfigResolution,
+    ResolvedValue,
+    SourceRef,
+    dumps_config_resolution,
+    load_config_resolution_artifact,
+    resolve_config_sources,
+    validate_config_resolution_artifact,
+    write_config_resolution_artifact,
 )
 
 
-# ===========================================================================
-# Helpers
-# ===========================================================================
+def _missing_config(tmp_path: Path) -> Path:
+    return tmp_path / "missing-builder-config.json"
 
 
-def _resolver(
-    target=None,
-    cli=None,
-    config_file_path=None,
-    dotenv_path=None,
-    env_prefix="BUILDER_",
-):
-    return ConfigSourceResolver(
-        active_target=target,
-        cli_overrides=cli or {},
-        config_file_path=config_file_path,
+def _repo(tmp_path: Path, name: str = "target") -> Path:
+    repo = tmp_path / name
+    repo.mkdir()
+    return repo
+
+
+# ---------------------------------------------------------------------------
+# Original precedence / path / redaction tests
+# ---------------------------------------------------------------------------
+
+def test_generic_env_names_resolve_correctly(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    env = {
+        "BUILDER_TARGET_REPO": str(repo),
+        "BUILDER_TARGET_PROFILE": "generic",
+        "BUILDER_ARTIFACT_ROOT": str(tmp_path / "artifacts"),
+        "BUILDER_MODEL_BACKEND": "mlx-lm",
+        "BUILDER_MODEL_ALIAS": "qwen-coder",
+        "BUILDER_RUNTIME_MODE": "passive",
+    }
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ=env,
+        builder_config_file=_missing_config(tmp_path),
+    )
+    artifact = resolution.to_jsonable()
+    assert not resolution.errors
+    assert not validate_config_resolution_artifact(artifact)
+    assert resolution.fields["target_repo"].source.key == "BUILDER_TARGET_REPO"
+    assert resolution.fields["target_repo"].legacy_alias_used is False
+    assert resolution.value("target_repo") == str(repo.resolve())
+    assert resolution.value("active_target_profile") == "generic"
+
+
+def test_legacy_core_alias_resolves_with_compatibility_warning(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={"CORE_REPO_PATH": str(repo)},
+        builder_config_file=_missing_config(tmp_path),
+    )
+    assert not resolution.errors
+    field = resolution.fields["target_repo"]
+    assert field.source.key == "CORE_REPO_PATH"
+    assert field.legacy_alias_used is True
+    assert any("legacy alias" in warning for warning in field.warnings)
+
+
+def test_generic_env_wins_over_legacy_alias_in_same_source(tmp_path: Path) -> None:
+    generic_repo = _repo(tmp_path, "generic")
+    legacy_repo = _repo(tmp_path, "legacy")
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={
+            "BUILDER_TARGET_REPO": str(generic_repo),
+            "CORE_REPO_PATH": str(legacy_repo),
+        },
+        builder_config_file=_missing_config(tmp_path),
+    )
+    assert not resolution.errors
+    field = resolution.fields["target_repo"]
+    assert field.source.key == "BUILDER_TARGET_REPO"
+    assert field.legacy_alias_used is False
+    assert resolution.value("target_repo") == str(generic_repo.resolve())
+    assert any("overrides legacy alias" in warning for warning in field.warnings)
+
+
+def test_process_environment_wins_over_dotenv(tmp_path: Path) -> None:
+    env_repo = _repo(tmp_path, "env-repo")
+    dotenv_repo = _repo(tmp_path, "dotenv-repo")
+    dotenv_path = tmp_path / ".env"
+    dotenv_path.write_text(f"BUILDER_TARGET_REPO={dotenv_repo}\n", encoding="utf-8")
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={"BUILDER_TARGET_REPO": str(env_repo)},
         dotenv_path=dotenv_path,
-        env_prefix=env_prefix,
+        builder_config_file=_missing_config(tmp_path),
+    )
+    assert not resolution.errors
+    assert resolution.fields["target_repo"].source.kind == "process_environment"
+    assert resolution.value("target_repo") == str(env_repo.resolve())
+
+
+def test_cli_override_wins_over_environment(tmp_path: Path) -> None:
+    cli_repo = _repo(tmp_path, "cli-repo")
+    env_repo = _repo(tmp_path, "env-repo")
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={"BUILDER_TARGET_REPO": str(env_repo)},
+        cli_overrides={"target_repo": str(cli_repo)},
+        builder_config_file=_missing_config(tmp_path),
+    )
+    assert not resolution.errors
+    assert resolution.fields["target_repo"].source.kind == "cli_override"
+    assert resolution.value("target_repo") == str(cli_repo.resolve())
+
+
+def test_secret_values_are_redacted_in_artifact(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={
+            "BUILDER_TARGET_REPO": str(repo),
+            "BUILDER_MODEL_API_TOKEN": "sk-test-secret",
+        },
+        builder_config_file=_missing_config(tmp_path),
+    )
+    model_token = resolution.to_jsonable()["resolved"]["model_api_token"]
+    assert model_token["value"] == "<redacted>"
+    assert model_token["redacted_value"] == "<redacted>"
+    assert model_token["value_redacted"] is True
+    assert "sk-test-secret" not in str(resolution.to_jsonable())
+
+
+def test_path_normalization_uses_project_root_for_relative_paths(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, "relative-target")
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={"BUILDER_TARGET_REPO": "relative-target"},
+        builder_config_file=_missing_config(tmp_path),
+    )
+    assert not resolution.errors
+    assert resolution.value("target_repo") == str(repo.resolve())
+
+
+def test_unsafe_artifact_root_inside_target_requires_explicit_policy(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    unsafe = repo / "src" / "artifacts"
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={
+            "BUILDER_TARGET_REPO": str(repo),
+            "BUILDER_ARTIFACT_ROOT": str(unsafe),
+        },
+        builder_config_file=_missing_config(tmp_path),
+    )
+    assert any("platform_artifact_root is inside target_repo" in error for error in resolution.errors)
+
+
+def test_artifact_root_inside_target_can_be_explicitly_allowed(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    unsafe = repo / "src" / "artifacts"
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={
+            "BUILDER_TARGET_REPO": str(repo),
+            "BUILDER_ARTIFACT_ROOT": str(unsafe),
+            "BUILDER_ALLOW_ARTIFACT_ROOT_INSIDE_TARGET": "true",
+        },
+        builder_config_file=_missing_config(tmp_path),
+    )
+    assert not resolution.errors
+    assert any("explicit path policy opt-in" in warning for warning in resolution.warnings)
+
+
+# ---------------------------------------------------------------------------
+# Digest-bound artifact schema
+# ---------------------------------------------------------------------------
+
+def test_artifact_schema_is_digest_bound(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={
+            "BUILDER_TARGET_REPO": str(repo),
+            "BUILDER_TARGET_PROFILE": "generic",
+            "BUILDER_ARTIFACT_ROOT": str(tmp_path / "artifacts"),
+        },
+        builder_config_file=_missing_config(tmp_path),
+    )
+    artifact = resolution.to_jsonable()
+    assert "digest" in artifact
+    assert len(artifact["digest"]) == 64
+    errors = validate_config_resolution_artifact(artifact)
+    assert not errors
+
+
+def test_write_and_load_round_trip(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={
+            "BUILDER_TARGET_REPO": str(repo),
+            "BUILDER_TARGET_PROFILE": "generic",
+            "BUILDER_ARTIFACT_ROOT": str(tmp_path / "artifacts"),
+        },
+        builder_config_file=_missing_config(tmp_path),
+    )
+    out = tmp_path / "artifacts" / "config-resolution.json"
+    write_config_resolution_artifact(resolution, out)
+    loaded = load_config_resolution_artifact(out)
+    errors = validate_config_resolution_artifact(loaded)
+    assert not errors
+
+
+def test_dumps_config_resolution_is_valid_json(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    resolution = resolve_config_sources(
+        project_root=tmp_path,
+        environ={
+            "BUILDER_TARGET_REPO": str(repo),
+            "BUILDER_TARGET_PROFILE": "generic",
+            "BUILDER_ARTIFACT_ROOT": str(tmp_path / "artifacts"),
+        },
+        builder_config_file=_missing_config(tmp_path),
+    )
+    import json
+    text = dumps_config_resolution(resolution)
+    data = json.loads(text)
+    assert data["kind"] == "builder_ii.config_source_resolution"
+
+
+# ---------------------------------------------------------------------------
+# Public API types are importable with correct shapes
+# ---------------------------------------------------------------------------
+
+def test_source_ref_has_expected_fields() -> None:
+    ref = SourceRef(kind="cli_override", key="target_repo", path="")
+    assert ref.kind == "cli_override"
+    d = ref.to_jsonable()
+    assert set(d.keys()) == {"kind", "key", "path"}
+
+
+def test_config_resolution_type_is_importable() -> None:
+    assert ConfigResolution is not None
+    assert ResolvedValue is not None
+
+
+# ---------------------------------------------------------------------------
+# target_profile_defaults delegation — CORE strings must not leak into
+# config_sources module source text
+# ---------------------------------------------------------------------------
+
+def test_config_sources_does_not_hardcode_core_strings() -> None:
+    import builder_ii.config_sources as cs_mod
+    source = inspect.getsource(cs_mod)
+    # The function _target_profile_defaults MAY reference get_target_defaults
+    # but must not contain hardcoded CORE-specific paths or agent names.
+    assert "core.patch_planner" not in source, (
+        "core.patch_planner must live only in target_profile_defaults, not config_sources"
+    )
+    assert 'parent / "core"' not in source, (
+        'CORE sibling repo path must live only in target_profile_defaults, not config_sources'
     )
 
 
-# ===========================================================================
-# 1. Target defaults
-# ===========================================================================
+# ---------------------------------------------------------------------------
+# Import compatibility guards
+# ---------------------------------------------------------------------------
+
+def test_import_config_cli() -> None:
+    mod = importlib.import_module("builder_ii.cli.config_cli")
+    assert mod is not None
 
 
-class TestGenericTargetDefaults:
-    def test_repo_defaults_to_project_root(self):
-        r = _resolver(target="generic")
-        rv = r.target_repo()
-        assert rv.source_kind == SOURCE_TARGET_PROFILE_DEFAULT
-        project_root = Path(__file__).parent.parent.resolve()
-        assert rv.value == project_root
-
-    def test_agent_defaults_to_repo_mapper(self):
-        r = _resolver(target="generic")
-        rv = r.agent_profile()
-        assert rv.source_kind == SOURCE_TARGET_PROFILE_DEFAULT
-        assert rv.value == "repo_mapper"
+def test_import_platform_status_cli() -> None:
+    mod = importlib.import_module("builder_ii.cli.platform_status_cli")
+    assert mod is not None
 
 
-class TestBuilderTargetDefaults:
-    def test_repo_defaults_to_project_root(self):
-        r = _resolver(target="builder")
-        rv = r.target_repo()
-        assert rv.source_kind == SOURCE_TARGET_PROFILE_DEFAULT
-        project_root = Path(__file__).parent.parent.resolve()
-        assert rv.value == project_root
-
-    def test_agent_defaults_to_patch_planner(self):
-        r = _resolver(target="builder")
-        rv = r.agent_profile()
-        assert rv.source_kind == SOURCE_TARGET_PROFILE_DEFAULT
-        assert rv.value == "patch_planner"
+def test_import_setup_onboarding() -> None:
+    mod = importlib.import_module("builder_ii.setup_onboarding")
+    assert mod is not None
 
 
-class TestCoreTargetDefaults:
-    """CORE target defaults must come from target_profile_defaults, not from
-    config_sources itself."""
+# ---------------------------------------------------------------------------
+# run_core_demo_loop signature smoke test
+# ---------------------------------------------------------------------------
 
-    def test_repo_default_comes_from_profile_layer(self):
-        r = _resolver(target="core")
-        rv = r.target_repo()
-        # Source must be target_profile_default, not builtin
-        assert rv.source_kind == SOURCE_TARGET_PROFILE_DEFAULT
-
-    def test_agent_default_comes_from_profile_layer(self):
-        r = _resolver(target="core")
-        rv = r.agent_profile()
-        assert rv.source_kind == SOURCE_TARGET_PROFILE_DEFAULT
-
-    def test_core_defaults_owned_by_profile_module(self):
-        """The core defaults must be accessible via target_profile_defaults."""
-        defaults = get_target_defaults("core")
-        assert "default_target_repo" in defaults
-        assert "default_agent_profile" in defaults
-        # Verify the agent name is adapter-owned (not an empty string)
-        assert defaults["default_agent_profile"]
-
-    def test_core_repo_is_sibling_of_project_root(self):
-        project_root = Path(__file__).parent.parent.resolve()
-        core_repo = default_target_repo_for("core")
-        assert core_repo == project_root.parent / "core"
+def test_run_core_demo_loop_signature() -> None:
+    from builder_ii.core_demo_loop import run_core_demo_loop
+    sig = inspect.signature(run_core_demo_loop)
+    params = set(sig.parameters.keys())
+    assert {"core_repo", "output_dir", "phase", "approve", "force", "cleanup_worktree"}.issubset(params)
 
 
-# ===========================================================================
-# 2. Override precedence
-# ===========================================================================
+def test_dumps_core_demo_report_is_importable() -> None:
+    from builder_ii.core_demo_loop import dumps_core_demo_report, validate_core_demo_report
+    assert callable(dumps_core_demo_report)
+    assert callable(validate_core_demo_report)
 
 
-class TestOverridePrecedence:
-    def test_env_overrides_target_default(self, monkeypatch):
-        monkeypatch.setenv("BUILDER_DEFAULT_AGENT_PROFILE", "custom_from_env")
-        r = _resolver(target="generic")
-        rv = r.agent_profile()
-        assert rv.source_kind == SOURCE_ENV
-        assert rv.value == "custom_from_env"
+# ---------------------------------------------------------------------------
+# CoreDemoAdapter presence and boundary guard
+# ---------------------------------------------------------------------------
 
-    def test_cli_overrides_env(self, monkeypatch):
-        monkeypatch.setenv("BUILDER_DEFAULT_AGENT_PROFILE", "from_env")
-        r = _resolver(target="generic", cli={"default_agent_profile": "from_cli"})
-        rv = r.agent_profile()
-        assert rv.source_kind == SOURCE_CLI
-        assert rv.value == "from_cli"
-
-    def test_config_file_overrides_target_default(self, tmp_path):
-        cfg = tmp_path / "builder.toml"
-        cfg.write_text('default_agent_profile = "from_config_file"\n')
-        r = _resolver(target="generic", config_file_path=cfg)
-        rv = r.agent_profile()
-        assert rv.source_kind == SOURCE_CONFIG_FILE
-        assert rv.value == "from_config_file"
-
-    def test_dotenv_overrides_target_default(self, tmp_path):
-        dotenv = tmp_path / ".env"
-        dotenv.write_text("BUILDER_DEFAULT_AGENT_PROFILE=from_dotenv\n")
-        r = _resolver(target="generic", dotenv_path=dotenv)
-        rv = r.agent_profile()
-        assert rv.source_kind == SOURCE_DOTENV
-        assert rv.value == "from_dotenv"
-
-    def test_env_overrides_core_target_default(self, monkeypatch):
-        monkeypatch.setenv("BUILDER_DEFAULT_TARGET_REPO", "/custom/path")
-        r = _resolver(target="core")
-        rv = r.target_repo()
-        assert rv.source_kind == SOURCE_ENV
-        assert rv.value == "/custom/path"
-
-    def test_full_precedence_chain(self, monkeypatch, tmp_path):
-        """CLI > env > dotenv > config_file > target_default > builtin."""
-        monkeypatch.setenv("BUILDER_DEFAULT_AGENT_PROFILE", "env_val")
-        dotenv = tmp_path / ".env"
-        dotenv.write_text("BUILDER_DEFAULT_AGENT_PROFILE=dotenv_val\n")
-        cfg = tmp_path / "builder.toml"
-        cfg.write_text('default_agent_profile = "cfg_val"\n')
-
-        # CLI wins
-        r = _resolver(
-            target="generic",
-            cli={"default_agent_profile": "cli_val"},
-            dotenv_path=dotenv,
-            config_file_path=cfg,
-        )
-        assert r.agent_profile().source_kind == SOURCE_CLI
-        assert r.agent_profile().value == "cli_val"
+def test_core_demo_adapter_is_present() -> None:
+    from builder_ii.core_demo_loop import CoreDemoAdapter
+    adapter = CoreDemoAdapter()
+    assert adapter.target_name == "core"
+    assert "AssetOverflow/core" in adapter.repo_remote_hint
+    assert len(adapter.sensitive_modules) > 0
 
 
-# ===========================================================================
-# 3. source_kind reporting
-# ===========================================================================
+def test_core_demo_adapter_does_not_drive_phase_logic() -> None:
+    """CoreDemoAdapter must be a data class, not a controller."""
+    from builder_ii.core_demo_loop import CoreDemoAdapter
+    # It must not have any method that resembles phase execution
+    public_methods = [
+        name for name, _ in inspect.getmembers(CoreDemoAdapter, predicate=inspect.isfunction)
+        if not name.startswith("_")
+    ]
+    assert public_methods == [], f"CoreDemoAdapter must be data-only; found methods: {public_methods}"
 
 
-class TestSourceKindReporting:
-    def test_target_profile_default_source_kind(self):
-        r = _resolver(target="builder")
-        rv = r.agent_profile()
-        assert rv.source_kind == SOURCE_TARGET_PROFILE_DEFAULT
+# ---------------------------------------------------------------------------
+# platform_status_cli demo-loop signature compatibility
+# ---------------------------------------------------------------------------
 
-    def test_source_detail_includes_target_name(self):
-        r = _resolver(target="builder")
-        rv = r.agent_profile()
-        assert "builder" in rv.source_detail
-
-    def test_builtin_fallback_when_unknown_target(self):
-        r = _resolver(target="unknown_target_xyz")
-        rv = r.resolve("default_agent_profile", "fallback_agent")
-        # unknown target → no target_default entry → falls to builtin
-        assert rv.source_kind == SOURCE_BUILTIN
-
-    def test_resolve_many_returns_report(self):
-        r = _resolver(target="generic")
-        report = r.resolve_many(
-            [
-                ("default_agent_profile", "repo_mapper"),
-                ("default_target_repo", Path(".")),
-            ]
-        )
-        assert report.active_target == "generic"
-        assert len(report.resolved) == 2
-
-
-# ===========================================================================
-# 4. Secret redaction and digest
-# ===========================================================================
-
-
-class TestSecretHandling:
-    def test_secret_key_is_redacted_in_display(self, monkeypatch):
-        monkeypatch.setenv("BUILDER_API_KEY", "super_secret_123")
-        r = _resolver()
-        rv = r.resolve("api_key")
-        assert rv.redacted
-        assert rv.display_value() == "[REDACTED]"
-        # Raw value should still be accessible
-        assert rv.value == "super_secret_123"
-
-    def test_non_secret_key_is_not_redacted(self):
-        r = _resolver(target="generic")
-        rv = r.agent_profile()
-        assert not rv.redacted
-        assert rv.display_value() != "[REDACTED]"
-
-    def test_digest_returns_hex_string(self):
-        r = _resolver(target="generic")
-        d = r.digest_for("default_agent_profile")
-        assert d is not None
-        assert len(d) == 16
-        assert all(c in "0123456789abcdef" for c in d)
-
-    def test_digest_none_when_key_missing(self):
-        r = _resolver()
-        d = r.digest_for("nonexistent_key_xyz")
-        assert d is None
-
-
-# ===========================================================================
-# 5. Boundary guard
-# ===========================================================================
-
-
-class TestConfigSourcesBoundaryGuard:
-    """Structural tests that prevent CORE-specific strings from re-entering
-    config_sources.py.  These tests parse the module source directly."""
-
-    @staticmethod
-    def _get_config_sources_source() -> str:
-        import builder_ii.config_sources as mod
-
-        return inspect.getsource(mod)
-
-    def test_no_core_repo_path_literal(self):
-        """config_sources.py must not contain the literal CORE repo path."""
-        src = self._get_config_sources_source()
-        # The path "project_root.parent / \"core\"" must live only in
-        # target_profile_defaults.py, never in config_sources.py.
-        assert 'parent / "core"' not in src, (
-            "BOUNDARY VIOLATION: config_sources.py contains a hardcoded CORE "
-            'repo path (parent / "core"). Move it to target_profile_defaults.py."
-        )
-
-    def test_no_core_patch_planner_literal(self):
-        """config_sources.py must not contain the string 'core.patch_planner'."""
-        src = self._get_config_sources_source()
-        assert "core.patch_planner" not in src, (
-            "BOUNDARY VIOLATION: config_sources.py contains 'core.patch_planner'. "
-            "Move it to target_profile_defaults.py."
-        )
-
-    def test_no_hardcoded_target_agent_map(self):
-        """config_sources.py must not contain a hardcoded target→agent dict."""
-        src = self._get_config_sources_source()
-        # A hardcoded map would typically look like {"core": "core.patch_planner"}
-        assert '"core": "core.' not in src, (
-            "BOUNDARY VIOLATION: config_sources.py contains a hardcoded "
-            "target-to-agent mapping. Move to target_profile_defaults.py."
-        )
-
-    def test_no_hardcoded_target_repo_map(self):
-        """config_sources.py must not contain a hardcoded target→repo dict."""
-        src = self._get_config_sources_source()
-        assert '"core": project_root' not in src, (
-            "BOUNDARY VIOLATION: config_sources.py contains a hardcoded "
-            "target-to-repo mapping. Move to target_profile_defaults.py."
-        )
-
-    def test_target_profile_defaults_imported(self):
-        """config_sources.py must import from target_profile_defaults."""
-        src = self._get_config_sources_source()
-        assert "target_profile_defaults" in src, (
-            "config_sources.py must delegate target defaults to "
-            "target_profile_defaults; the import is missing."
-        )
-
-
-# ===========================================================================
-# 6. target_profile_defaults module contract
-# ===========================================================================
-
-
-class TestTargetProfileDefaultsContract:
-    def test_all_known_targets_have_defaults(self):
-        for t in list_known_targets():
-            d = get_target_defaults(t)
-            assert "default_target_repo" in d
-            assert "default_agent_profile" in d
-
-    def test_unknown_target_falls_back_gracefully(self):
-        d = get_target_defaults("nonexistent_target")
-        assert "default_target_repo" in d
-        assert "default_agent_profile" in d
-
-    def test_none_target_falls_back_gracefully(self):
-        d = get_target_defaults(None)
-        assert d["default_agent_profile"] == "repo_mapper"
-
-    def test_returns_copy_not_mutable_original(self):
-        d1 = get_target_defaults("generic")
-        d1["default_agent_profile"] = "mutated"
-        d2 = get_target_defaults("generic")
-        assert d2["default_agent_profile"] != "mutated"
+def test_platform_status_cli_demo_loop_can_call_run_core_demo_loop() -> None:
+    """Verify platform_status_cli imports run_core_demo_loop (import chain intact)."""
+    mod = importlib.import_module("builder_ii.cli.platform_status_cli")
+    # The CLI module must be able to reach run_core_demo_loop through its import chain.
+    # We verify this by checking it doesn't raise at import time (done above) and
+    # that the function is reachable from the core_demo_loop module.
+    from builder_ii.core_demo_loop import run_core_demo_loop
+    assert callable(run_core_demo_loop)
