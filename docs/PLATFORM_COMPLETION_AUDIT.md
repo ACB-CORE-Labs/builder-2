@@ -55,7 +55,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | config schema | `PASSIVE_FOUNDATION` | R1 |
 | config source precedence | `PASSIVE_FOUNDATION` | R1 |
 | interactive setup wizard | `NOT_STARTED` | R1 |
-| non-interactive setup/apply/validate | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
+| non-interactive setup/apply/validate | `OPERATIONALLY_VERIFIED` | R1 |
 | Goose config overlay/rollback | `PASSIVE_FOUNDATION` | R1 |
 | recipe generator/wizard | `ARTIFACT_ONLY` | R1 |
 | skill generator/installer/validator | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
@@ -63,7 +63,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | agent profile wizard | `NOT_STARTED` | R1 |
 | verification profile wizard | `NOT_STARTED` | R1 |
 | deepagents/researcher setup wizard | `NOT_STARTED` | R1 |
-| setup receipt + rollback artifact | `PASSIVE_FOUNDATION` | R1 |
+| setup receipt + rollback artifact | `OPERATIONALLY_VERIFIED` | R1 |
 | model registry | `OPERATIONALLY_VERIFIED` | B7 |
 | model routing | `OPERATIONALLY_VERIFIED` | B7 |
 | model/provider execution | `OPERATIONALLY_VERIFIED` | B7 |

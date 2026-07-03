@@ -80,7 +80,7 @@ def main() -> int:
     tests_dir = out / "tests"
     tests_dir.mkdir(parents=True, exist_ok=True)
     for name, targets in GATING_SUITES:
-        cmd = ["uv", "run", "pytest", "-q", *targets.split()]
+        cmd = ["uv", "run", "pytest", "-v", *targets.split()]
         log_path = tests_dir / f"{name}.log"
         code = _run(cmd, log_path, env=env, cwd=root)
         log_text = log_path.read_text(encoding="utf-8")

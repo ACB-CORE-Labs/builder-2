@@ -3,7 +3,9 @@ from pathlib import Path
 from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
+from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, STATE_ENABLED
 from builder_ii.platform_completion_audit import (
+    OPERATIONALLY_VERIFIED,
     REQUIRED_CAPABILITY_ROWS,
     STALE_TRUTH_PHRASES,
     matrix_blocker_violations,
@@ -65,6 +67,7 @@ def test_truth_report_promoted_capabilities_match_matrix() -> None:
         "deepagents runtime/subagents",
         "config schema",
         "setup receipt + rollback artifact",
+        "non-interactive setup/apply/validate",
     )
     by_capability = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
     assert not matrix_blocker_violations()
@@ -74,6 +77,12 @@ def test_truth_report_promoted_capabilities_match_matrix() -> None:
     for capability in promoted:
         row = by_capability[capability]
         assert f"| {capability} | {row.state} |" in report
+
+    by_name = {record.name: record for record in COMMAND_AUTHORITY_REGISTRY}
+    for capability in ("non-interactive setup/apply/validate", "setup receipt + rollback artifact"):
+        assert by_capability[capability].state == OPERATIONALLY_VERIFIED
+    assert by_name["builder-setup apply"].promotion_state == STATE_ENABLED
+    assert by_name["builder-setup rollback"].promotion_state == STATE_ENABLED
 
 
 def test_docs_state_corrected_sequence() -> None:

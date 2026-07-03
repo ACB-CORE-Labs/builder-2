@@ -64,6 +64,11 @@ ALLOWED_STATE_LABELS: tuple[StateLabel, ...] = (
     OPERATIONALLY_VERIFIED,
 )
 
+R1_OPERATIONALLY_VERIFIED_CAPABILITIES: tuple[str, ...] = (
+    "non-interactive setup/apply/validate",
+    "setup receipt + rollback artifact",
+)
+
 R1_CONFIG_ONBOARDING_CAPABILITIES: tuple[str, ...] = (
     "config schema",
     "config source precedence",
@@ -148,7 +153,12 @@ def assurance_state_for_row(row: CapabilityRow) -> AssuranceState:
         if row.state in (PASSIVE_FOUNDATION, ARTIFACT_ONLY):
             return PASSIVE_ARTIFACT_VERIFIED
         return BLOCKED_BY_EVIDENCE
-    if row.capability in {"HITL patch application", "rollback execution"}:
+    if row.capability in {
+        "HITL patch application",
+        "rollback execution",
+        "setup receipt + rollback artifact",
+        "non-interactive setup/apply/validate",
+    }:
         return MUTATION_WITH_ROLLBACK_VERIFIED
     if row.capability == "model/provider execution":
         return LIVE_PROVIDER_VERIFIED
@@ -305,7 +315,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "non-interactive setup/apply/validate",
-        MERGED_BUT_NOT_OPERATIONAL,
+        OPERATIONALLY_VERIFIED,
         (
             "builder_ii/cli/main.py",
             "builder_ii/goose_setup.py",
@@ -327,9 +337,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/test_config_setup_cli.py",
         ),
         (
-            "builder-setup apply and builder-setup rollback are digest-bound STATE_ENABLED setup mutation lanes in command authority.",
+            "builder-setup apply and builder-setup rollback are digest-bound STATE_ENABLED setup mutation lanes verified by test_setup_apply.py and test_setup_rollback_execute.py.",
             "R1.4 disables legacy builder setup writes and redirects operators to the governed builder-setup artifact chain.",
-            "Passive plan/overlay/rollback-snapshot chain and ambient Goose/runtime promotion remain outside this row's scope.",
+            "Passive plan/overlay/rollback-snapshot validate chain and ambient Goose/runtime promotion remain outside digest-bound setup mutation scope.",
         ),
         "R1",
     ),
@@ -425,7 +435,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "setup receipt + rollback artifact",
-        PASSIVE_FOUNDATION,
+        OPERATIONALLY_VERIFIED,
         (
             "builder_ii/setup_rollback.py",
             "builder_ii/setup_apply.py",
@@ -1126,7 +1136,7 @@ def validate_r1_config_onboarding_mapping(
             continue
         if row.next_pr != "R1":
             errors.append(f"{capability}: expected next_pr R1, got {row.next_pr}")
-        if row.state == OPERATIONALLY_VERIFIED:
+        if row.state == OPERATIONALLY_VERIFIED and capability not in R1_OPERATIONALLY_VERIFIED_CAPABILITIES:
             errors.append(f"{capability}: R1 config/onboarding row must remain non-operational in R0")
     return errors
 
