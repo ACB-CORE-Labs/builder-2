@@ -284,6 +284,7 @@ def test_core_demo_adapter_strings_not_duplicated_outside_adapter() -> None:
     CoreDemoAdapter class body and the module-level _DEMO_MARKER_PATH constant.
     """
     import ast
+
     import builder_ii.core_demo_loop as cdl_mod
 
     source = inspect.getsource(cdl_mod)
