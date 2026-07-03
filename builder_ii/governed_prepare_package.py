@@ -15,6 +15,7 @@ from builder_ii.code_vault.repo_map_adapter import hierarchical_input_from_repo_
 from builder_ii.config import Settings
 from builder_ii.context_packs import (
     CONTEXT_PACK_KIND,
+    create_architecture_aware_context_pack,
     create_context_pack,
     validate_context_pack,
 )
@@ -194,7 +195,34 @@ def create_governed_prepare_package(
     repo_map = create_repo_map(resolved_repo, target_name=target_name)
     _validate_or_raise("repo map", validate_repo_map(repo_map))
 
-    context_pack = create_context_pack(repo_map, target_name=target_name, task=task_text)
+    hierarchical_frame = None
+    code_vault_ref = None
+    if include_code_vault:
+        frame_input = hierarchical_input_from_repo_map(
+            repo_map,
+            repo_root=resolved_repo,
+            enrich_symbols=True,
+        )
+        hierarchical_frame = create_hierarchical_frame(frame_input, target_name=target_name)
+        _validate_or_raise("hierarchical frame", validate_hierarchical_frame(hierarchical_frame))
+        hierarchical_frame_path = output_dir / "hierarchical-frame.json"
+        hierarchical_frame_path.write_text(dumps_hierarchical_frame(hierarchical_frame), encoding="utf-8")
+        code_vault_ref = _artifact_ref_for(
+            hierarchical_frame_path,
+            kind=HIERARCHICAL_FRAME_KIND,
+            output_dir=output_dir,
+            name="CodeVault hierarchical frame",
+        )
+
+    if hierarchical_frame is not None:
+        context_pack = create_architecture_aware_context_pack(
+            repo_map,
+            target_name=target_name,
+            hierarchical_frame=hierarchical_frame,
+            task=task_text,
+        )
+    else:
+        context_pack = create_context_pack(repo_map, target_name=target_name, task=task_text)
     _validate_or_raise("context pack", validate_context_pack(context_pack))
 
     repo_map_path = output_dir / "repo-map.json"
@@ -215,24 +243,6 @@ def create_governed_prepare_package(
         output_dir=output_dir,
         name="bounded context pack",
     )
-
-    code_vault_ref = None
-    if include_code_vault:
-        frame_input = hierarchical_input_from_repo_map(
-            repo_map,
-            repo_root=resolved_repo,
-            enrich_symbols=True,
-        )
-        hierarchical_frame = create_hierarchical_frame(frame_input, target_name=target_name)
-        _validate_or_raise("hierarchical frame", validate_hierarchical_frame(hierarchical_frame))
-        hierarchical_frame_path = output_dir / "hierarchical-frame.json"
-        hierarchical_frame_path.write_text(dumps_hierarchical_frame(hierarchical_frame), encoding="utf-8")
-        code_vault_ref = _artifact_ref_for(
-            hierarchical_frame_path,
-            kind=HIERARCHICAL_FRAME_KIND,
-            output_dir=output_dir,
-            name="CodeVault hierarchical frame",
-        )
 
     handoff_note = create_handoff_note(
         target_name=target_name,

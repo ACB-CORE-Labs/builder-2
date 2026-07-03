@@ -4,11 +4,15 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.code_vault.artifact import CodeArtifact
+from builder_ii.code_vault.context_bridge import project_context_pack, validate_context_projection
+from builder_ii.code_vault.hierarchy import HierarchicalFrame, frame_digest
 from builder_ii.repo_map import validate_repo_map
 from builder_ii.target_profiles import target_names
 
 CONTEXT_PACK_KIND = "builder_ii.context_pack"
 CONTEXT_PACK_SCHEMA_VERSION = 1
+MAX_ARCHITECTURE_SUMMARY_NODES = 32
 
 ROLE_PRIORITY: dict[str, int] = {
     "docs": 0,
@@ -95,6 +99,91 @@ def create_context_pack(
     return data
 
 
+def _artifacts_from_frame(frame: HierarchicalFrame) -> list[CodeArtifact]:
+    artifacts: list[CodeArtifact] = []
+    for node in frame.nodes:
+        if not node.content_digest:
+            continue
+        artifacts.append(
+            CodeArtifact.from_digest(
+                layout_id=node.layout_id,
+                artifact_kind=node.artifact_kind,  # type: ignore[arg-type]
+                content_digest=node.content_digest,
+            )
+        )
+    return artifacts
+
+
+def _default_requested_artifact(frame: HierarchicalFrame, selected_files: list[dict[str, Any]]) -> str | None:
+    selected_paths = {str(item.get("path", "")) for item in selected_files}
+    for node in frame.nodes:
+        if node.artifact_kind != "file":
+            continue
+        path = node.layout_id.removeprefix("path:")
+        if path in selected_paths:
+            return node.layout_id
+    for node in frame.nodes:
+        if node.artifact_kind == "file":
+            return node.layout_id
+    return None
+
+
+def _architecture_summary(frame: HierarchicalFrame) -> dict[str, Any]:
+    counts: dict[str, int] = {}
+    sample_layout_ids: list[str] = []
+    for node in frame.nodes:
+        kind = str(node.artifact_kind)
+        counts[kind] = counts.get(kind, 0) + 1
+        if len(sample_layout_ids) < MAX_ARCHITECTURE_SUMMARY_NODES:
+            sample_layout_ids.append(node.layout_id)
+    return {
+        "node_count": len(frame.nodes),
+        "artifact_kind_counts": counts,
+        "sample_layout_ids": sample_layout_ids,
+    }
+
+
+def create_architecture_aware_context_pack(
+    repo_map: dict[str, Any],
+    *,
+    target_name: str,
+    hierarchical_frame: HierarchicalFrame,
+    task: str = "",
+    max_entries: int = 100,
+    requested_artifact: str | None = None,
+) -> dict[str, Any]:
+    """Merge bounded repo-map context with CodeVault architecture metadata."""
+    pack = create_context_pack(repo_map, target_name=target_name, task=task, max_entries=max_entries)
+    anchor = requested_artifact or _default_requested_artifact(hierarchical_frame, pack["selected_files"])
+
+    enrichment: dict[str, Any] = {
+        "frame_digest": frame_digest(hierarchical_frame),
+        "architecture_summary": _architecture_summary(hierarchical_frame),
+        "epistemic_status": "speculative",
+    }
+
+    if anchor is not None:
+        projection = project_context_pack(
+            hierarchical_frame,
+            _artifacts_from_frame(hierarchical_frame),
+            requested_artifact=anchor,
+            target_name=target_name,
+        )
+        projection_errors = validate_context_projection(projection)
+        if projection_errors:
+            raise ValueError(
+                "created invalid CodeVault context projection during merge: " + "; ".join(projection_errors)
+            )
+        enrichment["projection"] = projection
+        enrichment["requested_artifact"] = anchor
+
+    pack["code_vault_enrichment"] = enrichment
+    errors = validate_context_pack(pack)
+    if errors:
+        raise ValueError("created invalid architecture-aware context pack: " + "; ".join(errors))
+    return pack
+
+
 def validate_context_pack(data: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
@@ -155,6 +244,34 @@ def validate_context_pack(data: Any) -> list[str]:
             errors.append("governance.artifact_is_authority must be false")
         if governance.get("core_workbench_coupling") != "NONE":
             errors.append("governance.core_workbench_coupling must be NONE")
+
+    enrichment = data.get("code_vault_enrichment")
+    if enrichment is not None:
+        if not isinstance(enrichment, dict):
+            errors.append("code_vault_enrichment must be an object")
+        else:
+            frame_digest_value = enrichment.get("frame_digest")
+            if not isinstance(frame_digest_value, str) or len(frame_digest_value) != 64:
+                errors.append("code_vault_enrichment.frame_digest must be a 64-character hex string")
+            if enrichment.get("epistemic_status") != "speculative":
+                errors.append("code_vault_enrichment.epistemic_status must be speculative")
+            summary = enrichment.get("architecture_summary")
+            if not isinstance(summary, dict):
+                errors.append("code_vault_enrichment.architecture_summary must be an object")
+            else:
+                sample_ids = summary.get("sample_layout_ids")
+                if not isinstance(sample_ids, list):
+                    errors.append("code_vault_enrichment.architecture_summary.sample_layout_ids must be a list")
+                elif len(sample_ids) > MAX_ARCHITECTURE_SUMMARY_NODES:
+                    errors.append("code_vault_enrichment.architecture_summary.sample_layout_ids exceed bound")
+            projection = enrichment.get("projection")
+            if projection is not None:
+                if not isinstance(projection, dict):
+                    errors.append("code_vault_enrichment.projection must be an object")
+                else:
+                    errors.extend(
+                        f"code_vault_enrichment.projection: {item}" for item in validate_context_projection(projection)
+                    )
 
     return errors
 

@@ -10,7 +10,13 @@ from builder_ii.agent_profiles import create_agent_profile_record, get_agent_pro
 from builder_ii.artifact_chain_verification import verify_artifact_chain
 from builder_ii.artifact_index_records import create_artifact_index_record, write_artifact_index_record
 from builder_ii.config import Settings, load_settings
-from builder_ii.context_packs import create_context_pack
+from builder_ii.code_vault.hierarchy import (
+    create_hierarchical_frame,
+    dumps_hierarchical_frame,
+    validate_hierarchical_frame,
+)
+from builder_ii.code_vault.repo_map_adapter import hierarchical_input_from_repo_map
+from builder_ii.context_packs import create_architecture_aware_context_pack
 from builder_ii.deepagents_policy import create_deepagents_policy_artifact
 from builder_ii.deepagents_readiness import create_deepagents_readiness_artifact
 from builder_ii.deepagents_work_artifacts import (
@@ -348,7 +354,24 @@ def plan_workflow(
     repo_map_path = paths["artifacts"] / "repo-map.json"
     _write_json(repo_map, repo_map_path)
 
-    context_pack = create_context_pack(repo_map, target_name=target, task=task)
+    frame_input = hierarchical_input_from_repo_map(
+        repo_map,
+        repo_root=selected_repo.resolve(),
+        enrich_symbols=True,
+    )
+    hierarchical_frame = create_hierarchical_frame(frame_input, target_name=target)
+    frame_errors = validate_hierarchical_frame(hierarchical_frame)
+    if frame_errors:
+        raise WorkflowError("created invalid hierarchical frame: " + "; ".join(frame_errors))
+    hierarchical_frame_path = paths["artifacts"] / "hierarchical-frame.json"
+    hierarchical_frame_path.write_text(dumps_hierarchical_frame(hierarchical_frame), encoding="utf-8")
+
+    context_pack = create_architecture_aware_context_pack(
+        repo_map,
+        target_name=target,
+        hierarchical_frame=hierarchical_frame,
+        task=task,
+    )
     context_path = paths["artifacts"] / "context-pack.json"
     _write_json(context_pack, context_path)
 
@@ -510,6 +533,12 @@ def plan_workflow(
         command="builder workflow plan",
         subject_refs=[
             artifact_ref(session, path=paths["session"], role="workflow_session", name="workflow session"),
+            artifact_ref(
+                _read_json(hierarchical_frame_path),
+                path=hierarchical_frame_path,
+                role="hierarchical_frame",
+                name="CodeVault hierarchical frame",
+            ),
             artifact_ref(profile_pack, path=profile_pack_path, role="profile_pack", name="profile pack"),
             artifact_ref(
                 model_recommendation,
@@ -886,9 +915,10 @@ def handoff_workflow(*, output_dir: Path) -> dict[str, Any]:
                 "",
                 "1. `artifacts/workflow-status.json`",
                 "2. `artifacts/event-ledger.json`",
-                "3. `artifacts/execution-candidate-manifest.json`",
-                "4. `artifacts/chain-verification-report.json`",
-                "5. `artifacts/handoff-note.json`",
+                "3. `artifacts/hierarchical-frame.json`",
+                "4. `artifacts/execution-candidate-manifest.json`",
+                "5. `artifacts/chain-verification-report.json`",
+                "6. `artifacts/handoff-note.json`",
                 "",
             ]
         ),

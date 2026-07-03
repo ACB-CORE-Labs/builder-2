@@ -16,7 +16,14 @@ from builder_ii.command_authority import (
     CommandAuthorityRecord,
 )
 from builder_ii.config import Settings
-from builder_ii.context_packs import CONTEXT_PACK_KIND, create_context_pack
+from builder_ii.code_vault.hierarchy import (
+    HIERARCHICAL_FRAME_KIND,
+    create_hierarchical_frame,
+    dumps_hierarchical_frame,
+    validate_hierarchical_frame,
+)
+from builder_ii.code_vault.repo_map_adapter import hierarchical_input_from_repo_map
+from builder_ii.context_packs import CONTEXT_PACK_KIND, create_architecture_aware_context_pack, create_context_pack
 from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
     create_deepagents_bridge_readiness_report,
@@ -499,6 +506,13 @@ def validate_convention_kernel_platform_bundle(data: Any) -> list[str]:
     if da is not None and not isinstance(da, dict):
         errors.append("deepagents_readiness must be a JSON object if present")
 
+    hf = data.get("hierarchical_frame")
+    if hf is not None and not isinstance(hf, dict):
+        errors.append("hierarchical_frame must be a JSON object if present")
+    elif isinstance(hf, dict):
+        for governance_error in check_artifact_governance_safety(hf):
+            errors.append(f"hierarchical_frame: {governance_error}")
+
     # check command_authority_check block
     cac = data.get("command_authority_check")
     if not isinstance(cac, dict):
@@ -532,6 +546,7 @@ class ConventionKernelPlatformBundle:
     goose_wrapper_plan: dict[str, Any]
     verification_profile_report: dict[str, Any]
     handoff_note: dict[str, Any]
+    hierarchical_frame: dict[str, Any] | None = None
     deepagents_readiness: dict[str, Any] | None = None
     governance: GovernanceBlock = field(default_factory=GovernanceBlock)
 
@@ -557,6 +572,8 @@ class ConventionKernelPlatformBundle:
             "handoff_note": self.handoff_note,
             "governance": self.governance.to_dict(),
         }
+        if self.hierarchical_frame is not None:
+            res["hierarchical_frame"] = self.hierarchical_frame
         if self.deepagents_readiness is not None:
             res["deepagents_readiness"] = self.deepagents_readiness
         return res
@@ -678,6 +695,7 @@ class ConventionKernel:
         verification_profile_name: str | None = None,
         task: str = "",
         include_deepagents_readiness: bool = True,
+        include_code_vault: bool = True,
         generic_repo: Path | None = None,
         authority_mode: Literal["read_only", "planned_patch"] = "read_only",
         model_alias: str | None = None,
@@ -716,7 +734,27 @@ class ConventionKernel:
         # 3. Create component artifacts in memory
         target_profile_dict = resolved.target_profile.to_artifact_dict()
         repo_map_art = create_repo_map(resolved_repo, target_name=target_profile)  # type: ignore[arg-type]
-        context_pack_art = create_context_pack(repo_map_art, target_name=target_profile, task=task_text)  # type: ignore[arg-type]
+
+        hierarchical_frame_art = None
+        if include_code_vault:
+            frame_input = hierarchical_input_from_repo_map(
+                repo_map_art,
+                repo_root=resolved_repo,
+                enrich_symbols=True,
+            )
+            hierarchical_frame = create_hierarchical_frame(frame_input, target_name=str(target_profile))
+            frame_errors = validate_hierarchical_frame(hierarchical_frame)
+            if frame_errors:
+                raise ValueError("created invalid hierarchical frame: " + "; ".join(frame_errors))
+            hierarchical_frame_art = json_lib.loads(dumps_hierarchical_frame(hierarchical_frame))
+            context_pack_art = create_architecture_aware_context_pack(
+                repo_map_art,
+                target_name=str(target_profile),
+                hierarchical_frame=hierarchical_frame,
+                task=task_text,
+            )
+        else:
+            context_pack_art = create_context_pack(repo_map_art, target_name=target_profile, task=task_text)  # type: ignore[arg-type]
 
         session_workflow_art = create_session_workflow_plan(
             settings,
@@ -785,6 +823,14 @@ class ConventionKernel:
             "bounded context pack",
             context_pack_art,
         )
+        hierarchical_frame_ref = None
+        if hierarchical_frame_art is not None:
+            hierarchical_frame_ref = _artifact_ref_from_dict(
+                HIERARCHICAL_FRAME_KIND,
+                "hierarchical-frame.json",
+                "CodeVault hierarchical frame",
+                hierarchical_frame_art,
+            )
 
         handoff_note_art = create_handoff_note(
             target_name=target_profile,  # type: ignore[arg-type]
@@ -832,6 +878,8 @@ class ConventionKernel:
             context_pack_ref,
             handoff_ref,
         ]
+        if hierarchical_frame_ref is not None:
+            artifact_refs.append(hierarchical_frame_ref)
         if deepagents_ref is not None:
             artifact_refs.append(deepagents_ref)
 
@@ -874,6 +922,8 @@ class ConventionKernel:
             handoff_note_art,
             prepare_package_art,
         ]
+        if hierarchical_frame_art is not None:
+            all_composed.append(hierarchical_frame_art)
         if deepagents_readiness_art is not None:
             all_composed.append(deepagents_readiness_art)
 
@@ -958,6 +1008,7 @@ class ConventionKernel:
             session_configuration=session_config_art,
             repo_map=repo_map_art,
             context_pack=context_pack_art,
+            hierarchical_frame=hierarchical_frame_art,
             prepare_package=prepare_package_art,
             goose_projection=goose_proj.artifact,
             goose_wrapper_plan=goose_wrapper_art,

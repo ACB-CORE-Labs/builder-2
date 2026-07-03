@@ -56,6 +56,10 @@ def test_create_governed_prepare_package_writes_expected_artifacts(tmp_path):
 
     assert validate_governed_prepare_package_file(output_dir / "prepare-package.json") == []
 
+    context_pack = json.loads((output_dir / "context-pack.json").read_text(encoding="utf-8"))
+    assert "code_vault_enrichment" in context_pack
+    assert context_pack["code_vault_enrichment"]["projection"]["kind"] == "builder_ii.code_vault.context_projection"
+
 
 def test_prepare_package_manifest_is_prepared_only_and_non_authoritative(tmp_path):
     repo = _make_repo(tmp_path)
@@ -133,6 +137,9 @@ def test_prepare_package_can_omit_code_vault(tmp_path):
 
     assert len(package["artifact_refs"]) == 7
     assert not (output_dir / "hierarchical-frame.json").exists()
+
+    context_pack = json.loads((output_dir / "context-pack.json").read_text(encoding="utf-8"))
+    assert "code_vault_enrichment" not in context_pack
 
 
 def test_prepare_package_can_omit_deepagents_readiness(tmp_path):
