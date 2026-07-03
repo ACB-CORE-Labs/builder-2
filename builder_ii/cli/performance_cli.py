@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.performance_measurements import (
     create_performance_measurement_record,
     dumps_performance_measurement_record,
@@ -70,7 +71,7 @@ def record(
         write_performance_measurement_record(item, output)
         console.print(f"Performance measurement record written to {output}")
     else:
-        console.out(dumps_performance_measurement_record(item), end="")
+        echo_stdout(dumps_performance_measurement_record(item))
 
 
 @performance_app.command("validate")
@@ -108,7 +109,7 @@ def benchmark_validation(
         output.write_text(json_lib.dumps(record_data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         console.print(f"Validation benchmark record written to {output}")
     else:
-        console.out(json_lib.dumps(record_data, indent=2, sort_keys=True) + "\n", end="")
+        echo_stdout(json_lib.dumps(record_data, indent=2, sort_keys=True) + "\n")
 
 
 @performance_app.command("parity-report")
@@ -135,4 +136,4 @@ def parity_report(
         output.write_text(json_lib.dumps(report_data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         console.print(f"Validation parity report written to {output}")
     else:
-        console.out(json_lib.dumps(report_data, indent=2, sort_keys=True) + "\n", end="")
+        echo_stdout(json_lib.dumps(report_data, indent=2, sort_keys=True) + "\n")

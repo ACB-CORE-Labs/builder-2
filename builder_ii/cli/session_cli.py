@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config import load_settings
 from builder_ii.context_packs import (
     create_context_pack,
@@ -124,7 +125,7 @@ def plan_session(
             console.print(f"[red]Failed to write output file: {exc}[/]")
             raise typer.Exit(1)
     else:
-        console.out(serialized, end="")
+        echo_stdout(serialized)
 
 
 @session_app.command("validate")
@@ -191,7 +192,7 @@ def session_config_cmd(
             console.print(f"[red]Failed to write output file: {exc}[/]")
             raise typer.Exit(1)
     else:
-        console.out(serialized, end="")
+        echo_stdout(serialized)
 
 
 @session_app.command("validate-config")
@@ -240,7 +241,7 @@ def goose_projection_cmd(
             console.print(f"[red]Failed to write output file: {exc}[/]")
             raise typer.Exit(1)
     else:
-        console.out(serialized, end="")
+        echo_stdout(serialized)
 
 
 @session_app.command("validate-goose-projection")
@@ -287,7 +288,7 @@ def goose_wrapper_plan_cmd(
             console.print(f"[red]Failed to write output file: {exc}[/]")
             raise typer.Exit(1)
     else:
-        console.out(serialized, end="")
+        echo_stdout(serialized)
 
 
 @session_app.command("validate-goose-wrapper-plan")
@@ -372,7 +373,7 @@ def goose_readonly_plan(
             console.print(f"[red]Failed to write output file: {exc}[/]")
             raise typer.Exit(1)
     else:
-        console.out(serialized, end="")
+        echo_stdout(serialized)
 
 
 @session_app.command("validate-goose-readonly-plan")
@@ -534,7 +535,7 @@ def summarize_prepare_package_cmd(
             console.print(f"[red]Failed to write summary output file: {exc}[/]")
             raise typer.Exit(1)
     else:
-        console.out(serialized, end="")
+        echo_stdout(serialized)
 
 
 @session_app.command("command-surface")

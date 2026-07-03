@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config import load_settings
 from builder_ii.target_profile_demos import (
     get_target_profile_demo,
@@ -97,7 +98,7 @@ def artifact(
         write_target_profile_artifact(profile, output)
         console.print(f"Target profile artifact written to {output}")
     else:
-        console.out(dumps_target_profile_artifact(profile), end="")
+        echo_stdout(dumps_target_profile_artifact(profile))
 
 
 @targets_app.command("demo")

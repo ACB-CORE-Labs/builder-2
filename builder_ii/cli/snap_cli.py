@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.snapshot_records import (
     create_snapshot_record_from_files,
     dumps_snapshot_record,
@@ -35,7 +36,7 @@ def record(
         write_snapshot_record(item, output)
         console.print(f"Snapshot record written to {output}")
     else:
-        console.out(dumps_snapshot_record(item), end="")
+        echo_stdout(dumps_snapshot_record(item))
 
 
 @snap_app.command("validate")

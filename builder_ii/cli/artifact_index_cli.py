@@ -12,6 +12,7 @@ from builder_ii.artifact_index_records import (
     validate_artifact_index_record_file,
     write_artifact_index_record,
 )
+from builder_ii.cli.plain_stdout import echo_stdout
 
 index_app = typer.Typer(help="Create and validate artifact index records.")
 console = Console()
@@ -33,7 +34,7 @@ def record(
         write_artifact_index_record(item, output)
         console.print(f"Artifact index record written to {output}")
     else:
-        console.out(dumps_artifact_index_record(item), end="")
+        echo_stdout(dumps_artifact_index_record(item))
 
 
 @index_app.command("validate")

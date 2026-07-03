@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.command_authority import (
     COMMAND_AUTHORITY_REGISTRY,
     validate_registry_invariants,
@@ -128,7 +129,7 @@ def operator_status(
     if output:
         write_operator_status_report(report, output.resolve())
 
-    console.out(dumps_operator_status_report(report), end="")
+    echo_stdout(dumps_operator_status_report(report))
 
 
 @platform_app.command("next")
@@ -154,7 +155,7 @@ def next_action(
     if output:
         write_operator_next_action_report(report, output.resolve())
 
-    console.out(dumps_operator_next_action_report(report), end="")
+    echo_stdout(dumps_operator_next_action_report(report))
 
 
 @platform_app.command("operator-lane")
@@ -224,7 +225,7 @@ def golden_path(
         raise typer.Exit(1)
 
     write_operator_golden_path_report(report, output_dir / "golden-path-report.json")
-    console.out(dumps_operator_golden_path_report(report), end="")
+    echo_stdout(dumps_operator_golden_path_report(report))
 
 
 @platform_app.command("validate-golden-path")
@@ -253,9 +254,7 @@ def validate_golden_path(
             console.print(f"[red]operator golden path validation error:[/] {error}")
         raise typer.Exit(1)
 
-    console.out(
-        json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n", end=""
-    )
+    echo_stdout(json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n")
 
 
 @platform_app.command("demo-loop")
@@ -308,7 +307,7 @@ def demo_loop(
     except Exception as exc:
         console.print(f"[red]CORE demo loop failed:[/] {exc}")
         raise typer.Exit(1)
-    console.out(dumps_core_demo_report(report), end="")
+    echo_stdout(dumps_core_demo_report(report))
 
 
 @platform_app.command("validate-demo-loop")
@@ -333,9 +332,7 @@ def validate_demo_loop(
         for error in errors:
             console.print(f"[red]CORE demo report validation error:[/] {error}")
         raise typer.Exit(1)
-    console.out(
-        json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n", end=""
-    )
+    echo_stdout(json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n")
 
 
 @platform_app.command("wow")
@@ -364,7 +361,7 @@ def wow(
     except Exception as exc:
         console.print(f"[red]CORE demo loop failed:[/] {exc}")
         raise typer.Exit(1)
-    console.out(dumps_core_demo_report(report), end="")
+    echo_stdout(dumps_core_demo_report(report))
 
 
 @platform_app.command("audit-docs")
@@ -384,7 +381,7 @@ def audit_docs(
     root = root.resolve()
     _validate_or_exit(root=root)
     report = render_docs_audit_jsonable(root)
-    console.out(dumps_docs_audit(root), end="")
+    echo_stdout(dumps_docs_audit(root))
     if not report["valid"]:
         raise typer.Exit(1)
 
@@ -522,7 +519,7 @@ def r1_closure(
         report["valid"] = False
 
     write_r1_closure_report(report, output_dir / "r1-closure-report.json")
-    console.out(dumps_r1_closure_report(report), end="")
+    echo_stdout(dumps_r1_closure_report(report))
     if not report["valid"]:
         raise typer.Exit(1)
 
@@ -565,7 +562,7 @@ def validate_r1_closure(
         "report_file": str(report_file),
         "errors": errors,
     }
-    console.out(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n", end="")
+    echo_stdout(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n")
     if not summary["valid"]:
         raise typer.Exit(1)
 

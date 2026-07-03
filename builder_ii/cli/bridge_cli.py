@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config import load_settings
 from builder_ii.deepagents_bridge import (
     bridge_spec_for,
@@ -64,7 +65,7 @@ def deepagents_smoke(
         payload = availability.to_json_dict()
         text = json_lib.dumps(payload, indent=2, sort_keys=True) + "\n"
         if json_output:
-            console.print(text, end="")
+            echo_stdout(text)
         if output is not None:
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_text(text, encoding="utf-8")
@@ -109,7 +110,7 @@ def render(
         output.write_text(text, encoding="utf-8")
     else:
         if output_format == "json":
-            console.out(text, end="")
+            echo_stdout(text)
         else:
             console.print(text, end="")
 

@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.command_authority import enforce_command_authority
 from builder_ii.config import load_settings
 from builder_ii.event_ledger import (
@@ -75,7 +76,7 @@ def report(
         write_readonly_inspection_report(item, output)
         console.print(f"Readonly inspection report written to {output}")
     else:
-        console.out(dumps_readonly_inspection_report(item), end="")
+        echo_stdout(dumps_readonly_inspection_report(item))
 
 
 @readonly_app.command("policy")

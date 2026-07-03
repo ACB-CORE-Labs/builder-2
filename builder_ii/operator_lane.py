@@ -24,6 +24,7 @@ from builder_ii.model_routing_policy import (
     write_model_routing_recommendation,
 )
 from builder_ii.operator_golden_path import create_operator_golden_path_report, write_operator_golden_path_report
+from builder_ii.platform_completion_audit import DEFAULT_OPERATOR_LANE_READ_PATHS
 from builder_ii.readonly_authority import (
     CONTENT_READ_RECEIPT_KIND,
     DEFAULT_MAX_CONTENT_READ_FILES,
@@ -36,7 +37,6 @@ from builder_ii.readonly_inspection_reports import (
 )
 from builder_ii.repo_map import create_repo_map, dumps_repo_map
 from builder_ii.target_profiles import TargetName, target_profile
-from builder_ii.platform_completion_audit import DEFAULT_OPERATOR_LANE_READ_PATHS
 from builder_ii.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,

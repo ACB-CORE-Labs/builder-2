@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config import load_settings
 from builder_ii.context_pack import (
     ContextPackResult,
@@ -136,7 +137,7 @@ def artifact(
         write_context_pack_record(record, output)
         console.print(f"Context pack record written to {output}")
     else:
-        console.out(dumps_context_pack_record(record), end="")
+        echo_stdout(dumps_context_pack_record(record))
 
 
 @context_app.command("validate")
@@ -176,4 +177,4 @@ def summarize(
     if output is not None:
         console.print(f"Context summary written to {output}")
     else:
-        console.out(json_lib.dumps(summary_artifact, indent=2, sort_keys=True) + "\n", end="")
+        echo_stdout(json_lib.dumps(summary_artifact, indent=2, sort_keys=True) + "\n")

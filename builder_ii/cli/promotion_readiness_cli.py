@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.promotion_compatibility import parse_support_artifact_ref
 from builder_ii.promotion_readiness_records import (
     create_promotion_readiness_record,
@@ -59,7 +60,7 @@ def record(
         write_promotion_readiness_record(item, output)
         console.print(f"Promotion readiness record written to {output}")
     else:
-        console.out(dumps_promotion_readiness_record(item), end="")
+        echo_stdout(dumps_promotion_readiness_record(item))
 
 
 @promotion_app.command("validate")

@@ -1,9 +1,10 @@
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
+
 from builder_ii.cli.hitl_execution_cli import hitl_app
 from builder_ii.hitl_command_runner import RunCommandDisabledError, execute_hitl_command
-from typer.testing import CliRunner
 
 runner = CliRunner()
 

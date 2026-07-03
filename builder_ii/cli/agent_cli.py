@@ -19,6 +19,7 @@ from builder_ii.agent_profiles import (
     validate_agent_profiles,
     write_agent_profile_record,
 )
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config import load_settings
 from builder_ii.target_profiles import TargetName, target_profile
 
@@ -125,4 +126,4 @@ def artifact(
         write_agent_profile_record(record, output)
         console.print(f"Agent profile record written to {output}")
     else:
-        console.out(dumps_agent_profile_record(record), end="")
+        echo_stdout(dumps_agent_profile_record(record))
