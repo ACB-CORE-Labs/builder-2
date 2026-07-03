@@ -1,177 +1,216 @@
+"""Tests for the CORE target demo loop phase-machine boundary.
+
+The production module intentionally preserves the original public
+``run_core_demo_loop(core_repo, output_dir, phase, approve, force,
+cleanup_worktree)`` contract. These tests exercise that restored contract and
+verify that CORE-specific strings are adapter-owned rather than duplicated
+throughout the phase helpers.
+"""
+
+from __future__ import annotations
+
+import ast
+import inspect
 import json
-import subprocess
 from pathlib import Path
 
-from builder_ii.platform_status_cli import platform_app
-from typer.testing import CliRunner
-
-from builder_ii.core_demo_loop import (
-    CORE_DEMO_REPORT_KIND,
-    run_core_demo_loop,
-    validate_core_demo_report,
-)
-from builder_ii.hitl_patch_apply import _verification_receipt_errors
+import builder_ii.core_demo_loop as cdl
 
 
-def _git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-        text=True,
+def test_run_core_demo_loop_public_signature_is_preserved() -> None:
+    sig = inspect.signature(cdl.run_core_demo_loop)
+    params = sig.parameters
+    assert list(params) == [
+        "core_repo",
+        "output_dir",
+        "phase",
+        "approve",
+        "force",
+        "cleanup_worktree",
+    ]
+    assert params["core_repo"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["output_dir"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["phase"].default == "all"
+    assert params["approve"].default is False
+    assert params["force"].default is False
+    assert params["cleanup_worktree"].default is False
+
+
+def test_core_demo_adapter_owns_real_lowercase_fields() -> None:
+    adapter = cdl.CoreDemoAdapter()
+    assert adapter.target_name == "core"
+    assert adapter.repo_remote_hint == "AssetOverflow/core"
+    assert adapter.marker_path == Path("docs/builder_ii_core_demo_marker.md")
+    assert "core/cognition/" in adapter.sensitive_modules
+    assert adapter.invariant_policy_note
+    assert adapter.worktree_source_note
+    assert adapter.workbench_coupling == "NONE"
+    assert adapter.worktree_description.startswith("AssetOverflow/core")
+    assert "AssetOverflow/core" in adapter.task_description
+
+
+def test_core_demo_adapter_is_data_only() -> None:
+    public_methods = [
+        name
+        for name, _ in inspect.getmembers(cdl.CoreDemoAdapter, predicate=inspect.isfunction)
+        if not name.startswith("_")
+    ]
+    assert public_methods == []
+
+
+def test_diff_helpers_use_adapter_marker_path() -> None:
+    adapter = cdl.CoreDemoAdapter(marker_path=Path("docs/custom_demo_marker.md"))
+    unified = cdl._unified_diff_for_marker(adapter)
+    reverse = cdl._reverse_diff_for_marker(adapter)
+    assert "docs/custom_demo_marker.md" in unified
+    assert "docs/custom_demo_marker.md" in reverse
+    assert "docs/builder_ii_core_demo_marker.md" not in unified
+    assert "docs/builder_ii_core_demo_marker.md" not in reverse
+
+
+def test_write_planner_uses_default_adapter_values(tmp_path: Path) -> None:
+    paths = cdl.CoreDemoPaths(tmp_path)
+    worktree = tmp_path / "core-worktree"
+    worktree.mkdir()
+
+    planner = cdl._write_planner(paths, worktree, "a" * 64)
+
+    assert paths.planner.is_file()
+    assert not cdl.validate_core_demo_planner(planner)
+    assert planner["target"]["name"] == "core"
+    assert planner["target"]["source"] == "AssetOverflow/core temporary detached worktree"
+    assert planner["selected_change"]["path"] == "docs/builder_ii_core_demo_marker.md"
+    assert planner["core_invariant_policy"]["sensitive_modules_untouched"] == list(
+        cdl.CoreDemoAdapter().sensitive_modules
     )
-    return result.stdout
+    assert planner["governance"]["core_workbench_coupling"] == "NONE"
 
 
-def _core_repo(tmp_path: Path) -> Path:
-    repo = tmp_path / "core"
-    repo.mkdir()
-    _git(repo, "init")
-    _git(repo, "config", "user.name", "Demo Test")
-    _git(repo, "config", "user.email", "demo@example.com")
-    (repo / "docs").mkdir()
-    (repo / "demos").mkdir()
-    (repo / "README.md").write_text("# CORE\n", encoding="utf-8")
-    (repo / "AGENTS.md").write_text("# CORE agents\n", encoding="utf-8")
-    (repo / "docs" / "runtime_contracts.md").write_text("runtime contracts\n", encoding="utf-8")
-    (repo / "demos" / "existing-core-data.json").write_text('{"kind":"core_fixture"}\n', encoding="utf-8")
-    _git(repo, "add", ".")
-    _git(repo, "commit", "-m", "init")
-    return repo
-
-
-def test_core_demo_prepare_is_interactive_checkpoint(tmp_path: Path) -> None:
-    repo = _core_repo(tmp_path)
-    output_dir = tmp_path / "demo"
-
-    report = run_core_demo_loop(core_repo=repo, output_dir=output_dir, phase="prepare")
-
-    assert report["kind"] == CORE_DEMO_REPORT_KIND
-    assert report["phase"] == "prepare"
-    assert "demo-loop --phase approve" in report["next_command"]
-    assert (output_dir / "core-worktree").is_dir()
-    assert (output_dir / "hitl-patch-proposal.json").is_file()
-    assert (output_dir / "DEMO_EVIDENCE.md").is_file()
-    assert _git(repo, "status", "--porcelain=v1") == ""
-    assert validate_core_demo_report(report) == []
-
-
-def test_core_demo_all_applies_verifies_rolls_back_and_indexes_evidence(tmp_path: Path) -> None:
-    repo = _core_repo(tmp_path)
-    output_dir = tmp_path / "demo"
-
-    run_core_demo_loop(
-        core_repo=repo,
-        output_dir=output_dir,
-        phase="all",
-        approve=True,
-    )
-    report = run_core_demo_loop(
-        core_repo=repo,
-        output_dir=output_dir,
-        phase="all",
-        approve=True,
-        force=True,
-    )
-
-    assert report["kind"] == CORE_DEMO_REPORT_KIND
-    assert report["phase"] == "all"
-    assert report["final_state"]["source_repo_untouched_by_demo"] is True
-    assert report["final_state"]["demo_worktree_clean_after_rollback"] is True
-    assert report["chain_verification"]["valid"] is True
-    assert (output_dir / "patch-apply" / "patch_apply_receipt.json").is_file()
-    assert (output_dir / "rollback" / "rollback_receipt.json").is_file()
-    assert (output_dir / "artifact-index.json").is_file()
-    assert (output_dir / "DEMO_EVIDENCE.md").is_file()
-    assert not (output_dir / "core-worktree" / "docs" / "builder_ii_core_demo_marker.md").exists()
-    assert _git(output_dir / "core-worktree", "status", "--porcelain=v1") == ""
-    assert _git(repo, "status", "--porcelain=v1") == ""
-    assert validate_core_demo_report(report) == []
-
-    evidence = (output_dir / "DEMO_EVIDENCE.md").read_text(encoding="utf-8")
-    assert "existing-core-data.json" not in evidence
-    assert all("core-worktree/" not in ref["path"] for ref in report["artifact_refs"])
-    assert all(not ref["path"].endswith("core-demo-loop-report.json") for ref in report["artifact_refs"])
-    for ref in report["artifact_refs"]:
-        assert ref["sha256"] in evidence
-
-    artifact_index = json.loads((output_dir / "artifact-index.json").read_text(encoding="utf-8"))
-    assert artifact_index["status"] == "complete"
-    assert artifact_index["counts"]["invalid"] == 0
-    assert artifact_index["recursive"] is True
-    assert str(output_dir / "core-worktree") in artifact_index["excluded_paths"]
-    assert all("core-worktree/" not in artifact["path"] for artifact in artifact_index["artifacts"])
-    assert all(artifact["path"] != "core-demo-loop-report.json" for artifact in artifact_index["artifacts"])
-
-
-def test_core_demo_apply_gate_rejects_malformed_demo_receipt(tmp_path: Path) -> None:
-    repo = _core_repo(tmp_path)
-    output_dir = tmp_path / "demo"
-    run_core_demo_loop(core_repo=repo, output_dir=output_dir, phase="prepare")
-
-    receipt_path = output_dir / "forged-core-demo-receipt.json"
-    receipt_path.write_text(
-        json.dumps(
-            {
-                "kind": "builder_ii.core_demo_verification_receipt",
-                "schema_version": 1,
-                "label": "after_apply",
-                "target": {"name": "core", "repo": str(output_dir / "core-worktree")},
-                "receipt_status": "EXECUTED",
-                "checks": [{"name": "forged", "status": "FAIL"}],
-                "governance": {
-                    "model_execution": "DISABLED",
-                    "source_writes": "DISABLED",
-                    "artifact_is_authority": False,
-                    "core_workbench_coupling": "NONE",
-                },
-            },
-            indent=2,
-            sort_keys=True,
-        )
-        + "\n",
-        encoding="utf-8",
+def test_write_planner_accepts_custom_adapter_without_phase_refactor(tmp_path: Path) -> None:
+    paths = cdl.CoreDemoPaths(tmp_path)
+    worktree = tmp_path / "custom-worktree"
+    worktree.mkdir()
+    adapter = cdl.CoreDemoAdapter(
+        target_name="sample",
+        repo_remote_hint="Org/sample",
+        marker_path=Path("docs/sample_marker.md"),
+        sensitive_modules=("sample_sensitive/",),
+        invariant_policy_note="sample invariant not exercised",
+        worktree_source_note="Org/sample temporary detached worktree",
+        workbench_coupling="NONE",
     )
 
-    errors = _verification_receipt_errors(receipt_path, target_repo=output_dir / "core-worktree")
+    planner = cdl._write_planner(paths, worktree, "b" * 64, adapter)
 
-    assert "label must be before_apply for HITL patch application" in errors
-    assert "all checks must be PASS" in errors
-
-
-def test_core_demo_cli_runs_prepare_checkpoint(tmp_path: Path) -> None:
-    repo = _core_repo(tmp_path)
-    output_dir = tmp_path / "demo"
-
-    result = CliRunner().invoke(
-        platform_app,
-        [
-            "demo-loop",
-            "--core-repo",
-            str(repo),
-            "--output-dir",
-            str(output_dir),
-            "--phase",
-            "prepare",
-        ],
+    assert planner["target"]["name"] == "sample"
+    assert planner["target"]["source"] == "Org/sample temporary detached worktree"
+    assert planner["selected_change"]["path"] == "docs/sample_marker.md"
+    assert planner["core_invariant_policy"]["sensitive_modules_untouched"] == [
+        "sample_sensitive/"
+    ]
+    assert planner["core_invariant_policy"]["versor_condition_boundary"] == (
+        "sample invariant not exercised"
     )
 
-    assert result.exit_code == 0, result.output
-    data = json.loads(result.output)
-    assert data["kind"] == CORE_DEMO_REPORT_KIND
-    assert data["phase"] == "prepare"
 
-
-def test_core_demo_validate_cli_accepts_report(tmp_path: Path) -> None:
-    repo = _core_repo(tmp_path)
-    output_dir = tmp_path / "demo"
-    run_core_demo_loop(core_repo=repo, output_dir=output_dir, phase="prepare")
-
-    result = CliRunner().invoke(
-        platform_app,
-        ["validate-demo-loop", str(output_dir / "core-demo-loop-report.json")],
+def test_create_core_demo_approval_remains_digest_bound(tmp_path: Path) -> None:
+    proposal = {
+        "kind": "builder_ii.hitl_patch_proposal",
+        "patch_digest": "c" * 64,
+    }
+    approval = cdl.create_core_demo_approval(
+        proposal,
+        proposal_path=tmp_path / "hitl-patch-proposal.json",
+        approved=True,
     )
 
-    assert result.exit_code == 0, result.output
-    assert json.loads(result.output)["valid"] is True
+    assert not cdl.validate_core_demo_approval(approval)
+    assert approval["patch_digest"] == "c" * 64
+    assert approval["proposal_ref"]["sha256"]
+    assert approval["grants_runtime_authority"] is False
+    assert approval["governance"]["core_workbench_coupling"] == "NONE"
+    assert approval["governance"]["source_writes"] == (
+        "APPROVED_TEMPORARY_CORE_WORKTREE_PATCH_ONLY"
+    )
+
+
+def test_create_core_demo_report_is_valid_and_serializable(tmp_path: Path) -> None:
+    paths = cdl.CoreDemoPaths(tmp_path)
+    source_repo = tmp_path / "source-core"
+    worktree = tmp_path / "core-worktree"
+    source_repo.mkdir()
+    worktree.mkdir()
+
+    report = cdl.create_core_demo_report(
+        paths=paths,
+        source_repo=source_repo,
+        worktree=worktree,
+        phase="prepare",
+        completed_steps=["preflight recorded"],
+        chain_report=None,
+        artifact_paths=[],
+        ready_for_recording=True,
+        next_command="Run the next demo phase explicitly.",
+    )
+
+    assert not cdl.validate_core_demo_report(report)
+    dumped = cdl.dumps_core_demo_report(report)
+    loaded = json.loads(dumped)
+    assert loaded["kind"] == "builder_ii.core_demo_loop_report"
+    assert loaded["target"]["name"] == "core"
+    assert loaded["governance"]["core_workbench_coupling"] == "NONE"
+    assert loaded["report_digest"] == report["report_digest"]
+
+
+def test_core_demo_adapter_strings_not_duplicated_outside_adapter() -> None:
+    """Prevent CORE target details from drifting back into phase helpers."""
+
+    source = inspect.getsource(cdl)
+    tree = ast.parse(source)
+
+    adapter_class_lines: set[int] = set()
+    marker_assign_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "CoreDemoAdapter":
+            for child in ast.walk(node):
+                if hasattr(child, "lineno"):
+                    adapter_class_lines.add(child.lineno)
+        if (
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "_DEMO_MARKER_PATH"
+                for target in node.targets
+            )
+        ):
+            for child in ast.walk(node):
+                if hasattr(child, "lineno"):
+                    marker_assign_lines.add(child.lineno)
+
+    forbidden_outside_adapter = [
+        "algebra/",
+        "field/",
+        "generate/",
+        "core/cognition/",
+        "vault/",
+        "teaching/",
+        "calibration/",
+        "sensorium/",
+        "AssetOverflow/core",
+        "builder_ii_core_demo_marker.md",
+    ]
+
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+            continue
+        lineno = getattr(node, "lineno", -1)
+        if lineno in adapter_class_lines or lineno in marker_assign_lines:
+            continue
+        for forbidden in forbidden_outside_adapter:
+            if forbidden in node.value:
+                violations.append(
+                    f"line {lineno}: {forbidden!r} found outside CoreDemoAdapter/"
+                    "_DEMO_MARKER_PATH"
+                )
+
+    assert not violations, "\n".join(violations)

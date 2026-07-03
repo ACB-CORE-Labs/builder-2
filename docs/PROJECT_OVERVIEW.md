@@ -1,123 +1,149 @@
-# builder-II project overview
+# builder-II — Project Overview
 
-builder-II is a generic governed platform for local agent-assisted software development.
+## Identity
 
-It is CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet. CORE is supported as a target profile.
+builder-II is a **generic governed local agent/developer platform**.
 
-It can target CORE through the `core` target profile, but builder-II is not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime. The CORE brand supplies the philosophy. The builder-II architecture preserves generality.
+It is not CORE. It is not the CORE Workbench. It is not a second CORE
+runtime. It may target CORE as one repository/profile, but it remains
+logically and architecturally separate from CORE itself.
 
-## Product positioning
+---
 
-builder-II carries CORE's engineering philosophy into the developer-platform layer while remaining generic enough to improve many software repositories, not only CORE-targeted work.
+## First-Class Concepts
 
-The positioning is simple:
+| Concept | Description |
+|---|---|
+| Target repository | The repository being operated on |
+| Target profile | Named bundle of defaults and conventions for a target |
+| Context pack | Curated context for an agent session |
+| Prompt profile | Prompt conventions for a session type |
+| Agent profile | Agent role and capability envelope |
+| Verification profile | Verification conventions for a target |
+| Git state artifacts | Pre/post-flight git state records |
+| Note/handoff artifacts | Operator-to-operator context records |
+| Optional runtime harness | Governed execution harness (Goose, deepagents) |
 
-```text
-builder-II       = generic governed platform for local agent-assisted development
-Codename Goose   = execution-capable local agent platform reinforced by builder-II
-deepagents       = optional future orchestration harness
-```
+---
 
-## The Builder's Signet
+## Target Profiles
 
-Every architectural decision in builder-II should reflect three engineering pillars inherited from CORE:
+Initial target profiles:
 
-1. **Mechanical Sympathy** — respect the real substrate of engineering work: local repositories, Git, Codename Goose, tests, diffs, handoffs, PRs, failed checks, constrained hardware, and human judgment.
-2. **Semantic Rigor** — preserve exact meaning across every artifact and claim: planned is not executed, executed is not verified, verified is not promoted, and manifests are not runtime evidence.
-3. **The Third Door** — reject weak safety theater and reckless automation; choose governed power.
+| Profile | Purpose |
+|---|---|
+| `generic` | Any normal software repository |
+| `builder` | builder-II self-development |
+| `core` | AssetOverflow/core development (target profile only) |
 
-These pillars are documented in [`docs/MANIFESTO.md`](MANIFESTO.md), ratified architecturally by [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md), and carried into the Codename Goose integration layer by [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](adrs/ADR-0002-builder-convention-layer-over-codename-goose.md).
+CORE-specific behaviour (repo path, agent defaults, invariant conventions)
+lives exclusively inside the `core` target profile/adapter — never in
+platform-level config resolution.
 
-## What it combines
+---
 
-builder-II currently combines:
+## Architecture Guardrails
 
-- target profiles for `generic`, `builder`, and `core` repositories;
-- generic agent profiles and authority contracts;
-- context pack and target bundle artifacts;
-- verification profile artifacts;
-- quality gate artifacts;
-- handoff artifacts;
-- research planning artifacts;
-- Goose configuration, recipes, and session manifest artifacts;
-- optional deepagents bridge/readiness specifications;
-- MLX-LM local model policy and direct local ask support;
-- runtime controls for local model serving and operator-managed sessions;
-- documentation and guardrails that separate validated use from future runtime candidates.
+These guardrails are enforced by tests and must not be violated:
 
-## Why it exists
+### 1. builder-II is generic-first
 
-Modern coding agents are powerful but often blur planning, execution, mutation, model calls, and authority. builder-II exists to make local development assistance governable and materially better for real engineering work.
+All platform-level modules must be target-agnostic. A module that works
+only for CORE is not a platform module — it is a target adapter.
 
-The platform should help an operator:
+### 2. CORE is a target profile/adapter
 
-```text
-choose target repo and profile
--> package context and intent into artifacts
--> bind agent and verification profiles
--> review plans and quality gates
--> optionally prepare a Goose session manifest
--> approve any future runtime action explicitly
--> verify concrete outputs
--> preserve audit and handoff records
-```
+CORE appears in builder-II only as:
+- A named entry in `target_profiles.py`
+- A named entry in `target_profile_defaults.py`
+- A `CoreDemoAdapter` in `core_demo_loop.py`
 
-The current implementation deliberately stops before autonomous runtime authority. Artifacts are evidence and review objects; they are not permission to execute commands, mutate files, call models, or start agents.
+CORE must never appear as implicit platform behaviour.
 
-## Main components
+### 3. Target defaults must not live in generic config resolution
 
-| Component | Purpose |
-| --- | --- |
-| `builder_ii/cli.py` | Main CLI commands such as setup, doctor, models, ask, start, and verify. |
-| `builder_ii/target_profiles.py` | Explicit target definitions for generic repos, builder-II itself, and AssetOverflow/core. |
-| `builder_ii/agent_profiles.py` | Generic agent profile definitions and authority descriptions. |
-| `builder_ii/context_cli.py` | Context packaging for target-scoped review. |
-| `builder_ii/bundle_cli.py` | Governed target bundle artifact creation and validation. |
-| `builder_ii/verification_cli.py` | Verification profile rendering and validation. |
-| `builder_ii/quality_cli.py` | Quality gate artifact planning and validation. |
-| `builder_ii/notes_cli.py` | Handoff artifact creation and validation. |
-| `builder_ii/research_cli.py` | Artifact-only research planning. |
-| `builder_ii/goose_session.py` | Goose session manifest creation and validation. |
-| `builder_ii/goose_setup.py` | Passive Goose setup metadata plus legacy setup redirect payloads. |
-| `builder_ii/goose_launcher.py` | Operator-started Goose session helper. |
-| `builder_ii/backends.py` | MLX-LM backend health and served-model checks. |
-| `builder_ii/runtime_control.py` | Runtime status/reset helper for local MLX listener and marker state. |
-| `builder_ii/model_policy.py` | Runtime policy for each model alias. |
-| `builder_ii/lane_guides.py` | Reusable local prompt lanes. |
-| `builder_ii/roles.py` | Read-only persona definitions. |
-| `builder_ii/role_gates.py` | Capability boundaries for personas. |
-| `recipes/` | Goose platform and coding recipes. |
-| `.agents/skills/` | Skills represented as passive setup overlay candidates. |
+`config_sources.py` is target-agnostic. It delegates all target-specific
+defaults to `target_profile_defaults.py`. The config resolver must not
+contain:
 
-## Agents, subagents, and tasks
+- Hardcoded target repo paths
+- Hardcoded target agent names
+- Target-to-repo or target-to-agent maps
 
-In builder-II, agents and subagents are governed workflow roles, recipes, or future planning harnesses. They are not hidden autonomous authorities.
+Violations of this rule are detected by `tests/test_config_sources.py`
+(`test_config_sources_does_not_hardcode_core_strings`).
 
-- Agent profiles define expected behavior and authority boundaries.
-- Lane guides provide reusable prompt templates.
-- Recipes wire Goose commands such as `/plan`, `/explore`, `/review`, `/verify`, and `/handoff`.
-- Skills provide reusable behavioral guidance for Goose sessions.
-- Verification profiles keep work anchored to real target-specific checks.
-- Future deepagents integration remains optional and subordinate to builder-II governance.
+### 4. Target-specific demo loops must be adapter-scoped
 
-## Tool and connector posture
+Demo loops that are specific to a target must:
 
-builder-II configures local developer workflows and optional tool bridges, but runtime authority remains promotion-gated.
+- Isolate all target-specific strings (target name, remote hint, marker
+  path, sensitive module list, invariant notes, governance coupling values)
+  in a dedicated adapter dataclass
+- Read those strings from the adapter throughout the phase machine — never
+  inline them in the generic helpers
+- Keep the adapter data-only: no public methods, no phase logic
 
-Current validated use is setup, planning, review, direct ask, artifact rendering, artifact validation, runtime control, and verification discipline. Autonomous local file editing, hidden model routing, shell execution, source mutation, memory mutation, commit/push automation, and pull request creation remain future capabilities unless explicitly promoted.
+A generic base class (`GenericTargetDemoLoop`) is the aspirational
+architecture for future multi-target demo support, but is not required
+until a second target demo loop is introduced.
 
-## Success criteria
+Violations of this rule are detected by
+`tests/test_config_sources.py`
+(`test_core_demo_adapter_strings_not_duplicated_outside_adapter`).
 
-builder-II is successful when an operator can:
+### 5. Deepagents is optional and governed
 
-1. install it;
-2. configure local model and Goose support;
-3. validate platform setup with `builder doctor`;
-4. select a target profile;
-5. package context and intent into reviewable artifacts;
-6. bind agent and verification profiles;
-7. create quality gate, research, handoff, and Goose session artifacts;
-8. understand exactly what each artifact does and does not authorize;
-9. run concrete verification before accepting changes;
-10. resume or hand off work without losing governing context;
-11. promote future runtime behavior only through explicit docs, tests, HITL approval, rollback, and audit paths.
+Deepagents support is **optional**. The approved protocol lane
+(`protocol_fake`) is a bounded, governed proof lane — it is not native
+deepagents runtime promotion. See `docs/DEEPAGENTS_POLICY.md` for the
+full policy.
+
+Native deepagents construction, model invocation, tool/MCP execution,
+shell execution, and autonomous source writes remain **disabled** until
+explicit capability promotion.
+
+---
+
+## System Boundaries
+
+### builder-II owns
+
+- Local setup and model/runtime policy
+- Goose setup and recipes
+- Prompt/lane/persona definitions
+- Tool registry and context packs
+- Repo targets and git pre/postflight
+- Verification profiles
+- Notes and handoffs
+- Optional agent/subagent orchestration
+
+### CORE (target profile, not platform identity)
+
+CORE is the deterministic cognitive engine project. In builder-II, CORE
+appears only as a target profile/adapter.
+
+### CORE Workbench/UI
+
+CORE Workbench lives inside the CORE product context. builder-II must not
+become the Workbench or claim to drive Workbench UX flows.
+
+### deepagents (optional harness)
+
+Deepagents is an optional agent/subagent harness. It must not bypass
+builder-II governance. It starts generic-first and is gated by readiness
+audits before any execution capability is enabled.
+
+---
+
+## Governance Invariants
+
+All builder-II operations preserve:
+
+- No autonomous source writes by default.
+- No shell execution without HITL approval.
+- No bypassing verification.
+- No hidden agent authority.
+- No Deephaven changes.
+- No claims without artifacts.
+- No CORE Workbench/UI coupling.

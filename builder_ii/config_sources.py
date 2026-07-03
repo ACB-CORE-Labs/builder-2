@@ -19,6 +19,7 @@ from builder_ii.config_schema import (
     attach_digest,
     digest_jsonable,
 )
+from builder_ii.target_profile_defaults import get_target_defaults
 from builder_ii.target_profiles import target_names
 from builder_ii.verification_profiles import default_profile_for_target, verification_profile_names
 
@@ -296,26 +297,33 @@ def _source_lookup(
     )
 
 
-def _default_agent_for_target(target: str) -> str:
-    return {
-        "generic": "repo_mapper",
-        "builder": "patch_planner",
-        "core": "core.patch_planner",
-    }.get(target, "patch_planner")
-
-
 def _target_profile_defaults(project_root: Path, active_target_profile: str) -> dict[str, Any]:
-    target_repo = {
-        "generic": project_root,
-        "builder": project_root,
-        "core": project_root.parent / "core",
-    }.get(active_target_profile, project_root)
+    """Build target-specific defaults by delegating to target_profile_defaults.
+
+    This function is the bridge between the old per-field default map expected
+    by _source_lookup and the canonical target_profile_defaults module.
+    CORE-specific strings (repo path, agent name) are owned exclusively by
+    target_profile_defaults; this function must not duplicate them.
+    """
+    target_data = get_target_defaults(active_target_profile)
+
+    # Resolve the repo path: target_profile_defaults returns a Path.
+    # For the "generic" and "builder" targets the default is project_root
+    # itself; honour that by re-injecting the live project_root so that
+    # test calls with a tmp_path still resolve correctly.
+    raw_repo: Path = target_data["default_target_repo"]
+    if active_target_profile in ("generic", "builder"):
+        target_repo = str(project_root)
+    else:
+        target_repo = str(raw_repo)
+
     verification_profile = "builder_full"
     if active_target_profile in target_names():
         verification_profile = default_profile_for_target(active_target_profile).name
+
     return {
-        "target_repo": str(target_repo),
-        "active_agent_profile": _default_agent_for_target(active_target_profile),
+        "target_repo": target_repo,
+        "active_agent_profile": target_data["default_agent_profile"],
         "active_verification_profile": verification_profile,
     }
 

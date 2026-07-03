@@ -46,7 +46,64 @@ _PHASES: tuple[DemoPhase, ...] = (
     "all",
 )
 
+# Module-level marker path constant shared by CoreDemoAdapter and diff helpers.
 _DEMO_MARKER_PATH = Path("docs/builder_ii_core_demo_marker.md")
+
+
+@dataclass(frozen=True)
+class CoreDemoAdapter:
+    """Owns CORE-specific strings, invariants, and validation language.
+
+    This adapter is the single authoritative source for all CORE-specific
+    constants used in demo artifacts.  The generic phase machinery
+    (run_core_demo_loop, _write_planner, _write_verification_receipt, etc.)
+    reads from this adapter rather than hardcoding CORE strings inline.
+
+    CoreDemoAdapter is data-only: it has no public methods and does not
+    drive phase logic, replace run_core_demo_loop(), or couple builder-II
+    to the CORE Workbench.
+
+    Governance
+    ----------
+    * No model execution.
+    * No commit/push authority.
+    * No shell execution.
+    * No CORE Workbench coupling.
+    """
+
+    target_name: str = "core"
+    repo_remote_hint: str = "AssetOverflow/core"
+    marker_path: Path = _DEMO_MARKER_PATH
+    sensitive_modules: tuple[str, ...] = (
+        "algebra/",
+        "field/",
+        "generate/",
+        "core/cognition/",
+        "vault/",
+        "teaching/",
+        "calibration/",
+        "sensorium/",
+    )
+    invariant_policy_note: str = "not exercised by documentation-only marker change"
+    worktree_source_note: str = "AssetOverflow/core temporary detached worktree"
+    workbench_coupling: str = "NONE"
+
+    @property
+    def worktree_description(self) -> str:
+        return f"{self.repo_remote_hint} temporary detached worktree for builder-II CORE demo."
+
+    @property
+    def task_description(self) -> str:
+        return (
+            f"Demonstrate builder-II governed patch, verify, rollback loop on {self.repo_remote_hint}."
+        )
+
+
+# Module-level default adapter instance used by all internal helpers.
+# The public run_core_demo_loop() signature is unchanged; callers cannot
+# yet inject a custom adapter, but the wiring is in place for a future
+# adapter-injection upgrade without breaking the public API.
+_ADAPTER = CoreDemoAdapter()
 
 
 @dataclass(frozen=True)
@@ -189,18 +246,18 @@ def _repo_status(repo: Path) -> list[str]:
     return result.stdout.splitlines()
 
 
-def _ensure_core_repo(repo: Path) -> Path:
+def _ensure_core_repo(repo: Path, adapter: CoreDemoAdapter = _ADAPTER) -> Path:
     resolved = repo.expanduser().resolve()
     if not resolved.is_dir():
-        raise ValueError(f"CORE repo does not exist: {resolved}")
+        raise ValueError(f"{adapter.target_name} repo does not exist: {resolved}")
     if not (resolved / ".git").exists():
-        raise ValueError(f"CORE repo is not a git checkout: {resolved}")
+        raise ValueError(f"{adapter.target_name} repo is not a git checkout: {resolved}")
     try:
         remote = _run_git(resolved, ["remote", "-v"], check=False).stdout
     except OSError as exc:
-        raise ValueError(f"failed to inspect CORE git remote: {exc}") from exc
-    if "AssetOverflow/core" not in remote and resolved.name != "core":
-        raise ValueError(f"repo does not look like AssetOverflow/core: {resolved}")
+        raise ValueError(f"failed to inspect {adapter.target_name} git remote: {exc}") from exc
+    if adapter.repo_remote_hint not in remote and resolved.name != adapter.target_name:
+        raise ValueError(f"repo does not look like {adapter.repo_remote_hint}: {resolved}")
     return resolved
 
 
@@ -221,13 +278,14 @@ def _remove_worktree(source_repo: Path, worktree: Path) -> None:
     _run_git(source_repo, ["worktree", "remove", "--force", str(worktree)], check=False)
 
 
-def _unified_diff_for_marker() -> str:
+def _unified_diff_for_marker(adapter: CoreDemoAdapter = _ADAPTER) -> str:
+    mp = adapter.marker_path.as_posix()
     return (
-        f"diff --git a/{_DEMO_MARKER_PATH.as_posix()} b/{_DEMO_MARKER_PATH.as_posix()}\n"
+        f"diff --git a/{mp} b/{mp}\n"
         "new file mode 100644\n"
         "index 0000000..0000000\n"
         "--- /dev/null\n"
-        f"+++ b/{_DEMO_MARKER_PATH.as_posix()}\n"
+        f"+++ b/{mp}\n"
         "@@ -0,0 +1,3 @@\n"
         "+# builder-II CORE Demo Marker\n"
         "+\n"
@@ -235,12 +293,13 @@ def _unified_diff_for_marker() -> str:
     )
 
 
-def _reverse_diff_for_marker() -> str:
+def _reverse_diff_for_marker(adapter: CoreDemoAdapter = _ADAPTER) -> str:
+    mp = adapter.marker_path.as_posix()
     return (
-        f"diff --git a/{_DEMO_MARKER_PATH.as_posix()} b/{_DEMO_MARKER_PATH.as_posix()}\n"
+        f"diff --git a/{mp} b/{mp}\n"
         "deleted file mode 100644\n"
         "index 0000000..0000000\n"
-        f"--- a/{_DEMO_MARKER_PATH.as_posix()}\n"
+        f"--- a/{mp}\n"
         "+++ /dev/null\n"
         "@@ -1,3 +0,0 @@\n"
         "-# builder-II CORE Demo Marker\n"
@@ -249,47 +308,47 @@ def _reverse_diff_for_marker() -> str:
     )
 
 
-def _write_repo_map_and_context(worktree: Path, paths: CoreDemoPaths) -> None:
-    repo_map = create_repo_map(worktree, target_name="core", max_files=700)
+def _write_repo_map_and_context(
+    worktree: Path,
+    paths: CoreDemoPaths,
+    adapter: CoreDemoAdapter = _ADAPTER,
+) -> None:
+    repo_map = create_repo_map(worktree, target_name=adapter.target_name, max_files=700)
     paths.repo_map.write_text(dumps_repo_map(repo_map), encoding="utf-8")
     context_pack = create_context_pack(
         repo_map,
-        target_name="core",
-        task="Demonstrate builder-II governed patch, verify, rollback loop on AssetOverflow/core.",
+        target_name=adapter.target_name,
+        task=adapter.task_description,
         max_entries=80,
     )
     paths.context_pack.write_text(dumps_context_pack(context_pack), encoding="utf-8")
 
 
-def _write_planner(paths: CoreDemoPaths, worktree: Path, patch_digest: str) -> dict[str, Any]:
+def _write_planner(
+    paths: CoreDemoPaths,
+    worktree: Path,
+    patch_digest: str,
+    adapter: CoreDemoAdapter = _ADAPTER,
+) -> dict[str, Any]:
     planner = {
         "kind": CORE_DEMO_PLANNER_KIND,
         "schema_version": 1,
         "created_at": _utc_timestamp(),
         "target": {
-            "name": "core",
+            "name": adapter.target_name,
             "repo": str(worktree),
-            "source": "AssetOverflow/core temporary detached worktree",
+            "source": adapter.worktree_source_note,
         },
         "selected_change": {
-            "path": _DEMO_MARKER_PATH.as_posix(),
+            "path": adapter.marker_path.as_posix(),
             "operation": "temporary_add_then_rollback",
             "patch_digest": patch_digest,
             "reason": "Use a low-risk documentation marker outside CORE sensitive runtime modules to prove the governed lifecycle.",
         },
         "core_invariant_policy": {
-            "sensitive_modules_untouched": [
-                "algebra/",
-                "field/",
-                "generate/",
-                "core/cognition/",
-                "vault/",
-                "teaching/",
-                "calibration/",
-                "sensorium/",
-            ],
-            "versor_condition_boundary": "not exercised by documentation-only marker change",
-            "cga_recall_boundary": "not exercised by documentation-only marker change",
+            "sensitive_modules_untouched": list(adapter.sensitive_modules),
+            "versor_condition_boundary": adapter.invariant_policy_note,
+            "cga_recall_boundary": adapter.invariant_policy_note,
             "stochastic_generation": "not introduced",
         },
         "governance": {
@@ -299,26 +358,36 @@ def _write_planner(paths: CoreDemoPaths, worktree: Path, patch_digest: str) -> d
             "source_writes": "DISABLED EXCEPT APPROVED TEMPORARY CORE WORKTREE PATCH",
             "target_repo_writes": "TEMPORARY_WORKTREE_ONLY_AFTER_APPROVAL",
             "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
+            "core_workbench_coupling": adapter.workbench_coupling,
         },
     }
     _write_json(paths.planner, planner)
     return planner
 
 
-def _write_patch_proposal(paths: CoreDemoPaths, worktree: Path, patch_text: str, patch_digest: str) -> dict[str, Any]:
+def _write_patch_proposal(
+    paths: CoreDemoPaths,
+    worktree: Path,
+    patch_text: str,
+    patch_digest: str,
+    adapter: CoreDemoAdapter = _ADAPTER,
+) -> dict[str, Any]:
     paths.patch_file.write_text(patch_text, encoding="utf-8")
-    paths.reverse_patch_file.write_text(_reverse_diff_for_marker(), encoding="utf-8")
+    paths.reverse_patch_file.write_text(_reverse_diff_for_marker(adapter), encoding="utf-8")
     proposal = create_hitl_patch_proposal(
         target_name="generic",
         generic_repo=worktree,
-        patch_description="CORE demo: add temporary builder-II demo marker",
-        reason="Prove the governed inspect -> propose -> approve -> apply -> verify -> rollback lifecycle on AssetOverflow/core without touching sensitive CORE runtime modules.",
+        patch_description=f"{adapter.target_name.upper()} demo: add temporary builder-II demo marker",
+        reason=(
+            f"Prove the governed inspect -> propose -> approve -> apply -> verify -> rollback "
+            f"lifecycle on {adapter.repo_remote_hint} without touching sensitive "
+            f"{adapter.target_name.upper()} runtime modules."
+        ),
         patch_digest=patch_digest,
         unified_diff=patch_text,
     )
-    proposal["target"]["name"] = "core"
-    proposal["target"]["description"] = "AssetOverflow/core temporary detached worktree for builder-II CORE demo."
+    proposal["target"]["name"] = adapter.target_name
+    proposal["target"]["description"] = adapter.worktree_description
     write_hitl_patch_proposal(proposal, paths.proposal)
     return proposal
 
@@ -330,6 +399,7 @@ def create_core_demo_approval(
     decided_by: str = "operator",
     approved: bool = True,
     reason: str = "Interactive CORE demo approval.",
+    adapter: CoreDemoAdapter = _ADAPTER,
 ) -> dict[str, Any]:
     patch_digest = str(proposal.get("patch_digest", ""))
     return {
@@ -346,7 +416,7 @@ def create_core_demo_approval(
             "sha256": _json_digest(proposal),
         },
         "patch_digest": patch_digest,
-        "approval_boundary": "operator explicitly approved this exact patch digest for the temporary CORE demo worktree",
+        "approval_boundary": f"operator explicitly approved this exact patch digest for the temporary {adapter.target_name.upper()} demo worktree",
         "grants_runtime_authority": False,
         "grants_action_authority": approved,
         "governance": {
@@ -354,11 +424,11 @@ def create_core_demo_approval(
             "runtime_execution": "DISABLED",
             "model_execution": "DISABLED",
             "shell_execution": "DISABLED",
-            "source_writes": "APPROVED_TEMPORARY_CORE_WORKTREE_PATCH_ONLY" if approved else "DISABLED",
+            "source_writes": f"APPROVED_TEMPORARY_{adapter.target_name.upper()}_WORKTREE_PATCH_ONLY" if approved else "DISABLED",
             "target_repo_writes": "TEMPORARY_WORKTREE_ONLY" if approved else "DISABLED",
             "commit_push": "DISABLED",
             "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
+            "core_workbench_coupling": adapter.workbench_coupling,
         },
     }
 
@@ -419,13 +489,14 @@ def validate_core_demo_planner(data: Any) -> list[str]:
     if data.get("schema_version") != 1:
         errors.append("schema_version must be 1")
     target = data.get("target")
-    if not isinstance(target, dict) or target.get("name") != "core" or not target.get("repo"):
+    adapter = _ADAPTER
+    if not isinstance(target, dict) or target.get("name") != adapter.target_name or not target.get("repo"):
         errors.append("target must describe the core demo repository")
     change = data.get("selected_change")
     if not isinstance(change, dict):
         errors.append("selected_change must be an object")
     else:
-        if change.get("path") != _DEMO_MARKER_PATH.as_posix():
+        if change.get("path") != adapter.marker_path.as_posix():
             errors.append("selected_change.path must be the demo marker path")
         if not isinstance(change.get("patch_digest"), str) or len(change["patch_digest"]) != 64:
             errors.append("selected_change.patch_digest must be a SHA-256 string")
@@ -437,7 +508,7 @@ def validate_core_demo_planner(data: Any) -> list[str]:
             errors.append("governance.model_execution must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
-        if governance.get("core_workbench_coupling") != "NONE":
+        if governance.get("core_workbench_coupling") != adapter.workbench_coupling:
             errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
@@ -450,9 +521,9 @@ def validate_core_demo_preflight(data: Any) -> list[str]:
         errors.append(f"kind must be {CORE_DEMO_PREFLIGHT_KIND}")
     if data.get("schema_version") != 1:
         errors.append("schema_version must be 1")
-    for field in ("source_repo", "demo_worktree", "source_head", "worktree_head"):
-        if not isinstance(data.get(field), str) or not data[field]:
-            errors.append(f"{field} must be a non-empty string")
+    for f in ("source_repo", "demo_worktree", "source_head", "worktree_head"):
+        if not isinstance(data.get(f), str) or not data[f]:
+            errors.append(f"{f} must be a non-empty string")
     if not isinstance(data.get("source_repo_status"), list):
         errors.append("source_repo_status must be a list")
     if data.get("worktree_status") != []:
@@ -467,7 +538,7 @@ def validate_core_demo_preflight(data: Any) -> list[str]:
             errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
-        if governance.get("core_workbench_coupling") != "NONE":
+        if governance.get("core_workbench_coupling") != _ADAPTER.workbench_coupling:
             errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
@@ -499,12 +570,17 @@ def validate_core_demo_verification_receipt(data: Any) -> list[str]:
             errors.append("governance.source_writes must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
-        if governance.get("core_workbench_coupling") != "NONE":
+        if governance.get("core_workbench_coupling") != _ADAPTER.workbench_coupling:
             errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     return errors
 
 
-def _write_preflight(paths: CoreDemoPaths, source_repo: Path, worktree: Path) -> dict[str, Any]:
+def _write_preflight(
+    paths: CoreDemoPaths,
+    source_repo: Path,
+    worktree: Path,
+    adapter: CoreDemoAdapter = _ADAPTER,
+) -> dict[str, Any]:
     source_status = _repo_status(source_repo)
     worktree_status = _repo_status(worktree)
     record = {
@@ -519,7 +595,7 @@ def _write_preflight(paths: CoreDemoPaths, source_repo: Path, worktree: Path) ->
         "worktree_status": worktree_status,
         "ready": len(worktree_status) == 0,
         "source_repo_dirty_ok": True,
-        "note": "The source CORE checkout may be dirty; the demo mutates only the detached temporary worktree.",
+        "note": f"The source {adapter.target_name.upper()} checkout may be dirty; the demo mutates only the detached temporary worktree.",
         "governance": {
             "capability_state": "CORE_DEMO_PREFLIGHT",
             "runtime_execution": "DISABLED",
@@ -528,17 +604,23 @@ def _write_preflight(paths: CoreDemoPaths, source_repo: Path, worktree: Path) ->
             "source_writes": "DISABLED",
             "target_repo_writes": "DISABLED",
             "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
+            "core_workbench_coupling": adapter.workbench_coupling,
         },
     }
     _write_json(paths.preflight, record)
     if not record["ready"]:
-        raise ValueError(f"CORE demo worktree is not clean: {worktree_status}")
+        raise ValueError(f"{adapter.target_name.upper()} demo worktree is not clean: {worktree_status}")
     return record
 
 
-def _write_verification_receipt(paths: CoreDemoPaths, worktree: Path, *, label: str) -> dict[str, Any]:
-    marker_exists = (worktree / _DEMO_MARKER_PATH).is_file()
+def _write_verification_receipt(
+    paths: CoreDemoPaths,
+    worktree: Path,
+    *,
+    label: str,
+    adapter: CoreDemoAdapter = _ADAPTER,
+) -> dict[str, Any]:
+    marker_exists = (worktree / adapter.marker_path).is_file()
     expected_marker = label == "after_apply"
     status_lines = _repo_status(worktree)
     receipt_status = "EXECUTED" if marker_exists is expected_marker else "FAILED"
@@ -548,7 +630,7 @@ def _write_verification_receipt(paths: CoreDemoPaths, worktree: Path, *, label: 
         "created_at": _utc_timestamp(),
         "label": label,
         "target": {
-            "name": "core",
+            "name": adapter.target_name,
             "repo": str(worktree),
         },
         "checks": [
@@ -563,18 +645,7 @@ def _write_verification_receipt(paths: CoreDemoPaths, worktree: Path, *, label: 
                 "status_lines": status_lines,
                 "status": "PASS"
                 if all(
-                    not line[3:].startswith(
-                        (
-                            "algebra/",
-                            "field/",
-                            "generate/",
-                            "core/cognition/",
-                            "vault/",
-                            "teaching/",
-                            "calibration/",
-                            "sensorium/",
-                        )
-                    )
+                    not line[3:].startswith(adapter.sensitive_modules)
                     for line in status_lines
                 )
                 else "FAIL",
@@ -591,17 +662,21 @@ def _write_verification_receipt(paths: CoreDemoPaths, worktree: Path, *, label: 
             "source_writes": "DISABLED",
             "target_repo_writes": "DISABLED",
             "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
+            "core_workbench_coupling": adapter.workbench_coupling,
         },
     }
     output = paths.pre_apply_verification_receipt if label == "before_apply" else paths.post_apply_verification_receipt
     _write_json(output, receipt)
     if receipt_status != "EXECUTED":
-        raise ValueError("CORE demo verification failed after apply")
+        raise ValueError(f"{adapter.target_name.upper()} demo verification failed after apply")
     return receipt
 
 
-def _write_final_postflight(paths: CoreDemoPaths, worktree: Path) -> dict[str, Any]:
+def _write_final_postflight(
+    paths: CoreDemoPaths,
+    worktree: Path,
+    adapter: CoreDemoAdapter = _ADAPTER,
+) -> dict[str, Any]:
     status_lines = _repo_status(worktree)
     postflight = create_execution_postflight_record(
         target_name="generic",
@@ -610,18 +685,18 @@ def _write_final_postflight(paths: CoreDemoPaths, worktree: Path) -> dict[str, A
         receipt_ref=str(paths.rollback_receipt),
         preflight_ref=str(paths.preflight),
         approval_ref=str(paths.approval),
-        expected_outcome="Temporary CORE demo patch rolled back; detached worktree returned clean.",
+        expected_outcome=f"Temporary {adapter.target_name.upper()} demo patch rolled back; detached worktree returned clean.",
         observed_state_ref="git status --porcelain=v1",
     )
-    postflight["target"]["name"] = "core"
-    postflight["target"]["description"] = "AssetOverflow/core temporary detached worktree for builder-II CORE demo."
+    postflight["target"]["name"] = adapter.target_name
+    postflight["target"]["description"] = adapter.worktree_description
     postflight["postflight_state"] = "RUN_COMPLETE"
-    postflight["performed_actions"] = ["read git status for detached CORE demo worktree"]
+    postflight["performed_actions"] = [f"read git status for detached {adapter.target_name.upper()} demo worktree"]
     postflight["observed_status_lines"] = status_lines
     postflight["workspace_clean"] = len(status_lines) == 0
     write_execution_postflight_record(postflight, paths.final_postflight)
     if status_lines:
-        raise ValueError(f"CORE demo rollback did not return worktree clean: {status_lines}")
+        raise ValueError(f"{adapter.target_name.upper()} demo rollback did not return worktree clean: {status_lines}")
     return postflight
 
 
@@ -636,6 +711,7 @@ def create_core_demo_report(
     artifact_paths: list[Path],
     ready_for_recording: bool,
     next_command: str,
+    adapter: CoreDemoAdapter = _ADAPTER,
 ) -> dict[str, Any]:
     refs = []
     for path in artifact_paths:
@@ -657,7 +733,7 @@ def create_core_demo_report(
         "created_at": _utc_timestamp(),
         "phase": phase,
         "target": {
-            "name": "core",
+            "name": adapter.target_name,
             "source_repo": str(source_repo),
             "demo_worktree": str(worktree),
         },
@@ -680,10 +756,10 @@ def create_core_demo_report(
             "runtime_execution": "GUIDED_DEMO_ONLY",
             "model_execution": "DISABLED",
             "shell_execution": "DISABLED_FOR_DEMO_PAYLOAD",
-            "source_writes": "TEMPORARY_CORE_WORKTREE_ONLY_AFTER_APPROVAL",
+            "source_writes": f"TEMPORARY_{adapter.target_name.upper()}_WORKTREE_ONLY_AFTER_APPROVAL",
             "commit_push": "DISABLED",
             "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
+            "core_workbench_coupling": adapter.workbench_coupling,
         },
     }
     report["report_digest"] = _json_digest(report)
@@ -720,7 +796,7 @@ def validate_core_demo_report(data: Any) -> list[str]:
             errors.append("governance.commit_push must be DISABLED or NOT_AUTHORIZED")
         if governance.get("artifact_is_authority") is not False:
             errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
-        if governance.get("core_workbench_coupling") != "NONE":
+        if governance.get("core_workbench_coupling") != _ADAPTER.workbench_coupling:
             errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
     digest = data.get("report_digest")
     if isinstance(digest, str):
@@ -733,15 +809,19 @@ def validate_core_demo_report(data: Any) -> list[str]:
     return errors
 
 
-def _write_evidence_markdown(paths: CoreDemoPaths, report: dict[str, Any]) -> None:
+def _write_evidence_markdown(
+    paths: CoreDemoPaths,
+    report: dict[str, Any],
+    adapter: CoreDemoAdapter = _ADAPTER,
+) -> None:
     lines = [
-        "# builder-II CORE Demo Evidence",
+        f"# builder-II {adapter.target_name.upper()} Demo Evidence",
         "",
-        "This evidence bundle records a guided builder-II run against a temporary detached worktree of AssetOverflow/core.",
+        f"This evidence bundle records a guided builder-II run against a temporary detached worktree of {adapter.repo_remote_hint}.",
         "",
         "## Boundary",
         "",
-        "- Source CORE checkout is not mutated by the demo.",
+        f"- Source {adapter.target_name.upper()} checkout is not mutated by the demo.",
         "- The temporary CORE worktree is patched only after explicit approval.",
         "- The patch is rolled back before completion.",
         "- No commit, push, model execution, Goose activation, MCP call, or hidden memory is used.",
@@ -757,7 +837,7 @@ def _write_evidence_markdown(paths: CoreDemoPaths, report: dict[str, Any]) -> No
             "",
             "## Recording Beats",
             "",
-            "1. Show preflight and CORE detached worktree boundary.",
+            f"1. Show preflight and {adapter.target_name.upper()} detached worktree boundary.",
             "2. Show deterministic planner and HITL patch proposal.",
             "3. Show explicit approval digest.",
             "4. Apply the patch, verify the temporary marker exists, then roll it back.",
@@ -809,7 +889,12 @@ def _clear_stale_final_outputs(paths: CoreDemoPaths) -> None:
 
 
 def _finalize(
-    paths: CoreDemoPaths, source_repo: Path, worktree: Path, phase: DemoPhase, completed_steps: list[str]
+    paths: CoreDemoPaths,
+    source_repo: Path,
+    worktree: Path,
+    phase: DemoPhase,
+    completed_steps: list[str],
+    adapter: CoreDemoAdapter = _ADAPTER,
 ) -> dict[str, Any]:
     from builder_ii.artifact_chain_verification import verify_artifact_chain
     from builder_ii.artifact_index_records import create_artifact_index_record, write_artifact_index_record
@@ -831,12 +916,13 @@ def _finalize(
         artifact_paths=all_artifacts,
         ready_for_recording=True,
         next_command="Demo loop complete. Open DEMO_EVIDENCE.md and core-demo-loop-report.json.",
+        adapter=adapter,
     )
     errors = validate_core_demo_report(report)
     if errors:
-        raise ValueError("invalid CORE demo report: " + "; ".join(errors))
+        raise ValueError(f"invalid {adapter.target_name.upper()} demo report: " + "; ".join(errors))
     _write_json(paths.report, report)
-    _write_evidence_markdown(paths, report)
+    _write_evidence_markdown(paths, report, adapter)
     return report
 
 
@@ -849,10 +935,18 @@ def run_core_demo_loop(
     force: bool = False,
     cleanup_worktree: bool = False,
 ) -> dict[str, Any]:
+    """Run the CORE demo loop.
+
+    Public signature is unchanged from the original.  Internally all
+    CORE-specific strings are now read from the module-level _ADAPTER
+    (CoreDemoAdapter) rather than being hardcoded inline.
+    """
+    adapter = _ADAPTER
+
     if phase not in _PHASES:
         raise ValueError(f"phase must be one of: {', '.join(_PHASES)}")
 
-    source_repo = _ensure_core_repo(core_repo)
+    source_repo = _ensure_core_repo(core_repo, adapter)
     paths = CoreDemoPaths(output_dir.resolve())
     paths.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -860,22 +954,21 @@ def run_core_demo_loop(
 
     if phase in ("prepare", "all"):
         _prepare_worktree(source_repo, paths.worktree, force=force)
-        _write_preflight(paths, source_repo, paths.worktree)
-        _write_repo_map_and_context(paths.worktree, paths)
-        patch_text = _unified_diff_for_marker()
+        _write_preflight(paths, source_repo, paths.worktree, adapter)
+        _write_repo_map_and_context(paths.worktree, paths, adapter)
+        patch_text = _unified_diff_for_marker(adapter)
         patch_digest = _sha256_text(patch_text)
-        _write_planner(paths, paths.worktree, patch_digest)
-        _write_patch_proposal(paths, paths.worktree, patch_text, patch_digest)
+        _write_planner(paths, paths.worktree, patch_digest, adapter)
+        _write_patch_proposal(paths, paths.worktree, patch_text, patch_digest, adapter)
         completed.extend(
             [
-                "temporary CORE worktree created",
+                f"temporary {adapter.target_name.upper()} worktree created",
                 "preflight recorded",
                 "repo map and context pack emitted",
                 "HITL patch proposal emitted",
             ]
         )
         if phase == "prepare" and not approve:
-            proposal = _read_json(paths.proposal)
             report = create_core_demo_report(
                 paths=paths,
                 source_repo=source_repo,
@@ -889,9 +982,10 @@ def run_core_demo_loop(
                     "builder-platform demo-loop --phase approve "
                     f"--core-repo {source_repo} --output-dir {paths.output_dir} --approve"
                 ),
+                adapter=adapter,
             )
             _write_json(paths.report, report)
-            _write_evidence_markdown(paths, report)
+            _write_evidence_markdown(paths, report, adapter)
             return report
 
     if phase in ("approve", "all"):
@@ -902,13 +996,14 @@ def run_core_demo_loop(
             proposal,
             proposal_path=paths.proposal,
             approved=approve,
-            reason="Operator approved the exact CORE demo patch digest."
+            reason=f"Operator approved the exact {adapter.target_name.upper()} demo patch digest."
             if approve
             else "Approval checkpoint reached; rerun with --approve.",
+            adapter=adapter,
         )
         errors = validate_core_demo_approval(approval)
         if errors:
-            raise ValueError("invalid CORE demo approval: " + "; ".join(errors))
+            raise ValueError(f"invalid {adapter.target_name.upper()} demo approval: " + "; ".join(errors))
         _write_json(paths.approval, approval)
         completed.append("approval artifact emitted")
         if not approve:
@@ -924,9 +1019,10 @@ def run_core_demo_loop(
                 next_command=(
                     "Approval recorded as rejected. Rerun with --approve to apply to the temporary CORE worktree."
                 ),
+                adapter=adapter,
             )
             _write_json(paths.report, report)
-            _write_evidence_markdown(paths, report)
+            _write_evidence_markdown(paths, report, adapter)
             return report
 
     if phase in ("apply", "all"):
@@ -936,17 +1032,17 @@ def run_core_demo_loop(
         if approval.get("approved") is not True:
             raise ValueError("approval artifact is not approved")
         if not paths.pre_apply_verification_receipt.is_file():
-            _write_verification_receipt(paths, paths.worktree, label="before_apply")
+            _write_verification_receipt(paths, paths.worktree, label="before_apply", adapter=adapter)
         apply_hitl_patch(
             proposal_path=paths.proposal,
             approval_path=paths.approval,
             verification_receipt_path=paths.pre_apply_verification_receipt,
             output_dir=paths.patch_apply_dir,
         )
-        completed.append("approved patch applied to temporary CORE worktree")
+        completed.append(f"approved patch applied to temporary {adapter.target_name.upper()} worktree")
 
     if phase in ("verify", "all"):
-        _write_verification_receipt(paths, paths.worktree, label="after_apply")
+        _write_verification_receipt(paths, paths.worktree, label="after_apply", adapter=adapter)
         completed.append("post-apply verification receipt emitted")
 
     if phase in ("rollback", "all"):
@@ -955,11 +1051,11 @@ def run_core_demo_loop(
             reverse_patch_path=paths.generated_reverse_patch_file,
             output_dir=paths.rollback_dir,
         )
-        _write_final_postflight(paths, paths.worktree)
+        _write_final_postflight(paths, paths.worktree, adapter)
         completed.append("rollback executed and final clean postflight recorded")
 
     if phase in ("finalize", "all"):
-        report = _finalize(paths, source_repo, paths.worktree, phase, completed)
+        report = _finalize(paths, source_repo, paths.worktree, phase, completed, adapter)
         if cleanup_worktree:
             _remove_worktree(source_repo, paths.worktree)
         return report
@@ -974,9 +1070,10 @@ def run_core_demo_loop(
         artifact_paths=_demo_json_artifact_paths(paths),
         ready_for_recording=True,
         next_command="Run the next demo phase explicitly.",
+        adapter=adapter,
     )
     _write_json(paths.report, report)
-    _write_evidence_markdown(paths, report)
+    _write_evidence_markdown(paths, report, adapter)
     return report
 
 
