@@ -23,6 +23,7 @@ def test_readonly_tui_empty_status_commands_exit_zero(tmp_path: Path) -> None:
         ["promote", "status"],
         ["postflight", "status"],
         ["goose", "status"],
+        ["code-vault", "status"],
     ]
     for command in commands:
         result = runner.invoke(app, command, env=_env(tmp_path))

@@ -50,6 +50,10 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.hitl_chain_binding`
 - `builder_ii.session_workflow_plan`
 - `builder_ii.repo_map`
+- `builder_ii.code_vault.hierarchical_frame`
+- `builder_ii.code_vault.geometric_linter_report`
+- `builder_ii.code_vault.context_projection`
+- `builder_ii.code_vault.recall_report`
 - `builder_ii.context_pack`
 - `builder_ii.convention_kernel_platform_bundle`
 - `builder_ii.governed_prepare_package`

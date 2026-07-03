@@ -47,6 +47,7 @@ model_app = typer.Typer(help="Read-only model routing inspection surface.", no_a
 promote_app = typer.Typer(help="Read-only promotion pipeline inspection surface.", no_args_is_help=True)
 postflight_app = typer.Typer(help="Read-only postflight inspection surface.", no_args_is_help=True)
 goose_app = typer.Typer(help="Read-only Goose session inspection surface.", no_args_is_help=True)
+code_vault_app = typer.Typer(help="Read-only CodeVault artifact inspection surface.", no_args_is_help=True)
 
 model_routing_app = typer.Typer(help="Read-only model routing artifact inspection.", no_args_is_help=True)
 model_registry_app = typer.Typer(help="Read-only model registry artifact inspection.", no_args_is_help=True)
@@ -342,3 +343,51 @@ def goose_validate() -> None:
 @goose_app.command("approval")
 def goose_approval(manifest_id: str | None = typer.Argument(None)) -> None:
     _dispatch("builder goose approval", "builder_ii.goose_tui", _args("approval", manifest_id))
+
+
+@code_vault_app.command("status")
+def code_vault_status(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
+    _dispatch("builder code-vault status", "builder_ii.code_vault_tui", _args("status", verbose=verbose))
+
+
+@code_vault_app.command("frame")
+def code_vault_frame(
+    frame_id: str | None = typer.Argument(None), verbose: bool = typer.Option(False, "--verbose", "-v")
+) -> None:
+    _dispatch("builder code-vault frame", "builder_ii.code_vault_tui", _args("frame", frame_id, verbose=verbose))
+
+
+@code_vault_app.command("determinism")
+def code_vault_determinism(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
+    _dispatch("builder code-vault determinism", "builder_ii.code_vault_tui", _args("determinism", verbose=verbose))
+
+
+@code_vault_app.command("recall")
+def code_vault_recall(
+    report_id: str | None = typer.Argument(None), verbose: bool = typer.Option(False, "--verbose", "-v")
+) -> None:
+    _dispatch("builder code-vault recall", "builder_ii.code_vault_tui", _args("recall", report_id, verbose=verbose))
+
+
+@code_vault_app.command("lint")
+def code_vault_lint(
+    report_id: str | None = typer.Argument(None), verbose: bool = typer.Option(False, "--verbose", "-v")
+) -> None:
+    _dispatch("builder code-vault lint", "builder_ii.code_vault_tui", _args("lint", report_id, verbose=verbose))
+
+
+@code_vault_app.command("context")
+def code_vault_context(
+    projection_id: str | None = typer.Argument(None), verbose: bool = typer.Option(False, "--verbose", "-v")
+) -> None:
+    _dispatch("builder code-vault context", "builder_ii.code_vault_tui", _args("context", projection_id, verbose=verbose))
+
+
+@code_vault_app.command("governance")
+def code_vault_governance(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
+    _dispatch("builder code-vault governance", "builder_ii.code_vault_tui", _args("governance", verbose=verbose))
+
+
+@code_vault_app.command("validate")
+def code_vault_validate() -> None:
+    _dispatch("builder code-vault validate", "builder_ii.code_vault_tui", ["validate"])

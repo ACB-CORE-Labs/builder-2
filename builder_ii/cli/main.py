@@ -33,6 +33,7 @@ class LazyGroup(TyperGroup):
         self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "promote_app", "promote")
         self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "postflight_app", "postflight")
         self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "goose_app", "goose")
+        self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "code_vault_app", "code-vault")
         self.add_lazy_command("builder_ii.cli.tui_cli", "tui_app", "tui")
 
     def add_lazy_command(self, module_path: str, attr_name: str, name: str):

@@ -5,9 +5,17 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.code_vault.hierarchy import (
+    HIERARCHICAL_FRAME_KIND,
+    create_hierarchical_frame,
+    dumps_hierarchical_frame,
+    validate_hierarchical_frame,
+)
+from builder_ii.code_vault.repo_map_adapter import hierarchical_input_from_repo_map
 from builder_ii.config import Settings
 from builder_ii.context_packs import (
     CONTEXT_PACK_KIND,
+    create_architecture_aware_context_pack,
     create_context_pack,
     validate_context_pack,
 )
@@ -103,6 +111,7 @@ def create_governed_prepare_package(
     verification_profile_name: str | None = None,
     task: str = "",
     include_deepagents_readiness: bool = True,
+    include_code_vault: bool = True,
 ) -> dict[str, Any]:
     """Create a governed local preparation package.
 
@@ -186,7 +195,34 @@ def create_governed_prepare_package(
     repo_map = create_repo_map(resolved_repo, target_name=target_name)
     _validate_or_raise("repo map", validate_repo_map(repo_map))
 
-    context_pack = create_context_pack(repo_map, target_name=target_name, task=task_text)
+    hierarchical_frame = None
+    code_vault_ref = None
+    if include_code_vault:
+        frame_input = hierarchical_input_from_repo_map(
+            repo_map,
+            repo_root=resolved_repo,
+            enrich_symbols=True,
+        )
+        hierarchical_frame = create_hierarchical_frame(frame_input, target_name=target_name)
+        _validate_or_raise("hierarchical frame", validate_hierarchical_frame(hierarchical_frame))
+        hierarchical_frame_path = output_dir / "hierarchical-frame.json"
+        hierarchical_frame_path.write_text(dumps_hierarchical_frame(hierarchical_frame), encoding="utf-8")
+        code_vault_ref = _artifact_ref_for(
+            hierarchical_frame_path,
+            kind=HIERARCHICAL_FRAME_KIND,
+            output_dir=output_dir,
+            name="CodeVault hierarchical frame",
+        )
+
+    if hierarchical_frame is not None:
+        context_pack = create_architecture_aware_context_pack(
+            repo_map,
+            target_name=target_name,
+            hierarchical_frame=hierarchical_frame,
+            task=task_text,
+        )
+    else:
+        context_pack = create_context_pack(repo_map, target_name=target_name, task=task_text)
     _validate_or_raise("context pack", validate_context_pack(context_pack))
 
     repo_map_path = output_dir / "repo-map.json"
@@ -242,6 +278,8 @@ def create_governed_prepare_package(
         context_pack_ref,
         handoff_ref,
     ]
+    if code_vault_ref is not None:
+        artifact_refs.append(code_vault_ref)
 
     if include_deepagents_readiness:
         deepagents_report = create_deepagents_bridge_readiness_report(
@@ -412,6 +450,7 @@ def validate_governed_prepare_package_directory(path: Path) -> list[str]:
     if not isinstance(artifact_refs, list):
         return errors
 
+    from builder_ii.code_vault.hierarchy import hierarchical_frame_from_dict
     from builder_ii.orchestration_assignment import (
         AGENT_ASSIGNMENT_PLAN_KIND,
         ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
@@ -431,6 +470,7 @@ def validate_governed_prepare_package_directory(path: Path) -> list[str]:
         DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND: validate_deepagents_bridge_readiness_report,
         REPO_MAP_KIND: validate_repo_map,
         CONTEXT_PACK_KIND: validate_context_pack,
+        HIERARCHICAL_FRAME_KIND: lambda data: validate_hierarchical_frame(hierarchical_frame_from_dict(data)),
         AGENT_ASSIGNMENT_PLAN_KIND: validate_agent_assignment_plan,
         ORCHESTRATION_ASSIGNMENT_PLAN_KIND: validate_orchestration_assignment_plan,
         ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND: validate_orchestration_assignment_dry_run,

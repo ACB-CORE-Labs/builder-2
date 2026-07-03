@@ -54,6 +54,7 @@ Governed setup subcommands:
 - `builder-session`
 - `builder-workflow`
 - `builder-ledger`
+- `builder-code-vault` — governed read-only CodeVault hierarchical frame, lint, recall, context projection, determinism demo, and validation; Tier 1 artifact-only; no shell, model, Goose, deepagents, or target-repo writes
 
 ## Artifact Chain / Governance Records
 - `builder-records`
@@ -81,6 +82,7 @@ Root read-only TUI inspector subcommands:
 - `builder promote`
 - `builder postflight`
 - `builder goose`
+- `builder code-vault`
 
 These root inspector groups are Tier 0 observer surfaces. They read existing
 governed artifacts from `$BUILDER_DIR`, render terminal diagnostics, and do not

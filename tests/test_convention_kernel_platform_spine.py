@@ -65,7 +65,15 @@ def test_prepare_platform_spine_happy_path(tmp_path):
     assert "verification_profile_report" in bundle_dict
     assert "handoff_note" in bundle_dict
     assert "deepagents_readiness" in bundle_dict
+    assert "hierarchical_frame" in bundle_dict
+    assert bundle_dict["hierarchical_frame"]["kind"] == "builder_ii.code_vault.hierarchical_frame"
+    assert "code_vault_enrichment" in bundle_dict["context_pack"]
     assert "governance" in bundle_dict
+
+    frame_ref = next(
+        ref for ref in bundle_dict["prepare_package"]["artifact_refs"] if ref["path"] == "hierarchical-frame.json"
+    )
+    assert frame_ref["kind"] == "builder_ii.code_vault.hierarchical_frame"
 
     # Governance checks (fail-closed denials)
     gov = bundle_dict["governance"]
@@ -93,6 +101,27 @@ def test_prepare_platform_spine_happy_path(tmp_path):
         assert sha != "f" * 64, f"Placeholder hash found in handoff ref: {ref}"
         assert len(sha) == 64
         int(sha, 16)
+
+
+def test_prepare_platform_spine_omits_code_vault_when_disabled(tmp_path):
+    repo = _make_repo(tmp_path)
+    settings = load_settings(project_root=ROOT)
+    kernel = ConventionKernel()
+
+    bundle = kernel.prepare_platform_spine(
+        settings,
+        "builder",
+        repo_path=str(repo),
+        task="run builder-ii local developer check",
+        include_code_vault=False,
+    )
+    bundle_dict = bundle.to_dict()
+
+    assert "hierarchical_frame" not in bundle_dict
+    assert "code_vault_enrichment" not in bundle_dict["context_pack"]
+    assert not any(
+        ref["path"] == "hierarchical-frame.json" for ref in bundle_dict["prepare_package"]["artifact_refs"]
+    )
 
 
 def test_prepare_platform_spine_rejects_unsafe_governance(tmp_path, monkeypatch):

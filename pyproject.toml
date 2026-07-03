@@ -9,6 +9,7 @@ description = "Generic governed local agent/developer platform with Goose and ML
 readme = "README.md"
 requires-python = ">=3.12.13,<3.13"
 dependencies = [
+    "numpy>=2.0.0",
     "httpx>=0.28.0",
     "mlx-lm>=0.31.3",
     "pillow>=12.3.0",
@@ -54,6 +55,7 @@ builder-quality = "builder_ii.cli.quality_cli:quality_app"
 builder-research = "builder_ii.cli.research_cli:research_app"
 builder-performance = "builder_ii.cli.performance_cli:performance_app"
 builder-readonly = "builder_ii.cli.readonly_inspection_cli:readonly_app"
+builder-code-vault = "builder_ii.cli.code_vault_cli:code_vault_app"
 builder-verification = "builder_ii.cli.verification_cli:verification_app"
 builder-verify = "builder_ii.cli.verification_execution_plan_cli:verify_app"
 builder-hitl = "builder_ii.cli.hitl_execution_cli:hitl_app"

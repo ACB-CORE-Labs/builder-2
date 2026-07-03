@@ -65,6 +65,7 @@ def test_session_prepare_package_kernel_spine_e2e(tmp_path):
         "verification-profile-report.json",
         "repo-map.json",
         "context-pack.json",
+        "hierarchical-frame.json",
         "handoff-note.json",
         "deepagents-bridge-readiness.json",
     ]
@@ -85,7 +86,7 @@ def test_session_prepare_package_kernel_spine_e2e(tmp_path):
     assert gov["artifact_is_authority"] is False
 
     refs = package["artifact_refs"]
-    assert len(refs) == 7  # session, goose, verification, repo_map, context_pack, handoff, deepagents
+    assert len(refs) == 8  # session, goose, verification, repo_map, context_pack, code_vault, handoff, deepagents
     for ref in refs:
         rel_path = ref["path"]
         emitted_file = output_dir / rel_path

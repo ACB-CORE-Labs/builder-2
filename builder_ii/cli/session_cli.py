@@ -469,6 +469,9 @@ def prepare_package_cmd(
     include_deepagents_readiness: bool = typer.Option(
         True, "--deepagents-readiness/--no-deepagents-readiness", help="Include optional deepagents readiness artifact"
     ),
+    include_code_vault: bool = typer.Option(
+        True, "--code-vault/--no-code-vault", help="Include CodeVault hierarchical frame artifact"
+    ),
 ) -> None:
     """Create a governed preparation package without executing target-repo work."""
     settings = load_settings()
@@ -485,6 +488,7 @@ def prepare_package_cmd(
             verification_profile_name=verification,
             task=task,
             include_deepagents_readiness=include_deepagents_readiness,
+            include_code_vault=include_code_vault,
         )
     except ValueError as exc:
         console.print(f"[red]Error creating governed prepare package: {exc}[/]")
