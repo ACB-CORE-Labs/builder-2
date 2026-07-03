@@ -103,6 +103,27 @@ def test_prepare_platform_spine_happy_path(tmp_path):
         int(sha, 16)
 
 
+def test_prepare_platform_spine_omits_code_vault_when_disabled(tmp_path):
+    repo = _make_repo(tmp_path)
+    settings = load_settings(project_root=ROOT)
+    kernel = ConventionKernel()
+
+    bundle = kernel.prepare_platform_spine(
+        settings,
+        "builder",
+        repo_path=str(repo),
+        task="run builder-ii local developer check",
+        include_code_vault=False,
+    )
+    bundle_dict = bundle.to_dict()
+
+    assert "hierarchical_frame" not in bundle_dict
+    assert "code_vault_enrichment" not in bundle_dict["context_pack"]
+    assert not any(
+        ref["path"] == "hierarchical-frame.json" for ref in bundle_dict["prepare_package"]["artifact_refs"]
+    )
+
+
 def test_prepare_platform_spine_rejects_unsafe_governance(tmp_path, monkeypatch):
     repo = _make_repo(tmp_path)
     settings = load_settings(project_root=ROOT)
