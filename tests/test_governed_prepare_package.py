@@ -45,6 +45,7 @@ def test_create_governed_prepare_package_writes_expected_artifacts(tmp_path):
         "verification-profile-report.json",
         "repo-map.json",
         "context-pack.json",
+        "hierarchical-frame.json",
         "handoff-note.json",
         "deepagents-bridge-readiness.json",
         "prepare-package.json",
@@ -93,7 +94,7 @@ def test_prepare_package_artifact_refs_have_hashes_and_relative_paths(tmp_path):
     )
 
     refs = package["artifact_refs"]
-    assert len(refs) == 7
+    assert len(refs) == 8
 
     for ref in refs:
         assert ref["path"]
@@ -118,6 +119,22 @@ def test_prepare_package_handoff_does_not_claim_completed_verification(tmp_path)
     assert handoff["governance"]["claims_verification_passed"] is False
 
 
+def test_prepare_package_can_omit_code_vault(tmp_path):
+    repo = _make_repo(tmp_path)
+    output_dir = tmp_path / "prepare"
+
+    package = create_governed_prepare_package(
+        load_settings(project_root=ROOT),
+        "generic",
+        repo_path=str(repo),
+        output_dir=output_dir,
+        include_code_vault=False,
+    )
+
+    assert len(package["artifact_refs"]) == 7
+    assert not (output_dir / "hierarchical-frame.json").exists()
+
+
 def test_prepare_package_can_omit_deepagents_readiness(tmp_path):
     repo = _make_repo(tmp_path)
     output_dir = tmp_path / "prepare"
@@ -130,7 +147,7 @@ def test_prepare_package_can_omit_deepagents_readiness(tmp_path):
         include_deepagents_readiness=False,
     )
 
-    assert len(package["artifact_refs"]) == 6
+    assert len(package["artifact_refs"]) == 7
     assert not (output_dir / "deepagents-bridge-readiness.json").exists()
 
 
@@ -340,7 +357,7 @@ def test_summarize_prepare_package_directory_returns_human_inspection_summary(tm
     assert summary["kind"] == GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND
     assert summary["validation_state"] == "VALIDATED"
     assert summary["package_state"] == "PREPARED_ONLY"
-    assert summary["artifact_count"] == 7
+    assert summary["artifact_count"] == 8
     assert summary["runtime_execution_performed"] is False
     assert summary["target_repo_writes_performed"] is False
     assert validate_governed_prepare_package_summary(summary) == []
@@ -392,7 +409,7 @@ def test_summarize_prepare_package_cli_prints_json_summary(tmp_path):
     assert result.exit_code == 0, result.output
     summary = json.loads(result.output)
     assert summary["validation_state"] == "VALIDATED"
-    assert summary["artifact_count"] == 7
+    assert summary["artifact_count"] == 8
 
 
 def test_summarize_prepare_package_cli_writes_summary_artifact(tmp_path):

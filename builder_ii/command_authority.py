@@ -150,6 +150,7 @@ class CommandAuthorityRecord:
             "builder-model",
             "builder-mcp",
             "builder-tools",
+            "builder-code-vault",
         )
 
     @property
@@ -848,6 +849,20 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Dispatches to subcommand functions.",
         failure_mode="Raises ValidationError or exits non-zero on corrupt schemas.",
         notes="Canonical governed operator lane entrypoint.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-code-vault",
+        entrypoint="builder_ii.cli.code_vault_cli:code_vault_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Governed read-only CodeVault frame, lint, recall, context projection, and validation; no shell, model, or CORE runtime.",
+        write_boundary="Writes explicit artifact JSON paths only; no target-repo mutation.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Operator initiates scan and reviews emitted artifacts.",
+        output_behavior="Emits hierarchical frame, linter report, recall report, or context projection JSON.",
+        failure_mode="Exits non-zero on validation failure; delete emitted artifacts to roll back.",
+        notes="Content-addressed software geometry substrate; artifact_is_authority remains false.",
+        allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
         name="builder-agent",
@@ -3523,6 +3538,14 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
     "builder-session validate-goose-readonly-plan",
     "builder-session repo-map",
     "builder-session context-pack",
+    "builder-code-vault frame",
+    "builder-code-vault digest",
+    "builder-code-vault lint",
+    "builder-code-vault context",
+    "builder-code-vault recall",
+    "builder-code-vault validate-frame",
+    "builder-code-vault validate-lint",
+    "builder-code-vault validate-context",
     "builder-session operator-surface",
     "builder-session command-surface",
     "builder-agent profiles",

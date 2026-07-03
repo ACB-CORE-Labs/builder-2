@@ -288,6 +288,23 @@ from builder_ii.release_manifest import (
     V0_RELEASE_MANIFEST_KIND,
     validate_v0_release_manifest,
 )
+from builder_ii.code_vault.context_bridge import (
+    CONTEXT_PROJECTION_KIND,
+    validate_context_projection,
+)
+from builder_ii.code_vault.hierarchy import (
+    HIERARCHICAL_FRAME_KIND,
+    hierarchical_frame_from_dict,
+    validate_hierarchical_frame,
+)
+from builder_ii.code_vault.recall import (
+    RECALL_REPORT_KIND,
+    validate_recall_report,
+)
+from builder_ii.code_vault.reports.linter import (
+    LINTER_REPORT_KIND,
+    validate_linter_report,
+)
 from builder_ii.repo_map import (
     REPO_MAP_KIND,
     validate_repo_map,
@@ -382,6 +399,12 @@ def _validate_snapshot_record(record: Any) -> list[str]:
     return validate_snapshot_record(record)
 
 
+def _validate_hierarchical_frame_record(record: Any) -> list[str]:
+    if not isinstance(record, dict):
+        return ["hierarchical frame must be a JSON object"]
+    return validate_hierarchical_frame(hierarchical_frame_from_dict(record))
+
+
 _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     GOOSE_COMMAND_PROPOSAL_KIND: validate_goose_command_proposal,
     APPROVAL_RECORD_KIND: validate_approval_record,
@@ -430,6 +453,10 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     DEEPAGENTS_POLICY_KIND: validate_deepagents_policy_artifact,
     DEEPAGENTS_READINESS_KIND: validate_deepagents_readiness_artifact,
     REPO_MAP_KIND: validate_repo_map,
+    HIERARCHICAL_FRAME_KIND: _validate_hierarchical_frame_record,
+    LINTER_REPORT_KIND: validate_linter_report,
+    CONTEXT_PROJECTION_KIND: validate_context_projection,
+    RECALL_REPORT_KIND: validate_recall_report,
     CONTEXT_PACK_KIND: validate_context_pack,
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND: validate_convention_kernel_platform_bundle,
     GOVERNED_PREPARE_PACKAGE_KIND: validate_governed_prepare_package,
