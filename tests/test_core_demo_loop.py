@@ -1,269 +1,230 @@
-"""tests/test_core_demo_loop.py
+"""Tests for the CORE target demo loop phase-machine boundary.
 
-Tests for the CORE target demo loop and CoreDemoAdapter boundary.
-
-Coverage
---------
-1. CoreDemoAdapter owns all CORE-specific strings
-2. GenericTargetDemoLoop base contract
-3. CoreTargetDemoLoop step execution
-4. run_core_demo_loop() public entry-point
-5. Governance block completeness
-6. Adapter boundary guard — CORE-specific strings are adapter-owned
-
-Governance
-----------
-* No model execution.
-* No commit/push authority.
-* No shell execution.
-* Pure unit tests using temporary directories.
+The production module intentionally preserves the original public
+``run_core_demo_loop(core_repo, output_dir, phase, approve, force,
+cleanup_worktree)`` contract. These tests exercise that restored contract and
+verify that CORE-specific strings are adapter-owned rather than duplicated
+throughout the phase helpers.
 """
 
 from __future__ import annotations
 
+import ast
 import inspect
-import uuid
+import json
 from pathlib import Path
-
-import pytest
 
 from builder_ii.core_demo_loop import (
     CoreDemoAdapter,
-    CoreTargetDemoLoop,
-    DemoLoopResult,
-    DemoStepResult,
-    GenericTargetDemoLoop,
-    TargetDemoContext,
+    CoreDemoPaths,
+    _reverse_diff_for_marker,
+    _unified_diff_for_marker,
+    _write_planner,
+    create_core_demo_approval,
+    create_core_demo_report,
+    dumps_core_demo_report,
     run_core_demo_loop,
+    validate_core_demo_approval,
+    validate_core_demo_planner,
+    validate_core_demo_report,
 )
 
 
-# ===========================================================================
-# Helpers
-# ===========================================================================
+def test_run_core_demo_loop_public_signature_is_preserved() -> None:
+    sig = inspect.signature(run_core_demo_loop)
+    params = sig.parameters
+    assert list(params) == [
+        "core_repo",
+        "output_dir",
+        "phase",
+        "approve",
+        "force",
+        "cleanup_worktree",
+    ]
+    assert params["core_repo"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["output_dir"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert params["phase"].default == "all"
+    assert params["approve"].default is False
+    assert params["force"].default is False
+    assert params["cleanup_worktree"].default is False
 
 
-def _make_ctx(repo_path: Path, dry_run: bool = True) -> TargetDemoContext:
-    return TargetDemoContext(
-        target_name="core",
-        target_repo=repo_path,
-        session_id=str(uuid.uuid4()),
-        dry_run=dry_run,
+def test_core_demo_adapter_owns_real_lowercase_fields() -> None:
+    adapter = CoreDemoAdapter()
+    assert adapter.target_name == "core"
+    assert adapter.repo_remote_hint == "AssetOverflow/core"
+    assert adapter.marker_path == Path("docs/builder_ii_core_demo_marker.md")
+    assert "core/cognition/" in adapter.sensitive_modules
+    assert adapter.invariant_policy_note
+    assert adapter.worktree_source_note
+    assert adapter.workbench_coupling == "NONE"
+    assert adapter.worktree_description.startswith("AssetOverflow/core")
+    assert "AssetOverflow/core" in adapter.task_description
+
+
+def test_core_demo_adapter_is_data_only() -> None:
+    public_methods = [
+        name
+        for name, _ in inspect.getmembers(CoreDemoAdapter, predicate=inspect.isfunction)
+        if not name.startswith("_")
+    ]
+    assert public_methods == []
+
+
+def test_diff_helpers_use_adapter_marker_path() -> None:
+    adapter = CoreDemoAdapter(marker_path=Path("docs/custom_demo_marker.md"))
+    unified = _unified_diff_for_marker(adapter)
+    reverse = _reverse_diff_for_marker(adapter)
+    assert "docs/custom_demo_marker.md" in unified
+    assert "docs/custom_demo_marker.md" in reverse
+    assert "docs/builder_ii_core_demo_marker.md" not in unified
+    assert "docs/builder_ii_core_demo_marker.md" not in reverse
+
+
+def test_write_planner_uses_default_adapter_values(tmp_path: Path) -> None:
+    paths = CoreDemoPaths(tmp_path)
+    worktree = tmp_path / "core-worktree"
+    worktree.mkdir()
+
+    planner = _write_planner(paths, worktree, "a" * 64)
+
+    assert paths.planner.is_file()
+    assert not validate_core_demo_planner(planner)
+    assert planner["target"]["name"] == "core"
+    assert planner["target"]["source"] == "AssetOverflow/core temporary detached worktree"
+    assert planner["selected_change"]["path"] == "docs/builder_ii_core_demo_marker.md"
+    assert planner["core_invariant_policy"]["sensitive_modules_untouched"] == list(
+        CoreDemoAdapter().sensitive_modules
+    )
+    assert planner["governance"]["core_workbench_coupling"] == "NONE"
+
+
+def test_write_planner_accepts_custom_adapter_without_phase_refactor(tmp_path: Path) -> None:
+    paths = CoreDemoPaths(tmp_path)
+    worktree = tmp_path / "custom-worktree"
+    worktree.mkdir()
+    adapter = CoreDemoAdapter(
+        target_name="sample",
+        repo_remote_hint="Org/sample",
+        marker_path=Path("docs/sample_marker.md"),
+        sensitive_modules=("sample_sensitive/",),
+        invariant_policy_note="sample invariant not exercised",
+        worktree_source_note="Org/sample temporary detached worktree",
+        workbench_coupling="NONE",
+    )
+
+    planner = _write_planner(paths, worktree, "b" * 64, adapter)
+
+    assert planner["target"]["name"] == "sample"
+    assert planner["target"]["source"] == "Org/sample temporary detached worktree"
+    assert planner["selected_change"]["path"] == "docs/sample_marker.md"
+    assert planner["core_invariant_policy"]["sensitive_modules_untouched"] == [
+        "sample_sensitive/"
+    ]
+    assert planner["core_invariant_policy"]["versor_condition_boundary"] == (
+        "sample invariant not exercised"
     )
 
 
-def _make_valid_core_repo(tmp_path: Path) -> Path:
-    """Create a minimal directory that passes CoreDemoAdapter.validate_repo."""
-    repo = tmp_path / "core"
-    repo.mkdir()
-    (repo / "Cargo.toml").write_text("[package]\nname = \"core\"\n")
-    return repo
-
-
-# ===========================================================================
-# 1. CoreDemoAdapter — string ownership
-# ===========================================================================
-
-
-class TestCoreDemoAdapterStringOwnership:
-    def test_adapter_owns_target_name(self):
-        a = CoreDemoAdapter()
-        assert a.TARGET_NAME == "core"
-
-    def test_adapter_owns_invariant_marker_prefix(self):
-        a = CoreDemoAdapter()
-        assert a.INVARIANT_MARKER_PREFIX  # non-empty
-        assert "CORE" in a.INVARIANT_MARKER_PREFIX
-
-    def test_adapter_owns_repo_validation_marker(self):
-        a = CoreDemoAdapter()
-        assert a.REPO_VALIDATION_MARKER  # non-empty string
-
-    def test_adapter_owns_governance_note(self):
-        a = CoreDemoAdapter()
-        assert "adapter" in a.GOVERNANCE_NOTE.lower() or "CORE" in a.GOVERNANCE_NOTE
-
-    def test_governance_block_structure(self):
-        a = CoreDemoAdapter()
-        block = a.governance_block()
-        assert block["no_model_execution"] is True
-        assert block["no_commit_push"] is True
-        assert block["source_checkout_untouched"] is True
-        assert block["temporary_worktree_requires_explicit_approval"] is True
-
-
-# ===========================================================================
-# 2. Repository validation
-# ===========================================================================
-
-
-class TestCoreDemoAdapterValidation:
-    def test_missing_repo_fails(self, tmp_path):
-        a = CoreDemoAdapter()
-        ok, detail = a.validate_repo(tmp_path / "nonexistent")
-        assert not ok
-        assert "not exist" in detail
-
-    def test_repo_without_marker_fails(self, tmp_path):
-        repo = tmp_path / "core"
-        repo.mkdir()
-        a = CoreDemoAdapter()
-        ok, detail = a.validate_repo(repo)
-        assert not ok
-        assert a.REPO_VALIDATION_MARKER in detail
-
-    def test_valid_repo_passes(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        a = CoreDemoAdapter()
-        ok, detail = a.validate_repo(repo)
-        assert ok
-        assert str(repo) in detail
-
-
-# ===========================================================================
-# 3. CoreTargetDemoLoop steps
-# ===========================================================================
-
-
-class TestCoreTargetDemoLoopSteps:
-    def test_validate_repo_step_passes_valid_repo(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        loop = CoreTargetDemoLoop()
-        ctx = _make_ctx(repo)
-        result = loop._step_validate_repo(ctx)
-        assert result.passed
-
-    def test_validate_repo_step_fails_missing_repo(self, tmp_path):
-        loop = CoreTargetDemoLoop()
-        ctx = _make_ctx(tmp_path / "nonexistent")
-        result = loop._step_validate_repo(ctx)
-        assert not result.passed
-
-    def test_check_governance_step_passes(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        loop = CoreTargetDemoLoop()
-        ctx = _make_ctx(repo)
-        result = loop._step_check_governance(ctx)
-        assert result.passed
-
-    def test_emit_context_artifact_step_passes(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        loop = CoreTargetDemoLoop()
-        ctx = _make_ctx(repo)
-        result = loop._step_emit_context_artifact(ctx)
-        assert result.passed
-        import json
-        artifact = json.loads(result.detail)
-        assert artifact["target"] == "core"
-        assert artifact["governance"]["no_model_execution"] is True
-
-    def test_full_loop_passes_valid_repo(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        loop = CoreTargetDemoLoop()
-        ctx = _make_ctx(repo)
-        result = loop.run(ctx)
-        assert result.all_passed
-        assert result.target_name == "core"
-
-    def test_full_loop_fails_invalid_repo(self, tmp_path):
-        loop = CoreTargetDemoLoop()
-        ctx = _make_ctx(tmp_path / "nonexistent")
-        result = loop.run(ctx)
-        assert not result.all_passed
-        assert result.steps[0].step_name == "validate_repo"
-        assert not result.steps[0].passed
-
-
-# ===========================================================================
-# 4. Public entry-point
-# ===========================================================================
-
-
-class TestRunCoreDemoLoopPublicAPI:
-    def test_returns_demo_loop_result(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        result = run_core_demo_loop(target_repo=repo, dry_run=True)
-        assert isinstance(result, DemoLoopResult)
-
-    def test_governance_block_present(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        result = run_core_demo_loop(target_repo=repo)
-        assert result.governance_block["no_model_execution"] is True
-        assert result.governance_block["no_commit_push"] is True
-
-    def test_accepts_custom_session_id(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        sid = "test-session-abc"
-        result = run_core_demo_loop(target_repo=repo, session_id=sid)
-        assert result.session_id == sid
-
-    def test_as_dict_structure(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        result = run_core_demo_loop(target_repo=repo)
-        d = result.as_dict()
-        assert "target_name" in d
-        assert "all_passed" in d
-        assert "governance_block" in d
-        assert isinstance(d["steps"], list)
-
-
-# ===========================================================================
-# 5. Governance block completeness
-# ===========================================================================
-
-
-class TestGovernanceBlockCompleteness:
-    REQUIRED_GOVERNANCE_KEYS = {
-        "no_model_execution",
-        "no_commit_push",
-        "source_checkout_untouched",
-        "temporary_worktree_requires_explicit_approval",
+def test_create_core_demo_approval_remains_digest_bound(tmp_path: Path) -> None:
+    proposal = {
+        "kind": "builder_ii.hitl_patch_proposal",
+        "patch_digest": "c" * 64,
     }
+    approval = create_core_demo_approval(
+        proposal,
+        proposal_path=tmp_path / "hitl-patch-proposal.json",
+        approved=True,
+    )
 
-    def test_adapter_governance_block_has_required_keys(self):
-        a = CoreDemoAdapter()
-        block = a.governance_block()
-        for key in self.REQUIRED_GOVERNANCE_KEYS:
-            assert key in block, f"Missing governance key: {key}"
-            assert block[key] is True, f"Governance key '{key}' must be True"
-
-    def test_loop_governance_block_has_required_keys(self, tmp_path):
-        repo = _make_valid_core_repo(tmp_path)
-        result = run_core_demo_loop(target_repo=repo)
-        for key in self.REQUIRED_GOVERNANCE_KEYS:
-            assert key in result.governance_block
-
-
-# ===========================================================================
-# 6. Adapter boundary guard
-# ===========================================================================
+    assert not validate_core_demo_approval(approval)
+    assert approval["patch_digest"] == "c" * 64
+    assert approval["proposal_ref"]["sha256"]
+    assert approval["grants_runtime_authority"] is False
+    assert approval["governance"]["core_workbench_coupling"] == "NONE"
+    assert approval["governance"]["source_writes"] == (
+        "APPROVED_TEMPORARY_CORE_WORKTREE_PATCH_ONLY"
+    )
 
 
-class TestCoreDemoAdapterBoundaryGuard:
-    """Structural tests proving CORE-specific strings are adapter-owned."""
+def test_create_core_demo_report_is_valid_and_serializable(tmp_path: Path) -> None:
+    paths = CoreDemoPaths(tmp_path)
+    source_repo = tmp_path / "source-core"
+    worktree = tmp_path / "core-worktree"
+    source_repo.mkdir()
+    worktree.mkdir()
 
-    @staticmethod
-    def _get_module_source(mod) -> str:
-        return inspect.getsource(mod)
+    report = create_core_demo_report(
+        paths=paths,
+        source_repo=source_repo,
+        worktree=worktree,
+        phase="prepare",
+        completed_steps=["preflight recorded"],
+        chain_report=None,
+        artifact_paths=[],
+        ready_for_recording=True,
+        next_command="Run the next demo phase explicitly.",
+    )
 
-    def test_core_specific_strings_in_adapter_not_generic_loop(self):
-        """CORE_INVARIANT and Cargo.toml must live in CoreDemoAdapter, not in
-        GenericTargetDemoLoop."""
-        generic_src = inspect.getsource(GenericTargetDemoLoop)
-        assert "CORE_INVARIANT" not in generic_src
-        assert "Cargo.toml" not in generic_src
+    assert not validate_core_demo_report(report)
+    dumped = dumps_core_demo_report(report)
+    loaded = json.loads(dumped)
+    assert loaded["kind"] == "builder_ii.core_demo_loop_report"
+    assert loaded["target"]["name"] == "core"
+    assert loaded["governance"]["core_workbench_coupling"] == "NONE"
+    assert loaded["report_digest"] == report["report_digest"]
 
-    def test_adapter_is_injected_not_hardcoded_in_loop(self):
-        """CoreTargetDemoLoop must accept an adapter parameter."""
-        import inspect as _inspect
-        sig = _inspect.signature(CoreTargetDemoLoop.__init__)
-        assert "adapter" in sig.parameters
 
-    def test_generic_loop_has_no_core_strings(self):
-        import builder_ii.core_demo_loop as cdl_mod
-        generic_src = inspect.getsource(GenericTargetDemoLoop)
-        core_specific = ["core.patch_planner", "CORE Workbench", "AssetOverflow/core"]
-        for s in core_specific:
-            assert s not in generic_src, (
-                f"GenericTargetDemoLoop source contains CORE-specific string: {s!r}"
+def test_core_demo_adapter_strings_not_duplicated_outside_adapter() -> None:
+    """Prevent CORE target details from drifting back into phase helpers."""
+    import builder_ii.core_demo_loop as cdl_mod
+
+    source = inspect.getsource(cdl_mod)
+    tree = ast.parse(source)
+
+    adapter_class_lines: set[int] = set()
+    marker_assign_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "CoreDemoAdapter":
+            for child in ast.walk(node):
+                if hasattr(child, "lineno"):
+                    adapter_class_lines.add(child.lineno)
+        if (
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "_DEMO_MARKER_PATH"
+                for target in node.targets
             )
+        ):
+            for child in ast.walk(node):
+                if hasattr(child, "lineno"):
+                    marker_assign_lines.add(child.lineno)
+
+    forbidden_outside_adapter = [
+        "algebra/",
+        "field/",
+        "generate/",
+        "core/cognition/",
+        "vault/",
+        "teaching/",
+        "calibration/",
+        "sensorium/",
+        "AssetOverflow/core",
+        "builder_ii_core_demo_marker.md",
+    ]
+
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+            continue
+        lineno = getattr(node, "lineno", -1)
+        if lineno in adapter_class_lines or lineno in marker_assign_lines:
+            continue
+        for forbidden in forbidden_outside_adapter:
+            if forbidden in node.value:
+                violations.append(
+                    f"line {lineno}: {forbidden!r} found outside CoreDemoAdapter/"
+                    "_DEMO_MARKER_PATH"
+                )
+
+    assert not violations, "\n".join(violations)
