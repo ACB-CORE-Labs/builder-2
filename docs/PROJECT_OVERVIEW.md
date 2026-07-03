@@ -71,16 +71,26 @@ contain:
 - Target-to-repo or target-to-agent maps
 
 Violations of this rule are detected by `tests/test_config_sources.py`
-(`TestConfigSourcesBoundaryGuard`).
+(`test_config_sources_does_not_hardcode_core_strings`).
 
-### 4. Demo loops must be generic-first or adapter-scoped
+### 4. Target-specific demo loops must be adapter-scoped
 
 Demo loops that are specific to a target must:
 
-- Implement a generic base class (`GenericTargetDemoLoop`)
-- Isolate all target-specific strings in an adapter class
-- Accept the adapter as an injected parameter
-- Never hardcode target-specific strings in the generic base
+- Isolate all target-specific strings (target name, remote hint, marker
+  path, sensitive module list, invariant notes, governance coupling values)
+  in a dedicated adapter dataclass
+- Read those strings from the adapter throughout the phase machine — never
+  inline them in the generic helpers
+- Keep the adapter data-only: no public methods, no phase logic
+
+A generic base class (`GenericTargetDemoLoop`) is the aspirational
+architecture for future multi-target demo support, but is not required
+until a second target demo loop is introduced.
+
+Violations of this rule are detected by
+`tests/test_config_sources.py`
+(`test_core_demo_adapter_strings_not_duplicated_outside_adapter`).
 
 ### 5. Deepagents is optional and governed
 

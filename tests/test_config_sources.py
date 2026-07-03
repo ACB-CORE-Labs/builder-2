@@ -5,7 +5,7 @@ Covers:
   - Import compatibility guards for CLI modules and setup_onboarding
   - Digest-bound artifact schema check
   - run_core_demo_loop signature smoke test
-  - CoreDemoAdapter presence and boundary guard
+  - CoreDemoAdapter presence, data-only enforcement, and string-duplication guard
   - target_profile_defaults delegation (no CORE strings in config_sources)
 """
 from __future__ import annotations
@@ -259,21 +259,83 @@ def test_config_resolution_type_is_importable() -> None:
 
 
 # ---------------------------------------------------------------------------
-# target_profile_defaults delegation — CORE strings must not leak into
+# target_profile_defaults delegation - CORE strings must not leak into
 # config_sources module source text
 # ---------------------------------------------------------------------------
 
 def test_config_sources_does_not_hardcode_core_strings() -> None:
     import builder_ii.config_sources as cs_mod
     source = inspect.getsource(cs_mod)
-    # The function _target_profile_defaults MAY reference get_target_defaults
-    # but must not contain hardcoded CORE-specific paths or agent names.
     assert "core.patch_planner" not in source, (
         "core.patch_planner must live only in target_profile_defaults, not config_sources"
     )
     assert 'parent / "core"' not in source, (
         'CORE sibling repo path must live only in target_profile_defaults, not config_sources'
     )
+
+
+# ---------------------------------------------------------------------------
+# CoreDemoAdapter: strings must not be duplicated outside the adapter class
+# ---------------------------------------------------------------------------
+
+def test_core_demo_adapter_strings_not_duplicated_outside_adapter() -> None:
+    """Sensitive module paths, remote hint, and marker path string must not
+    appear as inline string literals in the functions/helpers outside the
+    CoreDemoAdapter class body and the module-level _DEMO_MARKER_PATH constant.
+    """
+    import ast
+    import builder_ii.core_demo_loop as cdl_mod
+
+    source = inspect.getsource(cdl_mod)
+    tree = ast.parse(source)
+
+    # Collect all lines inside CoreDemoAdapter class body or _DEMO_MARKER_PATH assignment.
+    adapter_class_lines: set[int] = set()
+    marker_assign_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "CoreDemoAdapter":
+            for child in ast.walk(node):
+                if hasattr(child, "lineno"):
+                    adapter_class_lines.add(child.lineno)
+        if (
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(t, ast.Name) and t.id == "_DEMO_MARKER_PATH"
+                for t in node.targets
+            )
+        ):
+            for child in ast.walk(node):
+                if hasattr(child, "lineno"):
+                    marker_assign_lines.add(child.lineno)
+
+    forbidden_outside_adapter = [
+        "algebra/",
+        "field/",
+        "generate/",
+        "core/cognition/",
+        "vault/",
+        "teaching/",
+        "calibration/",
+        "sensorium/",
+        "AssetOverflow/core",
+        "builder_ii_core_demo_marker.md",
+    ]
+
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+            continue
+        lineno = getattr(node, "lineno", -1)
+        if lineno in adapter_class_lines or lineno in marker_assign_lines:
+            continue
+        for forbidden in forbidden_outside_adapter:
+            if forbidden in node.value:
+                violations.append(
+                    f"line {lineno}: {forbidden!r} found outside CoreDemoAdapter/"
+                    "_DEMO_MARKER_PATH - move it into CoreDemoAdapter"
+                )
+
+    assert not violations, "\n".join(violations)
 
 
 # ---------------------------------------------------------------------------
@@ -327,10 +389,12 @@ def test_core_demo_adapter_is_present() -> None:
 def test_core_demo_adapter_does_not_drive_phase_logic() -> None:
     """CoreDemoAdapter must be a data class, not a controller."""
     from builder_ii.core_demo_loop import CoreDemoAdapter
-    # It must not have any method that resembles phase execution
+    # Properties (computed from data) are acceptable; execution methods are not.
     public_methods = [
-        name for name, _ in inspect.getmembers(CoreDemoAdapter, predicate=inspect.isfunction)
+        name for name, val in inspect.getmembers(CoreDemoAdapter)
         if not name.startswith("_")
+        and callable(val)
+        and not isinstance(inspect.getattr_static(CoreDemoAdapter, name), property)
     ]
     assert public_methods == [], f"CoreDemoAdapter must be data-only; found methods: {public_methods}"
 
@@ -340,10 +404,7 @@ def test_core_demo_adapter_does_not_drive_phase_logic() -> None:
 # ---------------------------------------------------------------------------
 
 def test_platform_status_cli_demo_loop_can_call_run_core_demo_loop() -> None:
-    """Verify platform_status_cli imports run_core_demo_loop (import chain intact)."""
     mod = importlib.import_module("builder_ii.cli.platform_status_cli")
-    # The CLI module must be able to reach run_core_demo_loop through its import chain.
-    # We verify this by checking it doesn't raise at import time (done above) and
-    # that the function is reachable from the core_demo_loop module.
+    assert mod is not None
     from builder_ii.core_demo_loop import run_core_demo_loop
     assert callable(run_core_demo_loop)
