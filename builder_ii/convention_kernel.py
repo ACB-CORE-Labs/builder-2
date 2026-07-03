@@ -8,6 +8,13 @@ from pathlib import Path
 from typing import Any, Literal
 
 from builder_ii.agent_profiles import AgentProfileName
+from builder_ii.code_vault.hierarchy import (
+    HIERARCHICAL_FRAME_KIND,
+    create_hierarchical_frame,
+    dumps_hierarchical_frame,
+    validate_hierarchical_frame,
+)
+from builder_ii.code_vault.repo_map_adapter import hierarchical_input_from_repo_map
 from builder_ii.command_authority import (
     COMMAND_AUTHORITY_REGISTRY,
     TIER_2,
@@ -16,13 +23,6 @@ from builder_ii.command_authority import (
     CommandAuthorityRecord,
 )
 from builder_ii.config import Settings
-from builder_ii.code_vault.hierarchy import (
-    HIERARCHICAL_FRAME_KIND,
-    create_hierarchical_frame,
-    dumps_hierarchical_frame,
-    validate_hierarchical_frame,
-)
-from builder_ii.code_vault.repo_map_adapter import hierarchical_input_from_repo_map
 from builder_ii.context_packs import CONTEXT_PACK_KIND, create_architecture_aware_context_pack, create_context_pack
 from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
