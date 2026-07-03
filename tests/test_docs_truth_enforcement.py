@@ -60,8 +60,18 @@ def test_truth_report_promoted_capabilities_match_matrix() -> None:
         "HITL-approved verification execution",
         "model/provider execution",
         "command authority as runtime gate",
+        "deepagents runtime/subagents",
+        "config schema",
+        "setup receipt + rollback artifact",
     )
     by_capability = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
+    stale_phrases = (
+        "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing",
+        "rollback execution, ledger event, and replay binding are missing",
+    )
+    for phrase in stale_phrases:
+        assert phrase not in report
+
     for capability in promoted:
         row = by_capability[capability]
         assert f"| {capability} | {row.state} |" in report

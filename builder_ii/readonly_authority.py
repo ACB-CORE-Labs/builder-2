@@ -105,37 +105,38 @@ def validate_read_policy_file(path: Path) -> list[str]:
     return validate_read_policy(data)
 
 
-def _is_path_allowed(path: Path, root: Path, allowed_patterns: list[str], denied_patterns: list[str]) -> bool:
+def _path_within_root(path: Path, root: Path) -> bool:
     try:
-        resolved = path.resolve()
-        resolved_root = root.resolve()
-
-        # Prevent path traversal
-        if not str(resolved).startswith(str(resolved_root)):
-            return False
-
-        # Secrets checks: filenames
-        if resolved.suffix in SECRET_FILE_SUFFIXES:
-            return False
-
-        # Convert path to relative for pattern matching
-        rel_path = resolved.relative_to(resolved_root).as_posix()
-
-        # Check against denied patterns (glob matching)
-        for pattern in denied_patterns:
-            if path.match(pattern) or Path(rel_path).match(pattern):
-                return False
-
-        # Check against allowed patterns (glob matching)
-        allowed = False
-        for pattern in allowed_patterns:
-            if pattern == "*" or path.match(pattern) or Path(rel_path).match(pattern):
-                allowed = True
-                break
-
-        return allowed
-    except Exception:
+        path.resolve().relative_to(root.resolve())
+    except ValueError:
         return False
+    return True
+
+
+def _is_path_allowed(path: Path, root: Path, allowed_patterns: list[str], denied_patterns: list[str]) -> bool:
+    resolved = path.resolve()
+    resolved_root = root.resolve()
+
+    if not _path_within_root(resolved, resolved_root):
+        return False
+
+    if resolved.suffix in SECRET_FILE_SUFFIXES:
+        return False
+
+    try:
+        rel_path = resolved.relative_to(resolved_root).as_posix()
+    except ValueError:
+        return False
+
+    for pattern in denied_patterns:
+        if path.match(pattern) or Path(rel_path).match(pattern):
+            return False
+
+    for pattern in allowed_patterns:
+        if pattern == "*" or path.match(pattern) or Path(rel_path).match(pattern):
+            return True
+
+    return False
 
 
 def _check_secrets_content(content: bytes) -> bool:

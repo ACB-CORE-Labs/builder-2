@@ -1,7 +1,6 @@
 import json
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -12,6 +11,28 @@ from builder_ii.hitl_patch_apply import (
     validate_patch_apply_receipt,
 )
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+
+
+def _write_core_demo_verification_receipt(path: Path, repo: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "kind": "builder_ii.core_demo_verification_receipt",
+                "schema_version": 1,
+                "label": "before_apply",
+                "receipt_status": "EXECUTED",
+                "target": {"name": "core", "repo": str(repo.resolve())},
+                "checks": [{"status": "PASS", "name": "preflight"}],
+                "governance": {
+                    "model_execution": "DISABLED",
+                    "source_writes": "DISABLED",
+                    "artifact_is_authority": False,
+                    "core_workbench_coupling": "NONE",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_validate_patch_apply_receipt():
@@ -25,15 +46,13 @@ def test_validate_patch_apply_receipt():
     assert not errors
 
 
-@patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])
-def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
+def test_apply_hitl_patch_rejects_dirty_repo(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, check=True)
 
-    # Dirty repo
     (repo / "file.txt").write_text("content")
 
     prop_path = tmp_path / "prop.json"
@@ -44,7 +63,7 @@ def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
     approval_path.write_text(json.dumps({"patch_digest": "abc"}))
 
     vr_path = tmp_path / "vr.json"
-    vr_path.write_text(json.dumps({"kind": "builder_ii.verification_execution_receipt", "receipt_status": "EXECUTED"}))
+    _write_core_demo_verification_receipt(vr_path, repo)
 
     out_dir = tmp_path / "out"
     with pytest.raises(ValueError, match="Target repository working tree is not clean"):
@@ -54,8 +73,7 @@ def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
     assert json.loads(failure.read_text())["status"] == "failed"
 
 
-@patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])
-def test_apply_hitl_patch_rejects_digest_mismatch(mock_validate, tmp_path: Path):
+def test_apply_hitl_patch_rejects_digest_mismatch(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init"], cwd=repo, check=True)
@@ -70,10 +88,10 @@ def test_apply_hitl_patch_rejects_digest_mismatch(mock_validate, tmp_path: Path)
     write_hitl_patch_proposal(prop, prop_path)
 
     approval_path = tmp_path / "approval.json"
-    approval_path.write_text(json.dumps({"patch_digest": "def"}))  # mismatch
+    approval_path.write_text(json.dumps({"patch_digest": "def"}))
 
     vr_path = tmp_path / "vr.json"
-    vr_path.write_text(json.dumps({"kind": "builder_ii.verification_execution_receipt", "receipt_status": "EXECUTED"}))
+    _write_core_demo_verification_receipt(vr_path, repo)
 
     out_dir = tmp_path / "out"
     with pytest.raises(ValueError, match="Approval digest does not match proposal digest"):
