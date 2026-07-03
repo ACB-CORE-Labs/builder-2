@@ -31,34 +31,51 @@ from typing import Any, Dict, Optional
 # ---------------------------------------------------------------------------
 # Immutable default table
 # ---------------------------------------------------------------------------
-# project_root is resolved at import time relative to this file's location.
-# builder_ii/ lives one level below the project root.
+# builder_ii/ lives one level below the project root. This import-time root is
+# used only as the fallback when callers do not provide an active project_root.
 _project_root: Path = Path(__file__).parent.parent.resolve()
 
-# Each entry: {target_name: {"default_target_repo": Path, "default_agent_profile": str}}
-# CORE-specific values (repo path and agent name) live ONLY here.
+# Agent defaults are target-owned data. Repo defaults are derived by
+# _default_target_repo_for() so callers can preserve call-time project_root
+# semantics while keeping target-specific path policy in this module.
 _TARGET_DEFAULTS: Dict[str, Dict[str, Any]] = {
     "generic": {
-        "default_target_repo": _project_root,
         "default_agent_profile": "repo_mapper",
     },
     "builder": {
-        "default_target_repo": _project_root,
         "default_agent_profile": "patch_planner",
     },
     "core": {
-        # CORE target default: sibling directory of the builder-II project root.
-        # Kept for backward compatibility; lives here and nowhere else.
-        "default_target_repo": _project_root.parent / "core",
+        # CORE target default agent lives here and nowhere in config_sources.py.
         "default_agent_profile": "core.patch_planner",
     },
 }
 
 _BUILT_IN_DEFAULT_AGENT: str = "repo_mapper"
-_BUILT_IN_DEFAULT_REPO: Path = _project_root
 
 
-def get_target_defaults(target: Optional[str]) -> Dict[str, Any]:
+def _root_for(project_root: Optional[Path]) -> Path:
+    return (project_root or _project_root).expanduser().resolve(strict=False)
+
+
+def _default_target_repo_for(target: Optional[str], *, project_root: Optional[Path]) -> Path:
+    """Return target-owned repo default for *target*.
+
+    The old config resolver derived defaults from its call-time project_root.
+    Preserve that behavior here so the generic resolver remains target-agnostic
+    while target-specific path policy remains target-owned.
+    """
+    root = _root_for(project_root)
+    if target in {"generic", "builder"}:
+        return root
+    if target == "core":
+        # CORE target default: sibling directory of the active builder-II root.
+        # Kept for backward compatibility; lives here and nowhere else.
+        return root.parent / "core"
+    return root
+
+
+def get_target_defaults(target: Optional[str], *, project_root: Optional[Path] = None) -> Dict[str, Any]:
     """Return the immutable defaults for *target*.
 
     Falls back to the generic built-in defaults when *target* is None or
@@ -72,9 +89,11 @@ def get_target_defaults(target: Optional[str]) -> Dict[str, Any]:
     default_agent_profile : str
     """
     if target and target in _TARGET_DEFAULTS:
-        return dict(_TARGET_DEFAULTS[target])
+        defaults = dict(_TARGET_DEFAULTS[target])
+        defaults["default_target_repo"] = _default_target_repo_for(target, project_root=project_root)
+        return defaults
     return {
-        "default_target_repo": _BUILT_IN_DEFAULT_REPO,
+        "default_target_repo": _default_target_repo_for(None, project_root=project_root),
         "default_agent_profile": _BUILT_IN_DEFAULT_AGENT,
     }
 
@@ -84,11 +103,11 @@ def list_known_targets() -> list:
     return list(_TARGET_DEFAULTS.keys())
 
 
-def default_agent_profile_for(target: Optional[str]) -> str:
+def default_agent_profile_for(target: Optional[str], *, project_root: Optional[Path] = None) -> str:
     """Convenience accessor — returns only the default agent profile name."""
-    return get_target_defaults(target)["default_agent_profile"]
+    return get_target_defaults(target, project_root=project_root)["default_agent_profile"]
 
 
-def default_target_repo_for(target: Optional[str]) -> Path:
+def default_target_repo_for(target: Optional[str], *, project_root: Optional[Path] = None) -> Path:
     """Convenience accessor — returns only the default target repo Path."""
-    return get_target_defaults(target)["default_target_repo"]
+    return get_target_defaults(target, project_root=project_root)["default_target_repo"]
