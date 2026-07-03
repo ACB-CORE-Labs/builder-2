@@ -14,24 +14,11 @@ import inspect
 import json
 from pathlib import Path
 
-from builder_ii.core_demo_loop import (
-    CoreDemoAdapter,
-    CoreDemoPaths,
-    _reverse_diff_for_marker,
-    _unified_diff_for_marker,
-    _write_planner,
-    create_core_demo_approval,
-    create_core_demo_report,
-    dumps_core_demo_report,
-    run_core_demo_loop,
-    validate_core_demo_approval,
-    validate_core_demo_planner,
-    validate_core_demo_report,
-)
+import builder_ii.core_demo_loop as cdl
 
 
 def test_run_core_demo_loop_public_signature_is_preserved() -> None:
-    sig = inspect.signature(run_core_demo_loop)
+    sig = inspect.signature(cdl.run_core_demo_loop)
     params = sig.parameters
     assert list(params) == [
         "core_repo",
@@ -50,7 +37,7 @@ def test_run_core_demo_loop_public_signature_is_preserved() -> None:
 
 
 def test_core_demo_adapter_owns_real_lowercase_fields() -> None:
-    adapter = CoreDemoAdapter()
+    adapter = cdl.CoreDemoAdapter()
     assert adapter.target_name == "core"
     assert adapter.repo_remote_hint == "AssetOverflow/core"
     assert adapter.marker_path == Path("docs/builder_ii_core_demo_marker.md")
@@ -65,16 +52,16 @@ def test_core_demo_adapter_owns_real_lowercase_fields() -> None:
 def test_core_demo_adapter_is_data_only() -> None:
     public_methods = [
         name
-        for name, _ in inspect.getmembers(CoreDemoAdapter, predicate=inspect.isfunction)
+        for name, _ in inspect.getmembers(cdl.CoreDemoAdapter, predicate=inspect.isfunction)
         if not name.startswith("_")
     ]
     assert public_methods == []
 
 
 def test_diff_helpers_use_adapter_marker_path() -> None:
-    adapter = CoreDemoAdapter(marker_path=Path("docs/custom_demo_marker.md"))
-    unified = _unified_diff_for_marker(adapter)
-    reverse = _reverse_diff_for_marker(adapter)
+    adapter = cdl.CoreDemoAdapter(marker_path=Path("docs/custom_demo_marker.md"))
+    unified = cdl._unified_diff_for_marker(adapter)
+    reverse = cdl._reverse_diff_for_marker(adapter)
     assert "docs/custom_demo_marker.md" in unified
     assert "docs/custom_demo_marker.md" in reverse
     assert "docs/builder_ii_core_demo_marker.md" not in unified
@@ -82,28 +69,28 @@ def test_diff_helpers_use_adapter_marker_path() -> None:
 
 
 def test_write_planner_uses_default_adapter_values(tmp_path: Path) -> None:
-    paths = CoreDemoPaths(tmp_path)
+    paths = cdl.CoreDemoPaths(tmp_path)
     worktree = tmp_path / "core-worktree"
     worktree.mkdir()
 
-    planner = _write_planner(paths, worktree, "a" * 64)
+    planner = cdl._write_planner(paths, worktree, "a" * 64)
 
     assert paths.planner.is_file()
-    assert not validate_core_demo_planner(planner)
+    assert not cdl.validate_core_demo_planner(planner)
     assert planner["target"]["name"] == "core"
     assert planner["target"]["source"] == "AssetOverflow/core temporary detached worktree"
     assert planner["selected_change"]["path"] == "docs/builder_ii_core_demo_marker.md"
     assert planner["core_invariant_policy"]["sensitive_modules_untouched"] == list(
-        CoreDemoAdapter().sensitive_modules
+        cdl.CoreDemoAdapter().sensitive_modules
     )
     assert planner["governance"]["core_workbench_coupling"] == "NONE"
 
 
 def test_write_planner_accepts_custom_adapter_without_phase_refactor(tmp_path: Path) -> None:
-    paths = CoreDemoPaths(tmp_path)
+    paths = cdl.CoreDemoPaths(tmp_path)
     worktree = tmp_path / "custom-worktree"
     worktree.mkdir()
-    adapter = CoreDemoAdapter(
+    adapter = cdl.CoreDemoAdapter(
         target_name="sample",
         repo_remote_hint="Org/sample",
         marker_path=Path("docs/sample_marker.md"),
@@ -113,7 +100,7 @@ def test_write_planner_accepts_custom_adapter_without_phase_refactor(tmp_path: P
         workbench_coupling="NONE",
     )
 
-    planner = _write_planner(paths, worktree, "b" * 64, adapter)
+    planner = cdl._write_planner(paths, worktree, "b" * 64, adapter)
 
     assert planner["target"]["name"] == "sample"
     assert planner["target"]["source"] == "Org/sample temporary detached worktree"
@@ -131,13 +118,13 @@ def test_create_core_demo_approval_remains_digest_bound(tmp_path: Path) -> None:
         "kind": "builder_ii.hitl_patch_proposal",
         "patch_digest": "c" * 64,
     }
-    approval = create_core_demo_approval(
+    approval = cdl.create_core_demo_approval(
         proposal,
         proposal_path=tmp_path / "hitl-patch-proposal.json",
         approved=True,
     )
 
-    assert not validate_core_demo_approval(approval)
+    assert not cdl.validate_core_demo_approval(approval)
     assert approval["patch_digest"] == "c" * 64
     assert approval["proposal_ref"]["sha256"]
     assert approval["grants_runtime_authority"] is False
@@ -148,13 +135,13 @@ def test_create_core_demo_approval_remains_digest_bound(tmp_path: Path) -> None:
 
 
 def test_create_core_demo_report_is_valid_and_serializable(tmp_path: Path) -> None:
-    paths = CoreDemoPaths(tmp_path)
+    paths = cdl.CoreDemoPaths(tmp_path)
     source_repo = tmp_path / "source-core"
     worktree = tmp_path / "core-worktree"
     source_repo.mkdir()
     worktree.mkdir()
 
-    report = create_core_demo_report(
+    report = cdl.create_core_demo_report(
         paths=paths,
         source_repo=source_repo,
         worktree=worktree,
@@ -166,8 +153,8 @@ def test_create_core_demo_report_is_valid_and_serializable(tmp_path: Path) -> No
         next_command="Run the next demo phase explicitly.",
     )
 
-    assert not validate_core_demo_report(report)
-    dumped = dumps_core_demo_report(report)
+    assert not cdl.validate_core_demo_report(report)
+    dumped = cdl.dumps_core_demo_report(report)
     loaded = json.loads(dumped)
     assert loaded["kind"] == "builder_ii.core_demo_loop_report"
     assert loaded["target"]["name"] == "core"
@@ -177,9 +164,8 @@ def test_create_core_demo_report_is_valid_and_serializable(tmp_path: Path) -> No
 
 def test_core_demo_adapter_strings_not_duplicated_outside_adapter() -> None:
     """Prevent CORE target details from drifting back into phase helpers."""
-    import builder_ii.core_demo_loop as cdl_mod
 
-    source = inspect.getsource(cdl_mod)
+    source = inspect.getsource(cdl)
     tree = ast.parse(source)
 
     adapter_class_lines: set[int] = set()
