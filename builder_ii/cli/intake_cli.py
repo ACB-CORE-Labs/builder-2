@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.receive_records import (
     ReceiveDecision,
     create_receive_record_from_file,
@@ -44,7 +45,7 @@ def record(
         write_receive_record(item, output)
         console.print(f"Intake record written to {output}")
     else:
-        console.out(dumps_receive_record(item), end="")
+        echo_stdout(dumps_receive_record(item))
 
 
 @intake_app.command("validate")

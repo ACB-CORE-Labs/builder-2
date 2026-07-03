@@ -9,7 +9,11 @@ from rich.console import Console
 from builder_ii.cli.execution_candidate_manifest_cli import register_manifest_commands
 from builder_ii.cli.hitl_patch_cli import register_patch_commands
 from builder_ii.cli.hitl_promotion_cli import register_promotion_commands
-from builder_ii.hitl_command_runner import execute_hitl_command
+from builder_ii.hitl_command_runner import (
+    RUN_COMMAND_DISABLED_MESSAGE,
+    RunCommandDisabledError,
+    execute_hitl_command,
+)
 from builder_ii.hitl_execution_records import (
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_EXECUTION_REQUEST_KIND,
@@ -111,7 +115,7 @@ def run_command(
     approval: Path = typer.Option(..., "--approval", help="Approval record artifact JSON path"),
     output_dir: Path = typer.Option(..., "--output-dir", help="Output directory for generated artifacts"),
 ) -> None:
-    """Execute an approved command under governed HITL authority."""
+    """Fail-closed: arbitrary command execution is not promoted."""
     try:
         execute_hitl_command(
             request_path=request,
@@ -120,6 +124,10 @@ def run_command(
             output_dir=output_dir,
         )
         console.print(f"Command executed. Artifacts written to {output_dir}")
+    except RunCommandDisabledError as exc:
+        console.print(str(exc))
+        console.print(RUN_COMMAND_DISABLED_MESSAGE)
+        raise typer.Exit(2)
     except Exception as e:
         console.print(f"Failed to execute command: {e}")
         raise typer.Exit(1)

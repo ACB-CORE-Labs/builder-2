@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.receipt_records import (
     ReceiptStatus,
     create_receipt_record_from_file,
@@ -51,7 +52,7 @@ def record(
         write_receipt_record(item, output)
         console.print(f"Receipt record written to {output}")
     else:
-        console.out(dumps_receipt_record(item), end="")
+        echo_stdout(dumps_receipt_record(item))
 
 
 @receipt_app.command("validate")

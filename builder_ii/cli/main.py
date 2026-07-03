@@ -16,6 +16,8 @@ from rich.console import Console
 from rich.table import Table
 from typer.core import TyperGroup
 
+from builder_ii.cli.plain_stdout import echo_stdout
+
 
 class LazyGroup(TyperGroup):
     """Custom Click Group to lazy-load subcommands on-demand, dropping startup latency to near-zero."""
@@ -121,7 +123,7 @@ def setup() -> None:
     from builder_ii.goose_setup import render_legacy_setup_redirect_text
 
     settings = load_settings()
-    console.out(render_legacy_setup_redirect_text(settings), end="")
+    echo_stdout(render_legacy_setup_redirect_text(settings))
     raise typer.Exit(1)
 
 
@@ -551,7 +553,7 @@ def config_dump() -> None:
         "model_tier": settings.model_tier,
         "active_model_id": settings.active_model_id,
     }
-    console.out(json.dumps(payload, indent=2) + "\n", end="")
+    echo_stdout(json.dumps(payload, indent=2) + "\n")
 
 
 @app.command("init-prompt")

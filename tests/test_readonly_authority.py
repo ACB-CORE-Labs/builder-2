@@ -35,6 +35,23 @@ def test_create_and_validate_read_policy(tmp_path: Path):
     assert not errors
 
 
+def test_path_within_root_rejects_prefix_collision(tmp_path: Path):
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    evil = tmp_path / "repo-evil"
+    evil.mkdir()
+    outside = evil / "secret.txt"
+    outside.write_text("nope", encoding="utf-8")
+
+    policy = create_read_policy(
+        target_name="generic",
+        target_repo=repo,
+        allowed_paths=["secret.txt"],
+    )
+    receipt = execute_governed_read(policy, outside)
+    assert receipt["kind"] == DENIED_READ_KIND
+
+
 def test_execute_governed_read_success(tmp_path: Path):
     repo = tmp_path / "repo"
     repo.mkdir()

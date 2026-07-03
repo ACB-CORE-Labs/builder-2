@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.model_client_registry import (
     MODEL_CLIENT_REGISTRY_KIND,
     create_model_client_registry,
@@ -158,7 +159,7 @@ def render(
         write_model_routing_recommendation(rec, output)
         console.print(f"[green]Model routing recommendation written to {output}[/]")
     else:
-        console.out(dumps_model_routing_recommendation(rec), end="")
+        echo_stdout(dumps_model_routing_recommendation(rec))
 
 
 @model_policy_app.command("dry-run")

@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.quality_gates import (
     create_quality_gate_artifact,
     dumps_quality_gate_artifact,
@@ -73,7 +74,7 @@ def plan(
         write_quality_gate_artifact(artifact, output)
         console.print(f"Quality gate artifact written to {output}")
     else:
-        console.out(dumps_quality_gate_artifact(artifact), end="")
+        echo_stdout(dumps_quality_gate_artifact(artifact))
 
 
 @quality_app.command("validate")

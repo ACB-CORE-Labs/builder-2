@@ -13,6 +13,7 @@ from builder_ii.bundles import (
     validate_target_bundle_file,
     write_bundle,
 )
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config import load_settings
 from builder_ii.target_profiles import TargetName, target_names
 
@@ -63,7 +64,7 @@ def create(
         write_bundle(bundle, output)
         console.print(f"Bundle written to {output}")
     else:
-        console.out(dumps_bundle(bundle), end="")
+        echo_stdout(dumps_bundle(bundle))
 
 
 @bundle_app.command("validate")

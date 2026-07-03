@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.handoff_artifacts import (
     create_handoff_artifact,
     dumps_handoff_artifact,
@@ -66,7 +67,7 @@ def handoff(
         write_handoff_artifact(artifact, output)
         console.print(f"Handoff artifact written to {output}")
     else:
-        console.out(dumps_handoff_artifact(artifact), end="")
+        echo_stdout(dumps_handoff_artifact(artifact))
 
 
 @notes_app.command("validate")

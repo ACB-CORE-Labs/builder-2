@@ -100,7 +100,7 @@ def _validate_ledger_output_path(output: Path, ledger_root: Path) -> list[str]:
 
 
 def _emit(value: dict[str, Any] | list[dict[str, Any]]) -> None:
-    console.out(json_lib.dumps(value, indent=2, sort_keys=True), end="\n")
+    typer.echo(json_lib.dumps(value, indent=2, sort_keys=True))
 
 
 def _run(action) -> None:

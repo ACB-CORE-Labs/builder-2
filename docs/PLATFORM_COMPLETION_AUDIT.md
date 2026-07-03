@@ -16,12 +16,12 @@ Current platform truth:
 
 - passive foundation state: `PASSIVE_FOUNDATION`
 - platform-wide ambient runtime authority state: not `OPERATIONALLY_VERIFIED`; operational authority is capability-scoped by the matrix
-- setup/config kernel state: R1.4 passive schema, source resolution, setup plan, overlay plan, rollback snapshot, digest-bound apply/rollback, and legacy setup-surface reconciliation exist; generic rollback remains non-operational
+- setup/config kernel state: R1.4 passive schema, source resolution, setup plan, overlay plan, rollback snapshot, digest-bound `builder-setup apply`/`rollback`, and legacy setup-surface reconciliation exist
 - current sequence: `B8 deferred; B9 complete`; historical dependency spine: `R0 -> R1 -> B1`
 
-R1.4 keeps the setup/config kernel non-operational beyond the governed artifact chain. Legacy `builder setup` now fails closed and redirects to `builder-setup`. Ambient runtime execution, Goose runtime promotion, deepagents runtime, autonomous writes, source CORE checkout mutation, and commit/push automation remain unpromoted; model/provider calls, MCP/tool invocation, and the CORE demo loop are operational only inside their explicit capability-scoped envelopes.
+R1.4 keeps passive setup planning non-operational beyond the governed artifact chain, while digest-bound `builder-setup apply` and `builder-setup rollback` are real operator-managed setup mutation lanes. Legacy `builder setup` fails closed and redirects to `builder-setup`. Ambient runtime execution, Goose runtime promotion, autonomous writes, source CORE checkout mutation, and commit/push automation remain unpromoted. Bounded verification execution, HITL patch apply/rollback, governed read/content-read, model gateway calls, low-risk tool stubs, and the CORE demo loop are operational only inside their explicit capability-scoped envelopes.
 
-Similarly, operator-safe promoted patch application and rollback execution remain gated as unpromoted candidate behaviors (though passive patch proposal and apply artifacts exist with improved rollback bundle/evidence).
+HITL patch application and rollback execution are `OPERATIONALLY_VERIFIED` through `builder-hitl apply-patch` and `builder-hitl rollback` with git-apply mutation, rollback bundle evidence, and no commit/push automation. `builder-hitl run-command` is fail-closed; use `builder-verify run-approved` for bounded execution.
 
 `OPERATIONALLY_VERIFIED` is a legacy matrix state, not a life-safety or global-runtime clearance. Machine-readable matrix rows now also carry a sharper `assurance_state`: `PASSIVE_ARTIFACT_VERIFIED`, `READ_ONLY_RUNTIME_VERIFIED`, `BOUNDED_EXECUTION_VERIFIED`, `MUTATION_WITH_ROLLBACK_VERIFIED`, `LIVE_PROVIDER_VERIFIED`, `DEMO_ONLY_VERIFIED`, `BLOCKED_BY_EVIDENCE`, or `SAFETY_CRITICAL_PROHIBITED`.
 
@@ -55,7 +55,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | config schema | `PASSIVE_FOUNDATION` | R1 |
 | config source precedence | `PASSIVE_FOUNDATION` | R1 |
 | interactive setup wizard | `NOT_STARTED` | R1 |
-| non-interactive setup/apply/validate | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
+| non-interactive setup/apply/validate | `OPERATIONALLY_VERIFIED` | R1 |
 | Goose config overlay/rollback | `PASSIVE_FOUNDATION` | R1 |
 | recipe generator/wizard | `ARTIFACT_ONLY` | R1 |
 | skill generator/installer/validator | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
@@ -63,7 +63,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | agent profile wizard | `NOT_STARTED` | R1 |
 | verification profile wizard | `NOT_STARTED` | R1 |
 | deepagents/researcher setup wizard | `NOT_STARTED` | R1 |
-| setup receipt + rollback artifact | `PASSIVE_FOUNDATION` | R1 |
+| setup receipt + rollback artifact | `OPERATIONALLY_VERIFIED` | R1 |
 | model registry | `OPERATIONALLY_VERIFIED` | B7 |
 | model routing | `OPERATIONALLY_VERIFIED` | B7 |
 | model/provider execution | `OPERATIONALLY_VERIFIED` | B7 |
@@ -79,8 +79,8 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | execution candidate manifests | `PASSIVE_FOUNDATION` | B1 |
 | HITL-approved verification execution | `OPERATIONALLY_VERIFIED` | B2.0 |
 | HITL patch proposal | `OPERATIONALLY_VERIFIED` | B4 |
-| HITL patch application | `MERGED_BUT_NOT_OPERATIONAL` | B4 |
-| rollback execution | `MERGED_BUT_NOT_OPERATIONAL` | B4 |
+| HITL patch application | `OPERATIONALLY_VERIFIED` | B4 |
+| rollback execution | `OPERATIONALLY_VERIFIED` | B4 |
 | postflight verification | `OPERATIONALLY_VERIFIED` | B1.5 |
 | Goose setup | `MERGED_BUT_NOT_OPERATIONAL` | B4 after R0/B3 |
 | governed read-only runtime | `OPERATIONALLY_VERIFIED` | B4 |
@@ -100,7 +100,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 
 ## Corrections
 
-- Passive model routing exists through `builder-model-policy`; provider execution remains unpromoted.
+- Passive model routing exists through `builder-model-policy`; governed `builder-model call` is operational under the execution gateway with policy/registry bounds. Live MCP server execution remains unpromoted; low-risk tool stubs are operational.
 - Legacy operator-managed helpers such as `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
 - Legacy `builder setup` is no longer operator-managed setup execution; it is a fail-closed redirect to the governed `builder-setup` path.
 - Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-setup overlay-plan`, `builder-setup rollback-snapshot`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, `builder-platform`, and `builder-memory`.
@@ -144,7 +144,7 @@ uv run builder-platform validate-demo-loop /tmp/builder-ii-core-demo/core-demo-l
 
 ## R1.4 update
 
-R1.4 leaves the governed setup apply and rollback slices intact and reconciles the remaining legacy bypass: `builder setup` now fails closed and prints the governed `builder-setup` sequence instead of writing Goose config, `.goosehints`, skills, or recipes. B1, B2, B3, runtime, model/provider, MCP/tool, Goose runtime, deepagents runtime, shell/subprocess execution in the setup path, patch, and autonomous write authority remain unpromoted.
+R1.4 leaves the governed setup apply and rollback slices intact and reconciles the remaining legacy bypass: `builder setup` now fails closed and prints the governed `builder-setup` sequence instead of writing Goose config, `.goosehints`, skills, or recipes. B1, B2, B3, runtime, model/provider calls, MCP/tool invocation, Goose runtime promotion, deepagents runtime, shell/subprocess execution in the setup path, patch application, autonomous writes, and commit/push automation remain unpromoted outside their explicit capability-scoped envelopes.
 
 ## R1.5 update
 

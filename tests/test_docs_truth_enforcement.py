@@ -3,7 +3,13 @@ from pathlib import Path
 from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
+from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, STATE_ENABLED
 from builder_ii.platform_completion_audit import (
+    OPERATIONALLY_VERIFIED,
+    REQUIRED_CAPABILITY_ROWS,
+    STALE_TRUTH_PHRASES,
+    matrix_blocker_violations,
+    render_capability_table_markdown,
     render_docs_audit_jsonable,
     scan_docs_for_false_completion,
 )
@@ -39,6 +45,44 @@ def test_readme_no_longer_says_model_routing_is_only_an_rfc() -> None:
     assert "Model routing policy artifact (RFC exists, artifact not yet built)" not in text
     assert "Passive model client registry and routing policy via `builder-model-policy`" in text
     assert "Model/provider execution gateway" in text
+
+
+def test_platform_completion_audit_table_matches_matrix_source() -> None:
+    doc = Path("docs/PLATFORM_COMPLETION_AUDIT.md").read_text(encoding="utf-8")
+    for row in REQUIRED_CAPABILITY_ROWS:
+        assert f"| {row.capability} | `{row.state}` | {row.next_pr} |" in doc
+    rendered = render_capability_table_markdown()
+    for line in rendered.splitlines()[2:]:
+        assert line in doc
+
+
+def test_truth_report_promoted_capabilities_match_matrix() -> None:
+    report = Path("docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md").read_text(encoding="utf-8")
+    promoted = (
+        "HITL patch application",
+        "rollback execution",
+        "HITL-approved verification execution",
+        "model/provider execution",
+        "command authority as runtime gate",
+        "deepagents runtime/subagents",
+        "config schema",
+        "setup receipt + rollback artifact",
+        "non-interactive setup/apply/validate",
+    )
+    by_capability = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
+    assert not matrix_blocker_violations()
+    for phrase in STALE_TRUTH_PHRASES:
+        assert phrase not in report
+
+    for capability in promoted:
+        row = by_capability[capability]
+        assert f"| {capability} | {row.state} |" in report
+
+    by_name = {record.name: record for record in COMMAND_AUTHORITY_REGISTRY}
+    for capability in ("non-interactive setup/apply/validate", "setup receipt + rollback artifact"):
+        assert by_capability[capability].state == OPERATIONALLY_VERIFIED
+    assert by_name["builder-setup apply"].promotion_state == STATE_ENABLED
+    assert by_name["builder-setup rollback"].promotion_state == STATE_ENABLED
 
 
 def test_docs_state_corrected_sequence() -> None:

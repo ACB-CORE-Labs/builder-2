@@ -24,6 +24,15 @@ SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
 NEXT_SEQUENCE = "B8 deferred; B9 complete"
 
+STALE_TRUTH_PHRASES: tuple[str, ...] = (
+    "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing",
+    "rollback execution, ledger event, and replay binding are missing",
+    "no setup apply, receipt, rollback, or runtime gate consumes it yet",
+    "Setup receipt, changed-path receipt, rollback execution, ledger event, and replay binding are missing",
+)
+
+DEFAULT_OPERATOR_LANE_READ_PATHS: tuple[str, ...] = ("README.md",)
+
 StateLabel = Literal[
     "NOT_STARTED",
     "DESIGN_ONLY",
@@ -53,6 +62,11 @@ ALLOWED_STATE_LABELS: tuple[StateLabel, ...] = (
     PR_OPEN,
     MERGED_BUT_NOT_OPERATIONAL,
     OPERATIONALLY_VERIFIED,
+)
+
+R1_OPERATIONALLY_VERIFIED_CAPABILITIES: tuple[str, ...] = (
+    "non-interactive setup/apply/validate",
+    "setup receipt + rollback artifact",
 )
 
 R1_CONFIG_ONBOARDING_CAPABILITIES: tuple[str, ...] = (
@@ -139,7 +153,12 @@ def assurance_state_for_row(row: CapabilityRow) -> AssuranceState:
         if row.state in (PASSIVE_FOUNDATION, ARTIFACT_ONLY):
             return PASSIVE_ARTIFACT_VERIFIED
         return BLOCKED_BY_EVIDENCE
-    if row.capability in {"HITL patch application", "rollback execution"}:
+    if row.capability in {
+        "HITL patch application",
+        "rollback execution",
+        "setup receipt + rollback artifact",
+        "non-interactive setup/apply/validate",
+    }:
         return MUTATION_WITH_ROLLBACK_VERIFIED
     if row.capability == "model/provider execution":
         return LIVE_PROVIDER_VERIFIED
@@ -267,7 +286,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("tests/test_config_schema.py", "tests/test_config_setup_cli.py", "tests/test_platform_completion_truth.py"),
         (
             "R1.1 adds a versioned passive schema with generic BUILDER_* names, legacy CORE_* aliases, target roots, artifact roots, Goose paths, deepagents mode, and disabled capability defaults.",
-            "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing.",
+            "Digest-bound builder-setup apply/rollback exist for declared setup paths; ambient runtime authority and migration tooling remain unpromoted.",
         ),
         "R1",
     ),
@@ -279,7 +298,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("tests/test_config_sources.py", "tests/test_config_setup_cli.py", "tests/test_platform_completion_truth.py"),
         (
             "R1.1 records precedence as CLI overrides, process environment, .env, builder config file, target/profile defaults, then built-in defaults.",
-            "Resolution is artifact-only; no setup apply, receipt, rollback, or runtime gate consumes it yet.",
+            "Resolution artifacts are consumed by builder-setup apply and operator-lane composition; ambient runtime gate interception remains partial.",
         ),
         "R1",
     ),
@@ -296,7 +315,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "non-interactive setup/apply/validate",
-        MERGED_BUT_NOT_OPERATIONAL,
+        OPERATIONALLY_VERIFIED,
         (
             "builder_ii/cli/main.py",
             "builder_ii/goose_setup.py",
@@ -313,12 +332,14 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/test_setup_plan.py",
             "tests/test_setup_overlay.py",
             "tests/test_setup_rollback.py",
+            "tests/test_setup_apply.py",
+            "tests/test_setup_rollback_execute.py",
             "tests/test_config_setup_cli.py",
         ),
         (
+            "builder-setup apply and builder-setup rollback are digest-bound STATE_ENABLED setup mutation lanes verified by test_setup_apply.py and test_setup_rollback_execute.py.",
             "R1.4 disables legacy builder setup writes and redirects operators to the governed builder-setup artifact chain.",
-            "R1.3A adds digest-bound governed setup apply and setup receipts for declared setup targets only; R1.3B adds digest-bound setup rollback for changed paths covered by setup snapshots.",
-            "Interactive onboarding, setup wizard UX, and operational runtime promotion remain missing.",
+            "Passive plan/overlay/rollback-snapshot validate chain and ambient Goose/runtime promotion remain outside digest-bound setup mutation scope.",
         ),
         "R1",
     ),
@@ -414,7 +435,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "setup receipt + rollback artifact",
-        PASSIVE_FOUNDATION,
+        OPERATIONALLY_VERIFIED,
         (
             "builder_ii/setup_rollback.py",
             "builder_ii/setup_apply.py",
@@ -433,9 +454,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/test_rollback_artifacts.py",
         ),
         (
-            "Generic records exist.",
-            "R1.2 adds setup rollback snapshot planning with plan/overlay digests, prior existence markers, content digests, redacted previews, and future rollback operations.",
-            "R1.3A adds setup apply receipts with changed/skipped/denied paths and before/after digests; R1.3B adds setup rollback receipts for digest-bound rollback execution. Ledger event and replay binding are missing.",
+            "R1.3A setup apply receipts and R1.3B setup rollback receipts are operationally verified for declared setup paths.",
+            "Ledger event and replay binding for setup lanes remain partial.",
         ),
         "R1",
     ),
@@ -519,7 +539,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("builder-mcp call", "builder-mcp inventory", "builder-mcp policy"),
         ("tests/test_mcp_cli.py",),
         (
-            "MCP inventory, policy, call envelopes and receipts are supported under passive foundation, but live MCP execution remains passive/non-operational.",
+            "MCP inventory, policy, call envelopes and receipts exist.",
+            "Live MCP server execution remains unpromoted; deterministic stub invocation is handled by low-risk tool gateway.",
         ),
         "B7",
     ),
@@ -542,8 +563,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("builder-workflow", "builder-ledger"),
         ("tests/test_workflow_ledger.py",),
         (
-            "Ledger records passive workflow events only.",
-            "Runtime event kinds for reads, execution, model/tool calls, rollback, and memory mutation are missing.",
+            "Ledger records workflow events including verification, model call, read/content-read, and tool stub lanes when session_id is supplied.",
+            "Full replay policy for all runtime event kinds and memory mutation events remains partial.",
         ),
         "B1 then B6/B7/B8",
     ),
@@ -677,7 +698,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "HITL patch application",
-        MERGED_BUT_NOT_OPERATIONAL,
+        OPERATIONALLY_VERIFIED,
         (
             "builder_ii/hitl_patch_apply.py",
             "builder_ii/cli/hitl_patch_cli.py",
@@ -685,22 +706,22 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "docs/HITL_PATCH_PROPOSAL.md",
         ),
         ("builder-hitl apply-patch",),
-        ("tests/test_hitl_patch_proposal.py", "tests/test_hitl_patch_apply.py"),
+        ("tests/test_hitl_patch_proposal.py", "tests/test_hitl_patch_apply.py", "tests/test_hitl_patch_rollback.py"),
         (
-            "Operator-safe promoted patch application remains gated/unpromoted.",
-            "Passive/proposal/apply artifacts exist; rollback bundle/evidence improved.",
+            "git apply patch lane requires clean repo, approval digest, verification receipt, and emits rollback bundle.",
+            "No commit/push automation; source mutation is HITL-gated only.",
         ),
         "B4",
     ),
     _row(
         "rollback execution",
-        MERGED_BUT_NOT_OPERATIONAL,
+        OPERATIONALLY_VERIFIED,
         ("builder_ii/rollback_artifacts.py", "builder_ii/cli/hitl_patch_cli.py", "builder_ii/hitl_patch_apply.py"),
         ("builder-hitl rollback",),
-        ("tests/test_rollback_artifacts.py", "tests/test_hitl_patch_apply.py"),
+        ("tests/test_rollback_artifacts.py", "tests/test_hitl_patch_apply.py", "tests/test_hitl_patch_rollback.py"),
         (
-            "Rollback execution remains gated/unpromoted.",
-            "Passive/proposal/apply artifacts exist; rollback bundle/evidence improved.",
+            "Rollback uses git apply -R on forward_patch_for_reverse_apply.patch with pre/post status digest proof.",
+            "Setup rollback and generic git rollback remain separate lanes.",
         ),
         "B4",
     ),
@@ -849,9 +870,19 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "operator quickstart/golden path",
         OPERATIONALLY_VERIFIED,
-        ("docs/OPERATOR_QUICKSTART.md", "builder_ii/operator_golden_path.py"),
-        ("builder-platform operator-status", "builder-platform next", "builder-platform golden-path"),
-        ("tests/test_operator_golden_path.py", "tests/test_operator_status.py", "tests/test_operator_next.py"),
+        ("docs/OPERATOR_QUICKSTART.md", "builder_ii/operator_golden_path.py", "builder_ii/operator_lane.py"),
+        (
+            "builder-platform operator-status",
+            "builder-platform next",
+            "builder-platform golden-path",
+            "builder-platform operator-lane",
+        ),
+        (
+            "tests/test_operator_golden_path.py",
+            "tests/test_operator_status.py",
+            "tests/test_operator_next.py",
+            "tests/test_operator_lane.py",
+        ),
         (
             "Golden path UX generated from truth matrix, command authority, and B8 memory artifacts.",
             "Demonstrates a complete governed local workflow without runtime execution.",
@@ -994,6 +1025,37 @@ def dumps_matrix(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> 
     return json.dumps(render_matrix_jsonable(rows), indent=2, sort_keys=True) + "\n"
 
 
+def render_capability_table_markdown(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:
+    lines = ["| Capability | State | Next PR |", "|---|---|---|"]
+    for row in rows:
+        lines.append(f"| {row.capability} | `{row.state}` | {row.next_pr} |")
+    return "\n".join(lines) + "\n"
+
+
+def render_truth_report_capability_row(row: CapabilityRow) -> str:
+    evidence = ", ".join(row.evidence_files[:4])
+    if len(row.evidence_files) > 4:
+        evidence += ", ..."
+    commands = ", ".join(row.command_surfaces) if row.command_surfaces else "none dedicated"
+    tests = ", ".join(row.tests[:3])
+    if len(row.tests) > 3:
+        tests += ", ..."
+    blockers = " ".join(row.blockers)
+    return (
+        f"| {row.capability} | {row.state} | `{evidence}`; commands: {commands} | {blockers} | {row.next_pr} |"
+    )
+
+
+def matrix_blocker_violations(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> list[str]:
+    errors: list[str] = []
+    for row in rows:
+        for phrase in STALE_TRUTH_PHRASES:
+            for blocker in row.blockers:
+                if phrase in blocker:
+                    errors.append(f"{row.capability}: stale blocker phrase: {phrase}")
+    return errors
+
+
 def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:
     counts = state_counts(rows)
     operational = sorted(row.capability for row in rows if row.state == OPERATIONALLY_VERIFIED)
@@ -1074,7 +1136,7 @@ def validate_r1_config_onboarding_mapping(
             continue
         if row.next_pr != "R1":
             errors.append(f"{capability}: expected next_pr R1, got {row.next_pr}")
-        if row.state == OPERATIONALLY_VERIFIED:
+        if row.state == OPERATIONALLY_VERIFIED and capability not in R1_OPERATIONALLY_VERIFIED_CAPABILITIES:
             errors.append(f"{capability}: R1 config/onboarding row must remain non-operational in R0")
     return errors
 

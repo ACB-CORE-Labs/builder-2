@@ -7,6 +7,7 @@ from typer.testing import CliRunner
 from builder_ii.command_authority import (
     COMMAND_AUTHORITY_REGISTRY,
     MODE_NONE,
+    STATE_ENABLED,
     TIER_1,
 )
 from builder_ii.platform_completion_audit import (
@@ -16,8 +17,11 @@ from builder_ii.platform_completion_audit import (
     OPERATIONALLY_VERIFIED,
     PASSIVE_FOUNDATION,
     R1_CONFIG_ONBOARDING_CAPABILITIES,
+    R1_OPERATIONALLY_VERIFIED_CAPABILITIES,
     REQUIRED_CAPABILITIES,
     REQUIRED_CAPABILITY_ROWS,
+    STALE_TRUTH_PHRASES,
+    matrix_blocker_violations,
     render_human_summary,
     render_matrix_jsonable,
     validate_command_surfaces,
@@ -26,6 +30,27 @@ from builder_ii.platform_completion_audit import (
 )
 
 runner = CliRunner()
+
+
+def test_matrix_blockers_are_truthful() -> None:
+    assert not matrix_blocker_violations()
+    truth_report = Path("docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md").read_text(encoding="utf-8")
+    for phrase in STALE_TRUTH_PHRASES:
+        assert phrase not in truth_report, f"stale phrase in truth report: {phrase}"
+
+    by_cap = {r.capability: r for r in REQUIRED_CAPABILITY_ROWS}
+    for capability in ("non-interactive setup/apply/validate", "setup receipt + rollback artifact"):
+        assert by_cap[capability].state == OPERATIONALLY_VERIFIED
+    setup_text = " ".join(by_cap["non-interactive setup/apply/validate"].blockers).lower()
+    assert "builder-setup apply" in setup_text
+    assert "state_enabled" in setup_text
+
+    by_name = {record.name: record for record in COMMAND_AUTHORITY_REGISTRY}
+    assert by_name["builder-setup apply"].promotion_state == STATE_ENABLED
+    assert by_name["builder-setup rollback"].promotion_state == STATE_ENABLED
+    matrix = render_matrix_jsonable()
+    rows = {row["capability"]: row for row in matrix["capabilities"]}
+    assert rows["setup receipt + rollback artifact"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
 
 
 def test_all_required_capability_rows_exist_once() -> None:
@@ -51,7 +76,8 @@ def test_config_onboarding_rows_exist_and_point_to_r1() -> None:
     for capability in R1_CONFIG_ONBOARDING_CAPABILITIES:
         assert capability in by_capability
         assert by_capability[capability].next_pr == "R1"
-        assert by_capability[capability].state != OPERATIONALLY_VERIFIED
+        if capability not in R1_OPERATIONALLY_VERIFIED_CAPABILITIES:
+            assert by_capability[capability].state != OPERATIONALLY_VERIFIED
     assert not validate_r1_config_onboarding_mapping()
 
 
@@ -60,10 +86,10 @@ def test_r1_3a_matrix_state_changes_are_scoped() -> None:
 
     assert by_capability["config schema"].state == PASSIVE_FOUNDATION
     assert by_capability["config source precedence"].state == PASSIVE_FOUNDATION
-    assert by_capability["non-interactive setup/apply/validate"].state == MERGED_BUT_NOT_OPERATIONAL
+    assert by_capability["non-interactive setup/apply/validate"].state == OPERATIONALLY_VERIFIED
     assert by_capability["Goose config overlay/rollback"].state == PASSIVE_FOUNDATION
     assert by_capability["interactive setup wizard"].state == NOT_STARTED
-    assert by_capability["setup receipt + rollback artifact"].state == PASSIVE_FOUNDATION
+    assert by_capability["setup receipt + rollback artifact"].state == OPERATIONALLY_VERIFIED
     assert by_capability["skill generator/installer/validator"].state == MERGED_BUT_NOT_OPERATIONAL
     assert by_capability["artifact memory"].state == PASSIVE_FOUNDATION
     # B2 verifies rollback execution and patch apply
@@ -158,9 +184,7 @@ def test_matrix_rendering_is_json_safe() -> None:
     decoded = json.loads(encoded)
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
-    assert (
-        decoded["summary"]["operationally_verified_count"] == 15
-    )  # B1.5 promoted bounded verification, postflight, and command authority gates, with patch application/rollback unpromoted
+    assert decoded["summary"]["operationally_verified_count"] == 19
 
 
 def test_matrix_exposes_sharper_assurance_states() -> None:
@@ -168,11 +192,13 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     rows = {row["capability"]: row for row in matrix["capabilities"]}
     assert "SAFETY_CRITICAL_PROHIBITED" in matrix["allowed_assurance_states"]
     assert rows["model/provider execution"]["assurance_state"] == "LIVE_PROVIDER_VERIFIED"
-    assert rows["HITL patch application"]["assurance_state"] == "BLOCKED_BY_EVIDENCE"
-    assert rows["rollback execution"]["assurance_state"] == "BLOCKED_BY_EVIDENCE"
+    assert rows["HITL patch application"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
+    assert rows["rollback execution"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
     assert rows["governed read-only runtime"]["assurance_state"] == "READ_ONLY_RUNTIME_VERIFIED"
     assert rows["CORE demo loop"]["assurance_state"] == "DEMO_ONLY_VERIFIED"
     assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+    assert rows["setup receipt + rollback artifact"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
+    assert rows["non-interactive setup/apply/validate"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
 
 
 def test_human_status_reports_operational_incompleteness() -> None:
