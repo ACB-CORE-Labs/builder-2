@@ -1004,6 +1004,13 @@ def dumps_matrix(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> 
     return json.dumps(render_matrix_jsonable(rows), indent=2, sort_keys=True) + "\n"
 
 
+def render_capability_table_markdown(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:
+    lines = ["| Capability | State | Next PR |", "|---|---|---|"]
+    for row in rows:
+        lines.append(f"| {row.capability} | `{row.state}` | {row.next_pr} |")
+    return "\n".join(lines) + "\n"
+
+
 def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:
     counts = state_counts(rows)
     operational = sorted(row.capability for row in rows if row.state == OPERATIONALLY_VERIFIED)

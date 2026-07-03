@@ -351,14 +351,15 @@ def execute_content_read(
     allowed_paths = policy["allowed_paths"]
     denied_paths = policy["denied_paths"]
     budget = policy["max_bytes_budget"]
-    resolved = file_path.resolve()
 
-    if resolved.is_symlink():
+    if file_path.is_symlink():
         return create_denied_read(
             policy=policy,
             file_path=file_path,
             reason="Symlink paths are not readable through governed content-read",
         )
+
+    resolved = file_path.resolve()
 
     if not _is_path_allowed(resolved, target_repo, allowed_paths, denied_paths):
         return create_denied_read(

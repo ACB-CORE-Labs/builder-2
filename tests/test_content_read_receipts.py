@@ -48,6 +48,31 @@ def test_content_read_redacts_secrets(tmp_path: Path) -> None:
     assert "[REDACTED]" in receipt["redacted_excerpt"]
 
 
+def test_content_read_denies_symlink(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    real = repo / "real.txt"
+    real.write_text("real content", encoding="utf-8")
+    link = repo / "link.txt"
+    link.symlink_to(real)
+    policy = create_read_policy(target_name="generic", target_repo=repo, allowed_paths=["link.txt"])
+    receipt = execute_content_read(policy, link)
+    assert receipt["kind"] == DENIED_READ_KIND
+    assert "Symlink" in receipt["reason"]
+
+
+def test_content_read_binary_digest_only_mode(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    binary = repo / "data.bin"
+    binary.write_bytes(b"hello\x00world")
+    policy = create_read_policy(target_name="generic", target_repo=repo, allowed_paths=["data.bin"])
+    receipt = execute_content_read(policy, binary)
+    assert receipt["kind"] == CONTENT_READ_RECEIPT_KIND
+    assert receipt["binary_digest_only"] is True
+    assert receipt["redacted_excerpt"] == ""
+
+
 def test_content_read_denies_huge_file(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()

@@ -199,6 +199,36 @@ def write_patch_apply_receipt(artifact: dict[str, Any], output: Path) -> None:
     output.write_text(dumps_patch_apply_receipt(artifact), encoding="utf-8")
 
 
+def _write_validation_failure_receipt(
+    output_dir: Path,
+    *,
+    settings: Settings | None,
+    target_name: str,
+    target_repo: Path,
+    proposal_path: Path,
+    error_summary: str,
+    patch_digest: str = "",
+) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    failure_receipt = create_patch_apply_receipt(
+        settings=settings,
+        target_name=target_name,  # type: ignore[arg-type]
+        proposal_ref=str(proposal_path),
+        rollback_plan_ref="",
+        postflight_ref="",
+        generic_repo=target_repo if target_name == "generic" else None,
+    )
+    failure_receipt["target"] = {
+        "name": target_name,
+        "repo": str(target_repo),
+    }
+    failure_receipt["status"] = "failed"
+    failure_receipt["error_summary"] = error_summary[:500]
+    if patch_digest:
+        failure_receipt["patch_digest"] = patch_digest
+    write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
+
+
 def apply_hitl_patch(
     proposal_path: Path,
     approval_path: Path,
@@ -220,8 +250,19 @@ def apply_hitl_patch(
     patch_digest = proposal["patch_digest"]
     unified_diff = proposal["unified_diff"]
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     # 2. Verify git state is clean
     if not is_git_clean(target_repo):
+        _write_validation_failure_receipt(
+            output_dir,
+            settings=settings,
+            target_name=target_name,
+            target_repo=target_repo,
+            proposal_path=proposal_path,
+            error_summary="Target repository working tree is not clean",
+            patch_digest=patch_digest,
+        )
         raise ValueError("Target repository working tree is not clean")
     pre_head = get_git_head_sha(target_repo)
     pre_apply_status = subprocess.run(
@@ -236,6 +277,15 @@ def apply_hitl_patch(
     # 3. Read and validate verification receipt
     v_errors = _verification_receipt_errors(verification_receipt_path, target_repo=target_repo)
     if v_errors:
+        _write_validation_failure_receipt(
+            output_dir,
+            settings=settings,
+            target_name=target_name,
+            target_repo=target_repo,
+            proposal_path=proposal_path,
+            error_summary=f"Invalid verification receipt: {v_errors}",
+            patch_digest=patch_digest,
+        )
         raise ValueError(f"Invalid verification receipt: {v_errors}")
 
     # 4. Check approval matching
@@ -244,6 +294,15 @@ def apply_hitl_patch(
     approval = json_lib.loads(approval_path.read_text())
     verification_receipt = json_lib.loads(verification_receipt_path.read_text(encoding="utf-8"))
     if approval.get("patch_digest") != patch_digest:
+        _write_validation_failure_receipt(
+            output_dir,
+            settings=settings,
+            target_name=target_name,
+            target_repo=target_repo,
+            proposal_path=proposal_path,
+            error_summary="Approval digest does not match proposal digest",
+            patch_digest=patch_digest,
+        )
         raise ValueError("Approval digest does not match proposal digest")
     if compute_digest(unified_diff) != patch_digest:
         raise ValueError("Proposal patch digest does not match unified diff content")
