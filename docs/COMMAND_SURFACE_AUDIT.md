@@ -54,6 +54,7 @@ Governed setup subcommands:
 - `builder-session`
 - `builder-workflow`
 - `builder-ledger`
+- `builder-code-vault` — governed read-only CodeVault hierarchical frame, lint, recall, context projection, and validation; Tier 1 artifact-only; no shell, model, Goose, deepagents, or target-repo writes
 
 ## Artifact Chain / Governance Records
 - `builder-records`

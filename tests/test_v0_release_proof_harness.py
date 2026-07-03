@@ -25,6 +25,7 @@ def test_v0_release_proof_harness_e2e(tmp_path: Path) -> None:
         "verification-profile-report.json",
         "repo-map.json",
         "context-pack.json",
+        "hierarchical-frame.json",
         "handoff-note.json",
         "deepagents-bridge-readiness.json",
         "platform-spine.json",
@@ -43,7 +44,7 @@ def test_v0_release_proof_harness_e2e(tmp_path: Path) -> None:
     index_data = json.loads((output_dir / "artifact-index.json").read_text(encoding="utf-8"))
     assert index_data["counts"]["invalid"] == 0
     assert index_data["counts"]["unknown"] == 0
-    # The index records all emitted files prior to artifact-index.json itself (12 files)
+    # The index records all emitted files prior to artifact-index.json itself.
     assert index_data["counts"]["known"] == len(expected_files) - 1
 
     # Validate release manifest file

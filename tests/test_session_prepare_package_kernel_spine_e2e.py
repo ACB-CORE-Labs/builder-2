@@ -65,6 +65,7 @@ def test_session_prepare_package_kernel_spine_e2e(tmp_path):
         "verification-profile-report.json",
         "repo-map.json",
         "context-pack.json",
+        "hierarchical-frame.json",
         "handoff-note.json",
         "deepagents-bridge-readiness.json",
     ]
