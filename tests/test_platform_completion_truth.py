@@ -9,6 +9,7 @@ from builder_ii.command_authority import (
     MODE_NONE,
     TIER_1,
 )
+from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, STATE_ENABLED
 from builder_ii.platform_completion_audit import (
     ALLOWED_STATE_LABELS,
     MERGED_BUT_NOT_OPERATIONAL,
@@ -18,6 +19,8 @@ from builder_ii.platform_completion_audit import (
     R1_CONFIG_ONBOARDING_CAPABILITIES,
     REQUIRED_CAPABILITIES,
     REQUIRED_CAPABILITY_ROWS,
+    STALE_TRUTH_PHRASES,
+    matrix_blocker_violations,
     render_human_summary,
     render_matrix_jsonable,
     validate_command_surfaces,
@@ -26,6 +29,22 @@ from builder_ii.platform_completion_audit import (
 )
 
 runner = CliRunner()
+
+
+def test_matrix_blockers_are_truthful() -> None:
+    assert not matrix_blocker_violations()
+    truth_report = Path("docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md").read_text(encoding="utf-8")
+    for phrase in STALE_TRUTH_PHRASES:
+        assert phrase not in truth_report, f"stale phrase in truth report: {phrase}"
+
+    setup_row = next(r for r in REQUIRED_CAPABILITY_ROWS if r.capability == "non-interactive setup/apply/validate")
+    setup_text = " ".join(setup_row.blockers).lower()
+    assert "builder-setup apply" in setup_text
+    assert "state_enabled" in setup_text
+
+    by_name = {record.name: record for record in COMMAND_AUTHORITY_REGISTRY}
+    assert by_name["builder-setup apply"].promotion_state == STATE_ENABLED
+    assert by_name["builder-setup rollback"].promotion_state == STATE_ENABLED
 
 
 def test_all_required_capability_rows_exist_once() -> None:

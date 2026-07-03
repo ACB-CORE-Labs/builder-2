@@ -36,6 +36,7 @@ from builder_ii.readonly_inspection_reports import (
 )
 from builder_ii.repo_map import create_repo_map, dumps_repo_map
 from builder_ii.target_profiles import TargetName, target_profile
+from builder_ii.platform_completion_audit import DEFAULT_OPERATOR_LANE_READ_PATHS
 from builder_ii.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
@@ -143,6 +144,11 @@ def run_operator_lane(
     git_path = output_dir / "git-state.json"
     write_git_state_record(git_record, git_path)
     artifact_refs.append(_artifact_ref(kind=git_record["kind"], path=git_path, role="git_state"))
+
+    if explicit_paths is None and content_read_paths is None:
+        default_paths = [target_repo / rel for rel in DEFAULT_OPERATOR_LANE_READ_PATHS if (target_repo / rel).is_file()]
+        explicit_paths = default_paths
+        content_read_paths = list(default_paths)
 
     inspection_paths = explicit_paths or []
     if inspection_paths:

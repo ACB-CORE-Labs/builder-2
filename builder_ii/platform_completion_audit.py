@@ -24,6 +24,15 @@ SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
 NEXT_SEQUENCE = "B8 deferred; B9 complete"
 
+STALE_TRUTH_PHRASES: tuple[str, ...] = (
+    "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing",
+    "rollback execution, ledger event, and replay binding are missing",
+    "no setup apply, receipt, rollback, or runtime gate consumes it yet",
+    "Setup receipt, changed-path receipt, rollback execution, ledger event, and replay binding are missing",
+)
+
+DEFAULT_OPERATOR_LANE_READ_PATHS: tuple[str, ...] = ("README.md",)
+
 StateLabel = Literal[
     "NOT_STARTED",
     "DESIGN_ONLY",
@@ -267,7 +276,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("tests/test_config_schema.py", "tests/test_config_setup_cli.py", "tests/test_platform_completion_truth.py"),
         (
             "R1.1 adds a versioned passive schema with generic BUILDER_* names, legacy CORE_* aliases, target roots, artifact roots, Goose paths, deepagents mode, and disabled capability defaults.",
-            "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing.",
+            "Digest-bound builder-setup apply/rollback exist for declared setup paths; ambient runtime authority and migration tooling remain unpromoted.",
         ),
         "R1",
     ),
@@ -279,7 +288,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("tests/test_config_sources.py", "tests/test_config_setup_cli.py", "tests/test_platform_completion_truth.py"),
         (
             "R1.1 records precedence as CLI overrides, process environment, .env, builder config file, target/profile defaults, then built-in defaults.",
-            "Resolution is artifact-only; no setup apply, receipt, rollback, or runtime gate consumes it yet.",
+            "Resolution artifacts are consumed by builder-setup apply and operator-lane composition; ambient runtime gate interception remains partial.",
         ),
         "R1",
     ),
@@ -313,12 +322,14 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/test_setup_plan.py",
             "tests/test_setup_overlay.py",
             "tests/test_setup_rollback.py",
+            "tests/test_setup_apply.py",
+            "tests/test_setup_rollback_execute.py",
             "tests/test_config_setup_cli.py",
         ),
         (
-            "builder-setup apply and builder-setup rollback exist as digest-bound operator-managed setup mutation lanes.",
+            "builder-setup apply and builder-setup rollback are digest-bound STATE_ENABLED setup mutation lanes in command authority.",
             "R1.4 disables legacy builder setup writes and redirects operators to the governed builder-setup artifact chain.",
-            "Interactive onboarding wizard UX and full runtime promotion remain missing.",
+            "Passive plan/overlay/rollback-snapshot chain and ambient Goose/runtime promotion remain outside this row's scope.",
         ),
         "R1",
     ),
@@ -1009,6 +1020,30 @@ def render_capability_table_markdown(rows: tuple[CapabilityRow, ...] = REQUIRED_
     for row in rows:
         lines.append(f"| {row.capability} | `{row.state}` | {row.next_pr} |")
     return "\n".join(lines) + "\n"
+
+
+def render_truth_report_capability_row(row: CapabilityRow) -> str:
+    evidence = ", ".join(row.evidence_files[:4])
+    if len(row.evidence_files) > 4:
+        evidence += ", ..."
+    commands = ", ".join(row.command_surfaces) if row.command_surfaces else "none dedicated"
+    tests = ", ".join(row.tests[:3])
+    if len(row.tests) > 3:
+        tests += ", ..."
+    blockers = " ".join(row.blockers)
+    return (
+        f"| {row.capability} | {row.state} | `{evidence}`; commands: {commands} | {blockers} | {row.next_pr} |"
+    )
+
+
+def matrix_blocker_violations(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> list[str]:
+    errors: list[str] = []
+    for row in rows:
+        for phrase in STALE_TRUTH_PHRASES:
+            for blocker in row.blockers:
+                if phrase in blocker:
+                    errors.append(f"{row.capability}: stale blocker phrase: {phrase}")
+    return errors
 
 
 def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:

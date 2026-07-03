@@ -11,28 +11,7 @@ from builder_ii.hitl_patch_apply import (
     validate_patch_apply_receipt,
 )
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
-
-
-def _write_core_demo_verification_receipt(path: Path, repo: Path) -> None:
-    path.write_text(
-        json.dumps(
-            {
-                "kind": "builder_ii.core_demo_verification_receipt",
-                "schema_version": 1,
-                "label": "before_apply",
-                "receipt_status": "EXECUTED",
-                "target": {"name": "core", "repo": str(repo.resolve())},
-                "checks": [{"status": "PASS", "name": "preflight"}],
-                "governance": {
-                    "model_execution": "DISABLED",
-                    "source_writes": "DISABLED",
-                    "artifact_is_authority": False,
-                    "core_workbench_coupling": "NONE",
-                },
-            }
-        ),
-        encoding="utf-8",
-    )
+from tests.hitl_patch_test_helpers import write_core_demo_verification_receipt
 
 
 def test_validate_patch_apply_receipt():
@@ -63,7 +42,7 @@ def test_apply_hitl_patch_rejects_dirty_repo(tmp_path: Path):
     approval_path.write_text(json.dumps({"patch_digest": "abc"}))
 
     vr_path = tmp_path / "vr.json"
-    _write_core_demo_verification_receipt(vr_path, repo)
+    write_core_demo_verification_receipt(vr_path, repo)
 
     out_dir = tmp_path / "out"
     with pytest.raises(ValueError, match="Target repository working tree is not clean"):
@@ -91,7 +70,7 @@ def test_apply_hitl_patch_rejects_digest_mismatch(tmp_path: Path):
     approval_path.write_text(json.dumps({"patch_digest": "def"}))
 
     vr_path = tmp_path / "vr.json"
-    _write_core_demo_verification_receipt(vr_path, repo)
+    write_core_demo_verification_receipt(vr_path, repo)
 
     out_dir = tmp_path / "out"
     with pytest.raises(ValueError, match="Approval digest does not match proposal digest"):

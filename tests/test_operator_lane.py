@@ -25,6 +25,9 @@ def test_operator_lane_dry_run_composes_evidence(tmp_path: Path) -> None:
     assert (out / "config-resolution.json").is_file()
     assert (out / "verification-execution-plan.json").is_file()
     assert (out / "handoff.json").is_file()
+    assert (out / "readonly-inspection-report.json").is_file()
+    assert (out / "content-read-receipts").is_dir()
+    assert list((out / "content-read-receipts").glob("*.json"))
 
 
 def test_operator_lane_cli_generic_target(tmp_path: Path) -> None:

@@ -5,6 +5,8 @@ from typer.testing import CliRunner
 
 from builder_ii.platform_completion_audit import (
     REQUIRED_CAPABILITY_ROWS,
+    STALE_TRUTH_PHRASES,
+    matrix_blocker_violations,
     render_capability_table_markdown,
     render_docs_audit_jsonable,
     scan_docs_for_false_completion,
@@ -65,11 +67,8 @@ def test_truth_report_promoted_capabilities_match_matrix() -> None:
         "setup receipt + rollback artifact",
     )
     by_capability = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
-    stale_phrases = (
-        "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing",
-        "rollback execution, ledger event, and replay binding are missing",
-    )
-    for phrase in stale_phrases:
+    assert not matrix_blocker_violations()
+    for phrase in STALE_TRUTH_PHRASES:
         assert phrase not in report
 
     for capability in promoted:
