@@ -31,3 +31,10 @@ When tasked with a feature or bug fix:
 2. **Halt for HITL:** You must stop and wait for a Human-In-The-Loop approval artifact before proceeding.
 3. **Execution:** Once approved, execute strictly within the bounds of the provided receipt.
 4. **Verification:** Generate an evidence bundle. Do not self-certify correctness.
+
+## 5. Version Control & Repository Management
+**CRITICAL**: This repository is hosted on a private **Forgejo** server, NOT GitHub.
+- **DO NOT** use the `gh` (GitHub) CLI.
+- **DO NOT** attempt to push, pull, or clone from `github.com`.
+- **USE** the `tea` CLI (Gitea/Forgejo CLI) for issues, PRs, and repository management.
+- **USE** the provided Forgejo MCP tools if available.
