@@ -1,11 +1,22 @@
 import hashlib
+import json
 from pathlib import Path
 
 import typer
 from rich.console import Console
 
 from builder_ii.hitl_patch_apply import apply_hitl_patch, rollback_hitl_patch
-from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.hitl_patch_approval import (
+    APPROVAL_CONFIRMATION_PREFIX_LENGTH,
+    DEFAULT_APPROVAL_TTL_SECONDS,
+    create_hitl_patch_approval,
+    write_hitl_patch_approval,
+)
+from builder_ii.hitl_patch_proposal import (
+    create_hitl_patch_proposal,
+    validate_hitl_patch_proposal_file,
+    write_hitl_patch_proposal,
+)
 
 console = Console()
 
@@ -36,6 +47,69 @@ def register_patch_commands(app: typer.Typer) -> None:
         )
         write_hitl_patch_proposal(proposal, output)
         console.print(f"Proposal written to {output}")
+        console.print(f"Next: builder-hitl approve-patch --proposal {output} --output <approval.json>")
+
+    @app.command("approve-patch")
+    def approve_patch(
+        proposal: Path = typer.Option(..., "--proposal", help="Proposal JSON path"),
+        output: Path = typer.Option(..., "--output", help="Output path for approval JSON"),
+        approved_by: str = typer.Option("operator", "--approved-by", help="Identity recorded as the approver"),
+        ttl_seconds: int = typer.Option(
+            DEFAULT_APPROVAL_TTL_SECONDS, "--ttl-seconds", help="Approval validity window in seconds"
+        ),
+    ) -> None:
+        """Approve a patch proposal at an interactive boundary.
+
+        Shows the diff and the full patch digest, then requires the operator to
+        transcribe the digest prefix. There is intentionally no ``--yes``/non-interactive
+        mode: scripting the confirmation would collapse the planned-vs-approved boundary.
+        Typing the prefix is an attention control, not a security control.
+        """
+        from builder_ii.command_authority import enforce_command_authority
+
+        enforce_command_authority("builder-hitl approve-patch", requested_effects=("artifact_write",))
+
+        errors = validate_hitl_patch_proposal_file(proposal)
+        if errors:
+            console.print(f"Invalid proposal: {errors}")
+            raise typer.Exit(1)
+
+        proposal_data = json.loads(proposal.read_text(encoding="utf-8"))
+        patch_digest = str(proposal_data.get("patch_digest", ""))
+        unified_diff = str(proposal_data.get("unified_diff", ""))
+        if not patch_digest:
+            console.print("Proposal has no patch_digest; cannot approve.")
+            raise typer.Exit(1)
+
+        expected_prefix = patch_digest[:APPROVAL_CONFIRMATION_PREFIX_LENGTH]
+
+        console.print("─" * 60)
+        console.print(proposal_data.get("patch_description") or "(no description)")
+        console.print("─" * 60)
+        console.print(unified_diff or "(empty diff)")
+        console.print("─" * 60)
+        console.print(f"patch digest: {patch_digest}")
+        console.print(
+            f"To approve this mutation, type the first {APPROVAL_CONFIRMATION_PREFIX_LENGTH} "
+            "characters of the patch digest shown above."
+        )
+        typed = typer.prompt("digest prefix").strip()
+        if typed != expected_prefix:
+            console.print("Prefix did not match. No approval written; nothing is authorized.")
+            raise typer.Exit(1)
+
+        approval = create_hitl_patch_approval(
+            proposal_data,
+            confirmed_digest_prefix=typed,
+            approved_by=approved_by,
+            ttl_seconds=ttl_seconds,
+        )
+        write_hitl_patch_approval(approval, output)
+        console.print(f"Approval written to {output}")
+        console.print(
+            f"Next: builder-hitl apply-patch --proposal {proposal} --approval {output} "
+            "--verification-receipt <receipt.json> --output-dir <dir>"
+        )
 
     @app.command("apply-patch")
     def apply_patch_cmd(
