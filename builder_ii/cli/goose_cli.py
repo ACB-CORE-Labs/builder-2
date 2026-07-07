@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json as json_lib
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
@@ -239,6 +240,17 @@ def validate_command_proposal(path: Path) -> None:
     console.print(f"Goose command proposal is valid: {path}")
 
 
+@dataclass(frozen=True)
+class GooseReadonlyLaunchPlan:
+    """Manifest-derived session identity handed to `GooseRuntimeHarness` for a read-only launch."""
+
+    target_name: str
+    agent_profile: str
+    recipe_name: str = "core-platform.yaml"
+    model_tier: str = "3"
+    mode: str = "read_only"
+
+
 @goose_app.command("start-readonly")
 def start_readonly(
     manifest_path: Path = typer.Argument(..., help="Goose session manifest path"),
@@ -260,16 +272,11 @@ def start_readonly(
 
     settings = load_settings()
 
-    # Simple struct to simulate SessionPlan
-    class MockPlan:
-        target_name = manifest_data.get("target", {}).get("name", "builder")
-        agent_profile = manifest_data.get("agent_profile", {}).get("name", "patch_planner")
-        recipe_name = "core-platform.yaml"  # Default
-        model_tier = "3"
-        mode = "read_only"
-
-    plan = MockPlan()
-    harness = GooseRuntimeHarness(settings, plan, settings.project_root)
+    plan = GooseReadonlyLaunchPlan(
+        target_name=manifest_data.get("target", {}).get("name", "builder"),
+        agent_profile=manifest_data.get("agent_profile", {}).get("name", "patch_planner"),
+    )
+    harness = GooseRuntimeHarness(settings, plan, settings.project_root)  # type: ignore[arg-type]
 
     try:
         receipt = harness.launch_readonly()
@@ -307,19 +314,40 @@ def start_readonly(
 def close_readonly(
     session_id: str = typer.Argument(..., help="Session ID to close"),
 ) -> None:
-    """Close a governed Goose read-only session and verify no-mutation postflight."""
-    settings = load_settings()
-    receipt_path = settings.project_root / ".builder" / "receipts" / f"{session_id}_launch.json"
+    """Report the close status of a governed Goose read-only session.
 
-    if not receipt_path.exists():
-        console.print(f"Launch receipt not found: {receipt_path}")
+    `start-readonly` already waits for Goose to exit and writes both the close receipt and the
+    no-mutation postflight before returning, so this command only matters for a session that was
+    forcefully detached from its `start-readonly` process. It cannot reconstruct that process's
+    in-memory preflight snapshot, so it never fabricates a postflight verdict for a detached
+    session — it reports the close receipt already on disk, or says plainly that none exists.
+    """
+    settings = load_settings()
+    receipts_dir = settings.project_root / ".builder" / "receipts"
+    launch_path = receipts_dir / f"{session_id}_launch.json"
+    close_path = receipts_dir / f"{session_id}_close.json"
+
+    if not launch_path.exists():
+        console.print(f"Launch receipt not found: {launch_path}")
         raise typer.Exit(1)
 
-    # We can't fully reconstruct the Harness state (PID, preflight snapshot),
-    # but the start-readonly naturally waits and closes.
-    # If the user explicitly calls close-readonly, we simulate a postflight error if it's already closed.
-    console.print("close-readonly is automatically handled by start-readonly termination.")
-    console.print("If a session was forcefully detached, it must be killed manually and postflight is invalid.")
+    if close_path.exists():
+        try:
+            close_receipt = json_lib.loads(close_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            console.print(f"Close receipt at {close_path} is unreadable: {e}")
+            raise typer.Exit(1) from e
+        console.print(f"Session {session_id} was already closed by start-readonly.")
+        console.print(f"Close receipt: {close_path}")
+        console.print(f"Exit code: {close_receipt.get('exit_code')}")
+        return
+
+    console.print(f"No close receipt found for session {session_id}; it did not exit through start-readonly.")
+    console.print(
+        "This process cannot reconstruct the original preflight snapshot, so it will not fabricate "
+        "a no-mutation verdict. Confirm the Goose process is stopped and inspect the target tree "
+        "manually (e.g. `git status`) before trusting it."
+    )
 
 
 @goose_app.command("env")

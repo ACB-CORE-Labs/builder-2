@@ -128,6 +128,51 @@ def test_start_readonly_fails_when_mutation_detected_in_postflight(monkeypatch: 
     assert "src/touched.py" in result.output
 
 
+def test_start_readonly_builds_launch_plan_from_manifest_fields(monkeypatch: Any, tmp_path: Path) -> None:
+    # Regression test for MockPlan removal: the named GooseReadonlyLaunchPlan must carry the
+    # manifest's actual target/agent-profile names through to GooseRuntimeHarness, not just the
+    # hardcoded defaults a throwaway mock happened to use.
+    monkeypatch.setattr(goose_cli, "load_settings", lambda *a, **k: _settings_at(tmp_path))
+    captured: dict[str, Any] = {}
+
+    class _RecordingHarness:
+        def __init__(self, settings: Any, plan: Any, target_root: Any) -> None:
+            captured["plan"] = plan
+            self._proc = None
+
+        def launch_readonly(self) -> dict[str, Any]:
+            return {"session_id": "goose_plan", "digest": "b" * 64}
+
+        def close(self, digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
+            return (
+                {"session_id": "goose_plan", "kind": "builder_ii.goose_close_receipt"},
+                {"valid": True, "mutations_detected": []},
+            )
+
+    monkeypatch.setattr(goose_cli, "GooseRuntimeHarness", _RecordingHarness)
+
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "kind": "builder_ii.goose_session_manifest",
+                "schema_version": 1,
+                "target": {"name": "core", "repo": ".", "description": "test"},
+                "agent_profile": {"name": "reviewer", "description": "test", "authority": "user"},
+                "task": "readonly session",
+                "requested_runtime_mode": "read_only",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(goose_app, ["start-readonly", str(manifest)])
+
+    assert result.exit_code == 0, result.output
+    assert captured["plan"].target_name == "core"
+    assert captured["plan"].agent_profile == "reviewer"
+
+
 # --- close-readonly lifecycle / interruption recovery messaging ---
 
 
@@ -147,5 +192,25 @@ def test_close_readonly_reports_lifecycle_when_launch_receipt_present(monkeypatc
     result = runner.invoke(goose_app, ["close-readonly", "goose_3"])
 
     assert result.exit_code == 0
-    # interruption recovery guidance for a forcefully-detached session
+    # interruption recovery guidance for a forcefully-detached session; no fabricated postflight
     assert "manually" in result.output.lower()
+    assert "cannot reconstruct" in result.output.lower()
+
+
+def test_close_readonly_reports_existing_close_receipt_when_already_closed(monkeypatch: Any, tmp_path: Path) -> None:
+    # A session that start-readonly already closed normally has a real close receipt on disk;
+    # close-readonly must surface it instead of printing the same detached-session guidance.
+    monkeypatch.setattr(goose_cli, "load_settings", lambda *a, **k: _settings_at(tmp_path))
+    receipts_dir = tmp_path / ".builder" / "receipts"
+    receipts_dir.mkdir(parents=True, exist_ok=True)
+    (receipts_dir / "goose_4_launch.json").write_text(json.dumps({"session_id": "goose_4"}), encoding="utf-8")
+    (receipts_dir / "goose_4_close.json").write_text(
+        json.dumps({"session_id": "goose_4", "kind": "builder_ii.goose_close_receipt", "exit_code": 0}),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(goose_app, ["close-readonly", "goose_4"])
+
+    assert result.exit_code == 0, result.output
+    assert "already closed" in result.output.lower()
+    assert "goose_4_close.json" in result.output
