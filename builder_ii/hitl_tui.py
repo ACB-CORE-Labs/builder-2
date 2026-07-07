@@ -4,7 +4,7 @@ Covers the full 8-slot chain binding pipeline:
   proposal → approval → preflight → request → receipt
   → postflight → verification → evidence_bundle
 
-Shares the 8-token palette and glyph contract from tui.py / agent_tui.py.
+Shares the 8-token palette and glyph contract from tui.py.
 
 All renderers:
   - exit 0 (success) or 1 (error/not-found)
@@ -45,7 +45,7 @@ from builder_ii.tui_contract import (
 )
 
 # ---------------------------------------------------------------------------
-# Palette — identical token names as tui.py / agent_tui.py
+# Palette — identical token names as tui.py
 # ---------------------------------------------------------------------------
 
 _IS_TTY = sys.stdout.isatty()

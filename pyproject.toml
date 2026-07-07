@@ -78,6 +78,7 @@ dev = [
     "ruff>=0.9.0",
     "mypy>=1.14.0",
     "bandit>=1.8.0",
+    "types-PyYAML",
 ]
 
 [tool.setuptools.packages.find]
@@ -87,6 +88,20 @@ include = ["builder_ii*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --tb=short"
+
+[tool.mypy]
+files = [
+    "builder_ii/command_authority.py",
+    "builder_ii/compliance.py",
+    "builder_ii/hitl_patch_apply.py",
+    "builder_ii/model_execution_gateway.py",
+    "builder_ii/readonly_authority.py",
+    "builder_ii/hitl_command_execution.py",
+    "builder_ii/hitl_patch_proposal.py",
+    "builder_ii/verification_execution_plan.py",
+    "builder_ii/tool_invocation_gateway.py",
+    "builder_ii/readonly_inspection_promotion.py",
+]
 
 [tool.ruff]
 line-length = 120

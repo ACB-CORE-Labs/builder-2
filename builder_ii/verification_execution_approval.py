@@ -9,6 +9,7 @@ from typing import Any
 from builder_ii.config_schema import attach_digest, digest_jsonable
 from builder_ii.target_profiles import target_names
 from builder_ii.verification_execution_plan import (
+    TARGET_CODE_EXECUTING_PROFILES,
     VERIFICATION_EXECUTION_PLAN_KIND,
     VERIFICATION_EXECUTION_PLAN_SCHEMA_VERSION,
     validate_verification_execution_plan_artifact,
@@ -16,7 +17,10 @@ from builder_ii.verification_execution_plan import (
 from builder_ii.verification_profiles import verification_profile_names
 
 VERIFICATION_EXECUTION_APPROVAL_KIND = "builder_ii.verification_execution_approval"
-VERIFICATION_EXECUTION_APPROVAL_SCHEMA_VERSION = 1
+# Schema v2 (D9 hard cut, in lockstep with the plan and receipt): adds the D7
+# execution-risk acknowledgment fields required when a target-code-executing profile
+# (pytest_full/builder_full) is approved.
+VERIFICATION_EXECUTION_APPROVAL_SCHEMA_VERSION = 2
 APPROVAL_MODE = "hitl_plan_digest_approval"
 
 REQUIRED_DISABLED_AUTHORITY: dict[str, str] = {
@@ -113,6 +117,22 @@ def _plan_step_ids(plan: dict[str, Any]) -> list[str]:
     return result
 
 
+def _safe_default(names: list[str]) -> list[str]:
+    """Drop target-code-executing profiles/steps from an auto-approval default.
+
+    A default approval (no explicit selection) approves only the safe builder-II-argv
+    profiles, so the safe verification lane never carries a risk acknowledgment it does
+    not need (D7 / craft-doctrine #3). Approving pytest_full/builder_full requires an
+    explicit selection plus the execution-risk acknowledgment.
+    """
+    return [name for name in names if name not in TARGET_CODE_EXECUTING_PROFILES]
+
+
+def _approves_target_code(approved_profiles: list[str], approved_steps: list[str]) -> bool:
+    selected = set(approved_profiles) | set(approved_steps)
+    return bool(selected & set(TARGET_CODE_EXECUTING_PROFILES))
+
+
 def _default_approval_scope() -> dict[str, Any]:
     return {
         "scope_kind": "plan_digest_binding_only",
@@ -131,6 +151,8 @@ def _approval_id_basis(
     approval_statement: str,
     approved_command_profiles: list[str],
     approved_step_ids: list[str],
+    execution_risk_acknowledged: bool,
+    acknowledged_risk: str | None,
 ) -> str:
     return digest_jsonable(
         {
@@ -141,6 +163,8 @@ def _approval_id_basis(
             "approval_statement": approval_statement,
             "approved_command_profiles": approved_command_profiles,
             "approved_step_ids": approved_step_ids,
+            "execution_risk_acknowledged": execution_risk_acknowledged,
+            "acknowledged_risk": acknowledged_risk,
             "approval_mode": APPROVAL_MODE,
         }
     )
@@ -158,15 +182,22 @@ def finalize_verification_execution_approval(
     approval_scope: dict[str, Any] | None = None,
     generated_at: str | None = None,
     expires_at: str | None = None,
+    execution_risk_acknowledged: bool = False,
+    acknowledged_risk: str | None = None,
 ) -> dict[str, Any]:
     plan_digest = str(plan.get("verification_execution_plan_digest", ""))
     generated = generated_at or _utc_now()
+    # A default (unselected) approval binds only the safe builder-II-argv profiles.
+    # Approving a target-code-executing profile requires an explicit selection plus the
+    # execution-risk acknowledgment (validated below and enforced by the bounded runner).
     selected_profiles = (
         list(approved_command_profiles)
         if approved_command_profiles is not None
-        else _plan_allowed_command_profiles(plan)
+        else _safe_default(_plan_allowed_command_profiles(plan))
     )
-    selected_steps = list(approved_step_ids) if approved_step_ids is not None else _plan_step_ids(plan)
+    selected_steps = (
+        list(approved_step_ids) if approved_step_ids is not None else _safe_default(_plan_step_ids(plan))
+    )
     statement = approval_statement or (
         f"Human approval binds only to verification execution plan digest {plan_digest} for future B1.3 runner consideration."
     )
@@ -183,6 +214,8 @@ def finalize_verification_execution_approval(
             approval_statement=statement,
             approved_command_profiles=selected_profiles,
             approved_step_ids=selected_steps,
+            execution_risk_acknowledged=bool(execution_risk_acknowledged),
+            acknowledged_risk=acknowledged_risk,
         ),
         "approval_mode": APPROVAL_MODE,
         "approved": True,
@@ -205,6 +238,12 @@ def finalize_verification_execution_approval(
         "approval_enables_execution": False,
         "artifact_is_authority": False,
         "requires_b1_3_runner": True,
+        # D7 execution-risk acknowledgment. Required (True + non-empty acknowledged_risk)
+        # only when a target-code-executing profile is approved; the ack authorizes
+        # nothing on its own -- it records that the operator understood the profile runs
+        # the target repo's own code on this host before the runner would ever spawn it.
+        "execution_risk_acknowledged": bool(execution_risk_acknowledged),
+        "acknowledged_risk": acknowledged_risk,
         "disabled_authority": dict(REQUIRED_DISABLED_AUTHORITY),
         "errors": [],
         "valid": True,
@@ -289,6 +328,51 @@ def _scan_approval_text(value: Any, path: str) -> list[str]:
     return errors
 
 
+def _scan_ack_text(value: str, path: str) -> list[str]:
+    """Scan the human execution-risk acknowledgment for injection separators and authority claims.
+
+    Unlike the general approval-text scan, this deliberately does NOT reject raw-command
+    words: an honest acknowledgment must be free to name the test runner (e.g. "pytest")
+    and imported "conftest"/plugin code (D7). The ack is a stored consent string, never
+    an executed command, so it is guarded only against shell-injection separators and
+    forbidden-authority claims.
+    """
+    errors: list[str] = []
+    for token in FORBIDDEN_SHELL_TOKENS:
+        if token in value:
+            errors.append(f"{path} contains forbidden shell separator or injection token {token!r}")
+    if _claims_forbidden_authority(value):
+        errors.append(f"{path} claims forbidden authority")
+    return errors
+
+
+def _validate_execution_risk_acknowledgment(data: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    ack = data.get("execution_risk_acknowledged")
+    acknowledged_risk = data.get("acknowledged_risk")
+    if not isinstance(ack, bool):
+        errors.append("execution_risk_acknowledged must be a boolean")
+    if acknowledged_risk is not None and not _is_non_empty_string(acknowledged_risk):
+        errors.append("acknowledged_risk must be null or a non-empty string")
+
+    approved_profiles = [p for p in (data.get("approved_command_profiles") or []) if isinstance(p, str)]
+    approved_steps = [s for s in (data.get("approved_step_ids") or []) if isinstance(s, str)]
+    if _approves_target_code(approved_profiles, approved_steps):
+        if ack is not True:
+            errors.append(
+                "execution_risk_acknowledged must be true when a target-code-executing profile "
+                "(pytest_full/builder_full) is approved"
+            )
+        if not _is_non_empty_string(acknowledged_risk):
+            errors.append(
+                "acknowledged_risk must name the target-code execution risk when a "
+                "target-code-executing profile is approved"
+            )
+    if isinstance(acknowledged_risk, str):
+        errors.extend(_scan_ack_text(acknowledged_risk, "acknowledged_risk"))
+    return errors
+
+
 def _validate_approval_scope(scope: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(scope, dict):
@@ -361,6 +445,7 @@ def validate_verification_execution_approval_artifact(data: Any) -> list[str]:
     if data.get("requires_b1_3_runner") is not True:
         errors.append("requires_b1_3_runner must be true")
 
+    errors.extend(_validate_execution_risk_acknowledgment(data))
     errors.extend(_validate_disabled_authority(data))
     errors.extend(_scan_approval_text(data.get("approval_statement"), "approval_statement"))
     errors.extend(_scan_approval_text(data.get("approval_reason"), "approval_reason"))

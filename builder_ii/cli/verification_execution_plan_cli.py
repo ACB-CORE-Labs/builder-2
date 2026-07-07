@@ -17,6 +17,7 @@ from builder_ii.verification_execution_approval import (
     write_verification_execution_approval,
 )
 from builder_ii.verification_execution_plan import (
+    TARGET_CODE_EXECUTING_PROFILES,
     dumps_verification_execution_plan,
     finalize_verification_execution_plan,
     validate_verification_execution_plan_artifact,
@@ -98,12 +99,33 @@ def validate_plan(
         raise typer.Exit(1)
 
 
+_DEFAULT_ACKNOWLEDGED_RISK = (
+    "Operator acknowledges that the approved verification profile executes the target repository's "
+    "own code, including transitively imported configuration and plugin code, on this host with the "
+    "operator's privileges."
+)
+
+
 @verify_app.command("approve-plan")
 def approve_plan(
     plan_path: Path = typer.Argument(..., help="Path to a passive verification execution plan JSON artifact"),
     approval_actor: str = typer.Option(..., "--approval-actor", help="Human operator approving the plan digest"),
     approval_reason: str = typer.Option(..., "--approval-reason", help="Reason for the digest-bound approval"),
     output: Path = typer.Option(..., "--output", help="Explicit JSON approval artifact path to write"),
+    profile: list[str] = typer.Option(
+        [],
+        "--profile",
+        help="Command profile(s) to approve (repeatable). Default: all safe profiles in the plan.",
+    ),
+    acknowledge_execution_risk: bool = typer.Option(
+        False,
+        "--acknowledge-execution-risk",
+        help="Acknowledge that an approved target-code profile (pytest_full/builder_full) runs the "
+        "target repo's own code on this host. Required to approve such a profile.",
+    ),
+    acknowledged_risk: str = typer.Option(
+        "", "--acknowledged-risk", help="Custom acknowledgment wording (defaults to the canonical statement)."
+    ),
 ) -> None:
     """Emit a HITL approval artifact bound to an exact passive verification execution plan digest."""
     plan_errors = validate_verification_execution_plan_file(plan_path)
@@ -112,11 +134,37 @@ def approve_plan(
         raise typer.Exit(1)
 
     plan = _read_json_object(plan_path)
+    selected = list(profile) or None
+    target_code_selected = [name for name in (selected or []) if name in TARGET_CODE_EXECUTING_PROFILES]
+
+    ack_flag = False
+    ack_text: str | None = None
+    if target_code_selected:
+        # D7 approve-time prompt: state plainly what a target-code profile does before approving it.
+        console.print(
+            f"[bold yellow]Execution-risk notice[/bold yellow]: profile(s) "
+            f"{', '.join(target_code_selected)} run the target repository's own code. pytest imports "
+            "and executes the target repo's conftest.py, plugins, and test modules on THIS host with "
+            "your user privileges. This bounds invocation, not code behavior -- it is not a sandbox."
+        )
+        if not acknowledge_execution_risk:
+            console.print(
+                "Refusing to approve a target-code profile without acknowledgment. "
+                "Re-run with --acknowledge-execution-risk to proceed."
+            )
+            raise typer.Exit(1)
+        ack_flag = True
+        ack_text = acknowledged_risk.strip() or _DEFAULT_ACKNOWLEDGED_RISK
+
     artifact = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
         approval_actor=approval_actor,
         approval_reason=approval_reason,
+        approved_command_profiles=selected,
+        approved_step_ids=selected,
+        execution_risk_acknowledged=ack_flag,
+        acknowledged_risk=ack_text,
     )
     errors = validate_verification_execution_approval_artifact(artifact)
     errors.extend(validate_verification_execution_approval_against_plan(artifact, plan))

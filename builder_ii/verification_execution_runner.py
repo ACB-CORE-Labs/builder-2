@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json as json_lib
 import os
 import subprocess
 import sys
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 from builder_ii.command_authority import (
@@ -24,7 +25,13 @@ from builder_ii.verification_execution_approval import (
     validate_verification_execution_approval_against_plan,
     validate_verification_execution_approval_artifact,
 )
-from builder_ii.verification_execution_plan import validate_verification_execution_plan_artifact
+from builder_ii.verification_execution_plan import (
+    MAX_TIMEOUT_SECONDS,
+    MIN_TIMEOUT_SECONDS,
+    TARGET_CODE_EXECUTING_PROFILES,
+    plan_timeout_for_profile,
+    validate_verification_execution_plan_artifact,
+)
 from builder_ii.verification_execution_receipt import (
     RUNNER_MODE_BOUNDED_APPROVED,
     SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
@@ -63,7 +70,29 @@ class BoundedCommandProfile:
     step_id: str
     command_profile_ref: str
     argv: tuple[str, ...]
-    timeout_seconds: int
+    # Code-level ceiling on the effective timeout. The effective timeout is the plan's
+    # per-profile timeout (D7), clamped to this ceiling and to [1, 1800]s -- so even an
+    # over-large approved plan can never make a fast profile hang the runner.
+    timeout_ceiling_seconds: int
+    # Ignore-globs pinned inside the fixed profile (never caller-supplied). Paths matching
+    # these that change during the run are recorded as observed byproducts rather than
+    # counted as workspace mutation -- but they are always recorded, never hidden.
+    byproduct_ignore_globs: tuple[str, ...] = ()
+
+
+# pytest leaves cache/bytecode droppings even with -p no:cacheprovider + PYTHONDONTWRITEBYTECODE;
+# these are pinned in-profile so a real source mutation is never masked by an over-broad ignore.
+# Deliberately narrow: root-anchored `.pytest_cache`/`.coverage` (pytest/coverage write these at
+# rootdir only), and bytecode strictly under `__pycache__` or with a `.pyc`/`.pyo` suffix at any
+# depth. A same-named directory buried elsewhere (e.g. notes/.pytest_cache/*) is NOT excused.
+_PYTEST_BYPRODUCT_IGNORE_GLOBS: tuple[str, ...] = (
+    ".pytest_cache",
+    ".pytest_cache/*",
+    "**/__pycache__/*",
+    "**/*.pyc",
+    "**/*.pyo",
+    ".coverage",
+)
 
 
 SUPPORTED_COMMAND_PROFILES: dict[str, BoundedCommandProfile] = {
@@ -72,14 +101,30 @@ SUPPORTED_COMMAND_PROFILES: dict[str, BoundedCommandProfile] = {
         step_id="platform_status",
         command_profile_ref="verification_profiles.builder_full.platform_status",
         argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "platform-status"),
-        timeout_seconds=30,
+        timeout_ceiling_seconds=120,
     ),
     "docs_audit": BoundedCommandProfile(
         profile="docs_audit",
         step_id="docs_audit",
         command_profile_ref="verification_profiles.builder_full.docs_audit",
         argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "docs-audit"),
-        timeout_seconds=30,
+        timeout_ceiling_seconds=120,
+    ),
+    "pytest_full": BoundedCommandProfile(
+        profile="pytest_full",
+        step_id="pytest_full",
+        command_profile_ref="verification_profiles.builder_full.pytest_full",
+        argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "pytest-full"),
+        timeout_ceiling_seconds=MAX_TIMEOUT_SECONDS,
+        byproduct_ignore_globs=_PYTEST_BYPRODUCT_IGNORE_GLOBS,
+    ),
+    "builder_full": BoundedCommandProfile(
+        profile="builder_full",
+        step_id="builder_full",
+        command_profile_ref="verification_profiles.builder_full.builder_full",
+        argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "builder-full"),
+        timeout_ceiling_seconds=MAX_TIMEOUT_SECONDS,
+        byproduct_ignore_globs=_PYTEST_BYPRODUCT_IGNORE_GLOBS,
     ),
 }
 
@@ -127,6 +172,9 @@ def _minimal_env(target_repo: Path) -> dict[str, str]:
             "CORE_REPO_PATH": ".",
             "PYTHONUNBUFFERED": "1",
             "PYTHONPATH": str(target_repo),
+            # Suppress __pycache__/*.pyc so a pytest run does not create bytecode byproducts
+            # that would otherwise register as workspace changes.
+            "PYTHONDONTWRITEBYTECODE": "1",
         }
     )
     return env
@@ -151,9 +199,37 @@ def _validate_fixed_profile(profile: BoundedCommandProfile) -> list[str]:
                 errors.append(f"fixed argv[{index}] contains forbidden shell token {token!r}")
     if any(item in {"-c", "--command"} for item in profile.argv):
         errors.append("fixed argv must not use python -c or command-string forms")
-    if profile.timeout_seconds <= 0:
-        errors.append("timeout_seconds must be positive")
+    if profile.timeout_ceiling_seconds <= 0:
+        errors.append("timeout_ceiling_seconds must be positive")
     return errors
+
+
+def _git_commit_identity(target_repo: Path) -> tuple[str | None, str | None]:
+    """Return (head_sha, branch) for the target repo, or (None, None) if not a git repo.
+
+    A single `git rev-parse HEAD --abbrev-ref HEAD` yields the full HEAD SHA on line 1 and
+    the branch short-name (or "HEAD" when detached) on line 2. Failures degrade to None so a
+    non-git target still produces a valid receipt (with null commit identity) rather than
+    crashing the runner.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD", "--abbrev-ref", "HEAD"],
+            cwd=target_repo,
+            env=_minimal_env(target_repo),
+            capture_output=True,
+            text=True,
+            timeout=GIT_STATUS_TIMEOUT_SECONDS,
+            shell=False,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return None, None
+    if result.returncode != 0:
+        return None, None
+    lines = result.stdout.splitlines()
+    head_sha = lines[0].strip() if lines else ""
+    branch = lines[1].strip() if len(lines) > 1 else ""
+    return (head_sha or None), (branch or None)
 
 
 def _git_state(target_repo: Path, label: str) -> dict[str, Any]:
@@ -179,6 +255,7 @@ def _git_state(target_repo: Path, label: str) -> dict[str, Any]:
             "captured": False,
             "error": f"git status failed: {exc}",
         }
+    head_sha, branch = _git_commit_identity(target_repo)
     return {
         "state_label": label,
         "captured": result.returncode == 0,
@@ -186,22 +263,96 @@ def _git_state(target_repo: Path, label: str) -> dict[str, Any]:
         "porcelain_sha256": _sha256_text(result.stdout),
         "porcelain_lines": result.stdout.splitlines(),
         "stderr_sha256": _sha256_text(result.stderr),
+        "head_sha": head_sha,
+        "branch": branch,
     }
 
 
-def _state_fingerprint(state: dict[str, Any]) -> tuple[Any, ...]:
-    return (
-        state.get("captured"),
-        state.get("returncode"),
-        state.get("porcelain_sha256"),
-        tuple(state.get("porcelain_lines") or []),
-    )
+def _is_non_empty(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _porcelain_line_path(line: str) -> str:
+    """Extract the file path from a `git status --porcelain=v1` line (handles renames/quoting)."""
+    if len(line) < 4:
+        return line.strip().strip('"')
+    status = line[:2]
+    remainder = line[3:]
+    # git only emits 'ORIG -> NEW' for rename/copy status codes (R/C). Gating on the status
+    # prevents an attacker-named untracked file like `evil.py -> shadow.pyc` from being
+    # mis-parsed down to its post-arrow segment.
+    if ("R" in status or "C" in status) and " -> " in remainder:
+        remainder = remainder.split(" -> ", 1)[1]
+    return remainder.strip().strip('"')
+
+
+def _path_matches_glob(path: str, glob: str) -> bool:
+    normalized = path.strip().strip('"')
+    pure = PurePosixPath(normalized)
+    if glob.startswith("**/"):  # match the tail at any depth
+        tail = glob[3:]
+        return any(fnmatch.fnmatch("/".join(pure.parts[index:]), tail) for index in range(len(pure.parts)))
+    if "/" in glob:  # root-anchored directory prefix, e.g. ".pytest_cache/*"
+        return fnmatch.fnmatch(normalized, glob)
+    # bare token: match only a single-segment entry at the repo root, never a same-named
+    # component buried at depth (so `notes/.pytest_cache/backdoor.py` is a mutation, not a byproduct).
+    return "/" not in normalized and fnmatch.fnmatch(normalized, glob)
+
+
+def _is_ignored_byproduct(path: str, ignore_globs: tuple[str, ...]) -> bool:
+    return any(_path_matches_glob(path, glob) for glob in ignore_globs)
+
+
+def _head_changed(preflight: dict[str, Any], postflight: dict[str, Any]) -> bool:
+    pre = preflight.get("head_sha")
+    post = postflight.get("head_sha")
+    # A None (non-git target, or capture failure) must never fabricate a mutation.
+    if pre is None or post is None:
+        return False
+    return pre != post
+
+
+def _partition_workspace_changes(
+    preflight: dict[str, Any], postflight: dict[str, Any], ignore_globs: tuple[str, ...]
+) -> tuple[list[str], list[str], bool]:
+    """Split the pre/post porcelain delta into recorded byproducts vs. real mutations.
+
+    Returns (observed_byproducts, mutation_paths, head_changed). A byproduct matches the
+    profile's pinned ignore-globs; anything else is a genuine workspace mutation. A HEAD
+    SHA change (a commit made during the run) is always a mutation, never ignorable.
+    """
+    pre_lines = set(preflight.get("porcelain_lines") or [])
+    post_lines = set(postflight.get("porcelain_lines") or [])
+    changed_lines = (post_lines - pre_lines) | (pre_lines - post_lines)
+    changed_paths = sorted({path for line in changed_lines if (path := _porcelain_line_path(line))})
+    byproducts = [path for path in changed_paths if _is_ignored_byproduct(path, ignore_globs)]
+    mutations = [path for path in changed_paths if not _is_ignored_byproduct(path, ignore_globs)]
+    return byproducts, mutations, _head_changed(preflight, postflight)
+
+
+def _resolve_effective_timeout(plan: dict[str, Any], profile: BoundedCommandProfile) -> tuple[int, list[str]]:
+    """Resolve the effective subprocess timeout from the approved plan (D7), fail-closed on drift.
+
+    The timeout is the plan's per-profile declaration, range-checked to [1, 1800]s and then
+    clamped to the profile's code-level ceiling. There is no silent default: a missing or
+    out-of-range plan timeout is an error that blocks execution.
+    """
+    declared = plan_timeout_for_profile(plan, profile.profile)
+    if declared is None:
+        return 0, [f"plan does not declare a timeout_seconds for profile {profile.profile}"]
+    if declared < MIN_TIMEOUT_SECONDS or declared > MAX_TIMEOUT_SECONDS:
+        return 0, [
+            f"plan timeout_seconds for profile {profile.profile} must be within "
+            f"[{MIN_TIMEOUT_SECONDS}, {MAX_TIMEOUT_SECONDS}] seconds"
+        ]
+    return min(declared, profile.timeout_ceiling_seconds), []
 
 
 def _process_result_from_completed(
     *,
     profile: BoundedCommandProfile,
     completed: subprocess.CompletedProcess[str],
+    effective_timeout: int,
     timed_out: bool = False,
 ) -> dict[str, Any]:
     stdout_excerpt, stdout_truncated = _excerpt(completed.stdout or "")
@@ -215,7 +366,7 @@ def _process_result_from_completed(
         "command_profile_ref": profile.command_profile_ref,
         "status": status,
         "returncode": completed.returncode,
-        "timeout_seconds": profile.timeout_seconds,
+        "timeout_seconds": effective_timeout,
         "shell": False,
         "argv_digest": _sha256_text(json_lib.dumps(list(profile.argv), sort_keys=True)),
         "stdout_sha256": _sha256_text(completed.stdout or ""),
@@ -323,7 +474,7 @@ def _receipt_for_block(
 def create_verification_runner_postflight(
     *, receipt: dict[str, Any], receipt_path: Path, plan_path: Path, approval_path: Path
 ) -> dict[str, Any]:
-    postflight = {
+    postflight: dict[str, Any] = {
         "kind": "builder_ii.execution_postflight_record",
         "schema_version": 1,
         "target": {
@@ -443,6 +594,23 @@ def run_approved_verification(
         if not isinstance(approved_steps, list) or profile.step_id not in approved_steps:
             errors.append("requested step id is not approved by approval artifact")
 
+    # D7 execution-risk acknowledgment + plan-sourced timeout. Both are resolved before any
+    # subprocess is spawned; a target-code profile without an acknowledged approval, or a
+    # missing/out-of-range plan timeout, blocks fail-closed.
+    effective_timeout = 0
+    if profile is not None:
+        if profile.profile in TARGET_CODE_EXECUTING_PROFILES and (
+            approval.get("execution_risk_acknowledged") is not True
+            or not _is_non_empty(approval.get("acknowledged_risk"))
+        ):
+            errors.append(
+                f"execution-risk acknowledgment required before running target-code profile "
+                f"{profile.profile}: the approval must set execution_risk_acknowledged=true with a "
+                "non-empty acknowledged_risk statement"
+            )
+        effective_timeout, timeout_errors = _resolve_effective_timeout(plan, profile)
+        errors.extend(timeout_errors)
+
     if errors or profile is None:
         return _receipt_for_block(
             plan=plan,
@@ -479,10 +647,12 @@ def run_approved_verification(
             env=_minimal_env(target_repo),
             capture_output=True,
             text=True,
-            timeout=profile.timeout_seconds,
+            timeout=effective_timeout,
             shell=False,
         )
-        process_result = _process_result_from_completed(profile=profile, completed=completed)
+        process_result = _process_result_from_completed(
+            profile=profile, completed=completed, effective_timeout=effective_timeout
+        )
     except subprocess.TimeoutExpired as exc:
         completed = subprocess.CompletedProcess(
             args=list(profile.argv),
@@ -490,10 +660,18 @@ def run_approved_verification(
             stdout=exc.stdout if isinstance(exc.stdout, str) else "",
             stderr=exc.stderr if isinstance(exc.stderr, str) else "verification command timed out",
         )
-        process_result = _process_result_from_completed(profile=profile, completed=completed, timed_out=True)
+        process_result = _process_result_from_completed(
+            profile=profile, completed=completed, effective_timeout=effective_timeout, timed_out=True
+        )
 
     postflight = _git_state(target_repo, "postflight")
-    workspace_mutation_detected = _state_fingerprint(preflight) != _state_fingerprint(postflight)
+    # A postflight git-state that could not be captured is itself evidence the run damaged the
+    # repository (target code can delete/corrupt .git); treat it as a mutation, never fail-open.
+    postflight_capture_failed = postflight.get("captured") is not True
+    observed_byproducts, mutation_paths, head_changed = _partition_workspace_changes(
+        preflight, postflight, profile.byproduct_ignore_globs
+    )
+    workspace_mutation_detected = bool(mutation_paths) or head_changed or postflight_capture_failed
     receipt_status = "EXECUTED" if process_result["status"] == "success" else "FAILED"
     receipt = finalize_verification_execution_receipt(
         plan=plan,
@@ -516,11 +694,26 @@ def run_approved_verification(
         workspace_mutation_detected=workspace_mutation_detected,
         execution_enabled=True,
         subprocess_mode=SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
+        target_commit=preflight.get("head_sha"),
+        target_branch=preflight.get("branch"),
+        observed_byproducts=observed_byproducts,
+        execution_risk_acknowledged=bool(approval.get("execution_risk_acknowledged")),
+        acknowledged_risk=(
+            approval.get("acknowledged_risk") if isinstance(approval.get("acknowledged_risk"), str) else None
+        ),
     )
     receipt["command_authority_decision"] = authority_decision.to_evidence()
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     if workspace_mutation_detected:
-        receipt["errors"] = list(dict.fromkeys(list(receipt.get("errors") or []) + ["workspace mutation detected"]))
+        detail_parts = list(mutation_paths)
+        if head_changed:
+            detail_parts.append("HEAD changed")
+        if postflight_capture_failed:
+            detail_parts.append("postflight git state could not be captured")
+        detail = "; ".join(detail_parts) or "unspecified change"
+        receipt["errors"] = list(
+            dict.fromkeys(list(receipt.get("errors") or []) + [f"workspace mutation detected: {detail}"])
+        )
         receipt["valid"] = False
         receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
 

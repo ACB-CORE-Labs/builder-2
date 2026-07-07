@@ -77,8 +77,10 @@ def create_goose_command_proposal(
     verification_refs: tuple[str, ...] | list[str] | None = None,
 ) -> dict[str, Any]:
     """Create a proposed command artifact without executing the command."""
-    target = manifest.get("target") if isinstance(manifest.get("target"), dict) else {}
-    agent = manifest.get("agent_profile") if isinstance(manifest.get("agent_profile"), dict) else {}
+    target_raw = manifest.get("target")
+    target: dict[str, Any] = target_raw if isinstance(target_raw, dict) else {}
+    agent_raw = manifest.get("agent_profile")
+    agent: dict[str, Any] = agent_raw if isinstance(agent_raw, dict) else {}
     clean_command = _clean_text(command)
     return {
         "kind": GOOSE_COMMAND_PROPOSAL_KIND,
