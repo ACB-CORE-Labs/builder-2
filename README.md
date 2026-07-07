@@ -196,7 +196,7 @@ See [`docs/DEEPAGENTS_FORGE.md`](docs/DEEPAGENTS_FORGE.md) for the full guide.
 - **Ollama (Local Network)**: Complete integration with the Ollama daemon for running lightweight candidates like `gemma4:e4b`, `qwen3.5:2b`, and `ibm/granite4.1:3b` entirely offline.
 
 ### Cloud Egress & Enterprise Execution
-- **Google Vertex AI**: Rock-solid, enterprise-grade integration with Google Cloud Vertex AI using `global` openapi routing. Flawlessly supports `gemini-3.5-flash`, `gemini-3.1-pro-preview`, and the full Gemini reasoning stack securely through ADC (Application Default Credentials).
+- **Google Vertex AI**: Governed integration with Google Cloud Vertex AI using `global` openapi routing. Supports `gemini-3.5-flash`, `gemini-3.1-pro-preview`, and the full Gemini reasoning stack through ADC (Application Default Credentials).
 - **Groq & xAI**: Out-of-the-box support for lightning-fast API endpoints routing ultra-heavy frontier models (`Llama-3.3-70b-specdec`, `Grok-4.3`, `gpt-oss-120b`).
 
 Every single backend is automatically governed by `builder-II`'s policy engine, assigning explicit routing rules, `local_network` / `cloud_egress` isolation envelopes, and dynamic tool-use capabilities to each model.
