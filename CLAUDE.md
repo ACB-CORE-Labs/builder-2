@@ -16,6 +16,18 @@ The load-bearing distinctions the whole codebase enforces: **planned ≠ execute
 
 Primary hardware target is an Apple Silicon M1 with 16GB unified memory — keep local model footprints in the ~2–7GB range (see `docs/model_role_matrix.md`); heavier lanes are explicit opt-in candidates, not defaults.
 
+## Reasoning & problem-solving discipline
+
+For non-trivial design/R&D work — anything touching a load-bearing module (`command_authority.py`, `platform_completion_audit.py`, the verification/HITL lanes, promotion docs) or crossing a promotion boundary — work in this order (full version and rationale in `AGENTS.md` §6):
+
+1. **Read the code first** — never reason from a file name or structure; trace imports/call sites and identify the invariant the module protects.
+2. **Find the shape** — name the repeating structure before solving. The recurring one here is *build `kind`-tagged artifact → finalize/digest → paired `validate-*` → downstream consumes*; duplication is a symptom of an unnamed shape.
+3. **Rank by leverage** (structural load removed ÷ effort) and do the high-leverage work first — not the easy work first.
+4. **Enumerate every change precisely** — file, reason, and a commit message that reflects it; no "refactor"/"cleanup" on load-bearing modules.
+5. **Prove against a real claim, not "tests pass"** — name the pinned assertion (a `platform_completion_audit.py` matrix row, a `test_platform_completion_truth.py` / `test_docs_truth_enforcement.py` pin, a `docs/CAPABILITY_PROMOTION.md` state, or a digest-bound artifact + `validate-*` lane) and the exact command that verifies it (smallest `uv run pytest …`, plus `builder-platform audit-docs`/`matrix` when docs/matrix change). No covering lane = a finding.
+6. **Tie it to the governance model** — state which distinction it strengthens (**planned ≠ executed ≠ verified ≠ promoted**, **artifact ≠ authority**, **model output ≠ approval**) and whether it crosses a promotion boundary (which needs the eight gates + an evidence-backed matrix flip, never docs alone). builder-II has no internal cognition pipeline to map onto — this governance grammar is its model.
+7. **Commit with discipline** — confirm branch, branch from `main`, PR via `tea` (never `gh`/`github.com`, never direct-to-`main`), run the smallest CI slice that proves the change.
+
 ## Commands
 
 Environment is managed with `uv` (Python 3.12.13, locked via `uv.lock`).
