@@ -156,6 +156,92 @@ def test_builder_verify_approve_plan_fails_on_invalid_plan(tmp_path: Path) -> No
     assert not approval_path.exists()
 
 
+def test_approve_plan_target_code_profile_without_ack_is_refused(tmp_path: Path) -> None:
+    plan_path = tmp_path / "verification-execution-plan.json"
+    _write_plan(plan_path)
+    approval_path = tmp_path / "verification-execution-approval.json"
+
+    result = runner.invoke(
+        verify_app,
+        [
+            "approve-plan",
+            str(plan_path),
+            "--approval-actor",
+            "Joshua Shay",
+            "--approval-reason",
+            "Approve the full test-suite lane.",
+            "--output",
+            str(approval_path),
+            "--profile",
+            "pytest_full",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Execution-risk notice" in result.output
+    assert not approval_path.exists(), "no approval may be written without the acknowledgment"
+
+
+def test_approve_plan_target_code_profile_with_ack_writes_acknowledged_approval(tmp_path: Path) -> None:
+    plan_path = tmp_path / "verification-execution-plan.json"
+    plan = _write_plan(plan_path)
+    approval_path = tmp_path / "verification-execution-approval.json"
+
+    result = runner.invoke(
+        verify_app,
+        [
+            "approve-plan",
+            str(plan_path),
+            "--approval-actor",
+            "Joshua Shay",
+            "--approval-reason",
+            "Approve the full test-suite lane.",
+            "--output",
+            str(approval_path),
+            "--profile",
+            "pytest_full",
+            "--acknowledge-execution-risk",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    written = json.loads(approval_path.read_text(encoding="utf-8"))
+    assert written["approved_command_profiles"] == ["pytest_full"]
+    assert written["approved_step_ids"] == ["pytest_full"]
+    assert written["execution_risk_acknowledged"] is True
+    assert written["acknowledged_risk"]
+    assert validate_verification_execution_approval_artifact(written) == []
+    assert validate_verification_execution_approval_against_plan(written, plan) == []
+
+
+def test_approve_plan_safe_profile_needs_no_ack(tmp_path: Path) -> None:
+    plan_path = tmp_path / "verification-execution-plan.json"
+    _write_plan(plan_path)
+    approval_path = tmp_path / "verification-execution-approval.json"
+
+    result = runner.invoke(
+        verify_app,
+        [
+            "approve-plan",
+            str(plan_path),
+            "--approval-actor",
+            "Joshua Shay",
+            "--approval-reason",
+            "Approve the safe platform status profile.",
+            "--output",
+            str(approval_path),
+            "--profile",
+            "platform_status",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    written = json.loads(approval_path.read_text(encoding="utf-8"))
+    assert written["approved_command_profiles"] == ["platform_status"]
+    assert written["execution_risk_acknowledged"] is False
+    assert "Execution-risk notice" not in result.output
+
+
 def test_approval_commands_write_only_requested_artifact_and_validation_is_read_only(tmp_path: Path) -> None:
     plan_path = tmp_path / "verification-execution-plan.json"
     _write_plan(plan_path)

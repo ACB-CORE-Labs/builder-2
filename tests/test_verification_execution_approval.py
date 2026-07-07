@@ -154,6 +154,68 @@ def test_patch_model_mcp_goose_deepagents_overclaim_fails() -> None:
         assert any("claims forbidden authority" in error for error in errors), text
 
 
+def test_default_approval_excludes_target_code_profiles() -> None:
+    approval = _sample_approval()
+    # A default (unselected) approval binds only the safe builder-II-argv profiles.
+    assert "pytest_full" not in approval["approved_command_profiles"]
+    assert "builder_full" not in approval["approved_command_profiles"]
+    assert "platform_status" in approval["approved_command_profiles"]
+    assert approval["execution_risk_acknowledged"] is False
+    assert approval["acknowledged_risk"] is None
+
+
+def test_approving_target_code_profile_without_ack_fails() -> None:
+    plan = _sample_plan()
+    approval = finalize_verification_execution_approval(
+        plan=plan,
+        plan_path="/tmp/verification-execution-plan.json",
+        approval_actor="Joshua Shay",
+        approval_reason="Approve the full test-suite lane.",
+        approved_command_profiles=["pytest_full"],
+        approved_step_ids=["pytest_full"],
+        generated_at="2026-06-30T00:00:01+00:00",
+    )
+    assert approval["valid"] is False
+    errors = validate_verification_execution_approval_artifact(approval)
+    assert any("execution_risk_acknowledged must be true" in error for error in errors)
+    assert any("acknowledged_risk must name" in error for error in errors)
+
+
+def test_approving_target_code_profile_with_ack_validates() -> None:
+    plan = _sample_plan()
+    approval = finalize_verification_execution_approval(
+        plan=plan,
+        plan_path="/tmp/verification-execution-plan.json",
+        approval_actor="Joshua Shay",
+        approval_reason="Approve the full test-suite lane.",
+        approved_command_profiles=["pytest_full"],
+        approved_step_ids=["pytest_full"],
+        execution_risk_acknowledged=True,
+        acknowledged_risk="Operator acknowledges the target repo's own test and conftest code runs on this host.",
+        generated_at="2026-06-30T00:00:01+00:00",
+    )
+    assert approval["valid"] is True
+    assert validate_verification_execution_approval_artifact(approval) == []
+    assert validate_verification_execution_approval_against_plan(approval, plan) == []
+
+
+def test_acknowledged_risk_rejects_shell_injection_tokens() -> None:
+    plan = _sample_plan()
+    approval = finalize_verification_execution_approval(
+        plan=plan,
+        plan_path="/tmp/verification-execution-plan.json",
+        approval_actor="Joshua Shay",
+        approval_reason="Approve the full test-suite lane.",
+        approved_command_profiles=["pytest_full"],
+        approved_step_ids=["pytest_full"],
+        execution_risk_acknowledged=True,
+        acknowledged_risk="runs code && rm -rf things",
+        generated_at="2026-06-30T00:00:01+00:00",
+    )
+    errors = validate_verification_execution_approval_artifact(approval)
+    assert any("forbidden shell separator" in error for error in errors)
+
+
 def test_file_validation_round_trip(tmp_path: Path) -> None:
     approval = _sample_approval()
     output = tmp_path / "verification-execution-approval.json"
