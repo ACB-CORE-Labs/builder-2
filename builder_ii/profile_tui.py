@@ -12,7 +12,7 @@ And cross-cutting concerns:
   • profile resolution chain
   • pack history (all packs discovered under .builder/)
 
-Shares the palette/glyph/theme contract from tui.py / agent_tui.py / hitl_tui.py.
+Shares the palette/glyph/theme contract from tui.py / hitl_tui.py.
 
 Command surface
 ---------------
@@ -57,7 +57,7 @@ from builder_ii.tui_contract import (
 )
 
 # ---------------------------------------------------------------------------
-# Palette — theme-aware, shares contract with tui.py / agent_tui.py / hitl_tui.py
+# Palette — theme-aware, shares contract with tui.py / hitl_tui.py
 # ---------------------------------------------------------------------------
 
 _IS_TTY = sys.stdout.isatty()

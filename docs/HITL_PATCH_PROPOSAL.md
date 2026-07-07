@@ -4,7 +4,7 @@
 
 builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
 
-This document is the **design specification** for a future Human-In-The-Loop (HITL) patch proposal and application path. In its current phase (`DESIGN_ONLY`) all patch-application and runtime capabilities remain strictly inactive. No patches are applied by any current code path.
+This document specifies the Human-In-The-Loop (HITL) patch proposal and application path. The proposal, approval, application, and rollback mechanics described below are implemented and execute for real against a target repository (`builder-hitl propose-patch` / `approve-patch` / `apply-patch` / `rollback`), gated at every step by an explicit digest-bound approval artifact, a clean target working tree, and command-authority enforcement (`enforce_command_authority`) checked before any I/O. Code executing under strict HITL gates is not the same as the platform declaring the capability promoted: the completion-plan matrix still tracks this capability as `MERGED_BUT_NOT_OPERATIONAL` (candidate tier `hitl_runtime_candidate`, Tier 3 — see `docs/CAPABILITY_PROMOTION.md`) pending an evidence-gated closure review. This document uses candidate/not-enabled phrasing throughout; it does not assert promotion.
 
 ## Spec Artifact Definition
 
@@ -18,54 +18,53 @@ builder_ii.hitl_patch_proposal
 
 | Field | Value |
 |---|---|
-| `mode` | `DESIGN_ONLY` |
-| `runtime` | `DISABLED` |
+| `capability_state` (platform matrix) | `MERGED_BUT_NOT_OPERATIONAL` |
+| `promotion_tier` | `hitl_runtime_candidate` (Tier 3) |
+| `runtime` | Executes only via explicit, separately-invoked, human-gated commands; not autonomous, not platform-promoted |
 | `artifact_is_authority` | `false` |
 
-The artifact is not authority. It cannot grant permissions, bypass system guards, or trigger any runtime action.
+The artifacts in this pipeline are not authority: they cannot grant permissions, bypass system guards, or trigger runtime action on their own. Even when `builder-hitl apply-patch` genuinely executes `git apply` against a target repository, it does so only because a human explicitly invoked that command against a bound, unexpired approval artifact — never because a proposal, approval, or receipt artifact "declares" the action authorized.
 
 ---
 
-## Future Governed Patch Path
+## Governed Patch Path
 
-When the capability is promoted to active runtime only after all required gates pass and a human operator explicitly authorizes it, the governed state machine must traverse the following eight stages in order:
+The pipeline below reflects what is implemented today, distinguished from work still open in the completion plan:
 
-1. **patch proposal** — A structured proposal artifact is created describing the exact diff, target file(s), target repository, rationale, and expected effect. No file is touched at this stage.
-2. **human approval record** — An explicit human approval record is created and persisted. Automated approval is not permitted. The record is the authority for all downstream stages.
-3. **preflight record** — Environment, target file hashes, and safety constraints are captured. The preflight record is validated against the proposal before any further action.
-4. **explicit patch application request** — A separate, intentional invocation (distinct from proposal creation) requests application, bound to an approved preflight state. This is not automatic.
-5. **patch application receipt** — The result of the application (success, failure, diff applied, file hashes before/after, timing) is captured in a receipt artifact.
-6. **rollback artifact** — A rollback artifact is produced alongside every application receipt, containing the inverse patch and the pre-application snapshot necessary to restore the target to its prior state.
-7. **verification record** — Post-application state is verified against expected hashes and a test gate. If verification fails, the human-gated rollback path becomes available through its own approval/request/receipt chain; rollback is not automatic.
-8. **handoff/postflight** — The full chain (proposal → approval → preflight → receipt → rollback → verification) is indexed into the artifact chain and a handoff record is produced.
+1. **patch proposal** — *Implemented* (`builder-hitl propose-patch` / `builder_ii/hitl_patch_proposal.py`). A structured proposal artifact is created describing the exact diff, patch digest, and target repository. No file is touched at this stage.
+2. **human approval record** — *Implemented* (`builder-hitl approve-patch` / `builder_ii/hitl_patch_approval.py`). The operator is shown the diff and the full patch digest, then types the first characters of the digest at a TTY prompt — an attention control, not a cryptographic signature. There is no non-interactive approval mode; scripting the prompt would collapse `planned ≠ approved`. The resulting approval artifact is bound to the exact proposal content digest and patch digest, and carries an expiry.
+3. **preflight record** — *Implemented as a pre-apply verification receipt* for the bounded `platform_status` / `docs_audit` profiles (`builder_ii/verification_execution_runner.py`), validated against the proposal's target repository before apply proceeds. Broader target-code-executing profiles (`pytest_full` / `builder_full`) remain gated pending the completion plan's ratified execution-risk envelope.
+4. **explicit patch application request** — *Implemented* (`builder-hitl apply-patch` / `builder_ii/hitl_patch_apply.py`). A separate, intentional invocation (distinct from proposal or approval) applies the patch, bound to the approved proposal and a valid verification receipt. It refuses on a dirty target working tree, an unbound or expired approval, or a patch-digest mismatch.
+5. **patch application receipt** — *Implemented*. Records success or failure, the pre-apply HEAD SHA, and content digests of the proposal, approval, and verification receipt.
+6. **rollback artifact** — *Implemented*. A rollback plan and reverse patch are generated automatically before apply; `builder-hitl rollback` executes `git apply -R` against the bound reverse patch, refusing on a reverse-patch digest mismatch.
+7. **verification record** — *Partial*. The pre-apply verification receipt is bound into the apply receipt as verification evidence; a dedicated post-apply verification record and rollback-side working-tree drift check are open completion-plan work.
+8. **handoff/postflight** — *Implemented* for postflight recording; the full proposal → approval → apply → rollback chain is indexed for `builder-chain verify` / `verify_artifact_chain`.
 
----
-
-## Denied Current Behavior
-
-While in `DESIGN_ONLY` mode the runtime strictly denies all of the following:
-
-* no patch application
-* no source writes
-* no file mutation
-* no git mutation
-* no commit/push
-* no shell execution
-* no subprocess execution
-* no model execution
-* no network/MCP execution
-* no Goose runtime activation
-* no deepagents runtime
-* no CORE Workbench/UI coupling
+None of the above changes this pipeline's platform promotion state. The capability remains `MERGED_BUT_NOT_OPERATIONAL` / `hitl_runtime_candidate` until the evidence-gated matrix flip described in the completion plan.
 
 ---
 
-## Required Future Gates
+## Current Behavior Boundary
 
-All of the following quality and safety gates must pass before any promotion to active runtime patch application:
+The following remain strictly denied by every artifact and command in this pipeline, regardless of invocation:
+
+* autonomous or unattended patch application — no non-interactive approval mode exists by design
+* commit or push — apply leaves an uncommitted working-tree diff for the operator to review and commit themselves
+* shell or subprocess execution beyond the fixed `git apply` / `git status` / `git rev-parse` invocations
+* model execution
+* network/MCP execution
+* Goose runtime activation
+* deepagents runtime
+* CORE Workbench/UI coupling
+
+---
+
+## Required Promotion Gates
+
+All of the following quality and safety gates must show verified evidence before this capability is promoted to `enabled` (see `docs/CAPABILITY_PROMOTION.md` §2):
 
 * docs
-* tests
+* tests (including unmocked end-to-end coverage — open completion-plan work)
 * command surface
 * failure mode
 * human approval boundary
@@ -73,13 +72,15 @@ All of the following quality and safety gates must pass before any promotion to 
 * rollback path
 * verification path
 
+A capability existing, executing under HITL gates, and passing some of these gates individually does not itself constitute promotion. Promotion is a single evidence-backed matrix flip reviewed against all gates at once, not a gradual accretion of claims.
+
 ---
 
 ## Governance & Authority
 
 | Field | Value |
 |---|---|
-| `capability_state` | `DESIGN_ONLY` |
+| `capability_state` | `MERGED_BUT_NOT_OPERATIONAL` |
 | `runtime_execution` | `DISABLED` |
 | `patch_application` | `DISABLED` |
 | `source_writes` | `DISABLED` |
@@ -94,3 +95,5 @@ All of the following quality and safety gates must pass before any promotion to 
 | `deepagents_runtime` | `DISABLED` |
 | `artifact_is_authority` | `false` |
 | `core_workbench_coupling` | `NONE` |
+
+These flags describe artifact/spec *authority*, not whether the underlying action ever executes through any code path: they mean this specification and its artifacts grant no ongoing or autonomous authority for the named capability. The one-time, human-gated execution that `builder-hitl apply-patch` performs is authorized solely by the operator's explicit invocation and digest confirmation at the moment it happens — never by a document or artifact declaring it so.

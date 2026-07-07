@@ -12,6 +12,13 @@ from builder_ii.execution_postflight_records import (
     create_execution_postflight_record,
     write_execution_postflight_record,
 )
+from builder_ii.governance_standard import build_standard_governance
+from builder_ii.hitl_patch_approval import (
+    approval_binding_errors,
+    approval_is_expired,
+    canonical_json_digest,
+    validate_hitl_patch_approval_file,
+)
 from builder_ii.hitl_patch_proposal import validate_hitl_patch_proposal_file
 from builder_ii.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
@@ -60,8 +67,9 @@ def compute_digest(content: str) -> str:
 
 
 def _json_digest(data: Any) -> str:
-    raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
+    # Delegate to the approval module so the proposal-content binding is computed with
+    # one identical algorithm on both the mint (approve) and verify (apply) sides.
+    return canonical_json_digest(data)
 
 
 def _file_digest(path: Path) -> str:
@@ -169,23 +177,12 @@ def create_patch_apply_receipt(
         "rollback_plan_ref": rollback_plan_ref,
         "postflight_ref": postflight_ref,
         "timestamp": int(time.time()),
-        "artifact_is_authority": True,
-        "governance": {
-            "capability_state": "OPERATIONALLY_VERIFIED",
-            "runtime_execution": "DISABLED",
-            "patch_application": "OPERATIONALLY_VERIFIED",
-            "source_writes": "OPERATIONALLY_VERIFIED",
-            "git_mutation": "DISABLED",
-            "commit_push": "DISABLED",
-            "shell_execution": "DISABLED",
-            "subprocess_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "network_mcp_execution": "DISABLED",
-            "goose_runtime_activation": "DISABLED",
-            "deepagents_runtime": "DISABLED",
-            "artifact_is_authority": True,
-            "core_workbench_coupling": "NONE",
-        },
+        "artifact_is_authority": False,
+        # Matches the platform truth matrix's current pinned state for the "HITL patch
+        # application" capability (MERGED_BUT_NOT_OPERATIONAL) -- this receipt is evidence,
+        # not a self-declared promotion to OPERATIONALLY_VERIFIED. Update only via the 1.7
+        # flip, in lockstep with every other pinned site.
+        "governance": build_standard_governance("MERGED_BUT_NOT_OPERATIONAL"),
     }
 
 
@@ -205,6 +202,19 @@ def apply_hitl_patch(
     output_dir: Path,
     settings: Settings | None = None,
 ) -> None:
+    # 0. Consult the command-authority gate at the execution boundary itself, not just
+    #    at the CLI. apply_hitl_patch is the write lane the matrix cites as promoted;
+    #    if only the CLI enforced authority, any direct caller (demo loop, a future
+    #    orchestrator, a test) would bypass the gate. Fail closed here, first — before
+    #    settings resolution or any other IO.
+    from builder_ii.command_authority import enforce_command_authority
+
+    enforce_command_authority(
+        "builder-hitl apply-patch",
+        requested_effects=("patch_application", "artifact_write"),
+        approval_ref=str(approval_path),
+    )
+
     if settings is None:
         settings = load_settings()
 
@@ -229,13 +239,28 @@ def apply_hitl_patch(
     if v_errors:
         raise ValueError(f"Invalid verification receipt: {v_errors}")
 
-    # 4. Check approval matching
+    # 4. Validate the approval as a governed artifact — NOT merely any JSON that happens
+    #    to echo a matching patch_digest. This closes the weak-approval gap: an approval
+    #    only authorizes a mutation when it is a schema-valid hitl_patch_approval, bound
+    #    to THIS proposal's content digest and patch digest, and not expired.
+    #    Doctrine: artifact != authority. The approval is durable evidence a human
+    #    engaged the boundary; only a well-formed, bound, live one authorizes.
     if not approval_path.exists():
         raise ValueError("Approval file does not exist")
+    approval_errors = validate_hitl_patch_approval_file(approval_path)
+    if approval_errors:
+        raise ValueError(f"Invalid patch approval: {approval_errors}")
     approval = json_lib.loads(approval_path.read_text())
+    binding_errors = approval_binding_errors(
+        approval,
+        proposal_digest=canonical_json_digest(proposal),
+        patch_digest=patch_digest,
+    )
+    if binding_errors:
+        raise ValueError(f"Approval is not bound to this proposal: {binding_errors}")
+    if approval_is_expired(approval, now=int(time.time())):
+        raise ValueError("Patch approval has expired")
     verification_receipt = json_lib.loads(verification_receipt_path.read_text(encoding="utf-8"))
-    if approval.get("patch_digest") != patch_digest:
-        raise ValueError("Approval digest does not match proposal digest")
     if compute_digest(unified_diff) != patch_digest:
         raise ValueError("Proposal patch digest does not match unified diff content")
 
@@ -273,7 +298,10 @@ def apply_hitl_patch(
             settings=settings,
             target_name=target_name,
             proposal_ref=str(proposal_path),
-            rollback_plan_ref=str(rollback_plan_path),
+            # rollback_plan_path is only written after a successful `git apply` (below);
+            # on this failure path the file does not exist yet, so referencing it here
+            # would be a dangling ref. Leave it empty like postflight_ref.
+            rollback_plan_ref="",
             postflight_ref="",
             generic_repo=target_repo if target_name == "generic" else None,
         )
@@ -311,7 +339,9 @@ def apply_hitl_patch(
     postflight["target"] = dict(proposal["target"])
     postflight["postflight_state"] = "RUN_COMPLETE"
     postflight["performed_actions"] = ["git apply patch", "record postflight working tree state"]
-    postflight["governance"]["capability_state"] = "OPERATIONALLY_VERIFIED"
+    # Honest platform-matrix state for "HITL patch application" (MERGED_BUT_NOT_OPERATIONAL),
+    # not a self-declared OPERATIONALLY_VERIFIED promotion -- see 1.7 for the evidence-gated flip.
+    postflight["governance"]["capability_state"] = "MERGED_BUT_NOT_OPERATIONAL"
     postflight_path = output_dir / "postflight_record.json"
     write_execution_postflight_record(postflight, postflight_path)
     postflight_digest = _file_digest(postflight_path)
@@ -381,7 +411,12 @@ def apply_hitl_patch(
             role="patch_apply_receipt",
         ),
         "governance": {
-            "capability_state": "MUTATION_WITH_ROLLBACK_VERIFIED",
+            # MUTATION_WITH_ROLLBACK_VERIFIED is a derived *assurance_state* value
+            # (builder_ii/assurance.py) that only applies once the underlying matrix row is
+            # OPERATIONALLY_VERIFIED (builder_ii/platform_completion_audit.py:assurance_state_for_row).
+            # Today that row is MERGED_BUT_NOT_OPERATIONAL, so self-stamping the post-flip value
+            # here would be a truth-matrix bypass. Mirror the matrix's actual pinned state instead.
+            "capability_state": "MERGED_BUT_NOT_OPERATIONAL",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
         },
@@ -422,6 +457,16 @@ def rollback_hitl_patch(
     output_dir: Path,
     settings: Settings | None = None,
 ) -> None:
+    # Gate the rollback write lane at the execution boundary too (see apply_hitl_patch);
+    # fail closed before settings resolution or any other IO.
+    from builder_ii.command_authority import enforce_command_authority
+
+    enforce_command_authority(
+        "builder-hitl rollback",
+        requested_effects=("patch_application",),
+        approval_ref=str(rollback_plan_path),
+    )
+
     from builder_ii.rollback_artifacts import validate_rollback_plan_file
 
     if settings is None:
@@ -465,6 +510,17 @@ def rollback_hitl_patch(
             text=True,
         )
     except subprocess.CalledProcessError as e:
+        failure_receipt = create_rollback_receipt(
+            settings=settings,
+            target_name=target_name,
+            rollback_plan_ref=str(rollback_plan_path),
+            generic_repo=target_repo if target_name == "generic" else None,
+        )
+        failure_receipt["target"] = dict(plan["target"])
+        # rollback_state stays NOT_EXECUTED (honest: the reverse patch did not apply cleanly);
+        # error_summary is an informal extension field, same pattern as the apply failure receipt.
+        failure_receipt["error_summary"] = (e.stderr or str(e))[:500]
+        write_rollback_receipt(failure_receipt, output_dir / "rollback_failure_receipt.json")
         raise RuntimeError(f"Rollback application failed: {e.stderr}")
 
     receipt = create_rollback_receipt(

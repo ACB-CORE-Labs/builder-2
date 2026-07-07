@@ -11,6 +11,7 @@ from builder_ii.hitl_patch_apply import (
     apply_hitl_patch,
     rollback_hitl_patch,
 )
+from builder_ii.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 
 
@@ -52,24 +53,10 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
     write_hitl_patch_proposal(prop, prop_path)
 
     # 3. Create approval and verification receipt artifacts
-    raw_prop = json.dumps(prop, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    prop_digest = hashlib.sha256(raw_prop).hexdigest()
-
     approval_path = tmp_path / "approval.json"
-    approval_path.write_text(
-        json.dumps(
-            {
-                "kind": "builder_ii.approval_record",
-                "schema_version": "v1",
-                "patch_digest": patch_digest,
-                "valid": True,
-                "proposal": {
-                    "path": str(prop_path),
-                    "sha256": prop_digest,
-                    "kind": "builder_ii.hitl_patch_proposal",
-                },
-            }
-        )
+    write_hitl_patch_approval(
+        create_hitl_patch_approval(prop, confirmed_digest_prefix=patch_digest[:4]),
+        approval_path,
     )
 
     vr_path = tmp_path / "vr.json"

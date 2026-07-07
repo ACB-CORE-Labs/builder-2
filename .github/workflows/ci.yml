@@ -87,7 +87,7 @@ jobs:
         run: uv run ruff check builder_ii tests
 
       - name: Run Targeted MyPy Typecheck
-        run: uv run mypy builder_ii/command_authority.py builder_ii/compliance.py builder_ii/hitl_patch_apply.py builder_ii/model_execution_gateway.py builder_ii/readonly_authority.py
+        run: uv run mypy
 
       - name: Run Targeted Bandit Security Scan
         run: uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
