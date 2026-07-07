@@ -36,7 +36,13 @@ What this is NOT:
 
 In short: this narrows the gap from "any JSON authorizes anything" to "a well-formed,
 unexpired approval authorizes exactly the proposal it was minted for." The interactive
-prompt is what makes it an approval a human actually made.
+``approve-patch`` prompt is the only *promoted* way to mint one and the reason such an
+artifact stands for a human decision. Note the underlying ``create_hitl_patch_approval``
+function is itself callable in-process (e.g. the demo loop mints one against a disposable
+detached worktree); a programmatically-minted approval carries valid binding but is **not**
+evidence of human origin. Guaranteeing no non-interactive mint can reach a real target is a
+promotion gate — which is why this lane stays ``MERGED_BUT_NOT_OPERATIONAL`` until the
+closure audit (plan item 1.7) verifies it.
 """
 
 from __future__ import annotations

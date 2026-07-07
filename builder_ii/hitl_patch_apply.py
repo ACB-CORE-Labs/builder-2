@@ -212,13 +212,11 @@ def apply_hitl_patch(
     output_dir: Path,
     settings: Settings | None = None,
 ) -> None:
-    if settings is None:
-        settings = load_settings()
-
     # 0. Consult the command-authority gate at the execution boundary itself, not just
     #    at the CLI. apply_hitl_patch is the write lane the matrix cites as promoted;
     #    if only the CLI enforced authority, any direct caller (demo loop, a future
-    #    orchestrator, a test) would bypass the gate. Fail closed here, first.
+    #    orchestrator, a test) would bypass the gate. Fail closed here, first — before
+    #    settings resolution or any other IO.
     from builder_ii.command_authority import enforce_command_authority
 
     enforce_command_authority(
@@ -226,6 +224,9 @@ def apply_hitl_patch(
         requested_effects=("patch_application", "artifact_write"),
         approval_ref=str(approval_path),
     )
+
+    if settings is None:
+        settings = load_settings()
 
     # 1. Read and validate proposal
     errors = validate_hitl_patch_proposal_file(proposal_path)
@@ -456,12 +457,8 @@ def rollback_hitl_patch(
     output_dir: Path,
     settings: Settings | None = None,
 ) -> None:
-    from builder_ii.rollback_artifacts import validate_rollback_plan_file
-
-    if settings is None:
-        settings = load_settings()
-
-    # Gate the rollback write lane at the execution boundary too (see apply_hitl_patch).
+    # Gate the rollback write lane at the execution boundary too (see apply_hitl_patch);
+    # fail closed before settings resolution or any other IO.
     from builder_ii.command_authority import enforce_command_authority
 
     enforce_command_authority(
@@ -469,6 +466,11 @@ def rollback_hitl_patch(
         requested_effects=("patch_application",),
         approval_ref=str(rollback_plan_path),
     )
+
+    from builder_ii.rollback_artifacts import validate_rollback_plan_file
+
+    if settings is None:
+        settings = load_settings()
 
     errors = validate_rollback_plan_file(rollback_plan_path)
     if errors:
