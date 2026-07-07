@@ -66,6 +66,19 @@ def _completed(
     return subprocess.CompletedProcess(args=args, returncode=returncode, stdout=stdout, stderr=stderr)
 
 
+_FAKE_HEAD_SHA = "a" * 40
+_FAKE_BRANCH = "main"
+
+
+def _rev_parse_reply(
+    args: list[str], head_sha: str = _FAKE_HEAD_SHA, branch: str = _FAKE_BRANCH
+) -> subprocess.CompletedProcess[str] | None:
+    """Canned reply for the runner's `git rev-parse HEAD --abbrev-ref HEAD` commit-identity call."""
+    if args[:2] == ["git", "rev-parse"]:
+        return _completed(args, stdout=f"{head_sha}\n{branch}\n")
+    return None
+
+
 def test_run_approved_executes_only_fixed_platform_status_profile(monkeypatch: Any, tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
     plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)
@@ -76,6 +89,9 @@ def test_run_approved_executes_only_fixed_platform_status_profile(monkeypatch: A
         assert kwargs.get("shell") is False
         if args[:3] == ["git", "status", "--porcelain=v1"]:
             return _completed(args, stdout="")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
         assert "builder_ii.verification_runner_entrypoints" in args
         assert "platform-status" in args
         return _completed(args, stdout="builder-II platform status\n")
@@ -99,8 +115,14 @@ def test_run_approved_executes_only_fixed_platform_status_profile(monkeypatch: A
     assert receipt["workspace_mutation_detected"] is False
     assert receipt["process_results"][0]["status"] == "success"
     assert receipt["process_results"][0]["shell"] is False
+    # commit identity is captured into the receipt (schema v2)
+    assert receipt["target_commit"] == _FAKE_HEAD_SHA
+    assert receipt["target_branch"] == _FAKE_BRANCH
+    assert receipt["preflight_git_state"]["head_sha"] == _FAKE_HEAD_SHA
+    assert receipt["observed_byproducts"] == []
     assert validate_verification_execution_receipt_artifact(receipt) == []
-    assert len(calls) == 3
+    # preflight (status + rev-parse) + profile exec + postflight (status + rev-parse)
+    assert len(calls) == 5
 
 
 def test_unapproved_profile_blocks_before_execution(monkeypatch: Any, tmp_path: Path) -> None:
@@ -139,6 +161,9 @@ def test_timeout_emits_failed_bounded_receipt(monkeypatch: Any, tmp_path: Path) 
     def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         if args[:3] == ["git", "status", "--porcelain=v1"]:
             return _completed(args, stdout="")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
         raise subprocess.TimeoutExpired(cmd=args, timeout=kwargs["timeout"], stderr="timeout")
 
     monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
@@ -153,6 +178,8 @@ def test_timeout_emits_failed_bounded_receipt(monkeypatch: Any, tmp_path: Path) 
     assert receipt["valid"] is True
     assert receipt["receipt_status"] == "FAILED"
     assert receipt["process_results"][0]["status"] == "timeout"
+    # the effective timeout comes from the plan (platform_status: 120s), not the old hardcoded 30s
+    assert receipt["process_results"][0]["timeout_seconds"] == 120
 
 
 def test_workspace_mutation_marks_receipt_invalid(monkeypatch: Any, tmp_path: Path) -> None:
@@ -165,6 +192,9 @@ def test_workspace_mutation_marks_receipt_invalid(monkeypatch: Any, tmp_path: Pa
         if args[:3] == ["git", "status", "--porcelain=v1"]:
             git_calls += 1
             return _completed(args, stdout="" if git_calls == 1 else " M changed.py\n")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
         return _completed(args, stdout="builder-II platform status\n")
 
     monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
@@ -178,7 +208,8 @@ def test_workspace_mutation_marks_receipt_invalid(monkeypatch: Any, tmp_path: Pa
 
     assert receipt["valid"] is False
     assert receipt["workspace_mutation_detected"] is True
-    assert any("workspace mutation" in error for error in receipt["errors"])
+    # platform_status pins no ignore-globs, so a changed source file is a real mutation
+    assert any("workspace mutation" in error and "changed.py" in error for error in receipt["errors"])
 
 
 def test_cli_run_approved_writes_receipt(monkeypatch: Any, tmp_path: Path) -> None:
@@ -191,6 +222,9 @@ def test_cli_run_approved_writes_receipt(monkeypatch: Any, tmp_path: Path) -> No
     def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         if args[:3] == ["git", "status", "--porcelain=v1"]:
             return _completed(args, stdout="")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
         return _completed(args, stdout="builder-II platform status\n")
 
     monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
@@ -373,6 +407,9 @@ def test_docs_audit_profile_runs_and_writes_postflight(monkeypatch: Any, tmp_pat
     def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
         if args[:3] == ["git", "status", "--porcelain=v1"]:
             return _completed(args, stdout="")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
         assert args[-1] == "docs-audit"
         assert kwargs.get("shell") is False
         return _completed(args, stdout="docs truth audit passed\n")
@@ -397,6 +434,266 @@ def test_docs_audit_profile_runs_and_writes_postflight(monkeypatch: Any, tmp_pat
     assert postflight["valid"] is True
 
 
+def _write_target_code_chain(
+    tmp_path: Path, *, profile: str = "pytest_full", acknowledged: bool = True
+) -> tuple[Path, Path, Path]:
+    """Build a chain that approves a single target-code-executing profile, with/without the D7 ack."""
+    root = _artifact_root(tmp_path)
+    from builder_ii.verification_execution_plan import (
+        finalize_verification_execution_plan,
+        write_verification_execution_plan,
+    )
+
+    plan = finalize_verification_execution_plan(
+        target_profile="builder",
+        verification_profile="builder_full",
+        target_repo=str(tmp_path),
+        artifact_root=".builder/verification",
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    plan_path = root / "verification-execution-plan.json"
+    write_verification_execution_plan(plan, plan_path)
+
+    approval = finalize_verification_execution_approval(
+        plan=plan,
+        plan_path=str(plan_path),
+        approval_actor="Joshua Shay",
+        approval_reason=f"Approve bounded {profile} runner proof.",
+        approved_command_profiles=[profile],
+        approved_step_ids=[profile],
+        execution_risk_acknowledged=acknowledged,
+        acknowledged_risk=(
+            "Operator acknowledges this profile runs the target repository's own test and imported "
+            "configuration code on this host with operator privileges."
+            if acknowledged
+            else None
+        ),
+        generated_at="2026-06-30T00:01:00+00:00",
+    )
+    approval_path = root / "verification-execution-approval.json"
+    write_verification_execution_approval(approval, approval_path)
+    receipt_path = root / "verification-execution-receipt.json"
+    return plan_path, approval_path, receipt_path
+
+
+def _profile_stdout_run(profile_marker: str) -> Any:
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if args[:3] == ["git", "status", "--porcelain=v1"]:
+            return _completed(args, stdout="")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
+        assert profile_marker in args
+        return _completed(args, stdout=f"{profile_marker} ok\n")
+
+    return fake_run
+
+
+def test_pytest_full_runs_with_acknowledged_risk(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_target_code_chain(tmp_path, profile="pytest_full")
+    monkeypatch.setattr(
+        "builder_ii.verification_execution_runner.subprocess.run", _profile_stdout_run("pytest-full")
+    )
+
+    receipt = run_approved_verification(
+        plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
+    )
+
+    assert receipt["valid"] is True
+    assert receipt["receipt_status"] == "EXECUTED"
+    assert receipt["process_results"][0]["profile"] == "pytest_full"
+    # plan declares 1800s for pytest_full; ceiling is 1800s -> effective 1800s (not the old 30s)
+    assert receipt["process_results"][0]["timeout_seconds"] == 1800
+    assert receipt["execution_risk_acknowledged"] is True
+    assert receipt["acknowledged_risk"]
+    assert receipt["target_commit"] == _FAKE_HEAD_SHA
+    assert validate_verification_execution_receipt_artifact(receipt) == []
+
+
+def test_builder_full_runs_with_acknowledged_risk(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_target_code_chain(tmp_path, profile="builder_full")
+    monkeypatch.setattr(
+        "builder_ii.verification_execution_runner.subprocess.run", _profile_stdout_run("builder-full")
+    )
+
+    receipt = run_approved_verification(
+        plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="builder_full"
+    )
+
+    assert receipt["valid"] is True
+    assert receipt["receipt_status"] == "EXECUTED"
+    assert receipt["process_results"][0]["profile"] == "builder_full"
+    assert receipt["execution_risk_acknowledged"] is True
+
+
+def test_pytest_full_without_ack_is_blocked_before_execution(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    # An approval that approves pytest_full without the ack is itself invalid; the runner blocks it.
+    plan_path, approval_path, receipt_path = _write_target_code_chain(
+        tmp_path, profile="pytest_full", acknowledged=False
+    )
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(list(args))
+        rev_parse = _rev_parse_reply(args)
+        return rev_parse if rev_parse is not None else _completed(args)
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
+    )
+
+    assert receipt["valid"] is False
+    assert receipt["receipt_status"] == "BLOCKED_BEFORE_EXECUTION"
+    assert not any("pytest-full" in call for call in calls), "no subprocess may run without the ack"
+
+
+def test_runner_refuses_target_code_when_ack_stripped(monkeypatch: Any, tmp_path: Path) -> None:
+    # Belt-and-suspenders (D7): even if an approval is forced valid-looking without the ack,
+    # the runner independently refuses to spawn the target-code profile.
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_target_code_chain(tmp_path, profile="pytest_full")
+    approval = json.loads(approval_path.read_text(encoding="utf-8"))
+    approval["execution_risk_acknowledged"] = False
+    approval["acknowledged_risk"] = None
+    approval["valid"] = True
+    approval["errors"] = []
+    approval = attach_digest(approval, digest_key="verification_execution_approval_digest")
+    approval_path.write_text(json.dumps(approval, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(list(args))
+        rev_parse = _rev_parse_reply(args)
+        return rev_parse if rev_parse is not None else _completed(args)
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
+    )
+
+    assert receipt["valid"] is False
+    assert receipt["receipt_status"] == "BLOCKED_BEFORE_EXECUTION"
+    assert any("acknowledg" in error for error in receipt["errors"])
+    assert not any("pytest-full" in call for call in calls)
+
+
+def test_pytest_cache_byproduct_is_recorded_not_a_mutation(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_target_code_chain(tmp_path, profile="pytest_full")
+    git_calls = 0
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal git_calls
+        if args[:3] == ["git", "status", "--porcelain=v1"]:
+            git_calls += 1
+            # postflight shows only a pinned-ignore byproduct path
+            return _completed(args, stdout="" if git_calls == 1 else "?? .pytest_cache/v/cache/lastfailed\n")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
+        return _completed(args, stdout="pytest-full ok\n")
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
+    )
+
+    assert receipt["workspace_mutation_detected"] is False
+    assert receipt["observed_byproducts"] == [".pytest_cache/v/cache/lastfailed"]
+    assert receipt["valid"] is True
+    assert receipt["receipt_status"] == "EXECUTED"
+
+
+def test_postflight_capture_failure_is_treated_as_mutation(monkeypatch: Any, tmp_path: Path) -> None:
+    # Target code can corrupt/delete .git mid-run; a postflight git state that cannot be captured
+    # must never be read as "clean" (fail-closed, not fail-open).
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_target_code_chain(tmp_path, profile="pytest_full")
+    status_calls = 0
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal status_calls
+        if args[:3] == ["git", "status", "--porcelain=v1"]:
+            status_calls += 1
+            # preflight captures cleanly; postflight fails (non-zero return -> captured=False)
+            return _completed(args, returncode=0 if status_calls == 1 else 1, stdout="")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
+        return _completed(args, stdout="pytest-full ok\n")
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
+    )
+
+    assert receipt["workspace_mutation_detected"] is True
+    assert receipt["valid"] is False
+    assert any("postflight git state could not be captured" in error for error in receipt["errors"])
+
+
+def test_nested_pytest_cache_path_is_a_mutation_not_a_byproduct(monkeypatch: Any, tmp_path: Path) -> None:
+    # A file laundered under a same-named directory buried at depth must NOT be excused.
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_target_code_chain(tmp_path, profile="pytest_full")
+    git_calls = 0
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal git_calls
+        if args[:3] == ["git", "status", "--porcelain=v1"]:
+            git_calls += 1
+            return _completed(args, stdout="" if git_calls == 1 else "?? notes/.pytest_cache/backdoor.py\n")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
+        return _completed(args, stdout="pytest-full ok\n")
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
+    )
+
+    assert receipt["observed_byproducts"] == []
+    assert receipt["workspace_mutation_detected"] is True
+    assert receipt["valid"] is False
+    assert any("notes/.pytest_cache/backdoor.py" in error for error in receipt["errors"])
+
+
+def test_head_change_during_run_is_a_mutation(monkeypatch: Any, tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_target_code_chain(tmp_path, profile="pytest_full")
+    rev_parse_calls = 0
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        nonlocal rev_parse_calls
+        if args[:3] == ["git", "status", "--porcelain=v1"]:
+            return _completed(args, stdout="")
+        if args[:2] == ["git", "rev-parse"]:
+            rev_parse_calls += 1
+            sha = ("a" * 40) if rev_parse_calls == 1 else ("b" * 40)  # HEAD moved between pre and post
+            return _completed(args, stdout=f"{sha}\nmain\n")
+        return _completed(args, stdout="pytest-full ok\n")
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
+    )
+
+    assert receipt["workspace_mutation_detected"] is True
+    assert any("HEAD changed" in error for error in receipt["errors"])
+    assert receipt["valid"] is False
+
+
 def test_postflight_marks_mutation_mismatch_invalid(monkeypatch: Any, tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
     plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)
@@ -407,6 +704,9 @@ def test_postflight_marks_mutation_mismatch_invalid(monkeypatch: Any, tmp_path: 
         if args[:3] == ["git", "status", "--porcelain=v1"]:
             git_calls += 1
             return _completed(args, stdout="" if git_calls == 1 else "?? new-file\n")
+        rev_parse = _rev_parse_reply(args)
+        if rev_parse is not None:
+            return rev_parse
         return _completed(args, stdout="builder-II platform status\n")
 
     monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)

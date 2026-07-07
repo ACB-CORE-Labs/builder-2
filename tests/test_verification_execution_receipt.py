@@ -201,6 +201,47 @@ def test_environment_policy_cannot_forward_secrets() -> None:
     assert any("environment_policy.secrets_forwarded must be false or NOT_AUTHORIZED" in error for error in errors)
 
 
+def test_contract_only_receipt_has_null_commit_identity_and_empty_byproducts() -> None:
+    _plan, _approval, receipt = _sample_receipt()
+    # A passive contract-only receipt did not run anything, so commit identity is null.
+    assert receipt["target_commit"] is None
+    assert receipt["target_branch"] is None
+    assert receipt["observed_byproducts"] == []
+    assert receipt["execution_risk_acknowledged"] is False
+    assert receipt["acknowledged_risk"] is None
+    assert validate_verification_execution_receipt_artifact(receipt) == []
+
+
+def test_commit_identity_and_byproduct_fields_validate() -> None:
+    plan = _sample_plan()
+    approval = _sample_approval(plan)
+    receipt = finalize_verification_execution_receipt(
+        plan=plan,
+        approval=approval,
+        plan_path="/tmp/verification-execution-plan.json",
+        approval_path="/tmp/verification-execution-approval.json",
+        generated_at="2026-06-30T00:02:00+00:00",
+        target_commit="a" * 40,
+        target_branch="main",
+        observed_byproducts=[".pytest_cache/v/cache/lastfailed"],
+        execution_risk_acknowledged=True,
+        acknowledged_risk="Operator acknowledged the target-code execution risk.",
+    )
+    assert receipt["target_commit"] == "a" * 40
+    assert receipt["target_branch"] == "main"
+    assert receipt["observed_byproducts"] == [".pytest_cache/v/cache/lastfailed"]
+    assert receipt["execution_risk_acknowledged"] is True
+    assert validate_verification_execution_receipt_artifact(receipt) == []
+
+
+def test_non_boolean_execution_risk_ack_fails() -> None:
+    _plan, _approval, receipt = _sample_receipt()
+    receipt["execution_risk_acknowledged"] = "yes"
+    receipt = _resign(receipt)
+    errors = validate_verification_execution_receipt_artifact(receipt)
+    assert any("execution_risk_acknowledged must be a boolean" in error for error in errors)
+
+
 def test_file_validation_round_trip(tmp_path: Path) -> None:
     _plan, _approval, receipt = _sample_receipt()
     output = tmp_path / "verification-execution-receipt.json"

@@ -10,9 +10,30 @@ from builder_ii.target_profiles import target_names
 from builder_ii.verification_profiles import verification_profile_names
 
 VERIFICATION_EXECUTION_PLAN_KIND = "builder_ii.verification_execution_plan"
-VERIFICATION_EXECUTION_PLAN_SCHEMA_VERSION = 1
+# Schema v2 (Ledger Genesis, D9 hard cut 2026-07-07): adds a required per-profile
+# `timeout_seconds` and reconciles the pytest lane naming so the profile is runnable.
+# There are no external users and validators are strict single-version, so no
+# dual-version parser exists by design -- old v1 plans/approvals/receipts are
+# invalidated on purpose. Bumped in lockstep with the approval and receipt schemas.
+VERIFICATION_EXECUTION_PLAN_SCHEMA_VERSION = 2
 B1_1_SUPPORTED_TARGET_PROFILE = "builder"
 B1_1_SUPPORTED_VERIFICATION_PROFILE = "builder_full"
+
+# Command profiles whose bounded invocation runs the TARGET repository's own code:
+# pytest imports and executes the target's conftest.py, plugins, and test modules on
+# this host with the operator's privileges. D7 (ratified 2026-07-07) requires the
+# approval artifact to carry an explicit execution-risk acknowledgment for these, and
+# the bounded runner refuses to spawn them without it. The safe builder-II-argv
+# profiles (platform_status/docs_audit) are deliberately excluded so the safe lane
+# carries no consent noise. This bounds *invocation* only, never *code behavior* --
+# it is not a sandbox and must never be described as one.
+TARGET_CODE_EXECUTING_PROFILES: tuple[str, ...] = ("pytest_full", "builder_full")
+
+# D7 timeout policy: every plan profile/step declares a per-profile timeout, replacing
+# the former hardcoded 30s. Range-checked to [1, 1800] seconds here (and again in the
+# runner) so a silent default can never mask a hang.
+MIN_TIMEOUT_SECONDS = 1
+MAX_TIMEOUT_SECONDS = 1800
 
 REQUIRED_DISABLED_AUTHORITY: dict[str, str] = {
     "arbitrary_shell": "disabled",
@@ -113,11 +134,25 @@ def _utc_now() -> str:
 def _default_allowed_command_profiles() -> list[dict[str, Any]]:
     return [
         {
-            "profile": "python_pytest_full",
+            # Runnable bounded target-code profile: runs the target repo's pytest suite.
+            # profile == step_id == ref leaf ("pytest_full") so the runner's
+            # _validate_fixed_profile invariant (step_id==profile, ref leaf==profile) holds.
+            "profile": "pytest_full",
             "command_profile_ref": "verification_profiles.builder_full.pytest_full",
-            "description": "Future approved B1 runner profile for the full Python test lane.",
+            "description": "Bounded approved runner profile for the target repository's full pytest lane.",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 1800,
+        },
+        {
+            # Runnable bounded target-code profile: full builder foundation lane
+            # (pytest plus platform-truth checks) in one bounded invocation.
+            "profile": "builder_full",
+            "command_profile_ref": "verification_profiles.builder_full.builder_full",
+            "description": "Bounded approved runner profile for the full builder foundation verification lane.",
+            "requires_approval": True,
+            "execution_enabled": False,
+            "timeout_seconds": 1800,
         },
         {
             "profile": "release_proof",
@@ -125,6 +160,7 @@ def _default_allowed_command_profiles() -> list[dict[str, Any]]:
             "description": "Future approved B1 runner profile for release proof checks.",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 600,
         },
         {
             "profile": "platform_status",
@@ -132,6 +168,7 @@ def _default_allowed_command_profiles() -> list[dict[str, Any]]:
             "description": "Future approved B1 runner profile for platform truth status checks.",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 120,
         },
         {
             "profile": "docs_audit",
@@ -139,6 +176,7 @@ def _default_allowed_command_profiles() -> list[dict[str, Any]]:
             "description": "Future approved B1 runner profile for documentation truth audits.",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 120,
         },
         {
             "profile": "r1_closure_validate",
@@ -146,6 +184,7 @@ def _default_allowed_command_profiles() -> list[dict[str, Any]]:
             "description": "Future approved B1 runner profile for R1 closure artifact validation.",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 120,
         },
     ]
 
@@ -154,11 +193,21 @@ def _default_planned_steps() -> list[dict[str, Any]]:
     return [
         {
             "step_id": "pytest_full",
-            "profile": "python_pytest_full",
-            "description": "Run the full Python test suite in a future approved B1 runner.",
+            "profile": "pytest_full",
+            "description": "Run the target repository's full pytest suite in the bounded approved runner.",
             "command_profile_ref": "verification_profiles.builder_full.pytest_full",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 1800,
+        },
+        {
+            "step_id": "builder_full",
+            "profile": "builder_full",
+            "description": "Run the full builder foundation verification lane in the bounded approved runner.",
+            "command_profile_ref": "verification_profiles.builder_full.builder_full",
+            "requires_approval": True,
+            "execution_enabled": False,
+            "timeout_seconds": 1800,
         },
         {
             "step_id": "release_proof",
@@ -167,6 +216,7 @@ def _default_planned_steps() -> list[dict[str, Any]]:
             "command_profile_ref": "verification_profiles.builder_full.release_proof",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 600,
         },
         {
             "step_id": "platform_status",
@@ -175,6 +225,7 @@ def _default_planned_steps() -> list[dict[str, Any]]:
             "command_profile_ref": "verification_profiles.builder_full.platform_status",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 120,
         },
         {
             "step_id": "docs_audit",
@@ -183,6 +234,7 @@ def _default_planned_steps() -> list[dict[str, Any]]:
             "command_profile_ref": "verification_profiles.builder_full.docs_audit",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 120,
         },
         {
             "step_id": "r1_closure_validate",
@@ -191,6 +243,7 @@ def _default_planned_steps() -> list[dict[str, Any]]:
             "command_profile_ref": "verification_profiles.builder_full.r1_closure_validate",
             "requires_approval": True,
             "execution_enabled": False,
+            "timeout_seconds": 120,
         },
     ]
 
@@ -268,8 +321,35 @@ def write_verification_execution_plan(plan: dict[str, Any], output: Path) -> Non
     output.write_text(dumps_verification_execution_plan(plan), encoding="utf-8")
 
 
+def plan_timeout_for_profile(plan: dict[str, Any], profile_name: str) -> int | None:
+    """Return the plan-declared timeout (seconds) for a command profile, or None if absent.
+
+    The bounded runner reads the operator-approved timeout from the plan (D7) rather than a
+    hardcoded value; it range-checks the result again before use.
+    """
+    profiles = plan.get("allowed_command_profiles")
+    if not isinstance(profiles, list):
+        return None
+    for item in profiles:
+        if isinstance(item, dict) and item.get("profile") == profile_name:
+            timeout = item.get("timeout_seconds")
+            if isinstance(timeout, int) and not isinstance(timeout, bool):
+                return timeout
+            return None
+    return None
+
+
 def _is_non_empty_string(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
+
+
+def _validate_timeout_seconds(value: Any, prefix: str) -> list[str]:
+    # bool is a subclass of int; reject it explicitly so True/False cannot masquerade as a timeout.
+    if not isinstance(value, int) or isinstance(value, bool):
+        return [f"{prefix}.timeout_seconds must be an integer number of seconds"]
+    if value < MIN_TIMEOUT_SECONDS or value > MAX_TIMEOUT_SECONDS:
+        return [f"{prefix}.timeout_seconds must be within [{MIN_TIMEOUT_SECONDS}, {MAX_TIMEOUT_SECONDS}] seconds"]
+    return []
 
 
 def _normalized_leaf_name(path: str) -> str:
@@ -379,6 +459,7 @@ def _validate_allowed_command_profiles(data: dict[str, Any]) -> list[str]:
             errors.append(f"{prefix}.requires_approval must be true")
         if profile.get("execution_enabled") is not False:
             errors.append(f"{prefix}.execution_enabled must be false or NOT_AUTHORIZED")
+        errors.extend(_validate_timeout_seconds(profile.get("timeout_seconds"), prefix))
     return errors
 
 
@@ -415,6 +496,7 @@ def _validate_planned_steps(data: dict[str, Any]) -> list[str]:
             errors.append(f"{prefix}.requires_approval must be true")
         if step.get("execution_enabled") is not False:
             errors.append(f"{prefix}.execution_enabled must be false or NOT_AUTHORIZED")
+        errors.extend(_validate_timeout_seconds(step.get("timeout_seconds"), prefix))
         errors.extend(_scan_planned_step(step, prefix))
     return errors
 
