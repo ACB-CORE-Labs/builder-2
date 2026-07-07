@@ -12,6 +12,12 @@ from builder_ii.execution_postflight_records import (
     create_execution_postflight_record,
     write_execution_postflight_record,
 )
+from builder_ii.hitl_patch_approval import (
+    approval_binding_errors,
+    approval_is_expired,
+    canonical_json_digest,
+    validate_hitl_patch_approval_file,
+)
 from builder_ii.hitl_patch_proposal import validate_hitl_patch_proposal_file
 from builder_ii.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
@@ -60,8 +66,9 @@ def compute_digest(content: str) -> str:
 
 
 def _json_digest(data: Any) -> str:
-    raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
+    # Delegate to the approval module so the proposal-content binding is computed with
+    # one identical algorithm on both the mint (approve) and verify (apply) sides.
+    return canonical_json_digest(data)
 
 
 def _file_digest(path: Path) -> str:
@@ -229,13 +236,28 @@ def apply_hitl_patch(
     if v_errors:
         raise ValueError(f"Invalid verification receipt: {v_errors}")
 
-    # 4. Check approval matching
+    # 4. Validate the approval as a governed artifact — NOT merely any JSON that happens
+    #    to echo a matching patch_digest. This closes the weak-approval gap: an approval
+    #    only authorizes a mutation when it is a schema-valid hitl_patch_approval, bound
+    #    to THIS proposal's content digest and patch digest, and not expired.
+    #    Doctrine: artifact != authority. The approval is durable evidence a human
+    #    engaged the boundary; only a well-formed, bound, live one authorizes.
     if not approval_path.exists():
         raise ValueError("Approval file does not exist")
+    approval_errors = validate_hitl_patch_approval_file(approval_path)
+    if approval_errors:
+        raise ValueError(f"Invalid patch approval: {approval_errors}")
     approval = json_lib.loads(approval_path.read_text())
+    binding_errors = approval_binding_errors(
+        approval,
+        proposal_digest=canonical_json_digest(proposal),
+        patch_digest=patch_digest,
+    )
+    if binding_errors:
+        raise ValueError(f"Approval is not bound to this proposal: {binding_errors}")
+    if approval_is_expired(approval, now=int(time.time())):
+        raise ValueError("Patch approval has expired")
     verification_receipt = json_lib.loads(verification_receipt_path.read_text(encoding="utf-8"))
-    if approval.get("patch_digest") != patch_digest:
-        raise ValueError("Approval digest does not match proposal digest")
     if compute_digest(unified_diff) != patch_digest:
         raise ValueError("Proposal patch digest does not match unified diff content")
 

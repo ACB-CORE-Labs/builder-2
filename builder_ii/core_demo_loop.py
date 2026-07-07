@@ -15,6 +15,10 @@ from builder_ii.execution_postflight_records import (
     write_execution_postflight_record,
 )
 from builder_ii.hitl_patch_apply import apply_hitl_patch, rollback_hitl_patch
+from builder_ii.hitl_patch_approval import (
+    APPROVAL_CONFIRMATION_PREFIX_LENGTH,
+    create_hitl_patch_approval,
+)
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 from builder_ii.repo_map import create_repo_map, dumps_repo_map
 
@@ -84,6 +88,13 @@ class CoreDemoPaths:
     @property
     def approval(self) -> Path:
         return self.output_dir / "core-demo-approval.json"
+
+    @property
+    def patch_approval(self) -> Path:
+        # Generic governed approval the hardened apply lane validates (bound to the
+        # proposal content + patch digests). The core-demo-approval above remains the
+        # operator-facing narrative record and the --approve gate.
+        return self.output_dir / "hitl-patch-approval.json"
 
     @property
     def preflight(self) -> Path:
@@ -937,9 +948,21 @@ def run_core_demo_loop(
             raise ValueError("approval artifact is not approved")
         if not paths.pre_apply_verification_receipt.is_file():
             _write_verification_receipt(paths, paths.worktree, label="before_apply")
+        # Mint the generic governed approval the hardened apply lane requires, bound to
+        # this exact proposal. The --approve gate above is the human decision; this is
+        # the machine-checkable, proposal-bound authorization artifact.
+        proposal_for_apply = _read_json(paths.proposal)
+        patch_approval = create_hitl_patch_approval(
+            proposal_for_apply,
+            confirmed_digest_prefix=str(proposal_for_apply.get("patch_digest", ""))[
+                :APPROVAL_CONFIRMATION_PREFIX_LENGTH
+            ],
+            approved_by="core-demo-operator",
+        )
+        _write_json(paths.patch_approval, patch_approval)
         apply_hitl_patch(
             proposal_path=paths.proposal,
-            approval_path=paths.approval,
+            approval_path=paths.patch_approval,
             verification_receipt_path=paths.pre_apply_verification_receipt,
             output_dir=paths.patch_apply_dir,
         )
