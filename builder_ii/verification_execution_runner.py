@@ -26,6 +26,7 @@ from builder_ii.verification_execution_approval import (
     validate_verification_execution_approval_artifact,
 )
 from builder_ii.verification_execution_plan import (
+    B1_1_SUPPORTED_VERIFICATION_PROFILE,
     MAX_TIMEOUT_SECONDS,
     MIN_TIMEOUT_SECONDS,
     TARGET_CODE_EXECUTING_PROFILES,
@@ -68,7 +69,11 @@ SAFE_ENV_KEYS = (
 class BoundedCommandProfile:
     profile: str
     step_id: str
-    command_profile_ref: str
+    # True for builder-II self-verification profiles (platform_status/docs_audit/builder_full)
+    # that run builder-II's own checks and are only meaningful when the target IS builder-II;
+    # these are refused for non-builder verification profiles. False for target-code profiles
+    # (pytest_full) that run the target repository's own suite under any namespace (B4.2 / 1.3).
+    builder_self: bool
     argv: tuple[str, ...]
     # Code-level ceiling on the effective timeout. The effective timeout is the plan's
     # per-profile timeout (D7), clamped to this ceiling and to [1, 1800]s -- so even an
@@ -78,6 +83,16 @@ class BoundedCommandProfile:
     # these that change during the run are recorded as observed byproducts rather than
     # counted as workspace mutation -- but they are always recorded, never hidden.
     byproduct_ignore_globs: tuple[str, ...] = ()
+
+
+def _effective_command_profile_ref(verification_profile: str, profile_name: str) -> str:
+    """Compose the command_profile_ref for a run under a given plan's verification profile.
+
+    The ref namespace tracks the plan's verification_profile (builder_full for builder-II itself,
+    generic_basic for a generic target repo, etc.), so a bounded profile like pytest_full runs the
+    target's own suite under the correct namespace without a per-namespace table entry.
+    """
+    return f"verification_profiles.{verification_profile}.{profile_name}"
 
 
 # pytest leaves cache/bytecode droppings even with -p no:cacheprovider + PYTHONDONTWRITEBYTECODE;
@@ -99,21 +114,21 @@ SUPPORTED_COMMAND_PROFILES: dict[str, BoundedCommandProfile] = {
     "platform_status": BoundedCommandProfile(
         profile="platform_status",
         step_id="platform_status",
-        command_profile_ref="verification_profiles.builder_full.platform_status",
+        builder_self=True,
         argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "platform-status"),
         timeout_ceiling_seconds=120,
     ),
     "docs_audit": BoundedCommandProfile(
         profile="docs_audit",
         step_id="docs_audit",
-        command_profile_ref="verification_profiles.builder_full.docs_audit",
+        builder_self=True,
         argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "docs-audit"),
         timeout_ceiling_seconds=120,
     ),
     "pytest_full": BoundedCommandProfile(
         profile="pytest_full",
         step_id="pytest_full",
-        command_profile_ref="verification_profiles.builder_full.pytest_full",
+        builder_self=False,
         argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "pytest-full"),
         timeout_ceiling_seconds=MAX_TIMEOUT_SECONDS,
         byproduct_ignore_globs=_PYTEST_BYPRODUCT_IGNORE_GLOBS,
@@ -121,7 +136,7 @@ SUPPORTED_COMMAND_PROFILES: dict[str, BoundedCommandProfile] = {
     "builder_full": BoundedCommandProfile(
         profile="builder_full",
         step_id="builder_full",
-        command_profile_ref="verification_profiles.builder_full.builder_full",
+        builder_self=True,
         argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "builder-full"),
         timeout_ceiling_seconds=MAX_TIMEOUT_SECONDS,
         byproduct_ignore_globs=_PYTEST_BYPRODUCT_IGNORE_GLOBS,
@@ -180,15 +195,19 @@ def _minimal_env(target_repo: Path) -> dict[str, str]:
     return env
 
 
-def _validate_fixed_profile(profile: BoundedCommandProfile) -> list[str]:
+def _validate_fixed_profile(profile: BoundedCommandProfile, verification_profile: str) -> list[str]:
     errors: list[str] = []
     if profile.profile not in SUPPORTED_COMMAND_PROFILES:
         errors.append("unsupported verification command profile")
     if profile.step_id != profile.profile:
         errors.append("step_id must match fixed profile id")
-    expected_ref = f"verification_profiles.builder_full.{profile.profile}"
-    if profile.command_profile_ref != expected_ref:
-        errors.append(f"profile command_profile_ref must remain {expected_ref}")
+    # A builder-II self-verification profile (it runs builder-II's own matrix/docs checks) is only
+    # meaningful when the target IS builder-II; refuse it under any non-builder verification profile.
+    if profile.builder_self and verification_profile != B1_1_SUPPORTED_VERIFICATION_PROFILE:
+        errors.append(
+            f"profile {profile.profile} runs builder-II's own checks and requires "
+            f"verification_profile={B1_1_SUPPORTED_VERIFICATION_PROFILE}"
+        )
     if not profile.argv or not all(isinstance(item, str) and item for item in profile.argv):
         errors.append("fixed argv must be a non-empty tuple of non-empty strings")
         return errors
@@ -353,6 +372,7 @@ def _process_result_from_completed(
     profile: BoundedCommandProfile,
     completed: subprocess.CompletedProcess[str],
     effective_timeout: int,
+    command_profile_ref: str,
     timed_out: bool = False,
 ) -> dict[str, Any]:
     stdout_excerpt, stdout_truncated = _excerpt(completed.stdout or "")
@@ -363,7 +383,7 @@ def _process_result_from_completed(
     return {
         "step_id": profile.step_id,
         "profile": profile.profile,
-        "command_profile_ref": profile.command_profile_ref,
+        "command_profile_ref": command_profile_ref,
         "status": status,
         "returncode": completed.returncode,
         "timeout_seconds": effective_timeout,
@@ -538,6 +558,12 @@ def run_approved_verification(
     plan = plan_data if isinstance(plan_data, dict) else {}
     approval = approval_data if isinstance(approval_data, dict) else {}
     profile = SUPPORTED_COMMAND_PROFILES.get(requested_profile)
+    # The ref namespace tracks the plan's verification_profile (builder_full for builder-II, or a
+    # generic/core profile for a target repo); the effective ref is computed from it (B4.2 / 1.3).
+    verification_profile = str(plan.get("verification_profile") or "")
+    effective_command_profile_ref = (
+        _effective_command_profile_ref(verification_profile, profile.profile) if profile is not None else ""
+    )
     errors: list[str] = []
 
     errors.extend(validate_verification_execution_plan_artifact(plan_data))
@@ -569,7 +595,7 @@ def run_approved_verification(
     if profile is None:
         errors.append("unsupported verification command profile")
     else:
-        errors.extend(_validate_fixed_profile(profile))
+        errors.extend(_validate_fixed_profile(profile, verification_profile))
 
     target_repo = Path(str(plan.get("target_repo", "."))).expanduser().resolve()
     artifact_root_value = str(plan.get("artifact_root", ".builder/verification"))
@@ -651,7 +677,10 @@ def run_approved_verification(
             shell=False,
         )
         process_result = _process_result_from_completed(
-            profile=profile, completed=completed, effective_timeout=effective_timeout
+            profile=profile,
+            completed=completed,
+            effective_timeout=effective_timeout,
+            command_profile_ref=effective_command_profile_ref,
         )
     except subprocess.TimeoutExpired as exc:
         completed = subprocess.CompletedProcess(
@@ -661,7 +690,11 @@ def run_approved_verification(
             stderr=exc.stderr if isinstance(exc.stderr, str) else "verification command timed out",
         )
         process_result = _process_result_from_completed(
-            profile=profile, completed=completed, effective_timeout=effective_timeout, timed_out=True
+            profile=profile,
+            completed=completed,
+            effective_timeout=effective_timeout,
+            command_profile_ref=effective_command_profile_ref,
+            timed_out=True,
         )
 
     postflight = _git_state(target_repo, "postflight")

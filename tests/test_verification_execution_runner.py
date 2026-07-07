@@ -435,7 +435,12 @@ def test_docs_audit_profile_runs_and_writes_postflight(monkeypatch: Any, tmp_pat
 
 
 def _write_target_code_chain(
-    tmp_path: Path, *, profile: str = "pytest_full", acknowledged: bool = True
+    tmp_path: Path,
+    *,
+    profile: str = "pytest_full",
+    acknowledged: bool = True,
+    target_profile: str = "builder",
+    verification_profile: str = "builder_full",
 ) -> tuple[Path, Path, Path]:
     """Build a chain that approves a single target-code-executing profile, with/without the D7 ack."""
     root = _artifact_root(tmp_path)
@@ -445,8 +450,8 @@ def _write_target_code_chain(
     )
 
     plan = finalize_verification_execution_plan(
-        target_profile="builder",
-        verification_profile="builder_full",
+        target_profile=target_profile,
+        verification_profile=verification_profile,
         target_repo=str(tmp_path),
         artifact_root=".builder/verification",
         generated_at="2026-06-30T00:00:00+00:00",
@@ -723,3 +728,104 @@ def test_postflight_marks_mutation_mismatch_invalid(monkeypatch: Any, tmp_path: 
     assert receipt["valid"] is False
     assert postflight["valid"] is False
     assert "postflight detected workspace mutation" in postflight["errors"]
+
+
+def test_pytest_full_runs_for_generic_target(monkeypatch: Any, tmp_path: Path) -> None:
+    # B4.2 (plan 1.3): the bounded runner verifies an arbitrary target repo, not just builder-II.
+    (tmp_path / ".git").mkdir()
+    plan_path, approval_path, receipt_path = _write_target_code_chain(
+        tmp_path, profile="pytest_full", target_profile="generic", verification_profile="generic_basic"
+    )
+    monkeypatch.setattr(
+        "builder_ii.verification_execution_runner.subprocess.run", _profile_stdout_run("pytest-full")
+    )
+
+    receipt = run_approved_verification(
+        plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
+    )
+
+    assert receipt["valid"] is True
+    assert receipt["receipt_status"] == "EXECUTED"
+    assert receipt["target_profile"] == "generic"
+    assert receipt["verification_profile"] == "generic_basic"
+    # the recorded command_profile_ref tracks the generic namespace, not builder_full
+    assert receipt["process_results"][0]["command_profile_ref"] == "verification_profiles.generic_basic.pytest_full"
+    assert validate_verification_execution_receipt_artifact(receipt) == []
+
+
+def test_builder_self_profile_refused_for_non_builder_verification_profile() -> None:
+    # A builder-II self profile (runs builder-II's own matrix/docs checks) must be refused under a
+    # non-builder verification profile; a target-code profile (pytest_full) is allowed anywhere.
+    from builder_ii.verification_execution_runner import SUPPORTED_COMMAND_PROFILES, _validate_fixed_profile
+
+    errors = _validate_fixed_profile(SUPPORTED_COMMAND_PROFILES["platform_status"], "generic_basic")
+    assert any("requires verification_profile=builder_full" in error for error in errors)
+
+    assert _validate_fixed_profile(SUPPORTED_COMMAND_PROFILES["platform_status"], "builder_full") == []
+    assert _validate_fixed_profile(SUPPORTED_COMMAND_PROFILES["pytest_full"], "generic_basic") == []
+
+
+def test_generic_plan_injecting_builder_self_profile_blocks_end_to_end(monkeypatch: Any, tmp_path: Path) -> None:
+    # Defense-in-depth (review LOW): even a hand-built generic plan that declares a builder-II-self
+    # profile under a generic namespace (which the plan validator accepts structurally) is blocked
+    # by the runner before any subprocess -- so builder-II's own checks can never run against a
+    # foreign target repo.
+    from builder_ii.verification_execution_plan import (
+        finalize_verification_execution_plan,
+        write_verification_execution_plan,
+    )
+
+    (tmp_path / ".git").mkdir()
+    root = _artifact_root(tmp_path)
+    injected = {
+        "profile": "platform_status",
+        "command_profile_ref": "verification_profiles.generic_basic.platform_status",
+        "description": "Injected builder-self profile under a generic namespace.",
+        "requires_approval": True,
+        "execution_enabled": False,
+        "timeout_seconds": 120,
+    }
+    plan = finalize_verification_execution_plan(
+        target_profile="generic",
+        verification_profile="generic_basic",
+        target_repo=str(tmp_path),
+        artifact_root=".builder/verification",
+        allowed_command_profiles=[dict(injected)],
+        planned_steps=[{**injected, "step_id": "platform_status"}],
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    assert plan["valid"] is True, plan["errors"]  # structurally valid; the runner is the semantic gate
+    plan_path = root / "plan.json"
+    write_verification_execution_plan(plan, plan_path)
+
+    approval = finalize_verification_execution_approval(
+        plan=plan,
+        plan_path=str(plan_path),
+        approval_actor="Joshua Shay",
+        approval_reason="Approve injected profile proof.",
+        approved_command_profiles=["platform_status"],
+        approved_step_ids=["platform_status"],
+        generated_at="2026-06-30T00:01:00+00:00",
+    )
+    approval_path = root / "approval.json"
+    write_verification_execution_approval(approval, approval_path)
+
+    calls: list[list[str]] = []
+
+    def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(list(args))
+        return _completed(args)
+
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", fake_run)
+
+    receipt = run_approved_verification(
+        plan_path=plan_path,
+        approval_path=approval_path,
+        output=root / "receipt.json",
+        requested_profile="platform_status",
+    )
+
+    assert receipt["receipt_status"] == "BLOCKED_BEFORE_EXECUTION"
+    assert receipt["valid"] is False
+    assert any("runs builder-II's own checks" in error for error in receipt["errors"])
+    assert calls == [], "no subprocess may run for a refused builder-self profile"

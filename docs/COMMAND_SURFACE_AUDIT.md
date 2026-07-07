@@ -166,7 +166,7 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 
 - `builder-verify plan` writes a passive `builder_ii.verification_execution_plan` artifact only to explicit `--output` and prints the same JSON.
 - `builder-verify validate-plan` validates that artifact without executing verification.
-- Initial B1.1 support is limited to `target_profile=builder` with `verification_profile=builder_full`; unsupported target/profile pairs fail closed.
+- `builder-verify plan` accepts any compatible `(target_profile, verification_profile)` pair — a verification profile that lists the target in its compatible targets (e.g. `generic`/`generic_basic`, `core`/`core_smoke`, `builder`/`builder_full`); incompatible pairs fail closed. A non-builder target's plan offers only the `pytest_full` profile that runs the target repository's own suite. The builder-II self-verification profiles (`platform_status`/`docs_audit`/`builder_full`) run builder-II's own matrix/docs checks and are refused for any non-builder verification profile at the runner boundary.
 - B1.1 does not run tests, execute shell/subprocess, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate git, or promote B2 patch authority.
 
 ## B1.2/B1.3A command surface delta

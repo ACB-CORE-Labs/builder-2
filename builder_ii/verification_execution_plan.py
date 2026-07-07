@@ -7,7 +7,7 @@ from typing import Any
 
 from builder_ii.config_schema import attach_digest, digest_jsonable
 from builder_ii.target_profiles import target_names
-from builder_ii.verification_profiles import verification_profile_names
+from builder_ii.verification_profiles import verification_profile_names, verification_profiles
 
 VERIFICATION_EXECUTION_PLAN_KIND = "builder_ii.verification_execution_plan"
 # Schema v2 (Ledger Genesis, D9 hard cut 2026-07-07): adds a required per-profile
@@ -131,7 +131,20 @@ def _utc_now() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
-def _default_allowed_command_profiles() -> list[dict[str, Any]]:
+def _default_allowed_command_profiles(verification_profile: str = B1_1_SUPPORTED_VERIFICATION_PROFILE) -> list[dict[str, Any]]:
+    if verification_profile != B1_1_SUPPORTED_VERIFICATION_PROFILE:
+        # A non-builder target (generic/core/fast) can only run its own test suite; the
+        # builder-II self-verification profiles (platform_status/docs_audit/...) do not apply.
+        return [
+            {
+                "profile": "pytest_full",
+                "command_profile_ref": f"verification_profiles.{verification_profile}.pytest_full",
+                "description": "Bounded approved runner profile for the target repository's full pytest lane.",
+                "requires_approval": True,
+                "execution_enabled": False,
+                "timeout_seconds": 1800,
+            }
+        ]
     return [
         {
             # Runnable bounded target-code profile: runs the target repo's pytest suite.
@@ -189,7 +202,19 @@ def _default_allowed_command_profiles() -> list[dict[str, Any]]:
     ]
 
 
-def _default_planned_steps() -> list[dict[str, Any]]:
+def _default_planned_steps(verification_profile: str = B1_1_SUPPORTED_VERIFICATION_PROFILE) -> list[dict[str, Any]]:
+    if verification_profile != B1_1_SUPPORTED_VERIFICATION_PROFILE:
+        return [
+            {
+                "step_id": "pytest_full",
+                "profile": "pytest_full",
+                "description": "Run the target repository's full pytest suite in the bounded approved runner.",
+                "command_profile_ref": f"verification_profiles.{verification_profile}.pytest_full",
+                "requires_approval": True,
+                "execution_enabled": False,
+                "timeout_seconds": 1800,
+            }
+        ]
     return [
         {
             "step_id": "pytest_full",
@@ -294,8 +319,8 @@ def finalize_verification_execution_plan(
         "plan_mode": "planned_only",
         "plan_scope": plan_scope or _default_plan_scope(),
         "requested_by_command": requested_by_command,
-        "allowed_command_profiles": allowed_command_profiles or _default_allowed_command_profiles(),
-        "planned_steps": planned_steps or _default_planned_steps(),
+        "allowed_command_profiles": allowed_command_profiles or _default_allowed_command_profiles(verification_profile),
+        "planned_steps": planned_steps or _default_planned_steps(verification_profile),
         "disabled_authority": dict(REQUIRED_DISABLED_AUTHORITY),
         "approval_required": True,
         "execution_enabled": False,
@@ -359,14 +384,28 @@ def _normalized_leaf_name(path: str) -> str:
     return leaf
 
 
+def _target_supports_verification_profile(target_profile: Any, verification_profile: Any) -> bool:
+    """True when (target, verification_profile) is a compatible pair (B4.2 generic-lane extension).
+
+    The lane originally pinned target=builder/verification=builder_full; it now accepts any pair
+    where the verification profile declares the target in its compatible_targets (generic_basic for
+    generic, core_smoke/core_focused for core, builder_fast/builder_full for builder). Which command
+    profiles are actually runnable is a separate, per-profile decision enforced by the runner.
+    """
+    for profile in verification_profiles():
+        if profile.name == verification_profile and target_profile in profile.compatible_targets:
+            return True
+    return False
+
+
 def _validate_profile_consistency(data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     target_profile = data.get("target_profile")
     verification_profile = data.get("verification_profile")
-    if target_profile != B1_1_SUPPORTED_TARGET_PROFILE or verification_profile != B1_1_SUPPORTED_VERIFICATION_PROFILE:
+    if not _target_supports_verification_profile(target_profile, verification_profile):
         errors.append(
-            "B1.1 verification execution plan currently supports only "
-            "target_profile=builder with verification_profile=builder_full"
+            f"verification_profile {verification_profile!r} is not compatible with "
+            f"target_profile {target_profile!r}"
         )
 
     if not isinstance(verification_profile, str) or not verification_profile:

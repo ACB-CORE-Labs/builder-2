@@ -56,6 +56,28 @@ def test_builder_verify_validate_plan_reports_valid(tmp_path: Path) -> None:
     assert report == {"errors": [], "path": str(output), "valid": True}
 
 
+def test_builder_verify_plan_generic_target_validates(tmp_path: Path) -> None:
+    # B4.2 (plan 1.3): the operator can plan verification for a generic target repo.
+    output = tmp_path / "generic-plan.json"
+    result = runner.invoke(
+        verify_app,
+        [
+            "plan",
+            "--target-profile",
+            "generic",
+            "--verification-profile",
+            "generic_basic",
+            "--output",
+            str(output),
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    written = json.loads(output.read_text(encoding="utf-8"))
+    assert validate_verification_execution_plan_artifact(written) == []
+    assert written["target_profile"] == "generic"
+    assert [p["profile"] for p in written["allowed_command_profiles"]] == ["pytest_full"]
+
+
 def test_builder_verify_plan_output_directory_fails_cleanly(tmp_path: Path) -> None:
     result = runner.invoke(
         verify_app,
