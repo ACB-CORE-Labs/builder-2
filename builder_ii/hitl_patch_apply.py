@@ -215,6 +215,18 @@ def apply_hitl_patch(
     if settings is None:
         settings = load_settings()
 
+    # 0. Consult the command-authority gate at the execution boundary itself, not just
+    #    at the CLI. apply_hitl_patch is the write lane the matrix cites as promoted;
+    #    if only the CLI enforced authority, any direct caller (demo loop, a future
+    #    orchestrator, a test) would bypass the gate. Fail closed here, first.
+    from builder_ii.command_authority import enforce_command_authority
+
+    enforce_command_authority(
+        "builder-hitl apply-patch",
+        requested_effects=("patch_application", "artifact_write"),
+        approval_ref=str(approval_path),
+    )
+
     # 1. Read and validate proposal
     errors = validate_hitl_patch_proposal_file(proposal_path)
     if errors:
@@ -448,6 +460,15 @@ def rollback_hitl_patch(
 
     if settings is None:
         settings = load_settings()
+
+    # Gate the rollback write lane at the execution boundary too (see apply_hitl_patch).
+    from builder_ii.command_authority import enforce_command_authority
+
+    enforce_command_authority(
+        "builder-hitl rollback",
+        requested_effects=("patch_application",),
+        approval_ref=str(rollback_plan_path),
+    )
 
     errors = validate_rollback_plan_file(rollback_plan_path)
     if errors:

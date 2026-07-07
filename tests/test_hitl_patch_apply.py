@@ -6,10 +6,12 @@ from unittest.mock import patch
 
 import pytest
 
+from builder_ii.command_authority import CommandAuthorityError
 from builder_ii.hitl_patch_apply import (
     PATCH_APPLY_RECEIPT_KIND,
     apply_hitl_patch,
     create_patch_apply_receipt,
+    rollback_hitl_patch,
     validate_patch_apply_receipt,
 )
 from builder_ii.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
@@ -144,3 +146,29 @@ def test_apply_hitl_patch_happy_path_applies_diff(mock_validate, tmp_path: Path)
 
     assert (repo / "file.txt").read_text() == "b\n"
     assert (out_dir / "patch_apply_receipt.json").exists()
+
+
+@patch(
+    "builder_ii.command_authority.enforce_command_authority",
+    side_effect=CommandAuthorityError("denied"),
+)
+def test_apply_consults_command_authority_gate_before_io(mock_gate, tmp_path: Path):
+    """The write lane fails closed at the gate — before reading or mutating anything —
+    even for a direct (non-CLI) caller."""
+    with pytest.raises(CommandAuthorityError):
+        apply_hitl_patch(
+            tmp_path / "p.json", tmp_path / "a.json", tmp_path / "vr.json", tmp_path / "out"
+        )
+    mock_gate.assert_called_once()
+    assert not (tmp_path / "out").exists()
+
+
+@patch(
+    "builder_ii.command_authority.enforce_command_authority",
+    side_effect=CommandAuthorityError("denied"),
+)
+def test_rollback_consults_command_authority_gate_before_io(mock_gate, tmp_path: Path):
+    with pytest.raises(CommandAuthorityError):
+        rollback_hitl_patch(tmp_path / "plan.json", tmp_path / "rev.patch", tmp_path / "out")
+    mock_gate.assert_called_once()
+    assert not (tmp_path / "out").exists()
