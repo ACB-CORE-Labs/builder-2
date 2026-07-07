@@ -12,6 +12,7 @@ from builder_ii.execution_postflight_records import (
     create_execution_postflight_record,
     write_execution_postflight_record,
 )
+from builder_ii.governance_standard import build_standard_governance
 from builder_ii.hitl_patch_proposal import validate_hitl_patch_proposal_file
 from builder_ii.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
@@ -169,23 +170,12 @@ def create_patch_apply_receipt(
         "rollback_plan_ref": rollback_plan_ref,
         "postflight_ref": postflight_ref,
         "timestamp": int(time.time()),
-        "artifact_is_authority": True,
-        "governance": {
-            "capability_state": "OPERATIONALLY_VERIFIED",
-            "runtime_execution": "DISABLED",
-            "patch_application": "OPERATIONALLY_VERIFIED",
-            "source_writes": "OPERATIONALLY_VERIFIED",
-            "git_mutation": "DISABLED",
-            "commit_push": "DISABLED",
-            "shell_execution": "DISABLED",
-            "subprocess_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "network_mcp_execution": "DISABLED",
-            "goose_runtime_activation": "DISABLED",
-            "deepagents_runtime": "DISABLED",
-            "artifact_is_authority": True,
-            "core_workbench_coupling": "NONE",
-        },
+        "artifact_is_authority": False,
+        # Matches the platform truth matrix's current pinned state for the "HITL patch
+        # application" capability (MERGED_BUT_NOT_OPERATIONAL) -- this receipt is evidence,
+        # not a self-declared promotion to OPERATIONALLY_VERIFIED. Update only via the 1.7
+        # flip, in lockstep with every other pinned site.
+        "governance": build_standard_governance("MERGED_BUT_NOT_OPERATIONAL"),
     }
 
 
@@ -273,7 +263,10 @@ def apply_hitl_patch(
             settings=settings,
             target_name=target_name,
             proposal_ref=str(proposal_path),
-            rollback_plan_ref=str(rollback_plan_path),
+            # rollback_plan_path is only written after a successful `git apply` (below);
+            # on this failure path the file does not exist yet, so referencing it here
+            # would be a dangling ref. Leave it empty like postflight_ref.
+            rollback_plan_ref="",
             postflight_ref="",
             generic_repo=target_repo if target_name == "generic" else None,
         )
@@ -311,7 +304,9 @@ def apply_hitl_patch(
     postflight["target"] = dict(proposal["target"])
     postflight["postflight_state"] = "RUN_COMPLETE"
     postflight["performed_actions"] = ["git apply patch", "record postflight working tree state"]
-    postflight["governance"]["capability_state"] = "OPERATIONALLY_VERIFIED"
+    # Honest platform-matrix state for "HITL patch application" (MERGED_BUT_NOT_OPERATIONAL),
+    # not a self-declared OPERATIONALLY_VERIFIED promotion -- see 1.7 for the evidence-gated flip.
+    postflight["governance"]["capability_state"] = "MERGED_BUT_NOT_OPERATIONAL"
     postflight_path = output_dir / "postflight_record.json"
     write_execution_postflight_record(postflight, postflight_path)
     postflight_digest = _file_digest(postflight_path)
@@ -381,7 +376,12 @@ def apply_hitl_patch(
             role="patch_apply_receipt",
         ),
         "governance": {
-            "capability_state": "MUTATION_WITH_ROLLBACK_VERIFIED",
+            # MUTATION_WITH_ROLLBACK_VERIFIED is a derived *assurance_state* value
+            # (builder_ii/assurance.py) that only applies once the underlying matrix row is
+            # OPERATIONALLY_VERIFIED (builder_ii/platform_completion_audit.py:assurance_state_for_row).
+            # Today that row is MERGED_BUT_NOT_OPERATIONAL, so self-stamping the post-flip value
+            # here would be a truth-matrix bypass. Mirror the matrix's actual pinned state instead.
+            "capability_state": "MERGED_BUT_NOT_OPERATIONAL",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
         },
@@ -465,6 +465,17 @@ def rollback_hitl_patch(
             text=True,
         )
     except subprocess.CalledProcessError as e:
+        failure_receipt = create_rollback_receipt(
+            settings=settings,
+            target_name=target_name,
+            rollback_plan_ref=str(rollback_plan_path),
+            generic_repo=target_repo if target_name == "generic" else None,
+        )
+        failure_receipt["target"] = dict(plan["target"])
+        # rollback_state stays NOT_EXECUTED (honest: the reverse patch did not apply cleanly);
+        # error_summary is an informal extension field, same pattern as the apply failure receipt.
+        failure_receipt["error_summary"] = (e.stderr or str(e))[:500]
+        write_rollback_receipt(failure_receipt, output_dir / "rollback_failure_receipt.json")
         raise RuntimeError(f"Rollback application failed: {e.stderr}")
 
     receipt = create_rollback_receipt(
