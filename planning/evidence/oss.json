@@ -1,0 +1,103 @@
+{
+ "summary": "builder-II (614 commits, 662 tracked files, single author, hosted at git@git.acbcontent.org:core-labs/builder-II.git on private Forgejo) has zero open-source table stakes today: no LICENSE, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, CHANGELOG.md, no issue/PR templates, no .forgejo/ or .gitea/ directory, and no git tags ever cut despite a v0 \"release proof harness\" and pyproject version 0.1.0. The only CI is a GitHub-idiom workflow (.github/workflows/ci.yml) whose header literally documents GitHub.com branch protection and whose gitleaks-action step depends on GITHUB_TOKEN/GitHub APIs. The 481-line README is philosophy-first \u2014 the Install section starts at line 380 \u2014 and contains marketing claims (\"rock-solid\", \"flawlessly supports\") that contradict the repo's own \"Not yet promoted\" validation boundary. The docs/ directory is a 112-entry flat pile with no index; OPERATOR_QUICKSTART.md hardcodes the operator's personal machine paths. Pre-publication hygiene is nontrivial: 22 tracked files contain personal identifiers, all commits carry a personal iCloud email, and 172 remote branches plus a stash exist beyond main. The good news: .env was never committed, .env.example is clean, version strings are consistent, and the history filename scan shows no obvious credential-file additions \u2014 so a full-history secret scan is likely to pass, but must still be run across all refs before any gifting.",
+ "current_state": [
+  "No LICENSE, CONTRIBUTING.md, SECURITY.md, CODE_OF_CONDUCT.md, or CHANGELOG.md exist anywhere in tracked files: `git ls-files | grep -iE 'license|contributing|security.md|conduct|changelog|template'` returns only nothing relevant (empty, exit 1) at /Users/kaizenpro/Projects/builder-II",
+  "No issue or PR templates: no .gitea/ or .forgejo/ directories exist; only /Users/kaizenpro/Projects/builder-II/.github/workflows/ci.yml exists under .github/",
+  "Zero git tags (`git tag -l` empty) \u2014 no release has ever been cut despite 614 commits since 2026-06-23, pyproject version 0.1.0, a release proof harness at /Users/kaizenpro/Projects/builder-II/scripts/verify_v0_release.py, and release docs at /Users/kaizenpro/Projects/builder-II/docs/RELEASE_PROOF.md and docs/BUILDER_PLATFORM_RELEASE_AUDIT.md",
+  "Version strings are consistent: /Users/kaizenpro/Projects/builder-II/pyproject.toml line 7 has version = \"0.1.0\" and /Users/kaizenpro/Projects/builder-II/builder_ii/__init__.py line 5 has __version__ = \"0.1.0\"; however pyproject.toml has no `license` field, no classifiers, and no `[project.urls]`",
+  "CI (/Users/kaizenpro/Projects/builder-II/.github/workflows/ci.yml) is GitHub-idiom: header comment (lines 1-3) says branch protection is 'managed on GitHub.com'; uses actions/checkout@v4, actions/setup-python@v5, dtolnay/rust-toolchain@stable, astral-sh/setup-uv@v5; gitleaks/gitleaks-action@v2 (lines 80-84) requires secrets.GITHUB_TOKEN and is continue-on-error: true; runs-on: ubuntu-latest. Actual remote is git@git.acbcontent.org:core-labs/builder-II.git (private Forgejo per `git remote -v`)",
+  "CI includes an in-repo working-tree secret scan (ci.yml lines 44-78) with 4 regex patterns (sk-, gsk_, AIza, ghp_) that excludes tests/, docs/, and the workflow itself \u2014 it is not history-aware",
+  "README.md is 481 lines; leads with splash artwork, manifesto prose, a mermaid architecture diagram, 'governing distinctions', and 'The Builder's Signet'; the first runnable command appears at line ~169 (deepagents forge) and the actual Install section starts at line 380 (~79% down); the 'First run' section (lines 419-479) lists ~30 commands including duplicated builder-setup blocks (lines 422-427 repeat at 450-455) and a hardcoded approval actor '\"Joshua Shay\"' at line 472",
+  "README lines 190-202 ('Supported Models & Execution Backends') claim 'Rock-solid, enterprise-grade integration with Google Vertex AI' and 'Flawlessly supports' cloud models, while README lines 364-376 ('Not yet promoted') state the model/provider execution gateway is passive-only registry/routing artifacts (builder_ii/model_client_registry.py is metadata, e.g. groq_provider entries at lines 17, 173-181)",
+  "docs/ contains 112 top-level entries (136 .md files recursive) with no docs/README.md or index; entry-path docs exist: docs/OPERATOR_QUICKSTART.md (82 lines), docs/PROJECT_OVERVIEW.md (123 lines), docs/MANIFESTO.md (289 lines); README has a flat ~40-row 'Documentation map' table at lines 213-257",
+  "docs/OPERATOR_QUICKSTART.md lines 32-44 hardcode the operator's personal path /Users/kaizenpro/Projects/core in every CORE demo-loop command; 22 tracked files (docs, tests, fixtures, README) contain personal identifiers 'kaizenpro' or 'Joshua Shay' per grep, including tests/fixtures/artifacts/*.json and docs/ROADMAP.md, docs/SESSION_WORKFLOW.md, docs/PLATFORM_COMPLETION_AUDIT.md",
+  ".env hygiene is good: /Users/kaizenpro/Projects/builder-II/.env.example contains no secrets (localhost endpoints, model repo names, mode flags only); .env is gitignored (/Users/kaizenpro/Projects/builder-II/.gitignore line 1), untracked (`git ls-files --error-unmatch .env` fails), and never committed on any ref (`git log --all -- .env` empty)",
+  "History filename scan is clean: `git log --diff-filter=A --name-only -- '*.env*' '*secret*' '*key*' '*token*' '*credential*' '*.pem'` shows only .env.example added in commit f3e84e0; single author across all 614 commits: Shay <assetoverflow@icloud.com>; repo pack is 16.16 MiB with 63 local branches, 172 remote branches (including backup/main-before-reset-20260628-191623), and 1 stash entry",
+  "Install path (README lines 380-438): brew install block-goose-cli, uv sync, cp .env.example .env, bash scripts/pull-roster.sh recommended (multi-GB Hugging Face downloads via the hf CLI resolved from .venv \u2014 scripts/pull-models-resumable.sh lines 30-37 exit if hf missing), bash scripts/install-tools.sh required (brew installs repomix, semgrep, ruff, ripgrep, and gh). A fresh machine needs approximately: Homebrew, uv (no script installs it), Python 3.12.13 (pyproject pins >=3.12.13,<3.13), goose, uv sync, .env copy/edit, model downloads, tool install, then the ~30-command first-run sequence \u2014 8-10 distinct steps before `builder doctor`",
+  "scripts/install-tools.sh 'required' tier installs the GitHub CLI `gh` (line ~96) while /Users/kaizenpro/Projects/builder-II/CLAUDE.md and AGENTS.md (both tracked) say 'DO NOT use the gh (GitHub) CLI' and mandate the tea CLI for the private Forgejo host; no .pre-commit-config.yaml exists even though install-tools.sh tier1 installs pre-commit",
+  "Tracked agent-instruction files (CLAUDE.md, AGENTS.md, .cursorrules, .agents/skills/*/SKILL.md) embed private-infrastructure instructions ('hosted on a private Forgejo server') that would ship to public consumers as-is",
+  "Hardware/platform assumption: README line 261 declares 'Primary target: Apple Silicon MacBook Pro M1 with 16GB unified memory' and pyproject.toml hard-depends on mlx-lm>=0.31.3 and rapid-mlx>=0.8.12 (lines 14, 19) with no platform markers, yet ci.yml runs `uv sync --all-groups` on ubuntu-latest"
+ ],
+ "gaps": [
+  "No LICENSE file (git ls-files grep empty; pyproject.toml has no license field) \u2014 the repo is legally all-rights-reserved and cannot be gifted or open-sourced in its current state",
+  "No CONTRIBUTING.md, SECURITY.md (vulnerability disclosure), CODE_OF_CONDUCT.md, or CHANGELOG.md anywhere in the tree (verified via git ls-files)",
+  "No .forgejo/ or .gitea/ issue templates, PR templates, or workflows \u2014 the only automation lives in .github/workflows/ci.yml, written for GitHub semantics on a repo whose remote is git.acbcontent.org (Forgejo)",
+  "Forgejo CI parity gaps in .github/workflows/ci.yml: gitleaks/gitleaks-action@v2 (lines 80-84) calls GitHub APIs with GITHUB_TOKEN and will not function on Forgejo Actions; 'runs-on: ubuntu-latest' presumes a configured Forgejo runner label; the branch-protection header (lines 1-3) references GitHub.com settings that do not exist on this host",
+  "No release process: zero tags, no CHANGELOG, no versioning/release documentation despite docs/RELEASE_PROOF.md and scripts/verify_v0_release.py existing as proof tooling \u2014 'v0' is asserted in docs but never materialized as a cut release",
+  "README first-15-minutes failure: a skeptical senior engineer must read ~380 of 481 lines of philosophy, diagrams, and capability inventories before reaching Install; the first code block (line 25) is an ASCII 'wrong shape/right shape' diagram, not a command",
+  "README credibility gap: 'Rock-solid... Flawlessly supports' cloud-backend claims (lines 192-202) directly contradict the project's own truth-first ethos and its 'Not yet promoted' list (lines 364-376) which says the model execution gateway is passive",
+  "No docs index or tiered funnel: docs/ has 112 top-level files with no README/index; OPERATOR_QUICKSTART.md + PROJECT_OVERVIEW.md exist but the quickstart assumes an already-installed platform, hardcodes /Users/kaizenpro/Projects/core (lines 32-44), and nothing tells a newcomer which of the 136 markdown files to read in what order",
+  "Personal-data scrub gap: 22 tracked files contain 'kaizenpro', 'Joshua Shay', or personal paths (docs/OPERATOR_QUICKSTART.md, docs/CORE_DEMO_WALKTHROUGH.md, docs/ROADMAP.md, README.md line 472, tests/fixtures/artifacts/*.json, multiple test files); every commit carries assetoverflow@icloud.com",
+  "Full-history secret scan not yet performed (scoped, not run): must cover 614 commits across HEAD plus 63 local and 172 remote branches plus 1 stash (16.16 MiB pack) using gitleaks detect / trufflehog git over --all refs; the existing CI scan (ci.yml lines 44-78) only checks the current working tree with 4 patterns and excludes tests/ and docs/; filename-level history scan found only .env.example (commit f3e84e0) so risk appears low but is unverified at content level",
+  "Install friction gaps: no single bootstrap script (uv itself never installed by any script); scripts/install-tools.sh 'required' installs gh, contradicting the repo's own Forgejo-only tooling rule in CLAUDE.md/AGENTS.md; no pre-commit config despite installing pre-commit; scripts/install-goose.sh curl-pipes a remote script from a github.com release URL as fallback (supply-chain note)",
+  "No dependency platform gating: pyproject.toml hard-requires Apple-Silicon-oriented mlx-lm/rapid-mlx for all installs, so non-Mac beta users cannot even `uv sync` cleanly \u2014 undocumented in README beyond the M1 hardware-target note (line 261)"
+ ],
+ "work_items": [
+  {
+   "title": "License decision and legal metadata",
+   "scope": "Choose a license (Apache-2.0 or MIT are the natural fits for the stated 'freely usable' intent in README.md line 15), add LICENSE at repo root, add license and classifiers to pyproject.toml [project], and add a short License section to README.md. Verify dependency license compatibility (mlx-lm, rapid-mlx, textual, typer) before committing.",
+   "complexity": "low",
+   "dependencies": []
+  },
+  {
+   "title": "Add community table-stakes files",
+   "scope": "Create CONTRIBUTING.md (dev setup via uv sync, test/lint/typecheck commands mirroring ci.yml lines 86-96, branch/PR conventions against the Forgejo host using tea), SECURITY.md (private disclosure contact and supported-versions statement), CODE_OF_CONDUCT.md, and .forgejo/issue_template/ + .forgejo/pull_request_template.md. Keep the artifact-first governance vocabulary consistent with docs/MANIFESTO.md.",
+   "complexity": "medium",
+   "dependencies": [
+    "License decision and legal metadata"
+   ]
+  },
+  {
+   "title": "Forgejo Actions CI parity",
+   "scope": "Port .github/workflows/ci.yml to .forgejo/workflows/ci.yml: replace gitleaks/gitleaks-action@v2 (GitHub-API-dependent, lines 80-84) with a pinned gitleaks binary invocation; remove or relocate the GitHub.com branch-protection header comment (lines 1-3) into docs/BRANCH_PROTECTION_REQUIRED.md; confirm the runner label replacing ubuntu-latest exists on the Forgejo instance; verify `uv sync --all-groups` succeeds on the runner given the mlx-lm dependency, or split heavy deps behind an extras group. Decide whether .github/workflows/ci.yml stays (Forgejo can read it) or is deleted to avoid drift.",
+   "complexity": "medium",
+   "dependencies": []
+  },
+  {
+   "title": "Cut v0.1.0 release and establish release process",
+   "scope": "Create CHANGELOG.md (Keep a Changelog format, seeded from the 614-commit history at coarse granularity), tag v0.1.0 on main, and write docs/RELEASING.md tying scripts/verify_v0_release.py and docs/RELEASE_PROOF.md into the tag-cut procedure (proof harness must pass before tagging). Create the release object on the Forgejo instance via tea.",
+   "complexity": "medium",
+   "dependencies": [
+    "Forgejo Actions CI parity"
+   ]
+  },
+  {
+   "title": "README restructure for the first 15 minutes",
+   "scope": "Reorder README.md so the first screen has: one-paragraph value proposition, prerequisites (Apple Silicon M1+, Homebrew, uv, Python 3.12), and the Install + first-command block currently at lines 380-438. Move manifesto/architecture prose (lines 19-155) into docs/MANIFESTO.md and docs/PROJECT_OVERVIEW.md with links. Rewrite the 'Supported Models & Execution Backends' section (lines 190-202) to match the 'Not yet promoted' truth boundary (lines 364-376) \u2014 remove 'rock-solid/flawlessly' claims about passive registry entries. De-duplicate the repeated builder-setup block (lines 422-427 vs 450-455) and replace the personal approval-actor example at line 472.",
+   "complexity": "medium",
+   "dependencies": []
+  },
+  {
+   "title": "Docs funnel and index",
+   "scope": "Add docs/README.md as a tiered index: tier 1 (PROJECT_OVERVIEW.md, OPERATOR_QUICKSTART.md), tier 2 (OPERATOR_GUIDE.md, COMMAND_AUTHORITY.md, ARTIFACT_INDEX.md), tier 3 (the remaining ~130 deep-dive/spec files grouped by subsystem: Goose, deepagents, HITL, code-vault, verification). Fix docs/OPERATOR_QUICKSTART.md lines 32-44 to use a placeholder path instead of /Users/kaizenpro/Projects/core, and make it explicitly depend on the README install steps.",
+   "complexity": "medium",
+   "dependencies": [
+    "README restructure for the first 15 minutes"
+   ]
+  },
+  {
+   "title": "Pre-publication history and PII hygiene pass",
+   "scope": "Run gitleaks detect and trufflehog git over all refs (63 local + 172 remote branches, 1 stash, 614 commits, 16.16 MiB pack) \u2014 the existing CI scan (ci.yml lines 44-78) is working-tree-only and excludes tests/ and docs/. Scrub or accept the 22 tracked files containing 'kaizenpro'/'Joshua Shay' (docs, README line 472, tests/fixtures). Decide identity posture: assetoverflow@icloud.com authors every commit, so publication options are (a) publish history as-is, (b) squash to a fresh initial commit, or (c) filter-repo rewrite. Prune or exclude the 172 remote branches (including backup/main-before-reset-*) from the published remote.",
+   "complexity": "high",
+   "dependencies": []
+  },
+  {
+   "title": "Install experience consolidation",
+   "scope": "Provide a single documented bootstrap path: either a scripts/bootstrap.sh that checks/installs Homebrew deps, uv, goose (reusing scripts/install-goose.sh and scripts/install-tools.sh), or a numbered 5-step README section with expected durations (model downloads via scripts/pull-roster.sh are multi-GB). Resolve the gh-vs-tea contradiction: install-tools.sh 'required' tier installs gh while CLAUDE.md/AGENTS.md forbid it \u2014 either swap to tea or document that gh is for target-repo work, not this repo. Review tracked CLAUDE.md/AGENTS.md/.cursorrules private-Forgejo instructions for what should ship publicly.",
+   "complexity": "medium",
+   "dependencies": [
+    "Pre-publication history and PII hygiene pass"
+   ]
+  }
+ ],
+ "risks": [
+  "Publishing without a LICENSE makes the gift legally void \u2014 recipients have no usage rights; this blocks everything else and is currently absent (no license file, no pyproject license field).",
+  "The 172 remote branches (including backup/main-before-reset-20260628-191623) and 1 stash have never been content-scanned; a HEAD-only or working-tree-only scan (which is all ci.yml lines 44-78 provides) is insufficient evidence of a clean history before publication.",
+  "Operator PII is woven through history and content: assetoverflow@icloud.com on all 614 commits, 'kaizenpro' paths and 'Joshua Shay' in 22 tracked files \u2014 once pushed to a public host this is irreversible, and any history rewrite after tagging v0.1.0 would invalidate the tag.",
+  "README marketing claims ('rock-solid', 'flawlessly supports' Vertex/Groq/xAI at lines 192-202) contradict the repo's own 'Not yet promoted' boundary (lines 364-376); for the stated audience of skeptical senior engineers this undermines the project's core truth-first pitch and its own `builder-platform audit-docs` ethos.",
+  "CI green-status on Forgejo is unverified: gitleaks-action and the GITHUB_TOKEN secret may silently no-op or fail on Forgejo Actions, `ubuntu-latest` may not map to any registered runner, and `uv sync --all-groups` pulls mlx-lm/rapid-mlx on a Linux runner \u2014 the pipeline may never have actually run on the current host.",
+  "Hard Apple-Silicon M1 dependency (pyproject mlx-lm/rapid-mlx, README line 261 hardware target) sharply narrows the beta audience; non-Mac engineers cannot complete `uv sync`, and nothing in the README warns them before they clone.",
+  "Tracked agent-instruction files (CLAUDE.md, AGENTS.md, .cursorrules) reference private infrastructure ('private Forgejo server', git.acbcontent.org conventions); shipping them unedited leaks internal hosting details and gives external contributors instructions that don't apply to them.",
+  "scripts/install-goose.sh falls back to curl-piping an unpinned remote script from a github.com release URL \u2014 a supply-chain exposure to flag in SECURITY.md or pin by checksum before public release."
+ ]
+}

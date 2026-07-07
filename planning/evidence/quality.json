@@ -1,0 +1,106 @@
+{
+ "summary": "builder-II's quality gates are real but narrow: CI (.github/workflows/ci.yml:89-96) runs ruff over everything, pytest (1,533 tests, healthy \u2014 only 4 environment-conditional skips, zero xfail), but mypy on only 5 of 159 modules and bandit with 8 blanket skips suppressing 123 findings. Empirical mypy runs on 13 authority-bearing candidates show 5 pass clean today (free CI wins) and 8 fail, but failures are concentrated and mechanical: 7 union-attr errors in one shared dependency (goose_command_proposal.py) block three HITL modules; setup_apply.py (27), verification_execution_ledger.py (44), and verification_execution_runner.py (1) have their own Optional-narrowing errors \u2014 all real potential NoneType crashes in governance paths; one missing types-PyYAML stub blocks setup_rollback_execute.py. pytest-cov is installed but completely unwired (no config, no CI flag, no baseline). The most serious single finding: hitl_command_runner.py \u2014 the subprocess executor for human-approved commands \u2014 has zero test references. Bandit's B404/B603/B607/B101/B105/B106 skips are justified for a local command-execution platform, but B110/B112 (29 silent try/except-pass sites) suppress swallowed errors inside event_ledger.py and artifact_chain_verification.py, which undermines the platform's evidence-integrity claims. Dead code is modest: agent_tui.py (1,173 lines, zero importers) and voice_policy.py (production-orphaned, kept alive by its own test).",
+ "current_state": [
+  "CI type-checks exactly 5 files: command_authority.py, compliance.py, hitl_patch_apply.py, model_execution_gateway.py, readonly_authority.py (.github/workflows/ci.yml:90); same 5-file list is duplicated in docs/CODE_VAULT_STAGED_ACCEPTANCE.md:65",
+  "No mypy configuration exists anywhere: no [tool.mypy] in pyproject.toml, no mypy.ini/.mypy.ini/setup.cfg \u2014 CI mypy runs on library defaults (verified by ls at repo root)",
+  "Empirical mypy PASS today (5 files, 'Success: no issues found'): builder_ii/hitl_command_execution.py, builder_ii/hitl_patch_proposal.py, builder_ii/verification_execution_plan.py, builder_ii/tool_invocation_gateway.py, builder_ii/readonly_inspection_promotion.py",
+  "Empirical mypy FAIL via one shared dependency: builder_ii/hitl_command_runner.py, builder_ii/hitl_chain_binding.py, builder_ii/hitl_verification_candidate.py all fail solely because builder_ii/goose_command_proposal.py has 7 [union-attr] errors (lines 99-113: target.get()/agent.get() called on 'dict | None' without narrowing)",
+  "Empirical mypy FAIL with own errors: builder_ii/setup_apply.py = 27 own errors (all 'dict[str, Any] | None' indexing/arg-type, e.g. lines 289-301) + 1 in config_sources.py; builder_ii/verification_execution_ledger.py = 44 errors (32 union-attr, 12 arg-type, e.g. enumerate() on 'list | None' at lines 1069/1162/1188); builder_ii/verification_execution_runner.py = 1 arg-type error at line 373; builder_ii/setup_rollback_execute.py = 1 error, missing types-PyYAML stub for yaml import at builder_ii/config_sources.py:9",
+  "Coverage tooling unwired: pytest-cov>=6.0 in dev deps (pyproject.toml:76) but pytest addopts is only '-q --tb=short' (pyproject.toml:89), no [tool.coverage] section, no .coveragerc, and CI runs plain 'uv run pytest -q' (ci.yml:96)",
+  "Test suite: 1,533 tests collected across 217 files in tests/ (pytest --collect-only); a sample module (tests/test_setup_apply.py, 7 tests) runs in ~0.7s including startup, so a full coverage baseline run is estimated at low single-digit minutes",
+  "Skipped tests are healthy: only 4 conditional skips, zero xfail \u2014 tests/test_code_vault_recall.py:51 and tests/test_code_vault_core_rs_adapter.py:19 (optional core_rs backend), tests/test_hitl_chain_binding.py:301 and tests/test_repo_map.py:135 (platform symlink support)",
+  "Bandit skip list (ci.yml:93) suppresses 123 findings total: B603=33, B110=25, B404=18, B607=17, B101=16, B105=9, B112=4, B106=1 (measured by running bandit without -s)",
+  "B105/B106 suppressions are pure false positives (hex colors '#4ade80', '#3fb950', status strings 'estimated'/'not_read', one prose sentence flagged as password); B101 is 15 asserts in builder_ii/tui/widgets/ plus 1 benign type-narrowing assert at builder_ii/chain_summary_records.py:133",
+  "B110/B112 suppressions include silent try/except-pass in governance-critical modules: builder_ii/event_ledger.py (lines 318, 329, 353, 365), builder_ii/artifact_chain_verification.py (lines 1559, 1587, 1615), builder_ii/async_ledger_wal.py:71, builder_ii/governed_prepare_package.py:71, builder_ii/rust_validator.py:63; remainder are in TUI/demo files",
+  "Dead code confirmed: builder_ii/agent_tui.py (1,173 lines) has zero imports anywhere in builder_ii/, tests/, scripts/, or pyproject entry points \u2014 only comment mentions in builder_ii/profile_tui.py:15,60 and builder_ii/hitl_tui.py:7,48; builder_ii/voice_policy.py has zero production importers and is kept alive only by tests/test_voice_policy.py",
+  "Suspected-dead modules that are actually live: benchmark.py (lazy import in builder_ii/cli/main.py:336 behind 'builder benchmark' command, but untested), direct_chat.py (imported by model_execution_gateway.py, tested), harness.py (imported by builder_ii/cli/main.py, tested), assurance.py (imported by command_authority.py and platform_completion_audit.py \u2014 implicitly mypy-clean since command_authority passes in CI \u2014 but has no dedicated test file)",
+  "20 of 158 builder_ii modules have no test references at all, including the authority-bearing builder_ii/hitl_command_runner.py: its execute_hitl_command() runs subprocess on approved commands (imports subprocess at line 6) and grep finds zero test references to execute_hitl_command or hitl_command_runner; its only consumer is builder_ii/cli/hitl_execution_cli.py, whose test (tests/test_hitl_execution_cli.py) only asserts the CLI module itself does not import subprocess",
+  "Stray non-code file inside the package: builder_ii/tui_theme_patch.md"
+ ],
+ "gaps": [
+  "Authority-bearing modules outside CI mypy despite passing today: hitl_command_execution.py, hitl_patch_proposal.py, verification_execution_plan.py, tool_invocation_gateway.py, readonly_inspection_promotion.py all print 'Success' under 'uv run mypy' but are absent from ci.yml:90 \u2014 a regression in any of them would ship silently",
+  "goose_command_proposal.py's 7 union-attr errors (lines 99-113) are real NoneType-crash candidates in proposal construction (manifest 'target'/'agent_profile' sections may be None) and simultaneously block 3 HITL modules from joining the CI mypy gate",
+  "setup_apply.py (27 Optional errors) and verification_execution_ledger.py (44 Optional errors) are mutation/ledger authorities with no type gate \u2014 these are the exact planned/executed/verified surfaces the platform's design says must be trustworthy (builder_ii/setup_apply.py:289-301, builder_ii/verification_execution_ledger.py:1069+)",
+  "No coverage measurement anywhere: pytest-cov installed (pyproject.toml:76) but no --cov invocation in pyproject addopts, no [tool.coverage] config, no CI step (ci.yml:95-96) \u2014 coverage of the 1,533-test suite is unknown; 20 of 158 modules provably have zero test references",
+  "hitl_command_runner.execute_hitl_command (builder_ii/hitl_command_runner.py:61) \u2014 the subprocess execution path for human-approved commands \u2014 has zero direct or indirect test references (grep of tests/ for 'execute_hitl_command|hitl_command_runner' returns nothing)",
+  "Blanket bandit skips B110/B112 (ci.yml:93) hide 29 silent-exception sites, including 4 in event_ledger.py and 3 in artifact_chain_verification.py \u2014 swallowed errors in ledger append/verification code contradict the platform's evidence-integrity model and the codebase has no per-line # nosec annotations that would let the global skip be narrowed",
+  "types-PyYAML missing from dev deps (pyproject.toml:73-81), which alone fails mypy for any module importing builder_ii/config_sources.py (e.g. setup_rollback_execute.py) \u2014 a one-line fix",
+  "builder_ii/agent_tui.py: 1,173 lines of unreachable code with no importer, no entry point, no test",
+  "No [tool.mypy] configuration: the CI file list at ci.yml:90 is the only source of truth for typing scope, duplicated by hand in docs/CODE_VAULT_STAGED_ACCEPTANCE.md:65"
+ ],
+ "work_items": [
+  {
+   "title": "Add the 5 already-passing authority modules to the CI mypy gate",
+   "scope": "Extend the mypy invocation at .github/workflows/ci.yml:90 (and the mirrored command in docs/CODE_VAULT_STAGED_ACCEPTANCE.md:65) with builder_ii/hitl_command_execution.py, builder_ii/hitl_patch_proposal.py, builder_ii/verification_execution_plan.py, builder_ii/tool_invocation_gateway.py, builder_ii/readonly_inspection_promotion.py. All five pass 'uv run mypy' today with zero errors, so this is a zero-fix ratchet that locks in existing correctness on execution/gateway/promotion authorities.",
+   "complexity": "low",
+   "dependencies": []
+  },
+  {
+   "title": "Fix goose_command_proposal.py Optional-narrowing errors to unlock 3 HITL modules for typing",
+   "scope": "Fix the 7 [union-attr] errors in builder_ii/goose_command_proposal.py lines 99-113 (target.get()/agent.get() on 'dict | None' \u2014 narrow or default the manifest 'target' and 'agent_profile' sections before access). Then add builder_ii/hitl_command_runner.py, builder_ii/hitl_chain_binding.py, and builder_ii/hitl_verification_candidate.py to the CI mypy list \u2014 all three fail today solely because of this one dependency. These are real NoneType-crash candidates in proposal construction, so this is a bug fix, not just typing hygiene.",
+   "complexity": "low",
+   "dependencies": []
+  },
+  {
+   "title": "Add types-PyYAML dev dependency and type-gate setup_rollback_execute.py",
+   "scope": "Add types-PyYAML to the dev group in pyproject.toml:73-81; this clears the single mypy error (builder_ii/config_sources.py:9) blocking builder_ii/setup_rollback_execute.py. Then add setup_rollback_execute.py to the CI mypy list at ci.yml:90. One-line dependency change plus CI list edit.",
+   "complexity": "low",
+   "dependencies": []
+  },
+  {
+   "title": "Add unit tests for hitl_command_runner.execute_hitl_command",
+   "scope": "builder_ii/hitl_command_runner.py (180 lines) executes human-approved commands via subprocess and has zero test references \u2014 beta-blocking for a governance platform. Write tests covering _validate_safety rejection paths, approval/proposal record validation wiring (it imports validate_approval_record_file and validate_goose_command_proposal_file), and execute_hitl_command happy/failure paths with subprocess mocked. Model on the existing tests/test_hitl_execution_cli.py fixtures.",
+   "complexity": "medium",
+   "dependencies": []
+  },
+  {
+   "title": "Fix Optional-narrowing errors in setup_apply.py and verification_execution_runner.py; add both to CI mypy",
+   "scope": "builder_ii/setup_apply.py has 27 mechanical errors, all 'dict[str, Any] | None' indexing/arg-type (e.g. lines 289-301 around finalize_setup_receipt); builder_ii/verification_execution_runner.py has 1 arg-type error at line 373. Both are mutation/verification authorities. Narrow Optionals at load boundaries, then append both files to ci.yml:90. tests/test_setup_apply.py exists to guard behavior.",
+   "complexity": "medium",
+   "dependencies": [
+    "Add types-PyYAML dev dependency and type-gate setup_rollback_execute.py"
+   ]
+  },
+  {
+   "title": "Fix 44 mypy errors in verification_execution_ledger.py and add to CI mypy",
+   "scope": "builder_ii/verification_execution_ledger.py (1,233 lines) has 44 errors (32 union-attr, 12 arg-type), largely 'list | None' passed to enumerate() (lines 1069, 1162, 1188) and unnarrowed record fields. This is the largest single typing debt in an authority module. Fix by normalizing record loading to non-Optional shapes; consider splitting the file (it exceeds the 800-line guidance) while touching it. tests/test_verification_execution_ledger.py exists as a behavior guard.",
+   "complexity": "high",
+   "dependencies": []
+  },
+  {
+   "title": "Add [tool.mypy] config to pyproject.toml as single source of typing scope",
+   "scope": "Create a [tool.mypy] section in pyproject.toml (files = [...] listing the gated modules, plus warn settings matching current defaults) so ci.yml:90 and docs/CODE_VAULT_STAGED_ACCEPTANCE.md:65 can both shrink to 'uv run mypy' with no hand-duplicated file list. Prevents the doc and CI lists drifting as the gated set grows.",
+   "complexity": "low",
+   "dependencies": [
+    "Add the 5 already-passing authority modules to the CI mypy gate"
+   ]
+  },
+  {
+   "title": "Wire pytest-cov: measure baseline, add coverage config and a ratcheting CI floor",
+   "scope": "Add [tool.coverage.run]/[tool.coverage.report] to pyproject.toml (source = builder_ii, omit TUI/demo modules initially), change the CI test step (ci.yml:96) to 'uv run pytest -q --cov=builder_ii --cov-report=term --cov-fail-under=<measured baseline>'. The suite is 1,533 fast unit-style tests (~0.7s per sampled module including startup), so the baseline run is minutes, not hours. Set the floor at the measured value and ratchet upward rather than jumping to 80%.",
+   "complexity": "medium",
+   "dependencies": []
+  },
+  {
+   "title": "Replace silent try/except-pass in ledger and chain-verification modules; narrow bandit B110/B112 skips",
+   "scope": "Audit the 29 B110/B112 sites, prioritizing builder_ii/event_ledger.py (lines 318, 329, 353, 365), builder_ii/artifact_chain_verification.py (lines 1559, 1587, 1615), builder_ii/async_ledger_wal.py:71, builder_ii/governed_prepare_package.py:71, and builder_ii/rust_validator.py:63 \u2014 swallowed errors in evidence-ledger code contradict the platform's integrity claims. Convert to logged/structured handling or explicit per-line '# nosec B110' with rationale, then remove B110,B112 from the global skip list at ci.yml:93. Keep B101,B105,B106,B404,B603,B607 (verified false positives / core subprocess purpose).",
+   "complexity": "medium",
+   "dependencies": []
+  },
+  {
+   "title": "Remove dead code: agent_tui.py, decide voice_policy.py, relocate stray md",
+   "scope": "Delete builder_ii/agent_tui.py (1,173 lines, zero importers \u2014 only comment mentions in profile_tui.py:15,60 and hitl_tui.py:7,48) and update those comments. Decide whether builder_ii/voice_policy.py (no production importers, only tests/test_voice_policy.py) is a planned feature or removable; delete module+test or wire it in. Move builder_ii/tui_theme_patch.md out of the package into docs/ or scratch/. Cosmetic; do last.",
+   "complexity": "low",
+   "dependencies": []
+  }
+ ],
+ "risks": [
+  "Mypy follows imports transitively, so each newly gated file can surface errors in dependencies not listed here (as goose_command_proposal.py does for three HITL modules today) \u2014 budget for cascade fixes when expanding ci.yml:90, and validate locally with 'uv run mypy <files>' before merging",
+  "The Optional-narrowing fixes in setup_apply.py and verification_execution_ledger.py change behavior at None boundaries (code that today would crash or silently proceed) \u2014 regressions in receipt/ledger semantics are possible; rely on tests/test_setup_apply.py and tests/test_verification_execution_ledger.py and add cases for the None paths being narrowed",
+  "Surfacing previously swallowed exceptions in event_ledger.py and artifact_chain_verification.py (B110 cleanup) may convert silent degradation into hard failures in operator flows; some sites may be intentional best-effort behavior \u2014 each site needs a judgment call, not a mechanical rewrite",
+  "A coverage floor set optimistically will flake CI: 20 of 158 modules have zero test references and TUI modules (agent_tui, hitl_tui, model_tui, profile_tui, promote_tui, postflight_tui, goose_tui) are effectively untestable without a Textual harness \u2014 start with an omit list and the measured baseline, ratchet later",
+  "agent_tui.py deletion is safe by import analysis, but if a TUI consolidation effort intends to revive it, deletion loses 1,173 lines of styling/contract work \u2014 confirm intent (comments in hitl_tui.py:7 and profile_tui.py:15 treat it as part of a shared palette contract) before removing",
+  "Two sources of truth already drift-prone: the mypy/bandit command lines are duplicated between .github/workflows/ci.yml:90,93 and docs/CODE_VAULT_STAGED_ACCEPTANCE.md:65-66 \u2014 any gate expansion must update both or the documented acceptance procedure diverges from CI",
+  "Repo is hosted on private Forgejo (CLAUDE.md): the .github/workflows/ci.yml may be executed by Forgejo Actions or may be vestigial GitHub config \u2014 verify where CI actually runs before assuming gate changes take effect"
+ ]
+}
