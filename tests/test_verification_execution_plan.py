@@ -175,6 +175,55 @@ def test_nested_list_model_or_patch_authority_true_fails() -> None:
         assert any(f"{field}[0] must not enable" in error for error in errors)
 
 
+def test_pytest_full_naming_invariant_holds() -> None:
+    # The pytest lane must satisfy the runner's profile==step_id==ref-leaf invariant.
+    plan = _sample_plan()
+    step = next(step for step in plan["planned_steps"] if step["step_id"] == "pytest_full")
+    assert step["profile"] == "pytest_full"
+    assert step["command_profile_ref"] == "verification_profiles.builder_full.pytest_full"
+    profile = next(p for p in plan["allowed_command_profiles"] if p["profile"] == "pytest_full")
+    assert profile["command_profile_ref"] == "verification_profiles.builder_full.pytest_full"
+
+
+def test_builder_full_command_profile_is_present() -> None:
+    plan = _sample_plan()
+    assert any(p["profile"] == "builder_full" for p in plan["allowed_command_profiles"])
+    assert any(step["step_id"] == "builder_full" for step in plan["planned_steps"])
+
+
+def test_every_profile_and_step_declares_a_bounded_timeout() -> None:
+    plan = _sample_plan()
+    for profile in plan["allowed_command_profiles"]:
+        assert isinstance(profile["timeout_seconds"], int)
+        assert 1 <= profile["timeout_seconds"] <= 1800
+    for step in plan["planned_steps"]:
+        assert 1 <= step["timeout_seconds"] <= 1800
+
+
+def test_out_of_range_timeout_fails() -> None:
+    plan = _sample_plan()
+    plan["planned_steps"][0]["timeout_seconds"] = 5000
+    plan = _resign(plan)
+    errors = validate_verification_execution_plan_artifact(plan)
+    assert any("timeout_seconds must be within" in error for error in errors)
+
+
+def test_missing_timeout_fails() -> None:
+    plan = _sample_plan()
+    del plan["allowed_command_profiles"][0]["timeout_seconds"]
+    plan = _resign(plan)
+    errors = validate_verification_execution_plan_artifact(plan)
+    assert any("timeout_seconds must be an integer" in error for error in errors)
+
+
+def test_boolean_timeout_is_rejected() -> None:
+    plan = _sample_plan()
+    plan["planned_steps"][0]["timeout_seconds"] = True
+    plan = _resign(plan)
+    errors = validate_verification_execution_plan_artifact(plan)
+    assert any("timeout_seconds must be an integer" in error for error in errors)
+
+
 def test_file_validation_round_trip(tmp_path: Path) -> None:
     plan = _sample_plan()
     output = tmp_path / "verification-execution-plan.json"

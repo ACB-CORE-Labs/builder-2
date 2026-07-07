@@ -417,8 +417,8 @@ The operator command surface is organized by phase. Every command operates stric
 - **Human responsibility**: Passively record candidate execution parameters and verify them before any future activation.
 - **Writes**: Writes only explicit artifact output paths when `--output` is specified.
 
-#### `builder-hitl plan-patch`
-- **Command name**: `builder-hitl plan-patch`
+#### `builder-hitl propose-patch`
+- **Command name**: `builder-hitl propose-patch`
 - **Purpose**: Generate a Human-In-The-Loop patch specification proposal for review.
 - **Output artifact, if any**: Patch specification JSON artifact.
 - **Execution authority**: planned-only

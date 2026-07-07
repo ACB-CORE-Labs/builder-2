@@ -195,6 +195,10 @@ from builder_ii.hitl_patch_apply import (
     validate_patch_apply_receipt,
     validate_rollback_bundle,
 )
+from builder_ii.hitl_patch_approval import (
+    HITL_PATCH_APPROVAL_KIND,
+    validate_hitl_patch_approval,
+)
 from builder_ii.hitl_patch_proposal import (
     HITL_PATCH_PROPOSAL_KIND,
     validate_hitl_patch_proposal,
@@ -452,6 +456,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_EXECUTION_RECEIPT_KIND: validate_hitl_execution_receipt,
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND: validate_hitl_verification_execution_candidate,
     HITL_PATCH_PROPOSAL_KIND: validate_hitl_patch_proposal,
+    HITL_PATCH_APPROVAL_KIND: validate_hitl_patch_approval,
     PATCH_APPLY_RECEIPT_KIND: validate_patch_apply_receipt,
     ROLLBACK_BUNDLE_KIND: validate_rollback_bundle,
     ROLLBACK_PLAN_KIND: validate_rollback_plan,

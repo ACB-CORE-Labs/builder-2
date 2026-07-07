@@ -19,7 +19,12 @@ from builder_ii.verification_execution_plan import (
 )
 
 VERIFICATION_EXECUTION_RECEIPT_KIND = "builder_ii.verification_execution_receipt"
-VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION = 1
+# Schema v2 (D9 hard cut, in lockstep with the plan and approval): adds target-repo
+# commit identity (`target_commit`/`target_branch`) so a receipt is digest-bound to an
+# exact source state, records ignored pytest byproducts observed during the run
+# (`observed_byproducts`), and echoes the D7 execution-risk acknowledgment the runner
+# verified before spawning.
+VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION = 2
 RUNNER_MODE_CONTRACT_ONLY = "receipt_contract_only"
 RUNNER_MODE_BOUNDED_APPROVED = "bounded_approved_verification"
 SUBPROCESS_MODE_NOT_STARTED = "not_started"
@@ -141,6 +146,11 @@ def finalize_verification_execution_receipt(
     workspace_mutation_detected: bool = False,
     execution_enabled: bool | None = None,
     subprocess_mode: str | None = None,
+    target_commit: str | None = None,
+    target_branch: str | None = None,
+    observed_byproducts: list[str] | None = None,
+    execution_risk_acknowledged: bool = False,
+    acknowledged_risk: str | None = None,
 ) -> dict[str, Any]:
     effective_execution_enabled = (
         execution_enabled if execution_enabled is not None else runner_mode == RUNNER_MODE_BOUNDED_APPROVED
@@ -178,6 +188,18 @@ def finalize_verification_execution_receipt(
         "preflight_git_state": preflight_git_state or _default_git_state("preflight"),
         "postflight_git_state": postflight_git_state or _default_git_state("postflight"),
         "workspace_mutation_detected": workspace_mutation_detected,
+        # Commit identity binds the receipt to an exact target-repo source state
+        # ("tests ran at commit X"); null when the target is not a git repo.
+        "target_commit": target_commit,
+        "target_branch": target_branch,
+        # Paths that changed during the run and matched the profile's pinned ignore-globs
+        # (e.g. pytest cache/bytecode). Recorded, never silently hidden: an ignore channel
+        # is exactly where a malicious patch would try to write.
+        "observed_byproducts": list(observed_byproducts or []),
+        # Echo of the D7 acknowledgment the runner verified before spawning a target-code
+        # profile. Evidence only; it never authorizes anything on its own.
+        "execution_risk_acknowledged": bool(execution_risk_acknowledged),
+        "acknowledged_risk": acknowledged_risk,
         "stdout_capture_policy": _default_capture_policy("stdout"),
         "stderr_capture_policy": _default_capture_policy("stderr"),
         "timeout_policy": _default_timeout_policy(),
@@ -276,6 +298,23 @@ def _validate_process_results(value: Any) -> list[str]:
     return errors
 
 
+def _validate_commit_identity_and_byproducts(data: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    target_commit = data.get("target_commit")
+    if target_commit is not None and not _is_non_empty_string(target_commit):
+        errors.append("target_commit must be null or a non-empty string")
+    target_branch = data.get("target_branch")
+    if target_branch is not None and not _is_non_empty_string(target_branch):
+        errors.append("target_branch must be null or a non-empty string")
+    errors.extend(_validate_string_list("observed_byproducts", data.get("observed_byproducts")))
+    if not isinstance(data.get("execution_risk_acknowledged"), bool):
+        errors.append("execution_risk_acknowledged must be a boolean")
+    acknowledged_risk = data.get("acknowledged_risk")
+    if acknowledged_risk is not None and not _is_non_empty_string(acknowledged_risk):
+        errors.append("acknowledged_risk must be null or a non-empty string")
+    return errors
+
+
 def _validate_runner_mode(data: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     runner_mode = data.get("runner_mode")
@@ -364,6 +403,7 @@ def validate_verification_execution_receipt_artifact(data: Any) -> list[str]:
     )
     errors.extend(_validate_policy("cwd_policy", data.get("cwd_policy"), ("cwd_escape_allowed",)))
     errors.extend(_validate_disabled_authority(data))
+    errors.extend(_validate_commit_identity_and_byproducts(data))
     artifact_errors = data.get("errors")
     if not isinstance(artifact_errors, list) or not all(isinstance(item, str) for item in artifact_errors):
         errors.append("errors must be a list of strings")

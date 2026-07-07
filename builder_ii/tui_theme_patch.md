@@ -7,7 +7,7 @@
 - Section rule and panel border helpers delegate to `tui_theme`.
 - New `builder theme` Typer subcommand: `show` and `list`.
 
-### `agent_tui.py` + `hitl_tui.py`
+### `hitl_tui.py`
 - ANSI-mode `_c()` helpers now pull hex values from `tui_theme.theme_palette()`
   when the module is available, falling back to original hard-coded values if not.
 - Non-TTY / pipe path is unchanged (no ANSI ever emitted).

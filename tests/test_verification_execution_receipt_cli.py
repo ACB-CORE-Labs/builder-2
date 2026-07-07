@@ -115,12 +115,15 @@ def test_validate_receipt_fails_with_wrong_plan(tmp_path: Path) -> None:
 def test_validate_receipt_fails_with_wrong_approval(tmp_path: Path) -> None:
     plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)
     plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    # A valid-but-different approval (distinct approved_step_ids -> distinct digest) so the
+    # receipt binding fails on approval_digest, not on the approval being independently invalid.
+    # Uses a safe step so no execution-risk acknowledgment is required.
     wrong_approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Joshua Shay",
         approval_reason="Approve passive B1.1 verification plan for future B1.3 runner testing.",
-        approved_step_ids=["pytest_full"],
+        approved_step_ids=["platform_status"],
         generated_at="2026-06-30T00:04:00+00:00",
     )
     wrong_approval_path = tmp_path / "wrong-approval.json"
