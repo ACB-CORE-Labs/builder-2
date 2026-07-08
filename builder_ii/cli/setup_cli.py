@@ -8,6 +8,7 @@ from rich.console import Console
 
 from builder_ii.cli.config_cli import _override_map
 from builder_ii.config_sources import resolve_config_sources
+from builder_ii.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH
 from builder_ii.onboarding_intent import validate_onboarding_intent_report_file
 from builder_ii.setup_apply import SetupApplyError, apply_setup_overlay
 from builder_ii.setup_onboarding import run_onboarding_pipeline
@@ -135,6 +136,31 @@ def _onboarding_intent_validation_report(errors: list[str]) -> str:
 
 def _load_json_file(path: Path) -> dict:
     return json_lib.loads(path.read_text(encoding="utf-8"))
+
+
+def _interactive_digest_approval(digest: str, digest_label: str) -> str:
+    """Digest-prefix confirmation grammar shared with the HITL patch approvals (plan item 1.1).
+
+    The command renders the full digest and the operator must type its first
+    ``APPROVAL_CONFIRMATION_PREFIX_LENGTH`` characters back; the process that renders the
+    digest never harvests the confirmation for the operator. A mismatch refuses with no
+    writes and no receipt.
+    """
+    if not digest:
+        console.out(f"artifact has no {digest_label}; cannot approve\n", end="")
+        raise typer.Exit(1)
+    expected_prefix = digest[:APPROVAL_CONFIRMATION_PREFIX_LENGTH]
+    console.out(f"{digest_label}: {digest}\n", end="")
+    console.out(
+        f"To approve, type the first {APPROVAL_CONFIRMATION_PREFIX_LENGTH} characters "
+        f"of the {digest_label} shown above.\n",
+        end="",
+    )
+    typed = typer.prompt("digest prefix").strip()
+    if typed != expected_prefix:
+        console.out("Prefix did not match. No approval granted; nothing was written.\n", end="")
+        raise typer.Exit(1)
+    return digest
 
 
 @setup_app.command("plan")
@@ -266,8 +292,13 @@ def apply(
     rollback_snapshot: Path = typer.Option(
         ..., "--rollback-snapshot", help="Required rollback snapshot artifact path."
     ),
-    approve_digest: str = typer.Option(
-        ..., "--approve-digest", help="Required digest-bound approval matching overlay_plan_digest."
+    approve_digest: str | None = typer.Option(
+        None,
+        "--approve-digest",
+        help=(
+            "Digest-bound approval matching overlay_plan_digest (scripted flows). "
+            "When omitted, apply shows the digest and prompts for a typed digest prefix."
+        ),
     ),
     output: Path = typer.Option(..., "--output", "-o", help="Required explicit setup receipt output path."),
 ) -> None:
@@ -278,12 +309,20 @@ def apply(
         console.out(_overlay_validation_report(overlay_errors), end="")
         console.out(_rollback_validation_report(rollback_errors), end="")
         raise typer.Exit(1)
+    overlay = _load_json_file(setup_overlay_path)
+    approval_mode = "explicit_digest_bound_cli_flag"
+    if approve_digest is None:
+        approve_digest = _interactive_digest_approval(
+            str(overlay.get("overlay_plan_digest", "")), "overlay_plan_digest"
+        )
+        approval_mode = "interactive_digest_prefix_confirmation"
     try:
         receipt = apply_setup_overlay(
-            _load_json_file(setup_overlay_path),
+            overlay,
             _load_json_file(rollback_snapshot),
             approve_digest=approve_digest,
             receipt_output=output,
+            approval_mode=approval_mode,
         )
     except SetupApplyError as exc:
         if exc.receipt is not None:
@@ -311,8 +350,13 @@ def rollback(
     rollback_snapshot: Path = typer.Option(
         ..., "--rollback-snapshot", help="Required rollback snapshot artifact path."
     ),
-    approve_digest: str = typer.Option(
-        ..., "--approve-digest", help="Required digest-bound approval matching setup receipt digest."
+    approve_digest: str | None = typer.Option(
+        None,
+        "--approve-digest",
+        help=(
+            "Digest-bound approval matching setup receipt digest (scripted flows). "
+            "When omitted, rollback shows the digest and prompts for a typed digest prefix."
+        ),
     ),
     output: Path = typer.Option(..., "--output", "-o", help="Required explicit setup rollback receipt output path."),
 ) -> None:
@@ -323,12 +367,18 @@ def rollback(
         console.out(_receipt_validation_report(receipt_errors), end="")
         console.out(_rollback_validation_report(rollback_errors), end="")
         raise typer.Exit(1)
+    setup_receipt = _load_json_file(setup_receipt_path)
+    approval_mode = "explicit_digest_bound_cli_flag"
+    if approve_digest is None:
+        approve_digest = _interactive_digest_approval(str(setup_receipt.get("receipt_digest", "")), "receipt_digest")
+        approval_mode = "interactive_digest_prefix_confirmation"
     try:
         receipt = execute_setup_rollback(
-            _load_json_file(setup_receipt_path),
+            setup_receipt,
             _load_json_file(rollback_snapshot),
             approve_digest=approve_digest,
             receipt_output=output,
+            approval_mode=approval_mode,
         )
     except SetupRollbackError as exc:
         if exc.receipt is not None:

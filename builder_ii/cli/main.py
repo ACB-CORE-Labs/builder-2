@@ -184,6 +184,181 @@ def onboarding(
     )
 
 
+@app.command("init")
+def init(
+    output_dir: Optional[Path] = typer.Option(
+        None, "--output-dir", help="Output directory for onboarding artifacts (prompted when omitted)."
+    ),
+    root: Path = typer.Option(Path.cwd(), "--root", help="Project root for configuration resolution."),
+    config_file: Optional[Path] = typer.Option(None, "--config-file", help="Optional builder config file path."),
+    target_repo: Optional[Path] = typer.Option(None, "--target-repo", help="Target repository override."),
+    target_profile: Optional[str] = typer.Option(
+        None, "--target-profile", help="Target profile (prompted when omitted; registry-validated)."
+    ),
+    model_backend: Optional[str] = typer.Option(
+        None, "--model-backend", help="Model backend (prompted when omitted; registry-validated)."
+    ),
+    model_alias: Optional[str] = typer.Option(
+        None, "--model-alias", help="Model alias (prompted when omitted; registry-validated)."
+    ),
+    agent_profile: Optional[str] = typer.Option(
+        None, "--agent-profile", help="Defaulted decision override: agent profile (registry-validated)."
+    ),
+    verification_profile: Optional[str] = typer.Option(
+        None, "--verification-profile", help="Defaulted decision override: verification profile (registry-validated)."
+    ),
+    artifact_root: Optional[Path] = typer.Option(
+        None, "--artifact-root", help="Defaulted decision override: platform artifact root."
+    ),
+    runtime_mode: Optional[str] = typer.Option(
+        None, "--runtime-mode", help="Defaulted decision override: runtime mode."
+    ),
+    allow_artifact_root_inside_target: Optional[bool] = typer.Option(
+        None,
+        "--allow-artifact-root-inside-target/--no-allow-artifact-root-inside-target",
+        help="Defaulted decision override: allow artifact root inside target source paths.",
+    ),
+    non_interactive: bool = typer.Option(
+        False,
+        "--non-interactive",
+        help="Never prompt; missing prompted decisions take their resolved documented defaults.",
+    ),
+) -> None:
+    """Unified governed onboarding orchestrator: emits plan/overlay/snapshot/intent artifacts, never applies.
+
+    Composes the existing 4-decision wizard surface with registry-validated answers and
+    documented defaults for the remaining decisions. The apply step is a separately
+    invoked, digest-confirmed command (builder-setup apply) — init renders digests but
+    never harvests the confirmation.
+    """
+    from builder_ii.config_sources import resolve_config_sources
+    from builder_ii.init_decisions import (
+        DEFAULT_INIT_OUTPUT_DIR,
+        defaulted_decisions,
+        prompted_decisions,
+        validate_decision_value,
+    )
+    from builder_ii.setup_onboarding import run_onboarding_pipeline
+
+    resolution = resolve_config_sources(project_root=root, builder_config_file=config_file)
+    if resolution.errors:
+        for error in resolution.errors:
+            console.print(f"[red]config resolution error:[/] {error}")
+        raise typer.Exit(1)
+
+    # Registry-validate every flag-provided answer up front — fail closed, never free text.
+    flag_answers = {
+        "target_profile": target_profile,
+        "model_backend": model_backend,
+        "model_alias": model_alias,
+        "agent_profile": agent_profile,
+        "verification_profile": verification_profile,
+    }
+    for decision_name, provided in flag_answers.items():
+        if provided is None:
+            continue
+        errors = validate_decision_value(decision_name, provided)
+        if errors:
+            for error in errors:
+                console.print(f"[red]invalid decision:[/] {error}")
+            raise typer.Exit(2)
+
+    # The four wizard decisions: flag > interactive registry-validated prompt > resolved default.
+    chosen: dict[str, str] = {}
+    prompted_any = False
+    for decision in prompted_decisions():
+        if decision.name == "output_dir":
+            if output_dir is not None:
+                chosen[decision.name] = str(output_dir)
+                continue
+            default = DEFAULT_INIT_OUTPUT_DIR
+        else:
+            provided = flag_answers[decision.name]
+            if provided is not None:
+                chosen[decision.name] = provided
+                continue
+            default = resolution.value(decision.resolution_field or "")
+        if non_interactive:
+            chosen[decision.name] = default
+            continue
+        prompted_any = True
+        question = decision.question
+        if decision.allowed:
+            question = f"{question} ({', '.join(decision.allowed)})"
+        for _attempt in range(3):
+            answer = str(typer.prompt(question, default=default)).strip()
+            errors = validate_decision_value(decision.name, answer)
+            if not errors:
+                chosen[decision.name] = answer
+                break
+            for error in errors:
+                console.print(f"[red]invalid answer:[/] {error}")
+        else:
+            console.print("[red]no valid answer after 3 attempts; aborting without writing artifacts[/]")
+            raise typer.Exit(2)
+
+    result = run_onboarding_pipeline(
+        output_dir=Path(chosen["output_dir"]),
+        onboarding_mode="wizard" if prompted_any else "init",
+        root=root,
+        config_file=config_file,
+        target_repo=target_repo,
+        artifact_root=artifact_root,
+        target_profile=chosen["target_profile"],
+        agent_profile=agent_profile,
+        verification_profile=verification_profile,
+        model_backend=chosen["model_backend"],
+        model_alias=chosen["model_alias"],
+        runtime_mode=runtime_mode,
+        allow_artifact_root_inside_target=allow_artifact_root_inside_target,
+    )
+    if not result.valid:
+        console.out(json.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
+        raise typer.Exit(1)
+
+    console.out("Onboarding plan generated (no setup was applied).\n\n", end="")
+    console.out("Selected decisions:\n", end="")
+    for name in ("target_profile", "model_backend", "model_alias", "output_dir"):
+        console.out(f"  {name}: {chosen[name]}\n", end="")
+    console.out("\nDefaulted decisions (documented defaults; override flags shown):\n", end="")
+    for defaulted in defaulted_decisions():
+        value = resolution.value(defaulted.resolution_field)
+        if defaulted.name == "agent_profile" and agent_profile is not None:
+            value = agent_profile
+        if defaulted.name == "verification_profile" and verification_profile is not None:
+            value = verification_profile
+        if defaulted.name == "artifact_root" and artifact_root is not None:
+            value = str(artifact_root)
+        if defaulted.name == "runtime_mode" and runtime_mode is not None:
+            value = runtime_mode
+        if defaulted.name == "allow_artifact_root_inside_target" and allow_artifact_root_inside_target is not None:
+            value = str(allow_artifact_root_inside_target).lower()
+        console.out(f"  {defaulted.name}: {value}  (override: {defaulted.override_flag})\n", end="")
+    console.out("\nArtifacts:\n", end="")
+    console.out(f"  setup plan:        {result.setup_plan_path}\n", end="")
+    console.out(f"  overlay plan:      {result.setup_overlay_path}\n", end="")
+    console.out(f"  rollback snapshot: {result.rollback_snapshot_path}\n", end="")
+    console.out(f"  intent report:     {result.onboarding_intent_path}\n", end="")
+    console.out("\nDigests:\n", end="")
+    console.out(f"  setup plan digest:   {result.setup_plan['plan_digest']}\n", end="")
+    console.out(f"  overlay plan digest: {result.overlay_plan['overlay_plan_digest']}\n", end="")
+    console.out(f"  rollback snapshot:   {result.rollback_snapshot['snapshot_id']}\n", end="")
+    console.out("\nNext (separately invoked apply step; init never applies):\n", end="")
+    console.out(f"  1. Review the overlay plan: {result.setup_overlay_path}\n", end="")
+    console.out(
+        f"  2. builder-setup apply {result.setup_overlay_path} "
+        f"--rollback-snapshot {result.rollback_snapshot_path} "
+        f"--output {result.output_dir / 'setup-receipt.json'}\n",
+        end="",
+    )
+    console.out(
+        "     apply prints the overlay digest and asks you to type its 4-character prefix —\n"
+        "     the same digest-prefix confirmation grammar as builder-hitl approvals.\n"
+        "     (Scripted flows may instead pass --approve-digest with the full overlay digest.)\n",
+        end="",
+    )
+
+
 @app.command("pull")
 def pull(
     tier: str = typer.Option("recommended", "--tier", "-t", help="recommended|fast|primary|all-safe|status|legacy"),

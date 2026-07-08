@@ -152,7 +152,7 @@ Legacy `builder setup` no longer performs unmanaged writes. R1.4 converts it int
 
 ## R1.3A governed setup apply receipt
 
-R1.3A adds `builder-setup apply` as a narrowly scoped governed setup-write command. It consumes a validated setup overlay plan and a validated rollback snapshot, requires `--approve-digest` to exactly match `overlay_plan_digest`, and writes a required setup receipt to the explicit `--output` path. The apply path writes only declared setup targets from the overlay plan and supports only create, replace, mkdir, and no-op operations. Unsupported merge/copy operations fail closed unless a later PR explicitly reconciles and tests them.
+R1.3A adds `builder-setup apply` as a narrowly scoped governed setup-write command. It consumes a validated setup overlay plan and a validated rollback snapshot, requires a digest-bound approval that exactly matches `overlay_plan_digest`, and writes a required setup receipt to the explicit `--output` path. The approval takes one of two forms, and the receipt records which was used in `approval_mode`: `--approve-digest <overlay_plan_digest>` for scripted flows (`explicit_digest_bound_cli_flag`), or — when the flag is omitted — an interactive confirmation in which apply prints the full overlay plan digest and the operator types its first 4 characters back (`interactive_digest_prefix_confirmation`, the same confirmation grammar as the HITL patch approvals). A wrong prefix refuses with no writes and no receipt. The apply path writes only declared setup targets from the overlay plan and supports only create, replace, mkdir, and no-op operations. Unsupported merge/copy operations fail closed unless a later PR explicitly reconciles and tests them.
 
 Setup apply does not grant shell, subprocess, model/provider, runtime, MCP/tool, Goose runtime, deepagents runtime, B1 verification runner, patch, autonomous apply, generic rollback, git rollback, B2 patch rollback, or arbitrary source-code mutation authority. Legacy `builder setup` is now only a redirect surface and cannot bypass this digest-bound lane.
 
@@ -167,7 +167,7 @@ builder-setup validate-receipt SETUP_RECEIPT.json
 
 ## R1.3B governed setup rollback receipt
 
-R1.3B adds `builder-setup rollback` and `builder-setup validate-rollback-receipt` as a narrowly scoped setup rollback lane. The rollback executor consumes an R1.3A setup apply receipt plus an R1.2 rollback snapshot, requires `--approve-digest` to exactly match the setup receipt digest, and writes a setup rollback receipt to the explicit `--output` path. It touches only `changed_paths` from an applied setup receipt when every changed path is covered by the supplied snapshot. Skipped setup paths are recorded as no-op only.
+R1.3B adds `builder-setup rollback` and `builder-setup validate-rollback-receipt` as a narrowly scoped setup rollback lane. The rollback executor consumes an R1.3A setup apply receipt plus an R1.2 rollback snapshot, requires a digest-bound approval that exactly matches the setup receipt digest, and writes a setup rollback receipt to the explicit `--output` path. As with apply, the approval is either `--approve-digest <setup_receipt_digest>` (scripted; `approval_mode` `explicit_digest_bound_cli_flag`) or, when the flag is omitted, an interactive typed digest-prefix confirmation against the printed receipt digest (`interactive_digest_prefix_confirmation`); a wrong prefix refuses with no writes. It touches only `changed_paths` from an applied setup receipt when every changed path is covered by the supplied snapshot. Skipped setup paths are recorded as no-op only.
 
 The executor preflights deterministic rollback denials before any mutation. Missing prior state deletes future-created files or empty directories. Prior directories are ensured to exist or treated as no-op. Prior files require safely available raw prior content and otherwise fail closed with `manual_restore_required`; redacted previews are never used as restore material. Prior symlinks and unsupported states fail closed. Rollback never invokes git, shell, subprocesses, models, MCP/tools, Goose, deepagents, patch authority, B1 verification execution, B2 patch rollback, generic repository rollback, or autonomous rollback.
 
@@ -207,6 +207,40 @@ builder onboarding
 ```
 
 Onboarding commands do not perform mutation or write setup receipts directly. To apply setup writes, run the printed `builder-setup apply` command after reviewing the overlay plan digest.
+
+## 2.2 unified `builder init` orchestrator
+
+`builder init` is the single onboarding entrypoint for new operators. It composes the same governed onboarding pipeline as `builder-setup init`/`wizard` (setup plan → overlay plan → rollback snapshot → onboarding intent report) and, like them, is a Tier 1 artifact-only surface: it **never applies**.
+
+It splits the nine onboarding decisions into two groups:
+
+**Four prompted decisions** — asked interactively when not provided by flag, with the resolved configuration value offered as the default. Every answer, typed or flag-provided, is validated against the live registry for that decision (never accepted as free text); an invalid interactive answer re-prompts up to 3 attempts, an invalid flag answer exits immediately.
+
+| Decision | Flag | Validated against |
+|---|---|---|
+| Output directory | `--output-dir` (default `.builder/setup-artifacts`) | non-empty path |
+| Target profile | `--target-profile` | target profile registry (`generic`, `builder`, `core`) |
+| Model backend | `--model-backend` | backend registry |
+| Model alias | `--model-alias` | model alias registry |
+
+**Five defaulted decisions** — resolved through the standard config source precedence (defaults → `.env` → config file → CLI override), echoed in the init summary together with the flag that overrides each, and never prompted:
+
+| Decision | Documented default | Override flag |
+|---|---|---|
+| Agent profile | `patch_planner` | `--agent-profile` |
+| Verification profile | `builder_full` | `--verification-profile` |
+| Artifact root | `<root>/.builder/artifacts` | `--artifact-root` |
+| Runtime mode | `passive` | `--runtime-mode` |
+| Artifact root inside target | `false` | `--allow-artifact-root-inside-target` |
+
+`--non-interactive` disables prompting entirely: missing prompted decisions fall back to their resolved defaults, still registry-validated.
+
+The init summary ends with the exact `builder-setup apply` command to run next — printed **without** an inline `--approve-digest`. Approval happens only in the separately invoked apply step, via the interactive digest-prefix confirmation (or `--approve-digest` for scripted flows). The process that renders a digest never harvests its own confirmation.
+
+```bash
+builder init                       # prompt for the four wizard decisions
+builder init --target-profile generic --model-backend mlx-lm --model-alias qwen-coder --non-interactive
+```
 
 ## R1.6 closure report and golden-path proof
 
