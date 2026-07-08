@@ -87,6 +87,23 @@ def test_subject_ref_tamper_breaks_chain_digest(tmp_path: Path) -> None:
     assert any("chain_digest does not match" in e for e in errors)
 
 
+def test_duplicate_subject_ref_roles_rejected(tmp_path: Path) -> None:
+    """A duplicate role would collapse in the chain_digest's {role: sha256} map, dropping one
+    ref's fingerprint from the binding while the record still self-validated. The validator
+    must reject it so chain_digest genuinely binds every ref (adversarial review, 1.6)."""
+    real = _ref(tmp_path, "real.json", role="patch_proposal")
+    fake = _ref(tmp_path, "fake.json", role="patch_proposal")  # same role, different file/sha
+    record = create_hitl_patch_ledger_record(
+        event_type=EVENT_PATCH_APPLIED,
+        target={"name": "generic", "repo": str(tmp_path)},
+        patch_digest="a" * 64,
+        pre_head="b" * 40,
+        subject_refs=[real, fake],
+    )
+    assert record["valid"] is False
+    assert any("roles must be unique" in e for e in record["errors"])
+
+
 def test_unknown_event_type_rejected(tmp_path: Path) -> None:
     record = _record(tmp_path)
     tampered = dict(record)

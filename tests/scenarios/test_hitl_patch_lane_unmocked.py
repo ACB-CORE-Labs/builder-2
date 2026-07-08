@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from hitl_patch_lane_helpers import PATCH_DIFF, init_target_repo, real_verification_receipt
 
@@ -127,3 +128,33 @@ def test_unmocked_apply_rollback_emits_and_chain_verifies_ledger(tmp_path: Path)
     assert report["valid"] is True, report.get("errors")
     assert report["counts"]["native_invalid"] == 0
     assert report["counts"]["broken_links"] == 0
+
+
+def test_ledger_emission_failure_does_not_strand_a_successful_apply(tmp_path: Path) -> None:
+    """The ledger is supplementary evidence emitted after the mutation and its authoritative
+    receipt. A failure to write it must NOT propagate as an apply failure (which the CLI would
+    report as 'Failed to apply patch', stranding the operator on an already-patched tree).
+    Instead the apply completes and a durable emission-error note is left beside the receipt."""
+    repo = init_target_repo(tmp_path)
+    patch_digest = hashlib.sha256(PATCH_DIFF.encode("utf-8")).hexdigest()
+    proposal = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=PATCH_DIFF)
+    prop_path = tmp_path / "prop.json"
+    write_hitl_patch_proposal(proposal, prop_path)
+    approval_path = tmp_path / "approval.json"
+    write_hitl_patch_approval(
+        create_hitl_patch_approval(proposal, confirmed_digest_prefix=patch_digest[:4]), approval_path
+    )
+    vr_path = real_verification_receipt(tmp_path)
+    out_dir = tmp_path / "out"
+
+    with patch(
+        "builder_ii.hitl_patch_apply.write_hitl_patch_ledger_record",
+        side_effect=OSError("simulated ledger disk failure"),
+    ):
+        apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)  # must NOT raise
+
+    # The mutation and its authoritative receipt stand; the ledger just did not persist.
+    assert (repo / "file.txt").read_text() == "Line 1\nLine 2 modified\n"
+    assert (out_dir / "patch_apply_receipt.json").exists()
+    assert not (out_dir / "patch_ledger_record.json").exists()
+    assert (out_dir / "patch_ledger_record.json.emission_error.txt").exists()

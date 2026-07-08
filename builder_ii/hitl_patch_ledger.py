@@ -16,9 +16,11 @@ the executor already performed and gated. It is deliberately NOT folded into
 (a closed ``EVENT_TYPES`` set and ``WORKFLOW_STAGE_ORDER`` replay); a patch apply is not a
 workflow stage transition, so forcing it there would corrupt a pinned subsystem.
 
-The record is written to the builder-side output directory, never into the target repo —
-writing into the tree being patched would dirty it and corrupt the post-apply drift
-fingerprint the rollback lane depends on.
+The apply/rollback executors write the record to their builder-side output directory. That
+directory must stay outside the target worktree — writing into the tree being patched would
+dirty it and corrupt the post-apply drift fingerprint the rollback lane depends on — but that
+is a standing convention of the patch lane (shared by every artifact it emits), not a
+constraint this record enforces or validates.
 """
 
 from __future__ import annotations
@@ -213,6 +215,13 @@ def validate_hitl_patch_ledger_record(record: Any) -> list[str]:
                 errors.append(f"subject_refs[{index}].sha256 must be a SHA-256 hex digest")
             if ref.get("required") is not True:
                 errors.append(f"subject_refs[{index}].required must be true")
+        # Roles must be unique. chain_digest reduces subject_refs to a {role: sha256} map, so
+        # two refs sharing a role would collapse to one — dropping the other's fingerprint from
+        # the binding while the record still self-validated. Rejecting duplicate roles keeps the
+        # documented guarantee true: the record cannot claim a chain it does not fully bind.
+        roles = [ref.get("role") for ref in refs if isinstance(ref, dict)]
+        if len(roles) != len(set(roles)):
+            errors.append("subject_refs roles must be unique")
 
     # chain_digest must be recomputable from the bound subject digests: the record cannot
     # claim a chain it does not actually bind.
