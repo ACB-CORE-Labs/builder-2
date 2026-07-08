@@ -408,7 +408,7 @@ governed CLI/TUI and artifact/HITL/verification spine without attempting to reso
 `mlx-lm`/local-model backend paths remain a Mac-first boundary until a non-Mac model backend is
 promoted (see "Hardware target" below).
 
-Edit `.env` for target repo paths as needed. Prefer generic `BUILDER_*` names. If using the `core` target, set the target repo path explicitly when it is not at the expected location. Legacy `CORE_*` names remain compatibility aliases only.
+`.env.example` defaults to the self-contained `builder` profile (target repo = this clone), so a fresh clone works with zero edits. Point the pair at a real project when you have one — prefer generic `BUILDER_*` names; legacy `CORE_*` names remain compatibility aliases only. The CORE-born example:
 
 ```bash
 BUILDER_TARGET_REPO=../core

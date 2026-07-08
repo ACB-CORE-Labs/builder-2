@@ -35,15 +35,16 @@ uv sync                 # on Apple Silicon, use: uv sync --extra mlx
 cp .env.example .env
 ```
 
-## 2. Point the target at yourself
+## 2. Confirm the target
 
-`.env.example` defaults to `BUILDER_TARGET_PROFILE=core` / `BUILDER_TARGET_REPO=../core`, which
-assumes a sibling `core` checkout. Unless you have one, edit `.env` to use the self-contained
-`builder` profile instead, so the rest of this walkthrough has no external dependency:
+`.env.example` defaults to the self-contained `builder` profile with the target repo set to this
+clone itself (`BUILDER_TARGET_REPO=.`), so the rest of this walkthrough has no external
+dependency and needs no edits. When you later point builder-II at a real project of yours, change
+that pair — the commented `core` example in `.env.example` shows the shape:
 
 ```bash
-BUILDER_TARGET_REPO=/absolute/path/to/this/clone   # `pwd` prints it
-BUILDER_TARGET_PROFILE=builder
+BUILDER_TARGET_REPO=.            # this clone; later: path to a real target repo
+BUILDER_TARGET_PROFILE=builder   # later: core (or generic) to match that target
 BUILDER_ARTIFACT_ROOT=.builder/artifacts
 BUILDER_RUNTIME_MODE=passive
 ```
@@ -177,8 +178,8 @@ uv run --project /path/to/your/builder-II/clone builder-hitl apply-patch \
 
 The receipt above comes from step 6 — a `platform_status` check of builder-II's own repo, not of
 the scratch repo. `apply-patch` accepts any schema-valid receipt without cross-checking its
-target against the patch's target (only one special-cased demo-loop receipt kind does that
-binding today); it's the real artifact chain, just worth knowing precisely what it does and
+target against the patch's target (only the special-cased `builder_ii.demo_verification_receipt`
+kind does that binding today); it's the real artifact chain, just worth knowing precisely what it does and
 doesn't cross-check.
 
 Check `/tmp/builder-ii-scratch/README.md` — the line is there. `/tmp/apply-out/` now holds the
