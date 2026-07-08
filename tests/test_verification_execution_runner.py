@@ -801,7 +801,7 @@ def test_generic_plan_injecting_builder_self_profile_blocks_end_to_end(monkeypat
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve injected profile proof.",
         approved_command_profiles=["platform_status"],
         approved_step_ids=["platform_status"],
