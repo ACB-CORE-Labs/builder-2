@@ -50,6 +50,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/manual.md`](manual.md) | Builder Platform Manual |
 | [`docs/CONFIG_ONBOARDING.md`](CONFIG_ONBOARDING.md) | Config + Onboarding Kernel |
 | [`docs/CORE_DEMO_WALKTHROUGH.md`](CORE_DEMO_WALKTHROUGH.md) | CORE Demo Walkthrough |
+| [`docs/demos/FLAGSHIP_DEMO_SCRIPT.md`](demos/FLAGSHIP_DEMO_SCRIPT.md) | Flagship 15-minute demo script with live tamper-detection beat |
 | [`docs/TARGET_PROFILE_DEMOS.md`](TARGET_PROFILE_DEMOS.md) | Target profile demos |
 | [`docs/demos/CORE_READONLY_FOUNDER_DEMO.md`](demos/CORE_READONLY_FOUNDER_DEMO.md) | CORE Read-Only Founder Demo |
 | [`docs/demos/CODE_VAULT_DETERMINISM_DEMO.md`](demos/CODE_VAULT_DETERMINISM_DEMO.md) | CodeVault Determinism Demo — Recording Walkthrough |
