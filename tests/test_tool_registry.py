@@ -6,8 +6,8 @@ from builder_ii.tool_registry import check_tool, missing_required_tools, tool_re
 def test_registry_contains_tier_one_and_tier_two_tools() -> None:
     names = {tool.name for tool in tool_registry()}
 
-    assert {"repomix", "serena", "semgrep", "ruff", "rg"} <= names
-    assert {"aider", "ast-grep", "promptfoo", "gh"} <= names
+    assert {"repomix", "serena", "semgrep", "ruff", "rg", "tea"} <= names
+    assert {"aider", "ast-grep", "promptfoo"} <= names
 
 
 def test_required_tools_have_install_guidance() -> None:
