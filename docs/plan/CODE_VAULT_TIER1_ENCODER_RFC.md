@@ -183,6 +183,17 @@ through the eight gates with bench evidence, operator-applied as always.
 ## Open questions for the operator
 
 1. Accept `0.1` as the provisional enrichment scale pending the bench dominance audit?
+   **RESOLVED (PR-4, 2026-07-08): the audit REFUTED 0.1.** Measured on the bench corpus, the
+   smallest positional gap the float32 scoring arithmetic can resolve (noise-floor-adjusted:
+   gaps under `N_COMPONENTS * eps32 * max|score|` are measurement ties) is ~7.6e-6, while a 0.1
+   scale contributes up to scale² ≈ 9.6e-3 per pair. The audit fixed
+   `TIER1_ENRICHMENT_SCALE = 0.001` (max contribution ≤ 1.2e-6: ~6–8× under the bound at both
+   bench sizes, and an order of magnitude above float32 score quantization so enrichment stays
+   score-visible). Clone detection is exact (precision = recall = 1.0) at both sizes. This is
+   the RFC's process working as designed: provisional value proposed, measurement refuted it,
+   measurement fixed it.
 2. Should a Tier-2 (graded, still-deterministic similarity) RFC be drafted after Tier-1 ships, or
-   is content-identity geometry the intended end state for the paid tier?
+   is content-identity geometry the intended end state for the paid tier? (Open; operator
+   deferred at PR-1 time.)
 3. Bench fixture corpus: synthetic-only, or additionally a pinned snapshot of builder-II itself?
+   (PR-4 shipped synthetic-with-planted-clones; a pinned self-snapshot remains a PR-5+ option.)
