@@ -19,6 +19,13 @@ from builder_ii.hitl_patch_approval import (
     canonical_json_digest,
     validate_hitl_patch_approval_file,
 )
+from builder_ii.hitl_patch_ledger import (
+    EVENT_PATCH_APPLIED,
+    EVENT_PATCH_ROLLED_BACK,
+    create_hitl_patch_ledger_record,
+    hitl_patch_ledger_subject_ref,
+    write_hitl_patch_ledger_record,
+)
 from builder_ii.hitl_patch_proposal import validate_hitl_patch_proposal_file
 from builder_ii.hitl_rollback_approval import (
     rollback_approval_binding_errors,
@@ -26,6 +33,7 @@ from builder_ii.hitl_rollback_approval import (
 )
 from builder_ii.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
+    ROLLBACK_RECEIPT_KIND,
     create_rollback_plan,
     create_rollback_receipt,
     write_rollback_plan,
@@ -492,6 +500,47 @@ def apply_hitl_patch(
     }
     write_rollback_bundle(bundle, output_dir / "rollback_bundle.json")
 
+    # 9. Emit a passive ledger record for this apply event, binding the governing chain's
+    #    on-disk digests. Written to the builder-side output_dir (never the target repo,
+    #    which would dirty the tree and corrupt the post-apply drift fingerprint). Strictly
+    #    after the mutation and its receipt: the ledger is evidence the event happened, not
+    #    authority for it. Mirrors write_rollback_bundle's unguarded posture — all referenced
+    #    files exist and output_dir is the directory we have already written five artifacts to.
+    apply_ledger = create_hitl_patch_ledger_record(
+        event_type=EVENT_PATCH_APPLIED,
+        target=dict(proposal["target"]),
+        patch_digest=patch_digest,
+        pre_head=pre_head,
+        subject_refs=[
+            hitl_patch_ledger_subject_ref(
+                role="patch_proposal",
+                kind=proposal.get("kind", "builder_ii.hitl_patch_proposal"),
+                path=proposal_path,
+            ),
+            hitl_patch_ledger_subject_ref(
+                role="patch_approval",
+                kind=approval.get("kind", "builder_ii.hitl_patch_approval"),
+                path=approval_path,
+            ),
+            hitl_patch_ledger_subject_ref(
+                role="pre_apply_verification_receipt",
+                kind=verification_receipt.get("kind", "builder_ii.verification_execution_receipt"),
+                path=verification_receipt_path,
+            ),
+            hitl_patch_ledger_subject_ref(
+                role="patch_apply_receipt",
+                kind=PATCH_APPLY_RECEIPT_KIND,
+                path=receipt_path,
+            ),
+            hitl_patch_ledger_subject_ref(
+                role="rollback_plan",
+                kind=ROLLBACK_PLAN_KIND,
+                path=rollback_plan_path,
+            ),
+        ],
+    )
+    write_hitl_patch_ledger_record(apply_ledger, output_dir / "patch_ledger_record.json")
+
 
 def validate_patch_apply_receipt(artifact: Any) -> list[str]:
     errors = []
@@ -779,6 +828,39 @@ def rollback_hitl_patch(
 
     receipt_path = output_dir / "rollback_receipt.json"
     write_rollback_receipt(receipt, receipt_path)
+
+    # Emit a passive ledger record for this rollback event, binding the governing chain
+    # (plan, rollback approval, reverse patch, rollback receipt). Same posture as the apply
+    # side: builder-side output_dir only, strictly after the mutation and its receipt.
+    rollback_ledger = create_hitl_patch_ledger_record(
+        event_type=EVENT_PATCH_ROLLED_BACK,
+        target=dict(plan["target"]),
+        patch_digest=str(plan.get("patch_digest", "")),
+        pre_head=str(pre_head),
+        subject_refs=[
+            hitl_patch_ledger_subject_ref(
+                role="rollback_plan",
+                kind=plan.get("kind", ROLLBACK_PLAN_KIND),
+                path=rollback_plan_path,
+            ),
+            hitl_patch_ledger_subject_ref(
+                role="rollback_approval",
+                kind=approval.get("kind", "builder_ii.hitl_rollback_approval"),
+                path=approval_path,
+            ),
+            hitl_patch_ledger_subject_ref(
+                role="rollback_reverse_patch",
+                kind="unified_diff_reverse_patch",
+                path=reverse_patch_path,
+            ),
+            hitl_patch_ledger_subject_ref(
+                role="rollback_receipt",
+                kind=ROLLBACK_RECEIPT_KIND,
+                path=receipt_path,
+            ),
+        ],
+    )
+    write_hitl_patch_ledger_record(rollback_ledger, output_dir / "rollback_ledger_record.json")
 
 
 def dumps_rollback_bundle(bundle: dict[str, Any]) -> str:
