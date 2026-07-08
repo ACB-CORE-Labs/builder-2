@@ -96,6 +96,16 @@ def create_hitl_patch_approval(
     This ONLY produces a data record. No patch is applied and no source file is written
     here — the approval is evidence of a human decision, never authority in itself
     (``artifact_is_authority`` is always False).
+
+    Non-interactive-mint containment (B4 closure audit): this is a public building block, so an
+    in-process caller can compute ``confirmed_digest_prefix`` and mint a valid approval without a
+    human at a TTY. That is why the *promoted, operator-facing* mint path is exclusively the
+    interactive ``builder-hitl approve-patch`` CLI (which forces the operator to transcribe the
+    digest prefix; there is deliberately no non-interactive approval mode on that command). The
+    only sanctioned in-process minter is the CORE demo loop, bounded to a disposable detached
+    worktree with mandatory auto-rollback. Regardless of how the artifact is produced,
+    ``apply_hitl_patch`` re-verifies the binding, expiry, and command-authority gate before any
+    source write — the artifact never substitutes for the boundary.
     """
     if approved_at is None:
         approved_at = int(time.time())

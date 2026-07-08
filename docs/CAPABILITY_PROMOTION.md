@@ -137,10 +137,14 @@ The following capabilities are explicitly unpromoted, disabled, or forbidden acr
 | Deepagents active delegation | `forbidden_unpromoted` | Tier 4 (`builder-deepagents delegate`) | Autonomous subagent execution or delegation is strictly forbidden. | Exits non-zero with explicit error; enforced by `pytest tests/test_deepagents_work_artifacts.py`. |
 | Shell execution | `forbidden_unpromoted` | N/A | Shell execution as an automated agent capability is disabled. | Enforced across projection policy and governance validation blocks. |
 | Model execution through bridge loops | `forbidden_unpromoted` | N/A | Autonomous model execution loops through the bridge are disabled. | Enforced by bridge artifact validation and governance invariants. |
-| Source patch application | `hitl_runtime_candidate` / not enabled | Tier 3 / Tier 4 | Automated mutation of target repository source files is disabled. | Automated write attempts fail closed; patch specs remain review objects only. |
+| Autonomous source patch application | `forbidden_unpromoted` | Tier 4 | Autonomous or automatic mutation of target repository source files is disabled — no unattended apply path exists. Operator-invoked apply is a separate promoted lane (see the note below §7). | Autonomous write attempts fail closed. |
 | Commit / push automation | `forbidden_unpromoted` | Tier 4 | Autonomous git commit, push, or PR creation is forbidden. | Automated git mutation attempts fail closed. |
 | Arbitrary repository writes | `forbidden_unpromoted` | N/A | Writing to repository source files outside explicit artifact output paths is blocked. | Enforced by no-write governance tests. |
 | Memory mutation | `forbidden_unpromoted` | N/A | Persistent agent memory mutation or graph state modification is disabled. | Enforced by governance invariants. |
+
+### Operator-invoked HITL patch application and rollback (promoted lane)
+
+The forbidden rows above must not be read as "builder-II cannot apply a patch." They forbid *autonomous* mutation. The *operator-invoked* lane — `builder-hitl propose-patch` → `approve-patch` → `apply-patch`, and `approve-rollback` → `rollback` — is `OPERATIONALLY_VERIFIED` (completion-matrix rows "HITL patch application" and "rollback execution"; `docs/audits/B4_CLOSURE_AUDIT.md`). It applies only a diff whose digest an operator transcribed at an interactive prompt, only with a required verification receipt and the command-authority gate, and it records a bound reverse patch, a drift-hardened rollback, and a `builder_ii.hitl_patch_ledger_record` trail. Those commands stay Tier 3 `hitl_runtime_candidate`, not `enabled`: there is no non-interactive approval mode and no unattended apply path.
 
 ## 8. Clear “what is currently safe to use” operator guidance
 
