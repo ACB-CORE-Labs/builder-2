@@ -126,7 +126,12 @@ def _preflight_filesystem_conflicts(target: Path, *, operation: str) -> list[str
     return errors
 
 
-def _base_receipt(overlay: dict[str, Any], snapshot: dict[str, Any], approve_digest: str) -> dict[str, Any]:
+def _base_receipt(
+    overlay: dict[str, Any],
+    snapshot: dict[str, Any],
+    approve_digest: str,
+    approval_mode: str = "explicit_digest_bound_cli_flag",
+) -> dict[str, Any]:
     basis = {
         "overlay": overlay.get("overlay_plan_digest"),
         "snapshot": snapshot.get("snapshot_digest"),
@@ -140,7 +145,7 @@ def _base_receipt(overlay: dict[str, Any], snapshot: dict[str, Any], approve_dig
         "overlay_plan_digest": overlay["overlay_plan_digest"],
         "rollback_snapshot_digest": snapshot["snapshot_digest"],
         "approval_digest": approve_digest,
-        "approval_mode": "explicit_digest_bound_cli_flag",
+        "approval_mode": approval_mode,
         "operation_attempted": "setup_apply",
         "operation_result": "pending",
         "changed_paths": [],
@@ -151,7 +156,12 @@ def _base_receipt(overlay: dict[str, Any], snapshot: dict[str, Any], approve_dig
 
 
 def apply_setup_overlay(
-    overlay: dict[str, Any], snapshot: dict[str, Any], *, approve_digest: str, receipt_output: Path | None = None
+    overlay: dict[str, Any],
+    snapshot: dict[str, Any],
+    *,
+    approve_digest: str,
+    receipt_output: Path | None = None,
+    approval_mode: str = "explicit_digest_bound_cli_flag",
 ) -> dict[str, Any]:
     errors = validate_setup_overlay_plan_artifact(overlay) + validate_setup_rollback_snapshot_artifact(snapshot)
     if approve_digest != overlay.get("overlay_plan_digest"):
@@ -161,7 +171,7 @@ def apply_setup_overlay(
     if snapshot.get("setup_plan_digest") != overlay.get("setup_plan_ref", {}).get("digest"):
         errors.append("rollback snapshot setup plan digest does not match overlay setup plan digest")
     receipt = (
-        _base_receipt(overlay, snapshot, approve_digest if isinstance(approve_digest, str) else "")
+        _base_receipt(overlay, snapshot, approve_digest if isinstance(approve_digest, str) else "", approval_mode)
         if isinstance(overlay, dict) and isinstance(snapshot, dict) and overlay.get("setup_plan_ref")
         else None
     )

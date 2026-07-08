@@ -31,7 +31,12 @@ def _digest_path(path: Path) -> str:
     return _sha256_bytes(f"missing:{path}".encode())
 
 
-def _base_receipt(setup_receipt: dict[str, Any], snapshot: dict[str, Any], approve_digest: str) -> dict[str, Any]:
+def _base_receipt(
+    setup_receipt: dict[str, Any],
+    snapshot: dict[str, Any],
+    approve_digest: str,
+    approval_mode: str = "explicit_digest_bound_cli_flag",
+) -> dict[str, Any]:
     ts = datetime.now(timezone.utc).isoformat()
     basis = {
         "setup_receipt": setup_receipt.get("receipt_digest"),
@@ -47,7 +52,7 @@ def _base_receipt(setup_receipt: dict[str, Any], snapshot: dict[str, Any], appro
         "overlay_plan_digest": str(setup_receipt.get("overlay_plan_digest", "")),
         "rollback_snapshot_digest": str(snapshot.get("snapshot_digest", "")),
         "approval_digest": approve_digest,
-        "approval_mode": "explicit_digest_bound_cli_flag",
+        "approval_mode": approval_mode,
         "operation_attempted": "setup_rollback",
         "rollback_result": "pending",
         "deleted_paths": [],
@@ -89,13 +94,19 @@ def _preflight_state(path: Path, state: dict[str, Any]) -> str | None:
 
 
 def execute_setup_rollback(
-    setup_receipt: dict[str, Any], snapshot: dict[str, Any], *, approve_digest: str, receipt_output: Path | None = None
+    setup_receipt: dict[str, Any],
+    snapshot: dict[str, Any],
+    *,
+    approve_digest: str,
+    receipt_output: Path | None = None,
+    approval_mode: str = "explicit_digest_bound_cli_flag",
 ) -> dict[str, Any]:
     errors = validate_setup_receipt_artifact(setup_receipt) + validate_setup_rollback_snapshot_artifact(snapshot)
     receipt = _base_receipt(
         setup_receipt if isinstance(setup_receipt, dict) else {},
         snapshot if isinstance(snapshot, dict) else {},
         approve_digest if isinstance(approve_digest, str) else "",
+        approval_mode,
     )
     if setup_receipt.get("setup_apply_executed") is not True:
         errors.append("setup receipt setup_apply_executed must be true")
