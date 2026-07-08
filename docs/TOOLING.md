@@ -34,7 +34,7 @@ Modes:
 
 | Mode | Installs |
 | --- | --- |
-| `required` | Required tools only: `repomix`, `semgrep`, `ruff`, `ripgrep`, `gh`. |
+| `required` | Required tools only: `repomix`, `semgrep`, `ruff`, `ripgrep`, `tea`. |
 | `tier1` | Required tools plus `fd`, `pyright`, `pre-commit`. Serena remains `uvx` on demand. |
 | `tier2` | Optional tools: `ast-grep`, `aider-chat`, `promptfoo`. |
 | `notes` | Optional open-source note UIs: Logseq and Zettlr. |
@@ -57,6 +57,7 @@ These are the highest-leverage tools for the local agent/developer platform.
 | `pre-commit` | Git hook orchestration. | Install lint/type/scan/test hooks. |
 | `rg` | Fast text search. | Repo map and task-scoped context selection. |
 | `fd` | Fast file discovery. | Repo map and context selection. |
+| `tea` | Forgejo/Gitea CLI. | PR, issue, and release workflows against this repo's private Forgejo host. |
 
 ## Tier 2 tools
 
@@ -67,7 +68,6 @@ These are valuable after the Tier 1 registry and context-pack path are stable.
 | `aider` | AI pair-programming reference implementation. | Benchmark/reference lane, not a default replacement for Goose. |
 | `ast-grep` | AST-based search/rewrite preview. | Structural search and codemod planning. |
 | `promptfoo` | Prompt/agent evals and red-team tests. | Lane-guide/persona prompt regression tests. |
-| `gh` | GitHub CLI. | PR status, PR body, merge workflow, release workflow. |
 
 ## Notes and knowledge capture
 
@@ -107,7 +107,7 @@ For builder-II, the important integration boundary is the Markdown folder, not t
 ## Install hints
 
 ```bash
-brew install repomix semgrep ruff ripgrep fd gh ast-grep
+brew install repomix semgrep ruff ripgrep fd tea ast-grep
 uv tool install pre-commit
 npm install -g pyright promptfoo
 uv tool install aider-chat

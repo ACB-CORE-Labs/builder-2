@@ -93,7 +93,7 @@ install_required() {
   brew_install_cmd semgrep semgrep
   brew_install_cmd ruff ruff
   brew_install_cmd ripgrep rg
-  brew_install_cmd gh gh
+  brew_install_cmd tea tea
 }
 
 install_tier1() {
@@ -118,7 +118,7 @@ install_notes() {
 }
 
 show_status() {
-  for cmd in repomix semgrep ruff rg gh fd pyright pre-commit aider ast-grep promptfoo; do
+  for cmd in repomix semgrep ruff rg tea fd pyright pre-commit aider ast-grep promptfoo; do
     if have "$cmd"; then
       echo "PASS $cmd -> $(command -v "$cmd")"
     else
@@ -154,7 +154,7 @@ case "$MODE" in
 Usage: bash scripts/install-tools.sh [required|tier1|tier2|notes|all|status]
 
 Modes:
-  required  Install required external tools only: repomix, semgrep, ruff, ripgrep, gh.
+  required  Install required external tools only: repomix, semgrep, ruff, ripgrep, tea.
   tier1     Install required tools plus fd, pyright, pre-commit. Serena remains uvx-on-demand.
   tier2     Install optional agent/dev tools: ast-grep, aider-chat, promptfoo.
   notes     Install optional open-source Markdown UIs: Logseq and Zettlr.

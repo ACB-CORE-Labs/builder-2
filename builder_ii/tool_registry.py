@@ -89,6 +89,16 @@ TOOLS: tuple[ExternalTool, ...] = (
         integration="git-hooks",
     ),
     ExternalTool(
+        "tea",
+        "tea",
+        "tier1",
+        "git",
+        "Forgejo/Gitea CLI for PR, issue, and release workflows against this repo's private Forgejo host.",
+        "brew install tea",
+        required=True,
+        integration="git-pr",
+    ),
+    ExternalTool(
         "rg",
         "rg",
         "tier1",
@@ -133,16 +143,6 @@ TOOLS: tuple[ExternalTool, ...] = (
         "Prompt, agent, and RAG evals/red-team tests.",
         "npm install -g promptfoo",
         integration="prompt-eval",
-    ),
-    ExternalTool(
-        "gh",
-        "gh",
-        "tier2",
-        "git",
-        "GitHub CLI for PR/status/release workflows.",
-        "brew install gh",
-        required=True,
-        integration="git-pr",
     ),
     ExternalTool(
         "markdown-vault",
