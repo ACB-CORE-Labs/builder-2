@@ -51,11 +51,13 @@ def test_builder_full_is_the_supported_b1_1_pair() -> None:
     assert validate_verification_execution_plan_artifact(plan) == []
 
 
-def test_non_builder_full_profiles_fail_closed() -> None:
+def test_compatible_target_verification_pairs_validate() -> None:
+    # B4.2 (plan 1.3): the lane now plans against generic/core targets, not builder-only.
     cases = [
         ("generic", "generic_basic"),
-        ("builder", "builder_fast"),
         ("core", "core_smoke"),
+        ("core", "core_focused"),
+        ("builder", "builder_fast"),
     ]
     for target_profile, verification_profile in cases:
         plan = finalize_verification_execution_plan(
@@ -65,17 +67,48 @@ def test_non_builder_full_profiles_fail_closed() -> None:
             artifact_root=".builder/verification",
             generated_at="2026-06-30T00:00:00+00:00",
         )
+        assert plan["valid"] is True, (target_profile, verification_profile, plan["errors"])
+        assert validate_verification_execution_plan_artifact(plan) == []
+
+
+def test_generic_plan_defaults_to_pytest_full_only() -> None:
+    plan = finalize_verification_execution_plan(
+        target_profile="generic",
+        verification_profile="generic_basic",
+        target_repo=".",
+        artifact_root=".builder/verification",
+        generated_at="2026-06-30T00:00:00+00:00",
+    )
+    # A non-builder target only runs its own suite; no builder-II self profiles are offered.
+    assert [p["profile"] for p in plan["allowed_command_profiles"]] == ["pytest_full"]
+    assert plan["allowed_command_profiles"][0]["command_profile_ref"] == "verification_profiles.generic_basic.pytest_full"
+    assert [s["step_id"] for s in plan["planned_steps"]] == ["pytest_full"]
+
+
+def test_incompatible_target_verification_pair_fails() -> None:
+    for target_profile, verification_profile in [
+        ("generic", "builder_full"),
+        ("core", "generic_basic"),
+        ("builder", "core_smoke"),
+    ]:
+        plan = finalize_verification_execution_plan(
+            target_profile=target_profile,
+            verification_profile=verification_profile,
+            target_repo=".",
+            artifact_root=".builder/verification",
+            generated_at="2026-06-30T00:00:00+00:00",
+        )
         errors = validate_verification_execution_plan_artifact(plan)
-        assert any("currently supports only target_profile=builder" in error for error in errors)
+        assert any("is not compatible with" in error for error in errors), (target_profile, verification_profile)
         assert plan["valid"] is False
 
 
-def test_non_builder_full_profile_cannot_validate_with_builder_full_refs() -> None:
+def test_mismatched_verification_profile_refs_fail() -> None:
     plan = _sample_plan()
-    plan["verification_profile"] = "generic_basic"
+    plan["verification_profile"] = "generic_basic"  # builder target + builder_full refs, generic_basic label
     plan = _resign(plan)
     errors = validate_verification_execution_plan_artifact(plan)
-    assert any("currently supports only target_profile=builder" in error for error in errors)
+    assert any("is not compatible with" in error for error in errors)
     assert any("command_profile_ref must begin with verification_profiles.generic_basic." in error for error in errors)
 
 
