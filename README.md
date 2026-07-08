@@ -497,7 +497,7 @@ builder-verify approve-plan .builder/verification/verification-execution-plan.js
 builder-verify validate-approval .builder/verification/verification-execution-approval.json --plan .builder/verification/verification-execution-plan.json
 
 # Prepare a governed session package
-builder-session prepare-package --target builder --task "audit the selected target repo and identify the safest next patch" --output .builder/session/
+builder-session prepare-package builder --task "audit the selected target repo and identify the safest next patch" --output-dir .builder/session/
 builder-session validate-prepare-package .builder/session/
 builder-session summarize-prepare-package .builder/session/
 ```

@@ -24,6 +24,16 @@ builder-platform golden-path --target builder --output-dir .builder/artifacts/b9
 builder-platform validate-golden-path .builder/artifacts/b9-golden-path/golden-path-report.json
 ```
 
+## Clean-Clone Onboarding Smoke Gate
+
+`scripts/clean-clone-smoke.sh` is the repeatable gate for the "clone the repo, onboard in ≤30 minutes" claim. It clones the repo fresh into a scratch directory, runs the README "First run" golden path end to end, then runs one complete generic governed patch loop (propose → approve → verify → apply → rollback) against a throwaway fixture repo — with `swift`/`xcodebuild` shadowed by hard-failing stubs for the whole run, so a pass also proves there is no Xcode/Swift toolchain dependency on the onboarding path.
+
+```bash
+bash scripts/clean-clone-smoke.sh
+```
+
+Use `--keep` to preserve the scratch workdir and per-step logs for inspection, `--workdir DIR` to pick a fixed location, `--source PATH_OR_URL` to smoke-test a different remote or tag, and `--budget-seconds N` to change the onboarding-claim ceiling (default 1800s / 30 minutes). Run this before and after any change to onboarding docs, config defaults, or the CLI surfaces it exercises — it is the only defense against onboarding regressions between releases.
+
 ## CORE Demo Loop
 
 For a recordable real-world walkthrough against AssetOverflow/core, use the CORE demo loop instead of a fixture:
