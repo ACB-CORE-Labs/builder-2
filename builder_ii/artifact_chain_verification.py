@@ -30,6 +30,10 @@ from builder_ii.chain_summary_records import (
     CHAIN_SUMMARY_RECORD_KIND,
     validate_chain_summary_record,
 )
+from builder_ii.code_vault.bench import (
+    CODE_VAULT_BENCH_REPORT_KIND,
+    validate_code_vault_bench_report,
+)
 from builder_ii.code_vault.context_bridge import (
     CONTEXT_PROJECTION_KIND,
     validate_context_projection,
@@ -496,6 +500,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     LINTER_REPORT_KIND: validate_linter_report,
     CONTEXT_PROJECTION_KIND: validate_context_projection,
     RECALL_REPORT_KIND: validate_recall_report,
+    CODE_VAULT_BENCH_REPORT_KIND: validate_code_vault_bench_report,
     CONTEXT_PACK_KIND: validate_context_pack,
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND: validate_convention_kernel_platform_bundle,
     GOVERNED_PREPARE_PACKAGE_KIND: validate_governed_prepare_package,
