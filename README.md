@@ -256,6 +256,14 @@ The builder convention layer should track Goose's official docs as Goose evolves
 | [`docs/role_gates.md`](docs/role_gates.md) | Capability boundaries for each persona. |
 | [`docs/lane_checks.md`](docs/lane_checks.md) | Offline consistency checks for role/lane/gate wiring. |
 
+## Contributing
+
+This repository is currently private and not yet open for external contribution — see
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the (draft) process, quality gates, and conventions, prepared
+ahead of open-sourcing. [`SECURITY.md`](SECURITY.md) covers vulnerability reporting and this project's
+threat-model boundaries. [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) applies to all project spaces.
+[`CHANGELOG.md`](CHANGELOG.md) tracks notable changes.
+
 ## Hardware target
 
 Primary target: Apple Silicon MacBook Pro M1 with 16GB unified memory.

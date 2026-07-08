@@ -1,0 +1,110 @@
+# Contributing to builder-II
+
+> **Status:** this repository is currently private and not yet open for external contribution. This
+> document is a draft, prepared ahead of open-sourcing, so the contribution path is ready when the
+> project is made public. Sections that depend on the eventual public hosting destination are marked
+> `[host-specific — TBD]` below and will be finalized at that time.
+
+Thank you for your interest in builder-II — a generic governed control plane for local
+agent-assisted software development. See [`README.md`](README.md) and
+[`docs/MANIFESTO.md`](docs/MANIFESTO.md) for what the project is and why it's built the way it is
+before proposing a change; a lot of the design exists to preserve specific invariants (see "The
+governing distinctions" in the README), and changes that touch those invariants get more scrutiny
+than ordinary bug fixes.
+
+## Before you start
+
+- Read [`docs/README.md`](docs/README.md) for the full documentation index, and
+  [`docs/ROADMAP.md`](docs/ROADMAP.md) / [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md)
+  for what's currently promoted vs. speculative. A capability that isn't promoted yet is usually that
+  way on purpose — check before assuming it's just unfinished.
+- For anything non-trivial, open an issue or discussion first (see "Reporting issues" below) to
+  confirm the approach before investing in an implementation.
+- Small, focused changes are much easier to review than large ones. Prefer several small pull
+  requests over one large one when the work naturally splits.
+
+## Development setup
+
+```bash
+uv sync --all-groups                # install Python deps + dev group
+uv sync --extra mlx                 # add the local Apple Silicon model backend (optional, Mac-first)
+cp .env.example .env
+```
+
+Requires Python 3.12 (pinned via `.python-version` / `uv.lock`) and [`uv`](https://docs.astral.sh/uv/).
+See the "Install" section of [`README.md`](README.md) for the full setup, including Goose and model
+downloads if you need to exercise runtime-adjacent code paths.
+
+## Quality gates
+
+Before opening a pull request, run the same checks CI runs:
+
+```bash
+uv run python -m compileall -q builder_ii tests
+uv run builder-platform audit-docs   # fails if docs claim capabilities the code doesn't back
+uv run ruff check builder_ii tests
+uv run mypy                          # targeted: authority-sensitive modules only, see pyproject.toml
+uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
+uv run pytest -q
+cargo build --manifest-path builder_ii_validation_rs/Cargo.toml   # if you touched the Rust validator
+```
+
+All of these must pass. `docs/**` and `README.md` are scanned for false-completion language by
+`audit-docs` — if you change what a command does (especially promoting a capability from
+speculative/planned to operational), the corresponding doc must be updated in the same change, and
+any promotion claim must be backed by real evidence (tests, a closure audit) rather than asserted.
+
+## Code conventions
+
+- **Artifact-first.** Most features in `builder_ii/` follow the same shape: build a governed artifact
+  (a Pydantic/dataclass model with a `kind` field) → write it as JSON → a paired `validate-*` command
+  re-checks it → downstream commands consume it as input. New features should follow this shape rather
+  than inventing a new one. See [`docs/ARTIFACT_INDEX.md`](docs/ARTIFACT_INDEX.md).
+- **Explicit authority.** A command that can change state (write files, execute code, call a model)
+  must go through the command-authority tier registry and, where authority changes, an explicit
+  human-in-the-loop approval boundary. See [`docs/COMMAND_AUTHORITY.md`](docs/COMMAND_AUTHORITY.md).
+- **Tests live at `tests/test_<module>.py`**, mirroring `builder_ii/` roughly 1:1, plus
+  `tests/scenarios/` for flows spanning multiple artifact stages. Add a scenario test when a change
+  spans more than one artifact stage.
+- Line length 120 (see `[tool.ruff]` in `pyproject.toml`); `ruff` handles import ordering.
+
+## Commit messages
+
+```
+<type>: <description>
+
+<optional body>
+```
+
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`. Keep the summary line
+imperative and under ~70 characters; use the body to explain *why*, not just *what*.
+
+## Opening a pull request
+
+`[host-specific — TBD]` The exact pull-request command and URL grammar depend on where this
+repository is eventually hosted publicly (undecided as of this writing). In general:
+
+1. Branch from `main`.
+2. Make your change, keeping it focused, and ensure the quality gates above pass.
+3. Push your branch and open a pull request against `main`, describing what changed and why, plus a
+   test plan.
+4. Address review feedback. CRITICAL/HIGH-severity findings must be resolved before merge.
+
+## Reporting issues
+
+`[host-specific — TBD]` Issue tracking will be set up at the public hosting destination when this
+project is open-sourced (see [`docs/ROADMAP.md`](docs/ROADMAP.md)). Until then, this repository is
+not accepting external issues or contributions.
+
+For security vulnerabilities specifically, see [`SECURITY.md`](SECURITY.md) — do not open a public
+issue for those.
+
+## License
+
+Not yet finalized (tracked as a deferred decision ahead of open-sourcing; see
+[`CHANGELOG.md`](CHANGELOG.md) once resolved). Do not assume any particular license applies to
+contributions made before this is finalized.
+
+## Code of Conduct
+
+This project follows [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
