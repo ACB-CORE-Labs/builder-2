@@ -101,6 +101,28 @@ def status() -> None:
     console.out(render_human_summary(), end="")
 
 
+@platform_app.command("known-limitations")
+def known_limitations(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Optional path to write the rendered document (e.g. docs/KNOWN_LIMITATIONS.md).",
+    ),
+) -> None:
+    """Render the known-limitations document from the completion truth matrix."""
+    from builder_ii.known_limitations import render_known_limitations_markdown
+
+    _validate_or_exit(root=Path.cwd())
+    text = render_known_limitations_markdown()
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding="utf-8")
+        console.print(f"Known-limitations document written to {output}")
+    else:
+        console.out(text, end="")
+
+
 @platform_app.command("operator-status")
 def operator_status(
     output: Path | None = typer.Option(
