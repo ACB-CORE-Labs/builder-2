@@ -40,9 +40,10 @@ unexpired approval authorizes exactly the proposal it was minted for." The inter
 artifact stands for a human decision. Note the underlying ``create_hitl_patch_approval``
 function is itself callable in-process (e.g. the demo loop mints one against a disposable
 detached worktree); a programmatically-minted approval carries valid binding but is **not**
-evidence of human origin. Guaranteeing no non-interactive mint can reach a real target is a
-promotion gate — which is why this lane stays ``MERGED_BUT_NOT_OPERATIONAL`` until the
-closure audit (plan item 1.7) verifies it.
+evidence of human origin. Guaranteeing no non-interactive mint can reach a real target was the
+promotion gate for this lane; the closure audit (plan item 1.7, ``docs/audits/B4_CLOSURE_AUDIT.md``)
+resolved it, so the operator-invoked lane is now ``OPERATIONALLY_VERIFIED`` while the command
+stays Tier 3 ``hitl_runtime_candidate``, not enabled (autonomous apply remains forbidden).
 """
 
 from __future__ import annotations
