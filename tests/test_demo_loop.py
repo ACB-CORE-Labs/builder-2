@@ -405,3 +405,55 @@ def test_demo_validate_cli_accepts_report(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert json.loads(result.output)["valid"] is True
+
+
+def test_demo_validate_cli_catches_tampered_receipt(tmp_path: Path) -> None:
+    # The flagship tamper-detection beat (plan item 3.11): edit a receipt after the run and
+    # validate-demo-loop must fail, naming the tampered file — the report alone proves nothing
+    # about files it no longer matches.
+    repo = _generic_repo(tmp_path)
+    output_dir = tmp_path / "demo"
+    run_demo_loop(target_repo=repo, output_dir=output_dir, target_name="acme-lib", phase="all", approve=True)
+    report_path = output_dir / "demo-loop-report.json"
+
+    untampered = CliRunner().invoke(platform_app, ["validate-demo-loop", str(report_path)])
+    assert untampered.exit_code == 0, untampered.output
+
+    receipt_path = output_dir / "post-apply-verification-receipt.json"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["workspace_mutation_detected"] = False
+    receipt["status_lines"] = []
+    receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    tampered = CliRunner().invoke(platform_app, ["validate-demo-loop", str(report_path)])
+    assert tampered.exit_code == 1
+    flat = tampered.output.replace("\n", "")
+    assert "does not match its recorded sha256" in flat
+    assert "post-apply-verification-receipt.json" in flat
+
+
+def test_demo_validate_cli_catches_retargeted_approval(tmp_path: Path) -> None:
+    # Second tamper variant: re-pointing the governing approval at a different patch digest is
+    # caught twice — the refs re-check names the edited file, and native approval validation
+    # (via builder-chain verify-artifacts) rejects the broken digest-prefix confirmation binding.
+    from builder_ii.artifact_chain_verification import verify_artifact_chain
+
+    repo = _generic_repo(tmp_path)
+    output_dir = tmp_path / "demo"
+    run_demo_loop(target_repo=repo, output_dir=output_dir, target_name="acme-lib", phase="all", approve=True)
+
+    approval_path = output_dir / "hitl-patch-approval.json"
+    approval = json.loads(approval_path.read_text(encoding="utf-8"))
+    digest = approval["patch_digest"]
+    approval["patch_digest"] = ("0" if digest[0] != "0" else "1") + digest[1:]
+    approval_path.write_text(json.dumps(approval, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    tampered = CliRunner().invoke(
+        platform_app, ["validate-demo-loop", str(output_dir / "demo-loop-report.json")]
+    )
+    assert tampered.exit_code == 1
+    assert "does not match its recorded sha256" in tampered.output.replace("\n", "")
+
+    chain_report = verify_artifact_chain([output_dir / "hitl-patch-proposal.json", approval_path])
+    assert chain_report["valid"] is False
+    assert any("digest_prefix" in error for error in chain_report["errors"])

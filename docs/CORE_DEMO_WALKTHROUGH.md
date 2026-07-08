@@ -4,6 +4,8 @@ This walkthrough is the recordable builder-II demonstration against the real Ass
 
 The demo lane itself is generic (plan item 1.8 / B4.9): `builder-platform demo-loop` runs against a temporary detached worktree of any operator-designated local git repository. This walkthrough uses the CORE target profile (`--target-name core`), which adds the AssetOverflow/core identity check and the CORE sensitive-module policy. See "Generic Targets" at the end for the non-CORE form.
 
+For the timed presentation form of this demo — seven beats in fifteen minutes, including the live tamper-detection beat — use [`docs/demos/FLAGSHIP_DEMO_SCRIPT.md`](demos/FLAGSHIP_DEMO_SCRIPT.md).
+
 ## What This Shows
 
 The demo loop creates a detached temporary Git worktree from the current CORE `HEAD`, builds real CORE context artifacts, proposes one low-risk documentation marker patch, requires an explicit governed approval artifact (`builder_ii.hitl_patch_approval`), applies the approved patch inside the temporary worktree, verifies the changed state, rolls it back through the governed rollback lane, and emits a final evidence bundle.

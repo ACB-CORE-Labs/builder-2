@@ -25,6 +25,7 @@ from builder_ii.demo_loop import (
     dumps_demo_report,
     run_demo_loop,
     validate_demo_report,
+    verify_demo_report_artifact_refs,
 )
 from builder_ii.onboarding_intent import validate_onboarding_intent_report_artifact
 from builder_ii.operator_golden_path import (
@@ -306,7 +307,7 @@ def validate_demo_loop(
     except json_lib.JSONDecodeError as exc:
         console.print(f"[red]report file is not valid JSON:[/] {exc}")
         raise typer.Exit(1)
-    errors = validate_demo_report(data)
+    errors = validate_demo_report(data) + verify_demo_report_artifact_refs(data)
     if errors:
         for error in errors:
             console.print(f"[red]demo report validation error:[/] {error}")

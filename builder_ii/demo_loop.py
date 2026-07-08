@@ -818,6 +818,35 @@ def validate_demo_report(data: Any) -> list[str]:
     return errors
 
 
+def verify_demo_report_artifact_refs(data: Any) -> list[str]:
+    """Re-verify every artifact_refs digest against the file on disk (tamper evidence).
+
+    The demo report records the canonical-JSON sha256 of each evidence artifact at finalize
+    time. Recomputing those digests here means any post-hoc edit to a receipt, approval, or
+    other evidence file is named explicitly instead of passing silently — the report alone
+    proves nothing about files it no longer matches.
+    """
+    if not isinstance(data, dict) or not isinstance(data.get("artifact_refs"), list):
+        return ["artifact_refs must be a list"]
+    errors: list[str] = []
+    for ref in data["artifact_refs"]:
+        if not isinstance(ref, dict) or not ref.get("path"):
+            errors.append("artifact_refs entries must be objects with a path")
+            continue
+        path = Path(str(ref["path"]))
+        if not path.is_file():
+            errors.append(f"referenced evidence artifact is missing: {path}")
+            continue
+        try:
+            content = _read_json(path)
+        except Exception:
+            errors.append(f"referenced evidence artifact is not valid JSON: {path}")
+            continue
+        if _json_digest(content) != ref.get("sha256"):
+            errors.append(f"evidence artifact content does not match its recorded sha256: {path}")
+    return errors
+
+
 def _write_evidence_markdown(paths: DemoPaths, report: dict[str, Any], spec: DemoTargetSpec) -> None:
     lines = [
         "# builder-II Governed Demo Evidence",
