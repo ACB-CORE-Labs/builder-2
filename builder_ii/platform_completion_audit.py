@@ -285,14 +285,26 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     ),
     _row(
         "interactive setup wizard",
-        NOT_STARTED,
-        ("README.md", SOURCE_REPORT),
-        (),
-        ("tests/test_platform_completion_truth.py",),
+        OPERATIONALLY_VERIFIED,
         (
-            "No wizard plans target repo, artifact root, profiles, model/backend, Goose writes, recipes, skills, and capability state before apply.",
+            "builder_ii/cli/main.py",
+            "builder_ii/init_decisions.py",
+            "builder_ii/cli/setup_cli.py",
+            "docs/CONFIG_ONBOARDING.md",
+            "docs/audits/R1_CLOSURE_AUDIT_2_6.md",
         ),
-        "R1",
+        ("builder init", "builder onboarding", "builder-setup wizard"),
+        (
+            "tests/test_init_cli.py",
+            "tests/test_setup_onboarding_wizard_cli.py",
+            "tests/test_setup_interactive_approval.py",
+            "tests/test_platform_completion_truth.py",
+        ),
+        (
+            "Plan 2.2 builder init prompts the four wizard decisions (registry-validated, never free text) and plans target repo, artifact root, profiles, model/backend, Goose overlay candidates, skill install plan, and capability state before apply; the wizard itself never applies.",
+            "Goose config merge, skill copying, and recipe installation remain manual operator steps (R1.7); setup mutation remains exclusively the separately digest-approved builder-setup apply.",
+        ),
+        "R1 complete (2.6)",
     ),
     _row(
         "non-interactive setup/apply/validate",
@@ -1089,6 +1101,16 @@ def validate_referenced_files(root: Path, rows: tuple[CapabilityRow, ...] = REQU
     return errors
 
 
+# R1 rows the operator has explicitly flipped to OPERATIONALLY_VERIFIED (plan tier C: evidence
+# first, operator applies the flip). Any future R1 flip must be added here in the same reviewed
+# diff as its closure audit — the default for every other R1 row stays fail-closed below.
+R1_OPERATOR_FLIPPED_CAPABILITIES: tuple[str, ...] = (
+    # 2.6 R1 closure flip: docs/audits/R1_CLOSURE_AUDIT_2_6.md (builder init unified orchestrator
+    # + interactive digest-prefix apply approval, plan item 2.2).
+    "interactive setup wizard",
+)
+
+
 def validate_r1_config_onboarding_mapping(
     rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS,
 ) -> list[str]:
@@ -1098,6 +1120,10 @@ def validate_r1_config_onboarding_mapping(
         row = by_capability.get(capability)
         if row is None:
             errors.append(f"missing R1 config/onboarding capability row: {capability}")
+            continue
+        if capability in R1_OPERATOR_FLIPPED_CAPABILITIES:
+            if row.state != OPERATIONALLY_VERIFIED:
+                errors.append(f"{capability}: operator-flipped R1 row must be OPERATIONALLY_VERIFIED")
             continue
         if row.next_pr != "R1":
             errors.append(f"{capability}: expected next_pr R1, got {row.next_pr}")

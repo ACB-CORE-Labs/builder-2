@@ -44,7 +44,14 @@ MIRROR_DOC = REPO / "docs" / "PLATFORM_COMPLETION_AUDIT.md"
 # "HITL patch application" row (apply/rollback share the B4 lane state). "governed demo loop" was
 # added by the 1.8 pin edit (row renamed from "CORE demo loop" when the demo lane generalized to
 # arbitrary generic targets); it participates in the assurance + mirror checks only.
-FLIP_CAPABILITIES = ("HITL patch application", "rollback execution", "governed demo loop")
+# "interactive setup wizard" was added by the 2.6 R1 closure flip (builder init, plan item 2.2;
+# docs/audits/R1_CLOSURE_AUDIT_2_6.md); it also participates in the assurance + mirror checks only.
+FLIP_CAPABILITIES = (
+    "HITL patch application",
+    "rollback execution",
+    "governed demo loop",
+    "interactive setup wizard",
+)
 EXECUTOR_STAMP_ROW = "HITL patch application"
 
 

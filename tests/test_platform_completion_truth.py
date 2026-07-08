@@ -12,10 +12,10 @@ from builder_ii.command_authority import (
 from builder_ii.platform_completion_audit import (
     ALLOWED_STATE_LABELS,
     MERGED_BUT_NOT_OPERATIONAL,
-    NOT_STARTED,
     OPERATIONALLY_VERIFIED,
     PASSIVE_FOUNDATION,
     R1_CONFIG_ONBOARDING_CAPABILITIES,
+    R1_OPERATOR_FLIPPED_CAPABILITIES,
     REQUIRED_CAPABILITIES,
     REQUIRED_CAPABILITY_ROWS,
     render_human_summary,
@@ -50,6 +50,11 @@ def test_config_onboarding_rows_exist_and_point_to_r1() -> None:
     by_capability = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
     for capability in R1_CONFIG_ONBOARDING_CAPABILITIES:
         assert capability in by_capability
+        if capability in R1_OPERATOR_FLIPPED_CAPABILITIES:
+            # 2.6 R1 closure flip (docs/audits/R1_CLOSURE_AUDIT_2_6.md): flipped rows are the
+            # audited exception; every other R1 row keeps the fail-closed rule below.
+            assert by_capability[capability].state == OPERATIONALLY_VERIFIED
+            continue
         assert by_capability[capability].next_pr == "R1"
         assert by_capability[capability].state != OPERATIONALLY_VERIFIED
     assert not validate_r1_config_onboarding_mapping()
@@ -62,7 +67,9 @@ def test_r1_3a_matrix_state_changes_are_scoped() -> None:
     assert by_capability["config source precedence"].state == PASSIVE_FOUNDATION
     assert by_capability["non-interactive setup/apply/validate"].state == MERGED_BUT_NOT_OPERATIONAL
     assert by_capability["Goose config overlay/rollback"].state == PASSIVE_FOUNDATION
-    assert by_capability["interactive setup wizard"].state == NOT_STARTED
+    # 2.6 R1 closure flip: builder init unified orchestrator (plan item 2.2) made the wizard
+    # operational — evidence in docs/audits/R1_CLOSURE_AUDIT_2_6.md.
+    assert by_capability["interactive setup wizard"].state == ("OPERATIONALLY" + "_VERIFIED")
     assert by_capability["setup receipt + rollback artifact"].state == PASSIVE_FOUNDATION
     assert by_capability["skill generator/installer/validator"].state == MERGED_BUT_NOT_OPERATIONAL
     assert by_capability["artifact memory"].state == PASSIVE_FOUNDATION
@@ -159,8 +166,8 @@ def test_matrix_rendering_is_json_safe() -> None:
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
     assert (
-        decoded["summary"]["operationally_verified_count"] == 17
-    )  # B4 (plan item 1.7) promoted operator-invoked HITL patch application + rollback execution to OPERATIONALLY_VERIFIED (docs/audits/B4_CLOSURE_AUDIT.md)
+        decoded["summary"]["operationally_verified_count"] == 18
+    )  # B4 (plan item 1.7) promoted operator-invoked HITL patch application + rollback execution (docs/audits/B4_CLOSURE_AUDIT.md); 2.6 promoted the interactive setup wizard (docs/audits/R1_CLOSURE_AUDIT_2_6.md)
 
 
 def test_matrix_exposes_sharper_assurance_states() -> None:
@@ -172,6 +179,7 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     assert rows["rollback execution"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
     assert rows["governed read-only runtime"]["assurance_state"] == "READ_ONLY_RUNTIME_VERIFIED"
     assert rows["governed demo loop"]["assurance_state"] == "DEMO_ONLY_VERIFIED"
+    assert rows["interactive setup wizard"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
     assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
 
 

@@ -16,12 +16,14 @@ Current platform truth:
 
 - passive foundation state: `PASSIVE_FOUNDATION`
 - platform-wide ambient runtime authority state: not `OPERATIONALLY_VERIFIED`; operational authority is capability-scoped by the matrix
-- setup/config kernel state: R1.4 passive schema, source resolution, setup plan, overlay plan, rollback snapshot, digest-bound apply/rollback, and legacy setup-surface reconciliation exist; generic rollback remains non-operational
+- setup/config kernel state: R1.4 passive schema, source resolution, setup plan, overlay plan, rollback snapshot, digest-bound apply/rollback, and legacy setup-surface reconciliation exist; the interactive setup wizard (`builder init`, plan item 2.2/2.6) is operational as a plans-only surface; generic rollback remains non-operational
 - current sequence: `B8 deferred; B9 complete`; historical dependency spine: `R0 -> R1 -> B1`
 
 R1.4 keeps the setup/config kernel non-operational beyond the governed artifact chain. Legacy `builder setup` now fails closed and redirects to `builder-setup`. Ambient runtime execution, Goose runtime promotion, deepagents runtime, autonomous writes, source CORE checkout mutation, and commit/push automation remain unpromoted; model/provider calls, MCP/tool invocation, and the governed demo loop are operational only inside their explicit capability-scoped envelopes.
 
 Operator-invoked HITL patch application and rollback execution are `OPERATIONALLY_VERIFIED` (plan item 1.7; `docs/audits/B4_CLOSURE_AUDIT.md`): both run only through an interactive digest-prefix approval boundary, a required verification receipt, the command-authority gate, and a drift-hardened, ledger-traced rollback. The commands stay Tier 3 candidates, not `enabled`; autonomous or automatic patch application remains forbidden and unpromoted.
+
+The interactive setup wizard is `OPERATIONALLY_VERIFIED` (plan item 2.6; `docs/audits/R1_CLOSURE_AUDIT_2_6.md`): `builder init` (plan item 2.2) prompts the four wizard decisions with registry-validated answers, plans the full setup chain as passive artifacts, and never applies. Setup mutation remains exclusively the separately digest-approved `builder-setup apply` (inline flag or interactive digest-prefix confirmation); Goose config merge, skill copying, and recipe installation remain manual operator steps (R1.7).
 
 `OPERATIONALLY_VERIFIED` is a legacy matrix state, not a life-safety or global-runtime clearance. Machine-readable matrix rows now also carry a sharper `assurance_state`: `PASSIVE_ARTIFACT_VERIFIED`, `READ_ONLY_RUNTIME_VERIFIED`, `BOUNDED_EXECUTION_VERIFIED`, `MUTATION_WITH_ROLLBACK_VERIFIED`, `LIVE_PROVIDER_VERIFIED`, `DEMO_ONLY_VERIFIED`, `BLOCKED_BY_EVIDENCE`, or `SAFETY_CRITICAL_PROHIBITED`.
 
@@ -54,7 +56,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | profile packs | `PASSIVE_FOUNDATION` | defer runtime materialization |
 | config schema | `PASSIVE_FOUNDATION` | R1 |
 | config source precedence | `PASSIVE_FOUNDATION` | R1 |
-| interactive setup wizard | `NOT_STARTED` | R1 |
+| interactive setup wizard | `OPERATIONALLY_VERIFIED` | R1 complete (2.6) |
 | non-interactive setup/apply/validate | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
 | Goose config overlay/rollback | `PASSIVE_FOUNDATION` | R1 |
 | recipe generator/wizard | `ARTIFACT_ONLY` | R1 |
@@ -155,6 +157,10 @@ R1.5 adds `builder-setup init`, `builder-setup wizard`, `builder onboarding`, an
 R1.6 completes R1 by introducing `builder-platform r1-closure` and `builder-platform validate-r1-closure`. These commands execute the entire passive config/setup/onboarding chain and emit a canonical, auditable `r1-closure-report.json` alongside the full evidence artifact chain (`config-schema.json`, `config-resolution.json`, `setup-plan.json`, `setup-overlay.json`, `setup-rollback-snapshot.json`, and `onboarding-intent.json`). This proves the R1 golden path while ensuring that setup apply/rollback execution remains explicit and B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority remain unpromoted.
 
 B1.1 adds `builder_ii.verification_execution_plan` plus `builder-verify plan` and `builder-verify validate-plan` as a passive verification execution planning surface. B1.2 adds `builder_ii.verification_execution_approval` plus `builder-verify approve-plan` and `builder-verify validate-approval` as a digest-bound HITL approval binding surface. Those planning and approval artifacts remain non-authoritative by themselves. B1.3A adds a receipt contract. B1.3B adds the first bounded approved verification runner for `platform_status`. B1.5 broadens the same fixed-profile, `shell=False`, HITL-bound runner to `docs_audit`, routes the lane through the central command authority gate, and emits a generated postflight sidecar bound to receipt/git preflight/postflight evidence. Arbitrary argv, broad shell execution, live read authority, patching, model/MCP/Goose/deepagents runtime, and B2 write authority remain disabled.
+
+## R1 closure update (2.6)
+
+Plan item 2.6 closes the R1 interactive-wizard gap flagged since R0. `builder init` (plan item 2.2) is the unified onboarding orchestrator: four prompted wizard decisions (output directory, target profile, model backend, model alias) validated against live registries with a 3-attempt re-prompt, five defaulted decisions echoed with their override flags, and the full passive artifact chain (setup plan, overlay plan, rollback snapshot, onboarding intent report) emitted without ever applying. The rendered follow-up `builder-setup apply` command carries no inline digest; apply/rollback approval is either `--approve-digest` (scripted) or an interactive typed digest-prefix confirmation, and receipts record which path was used in `approval_mode`. The matrix flip is operator-applied (tier C): evidence and the full pinned-site edit set are recorded in `docs/audits/R1_CLOSURE_AUDIT_2_6.md`, and `validate_r1_config_onboarding_mapping` now fails closed for every R1 row except those explicitly listed in `R1_OPERATOR_FLIPPED_CAPABILITIES`. The remaining R1 wizard rows (recipe, target/agent/verification profile, deepagents/researcher) stay non-operational.
 
 ## B7 update
 
