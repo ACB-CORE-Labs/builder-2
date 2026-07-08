@@ -56,18 +56,6 @@ from builder_ii.convention_kernel import (
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
     validate_convention_kernel_platform_bundle,
 )
-from builder_ii.core_demo_loop import (
-    CORE_DEMO_APPROVAL_KIND,
-    CORE_DEMO_PLANNER_KIND,
-    CORE_DEMO_PREFLIGHT_KIND,
-    CORE_DEMO_REPORT_KIND,
-    CORE_DEMO_VERIFICATION_RECEIPT_KIND,
-    validate_core_demo_approval,
-    validate_core_demo_planner,
-    validate_core_demo_preflight,
-    validate_core_demo_report,
-    validate_core_demo_verification_receipt,
-)
 from builder_ii.deepagents_bridge_readiness import (
     DEEPAGENTS_BRIDGE_READINESS_REPORT_KIND,
     validate_deepagents_bridge_readiness_report,
@@ -119,6 +107,16 @@ from builder_ii.deepagents_work_artifacts import (
     validate_deepagents_subagent_review,
     validate_deepagents_work_plan,
     validate_deepagents_work_validation_report,
+)
+from builder_ii.demo_loop import (
+    DEMO_PLANNER_KIND,
+    DEMO_PREFLIGHT_KIND,
+    DEMO_REPORT_KIND,
+    DEMO_VERIFICATION_RECEIPT_KIND,
+    validate_demo_planner,
+    validate_demo_preflight,
+    validate_demo_report,
+    validate_demo_verification_receipt,
 )
 from builder_ii.event_ledger import (
     EVENT_LEDGER_KIND,
@@ -553,11 +551,10 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     TARGET_INSPECTION_PLAN_KIND: validate_target_inspection_plan,
     TARGET_PATCH_PROPOSAL_KIND: validate_target_patch_proposal,
     TARGET_VERIFICATION_PLAN_KIND: validate_target_verification_plan,
-    CORE_DEMO_APPROVAL_KIND: validate_core_demo_approval,
-    CORE_DEMO_PLANNER_KIND: validate_core_demo_planner,
-    CORE_DEMO_PREFLIGHT_KIND: validate_core_demo_preflight,
-    CORE_DEMO_VERIFICATION_RECEIPT_KIND: validate_core_demo_verification_receipt,
-    CORE_DEMO_REPORT_KIND: validate_core_demo_report,
+    DEMO_PLANNER_KIND: validate_demo_planner,
+    DEMO_PREFLIGHT_KIND: validate_demo_preflight,
+    DEMO_VERIFICATION_RECEIPT_KIND: validate_demo_verification_receipt,
+    DEMO_REPORT_KIND: validate_demo_report,
     ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: validate_artifact_chain_verification_report,
 }
 

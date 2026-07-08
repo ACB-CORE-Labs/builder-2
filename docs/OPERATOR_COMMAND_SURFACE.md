@@ -60,9 +60,9 @@ The canonical governed session lane binds together the platform preparation tool
 
 Still gated: arbitrary argv, broad shell execution, patch authority, model/MCP/Goose/deepagents runtime, commit/push automation, and model-driven file mutation.
 
-## CORE Demo Loop
+## Governed Demo Loop
 
-The real-world CORE recording lane is separate from the passive session lane:
+The real-world recording lane is separate from the passive session lane. It runs against a temporary detached worktree of any operator-designated target repo (`--target-repo`/`--target-name`; `core` selects the CORE profile with its identity check and sensitive-module policy):
 
 1. `builder-platform demo-loop --phase prepare`
 2. `builder-platform demo-loop --phase approve --approve`
@@ -72,7 +72,7 @@ The real-world CORE recording lane is separate from the passive session lane:
 6. `builder-platform demo-loop --phase finalize`
 7. `builder-platform validate-demo-loop`
 
-The alias `builder-platform wow --approve` runs the full sequence for a continuous recording. This lane uses a detached temporary AssetOverflow/core worktree, applies one digest-approved documentation marker patch, rolls it back, and emits `DEMO_EVIDENCE.md`. It does not mutate the source CORE checkout, commit, push, call models, activate Goose, invoke MCP, write hidden memory, or couple to CORE Workbench/UI.
+The alias `builder-platform wow --approve` runs the full sequence for a continuous recording. This lane uses a detached temporary worktree of the target repo, applies one digest-approved documentation marker patch, rolls it back, and emits `DEMO_EVIDENCE.md`. It does not mutate the source checkout, commit, push, call models, activate Goose, invoke MCP, write hidden memory, or couple to CORE Workbench/UI.
 
 
 ## Command Taxonomy by Phase

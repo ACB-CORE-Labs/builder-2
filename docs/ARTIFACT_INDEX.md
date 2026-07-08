@@ -45,6 +45,10 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.hitl_patch_approval`
 - `builder_ii.hitl_rollback_approval`
 - `builder_ii.hitl_patch_ledger_record`
+- `builder_ii.demo_deterministic_planner`
+- `builder_ii.demo_preflight`
+- `builder_ii.demo_verification_receipt`
+- `builder_ii.demo_loop_report`
 - `builder_ii.rollback_plan`
 - `builder_ii.rollback_receipt`
 - `builder_ii.execution_postflight_record`

@@ -103,8 +103,8 @@ def create_hitl_patch_approval(
     human at a TTY. That is why the *promoted, operator-facing* mint path is exclusively the
     interactive ``builder-hitl approve-patch`` CLI (which forces the operator to transcribe the
     digest prefix; there is deliberately no non-interactive approval mode on that command). The
-    only sanctioned in-process minter is the CORE demo loop, bounded to a disposable detached
-    worktree with mandatory auto-rollback. Regardless of how the artifact is produced,
+    only sanctioned in-process minter is the governed demo loop, bounded to a disposable detached
+    worktree of the demo target with mandatory auto-rollback. Regardless of how the artifact is produced,
     ``apply_hitl_patch`` re-verifies the binding, expiry, and command-authority gate before any
     source write — the artifact never substitutes for the boundary.
     """

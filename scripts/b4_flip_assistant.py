@@ -41,8 +41,10 @@ EXECUTOR = REPO / "builder_ii" / "hitl_patch_apply.py"
 MIRROR_DOC = REPO / "docs" / "PLATFORM_COMPLETION_AUDIT.md"
 
 # The capabilities whose promotion this assistant reconciles. The executor self-stamps mirror the
-# "HITL patch application" row (apply/rollback share the B4 lane state).
-FLIP_CAPABILITIES = ("HITL patch application", "rollback execution")
+# "HITL patch application" row (apply/rollback share the B4 lane state). "governed demo loop" was
+# added by the 1.8 pin edit (row renamed from "CORE demo loop" when the demo lane generalized to
+# arbitrary generic targets); it participates in the assurance + mirror checks only.
+FLIP_CAPABILITIES = ("HITL patch application", "rollback execution", "governed demo loop")
 EXECUTOR_STAMP_ROW = "HITL patch application"
 
 

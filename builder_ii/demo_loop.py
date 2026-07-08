@@ -1,3 +1,27 @@
+"""Governed demo loop for arbitrary generic target repositories (plan item 1.8 / B4.9).
+
+CORE-born, generic-first: the demo proves the governed propose -> approve -> apply -> verify ->
+rollback lifecycle against a temporary detached worktree of ANY operator-designated local git
+repository. AssetOverflow/core remains one supported target profile (``target_name="core"``),
+carrying its original identity check and sensitive-module policy; every other target name runs
+under the generic spec.
+
+Boundaries (unchanged from the CORE-only predecessor, ``core_demo_loop.py``):
+
+- the source checkout is never mutated; the demo mutates only a disposable detached worktree;
+- the only mutation is one approved temporary documentation marker patch, always rolled back;
+- the approval consumed by the apply lane is the generic ``builder_ii.hitl_patch_approval``
+  (plan item 1.1) minted in-process at the ``--approve`` gate — the demo loop is the single
+  sanctioned in-process minter recorded by ``docs/audits/B4_CLOSURE_AUDIT.md``, contained by the
+  disposable worktree plus mandatory auto-rollback and final clean postflight;
+- no commit, push, model execution, Goose activation, MCP call, or hidden memory.
+
+The ``builder_ii.demo_verification_receipt`` produced here is the demo-scoped fallback the apply
+lane accepts (see ``hitl_patch_apply._verification_receipt_errors``); it self-describes demo scope
+and is bound to the exact worktree it verified. Rationale for keeping that fallback is recorded in
+``docs/audits/B4_9_DEMO_GENERALIZATION_AUDIT.md``.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -5,8 +29,8 @@ import json as json_lib
 import shutil
 import subprocess
 import time
-from dataclasses import dataclass
-from pathlib import Path
+from dataclasses import dataclass, replace
+from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
 from builder_ii.context_packs import create_context_pack, dumps_context_pack
@@ -23,13 +47,26 @@ from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hit
 from builder_ii.hitl_rollback_approval import canonical_json_digest, create_hitl_rollback_approval
 from builder_ii.repo_map import create_repo_map, dumps_repo_map
 
-CORE_DEMO_APPROVAL_KIND = "builder_ii.core_demo_approval"
-CORE_DEMO_APPROVAL_SCHEMA_VERSION = 1
-CORE_DEMO_PLANNER_KIND = "builder_ii.core_demo_deterministic_planner"
-CORE_DEMO_PREFLIGHT_KIND = "builder_ii.core_demo_preflight"
-CORE_DEMO_VERIFICATION_RECEIPT_KIND = "builder_ii.core_demo_verification_receipt"
-CORE_DEMO_REPORT_KIND = "builder_ii.core_demo_loop_report"
-CORE_DEMO_REPORT_SCHEMA_VERSION = 1
+DEMO_PLANNER_KIND = "builder_ii.demo_deterministic_planner"
+DEMO_PREFLIGHT_KIND = "builder_ii.demo_preflight"
+DEMO_VERIFICATION_RECEIPT_KIND = "builder_ii.demo_verification_receipt"
+DEMO_REPORT_KIND = "builder_ii.demo_loop_report"
+DEMO_REPORT_SCHEMA_VERSION = 1
+
+DEFAULT_DEMO_MARKER_PATH = "docs/builder_ii_demo_marker.md"
+
+# CORE sensitive runtime modules the CORE-profile demo must prove untouched. These are part of the
+# CORE target profile, not of the demo mechanism itself.
+CORE_SENSITIVE_PATH_PREFIXES = (
+    "algebra/",
+    "field/",
+    "generate/",
+    "core/cognition/",
+    "vault/",
+    "teaching/",
+    "calibration/",
+    "sensorium/",
+)
 
 DemoPhase = Literal[
     "prepare",
@@ -51,16 +88,101 @@ _PHASES: tuple[DemoPhase, ...] = (
     "all",
 )
 
-_DEMO_MARKER_PATH = Path("docs/builder_ii_core_demo_marker.md")
+
+@dataclass(frozen=True)
+class DemoTargetSpec:
+    """Parameterizes the demo loop for one target repository.
+
+    ``name`` is the operator-facing display name recorded in demo-scoped artifacts.
+    ``profile_name`` is the governed target profile ("generic" or "core") used wherever the
+    demo feeds promoted lanes whose validators pin the target-name vocabulary (repo map,
+    context pack, HITL patch proposal, execution postflight).
+    """
+
+    name: str
+    profile_name: str = "generic"
+    marker_path: str = DEFAULT_DEMO_MARKER_PATH
+    sensitive_path_prefixes: tuple[str, ...] = ()
+    expected_remote_substring: str | None = None
+    expected_dirname: str | None = None
+    description: str = ""
+
+
+CORE_DEMO_TARGET_SPEC = DemoTargetSpec(
+    name="core",
+    profile_name="core",
+    sensitive_path_prefixes=CORE_SENSITIVE_PATH_PREFIXES,
+    expected_remote_substring="AssetOverflow/core",
+    expected_dirname="core",
+    description="AssetOverflow/core temporary detached worktree for the builder-II governed demo loop.",
+)
+
+
+def marker_path_errors(marker_path: Any) -> list[str]:
+    """Validate the temporary demo marker path shape (relative, no traversal, not .git)."""
+    if not isinstance(marker_path, str) or not marker_path.strip():
+        return ["marker path must be a non-empty string"]
+    errors: list[str] = []
+    if "\\" in marker_path:
+        errors.append("marker path must use forward slashes")
+    if marker_path.startswith("/") or PurePosixPath(marker_path).is_absolute():
+        errors.append("marker path must be relative")
+    if marker_path.endswith("/"):
+        errors.append("marker path must name a file, not a directory")
+    parts = PurePosixPath(marker_path).parts
+    if ".." in parts:
+        errors.append("marker path must not contain traversal segments")
+    if parts and parts[0] == ".git":
+        errors.append("marker path must not target .git")
+    return errors
+
+
+def validate_demo_target_spec(spec: DemoTargetSpec) -> list[str]:
+    errors: list[str] = []
+    if not spec.name or not spec.name.strip():
+        errors.append("demo target name must be a non-empty string")
+    elif any(ch.isspace() for ch in spec.name):
+        errors.append("demo target name must not contain whitespace")
+    if spec.profile_name not in ("generic", "core"):
+        errors.append("demo target profile_name must be generic or core")
+    errors.extend(marker_path_errors(spec.marker_path))
+    for prefix in spec.sensitive_path_prefixes:
+        if spec.marker_path.startswith(prefix):
+            errors.append(f"marker path must not fall under sensitive path prefix: {prefix}")
+    return errors
+
+
+def demo_target_spec(target_name: str, *, marker_path: str | None = None) -> DemoTargetSpec:
+    """Resolve the demo target spec for a target name.
+
+    ``"core"`` selects the CORE profile (identity check + sensitive-module policy). Any other
+    name selects the generic spec with that display name. Fails closed on an invalid spec.
+    """
+    if target_name == "core":
+        spec = CORE_DEMO_TARGET_SPEC
+    else:
+        spec = DemoTargetSpec(
+            name=target_name,
+            description=(
+                f"Temporary detached worktree of the {target_name} target repo "
+                "for the builder-II governed demo loop."
+            ),
+        )
+    if marker_path is not None:
+        spec = replace(spec, marker_path=marker_path)
+    errors = validate_demo_target_spec(spec)
+    if errors:
+        raise ValueError("invalid demo target spec: " + "; ".join(errors))
+    return spec
 
 
 @dataclass(frozen=True)
-class CoreDemoPaths:
+class DemoPaths:
     output_dir: Path
 
     @property
     def worktree(self) -> Path:
-        return self.output_dir / "core-worktree"
+        return self.output_dir / "demo-worktree"
 
     @property
     def repo_map(self) -> Path:
@@ -76,30 +198,27 @@ class CoreDemoPaths:
 
     @property
     def patch_file(self) -> Path:
-        return self.output_dir / "core-demo.patch"
+        return self.output_dir / "demo.patch"
 
     @property
     def reverse_patch_file(self) -> Path:
-        return self.output_dir / "core-demo.reverse.patch"
+        return self.output_dir / "demo.reverse.patch"
 
     @property
     def proposal(self) -> Path:
         return self.output_dir / "hitl-patch-proposal.json"
 
     @property
-    def approval(self) -> Path:
-        return self.output_dir / "core-demo-approval.json"
-
-    @property
     def patch_approval(self) -> Path:
-        # Generic governed approval the hardened apply lane validates (bound to the
-        # proposal content + patch digests). The core-demo-approval above remains the
-        # operator-facing narrative record and the --approve gate.
+        # The generic governed approval (builder_ii.hitl_patch_approval, plan item 1.1) the
+        # hardened apply lane validates — bound to the proposal content + patch digests. Minted
+        # only at the explicit --approve gate; its absence IS the unapproved state (no separate
+        # narrative "rejected approval" artifact exists).
         return self.output_dir / "hitl-patch-approval.json"
 
     @property
     def rollback_approval(self) -> Path:
-        # Distinct governed rollback approval (plan item 1.4). The rollback lane now requires
+        # Distinct governed rollback approval (plan item 1.4). The rollback lane requires
         # its own approval bound to the rollback plan, not just the machine-generated plan.
         return self.output_dir / "hitl-rollback-approval.json"
 
@@ -157,7 +276,7 @@ class CoreDemoPaths:
 
     @property
     def report(self) -> Path:
-        return self.output_dir / "core-demo-loop-report.json"
+        return self.output_dir / "demo-loop-report.json"
 
     @property
     def evidence_md(self) -> Path:
@@ -203,22 +322,27 @@ def _repo_head(repo: Path) -> str:
 
 
 def _repo_status(repo: Path) -> list[str]:
-    result = _run_git(repo, ["status", "--porcelain=v1"])
+    # --untracked-files=all so a marker in a brand-new directory reports the file path itself
+    # rather than a collapsed "?? dir/" line; the only-marker-mutated check depends on exact paths.
+    result = _run_git(repo, ["status", "--porcelain=v1", "--untracked-files=all"])
     return result.stdout.splitlines()
 
 
-def _ensure_core_repo(repo: Path) -> Path:
+def _ensure_target_repo(repo: Path, spec: DemoTargetSpec) -> Path:
     resolved = repo.expanduser().resolve()
     if not resolved.is_dir():
-        raise ValueError(f"CORE repo does not exist: {resolved}")
+        raise ValueError(f"demo target repo does not exist: {resolved}")
     if not (resolved / ".git").exists():
-        raise ValueError(f"CORE repo is not a git checkout: {resolved}")
-    try:
-        remote = _run_git(resolved, ["remote", "-v"], check=False).stdout
-    except OSError as exc:
-        raise ValueError(f"failed to inspect CORE git remote: {exc}") from exc
-    if "AssetOverflow/core" not in remote and resolved.name != "core":
-        raise ValueError(f"repo does not look like AssetOverflow/core: {resolved}")
+        raise ValueError(f"demo target repo is not a git checkout: {resolved}")
+    if spec.expected_remote_substring is not None or spec.expected_dirname is not None:
+        try:
+            remote = _run_git(resolved, ["remote", "-v"], check=False).stdout
+        except OSError as exc:
+            raise ValueError(f"failed to inspect demo target git remote: {exc}") from exc
+        remote_ok = spec.expected_remote_substring is not None and spec.expected_remote_substring in remote
+        dirname_ok = spec.expected_dirname is not None and resolved.name == spec.expected_dirname
+        if not remote_ok and not dirname_ok:
+            raise ValueError(f"repo does not look like the {spec.name} target: {resolved}")
     return resolved
 
 
@@ -239,82 +363,89 @@ def _remove_worktree(source_repo: Path, worktree: Path) -> None:
     _run_git(source_repo, ["worktree", "remove", "--force", str(worktree)], check=False)
 
 
-def _unified_diff_for_marker() -> str:
+def _marker_lines(spec: DemoTargetSpec) -> list[str]:
+    return [
+        "# builder-II Demo Marker",
+        "",
+        f"Target: {spec.name}",
+        "",
+        (
+            "This temporary file is created by the builder-II governed demo loop "
+            "and is rolled back before the demo completes."
+        ),
+    ]
+
+
+def _unified_diff_for_marker(spec: DemoTargetSpec) -> str:
+    lines = _marker_lines(spec)
+    body = "".join(f"+{line}\n" for line in lines)
     return (
-        f"diff --git a/{_DEMO_MARKER_PATH.as_posix()} b/{_DEMO_MARKER_PATH.as_posix()}\n"
+        f"diff --git a/{spec.marker_path} b/{spec.marker_path}\n"
         "new file mode 100644\n"
         "index 0000000..0000000\n"
         "--- /dev/null\n"
-        f"+++ b/{_DEMO_MARKER_PATH.as_posix()}\n"
-        "@@ -0,0 +1,3 @@\n"
-        "+# builder-II CORE Demo Marker\n"
-        "+\n"
-        "+This temporary file is created by the builder-II CORE demo loop and is rolled back before the demo completes.\n"
+        f"+++ b/{spec.marker_path}\n"
+        f"@@ -0,0 +1,{len(lines)} @@\n"
+        f"{body}"
     )
 
 
-def _reverse_diff_for_marker() -> str:
+def _reverse_diff_for_marker(spec: DemoTargetSpec) -> str:
+    lines = _marker_lines(spec)
+    body = "".join(f"-{line}\n" for line in lines)
     return (
-        f"diff --git a/{_DEMO_MARKER_PATH.as_posix()} b/{_DEMO_MARKER_PATH.as_posix()}\n"
+        f"diff --git a/{spec.marker_path} b/{spec.marker_path}\n"
         "deleted file mode 100644\n"
         "index 0000000..0000000\n"
-        f"--- a/{_DEMO_MARKER_PATH.as_posix()}\n"
+        f"--- a/{spec.marker_path}\n"
         "+++ /dev/null\n"
-        "@@ -1,3 +0,0 @@\n"
-        "-# builder-II CORE Demo Marker\n"
-        "-\n"
-        "-This temporary file is created by the builder-II CORE demo loop and is rolled back before the demo completes.\n"
+        f"@@ -1,{len(lines)} +0,0 @@\n"
+        f"{body}"
     )
 
 
-def _write_repo_map_and_context(worktree: Path, paths: CoreDemoPaths) -> None:
-    repo_map = create_repo_map(worktree, target_name="core", max_files=700)
+def _write_repo_map_and_context(worktree: Path, paths: DemoPaths, spec: DemoTargetSpec) -> None:
+    repo_map = create_repo_map(worktree, target_name=spec.profile_name, max_files=700)
     paths.repo_map.write_text(dumps_repo_map(repo_map), encoding="utf-8")
     context_pack = create_context_pack(
         repo_map,
-        target_name="core",
-        task="Demonstrate builder-II governed patch, verify, rollback loop on AssetOverflow/core.",
+        target_name=spec.profile_name,
+        task=f"Demonstrate the builder-II governed patch, verify, rollback loop on the {spec.name} target.",
         max_entries=80,
     )
     paths.context_pack.write_text(dumps_context_pack(context_pack), encoding="utf-8")
 
 
-def _write_planner(paths: CoreDemoPaths, worktree: Path, patch_digest: str) -> dict[str, Any]:
+def _write_planner(paths: DemoPaths, worktree: Path, patch_digest: str, spec: DemoTargetSpec) -> dict[str, Any]:
     planner = {
-        "kind": CORE_DEMO_PLANNER_KIND,
+        "kind": DEMO_PLANNER_KIND,
         "schema_version": 1,
         "created_at": _utc_timestamp(),
         "target": {
-            "name": "core",
+            "name": spec.name,
+            "profile": spec.profile_name,
             "repo": str(worktree),
-            "source": "AssetOverflow/core temporary detached worktree",
+            "source": f"{spec.name} temporary detached worktree",
         },
         "selected_change": {
-            "path": _DEMO_MARKER_PATH.as_posix(),
+            "path": spec.marker_path,
             "operation": "temporary_add_then_rollback",
             "patch_digest": patch_digest,
-            "reason": "Use a low-risk documentation marker outside CORE sensitive runtime modules to prove the governed lifecycle.",
+            "reason": (
+                "Use a low-risk documentation marker outside any sensitive target module "
+                "to prove the governed lifecycle."
+            ),
         },
-        "core_invariant_policy": {
-            "sensitive_modules_untouched": [
-                "algebra/",
-                "field/",
-                "generate/",
-                "core/cognition/",
-                "vault/",
-                "teaching/",
-                "calibration/",
-                "sensorium/",
-            ],
-            "versor_condition_boundary": "not exercised by documentation-only marker change",
-            "cga_recall_boundary": "not exercised by documentation-only marker change",
+        "target_invariant_policy": {
+            "sensitive_path_prefixes": list(spec.sensitive_path_prefixes),
+            "mutation_scope": "single temporary documentation marker file, rolled back before completion",
             "stochastic_generation": "not introduced",
         },
         "governance": {
-            "capability_state": "CORE_DEMO_PLANNED",
+            "capability_state": "DEMO_PLANNED",
             "runtime_execution": "DISABLED",
             "model_execution": "DISABLED",
-            "source_writes": "DISABLED EXCEPT APPROVED TEMPORARY CORE WORKTREE PATCH",
+            "source_writes": "DISABLED EXCEPT APPROVED TEMPORARY DEMO WORKTREE PATCH",
             "target_repo_writes": "TEMPORARY_WORKTREE_ONLY_AFTER_APPROVAL",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
@@ -324,127 +455,56 @@ def _write_planner(paths: CoreDemoPaths, worktree: Path, patch_digest: str) -> d
     return planner
 
 
-def _write_patch_proposal(paths: CoreDemoPaths, worktree: Path, patch_text: str, patch_digest: str) -> dict[str, Any]:
+def _write_patch_proposal(
+    paths: DemoPaths, worktree: Path, patch_text: str, patch_digest: str, spec: DemoTargetSpec
+) -> dict[str, Any]:
     paths.patch_file.write_text(patch_text, encoding="utf-8")
-    paths.reverse_patch_file.write_text(_reverse_diff_for_marker(), encoding="utf-8")
+    paths.reverse_patch_file.write_text(_reverse_diff_for_marker(spec), encoding="utf-8")
     proposal = create_hitl_patch_proposal(
         target_name="generic",
         generic_repo=worktree,
-        patch_description="CORE demo: add temporary builder-II demo marker",
-        reason="Prove the governed inspect -> propose -> approve -> apply -> verify -> rollback lifecycle on AssetOverflow/core without touching sensitive CORE runtime modules.",
+        patch_description=f"Governed demo ({spec.name}): add temporary builder-II demo marker",
+        reason=(
+            "Prove the governed inspect -> propose -> approve -> apply -> verify -> rollback "
+            f"lifecycle on the {spec.name} target without touching sensitive target modules."
+        ),
         patch_digest=patch_digest,
         unified_diff=patch_text,
     )
-    proposal["target"]["name"] = "core"
-    proposal["target"]["description"] = "AssetOverflow/core temporary detached worktree for builder-II CORE demo."
+    proposal["target"]["name"] = spec.profile_name
+    proposal["target"]["description"] = spec.description
     write_hitl_patch_proposal(proposal, paths.proposal)
     return proposal
 
 
-def create_core_demo_approval(
-    proposal: dict[str, Any],
-    *,
-    proposal_path: Path,
-    decided_by: str = "operator",
-    approved: bool = True,
-    reason: str = "Interactive CORE demo approval.",
-) -> dict[str, Any]:
-    patch_digest = str(proposal.get("patch_digest", ""))
-    return {
-        "kind": CORE_DEMO_APPROVAL_KIND,
-        "schema_version": CORE_DEMO_APPROVAL_SCHEMA_VERSION,
-        "created_at": _utc_timestamp(),
-        "decision": "approved" if approved else "rejected",
-        "approved": approved,
-        "decided_by": decided_by,
-        "reason": reason,
-        "proposal_ref": {
-            "path": str(proposal_path),
-            "kind": proposal.get("kind", ""),
-            "sha256": _json_digest(proposal),
-        },
-        "patch_digest": patch_digest,
-        "approval_boundary": "operator explicitly approved this exact patch digest for the temporary CORE demo worktree",
-        "grants_runtime_authority": False,
-        "grants_action_authority": approved,
-        "governance": {
-            "capability_state": "CORE_DEMO_APPROVAL",
-            "runtime_execution": "DISABLED",
-            "model_execution": "DISABLED",
-            "shell_execution": "DISABLED",
-            "source_writes": "APPROVED_TEMPORARY_CORE_WORKTREE_PATCH_ONLY" if approved else "DISABLED",
-            "target_repo_writes": "TEMPORARY_WORKTREE_ONLY" if approved else "DISABLED",
-            "commit_push": "DISABLED",
-            "artifact_is_authority": False,
-            "core_workbench_coupling": "NONE",
-        },
-    }
-
-
-def validate_core_demo_approval(data: Any) -> list[str]:
+def validate_demo_planner(data: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
-        return ["core demo approval must be a JSON object"]
-    if data.get("kind") != CORE_DEMO_APPROVAL_KIND:
-        errors.append(f"kind must be {CORE_DEMO_APPROVAL_KIND}")
-    if data.get("schema_version") != CORE_DEMO_APPROVAL_SCHEMA_VERSION:
-        errors.append(f"schema_version must be {CORE_DEMO_APPROVAL_SCHEMA_VERSION}")
-    if data.get("decision") not in ("approved", "rejected"):
-        errors.append("decision must be approved or rejected")
-    if data.get("approved") is not (data.get("decision") == "approved"):
-        errors.append("approved must match decision")
-    if not isinstance(data.get("decided_by"), str) or not data["decided_by"]:
-        errors.append("decided_by must be a non-empty string")
-    if not isinstance(data.get("patch_digest"), str) or len(data["patch_digest"]) != 64:
-        errors.append("patch_digest must be a SHA-256 string")
-    proposal_ref = data.get("proposal_ref")
-    if not isinstance(proposal_ref, dict):
-        errors.append("proposal_ref must be an object")
-    else:
-        if not proposal_ref.get("path"):
-            errors.append("proposal_ref.path is required")
-        if not isinstance(proposal_ref.get("sha256"), str) or len(proposal_ref["sha256"]) != 64:
-            errors.append("proposal_ref.sha256 must be a SHA-256 string")
-    if data.get("grants_runtime_authority") is not False:
-        errors.append("grants_runtime_authority must be false or NOT_AUTHORIZED")
-    if not isinstance(data.get("grants_action_authority"), bool):
-        errors.append("grants_action_authority must be a boolean")
-    governance = data.get("governance")
-    if not isinstance(governance, dict):
-        errors.append("governance must be an object")
-    else:
-        if governance.get("runtime_execution") != "DISABLED":
-            errors.append("governance.runtime_execution must be DISABLED or NOT_AUTHORIZED")
-        if governance.get("model_execution") != "DISABLED":
-            errors.append("governance.model_execution must be DISABLED or NOT_AUTHORIZED")
-        if governance.get("shell_execution") != "DISABLED":
-            errors.append("governance.shell_execution must be DISABLED or NOT_AUTHORIZED")
-        if governance.get("commit_push") != "DISABLED":
-            errors.append("governance.commit_push must be DISABLED or NOT_AUTHORIZED")
-        if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
-        if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
-    return errors
-
-
-def validate_core_demo_planner(data: Any) -> list[str]:
-    errors: list[str] = []
-    if not isinstance(data, dict):
-        return ["core demo planner must be a JSON object"]
-    if data.get("kind") != CORE_DEMO_PLANNER_KIND:
-        errors.append(f"kind must be {CORE_DEMO_PLANNER_KIND}")
+        return ["demo planner must be a JSON object"]
+    if data.get("kind") != DEMO_PLANNER_KIND:
+        errors.append(f"kind must be {DEMO_PLANNER_KIND}")
     if data.get("schema_version") != 1:
         errors.append("schema_version must be 1")
     target = data.get("target")
-    if not isinstance(target, dict) or target.get("name") != "core" or not target.get("repo"):
-        errors.append("target must describe the core demo repository")
+    if not isinstance(target, dict) or not target.get("name") or not target.get("repo"):
+        errors.append("target must describe the demo target repository")
+    policy = data.get("target_invariant_policy")
+    sensitive_prefixes: list[str] = []
+    if not isinstance(policy, dict) or not isinstance(policy.get("sensitive_path_prefixes"), list):
+        errors.append("target_invariant_policy.sensitive_path_prefixes must be a list")
+    else:
+        sensitive_prefixes = [prefix for prefix in policy["sensitive_path_prefixes"] if isinstance(prefix, str)]
     change = data.get("selected_change")
     if not isinstance(change, dict):
         errors.append("selected_change must be an object")
     else:
-        if change.get("path") != _DEMO_MARKER_PATH.as_posix():
-            errors.append("selected_change.path must be the demo marker path")
+        path_errors = marker_path_errors(change.get("path"))
+        if path_errors:
+            errors.extend(f"selected_change.path: {error}" for error in path_errors)
+        else:
+            for prefix in sensitive_prefixes:
+                if str(change["path"]).startswith(prefix):
+                    errors.append(f"selected_change.path must not fall under sensitive path prefix: {prefix}")
         if not isinstance(change.get("patch_digest"), str) or len(change["patch_digest"]) != 64:
             errors.append("selected_change.patch_digest must be a SHA-256 string")
     governance = data.get("governance")
@@ -460,12 +520,12 @@ def validate_core_demo_planner(data: Any) -> list[str]:
     return errors
 
 
-def validate_core_demo_preflight(data: Any) -> list[str]:
+def validate_demo_preflight(data: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
-        return ["core demo preflight must be a JSON object"]
-    if data.get("kind") != CORE_DEMO_PREFLIGHT_KIND:
-        errors.append(f"kind must be {CORE_DEMO_PREFLIGHT_KIND}")
+        return ["demo preflight must be a JSON object"]
+    if data.get("kind") != DEMO_PREFLIGHT_KIND:
+        errors.append(f"kind must be {DEMO_PREFLIGHT_KIND}")
     if data.get("schema_version") != 1:
         errors.append("schema_version must be 1")
     for field in ("source_repo", "demo_worktree", "source_head", "worktree_head"):
@@ -490,12 +550,12 @@ def validate_core_demo_preflight(data: Any) -> list[str]:
     return errors
 
 
-def validate_core_demo_verification_receipt(data: Any) -> list[str]:
+def validate_demo_verification_receipt(data: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
-        return ["core demo verification receipt must be a JSON object"]
-    if data.get("kind") != CORE_DEMO_VERIFICATION_RECEIPT_KIND:
-        errors.append(f"kind must be {CORE_DEMO_VERIFICATION_RECEIPT_KIND}")
+        return ["demo verification receipt must be a JSON object"]
+    if data.get("kind") != DEMO_VERIFICATION_RECEIPT_KIND:
+        errors.append(f"kind must be {DEMO_VERIFICATION_RECEIPT_KIND}")
     if data.get("schema_version") != 1:
         errors.append("schema_version must be 1")
     if data.get("label") not in ("before_apply", "after_apply"):
@@ -522,11 +582,11 @@ def validate_core_demo_verification_receipt(data: Any) -> list[str]:
     return errors
 
 
-def _write_preflight(paths: CoreDemoPaths, source_repo: Path, worktree: Path) -> dict[str, Any]:
+def _write_preflight(paths: DemoPaths, source_repo: Path, worktree: Path) -> dict[str, Any]:
     source_status = _repo_status(source_repo)
     worktree_status = _repo_status(worktree)
     record = {
-        "kind": CORE_DEMO_PREFLIGHT_KIND,
+        "kind": DEMO_PREFLIGHT_KIND,
         "schema_version": 1,
         "created_at": _utc_timestamp(),
         "source_repo": str(source_repo),
@@ -537,9 +597,9 @@ def _write_preflight(paths: CoreDemoPaths, source_repo: Path, worktree: Path) ->
         "worktree_status": worktree_status,
         "ready": len(worktree_status) == 0,
         "source_repo_dirty_ok": True,
-        "note": "The source CORE checkout may be dirty; the demo mutates only the detached temporary worktree.",
+        "note": "The source checkout may be dirty; the demo mutates only the detached temporary worktree.",
         "governance": {
-            "capability_state": "CORE_DEMO_PREFLIGHT",
+            "capability_state": "DEMO_PREFLIGHT",
             "runtime_execution": "DISABLED",
             "model_execution": "DISABLED",
             "shell_execution": "DISABLED",
@@ -551,58 +611,59 @@ def _write_preflight(paths: CoreDemoPaths, source_repo: Path, worktree: Path) ->
     }
     _write_json(paths.preflight, record)
     if not record["ready"]:
-        raise ValueError(f"CORE demo worktree is not clean: {worktree_status}")
+        raise ValueError(f"demo worktree is not clean: {worktree_status}")
     return record
 
 
-def _write_verification_receipt(paths: CoreDemoPaths, worktree: Path, *, label: str) -> dict[str, Any]:
-    marker_exists = (worktree / _DEMO_MARKER_PATH).is_file()
+def _write_verification_receipt(
+    paths: DemoPaths, worktree: Path, *, label: str, spec: DemoTargetSpec
+) -> dict[str, Any]:
+    marker_exists = (worktree / spec.marker_path).is_file()
     expected_marker = label == "after_apply"
     status_lines = _repo_status(worktree)
-    receipt_status = "EXECUTED" if marker_exists is expected_marker else "FAILED"
+    checks: list[dict[str, Any]] = [
+        {
+            "name": "demo_marker_state",
+            "expected_exists": expected_marker,
+            "observed_exists": marker_exists,
+            "status": "PASS" if marker_exists is expected_marker else "FAIL",
+        },
+        {
+            # Strictly stronger than a sensitive-prefix check: the ONLY allowed worktree
+            # mutation at any phase is the demo marker itself.
+            "name": "only_demo_marker_mutated",
+            "status_lines": status_lines,
+            "status": "PASS" if all(line[3:] == spec.marker_path for line in status_lines) else "FAIL",
+        },
+    ]
+    if spec.sensitive_path_prefixes:
+        checks.append(
+            {
+                "name": "sensitive_target_modules_untouched",
+                "sensitive_path_prefixes": list(spec.sensitive_path_prefixes),
+                "status_lines": status_lines,
+                "status": "PASS"
+                if all(not line[3:].startswith(spec.sensitive_path_prefixes) for line in status_lines)
+                else "FAIL",
+            }
+        )
+    receipt_status = "EXECUTED" if all(check["status"] == "PASS" for check in checks) else "FAILED"
     receipt = {
-        "kind": CORE_DEMO_VERIFICATION_RECEIPT_KIND,
+        "kind": DEMO_VERIFICATION_RECEIPT_KIND,
         "schema_version": 1,
         "created_at": _utc_timestamp(),
         "label": label,
         "target": {
-            "name": "core",
+            "name": spec.name,
+            "profile": spec.profile_name,
             "repo": str(worktree),
         },
-        "checks": [
-            {
-                "name": "demo_marker_state",
-                "expected_exists": expected_marker,
-                "observed_exists": marker_exists,
-                "status": "PASS" if marker_exists is expected_marker else "FAIL",
-            },
-            {
-                "name": "sensitive_core_modules_untouched",
-                "status_lines": status_lines,
-                "status": "PASS"
-                if all(
-                    not line[3:].startswith(
-                        (
-                            "algebra/",
-                            "field/",
-                            "generate/",
-                            "core/cognition/",
-                            "vault/",
-                            "teaching/",
-                            "calibration/",
-                            "sensorium/",
-                        )
-                    )
-                    for line in status_lines
-                )
-                else "FAIL",
-            },
-        ],
+        "checks": checks,
         "receipt_status": receipt_status,
         "workspace_mutation_detected": bool(status_lines),
         "status_lines": status_lines,
         "governance": {
-            "capability_state": "CORE_DEMO_VERIFICATION",
+            "capability_state": "DEMO_VERIFICATION",
             "runtime_execution": "BOUNDED_IN_PROCESS_CHECKS",
             "model_execution": "DISABLED",
             "shell_execution": "DISABLED",
@@ -615,11 +676,12 @@ def _write_verification_receipt(paths: CoreDemoPaths, worktree: Path, *, label: 
     output = paths.pre_apply_verification_receipt if label == "before_apply" else paths.post_apply_verification_receipt
     _write_json(output, receipt)
     if receipt_status != "EXECUTED":
-        raise ValueError("CORE demo verification failed after apply")
+        failed = [str(check.get("name")) for check in checks if check.get("status") != "PASS"]
+        raise ValueError(f"demo verification failed ({label}); failing checks: {', '.join(failed)}")
     return receipt
 
 
-def _write_final_postflight(paths: CoreDemoPaths, worktree: Path) -> dict[str, Any]:
+def _write_final_postflight(paths: DemoPaths, worktree: Path, spec: DemoTargetSpec) -> dict[str, Any]:
     status_lines = _repo_status(worktree)
     postflight = create_execution_postflight_record(
         target_name="generic",
@@ -627,27 +689,28 @@ def _write_final_postflight(paths: CoreDemoPaths, worktree: Path) -> dict[str, A
         request_ref=str(paths.proposal),
         receipt_ref=str(paths.rollback_receipt),
         preflight_ref=str(paths.preflight),
-        approval_ref=str(paths.approval),
-        expected_outcome="Temporary CORE demo patch rolled back; detached worktree returned clean.",
-        observed_state_ref="git status --porcelain=v1",
+        approval_ref=str(paths.patch_approval),
+        expected_outcome="Temporary demo patch rolled back; detached worktree returned clean.",
+        observed_state_ref="git status --porcelain=v1 --untracked-files=all",
     )
-    postflight["target"]["name"] = "core"
-    postflight["target"]["description"] = "AssetOverflow/core temporary detached worktree for builder-II CORE demo."
+    postflight["target"]["name"] = spec.profile_name
+    postflight["target"]["description"] = spec.description
     postflight["postflight_state"] = "RUN_COMPLETE"
-    postflight["performed_actions"] = ["read git status for detached CORE demo worktree"]
+    postflight["performed_actions"] = ["read git status for the detached demo worktree"]
     postflight["observed_status_lines"] = status_lines
     postflight["workspace_clean"] = len(status_lines) == 0
     write_execution_postflight_record(postflight, paths.final_postflight)
     if status_lines:
-        raise ValueError(f"CORE demo rollback did not return worktree clean: {status_lines}")
+        raise ValueError(f"demo rollback did not return worktree clean: {status_lines}")
     return postflight
 
 
-def create_core_demo_report(
+def create_demo_report(
     *,
-    paths: CoreDemoPaths,
+    paths: DemoPaths,
     source_repo: Path,
     worktree: Path,
+    spec: DemoTargetSpec,
     phase: DemoPhase,
     completed_steps: list[str],
     chain_report: dict[str, Any] | None,
@@ -670,12 +733,13 @@ def create_core_demo_report(
                 }
             )
     report = {
-        "kind": CORE_DEMO_REPORT_KIND,
-        "schema_version": CORE_DEMO_REPORT_SCHEMA_VERSION,
+        "kind": DEMO_REPORT_KIND,
+        "schema_version": DEMO_REPORT_SCHEMA_VERSION,
         "created_at": _utc_timestamp(),
         "phase": phase,
         "target": {
-            "name": "core",
+            "name": spec.name,
+            "profile": spec.profile_name,
             "source_repo": str(source_repo),
             "demo_worktree": str(worktree),
         },
@@ -694,11 +758,11 @@ def create_core_demo_report(
             and not _read_json(paths.final_postflight).get("observed_status_lines"),
         },
         "governance": {
-            "capability_state": "CORE_DEMO_LOOP",
+            "capability_state": "GOVERNED_DEMO_LOOP",
             "runtime_execution": "GUIDED_DEMO_ONLY",
             "model_execution": "DISABLED",
             "shell_execution": "DISABLED_FOR_DEMO_PAYLOAD",
-            "source_writes": "TEMPORARY_CORE_WORKTREE_ONLY_AFTER_APPROVAL",
+            "source_writes": "TEMPORARY_DEMO_WORKTREE_ONLY_AFTER_APPROVAL",
             "commit_push": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
@@ -708,16 +772,19 @@ def create_core_demo_report(
     return report
 
 
-def validate_core_demo_report(data: Any) -> list[str]:
+def validate_demo_report(data: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(data, dict):
-        return ["core demo loop report must be a JSON object"]
-    if data.get("kind") != CORE_DEMO_REPORT_KIND:
-        errors.append(f"kind must be {CORE_DEMO_REPORT_KIND}")
-    if data.get("schema_version") != CORE_DEMO_REPORT_SCHEMA_VERSION:
-        errors.append(f"schema_version must be {CORE_DEMO_REPORT_SCHEMA_VERSION}")
+        return ["demo loop report must be a JSON object"]
+    if data.get("kind") != DEMO_REPORT_KIND:
+        errors.append(f"kind must be {DEMO_REPORT_KIND}")
+    if data.get("schema_version") != DEMO_REPORT_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {DEMO_REPORT_SCHEMA_VERSION}")
     if data.get("phase") not in _PHASES:
         errors.append("phase must be a known demo phase")
+    target = data.get("target")
+    if not isinstance(target, dict) or not target.get("name") or not target.get("demo_worktree"):
+        errors.append("target must describe the demo target and worktree")
     if not isinstance(data.get("artifact_refs"), list):
         errors.append("artifact_refs must be a list")
     if not isinstance(data.get("ready_for_recording"), bool):
@@ -751,16 +818,19 @@ def validate_core_demo_report(data: Any) -> list[str]:
     return errors
 
 
-def _write_evidence_markdown(paths: CoreDemoPaths, report: dict[str, Any]) -> None:
+def _write_evidence_markdown(paths: DemoPaths, report: dict[str, Any], spec: DemoTargetSpec) -> None:
     lines = [
-        "# builder-II CORE Demo Evidence",
+        "# builder-II Governed Demo Evidence",
         "",
-        "This evidence bundle records a guided builder-II run against a temporary detached worktree of AssetOverflow/core.",
+        (
+            "This evidence bundle records a guided builder-II run against a temporary detached "
+            f"worktree of the {spec.name} target repository."
+        ),
         "",
         "## Boundary",
         "",
-        "- Source CORE checkout is not mutated by the demo.",
-        "- The temporary CORE worktree is patched only after explicit approval.",
+        "- The source checkout is not mutated by the demo.",
+        "- The temporary demo worktree is patched only after explicit approval.",
         "- The patch is rolled back before completion.",
         "- No commit, push, model execution, Goose activation, MCP call, or hidden memory is used.",
         "",
@@ -775,7 +845,7 @@ def _write_evidence_markdown(paths: CoreDemoPaths, report: dict[str, Any]) -> No
             "",
             "## Recording Beats",
             "",
-            "1. Show preflight and CORE detached worktree boundary.",
+            "1. Show preflight and the detached demo worktree boundary.",
             "2. Show deterministic planner and HITL patch proposal.",
             "3. Show explicit approval digest.",
             "4. Apply the patch, verify the temporary marker exists, then roll it back.",
@@ -788,14 +858,15 @@ def _write_evidence_markdown(paths: CoreDemoPaths, report: dict[str, Any]) -> No
     paths.evidence_md.write_text("\n".join(lines), encoding="utf-8")
 
 
-def _artifact_paths_for_chain(paths: CoreDemoPaths) -> list[Path]:
+def _artifact_paths_for_chain(paths: DemoPaths) -> list[Path]:
     candidates = [
         paths.preflight,
         paths.repo_map,
         paths.context_pack,
         paths.planner,
         paths.proposal,
-        paths.approval,
+        paths.patch_approval,
+        paths.rollback_approval,
         paths.pre_apply_verification_receipt,
         paths.post_apply_verification_receipt,
         paths.rollback_plan,
@@ -807,12 +878,12 @@ def _artifact_paths_for_chain(paths: CoreDemoPaths) -> list[Path]:
     return [path for path in candidates if path.is_file()]
 
 
-def _is_demo_artifact_path(path: Path, paths: CoreDemoPaths) -> bool:
+def _is_demo_artifact_path(path: Path, paths: DemoPaths) -> bool:
     resolved = path.resolve()
     return resolved.is_file() and not resolved.is_relative_to(paths.worktree.resolve())
 
 
-def _demo_json_artifact_paths(paths: CoreDemoPaths) -> list[Path]:
+def _demo_json_artifact_paths(paths: DemoPaths) -> list[Path]:
     return sorted(
         path
         for path in paths.output_dir.rglob("*.json")
@@ -820,14 +891,19 @@ def _demo_json_artifact_paths(paths: CoreDemoPaths) -> list[Path]:
     )
 
 
-def _clear_stale_final_outputs(paths: CoreDemoPaths) -> None:
+def _clear_stale_final_outputs(paths: DemoPaths) -> None:
     for path in (paths.report, paths.artifact_index, paths.evidence_md):
         if path.exists():
             path.unlink()
 
 
 def _finalize(
-    paths: CoreDemoPaths, source_repo: Path, worktree: Path, phase: DemoPhase, completed_steps: list[str]
+    paths: DemoPaths,
+    source_repo: Path,
+    worktree: Path,
+    spec: DemoTargetSpec,
+    phase: DemoPhase,
+    completed_steps: list[str],
 ) -> dict[str, Any]:
     from builder_ii.artifact_chain_verification import verify_artifact_chain
     from builder_ii.artifact_index_records import create_artifact_index_record, write_artifact_index_record
@@ -839,29 +915,32 @@ def _finalize(
     index = create_artifact_index_record(paths.output_dir, recursive=True, exclude_paths=(paths.worktree,))
     write_artifact_index_record(index, paths.artifact_index)
     all_artifacts = _demo_json_artifact_paths(paths)
-    report = create_core_demo_report(
+    report = create_demo_report(
         paths=paths,
         source_repo=source_repo,
         worktree=worktree,
+        spec=spec,
         phase=phase,
         completed_steps=completed_steps,
         chain_report=chain_report,
         artifact_paths=all_artifacts,
         ready_for_recording=True,
-        next_command="Demo loop complete. Open DEMO_EVIDENCE.md and core-demo-loop-report.json.",
+        next_command="Demo loop complete. Open DEMO_EVIDENCE.md and demo-loop-report.json.",
     )
-    errors = validate_core_demo_report(report)
+    errors = validate_demo_report(report)
     if errors:
-        raise ValueError("invalid CORE demo report: " + "; ".join(errors))
+        raise ValueError("invalid demo report: " + "; ".join(errors))
     _write_json(paths.report, report)
-    _write_evidence_markdown(paths, report)
+    _write_evidence_markdown(paths, report, spec)
     return report
 
 
-def run_core_demo_loop(
+def run_demo_loop(
     *,
-    core_repo: Path,
+    target_repo: Path,
     output_dir: Path,
+    target_name: str = "generic",
+    marker_path: str | None = None,
     phase: DemoPhase = "all",
     approve: bool = False,
     force: bool = False,
@@ -870,8 +949,9 @@ def run_core_demo_loop(
     if phase not in _PHASES:
         raise ValueError(f"phase must be one of: {', '.join(_PHASES)}")
 
-    source_repo = _ensure_core_repo(core_repo)
-    paths = CoreDemoPaths(output_dir.resolve())
+    spec = demo_target_spec(target_name, marker_path=marker_path)
+    source_repo = _ensure_target_repo(target_repo, spec)
+    paths = DemoPaths(output_dir.resolve())
     paths.output_dir.mkdir(parents=True, exist_ok=True)
 
     completed: list[str] = []
@@ -879,25 +959,26 @@ def run_core_demo_loop(
     if phase in ("prepare", "all"):
         _prepare_worktree(source_repo, paths.worktree, force=force)
         _write_preflight(paths, source_repo, paths.worktree)
-        _write_repo_map_and_context(paths.worktree, paths)
-        patch_text = _unified_diff_for_marker()
+        _write_repo_map_and_context(paths.worktree, paths, spec)
+        patch_text = _unified_diff_for_marker(spec)
         patch_digest = _sha256_text(patch_text)
-        _write_planner(paths, paths.worktree, patch_digest)
-        _write_patch_proposal(paths, paths.worktree, patch_text, patch_digest)
+        _write_planner(paths, paths.worktree, patch_digest, spec)
+        _write_patch_proposal(paths, paths.worktree, patch_text, patch_digest, spec)
         completed.extend(
             [
-                "temporary CORE worktree created",
+                "temporary demo worktree created",
                 "preflight recorded",
                 "repo map and context pack emitted",
                 "HITL patch proposal emitted",
             ]
         )
         if phase == "prepare" and not approve:
-            proposal = _read_json(paths.proposal)
-            report = create_core_demo_report(
+            marker_option = "" if spec.marker_path == DEFAULT_DEMO_MARKER_PATH else f" --marker-path {spec.marker_path}"
+            report = create_demo_report(
                 paths=paths,
                 source_repo=source_repo,
                 worktree=paths.worktree,
+                spec=spec,
                 phase=phase,
                 completed_steps=completed,
                 chain_report=None,
@@ -905,78 +986,68 @@ def run_core_demo_loop(
                 ready_for_recording=True,
                 next_command=(
                     "builder-platform demo-loop --phase approve "
-                    f"--core-repo {source_repo} --output-dir {paths.output_dir} --approve"
+                    f"--target-repo {source_repo} --target-name {spec.name}{marker_option} "
+                    f"--output-dir {paths.output_dir} --approve"
                 ),
             )
             _write_json(paths.report, report)
-            _write_evidence_markdown(paths, report)
+            _write_evidence_markdown(paths, report, spec)
             return report
 
     if phase in ("approve", "all"):
         if not paths.proposal.is_file():
             raise ValueError("prepare phase must run before approval")
-        proposal = _read_json(paths.proposal)
-        approval = create_core_demo_approval(
-            proposal,
-            proposal_path=paths.proposal,
-            approved=approve,
-            reason="Operator approved the exact CORE demo patch digest."
-            if approve
-            else "Approval checkpoint reached; rerun with --approve.",
-        )
-        errors = validate_core_demo_approval(approval)
-        if errors:
-            raise ValueError("invalid CORE demo approval: " + "; ".join(errors))
-        _write_json(paths.approval, approval)
-        completed.append("approval artifact emitted")
         if not approve:
-            report = create_core_demo_report(
+            # No approval artifact is minted on the unapproved path. The absence of a valid
+            # builder_ii.hitl_patch_approval IS the unapproved state; a narrative "rejected
+            # approval" record would blur planned != approved.
+            report = create_demo_report(
                 paths=paths,
                 source_repo=source_repo,
                 worktree=paths.worktree,
+                spec=spec,
                 phase=phase,
                 completed_steps=completed,
                 chain_report=None,
-                artifact_paths=[paths.proposal, paths.approval],
+                artifact_paths=[paths.proposal],
                 ready_for_recording=True,
                 next_command=(
-                    "Approval recorded as rejected. Rerun with --approve to apply to the temporary CORE worktree."
+                    "Approval checkpoint reached; no approval artifact was minted. "
+                    "Rerun with --approve to authorize the temporary demo worktree patch."
                 ),
             )
             _write_json(paths.report, report)
-            _write_evidence_markdown(paths, report)
+            _write_evidence_markdown(paths, report, spec)
             return report
-
-    if phase in ("apply", "all"):
-        if not paths.approval.is_file():
-            raise ValueError("approval phase must run before apply")
-        approval = _read_json(paths.approval)
-        if approval.get("approved") is not True:
-            raise ValueError("approval artifact is not approved")
-        if not paths.pre_apply_verification_receipt.is_file():
-            _write_verification_receipt(paths, paths.worktree, label="before_apply")
-        # Mint the generic governed approval the hardened apply lane requires, bound to
-        # this exact proposal. The --approve gate above is the human decision; this is
-        # the machine-checkable, proposal-bound authorization artifact.
-        proposal_for_apply = _read_json(paths.proposal)
+        # Mint the generic governed approval (builder_ii.hitl_patch_approval) the hardened
+        # apply lane requires, bound to this exact on-disk proposal. The --approve flag is the
+        # human decision; this is the machine-checkable, proposal-bound authorization artifact.
+        # This in-process mint is the single sanctioned one recorded by the B4 closure audit,
+        # contained by the disposable detached worktree + mandatory auto-rollback.
+        proposal = _read_json(paths.proposal)
         patch_approval = create_hitl_patch_approval(
-            proposal_for_apply,
-            confirmed_digest_prefix=str(proposal_for_apply.get("patch_digest", ""))[
-                :APPROVAL_CONFIRMATION_PREFIX_LENGTH
-            ],
-            approved_by="core-demo-operator",
+            proposal,
+            confirmed_digest_prefix=str(proposal.get("patch_digest", ""))[:APPROVAL_CONFIRMATION_PREFIX_LENGTH],
+            approved_by="demo-operator",
         )
         _write_json(paths.patch_approval, patch_approval)
+        completed.append("governed patch approval minted (builder_ii.hitl_patch_approval)")
+
+    if phase in ("apply", "all"):
+        if not paths.patch_approval.is_file():
+            raise ValueError("approval phase must run before apply (no hitl_patch_approval found)")
+        if not paths.pre_apply_verification_receipt.is_file():
+            _write_verification_receipt(paths, paths.worktree, label="before_apply", spec=spec)
         apply_hitl_patch(
             proposal_path=paths.proposal,
             approval_path=paths.patch_approval,
             verification_receipt_path=paths.pre_apply_verification_receipt,
             output_dir=paths.patch_apply_dir,
         )
-        completed.append("approved patch applied to temporary CORE worktree")
+        completed.append("approved patch applied to temporary demo worktree")
 
     if phase in ("verify", "all"):
-        _write_verification_receipt(paths, paths.worktree, label="after_apply")
+        _write_verification_receipt(paths, paths.worktree, label="after_apply", spec=spec)
         completed.append("post-apply verification receipt emitted")
 
     if phase in ("rollback", "all"):
@@ -989,7 +1060,7 @@ def run_core_demo_loop(
             confirmed_digest_prefix=canonical_json_digest(rollback_plan_for_approval)[
                 :APPROVAL_CONFIRMATION_PREFIX_LENGTH
             ],
-            approved_by="core-demo-operator",
+            approved_by="demo-operator",
         )
         _write_json(paths.rollback_approval, rollback_approval)
         rollback_hitl_patch(
@@ -998,19 +1069,20 @@ def run_core_demo_loop(
             output_dir=paths.rollback_dir,
             approval_path=paths.rollback_approval,
         )
-        _write_final_postflight(paths, paths.worktree)
+        _write_final_postflight(paths, paths.worktree, spec)
         completed.append("rollback executed and final clean postflight recorded")
 
     if phase in ("finalize", "all"):
-        report = _finalize(paths, source_repo, paths.worktree, phase, completed)
+        report = _finalize(paths, source_repo, paths.worktree, spec, phase, completed)
         if cleanup_worktree:
             _remove_worktree(source_repo, paths.worktree)
         return report
 
-    report = create_core_demo_report(
+    report = create_demo_report(
         paths=paths,
         source_repo=source_repo,
         worktree=paths.worktree,
+        spec=spec,
         phase=phase,
         completed_steps=completed,
         chain_report=None,
@@ -1019,9 +1091,9 @@ def run_core_demo_loop(
         next_command="Run the next demo phase explicitly.",
     )
     _write_json(paths.report, report)
-    _write_evidence_markdown(paths, report)
+    _write_evidence_markdown(paths, report, spec)
     return report
 
 
-def dumps_core_demo_report(report: dict[str, Any]) -> str:
+def dumps_demo_report(report: dict[str, Any]) -> str:
     return json_lib.dumps(report, indent=2, sort_keys=True) + "\n"
