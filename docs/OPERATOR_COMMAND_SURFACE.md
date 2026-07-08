@@ -89,12 +89,13 @@ The operator command surface is organized by phase. Every command operates stric
 - **Human responsibility**: Use the inspector to understand current governed state before invoking separate artifact or HITL command surfaces.
 - **Writes**: Read-only; writes only stdout.
 
-#### STRATUM launcher
-- **Command name**: `builder stratum`
+#### STRATUM launcher (experimental)
+- **Command name**: `builder stratum --experimental`
 - **Purpose**: Launch the full Textual STRATUM operator interface.
+- **Status**: Pre-release mockup, gated behind the required `--experimental` flag; the command refuses to launch without it. Tier evaluation, chain digest, and HITL approve/reject in this surface are display-only — they do not read or write real HITL/command-authority state. Real wiring is post-beta (see `planning/CORE_PAR_MASTER_COMPLETION_PLAN.md` D5).
 - **Output artifact, if any**: None; terminal UI only.
 - **Execution authority**: operator-managed presentation layer; runtime-changing operations still require their own governed subcommand boundaries.
-- **Human responsibility**: Launch intentionally from an operator terminal when the full Textual app is desired.
+- **Human responsibility**: Launch intentionally from an operator terminal when the full Textual app is desired; use the governed `builder tui` / `builder hitl` inspectors for real read-only status in the meantime.
 - **Writes**: No direct source, git, model, Goose, deepagents, or MCP authority at the launcher boundary.
 
 #### Root read-only TUI inspector
