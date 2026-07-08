@@ -20,6 +20,7 @@ from builder_ii.hitl_patch_approval import (
     create_hitl_patch_approval,
 )
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.hitl_rollback_approval import canonical_json_digest, create_hitl_rollback_approval
 from builder_ii.repo_map import create_repo_map, dumps_repo_map
 
 CORE_DEMO_APPROVAL_KIND = "builder_ii.core_demo_approval"
@@ -95,6 +96,12 @@ class CoreDemoPaths:
         # proposal content + patch digests). The core-demo-approval above remains the
         # operator-facing narrative record and the --approve gate.
         return self.output_dir / "hitl-patch-approval.json"
+
+    @property
+    def rollback_approval(self) -> Path:
+        # Distinct governed rollback approval (plan item 1.4). The rollback lane now requires
+        # its own approval bound to the rollback plan, not just the machine-generated plan.
+        return self.output_dir / "hitl-rollback-approval.json"
 
     @property
     def preflight(self) -> Path:
@@ -973,10 +980,23 @@ def run_core_demo_loop(
         completed.append("post-apply verification receipt emitted")
 
     if phase in ("rollback", "all"):
+        # Mint the distinct governed rollback approval the hardened rollback lane requires,
+        # bound to this exact rollback plan. Same pattern as the apply-side patch_approval: a
+        # machine-checkable, plan-bound authorization artifact minted at the boundary.
+        rollback_plan_for_approval = _read_json(paths.rollback_plan)
+        rollback_approval = create_hitl_rollback_approval(
+            rollback_plan_for_approval,
+            confirmed_digest_prefix=canonical_json_digest(rollback_plan_for_approval)[
+                :APPROVAL_CONFIRMATION_PREFIX_LENGTH
+            ],
+            approved_by="core-demo-operator",
+        )
+        _write_json(paths.rollback_approval, rollback_approval)
         rollback_hitl_patch(
             rollback_plan_path=paths.rollback_plan,
             reverse_patch_path=paths.generated_reverse_patch_file,
             output_dir=paths.rollback_dir,
+            approval_path=paths.rollback_approval,
         )
         _write_final_postflight(paths, paths.worktree)
         completed.append("rollback executed and final clean postflight recorded")

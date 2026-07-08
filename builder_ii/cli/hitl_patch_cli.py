@@ -17,6 +17,12 @@ from builder_ii.hitl_patch_proposal import (
     validate_hitl_patch_proposal_file,
     write_hitl_patch_proposal,
 )
+from builder_ii.hitl_rollback_approval import (
+    canonical_json_digest,
+    create_hitl_rollback_approval,
+    write_hitl_rollback_approval,
+)
+from builder_ii.rollback_artifacts import validate_rollback_plan_file
 
 console = Console()
 
@@ -138,25 +144,97 @@ def register_patch_commands(app: typer.Typer) -> None:
             console.print(f"Failed to apply patch: {e}")
             raise typer.Exit(1)
 
+    @app.command("approve-rollback")
+    def approve_rollback(
+        rollback_plan: Path = typer.Option(..., "--rollback-plan", help="Rollback plan JSON path"),
+        output: Path = typer.Option(..., "--output", help="Output path for rollback approval JSON"),
+        approved_by: str = typer.Option("operator", "--approved-by", help="Identity recorded as the approver"),
+        ttl_seconds: int = typer.Option(
+            DEFAULT_APPROVAL_TTL_SECONDS, "--ttl-seconds", help="Approval validity window in seconds"
+        ),
+    ) -> None:
+        """Approve a rollback at an interactive boundary.
+
+        A rollback is itself a mutation (``git apply -R`` rewrites the working tree and can
+        discard work done since the apply), so it gets its own approval — distinct from the
+        machine-generated rollback plan. Shows the plan summary and its digest, then requires
+        the operator to transcribe the digest prefix. There is intentionally no
+        ``--yes``/non-interactive mode; typing the prefix is an attention control.
+        """
+        from builder_ii.command_authority import enforce_command_authority
+
+        enforce_command_authority("builder-hitl approve-rollback", requested_effects=("artifact_write",))
+
+        errors = validate_rollback_plan_file(rollback_plan)
+        if errors:
+            console.print(f"Invalid rollback plan: {errors}")
+            raise typer.Exit(1)
+
+        plan_data = json.loads(rollback_plan.read_text(encoding="utf-8"))
+        plan_digest = canonical_json_digest(plan_data)
+        patch_digest = str(plan_data.get("patch_digest", ""))
+        target = plan_data.get("target", {})
+        expected_prefix = plan_digest[:APPROVAL_CONFIRMATION_PREFIX_LENGTH]
+
+        drift_protected = bool(plan_data.get("pre_head")) and bool(plan_data.get("post_apply_worktree_digest"))
+        console.print("─" * 60)
+        console.print(f"target: {target.get('name')} @ {target.get('repo')}")
+        console.print(f"rollback strategy: {plan_data.get('rollback_strategy') or '(unspecified)'}")
+        console.print(f"pre-apply HEAD: {plan_data.get('pre_head') or '(not recorded)'}")
+        console.print(f"patch digest: {patch_digest or '(none)'}")
+        console.print(
+            "drift protection: "
+            + ("present" if drift_protected else "MISSING — rollback will refuse this plan")
+        )
+        console.print("─" * 60)
+        console.print(f"rollback plan digest: {plan_digest}")
+        console.print(
+            "This rollback reverses an applied patch on the target working tree and can discard "
+            "changes made since the apply."
+        )
+        console.print(
+            f"To approve this rollback, type the first {APPROVAL_CONFIRMATION_PREFIX_LENGTH} "
+            "characters of the rollback plan digest shown above."
+        )
+        typed = typer.prompt("digest prefix").strip()
+        if typed != expected_prefix:
+            console.print("Prefix did not match. No approval written; nothing is authorized.")
+            raise typer.Exit(1)
+
+        approval = create_hitl_rollback_approval(
+            plan_data,
+            confirmed_digest_prefix=typed,
+            approved_by=approved_by,
+            ttl_seconds=ttl_seconds,
+        )
+        write_hitl_rollback_approval(approval, output)
+        console.print(f"Rollback approval written to {output}")
+        console.print(
+            f"Next: builder-hitl rollback --rollback-plan {rollback_plan} "
+            f"--reverse-patch <rollback.patch> --approval {output} --output-dir <dir>"
+        )
+
     @app.command("rollback")
     def rollback_cmd(
         rollback_plan: Path = typer.Option(..., "--rollback-plan", help="Rollback plan JSON path"),
         reverse_patch: Path = typer.Option(..., "--reverse-patch", help="Reverse patch file path"),
+        approval: Path = typer.Option(..., "--approval", help="Rollback approval JSON path"),
         output_dir: Path = typer.Option(..., "--output-dir", help="Output directory for generated artifacts"),
     ) -> None:
-        """Execute a rollback."""
+        """Execute a rollback governed by a distinct rollback approval."""
         from builder_ii.command_authority import enforce_command_authority
 
         enforce_command_authority(
             "builder-hitl rollback",
             requested_effects=("patch_application",),
-            approval_ref=str(rollback_plan),
+            approval_ref=str(approval),
         )
         try:
             rollback_hitl_patch(
                 rollback_plan_path=rollback_plan,
                 reverse_patch_path=reverse_patch,
                 output_dir=output_dir,
+                approval_path=approval,
             )
             console.print(f"Rollback executed successfully. Artifacts written to {output_dir}")
         except Exception as e:
