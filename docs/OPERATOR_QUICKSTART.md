@@ -46,6 +46,18 @@ uv run builder-platform wow --core-repo /Users/you/Projects/core --output-dir /t
 
 See [CORE Demo Walkthrough](CORE_DEMO_WALKTHROUGH.md) for the narrated flow, artifact map, and evidence-showing script.
 
+## Read-Only Founder Demo
+
+For a passive, read-only inspection/planning demo scoped to the `core` target profile (no runtime,
+model, shell, Goose, or deepagents execution, no target-repository writes), run:
+
+```bash
+uv run builder-targets readonly-founder-demo core --output .builder/demos/core-readonly --force
+```
+
+See [CORE Read-Only Founder Demo](demos/CORE_READONLY_FOUNDER_DEMO.md) for the full artifact map and
+event-ledger/chain verification walkthrough.
+
 ## What the Golden Path Report Proves
 
 The golden path report explicitly categorizes every platform capability as:

@@ -212,6 +212,9 @@ The builder convention layer should track Goose's official docs as Goose evolves
 
 ## Documentation map
 
+The curated set below covers what most readers need first. For the full reference index of every
+tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](docs/README.md).
+
 | Document | Purpose |
 | --- | --- |
 | [`docs/MANIFESTO.md`](docs/MANIFESTO.md) | builder-II manifesto: signet, product ethos, Codename Goose relationship, and governed engineering promise. |
