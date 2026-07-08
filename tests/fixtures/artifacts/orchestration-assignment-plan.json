@@ -300,7 +300,7 @@
     },
     "target": {
       "name": "generic",
-      "repo": "/Users/kaizenpro/Projects/builder-II/tests/fixtures/generic-repo",
+      "repo": "tests/fixtures/generic-repo",
       "source_ref_role": "target_profile"
     },
     "task": {

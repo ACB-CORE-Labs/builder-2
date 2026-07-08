@@ -30,7 +30,7 @@ def _sample_approval(plan: dict) -> dict:
     return finalize_verification_execution_approval(
         plan=plan,
         plan_path="/tmp/verification-execution-plan.json",
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve passive B1.1 verification plan for future B1.3 runner testing.",
         generated_at="2026-06-30T00:01:00+00:00",
     )

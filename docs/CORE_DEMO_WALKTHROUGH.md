@@ -21,7 +21,7 @@ This is the product claim the recording should make: builder-II is not a chatbot
 Default CORE checkout:
 
 ```bash
-/Users/kaizenpro/Projects/core
+/Users/you/Projects/core
 ```
 
 If CORE is elsewhere, replace the `--core-repo` path. The source checkout may already have local untracked or modified files; the demo creates and mutates only `/tmp/builder-ii-core-demo/core-worktree`.
@@ -39,7 +39,7 @@ Run each command, pause, and open the named artifacts before moving to the next 
 ### 1. Prepare
 
 ```bash
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
 ```
 
 Show:
@@ -61,7 +61,7 @@ Talk track:
 ### 2. Approve
 
 ```bash
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
 ```
 
 Show:
@@ -78,7 +78,7 @@ Talk track:
 ### 3. Apply
 
 ```bash
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
 ```
 
 Show:
@@ -103,7 +103,7 @@ Talk track:
 ### 4. Verify
 
 ```bash
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
 ```
 
 Show:
@@ -119,7 +119,7 @@ Talk track:
 ### 5. Roll Back
 
 ```bash
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
 ```
 
 Show:
@@ -142,7 +142,7 @@ Talk track:
 ### 6. Finalize
 
 ```bash
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
 uv run builder-platform validate-demo-loop /tmp/builder-ii-core-demo/core-demo-loop-report.json
 ```
 
@@ -156,7 +156,7 @@ Show:
 Terminal proof:
 
 ```bash
-git -C /Users/kaizenpro/Projects/core status --short
+git -C /Users/you/Projects/core status --short
 git -C /tmp/builder-ii-core-demo/core-worktree status --short
 ```
 
@@ -171,7 +171,7 @@ Talk track:
 Once the interactive flow is familiar, use the alias:
 
 ```bash
-uv run builder-platform wow --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --approve --force
+uv run builder-platform wow --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --approve --force
 ```
 
 This runs prepare, approval, apply, verification, rollback, and finalize in one pass. Use it when the screen recording needs one continuous terminal narrative rather than phase-by-phase inspection.

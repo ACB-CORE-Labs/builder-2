@@ -23,7 +23,7 @@
     "prefer minimal patches",
     "do not invent project policy"
   ],
-  "repo": "/Users/kaizenpro/Projects/builder-II/tests/fixtures/generic-repo",
+  "repo": "tests/fixtures/generic-repo",
   "schema_version": 1,
   "verification_hints": [
     "inspect project config",

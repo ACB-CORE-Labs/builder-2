@@ -2,11 +2,11 @@
 
 Status: passive plan artifact. Execution is disabled until a HITL approval artifact explicitly authorizes this plan.
 
-Objective source: `/Users/kaizenpro/.codex/attachments/93eaccdb-2f04-4b60-a554-f1dbf50d15a8/goal-objective.md`
+Objective source: `/Users/you/.codex/attachments/93eaccdb-2f04-4b60-a554-f1dbf50d15a8/goal-objective.md`
 
 Repository state observed before this plan:
 
-- Worktree: `/Users/kaizenpro/Projects/builder-II`
+- Worktree: `/Users/you/Projects/builder-II`
 - Branch: `pr-203-deepagents-forge`
 - PR branch: `feat/deepagents-forge`
 - PR: AssetOverflow/builder-II #203

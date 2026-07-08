@@ -461,7 +461,7 @@ def test_chain_accepts_verification_execution_approval_artifact(tmp_path: Path) 
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path="verification-execution-plan.json",
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve passive B1.1 verification plan for future B1.3 runner testing.",
         generated_at="2026-06-30T00:00:01+00:00",
     )
@@ -486,7 +486,7 @@ def test_chain_rejects_malformed_verification_execution_approval_artifact(tmp_pa
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path="verification-execution-plan.json",
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve passive B1.1 verification plan for future B1.3 runner testing.",
         generated_at="2026-06-30T00:00:01+00:00",
     )
@@ -520,7 +520,7 @@ def test_chain_accepts_verification_execution_ledger_record(tmp_path: Path) -> N
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve bounded platform_status verification runner proof.",
         approved_command_profiles=["platform_status"],
         approved_step_ids=["platform_status"],
@@ -614,7 +614,7 @@ def test_chain_accepts_verification_execution_ledger_integrity_report(tmp_path: 
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve bounded platform_status verification runner proof.",
         approved_command_profiles=["platform_status"],
         approved_step_ids=["platform_status"],
@@ -710,7 +710,7 @@ def test_chain_accepts_verification_execution_ledger_reconstruction_report(tmp_p
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve bounded platform_status verification runner proof.",
         approved_command_profiles=["platform_status"],
         approved_step_ids=["platform_status"],

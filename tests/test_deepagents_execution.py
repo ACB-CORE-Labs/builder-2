@@ -82,7 +82,7 @@ def _candidate_and_approval(tmp_path: Path) -> tuple[dict, Path, dict, Path]:
     approval = create_deepagents_execution_approval(
         candidate=candidate,
         candidate_path=candidate_path,
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve deterministic protocol fake lane.",
     )
     approval_path = _write(tmp_path / "deepagents-approval.json", approval)
@@ -123,7 +123,7 @@ def test_approval_expiry_blocks_runner(tmp_path: Path) -> None:
     expired = create_deepagents_execution_approval(
         candidate=candidate,
         candidate_path=_candidate_path,
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Expired approval for test.",
         expires_at=expired["expires_at"],
     )
@@ -215,7 +215,7 @@ def test_event_budget_fails_before_runtime_artifacts(tmp_path: Path) -> None:
     approval = create_deepagents_execution_approval(
         candidate=candidate,
         candidate_path=candidate_path,
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Exercise event budget guard.",
     )
     approval_path = _write(tmp_path / "budget-approval.json", approval)
@@ -248,7 +248,7 @@ def test_result_output_budget_truncates_with_digest(tmp_path: Path) -> None:
     approval = create_deepagents_execution_approval(
         candidate=candidate,
         candidate_path=candidate_path,
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Exercise bounded result truncation.",
     )
     approval_path = _write(tmp_path / "output-budget-approval.json", approval)
