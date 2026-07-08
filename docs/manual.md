@@ -13,7 +13,7 @@ Use the smallest model that fits the task. Keep planner and execution on the sam
 ```bash
 brew install block-goose-cli
 cd builder-II
-uv sync
+uv sync --extra mlx
 cp .env.example .env
 builder-setup plan --output /tmp/builder-ii-setup-plan.json
 builder-setup validate-plan /tmp/builder-ii-setup-plan.json
