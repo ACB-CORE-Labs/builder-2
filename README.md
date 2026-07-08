@@ -262,6 +262,8 @@ Primary target: Apple Silicon MacBook Pro M1 with 16GB unified memory.
 
 The machine does not have 16GB free for weights. macOS, Goose, Python, terminal buffers, repository context, and KV cache all share the same memory pool. Productive coding sessions should prefer roughly 2GB to 7GB model footprints. Larger models are available as explicit opt-in experiments, not defaults.
 
+**Non-Mac boundary:** the governed artifact/HITL/verification spine (CLI, TUI, artifact kinds, HITL chain, verification lanes) has no Apple Silicon dependency and installs anywhere `uv sync` runs. The local-model backend (`mlx-lm`/`rapid-mlx`, gated behind the `mlx` extra — see "Install") is Mac-first for beta: MLX requires macOS on arm64, and no non-Mac local-model backend is promoted yet. A non-Mac operator can still exercise the full governance loop against a remote/OpenAI-compatible endpoint or without a live model backend; full Linux CI parity is post-beta ladder work.
+
 ## What Is Present
 
 builder-II v0 includes an active governed artifact foundation. It supports governed local model ask, health-probe, and OpenAI-compatible chat-completion transport paths where validated, alongside Goose operator-session launch and recipe path wiring.
@@ -382,9 +384,16 @@ Until a dedicated promotion path proves otherwise, treat local MLX sessions as r
 ```bash
 brew install block-goose-cli
 cd builder-II
-uv sync
+uv sync --extra mlx
 cp .env.example .env
 ```
+
+`mlx-lm` and `rapid-mlx` (the local Apple Silicon model backend) live in the `mlx` optional-dependency
+group, not the base install — MLX requires macOS on arm64. On Apple Silicon, install with
+`uv sync --extra mlx` to get the local-model lane. On any other platform, plain `uv sync` installs the
+governed CLI/TUI and artifact/HITL/verification spine without attempting to resolve MLX; the
+`mlx-lm`/local-model backend paths remain a Mac-first boundary until a non-Mac model backend is
+promoted (see "Hardware target" below).
 
 Edit `.env` for target repo paths as needed. Prefer generic `BUILDER_*` names. If using the `core` target, set the target repo path explicitly when it is not at the expected location. Legacy `CORE_*` names remain compatibility aliases only.
 

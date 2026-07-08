@@ -11,17 +11,25 @@ requires-python = ">=3.12.13,<3.13"
 dependencies = [
     "numpy>=2.0.0",
     "httpx>=0.28.0",
-    "mlx-lm>=0.31.3",
     "pillow>=12.3.0",
     "psutil>=7.2.2",
     "python-dotenv>=1.2.2",
     "pyyaml>=6.0",
-    "rapid-mlx>=0.8.12",
     "rich>=15.0.0",
     "rich-pixels>=3.0.1",
     "textual>=8.2.8",
     "typer>=0.25.1",
     "pydantic>=2.0.0",
+]
+
+# mlx-lm and rapid-mlx are Apple Silicon-only (MLX requires macOS on arm64) and are never imported
+# in-process — builder_ii invokes them as subprocess binaries (see backends.py). Gating them behind
+# this extra unblocks `uv sync` on non-Mac platforms; the local-model backend is a Mac-first beta
+# boundary (see README "Hardware target" / "Install").
+[project.optional-dependencies]
+mlx = [
+    "mlx-lm>=0.31.3",
+    "rapid-mlx>=0.8.12",
 ]
 
 [project.scripts]
