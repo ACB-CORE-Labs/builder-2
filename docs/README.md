@@ -62,6 +62,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/COMMAND_AUTHORITY.md`](COMMAND_AUTHORITY.md) | COMMAND_AUTHORITY |
 | [`docs/COMMAND_SURFACE_AUDIT.md`](COMMAND_SURFACE_AUDIT.md) | Command Surface Audit |
 | [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) | Capability promotion registry |
+| [`docs/KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) | Known limitations, generated from the completion truth matrix |
 | [`docs/RUNTIME_PROMOTION.md`](RUNTIME_PROMOTION.md) | Runtime promotion contract |
 | [`docs/capability_gates.md`](capability_gates.md) | Local capability gates |
 | [`docs/PROMOTION_READINESS.md`](PROMOTION_READINESS.md) | Promotion readiness |
