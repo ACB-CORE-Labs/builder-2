@@ -200,6 +200,12 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/audits/B1_B2_RUNTIME_GOVERNANCE_COMPLETION_MAP.md`](audits/B1_B2_RUNTIME_GOVERNANCE_COMPLETION_MAP.md) | B1/B2 Runtime Governance Completion Map |
 | [`docs/audits/B1_CLOSURE_AUDIT.md`](audits/B1_CLOSURE_AUDIT.md) | B1 Closure Audit |
 
+### Beta
+
+| Document | Purpose |
+| --- | --- |
+| [`docs/BETA_CHARTER.md`](BETA_CHARTER.md) | Beta Charter |
+
 ### Design notes, RFCs, and plans
 
 | Document | Purpose |
