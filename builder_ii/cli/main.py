@@ -126,11 +126,27 @@ def setup() -> None:
 
 
 @app.command("stratum")
-def stratum() -> None:
-    """Launch STRATUM: The Builder-II Operator TUI."""
+def stratum(
+    experimental: bool = typer.Option(
+        False,
+        "--experimental",
+        help="Required flag to launch the pre-release STRATUM surface (see docs/OPERATOR_COMMAND_SURFACE.md).",
+    ),
+) -> None:
+    """Launch STRATUM: The Builder-II Operator TUI (experimental)."""
     from builder_ii.command_authority import enforce_command_authority
 
     enforce_command_authority("builder stratum")
+
+    if not experimental:
+        console.print(
+            "[yellow]STRATUM is experimental and not yet wired to real governance state.[/]\n"
+            "Tier evaluation, chain digests, and HITL approve/reject in this surface are display-only "
+            "mockups — they do not read or write real HITL/command-authority state.\n"
+            "Use the governed `builder tui` / `builder hitl` inspectors for real read-only status.\n\n"
+            "Pass [bold]--experimental[/] to launch STRATUM anyway."
+        )
+        raise typer.Exit(1)
 
     try:
         from builder_ii.tui.app import StratumApp
@@ -143,6 +159,7 @@ def stratum() -> None:
         console.print("[red]TUI dependencies not found.[/] Run [bold]uv sync[/] to install textual.")
         raise typer.Exit(1)
 
+    console.print("[yellow]Launching experimental STRATUM surface — display-only mockup, no real governance wiring.[/]")
     tui_app = StratumApp()
     tui_app.run()
 
