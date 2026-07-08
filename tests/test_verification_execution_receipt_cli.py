@@ -36,7 +36,7 @@ def _write_bound_artifacts(tmp_path: Path) -> tuple[Path, Path, Path]:
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve passive B1.1 verification plan for future B1.3 runner testing.",
         generated_at="2026-06-30T00:01:00+00:00",
     )
@@ -121,7 +121,7 @@ def test_validate_receipt_fails_with_wrong_approval(tmp_path: Path) -> None:
     wrong_approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve passive B1.1 verification plan for future B1.3 runner testing.",
         approved_step_ids=["platform_status"],
         generated_at="2026-06-30T00:04:00+00:00",

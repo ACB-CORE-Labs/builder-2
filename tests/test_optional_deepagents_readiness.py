@@ -127,7 +127,7 @@ def _gate_candidate_approval(monkeypatch, tmp_path: Path) -> tuple[Path, Path, P
     approval = create_deepagents_execution_approval(
         candidate=candidate,
         candidate_path=candidate_path,
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve optional backend readiness gate test.",
     )
     approval_path = _write(tmp_path / "approval.json", approval)
@@ -423,7 +423,7 @@ def test_optional_backend_uses_module_bound_in_readiness_gate(monkeypatch, tmp_p
     approval = create_deepagents_execution_approval(
         candidate=candidate,
         candidate_path=candidate_path,
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve custom optional backend module binding.",
     )
     approval_path = _write(tmp_path / "approval.json", approval)

@@ -2,7 +2,7 @@
 
 The governed local session workflow compiles target, profile, context, prompt, and verification inputs into a deterministic, dry-run session plan artifact (`builder_ii.session_workflow_plan`). 
 
-Under the hood, this process is managed by the unified profile resolution layer (see [PROFILE_RESOLUTION.md](file:///Users/kaizenpro/Projects/builder-II-worktrees/pr-ag-target-context-profile-resolution/docs/PROFILE_RESOLUTION.md)), which ensures all lookups, default selections, and compatibility checks are canonical, deterministic, and fail-closed.
+Under the hood, this process is managed by the unified profile resolution layer (see [PROFILE_RESOLUTION.md](PROFILE_RESOLUTION.md)), which ensures all lookups, default selections, and compatibility checks are canonical, deterministic, and fail-closed.
 
 This plan serves as inspectable evidence of intended operations before involving any local model or downstream operator tool. It is entirely read-only, carries no execution authority, and is decoupled from any active model or shell runtime.
 

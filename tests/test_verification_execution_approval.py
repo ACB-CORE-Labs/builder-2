@@ -29,7 +29,7 @@ def _sample_approval(plan: dict | None = None) -> dict:
     return finalize_verification_execution_approval(
         plan=plan or _sample_plan(),
         plan_path="/tmp/verification-execution-plan.json",
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve passive B1.1 verification plan for future B1.3 runner testing.",
         generated_at="2026-06-30T00:00:01+00:00",
     )
@@ -169,7 +169,7 @@ def test_approving_target_code_profile_without_ack_fails() -> None:
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path="/tmp/verification-execution-plan.json",
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve the full test-suite lane.",
         approved_command_profiles=["pytest_full"],
         approved_step_ids=["pytest_full"],
@@ -186,7 +186,7 @@ def test_approving_target_code_profile_with_ack_validates() -> None:
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path="/tmp/verification-execution-plan.json",
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve the full test-suite lane.",
         approved_command_profiles=["pytest_full"],
         approved_step_ids=["pytest_full"],
@@ -204,7 +204,7 @@ def test_acknowledged_risk_rejects_shell_injection_tokens() -> None:
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path="/tmp/verification-execution-plan.json",
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve the full test-suite lane.",
         approved_command_profiles=["pytest_full"],
         approved_step_ids=["pytest_full"],

@@ -48,7 +48,7 @@ def _write_bound_artifacts(
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve bounded platform_status verification runner proof.",
         approved_command_profiles=approved_profiles,
         approved_step_ids=approved_steps,
@@ -462,7 +462,7 @@ def _write_target_code_chain(
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason=f"Approve bounded {profile} runner proof.",
         approved_command_profiles=[profile],
         approved_step_ids=[profile],

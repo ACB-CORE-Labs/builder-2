@@ -73,7 +73,7 @@ def _write_valid_chain(
     approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
-        approval_actor="Joshua Shay",
+        approval_actor="Jane Operator",
         approval_reason="Approve bounded platform_status verification runner proof.",
         approved_command_profiles=["platform_status"],
         approved_step_ids=["platform_status"],

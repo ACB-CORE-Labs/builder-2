@@ -39,7 +39,7 @@
   ],
   "source": {
     "file_count": 2,
-    "repo_path": "/Users/kaizenpro/Projects/builder-II/tests/fixtures/generic-repo",
+    "repo_path": "tests/fixtures/generic-repo",
     "summary_counts": {
       "artifact_files": 0,
       "config_files": 1,

@@ -469,7 +469,7 @@ builder-platform validate-r1-closure .builder/r1-closure/r1-closure-report.json
 # This does not run tests, execute shell/subprocess, call models/tools, start Goose/deepagents, or apply patches.
 builder-verify plan --target-profile builder --verification-profile builder_full --output .builder/verification/verification-execution-plan.json
 builder-verify validate-plan .builder/verification/verification-execution-plan.json
-builder-verify approve-plan .builder/verification/verification-execution-plan.json --approval-actor "Joshua Shay" --approval-reason "Approve passive B1.1 verification plan for future B1.3 runner testing." --output .builder/verification/verification-execution-approval.json
+builder-verify approve-plan .builder/verification/verification-execution-plan.json --approval-actor "Jane Operator" --approval-reason "Approve passive B1.1 verification plan for future B1.3 runner testing." --output .builder/verification/verification-execution-approval.json
 builder-verify validate-approval .builder/verification/verification-execution-approval.json --plan .builder/verification/verification-execution-plan.json
 
 # Prepare a governed session package

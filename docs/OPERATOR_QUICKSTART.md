@@ -29,19 +29,19 @@ builder-platform validate-golden-path .builder/artifacts/b9-golden-path/golden-p
 For a recordable real-world walkthrough against AssetOverflow/core, use the CORE demo loop instead of a fixture:
 
 ```bash
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
-uv run builder-platform demo-loop --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
+uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
 uv run builder-platform validate-demo-loop /tmp/builder-ii-core-demo/core-demo-loop-report.json
 ```
 
 The same loop can be run as a one-command recording pass:
 
 ```bash
-uv run builder-platform wow --core-repo /Users/kaizenpro/Projects/core --output-dir /tmp/builder-ii-core-demo --approve --force
+uv run builder-platform wow --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --approve --force
 ```
 
 See [CORE Demo Walkthrough](CORE_DEMO_WALKTHROUGH.md) for the narrated flow, artifact map, and evidence-showing script.
