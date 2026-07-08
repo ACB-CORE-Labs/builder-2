@@ -36,8 +36,9 @@ The one-and-only *promoted* mint path is the interactive ``approve-rollback`` pr
 underlying ``create_hitl_rollback_approval`` is callable in-process (the demo loop mints one
 against a disposable detached worktree); a programmatically-minted approval carries valid
 binding but is **not** evidence of human origin — the same 1.7 promotion-gate concern recorded
-for the patch-approval lane applies here, which is why this lane stays
-``MERGED_BUT_NOT_OPERATIONAL`` until the closure audit (plan item 1.7).
+for the patch-approval lane applies here. The closure audit (plan item 1.7,
+``docs/audits/B4_CLOSURE_AUDIT.md``) resolved it, so the operator-invoked lane is now
+``OPERATIONALLY_VERIFIED`` while the command stays Tier 3 ``hitl_runtime_candidate``, not enabled.
 """
 
 from __future__ import annotations

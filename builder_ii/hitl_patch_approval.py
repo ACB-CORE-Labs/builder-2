@@ -40,9 +40,10 @@ unexpired approval authorizes exactly the proposal it was minted for." The inter
 artifact stands for a human decision. Note the underlying ``create_hitl_patch_approval``
 function is itself callable in-process (e.g. the demo loop mints one against a disposable
 detached worktree); a programmatically-minted approval carries valid binding but is **not**
-evidence of human origin. Guaranteeing no non-interactive mint can reach a real target is a
-promotion gate — which is why this lane stays ``MERGED_BUT_NOT_OPERATIONAL`` until the
-closure audit (plan item 1.7) verifies it.
+evidence of human origin. Guaranteeing no non-interactive mint can reach a real target was the
+promotion gate for this lane; the closure audit (plan item 1.7, ``docs/audits/B4_CLOSURE_AUDIT.md``)
+resolved it, so the operator-invoked lane is now ``OPERATIONALLY_VERIFIED`` while the command
+stays Tier 3 ``hitl_runtime_candidate``, not enabled (autonomous apply remains forbidden).
 """
 
 from __future__ import annotations
@@ -96,6 +97,16 @@ def create_hitl_patch_approval(
     This ONLY produces a data record. No patch is applied and no source file is written
     here — the approval is evidence of a human decision, never authority in itself
     (``artifact_is_authority`` is always False).
+
+    Non-interactive-mint containment (B4 closure audit): this is a public building block, so an
+    in-process caller can compute ``confirmed_digest_prefix`` and mint a valid approval without a
+    human at a TTY. That is why the *promoted, operator-facing* mint path is exclusively the
+    interactive ``builder-hitl approve-patch`` CLI (which forces the operator to transcribe the
+    digest prefix; there is deliberately no non-interactive approval mode on that command). The
+    only sanctioned in-process minter is the CORE demo loop, bounded to a disposable detached
+    worktree with mandatory auto-rollback. Regardless of how the artifact is produced,
+    ``apply_hitl_patch`` re-verifies the binding, expiry, and command-authority gate before any
+    source write — the artifact never substitutes for the boundary.
     """
     if approved_at is None:
         approved_at = int(time.time())

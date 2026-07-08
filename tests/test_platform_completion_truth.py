@@ -159,8 +159,8 @@ def test_matrix_rendering_is_json_safe() -> None:
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
     assert (
-        decoded["summary"]["operationally_verified_count"] == 15
-    )  # B1.5 promoted bounded verification, postflight, and command authority gates, with patch application/rollback unpromoted
+        decoded["summary"]["operationally_verified_count"] == 17
+    )  # B4 (plan item 1.7) promoted operator-invoked HITL patch application + rollback execution to OPERATIONALLY_VERIFIED (docs/audits/B4_CLOSURE_AUDIT.md)
 
 
 def test_matrix_exposes_sharper_assurance_states() -> None:
@@ -168,8 +168,8 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     rows = {row["capability"]: row for row in matrix["capabilities"]}
     assert "SAFETY_CRITICAL_PROHIBITED" in matrix["allowed_assurance_states"]
     assert rows["model/provider execution"]["assurance_state"] == "LIVE_PROVIDER_VERIFIED"
-    assert rows["HITL patch application"]["assurance_state"] == "BLOCKED_BY_EVIDENCE"
-    assert rows["rollback execution"]["assurance_state"] == "BLOCKED_BY_EVIDENCE"
+    assert rows["HITL patch application"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
+    assert rows["rollback execution"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
     assert rows["governed read-only runtime"]["assurance_state"] == "READ_ONLY_RUNTIME_VERIFIED"
     assert rows["CORE demo loop"]["assurance_state"] == "DEMO_ONLY_VERIFIED"
     assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"

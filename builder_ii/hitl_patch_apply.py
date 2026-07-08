@@ -267,11 +267,12 @@ def create_patch_apply_receipt(
         "postflight_ref": postflight_ref,
         "timestamp": int(time.time()),
         "artifact_is_authority": False,
-        # Matches the platform truth matrix's current pinned state for the "HITL patch
-        # application" capability (MERGED_BUT_NOT_OPERATIONAL) -- this receipt is evidence,
-        # not a self-declared promotion to OPERATIONALLY_VERIFIED. Update only via the 1.7
-        # flip, in lockstep with every other pinned site.
-        "governance": build_standard_governance("MERGED_BUT_NOT_OPERATIONAL"),
+        # Mirrors the platform truth matrix's pinned state for the "HITL patch application"
+        # capability. Flipped to OPERATIONALLY_VERIFIED by plan item 1.7 in lockstep with the
+        # matrix rows, the pinned truth asserts, and the docs (docs/audits/B4_CLOSURE_AUDIT.md);
+        # kept consistent by scripts/b4_flip_assistant.py. This receipt is still evidence, not
+        # authority (artifact_is_authority stays False).
+        "governance": build_standard_governance("OPERATIONALLY_VERIFIED"),
     }
 
 
@@ -458,9 +459,9 @@ def apply_hitl_patch(
     postflight["target"] = dict(proposal["target"])
     postflight["postflight_state"] = "RUN_COMPLETE"
     postflight["performed_actions"] = ["git apply patch", "record postflight working tree state"]
-    # Honest platform-matrix state for "HITL patch application" (MERGED_BUT_NOT_OPERATIONAL),
-    # not a self-declared OPERATIONALLY_VERIFIED promotion -- see 1.7 for the evidence-gated flip.
-    postflight["governance"]["capability_state"] = "MERGED_BUT_NOT_OPERATIONAL"
+    # Mirrors the platform-matrix state for "HITL patch application", promoted to
+    # OPERATIONALLY_VERIFIED by plan item 1.7 (docs/audits/B4_CLOSURE_AUDIT.md).
+    postflight["governance"]["capability_state"] = "OPERATIONALLY_VERIFIED"
     postflight_path = output_dir / "postflight_record.json"
     write_execution_postflight_record(postflight, postflight_path)
     postflight_digest = _file_digest(postflight_path)
@@ -531,12 +532,12 @@ def apply_hitl_patch(
             role="patch_apply_receipt",
         ),
         "governance": {
-            # MUTATION_WITH_ROLLBACK_VERIFIED is a derived *assurance_state* value
-            # (builder_ii/assurance.py) that only applies once the underlying matrix row is
-            # OPERATIONALLY_VERIFIED (builder_ii/platform_completion_audit.py:assurance_state_for_row).
-            # Today that row is MERGED_BUT_NOT_OPERATIONAL, so self-stamping the post-flip value
-            # here would be a truth-matrix bypass. Mirror the matrix's actual pinned state instead.
-            "capability_state": "MERGED_BUT_NOT_OPERATIONAL",
+            # capability_state mirrors the matrix row state (OPERATIONALLY_VERIFIED, promoted by
+            # plan item 1.7). The derived *assurance_state* MUTATION_WITH_ROLLBACK_VERIFIED
+            # (builder_ii/assurance.py, platform_completion_audit.py:assurance_state_for_row) now
+            # applies because the underlying row is OPERATIONALLY_VERIFIED. artifact_is_authority
+            # stays False -- the bundle is evidence, not authority.
+            "capability_state": "OPERATIONALLY_VERIFIED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
         },
