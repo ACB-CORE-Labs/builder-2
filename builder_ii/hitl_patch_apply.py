@@ -19,6 +19,13 @@ from builder_ii.hitl_patch_approval import (
     canonical_json_digest,
     validate_hitl_patch_approval_file,
 )
+from builder_ii.hitl_patch_ledger import (
+    EVENT_PATCH_APPLIED,
+    EVENT_PATCH_ROLLED_BACK,
+    create_hitl_patch_ledger_record,
+    hitl_patch_ledger_subject_ref,
+    write_hitl_patch_ledger_record,
+)
 from builder_ii.hitl_patch_proposal import validate_hitl_patch_proposal_file
 from builder_ii.hitl_rollback_approval import (
     rollback_approval_binding_errors,
@@ -26,6 +33,7 @@ from builder_ii.hitl_rollback_approval import (
 )
 from builder_ii.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
+    ROLLBACK_RECEIPT_KIND,
     create_rollback_plan,
     create_rollback_receipt,
     write_rollback_plan,
@@ -126,6 +134,49 @@ def _artifact_ref(*, kind: str, path: Path, sha256: str, role: str) -> dict[str,
         "role": role,
         "required": True,
     }
+
+
+def _emit_patch_ledger_record(
+    *,
+    output_dir: Path,
+    filename: str,
+    event_type: str,
+    target: dict[str, Any],
+    patch_digest: str,
+    pre_head: str,
+    ref_specs: list[tuple[str, str, Path]],
+) -> None:
+    """Emit the passive patch-lane ledger record, guarded against stranding.
+
+    This runs strictly AFTER the mutation and its authoritative receipt are already durably
+    written, and it re-reads caller-owned input files (proposal/approval/verification receipt)
+    to fingerprint them. A failure here — an input file moved between apply and emission, a
+    disk error — must never surface as an apply/rollback *failure*: the CLIs wrap the whole
+    call in a blanket ``except`` and would report a successful, fully-receipted mutation as
+    failed, stranding the operator. The ledger is supplementary evidence, so on failure we
+    record a durable, non-authoritative note beside the receipt and return normally.
+    """
+    try:
+        record = create_hitl_patch_ledger_record(
+            event_type=event_type,
+            target=target,
+            patch_digest=patch_digest,
+            pre_head=pre_head,
+            subject_refs=[
+                hitl_patch_ledger_subject_ref(role=role, kind=kind, path=path)
+                for role, kind, path in ref_specs
+            ],
+        )
+        write_hitl_patch_ledger_record(record, output_dir / filename)
+    except (OSError, ValueError) as exc:
+        try:
+            (output_dir / f"{filename}.emission_error.txt").write_text(
+                f"ledger emission failed after a successful {event_type}; the authoritative "
+                f"receipt in this directory stands and the mutation completed. cause: {exc}\n",
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
 
 
 def _validate_core_demo_verification_receipt(data: Any, *, target_repo: Path | None) -> list[str]:
@@ -492,6 +543,32 @@ def apply_hitl_patch(
     }
     write_rollback_bundle(bundle, output_dir / "rollback_bundle.json")
 
+    # 9. Emit a passive ledger record for this apply event, binding the governing chain's
+    #    on-disk digests. Written to the builder-side output_dir (never the target repo,
+    #    which would dirty the tree and corrupt the post-apply drift fingerprint). Strictly
+    #    after the mutation and its receipt: the ledger is evidence the event happened, not
+    #    authority for it. Guarded so an emission failure never reports the successful apply
+    #    as a failure (see _emit_patch_ledger_record).
+    _emit_patch_ledger_record(
+        output_dir=output_dir,
+        filename="patch_ledger_record.json",
+        event_type=EVENT_PATCH_APPLIED,
+        target=dict(proposal["target"]),
+        patch_digest=patch_digest,
+        pre_head=pre_head,
+        ref_specs=[
+            ("patch_proposal", proposal.get("kind", "builder_ii.hitl_patch_proposal"), proposal_path),
+            ("patch_approval", approval.get("kind", "builder_ii.hitl_patch_approval"), approval_path),
+            (
+                "pre_apply_verification_receipt",
+                verification_receipt.get("kind", "builder_ii.verification_execution_receipt"),
+                verification_receipt_path,
+            ),
+            ("patch_apply_receipt", PATCH_APPLY_RECEIPT_KIND, receipt_path),
+            ("rollback_plan", ROLLBACK_PLAN_KIND, rollback_plan_path),
+        ],
+    )
+
 
 def validate_patch_apply_receipt(artifact: Any) -> list[str]:
     errors = []
@@ -779,6 +856,24 @@ def rollback_hitl_patch(
 
     receipt_path = output_dir / "rollback_receipt.json"
     write_rollback_receipt(receipt, receipt_path)
+
+    # Emit a passive ledger record for this rollback event, binding the governing chain
+    # (plan, rollback approval, reverse patch, rollback receipt). Same guarded posture as the
+    # apply side: builder-side output_dir only, strictly after the mutation and its receipt.
+    _emit_patch_ledger_record(
+        output_dir=output_dir,
+        filename="rollback_ledger_record.json",
+        event_type=EVENT_PATCH_ROLLED_BACK,
+        target=dict(plan["target"]),
+        patch_digest=str(plan.get("patch_digest", "")),
+        pre_head=str(pre_head),
+        ref_specs=[
+            ("rollback_plan", plan.get("kind", ROLLBACK_PLAN_KIND), rollback_plan_path),
+            ("rollback_approval", approval.get("kind", "builder_ii.hitl_rollback_approval"), approval_path),
+            ("rollback_reverse_patch", "unified_diff_reverse_patch", reverse_patch_path),
+            ("rollback_receipt", ROLLBACK_RECEIPT_KIND, receipt_path),
+        ],
+    )
 
 
 def dumps_rollback_bundle(bundle: dict[str, Any]) -> str:

@@ -199,6 +199,10 @@ from builder_ii.hitl_patch_approval import (
     HITL_PATCH_APPROVAL_KIND,
     validate_hitl_patch_approval,
 )
+from builder_ii.hitl_patch_ledger import (
+    HITL_PATCH_LEDGER_RECORD_KIND,
+    validate_hitl_patch_ledger_record,
+)
 from builder_ii.hitl_patch_proposal import (
     HITL_PATCH_PROPOSAL_KIND,
     validate_hitl_patch_proposal,
@@ -462,6 +466,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     HITL_PATCH_PROPOSAL_KIND: validate_hitl_patch_proposal,
     HITL_PATCH_APPROVAL_KIND: validate_hitl_patch_approval,
     HITL_ROLLBACK_APPROVAL_KIND: validate_hitl_rollback_approval,
+    HITL_PATCH_LEDGER_RECORD_KIND: validate_hitl_patch_ledger_record,
     PATCH_APPLY_RECEIPT_KIND: validate_patch_apply_receipt,
     ROLLBACK_BUNDLE_KIND: validate_rollback_bundle,
     ROLLBACK_PLAN_KIND: validate_rollback_plan,
