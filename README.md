@@ -217,6 +217,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 
 | Document | Purpose |
 | --- | --- |
+| [`FIRST_SESSION.md`](FIRST_SESSION.md) | The single validated path from a clean clone to one complete governed patch loop, in about 30 minutes. Start here. |
 | [`docs/MANIFESTO.md`](docs/MANIFESTO.md) | builder-II manifesto: signet, product ethos, Codename Goose relationship, and governed engineering promise. |
 | [`docs/GOOSE_CONVENTION_LAYER.md`](docs/GOOSE_CONVENTION_LAYER.md) | Operational spec for the builder convention layer over Codename Goose. |
 | [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) | Architecture decision defining CORE builder-II as a governed engineering extension. |
@@ -407,7 +408,7 @@ governed CLI/TUI and artifact/HITL/verification spine without attempting to reso
 `mlx-lm`/local-model backend paths remain a Mac-first boundary until a non-Mac model backend is
 promoted (see "Hardware target" below).
 
-Edit `.env` for target repo paths as needed. Prefer generic `BUILDER_*` names. If using the `core` target, set the target repo path explicitly when it is not at the expected location. Legacy `CORE_*` names remain compatibility aliases only.
+`.env.example` defaults to the self-contained `builder` profile (target repo = this clone), so a fresh clone works with zero edits. Point the pair at a real project when you have one — prefer generic `BUILDER_*` names; legacy `CORE_*` names remain compatibility aliases only. The CORE-born example:
 
 ```bash
 BUILDER_TARGET_REPO=../core
@@ -439,68 +440,22 @@ bash scripts/pull-roster.sh candidates
 
 ## First run
 
+See **[`FIRST_SESSION.md`](FIRST_SESSION.md)** for the single validated path from a clean clone
+to one complete governed patch loop (propose → approve → verify → apply → rollback), in about
+30 minutes — install, orient yourself against the platform's own truth state, then do one real
+patch loop by hand against a scratch repo, with a receipt and a real TTY approval at every
+mutating step.
+
+For a quick sanity check that the install itself is sound before diving into the full
+walkthrough:
+
 ```bash
-builder-setup plan --output /tmp/builder-ii-setup-plan.json
-builder-setup validate-plan /tmp/builder-ii-setup-plan.json
-builder-setup overlay-plan /tmp/builder-ii-setup-plan.json --output /tmp/builder-ii-setup-overlay.json
-builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay.json
-builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay.json --output /tmp/builder-ii-setup-rollback-snapshot.json
-builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json
 builder doctor
 builder models
 builder-targets validate
-builder-targets list
 builder-agent validate
-builder-agent profiles
-bash scripts/install-tools.sh required
-builder-tools check --tier tier1
-
-# Run the v0 proof harness
-uv run python scripts/verify_v0_release.py
-
-# Inspect the R0 platform truth state
 builder-platform matrix
-builder-platform status
 builder-platform audit-docs
-
-# Inspect passive R1 config/setup planning artifacts.
-# These do not apply setup, execute rollback, write Goose config, copy skills, start runtime, or call models.
-builder-config schema
-builder-config resolve
-builder-config validate
-builder-setup plan --output /tmp/builder-ii-setup-plan.json
-builder-setup validate-plan /tmp/builder-ii-setup-plan.json
-builder-setup overlay-plan /tmp/builder-ii-setup-plan.json --output /tmp/builder-ii-setup-overlay.json
-builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay.json
-builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay.json --output /tmp/builder-ii-setup-rollback-snapshot.json
-builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json
-
-# builder-setup apply never writes Goose config or copies skills (merge/copy are unsupported
-# operations by design). Wiring your own Goose config and skills is a manual step for beta --
-# see "R1.7 Goose config and skills -- manual step (beta)" in docs/CONFIG_ONBOARDING.md.
-
-# Run passive governed onboarding UX wrapper or interactive wizard
-builder-setup init --output-dir .builder/setup-artifacts
-builder-setup validate-onboarding-intent .builder/setup-artifacts/onboarding-intent.json
-builder-setup wizard
-builder onboarding
-
-# Generate and validate canonical R1 golden path closure proof
-builder-platform r1-closure --output-dir .builder/r1-closure
-builder-platform validate-r1-closure .builder/r1-closure/r1-closure-report.json
-
-# Generate a passive B1.1 verification execution plan artifact and B1.2 digest-bound approval artifact.
-# Initial support is limited to target_profile=builder with verification_profile=builder_full.
-# This does not run tests, execute shell/subprocess, call models/tools, start Goose/deepagents, or apply patches.
-builder-verify plan --target-profile builder --verification-profile builder_full --output .builder/verification/verification-execution-plan.json
-builder-verify validate-plan .builder/verification/verification-execution-plan.json
-builder-verify approve-plan .builder/verification/verification-execution-plan.json --approval-actor "Jane Operator" --approval-reason "Approve passive B1.1 verification plan for future B1.3 runner testing." --output .builder/verification/verification-execution-approval.json
-builder-verify validate-approval .builder/verification/verification-execution-approval.json --plan .builder/verification/verification-execution-plan.json
-
-# Prepare a governed session package
-builder-session prepare-package builder --task "audit the selected target repo and identify the safest next patch" --output-dir .builder/session/
-builder-session validate-prepare-package .builder/session/
-builder-session summarize-prepare-package .builder/session/
 ```
 
 Legacy `builder setup` now fails closed and prints the governed R1 setup sequence. It does not write Goose config, `.goosehints`, skills, recipes, or runtime state.

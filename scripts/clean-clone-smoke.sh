@@ -190,14 +190,11 @@ else
 fi
 step "cp .env.example .env" cp .env.example .env
 
-# .env.example defaults to BUILDER_TARGET_PROFILE=core / BUILDER_TARGET_REPO=../core,
-# which assumes a sibling `core` checkout next to builder-II. A bare clean clone has
-# no such sibling, so `builder-setup plan` would otherwise fail closed with
-# "target_repo does not exist" at the very first golden-path step. README's own
-# Install section already tells an operator without that sibling repo to set the
-# target repo explicitly / prefer generic BUILDER_* names; this does exactly that,
-# using the self-contained "builder" target profile (target_repo = this checkout,
-# no external dependency) instead of leaving the CORE-oriented sample in place.
+# .env.example now defaults to the self-contained "builder" profile with
+# BUILDER_TARGET_REPO=. (plan 2.5), so the copied file alone would work. The smoke
+# gate still writes an explicit .env with the absolute clone path so the run is
+# deterministic regardless of future .env.example edits — this pins the exact
+# environment the rest of the gate is proving.
 cat >"$CLONE_DIR/.env" <<ENV_EOF
 BUILDER_TARGET_REPO=$CLONE_DIR
 BUILDER_TARGET_PROFILE=builder

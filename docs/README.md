@@ -9,12 +9,12 @@ builder-II documentation is organized as three tiers, each narrower and deeper t
 
 1. **[`README.md`](../README.md)** (repo root) — what builder-II is, the governing distinctions,
    install, and a curated "Documentation map" of the ~40 documents most readers need first.
-2. **`FIRST_SESSION.md`** (not written yet) — a single validated onboarding path: clone to first
-   governed patch loop in one sitting. Until it lands, **[`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md)**
-   is the closest equivalent: the operator golden path (`builder-platform status` / `operator-status`
-   / `next` / `golden-path`) plus the governed demo loop entrypoint (CORE profile and generic
-   targets) — only what is currently true is documented here; see
-   [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) and
+2. **[`FIRST_SESSION.md`](../FIRST_SESSION.md)** (repo root) — the single validated onboarding
+   path: clone to one complete governed patch loop in one sitting.
+   **[`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md)** is the step after it: the operator
+   golden path (`builder-platform status` / `operator-status` / `next` / `golden-path`) plus the
+   governed demo loop entrypoint (CORE profile and generic targets) — only what is currently true
+   is documented here; see [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) and
    [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) for what is and isn't
    promoted.
 3. **This file** — the reference tier: every document in `docs/`, grouped by subsystem, for anyone
