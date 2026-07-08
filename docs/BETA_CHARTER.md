@@ -57,9 +57,9 @@ source checkout is never mutated: exactly one approved, temporary documentation-
 applied and then rolled back, inside a throwaway worktree. It makes no commit, no push, no model
 call, and no Goose or MCP interaction.
 
-Command names above are stable; flags and default target naming are actively being generalized as
-of this writing, so run `builder-platform demo-loop --help` for the current shape and check
-`builder-platform matrix` for this capability's row rather than trusting a specific name here.
+Command names above are stable. Run `builder-platform demo-loop --help` for the current flag
+shape (`--target-repo`, `--target-name`, `--marker-path`) and check `builder-platform matrix` for
+this capability's row — the matrix, not this charter, is the ground truth for its state.
 Feedback on this loop is especially valuable — it's the path built specifically to be run by
 someone who isn't the primary operator.
 
