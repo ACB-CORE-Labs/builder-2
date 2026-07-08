@@ -169,6 +169,11 @@ def test_apply_consults_command_authority_gate_before_io(mock_gate, tmp_path: Pa
 )
 def test_rollback_consults_command_authority_gate_before_io(mock_gate, tmp_path: Path):
     with pytest.raises(CommandAuthorityError):
-        rollback_hitl_patch(tmp_path / "plan.json", tmp_path / "rev.patch", tmp_path / "out")
+        rollback_hitl_patch(
+            tmp_path / "plan.json",
+            tmp_path / "rev.patch",
+            tmp_path / "out",
+            approval_path=tmp_path / "approval.json",
+        )
     mock_gate.assert_called_once()
     assert not (tmp_path / "out").exists()

@@ -13,6 +13,11 @@ from builder_ii.hitl_patch_apply import (
 )
 from builder_ii.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.hitl_rollback_approval import (
+    canonical_json_digest,
+    create_hitl_rollback_approval,
+    write_hitl_rollback_approval,
+)
 
 
 @patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])
@@ -86,6 +91,18 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
     assert "reverse_patch_ref" not in plan_data
     assert plan_data["rollback_patch_apply_mode"] == "git_apply_reverse_flag"
     assert "reverse_patch_apply_mode" not in plan_data
+    # apply now records a post-apply working-tree fingerprint so rollback can detect drift
+    assert isinstance(plan_data.get("post_apply_worktree_digest"), str)
+
+    # Mint the distinct rollback approval the hardened rollback lane requires, bound to this
+    # exact rollback plan (item 1.4). Without it, rollback refuses.
+    rollback_approval_path = tmp_path / "rollback_approval.json"
+    write_hitl_rollback_approval(
+        create_hitl_rollback_approval(
+            plan_data, confirmed_digest_prefix=canonical_json_digest(plan_data)[:4]
+        ),
+        rollback_approval_path,
+    )
 
     bundle_path = out_dir / "rollback_bundle.json"
     assert bundle_path.exists()
@@ -103,16 +120,33 @@ def test_successful_apply_and_rollback(mock_validate, tmp_path: Path):
     reverse_patch_file.write_text("corrupted content")
 
     with pytest.raises(ValueError, match="Reverse patch digest does not match rollback plan binding"):
-        rollback_hitl_patch(rollback_plan_path, reverse_patch_file, out_dir / "rollback_out")
+        rollback_hitl_patch(
+            rollback_plan_path,
+            reverse_patch_file,
+            out_dir / "rollback_out",
+            approval_path=rollback_approval_path,
+        )
 
     # Restore the original rollback patch content
     reverse_patch_file.write_text(original_reverse_patch_content)
 
     # 6. Execute successful rollback
-    rollback_hitl_patch(rollback_plan_path, reverse_patch_file, out_dir / "rollback_out")
+    rollback_hitl_patch(
+        rollback_plan_path,
+        reverse_patch_file,
+        out_dir / "rollback_out",
+        approval_path=rollback_approval_path,
+    )
 
     # Verify file is restored to the initial state
     assert test_file.read_text() == "Line 1\nLine 2\n"
+
+    # The success receipt binds the rollback approval that authorized it (evidence parity
+    # with the apply receipt's approval_digest).
+    rollback_receipt = json.loads((out_dir / "rollback_out" / "rollback_receipt.json").read_text())
+    assert rollback_receipt["rollback_approval_digest"] == canonical_json_digest(
+        json.loads(rollback_approval_path.read_text())
+    )
 
     # 7. Validate artifact chain verification
     # Compile the list of paths to verify

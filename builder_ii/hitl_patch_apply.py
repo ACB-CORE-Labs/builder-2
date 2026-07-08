@@ -20,6 +20,10 @@ from builder_ii.hitl_patch_approval import (
     validate_hitl_patch_approval_file,
 )
 from builder_ii.hitl_patch_proposal import validate_hitl_patch_proposal_file
+from builder_ii.hitl_rollback_approval import (
+    rollback_approval_binding_errors,
+    validate_hitl_rollback_approval_file,
+)
 from builder_ii.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
     create_rollback_plan,
@@ -60,6 +64,38 @@ def get_git_head_sha(repo_path: Path) -> str:
         text=True,
     )
     return result.stdout.strip()
+
+
+def _worktree_delta_digest(repo_path: Path) -> str:
+    """Deterministic fingerprint of a repo's working-tree delta from HEAD.
+
+    Combines ``git diff HEAD`` (tracked-file content: modifications, deletions, and staged
+    additions) with ``git status --porcelain`` (which also names untracked files). It is
+    computed identically at apply time (recorded on the rollback plan as
+    ``post_apply_worktree_digest``) and again at rollback preflight; a mismatch means the tree
+    was touched between apply and rollback, so the reverse patch can no longer be trusted to
+    restore the pre-apply state.
+
+    Honest boundary: a *content* edit to a still-untracked file the patch added is not caught
+    here (its path is unchanged in porcelain). That residual case is caught by ``git apply -R``
+    rejecting the mismatched reverse hunk — whose failure path also emits a recovery-bearing
+    receipt. This digest is a drift *alarm*, not a replacement for git's own apply check.
+    """
+    diff = subprocess.run(
+        ["git", "diff", "HEAD"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return hashlib.sha256("\x00".join((diff, status)).encode("utf-8")).hexdigest()
 
 
 def compute_digest(content: str) -> str:
@@ -315,6 +351,11 @@ def apply_hitl_patch(
 
     reverse_diff_path.write_text(unified_diff, encoding="utf-8")
     reverse_digest = _file_digest(reverse_diff_path)
+    # Fingerprint the working tree the moment the patch is applied. The rollback lane
+    # re-derives this digest at preflight and refuses (with a recovery block) if the tree
+    # drifted in between -- so `git apply -R` never runs against a tree it can no longer
+    # faithfully reverse. See _worktree_delta_digest and rollback_hitl_patch.
+    post_apply_worktree_digest = _worktree_delta_digest(target_repo)
     rollback_plan["rollback_patch_apply_mode"] = "git_apply_reverse_flag"
     rollback_plan["rollback_patch_ref"] = _artifact_ref(
         kind="unified_diff_reverse_patch",
@@ -322,6 +363,7 @@ def apply_hitl_patch(
         sha256=reverse_digest,
         role="rollback_reverse_patch",
     )
+    rollback_plan["post_apply_worktree_digest"] = post_apply_worktree_digest
     write_rollback_plan(rollback_plan, rollback_plan_path)
 
     # 7. Create postflight record
@@ -364,6 +406,7 @@ def apply_hitl_patch(
     receipt["verification_receipt_digest"] = _json_digest(verification_receipt)
     receipt["postflight_digest"] = postflight_digest
     receipt["rollback_patch_ref"] = rollback_plan["rollback_patch_ref"]
+    receipt["post_apply_worktree_digest"] = post_apply_worktree_digest
     receipt_path = output_dir / "patch_apply_receipt.json"
     write_patch_apply_receipt(receipt, receipt_path)
 
@@ -451,10 +494,100 @@ def validate_patch_apply_receipt_file(path: Path) -> list[str]:
     return validate_patch_apply_receipt(data)
 
 
+def _rollback_recovery_block(*, pre_head: Any, reason: str) -> dict[str, Any]:
+    """Build the recovery block attached to a rollback-failure receipt.
+
+    A failed rollback must *instruct*, never strand. The block names the exact command that
+    restores the pre-apply state, warns about its data-loss cost, and records that the
+    apply->rollback chain is now invalid (so no downstream reader mistakes the tree for cleanly
+    rolled back). ``pre_head`` is the HEAD SHA captured at apply time (plan item 1.2b) and
+    carried on the rollback plan; if it is absent we degrade to a reflog-based instruction
+    rather than emit a command with no target.
+    """
+    if isinstance(pre_head, str) and pre_head:
+        recommended_command = f"git reset --hard {pre_head}"
+        pre_apply_head = pre_head
+    else:
+        recommended_command = "git reflog  # find the pre-apply commit, then: git reset --hard <sha>"
+        pre_apply_head = ""
+    return {
+        "reason": reason,
+        "pre_apply_head": pre_apply_head,
+        "recommended_command": recommended_command,
+        "data_loss_warning": (
+            "This command discards ALL uncommitted changes in the target working tree, "
+            "including any work done since the patch was applied. Run 'git status' and back "
+            "up anything you want to keep before running it."
+        ),
+        "chain_invalidation": {
+            "invalidated": True,
+            "note": (
+                "The apply->rollback chain is broken: the working tree no longer matches the "
+                "post-apply state this rollback plan was minted for. Any receipt claiming a "
+                "clean rollback from here would be false."
+            ),
+        },
+    }
+
+
+def _write_rollback_failure_receipt(
+    *,
+    settings: Settings,
+    target: dict[str, Any],
+    rollback_plan_ref: str,
+    output_dir: Path,
+    outcome: str,
+    reason: str,
+    pre_head: Any,
+    error_summary: str,
+) -> Path:
+    """Emit a rollback-failure receipt with a recovery block.
+
+    The receipt stays a schema-valid ``builder_ii.rollback_receipt`` in the NOT_EXECUTED state
+    (honest: no reverse patch was applied); ``rollback_outcome``, ``error_summary``, and
+    ``recovery`` are informal extension fields, mirroring the apply-failure receipt pattern.
+    """
+    target_name = target.get("name", "generic")
+    failure_receipt = create_rollback_receipt(
+        settings=settings,
+        target_name=target_name,
+        rollback_plan_ref=rollback_plan_ref,
+        generic_repo=Path(target["repo"]) if target_name == "generic" else None,
+    )
+    failure_receipt["target"] = dict(target)
+    failure_receipt["rollback_outcome"] = outcome
+    failure_receipt["error_summary"] = error_summary[:500]
+    failure_receipt["recovery"] = _rollback_recovery_block(pre_head=pre_head, reason=reason)
+    path = output_dir / "rollback_failure_receipt.json"
+    write_rollback_receipt(failure_receipt, path)
+    return path
+
+
+def _rollback_drift_reason(repo_path: Path, *, pre_head: Any, expected_delta: Any) -> str | None:
+    """Return a human reason string if the tree drifted since apply, else None.
+
+    Refusing here -- before any ``git apply -R`` -- turns a confusing partial/failed reverse
+    into a clean, instructive refusal. Two checks: HEAD must not have moved (a commit since
+    apply rebases the reverse patch onto the wrong base), and the working-tree delta digest
+    must still match the one recorded at apply time. A plan minted before this field existed
+    (no ``expected_delta``) skips the delta check but still gets the HEAD check.
+    """
+    if isinstance(pre_head, str) and pre_head:
+        current_head = get_git_head_sha(repo_path)
+        if current_head != pre_head:
+            return f"HEAD moved since apply (expected {pre_head[:12]}, found {current_head[:12]})"
+    if isinstance(expected_delta, str) and expected_delta:
+        if _worktree_delta_digest(repo_path) != expected_delta:
+            return "working tree changed since apply (post-apply fingerprint mismatch)"
+    return None
+
+
 def rollback_hitl_patch(
     rollback_plan_path: Path,
     reverse_patch_path: Path,
     output_dir: Path,
+    *,
+    approval_path: Path,
     settings: Settings | None = None,
 ) -> None:
     # Gate the rollback write lane at the execution boundary too (see apply_hitl_patch);
@@ -464,7 +597,7 @@ def rollback_hitl_patch(
     enforce_command_authority(
         "builder-hitl rollback",
         requested_effects=("patch_application",),
-        approval_ref=str(rollback_plan_path),
+        approval_ref=str(approval_path),
     )
 
     from builder_ii.rollback_artifacts import validate_rollback_plan_file
@@ -482,11 +615,57 @@ def rollback_hitl_patch(
     plan = json_lib.loads(rollback_plan_path.read_text())
     target_repo = Path(plan["target"]["repo"])
     target_name = plan["target"]["name"]
+
+    # 1. Authority: a rollback is itself a source mutation. It requires its own governed
+    #    approval bound to THIS plan -- not merely the machine-generated plan existing (which
+    #    apply_hitl_patch wrote automatically). artifact != authority; planned != approved.
+    if not approval_path.exists():
+        raise ValueError("Rollback approval file does not exist")
+    approval_errors = validate_hitl_rollback_approval_file(approval_path)
+    if approval_errors:
+        raise ValueError(f"Invalid rollback approval: {approval_errors}")
+    approval = json_lib.loads(approval_path.read_text())
+    binding_errors = rollback_approval_binding_errors(
+        approval,
+        rollback_plan_digest=canonical_json_digest(plan),
+        patch_digest=str(plan.get("patch_digest", "")),
+    )
+    if binding_errors:
+        raise ValueError(f"Rollback approval is not bound to this plan: {binding_errors}")
+    if approval_is_expired(approval, now=int(time.time())):
+        raise ValueError("Rollback approval has expired")
+
+    # 2. Input integrity: the reverse patch must be exactly the one this plan bound.
     rollback_ref = plan.get("rollback_patch_ref")
     if isinstance(rollback_ref, dict):
         expected_digest = rollback_ref.get("sha256")
         if expected_digest and _file_digest(reverse_patch_path) != expected_digest:
             raise ValueError("Reverse patch digest does not match rollback plan binding")
+
+    # 3. Drift preflight: refuse (with a recovery block) rather than run `git apply -R` against
+    #    a tree that no longer matches the post-apply state this plan was minted for. Failure
+    #    must instruct, never strand.
+    pre_head = plan.get("pre_head")
+    drift_reason = _rollback_drift_reason(
+        target_repo,
+        pre_head=pre_head,
+        expected_delta=plan.get("post_apply_worktree_digest"),
+    )
+    if drift_reason is not None:
+        _write_rollback_failure_receipt(
+            settings=settings,
+            target=plan["target"],
+            rollback_plan_ref=str(rollback_plan_path),
+            output_dir=output_dir,
+            outcome="REFUSED_TREE_DRIFT",
+            reason="working_tree_drift_since_apply",
+            pre_head=pre_head,
+            error_summary=drift_reason,
+        )
+        raise RuntimeError(
+            f"Rollback refused: {drift_reason}. A recovery block was written to "
+            f"{output_dir / 'rollback_failure_receipt.json'}."
+        )
 
     before_status = subprocess.run(
         ["git", "status", "--porcelain"],
@@ -510,17 +689,19 @@ def rollback_hitl_patch(
             text=True,
         )
     except subprocess.CalledProcessError as e:
-        failure_receipt = create_rollback_receipt(
+        # The reverse patch itself did not apply cleanly (the residual case the fingerprint
+        # alarm cannot see). Emit the same recovery-bearing failure receipt so the operator is
+        # never stranded without a restore command.
+        _write_rollback_failure_receipt(
             settings=settings,
-            target_name=target_name,
+            target=plan["target"],
             rollback_plan_ref=str(rollback_plan_path),
-            generic_repo=target_repo if target_name == "generic" else None,
+            output_dir=output_dir,
+            outcome="REVERSE_PATCH_FAILED",
+            reason="reverse_patch_apply_failed",
+            pre_head=pre_head,
+            error_summary=(e.stderr or str(e)),
         )
-        failure_receipt["target"] = dict(plan["target"])
-        # rollback_state stays NOT_EXECUTED (honest: the reverse patch did not apply cleanly);
-        # error_summary is an informal extension field, same pattern as the apply failure receipt.
-        failure_receipt["error_summary"] = (e.stderr or str(e))[:500]
-        write_rollback_receipt(failure_receipt, output_dir / "rollback_failure_receipt.json")
         raise RuntimeError(f"Rollback application failed: {e.stderr}")
 
     receipt = create_rollback_receipt(
@@ -530,6 +711,10 @@ def rollback_hitl_patch(
         generic_repo=target_repo if target_name == "generic" else None,
     )
     receipt["target"] = dict(plan["target"])
+    # Bind the approval that authorized this rollback into the receipt as durable evidence,
+    # mirroring the apply receipt's approval_digest. artifact != authority, but the receipt
+    # records which approval stood for the human decision.
+    receipt["rollback_approval_digest"] = _json_digest(approval)
     after_status = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=target_repo,
