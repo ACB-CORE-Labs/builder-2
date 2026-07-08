@@ -46,6 +46,7 @@ cargo build --manifest-path builder_ii_validation_rs/Cargo.toml   # optional Rus
 uv run builder-platform audit-docs  # docs truth audit (fails CI if docs claim unproven capabilities)
 uv run builder-platform matrix       # R0 completion truth matrix
 uv run python scripts/verify_v0_release.py   # v0 structural/governance release proof harness
+bash scripts/clean-clone-smoke.sh   # repeatable clean-clone onboarding + governed patch-loop smoke gate (plan 2.7)
 ```
 
 `.github/workflows/ci.yml` is the authoritative gate list (Rust build → bytecode compile → docs truth audit → secret scan/gitleaks → ruff → targeted mypy → targeted bandit → full pytest). Reproduce that sequence locally before considering work done.
