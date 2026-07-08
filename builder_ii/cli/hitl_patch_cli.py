@@ -176,11 +176,16 @@ def register_patch_commands(app: typer.Typer) -> None:
         target = plan_data.get("target", {})
         expected_prefix = plan_digest[:APPROVAL_CONFIRMATION_PREFIX_LENGTH]
 
+        drift_protected = bool(plan_data.get("pre_head")) and bool(plan_data.get("post_apply_worktree_digest"))
         console.print("─" * 60)
         console.print(f"target: {target.get('name')} @ {target.get('repo')}")
         console.print(f"rollback strategy: {plan_data.get('rollback_strategy') or '(unspecified)'}")
         console.print(f"pre-apply HEAD: {plan_data.get('pre_head') or '(not recorded)'}")
         console.print(f"patch digest: {patch_digest or '(none)'}")
+        console.print(
+            "drift protection: "
+            + ("present" if drift_protected else "MISSING — rollback will refuse this plan")
+        )
         console.print("─" * 60)
         console.print(f"rollback plan digest: {plan_digest}")
         console.print(

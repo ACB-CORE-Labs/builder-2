@@ -167,26 +167,56 @@ def test_rollback_rejects_expired_approval(tmp_path: Path) -> None:
         )
 
 
-def test_reverse_apply_failure_still_emits_recovery_block(tmp_path: Path) -> None:
-    """Backstop: even when the drift fingerprint is absent (older plan) and `git apply -R`
-    itself fails, the operator gets a recovery-bearing receipt rather than a bare error."""
-    repo, out_dir, target_file = _apply(tmp_path)
+def test_rollback_refuses_plan_missing_drift_fingerprint(tmp_path: Path) -> None:
+    """Fail closed: a plan without post_apply_worktree_digest cannot be drift-checked, so the
+    execution boundary refuses it rather than silently skipping the check and running blind."""
+    _repo, out_dir, target_file = _apply(tmp_path)
     plan_path = out_dir / "rollback_plan.json"
     plan = json.loads(plan_path.read_text())
-    # Simulate a plan minted before the fingerprint field existed: drop it so the delta check
-    # is skipped and the reverse apply runs against a tree it can no longer reverse.
     plan.pop("post_apply_worktree_digest", None)
     plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
-    approval_path = _mint_rollback_approval(out_dir, tmp_path)  # binds to the modified plan on disk
+    approval_path = _mint_rollback_approval(out_dir, tmp_path)  # binds to the stripped plan
 
-    # Revert the applied change by hand: HEAD is unchanged (drift HEAD check passes), but the
-    # reverse hunk context is gone, so `git apply -R` fails.
-    subprocess.run(["git", "checkout", "--", "file.txt"], cwd=repo, check=True, capture_output=True)
-    assert target_file.read_text() == "Line 1\nLine 2\n"
+    rollback_out = out_dir / "rollback_out"
+    with pytest.raises(ValueError, match="missing post_apply_worktree_digest"):
+        rollback_hitl_patch(plan_path, out_dir / "rollback.patch", rollback_out, approval_path=approval_path)
+    # Refused before any mutation: the applied change is still present, no success receipt.
+    assert target_file.read_text() == "Line 1\nLine 2 modified\n"
+    assert not (rollback_out / "rollback_receipt.json").exists()
+
+
+def test_rollback_refuses_plan_missing_pre_head(tmp_path: Path) -> None:
+    _repo, out_dir, target_file = _apply(tmp_path)
+    plan_path = out_dir / "rollback_plan.json"
+    plan = json.loads(plan_path.read_text())
+    plan.pop("pre_head", None)
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+    approval_path = _mint_rollback_approval(out_dir, tmp_path)
+
+    rollback_out = out_dir / "rollback_out"
+    with pytest.raises(ValueError, match="missing pre_head"):
+        rollback_hitl_patch(plan_path, out_dir / "rollback.patch", rollback_out, approval_path=approval_path)
+    assert target_file.read_text() == "Line 1\nLine 2 modified\n"
+
+
+def test_reverse_apply_failure_emits_recovery_block(tmp_path: Path) -> None:
+    """Backstop for a `git apply -R` that fails for any reason (e.g. an environmental git
+    error) while the tree is un-drifted: the operator still gets a recovery-bearing receipt.
+    Constructed by dropping the reverse-patch digest binding (so a non-appliable patch reaches
+    git) while keeping the drift-protection fields present and matching (no drift)."""
+    _repo, out_dir, _target = _apply(tmp_path)
+    plan_path = out_dir / "rollback_plan.json"
+    plan = json.loads(plan_path.read_text())
+    plan.pop("rollback_patch_ref", None)  # skip the digest binding so a bad patch reaches git
+    plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n")
+    approval_path = _mint_rollback_approval(out_dir, tmp_path)
+
+    garbage = out_dir / "garbage.patch"
+    garbage.write_text("this is not a valid unified diff\n")
 
     rollback_out = out_dir / "rollback_out"
     with pytest.raises(RuntimeError, match="Rollback application failed"):
-        rollback_hitl_patch(plan_path, out_dir / "rollback.patch", rollback_out, approval_path=approval_path)
+        rollback_hitl_patch(plan_path, garbage, rollback_out, approval_path=approval_path)
 
     failure = json.loads((rollback_out / "rollback_failure_receipt.json").read_text())
     assert failure["rollback_outcome"] == "REVERSE_PATCH_FAILED"

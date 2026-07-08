@@ -80,22 +80,24 @@ def _worktree_delta_digest(repo_path: Path) -> str:
     here (its path is unchanged in porcelain). That residual case is caught by ``git apply -R``
     rejecting the mismatched reverse hunk — whose failure path also emits a recovery-bearing
     receipt. This digest is a drift *alarm*, not a replacement for git's own apply check.
+
+    The raw subprocess bytes are hashed directly (no text decoding): a repo may hold non-UTF-8
+    paths or content, and decoding could raise on a tree we have already mutated — see the
+    guarded call site in ``apply_hitl_patch``.
     """
     diff = subprocess.run(
         ["git", "diff", "HEAD"],
         cwd=repo_path,
         check=True,
         capture_output=True,
-        text=True,
     ).stdout
     status = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=repo_path,
         check=True,
         capture_output=True,
-        text=True,
     ).stdout
-    return hashlib.sha256("\x00".join((diff, status)).encode("utf-8")).hexdigest()
+    return hashlib.sha256(b"\x00".join((diff, status))).hexdigest()
 
 
 def compute_digest(content: str) -> str:
@@ -355,7 +357,31 @@ def apply_hitl_patch(
     # re-derives this digest at preflight and refuses (with a recovery block) if the tree
     # drifted in between -- so `git apply -R` never runs against a tree it can no longer
     # faithfully reverse. See _worktree_delta_digest and rollback_hitl_patch.
-    post_apply_worktree_digest = _worktree_delta_digest(target_repo)
+    #
+    # This runs AFTER the mutating `git apply` succeeded, so a failure here would otherwise
+    # strand a mutated tree with no receipt. Guard it: on failure, emit an apply-failure
+    # receipt carrying pre_head for recovery, mirroring the git-apply except above.
+    try:
+        post_apply_worktree_digest = _worktree_delta_digest(target_repo)
+    except (subprocess.SubprocessError, OSError) as exc:
+        failure_receipt = create_patch_apply_receipt(
+            settings=settings,
+            target_name=target_name,
+            proposal_ref=str(proposal_path),
+            rollback_plan_ref="",
+            postflight_ref="",
+            generic_repo=target_repo if target_name == "generic" else None,
+        )
+        failure_receipt["target"] = dict(proposal["target"])
+        failure_receipt["status"] = "failed"
+        failure_receipt["error_summary"] = f"post-apply fingerprint failed after mutation: {exc}"[:500]
+        failure_receipt["patch_digest"] = patch_digest
+        failure_receipt["pre_head"] = pre_head
+        write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
+        raise RuntimeError(
+            f"Post-apply fingerprint failed; the tree is mutated. Recover with "
+            f"`git reset --hard {pre_head}` (discards uncommitted changes). Cause: {exc}"
+        )
     rollback_plan["rollback_patch_apply_mode"] = "git_apply_reverse_flag"
     rollback_plan["rollback_patch_ref"] = _artifact_ref(
         kind="unified_diff_reverse_patch",
@@ -569,8 +595,9 @@ def _rollback_drift_reason(repo_path: Path, *, pre_head: Any, expected_delta: An
     Refusing here -- before any ``git apply -R`` -- turns a confusing partial/failed reverse
     into a clean, instructive refusal. Two checks: HEAD must not have moved (a commit since
     apply rebases the reverse patch onto the wrong base), and the working-tree delta digest
-    must still match the one recorded at apply time. A plan minted before this field existed
-    (no ``expected_delta``) skips the delta check but still gets the HEAD check.
+    must still match the one recorded at apply time. The caller (``rollback_hitl_patch``)
+    guarantees both ``pre_head`` and ``expected_delta`` are present before calling; the
+    ``isinstance`` guards below are defensive only.
     """
     if isinstance(pre_head, str) and pre_head:
         current_head = get_git_head_sha(repo_path)
@@ -642,14 +669,28 @@ def rollback_hitl_patch(
         if expected_digest and _file_digest(reverse_patch_path) != expected_digest:
             raise ValueError("Reverse patch digest does not match rollback plan binding")
 
-    # 3. Drift preflight: refuse (with a recovery block) rather than run `git apply -R` against
+    # 3. Drift-verifiability precondition (fail closed). The drift preflight below is an
+    #    INVARIANT of this lane, not a best-effort default: a plan that reached the execution
+    #    boundary without both drift-protection fields cannot be checked against the post-apply
+    #    tree, so we refuse rather than silently skip the check and run `git apply -R` blind.
+    #    apply_hitl_patch always records both fields; a plan lacking them did not come from a
+    #    governed apply and must not authorize a mutation.
+    pre_head = plan.get("pre_head")
+    expected_delta = plan.get("post_apply_worktree_digest")
+    if not (isinstance(pre_head, str) and pre_head):
+        raise ValueError("Rollback plan is missing pre_head; cannot verify the tree before rollback")
+    if not (isinstance(expected_delta, str) and expected_delta):
+        raise ValueError(
+            "Rollback plan is missing post_apply_worktree_digest; cannot drift-check the tree before rollback"
+        )
+
+    # 4. Drift preflight: refuse (with a recovery block) rather than run `git apply -R` against
     #    a tree that no longer matches the post-apply state this plan was minted for. Failure
     #    must instruct, never strand.
-    pre_head = plan.get("pre_head")
     drift_reason = _rollback_drift_reason(
         target_repo,
         pre_head=pre_head,
-        expected_delta=plan.get("post_apply_worktree_digest"),
+        expected_delta=expected_delta,
     )
     if drift_reason is not None:
         _write_rollback_failure_receipt(
