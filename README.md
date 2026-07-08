@@ -474,6 +474,10 @@ builder-setup validate-overlay-plan /tmp/builder-ii-setup-overlay.json
 builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay.json --output /tmp/builder-ii-setup-rollback-snapshot.json
 builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot.json
 
+# builder-setup apply never writes Goose config or copies skills (merge/copy are unsupported
+# operations by design). Wiring your own Goose config and skills is a manual step for beta --
+# see "R1.7 Goose config and skills -- manual step (beta)" in docs/CONFIG_ONBOARDING.md.
+
 # Run passive governed onboarding UX wrapper or interactive wizard
 builder-setup init --output-dir .builder/setup-artifacts
 builder-setup validate-onboarding-intent .builder/setup-artifacts/onboarding-intent.json

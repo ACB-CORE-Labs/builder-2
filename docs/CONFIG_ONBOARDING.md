@@ -222,3 +222,54 @@ builder-platform validate-r1-closure .builder/r1-closure/r1-closure-report.json
 
 This establishes an end-to-end auditable proof for operator configuration and setup intent without executing setup mutation or promoting B1/B2/runtime/model/tool/MCP/Goose/deepagents/patch authority.
 
+## R1.7 Goose config and skills — manual step (beta)
+
+`builder-setup apply` never writes a real Goose config or copies skills, by design:
+
+- The `goose_config_overlay_candidate` planned change is always `no-op` — the overlay only describes the keys builder-II would add; it never merges them into an existing config file.
+- The `skill_install_plan_candidate` planned change resolves to a `copy` operation, and `copy` is not one of `setup_apply.py`'s `SUPPORTED_OPERATIONS` (`create`, `replace`, `mkdir`, `no-op`). `builder-setup apply` denies it with `unsupported operation: copy` rather than silently skip it.
+
+This is not an oversight. A real Goose config almost always carries provider credentials and other unrelated extensions that builder-II must never overwrite, so a safe automated merge is its own secrets-handling promotion path (post-beta, full 8-gate). Automated skill copying is a stretch goal, not a beta commitment. For beta, wiring Goose is an explicit **manual, operator-performed step** — builder-II reads and describes your Goose config; it does not write to `~/.config/goose/config.yaml` or your skills directory itself.
+
+### Steps
+
+1. Generate the overlay plan (R1.2 above) if you have not already:
+
+   ```bash
+   builder-setup overlay-plan /tmp/builder-ii-setup-plan.json --output /tmp/builder-ii-setup-overlay.json
+   ```
+
+2. Read the `goose_overlay_candidate` object inside the overlay JSON. For your machine, it names:
+   - `config_target_path` — the Goose config file to edit (typically `~/.config/goose/config.yaml`).
+   - `overlay_keys` — exactly which top-level dotted keys to add: `extensions.builder_ii`, `recipes.builder_ii.path`, `slash_commands.builder_ii.recipe_path`.
+   - `recipe_path` / `slash_command_recipe_paths` — the resolved recipe file path(s) for this checkout.
+   - `secrets_preservation_policy` and `conflict_warnings` — the two rules this manual step exists to honor: never drop unknown keys, never touch existing credentials.
+
+3. Back up the file before touching it — there is no governed rollback for a hand edit: `cp ~/.config/goose/config.yaml ~/.config/goose/config.yaml.bak`.
+
+4. Add only the `builder_ii` keys named in `overlay_keys`, leaving every existing key (providers, credentials, other extensions) untouched. `overlay_keys` is the authoritative list of *where* to add content; `builder_ii/goose_setup.py:build_goose_config()` is the best available reference for *what* content belongs in the extensions block. The two are maintained independently and are not yet unified into one schema — read both source references above rather than trusting a doc snippet that could drift; the shape below is illustrative:
+
+   ```yaml
+   extensions:
+     builder_ii:
+       developer: {bundled: true, enabled: true, type: builtin, timeout: 600}
+       skills: {bundled: true, enabled: true, type: platform, timeout: 300}
+       summon: {bundled: true, enabled: true, type: platform, timeout: 300}
+   recipes:
+     builder_ii:
+       path: <recipe_path from step 2>
+   slash_commands:
+     builder_ii:
+       recipe_path: <recipe_path from step 2>
+   ```
+
+   If your Goose config already has a top-level `extensions`, `recipes`, or `slash_commands` key, add `builder_ii` as a sibling entry under it — do not replace the existing block.
+
+5. Skills: the overlay's `skill_install_plan.entries` lists each skill under `.agents/skills/` with a `source_directory` and `destination_directory`. Copy (or symlink) each entry by hand — `builder-setup apply` will not do this for you in beta:
+
+   ```bash
+   cp -r .agents/skills/core-governed-coding <target-repo>/.agents/skills/core-governed-coding
+   ```
+
+6. There is no receipt and no digest-bound rollback for this manual step; it is intentionally outside the `builder-setup apply`/`rollback` lane. To review what changed, diff the edited file against the `.bak` copy from step 3.
+
