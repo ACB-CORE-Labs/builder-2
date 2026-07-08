@@ -12,10 +12,10 @@ builder-II documentation is organized as three tiers, each narrower and deeper t
 2. **`FIRST_SESSION.md`** (not written yet) — a single validated onboarding path: clone to first
    governed patch loop in one sitting. Until it lands, **[`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md)**
    is the closest equivalent: the operator golden path (`builder-platform status` / `operator-status`
-   / `next` / `golden-path`) plus the CORE demo loop entrypoint. It intentionally does not describe a
-   generic propose → approve → apply → verify → rollback loop as an available path yet — only what is
-   currently true is documented here; see [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md)
-   and [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) for what is and isn't
+   / `next` / `golden-path`) plus the governed demo loop entrypoint (CORE profile and generic
+   targets) — only what is currently true is documented here; see
+   [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) and
+   [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) for what is and isn't
    promoted.
 3. **This file** — the reference tier: every document in `docs/`, grouped by subsystem, for anyone
    going deeper than the curated map.

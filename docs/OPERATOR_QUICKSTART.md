@@ -1,6 +1,6 @@
 # Operator Quickstart
 
-This guide shows the complete operator golden path lane for builder-II and points to the CORE demo loop used for a real-world recording.
+This guide shows the complete operator golden path lane for builder-II and points to the governed demo loop used for a real-world recording.
 
 builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench, not CORE UI/UX, and not a second CORE runtime. CORE is only a target profile.
 
@@ -34,24 +34,30 @@ bash scripts/clean-clone-smoke.sh
 
 Use `--keep` to preserve the scratch workdir and per-step logs for inspection, `--workdir DIR` to pick a fixed location, `--source PATH_OR_URL` to smoke-test a different remote or tag, and `--budget-seconds N` to change the onboarding-claim ceiling (default 1800s / 30 minutes). Run this before and after any change to onboarding docs, config defaults, or the CLI surfaces it exercises — it is the only defense against onboarding regressions between releases.
 
-## CORE Demo Loop
+## Governed Demo Loop
 
-For a recordable real-world walkthrough against AssetOverflow/core, use the CORE demo loop instead of a fixture:
+For a recordable real-world walkthrough, use the governed demo loop instead of a fixture. It runs against a temporary detached worktree of any operator-designated local git repository; `--target-name core` selects the CORE profile (AssetOverflow/core identity check + sensitive-module policy):
 
 ```bash
-uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
-uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
-uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
-uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
-uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
-uv run builder-platform demo-loop --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
-uv run builder-platform validate-demo-loop /tmp/builder-ii-core-demo/core-demo-loop-report.json
+uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
+uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
+uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
+uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
+uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
+uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
+uv run builder-platform validate-demo-loop /tmp/builder-ii-core-demo/demo-loop-report.json
 ```
 
 The same loop can be run as a one-command recording pass:
 
 ```bash
-uv run builder-platform wow --core-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --approve --force
+uv run builder-platform wow --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --approve --force
+```
+
+For a generic (non-CORE) target, use any display name — no repository identity check applies:
+
+```bash
+uv run builder-platform demo-loop --target-name my-project --target-repo /path/to/my-project --output-dir /tmp/builder-ii-demo --phase prepare --force
 ```
 
 See [CORE Demo Walkthrough](CORE_DEMO_WALKTHROUGH.md) for the narrated flow, artifact map, and evidence-showing script.
@@ -95,7 +101,7 @@ This quickstart lane does not:
 - invoke MCP or external tools
 - use hidden memory or vector stores
 
-The CORE demo loop is a separate governed execution lane. It may apply and roll back one digest-approved temporary documentation marker inside a detached CORE worktree only; it does not mutate the source CORE checkout, commit, push, call models, activate Goose, invoke MCP, or write hidden memory.
+The governed demo loop is a separate governed execution lane. It may apply and roll back one digest-approved temporary documentation marker inside a detached demo worktree only; it does not mutate the source checkout, commit, push, call models, activate Goose, invoke MCP, or write hidden memory.
 
 ## Human Responsibility
 

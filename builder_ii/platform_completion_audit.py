@@ -106,7 +106,7 @@ REQUIRED_CAPABILITIES: tuple[str, ...] = (
     "notes/handoff artifacts",
     "artifact memory",
     "operator quickstart/golden path",
-    "CORE demo loop",
+    "governed demo loop",
     "platform doctor/status/audit",
     "release proof/quality gates",
     "command authority as runtime gate",
@@ -147,7 +147,7 @@ def assurance_state_for_row(row: CapabilityRow) -> AssuranceState:
         return READ_ONLY_RUNTIME_VERIFIED
     if row.capability in {"low-risk tool invocation", "MCP invocation"}:
         return BOUNDED_EXECUTION_VERIFIED
-    if row.capability == "CORE demo loop":
+    if row.capability == "governed demo loop":
         return DEMO_ONLY_VERIFIED
     return PASSIVE_ARTIFACT_VERIFIED
 
@@ -882,17 +882,22 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         "B9 complete",
     ),
     _row(
-        "CORE demo loop",
+        "governed demo loop",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/core_demo_loop.py", "builder_ii/cli/platform_status_cli.py", "docs/OPERATOR_QUICKSTART.md"),
-        ("builder-platform demo-loop", "builder-platform validate-demo-loop", "builder-platform wow"),
-        ("tests/test_core_demo_loop.py", "tests/test_platform_completion_truth.py", "tests/test_command_authority.py"),
         (
-            "Runs against a temporary detached AssetOverflow/core worktree, not a synthetic fixture.",
-            "Mutation is limited to one approved temporary documentation marker patch and is paired with rollback plus final clean postflight.",
-            "No commit, push, model execution, Goose activation, MCP call, hidden memory, or source CORE checkout mutation is promoted.",
+            "builder_ii/demo_loop.py",
+            "builder_ii/cli/platform_status_cli.py",
+            "docs/CORE_DEMO_WALKTHROUGH.md",
+            "docs/audits/B4_9_DEMO_GENERALIZATION_AUDIT.md",
         ),
-        "demo loop complete",
+        ("builder-platform demo-loop", "builder-platform validate-demo-loop", "builder-platform wow"),
+        ("tests/test_demo_loop.py", "tests/test_platform_completion_truth.py", "tests/test_command_authority.py"),
+        (
+            "Runs against a temporary detached worktree of an operator-designated target repo, never the source checkout; AssetOverflow/core remains a supported profile carrying its identity check and sensitive-module policy.",
+            "Mutation is limited to one approved temporary documentation marker patch and is paired with rollback plus final clean postflight.",
+            "No commit, push, model execution, Goose activation, MCP call, hidden memory, or source checkout mutation is promoted.",
+        ),
+        "B4.9 complete",
     ),
     _row(
         "platform doctor/status/audit",
@@ -1025,7 +1030,7 @@ def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_R
         "",
         f"builder-II is passive-foundation-complete and operationally incomplete: {counts[OPERATIONALLY_VERIFIED]} capabilities are operationally verified and {incomplete_count} remain incomplete.",
         "Operational authority is capability-scoped by the matrix; commit/push automation, hidden memory, and source CORE checkout mutation remain unpromoted.",
-        "The CORE demo loop is promoted only for a temporary detached AssetOverflow/core worktree with explicit approval, rollback, and final postflight.",
+        "The governed demo loop is promoted only for a temporary detached worktree of an operator-designated target repo (AssetOverflow/core remains a supported profile) with explicit approval, rollback, and final postflight.",
         f"Next sequence: {NEXT_SEQUENCE}. R1 Config + Onboarding Kernel must precede B1 verification execution.",
         "",
         "Capability states:",

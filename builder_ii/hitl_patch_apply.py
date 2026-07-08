@@ -179,12 +179,16 @@ def _emit_patch_ledger_record(
             pass
 
 
-def _validate_core_demo_verification_receipt(data: Any, *, target_repo: Path | None) -> list[str]:
+def _validate_demo_verification_receipt(data: Any, *, target_repo: Path | None) -> list[str]:
+    # Demo-scoped fallback receipt (builder_ii.demo_verification_receipt) accepted by the
+    # apply gate. It self-describes demo scope and, unlike the general verification receipt
+    # path today, is BOUND to the exact target repo it verified. Decision + rationale:
+    # docs/audits/B4_9_DEMO_GENERALIZATION_AUDIT.md.
     errors: list[str] = []
     if not isinstance(data, dict):
-        return ["core demo verification receipt must be a JSON object"]
-    if data.get("kind") != "builder_ii.core_demo_verification_receipt":
-        errors.append("kind must be builder_ii.core_demo_verification_receipt")
+        return ["demo verification receipt must be a JSON object"]
+    if data.get("kind") != "builder_ii.demo_verification_receipt":
+        errors.append("kind must be builder_ii.demo_verification_receipt")
     if data.get("schema_version") != 1:
         errors.append("schema_version must be 1")
     if data.get("label") != "before_apply":
@@ -196,8 +200,8 @@ def _validate_core_demo_verification_receipt(data: Any, *, target_repo: Path | N
     if not isinstance(target, dict):
         errors.append("target must be an object")
     else:
-        if target.get("name") != "core":
-            errors.append("target.name must be core")
+        if not isinstance(target.get("name"), str) or not target["name"]:
+            errors.append("target.name must be a non-empty string")
         target_path = target.get("repo")
         if not isinstance(target_path, str) or not target_path:
             errors.append("target.repo must be a non-empty string")
@@ -237,8 +241,8 @@ def _verification_receipt_errors(path: Path, *, target_repo: Path | None = None)
         data = json_lib.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return errors
-    if isinstance(data, dict) and data.get("kind") == "builder_ii.core_demo_verification_receipt":
-        return _validate_core_demo_verification_receipt(data, target_repo=target_repo)
+    if isinstance(data, dict) and data.get("kind") == "builder_ii.demo_verification_receipt":
+        return _validate_demo_verification_receipt(data, target_repo=target_repo)
     return errors
 
 
