@@ -439,12 +439,14 @@ def test_obligation_kind_count_exhausted(tmp_path: Path) -> None:
     assert refusals[0]["payload"]["violated_rule"] == "obligation_kind_count_exhausted"
 
 
-def test_status_why_records_are_honestly_spec_only(tmp_path: Path) -> None:
-    """PR-5's status/why records are folded in ahead of their CLI. They MUST be spec-only and
-    marked not-yet-implemented so the registry never claims a live command that errors when run."""
+def test_status_why_records_promoted_to_validation_only_with_live_cli(tmp_path: Path) -> None:
+    """PR-5 landed the status/why CLI, so their command-authority records are promoted out of the
+    spec_only placeholder to validation_only and the commands are registered on the app. The
+    registry must match code: no residual NOT-YET-IMPLEMENTED text, and the live command must
+    exist for each record (no docs-ahead-of-code, and no code-ahead-of-registry)."""
     from builder_ii.orchestration_cli import orchestration_app
 
-    from builder_ii.command_authority import STATE_SPEC_ONLY, get_command_record
+    from builder_ii.command_authority import STATE_VALIDATION_ONLY, get_command_record
 
     live = set()
     import typer
@@ -454,9 +456,9 @@ def test_status_why_records_are_honestly_spec_only(tmp_path: Path) -> None:
     for name in ("builder-orchestration status", "builder-orchestration why"):
         record = get_command_record(name)
         assert record is not None
-        assert record.promotion_state == STATE_SPEC_ONLY, f"{name} must stay spec_only until its CLI lands"
-        assert "NOT YET IMPLEMENTED" in record.runtime_boundary
-        assert name not in live, f"{name} CLI now exists — promote its record out of spec_only"
+        assert record.promotion_state == STATE_VALIDATION_ONLY, f"{name} must be validation_only now its CLI landed"
+        assert "NOT YET IMPLEMENTED" not in record.runtime_boundary
+        assert name in live, f"{name} CLI must be registered on orchestration_app"
 
 
 # ---------------------------------------------------------------------------

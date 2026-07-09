@@ -550,5 +550,77 @@ def validate_obligation(
     console.print(f"[green]Orchestration obligation {path} is valid.[/]")
 
 
+@orchestration_app.command("status")
+def status(
+    run_output_dir: Path = typer.Argument(
+        ..., help="Output directory produced by `builder-deepagents run-approved --obligation ...`"
+    ),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write the status board as JSON to this path"),
+) -> None:
+    """Deterministic read-only obligation status board for one delegation run (Law 2 belief board).
+
+    One row per obligation: board state (OPEN / SATISFIED / UNVERIFIED / VIOLATED / BLOCKED) plus
+    the granted budget partition. No model, no execution, no writes. Exits non-zero on a broken or
+    tampered event chain, or on missing run artifacts.
+    """
+    from builder_ii.orchestration_status import build_obligation_board, render_status_table
+
+    try:
+        board = build_obligation_board(run_output_dir)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1)
+
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json_lib.dumps(board, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        console.print(f"[green]Status board written to {output}[/]")
+    else:
+        # A wide, un-color local console: the board can have long digests/kinds, and the shared
+        # `console` defaults to a narrow width that wraps/truncates table cells unpredictably.
+        Console(width=200).print(render_status_table(board))
+
+    if not board["chain_valid"]:
+        for error in board["chain_errors"]:
+            console.print(f"[red]{error}[/]")
+        raise typer.Exit(1)
+
+
+@orchestration_app.command("why")
+def why(
+    artifact_path: Path = typer.Argument(
+        ...,
+        help="Path to one obligation lifecycle event JSON "
+        "(obligation_minted / obligation_mint_refused / obligation_consumed) under a run's events/ directory",
+    ),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write the belief trace as JSON to this path"),
+) -> None:
+    """Deterministic read-only belief trace for one obligation (Law 2: no belief without discharge).
+
+    No model, no execution, no writes. Exits non-zero unless the obligation is CONTRACT_SATISFIED
+    with an intact event chain.
+    """
+    from builder_ii.orchestration_status import build_belief_trace
+
+    try:
+        trace = build_belief_trace(artifact_path)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1)
+
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json_lib.dumps(trace, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    # soft_wrap: the verdict line must stay a single unbroken line regardless of terminal width.
+    console.print(trace["verdict_line"], soft_wrap=True)
+
+    if not trace["chain_valid"]:
+        for error in trace["chain_errors"]:
+            console.print(f"[red]{error}[/]")
+        raise typer.Exit(1)
+    if not trace["believed"]:
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     orchestration_app()

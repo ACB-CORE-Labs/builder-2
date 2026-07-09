@@ -56,8 +56,8 @@ validate time (read-only; the policy never edits the registry).
 
 ## CLI surface (`builder-orchestration`)
 
-All four commands are Tier 1 (artifact-only / validation-only), require no approval, and never run,
-spawn, call models, or mutate a target repository.
+All six commands are Tier 1 (artifact-only / read-only / validation-only), require no approval,
+and never run, spawn, call models, or mutate a target repository.
 
 ```bash
 # Render the lane policy (deterministic; also checks the registry linkage)
@@ -81,6 +81,42 @@ builder-orchestration validate-obligation obligation.json
 `mint-obligation` refuses fail-closed on: a lane/kind mismatch, anti-dump or schema violations, a
 `parent_ref` that is not exactly one of seal/obligation, or a `briefing_bytes` that exceeds
 `max_output_bytes`. The emitted obligation is validated before it is written.
+
+### `status` / `why` — read-only belief walks over a run (Ladder 4 PR-5)
+
+Two deterministic, read-only reports over a `builder-deepagents run-approved --obligation` output
+directory. Both re-derive the event replay fresh from the raw per-event JSON files on disk (never
+from the cached `deepagents-replay-report.json` snapshot, which would be stale against any
+post-run tampering) and cross-check the run's execution receipt and event ledger artifacts.
+
+```bash
+# One row per obligation minted/refused in the run: board state + granted budget partition.
+builder-orchestration status runs/obl --output board.json
+
+# The belief trace for exactly one obligation, located by one of its lifecycle event files
+# (obligation_minted / obligation_mint_refused / obligation_consumed under the run's events/ dir).
+builder-orchestration why runs/obl/events/event-0006-obligation_consumed.json
+```
+
+`status` renders one row per obligation with a **board state** — `OPEN` (minted, not yet
+discharged), `SATISFIED`, `UNVERIFIED`, `VIOLATED`, or `BLOCKED` (superset of the runner's
+`DISCHARGE_STATES`: `OPEN` covers a run that ended before an obligation reached
+`obligation_consumed`) — plus the `max_subagents` / `max_events` / `max_output_bytes` /
+`max_human_gates` budget granted at mint time. A `BLOCKED` row from a refused mint has no budget
+column: the runner's `obligation_mint_refused` event never stamps the attempted budget, so the
+board reports it honestly as unknown rather than fabricating a value.
+
+`why` prints a one-line belief verdict, e.g. `believed? NO — DISCHARGED_UNVERIFIED; required:
+builder_ii.verification_execution_receipt; attached: none; consumed: yes`, and exits non-zero
+unless the obligation is `CONTRACT_SATISFIED` with an intact event chain. Both commands exit
+non-zero on a broken/tampered event chain or missing run artifacts.
+
+**Registration note:** `status` and `why` are registered in `COMMAND_AUTHORITY_REGISTRY` as
+`STATE_SPEC_ONLY` ahead of this CLI landing (PR-4), so that PR-5 — a Sonnet new-file surface —
+never edits the contended registry. Moving both records out of `STATE_SPEC_ONLY` and refreshing
+their `runtime_boundary` text to describe the live CLI is a follow-up registry-only change; until
+it lands, `test_status_why_records_are_honestly_spec_only`
+(`tests/test_orchestration_delegation_run.py`) intentionally fails, naming exactly that gap.
 
 ## The sealed runner (`builder-deepagents run-approved --obligation`)
 
