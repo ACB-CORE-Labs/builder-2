@@ -34,6 +34,7 @@ Environment is managed with `uv` (Python 3.12.13, locked via `uv.lock`).
 
 ```bash
 uv sync --all-groups                # install deps (Python + dev group)
+bash scripts/ci.sh                  # the full blocking gate battery — exactly what CI runs
 uv run pytest -q                    # full test suite (testpaths = tests/)
 uv run pytest tests/test_foo.py -q  # single test file
 uv run pytest tests/test_foo.py::test_name -q   # single test
@@ -49,7 +50,7 @@ uv run python scripts/verify_v0_release.py   # v0 structural/governance release 
 bash scripts/clean-clone-smoke.sh   # repeatable clean-clone onboarding + governed patch-loop smoke gate (plan 2.7)
 ```
 
-`.github/workflows/ci.yml` is the authoritative gate list (Rust build → bytecode compile → docs truth audit → secret scan/gitleaks → ruff → targeted mypy → targeted bandit → full pytest). Reproduce that sequence locally before considering work done.
+`scripts/ci.sh` is the authoritative list of **blocking** gates (Rust build → bytecode compile → docs truth audit → secret scan → ruff → targeted mypy → targeted bandit → full pytest). Run `bash scripts/ci.sh` before considering work done — do not transcribe the sequence by hand. `.github/workflows/ci.yml` provisions an environment and then calls that same script, so local and CI runs cannot drift (`tests/test_ci_gate_parity.py` pins it). Gitleaks is workflow-only and `continue-on-error` — advisory, never blocking.
 
 There is no Makefile/justfile — `uv run <tool>` and the `builder-*` console scripts (defined in `pyproject.toml [project.scripts]`, ~40 of them) are the whole surface.
 

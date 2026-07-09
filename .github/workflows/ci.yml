@@ -1,6 +1,15 @@
-# NOTE: Branch protection is an external repository-level setting managed on GitHub.com.
-# It is NOT a code-level guarantee and cannot be fully enforced by this file.
-# Administrators must manually configure branch protection settings.
+# NOTE: Branch protection is an external repository-level setting managed on the
+# hosting server. It is NOT a code-level guarantee and cannot be fully enforced by
+# this file. Administrators must manually configure branch protection settings.
+#
+# This workflow provisions an environment and then delegates every BLOCKING gate to
+# `scripts/ci.sh`, which is the single source of truth for the gate battery. Do not
+# add a gate here -- add it to `scripts/ci.sh`, so that a developer running the
+# battery locally runs exactly what CI runs. `tests/test_ci_gate_parity.py` pins this.
+#
+# The one workflow-only step is gitleaks: it is an Action, needs a token, and is
+# `continue-on-error: true` -- advisory, never blocking, so it cannot change whether
+# the battery is green.
 
 name: CI
 
@@ -30,67 +39,11 @@ jobs:
       - name: Sync Python environment
         run: uv sync --all-groups
 
-      - name: Build Rust validator
-        run: cargo build --manifest-path builder_ii_validation_rs/Cargo.toml
-
-      - name: Python bytecode compile
-        run: uv run python -m compileall -q builder_ii tests
-
-      - name: Documentation truth audit
-        run: |
-          uv run builder-platform audit-docs
-          uv run builder-platform matrix
-
-      - name: High-confidence secret scan
-        run: |
-          uv run python - <<'PY'
-          import pathlib
-          import re
-          import subprocess
-          import sys
-
-          patterns = [
-              re.compile(r"sk-[A-Za-z0-9_]{32,}"),
-              re.compile(r"gsk_[A-Za-z0-9_]{32,}"),
-              re.compile(r"AIza[A-Za-z0-9_-]{35}"),
-              re.compile(r"ghp_[A-Za-z0-9]{36}"),
-          ]
-          excluded_prefixes = ("tests/", "docs/", ".github/workflows/ci.yml")
-          files = subprocess.check_output(["git", "ls-files"], text=True).splitlines()
-          hits = []
-          for name in files:
-              if name.startswith(excluded_prefixes):
-                  continue
-              path = pathlib.Path(name)
-              if path.suffix in {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".lock"}:
-                  continue
-              try:
-                  text = path.read_text(encoding="utf-8", errors="ignore")
-              except OSError:
-                  continue
-              for pattern in patterns:
-                  if pattern.search(text):
-                      hits.append(f"{name}: {pattern.pattern}")
-          if hits:
-              print("Potential secrets detected:")
-              print("\n".join(hits))
-              sys.exit(1)
-          PY
-
-      - name: Run Gitleaks scan
+      - name: Run Gitleaks scan (advisory, non-blocking)
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true # Keep as warning/information unless explicitly blocked by repo admin
 
-      - name: Run Ruff Linter
-        run: uv run ruff check builder_ii tests
-
-      - name: Run Targeted MyPy Typecheck
-        run: uv run mypy
-
-      - name: Run Targeted Bandit Security Scan
-        run: uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
-
-      - name: Test suite
-        run: uv run pytest -q
+      - name: Blocking gate battery
+        run: bash scripts/ci.sh
