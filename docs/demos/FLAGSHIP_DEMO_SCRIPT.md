@@ -233,3 +233,77 @@ The tamper beat is pinned by tests, not by hope:
 `tests/test_demo_loop.py::test_demo_validate_cli_catches_tampered_receipt` and
 `::test_demo_validate_cli_catches_retargeted_approval`. The loop itself is covered by the rest of
 `tests/test_demo_loop.py` and the clean-clone smoke gate (`scripts/clean-clone-smoke.sh`).
+
+## Act II — tamper the cognition chain (sequel, not part of the promoted take)
+
+This sequel is not part of the fifteen-minute take above, and it exercises a capability that is
+governed but not yet promoted (see `docs/ORCHESTRATION_OBLIGATIONS.md` and
+`planning/LADDER4_OBLIGATION_DELEGATION_PLAN.md`): the Ladder 4 governed obligation delegation
+lane, one layer up the delegation tree from the patch lane Act I tampers. Where Act I edits a
+receipt, Act II edits one event inside the sealed runner's own hash-chained event log — the same
+"evidence you can't check is theater" lesson, one level deeper into the machinery, over the
+`protocol_fake` backend as CI truth.
+
+Setup (all real, existing commands — nothing here is a recorded take):
+
+```bash
+# 1. Render the lane policy and seal a candidate with an obligation envelope.
+uv run builder-orchestration lane-policy --output lane-policy.json
+uv run builder-deepagents execution-candidate --work-plan plan.json --output-root runs/ \
+    --lane-policy lane-policy.json --allowed-obligation-kind planning_step:4 \
+    --refused-lane goose --output candidate.json
+uv run builder-deepagents approve-candidate --candidate candidate.json \
+    --approval-actor "Op" --approval-reason "seal the envelope" --output approval.json
+
+# 2. Mint an obligation and run it under the seal (protocol_fake backend, no dispatch,
+#    no model calls, no writes — an artifact-only lane).
+uv run builder-orchestration mint-obligation --obligation-kind planning_step \
+    --task "..." --expected-kind builder_ii.deepagents_proposal_only_result \
+    --subagent-profile repo_mapper --lane-policy lane-policy.json \
+    --seal-digest <approval_digest> --max-subagents 1 --max-events 10 \
+    --max-output-bytes 1024 --max-human-gates 0 --output obligation.json
+uv run builder-deepagents run-approved --candidate candidate.json --approval approval.json \
+    --output-dir runs/obl --obligation obligation.json
+```
+
+`run-approved` writes one `event-XXXX-<event_type>.json` file per event under `runs/obl/events/`;
+each one carries its own digest and a `previous_event_sha256` link to the event immediately before
+it — a hash chain, not just a list.
+
+Tamper one on camera:
+
+```bash
+python3 - <<'EOF'
+import json, glob
+path = sorted(glob.glob("runs/obl/events/event-*-obligation_consumed.json"))[0]
+d = json.load(open(path))
+d["payload"]["discharge_state"] = "CONTRACT_VIOLATED"   # lie about what was actually discharged
+json.dump(d, open(path, "w"), indent=2, sort_keys=True)
+print("event edited:", path)
+EOF
+
+uv run builder-deepagents replay-run --events-dir runs/obl/events --output runs/obl/replay-after-tamper.json
+```
+
+The replay comes back `"valid": false`: the forged event's own digest no longer matches its
+content, and the very next event's `previous_event_sha256` no longer matches the (now different)
+hash of the event before it. Both are named by file path in the report's `errors`.
+
+> "The event you edited announces itself, and so does the one right after it. You cannot forge one
+> link in this chain without the next link telling on you."
+
+Honesty notes, if asked: the replay report written at run completion is a snapshot from that
+moment — it does not retroactively invalidate itself when a file is edited afterward; only a fresh
+`replay-run` (or the equivalent reconstruction from events on disk) catches a change made after the
+fact. This is a hash-chain integrity check, not a cryptographic signature. Minting an obligation
+remains an inert JSON artifact — nothing above starts, dispatches, or autonomously spawns anything;
+the optional native `deepagents` backend is a separate, two-key-gated surface this beat does not
+touch or claim.
+
+### Covering lanes (Act II)
+
+`tests/scenarios/test_full_obligation_delegation_lane.py` drives this exact sequence unmocked —
+lane policy, sealed candidate, obligations covering all four discharge outcomes
+(`CONTRACT_SATISFIED`, `DISCHARGED_UNVERIFIED`, `CONTRACT_VIOLATED`, `BLOCKED`, the last from a
+mint the seal refuses for widening past its budget), and the tamper beat above — and pins that the
+forged event is named and that the chain break is reported on the `previous_event_sha256` link.
