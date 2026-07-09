@@ -17,6 +17,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 CI_SCRIPT = REPO_ROOT / "scripts" / "ci.sh"
 SECRET_SCAN = REPO_ROOT / "scripts" / "secret_scan.py"
+# gate()/skip() -- the functions the no-pager and strict-flag pins below exist to protect --
+# live here, not in CI_SCRIPT. Both files are covered by both pins for exactly that reason.
+GATE_BATTERY_LIB = REPO_ROOT / "scripts" / "lib" / "gate_battery_receipt.sh"
 
 # Every blocking gate, as it must appear in scripts/ci.sh.
 REQUIRED_GATES: tuple[str, ...] = (
@@ -70,6 +73,12 @@ def test_ci_script_and_secret_scan_exist() -> None:
     assert SECRET_SCAN.is_file(), "the secret scan must be a file, not an inline workflow heredoc"
 
 
+def test_gate_battery_lib_exists_and_is_sourced_by_the_script() -> None:
+    assert GATE_BATTERY_LIB.is_file(), "gate()/skip() live in scripts/lib/gate_battery_receipt.sh"
+    script = CI_SCRIPT.read_text(encoding="utf-8")
+    assert "scripts/lib/gate_battery_receipt.sh" in script, "scripts/ci.sh must source the shared gate-running lib"
+
+
 def test_workflow_delegates_to_the_gate_battery() -> None:
     body = CI_WORKFLOW.read_text(encoding="utf-8")
     assert "scripts/ci.sh" in body, "ci.yml must call scripts/ci.sh"
@@ -93,14 +102,20 @@ def test_gate_battery_contains_every_blocking_gate() -> None:
 
 
 def test_gate_battery_never_pipes_a_gate_into_a_pager() -> None:
-    """Piping a gate into head/tail reports the PAGER's exit status, so a red gate reads green."""
-    script = CI_SCRIPT.read_text(encoding="utf-8")
-    for line in script.splitlines():
-        if line.strip().startswith("#"):
-            continue
-        assert "| tail" not in line and "| head" not in line, (
-            f"scripts/ci.sh pipes a gate into a pager, masking its exit code: {line!r}"
-        )
+    """Piping a gate into head/tail reports the PAGER's exit status, so a red gate reads green.
+
+    Covers scripts/ci.sh AND scripts/lib/gate_battery_receipt.sh: gate()'s `"$@"` invocation --
+    the only place a gate actually runs -- lives in the lib, not in ci.sh, so a pin scoped to
+    ci.sh alone would no longer be watching the thing it exists to protect.
+    """
+    for path in (CI_SCRIPT, GATE_BATTERY_LIB):
+        script = path.read_text(encoding="utf-8")
+        for line in script.splitlines():
+            if line.strip().startswith("#"):
+                continue
+            assert "| tail" not in line and "| head" not in line, (
+                f"{path.relative_to(REPO_ROOT)} pipes a gate into a pager, masking its exit code: {line!r}"
+            )
 
 
 def test_gate_battery_does_not_double_quiet_pytest() -> None:
@@ -113,3 +128,17 @@ def test_gate_battery_sets_strict_shell_flags() -> None:
     script = CI_SCRIPT.read_text(encoding="utf-8")
     for flag in ("set -o errexit", "set -o nounset", "set -o pipefail"):
         assert flag in script, f"scripts/ci.sh must {flag} so a failing gate aborts the battery"
+
+    # The lib doesn't set these itself (it's sourced, not run) -- it must instead REFUSE to
+    # load when the caller hasn't, rather than merely documenting the requirement in a comment.
+    # A prior review round mutation-tested the pre-fix lib (no enforcement, comment only): a
+    # gate piped into `tail` still passed all seven parity pins, because none of them read the
+    # file the mutation was in. Not a live defect -- ci.sh's own `pipefail` already stops that
+    # specific mutation from turning a red gate green -- but a guarantee that had silently
+    # stopped covering the only place a gate now runs.
+    lib = GATE_BATTERY_LIB.read_text(encoding="utf-8")
+    for flag in ("-o errexit", "-o nounset", "-o pipefail"):
+        assert flag in lib, (
+            f"scripts/lib/gate_battery_receipt.sh must assert {flag} at source time and refuse "
+            "otherwise, not merely document the requirement in a comment"
+        )

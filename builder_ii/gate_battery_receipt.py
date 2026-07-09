@@ -50,9 +50,11 @@ from __future__ import annotations
 
 import datetime
 import json as json_lib
+import os
 import platform
 import shutil
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -220,8 +222,29 @@ def dumps_gate_battery_receipt(receipt: dict[str, Any]) -> str:
 
 
 def write_gate_battery_receipt(receipt: dict[str, Any], output: Path) -> None:
+    """Write the receipt atomically: a temp file in the *same* directory, then ``os.replace``.
+
+    Two failures this closes, both proven by running the pre-fix code, not by reading it: (1) a
+    plain ``write_text`` over a pre-existing read-only receipt raises and leaves the stale file
+    -- possibly naming a commit that was never run -- untouched on disk; ``os.replace`` only
+    needs write permission on the *directory*, so it succeeds regardless of the old file's mode.
+    (2) a partial write (process killed mid-write, disk full) can never leave truncated JSON at
+    ``output``, because the temp file is what receives partial content, and it is only ever
+    renamed into place after a complete, successful write.
+    """
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(dumps_gate_battery_receipt(receipt), encoding="utf-8")
+    text = dumps_gate_battery_receipt(receipt)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{output.name}.", suffix=".tmp", dir=str(output.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        os.replace(tmp_name, output)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
 
 
 def _validate_gates(value: Any) -> tuple[list[str], dict[str, list[str]]]:
@@ -498,7 +521,14 @@ def _cmd_build(argv: list[str]) -> int:
         head_sha_after=head_sha_after,
         working_tree_clean=working_tree_clean_raw.strip().lower() == "true",
     )
-    write_gate_battery_receipt(receipt, Path(output))
+    try:
+        write_gate_battery_receipt(receipt, Path(output))
+    except OSError as exc:
+        # A receipt that was requested and not produced must never look like success: no bare
+        # traceback, no swallowed exception, and the caller (scripts/ci.sh) must see a non-zero
+        # exit here so it can refuse to let a green battery hide behind a failed write.
+        print(f"gate battery receipt could not be written to {output}: {exc}", file=sys.stderr)
+        return 1
     print(f"gate battery receipt written: {output} (overall_state={receipt['overall_state']})")
     if receipt["errors"]:
         for error in receipt["errors"]:

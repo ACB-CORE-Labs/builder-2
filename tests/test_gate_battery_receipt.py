@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+
+import pytest
 
 from builder_ii.gate_battery_receipt import (
     GATE_BATTERY_RECEIPT_KIND,
@@ -339,6 +342,101 @@ def test_write_and_validate_file_round_trip(tmp_path: Path) -> None:
     assert validate_gate_battery_receipt_file(output) == []
     reloaded = json.loads(output.read_text(encoding="utf-8"))
     assert reloaded == receipt
+
+
+# --- atomic write: proven failure modes from PR #51 review round 1 -----------------------------
+#
+# The pre-fix code was `output.parent.mkdir(...); output.write_text(...)`. Reproduced by running
+# it, not by reading it: a pre-existing read-only receipt file raised and left its stale content
+# on disk untouched -- possibly naming a commit that was never run, next to a process exit of 0
+# one level up (scripts/lib/gate_battery_receipt.sh's old `|| true`). The fix writes to a temp
+# file in the *same* directory and calls os.replace, which only needs write permission on the
+# directory, never on the target file it is replacing.
+
+
+def test_write_replaces_a_preexisting_read_only_file_no_stale_content_survives(tmp_path: Path) -> None:
+    output = tmp_path / "receipt.json"
+    output.write_text('{"note": "seeded stale receipt naming a commit that was never run"}', encoding="utf-8")
+    output.chmod(0o444)
+
+    fresh = _receipt(gates=[_passed_gate("a")])
+    try:
+        write_gate_battery_receipt(fresh, output)
+    finally:
+        output.chmod(0o644)  # tmp_path cleanup needs write permission back
+
+    reloaded = json.loads(output.read_text(encoding="utf-8"))
+    assert reloaded == fresh
+    assert "seeded stale receipt" not in output.read_text(encoding="utf-8")
+
+
+def test_write_leaves_no_leftover_temp_file_on_success(tmp_path: Path) -> None:
+    output = tmp_path / "receipt.json"
+    write_gate_battery_receipt(_receipt(), output)
+    assert [entry.name for entry in tmp_path.iterdir()] == ["receipt.json"]
+
+
+def test_write_failure_leaves_no_leftover_temp_file_and_does_not_touch_target(tmp_path: Path, monkeypatch) -> None:
+    output = tmp_path / "receipt.json"
+    output.write_text("original content", encoding="utf-8")
+
+    def _boom(*_args, **_kwargs):
+        raise OSError("simulated failure between the temp write and the rename")
+
+    monkeypatch.setattr("builder_ii.gate_battery_receipt.os.replace", _boom)
+
+    with pytest.raises(OSError):
+        write_gate_battery_receipt(_receipt(), output)
+
+    assert output.read_text(encoding="utf-8") == "original content", "an interrupted write must never truncate the target"
+    assert [entry.name for entry in tmp_path.iterdir()] == ["receipt.json"], "the temp file must be cleaned up, not left behind"
+
+
+@pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root bypasses permission bits")
+def test_write_to_unwritable_parent_raises_oserror_not_silently(tmp_path: Path) -> None:
+    output = tmp_path / "does-not-exist" / "nested" / "receipt.json"
+    parent_root = tmp_path / "does-not-exist"
+    parent_root.mkdir()
+    parent_root.chmod(0o000)
+    try:
+        with pytest.raises(OSError):
+            write_gate_battery_receipt(_receipt(), output)
+    finally:
+        parent_root.chmod(0o755)  # tmp_path cleanup needs this back
+
+
+@pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root bypasses permission bits")
+def test_cli_build_reports_write_failure_loudly_and_exits_nonzero_not_zero(tmp_path: Path, capsys) -> None:
+    log = tmp_path / "gates.jsonl"
+    main(["record-gate", "--log", str(log), "--name", "a", "--exit-code", "0", "--duration", "1", "--", "true"])
+    unwritable_parent = tmp_path / "locked"
+    unwritable_parent.mkdir()
+    unwritable_parent.chmod(0o000)
+    output = unwritable_parent / "receipt.json"
+
+    try:
+        rc = main(
+            [
+                "build",
+                "--gate-log",
+                str(log),
+                "--output",
+                str(output),
+                "--head-sha-before",
+                _SHA_A,
+                "--head-sha-after",
+                _SHA_A,
+                "--working-tree-clean",
+                "true",
+            ]
+        )
+    finally:
+        unwritable_parent.chmod(0o755)
+
+    assert rc != 0
+    captured = capsys.readouterr()
+    assert "could not be written" in captured.err
+    assert not output.exists()
 
 
 def test_dumps_is_stable_and_ends_with_newline() -> None:

@@ -10,10 +10,15 @@ git repo with a tiny, fully controlled fake gate list, so the mechanism -- gate(
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from builder_ii.gate_battery_receipt import find_absolute_paths
+
+_ROOT_SKIP = pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root bypasses permission bits")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GBR_LIB = REPO_ROOT / "scripts" / "lib" / "gate_battery_receipt.sh"
@@ -171,6 +176,151 @@ def test_receipt_from_the_real_mechanism_passes_the_paired_validator(tmp_path: P
         timeout=60,
     )
     assert validate.returncode == 0, validate.stderr
+
+
+# --- review round 1 must-fix: a receipt that cannot be written must never look like success ---
+#
+# Reproduced against the pre-fix code before writing these: an unwritable parent directory
+# exited 0 with no receipt (the PermissionError was buried in stderr); a pre-existing read-only
+# receipt file also exited 0, leaving a *stale* receipt on disk -- naming a commit that was
+# never run -- untouched, because `output.write_text(...)` raised before writing anything and
+# the shell wrapped the whole call in `|| true`. Fixed by making the Python-side write atomic
+# (temp file + os.replace, which only needs directory write permission) and replacing `|| true`
+# with an explicit non-zero exit whenever a requested receipt was not produced, without ever
+# overwriting a real gate failure's own exit code.
+
+
+@_ROOT_SKIP
+def test_unwritable_parent_directory_yields_nonzero_exit_loud_stderr_no_receipt(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = _write_battery(tmp_path, repo, 'gate "fake pass" true\n')
+    unwritable_parent = tmp_path / "locked"
+    unwritable_parent.mkdir()
+    unwritable_parent.chmod(0o000)
+    receipt_path = unwritable_parent / "receipt.json"
+
+    try:
+        result = _run(script, "--receipt", str(receipt_path))
+    finally:
+        unwritable_parent.chmod(0o755)  # tmp_path cleanup needs this back
+
+    assert result.returncode != 0, "a green battery whose requested receipt is missing must not exit 0"
+    assert "could NOT be written" in result.stderr
+    assert not receipt_path.exists()
+
+
+def test_readonly_preexisting_receipt_no_stale_content_survives_a_green_battery(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = _write_battery(tmp_path, repo, 'gate "fake pass" true\n')
+    receipt_path = tmp_path / "receipt.json"
+    receipt_path.write_text(
+        json.dumps({"head_sha_before": "deadbeef" * 5, "overall_state": "FAILED", "note": "seeded stale receipt"}),
+        encoding="utf-8",
+    )
+    receipt_path.chmod(0o444)
+
+    try:
+        result = _run(script, "--receipt", str(receipt_path))
+    finally:
+        receipt_path.chmod(0o644)  # tmp_path cleanup needs this back
+
+    # os.replace only needs directory write permission, so the atomic write succeeds even
+    # though the pre-existing file was read-only -- the exact case that used to leave the stale
+    # "deadbeef" receipt behind next to exit 0.
+    assert result.returncode == 0, result.stderr
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["head_sha_before"] != "deadbeef" * 5
+    assert receipt["overall_state"] == "PASSED"
+    assert "seeded stale receipt" not in receipt_path.read_text(encoding="utf-8")
+
+
+@_ROOT_SKIP
+def test_failing_gate_with_unwritable_receipt_keeps_the_gates_own_exit_code(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = _write_battery(tmp_path, repo, 'gate "fake fail" bash -c "exit 42"\n')
+    unwritable_parent = tmp_path / "locked"
+    unwritable_parent.mkdir()
+    unwritable_parent.chmod(0o000)
+    receipt_path = unwritable_parent / "receipt.json"
+
+    try:
+        result = _run(script, "--receipt", str(receipt_path))
+    finally:
+        unwritable_parent.chmod(0o755)
+
+    assert result.returncode == 42, "the gate's own code must survive, never the receipt writer's"
+    assert "could NOT be written" in result.stderr
+
+
+def test_lib_refuses_to_load_without_pipefail(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = tmp_path / "no_pipefail.sh"
+    script.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -o errexit\n"
+        "set -o nounset\n"
+        "# deliberately no pipefail\n"
+        f'cd "{repo}"\n'
+        f'source "{GBR_LIB}"\n'
+        'echo "should not reach here"\n',
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+
+    result = _run(script)
+
+    assert result.returncode != 0
+    assert "pipefail" in result.stderr
+    assert "should not reach here" not in result.stdout
+
+
+# --- review round 1 note (deliberate decision, not a must-fix): record-gate can fail too -------
+#
+# `_gbr_run_receipt_tool record-gate ...` used to run as a bare command inside gate()/skip(),
+# under errexit. If it failed (full disk, a bug in the tool), the shell would abort right there
+# with the RECORDER's exit code, masking the real gate's result -- a battery whose "fake fail"
+# gate genuinely exits 42 would instead report exit 1 (record-gate's own failure), and a fully
+# green battery could abort mid-run for a reason with nothing to do with the code under test.
+# Decision: never let receipt bookkeeping override the battery's real verdict. `_gbr_record_gate`
+# warns loudly on stderr and carries on; the affected gate is then honestly missing from
+# gates[] (never fabricated) rather than corrupting the battery's exit code.
+
+
+def test_failing_record_gate_does_not_mask_the_real_gates_exit_code(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = tmp_path / "battery.sh"
+    script.write_text(
+        "#!/usr/bin/env bash\n"
+        "set -o errexit\n"
+        "set -o nounset\n"
+        "set -o pipefail\n"
+        f'cd "{repo}"\n'
+        f'source "{GBR_LIB}"\n'
+        # Redefines the sourced function: record-gate always fails, build still runs for real.
+        "_gbr_run_receipt_tool() {\n"
+        '  if [ "$1" = "record-gate" ]; then\n'
+        "    return 1\n"
+        "  fi\n"
+        '  command uv run --project "$_GBR_REPO_ROOT" python -m builder_ii.gate_battery_receipt "$@"\n'
+        "}\n"
+        '_gbr_parse_args "$@"\n'
+        "_gbr_init\n"
+        "trap _gbr_emit_receipt EXIT\n"
+        'gate "fake fail" bash -c "exit 42"\n',
+        encoding="utf-8",
+    )
+    script.chmod(0o755)
+    receipt_path = tmp_path / "receipt.json"
+
+    result = _run(script, "--receipt", str(receipt_path))
+
+    assert result.returncode == 42, "the gate's own exit code must survive a failing recorder, not the recorder's"
+    assert "could not record a gate" in result.stderr
 
 
 def test_env_var_absolute_path_never_leaks_into_receipt(tmp_path: Path) -> None:
