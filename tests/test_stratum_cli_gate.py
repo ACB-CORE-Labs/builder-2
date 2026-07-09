@@ -1,7 +1,9 @@
 """`builder stratum` refuses to launch without `--experimental` (plan item 3.13 / D5).
 
-STRATUM is a display-only mockup (fake tier evaluation, fabricated chain digest,
-notify-only HITL approve/reject) — it must not launch by default.
+The gate exists because STRATUM is a pre-release surface, not because of any single unfinished
+widget. What is true of it today: command tier evaluation is real; no chain digest is displayed,
+because none is reachable; HITL approve/reject are constitutive refusals rather than pending
+features; and the HITL diff viewer is still a mockup. It must not launch by default.
 """
 
 from __future__ import annotations
