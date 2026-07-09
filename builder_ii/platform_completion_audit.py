@@ -103,6 +103,7 @@ REQUIRED_CAPABILITIES: tuple[str, ...] = (
     "deepagents policy/readiness",
     "deepagents passive work artifacts",
     "deepagents runtime/subagents",
+    "governed obligation delegation",
     "notes/handoff artifacts",
     "artifact memory",
     "operator quickstart/golden path",
@@ -145,7 +146,7 @@ def assurance_state_for_row(row: CapabilityRow) -> AssuranceState:
         return LIVE_PROVIDER_VERIFIED
     if row.capability in {"governed read-only runtime", "Goose readonly runtime"}:
         return READ_ONLY_RUNTIME_VERIFIED
-    if row.capability in {"low-risk tool invocation", "MCP invocation"}:
+    if row.capability in {"low-risk tool invocation", "MCP invocation", "governed obligation delegation"}:
         return BOUNDED_EXECUTION_VERIFIED
     if row.capability == "governed demo loop":
         return DEMO_ONLY_VERIFIED
@@ -825,15 +826,67 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "deepagents runtime/subagents",
         OPERATIONALLY_VERIFIED,
-        ("builder_ii/cli/deepagents_cli.py", "docs/DEEPAGENTS_POLICY.md", "builder_ii/deepagents_runtime.py"),
-        ("builder-deepagents", "builder-deepagents run-plan", "builder-deepagents collect-results"),
+        (
+            "builder_ii/cli/deepagents_cli.py",
+            "docs/DEEPAGENTS_POLICY.md",
+            "builder_ii/deepagents_runtime.py",
+            "builder_ii/deepagents_execution.py",
+        ),
+        (
+            "builder-deepagents",
+            "builder-deepagents execution-candidate",
+            "builder-deepagents approve-candidate",
+            "builder-deepagents run-approved",
+            "builder-deepagents replay-run",
+            "builder-deepagents collect-results",
+        ),
         (
             "tests/test_deepagents_policy.py",
             "tests/test_deepagents_work_artifacts.py",
             "tests/test_deepagents_runtime.py",
+            "tests/test_deepagents_execution.py",
         ),
-        ("deepagents runtime is operationally verified with subagent execution receipts and proposal-only results.",),
+        (
+            "The verified runtime trunk is execution-candidate -> approve-candidate (flag-driven, digest-bound seal) -> run-approved over the protocol_fake backend, with execution receipts, a tamper-evident event chain, replay, and proposal-only results.",
+            "builder-deepagents run-plan is a legacy structural projection, not the trunk: it runs no backend and verifies nothing (its summaries say so); run-plan outputs are not execution evidence.",
+            "The native optional_deepagents backend remains unpromoted behind the backend readiness gate and the two-key acknowledgement.",
+        ),
         "B6",
+    ),
+    _row(
+        "governed obligation delegation",
+        OPERATIONALLY_VERIFIED,
+        (
+            "builder_ii/orchestration_obligation.py",
+            "builder_ii/orchestration_lane_policy.py",
+            "builder_ii/deepagents_execution.py",
+            "builder_ii/verification_promotion_gate.py",
+            "docs/ORCHESTRATION_OBLIGATIONS.md",
+            "docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md",
+        ),
+        (
+            "builder-orchestration lane-policy",
+            "builder-orchestration validate-lane-policy",
+            "builder-orchestration mint-obligation",
+            "builder-orchestration validate-obligation",
+            "builder-orchestration status",
+            "builder-orchestration why",
+            "builder-deepagents run-approved",
+        ),
+        (
+            "tests/test_orchestration_obligation.py",
+            "tests/test_orchestration_lane_policy.py",
+            "tests/test_orchestration_delegation_run.py",
+            "tests/scenarios/test_full_obligation_delegation_lane.py",
+            "tests/scenarios/test_promotion_gate_delegation_tree.py",
+            "tests/test_ladder4_closure_evidence.py",
+        ),
+        (
+            "Verified over the protocol_fake backend as CI truth: one flag-driven digest-bound seal opens the obligation envelope; every mint is enforced fail-closed against it (named refusals carrying fixing edits); discharges classify CONTRACT_SATISFIED / DISCHARGED_UNVERIFIED / CONTRACT_VIOLATED / BLOCKED; the event chain is digest-stamped, tamper-evident, and replayable (Ladder 4 PR-8; docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md).",
+            "The native optional_deepagents backend is NOT covered by this row: it remains a separate readiness-gated, two-key-acknowledged claim with no promoted execution, and this row never implies agent-output quality.",
+            "No autonomous dispatch, model execution, tool/shell/Goose/MCP invocation, source writes, or hidden memory; mutation obligations discharge only through the already-promoted HITL patch lane, verification obligations only through the approved verification lane.",
+        ),
+        "Ladder 4 complete (PR-8)",
     ),
     _row(
         "notes/handoff artifacts",

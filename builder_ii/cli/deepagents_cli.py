@@ -728,7 +728,9 @@ def approve_candidate(
     ),
     output: Path | None = typer.Option(None, "--output", help="Write execution approval JSON to path"),
 ) -> None:
-    """Bind HITL approval to the exact candidate digest. One typed prefix seals the whole envelope."""
+    """Bind HITL approval to the exact candidate digest (flag-driven, non-interactive). The
+    digest-bound approval artifact is the seal: it covers the whole obligation envelope the
+    candidate declares."""
     candidate_data = _load_json(candidate)
     try:
         artifact = create_deepagents_execution_approval(

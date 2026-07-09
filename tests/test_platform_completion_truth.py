@@ -166,8 +166,8 @@ def test_matrix_rendering_is_json_safe() -> None:
     assert decoded["kind"] == "builder_ii.platform_completion_matrix"
     assert decoded["summary"]["operationally_incomplete"] is True
     assert (
-        decoded["summary"]["operationally_verified_count"] == 18
-    )  # B4 (plan item 1.7) promoted operator-invoked HITL patch application + rollback execution (docs/audits/B4_CLOSURE_AUDIT.md); 2.6 promoted the interactive setup wizard (docs/audits/R1_CLOSURE_AUDIT_2_6.md)
+        decoded["summary"]["operationally_verified_count"] == 19
+    )  # B4 (plan item 1.7) promoted operator-invoked HITL patch application + rollback execution (docs/audits/B4_CLOSURE_AUDIT.md); 2.6 promoted the interactive setup wizard (docs/audits/R1_CLOSURE_AUDIT_2_6.md); Ladder 4 PR-8 promoted governed obligation delegation, protocol_fake scope (docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md)
 
 
 def test_matrix_exposes_sharper_assurance_states() -> None:
@@ -179,8 +179,32 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     assert rows["rollback execution"]["assurance_state"] == "MUTATION_WITH_ROLLBACK_VERIFIED"
     assert rows["governed read-only runtime"]["assurance_state"] == "READ_ONLY_RUNTIME_VERIFIED"
     assert rows["governed demo loop"]["assurance_state"] == "DEMO_ONLY_VERIFIED"
+    # Ladder 4 PR-8 closure flip (docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md): bounded
+    # execution over protocol_fake — never LIVE_*, never a native-backend claim.
+    assert rows["governed obligation delegation"]["assurance_state"] == "BOUNDED_EXECUTION_VERIFIED"
     assert rows["interactive setup wizard"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
     assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+
+
+def test_ladder4_obligation_delegation_flip_is_scoped_to_protocol_fake() -> None:
+    # Ladder 4 PR-8 closure flip (docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md): the row is
+    # OPERATIONALLY_VERIFIED for the two laws enforced fail-closed over the protocol_fake backend
+    # as CI truth. The row text must keep saying exactly that: scope sentence present, the native
+    # backend explicitly not covered, and the legacy run-plan path named as non-evidence on the
+    # reworded deepagents runtime/subagents row.
+    by_capability = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
+
+    row = by_capability["governed obligation delegation"]
+    assert row.state == OPERATIONALLY_VERIFIED
+    assert row.next_pr == "Ladder 4 complete (PR-8)"
+    assert any("protocol_fake" in blocker for blocker in row.blockers)
+    assert any("NOT covered" in blocker for blocker in row.blockers)
+    assert "docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md" in row.evidence_files
+
+    runtime_row = by_capability["deepagents runtime/subagents"]
+    assert "builder-deepagents run-plan" not in runtime_row.command_surfaces
+    assert "builder-deepagents run-approved" in runtime_row.command_surfaces
+    assert any("legacy structural projection" in blocker for blocker in runtime_row.blockers)
 
 
 def test_human_status_reports_operational_incompleteness() -> None:

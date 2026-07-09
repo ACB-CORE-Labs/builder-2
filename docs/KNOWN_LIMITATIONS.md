@@ -53,7 +53,7 @@ are not equivalent just because they share the legacy completion label.
 
 ## Not operational today (from the matrix)
 
-18 of 51 matrix capabilities are operationally verified; the 33 below are not. Each entry lists the matrix state and its recorded blockers verbatim.
+19 of 52 matrix capabilities are operationally verified; the 33 below are not. Each entry lists the matrix state and its recorded blockers verbatim.
 
 - **generic platform identity** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - Truth-state enforcement was static before R0.

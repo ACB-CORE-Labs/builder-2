@@ -1019,8 +1019,9 @@ def create_deepagents_execution_approval(
         raise ValueError("invalid deepagents execution candidate: " + "; ".join(errors))
     generated = generated_at or _utc_now()
     candidate_digest = str(candidate.get("candidate_digest", ""))
-    # Ladder 4: an obligation-bearing candidate seals its envelope into this approval. The typed
-    # digest-prefix ceremony is unchanged; what one ceremony now authorizes is the envelope.
+    # Ladder 4: an obligation-bearing candidate seals its envelope into this approval. The seal is
+    # this flag-driven, digest-bound approval itself (approve-candidate has no interactive prompt);
+    # what one approval now authorizes is the envelope.
     sealed_envelope = candidate.get("obligation_envelope") if isinstance(candidate, dict) else None
     if sealed_envelope is not None and candidate.get("backend_mode") == OPTIONAL_DEEPAGENTS_BACKEND:
         # Two-key rule (D7 pattern): the native backend requires an explicit second key at seal time.
