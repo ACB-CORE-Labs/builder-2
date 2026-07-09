@@ -21,6 +21,7 @@ from builder_ii.execution_postflight_records import (
     validate_execution_postflight_record,
     write_execution_postflight_record,
 )
+from builder_ii.verification_isolation_backend import IsolationBackendError, NoneBackend, get_backend
 from builder_ii.verification_execution_approval import (
     validate_verification_execution_approval_against_plan,
     validate_verification_execution_approval_artifact,
@@ -770,10 +771,27 @@ def run_approved_verification(
         )
 
     try:
+        isolation_backend = get_backend(str(target_repo), plan.get("isolation_policy"))
+        run_argv, run_env = isolation_backend.wrap_command(list(profile.argv), _minimal_env(target_repo))
+    except IsolationBackendError as exc:
+        return _receipt_for_block(
+            plan=plan,
+            approval=approval,
+            plan_path=plan_path,
+            approval_path=approval_path,
+            output=output,
+            target_repo=target_repo,
+            artifact_root=artifact_root,
+            requested_profile=requested_profile,
+            errors=[f"isolation backend blocked execution: {exc}"],
+            authority_decision=authority_decision,
+        )
+
+    try:
         completed = subprocess.run(
-            list(profile.argv),
+            run_argv,
             cwd=target_repo,
-            env=_minimal_env(target_repo),
+            env=run_env,
             capture_output=True,
             text=True,
             timeout=effective_timeout,
@@ -811,7 +829,7 @@ def run_approved_verification(
     )
     workspace_mutation_detected = bool(mutation_paths) or head_changed or postflight_capture_failed
     receipt_status = "EXECUTED" if process_result["status"] == "success" else "FAILED"
-    receipt = finalize_verification_execution_receipt(
+    receipt_kwargs = dict(
         plan=plan,
         approval=approval,
         plan_path=str(plan_path),
@@ -840,6 +858,11 @@ def run_approved_verification(
             approval.get("acknowledged_risk") if isinstance(approval.get("acknowledged_risk"), str) else None
         ),
     )
+    if not isinstance(isolation_backend, NoneBackend):
+        receipt_kwargs["isolation_backend"] = isolation_backend.__class__.__name__.replace("Backend", "").lower()
+        receipt_kwargs["isolation_status"] = "applied"
+
+    receipt = finalize_verification_execution_receipt(**receipt_kwargs)
     receipt["command_authority_decision"] = authority_decision.to_evidence()
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     if workspace_mutation_detected:

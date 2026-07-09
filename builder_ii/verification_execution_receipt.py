@@ -24,7 +24,7 @@ VERIFICATION_EXECUTION_RECEIPT_KIND = "builder_ii.verification_execution_receipt
 # exact source state, records ignored pytest byproducts observed during the run
 # (`observed_byproducts`), and echoes the D7 execution-risk acknowledgment the runner
 # verified before spawning.
-VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION = 2
+VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION = 3
 RUNNER_MODE_CONTRACT_ONLY = "receipt_contract_only"
 RUNNER_MODE_BOUNDED_APPROVED = "bounded_approved_verification"
 SUBPROCESS_MODE_NOT_STARTED = "not_started"
@@ -151,6 +151,9 @@ def finalize_verification_execution_receipt(
     observed_byproducts: list[str] | None = None,
     execution_risk_acknowledged: bool = False,
     acknowledged_risk: str | None = None,
+    isolation_backend: str | None = None,
+    isolation_status: str | None = None,
+    isolation_policy_digest: str | None = None,
 ) -> dict[str, Any]:
     effective_execution_enabled = (
         execution_enabled if execution_enabled is not None else runner_mode == RUNNER_MODE_BOUNDED_APPROVED
@@ -209,6 +212,12 @@ def finalize_verification_execution_receipt(
         "errors": [],
         "valid": True,
     }
+    if isolation_backend is not None:
+        receipt["isolation_backend"] = isolation_backend
+    if isolation_status is not None:
+        receipt["isolation_status"] = isolation_status
+    if isolation_policy_digest is not None:
+        receipt["isolation_policy_digest"] = isolation_policy_digest
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     errors = _dedupe_errors(
         validate_verification_execution_receipt_artifact(receipt)

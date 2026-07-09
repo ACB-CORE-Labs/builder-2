@@ -268,3 +268,20 @@ def test_file_validation_directory_path_returns_clean_read_error(tmp_path: Path)
     errors = validate_verification_execution_plan_file(tmp_path)
     assert len(errors) == 1
     assert errors[0].startswith("verification execution plan file could not be read:")
+
+
+def test_isolation_policy_injection_is_rejected() -> None:
+    plan = _sample_plan()
+    plan["isolation_policy"] = {
+        "kind": "builder_ii.verification_isolation_policy",
+        "schema_version": 1,
+        "backend": "docker",
+        "image_ref": "python:3.12-slim",
+        "mounts": [
+            {"source": "/foo", "target": "/bar; sh -c 'echo pwn'"}
+        ]
+    }
+    plan = _resign(plan)
+    errors = validate_verification_execution_plan_artifact(plan)
+    assert any("sh -c" in error for error in errors)
+

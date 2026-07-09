@@ -23,7 +23,7 @@ from builder_ii.verification_execution_receipt import (
 )
 
 VERIFICATION_EXECUTION_LEDGER_RECORD_KIND = "builder_ii.verification_execution_ledger_record"
-VERIFICATION_EXECUTION_LEDGER_RECORD_SCHEMA_VERSION = 1
+VERIFICATION_EXECUTION_LEDGER_RECORD_SCHEMA_VERSION = 2
 VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND = "builder_ii.verification_execution_ledger_query_report"
 VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_SCHEMA_VERSION = 1
 VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND = "builder_ii.verification_execution_ledger_integrity_report"
