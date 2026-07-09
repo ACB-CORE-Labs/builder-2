@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.gate_battery_receipt import find_absolute_paths
+from builder_ii.gate_battery_receipt import find_absolute_paths, validate_gate_battery_receipt
 
 _ROOT_SKIP = pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root bypasses permission bits")
 
@@ -320,7 +320,45 @@ def test_failing_record_gate_does_not_mask_the_real_gates_exit_code(tmp_path: Pa
     result = _run(script, "--receipt", str(receipt_path))
 
     assert result.returncode == 42, "the gate's own exit code must survive a failing recorder, not the recorder's"
-    assert "could not record a gate" in result.stderr
+    assert "could not record gate" in result.stderr
+
+    # And the receipt must not quietly report a green battery just because the one gate that
+    # failed never made it into gates[]. Reproduced against the pre-fix code: exit 42, and a
+    # fully-valid receipt stamped `overall_state: PASSED`.
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert receipt["overall_state"] == "INCOMPLETE"
+    assert receipt["dropped_gate_records"] == ["fake fail"]
+    assert receipt["gates"] == []
+    assert validate_gate_battery_receipt(receipt) == []
+
+
+def test_one_dropped_record_among_several_gates_still_forces_incomplete(tmp_path: Path) -> None:
+    """The narrow, realistic case: the gate log becomes unwritable partway through a battery.
+
+    Everything recorded so far passed, so `gates[]` alone would say PASSED. Only
+    `dropped_gate_records` knows a gate is missing, and it is what drags the verdict to
+    INCOMPLETE. The battery's own exit code is untouched -- the receipt merely stops corroborating
+    a verdict it cannot see.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = _write_battery(
+        tmp_path,
+        repo,
+        'gate "first" true\n'
+        'chmod 444 "$GATE_LOG"\n'  # every later record-gate append now fails
+        'gate "second" bash -c "exit 9"\n',
+    )
+    receipt_path = tmp_path / "receipt.json"
+
+    result = _run(script, "--receipt", str(receipt_path))
+
+    assert result.returncode == 9, "the failing gate's exit code, never the recorder's, never 3"
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    assert [gate["name"] for gate in receipt["gates"]] == ["first"]
+    assert receipt["dropped_gate_records"] == ["second"]
+    assert receipt["overall_state"] == "INCOMPLETE", "gates[] alone said PASSED; the drop must override it"
+    assert validate_gate_battery_receipt(receipt) == []
 
 
 def test_env_var_absolute_path_never_leaks_into_receipt(tmp_path: Path) -> None:

@@ -74,6 +74,79 @@ def test_round_trip_battery_with_skips() -> None:
     assert validate_gate_battery_receipt(receipt) == []
 
 
+def test_round_trip_battery_with_dropped_gate_record() -> None:
+    receipt = _receipt(gates=[_passed_gate("a")], dropped_gate_records=["b"])
+    assert receipt["overall_state"] == "INCOMPLETE"
+    assert receipt["dropped_gate_records"] == ["b"]
+    assert receipt["valid"] is True
+    assert validate_gate_battery_receipt(receipt) == []
+
+
+# --- a dropped gate record must never let a red battery emit a green receipt ---------------------
+#
+# Regression pin for a real defect, reproduced against the pre-fix code: a gate exited 7, its
+# record could not be appended to the gate log, and the receipt came out `overall_state: PASSED`
+# with zero validation errors, because build() saw no FAILED gate in `gates[]`. The only tell was
+# a line on stderr. A warning is not a record.
+
+
+def test_dropped_record_forces_incomplete_even_when_every_recorded_gate_passed() -> None:
+    receipt = _receipt(gates=[_passed_gate("a"), _passed_gate("b")], dropped_gate_records=["the gate that failed"])
+    assert receipt["overall_state"] == "INCOMPLETE", "a receipt missing a gate may not claim the battery passed"
+    assert validate_gate_battery_receipt(receipt) == []
+
+
+def test_dropped_record_beats_failed_gate_because_the_verdict_is_unknowable() -> None:
+    receipt = _receipt(gates=[_failed_gate("a")], dropped_gate_records=["b"])
+    assert receipt["overall_state"] == "INCOMPLETE"
+    assert validate_gate_battery_receipt(receipt) == []
+
+
+def test_passed_with_dropped_records_rejected() -> None:
+    receipt = _receipt(gates=[_passed_gate("a")], dropped_gate_records=["b"])
+    receipt["overall_state"] = "PASSED"
+    assert validate_gate_battery_receipt(receipt), "PASSED alongside a dropped record must be rejected"
+
+
+def test_incomplete_without_dropped_records_rejected() -> None:
+    receipt = _receipt(gates=[_passed_gate("a")])
+    receipt["overall_state"] = "INCOMPLETE"
+    assert validate_gate_battery_receipt(receipt), "INCOMPLETE with nothing dropped must be rejected"
+
+
+def test_dropped_gate_records_must_be_non_empty_strings() -> None:
+    receipt = _receipt(gates=[_passed_gate("a")], dropped_gate_records=["b"])
+    receipt["dropped_gate_records"] = [""]
+    assert validate_gate_battery_receipt(receipt)
+
+
+def test_every_record_dropped_is_a_valid_receipt_not_a_corrupt_one() -> None:
+    """Zero recorded gates + at least one drop is an honest account of a real run.
+
+    Rejecting it as malformed would make "I could not record anything" indistinguishable from a
+    corrupt artifact -- the defect Ladder 8's BLOCKED corroboration record hit.
+    """
+    receipt = _receipt(gates=[], dropped_gate_records=["only gate"])
+    assert receipt["overall_state"] == "INCOMPLETE"
+    assert receipt["valid"] is True
+    assert validate_gate_battery_receipt(receipt) == []
+
+
+def test_receipt_accounting_for_no_gate_at_all_is_rejected() -> None:
+    receipt = _receipt(gates=[_passed_gate("a")])
+    receipt["gates"] = []
+    receipt["skipped"] = []
+    errors = validate_gate_battery_receipt(receipt)
+    assert any("at least one gate" in error for error in errors)
+
+
+def test_dropped_gate_records_is_digest_bound() -> None:
+    receipt = _receipt(gates=[_passed_gate("a")], dropped_gate_records=["b"])
+    receipt["dropped_gate_records"] = ["b", "c"]
+    errors = validate_gate_battery_receipt(receipt)
+    assert any("digest" in error for error in errors), "dropped_gate_records must sit inside the digest basis"
+
+
 # --- Ladder 8 lesson: absent is null, never 0/""/[] ---------------------------------------------
 
 

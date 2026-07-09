@@ -72,7 +72,12 @@ GATE_STATUSES: frozenset[str] = frozenset({STATUS_PASSED, STATUS_FAILED, STATUS_
 
 OVERALL_PASSED = "PASSED"
 OVERALL_FAILED = "FAILED"
-OVERALL_STATES: frozenset[str] = frozenset({OVERALL_PASSED, OVERALL_FAILED})
+# A gate ran, but its record could not be appended to the gate log, so the receipt cannot say
+# what that gate did. The battery's own exit code still knows; the receipt does not. Reporting
+# PASSED here would let a red battery produce a green, fully-valid receipt -- the one thing this
+# artifact must never do. INCOMPLETE says "I am missing a gate" instead of guessing.
+OVERALL_INCOMPLETE = "INCOMPLETE"
+OVERALL_STATES: frozenset[str] = frozenset({OVERALL_PASSED, OVERALL_FAILED, OVERALL_INCOMPLETE})
 
 COVERED_GATES = "blocking"
 MERGE_AUTHORITY = "operator"
@@ -165,19 +170,30 @@ def build_gate_battery_receipt(
     head_sha_before: str | None,
     head_sha_after: str | None,
     working_tree_clean: bool,
+    dropped_gate_records: list[str] | None = None,
     cargo_present: bool | None = None,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
     """Assemble, digest, and self-validate a gate battery receipt.
 
-    Records what happened, refuses nothing: a dirty tree, an unstable HEAD, or a FAILED gate
-    all produce a valid, well-formed receipt -- they just carry fields that say the receipt is
-    unfit for merge citation. Refusal is left to the consumer (a reviewer, or a later
-    validator), never done here.
+    Records what happened, refuses nothing: a dirty tree, an unstable HEAD, a FAILED gate, or a
+    gate whose record could not be written all produce a valid, well-formed receipt -- they just
+    carry fields that say the receipt is unfit for merge citation. Refusal is left to the
+    consumer (a reviewer, or a later validator), never done here.
+
+    ``dropped_gate_records`` names gates that ran but could not be recorded. Any drop forces
+    ``overall_state: INCOMPLETE``: a receipt missing a gate cannot claim the battery passed, and
+    cannot claim it failed either -- it can only say that it does not know.
     """
     gates_list = [dict(gate) for gate in gates]
+    dropped = list(dropped_gate_records or [])
     skipped = [gate.get("name") for gate in gates_list if gate.get("status") == STATUS_SKIPPED]
-    overall_state = OVERALL_FAILED if any(gate.get("status") == STATUS_FAILED for gate in gates_list) else OVERALL_PASSED
+    if dropped:
+        overall_state = OVERALL_INCOMPLETE
+    elif any(gate.get("status") == STATUS_FAILED for gate in gates_list):
+        overall_state = OVERALL_FAILED
+    else:
+        overall_state = OVERALL_PASSED
     head_sha_stable = head_sha_before is not None and head_sha_before == head_sha_after
     resolved_cargo_present = (shutil.which("cargo") is not None) if cargo_present is None else bool(cargo_present)
 
@@ -192,6 +208,7 @@ def build_gate_battery_receipt(
         "working_tree_clean": bool(working_tree_clean),
         "gates": gates_list,
         "skipped": skipped,
+        "dropped_gate_records": dropped,
         "covered_gates": COVERED_GATES,
         "host": {
             "platform": platform.system(),
@@ -248,9 +265,17 @@ def write_gate_battery_receipt(receipt: dict[str, Any], output: Path) -> None:
 
 
 def _validate_gates(value: Any) -> tuple[list[str], dict[str, list[str]]]:
+    """Structural check of ``gates[]``. An *empty* list is not rejected here.
+
+    A battery whose very first gate record could not be written records zero gates and one drop.
+    That receipt is an honest account of a real run, and rejecting it as malformed would make
+    "I could not record anything" indistinguishable from a corrupt artifact -- the same defect
+    Ladder 8's BLOCKED corroboration record hit. The caller enforces the real invariant instead:
+    a receipt must account for at least one gate, recorded *or* dropped.
+    """
     by_status: dict[str, list[str]] = {STATUS_PASSED: [], STATUS_FAILED: [], STATUS_SKIPPED: []}
-    if not isinstance(value, list) or not value:
-        return (["gates must be a non-empty list"], by_status)
+    if not isinstance(value, list):
+        return (["gates must be a list"], by_status)
     errors: list[str] = []
     seen_names: set[str] = set()
     for index, item in enumerate(value):
@@ -384,15 +409,32 @@ def validate_gate_battery_receipt(data: Any) -> list[str]:
         elif sorted(skipped) != sorted(expected_skipped):
             errors.append("skipped must contain exactly the names of gates with status SKIPPED")
 
+    dropped = data.get("dropped_gate_records")
+    dropped_is_well_formed = isinstance(dropped, list) and all(isinstance(item, str) and item for item in dropped)
+    if not dropped_is_well_formed:
+        errors.append("dropped_gate_records must be a list of non-empty strings")
+    elif not data.get("gates") and not dropped:
+        # A receipt that names no gate at all describes nothing. Zero recorded gates is only
+        # meaningful alongside at least one drop explaining the silence.
+        errors.append("a receipt must account for at least one gate: gates and dropped_gate_records are both empty")
+
     errors.extend(_validate_host(data.get("host")))
 
     overall_state = data.get("overall_state")
     if overall_state not in OVERALL_STATES:
         errors.append(f"overall_state must be one of: {', '.join(sorted(OVERALL_STATES))}")
-    else:
-        expected_overall = OVERALL_FAILED if gate_names_by_status.get(STATUS_FAILED) else OVERALL_PASSED
+    elif dropped_is_well_formed:
+        if dropped:
+            expected_overall = OVERALL_INCOMPLETE
+        elif gate_names_by_status.get(STATUS_FAILED):
+            expected_overall = OVERALL_FAILED
+        else:
+            expected_overall = OVERALL_PASSED
         if overall_state != expected_overall:
-            errors.append("overall_state must be FAILED if and only if some gate has status FAILED")
+            errors.append(
+                "overall_state must be INCOMPLETE if and only if dropped_gate_records is non-empty; "
+                "otherwise FAILED if and only if some gate has status FAILED"
+            )
 
     errors.extend(_validate_governance(data.get("governance")))
 
@@ -456,6 +498,16 @@ def _pop_flag(args: list[str], flag: str) -> str | None:
     return value
 
 
+def _pop_repeated_flag(args: list[str], flag: str) -> list[str]:
+    """Pop every occurrence of ``flag VALUE``, preserving command-line order."""
+    values: list[str] = []
+    while True:
+        value = _pop_flag(args, flag)
+        if value is None:
+            return values
+        values.append(value)
+
+
 def _cmd_record_gate(argv: list[str]) -> int:
     args = list(argv)
     log_path = _pop_flag(args, "--log")
@@ -510,6 +562,7 @@ def _cmd_build(argv: list[str]) -> int:
     head_sha_before = _pop_flag(args, "--head-sha-before") or None
     head_sha_after = _pop_flag(args, "--head-sha-after") or None
     working_tree_clean_raw = _pop_flag(args, "--working-tree-clean")
+    dropped_gate_records = _pop_repeated_flag(args, "--dropped-gate")
 
     if gate_log is None or output is None or working_tree_clean_raw is None:
         print("build requires --gate-log, --output, and --working-tree-clean", file=sys.stderr)
@@ -520,6 +573,7 @@ def _cmd_build(argv: list[str]) -> int:
         head_sha_before=head_sha_before,
         head_sha_after=head_sha_after,
         working_tree_clean=working_tree_clean_raw.strip().lower() == "true",
+        dropped_gate_records=dropped_gate_records,
     )
     try:
         write_gate_battery_receipt(receipt, Path(output))

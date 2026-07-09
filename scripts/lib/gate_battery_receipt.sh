@@ -29,6 +29,9 @@ RECEIPT_PATH=""
 GATE_LOG=""
 HEAD_SHA_BEFORE=""
 SKIPPED=()
+# Names of gates that ran but whose record could not be appended to GATE_LOG. Any entry here
+# forces the receipt to overall_state INCOMPLETE -- see _gbr_record_gate.
+_GBR_DROPPED=()
 
 # Exit code scripts/ci.sh uses when a receipt was requested but could not be written, on an
 # otherwise-green battery. Distinct from a gate's own exit code (which is always preserved
@@ -72,17 +75,26 @@ _gbr_init() {
   fi
 }
 
-# Records one gate/skip into GATE_LOG. Deliberately never a bare command at its call sites:
-# record-gate can itself fail (a full disk, a bug in the tool), and a bare failing command
-# inside gate()/skip() would abort under errexit with the RECORDER's exit code, masking the
-# real gate's result -- exactly the kind of silent corruption this whole artifact exists to
-# rule out, just one level down. The battery's pass/fail verdict must never depend on whether
-# its own bookkeeping succeeded, so this warns loudly on stderr and carries on: the affected
-# gate is then honestly absent from gates[] (never fabricated), and the warning is the record
-# of that gap.
+# _gbr_record_gate NAME ARGS... -- record one gate/skip into GATE_LOG.
+#
+# Deliberately never a bare command at its call sites: record-gate can itself fail (a full disk,
+# a bug in the tool), and a bare failing command inside gate()/skip() would abort under errexit
+# with the RECORDER's exit code, masking the real gate's result. The battery's pass/fail verdict
+# must never depend on whether its own bookkeeping succeeded.
+#
+# But a stderr warning is not a record. A dropped gate leaves gates[] missing an entry, and
+# build_gate_battery_receipt would then see no FAILED gate and stamp overall_state PASSED -- so a
+# red battery could emit a green, fully-valid receipt whose only tell was a line on stderr.
+# (Proven by driving it: a gate exiting 7 whose record was dropped produced `overall_state:
+# PASSED`, zero validation errors, alongside a battery that exited 7.) So the drop is pushed onto
+# _GBR_DROPPED and travels into the receipt, which is then INCOMPLETE: it does not know what that
+# gate did, and says so, rather than guessing in the direction of green.
 _gbr_record_gate() {
+  local name="$1"
+  shift
   if ! _gbr_run_receipt_tool record-gate "$@"; then
-    printf '\n!!! could not record a gate into the receipt log -- it will be MISSING from %s !!!\n' "$RECEIPT_PATH" >&2
+    printf '\n!!! could not record gate %s -- receipt for %s will be INCOMPLETE !!!\n' "$name" "$RECEIPT_PATH" >&2
+    _GBR_DROPPED+=("$name")
   fi
 }
 
@@ -100,7 +112,7 @@ gate() {
   "$@" || rc=$?
   local duration=$((SECONDS - start))
   if [ -n "$RECEIPT_PATH" ]; then
-    _gbr_record_gate --log "$GATE_LOG" --name "$name" --exit-code "$rc" --duration "$duration" -- "$@"
+    _gbr_record_gate "$name" --log "$GATE_LOG" --name "$name" --exit-code "$rc" --duration "$duration" -- "$@"
   fi
   return "$rc"
 }
@@ -109,7 +121,7 @@ skip() {
   printf '\n=== [SKIP] %s ===\n  reason: %s\n' "$1" "$2"
   SKIPPED+=("$1")
   if [ -n "$RECEIPT_PATH" ]; then
-    _gbr_record_gate --log "$GATE_LOG" --name "$1" --skip-reason "$2"
+    _gbr_record_gate "$1" --log "$GATE_LOG" --name "$1" --skip-reason "$2"
   fi
 }
 
@@ -137,12 +149,23 @@ _gbr_emit_receipt() {
     else
       working_tree_clean=false
     fi
+    # A dropped gate record travels into the receipt as `dropped_gate_records`, forcing
+    # overall_state INCOMPLETE. It does NOT change the battery's exit code: the battery's verdict
+    # is what it is, and the receipt now says out loud that it cannot corroborate it. Refusal
+    # belongs to the consumer -- exactly as it does for `working_tree_clean: false`, which also
+    # leaves a green battery green.
+    local -a dropped_args=()
+    local dropped_name
+    for dropped_name in ${_GBR_DROPPED[@]+"${_GBR_DROPPED[@]}"}; do
+      dropped_args+=(--dropped-gate "$dropped_name")
+    done
     if ! _gbr_run_receipt_tool build \
       --gate-log "$GATE_LOG" \
       --output "$RECEIPT_PATH" \
       --head-sha-before "$HEAD_SHA_BEFORE" \
       --head-sha-after "$head_sha_after" \
-      --working-tree-clean "$working_tree_clean"; then
+      --working-tree-clean "$working_tree_clean" \
+      ${dropped_args[@]+"${dropped_args[@]}"}; then
       printf '\n!!! receipt was requested but could NOT be written to %s !!!\n' "$RECEIPT_PATH" >&2
       if [ "$final_rc" -eq 0 ]; then
         final_rc="$_GBR_RECEIPT_WRITE_FAILURE_EXIT_CODE"
