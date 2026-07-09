@@ -45,6 +45,10 @@ from builder_ii.code_vault.reports.linter import (
     LINTER_REPORT_KIND,
     validate_linter_report,
 )
+from builder_ii.code_vault_receipt_bridge import (
+    CODE_VAULT_CORROBORATION_RECORD_KIND,
+    validate_code_vault_corroboration_record,
+)
 from builder_ii.context_pack import (
     CONTEXT_PACK_RECORD_KIND,
     validate_context_pack_record,
@@ -558,6 +562,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     OBLIGATION_KIND: validate_orchestration_obligation,
     LANE_POLICY_KIND: validate_orchestration_lane_policy_artifact,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
+    CODE_VAULT_CORROBORATION_RECORD_KIND: validate_code_vault_corroboration_record,
 }
 
 
