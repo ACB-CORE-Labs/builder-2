@@ -85,7 +85,7 @@ The full suite passes on the edited tree (battery results in the PR body). Per g
 | 5 | HITL boundary | Exactly one root seal per tree: the digest-bound approval with the envelope inside its digest basis; sub-mints never re-prompt; the two-key `--native-backend-acknowledged` is required at seal time **and** re-checked at the spawn point for `optional_deepagents` (D7 pattern) |
 | 6 | Output artifact | Obligation artifacts, `obligation_minted` / `obligation_mint_refused` / `obligation_consumed` (discharge-classified) events, run envelope, execution receipt, event ledger, replay report, evidence bundle — all digest-bound JSON |
 | 7 | Rollback | The lane emits artifacts only; deleting the emitted output directory removes every trace. No target mutation exists in this lane — mutation obligations discharge exclusively through the already-promoted `hitl_patch` lane |
-| 8 | Verification | B2.0 delegation-tree PASS artifact over a clean run bundle: `planning/evidence/ladder4-b2-delegation-tree-pass.json`, digest `61c9e46405594ac8f9a6d48f384b89492bc3cd3e047e62938b92bc6804757475` — 9/9 machine gates PASS, `capability_name` bound to this row, pinned in CI by `tests/test_ladder4_closure_evidence.py` |
+| 8 | Verification | B2.0 delegation-tree PASS artifact over a clean run bundle: `planning/evidence/ladder4-b2-delegation-tree-pass.json`, digest `66d09d5842718bd0c3330e22417f55bc1d50b541afcd1354a453e363fb09827d` — 9/9 machine gates PASS, `capability_name` bound to this row, pinned in CI by `tests/test_ladder4_closure_evidence.py` |
 
 **Gate 8 notes.** The PR-7 evaluator (`evaluate_delegation_tree_promotion_gates`) covers the nine
 machine-checkable gates (seal validity, candidate↔seal binding, CI-truth backend, event-chain

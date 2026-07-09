@@ -11,13 +11,13 @@
   "gates": [
     {
       "detail": "seal validates",
-      "evidence": "approval_digest=5d4a70eef0046b3f464a0a1a1e759abca89f29e11926cafc31a864043529b0ec",
+      "evidence": "approval_digest=6e822bf7317b743cdde63d24ca1b4d3b93a85a380fda7de07d2044d219b52f18",
       "gate": "seal_valid",
       "state": "PASS"
     },
     {
       "detail": "exactly one root seal binds candidate",
-      "evidence": "candidate_digest=97632e7172cca87ffc5d8884c7952227ba959eedbb280840eac0cab62a61f204",
+      "evidence": "candidate_digest=6e5be9f10676c445fbca8e470d6ef13c69ccefa669c9eff29e80d557ea1d53b2",
       "gate": "candidate_bound_to_seal",
       "state": "PASS"
     },
@@ -59,7 +59,7 @@
     },
     {
       "detail": "ledger binds replay report",
-      "evidence": "ledger_digest=8e57e4fbf7424b7ce23543a3b6ab86f2508eb4eeb60c5809aa9f4bc69bd79aa7",
+      "evidence": "ledger_digest=e69771f7e0a0a5699a8af53ec2ae4725a34a27a851ccca173b5775e56276336d",
       "gate": "ledger_binds_replay",
       "state": "PASS"
     }
@@ -130,28 +130,28 @@
   "runner_mode": null,
   "schema_version": 1,
   "subject_refs": {
-    "approval_path": "/private/tmp/claude-501/-Users-kaizenpro-Projects-builder-II/091c94b6-f63e-41d1-8f8d-47176bf73abc/scratchpad/ladder4-pr8-evidence-run/approval.json",
-    "candidate_digest": "97632e7172cca87ffc5d8884c7952227ba959eedbb280840eac0cab62a61f204",
-    "candidate_path": "/private/tmp/claude-501/-Users-kaizenpro-Projects-builder-II/091c94b6-f63e-41d1-8f8d-47176bf73abc/scratchpad/ladder4-pr8-evidence-run/candidate.json",
-    "envelope_digest": "a18f046f95fbb0106d1718dcf8ecffcc7d6adc4d9a6d314d4f31827031755310",
-    "envelope_path": "/private/tmp/claude-501/-Users-kaizenpro-Projects-builder-II/091c94b6-f63e-41d1-8f8d-47176bf73abc/scratchpad/ladder4-pr8-evidence-run/runs/output/deepagents-run-envelope.json",
-    "event_ledger_digest": "8e57e4fbf7424b7ce23543a3b6ab86f2508eb4eeb60c5809aa9f4bc69bd79aa7",
-    "event_ledger_path": "/private/tmp/claude-501/-Users-kaizenpro-Projects-builder-II/091c94b6-f63e-41d1-8f8d-47176bf73abc/scratchpad/ladder4-pr8-evidence-run/runs/output/deepagents-event-ledger.json",
-    "events_dir": "/private/tmp/claude-501/-Users-kaizenpro-Projects-builder-II/091c94b6-f63e-41d1-8f8d-47176bf73abc/scratchpad/ladder4-pr8-evidence-run/runs/output/events",
+    "approval_path": "ladder4-closure-evidence-run/approval.json",
+    "candidate_digest": "6e5be9f10676c445fbca8e470d6ef13c69ccefa669c9eff29e80d557ea1d53b2",
+    "candidate_path": "ladder4-closure-evidence-run/candidate.json",
+    "envelope_digest": "adaac89c6d6c409ce70dac6abcb7ee7f5355c4a54122b1ee980d7f80500a51cc",
+    "envelope_path": "ladder4-closure-evidence-run/runs/output/deepagents-run-envelope.json",
+    "event_ledger_digest": "e69771f7e0a0a5699a8af53ec2ae4725a34a27a851ccca173b5775e56276336d",
+    "event_ledger_path": "ladder4-closure-evidence-run/runs/output/deepagents-event-ledger.json",
+    "events_dir": "ladder4-closure-evidence-run/runs/output/events",
     "lane_policy_digest": "0a1989e334a0716944ccf648419aac8c966341af2fc0be4c6e03d54e909c5bd2",
     "obligation_digests": [
-      "6a2c614d1b208c42fcde6e603015e2a06f27edea6efccfe142583b4ca038dcf3",
-      "ead90cb7aaf397a7244401dcee9ea5cf1fe06cbfb92a75e19404a210b29e5664",
-      "cbbfcb7452a63daf7c18a286f5070dfc685d3e6e2a571a636064dddf98273347",
-      "62990e5738908f1c546642a4fe6c37f4acc6705dbe755e7d01a168a21399e56a"
+      "4f28a708228636de0b353882097586b1736c7501f0998d48257beb81d9785e9a",
+      "d01aeb54b2ea5187d8b34f721adc21855f9f95a724f27413286dedb6a8ce08db",
+      "748105c7b1b76495b8c77ac30bb82c405c20dd5578ffae64399c8a4186f5e92e",
+      "3a027a46cd69217d699f67f27c5f8e8088bf3a6dbafac2c89ca8f4c320c74cdb"
     ],
-    "receipt_digest": "2d0fc9d2ece4142422e673fb48fbe840ac4cee5113e718dde8b8be2b0cd27a05",
-    "receipt_path": "/private/tmp/claude-501/-Users-kaizenpro-Projects-builder-II/091c94b6-f63e-41d1-8f8d-47176bf73abc/scratchpad/ladder4-pr8-evidence-run/runs/output/deepagents-execution-receipt.json",
-    "replay_report_digest": "17400f02df654db85bb3daf2a6b8023db639fe1e17416c5af7b13151ed139d77",
-    "replay_report_path": "/private/tmp/claude-501/-Users-kaizenpro-Projects-builder-II/091c94b6-f63e-41d1-8f8d-47176bf73abc/scratchpad/ladder4-pr8-evidence-run/runs/output/deepagents-replay-report.json",
-    "seal_digest": "5d4a70eef0046b3f464a0a1a1e759abca89f29e11926cafc31a864043529b0ec"
+    "receipt_digest": "624c6c99a37160055526e62f5d0972894ff8a115d2ea121771ab2a820060bd61",
+    "receipt_path": "ladder4-closure-evidence-run/runs/output/deepagents-execution-receipt.json",
+    "replay_report_digest": "31e6d13cbaeb4d2678c5ce01e26bfedc85ac50ea9e58fd8418df8e7f76357732",
+    "replay_report_path": "ladder4-closure-evidence-run/runs/output/deepagents-replay-report.json",
+    "seal_digest": "6e822bf7317b743cdde63d24ca1b4d3b93a85a380fda7de07d2044d219b52f18"
   },
   "target_branch": null,
   "target_commit": null,
-  "verification_promotion_evidence_digest": "61c9e46405594ac8f9a6d48f384b89492bc3cd3e047e62938b92bc6804757475"
+  "verification_promotion_evidence_digest": "66d09d5842718bd0c3330e22417f55bc1d50b541afcd1354a453e363fb09827d"
 }
