@@ -21,7 +21,7 @@ from typer.testing import CliRunner
 
 from builder_ii.setup_apply import _MERGE_PREVIEW_WITHHELD, SUPPORTED_OPERATIONS, _redact
 from builder_ii.setup_overlay import _OPERATIONS as OVERLAY_OPERATIONS
-from builder_ii.setup_rollback import _MERGE_PREVIEW_WITHHELD as _SNAPSHOT_PREVIEW_WITHHELD
+from builder_ii.setup_rollback import _OPERATOR_FILE_PREVIEW_WITHHELD as _SNAPSHOT_PREVIEW_WITHHELD
 from builder_ii.setup_rollback import create_setup_rollback_snapshot, validate_setup_rollback_snapshot_artifact
 from builder_ii.setup_rollback_execute import _preflight_state
 
@@ -450,3 +450,45 @@ def test_a_validating_rollback_snapshot_can_never_restore_file_content(tmp_path:
 
     blocker = _preflight_state(target, state)
     assert blocker == "manual_restore_required: raw prior content is unavailable"
+
+
+def test_replace_of_an_operator_owned_file_also_withholds_the_preview(tmp_path: Path) -> None:
+    """The hole the first cut of this guard left open, proven and closed.
+
+    The withholding fired only on `operation == "merge"`, so a `replace` of the very same Goose
+    config previewed it and marker redaction let `openai_key` straight through. What decides the
+    question is *whose file it is*, not what we are about to do to it.
+    """
+    target = tmp_path / "config" / "goose" / "config.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text(_UNMARKED_CREDENTIAL_CONFIG, encoding="utf-8")
+
+    change = _merge_change(target)
+    change["operation_type"] = "replace"
+    overlay, _snapshot = _artifacts(tmp_path, [change])
+    snapshot = create_setup_rollback_snapshot(overlay)
+
+    blob = json.dumps(snapshot)
+    assert "sk-proj-UNMARKED-KEY" not in blob, "a replace of an operator-owned file leaked a credential"
+    state = snapshot["target_path_states"][0]
+    assert state["prior_redacted_preview"] == _SNAPSHOT_PREVIEW_WITHHELD
+    assert len(state["prior_content_digest"]) == 64
+    assert validate_setup_rollback_snapshot_artifact(snapshot) == []
+
+
+def test_builder_owned_files_keep_their_line_redacted_preview(tmp_path: Path) -> None:
+    """The withholding must not swallow previews of files builder-II itself authored.
+
+    `tests/test_setup_rollback.py` pins that a prior `.env` inside the target repo still shows
+    `BUILDER_MODEL_API_TOKEN=<redacted>`. That preview is useful and safe; only operator-owned config
+    is withheld. If this ever starts withholding, the discriminator has gone too wide.
+    """
+    from builder_ii.setup_rollback import _is_operator_owned
+
+    operator_change = {"inside_user_config_dir": True}
+    builder_change = {"inside_user_config_dir": False}
+    assert _is_operator_owned(operator_change, "replace") is True
+    assert _is_operator_owned(operator_change, "merge") is True
+    assert _is_operator_owned(builder_change, "merge") is True, "merge targets are operator-owned by construction"
+    assert _is_operator_owned(builder_change, "replace") is False
+    assert _is_operator_owned(builder_change, "create") is False
