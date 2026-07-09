@@ -121,6 +121,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.event_record`
 - `builder_ii.event_ledger`
 - `builder_ii.ledger_replay_report`
+- `builder_ii.gate_battery_receipt`
 
 ## Governance and Authority Boundaries
 

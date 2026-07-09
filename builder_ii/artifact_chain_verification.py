@@ -146,6 +146,10 @@ from builder_ii.execution_postflight_records import (
     validate_execution_postflight_record,
     validate_execution_verification_record,
 )
+from builder_ii.gate_battery_receipt import (
+    GATE_BATTERY_RECEIPT_KIND,
+    validate_gate_battery_receipt,
+)
 from builder_ii.git_state import GIT_STATE_RECORD_KIND, validate_git_state_record
 from builder_ii.goose_command_proposal import (
     GOOSE_COMMAND_PROPOSAL_KIND,
@@ -576,6 +580,7 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     OBLIGATION_KIND: validate_orchestration_obligation,
     LANE_POLICY_KIND: validate_orchestration_lane_policy_artifact,
     CODE_VAULT_CORROBORATION_RECORD_KIND: validate_code_vault_corroboration_record,
+    GATE_BATTERY_RECEIPT_KIND: validate_gate_battery_receipt,
 }
 
 
