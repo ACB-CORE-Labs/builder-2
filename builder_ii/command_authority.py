@@ -3731,6 +3731,8 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
     "builder-code-vault validate-demo",
     "builder-code-vault bench",
     "builder-code-vault validate-bench",
+    "builder-code-vault corroborate",
+    "builder-code-vault validate-corroboration",
     "builder-session operator-surface",
     "builder-session command-surface",
     "builder-agent profiles",
