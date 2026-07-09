@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from builder_ii.config_schema import CAPABILITY_DEFAULTS, attach_digest, digest_jsonable
 from builder_ii.setup_overlay import (
     validate_setup_overlay_plan_artifact,
@@ -15,6 +17,13 @@ SETUP_ROLLBACK_SNAPSHOT_KIND = "builder_ii.setup_rollback_snapshot"
 SETUP_ROLLBACK_SNAPSHOT_SCHEMA_VERSION = 1
 
 _SECRET_MARKERS = ("secret", "token", "api_key", "apikey", "password", "credential", "bearer")
+
+# See setup_apply._MERGE_PREVIEW_WITHHELD. Redaction recognises key NAMES, not credentials, so no
+# preview of an operator-owned file is safe to embed in a governed artifact.
+_MERGE_PREVIEW_WITHHELD = (
+    "<withheld: a merge target may hold operator credentials under keys redaction cannot recognise; "
+    "see prior_content_digest and prior_content_size_bytes>"
+)
 _EXISTENCE_STATES = {"missing", "file", "directory", "symlink", "unsupported"}
 _STORAGE_POLICIES = {
     "not_stored_missing_file_marker_only",
@@ -37,7 +46,31 @@ def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(char in "0123456789abcdef" for char in value)
 
 
-def _redact_text(text: str, *, limit: int = 800) -> tuple[str, str]:
+def _redact_node(node: Any) -> tuple[Any, bool]:
+    if isinstance(node, dict):
+        result: dict[Any, Any] = {}
+        redacted_any = False
+        for key, value in node.items():
+            if isinstance(key, str) and any(marker in key.lower() for marker in _SECRET_MARKERS):
+                result[key] = "<redacted>"
+                redacted_any = True
+            else:
+                child, child_redacted = _redact_node(value)
+                result[key] = child
+                redacted_any = redacted_any or child_redacted
+        return result, redacted_any
+    if isinstance(node, list):
+        results = []
+        redacted_any = False
+        for item in node:
+            child, child_redacted = _redact_node(item)
+            results.append(child)
+            redacted_any = redacted_any or child_redacted
+        return results, redacted_any
+    return node, False
+
+
+def _redact_lines(text: str) -> tuple[str, bool]:
     redacted = False
     lines: list[str] = []
     for line in text.splitlines():
@@ -54,7 +87,28 @@ def _redact_text(text: str, *, limit: int = 800) -> tuple[str, str]:
                 lines.append("<redacted-secret-line>")
         else:
             lines.append(line)
-    preview = "\n".join(lines)
+    return "\n".join(lines), redacted
+
+
+def _redact_text(text: str, *, limit: int = 800) -> tuple[str, str]:
+    """Redact secret-ish prior content for the rollback snapshot preview.
+
+    Same structural-vs-line-oriented split as `setup_apply._redact`: a parsed
+    YAML/JSON mapping or list gets secret-marker keys collapsed at every depth;
+    anything else (e.g. `.env`-style `KEY=value` text) falls back to line
+    scanning. Kept independently in this module rather than imported from
+    `setup_apply` — each `setup_*` artifact module in this codebase is
+    self-contained and independently auditable.
+    """
+    try:
+        parsed = yaml.safe_load(text)
+    except yaml.YAMLError:
+        parsed = None
+    if isinstance(parsed, (dict, list)) and parsed:
+        redacted_node, redacted = _redact_node(parsed)
+        preview = yaml.safe_dump(redacted_node, sort_keys=False, default_flow_style=False, allow_unicode=True)
+    else:
+        preview, redacted = _redact_lines(text)
     if len(preview) > limit:
         preview = preview[:limit] + "\n<truncated>"
     return preview, "redacted_secret_like_content" if redacted else "not_secret_like"
@@ -124,7 +178,15 @@ def _snapshot_path(path: Path, *, change: dict[str, Any]) -> dict[str, Any]:
         if path.is_file():
             raw = path.read_bytes()
             text = raw.decode("utf-8", errors="replace")
-            preview, redaction_state = _redact_text(text)
+            if operation == "merge":
+                # A merge target is, by declaration, a file builder-II does not own and which may
+                # hold operator credentials. Marker-based redaction only elides values under key
+                # names it recognises, so an unrecognised one (`openai_key`, `session_cookie`, ...)
+                # would be copied verbatim into this snapshot. The digest and size below identify
+                # the prior file without reproducing any of it.
+                preview, redaction_state = (_MERGE_PREVIEW_WITHHELD, "withheld_merge_target_may_contain_credentials")
+            else:
+                preview, redaction_state = _redact_text(text)
             return {
                 **base,
                 "prior_existence_state": "file",
