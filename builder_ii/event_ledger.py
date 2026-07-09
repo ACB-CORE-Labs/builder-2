@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
-import importlib.metadata
 import json as json_lib
 from datetime import datetime, timezone
+from importlib import metadata
 from pathlib import Path
 from typing import Any
 
@@ -85,14 +84,10 @@ def _default_governance(capability_state: str) -> dict[str, Any]:
     }
 
 
-def _sha_file(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
 def _builder_ii_version() -> str:
     try:
-        return importlib.metadata.version("builder-ii")
-    except importlib.metadata.PackageNotFoundError:
+        return metadata.version("builder-ii")
+    except metadata.PackageNotFoundError:
         return "0.1.0+source"
 
 

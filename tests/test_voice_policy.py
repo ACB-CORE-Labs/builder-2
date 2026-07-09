@@ -29,6 +29,16 @@ def test_voice_io_policy_creation_and_round_trip(tmp_path: Path) -> None:
     assert validate_voice_io_policy_artifact_file(output) == []
 
 
+def test_validate_voice_io_policy_artifact_file_edge_cases(tmp_path: Path) -> None:
+    assert any("file not found" in e for e in validate_voice_io_policy_artifact_file(tmp_path / "missing.json"))
+    bad = tmp_path / "bad.json"
+    bad.write_text("{not json", encoding="utf-8")
+    assert any("invalid JSON" in e for e in validate_voice_io_policy_artifact_file(bad))
+    d = tmp_path / "dir"
+    d.mkdir()
+    assert any("failed to read file" in e for e in validate_voice_io_policy_artifact_file(d))
+
+
 def test_voice_io_policy_disabled_enforcement() -> None:
     artifact = create_voice_io_policy_artifact()
 

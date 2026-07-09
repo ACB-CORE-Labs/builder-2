@@ -19,6 +19,8 @@ from builder_ii.profile_pack_manifest import (
     create_profile_pack_manifest,
     dumps_profile_pack_manifest,
     validate_profile_pack_manifest,
+    validate_profile_pack_manifest_file,
+    write_profile_pack_manifest,
 )
 from builder_ii.profile_pack_render_plan import (
     PROFILE_PACK_RENDER_PLAN_KIND,
@@ -316,3 +318,14 @@ def test_validation_report_distinguishes_validated_from_promoted() -> None:
     assert report["claims"]["authorized"] is False
     assert report["claims"]["promoted"] is False
     assert validate_profile_pack_validation_report(report) == []
+
+
+def test_write_and_validate_profile_pack_manifest_file(tmp_path: Path) -> None:
+    manifest = _manifest()
+    out = tmp_path / "nested" / "manifest.json"
+    write_profile_pack_manifest(manifest, out)
+    assert validate_profile_pack_manifest_file(out) == []
+    assert any("file not found" in e for e in validate_profile_pack_manifest_file(tmp_path / "missing.json"))
+    bad = tmp_path / "bad.json"
+    bad.write_text("{bad", encoding="utf-8")
+    assert any("invalid JSON" in e for e in validate_profile_pack_manifest_file(bad))

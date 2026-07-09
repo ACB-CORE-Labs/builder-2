@@ -202,3 +202,22 @@ def test_v0_release_manifest_validates_release_identity_fields() -> None:
         assert any(
             f"release_identity.{field} must be a non-empty string" in e for e in validate_v0_release_manifest(mutated)
         )
+
+
+def test_validate_v0_release_manifest_file_edge_cases(tmp_path: Path) -> None:
+    non_existent = tmp_path / "does_not_exist.json"
+    errors = validate_v0_release_manifest_file(non_existent)
+    assert len(errors) == 1
+    assert "file not found" in errors[0]
+
+    invalid_json_file = tmp_path / "invalid.json"
+    invalid_json_file.write_text("{bad json", encoding="utf-8")
+    errors = validate_v0_release_manifest_file(invalid_json_file)
+    assert len(errors) == 1
+    assert "invalid JSON" in errors[0]
+
+    dir_path = tmp_path / "some_directory"
+    dir_path.mkdir()
+    errors = validate_v0_release_manifest_file(dir_path)
+    assert len(errors) == 1
+    assert "failed to read file" in errors[0]
