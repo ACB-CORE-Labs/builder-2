@@ -24,6 +24,12 @@
 # Skips are announced, never silent: a gate that cannot run on this host prints
 # [SKIP] and is listed again in the final summary. CI provisions every toolchain, so
 # CI never skips -- a local green with skips is weaker than a CI green, and says so.
+#
+# --receipt <path> -- opt-in, additive. When given, emits a `builder_ii.gate_battery_receipt`
+# artifact to <path> naming exactly which gates ran, their argv/exit codes/durations, the git
+# HEAD before and after, and whether the tree was clean. It is a RECORDED_ONLY receipt, not an
+# independent proof -- see builder_ii/gate_battery_receipt.py's module docstring for the honest
+# limit. With no --receipt, this script's behavior is unchanged from before this flag existed.
 
 set -o errexit
 set -o nounset
@@ -31,18 +37,12 @@ set -o pipefail
 
 cd "$(dirname "$0")/.."
 
-SKIPPED=()
-
-gate() {
-  printf '\n=== [GATE] %s ===\n' "$1"
-  shift
-  "$@"
-}
-
-skip() {
-  printf '\n=== [SKIP] %s ===\n  reason: %s\n' "$1" "$2"
-  SKIPPED+=("$1")
-}
+# gate()/skip()/the --receipt machinery live in lib/ so they're testable without running the
+# real (slow) nine-gate battery -- see scripts/lib/gate_battery_receipt.sh's header comment.
+source scripts/lib/gate_battery_receipt.sh
+_gbr_parse_args "$@"
+_gbr_init
+trap _gbr_emit_receipt EXIT
 
 # 1. Rust validation accelerator must build (optional toolchain; CI always has it).
 #    PyO3 otherwise resolves whatever `python3` is first on PATH. On a dev box that is
