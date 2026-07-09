@@ -155,6 +155,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/DEEPAGENTS_RUNTIME.md`](DEEPAGENTS_RUNTIME.md) | Deepagents Runtime Harness |
 | [`docs/DEEPAGENTS_FORGE.md`](DEEPAGENTS_FORGE.md) | deepagents Forge |
 | [`docs/DEEPAGENTS_WORK_ARTIFACTS.md`](DEEPAGENTS_WORK_ARTIFACTS.md) | Deepagents Work Artifacts |
+| [`docs/ORCHESTRATION_OBLIGATIONS.md`](ORCHESTRATION_OBLIGATIONS.md) | Governed obligation delegation (Ladder 4) |
 | [`docs/BRIDGE.md`](BRIDGE.md) | deepagents bridge |
 
 ### CodeVault

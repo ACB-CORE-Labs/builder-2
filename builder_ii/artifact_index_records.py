@@ -261,6 +261,14 @@ from builder_ii.orchestration_dry_run import (
     ORCHESTRATION_DRY_RUN_KIND,
     validate_orchestration_dry_run,
 )
+from builder_ii.orchestration_lane_policy import (
+    LANE_POLICY_KIND,
+    validate_orchestration_lane_policy_artifact,
+)
+from builder_ii.orchestration_obligation import (
+    OBLIGATION_KIND,
+    validate_orchestration_obligation,
+)
 from builder_ii.orchestration_plan import (
     ORCHESTRATION_PLAN_KIND,
     validate_orchestration_plan,
@@ -547,6 +555,8 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     DEMO_PREFLIGHT_KIND: validate_demo_preflight,
     DEMO_VERIFICATION_RECEIPT_KIND: validate_demo_verification_receipt,
     DEMO_REPORT_KIND: validate_demo_report,
+    OBLIGATION_KIND: validate_orchestration_obligation,
+    LANE_POLICY_KIND: validate_orchestration_lane_policy_artifact,
     _ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND: _validate_chain_verification_report,
 }
 

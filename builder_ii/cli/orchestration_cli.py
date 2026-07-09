@@ -346,5 +346,209 @@ def dry_run_assignment(
         console.out(dumps_orchestration_assignment_dry_run(dry_run), end="")
 
 
+@orchestration_app.command("lane-policy")
+def lane_policy(
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write the lane policy artifact JSON to this path"),
+) -> None:
+    """Render the governed orchestration lane policy artifact (derived from the fixed lane table)."""
+    from builder_ii.orchestration_lane_policy import (
+        create_orchestration_lane_policy_artifact,
+        dumps_orchestration_lane_policy_artifact,
+        validate_discharge_mechanisms_against_registry,
+        validate_orchestration_lane_policy_artifact,
+    )
+
+    artifact = create_orchestration_lane_policy_artifact()
+    errors = validate_orchestration_lane_policy_artifact(artifact)
+    errors += validate_discharge_mechanisms_against_registry()
+    if errors:
+        for error in errors:
+            console.print(f"[red]Lane policy error: {error}[/]")
+        raise typer.Exit(1)
+
+    serialized = dumps_orchestration_lane_policy_artifact(artifact)
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(serialized, encoding="utf-8")
+        console.print(f"[green]Lane policy written to {output}[/]")
+    else:
+        console.out(serialized, end="")
+
+
+@orchestration_app.command("validate-lane-policy")
+def validate_lane_policy(
+    path: Path = typer.Argument(..., help="Path to an orchestration lane policy JSON file"),
+) -> None:
+    """Validate a governed orchestration lane policy artifact file (schema + live registry linkage)."""
+    from builder_ii.orchestration_lane_policy import (
+        validate_discharge_mechanisms_against_registry,
+        validate_orchestration_lane_policy_artifact_file,
+    )
+
+    errors = validate_orchestration_lane_policy_artifact_file(path)
+    errors += validate_discharge_mechanisms_against_registry()
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error: {error}[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]Orchestration lane policy {path} is valid.[/]")
+
+
+@orchestration_app.command("mint-obligation")
+def mint_obligation(
+    obligation_kind: str = typer.Option(
+        ..., "--obligation-kind", help="planning_step | interactive_ops | model_call | mutation | verification"
+    ),
+    task: str = typer.Option(..., "--task", help="What the delegated subagent must do (<= 2000 chars)"),
+    expected_kind: str = typer.Option(..., "--expected-kind", help="output_contract.expected_kind the discharge must produce"),
+    subagent_profile: str = typer.Option(..., "--subagent-profile", help="Profile of the subagent that will hold this obligation"),
+    lane_policy_path: Path = typer.Option(
+        ...,
+        "--lane-policy",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Path to the lane policy artifact this obligation is minted under",
+    ),
+    seal_digest: Optional[str] = typer.Option(
+        None, "--seal-digest", help="Root seal digest; mutually exclusive with --parent-obligation-digest"
+    ),
+    parent_obligation_digest: Optional[str] = typer.Option(
+        None, "--parent-obligation-digest", help="Parent obligation digest; mutually exclusive with --seal-digest"
+    ),
+    lane: Optional[str] = typer.Option(
+        None, "--lane", help="Override lane; if omitted, derived from the lane policy for --obligation-kind"
+    ),
+    required_evidence: Optional[str] = typer.Option(
+        None, "--required-evidence", help="Comma-separated evidence kinds the discharge must attach"
+    ),
+    denied_action: Optional[str] = typer.Option(
+        None, "--denied-action", help="Comma-separated actions denied to the subagent"
+    ),
+    refused_lane: Optional[str] = typer.Option(
+        None, "--refused-lane", help="Comma-separated lanes explicitly refused (negative space)"
+    ),
+    file_ref: Optional[list[str]] = typer.Option(
+        None, "--file-ref", help="Repeatable path=sha256 citation (never dump content)"
+    ),
+    briefing_bytes: int = typer.Option(
+        0, "--briefing-bytes", help="Recorded serialized briefing size in bytes (must be <= --max-output-bytes)"
+    ),
+    max_subagents: int = typer.Option(0, "--max-subagents", help="Budget partition: max subagents this obligation may mint"),
+    max_events: int = typer.Option(0, "--max-events", help="Budget partition: max ledger events"),
+    max_output_bytes: int = typer.Option(0, "--max-output-bytes", help="Budget partition: max output bytes"),
+    max_human_gates: int = typer.Option(0, "--max-human-gates", help="Budget partition: max human gates"),
+    output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write the obligation JSON to this path"),
+) -> None:
+    """Mint a governed orchestration obligation artifact (Law 1: no speech without a ticket).
+
+    The obligation is validated before it is emitted; the lane is derived from (and checked
+    against) the supplied lane policy, and its digest is pinned into the obligation. No runtime
+    enforcement of the budget envelope happens here — that is the seal/runner's job (PR-4).
+    """
+    from builder_ii.orchestration_lane_policy import (
+        LanePolicyViolation,
+        lane_for_obligation_kind,
+        require_lane_match,
+        validate_orchestration_lane_policy_artifact,
+    )
+    from builder_ii.orchestration_obligation import (
+        create_orchestration_obligation,
+        validate_orchestration_obligation,
+    )
+
+    if seal_digest is not None and parent_obligation_digest is not None:
+        console.print("[red]--seal-digest and --parent-obligation-digest are mutually exclusive[/]")
+        raise typer.Exit(1)
+    if seal_digest is not None:
+        parent_ref: dict[str, str] = {"seal_digest": seal_digest}
+    elif parent_obligation_digest is not None:
+        parent_ref = {"obligation_digest": parent_obligation_digest}
+    else:
+        console.print("[red]exactly one of --seal-digest or --parent-obligation-digest is required[/]")
+        raise typer.Exit(1)
+
+    policy = _read_json(lane_policy_path)
+    policy_errors = validate_orchestration_lane_policy_artifact(policy)
+    if policy_errors:
+        for error in policy_errors:
+            console.print(f"[red]invalid lane policy: {error}[/]")
+        raise typer.Exit(1)
+    lane_policy_digest = policy["lane_policy_digest"]
+
+    try:
+        resolved_lane = lane if lane is not None else lane_for_obligation_kind(obligation_kind)
+        require_lane_match(obligation_kind, resolved_lane)
+    except LanePolicyViolation as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1)
+
+    refs: list[dict[str, str]] = []
+    for raw in file_ref or []:
+        if "=" not in raw:
+            console.print(f"[red]--file-ref must be path=sha256, got: {raw!r}[/]")
+            raise typer.Exit(1)
+        path_part, _, sha_part = raw.partition("=")
+        refs.append({"path": path_part.strip(), "sha256": sha_part.strip()})
+
+    def _split(raw: Optional[str]) -> list[str]:
+        return [part.strip() for part in raw.split(",") if part.strip()] if raw else []
+
+    try:
+        obligation = create_orchestration_obligation(
+            lane=resolved_lane,
+            obligation_kind=obligation_kind,
+            task=task,
+            output_contract_expected_kind=expected_kind,
+            output_contract_required_evidence_kinds=_split(required_evidence),
+            denied_actions=_split(denied_action),
+            refused_lanes=_split(refused_lane),
+            file_refs=refs,
+            briefing_bytes=briefing_bytes,
+            budget_partition={
+                "max_subagents": max_subagents,
+                "max_events": max_events,
+                "max_output_bytes": max_output_bytes,
+                "max_human_gates": max_human_gates,
+            },
+            parent_ref=parent_ref,
+            lane_policy_digest=lane_policy_digest,
+            subagent_profile=subagent_profile,
+        )
+    except (ValueError, TypeError) as exc:
+        console.print(f"[red]Error minting obligation: {exc}[/]")
+        raise typer.Exit(1)
+
+    errors = validate_orchestration_obligation(obligation)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error in minted obligation: {error}[/]")
+        raise typer.Exit(1)
+
+    serialized = json_lib.dumps(obligation, indent=2, sort_keys=True) + "\n"
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(serialized, encoding="utf-8")
+        console.print(f"[green]Obligation written to {output}[/]")
+    else:
+        console.out(serialized, end="")
+
+
+@orchestration_app.command("validate-obligation")
+def validate_obligation(
+    path: Path = typer.Argument(..., help="Path to an orchestration obligation JSON file"),
+) -> None:
+    """Validate a governed orchestration obligation artifact file."""
+    from builder_ii.orchestration_obligation import validate_orchestration_obligation_file
+
+    errors = validate_orchestration_obligation_file(path)
+    if errors:
+        for error in errors:
+            console.print(f"[red]Validation error: {error}[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]Orchestration obligation {path} is valid.[/]")
+
+
 if __name__ == "__main__":
     orchestration_app()

@@ -73,6 +73,8 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.orchestration_assignment_plan`
 - `builder_ii.orchestration_assignment_dry_run`
 - `builder_ii.orchestration_assignment_validation_report`
+- `builder_ii.orchestration_obligation`
+- `builder_ii.orchestration_lane_policy`
 - `builder_ii.runtime_activation_approval_spec`
 - `builder_ii.goose_readonly_session_plan`
 - `builder_ii.goose_projection`
@@ -153,6 +155,8 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.orchestration_assignment_plan` | Passive orchestration assignment plan | Goal 2 |
 | `builder_ii.orchestration_assignment_dry_run` | Passive orchestration assignment dry run | Goal 2 |
 | `builder_ii.orchestration_assignment_validation_report` | Passive assignment validation report | Goal 2 |
+| `builder_ii.orchestration_obligation` | Governed delegation obligation (Law 1 ticket) | Ladder 4 |
+| `builder_ii.orchestration_lane_policy` | Obligation-kind → lane → discharge policy (derived view) | Ladder 4 |
 | `builder_ii.runtime_activation_approval_spec` | Runtime activation spec | #133 |
 | `builder_ii.goose_readonly_session_plan` | Goose readonly plan | #133 |
 | `builder_ii.goose_projection` | Projection spec | #133 |
