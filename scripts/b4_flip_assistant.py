@@ -46,11 +46,14 @@ MIRROR_DOC = REPO / "docs" / "PLATFORM_COMPLETION_AUDIT.md"
 # arbitrary generic targets); it participates in the assurance + mirror checks only.
 # "interactive setup wizard" was added by the 2.6 R1 closure flip (builder init, plan item 2.2;
 # docs/audits/R1_CLOSURE_AUDIT_2_6.md); it also participates in the assurance + mirror checks only.
+# "governed obligation delegation" was added by the Ladder 4 PR-8 closure flip (protocol_fake
+# scope; docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md); assurance + mirror checks only.
 FLIP_CAPABILITIES = (
     "HITL patch application",
     "rollback execution",
     "governed demo loop",
     "interactive setup wizard",
+    "governed obligation delegation",
 )
 EXECUTOR_STAMP_ROW = "HITL patch application"
 

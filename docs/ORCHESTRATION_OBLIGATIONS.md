@@ -1,13 +1,17 @@
 # Governed Obligation Delegation (Ladder 4)
 
-Status: **governed, not yet promoted.** Two artifact kinds (`builder-orchestration`) plus the sealed
-runner on `builder-deepagents run-approved --obligation` (PR-4). Minting an obligation still emits an
+Status: **operationally verified, scoped to `protocol_fake`** (Ladder 4 PR-8, operator-applied).
+Two artifact kinds (`builder-orchestration`) plus the sealed runner on
+`builder-deepagents run-approved --obligation` (PR-4). Minting an obligation still emits an
 **inert** JSON artifact — it starts nothing. The runner enforces every mint against the sealed
-envelope and classifies each discharge, but it does so **over the `protocol_fake` backend as CI
-truth**; the native backend is a separate, two-key-gated claim that this surface does **not** cover.
-**No completion-matrix row moves yet** — the flip to `OPERATIONALLY_VERIFIED` is a later, evidence-
-backed, operator-applied step (Ladder 4 PR-8). See `docs/plan/ORCHESTRATION_OBLIGATIONS_RFC.md` for
-the doctrine and `planning/LADDER4_OBLIGATION_DELEGATION_PLAN.md` for the authoritative schema.
+envelope and classifies each discharge **over the `protocol_fake` backend as CI truth**; the native
+backend is a separate, two-key-gated claim that this surface does **not** cover. The
+completion-matrix row `governed obligation delegation` is `OPERATIONALLY_VERIFIED` with assurance
+`BOUNDED_EXECUTION_VERIFIED` — a claim that the two laws below are enforced fail-closed and
+evidenced end-to-end, never a claim about agent-output quality. Evidence and the pinned-site edit
+set: `docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md`. See
+`docs/plan/ORCHESTRATION_OBLIGATIONS_RFC.md` for the doctrine and
+`planning/LADDER4_OBLIGATION_DELEGATION_PLAN.md` for the authoritative schema.
 
 ## The two laws
 
@@ -111,17 +115,18 @@ builder_ii.verification_execution_receipt; attached: none; consumed: yes`, and e
 unless the obligation is `CONTRACT_SATISFIED` with an intact event chain. Both commands exit
 non-zero on a broken/tampered event chain or missing run artifacts.
 
-**Registration note:** `status` and `why` are registered in `COMMAND_AUTHORITY_REGISTRY` as
-`STATE_SPEC_ONLY` ahead of this CLI landing (PR-4), so that PR-5 — a Sonnet new-file surface —
-never edits the contended registry. Moving both records out of `STATE_SPEC_ONLY` and refreshing
-their `runtime_boundary` text to describe the live CLI is a follow-up registry-only change; until
-it lands, `test_status_why_records_are_honestly_spec_only`
-(`tests/test_orchestration_delegation_run.py`) intentionally fails, naming exactly that gap.
+**Registration note:** `status` and `why` were pre-registered as `STATE_SPEC_ONLY` by PR-4 so
+that PR-5 — a new-file surface — never edited the contended registry. Once the CLI landed, both
+records were promoted to `STATE_VALIDATION_ONLY` with boundary text describing the live commands;
+`test_status_why_records_promoted_to_validation_only_with_live_cli`
+(`tests/test_orchestration_delegation_run.py`) pins registry-matches-code in both directions.
 
 ## The sealed runner (`builder-deepagents run-approved --obligation`)
 
 The root **seal** is the existing `builder_ii.deepagents_execution_approval` — minor-bumped, not
-forked — so the single typed digest-prefix ceremony now also seals an **obligation envelope**:
+forked — so the single flag-driven approval (`approve-candidate --approval-actor … --approval-reason …`;
+digest-bound, non-interactive — there is no typed-prefix prompt on this command) now also seals an
+**obligation envelope**:
 `lane_policy_digest`, a four-field `root_budget`, `allowed_obligation_kinds` (kind × max count),
 `refused_lanes`, and `native_backend_acknowledged`. The envelope fields live **inside the approval
 digest basis** (an unsealed envelope field would be a forgery channel). Legacy candidates/approvals

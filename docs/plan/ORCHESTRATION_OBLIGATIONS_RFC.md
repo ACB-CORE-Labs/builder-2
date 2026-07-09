@@ -120,6 +120,17 @@ New optional-at-parse, required-at-Ladder-4-runtime fields on the approval:
 The digest-prefix ceremony (`approve-candidate`) is **UNCHANGED** — one typed 4-char prefix, once,
 at the root. The new fields go **inside** the digested content (they are what is being approved).
 
+> **As-built note (Ladder 4 PR-8 closure audit):** the ceremony description above imported the
+> `builder-hitl` grammar, but the implemented `builder-deepagents approve-candidate` was already —
+> and remains — flag-driven and non-interactive (`--approval-actor`/`--approval-reason`; no
+> `typer.prompt`, no typed-prefix transcription). The "UNCHANGED" clause is true in the sense that
+> PR-4 did not change the command's ceremony; the seal's authority comes from the digest binding
+> (the envelope fields live inside the approval digest basis), not from prompt theatre. Adding an
+> interactive typed-prefix confirmation for ceremony parity with `builder-hitl approve-patch` /
+> `builder-setup apply` would be a behavior change on an authority surface — deliberately left out
+> of the PR-8 promotion and recorded as a possible follow-up in
+> `docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md`.
+
 ### Dynamic mint (envelope semantics — no pre-committed ticket lists)
 
 The seal pre-authorizes **kinds × max counts × budget** — never an exact ticket list. Obligations
