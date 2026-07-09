@@ -48,7 +48,32 @@ EVENT_TYPES = (
     "run_completed",
     "run_failed",
     "action_denied",
+    # Ladder 4 obligation-delegation events (see docs/plan/ORCHESTRATION_OBLIGATIONS_RFC.md).
+    "obligation_minted",
+    "obligation_mint_refused",
+    "obligation_consumed",
 )
+
+# Ladder 4 discharge classification (orthogonal metadata over the PROPOSAL_ONLY result mode).
+DISCHARGE_CONTRACT_SATISFIED = "CONTRACT_SATISFIED"
+DISCHARGE_UNVERIFIED = "DISCHARGED_UNVERIFIED"
+DISCHARGE_CONTRACT_VIOLATED = "CONTRACT_VIOLATED"
+DISCHARGE_BLOCKED = "BLOCKED"
+DISCHARGE_STATES = (
+    DISCHARGE_CONTRACT_SATISFIED,
+    DISCHARGE_UNVERIFIED,
+    DISCHARGE_CONTRACT_VIOLATED,
+    DISCHARGE_BLOCKED,
+)
+# The canonical "produced kind" of the deepagents lane: a proposal-only subagent result. The
+# lane never writes source, calls models/tools, or attaches downstream evidence (see
+# DENIED_CAPABILITIES) — evidence for mutation/verification obligations comes from the hitl_patch
+# and verify lanes, not here. So an obligation whose output_contract requires evidence can never
+# reach CONTRACT_SATISFIED in this lane; it discharges UNVERIFIED. Structural truth, never belief.
+PROPOSAL_ONLY_RESULT_CONTRACT_KIND = "builder_ii.deepagents_proposal_only_result"
+# Provenance stamped on every protocol_fake discharge so a SATISFIED classification is never
+# read as verified execution (R3 honesty rule; mirrors D5's STRATUM fabricated-success ban).
+PROTOCOL_FAKE_DISCHARGE_PROVENANCE = "protocol_fake backend - structural truth only"
 
 DENIED_CAPABILITIES = (
     "source writes",
@@ -774,6 +799,88 @@ def _validate_governance(governance: Any, *, capability_state: str, protocol_exe
     return errors
 
 
+BUDGET_ENVELOPE_FIELDS = ("max_subagents", "max_events", "max_output_bytes", "max_human_gates")
+
+
+def _orchestration_obligation_kinds() -> tuple[str, ...]:
+    from builder_ii.orchestration_obligation import OBLIGATION_KINDS
+
+    return OBLIGATION_KINDS
+
+
+def _validate_budget_object(budget: Any, *, field: str) -> list[str]:
+    """Validate a four-field budget envelope (all components integers >= 0, no extras)."""
+    if not isinstance(budget, dict):
+        return [f"{field} must be an object"]
+    errors: list[str] = []
+    for key in BUDGET_ENVELOPE_FIELDS:
+        value = budget.get(key)
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            errors.append(f"{field}.{key} must be an integer >= 0")
+    extra = [key for key in budget if key not in BUDGET_ENVELOPE_FIELDS]
+    if extra:
+        errors.append(f"{field} has unexpected keys: {', '.join(sorted(extra))}")
+    return errors
+
+
+def _validate_obligation_envelope(envelope: Any, *, field: str = "obligation_envelope") -> list[str]:
+    """Validate the sealed obligation envelope (Ladder 4): lane-policy digest, root budget,
+    the allowed obligation kinds x max counts, and the refused-lane negative space."""
+    if not isinstance(envelope, dict):
+        return [f"{field} must be an object"]
+    errors: list[str] = []
+    if not _is_sha256(envelope.get("lane_policy_digest")):
+        errors.append(f"{field}.lane_policy_digest must be a SHA-256 hex digest")
+    errors.extend(_validate_budget_object(envelope.get("root_budget"), field=f"{field}.root_budget"))
+    known_kinds = _orchestration_obligation_kinds()
+    kinds = envelope.get("allowed_obligation_kinds")
+    if not isinstance(kinds, list) or not kinds:
+        errors.append(f"{field}.allowed_obligation_kinds must be a non-empty list")
+    else:
+        seen: set[str] = set()
+        for index, entry in enumerate(kinds):
+            prefix = f"{field}.allowed_obligation_kinds[{index}]"
+            if not isinstance(entry, dict):
+                errors.append(f"{prefix} must be an object")
+                continue
+            kind = entry.get("kind")
+            if kind not in known_kinds:
+                errors.append(f"{prefix}.kind must be one of: {', '.join(known_kinds)}")
+            elif kind in seen:
+                errors.append(f"{prefix}.kind is a duplicate; each obligation_kind appears at most once")
+            else:
+                seen.add(kind)
+            max_count = entry.get("max_count")
+            if not isinstance(max_count, int) or isinstance(max_count, bool) or max_count < 0:
+                errors.append(f"{prefix}.max_count must be an integer >= 0")
+            extra = [key for key in entry if key not in ("kind", "max_count")]
+            if extra:
+                errors.append(f"{prefix} has unexpected keys: {', '.join(sorted(extra))}")
+    errors.extend(_string_list(envelope.get("refused_lanes"), field=f"{field}.refused_lanes"))
+    allowed_keys = ("lane_policy_digest", "root_budget", "allowed_obligation_kinds", "refused_lanes")
+    extra = [key for key in envelope if key not in allowed_keys]
+    if extra:
+        errors.append(f"{field} has unexpected keys: {', '.join(sorted(extra))}")
+    return errors
+
+
+def _build_obligation_envelope(
+    *,
+    lane_policy_digest: str,
+    root_budget: dict[str, int],
+    allowed_obligation_kinds: list[dict[str, Any]],
+    refused_lanes: list[str],
+) -> dict[str, Any]:
+    return {
+        "lane_policy_digest": lane_policy_digest,
+        "root_budget": {field: int(root_budget.get(field, 0)) for field in BUDGET_ENVELOPE_FIELDS},
+        "allowed_obligation_kinds": [
+            {"kind": str(entry["kind"]), "max_count": int(entry["max_count"])} for entry in allowed_obligation_kinds
+        ],
+        "refused_lanes": [str(lane) for lane in refused_lanes],
+    }
+
+
 def create_deepagents_execution_candidate(
     *,
     work_plan: dict[str, Any],
@@ -786,6 +893,11 @@ def create_deepagents_execution_candidate(
     max_subagents: int = 8,
     max_events: int = 256,
     max_output_bytes: int = 65536,
+    lane_policy: dict[str, Any] | None = None,
+    lane_policy_path: Path | None = None,
+    root_budget: dict[str, int] | None = None,
+    allowed_obligation_kinds: list[dict[str, Any]] | None = None,
+    refused_lanes: list[str] | None = None,
 ) -> dict[str, Any]:
     errors = validate_deepagents_work_plan(work_plan)
     if errors:
@@ -831,6 +943,29 @@ def create_deepagents_execution_candidate(
     elif backend_readiness_gate is not None:
         raise ValueError("backend_readiness_gate is only valid for optional_deepagents")
 
+    lane_policy_ref: dict[str, Any] | None = None
+    obligation_envelope_view: dict[str, Any] | None = None
+    if lane_policy is not None or root_budget is not None or allowed_obligation_kinds is not None:
+        from builder_ii.orchestration_lane_policy import validate_orchestration_lane_policy_artifact
+
+        if lane_policy is None or root_budget is None or allowed_obligation_kinds is None:
+            raise ValueError(
+                "a Ladder 4 obligation-bearing candidate requires lane_policy, root_budget, and "
+                "allowed_obligation_kinds together"
+            )
+        policy_errors = validate_orchestration_lane_policy_artifact(lane_policy)
+        if policy_errors:
+            raise ValueError("invalid orchestration lane policy: " + "; ".join(policy_errors))
+        lane_policy_ref = _artifact_ref(
+            lane_policy, role="lane_policy", path=lane_policy_path, name="orchestration lane policy"
+        )
+        obligation_envelope_view = _build_obligation_envelope(
+            lane_policy_digest=str(lane_policy["lane_policy_digest"]),
+            root_budget=root_budget,
+            allowed_obligation_kinds=allowed_obligation_kinds,
+            refused_lanes=list(refused_lanes or []),
+        )
+
     content = {
         "kind": DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
         "schema_version": DEEPAGENTS_EXECUTION_SCHEMA_VERSION,
@@ -859,6 +994,9 @@ def create_deepagents_execution_candidate(
         "authority_boundary": _authority_boundary("deepagents_execution_candidate"),
         "governance": _base_governance("deepagents_execution_candidate"),
     }
+    if obligation_envelope_view is not None:
+        content["lane_policy_ref"] = lane_policy_ref
+        content["obligation_envelope"] = obligation_envelope_view
     candidate = _attach_digest(content, "candidate_digest")
     candidate_errors = validate_deepagents_execution_candidate(candidate)
     if candidate_errors:
@@ -874,12 +1012,23 @@ def create_deepagents_execution_approval(
     approval_reason: str,
     expires_at: str | None = None,
     generated_at: str | None = None,
+    native_backend_acknowledged: bool = False,
 ) -> dict[str, Any]:
     errors = validate_deepagents_execution_candidate(candidate)
     if errors:
         raise ValueError("invalid deepagents execution candidate: " + "; ".join(errors))
     generated = generated_at or _utc_now()
     candidate_digest = str(candidate.get("candidate_digest", ""))
+    # Ladder 4: an obligation-bearing candidate seals its envelope into this approval. The typed
+    # digest-prefix ceremony is unchanged; what one ceremony now authorizes is the envelope.
+    sealed_envelope = candidate.get("obligation_envelope") if isinstance(candidate, dict) else None
+    if sealed_envelope is not None and candidate.get("backend_mode") == OPTIONAL_DEEPAGENTS_BACKEND:
+        # Two-key rule (D7 pattern): the native backend requires an explicit second key at seal time.
+        if native_backend_acknowledged is not True:
+            raise ValueError(
+                "native_backend_acknowledged must be true to seal an optional_deepagents "
+                "obligation-bearing candidate (two-key rule)"
+            )
     content = {
         "kind": DEEPAGENTS_EXECUTION_APPROVAL_KIND,
         "schema_version": DEEPAGENTS_EXECUTION_SCHEMA_VERSION,
@@ -905,6 +1054,18 @@ def create_deepagents_execution_approval(
         "authority_boundary": _authority_boundary("deepagents_execution_approval"),
         "governance": _base_governance("deepagents_execution_approval"),
     }
+    if sealed_envelope is not None:
+        # The sealed fields go INSIDE the digest basis — they are exactly what is approved.
+        content["lane_policy_digest"] = str(sealed_envelope["lane_policy_digest"])
+        content["root_budget"] = {
+            field: int(sealed_envelope["root_budget"].get(field, 0)) for field in BUDGET_ENVELOPE_FIELDS
+        }
+        content["allowed_obligation_kinds"] = [
+            {"kind": str(entry["kind"]), "max_count": int(entry["max_count"])}
+            for entry in sealed_envelope["allowed_obligation_kinds"]
+        ]
+        content["refused_lanes"] = [str(lane) for lane in sealed_envelope["refused_lanes"]]
+        content["native_backend_acknowledged"] = bool(native_backend_acknowledged)
     approval = _attach_digest(content, "approval_digest")
     approval_errors = validate_deepagents_execution_approval_against_candidate(approval, candidate)
     if approval_errors:
@@ -1362,6 +1523,17 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
         for capability in DENIED_CAPABILITIES:
             if capability not in denied:
                 errors.append(f"denied_capabilities must include {capability}")
+    # Ladder 4: lane_policy_ref + obligation_envelope are optional-at-parse (N/N-1). When either is
+    # present, both must be present and valid — a half-declared envelope is a forgery channel.
+    has_lane_ref = data.get("lane_policy_ref") is not None
+    has_envelope = data.get("obligation_envelope") is not None
+    if has_lane_ref or has_envelope:
+        if not (has_lane_ref and has_envelope):
+            errors.append("lane_policy_ref and obligation_envelope must be present together or both absent")
+        errors.extend(
+            _ref_errors(data.get("lane_policy_ref"), field="lane_policy_ref", role="lane_policy")
+        )
+        errors.extend(_validate_obligation_envelope(data.get("obligation_envelope")))
     errors.extend(
         _validate_common_authority(
             data,
@@ -1372,6 +1544,20 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
     if data.get("candidate_digest") != _digest_jsonable(data):
         errors.append("candidate_digest does not match canonical candidate payload")
     return errors
+
+
+def is_ladder4_seal(approval: Any) -> bool:
+    """True when the approval seals a Ladder 4 obligation envelope (lane policy + budget + kinds)."""
+    return isinstance(approval, dict) and approval.get("lane_policy_digest") is not None
+
+
+_SEAL_ENVELOPE_KEYS = (
+    "lane_policy_digest",
+    "root_budget",
+    "allowed_obligation_kinds",
+    "refused_lanes",
+    "native_backend_acknowledged",
+)
 
 
 def validate_deepagents_execution_approval(data: Any) -> list[str]:
@@ -1406,6 +1592,26 @@ def validate_deepagents_execution_approval(data: Any) -> list[str]:
     errors.extend(_string_list(data.get("approved_subagents"), field="approved_subagents", allow_empty=False))
     if data.get("approval_enables_direct_deepagents") is not False:
         errors.append("approval_enables_direct_deepagents must be false or NOT_AUTHORIZED")
+    # Ladder 4 seal fields are optional-at-parse (N/N-1). When any is present, all must be present
+    # and valid — an unsealed or half-sealed envelope field is a forgery channel (R1).
+    present_seal_keys = [key for key in _SEAL_ENVELOPE_KEYS if data.get(key) is not None]
+    if present_seal_keys:
+        if len(present_seal_keys) != len(_SEAL_ENVELOPE_KEYS):
+            missing = [key for key in _SEAL_ENVELOPE_KEYS if key not in present_seal_keys]
+            errors.append("Ladder 4 seal fields must be present together or all absent; missing: " + ", ".join(missing))
+        errors.extend(
+            _validate_obligation_envelope(
+                {
+                    "lane_policy_digest": data.get("lane_policy_digest"),
+                    "root_budget": data.get("root_budget"),
+                    "allowed_obligation_kinds": data.get("allowed_obligation_kinds"),
+                    "refused_lanes": data.get("refused_lanes", []),
+                },
+                field="seal_envelope",
+            )
+        )
+        if not isinstance(data.get("native_backend_acknowledged"), bool):
+            errors.append("native_backend_acknowledged must be a boolean")
     errors.extend(
         _validate_common_authority(
             data,
@@ -1435,6 +1641,27 @@ def validate_deepagents_execution_approval_against_candidate(
         errors.append("approval approved_backend_mode must match candidate backend_mode")
     if approval.get("approved_subagents") != candidate.get("allowed_subagents"):
         errors.append("approval approved_subagents must match candidate allowed_subagents")
+    # Ladder 4 (R1): the seal must bind exactly the candidate's declared obligation envelope, and a
+    # Ladder 4 candidate must be sealed by a Ladder 4 approval (no legacy approval for an envelope).
+    candidate_envelope = candidate.get("obligation_envelope")
+    approval_is_seal = is_ladder4_seal(approval)
+    if (candidate_envelope is not None) != approval_is_seal:
+        errors.append("a Ladder 4 obligation envelope must be sealed by a Ladder 4 approval and vice versa")
+    elif candidate_envelope is not None and approval_is_seal:
+        if approval.get("lane_policy_digest") != candidate_envelope.get("lane_policy_digest"):
+            errors.append("approval lane_policy_digest must match candidate obligation_envelope.lane_policy_digest")
+        if approval.get("root_budget") != candidate_envelope.get("root_budget"):
+            errors.append("approval root_budget must match candidate obligation_envelope.root_budget")
+        if approval.get("allowed_obligation_kinds") != candidate_envelope.get("allowed_obligation_kinds"):
+            errors.append(
+                "approval allowed_obligation_kinds must match candidate obligation_envelope.allowed_obligation_kinds"
+            )
+        if approval.get("refused_lanes") != candidate_envelope.get("refused_lanes"):
+            errors.append("approval refused_lanes must match candidate obligation_envelope.refused_lanes")
+        if candidate.get("backend_mode") == OPTIONAL_DEEPAGENTS_BACKEND and approval.get(
+            "native_backend_acknowledged"
+        ) is not True:
+            errors.append("native_backend_acknowledged must be true when candidate backend_mode is optional_deepagents")
     if check_expiry and approval.get("expires_at"):
         expires = _parse_time(str(approval["expires_at"]))
         if expires is None:
@@ -2340,12 +2567,140 @@ def _finalize_run_artifacts(
     }
 
 
+def _obligation_briefing_digest(obligation: dict[str, Any]) -> str:
+    """Digest over what the subagent is actually briefed with (task + boundary + refs + contract +
+    profile) — distinct from obligation_id, which also binds budget, parent_ref, and lane policy."""
+    briefing = {
+        "task": obligation.get("task"),
+        "boundary": obligation.get("boundary"),
+        "file_refs": obligation.get("file_refs"),
+        "output_contract": obligation.get("output_contract"),
+        "subagent_profile": obligation.get("subagent_profile"),
+    }
+    return _digest_jsonable(briefing)
+
+
+def _result_attached_evidence_kinds(result: dict[str, Any]) -> list[str]:
+    """Evidence kinds attached to a deepagents-lane result: none in v1. The proposal-only lane
+    attaches no downstream evidence; evidence accrues through the verify / hitl_patch lanes."""
+    return []
+
+
+def classify_discharge(obligation: dict[str, Any], result: dict[str, Any], *, produced_kind: str) -> dict[str, Any]:
+    """Classify an obligation discharge from its output_contract and the produced result.
+
+    CONTRACT_SATISFIED    - produced kind == expected_kind AND every required evidence kind attached.
+    DISCHARGED_UNVERIFIED - right shape, missing evidence (consumable only as unverified).
+    CONTRACT_VIOLATED     - wrong shape; not consumable at all.
+    """
+    contract = obligation.get("output_contract") or {}
+    expected = str(contract.get("expected_kind", ""))
+    required = [str(kind) for kind in (contract.get("required_evidence_kinds") or [])]
+    attached = _result_attached_evidence_kinds(result)
+    if produced_kind != expected:
+        state = DISCHARGE_CONTRACT_VIOLATED
+        missing = required
+    else:
+        missing = [kind for kind in required if kind not in attached]
+        state = DISCHARGE_UNVERIFIED if missing else DISCHARGE_CONTRACT_SATISFIED
+    return {
+        "discharge_state": state,
+        "expected_kind": expected,
+        "produced_kind": produced_kind,
+        "attached_evidence_kinds": attached,
+        "missing_evidence": missing,
+    }
+
+
+def _enforce_obligation_mint(
+    obligation: dict[str, Any],
+    *,
+    approval: dict[str, Any],
+    sealed_lane_policy_digest: str,
+    approved_subagents: list[str],
+    kind_counts: dict[str, int],
+    minted_by_parent: dict[str, list[dict[str, int]]],
+    accepted_by_digest: dict[str, dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Fail-closed mint check against the sealed envelope (R4). Returns a refusal dict
+    ``{violated_rule, fixing_edit}`` when the mint is refused, or ``None`` when it is accepted.
+
+    Every rule names the exact fixing edit so a refusal is never a dead end.
+    """
+    from builder_ii.orchestration_lane_policy import LanePolicyViolation, require_lane_match
+    from builder_ii.orchestration_obligation import fits_within
+
+    obligation_kind = str(obligation.get("obligation_kind", ""))
+    lane = str(obligation.get("lane", ""))
+    budget = obligation.get("budget_partition") or {}
+
+    # (0) lane policy the obligation was minted under must equal the sealed policy.
+    if obligation.get("lane_policy_digest") != sealed_lane_policy_digest:
+        return {
+            "violated_rule": "lane_policy_drift",
+            "fixing_edit": "re-mint the obligation under the sealed lane policy "
+            f"(lane_policy_digest={sealed_lane_policy_digest})",
+        }
+    # (1) lane matches the policy for the kind (never resolved by adapter-first).
+    try:
+        require_lane_match(obligation_kind, lane)
+    except LanePolicyViolation as exc:
+        return {"violated_rule": "lane_policy_collision", "fixing_edit": str(exc)}
+    # (2) kind is in the sealed allowed_obligation_kinds with count remaining.
+    if obligation_kind not in kind_counts:
+        return {
+            "violated_rule": "obligation_kind_not_authorized",
+            "fixing_edit": f"add {obligation_kind!r} to the seal's allowed_obligation_kinds and re-approve",
+        }
+    if kind_counts[obligation_kind] <= 0:
+        return {
+            "violated_rule": "obligation_kind_count_exhausted",
+            "fixing_edit": f"raise max_count for {obligation_kind!r} in the seal's allowed_obligation_kinds "
+            "and re-approve",
+        }
+    # (3) parent_ref binds to this seal (root) or an already-accepted parent obligation.
+    parent_ref = obligation.get("parent_ref") or {}
+    if "seal_digest" in parent_ref:
+        if parent_ref.get("seal_digest") != approval.get("approval_digest"):
+            return {
+                "violated_rule": "parent_seal_mismatch",
+                "fixing_edit": "re-mint with --seal-digest set to this approval's approval_digest",
+            }
+        parent_key = "seal"
+        parent_grant = {field: int(approval["root_budget"].get(field, 0)) for field in BUDGET_ENVELOPE_FIELDS}
+    else:
+        parent_digest = str(parent_ref.get("obligation_digest", ""))
+        parent = accepted_by_digest.get(parent_digest)
+        if parent is None:
+            return {
+                "violated_rule": "parent_obligation_unknown",
+                "fixing_edit": "order the parent obligation before this child, or bind directly to the seal",
+            }
+        parent_key = parent_digest
+        parent_grant = {field: int((parent.get("budget_partition") or {}).get(field, 0)) for field in BUDGET_ENVELOPE_FIELDS}
+    # (4) budget partition fits component-wise within the parent's remaining (grants-not-loans).
+    siblings = minted_by_parent.get(parent_key, [])
+    if not fits_within(budget, parent_grant, siblings):
+        return {
+            "violated_rule": "budget_partition_exceeds_remaining",
+            "fixing_edit": "lower this obligation's budget_partition so every component fits the parent's remaining grant",
+        }
+    # (5) subagent_profile must be one the seal approved.
+    if str(obligation.get("subagent_profile", "")) not in approved_subagents:
+        return {
+            "violated_rule": "subagent_not_approved",
+            "fixing_edit": "set subagent_profile to one of the seal's approved_subagents, or re-approve with it added",
+        }
+    return None
+
+
 def run_deepagents_approved_candidate(
     *,
     candidate_path: Path,
     approval_path: Path,
     output_dir: Path,
     stop_after: int | None = None,
+    obligation_paths: list[Path] | None = None,
 ) -> dict[str, Any]:
     candidate = _load_json_object(candidate_path, label="deepagents execution candidate")
     approval = _load_json_object(approval_path, label="deepagents execution approval")
@@ -2355,6 +2710,19 @@ def run_deepagents_approved_candidate(
     denial_probe_payloads = _denial_probe_payloads(readiness_gate)
     if stop_after is not None and stop_after <= 0:
         raise ValueError("stop_after must be positive when supplied")
+    if obligation_paths:
+        if stop_after is not None:
+            raise ValueError("stop_after (checkpoint/resume) is not supported for obligation-bearing runs in v1")
+        return _run_obligation_delegation(
+            candidate=candidate,
+            approval=approval,
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            output_dir=output_dir,
+            readiness_gate=readiness_gate,
+            denial_probe_payloads=denial_probe_payloads,
+            obligation_paths=list(obligation_paths),
+        )
     allowed = list(candidate["allowed_subagents"])
     planned_events = 3 + len(denial_probe_payloads) + (2 * len(allowed))
     if stop_after is not None and stop_after < len(allowed):
@@ -2533,6 +2901,294 @@ def run_deepagents_approved_candidate(
             checkpoint_path=None,
             status="FAILED",
         )
+
+
+def _discharge_message(classification: dict[str, Any], provenance: str) -> str:
+    """Derive the discharge summary from the classification — never assert unconditional success."""
+    state = classification["discharge_state"]
+    if state == DISCHARGE_CONTRACT_SATISFIED:
+        return f"Discharged: produced {classification['produced_kind']}; contract satisfied ({provenance})."
+    if state == DISCHARGE_UNVERIFIED:
+        return (
+            "Speech recorded, belief withheld: missing evidence "
+            f"{classification['missing_evidence']} ({provenance})."
+        )
+    if state == DISCHARGE_CONTRACT_VIOLATED:
+        return (
+            f"Contract violated: expected {classification['expected_kind']!r}, "
+            f"produced {classification['produced_kind']!r}; not consumable ({provenance})."
+        )
+    return f"Obligation blocked ({provenance})."
+
+
+def _run_obligation_delegation(
+    *,
+    candidate: dict[str, Any],
+    approval: dict[str, Any],
+    candidate_path: Path,
+    approval_path: Path,
+    output_dir: Path,
+    readiness_gate: dict[str, Any] | None,
+    denial_probe_payloads: list[dict[str, Any]],
+    obligation_paths: list[Path],
+) -> dict[str, Any]:
+    """Obligation-delegated protocol run (Ladder 4): every obligation is mint-checked against the
+    sealed envelope (R4), each subagent runs its OWN obligation task (not the root task), and each
+    discharge is classified by evidence (CONTRACT_SATISFIED / DISCHARGED_UNVERIFIED /
+    CONTRACT_VIOLATED / BLOCKED). The binding was already validated by `_approval_guard`."""
+    from builder_ii.orchestration_lane_policy import create_orchestration_lane_policy_artifact
+    from builder_ii.orchestration_obligation import validate_orchestration_obligation
+
+    # (1) A legacy approval never enforces obligations — refuse an obligation-bearing run against one.
+    if not is_ladder4_seal(approval):
+        raise ValueError(
+            "obligation-bearing run requires a Ladder 4 approval (lane_policy_digest / root_budget / "
+            "allowed_obligation_kinds); a legacy approval never enforces obligations"
+        )
+    sealed_lpd = str(approval["lane_policy_digest"])
+    # (2) The sealed policy must equal the current derived-view policy (no drift since seal time).
+    current_policy = create_orchestration_lane_policy_artifact()
+    if current_policy.get("lane_policy_digest") != sealed_lpd:
+        raise ValueError("sealed lane_policy_digest does not match the current derived lane policy; policy drifted")
+    # (3) Two-key native ack, before backend construction (R1). The seal already binds this
+    #     (create + cross-validator + _approval_guard), so this is a fail-closed spawn-point guard.
+    backend_mode = str(candidate["backend_mode"])
+    if backend_mode == OPTIONAL_DEEPAGENTS_BACKEND and approval.get("native_backend_acknowledged") is not True:
+        raise ValueError("native_backend_acknowledged must be true before an optional_deepagents spawn (two-key rule)")
+    # (4) Load + validate every obligation up front — fail closed before any event is written.
+    obligations: list[dict[str, Any]] = []
+    for path in obligation_paths:
+        obligation = _load_json_object(path, label="orchestration obligation")
+        obl_errors = validate_orchestration_obligation(obligation)
+        if obl_errors:
+            raise ValueError(f"invalid obligation {path}: " + "; ".join(obl_errors))
+        obligations.append(obligation)
+
+    approved_subagents = list(approval.get("approved_subagents", []))
+    kind_counts = {str(entry["kind"]): int(entry["max_count"]) for entry in approval["allowed_obligation_kinds"]}
+
+    # Event budget: worst case = base(3) + denial probes + 4 events per obligation.
+    planned_events = 3 + len(denial_probe_payloads) + (4 * len(obligations))
+    _assert_event_budget(candidate, planned_events)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    events_dir = output_dir / "events"
+    events_dir.mkdir(parents=True, exist_ok=True)
+    if _load_event_records(events_dir):
+        raise ValueError("output_dir already contains deepagents events; choose a fresh output-dir")
+    session_id = _new_session_id(candidate)
+    backend = backend_for(backend_mode, readiness_gate=readiness_gate)
+    produced_kind = PROPOSAL_ONLY_RESULT_CONTRACT_KIND
+    provenance = (
+        PROTOCOL_FAKE_DISCHARGE_PROVENANCE if backend_mode == PROTOCOL_FAKE_BACKEND else f"{backend_mode} backend"
+    )
+    candidate_ref = _artifact_ref(
+        candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"
+    )
+    approval_ref = _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval")
+
+    sequence = 1
+    previous_ref: dict[str, Any] | None = None
+    _, _, previous_ref = _write_event(
+        events_dir=events_dir,
+        session_id=session_id,
+        sequence=sequence,
+        event_type="candidate_accepted",
+        subject_refs=[candidate_ref, approval_ref],
+        payload={"candidate_digest": candidate["candidate_digest"], "lane_policy_digest": sealed_lpd},
+        previous_ref=previous_ref,
+        message="Candidate and approval binding accepted for obligation-delegated protocol run.",
+    )
+    sequence += 1
+    _, _, previous_ref = _write_event(
+        events_dir=events_dir,
+        session_id=session_id,
+        sequence=sequence,
+        event_type="backend_selected",
+        subject_refs=[candidate_ref],
+        payload={
+            "backend_mode": backend.name,
+            "backend_readiness_gate_digest": readiness_gate.get("readiness_gate_digest") if readiness_gate else "",
+        },
+        previous_ref=previous_ref,
+        message="Protocol backend selected for obligation delegation.",
+    )
+    sequence += 1
+    for payload in denial_probe_payloads:
+        _, _, previous_ref = _write_event(
+            events_dir=events_dir,
+            session_id=session_id,
+            sequence=sequence,
+            event_type="action_denied",
+            subject_refs=[candidate_ref],
+            payload=payload,
+            previous_ref=previous_ref,
+            message=f"Recorded optional_deepagents denial probe for {payload['denied_capability']}.",
+        )
+        sequence += 1
+
+    minted_by_parent: dict[str, list[dict[str, int]]] = {}
+    accepted_by_digest: dict[str, dict[str, Any]] = {}
+    discharge_tally = {state: 0 for state in DISCHARGE_STATES}
+    completed: list[str] = []
+
+    try:
+        for obligation in obligations:
+            obligation_digest = str(obligation.get("obligation_id", ""))
+            briefing_digest = _obligation_briefing_digest(obligation)
+            stamp = {"obligation_digest": obligation_digest, "briefing_digest": briefing_digest}
+            refusal = _enforce_obligation_mint(
+                obligation,
+                approval=approval,
+                sealed_lane_policy_digest=sealed_lpd,
+                approved_subagents=approved_subagents,
+                kind_counts=kind_counts,
+                minted_by_parent=minted_by_parent,
+                accepted_by_digest=accepted_by_digest,
+            )
+            if refusal is not None:
+                discharge_tally[DISCHARGE_BLOCKED] += 1
+                _, _, previous_ref = _write_event(
+                    events_dir=events_dir,
+                    session_id=session_id,
+                    sequence=sequence,
+                    event_type="obligation_mint_refused",
+                    subject_refs=[candidate_ref],
+                    payload={
+                        **stamp,
+                        "obligation_kind": obligation.get("obligation_kind"),
+                        "lane": obligation.get("lane"),
+                        "violated_rule": refusal["violated_rule"],
+                        "fixing_edit": refusal["fixing_edit"],
+                        "discharge_state": DISCHARGE_BLOCKED,
+                    },
+                    previous_ref=previous_ref,
+                    message=f"Refused mint ({refusal['violated_rule']}); obligation BLOCKED — {refusal['fixing_edit']}.",
+                )
+                sequence += 1
+                continue
+            # Accepted: record the mint against the envelope before running.
+            kind_counts[str(obligation["obligation_kind"])] -= 1
+            parent_ref = obligation.get("parent_ref") or {}
+            parent_key = "seal" if "seal_digest" in parent_ref else str(parent_ref.get("obligation_digest", ""))
+            minted_by_parent.setdefault(parent_key, []).append(dict(obligation.get("budget_partition") or {}))
+            accepted_by_digest[obligation_digest] = obligation
+            subagent = str(obligation["subagent_profile"])
+            _, _, previous_ref = _write_event(
+                events_dir=events_dir,
+                session_id=session_id,
+                sequence=sequence,
+                event_type="obligation_minted",
+                subject_refs=[candidate_ref],
+                payload={
+                    **stamp,
+                    "obligation_kind": obligation["obligation_kind"],
+                    "lane": obligation["lane"],
+                    "subagent_profile": subagent,
+                    "budget_partition": obligation["budget_partition"],
+                },
+                previous_ref=previous_ref,
+                message=f"Minted obligation for {subagent} under the seal envelope.",
+            )
+            sequence += 1
+            _, _, previous_ref = _write_event(
+                events_dir=events_dir,
+                session_id=session_id,
+                sequence=sequence,
+                event_type="subagent_scheduled",
+                subject_refs=[candidate_ref],
+                payload={**stamp, "subagent_profile": subagent},
+                previous_ref=previous_ref,
+                message=f"Scheduled proposal-only subagent {subagent} for its obligation task.",
+            )
+            sequence += 1
+            result = _cap_result_payload(
+                candidate,
+                backend.run_subagent(subagent_profile=subagent, task=str(obligation["task"])),
+            )
+            _, _, previous_ref = _write_event(
+                events_dir=events_dir,
+                session_id=session_id,
+                sequence=sequence,
+                event_type="subagent_result_recorded",
+                subject_refs=[candidate_ref],
+                payload={**stamp, **result},
+                previous_ref=previous_ref,
+                message=f"Recorded proposal-only result for {subagent} (obligation task).",
+            )
+            sequence += 1
+            completed.append(subagent)
+            classification = classify_discharge(obligation, result, produced_kind=produced_kind)
+            discharge_tally[classification["discharge_state"]] += 1
+            _, _, previous_ref = _write_event(
+                events_dir=events_dir,
+                session_id=session_id,
+                sequence=sequence,
+                event_type="obligation_consumed",
+                subject_refs=[candidate_ref],
+                payload={
+                    **stamp,
+                    "discharge_state": classification["discharge_state"],
+                    "expected_kind": classification["expected_kind"],
+                    "produced_kind": classification["produced_kind"],
+                    "missing_evidence": classification["missing_evidence"],
+                    "provenance": provenance,
+                },
+                previous_ref=previous_ref,
+                message=_discharge_message(classification, provenance),
+            )
+            sequence += 1
+        _, _, previous_ref = _write_event(
+            events_dir=events_dir,
+            session_id=session_id,
+            sequence=sequence,
+            event_type="run_completed",
+            subject_refs=[candidate_ref],
+            payload={"completed_subagents": completed, "discharge_tally": discharge_tally},
+            previous_ref=previous_ref,
+            message="Bounded obligation-delegated run completed; obligations classified by discharge (see payload).",
+        )
+        sequence += 1
+        summary = _finalize_run_artifacts(
+            session_id=session_id,
+            candidate=candidate,
+            approval=approval,
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            output_dir=output_dir,
+            events_dir=events_dir,
+            checkpoint=None,
+            checkpoint_path=None,
+            status="COMPLETED",
+        )
+        summary["discharge_tally"] = discharge_tally
+        return summary
+    except Exception as exc:
+        _, _, previous_ref = _write_event(
+            events_dir=events_dir,
+            session_id=session_id,
+            sequence=sequence,
+            event_type="run_failed",
+            subject_refs=[candidate_ref],
+            payload=_failure_payload(exc),
+            previous_ref=previous_ref,
+            message="Bounded obligation-delegated run failed before completion.",
+        )
+        sequence += 1
+        summary = _finalize_run_artifacts(
+            session_id=session_id,
+            candidate=candidate,
+            approval=approval,
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            output_dir=output_dir,
+            events_dir=events_dir,
+            checkpoint=None,
+            checkpoint_path=None,
+            status="FAILED",
+        )
+        summary["discharge_tally"] = discharge_tally
+        return summary
 
 
 def resume_deepagents_approved_candidate(

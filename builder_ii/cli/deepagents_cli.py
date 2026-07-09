@@ -151,6 +151,23 @@ def _split_csv(value: str | None) -> list[str] | None:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def _parse_obligation_kinds(entries: list[str] | None) -> list[dict[str, Any]]:
+    """Parse repeated ``kind:max_count`` options into the sealed allowed_obligation_kinds list."""
+    parsed: list[dict[str, Any]] = []
+    for raw in entries or []:
+        if ":" not in raw:
+            console.print(f"--allowed-obligation-kind must be 'kind:max_count', got: {raw}")
+            raise typer.Exit(1)
+        kind, _, count_text = raw.partition(":")
+        try:
+            count = int(count_text)
+        except ValueError:
+            console.print(f"--allowed-obligation-kind max_count must be an integer, got: {raw}")
+            raise typer.Exit(1)
+        parsed.append({"kind": kind.strip(), "max_count": count})
+    return parsed
+
+
 def _load_json(path: Path) -> dict[str, Any]:
     if not path.exists():
         console.print(f"File not found: {path}")
@@ -573,11 +590,46 @@ def execution_candidate(
     max_subagents: int = typer.Option(8, "--max-subagents", help="Maximum subagents"),
     max_events: int = typer.Option(256, "--max-events", help="Maximum event records"),
     max_output_bytes: int = typer.Option(65536, "--max-output-bytes", help="Maximum bounded output bytes"),
+    lane_policy: Path | None = typer.Option(
+        None,
+        "--lane-policy",
+        help="Lane policy artifact to seal the obligation envelope under (enables Ladder 4 obligation delegation)",
+    ),
+    allowed_obligation_kind: list[str] | None = typer.Option(
+        None,
+        "--allowed-obligation-kind",
+        help="Repeatable 'kind:max_count' authorizing an obligation kind x count in the sealed envelope",
+    ),
+    refused_lane: list[str] | None = typer.Option(
+        None, "--refused-lane", help="Repeatable lane name refused in the sealed envelope (negative space)"
+    ),
+    root_max_subagents: int = typer.Option(8, "--root-max-subagents", help="Envelope root budget: max subagents"),
+    root_max_events: int = typer.Option(256, "--root-max-events", help="Envelope root budget: max events"),
+    root_max_output_bytes: int = typer.Option(
+        65536, "--root-max-output-bytes", help="Envelope root budget: max output bytes"
+    ),
+    root_max_human_gates: int = typer.Option(2, "--root-max-human-gates", help="Envelope root budget: max human gates"),
     output: Path | None = typer.Option(None, "--output", help="Write execution candidate JSON to path"),
 ) -> None:
-    """Create a promoted-lane candidate; it does not run deepagents."""
+    """Create a promoted-lane candidate; it does not run deepagents. Pass --lane-policy to seal a
+    Ladder 4 obligation envelope (lane policy + root budget + allowed obligation kinds)."""
     work_plan_data = _load_json(work_plan)
     readiness_gate_data = _load_json(backend_readiness_gate) if backend_readiness_gate is not None else None
+    lane_policy_data = _load_json(lane_policy) if lane_policy is not None else None
+    obligation_kwargs: dict[str, Any] = {}
+    if lane_policy_data is not None:
+        obligation_kwargs = {
+            "lane_policy": lane_policy_data,
+            "lane_policy_path": lane_policy,
+            "root_budget": {
+                "max_subagents": root_max_subagents,
+                "max_events": root_max_events,
+                "max_output_bytes": root_max_output_bytes,
+                "max_human_gates": root_max_human_gates,
+            },
+            "allowed_obligation_kinds": _parse_obligation_kinds(allowed_obligation_kind),
+            "refused_lanes": list(refused_lane or []),
+        }
     try:
         artifact = create_deepagents_execution_candidate(
             work_plan=work_plan_data,
@@ -590,6 +642,7 @@ def execution_candidate(
             max_subagents=max_subagents,
             max_events=max_events,
             max_output_bytes=max_output_bytes,
+            **obligation_kwargs,
         )
     except ValueError as exc:
         console.print(f"ValueError: {exc}")
@@ -667,9 +720,15 @@ def approve_candidate(
     approval_actor: str = typer.Option(..., "--approval-actor", help="Human approval actor"),
     approval_reason: str = typer.Option(..., "--approval-reason", help="Human approval reason"),
     expires_at: str | None = typer.Option(None, "--expires-at", help="Optional ISO expiry timestamp"),
+    native_backend_acknowledged: bool = typer.Option(
+        False,
+        "--native-backend-acknowledged",
+        help="Second key: acknowledge optional_deepagents native-backend execution risk. Required to "
+        "seal an optional_deepagents obligation-bearing candidate (two-key rule).",
+    ),
     output: Path | None = typer.Option(None, "--output", help="Write execution approval JSON to path"),
 ) -> None:
-    """Bind HITL approval to the exact candidate digest."""
+    """Bind HITL approval to the exact candidate digest. One typed prefix seals the whole envelope."""
     candidate_data = _load_json(candidate)
     try:
         artifact = create_deepagents_execution_approval(
@@ -678,6 +737,7 @@ def approve_candidate(
             approval_actor=approval_actor,
             approval_reason=approval_reason,
             expires_at=expires_at,
+            native_backend_acknowledged=native_backend_acknowledged,
         )
     except ValueError as exc:
         console.print(f"ValueError: {exc}")
@@ -702,16 +762,24 @@ def run_approved(
     stop_after: int | None = typer.Option(
         None,
         "--stop-after",
-        help="Testing/resume hook: checkpoint after N completed subagents",
+        help="Testing/resume hook: checkpoint after N completed subagents (legacy runs only)",
+    ),
+    obligation: list[Path] | None = typer.Option(
+        None,
+        "--obligation",
+        help="Repeatable minted obligation path. When supplied, each subagent runs its OWN obligation "
+        "task under the sealed envelope and each discharge is classified (Ladder 4).",
     ),
 ) -> None:
-    """Run the approved protocol backend lane and write replayable evidence."""
+    """Run the approved protocol backend lane and write replayable evidence. With --obligation the run
+    is obligation-delegated: mints are enforced against the seal and discharges are classified."""
     try:
         summary = run_deepagents_approved_candidate(
             candidate_path=candidate,
             approval_path=approval,
             output_dir=output_dir,
             stop_after=stop_after,
+            obligation_paths=list(obligation) if obligation else None,
         )
     except Exception as exc:
         console.print(f"Error: {exc}")
