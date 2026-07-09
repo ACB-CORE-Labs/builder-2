@@ -41,6 +41,7 @@ from builder_ii.verification_execution_receipt import (
     validate_verification_execution_receipt_artifact,
     write_verification_execution_receipt,
 )
+from builder_ii.verification_isolation_backend import IsolationBackendError, get_backend
 
 STDOUT_STDERR_CAPTURE_BYTES = 65536
 GIT_STATUS_TIMEOUT_SECONDS = 10
@@ -770,10 +771,34 @@ def run_approved_verification(
         )
 
     try:
+        isolation_policy = plan.get("isolation_policy")
+        isolation_backend = get_backend(str(target_repo), isolation_policy)
+
+        if isolation_backend.name != "none":
+            policy_digest = isolation_policy.get("verification_isolation_policy_digest") if isolation_policy else None
+            if not policy_digest or len(policy_digest) != 64 or not all(c in "0123456789abcdef" for c in policy_digest):
+                raise IsolationBackendError("isolation policy digest is missing or invalid")
+
+        run_argv, run_env = isolation_backend.wrap_command(list(profile.argv), _minimal_env(target_repo))
+    except IsolationBackendError as exc:
+        return _receipt_for_block(
+            plan=plan,
+            approval=approval,
+            plan_path=plan_path,
+            approval_path=approval_path,
+            output=output,
+            target_repo=target_repo,
+            artifact_root=artifact_root,
+            requested_profile=requested_profile,
+            errors=[f"isolation backend blocked execution: {exc}"],
+            authority_decision=authority_decision,
+        )
+
+    try:
         completed = subprocess.run(
-            list(profile.argv),
+            run_argv,
             cwd=target_repo,
-            env=_minimal_env(target_repo),
+            env=run_env,
             capture_output=True,
             text=True,
             timeout=effective_timeout,
@@ -811,7 +836,7 @@ def run_approved_verification(
     )
     workspace_mutation_detected = bool(mutation_paths) or head_changed or postflight_capture_failed
     receipt_status = "EXECUTED" if process_result["status"] == "success" else "FAILED"
-    receipt = finalize_verification_execution_receipt(
+    receipt_kwargs = dict(
         plan=plan,
         approval=approval,
         plan_path=str(plan_path),
@@ -840,6 +865,15 @@ def run_approved_verification(
             approval.get("acknowledged_risk") if isinstance(approval.get("acknowledged_risk"), str) else None
         ),
     )
+    isolation_policy = plan.get("isolation_policy")
+    receipt_kwargs["isolation_backend"] = isolation_backend.name
+    receipt_kwargs["isolation_status"] = "applied" if isolation_backend.name != "none" else "not_applied"
+    receipt_kwargs["isolation_policy_digest"] = (
+        isolation_policy.get("verification_isolation_policy_digest")
+        if isolation_backend.name != "none" and isolation_policy else None
+    )
+
+    receipt = finalize_verification_execution_receipt(**receipt_kwargs)
     receipt["command_authority_decision"] = authority_decision.to_evidence()
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     if workspace_mutation_detected:

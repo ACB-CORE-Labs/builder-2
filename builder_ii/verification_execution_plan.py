@@ -15,7 +15,7 @@ VERIFICATION_EXECUTION_PLAN_KIND = "builder_ii.verification_execution_plan"
 # There are no external users and validators are strict single-version, so no
 # dual-version parser exists by design -- old v1 plans/approvals/receipts are
 # invalidated on purpose. Bumped in lockstep with the approval and receipt schemas.
-VERIFICATION_EXECUTION_PLAN_SCHEMA_VERSION = 2
+VERIFICATION_EXECUTION_PLAN_SCHEMA_VERSION = 3
 B1_1_SUPPORTED_TARGET_PROFILE = "builder"
 B1_1_SUPPORTED_VERIFICATION_PROFILE = "builder_full"
 
@@ -306,6 +306,7 @@ def finalize_verification_execution_plan(
     allowed_command_profiles: list[dict[str, Any]] | None = None,
     planned_steps: list[dict[str, Any]] | None = None,
     generated_at: str | None = None,
+    isolation_policy: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     plan: dict[str, Any] = {
         "kind": VERIFICATION_EXECUTION_PLAN_KIND,
@@ -328,6 +329,8 @@ def finalize_verification_execution_plan(
         "errors": [],
         "valid": True,
     }
+    if isolation_policy is not None:
+        plan["isolation_policy"] = isolation_policy
     plan = attach_digest(plan, digest_key="verification_execution_plan_digest")
     errors = validate_verification_execution_plan_artifact(plan)
     if errors:
@@ -435,6 +438,9 @@ def _validate_disabled_authority(data: dict[str, Any]) -> list[str]:
             errors.append(f"disabled_authority.{key} must remain {expected}")
     return errors
 
+
+def scan_planned_step(value: Any, path: str) -> list[str]:
+    return _scan_planned_step(value, path)
 
 def _scan_planned_step(value: Any, path: str) -> list[str]:
     errors: list[str] = []
@@ -578,6 +584,14 @@ def validate_verification_execution_plan_artifact(data: Any) -> list[str]:
     errors.extend(_validate_profile_consistency(data))
     errors.extend(_validate_allowed_command_profiles(data))
     errors.extend(_validate_planned_steps(data))
+
+    if "isolation_policy" in data:
+        isolation_policy = data["isolation_policy"]
+        if not isinstance(isolation_policy, dict):
+            errors.append("isolation_policy must be an object")
+        elif isolation_policy.get("kind") != "builder_ii.verification_isolation_policy":
+            errors.append("isolation_policy must be a builder_ii.verification_isolation_policy artifact")
+        errors.extend(_scan_planned_step(isolation_policy, "isolation_policy"))
 
     artifact_errors = data.get("errors")
     if not isinstance(artifact_errors, list) or not all(isinstance(e, str) for e in artifact_errors):

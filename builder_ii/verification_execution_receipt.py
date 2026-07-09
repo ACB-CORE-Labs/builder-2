@@ -24,7 +24,7 @@ VERIFICATION_EXECUTION_RECEIPT_KIND = "builder_ii.verification_execution_receipt
 # exact source state, records ignored pytest byproducts observed during the run
 # (`observed_byproducts`), and echoes the D7 execution-risk acknowledgment the runner
 # verified before spawning.
-VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION = 2
+VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION = 3
 RUNNER_MODE_CONTRACT_ONLY = "receipt_contract_only"
 RUNNER_MODE_BOUNDED_APPROVED = "bounded_approved_verification"
 SUBPROCESS_MODE_NOT_STARTED = "not_started"
@@ -151,6 +151,9 @@ def finalize_verification_execution_receipt(
     observed_byproducts: list[str] | None = None,
     execution_risk_acknowledged: bool = False,
     acknowledged_risk: str | None = None,
+    isolation_backend: str | None = "none",
+    isolation_status: str | None = "not_applied",
+    isolation_policy_digest: str | None = None,
 ) -> dict[str, Any]:
     effective_execution_enabled = (
         execution_enabled if execution_enabled is not None else runner_mode == RUNNER_MODE_BOUNDED_APPROVED
@@ -209,6 +212,9 @@ def finalize_verification_execution_receipt(
         "errors": [],
         "valid": True,
     }
+    receipt["isolation_backend"] = isolation_backend
+    receipt["isolation_status"] = isolation_status
+    receipt["isolation_policy_digest"] = isolation_policy_digest
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     errors = _dedupe_errors(
         validate_verification_execution_receipt_artifact(receipt)
@@ -419,6 +425,25 @@ def validate_verification_execution_receipt_artifact(data: Any) -> list[str]:
         errors.append("verification_execution_receipt_digest must be a SHA-256 hex string")
     elif digest != digest_jsonable(data, digest_key="verification_execution_receipt_digest"):
         errors.append("verification_execution_receipt_digest drift detected")
+
+    isolation_backend = data.get("isolation_backend")
+    isolation_status = data.get("isolation_status")
+    isolation_policy_digest = data.get("isolation_policy_digest")
+
+    if isolation_status not in ("applied", "not_applied"):
+        errors.append("isolation_status must be 'applied' or 'not_applied'")
+
+    if isolation_status == "not_applied":
+        if isolation_backend != "none":
+            errors.append("isolation_backend must be 'none' when isolation_status is 'not_applied'")
+        if isolation_policy_digest is not None:
+            errors.append("isolation_policy_digest must be null when isolation_status is 'not_applied'")
+    elif isolation_status == "applied":
+        if isolation_backend == "none":
+            errors.append("isolation_backend cannot be 'none' when isolation_status is 'applied'")
+        if not _is_sha256_hex(isolation_policy_digest):
+            errors.append("isolation_policy_digest must be a SHA-256 hex string when isolation_status is 'applied'")
+
     return _dedupe_errors(errors)
 
 
