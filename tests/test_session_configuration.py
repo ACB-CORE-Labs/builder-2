@@ -100,6 +100,10 @@ def test_session_configuration_file_validation(tmp_path: Path) -> None:
     bad_json.write_text("{bad json", encoding="utf-8")
     assert any("invalid JSON" in error for error in validate_session_configuration_file(bad_json))
 
+    as_dir = tmp_path / "not-a-file"
+    as_dir.mkdir()
+    assert any("failed to read file" in error for error in validate_session_configuration_file(as_dir))
+
 
 def test_session_config_cli_stdout(tmp_path: Path) -> None:
     repo = _generic_repo(tmp_path)
