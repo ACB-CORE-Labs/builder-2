@@ -868,7 +868,10 @@ def run_approved_verification(
     isolation_policy = plan.get("isolation_policy")
     receipt_kwargs["isolation_backend"] = isolation_backend.name
     receipt_kwargs["isolation_status"] = "applied" if isolation_backend.name != "none" else "not_applied"
-    receipt_kwargs["isolation_policy_digest"] = isolation_policy.get("verification_isolation_policy_digest") if isolation_policy else None
+    receipt_kwargs["isolation_policy_digest"] = (
+        isolation_policy.get("verification_isolation_policy_digest")
+        if isolation_backend.name != "none" and isolation_policy else None
+    )
 
     receipt = finalize_verification_execution_receipt(**receipt_kwargs)
     receipt["command_authority_decision"] = authority_decision.to_evidence()
