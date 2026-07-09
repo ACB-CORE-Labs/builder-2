@@ -179,6 +179,9 @@ through the eight gates with bench evidence, operator-applied as always.
    dominance audit; fix `TIER1_ENRICHMENT_SCALE` from its output.
 5. **Findings + projection** — `content_clone_candidate` advisory finding kind and context-pack
    surfacing; staged-acceptance table rows for all of the above.
+   **SHIPPED (PR-5, 2026-07-08):** geometric linter emits `content_clone_candidate` for shared
+   `content_digest`s; context projection surfaces bounded `content_identity` (tier/peers) for the
+   requested artifact.
 
 ## Open questions for the operator
 
