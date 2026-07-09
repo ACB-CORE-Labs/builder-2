@@ -8,12 +8,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from builder_ii.config_schema import digest_jsonable
 from builder_ii.setup_overlay import validate_setup_overlay_plan_artifact
 from builder_ii.setup_receipt import finalize_setup_receipt, write_setup_receipt
 from builder_ii.setup_rollback import validate_setup_rollback_snapshot_artifact
 
-SUPPORTED_OPERATIONS = {"create", "replace", "mkdir", "no-op"}
+SUPPORTED_OPERATIONS = {"create", "replace", "merge", "mkdir", "no-op"}
 UNSAFE_CONFLICTS = {
     "unsafe_path_traversal",
     "outside_declared_setup_scopes",
@@ -46,7 +48,21 @@ def _digest_path(path: Path) -> str:
     return _sha256_bytes(f"missing:{path}".encode())
 
 
-def _redact(text: str, limit: int = 800) -> str:
+def _redact_node(node: Any) -> Any:
+    if isinstance(node, dict):
+        redacted: dict[Any, Any] = {}
+        for key, value in node.items():
+            if isinstance(key, str) and any(marker in key.lower() for marker in SECRET_MARKERS):
+                redacted[key] = "<redacted>"
+            else:
+                redacted[key] = _redact_node(value)
+        return redacted
+    if isinstance(node, list):
+        return [_redact_node(item) for item in node]
+    return node
+
+
+def _redact_lines(text: str) -> str:
     lines: list[str] = []
     for line in text.splitlines():
         lower = line.lower()
@@ -59,7 +75,27 @@ def _redact(text: str, limit: int = 800) -> str:
                 lines.append("<redacted-secret-line>")
         else:
             lines.append(line)
-    out = "\n".join(lines)
+    return "\n".join(lines)
+
+
+def _redact(text: str, limit: int = 800) -> str:
+    """Redact secret-ish content for previews/receipts.
+
+    Marker matching is structural, not line-oriented: if `text` parses as YAML/JSON
+    to a dict or list, every key matching SECRET_MARKERS has its *entire subtree*
+    collapsed, so a nested `api_key: {value: sk-...}` cannot leak through an
+    unmarked descendant line. Non-mapping content (e.g. `.env`-style `KEY=value`
+    text, which is not valid YAML mapping syntax) falls back to the original
+    line-oriented redaction.
+    """
+    try:
+        parsed = yaml.safe_load(text)
+    except yaml.YAMLError:
+        parsed = None
+    if isinstance(parsed, (dict, list)) and parsed:
+        out = yaml.safe_dump(_redact_node(parsed), sort_keys=False, default_flow_style=False, allow_unicode=True)
+    else:
+        out = _redact_lines(text)
     return out[:limit] + ("\n<truncated>" if len(out) > limit else "")
 
 
@@ -68,6 +104,124 @@ def _content_text(change: dict[str, Any]) -> str:
     if isinstance(meta, (dict, list)) and meta:
         return json_lib.dumps(meta, indent=2, sort_keys=True) + "\n"
     return str(change.get("redacted_preview", ""))
+
+
+def _merge_fragment_and_keys(change: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
+    metadata = change.get("metadata")
+    if not isinstance(metadata, dict):
+        return None, []
+    fragment = metadata.get("merge_fragment")
+    fragment = fragment if isinstance(fragment, dict) and fragment else None
+    raw_keys = metadata.get("overlay_keys")
+    keys = [key for key in raw_keys if isinstance(key, str) and key] if isinstance(raw_keys, list) else []
+    return fragment, keys
+
+
+def _has_dotted_path(node: Any, dotted_key: str) -> bool:
+    current = node
+    for part in dotted_key.split("."):
+        if not isinstance(current, dict) or part not in current:
+            return False
+        current = current[part]
+    return True
+
+
+def _merge_preflight_reasons(change: dict[str, Any], target: Path) -> list[str]:
+    reasons: list[str] = []
+    fragment, keys = _merge_fragment_and_keys(change)
+    if fragment is None:
+        reasons.append("merge requires metadata.merge_fragment to be a non-empty object")
+    if not keys:
+        reasons.append("merge requires metadata.overlay_keys to be a non-empty list of strings")
+    if fragment is not None and keys:
+        missing = [key for key in keys if not _has_dotted_path(fragment, key)]
+        if missing:
+            reasons.append("merge_fragment missing declared overlay_keys: " + ", ".join(sorted(missing)))
+    if target.is_dir():
+        reasons.append("merge target is a directory")
+        return reasons
+    if target.is_file():
+        try:
+            existing_text = target.read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            reasons.append("merge target is not valid UTF-8 text")
+            return reasons
+        try:
+            existing = yaml.safe_load(existing_text) if existing_text.strip() else {}
+        except yaml.YAMLError:
+            # Never interpolate the parser exception: it may echo the offending
+            # line, which can itself contain the operator's secret.
+            reasons.append("merge target is not valid YAML")
+            return reasons
+        if existing is not None and not isinstance(existing, dict):
+            reasons.append("merge target YAML root is not a mapping")
+    return reasons
+
+
+def _count_nested_keys(node: Any) -> int:
+    if isinstance(node, dict):
+        return sum(1 + _count_nested_keys(value) for value in node.values())
+    if isinstance(node, list):
+        return sum(_count_nested_keys(item) for item in node)
+    return 0
+
+
+def _count_preserved_keys(existing: dict[str, Any], fragment: dict[str, Any]) -> int:
+    """Count keys in `existing` whose subtree the merge fragment does not touch."""
+    total = 0
+    for key, value in existing.items():
+        if key in fragment:
+            if isinstance(value, dict) and isinstance(fragment[key], dict):
+                total += _count_preserved_keys(value, fragment[key])
+            continue
+        total += 1 + _count_nested_keys(value)
+    return total
+
+
+def _deep_merge(existing: dict[str, Any], fragment: dict[str, Any]) -> dict[str, Any]:
+    """Merge `fragment` into a copy of `existing`, recursing only into shared dict keys.
+
+    Every key/value in `existing` that `fragment` does not name is left untouched,
+    including keys nested arbitrarily deep and keys whose name never appears in
+    SECRET_MARKERS. Preservation here is structural (path-based), independent of
+    the secret-redaction logic above.
+    """
+    merged = dict(existing)
+    for key, value in fragment.items():
+        if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+            merged[key] = _deep_merge(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _merge_yaml_target(change: dict[str, Any], target: Path) -> tuple[str, bool, dict[str, Any]]:
+    fragment, keys = _merge_fragment_and_keys(change)
+    assert fragment is not None  # preflight already denied the change otherwise
+    existing_text = target.read_text(encoding="utf-8") if target.is_file() else ""
+    existing = yaml.safe_load(existing_text) if existing_text.strip() else {}
+    if not isinstance(existing, dict):
+        existing = {}
+    merged = _deep_merge(existing, fragment)
+    merged_text = yaml.safe_dump(merged, sort_keys=False, default_flow_style=False, allow_unicode=True)
+    fields = {
+        "merge_keys_written": sorted(keys),
+        "merge_keys_preserved_count": _count_preserved_keys(existing, fragment),
+    }
+    return merged_text, merged_text == existing_text, fields
+
+
+def _atomic_write_text(target: Path, text: str) -> None:
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+            tmp.write(text)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_name, target)
+    finally:
+        if os.path.exists(tmp_name):
+            os.unlink(tmp_name)
 
 
 def _inside(path: Path, root: Path) -> bool:
@@ -222,8 +376,10 @@ def apply_setup_overlay(
                 reasons.append(f"unsupported operation: {operation}")
             else:
                 reasons.extend(_preflight_filesystem_conflicts(target, operation=operation))
-            if operation == "replace" and str(target) not in snapshot_paths:
-                reasons.append("replace requires rollback snapshot coverage")
+                if operation == "merge":
+                    reasons.extend(_merge_preflight_reasons(change, target))
+            if operation in {"replace", "merge"} and str(target) not in snapshot_paths:
+                reasons.append(f"{operation} requires rollback snapshot coverage")
             before = _digest_path(target)
             text = _content_text(change)
             op_record = {
@@ -269,16 +425,21 @@ def apply_setup_overlay(
                 continue
             if operation == "mkdir":
                 target.mkdir(parents=True, exist_ok=True)
+            elif operation == "merge":
+                merged_text, unchanged, merge_fields = _merge_yaml_target(change, target)
+                op_record["redacted_preview"] = _redact(merged_text)
+                op_record.update(merge_fields)
+                if unchanged:
+                    op_record["result"] = "skipped_no_op"
+                    op_record["reason"] = "merge output identical to existing content"
+                    receipt["skipped_paths"].append(str(target))
+                    receipt["operations"].append(op_record)
+                    continue
+                target.parent.mkdir(parents=True, exist_ok=True)
+                _atomic_write_text(target, merged_text)
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
-                fd, tmp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=str(target.parent))
-                try:
-                    with os.fdopen(fd, "w", encoding="utf-8") as tmp:
-                        tmp.write(text)
-                    os.replace(tmp_name, target)
-                finally:
-                    if os.path.exists(tmp_name):
-                        os.unlink(tmp_name)
+                _atomic_write_text(target, text)
             op_record["after_digest"] = _digest_path(target)
             op_record["result"] = "changed"
             receipt["changed_paths"].append(str(target))
