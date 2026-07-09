@@ -213,10 +213,18 @@ class DeepAgentsRuntimeHarness:
                 encoding="utf-8",
             )
 
+            # R3 honesty: this legacy run-plan path projects assignment/result/receipt artifacts
+            # structurally — it runs no backend and verifies nothing. The summary is derived from
+            # that fact (proposal-only, no execution, no verified result), never an asserted success.
+            # The bounded protocol lane (candidate -> seal -> run-approved) is where execution and
+            # discharge classification actually live.
             result = create_deepagents_subagent_result(
                 target=plan.get("target", "builder"),
                 subagent_profile=subagent,
-                summary=f"Subagent {subagent} successfully completed planning task.",
+                summary=(
+                    f"Subagent {subagent}: planning assignment projected as a proposal-only structural "
+                    "record; no backend ran and no result was checked (run-plan legacy projection)."
+                ),
                 subagent_assignment=assignment,
                 subagent_assignment_path=assignment_path,
             )
