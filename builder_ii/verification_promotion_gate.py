@@ -450,7 +450,7 @@ def evaluate_delegation_tree_promotion_gates(
         _gate(
             "seal_valid",
             seal_valid,
-            f"approval_digest={approval.get('deepagents_execution_approval_digest', '')}",
+            f"approval_digest={approval.get('approval_digest', '')}",
             "seal validates" if seal_valid else "seal invalid or not a ladder4 seal",
         )
     )
@@ -647,24 +647,24 @@ def evaluate_delegation_tree_promotion_gates(
         "failed_gates": [gate["gate"] for gate in failed],
         "subject_refs": {
             "candidate_path": str(candidate_path),
-            "candidate_digest": candidate.get("deepagents_execution_candidate_digest", ""),
+            "candidate_digest": candidate.get("candidate_digest", ""),
             "approval_path": str(approval_path),
-            "seal_digest": approval.get("deepagents_execution_approval_digest", ""),
+            "seal_digest": approval.get("approval_digest", ""),
             "lane_policy_digest": approval.get("lane_policy_digest", ""),
             "events_dir": str(Path(replay_report_path).parent / "events"),
             "replay_report_path": str(replay_report_path),
-            "replay_report_digest": replay_report.get("deepagents_replay_report_digest", ""),
+            "replay_report_digest": replay_report.get("replay_digest", ""),
             "event_ledger_path": str(event_ledger_path),
-            "event_ledger_digest": event_ledger.get("deepagents_event_ledger_digest", ""),
+            "event_ledger_digest": event_ledger.get("ledger_digest", ""),
             "envelope_path": str(envelope_path),
-            "envelope_digest": run_envelope.get("deepagents_run_envelope_digest", ""),
+            "envelope_digest": run_envelope.get("envelope_digest", ""),
             "receipt_path": str(receipt_path),
-            "receipt_digest": receipt.get("deepagents_execution_receipt_digest", ""),
+            "receipt_digest": receipt.get("receipt_digest", ""),
             "obligation_digests": [ob.get("obligation_id", "") for ob in obligations],
         },
         "target_commit": receipt.get("target_commit"),
         "target_branch": receipt.get("target_branch"),
-        "receipt_status": receipt.get("receipt_status"),
+        "receipt_status": receipt.get("receipt_state"),
         "runner_mode": receipt.get("runner_mode"),
         "grants_runtime_authority": False,
         "grants_action_authority": False,
@@ -700,11 +700,14 @@ def evaluate_delegation_tree_promotion_gates_from_run(
     receipt = _load_json_object(receipt_path)
 
     events_dir = run_output_dir / "events"
-    event_records = []
+    event_records: list[tuple[dict[str, Any], Path]] = []
     if events_dir.is_dir():
         for p in events_dir.glob("event-*.json"):
             event_records.append((_load_json_object(p), p))
-    event_records.sort(key=lambda item: item[0].get("timestamp", ""))
+    # Order by canonical sequence, not glob order or timestamp: the replay report re-sorts by
+    # sequence internally, but the mint/discharge gates iterate this list, and Path.glob() does
+    # not guarantee order. Forensically the per-event JSON files are the source of truth.
+    event_records.sort(key=lambda item: int(item[0].get("sequence", 0)))
 
     return evaluate_delegation_tree_promotion_gates(
         candidate=candidate,

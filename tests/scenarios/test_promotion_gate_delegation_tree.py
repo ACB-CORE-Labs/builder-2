@@ -35,8 +35,6 @@ def test_delegation_tree_gate_passes_clean_bundle(tmp_path: Path) -> None:
         now=now,
     )
 
-    print(json.dumps(evidence.get("failed_gates"), indent=2))
-    print(json.dumps([g for g in evidence.get("gates", []) if g["state"] == "FAIL"], indent=2))
     assert evidence.get("overall_state") == "PASS"
     assert evidence.get("failed_gates") == []
     assert evidence.get("ready_for_operator_promotion_review") is True
@@ -57,6 +55,24 @@ def test_delegation_tree_gate_passes_clean_bundle(tmp_path: Path) -> None:
     assert len(gates) == 9
     for gate in gates:
         assert gate.get("state") == "PASS", f"Gate {gate.get('gate')} failed: {gate.get('detail')}"
+
+    # Provenance must be real, not hollow: every subject digest must bind an actual artifact.
+    # (Pins the guessed-key defect where subject_refs digests silently serialized as "".)
+    refs = evidence.get("subject_refs", {})
+    for key in (
+        "candidate_digest",
+        "seal_digest",
+        "lane_policy_digest",
+        "replay_report_digest",
+        "event_ledger_digest",
+        "envelope_digest",
+        "receipt_digest",
+    ):
+        value = refs.get(key)
+        assert isinstance(value, str) and len(value) == 64, f"subject_refs.{key} must be a 64-hex digest, got {value!r}"
+    obligation_digests = refs.get("obligation_digests", [])
+    assert obligation_digests and all(isinstance(d, str) and len(d) == 64 for d in obligation_digests)
+
 
 def test_delegation_tree_gate_is_deterministic(tmp_path: Path) -> None:
     candidate, candidate_path, approval, approval_path, policy = _build_sealed_envelope(tmp_path)
