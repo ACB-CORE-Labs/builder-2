@@ -151,6 +151,8 @@ def test_indexes_valid_b1_3_receipt_chain_passively(tmp_path: Path) -> None:
     assert record["runner_mode"] == RUNNER_MODE_BOUNDED_APPROVED
     assert record["process_result_count"] == 1
     assert record["process_result_statuses"] == ["success"]
+    assert record["ledger_index"] == 1
+    assert record["previous_ledger_record_digest"] is None
     assert [item["role"] for item in record["subject_refs"]] == [
         "verification_execution_plan",
         "verification_execution_approval",
@@ -161,6 +163,36 @@ def test_indexes_valid_b1_3_receipt_chain_passively(tmp_path: Path) -> None:
     assert record["governance"]["runtime_execution"] == "DISABLED"
     assert record["governance"]["replay_execution"] == "DISABLED"
     assert validate_verification_execution_ledger_record(record) == []
+
+
+def test_ledger_index_chain_appends_with_previous_digest(tmp_path: Path) -> None:
+    plan_path, approval_path, receipt_path = _write_valid_chain(tmp_path)
+    ledger_root = tmp_path / ".builder" / "ledger"
+    first = index_verification_execution_receipt(
+        receipt_path=receipt_path,
+        plan_path=plan_path,
+        approval_path=approval_path,
+        ledger_root=ledger_root,
+    )
+    write_verification_execution_ledger_record(first, ledger_root / "first.json")
+
+    # Second chain with a different generated_at so chain_digest differs.
+    plan_path2, approval_path2, receipt_path2 = _write_valid_chain(
+        tmp_path, generated_at="2026-06-30T00:03:00+00:00"
+    )
+    second = index_verification_execution_receipt(
+        receipt_path=receipt_path2,
+        plan_path=plan_path2,
+        approval_path=approval_path2,
+        ledger_root=ledger_root,
+    )
+    assert second["ledger_index"] == 2
+    assert second["previous_ledger_record_digest"] == first["verification_execution_ledger_record_digest"]
+    write_verification_execution_ledger_record(second, ledger_root / "second.json")
+
+    integrity = validate_verification_execution_ledger_integrity(ledger_root=ledger_root)
+    assert integrity["summary"]["chain_continuity_status"] == "continuous"
+    assert integrity["valid"] is True
 
 
 def test_ledger_record_is_deterministic_for_same_inputs(tmp_path: Path) -> None:
@@ -495,7 +527,7 @@ def test_integrity_report_validates_records_deterministically(tmp_path: Path) ->
         failed["chain_digest"],
     ]
     assert report["summary"]["record_count"] == 2
-    assert report["summary"]["chain_continuity_status"] == "not_applicable_no_sequence_rule"
+    assert report["summary"]["chain_continuity_status"] == "continuous"
     assert report["duplicates"] == []
     assert report["chain_errors"] == []
 
@@ -661,7 +693,7 @@ def test_reconstruction_report_projects_valid_ledger_chains(tmp_path: Path) -> N
     assert validate_verification_execution_ledger_reconstruction_report(report) == []
     assert report["summary"]["reconstructed_chain_count"] == 2
     assert report["summary"]["invalid_record_count"] == 0
-    assert report["chain_continuity_status"] == "not_applicable_no_sequence_rule"
+    assert report["chain_continuity_status"] == "continuous"
     assert [row["chain_digest"] for row in report["reconstructed_chains"]] == [
         executed["chain_digest"],
         failed["chain_digest"],
