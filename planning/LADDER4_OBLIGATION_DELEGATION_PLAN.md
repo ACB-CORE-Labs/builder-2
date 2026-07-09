@@ -293,8 +293,10 @@ Five files are append-contested platform-wide: `command_authority.py`,
 `artifact_index_records.py`, `artifact_chain_verification.py`, `platform_completion_audit.py`,
 and the pinned truth tests. **Rule: only PR-3, PR-4 (registry text only), and PR-8 may touch
 them; one such PR in flight at a time; Sonnet-assigned PRs never touch them.** (This rule
-prevented a collision once already — the 3.13 incident.) All work branches from current
-`main`, PRs via `tea --repo core-labs/builder-II --login core-gitquarters` (Forgejo; never
+prevented a collision once already — the 3.13 incident.) All work branches fresh from current
+`main` **at dispatch time** (not from when a briefing was written); agents running in the same
+wave use **separate git worktrees** — even disjoint-file PRs collide on shared working-directory
+git state. PRs via `tea --repo core-labs/builder-II --login core-gitquarters` (Forgejo; never
 `gh`, never github.com, never direct-to-main, no AI attribution trailers, explicit staging only
 — never `git add -A`).
 
@@ -355,22 +357,26 @@ budget columns) and `builder-orchestration why <artifact-path>` ("believed? NO �
 DISCHARGED_UNVERIFIED; required: verification_execution_receipt; attached: none; consumed: no").
 Deterministic read-only walks over the output dir + digests; no model; exit non-zero on
 violated/missing chains. Extend the existing `DEEPAGENTS_REPLAY_REPORT_KIND` walk with the
-obligation chain. Registry additions for the two new subcommands are handed to whichever
-serialized registry PR is open (or a follow-up Opus micro-PR) — *Sonnet does not touch
-contended files; ship the commands + tests + a TODO note for the registry pass if needed.*
-*Depends: PR-4.* Read: Object model (discharge states), R5.
+obligation chain. **PR-5 owns ALL `status`/`why` OUTPUT assertions in its own test file — PR-6
+must not assert on them (Wave-4 decoupling rule).** Registry additions for the two new
+subcommands are handed to whichever serialized registry PR is open (or a follow-up Opus
+micro-PR) — *Sonnet does not touch contended files; ship the commands + tests + a TODO note for
+the registry pass if needed.* *Depends: PR-4 only; runs in parallel with PR-6 in a separate
+worktree.* Read: Object model (discharge states), R5, Wave-4 decoupling rule.
 
 ### PR-6 — Unmocked scenario E2E + tamper beat (Sonnet 5)
 `tests/scenarios/test_full_obligation_delegation_lane.py`, protocol_fake, no monkeypatched
 validators: lane policy → candidate → REAL seal fixture (drive `approve-candidate`'s prompt via
 CliRunner input with the 4-char prefix) → run-approved with: one dynamic mint that succeeds, one
 **refused widening mint**, one `DISCHARGED_UNVERIFIED` (missing evidence ref), one
-`CONTRACT_VIOLATED` (wrong kind) → `status`/`why` output assertions → **tamper beat**: edit a
-discharge JSON on disk → replay/chain verification names the forged obligation node → clean-run
-evidence bundle for PR-7. Plus: sequel section in `docs/demos/FLAGSHIP_DEMO_SCRIPT.md`
+`CONTRACT_VIOLATED` (wrong kind) → **tamper beat**: edit a discharge JSON on disk → replay/chain
+verification names the forged obligation node → clean-run evidence bundle for PR-7.
+**Wave-4 decoupling rule (binding): assert on artifacts and ledger events ONLY — discharge
+states, refused-mint records, tamper detection. Do NOT assert on `status`/`why` command output;
+PR-5 owns those in its own tests.** Plus: sequel section in `docs/demos/FLAGSHIP_DEMO_SCRIPT.md`
 ("Act II — tamper the cognition chain") and optionally a `record-demo.sh` segment.
-*Depends: PR-4 (PR-5 for the status/why assertions — coordinate or gate those asserts).* Read:
-Object model, R3.
+*Depends: PR-4 only; runs in parallel with PR-5 in a separate worktree.* Read: Object model,
+R3, Wave-4 decoupling rule.
 
 ### PR-7 — B2.0 tree profile (Opus 4.8)
 Extend `verification_promotion_gate.py` with a sibling evaluator (same gate grammar, same
@@ -384,19 +390,39 @@ Everything in R2's flip-mechanics checklist, one atomic PR, flip assistant ALL P
 body. The PR is prepared by the agent; **the operator's merge applies the flip** (tier C —
 evidence first, operator applies; identical ceremony to 1.7/2.6). *Depends: PR-7.* Read: R2, R5.
 
-## Dependency graph & estimates
+## Dispatch waves & dependency structure
+
+Sequencing is logical (dependencies and serialization), never chronological — no clocks, no
+calendars. A wave opens when the prior wave's PRs are merged; everything inside a wave runs
+concurrently.
 
 ```
-PR-0 ──► PR-1 ──┐
-        PR-2 ──┴─► PR-3 ──► PR-4 ──► PR-5 ──┐
-                                  └──► PR-6 ─┴─► PR-7 ──► PR-8 (operator flip)
+Wave 1:  PR-0 ∥ PR-1 ∥ PR-2          (Opus + Sonnet + Sonnet — fully disjoint files)
+Wave 2:  PR-3                        (Opus ALONE — contended files, R5)
+Wave 3:  PR-4                        (Opus ALONE — contended files, R5; the critical path)
+Wave 4:  PR-5 ∥ PR-6                 (Sonnet + Sonnet — decoupled by design, see below)
+         PR-7 may START in overlap   (Opus — evaluator authored against this plan's spec;
+                                      its test finalizes only after PR-6 merges)
+Wave 5:  PR-7 finish ──► PR-8        (Opus prep; the OPERATOR's merge of PR-8 is the flip)
 ```
 
-PR-0 ~2h · PR-1/PR-2 ~3h each (parallel) · PR-3 ~2h · PR-4 ~6–8h (the hard one) · PR-5 ~3h ·
-PR-6 ~4h · PR-7 ~3h · PR-8 ~3h + operator review. Overall complexity: **HIGH** (authority
-surface + promotion). Suggested dispatch: Opus 4.8 → PR-0, PR-3, PR-4, PR-7, PR-8 (tier-C,
-contended, authority semantics); Sonnet 5 → PR-1, PR-2, PR-5, PR-6 (new-file bounded, tests,
-readers, docs).
+- **Wave 1 relaxation (deliberate):** PR-1 and PR-2 do NOT wait for PR-0. Their schemas are
+  pinned in THIS plan document; the RFC is doctrine capture, not a schema source. Three agents
+  launch simultaneously.
+- **Wave 4 decoupling rule (binding on both Sonnets):** PR-6's scenario asserts on **artifacts
+  and ledger events only** — discharge states, refused-mint records, tamper detection via
+  replay/chain verification. The `status`/`why` OUTPUT assertions belong exclusively to PR-5's
+  own test file. This removes every dependency between the two PRs.
+- **The irreducible middle:** PR-3 → PR-4 cannot be parallelized with anything — both own
+  contended files (R5). Do not schedule speculative pre-drafting of PR-5/PR-6 during Wave 3:
+  interfaces settle in PR-4 and parallel drafts become rework.
+- **Concurrency hygiene:** every agent branches fresh from current `main` at dispatch time (not
+  from when its briefing was written); agents running in the same wave work in **separate git
+  worktrees** — even disjoint-file PRs collide on shared working-directory git state.
+
+Overall complexity: **HIGH** (authority surface + promotion). Model split: Opus 4.8 → PR-0,
+PR-3, PR-4, PR-7, PR-8 (tier-C, contended files, authority semantics); Sonnet 5 → PR-1, PR-2,
+PR-5, PR-6 (new-file bounded, tests, readers, docs).
 
 ## Risk register (summary)
 
@@ -411,14 +437,14 @@ readers, docs).
 
 ## Operator delegation map (point each agent at its rows)
 
-| Dispatch | Model | Read first | Build |
+| Wave | Model | Read first | Build |
 | --- | --- | --- | --- |
-| 1 | Opus 4.8 | Constitution, Grounding, R1–R5 | PR-0 |
-| 2 (parallel) | Sonnet 5 | Object model, R4 | PR-1 |
-| 3 (parallel) | Sonnet 5 | Object model, R5 | PR-2 |
-| 4 | Opus 4.8 | R5, regen snippet | PR-3 |
-| 5 | Opus 4.8 | R1, R3, R4 | PR-4 |
-| 6 | Sonnet 5 | Discharge states, R5 | PR-5 |
-| 7 | Sonnet 5 | Object model, R3 | PR-6 |
-| 8 | Opus 4.8 | R2 | PR-7 |
-| 9 | Opus 4.8 | R2 (flip checklist) | PR-8 — **operator merges** |
+| 1 (three in parallel) | Opus 4.8 | Constitution, Grounding, R1–R5 | PR-0 |
+| 1 (three in parallel) | Sonnet 5 | Object model, R4 | PR-1 |
+| 1 (three in parallel) | Sonnet 5 | Object model, R5 | PR-2 |
+| 2 (alone — R5) | Opus 4.8 | R5, regen snippet | PR-3 |
+| 3 (alone — R5) | Opus 4.8 | R1, R3, R4 | PR-4 |
+| 4 (two in parallel) | Sonnet 5 | Discharge states, R5, Wave-4 rule | PR-5 |
+| 4 (two in parallel) | Sonnet 5 | Object model, R3, Wave-4 rule | PR-6 |
+| 4-overlap → 5 | Opus 4.8 | R2 | PR-7 (may start during Wave 4; test finalizes after PR-6) |
+| 5 (alone — R5) | Opus 4.8 | R2 (flip checklist) | PR-8 — **operator merges** |
