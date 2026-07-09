@@ -561,3 +561,66 @@ def test_command_authority_compatibility_hitl_bound() -> None:
     with pytest.raises(CommandAuthorityError) as exc:
         enforce_command_authority("builder-missing-command")
     assert "not registered" in str(exc.value)
+
+
+def test_command_authority_doc_mirrors_the_registry_verbatim() -> None:
+    """`docs/COMMAND_AUTHORITY.md` is a generated mirror of the registry, never a hand-edited doc.
+
+    Ladder 6 hand-edited this doc's `builder stratum` row *ahead of* the source it mirrors, so
+    within one commit the doc claimed the surface was wired while `command_authority.py` still
+    called it a fabricated mockup. Nothing caught it: `builder-platform audit-docs` detects docs
+    that overstate a capability, never docs that disagree with the registry, and the doc is
+    digest-referenced as a policy snapshot by `workflow_orchestrator` -- so a hand edit silently
+    changes a digest that governed events bind.
+
+    This pin makes that class of drift unrepresentable: every record's `runtime_boundary` must
+    appear verbatim in the doc. Edit the registry, then regenerate; never the other way round.
+    """
+    doc = (Path(__file__).resolve().parents[1] / "docs" / "COMMAND_AUTHORITY.md").read_text(encoding="utf-8")
+    missing = [record.name for record in COMMAND_AUTHORITY_REGISTRY if record.runtime_boundary not in doc]
+    assert not missing, (
+        "docs/COMMAND_AUTHORITY.md has drifted from builder_ii/command_authority.py for: "
+        f"{missing}. Regenerate the doc from the registry -- do not hand-edit it."
+    )
+
+
+# --- `builder stratum` must name exactly what is unfinished: no more, no fewer ------------------
+#
+# `builder-platform audit-docs` catches docs that OVERSTATE a capability. It cannot catch a record
+# that UNDERSTATES one. When STRATUM's fabricated chain digest was replaced with an honest absence,
+# this registry was updated to claim "tier evaluation and chain digests are real" -- a fresh lie, in
+# the opposite direction, in the file whose whole job is truth. Truth is symmetric; the audit is
+# not. These pins stand in for it, and they live in this commit because they assert on this record.
+
+
+def _stratum_record():
+    return next(record for record in COMMAND_AUTHORITY_REGISTRY if record.name == "builder stratum")
+
+
+def test_stratum_record_names_every_surface_that_is_still_a_mockup() -> None:
+    from builder_ii.tui.app import STRATUM_UNIMPLEMENTED_SURFACES
+
+    boundary = _stratum_record().runtime_boundary.lower()
+    for surface in STRATUM_UNIMPLEMENTED_SURFACES:
+        assert surface.lower() in boundary, f"runtime_boundary omits the unfinished {surface!r}"
+
+
+def test_stratum_record_claims_no_capability_the_code_does_not_have() -> None:
+    boundary = _stratum_record().runtime_boundary.lower()
+    assert "no chain digest is displayed" in boundary, "the record must say the digest is absent"
+    for overclaim in ("chain digests are real", "chain digest are real", "digests are wired"):
+        assert overclaim not in boundary, f"runtime_boundary overclaims: {overclaim!r}"
+    for stale in ("fake tier evaluation", "fabricated chain digest"):
+        assert stale not in boundary, f"runtime_boundary names a mockup that no longer exists: {stale!r}"
+
+
+def test_stratum_record_files_hitl_refusal_as_design_not_as_a_pending_feature() -> None:
+    """The refusal is constitutive, not unfinished.
+
+    A surface that renders a digest must not harvest its confirmation -- the same principle
+    `init_decisions` states for `builder init`. Filing that refusal under "pending post-beta
+    wiring", as this record once did, mistakes a designed boundary for a missing feature.
+    """
+    boundary = _stratum_record().runtime_boundary.lower()
+    assert "never mutate approval state" in boundary
+    assert "not pending features" in boundary
