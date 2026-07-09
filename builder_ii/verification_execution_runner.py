@@ -383,11 +383,13 @@ def _parse_junit_structured_outcome(junit_path: Path) -> dict[str, Any] | None:
         raw = junit_path.read_bytes()
     except OSError:
         return None
-    import xml.etree.ElementTree as ET
+    # defusedxml hardens JUnit parsing against XML entity/DTD attacks (billion-laughs, XXE) even
+    # though the target repo is D7-trusted; a subprocess-produced file is still external input.
+    from defusedxml.ElementTree import ParseError, fromstring
 
     try:
-        root = ET.fromstring(raw)
-    except ET.ParseError:
+        root = fromstring(raw)
+    except ParseError:
         return {
             "source": "junit_xml",
             "path": junit_path.as_posix(),

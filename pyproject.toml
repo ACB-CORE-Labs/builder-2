@@ -20,6 +20,7 @@ dependencies = [
     "textual>=8.2.8",
     "typer>=0.25.1",
     "pydantic>=2.0.0",
+    "defusedxml>=0.7.1",
 ]
 
 # mlx-lm and rapid-mlx are Apple Silicon-only (MLX requires macOS on arm64) and are never imported
