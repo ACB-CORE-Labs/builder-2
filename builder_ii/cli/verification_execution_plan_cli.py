@@ -30,6 +30,12 @@ from builder_ii.verification_execution_receipt import (
 )
 from builder_ii.verification_execution_runner import run_approved_verification
 from builder_ii.verification_profiles import verification_profile_names
+from builder_ii.verification_promotion_gate import (
+    dumps_promotion_evidence,
+    evaluate_verification_promotion_gates_from_files,
+    validate_promotion_evidence,
+    write_promotion_evidence,
+)
 
 verify_app = typer.Typer(help="Render, approve, validate, and run bounded verification artifacts.")
 console = Console()
@@ -232,6 +238,61 @@ def validate_receipt(
         "plan_path": str(plan),
         "approval_path": str(approval),
     }
+    console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
+    if errors:
+        raise typer.Exit(1)
+
+
+@verify_app.command("evaluate-promotion")
+def evaluate_promotion(
+    plan: Path = typer.Option(..., "--plan", help="Path to the verification execution plan JSON"),
+    approval: Path = typer.Option(..., "--approval", help="Path to the verification execution approval JSON"),
+    receipt: Path = typer.Option(..., "--receipt", help="Path to the verification execution receipt JSON"),
+    ledger: Path | None = typer.Option(
+        None, "--ledger", help="Optional path to a verification execution ledger record JSON"
+    ),
+    capability_name: str = typer.Option("", "--capability-name", help="Capability name under promotion review"),
+    expected_profile: str | None = typer.Option(
+        None, "--expected-profile", help="Optional profile that must appear in receipt process_results"
+    ),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Optional promotion-evidence artifact path"),
+) -> None:
+    """B2.0: evaluate machine-checkable promotion gates over a verification chain (no authority)."""
+    try:
+        evidence = evaluate_verification_promotion_gates_from_files(
+            plan_path=plan,
+            approval_path=approval,
+            receipt_path=receipt,
+            ledger_path=ledger,
+            capability_name=capability_name,
+            expected_profile=expected_profile,
+        )
+    except (OSError, ValueError, json_lib.JSONDecodeError) as exc:
+        console.print(f"[red]failed to evaluate promotion gates: {exc}[/]")
+        raise typer.Exit(1) from exc
+    errors = validate_promotion_evidence(evidence)
+    if errors:
+        console.print(f"[red]invalid promotion evidence: {'; '.join(errors)}[/]")
+        raise typer.Exit(1)
+    if output is not None:
+        write_promotion_evidence(evidence, output.resolve())
+    console.out(dumps_promotion_evidence(evidence), end="")
+    if evidence.get("overall_state") != "PASS":
+        raise typer.Exit(2)
+
+
+@verify_app.command("validate-promotion-evidence")
+def validate_promotion_evidence_cmd(
+    path: Path = typer.Argument(..., help="Path to a verification promotion evidence JSON artifact"),
+) -> None:
+    """Validate a B2.0 promotion-evidence artifact (schema + non-authority invariants)."""
+    try:
+        data = _read_json_object(path)
+    except (OSError, ValueError, json_lib.JSONDecodeError) as exc:
+        console.print(f"[red]failed to load promotion evidence: {exc}[/]")
+        raise typer.Exit(1) from exc
+    errors = validate_promotion_evidence(data)
+    report = {"valid": not errors, "errors": errors, "path": str(path)}
     console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
     if errors:
         raise typer.Exit(1)

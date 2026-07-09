@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -10,6 +11,17 @@ from builder_ii.platform_completion_audit import (
     validate_command_surfaces,
     validate_completion_matrix,
 )
+
+# Fixed relative path under the target repo (cwd for the bounded runner). Always written for
+# pytest-bearing profiles so process_results can attach a digest-bound structured outcome.
+DEFAULT_JUNIT_RELATIVE_PATH = ".builder/artifacts/verification-junit.xml"
+
+
+def _junit_path() -> Path:
+    override = os.environ.get("BUILDER_VERIFICATION_JUNIT_PATH", "").strip()
+    if override:
+        return Path(override)
+    return Path(DEFAULT_JUNIT_RELATIVE_PATH)
 
 
 def _registry_names() -> set[str]:
@@ -51,11 +63,23 @@ def run_pytest_full() -> int:
     and only after the operator's explicit D7 execution-risk acknowledgment. `pytest` is
     imported lazily so this dependency is not loaded on the safe profiles' path.
     `-p no:cacheprovider` suppresses the `.pytest_cache` byproduct; `PYTHONDONTWRITEBYTECODE`
-    (set by the runner) suppresses `__pycache__`.
+    (set by the runner) suppresses `__pycache__`. Writes a junit-xml report under
+    ``.builder/artifacts/`` (or ``BUILDER_VERIFICATION_JUNIT_PATH``) for structured outcomes.
     """
     import pytest
 
-    return int(pytest.main(["-q", "-p", "no:cacheprovider"]))
+    junit_path = _junit_path()
+    junit_path.parent.mkdir(parents=True, exist_ok=True)
+    return int(
+        pytest.main(
+            [
+                "-q",
+                "-p",
+                "no:cacheprovider",
+                f"--junitxml={junit_path.as_posix()}",
+            ]
+        )
+    )
 
 
 def run_builder_full() -> int:

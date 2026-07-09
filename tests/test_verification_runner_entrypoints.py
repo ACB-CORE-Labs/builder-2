@@ -38,8 +38,14 @@ def test_run_pytest_full_invokes_pytest_main_with_fixed_args(monkeypatch: Any) -
 
     monkeypatch.setattr("pytest.main", fake_main)
     assert entrypoints.run_pytest_full() == 0
-    # cache provider disabled so no `.pytest_cache` byproduct is created
-    assert captured["args"] == ["-q", "-p", "no:cacheprovider"]
+    # cache provider disabled so no `.pytest_cache` byproduct is created;
+    # junitxml under .builder/artifacts supplies structured pass/fail/skip outcomes.
+    assert captured["args"] == [
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "--junitxml=.builder/artifacts/verification-junit.xml",
+    ]
 
 
 def test_run_builder_full_aggregates_nonzero_exit(monkeypatch: Any) -> None:

@@ -62,6 +62,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.code_vault.context_projection`
 - `builder_ii.code_vault.recall_report`
 - `builder_ii.code_vault.bench_report`
+- `builder_ii.verification_promotion_evidence`
 - `builder_ii.context_pack`
 - `builder_ii.convention_kernel_platform_bundle`
 - `builder_ii.governed_prepare_package`

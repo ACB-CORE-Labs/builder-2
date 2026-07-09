@@ -496,12 +496,18 @@ def _duplicate_reports(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _validate_optional_index_chain(rows: list[dict[str, Any]]) -> tuple[str, bool, list[dict[str, Any]]]:
-    applies = any(
-        isinstance(row.get("record"), dict)
-        and ("ledger_index" in row["record"] or "previous_ledger_record_digest" in row["record"])
+    """Validate the optional append-chain over rows that declare index fields.
+
+    Legacy unindexed records (pre-ladder-3) are ignored so a ledger can grow a continuous
+    indexed subsequence without invalidating older PASSIVE_INDEX_ONLY entries.
+    """
+    indexed_source_rows = [
+        row
         for row in rows
-    )
-    if not applies:
+        if isinstance(row.get("record"), dict)
+        and ("ledger_index" in row["record"] or "previous_ledger_record_digest" in row["record"])
+    ]
+    if not indexed_source_rows:
         return "not_applicable_no_sequence_rule", False, []
 
     errors: list[dict[str, Any]] = []
@@ -509,7 +515,7 @@ def _validate_optional_index_chain(rows: list[dict[str, Any]]) -> tuple[str, boo
     paths_by_index: dict[int, list[str]] = {}
     rows_by_index: dict[int, list[dict[str, Any]]] = {}
 
-    for row in rows:
+    for row in indexed_source_rows:
         record = row.get("record") if isinstance(row.get("record"), dict) else {}
         path = str(row.get("path", ""))
         index = record.get("ledger_index")
@@ -756,6 +762,31 @@ def validate_receipt_chain_for_ledger(*, receipt: Any, plan: Any, approval: Any)
     return _dedupe_errors(errors)
 
 
+def _next_ledger_index_link(ledger_root: Path) -> tuple[int, str | None]:
+    """Assign the next append-chain index from existing indexed records under ledger_root.
+
+    Returns (ledger_index, previous_ledger_record_digest). Unindexed legacy records are ignored.
+    """
+    loaded = load_verification_execution_ledger_records(ledger_root)
+    indexed: list[tuple[int, str]] = []
+    for row in loaded.get("records") or []:
+        if not isinstance(row, dict):
+            continue
+        record = row.get("record") if isinstance(row.get("record"), dict) else {}
+        index = record.get("ledger_index")
+        if not isinstance(index, int) or index < 1:
+            continue
+        digest = record.get("verification_execution_ledger_record_digest")
+        if not isinstance(digest, str) or not digest:
+            continue
+        indexed.append((index, digest))
+    if not indexed:
+        return 1, None
+    indexed.sort(key=lambda item: item[0])
+    max_index, max_digest = indexed[-1]
+    return max_index + 1, max_digest
+
+
 def create_verification_execution_ledger_record(
     *,
     receipt: dict[str, Any],
@@ -764,6 +795,8 @@ def create_verification_execution_ledger_record(
     plan_path: Path,
     approval: dict[str, Any],
     approval_path: Path,
+    ledger_index: int | None = None,
+    previous_ledger_record_digest: str | None = None,
 ) -> dict[str, Any]:
     receipt_digest = str(receipt.get("verification_execution_receipt_digest", ""))
     plan_digest = str(plan.get("verification_execution_plan_digest", ""))
@@ -841,6 +874,9 @@ def create_verification_execution_ledger_record(
         "errors": [],
         "valid": True,
     }
+    if ledger_index is not None:
+        record["ledger_index"] = ledger_index
+        record["previous_ledger_record_digest"] = previous_ledger_record_digest
     record = attach_digest(record, digest_key="verification_execution_ledger_record_digest")
     errors = validate_verification_execution_ledger_record(record)
     if errors:
@@ -855,6 +891,7 @@ def index_verification_execution_receipt(
     receipt_path: Path,
     plan_path: Path,
     approval_path: Path,
+    ledger_root: Path | None = None,
 ) -> dict[str, Any]:
     receipt = _load_json_object(receipt_path)
     plan = _load_json_object(plan_path)
@@ -905,6 +942,12 @@ def index_verification_execution_receipt(
             "valid": False,
         }
         return attach_digest(record, digest_key="verification_execution_ledger_record_digest")
+    resolved_ledger_root = (
+        ledger_root.expanduser().resolve()
+        if ledger_root is not None
+        else (repo_path_for_display / ".builder" / "ledger")
+    )
+    next_index, previous_digest = _next_ledger_index_link(resolved_ledger_root)
     return create_verification_execution_ledger_record(
         receipt=receipt,
         receipt_path=receipt_path,
@@ -912,6 +955,8 @@ def index_verification_execution_receipt(
         plan_path=plan_path,
         approval=approval,
         approval_path=approval_path,
+        ledger_index=next_index,
+        previous_ledger_record_digest=previous_digest,
     )
 
 

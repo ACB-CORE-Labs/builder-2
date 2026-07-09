@@ -107,6 +107,8 @@ _PYTEST_BYPRODUCT_IGNORE_GLOBS: tuple[str, ...] = (
     "**/*.pyc",
     "**/*.pyo",
     ".coverage",
+    # Structured-outcome junit artifact written by the pytest entrypoint under artifact root.
+    ".builder/artifacts/verification-junit.xml",
 )
 
 
@@ -367,6 +369,83 @@ def _resolve_effective_timeout(plan: dict[str, Any], profile: BoundedCommandProf
     return min(declared, profile.timeout_ceiling_seconds), []
 
 
+def _count_from_pytest_summary(text: str, label: str) -> int:
+    import re
+
+    match = re.search(rf"(\d+)\s+{label}", text)
+    return int(match.group(1)) if match else 0
+
+
+def _parse_junit_structured_outcome(junit_path: Path) -> dict[str, Any] | None:
+    if not junit_path.is_file():
+        return None
+    try:
+        raw = junit_path.read_bytes()
+    except OSError:
+        return None
+    import xml.etree.ElementTree as ET
+
+    try:
+        root = ET.fromstring(raw)
+    except ET.ParseError:
+        return {
+            "source": "junit_xml",
+            "path": junit_path.as_posix(),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "parse_error": "invalid junit xml",
+        }
+    # junit may be <testsuite> or <testsuites><testsuite ...>
+    suites = [root] if root.tag == "testsuite" else list(root.findall("testsuite"))
+    if not suites and root.tag.endswith("testsuite"):
+        suites = [root]
+    passed = failed = skipped = errors = 0
+    tests = 0
+    for suite in suites:
+        suite_tests = int(suite.attrib.get("tests") or 0)
+        suite_failures = int(suite.attrib.get("failures") or 0)
+        suite_errors = int(suite.attrib.get("errors") or 0)
+        suite_skipped = int(suite.attrib.get("skipped") or 0)
+        tests += suite_tests
+        failed += suite_failures
+        errors += suite_errors
+        skipped += suite_skipped
+        passed += max(suite_tests - suite_failures - suite_errors - suite_skipped, 0)
+    return {
+        "source": "junit_xml",
+        "path": junit_path.as_posix(),
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "tests": tests,
+        "passed": passed,
+        "failed": failed,
+        "skipped": skipped,
+        "errors": errors,
+    }
+
+
+def _structured_outcome_for_profile(
+    *,
+    profile: BoundedCommandProfile,
+    completed: subprocess.CompletedProcess[str],
+    target_repo: Path | None,
+) -> dict[str, Any] | None:
+    """Machine-readable pass/fail/skip evidence for pytest-bearing profiles."""
+    if profile.profile not in {"pytest_full", "builder_full"}:
+        return None
+    junit_path = (target_repo / ".builder" / "artifacts" / "verification-junit.xml") if target_repo else None
+    if junit_path is not None:
+        from_junit = _parse_junit_structured_outcome(junit_path)
+        if from_junit is not None:
+            return from_junit
+    combined = f"{completed.stdout or ''}\n{completed.stderr or ''}"
+    return {
+        "source": "pytest_summary",
+        "passed": _count_from_pytest_summary(combined, "passed"),
+        "failed": _count_from_pytest_summary(combined, "failed"),
+        "skipped": _count_from_pytest_summary(combined, "skipped"),
+        "errors": _count_from_pytest_summary(combined, "error"),
+    }
+
+
 def _process_result_from_completed(
     *,
     profile: BoundedCommandProfile,
@@ -374,13 +453,15 @@ def _process_result_from_completed(
     effective_timeout: int,
     command_profile_ref: str,
     timed_out: bool = False,
+    target_repo: Path | None = None,
 ) -> dict[str, Any]:
     stdout_excerpt, stdout_truncated = _excerpt(completed.stdout or "")
     stderr_excerpt, stderr_truncated = _excerpt(completed.stderr or "")
     status = "success" if completed.returncode == 0 else "non_zero_exit"
     if timed_out:
         status = "timeout"
-    return {
+    argv = list(profile.argv)
+    result: dict[str, Any] = {
         "step_id": profile.step_id,
         "profile": profile.profile,
         "command_profile_ref": command_profile_ref,
@@ -388,7 +469,10 @@ def _process_result_from_completed(
         "returncode": completed.returncode,
         "timeout_seconds": effective_timeout,
         "shell": False,
-        "argv_digest": _sha256_text(json_lib.dumps(list(profile.argv), sort_keys=True)),
+        # Exact fixed argv (code-defined, token-scanned) — not just the digest — so a receipt
+        # is self-describing without binding to a particular builder-II source revision.
+        "argv": argv,
+        "argv_digest": _sha256_text(json_lib.dumps(argv, sort_keys=True)),
         "stdout_sha256": _sha256_text(completed.stdout or ""),
         "stderr_sha256": _sha256_text(completed.stderr or ""),
         "stdout_excerpt": stdout_excerpt,
@@ -396,6 +480,12 @@ def _process_result_from_completed(
         "stdout_truncated": stdout_truncated,
         "stderr_truncated": stderr_truncated,
     }
+    structured = _structured_outcome_for_profile(
+        profile=profile, completed=completed, target_repo=target_repo
+    )
+    if structured is not None:
+        result["structured_outcome"] = structured
+    return result
 
 
 def _blocked_process_result(*, profile: str, step_id: str, reason: str) -> dict[str, Any]:
@@ -681,6 +771,7 @@ def run_approved_verification(
             completed=completed,
             effective_timeout=effective_timeout,
             command_profile_ref=effective_command_profile_ref,
+            target_repo=target_repo,
         )
     except subprocess.TimeoutExpired as exc:
         completed = subprocess.CompletedProcess(
@@ -695,6 +786,7 @@ def run_approved_verification(
             effective_timeout=effective_timeout,
             command_profile_ref=effective_command_profile_ref,
             timed_out=True,
+            target_repo=target_repo,
         )
 
     postflight = _git_state(target_repo, "postflight")
