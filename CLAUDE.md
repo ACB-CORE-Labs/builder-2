@@ -52,6 +52,8 @@ bash scripts/clean-clone-smoke.sh   # repeatable clean-clone onboarding + govern
 
 `scripts/ci.sh` is the authoritative list of **blocking** gates (Rust build → bytecode compile → docs truth audit → secret scan → ruff → targeted mypy → targeted bandit → full pytest). Run `bash scripts/ci.sh` before considering work done — do not transcribe the sequence by hand. `.github/workflows/ci.yml` provisions an environment and then calls that same script, so local and CI runs cannot drift (`tests/test_ci_gate_parity.py` pins it). Gitleaks is workflow-only and `continue-on-error` — advisory, never blocking.
 
+`bash scripts/ci.sh --receipt <path>` additionally emits a `builder_ii.gate_battery_receipt` artifact (`builder_ii/gate_battery_receipt.py`) naming which blocking gates ran, their argv/exit codes/durations, and the git HEAD and working-tree state before and after. This is `RECORDED_ONLY`: the same host that runs the gates writes the receipt, so it is a receipt, never independent proof — its `governance` block says `independent_observer: false` and `artifact_is_authority: false` for exactly that reason. It closes transcription error, commit mismatch, and dirty-tree ambiguity in a PR body's "I ran the gates" claim; it does not close dishonesty. Validate a receipt file with `uv run python -m builder_ii.gate_battery_receipt --validate <path>` (no console script — a `python -m` entry point, so it needs no `command_authority.py` registration).
+
 There is no Makefile/justfile — `uv run <tool>` and the `builder-*` console scripts (defined in `pyproject.toml [project.scripts]`, ~40 of them) are the whole surface.
 
 ## Architecture
