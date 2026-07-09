@@ -10,6 +10,8 @@ class IsolationBackendError(Exception):
 
 
 class IsolationBackend:
+    name: str = ""
+
     def __init__(self, target_repo: str, isolation_policy: dict[str, Any] | None):
         self.target_repo = target_repo
         self.isolation_policy = isolation_policy
@@ -19,11 +21,15 @@ class IsolationBackend:
 
 
 class NoneBackend(IsolationBackend):
+    name = "none"
+
     def wrap_command(self, argv: list[str], env: dict[str, str]) -> tuple[list[str], dict[str, str]]:
         return list(argv), dict(env)
 
 
 class DockerBackend(IsolationBackend):
+    name = "docker"
+
     def __init__(self, target_repo: str, isolation_policy: dict[str, Any] | None):
         super().__init__(target_repo, isolation_policy)
         self._check_daemon()
@@ -40,15 +46,21 @@ class DockerBackend(IsolationBackend):
             return
         image_ref = self.isolation_policy.get("image_ref")
         image_digest = self.isolation_policy.get("image_digest")
-        
+
         if not image_ref:
             raise IsolationBackendError("image_ref is required for docker backend")
 
         try:
-            result = subprocess.run(["docker", "inspect", "--format", "{{index .RepoDigests 0}}", image_ref], 
+            result = subprocess.run(["docker", "inspect", "--format", "{{json .RepoDigests}}", image_ref],
                                     capture_output=True, text=True, check=True)
-            if image_digest and image_digest not in result.stdout:
-                raise IsolationBackendError(f"image digest mismatch: expected {image_digest}")
+            if image_digest:
+                import json
+                try:
+                    digests = json.loads(result.stdout)
+                    if not any(d.endswith(f"@{image_digest}") or d == image_digest for d in (digests or [])):
+                        raise IsolationBackendError(f"image digest mismatch: expected {image_digest}")
+                except json.JSONDecodeError:
+                    raise IsolationBackendError(f"image digest mismatch: expected {image_digest}")
         except subprocess.CalledProcessError:
             raise IsolationBackendError(f"image {image_ref} not found locally")
         except FileNotFoundError:
@@ -56,30 +68,30 @@ class DockerBackend(IsolationBackend):
 
     def wrap_command(self, argv: list[str], env: dict[str, str]) -> tuple[list[str], dict[str, str]]:
         image_ref = self.isolation_policy.get("image_ref") if self.isolation_policy else "python:3.12-slim"
-        
+
         # Re-map sys.executable for container
         container_argv = list(argv)
         if container_argv and container_argv[0] == sys.executable:
             container_argv[0] = "python3"
-        
+
         docker_cmd = ["docker", "run", "--rm"]
-        
+
         docker_cmd.extend(["-v", f"{self.target_repo}:/workspace"])
         docker_cmd.extend(["-w", "/workspace"])
-        
+
         container_env = dict(env)
         container_env["PYTHONPATH"] = "/workspace"
-        container_env["HOME"] = "/tmp/home"
-        container_env["TMPDIR"] = "/tmp"
-        container_env["TEMP"] = "/tmp"
-        container_env["TMP"] = "/tmp"
-        
+        container_env["HOME"] = "/tmp/home"  # nosec B108
+        container_env["TMPDIR"] = "/tmp"  # nosec B108
+        container_env["TEMP"] = "/tmp"  # nosec B108
+        container_env["TMP"] = "/tmp"  # nosec B108
+
         for k, v in container_env.items():
             docker_cmd.extend(["-e", f"{k}={v}"])
-            
+
         docker_cmd.append(image_ref)
         docker_cmd.extend(container_argv)
-        
+
         safe_host_env = {"PATH": os.environ.get("PATH", "")}
         return docker_cmd, safe_host_env
 
@@ -87,13 +99,13 @@ class DockerBackend(IsolationBackend):
 def get_backend(target_repo: str, isolation_policy: dict[str, Any] | None) -> IsolationBackend:
     if not isolation_policy:
         return NoneBackend(target_repo, isolation_policy)
-    
+
     backend_name = isolation_policy.get("backend", "none")
     if backend_name == "docker":
         return DockerBackend(target_repo, isolation_policy)
-    
+
     # Fallback to none if explicitly set, or raise if unsupported
     if backend_name == "none":
         return NoneBackend(target_repo, isolation_policy)
-        
+
     raise IsolationBackendError(f"unsupported isolation backend: {backend_name}")

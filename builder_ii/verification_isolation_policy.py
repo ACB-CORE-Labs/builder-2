@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.config_schema import attach_digest, digest_jsonable
-from builder_ii.verification_execution_plan import _scan_planned_step
+from builder_ii.verification_execution_plan import scan_planned_step
 
 VERIFICATION_ISOLATION_POLICY_KIND = "builder_ii.verification_isolation_policy"
 VERIFICATION_ISOLATION_POLICY_SCHEMA_VERSION = 1
@@ -53,12 +53,12 @@ def validate_verification_isolation_policy_artifact(data: Any) -> list[str]:
         errors.append(f"schema_version must be {VERIFICATION_ISOLATION_POLICY_SCHEMA_VERSION}")
 
     backend = data.get("backend")
-    if not isinstance(backend, str) or backend not in ("none", "docker", "podman"):
-        errors.append("backend must be 'none', 'docker', or 'podman'")
+    if not isinstance(backend, str) or backend not in ("none", "docker"):
+        errors.append("backend must be 'none' or 'docker'")
 
-    errors.extend(_scan_planned_step(data, ""))
+    errors.extend(scan_planned_step(data, ""))
 
-    expected_digest = digest_jsonable(data, exclude_keys={"verification_isolation_policy_digest"})
+    expected_digest = digest_jsonable(data, digest_key="verification_isolation_policy_digest")
     if data.get("verification_isolation_policy_digest") != expected_digest:
         errors.append("verification_isolation_policy_digest is invalid or missing")
 
@@ -70,5 +70,5 @@ def validate_verification_isolation_policy_file(path: Path) -> list[str]:
         content = path.read_text(encoding="utf-8")
         data = json_lib.loads(content)
         return validate_verification_isolation_policy_artifact(data)
-    except Exception as exc:
+    except (OSError, json_lib.JSONDecodeError) as exc:
         return [f"failed to load verification isolation policy file: {exc}"]

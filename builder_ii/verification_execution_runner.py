@@ -21,7 +21,6 @@ from builder_ii.execution_postflight_records import (
     validate_execution_postflight_record,
     write_execution_postflight_record,
 )
-from builder_ii.verification_isolation_backend import IsolationBackendError, NoneBackend, get_backend
 from builder_ii.verification_execution_approval import (
     validate_verification_execution_approval_against_plan,
     validate_verification_execution_approval_artifact,
@@ -42,6 +41,7 @@ from builder_ii.verification_execution_receipt import (
     validate_verification_execution_receipt_artifact,
     write_verification_execution_receipt,
 )
+from builder_ii.verification_isolation_backend import IsolationBackendError, get_backend
 
 STDOUT_STDERR_CAPTURE_BYTES = 65536
 GIT_STATUS_TIMEOUT_SECONDS = 10
@@ -771,7 +771,14 @@ def run_approved_verification(
         )
 
     try:
-        isolation_backend = get_backend(str(target_repo), plan.get("isolation_policy"))
+        isolation_policy = plan.get("isolation_policy")
+        isolation_backend = get_backend(str(target_repo), isolation_policy)
+
+        if isolation_backend.name != "none":
+            policy_digest = isolation_policy.get("verification_isolation_policy_digest") if isolation_policy else None
+            if not policy_digest or len(policy_digest) != 64 or not all(c in "0123456789abcdef" for c in policy_digest):
+                raise IsolationBackendError("isolation policy digest is missing or invalid")
+
         run_argv, run_env = isolation_backend.wrap_command(list(profile.argv), _minimal_env(target_repo))
     except IsolationBackendError as exc:
         return _receipt_for_block(
@@ -858,9 +865,10 @@ def run_approved_verification(
             approval.get("acknowledged_risk") if isinstance(approval.get("acknowledged_risk"), str) else None
         ),
     )
-    if not isinstance(isolation_backend, NoneBackend):
-        receipt_kwargs["isolation_backend"] = isolation_backend.__class__.__name__.replace("Backend", "").lower()
-        receipt_kwargs["isolation_status"] = "applied"
+    isolation_policy = plan.get("isolation_policy")
+    receipt_kwargs["isolation_backend"] = isolation_backend.name
+    receipt_kwargs["isolation_status"] = "applied" if isolation_backend.name != "none" else "not_applied"
+    receipt_kwargs["isolation_policy_digest"] = isolation_policy.get("verification_isolation_policy_digest") if isolation_policy else None
 
     receipt = finalize_verification_execution_receipt(**receipt_kwargs)
     receipt["command_authority_decision"] = authority_decision.to_evidence()

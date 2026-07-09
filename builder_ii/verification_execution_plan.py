@@ -439,6 +439,9 @@ def _validate_disabled_authority(data: dict[str, Any]) -> list[str]:
     return errors
 
 
+def scan_planned_step(value: Any, path: str) -> list[str]:
+    return _scan_planned_step(value, path)
+
 def _scan_planned_step(value: Any, path: str) -> list[str]:
     errors: list[str] = []
     if isinstance(value, dict):

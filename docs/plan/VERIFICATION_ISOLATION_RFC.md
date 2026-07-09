@@ -36,4 +36,4 @@ To move this capability across a promotion boundary (future PR), the following e
 8. Evidence-backed matrix flip (the truth matrix reflecting the new verification state).
 
 ## Conclusion
-This is a `RECORDED_ONLY` change. It introduces the isolation mechanism and artifact shape but **promotes nothing**. The `none` path proves that existing non-isolated execution remains byte-identical.
+This is a `RECORDED_ONLY` change. It introduces the isolation mechanism and artifact shape but **promotes nothing**. The `none` path is **behaviorally** identical — same argv, same env, `shell=False` — and its receipt differs only by `schema_version` and the now-always-present isolation fields recording `not_applied`.

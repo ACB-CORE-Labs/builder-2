@@ -1,10 +1,10 @@
-import pytest
 import subprocess
-from pathlib import Path
 from typing import Any
 
+import pytest
+
 from builder_ii.verification_isolation_backend import DockerBackend, IsolationBackendError
-from builder_ii.verification_execution_plan import finalize_verification_execution_plan
+
 
 def test_isolation_backend_fail_closed_daemon_down(monkeypatch: pytest.MonkeyPatch) -> None:
     def _mock_run(*args: Any, **kwargs: Any) -> Any:
