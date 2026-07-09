@@ -383,16 +383,29 @@ def _parse_junit_structured_outcome(junit_path: Path) -> dict[str, Any] | None:
         raw = junit_path.read_bytes()
     except OSError:
         return None
-    import xml.etree.ElementTree as ET
+    # defusedxml hardens JUnit parsing against XML entity/DTD attacks (billion-laughs, XXE) even
+    # though the target repo is D7-trusted; a subprocess-produced file is still external input.
+    from defusedxml.common import DefusedXmlException
+    from defusedxml.ElementTree import ParseError, fromstring
 
     try:
-        root = ET.fromstring(raw)
-    except ET.ParseError:
+        root = fromstring(raw)
+    except ParseError:
         return {
             "source": "junit_xml",
             "path": junit_path.as_posix(),
             "sha256": hashlib.sha256(raw).hexdigest(),
             "parse_error": "invalid junit xml",
+        }
+    except DefusedXmlException:
+        # Forbidden construct (entity/DTD/external reference — EntitiesForbidden and friends are
+        # ValueError subclasses, not ParseError): refuse the content but keep this parser's
+        # never-raise degradation contract, so the execution receipt is still written.
+        return {
+            "source": "junit_xml",
+            "path": junit_path.as_posix(),
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "parse_error": "forbidden xml construct refused (entities/DTD/external references)",
         }
     # junit may be <testsuite> or <testsuites><testsuite ...>
     suites = [root] if root.tag == "testsuite" else list(root.findall("testsuite"))
