@@ -378,6 +378,10 @@ from builder_ii.verification_profiles import (
     VERIFICATION_ARTIFACT_KIND,
     validate_profile_artifact,
 )
+from builder_ii.verification_promotion_gate import (
+    PROMOTION_EVIDENCE_KIND,
+    validate_promotion_evidence,
+)
 from builder_ii.workflow_records import (
     WORKFLOW_SESSION_KIND,
     WORKFLOW_STATUS_KIND,
@@ -437,6 +441,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     VERIFICATION_EXECUTION_PLAN_KIND: validate_verification_execution_plan_artifact,
     VERIFICATION_EXECUTION_APPROVAL_KIND: validate_verification_execution_approval_artifact,
     VERIFICATION_EXECUTION_RECEIPT_KIND: validate_verification_execution_receipt_artifact,
+    PROMOTION_EVIDENCE_KIND: validate_promotion_evidence,
     CONTEXT_PACK_RECORD_KIND: validate_context_pack_record,
     AGENT_PROFILE_RECORD_KIND: validate_agent_profile_record,
     GIT_STATE_RECORD_KIND: validate_git_state_record,

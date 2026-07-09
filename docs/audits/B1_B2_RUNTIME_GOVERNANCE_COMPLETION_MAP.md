@@ -44,7 +44,7 @@ B2 begins as governed live read, not patching. The first acceptable B2 capabilit
 |---|---|---|
 | B1.4C | Passive verification ledger integrity report over existing `builder_ii.verification_execution_ledger_record` artifacts. | No execution replay, subprocess, shell, model, MCP, Goose, deepagents, source writes, git mutation, patch authority, or B2 authority. |
 | B1.4D | Read-only ledger reconstruction/report surface and B1 closure docs. | No command execution, no mutable status authority, no receipt re-run, no broader runtime event classes. |
-| B2.0 | Machine-checkable capability promotion gate/checklist. | No live filesystem read yet and no write authority. |
+| B2.0 | Machine-checkable capability promotion gate/checklist. **SHIPPED** as `builder_ii.verification_promotion_evidence` via `builder-verify evaluate-promotion` / `validate-promotion-evidence` — consumes plan/approval/receipt (+ optional ledger), emits pass/fail evidence, never flips matrix or grants authority. | No live filesystem read yet and no write authority. |
 | B2.1 | Tiny governed live-read file metadata/hash command for an explicit target path. | No content exfiltration by default, no directory crawling, no source/git mutation, no shell. |
 | B2.2 | Passive indexing/query/integrity support for B2 read artifacts. | No patching, no model/tool calls, no runtime expansion beyond explicit read artifact validation. |
 | B2 closure | Reconcile truth docs and define preconditions for later B3/write authority. | No B2 write/patch authority. |
