@@ -27,6 +27,15 @@ UNSAFE_CONFLICTS = {
 }
 SECRET_MARKERS = ("secret", "token", "api_key", "apikey", "password", "credential", "bearer")
 
+# Marker-based redaction is best-effort by construction: it can only elide values under keys whose
+# NAME it recognises. A credential under `openai_key` or `session_cookie` matches no marker and
+# would survive redaction. That is tolerable for content builder-II authored, and intolerable for
+# content the operator authored -- so a merge target's content is never previewed at all.
+_MERGE_PREVIEW_WITHHELD = (
+    "<withheld: a merge target may hold operator credentials under keys redaction cannot recognise; "
+    "see merge_keys_written, merge_keys_preserved_count, before_digest and after_digest>"
+)
+
 
 class SetupApplyError(ValueError):
     def __init__(self, message: str, receipt: dict[str, Any] | None = None) -> None:
@@ -427,7 +436,15 @@ def apply_setup_overlay(
                 target.mkdir(parents=True, exist_ok=True)
             elif operation == "merge":
                 merged_text, unchanged, merge_fields = _merge_yaml_target(change, target)
-                op_record["redacted_preview"] = _redact(merged_text)
+                # Never preview the merged document. A merge exists precisely to PRESERVE the
+                # operator's credentials in the target file, so `merged_text` contains every one of
+                # them -- and `_redact` only recognises a seven-marker vocabulary, so a credential
+                # under a key it does not know (`openai_key`, `session_cookie`, ...) would be copied
+                # verbatim into this receipt. Proven by running it. We authored only the overlay
+                # keys; `merge_keys_written` names them and the before/after digests identify the
+                # file, which is the evidence. A preview of a credential file is not evidence; it is
+                # a copy.
+                op_record["redacted_preview"] = _MERGE_PREVIEW_WITHHELD
                 op_record.update(merge_fields)
                 if unchanged:
                     op_record["result"] = "skipped_no_op"

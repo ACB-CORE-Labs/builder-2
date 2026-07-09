@@ -17,6 +17,13 @@ SETUP_ROLLBACK_SNAPSHOT_KIND = "builder_ii.setup_rollback_snapshot"
 SETUP_ROLLBACK_SNAPSHOT_SCHEMA_VERSION = 1
 
 _SECRET_MARKERS = ("secret", "token", "api_key", "apikey", "password", "credential", "bearer")
+
+# See setup_apply._MERGE_PREVIEW_WITHHELD. Redaction recognises key NAMES, not credentials, so no
+# preview of an operator-owned file is safe to embed in a governed artifact.
+_MERGE_PREVIEW_WITHHELD = (
+    "<withheld: a merge target may hold operator credentials under keys redaction cannot recognise; "
+    "see prior_content_digest and prior_content_size_bytes>"
+)
 _EXISTENCE_STATES = {"missing", "file", "directory", "symlink", "unsupported"}
 _STORAGE_POLICIES = {
     "not_stored_missing_file_marker_only",
@@ -171,7 +178,15 @@ def _snapshot_path(path: Path, *, change: dict[str, Any]) -> dict[str, Any]:
         if path.is_file():
             raw = path.read_bytes()
             text = raw.decode("utf-8", errors="replace")
-            preview, redaction_state = _redact_text(text)
+            if operation == "merge":
+                # A merge target is, by declaration, a file builder-II does not own and which may
+                # hold operator credentials. Marker-based redaction only elides values under key
+                # names it recognises, so an unrecognised one (`openai_key`, `session_cookie`, ...)
+                # would be copied verbatim into this snapshot. The digest and size below identify
+                # the prior file without reproducing any of it.
+                preview, redaction_state = (_MERGE_PREVIEW_WITHHELD, "withheld_merge_target_may_contain_credentials")
+            else:
+                preview, redaction_state = _redact_text(text)
             return {
                 **base,
                 "prior_existence_state": "file",

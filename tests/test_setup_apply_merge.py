@@ -19,8 +19,11 @@ from builder_ii.setup_cli import setup_app
 from test_setup_apply import _artifacts, _write
 from typer.testing import CliRunner
 
-from builder_ii.setup_apply import SUPPORTED_OPERATIONS, _redact
+from builder_ii.setup_apply import _MERGE_PREVIEW_WITHHELD, SUPPORTED_OPERATIONS, _redact
 from builder_ii.setup_overlay import _OPERATIONS as OVERLAY_OPERATIONS
+from builder_ii.setup_rollback import _MERGE_PREVIEW_WITHHELD as _SNAPSHOT_PREVIEW_WITHHELD
+from builder_ii.setup_rollback import create_setup_rollback_snapshot, validate_setup_rollback_snapshot_artifact
+from builder_ii.setup_rollback_execute import _preflight_state
 
 runner = CliRunner()
 
@@ -346,3 +349,104 @@ def test_merge_comment_and_key_order_decision_is_pinned(tmp_path: Path) -> None:
     top_level_keys = list(yaml.safe_load(written_text).keys())
     assert top_level_keys.index("zzz_last_provider") < top_level_keys.index("aaa_first_provider")
     assert top_level_keys[-3:] == ["extensions", "recipes", "slash_commands"]
+
+
+# --- a preview of a credential file is not evidence; it is a copy ------------------------------
+#
+# Redaction recognises key NAMES, not credentials. `_SECRET_MARKERS` knows seven words, so a
+# credential under `openai_key` or `session_cookie` survives it untouched. Proven by running the
+# code. That is tolerable for content builder-II authored and intolerable for content the operator
+# authored -- and a merge exists precisely to PRESERVE the operator's credentials in the target,
+# so the merged document contains every one of them. Neither the receipt nor the rollback snapshot
+# may reproduce it. The before/after digests identify the file without copying it.
+
+_UNMARKED_CREDENTIAL_CONFIG = (
+    "providers:\n"
+    "  openai:\n"
+    "    openai_key: sk-proj-UNMARKED-KEY\n"
+    "    session_cookie: sk-proj-UNMARKED-COOKIE\n"
+    "    api_key: sk-proj-MARKED-KEY\n"
+)
+
+
+def test_marker_redaction_cannot_see_a_credential_under_an_unrecognised_key() -> None:
+    """The honest limit that forces the withholding below. If this ever stops being true, say so."""
+    redacted = _redact(_UNMARKED_CREDENTIAL_CONFIG)
+    assert "sk-proj-MARKED-KEY" not in redacted
+    assert "sk-proj-UNMARKED-KEY" in redacted, "marker redaction is name-based; this is its limit"
+
+
+def test_merge_receipt_never_previews_the_merged_document(tmp_path: Path) -> None:
+    target = tmp_path / "config" / "goose" / "config.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text(_UNMARKED_CREDENTIAL_CONFIG, encoding="utf-8")
+
+    change = _merge_change(target)
+    overlay, snap = _artifacts(tmp_path, [change])
+    op, sp = _write(tmp_path, overlay, snap)
+    result, receipt = _apply(tmp_path, op, sp, overlay)
+    assert result.exit_code == 0, result.output
+
+    blob = json.dumps(receipt)
+    for credential in ("sk-proj-UNMARKED-KEY", "sk-proj-UNMARKED-COOKIE", "sk-proj-MARKED-KEY"):
+        assert credential not in blob, f"{credential} was copied into the setup receipt"
+
+    merge_op = next(op_record for op_record in receipt["operations"] if op_record["operation_type"] == "merge")
+    assert merge_op["redacted_preview"] == _MERGE_PREVIEW_WITHHELD
+    assert merge_op["merge_keys_written"], "the receipt must still say what we wrote"
+    assert merge_op["before_digest"] != merge_op["after_digest"]
+
+    # And the credentials really are still in the file -- withholding the preview loses no data.
+    written = yaml.safe_load(target.read_text(encoding="utf-8"))
+    assert written["providers"]["openai"]["openai_key"] == "sk-proj-UNMARKED-KEY"
+
+
+def test_rollback_snapshot_never_previews_a_merge_target(tmp_path: Path) -> None:
+    target = tmp_path / "config" / "goose" / "config.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text(_UNMARKED_CREDENTIAL_CONFIG, encoding="utf-8")
+
+    change = _merge_change(target)
+    overlay, _snapshot = _artifacts(tmp_path, [change])
+    snapshot = create_setup_rollback_snapshot(overlay)
+
+    blob = json.dumps(snapshot)
+    for credential in ("sk-proj-UNMARKED-KEY", "sk-proj-UNMARKED-COOKIE"):
+        assert credential not in blob, f"{credential} was copied into the rollback snapshot"
+
+    state = snapshot["target_path_states"][0]
+    assert state["prior_redacted_preview"] == _SNAPSHOT_PREVIEW_WITHHELD
+    assert len(state["prior_content_digest"]) == 64, "the digest identifies the file without copying it"
+    assert state["prior_content_size_bytes"] > 0
+    assert validate_setup_rollback_snapshot_artifact(snapshot) == []
+
+
+def test_a_validating_rollback_snapshot_can_never_restore_file_content(tmp_path: Path) -> None:
+    """The structural contradiction underneath `restore_prior_file_from_snapshot`.
+
+    `setup_rollback` validates a snapshot only if `raw_content_included` is **false**;
+    `setup_rollback_execute._preflight_state` restores a file only if it is **true**. So every file
+    rollback -- including a rollback of this Goose config merge -- degrades to manual restoration.
+
+    This is not an oversight to route around. Storing the prior content would put the operator's API
+    keys into a JSON artifact, which `secret_policy.raw_prior_content_stored_in_json = false`
+    forbids on purpose. You cannot both refuse to store credentials and promise to restore a
+    credential file. The promise is the part that is wrong, and until a secure content store exists
+    the honest behaviour is exactly this refusal. This test exists so the contradiction cannot be
+    silently "fixed" by weakening either side.
+    """
+    target = tmp_path / "config" / "goose" / "config.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text(_UNMARKED_CREDENTIAL_CONFIG, encoding="utf-8")
+
+    change = _merge_change(target)
+    overlay, _snapshot = _artifacts(tmp_path, [change])
+    snapshot = create_setup_rollback_snapshot(overlay)
+    assert validate_setup_rollback_snapshot_artifact(snapshot) == []
+
+    state = snapshot["target_path_states"][0]
+    assert state["prior_existence_state"] == "file"
+    assert state["raw_content_included"] is False, "the validator forbids anything else"
+
+    blocker = _preflight_state(target, state)
+    assert blocker == "manual_restore_required: raw prior content is unavailable"
