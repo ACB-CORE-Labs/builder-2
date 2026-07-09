@@ -573,14 +573,24 @@ def test_command_authority_doc_mirrors_the_registry_verbatim() -> None:
     digest-referenced as a policy snapshot by `workflow_orchestrator` -- so a hand edit silently
     changes a digest that governed events bind.
 
-    This pin makes that class of drift unrepresentable: every record's `runtime_boundary` must
-    appear verbatim in the doc. Edit the registry, then regenerate; never the other way round.
+    The table `render_registry_markdown_table()` produces must appear in the doc **verbatim**. Two
+    earlier cuts of this pin were weaker than they were claimed to be, and both are worth recording:
+
+    - Searching the whole document for each record's `runtime_boundary` passes when a hand-edited row
+      merely *shares text* with some other row -- 215 of the 386 boundaries are a substring of another
+      record's. A hand edit could be "found" inside the wrong row.
+    - Requiring one row per record is simply false: the renderer emits 287 rows for 386 records, and
+      that filtering is deliberate. Asserting otherwise fails on a doc that is perfectly in sync.
+
+    Comparing against the generator's own output has neither failure mode: it is exact, it needs no
+    theory about which records get rows, and it says the true thing -- edit the registry, regenerate,
+    never the other way round.
     """
     doc = (Path(__file__).resolve().parents[1] / "docs" / "COMMAND_AUTHORITY.md").read_text(encoding="utf-8")
-    missing = [record.name for record in COMMAND_AUTHORITY_REGISTRY if record.runtime_boundary not in doc]
-    assert not missing, (
-        "docs/COMMAND_AUTHORITY.md has drifted from builder_ii/command_authority.py for: "
-        f"{missing}. Regenerate the doc from the registry -- do not hand-edit it."
+    table = render_registry_markdown_table().strip()
+    assert table in doc, (
+        "docs/COMMAND_AUTHORITY.md has drifted from builder_ii/command_authority.py. "
+        "Regenerate it from render_registry_markdown_table() -- do not hand-edit it."
     )
 
 
@@ -624,3 +634,22 @@ def test_stratum_record_files_hitl_refusal_as_design_not_as_a_pending_feature() 
     boundary = _stratum_record().runtime_boundary.lower()
     assert "never mutate approval state" in boundary
     assert "not pending features" in boundary
+
+
+def test_doc_parity_pin_catches_a_hand_edit_a_substring_check_would_miss() -> None:
+    """Holds open the exact weakness the generator-exact check closes, so it cannot reopen.
+
+    Most `runtime_boundary` strings are substrings of some other record's. A document-wide membership
+    test therefore still passes after a row is hand-edited away from its source, because the original
+    text survives *somewhere else* in the table. Comparing against the generator's output does not.
+    """
+    doc = (Path(__file__).resolve().parents[1] / "docs" / "COMMAND_AUTHORITY.md").read_text(encoding="utf-8")
+    boundaries = [record.runtime_boundary for record in COMMAND_AUTHORITY_REGISTRY]
+    shadowed = {b for b in boundaries if sum(1 for other in boundaries if b in other) > 1}
+    assert shadowed, "if no boundary shadows another, this pin has lost its point -- re-derive it"
+
+    victim = next(r for r in COMMAND_AUTHORITY_REGISTRY if r.runtime_boundary in shadowed and f"| `{r.name}` |" in doc)
+    mutated = doc.replace(f"| `{victim.name}` |", f"| `{victim.name}` | HAND EDITED |", 1)
+
+    assert victim.runtime_boundary in mutated, "the naive document-wide check would still pass -- that is the bug"
+    assert render_registry_markdown_table().strip() not in mutated, "the generator-exact check must catch it"
