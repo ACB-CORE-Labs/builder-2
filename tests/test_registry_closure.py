@@ -95,6 +95,14 @@ from builder_ii.orchestration_dry_run import (
     ORCHESTRATION_DRY_RUN_KIND,
     create_orchestration_dry_run,
 )
+from builder_ii.orchestration_lane_policy import (
+    LANE_POLICY_KIND,
+    create_orchestration_lane_policy_artifact,
+)
+from builder_ii.orchestration_obligation import (
+    OBLIGATION_KIND,
+    create_orchestration_obligation,
+)
 from builder_ii.orchestration_plan import (
     ORCHESTRATION_PLAN_KIND,
     create_orchestration_plan,
@@ -1291,4 +1299,67 @@ def test_docs_list_goal2_assignment_artifact_kinds() -> None:
     for kind in GOAL2_ASSIGNMENT_ARTIFACT_KINDS:
         assert kind in content, (
             f"{kind} not found in docs/ARTIFACT_INDEX.md — Goal 2 registry closure requires docs coverage"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Ladder 4 — orchestration obligation / lane policy registry closure
+# ---------------------------------------------------------------------------
+
+ORCHESTRATION_OBLIGATION_ARTIFACT_KINDS = {
+    OBLIGATION_KIND,
+    LANE_POLICY_KIND,
+}
+
+
+def _orchestration_lane_policy() -> dict[str, Any]:
+    return create_orchestration_lane_policy_artifact()
+
+
+def _orchestration_obligation() -> dict[str, Any]:
+    policy = _orchestration_lane_policy()
+    return create_orchestration_obligation(
+        lane="deepagents",
+        obligation_kind="planning_step",
+        task="registry closure fixture obligation",
+        output_contract_expected_kind="builder_ii.deepagents_execution_receipt",
+        output_contract_required_evidence_kinds=["builder_ii.verification_execution_receipt"],
+        denied_actions=["execute_shell"],
+        refused_lanes=["goose"],
+        file_refs=[{"path": "builder_ii/orchestration_obligation.py", "sha256": "c" * 64}],
+        briefing_bytes=64,
+        budget_partition={"max_subagents": 1, "max_events": 8, "max_output_bytes": 4096, "max_human_gates": 1},
+        parent_ref={"seal_digest": "a" * 64},
+        lane_policy_digest=policy["lane_policy_digest"],
+        subagent_profile="planner",
+    )
+
+
+def test_orchestration_obligation_kinds_registered_in_both_registries() -> None:
+    for kind in ORCHESTRATION_OBLIGATION_ARTIFACT_KINDS:
+        assert kind in INDEX_VALIDATORS, f"{kind} missing from artifact index _VALIDATORS"
+        assert kind in CHAIN_VALIDATORS, f"{kind} missing from chain verification VALIDATORS"
+
+
+def test_orchestration_obligation_fixtures_validate_through_both_registries() -> None:
+    for record in (_orchestration_obligation(), _orchestration_lane_policy()):
+        kind = record["kind"]
+        assert INDEX_VALIDATORS[kind](record) == [], f"{kind} index validation errors"
+        assert CHAIN_VALIDATORS[kind](record) == [], f"{kind} chain validation errors"
+
+
+def test_orchestration_obligation_artifacts_are_not_chain_evidence() -> None:
+    # Obligations and the lane policy are standalone governed records: their parent/policy links
+    # are bare digests, not {path, sha256} artifact refs, so they emit no outbound chain links.
+    for record in (_orchestration_obligation(), _orchestration_lane_policy()):
+        assert extract_references(record) == [], f"{record['kind']} unexpectedly produced chain references"
+
+
+def test_docs_list_orchestration_obligation_kinds() -> None:
+    docs_path = Path(__file__).resolve().parent.parent / "docs" / "ARTIFACT_INDEX.md"
+    content = docs_path.read_text(encoding="utf-8")
+
+    for kind in ORCHESTRATION_OBLIGATION_ARTIFACT_KINDS:
+        assert kind in content, (
+            f"{kind} not found in docs/ARTIFACT_INDEX.md — Ladder 4 registry closure requires docs coverage"
         )
