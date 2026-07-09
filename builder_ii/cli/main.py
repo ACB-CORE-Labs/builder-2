@@ -140,10 +140,13 @@ def stratum(
 
     if not experimental:
         console.print(
-            "[yellow]STRATUM is experimental and not yet wired to real governance state.[/]\n"
-            "Tier evaluation, chain digests, and HITL approve/reject in this surface are display-only "
-            "mockups — they do not read or write real HITL/command-authority state.\n"
-            "Use the governed `builder tui` / `builder hitl` inspectors for real read-only status.\n\n"
+            "[yellow]STRATUM is an experimental display surface.[/]\n"
+            "Command tier evaluation reads the real command-authority registry.\n"
+            "No chain digest is shown: the verification report exposes none, so STRATUM displays an "
+            "explicit absence rather than a value shaped like a digest.\n"
+            "HITL approve/reject deliberately do nothing but refuse and name the governed CLI — a "
+            "surface that renders a digest must not harvest its confirmation.\n"
+            "The HITL diff viewer is still an unimplemented mockup.\n\n"
             "Pass [bold]--experimental[/] to launch STRATUM anyway."
         )
         raise typer.Exit(1)

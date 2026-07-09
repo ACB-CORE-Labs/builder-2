@@ -92,7 +92,7 @@ The operator command surface is organized by phase. Every command operates stric
 #### STRATUM launcher (experimental)
 - **Command name**: `builder stratum --experimental`
 - **Purpose**: Launch the full Textual STRATUM operator interface.
-- **Status**: Pre-release mockup, gated behind the required `--experimental` flag; the command refuses to launch without it. Tier evaluation, chain digest, and HITL approve/reject in this surface are display-only — they do not read or write real HITL/command-authority state. Real wiring is post-beta (see `planning/CORE_PAR_MASTER_COMPLETION_PLAN.md` D5).
+- **Status**: Pre-release surface, gated behind the required `--experimental` flag; the command refuses to launch without it. Command tier evaluation is wired to the real command-authority registry. **No chain digest is displayed** — `verify_artifact_chain` exposes none, so the surface renders an explicit absence marker rather than a synthesized value. HITL approve/reject never mutate approval state and are not pending features: a surface that renders a digest must not harvest its confirmation, so they refuse and name the governed CLI (`builder-hitl approve-patch` / `builder-hitl rejection-record`). The HITL diff viewer remains an unimplemented mockup.
 - **Output artifact, if any**: None; terminal UI only.
 - **Execution authority**: operator-managed presentation layer; runtime-changing operations still require their own governed subcommand boundaries.
 - **Human responsibility**: Launch intentionally from an operator terminal when the full Textual app is desired; use the governed `builder tui` / `builder hitl` inspectors for real read-only status in the meantime.

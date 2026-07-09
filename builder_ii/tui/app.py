@@ -15,11 +15,27 @@ from textual.widgets import Footer, Static
 from builder_ii.artifact_chain_verification import verify_artifact_chain
 from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
 from builder_ii.config import load_settings
-from builder_ii.tui.widgets.cli_passthrough import CLIPassthroughScreen, ConfirmScreen, RejectScreen
+from builder_ii.tui.widgets.cli_passthrough import CLIPassthroughScreen, ConfirmScreen
 from builder_ii.tui.widgets.palette import CommandPaletteScreen
 from builder_ii.tui.widgets.signals import SignalRail
 from builder_ii.tui.widgets.spine import ArtifactSpine
 from builder_ii.tui.widgets.stratum import ActiveStratum, StratumMode
+
+# Rendered wherever a chain digest would go. `verify_artifact_chain` exposes no digest, so there
+# is nothing truthful to bind here; STRATUM shows that absence rather than a value shaped like a
+# digest. A previous revision interpolated the artifact count and the validity flag into a
+# digest-shaped string and rendered it in this slot -- a fabricated digest, in a codebase whose
+# governance rests on digests binding evidence. Absence is displayed as absence; never defaulted,
+# never synthesized, never inferred. `tests/test_stratum_tui.py` pins that no source file under
+# `builder_ii/tui/` may contain a digest-shaped literal at all, so it cannot creep back.
+CHAIN_DIGEST_ABSENT = "—"
+
+# Surfaces that are still mockups. `builder stratum`'s command_authority record must name exactly
+# these -- no fewer (it would understate what is unfinished) and no more (it would understate what
+# now works). `tests/test_stratum_tui.py` pins that correspondence in both directions, because
+# `builder-platform audit-docs` only catches docs that *overstate* a capability, never docs that
+# understate one, and truth is symmetric even when the audit is not.
+STRATUM_UNIMPLEMENTED_SURFACES: tuple[str, ...] = ("HITL diff viewer",)
 
 
 class HeaderBanner(Static):
@@ -244,10 +260,10 @@ class StratumApp(App[None]):
             length = counts.get("files", 0)
 
             if self.stratum:
-                # Fake a digest for display since report digest isn't in output of verify
-                fake_digest = f"SHA256:v{length}{str(valid).lower()}"
-                self.stratum.set_chain_digest(fake_digest)
-                self.stratum.set_authority_granted(False)  # Default to false for UI
+                # No digest, and no authority evaluation, was performed here -- say so. "Not
+                # evaluated" is not "denied", and an absent digest is not a short one.
+                self.stratum.set_chain_digest(CHAIN_DIGEST_ABSENT)
+                self.stratum.set_authority_granted(None)
 
             # Update idle report stats
             if self.stratum and self.stratum.mode == StratumMode.IDLE:
@@ -302,13 +318,11 @@ class StratumApp(App[None]):
     def action_open_palette(self) -> None:
         """Open the command palette."""
         cmds = []
+        from builder_ii.command_authority import check_command_authority
         for rec in COMMAND_AUTHORITY_REGISTRY:
-            # Fake evaluation for UI demo
-            allowed = rec.tier != "TIER_4"
-            reason = ""
-            if rec.tier == "TIER_3":
-                allowed = False
-                reason = "requires HITL artifact"
+            decision = check_command_authority(rec.name)
+            allowed = decision.allowed
+            reason = ", ".join(decision.reasons) if decision.reasons else ""
 
             cmds.append(
                 {
@@ -572,37 +586,12 @@ class StratumApp(App[None]):
     def action_approve_hitl(self) -> None:
         if not self.stratum or self.stratum.mode != StratumMode.HITL_GATE:
             return
-
-        def on_confirm(confirm: bool) -> None:
-            if confirm:
-                self.notify("HITL Proposal APPROVED.")
-                if self.signals:
-                    self.signals.append_event(datetime.now().strftime("%H:%M:%S"), "hitl_approve", "Authority granted")
-                    self.signals.update_gate(False)
-                self.stratum.mode = StratumMode.IDLE
-                self._hitl_active = False
-
-        self.push_screen(
-            ConfirmScreen("APPROVE EXECUTION", "Are you sure you want to grant authority for this execution proposal?"),
-            on_confirm,
-        )
+        self.notify("TUI cannot harvest confirmation for a digest it renders; run `builder-hitl approve-patch` in your terminal instead.", severity="warning")
 
     def action_reject_hitl(self) -> None:
         if not self.stratum or self.stratum.mode != StratumMode.HITL_GATE:
             return
-
-        def on_reject(reason: str | None) -> None:
-            if reason is not None:
-                self.notify(f"HITL Proposal REJECTED. Reason: {reason}")
-                if self.signals:
-                    self.signals.append_event(
-                        datetime.now().strftime("%H:%M:%S"), "hitl_reject", f"Authority denied: {reason}"
-                    )
-                    self.signals.update_gate(False)
-                self.stratum.mode = StratumMode.IDLE
-                self._hitl_active = False
-
-        self.push_screen(RejectScreen("REJECT EXECUTION"), on_reject)
+        self.notify("STRATUM is display-only and cannot mutate approval state; run `builder-hitl rejection-record` in your terminal instead.", severity="warning")
 
     def action_inspect_hitl(self) -> None:
         if self.stratum and self.stratum.mode == StratumMode.HITL_GATE:
@@ -610,4 +599,4 @@ class StratumApp(App[None]):
             self.stratum.inspect_artifact(artifact)
 
     def action_diff_hitl(self) -> None:
-        self.notify("Diff view not yet available in this mockup.")
+        self.notify(f"{STRATUM_UNIMPLEMENTED_SURFACES[0]} is not implemented in this surface.")

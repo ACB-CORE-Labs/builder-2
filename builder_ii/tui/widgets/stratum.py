@@ -122,7 +122,7 @@ class ActiveStratum(Vertical):
         self._hitl_proposal: dict[str, Any] = {}
         self._inspected_artifact: dict[str, Any] = {}
         self._chain_digest = ""
-        self._authority_granted = False
+        self._authority_granted: bool | None = None
 
     def compose(self) -> ComposeResult:
         self._title_bar = Static("THE ACTIVE STRATUM", id="stratum-title-bar")
@@ -228,13 +228,17 @@ class ActiveStratum(Vertical):
         if self._chain_bar is None:
             return
 
-        digest_display = self._chain_digest[:12] + "…" if self._chain_digest else "—"
-        auth_display = "[bold #3fb950]GRANTED[/]" if self._authority_granted else "[#6e7681]NOT GRANTED[/]"
-        gov_display = (
-            "[#f85149 bold]artifact_is_authority = TRUE ⚠[/]"
-            if self._authority_granted
-            else "[#3fb950]artifact_is_authority = FALSE ✓[/]"
-        )
+        digest_display = self._chain_digest[:12] + "…" if self._chain_digest and self._chain_digest != "—" else "—"
+        if self._authority_granted is True:
+            auth_display = "[bold #3fb950]GRANTED[/]"
+            gov_display = "[#f85149 bold]artifact_is_authority = TRUE ⚠[/]"
+        elif self._authority_granted is False:
+            auth_display = "[#f85149]DENIED[/]"
+            gov_display = "[#3fb950]artifact_is_authority = FALSE ✓[/]"
+        else:
+            auth_display = "[#6e7681]NOT EVALUATED[/]"
+            gov_display = "[#3fb950]artifact_is_authority = FALSE ✓[/]"
+
         self._chain_bar.update(
             f"  [#484f58]CHAIN DIGEST:[/]  [#6e7681]{digest_display}[/]     "
             f"[#484f58]AUTHORITY:[/]  {auth_display}     "
@@ -579,7 +583,7 @@ class ActiveStratum(Vertical):
         self._chain_digest = digest
         self._update_chain_bar()
 
-    def set_authority_granted(self, granted: bool) -> None:
+    def set_authority_granted(self, granted: bool | None) -> None:
         self._authority_granted = granted
         self._update_chain_bar()
 
