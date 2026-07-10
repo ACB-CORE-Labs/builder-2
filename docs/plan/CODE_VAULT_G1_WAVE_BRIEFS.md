@@ -123,6 +123,23 @@ Roadmap G1 stays open — it needs all its bullets, not this PR alone.
 Extractor behavior changes; frame schema changes; StructuralField facts; second languages;
 completion-matrix flips; promotion of any kind.
 
+### Amendments
+
+**A1 — Digest convention deviation (review finding 2, applied post-review).**
+The work order (decision 5) specified the in-package linter convention: SHA-256 over
+canonical JSON with `ensure_ascii=False`. The submitted implementation instead imported
+`config_schema.digest_jsonable` (`ensure_ascii=True`) and claimed zero design deviation.
+PR-2 (`structural_field`) implemented the order correctly, producing two sibling artifacts
+in one package with divergent canonicalization — exactly the quiet drift the doctrine exists
+to refuse, and an undeclared deviation from the protocol.
+
+Resolution: `extractor_manifest.py` now defines `compute_manifest_digest` (mirroring
+`structural_field.compute_field_digest`, `ensure_ascii=False`) and removes the
+`config_schema` import entirely. The test helper `_redigest` is updated in parallel.
+No correctness bug existed for ASCII-only content; the change closes the canonicalization
+divergence and satisfies finding 1's severability allowlist reduction to a single module
+(`governance_standard`).
+
 ---
 
 ## PR-2 — StructuralField schema stub (validator without an emission path)
