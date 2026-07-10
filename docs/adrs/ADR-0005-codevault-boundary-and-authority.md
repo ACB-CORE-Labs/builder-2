@@ -4,6 +4,14 @@
 
 Accepted (2026-07-10).
 
+## Vocabulary note (2026-07-10)
+
+This ADR predates the vision set's vocabulary lock
+([`CODE_VAULT_GLOSSARY.md`](../CODE_VAULT_GLOSSARY.md)): where the text below says "Tier-6
+reconstruction," "Tier-0 layout map," or "roadmap Tier 5," read capability **fields** F6 / F0 / F5
+(the evidence generalization now lands at gate G6). "Tier" is reserved for command authority and
+the enrichment encoder block. The decision itself is unchanged by this note.
+
 ## Context
 
 CodeVault began as a staged, artifact-only software-geometry subsystem and is growing toward the

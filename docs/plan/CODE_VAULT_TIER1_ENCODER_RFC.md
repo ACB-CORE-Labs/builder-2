@@ -149,6 +149,12 @@ existing byte-parity gate extends to enrichment), lint (`scale` check), context 
 (new rows), `docs/ARTIFACT_INDEX.md` (bench report kind), and the pinned tests
 (`test_code_vault_hierarchy.py`, `test_code_vault_cli.py`, Rust parity tests).
 
+*Clarification (2026-07-10):* the Rust surface named above is the **artifact-validation**
+accelerator (`builder_ii_validation_rs`), whose byte-parity gate covers enrichment validation. The
+optional Rust **recall** path is the separate `core_rs` scoring backend behind explicit selection.
+Neither is a language extractor — see the category-error table in
+[`../CODE_VAULT_LANGUAGE_SUBSTRATE.md`](../CODE_VAULT_LANGUAGE_SUBSTRATE.md).
+
 ## Bench lane (`builder-code-vault bench`)
 
 New Tier-1-CLI artifact kind `builder_ii.code_vault_bench_report` (+ `validate-bench`), run over a

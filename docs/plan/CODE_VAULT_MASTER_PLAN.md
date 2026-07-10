@@ -106,6 +106,9 @@ Never: grades as the only IR; Python AST as global ontology; embeddings as struc
 
 **HITL:** authority-adjacent or doctrine-amending gates stop for human approval per builder-II norms.
 
+**G5 instrument:** the U task registry and eval-record design (roadmap, Gate G5) is HITL-approved
+**before** any evaluation run, per the F6 blueprint law — an unapproved rubric is an unopened gate.
+
 ---
 
 ## Implementation principles
@@ -118,7 +121,11 @@ Never: grades as the only IR; Python AST as global ontology; embeddings as struc
 6. **Dual correction mandatory** on every first-class field.  
 7. **U is a claim gate** — R/D work may precede; product language may not.  
 8. **Severability** of `builder_ii/code_vault/` preserved.  
-9. **Agents/deepagents** receive reconstructed context under policy — CodeVault never becomes their execution authority.
+9. **Agents/deepagents** receive reconstructed context under policy — CodeVault never becomes their execution authority.  
+10. **Decomposable contributions** — wherever a recall or reconstruction surface ranks, the ranking
+    decomposes into named per-field contributions (F0–F5); no unexplained blended scalar.  
+11. **Refresh ≡ rebuild** — any incremental frame path must byte-match a from-scratch build of the
+    same tree, or it does not ship.
 
 ---
 
