@@ -452,6 +452,43 @@ def test_a_validating_rollback_snapshot_can_never_restore_file_content(tmp_path:
     assert blocker == "manual_restore_required: raw prior content is unavailable"
 
 
+def test_the_validator_itself_refuses_a_snapshot_that_claims_raw_content(tmp_path: Path) -> None:
+    """The half of the contradiction pin the test above cannot hold.
+
+    The pin above drives only the honest builder, so it keeps failing if the *builder* starts
+    embedding raw content -- but the cross-author audit proved by mutation that weakening the
+    *validator* to accept `raw_content_included: true` left it (and the whole suite) green. That
+    is exactly the quiet route around the contradiction: keep the builder honest today, loosen
+    the validator, and let a later "fix" start emitting snapshots that promise restoration.
+
+    So this test hands the validator a forged snapshot whose digest is recomputed -- the only
+    thing wrong with it is the claim itself -- and requires the refusal to come from the
+    validator. Forging the promise must require lying in the validator, not merely omitting a
+    builder path.
+    """
+    from builder_ii.config_schema import attach_digest
+
+    target = tmp_path / "config" / "goose" / "config.yaml"
+    target.parent.mkdir(parents=True)
+    target.write_text(_UNMARKED_CREDENTIAL_CONFIG, encoding="utf-8")
+
+    overlay, _snapshot = _artifacts(tmp_path, [_merge_change(target)])
+    snapshot = create_setup_rollback_snapshot(overlay)
+    assert validate_setup_rollback_snapshot_artifact(snapshot) == []
+
+    forged = json.loads(json.dumps(snapshot))
+    state = forged["target_path_states"][0]
+    state["raw_content_included"] = True
+    state["raw_prior_content"] = "operator_key: sk-proj-FORGED\n"
+    forged = attach_digest(forged, digest_key="snapshot_digest")
+
+    errors = validate_setup_rollback_snapshot_artifact(forged)
+    assert any("raw_content_included" in error for error in errors), (
+        "the validator accepted a snapshot claiming raw prior content; the rollback "
+        "contradiction can now be 'fixed' by weakening exactly this check"
+    )
+
+
 def test_replace_of_an_operator_owned_file_also_withholds_the_preview(tmp_path: Path) -> None:
     """The hole the first cut of this guard left open, proven and closed.
 
