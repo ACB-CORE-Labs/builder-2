@@ -10,19 +10,55 @@ from builder_ii.tui.widgets.stratum import StratumMode
 _TUI_DIR = Path(__file__).resolve().parents[1] / "builder_ii" / "tui"
 
 
-def test_no_chain_digest_is_reachable_so_none_may_be_displayed() -> None:
+def test_no_chain_digest_is_reachable_so_none_may_be_displayed(tmp_path: Path) -> None:
     """STRATUM shows an absence marker because there is genuinely nothing to bind.
 
     If `verify_artifact_chain` ever grows a digest, this fails -- and it should: at that moment
     the TUI must bind the real digest, and `builder stratum`'s runtime_boundary must stop saying
     that none is available. The test fails in the direction that forces truth to be restored.
+
+    The cross-author audit proved the first cut of this pin weaker than that promise: it scanned
+    only the TOP-LEVEL keys of an EMPTY-input report, so a digest surfacing inside a nested
+    structure (a per-file entry, say), or only on a non-empty chain, left it green. The scan is
+    now recursive and also runs against a real chain containing a digest-bound artifact -- whose
+    own embedded digest fields must NOT leak into the report.
     """
-    report = verify_artifact_chain([])
-    digest_keys = [key for key in report if "digest" in key.lower()]
-    assert not digest_keys, (
-        f"verify_artifact_chain now exposes {digest_keys}: STRATUM must render the real digest, "
-        "and the `builder stratum` runtime_boundary must stop claiming none is reachable"
+    from builder_ii.gate_battery_receipt import (
+        build_gate_battery_receipt,
+        dumps_gate_battery_receipt,
+        gate_record_for_run,
     )
+
+    receipt = build_gate_battery_receipt(
+        gates=[gate_record_for_run("gate", ["true"], 0, 1)],
+        head_sha_before="a" * 40,
+        head_sha_after="a" * 40,
+        working_tree_clean=True,
+    )
+    digest_bound = tmp_path / "receipt.json"
+    digest_bound.write_text(dumps_gate_battery_receipt(receipt), encoding="utf-8")
+    unknown = tmp_path / "unknown.json"
+    unknown.write_text('{"kind": "unknown.kind"}', encoding="utf-8")
+
+    def digest_keys_at_any_level(value: object, location: str = "$") -> list[str]:
+        found: list[str] = []
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if isinstance(key, str) and "digest" in key.lower():
+                    found.append(f"{location}.{key}")
+                found.extend(digest_keys_at_any_level(item, f"{location}.{key}"))
+        elif isinstance(value, list):
+            for index, item in enumerate(value):
+                found.extend(digest_keys_at_any_level(item, f"{location}[{index}]"))
+        return found
+
+    for paths in ([], [digest_bound, unknown]):
+        report = verify_artifact_chain(paths)
+        digest_keys = digest_keys_at_any_level(report)
+        assert not digest_keys, (
+            f"verify_artifact_chain now exposes {digest_keys}: STRATUM must render the real digest, "
+            "and the `builder stratum` runtime_boundary must stop claiming none is reachable"
+        )
 
 
 def test_tui_never_synthesizes_anything_shaped_like_a_digest() -> None:
