@@ -1,5 +1,6 @@
 import re
 import tomllib
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -29,6 +30,7 @@ from builder_ii.command_authority import (
     enforce_command_authority,
     explain_assurance_for_record,
     get_command_record,
+    inheritance_errors,
     is_token_prefix,
     render_command_authority_doc,
     render_registry_markdown_table,
@@ -840,6 +842,50 @@ def test_every_synthesized_record_inherits_from_a_command_group() -> None:
         assert record is not None and parent_record is not None
         assert parent_record.is_command_group, f"`{name}` inherits from `{parent}`, which has no subcommands"
         assert record.authority_is_inherited and record.inherited_from == parent
+
+
+def test_no_record_inherits_from_itself() -> None:
+    """A copy names the record it was copied from, and that is never the copy.
+
+    `check_command_authority` refuses to certify an effect for an inherited record. A record naming
+    itself as its own source would be a copy presenting as a declaration -- the exact confusion the
+    two fields exist to break -- and the deny reason would render as "inherited from `X`" on the
+    record named `X`, which reads as a bug in `X` rather than in the copy.
+    """
+    for record in COMMAND_AUTHORITY_REGISTRY:
+        assert inheritance_errors(record) == [], record.name
+
+
+def test_the_three_ways_inheritance_can_be_incoherent_are_each_named() -> None:
+    """The checker itself, exercised on the three records the registry must never contain."""
+    probe = _assurance_probe()
+
+    self_inheriting = replace(probe, authority_is_inherited=True, inherited_from="probe")
+    assert inheritance_errors(self_inheriting) == ["Record 'probe' inherits from itself; a copy is not a declaration"]
+
+    sourceless = replace(probe, authority_is_inherited=True, inherited_from="")
+    assert inheritance_errors(sourceless) == ["Record 'probe' is marked inherited but names no source record"]
+
+    unmarked = replace(probe, authority_is_inherited=False, inherited_from="builder")
+    assert inheritance_errors(unmarked) == [
+        "Record 'probe' names inheritance source 'builder' but is not inherited",
+    ]
+
+
+def test_the_inheritance_invariant_is_enforced_not_merely_asserted(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`validate_registry_invariants` must *run* the checker, not merely coexist with it.
+
+    Asserting `validate_registry_invariants() == []` against the real registry proves nothing: it
+    passes whether or not the checker is wired in, because the real registry is already coherent. So
+    put a self-inheriting record in the registry and require the validator to find it.
+    """
+    import builder_ii.command_authority as module
+
+    assert validate_registry_invariants() == [], "baseline: the real registry is coherent"
+
+    self_inheriting = replace(_assurance_probe(), authority_is_inherited=True, inherited_from="probe")
+    monkeypatch.setattr(module, "COMMAND_AUTHORITY_REGISTRY", (self_inheriting,))
+    assert "inherits from itself" in " ".join(validate_registry_invariants())
 
     for record in COMMAND_AUTHORITY_REGISTRY:
         if record.name not in _EXTRA_COMMAND_NAMES:

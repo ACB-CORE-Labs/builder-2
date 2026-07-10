@@ -139,9 +139,15 @@ class CommandAuthorityRecord:
     allows_readonly_subprocess: bool = False
     allows_external_tool_invocation: bool = False
 
-    # Set only by `_generate_extra_records`, for the 99 commands nobody declared. Their authority is
-    # a copy of a neighbour's, taken because the neighbour's name is a prefix of theirs. That is a
-    # naming coincidence, not evidence, so an inherited record may never certify a requested effect.
+    # Set by `_generate_extra_records` for the commands nobody declared, and by
+    # `convention_kernel.find_matching_record` for a subcommand a delegating group stands in for.
+    # Either way the authority is a copy of a neighbour's, taken because the neighbour's name is a
+    # prefix of theirs. That is a naming coincidence, not evidence, so an inherited record may never
+    # certify a requested effect.
+    #
+    # `inherited_from` names the record the authority was copied *from*, so it is never this record:
+    # a record that inherits from itself would report a copy as a declaration, which is the one
+    # thing this pair of fields exists to prevent. `validate_registry_invariants` enforces it.
     authority_is_inherited: bool = False
     inherited_from: str = ""
 
@@ -224,6 +230,26 @@ def structural_command_groups() -> frozenset[str]:
     """
     names = tuple(record.name for record in COMMAND_AUTHORITY_REGISTRY)
     return frozenset(parent for parent in names if any(is_token_prefix(parent, child) for child in names))
+
+
+def inheritance_errors(record: CommandAuthorityRecord) -> list[str]:
+    """An inherited record is a copy, so it names a source, and the source is never itself.
+
+    Two producers mint inherited records -- `_generate_extra_records` here, and
+    `convention_kernel.find_matching_record` for a delegating group's unregistered subcommand. Only
+    the first lands in the registry, so `validate_registry_invariants` alone cannot see the second.
+    Both are checked against this, because a record that inherits from itself reports a copy as a
+    declaration, and `check_command_authority` refuses effects on exactly that distinction.
+    """
+    errors: list[str] = []
+    if record.authority_is_inherited:
+        if not record.inherited_from:
+            errors.append(f"Record '{record.name}' is marked inherited but names no source record")
+        elif record.inherited_from == record.name:
+            errors.append(f"Record '{record.name}' inherits from itself; a copy is not a declaration")
+    elif record.inherited_from:
+        errors.append(f"Record '{record.name}' names inheritance source '{record.inherited_from}' but is not inherited")
+    return errors
 
 
 # Every `allows_*` field the record carries, in declaration order. Derived from the dataclass rather
@@ -4080,6 +4106,8 @@ def validate_registry_invariants() -> list[str]:
             )
             if has_forbidden_tier1:
                 errors.append(f"Tier 1 record '{r.name}' claims forbidden execution/mutation authority")
+
+        errors.extend(inheritance_errors(r))
 
         # Contradiction check: write boundary text vs write flags
         wb_lower = r.write_boundary.lower()
