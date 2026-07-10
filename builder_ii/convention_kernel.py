@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json as json_lib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
+from itertools import takewhile
 from pathlib import Path
 from typing import Any, Literal
 
@@ -16,11 +17,13 @@ from builder_ii.code_vault.hierarchy import (
 )
 from builder_ii.code_vault.repo_map_adapter import hierarchical_input_from_repo_map
 from builder_ii.command_authority import (
+    CAPABILITY_FLAGS,
     COMMAND_AUTHORITY_REGISTRY,
     TIER_2,
     TIER_3,
     TIER_4,
     CommandAuthorityRecord,
+    command_name_words,
 )
 from builder_ii.config import Settings
 from builder_ii.context_packs import CONTEXT_PACK_KIND, create_architecture_aware_context_pack, create_context_pack
@@ -425,35 +428,49 @@ def _artifact_ref_from_dict(kind: str, path: str, name: str, artifact: dict[str,
 
 
 def find_matching_record(command_str: str) -> CommandAuthorityRecord | None:
-    cmd = command_str.strip()
-    cmd_words = cmd.split()
+    """Resolve a command string to the record that governs it.
+
+    Matching is on word boundaries, via `command_name_words`, so that `builder-goose validate-x` is
+    not read as a subcommand of `builder-goose validate`.
+    """
+    cmd_words = command_name_words(command_str.strip())
     if not cmd_words:
         return None
 
-    def match_words(rec_name: str) -> bool:
-        rec_words = rec_name.split()
-        return len(rec_words) <= len(cmd_words) and cmd_words[: len(rec_words)] == rec_words
-
     matching_record = None
-    max_len = -1
     for record in COMMAND_AUTHORITY_REGISTRY:
-        if match_words(record.name):
-            if len(record.name) > max_len:
-                max_len = len(record.name)
+        rec_words = command_name_words(record.name)
+        if len(rec_words) <= len(cmd_words) and cmd_words[: len(rec_words)] == rec_words:
+            if matching_record is None or len(rec_words) > len(command_name_words(matching_record.name)):
                 matching_record = record
 
     if not matching_record:
         return None
 
-    rec_words = matching_record.name.split()
-    remaining_words = cmd_words[len(rec_words) :]
-
+    remaining_words = cmd_words[len(command_name_words(matching_record.name)) :]
     is_exact = not remaining_words or remaining_words[0].startswith("-")
     if is_exact:
         return matching_record
 
-    if matching_record.is_command_group and matching_record.authority_delegates_to_subcommands:
-        return matching_record
+    if matching_record.authority_delegates_to_subcommands:
+        # The group stands in for a subcommand nobody registered. Its tier and promotion state are a
+        # ceiling the subcommand cannot exceed, so those carry down. Its capability flags describe
+        # the group and are cleared: `builder-runtime` declares `runtime_start`, and an unregistered
+        # `builder-runtime <x>` must not inherit the right to start a runtime by name alone.
+        #
+        # The record answers "what authority applies to `command_str`", so it bears that name and
+        # inherits *from* the group. Leaving the group's own name on it would say `builder-goose`
+        # inherits from `builder-goose` -- a copy reported as a declaration, and a flagless record
+        # bearing the name of a group that declares flags. `inheritance_errors` rejects both.
+        cleared: dict[str, Any] = {flag: False for flag in CAPABILITY_FLAGS}
+        path_words = tuple(takewhile(lambda word: not word.startswith("-"), cmd_words))
+        return replace(
+            matching_record,
+            name=" ".join(path_words),
+            authority_is_inherited=True,
+            inherited_from=matching_record.name,
+            **cleared,
+        )
 
     return None
 
@@ -971,6 +988,8 @@ class ConventionKernel:
                         "approval_mode": "none",
                         "allowed_in_planned_only": False,
                         "status": "not_invoked_requires_operator_invocation",
+                        "authority_is_inherited": False,
+                        "inherited_from": "",
                     }
                 )
                 continue
@@ -990,6 +1009,8 @@ class ConventionKernel:
                     "approval_mode": record.approval_mode,
                     "allowed_in_planned_only": not is_tier_2_plus,
                     "status": "not_invoked_requires_operator_invocation" if is_tier_2_plus else "available",
+                    "authority_is_inherited": record.authority_is_inherited,
+                    "inherited_from": record.inherited_from,
                 }
             )
 
