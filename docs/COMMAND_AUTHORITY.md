@@ -327,24 +327,31 @@ Authority written down, command by command.
 
 ## Synthesized records (99)
 
-Authority *inherited* by longest-prefix clone of a declared record, not written down for
-these commands. A clone of a command group inherits that group's abstention from
-authority. Promoting any of these requires classifying it directly, not editing its parent.
+Nobody declared these commands. Each one's authority is *inherited* — copied from the
+nearest declared ancestor of its name, on a word boundary. That ancestor is always a
+command group, because a record becomes a group by acquiring subcommands: all 99 of
+these rows state a classification that describes their parent and was never checked
+against them.
+
+So `check_command_authority` refuses to certify a requested effect for an inherited
+record, whatever its `Capabilities` column says. The classification below is reported,
+not spendable. Promoting one of these means declaring it directly — with evidence — not
+editing its parent.
 
 | Command Name | Inherits Authority From | Tier | State | Capabilities | Assurance | Assurance Derived From |
 |---|---|---|---|---|---|---|
-| `builder tui status` | `builder tui` | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder tui roster` | `builder tui` | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder tui gates` | `builder tui` | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder tui hitl` | `builder tui` | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder tui handoff` | `builder tui` | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder tui golden` | `builder tui` | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-lanes list` | `builder-lanes` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-lanes show` | `builder-lanes` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder tui status` | `builder tui` (command group) | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder tui roster` | `builder tui` (command group) | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder tui gates` | `builder tui` (command group) | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder tui hitl` | `builder tui` (command group) | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder tui handoff` | `builder tui` (command group) | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder tui golden` | `builder tui` (command group) | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-lanes list` | `builder-lanes` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-lanes show` | `builder-lanes` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-context validate` | `builder-context` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-context summarize` | `builder-context` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-git-state artifact` | `builder-git-state` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes`, `readonly_subprocess` | `BOUNDED_EXECUTION_VERIFIED` | `allows_readonly_subprocess` is set |
-| `builder-git-state validate` | `builder-git-state` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes`, `readonly_subprocess` | `BOUNDED_EXECUTION_VERIFIED` | `allows_readonly_subprocess` is set |
+| `builder-git-state artifact` | `builder-git-state` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes`, `readonly_subprocess` | `BOUNDED_EXECUTION_VERIFIED` | `allows_readonly_subprocess` is set |
+| `builder-git-state validate` | `builder-git-state` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes`, `readonly_subprocess` | `BOUNDED_EXECUTION_VERIFIED` | `allows_readonly_subprocess` is set |
 | `builder-session plan` | `builder-session` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-session validate` | `builder-session` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-session config` | `builder-session` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
@@ -374,61 +381,61 @@ authority. Promoting any of these requires classifying it directly, not editing 
 | `builder-code-vault validate-corroboration` | `builder-code-vault` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-session operator-surface` | `builder-session` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-session command-surface` | `builder-session` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-agent profiles` | `builder-agent` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-agent show` | `builder-agent` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-agent render` | `builder-agent` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-agent validate` | `builder-agent` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-agent artifact` | `builder-agent` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-bridge doctor` | `builder-bridge` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-bridge deepagents-smoke` | `builder-bridge` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-bridge render` | `builder-bridge` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-bridge validate-artifact` | `builder-bridge` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-bundle create` | `builder-bundle` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-bundle validate` | `builder-bundle` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-agent profiles` | `builder-agent` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-agent show` | `builder-agent` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-agent render` | `builder-agent` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-agent validate` | `builder-agent` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-agent artifact` | `builder-agent` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-bridge doctor` | `builder-bridge` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-bridge deepagents-smoke` | `builder-bridge` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-bridge render` | `builder-bridge` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-bridge validate-artifact` | `builder-bridge` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-bundle create` | `builder-bundle` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-bundle validate` | `builder-bundle` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-goose propose-command` | `builder-goose` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-goose validate-command-proposal` | `builder-goose validate` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-goose validate-command-proposal` | `builder-goose` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-goose env` | `builder-goose` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-records record` | `builder-records` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-records validate` | `builder-records` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-preflight record` | `builder-preflight` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-preflight validate` | `builder-preflight` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-receipt record` | `builder-receipt` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-receipt validate` | `builder-receipt` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-chain record` | `builder-chain` | Tier 1 — artifact-only planning/validation | `validation_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-chain validate` | `builder-chain` | Tier 1 — artifact-only planning/validation | `validation_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-chain verify-artifacts` | `builder-chain` | Tier 1 — artifact-only planning/validation | `validation_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-handoff record` | `builder-handoff` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-handoff validate` | `builder-handoff` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-intake record` | `builder-intake` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-intake validate` | `builder-intake` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-index record` | `builder-index` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-index validate` | `builder-index` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-promotion record` | `builder-promotion` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-promotion validate` | `builder-promotion` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-promotion-decision record` | `builder-promotion-decision` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-promotion-decision validate` | `builder-promotion-decision` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-state-index record` | `builder-state-index` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-state-index validate` | `builder-state-index` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-snapshot record` | `builder-snapshot` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-snapshot validate` | `builder-snapshot` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-notes handoff` | `builder-notes` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-notes validate` | `builder-notes` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-quality plan` | `builder-quality` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-quality validate` | `builder-quality` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-research profiles` | `builder-research` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-research show` | `builder-research` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-research validate-profiles` | `builder-research` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-research plan` | `builder-research` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-research validate` | `builder-research` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-research adapter` | `builder-research` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-research validate-adapter` | `builder-research` | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-performance record` | `builder-performance` | Tier 0 — read-only inspection | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-performance validate` | `builder-performance` | Tier 0 — read-only inspection | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-performance benchmark-validation` | `builder-performance` | Tier 0 — read-only inspection | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-performance parity-report` | `builder-performance` | Tier 0 — read-only inspection | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-readonly report` | `builder-readonly` | Tier 0 — read-only inspection | `read_only_runtime_candidate` | — | `READ_ONLY_RUNTIME_VERIFIED` | promotion state is `read_only_runtime_candidate` |
-| `builder-verification list` | `builder-verification` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-verification show` | `builder-verification` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-verification artifact` | `builder-verification` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
-| `builder-verification validate` | `builder-verification` | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-records record` | `builder-records` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-records validate` | `builder-records` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-preflight record` | `builder-preflight` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-preflight validate` | `builder-preflight` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-receipt record` | `builder-receipt` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-receipt validate` | `builder-receipt` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-chain record` | `builder-chain` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-chain validate` | `builder-chain` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-chain verify-artifacts` | `builder-chain` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-handoff record` | `builder-handoff` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-handoff validate` | `builder-handoff` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-intake record` | `builder-intake` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-intake validate` | `builder-intake` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-index record` | `builder-index` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-index validate` | `builder-index` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-promotion record` | `builder-promotion` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-promotion validate` | `builder-promotion` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-promotion-decision record` | `builder-promotion-decision` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-promotion-decision validate` | `builder-promotion-decision` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-state-index record` | `builder-state-index` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-state-index validate` | `builder-state-index` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-snapshot record` | `builder-snapshot` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-snapshot validate` | `builder-snapshot` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-notes handoff` | `builder-notes` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-notes validate` | `builder-notes` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-quality plan` | `builder-quality` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-quality validate` | `builder-quality` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-research profiles` | `builder-research` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-research show` | `builder-research` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-research validate-profiles` | `builder-research` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-research plan` | `builder-research` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-research validate` | `builder-research` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-research adapter` | `builder-research` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-research validate-adapter` | `builder-research` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-performance record` | `builder-performance` (command group) | Tier 0 — read-only inspection | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-performance validate` | `builder-performance` (command group) | Tier 0 — read-only inspection | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-performance benchmark-validation` | `builder-performance` (command group) | Tier 0 — read-only inspection | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-performance parity-report` | `builder-performance` (command group) | Tier 0 — read-only inspection | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-readonly report` | `builder-readonly` (command group) | Tier 0 — read-only inspection | `read_only_runtime_candidate` | — | `READ_ONLY_RUNTIME_VERIFIED` | promotion state is `read_only_runtime_candidate` |
+| `builder-verification list` | `builder-verification` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-verification show` | `builder-verification` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-verification artifact` | `builder-verification` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-verification validate` | `builder-verification` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-hitl run-command` | `builder-hitl` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |

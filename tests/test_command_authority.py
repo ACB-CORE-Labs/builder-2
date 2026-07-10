@@ -10,6 +10,7 @@ from builder_ii.command_authority import (
     _SYNTHESIZED_PARENTS,
     ASSURANCE_DERIVING_FLAGS,
     ASSURANCE_INERT_FLAGS,
+    AUTHORITY_DELEGATING_GROUPS,
     CAPABILITY_FLAGS,
     COMMAND_AUTHORITY_REGISTRY,
     MODE_NONE,
@@ -28,8 +29,10 @@ from builder_ii.command_authority import (
     enforce_command_authority,
     explain_assurance_for_record,
     get_command_record,
+    is_token_prefix,
     render_command_authority_doc,
     render_registry_markdown_table,
+    structural_command_groups,
     validate_registry_invariants,
 )
 
@@ -766,26 +769,137 @@ def test_each_capability_flag_derives_the_state_the_lattice_promises() -> None:
 
 
 def test_the_policy_snapshot_documents_every_command_including_the_ones_nobody_declared() -> None:
-    """99 of the 386 records were absent from the doc entirely.
-
-    They are clones: `_generate_extra_records` copies whichever declared record is the longest prefix
-    of the name. Thirty-four inherit from a command *group*, whose defining property is that it holds
-    no authority because its subcommands are supposed to. The inheritance was invisible, so the
-    abstention read as a classification. Printing it does not fix the classification -- it makes the
-    absence of one legible, which is the precondition for fixing it.
-    """
+    """99 of the 386 records were absent from the doc entirely. They are clones."""
     doc = render_command_authority_doc()
     assert len(_SYNTHESIZED_PARENTS) == 99
     for record in COMMAND_AUTHORITY_REGISTRY:
         assert f"`{record.name}`" in doc, f"`{record.name}` is in the registry and absent from the policy snapshot"
 
-    for name, parent in _SYNTHESIZED_PARENTS.items():
-        assert name.startswith(parent), f"`{name}` inherits from `{parent}`, which does not prefix it"
+    assert "(command group)" in doc, "the doc must say when a clone inherits a group's classification"
 
-    groups = {n for n, p in _SYNTHESIZED_PARENTS.items() if (r := get_command_record(p)) and r.is_command_group}
-    assert len(groups) == 34, f"expected 34 clones of a command group, found {len(groups)}"
-    assert "builder-hitl run-command" in groups
-    assert "(command group)" in doc, "the doc must say when a clone inherits a group's abstention"
+
+def test_a_clone_inherits_on_a_word_boundary_not_a_string_prefix() -> None:
+    """`builder-goose validate-command-proposal` is not a subcommand of `builder-goose validate`.
+
+    Parentage used to be `name.startswith(record.name)`. Under that rule the clone inherited from the
+    leaf validator whose name is a *substring* of its own, rather than from the `builder-goose` group.
+    The two happen to be classified identically, so nothing broke -- which is precisely why nobody
+    noticed that authority was being assigned on a substring match.
+    """
+    for name, parent in _SYNTHESIZED_PARENTS.items():
+        assert is_token_prefix(parent, name), f"`{name}` inherits from `{parent}`, which is not a word-prefix of it"
+
+    assert _SYNTHESIZED_PARENTS["builder-goose validate-command-proposal"] == "builder-goose"
+    assert get_command_record("builder-goose validate") is not None, "the substring parent still exists as a record"
+
+
+def test_a_command_group_is_discovered_from_the_registry_not_transcribed_beside_it() -> None:
+    """The transcribed predicate listed `builder-tui`. No record has ever borne that name.
+
+    The CLI group is `builder tui`, with a space. So one of the twenty hand-written names matched
+    nothing, while thirty-two records that demonstrably have subcommands went unmarked. This is the
+    same failure `render_registry_markdown_table` had: a second place for the truth to live.
+    """
+    groups = structural_command_groups()
+    names = {r.name for r in COMMAND_AUTHORITY_REGISTRY}
+
+    assert "builder tui" in groups, "`builder tui` has six subcommands and is a group"
+    assert "builder-tui" not in names, "the transcribed list's `builder-tui` never named a record"
+    assert "builder-runtime" in groups, "`builder-runtime` has subcommands"
+
+    for parent in groups:
+        assert any(is_token_prefix(parent, n) for n in names), f"`{parent}` is a group with no subcommand"
+
+
+def test_delegating_a_groups_authority_downward_stays_a_curated_decision() -> None:
+    """`is_command_group` is a fact. `authority_delegates_to_subcommands` is a policy.
+
+    Conflating them would silently widen a permission: `builder-runtime` is structurally a group and
+    declares `runtime_start`, `state_writes`, `readonly_subprocess` and `external_tool_invocation`.
+    Deriving delegation from group-ness would let `builder-runtime <anything>` resolve to it.
+    """
+    names = {r.name for r in COMMAND_AUTHORITY_REGISTRY}
+    for name in AUTHORITY_DELEGATING_GROUPS:
+        assert name in names, f"`{name}` may absorb unregistered subcommands and is not a record"
+        assert name in structural_command_groups(), f"`{name}` delegates authority and has no subcommands"
+
+    runtime = get_command_record("builder-runtime")
+    assert runtime is not None and runtime.is_command_group
+    assert not runtime.authority_delegates_to_subcommands, "a group that declares runtime_start must not delegate it"
+
+
+def test_every_synthesized_record_inherits_from_a_command_group() -> None:
+    """Necessarily so: a record becomes a group by acquiring subcommands.
+
+    The earlier count of 34 came from the transcribed list, not from the registry. Every clone states
+    a classification that describes its parent and was never checked against the clone itself.
+    """
+    for name, parent in _SYNTHESIZED_PARENTS.items():
+        record = get_command_record(name)
+        parent_record = get_command_record(parent)
+        assert record is not None and parent_record is not None
+        assert parent_record.is_command_group, f"`{name}` inherits from `{parent}`, which has no subcommands"
+        assert record.authority_is_inherited and record.inherited_from == parent
+
+    for record in COMMAND_AUTHORITY_REGISTRY:
+        if record.name not in _EXTRA_COMMAND_NAMES:
+            assert not record.authority_is_inherited, f"`{record.name}` is declared and marked inherited"
+
+
+def test_an_inherited_record_can_never_certify_a_requested_effect() -> None:
+    """A copy is indistinguishable from a declaration once the copy is made.
+
+    `builder-git-state artifact` really does run `git`; `builder-session validate` really does not.
+    Both inherited their answer from a parent. Rather than guess which is which, no inherited record
+    may spend the capability it was handed. Deny-only: it can lose a permission it never earned and
+    can never gain one.
+    """
+    checked = 0
+    for name in _EXTRA_COMMAND_NAMES:
+        record = get_command_record(name)
+        assert record is not None
+        for effect, flags in _EFFECT_FLAGS.items():
+            if not any(getattr(record, flag) for flag in flags):
+                continue  # it would be denied anyway; that proves nothing
+            decision = check_command_authority(name, requested_effects=(effect,))
+            assert not decision.allowed, f"`{name}` certified `{effect}` on inherited authority"
+            assert any("inherited" in r for r in decision.reasons)
+            checked += 1
+
+    assert checked > 0, "no inherited record holds a flag: this pin would pass vacuously"
+
+
+def test_a_declared_record_still_certifies_the_effects_it_declares() -> None:
+    """The guard against over-denial. Refusing everything is not a governance win."""
+    allowed = check_command_authority("builder-tools list", requested_effects=("readonly_subprocess", "external_tool"))
+    assert allowed.allowed, allowed.reasons
+
+    for name, effects in [
+        ("builder-runtime status", ("readonly_subprocess", "external_tool")),
+        ("builder-verify run-approved", ("artifact_writes", "readonly_subprocess")),
+        ("builder-model call", ("model_execution", "artifact_write")),
+    ]:
+        decision = check_command_authority(name, requested_effects=effects)
+        assert not any("inherited" in r for r in decision.reasons), f"`{name}` is declared, not inherited"
+
+
+def test_the_perturbation_probe_starts_at_the_bottom_of_the_lattice() -> None:
+    """The unstated precondition that makes `ASSURANCE_DERIVING_FLAGS` sound.
+
+    Flipping a flag and watching the state move only discovers the risk-bearing flags if the probe's
+    unflagged baseline is the *lowest* state. Give the probe `tier=TIER_4` and its baseline becomes
+    `BLOCKED_BY_EVIDENCE`; every flag then reads inert, and the doc would print all eleven as
+    carrying no risk signal. Nothing said so out loud, and no pin asserted it.
+    """
+    from builder_ii.assurance import PASSIVE_ARTIFACT_VERIFIED
+    from builder_ii.command_authority import _ASSURANCE_BASELINE
+
+    assert _ASSURANCE_BASELINE == PASSIVE_ARTIFACT_VERIFIED, "the probe's baseline is not the bottom of the lattice"
+    assert assurance_state_for_record(_assurance_probe()) == PASSIVE_ARTIFACT_VERIFIED
+
+    # A probe that misspells a flag would otherwise perturb nothing and report the flag inert.
+    with pytest.raises(ValueError, match="not capability flags"):
+        _assurance_probe(allow_source_writes=True)
 
 
 # --- `builder stratum` must name exactly what is unfinished: no more, no fewer ------------------

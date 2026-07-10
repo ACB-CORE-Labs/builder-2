@@ -1,4 +1,6 @@
+import functools
 from dataclasses import dataclass, fields, replace
+from typing import Any, cast
 
 from builder_ii.assurance import (
     BLOCKED_BY_EVIDENCE,
@@ -137,34 +139,91 @@ class CommandAuthorityRecord:
     allows_readonly_subprocess: bool = False
     allows_external_tool_invocation: bool = False
 
+    # Set only by `_generate_extra_records`, for the 99 commands nobody declared. Their authority is
+    # a copy of a neighbour's, taken because the neighbour's name is a prefix of theirs. That is a
+    # naming coincidence, not evidence, so an inherited record may never certify a requested effect.
+    authority_is_inherited: bool = False
+    inherited_from: str = ""
+
     @property
     def is_command_group(self) -> bool:
-        return self.name in (
-            "builder",
-            "builder-tui",
-            "builder-context",
-            "builder-goose",
-            "builder-deepagents",
-            "builder-hitl",
-            "builder-orchestration",
-            "builder-session",
-            "builder-profile-pack",
-            "builder-workflow",
-            "builder-ledger",
-            "builder-targets",
-            "builder-platform",
-            "builder-memory",
-            "builder-config",
-            "builder-setup",
-            "builder-model",
-            "builder-mcp",
-            "builder-tools",
-            "builder-code-vault",
-        )
+        """Structural fact: some other command's name extends this one on a word boundary.
+
+        Derived from the registry rather than transcribed beside it. The transcribed version listed
+        twenty names, one of which (`builder-tui`) matched no record at all -- the CLI group is named
+        `builder tui`, with a space -- while thirty-two records that demonstrably have subcommands
+        went unmarked. A hand-kept list of "which records are groups" is a second place for the truth
+        to live, and it had already drifted.
+        """
+        return self.name in structural_command_groups()
 
     @property
     def authority_delegates_to_subcommands(self) -> bool:
-        return self.is_command_group
+        """Resolution policy: may an *unregistered* subcommand of this record resolve to it?
+
+        This is a different question from `is_command_group`, and conflating the two is how a
+        structural fact would silently widen a permission. `builder-runtime` is structurally a group
+        and declares `runtime_start`, `state_writes`, `readonly_subprocess` and
+        `external_tool_invocation`; letting `builder-runtime <anything>` resolve to it would hand
+        that authority to a subcommand nobody wrote. Delegation stays a curated decision.
+        """
+        return self.name in AUTHORITY_DELEGATING_GROUPS
+
+
+# Which command groups may absorb an *unregistered* subcommand in `find_matching_record`. Curated,
+# because widening it grants that group's declared authority to a command nobody wrote. Every name
+# here must be a real record and must be structurally a group -- both are pinned. The transcribed
+# predicate this replaces also carried `builder-tui`, which has never named a record.
+AUTHORITY_DELEGATING_GROUPS: frozenset[str] = frozenset(
+    {
+        "builder",
+        "builder-context",
+        "builder-goose",
+        "builder-deepagents",
+        "builder-hitl",
+        "builder-orchestration",
+        "builder-session",
+        "builder-profile-pack",
+        "builder-workflow",
+        "builder-ledger",
+        "builder-targets",
+        "builder-platform",
+        "builder-memory",
+        "builder-config",
+        "builder-setup",
+        "builder-model",
+        "builder-mcp",
+        "builder-tools",
+        "builder-code-vault",
+    }
+)
+
+
+def command_name_words(name: str) -> tuple[str, ...]:
+    """A command name is a sequence of words. `builder-goose validate` is two, not one string.
+
+    Every question about parentage here is a question about *word* prefixes. Asking it about string
+    prefixes instead made `builder-goose validate-command-proposal` a child of `builder-goose
+    validate` rather than of the `builder-goose` group.
+    """
+    return tuple(name.split())
+
+
+def is_token_prefix(parent: str, child: str) -> bool:
+    """True when `parent` names a strict word-prefix of `child`."""
+    pw, cw = command_name_words(parent), command_name_words(child)
+    return len(pw) < len(cw) and cw[: len(pw)] == pw
+
+
+@functools.cache
+def structural_command_groups() -> frozenset[str]:
+    """Every record that some other command's name extends on a word boundary.
+
+    Called lazily: the registry must be fully assembled first, because `builder tui` is a group only
+    by virtue of `builder tui gates`, which is itself synthesized.
+    """
+    names = tuple(record.name for record in COMMAND_AUTHORITY_REGISTRY)
+    return frozenset(parent for parent in names if any(is_token_prefix(parent, child) for child in names))
 
 
 # Every `allows_*` field the record carries, in declaration order. Derived from the dataclass rather
@@ -339,8 +398,18 @@ def assurance_state_for_record(record: CommandAuthorityRecord) -> AssuranceState
 
 
 def _assurance_probe(**flags: bool) -> CommandAuthorityRecord:
-    """A record whose only distinguishing feature is which capability flags are set."""
-    return CommandAuthorityRecord(
+    """A record whose only distinguishing feature is which capability flags are set.
+
+    The flags are applied with `replace` rather than splatted into the constructor: the record now
+    carries non-boolean fields, and `**flags: bool` would silently type a `str` field as `bool`. The
+    keys are checked against `CAPABILITY_FLAGS` first, which is what earns the cast -- and which also
+    catches a probe misspelling a flag name, where `replace` would raise but `**` would not.
+    """
+    unknown = tuple(sorted(set(flags) - set(CAPABILITY_FLAGS)))
+    if unknown:
+        raise ValueError(f"not capability flags: {unknown}")
+
+    baseline = CommandAuthorityRecord(
         name="probe",
         entrypoint="probe",
         tier=TIER_2,
@@ -352,8 +421,8 @@ def _assurance_probe(**flags: bool) -> CommandAuthorityRecord:
         output_behavior="probe",
         failure_mode="probe",
         notes="probe",
-        **flags,
     )
+    return replace(baseline, **cast(dict[str, Any], flags))
 
 
 # Which flags actually move the assurance state, discovered by perturbation rather than by reading
@@ -398,6 +467,16 @@ def check_command_authority(
         reasons.append("life-safety or safety-critical authority is prohibited by builder-II")
     if record.tier == TIER_4 or record.promotion_state == STATE_FORBIDDEN_UNPROMOTED:
         reasons.append("command is forbidden or unpromoted")
+
+    # A record nobody declared cannot certify an effect. `_generate_extra_records` copied this
+    # record's capability flags from whichever declared command is a word-prefix of its name; that
+    # is a naming coincidence, and a coincidence is not evidence. Deny-only: an inherited record can
+    # lose a permission it never earned, never gain one.
+    if requested_effects and record.authority_is_inherited:
+        reasons.append(
+            f"command's authority is inherited from `{record.inherited_from}`, not declared; "
+            f"an undeclared command cannot certify a requested effect"
+        )
 
     for effect in requested_effects:
         flags = _EFFECT_FLAGS.get(effect)
@@ -3874,22 +3953,40 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
 )
 
 
-# Which base record each synthesized name inherited its authority from. Recorded rather than
-# discarded: a command that holds authority *by inheritance* is exactly the thing a reader of the
-# policy snapshot needs to be told, and 34 of these inherit from a command group -- a record whose
-# defining property is that it abstains from authority and delegates it to its subcommands.
+# Which base record each synthesized name inherited its authority from. A command that holds
+# authority *by inheritance* is exactly the thing a reader of the policy snapshot needs to be told.
+#
+# Every one of these 99 inherits from a command group: a parent acquires subcommands precisely by
+# having them, so every parent in this map is structurally a group. The earlier count of 34 came
+# from a transcribed list of group names that had drifted from the registry. The number was never
+# the point -- what matters is that a group's classification describes the group, and copying it
+# onto a subcommand states something about the subcommand that nobody checked.
 _SYNTHESIZED_PARENTS: dict[str, str] = {}
 
 
 def _generate_extra_records(base_registry: tuple[CommandAuthorityRecord, ...]) -> list[CommandAuthorityRecord]:
+    """Clone the nearest declared ancestor for each command nobody declared.
+
+    Parentage is by word prefix. It used to be by string prefix, which made
+    `builder-goose validate-command-proposal` inherit from the leaf `builder-goose validate` instead
+    of from the `builder-goose` group -- the two happen to be classified identically, so the bug
+    never showed, but the mechanism was assigning authority on a substring match.
+
+    The clone records that its authority is inherited. Nothing else in the record can say so: a copy
+    is indistinguishable from a declaration once the copy is made.
+    """
     extra_records = []
     for name in _EXTRA_COMMAND_NAMES:
         best_parent = None
         for r in base_registry:
-            if name.startswith(r.name) and (best_parent is None or len(r.name) > len(best_parent.name)):
+            if is_token_prefix(r.name, name) and (
+                best_parent is None or len(command_name_words(r.name)) > len(command_name_words(best_parent.name))
+            ):
                 best_parent = r
         if best_parent:
-            extra_records.append(replace(best_parent, name=name))
+            extra_records.append(
+                replace(best_parent, name=name, authority_is_inherited=True, inherited_from=best_parent.name)
+            )
             _SYNTHESIZED_PARENTS[name] = best_parent.name
     return extra_records
 
@@ -4069,16 +4166,16 @@ def render_registry_markdown_table() -> str:
 
 
 def render_synthesized_markdown_table() -> str:
-    """Render the records nobody wrote: cloned from the longest base record that prefixes their name.
+    """Render the records nobody wrote: cloned from the nearest declared ancestor of their name.
 
-    These 99 were absent from the policy snapshot entirely. Their authority is not declared anywhere
-    -- it is inherited, by string prefix, from whichever base record happened to match longest. When
-    that parent is a command *group*, the subcommand inherits the group's deliberate abstention: the
-    group holds no flags precisely because its subcommands are supposed to hold them.
+    Every one of these 99 inherits from a command group -- necessarily, since a record becomes a
+    group by acquiring subcommands. So every row here states a classification that describes the
+    parent and was never checked against the child. `builder-git-state artifact` really does run
+    `git`; `builder-session validate` really does not. Both inherited their answer.
 
-    None of them currently claims authority it does not have; `builder-hitl run-command`, the one
-    Tier-3 entry here, writes artifacts and holds `subprocess_execution: DISABLED`. That is luck
-    rather than design, and it is only checkable now that the inheritance is printed.
+    Rather than guess which is which, `check_command_authority` refuses to certify a requested effect
+    for any inherited record. The classification stays what it was -- there is no evidence to move
+    it -- but it can no longer be *spent*. Declaring one of these directly is what promotes it.
     """
     lines = [
         "| Command Name | Inherits Authority From | Tier | State | Capabilities | Assurance | Assurance Derived From |",
@@ -4146,9 +4243,16 @@ def render_command_authority_doc() -> str:
             "",
             f"## Synthesized records ({synthesized})",
             "",
-            "Authority *inherited* by longest-prefix clone of a declared record, not written down for",
-            "these commands. A clone of a command group inherits that group's abstention from",
-            "authority. Promoting any of these requires classifying it directly, not editing its parent.",
+            "Nobody declared these commands. Each one's authority is *inherited* — copied from the",
+            "nearest declared ancestor of its name, on a word boundary. That ancestor is always a",
+            f"command group, because a record becomes a group by acquiring subcommands: all {synthesized} of",
+            "these rows state a classification that describes their parent and was never checked",
+            "against them.",
+            "",
+            "So `check_command_authority` refuses to certify a requested effect for an inherited",
+            "record, whatever its `Capabilities` column says. The classification below is reported,",
+            "not spendable. Promoting one of these means declaring it directly — with evidence — not",
+            "editing its parent.",
             "",
             render_synthesized_markdown_table(),
             "",
