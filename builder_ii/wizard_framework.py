@@ -62,6 +62,14 @@ class WizardStep:
     validator: Callable[[str], list[str]] | None = None
     default: str | None = None
     free_form: bool = False
+    # Presentation, not policy: a large registry (MODEL_ALIASES has 50 entries) may choose
+    # not to enumerate into the prompt line. The step still references its registry through
+    # options_provider -- validation and drift both keep working -- and a rejection surfaces
+    # the full registry through the validator's error message. What a step may never do is
+    # enumerate a SUBSET: rendering is all-from-the-registry or nothing, so a prompt cannot
+    # claim fewer values than exist. That subset claim is the lie this framework exists to
+    # make unrepresentable.
+    render_options_in_question: bool = True
 
     def allowed_values(self) -> tuple[str, ...]:
         if self.options_provider is None:
@@ -71,7 +79,7 @@ class WizardStep:
     def render_question(self) -> str:
         """Compose the prompt text from the live registry at prompt time, never earlier."""
         allowed = self.allowed_values()
-        if allowed:
+        if allowed and self.render_options_in_question:
             return f"{self.question} ({', '.join(allowed)})"
         return self.question
 

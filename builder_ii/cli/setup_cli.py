@@ -453,45 +453,57 @@ def setup_init(
 
 
 def setup_wizard_step_definitions():
-    """The ``builder-setup wizard`` decisions, ported AS-IS onto the framework (Ladder 5 PR-1).
+    """The ``builder-setup wizard`` decisions: registry-rendered, prompt-validated (Ladder 5 PR-2).
 
-    The target-profile and model-backend questions transcribe allowed values into their
-    literal text -- the backend line names 3 of the 8 live registry backends -- and nothing
-    is validated at the prompt: ``openai`` (a real backend the text does not offer) is
-    accepted, and garbage flows through to surface late as an invalid artifact with exit 1.
-    That defect is ported deliberately: PR-1 is behavior-preserving and one change per
-    commit, so fixing the lie here would make the characterization failures ambiguous.
-    PR-2 renders these prompts from the live registries, validates at the prompt boundary,
-    and removes these steps' named exemption from the transcription pin in
-    ``tests/test_wizard_framework.py``. Behavior is pinned verbatim by
-    ``tests/test_wizard_characterization.py``.
+    PR-1 ported these steps as-is, lie and all: the backend question transcribed 3 of the 8
+    live registry backends and nothing was validated at the prompt, so ``openai`` was
+    accepted while never offered and garbage surfaced late as an invalid artifact. Now the
+    prompts render from the live registries at prompt time and every answer is validated at
+    the prompt boundary by :func:`~builder_ii.init_decisions.validate_decision_value`,
+    exactly as ``builder init`` has always done.
+
+    Presentation decision, made deliberately: ``MODEL_ALIASES`` has 50 entries, and the
+    alias question renders none of them (``render_options_in_question=False``). A truncated
+    enumeration would be a subset claim -- the exact defect class this ladder fixes -- and a
+    full enumeration is unusable on a prompt line. The registry is the source of truth
+    either way: the step references it through ``options_provider``, a wrong answer is
+    refused at the prompt with the full registry named in the error, and a ninth alias is
+    offered/accepted with no wizard code change. ``builder init`` still enumerates all 50
+    (pre-existing, characterized behavior); harmonizing it is an operator decision outside
+    this PR.
     """
+    from builder_ii.init_decisions import prompted_decision_options_provider, validate_decision_value
     from builder_ii.wizard_framework import WizardStep
 
     return (
         WizardStep(
             id="output_dir",
             question="Enter output directory for onboarding artifacts",
+            validator=lambda value: validate_decision_value("output_dir", value),
             default=".builder/setup-artifacts",
             free_form=True,
         ),
         WizardStep(
             id="target_profile",
-            question="Select target profile (generic, builder, core)",
+            question="Select target profile",
+            options_provider=prompted_decision_options_provider("target_profile"),
+            validator=lambda value: validate_decision_value("target_profile", value),
             default="generic",
-            free_form=True,
         ),
         WizardStep(
             id="model_backend",
-            question="Select local model backend (rapid-mlx, mlx-lm, ollama)",
+            question="Select local model backend",
+            options_provider=prompted_decision_options_provider("model_backend"),
+            validator=lambda value: validate_decision_value("model_backend", value),
             default="rapid-mlx",
-            free_form=True,
         ),
         WizardStep(
             id="model_alias",
             question="Select primary model alias",
+            options_provider=prompted_decision_options_provider("model_alias"),
+            validator=lambda value: validate_decision_value("model_alias", value),
             default="phi-reasoning",
-            free_form=True,
+            render_options_in_question=False,
         ),
     )
 
@@ -507,7 +519,7 @@ def setup_wizard(
     model_alias: str | None = typer.Option(None, "--model-alias", help="Model alias override."),
 ) -> None:
     """Interactive guided onboarding wizard flow."""
-    from builder_ii.wizard_framework import WizardEngine, run_typer_prompt_loop
+    from builder_ii.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
 
     engine = WizardEngine(steps=setup_wizard_step_definitions())
     for step_id, provided in (
@@ -519,7 +531,19 @@ def setup_wizard(
         if provided:
             engine.preanswer(step_id, provided)
     # strip_answers=False: this wizard has always taken prompt answers exactly as typed.
-    answers, _prompted_any = run_typer_prompt_loop(engine, prompt_fn=typer.prompt, strip_answers=False)
+    # Prompt-boundary validation mirrors builder init: three attempts per step, every
+    # rejection echoing the full registry, then a fail-closed abort with no artifacts.
+    try:
+        answers, _prompted_any = run_typer_prompt_loop(
+            engine,
+            prompt_fn=typer.prompt,
+            invalid_echo=lambda error: console.print(f"[red]invalid answer:[/] {error}"),
+            max_attempts=3,
+            strip_answers=False,
+        )
+    except WizardAborted:
+        console.print("[red]no valid answer after 3 attempts; aborting without writing artifacts[/]")
+        raise typer.Exit(2) from None
     out_path = output_dir if output_dir else Path(answers["output_dir"])
 
     result = run_onboarding_pipeline(
