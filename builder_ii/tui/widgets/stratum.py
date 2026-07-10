@@ -548,7 +548,7 @@ class ActiveStratum(Vertical):
             "    [bold #79c0ff][H / F1][/]   Open this Operator Command Manual\n\n"
             "  [bold #d2a8ff]GOVERNANCE ESCALATIONS[/]\n"
             "    [bold #79c0ff][?][/]        Governed Command Palette (Tier permission checker)\n"
-            "    [bold #79c0ff][~][/]        Raw CLI Escape Hatch (Context-injected subprocess console)\n\n"
+            "    [bold #79c0ff][~][/]        Command Composer (injects context; STRATUM runs nothing)\n\n"
             "  [bold #d2a8ff]PIPELINE COMMANDS[/]\n"
             "    [bold #79c0ff][P][/]        Prepare Workspace (build local environment)\n"
             "    [bold #79c0ff][V][/]        Validate Codebase (run verification checks)\n"

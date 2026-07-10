@@ -1,3 +1,4 @@
+import pathlib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -106,7 +107,7 @@ async def test_stratum_palette_authority():
 
         app = StratumApp()
         async with app.run_test() as pilot:
-            with patch("builder_ii.tui.app.COMMAND_AUTHORITY_REGISTRY") as mock_registry, patch("builder_ii.command_authority.check_command_authority") as mock_check:
+            with patch("builder_ii.tui.app.COMMAND_AUTHORITY_REGISTRY") as mock_registry, patch("builder_ii.tui.app.check_command_authority") as mock_check:
                 from unittest.mock import MagicMock
                 mock_record = MagicMock()
                 mock_record.name = "test"
@@ -244,3 +245,74 @@ def test_tui_sources_never_fabricate_an_artifact_kind() -> None:
     for source in _TUI_DIR.rglob("*.py"):
         for kind in re.findall(r'"(builder_ii\.[a-z_]+)"', source.read_text(encoding="utf-8")):
             assert kind in known, f"{source.name} names unregistered artifact kind {kind!r}"
+
+
+# --- STRATUM claims no action it does not perform ------------------------------------------------
+#
+# `?` said "Executing: <cmd>" beside a comment reading "Real implementation would trigger the command
+# logic here". `~` and `n` said "Raw CLI Exec: builder <cmd>" and appended a `cli_passthrough` event
+# to the signal rail -- writing a record of an execution that never occurred into the very panel that
+# shows the operator what happened. Fabricated success, twice, in the surface whose whole purpose is
+# to report truthfully what the system did.
+
+
+def _rendered_string_literals(source: pathlib.Path) -> list[str]:
+    """Every string literal in the file that is not a docstring.
+
+    Comments and docstrings *describe* the defect and must stay; only what the surface can actually
+    render to the operator is in scope. Grepping the raw text conflates the two -- it fired on the
+    very comments recording why these phrases are forbidden.
+    """
+    import ast
+
+    tree = ast.parse(source.read_text(encoding="utf-8"))
+    docstrings = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            doc = ast.get_docstring(node, clean=False)
+            if doc is not None:
+                docstrings.add(doc)
+    return [
+        n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str) and n.value not in docstrings
+    ]
+
+
+def test_tui_renders_no_claim_of_an_execution() -> None:
+    """STRATUM runs no command, so no string it can render may say it did."""
+    banned = ("Executing:", "Raw CLI Exec", "Exec: builder")
+    for source in _TUI_DIR.rglob("*.py"):
+        for literal in _rendered_string_literals(source):
+            for phrase in banned:
+                assert phrase not in literal, f"{source.name} renders an execution claim: {phrase!r}"
+
+
+def test_tui_never_records_a_command_execution_in_the_signal_rail() -> None:
+    """The rail reports what happened. STRATUM executes nothing, so it logs no execution."""
+    for source in _TUI_DIR.rglob("*.py"):
+        if source.name == "signals.py":
+            continue  # defines append_event; the callers must be honest, not the rail
+        for literal in _rendered_string_literals(source):
+            assert literal != "cli_passthrough", (
+                f"{source.name} writes a cli_passthrough event; STRATUM executes no command, so it "
+                "must not record one as having run"
+            )
+
+
+@pytest.mark.asyncio
+async def test_cli_passthrough_composes_and_says_it_ran_nothing() -> None:
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.model_alias = "test"
+        mock_settings.return_value.model_tier = "TIER_0"
+
+        app = StratumApp()
+        async with app.run_test():
+            app.signals = None
+            with patch.object(app, "notify") as notify:
+                app._show_composed_command("verify plan")
+
+            message = notify.call_args[0][0]
+            assert "Composed: builder verify plan" in message
+            assert "STRATUM executes nothing" in message
+            for lie in ("Exec", "Executing"):
+                assert lie not in message

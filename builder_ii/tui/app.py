@@ -13,7 +13,7 @@ from textual.containers import Horizontal
 from textual.widgets import Footer, Static
 
 from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
+from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, check_command_authority
 from builder_ii.config import load_settings
 from builder_ii.tui.widgets.cli_passthrough import CLIPassthroughScreen, ConfirmScreen
 from builder_ii.tui.widgets.palette import CommandPaletteScreen
@@ -318,7 +318,6 @@ class StratumApp(App[None]):
     def action_open_palette(self) -> None:
         """Open the command palette."""
         cmds = []
-        from builder_ii.command_authority import check_command_authority
         for rec in COMMAND_AUTHORITY_REGISTRY:
             decision = check_command_authority(rec.name)
             allowed = decision.allowed
@@ -335,27 +334,39 @@ class StratumApp(App[None]):
                 }
             )
 
-        def run_cmd(cmd_name: str | None) -> None:
+        def on_selected(cmd_name: str | None) -> None:
+            # The palette is a tier-permission *inspector*. Selecting a row used to say
+            # "Executing: <cmd>" beside a comment reading "Real implementation would trigger the
+            # command logic here" -- it announced an execution that never happened. STRATUM runs no
+            # command, so it says what it did: it looked one up.
             if cmd_name:
-                self.notify(f"Executing: {cmd_name}")
-                # Real implementation would trigger the command logic here
+                decision = check_command_authority(cmd_name)
+                verdict = "permitted" if decision.allowed else "refused"
+                reason = f" ({', '.join(decision.reasons)})" if decision.reasons else ""
+                self.notify(f"{cmd_name}: {verdict}{reason}. Run it in your terminal.")
 
-        self.push_screen(CommandPaletteScreen(commands=cmds), run_cmd)
+        self.push_screen(CommandPaletteScreen(commands=cmds), on_selected)
 
     def action_open_cli(self) -> None:
-        """Open the raw CLI passthrough."""
+        """Compose a governed command with the current context injected. STRATUM runs nothing."""
         prefix = f"--target {self.settings.core_repo.name}"
         if self._current_session_id != "idle":
             prefix += f" --session {self._current_session_id}"
 
-        def run_cli(cmd: str | None) -> None:
-            if cmd:
-                self.notify(f"Raw CLI Exec: builder {cmd}")
-                # Real implementation would subprocess run `builder {cmd}` and stream to ledger/stratum
-                if self.signals:
-                    self.signals.append_event(datetime.now().strftime("%H:%M:%S"), "cli_passthrough", f"builder {cmd}")
+        self.push_screen(CLIPassthroughScreen(prefix_context=prefix), self._show_composed_command)
 
-        self.push_screen(CLIPassthroughScreen(prefix_context=prefix), run_cli)
+    def _show_composed_command(self, cmd: str | None) -> None:
+        """Surface the composed command for the operator to run. Never claim it ran.
+
+        This said `Raw CLI Exec: builder <cmd>` and appended a `cli_passthrough` event to the signal
+        rail -- writing a record of an execution that never occurred into the very panel that shows
+        the operator what happened -- next to a comment reading "Real implementation would subprocess
+        run". Running an arbitrary `builder` command from here would be the Goose problem again:
+        `builder` reaches TIER_3 and TIER_4 surfaces, whose approval boundaries a keypress may not
+        launder. So the screen composes, and the operator runs.
+        """
+        if cmd:
+            self.notify(f"Composed: builder {cmd} — run it in your terminal; STRATUM executes nothing.")
 
     def action_go_back(self) -> None:
         """Universal 'Back' / 'Clear' action to return to the default view."""
@@ -520,16 +531,8 @@ class StratumApp(App[None]):
                 next_cmd = actions[0]["safe_commands"][0]
                 self.notify(f"Recommended Next Action: {next_cmd}")
 
-                # Pre-fill CLI Passthrough with this command
-                def run_cli(cmd: str | None) -> None:
-                    if cmd:
-                        self.notify(f"Raw CLI Exec: builder {cmd}")
-                        if self.signals:
-                            self.signals.append_event(
-                                datetime.now().strftime("%H:%M:%S"), "cli_passthrough", f"builder {cmd}"
-                            )
-
-                self.push_screen(CLIPassthroughScreen(prefix_context=f"{next_cmd}"), run_cli)
+                # Pre-fill the composer with the recommendation. It composes; it does not run.
+                self.push_screen(CLIPassthroughScreen(prefix_context=f"{next_cmd}"), self._show_composed_command)
             else:
                 self.notify("No pending actions found in Operator Next report.")
         except Exception as e:

@@ -1,7 +1,8 @@
-"""CLI Passthrough Modal — Raw execution with governed context injection.
+"""Command Composer Modal — governed context injection. It composes; it never executes.
 
-Press `~` to open. Pre-fills current chain context (target, session ID)
-as flags so the operator can drop to raw CLI without losing location context.
+Press `~` to open. Pre-fills current chain context (target, session ID) as flags so the operator
+can carry location context into their terminal. STRATUM runs no command: `builder` reaches TIER_3
+and TIER_4 surfaces whose approval boundaries a keypress may not launder.
 """
 
 from __future__ import annotations
