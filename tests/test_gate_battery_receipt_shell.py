@@ -105,6 +105,46 @@ def test_dirty_tree_recorded_but_receipt_still_written(tmp_path: Path) -> None:
     assert receipt["valid"] is True
 
 
+def test_second_run_still_reports_a_clean_tree_when_the_receipt_path_is_gitignored(tmp_path: Path) -> None:
+    """The footgun the workflow's receipt path exists to avoid, proven in both directions.
+
+    `_gbr_emit_receipt` computes `working_tree_clean` before writing the receipt, so a
+    receipt never sees ITSELF -- but `git status --porcelain` does see the untracked
+    receipt left by a PREVIOUS run. Direction one: a receipt inside a gitignored directory
+    (the workflow's `.builder/artifacts/` path) leaves the second run clean and stable.
+    Direction two: park a receipt at the repo root and the very next run truthfully -- and
+    uselessly -- reports `working_tree_clean: false`, poisoned by its own recorder. The
+    second direction is asserted too, so if git or the lib ever changes how ignored files
+    are reported, the property this pin protects is re-examined rather than assumed.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    (repo / ".gitignore").write_text(".builder/\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "ignore .builder"], cwd=repo, check=True)
+    script = _write_battery(tmp_path, repo, 'gate "fake pass" true\n')
+    ignored_receipt = repo / ".builder" / "artifacts" / "gate-battery-receipt.json"
+
+    for run_index in (1, 2):
+        result = _run(script, "--receipt", str(ignored_receipt))
+        assert result.returncode == 0, result.stderr
+        receipt = json.loads(ignored_receipt.read_text(encoding="utf-8"))
+        assert receipt["working_tree_clean"] is True, f"run {run_index} must not see the previous receipt"
+        assert receipt["head_sha_stable"] is True
+        assert validate_gate_battery_receipt(receipt) == []
+
+    # Contrast: the same second run over a repo-root receipt reports a dirty tree.
+    root_receipt = repo / "gate-battery-receipt.json"
+    assert _run(script, "--receipt", str(root_receipt)).returncode == 0
+    second = _run(script, "--receipt", str(root_receipt))
+    assert second.returncode == 0, second.stderr
+    receipt = json.loads(root_receipt.read_text(encoding="utf-8"))
+    assert receipt["working_tree_clean"] is False, (
+        "a repo-root receipt must dirty the next run's tree; if this ever flips, the "
+        "gitignored-path requirement in ci.yml needs re-justifying, not deleting"
+    )
+
+
 def test_moved_head_yields_unstable(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)

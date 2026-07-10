@@ -95,6 +95,52 @@ def test_workflow_inlines_no_gate() -> None:
             )
 
 
+def test_workflow_requests_a_receipt_on_a_gitignored_path() -> None:
+    """The workflow's battery step must ask for a receipt, and the path must be ignored.
+
+    The path matters more than the flag: `_gbr_emit_receipt` computes `working_tree_clean`
+    from `git status --porcelain`, which sees an untracked receipt left by a PREVIOUS run.
+    A repo-root receipt makes the very next run report a dirty tree -- the field that
+    exists to prove "these gates ran against exactly this commit" poisoned by the mechanism
+    recording it. `.builder/` is gitignored, so `git status` never sees the receipt.
+    tests/test_gate_battery_receipt_shell.py proves both directions of that property by
+    running a battery twice; this pin keeps the workflow on the safe path.
+    """
+    run_lines = _workflow_run_lines()
+    battery_lines = [line for line in run_lines if "scripts/ci.sh" in line]
+    assert battery_lines, "ci.yml must call scripts/ci.sh"
+    for line in battery_lines:
+        assert "--receipt .builder/artifacts/gate-battery-receipt.json" in line, (
+            f"the battery step must request the receipt at the gitignored .builder/ path: {line!r}"
+        )
+    gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()
+    assert ".builder/" in gitignore, ".builder/ must stay gitignored or the receipt poisons working_tree_clean"
+
+
+def test_workflow_uploads_the_receipt_even_when_the_battery_is_red() -> None:
+    """A default upload step is skipped when a prior step fails, and the receipt that
+    matters most is the one from a red run -- the upload must be `if: always()`."""
+    body = CI_WORKFLOW.read_text(encoding="utf-8")
+    upload_blocks = [block for block in body.split("- name:") if "upload-artifact" in block]
+    assert upload_blocks, "ci.yml must upload the gate battery receipt"
+    for block in upload_blocks:
+        assert "if: always()" in block, "the receipt upload must run even when the battery failed"
+        assert ".builder/artifacts/gate-battery-receipt.json" in block
+
+
+def test_only_the_advisory_gitleaks_step_may_continue_on_error() -> None:
+    """`continue-on-error` on the battery or upload would let a red battery -- or exit 3,
+    a requested-but-unwritten receipt -- read green. Gitleaks is the one advisory step."""
+    body = CI_WORKFLOW.read_text(encoding="utf-8")
+    live_lines = [line for line in body.splitlines() if not line.strip().startswith("#")]
+    hits = [line for line in live_lines if "continue-on-error" in line]
+    assert len(hits) == 1, (
+        f"exactly one continue-on-error is allowed in ci.yml (the advisory gitleaks step); found: {hits}"
+    )
+    gitleaks_block = [block for block in body.split("- name:") if "itleaks" in block]
+    assert gitleaks_block and "continue-on-error: true" in gitleaks_block[0]
+
+
 def test_gate_battery_contains_every_blocking_gate() -> None:
     script = CI_SCRIPT.read_text(encoding="utf-8")
     for gate in REQUIRED_GATES:

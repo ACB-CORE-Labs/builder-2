@@ -45,5 +45,28 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true # Keep as warning/information unless explicitly blocked by repo admin
 
+      # The receipt path sits under .builder/ (gitignored) deliberately, and
+      # tests/test_ci_gate_parity.py pins it: `git status --porcelain` sees an untracked
+      # receipt left by a PREVIOUS run, so a repo-root path would make the very next run
+      # report `working_tree_clean: false` -- the field that exists to prove "these gates
+      # ran against exactly this commit" poisoned by the mechanism recording it.
+      # Exit-code discipline: scripts/ci.sh exits 3 when a receipt was requested but could
+      # not be written on an otherwise-green battery; no `continue-on-error` here, so any
+      # non-zero exit -- a gate's own code or that 3 -- fails this step and the job.
       - name: Blocking gate battery
-        run: bash scripts/ci.sh
+        run: bash scripts/ci.sh --receipt .builder/artifacts/gate-battery-receipt.json
+
+      # The receipt that matters most is the one from a RED run, and a default upload step
+      # is skipped when a prior step fails -- hence `if: always()` (documented Actions
+      # semantics: an always() step runs regardless of earlier step failure/cancellation).
+      # actions/upload-artifact@v4 requires GitHub's proprietary artifact backend and is
+      # documented as unsupported on Gitea/Forgejo Actions; v3 is the line the Forgejo
+      # runner implements. NOTE: the Forgejo Actions runner has been offline since
+      # 2026-07-08 -- this step has never executed. Until the runner returns, this is a
+      # plan to produce a receipt, not a receipt.
+      - name: Upload gate battery receipt (even when the battery is red)
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: gate-battery-receipt
+          path: .builder/artifacts/gate-battery-receipt.json
