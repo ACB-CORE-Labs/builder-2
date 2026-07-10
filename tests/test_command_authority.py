@@ -666,7 +666,12 @@ def test_every_flag_that_can_move_the_assurance_state_is_named_in_the_policy_sna
     deriving = {flag for flag in CAPABILITY_FLAGS if assurance_state_for_record(_assurance_probe(**{flag: True})) != baseline}
 
     assert deriving == set(ASSURANCE_DERIVING_FLAGS), "the module's perturbation and this test's disagree"
-    assert len(deriving) == 8, f"expected 8 risk-bearing flags, found {len(deriving)}: re-derive this pin"
+
+    # Not a hardcoded count. The risk-bearing flags are exactly the ones the chain branches on, so
+    # the inert set is exactly those it does not -- and a transcribed number here would go stale the
+    # first time the lattice grew, which it just did.
+    assert deriving == set(CAPABILITY_FLAGS) - set(ASSURANCE_INERT_FLAGS)
+    assert deriving, "if no flag moves the state, the perturbation baseline is not the lattice bottom"
 
     header = render_registry_markdown_table().splitlines()[0]
     assert "Assurance" in header and "Assurance Derived From" in header
@@ -680,24 +685,84 @@ def test_every_flag_that_can_move_the_assurance_state_is_named_in_the_policy_sna
     assert deriving <= rendered, f"flags decide the assurance state and are invisible: {sorted(deriving - rendered)}"
 
 
-def test_the_three_flags_that_carry_no_risk_signal_are_named_as_such() -> None:
-    """Two of them were among the only five the doc ever printed.
+def test_exactly_one_flag_carries_no_risk_signal_and_that_is_correct() -> None:
+    """`allows_artifact_writes` is inert *by definition*, not by oversight.
 
-    `allows_memory_mutation`, `allows_artifact_writes` and `allows_state_writes` can each be set on a
-    record without changing its assurance state. That is a fact about the derivation chain, not a bug
-    to fix here -- but a reader of the policy snapshot must not infer risk from a column that carries
-    none. If the lattice later gives one of these a consequence, this pin fails and says so.
+    `PASSIVE_ARTIFACT_VERIFIED` reads "writes nothing outside the artifact store". A command that
+    writes only artifacts therefore satisfies it exactly, and raising its state would contradict the
+    definition. This is the one flag for which inertness is the right answer, and this pin ties that
+    answer to the sentence that justifies it -- so that rewording the sentence breaks the pin.
+
+    The predecessor of this test named three inert flags and said: "if the lattice later gives one of
+    these a consequence, this pin fails and says so." It did, and it did.
     """
-    assert ASSURANCE_INERT_FLAGS == ("allows_memory_mutation", "allows_artifact_writes", "allows_state_writes")
+    from builder_ii.assurance import ASSURANCE_STATE_DEFINITIONS, PASSIVE_ARTIFACT_VERIFIED
+
+    assert ASSURANCE_INERT_FLAGS == ("allows_artifact_writes",)
+    assert "writes nothing outside the artifact store" in ASSURANCE_STATE_DEFINITIONS[PASSIVE_ARTIFACT_VERIFIED]
 
     old_columns = {"allows_shell_execution", "allows_process_control", "allows_source_writes",
                    "allows_artifact_writes", "allows_state_writes"}
-    assert set(ASSURANCE_INERT_FLAGS) & old_columns == {"allows_artifact_writes", "allows_state_writes"}
-    assert len(set(ASSURANCE_DERIVING_FLAGS) - old_columns) == 5, "five risk-bearing flags had no column"
+    assert len(set(ASSURANCE_DERIVING_FLAGS) - old_columns) == 6, "six risk-bearing flags had no column"
 
     doc = render_command_authority_doc()
     for flag in ASSURANCE_INERT_FLAGS:
         assert f"`{flag}`" in doc, f"the doc must name {flag} as carrying no risk signal"
+
+
+def test_a_command_that_writes_local_state_is_not_passive() -> None:
+    """`builder-runtime clear-marker` derived `PASSIVE_ARTIFACT_VERIFIED` while deleting a file.
+
+    Its own `write_boundary` says it "deletes or rewrites the builder runtime marker under configured
+    local state paths". `PASSIVE_ARTIFACT_VERIFIED` promises the command "writes nothing outside the
+    artifact store". Both could not be true. It derived passive because passive was the chain's
+    fall-through -- absence read as a safe classification.
+
+    Its siblings `builder-runtime stop` and `reset` perform the *same* filesystem write and derive
+    `BOUNDED_EXECUTION_VERIFIED`, but only because they also kill a process. That is the accident
+    that kept the gap hidden.
+    """
+    from builder_ii.assurance import LOCAL_STATE_MUTATION_VERIFIED
+
+    record = get_command_record("builder-runtime clear-marker")
+    assert record is not None and record.allows_state_writes
+    assert not any(getattr(record, f) for f in ("allows_process_control", "allows_runtime_start"))
+
+    derivation = explain_assurance_for_record(record)
+    assert derivation.state == LOCAL_STATE_MUTATION_VERIFIED
+    assert derivation.because == "`allows_state_writes` is set"
+
+    for sibling in ("builder-runtime stop", "builder-runtime reset"):
+        other = get_command_record(sibling)
+        assert other is not None and other.allows_state_writes
+        assert assurance_state_for_record(other) == "BOUNDED_EXECUTION_VERIFIED", (
+            f"`{sibling}` kills a process; that is the larger claim and must still win"
+        )
+
+
+def test_memory_mutation_is_a_prohibition_no_record_may_claim() -> None:
+    """Not an inert flag -- an unclaimed one. No record has ever set it.
+
+    The doc used to say the inert flags "are recorded because they describe the command". This one
+    describes no command. What it records is a refusal: every governed platform bundle asserts
+    `memory_mutation: DISABLED`, and the B8 memory lane writes memory *artifacts*, claiming
+    `allows_artifact_writes` instead. So the flag names an authority builder-II declines to grant.
+
+    It now derives `LOCAL_STATE_MUTATION_VERIFIED` if ever set, which is what mutating a store outside
+    the artifact store means -- but the pin below is what keeps it from being set at all.
+    """
+    from builder_ii.assurance import LOCAL_STATE_MUTATION_VERIFIED
+
+    holders = [r.name for r in COMMAND_AUTHORITY_REGISTRY if r.allows_memory_mutation]
+    assert holders == [], f"memory mutation is prohibited; these records claim it: {holders}"
+
+    assert "allows_memory_mutation" in ASSURANCE_DERIVING_FLAGS, "a prohibited flag must not read as harmless"
+    probe = explain_assurance_for_record(_assurance_probe(allows_memory_mutation=True))
+    assert probe.state == LOCAL_STATE_MUTATION_VERIFIED
+
+    memory_writers = [r for r in COMMAND_AUTHORITY_REGISTRY if r.name.startswith("builder-memory ")]
+    assert memory_writers, "the B8 memory lane must exist for this pin to mean anything"
+    assert any(r.allows_artifact_writes for r in memory_writers), "the memory lane writes artifacts, not memory"
 
 
 def test_every_capability_flag_is_requestable_as_an_effect() -> None:
@@ -763,6 +828,8 @@ def test_each_capability_flag_derives_the_state_the_lattice_promises() -> None:
         "allows_shell_execution": "BOUNDED_EXECUTION_VERIFIED",
         "allows_external_tool_invocation": "BOUNDED_EXECUTION_VERIFIED",
         "allows_readonly_subprocess": "BOUNDED_EXECUTION_VERIFIED",
+        "allows_state_writes": "LOCAL_STATE_MUTATION_VERIFIED",
+        "allows_memory_mutation": "LOCAL_STATE_MUTATION_VERIFIED",
     }
     assert set(expected) == set(ASSURANCE_DERIVING_FLAGS)
     for flag, state in expected.items():

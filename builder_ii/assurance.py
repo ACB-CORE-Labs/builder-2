@@ -4,6 +4,7 @@ from typing import Literal
 
 AssuranceState = Literal[
     "PASSIVE_ARTIFACT_VERIFIED",
+    "LOCAL_STATE_MUTATION_VERIFIED",
     "READ_ONLY_RUNTIME_VERIFIED",
     "BOUNDED_EXECUTION_VERIFIED",
     "MUTATION_WITH_ROLLBACK_VERIFIED",
@@ -14,6 +15,7 @@ AssuranceState = Literal[
 ]
 
 PASSIVE_ARTIFACT_VERIFIED: AssuranceState = "PASSIVE_ARTIFACT_VERIFIED"
+LOCAL_STATE_MUTATION_VERIFIED: AssuranceState = "LOCAL_STATE_MUTATION_VERIFIED"
 READ_ONLY_RUNTIME_VERIFIED: AssuranceState = "READ_ONLY_RUNTIME_VERIFIED"
 BOUNDED_EXECUTION_VERIFIED: AssuranceState = "BOUNDED_EXECUTION_VERIFIED"
 MUTATION_WITH_ROLLBACK_VERIFIED: AssuranceState = "MUTATION_WITH_ROLLBACK_VERIFIED"
@@ -24,6 +26,7 @@ SAFETY_CRITICAL_PROHIBITED: AssuranceState = "SAFETY_CRITICAL_PROHIBITED"
 
 ASSURANCE_STATES: tuple[AssuranceState, ...] = (
     PASSIVE_ARTIFACT_VERIFIED,
+    LOCAL_STATE_MUTATION_VERIFIED,
     READ_ONLY_RUNTIME_VERIFIED,
     BOUNDED_EXECUTION_VERIFIED,
     MUTATION_WITH_ROLLBACK_VERIFIED,
@@ -47,6 +50,12 @@ ASSURANCE_STATE_DEFINITIONS: dict[AssuranceState, str] = {
     PASSIVE_ARTIFACT_VERIFIED: (
         "Builds, validates, or reads governed artifacts and renders them. It starts no runtime, "
         "spawns no process, calls no provider, and writes nothing outside the artifact store."
+    ),
+    LOCAL_STATE_MUTATION_VERIFIED: (
+        "Writes or deletes builder-II's own local state -- runtime markers, lockfiles, caches -- "
+        "outside the artifact store and outside every target repository. It starts no runtime, "
+        "spawns no process, and calls no provider. Nothing snapshots the write, so it is undone by "
+        "re-establishing the state, never by a rollback."
     ),
     READ_ONLY_RUNTIME_VERIFIED: (
         "Starts, or hands the operator's terminal to, a runtime whose policy denies writes. The "

@@ -5,6 +5,7 @@ from pathlib import Path
 from builder_ii.assurance import (
     ASSURANCE_STATE_DEFINITIONS,
     ASSURANCE_STATES,
+    LOCAL_STATE_MUTATION_VERIFIED,
     SAFETY_CRITICAL_PROHIBITED,
     render_assurance_definitions_markdown,
 )
@@ -52,3 +53,19 @@ def test_safety_critical_prohibited_is_carried_by_nothing_exactly_as_its_definit
 
     assert SAFETY_CRITICAL_PROHIBITED not in derived_from_rows
     assert SAFETY_CRITICAL_PROHIBITED not in derived_from_records
+
+
+def test_local_state_mutation_is_carried_by_a_real_command() -> None:
+    """A state nothing derives is decoration. `SAFETY_CRITICAL_PROHIBITED` says so of itself.
+
+    `LOCAL_STATE_MUTATION_VERIFIED` was added because `builder-runtime clear-marker` derived
+    `PASSIVE_ARTIFACT_VERIFIED` -- "writes nothing outside the artifact store" -- while deleting the
+    runtime marker. If a future change makes this state unreachable, the lattice has grown a word for
+    nothing, and this pin says so.
+    """
+    carriers = [r.name for r in COMMAND_AUTHORITY_REGISTRY if assurance_state_for_record(r) == LOCAL_STATE_MUTATION_VERIFIED]
+    assert "builder-runtime clear-marker" in carriers, f"nothing derives {LOCAL_STATE_MUTATION_VERIFIED}: {carriers}"
+
+    definition = ASSURANCE_STATE_DEFINITIONS[LOCAL_STATE_MUTATION_VERIFIED]
+    assert "outside the artifact store" in definition
+    assert "spawns no process" in definition, "a local-state write that spawns a process is bounded execution"

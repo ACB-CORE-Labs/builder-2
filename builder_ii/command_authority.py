@@ -7,6 +7,7 @@ from builder_ii.assurance import (
     BOUNDED_EXECUTION_VERIFIED,
     DEMO_ONLY_VERIFIED,
     LIVE_PROVIDER_VERIFIED,
+    LOCAL_STATE_MUTATION_VERIFIED,
     MUTATION_WITH_ROLLBACK_VERIFIED,
     PASSIVE_ARTIFACT_VERIFIED,
     READ_ONLY_RUNTIME_VERIFIED,
@@ -384,6 +385,15 @@ _BOUNDED_FLAGS: tuple[str, ...] = (
     "allows_readonly_subprocess",
 )
 
+# Writes to builder-II's own local state, outside the artifact store. Below `_BOUNDED_FLAGS` in the
+# chain -- `builder-runtime stop` deletes the same marker `clear-marker` does, and also kills a
+# process, which is the larger claim. Above the passive fall-through, which is the whole point:
+# `PASSIVE_ARTIFACT_VERIFIED` promises the command "writes nothing outside the artifact store".
+_LOCAL_STATE_FLAGS: tuple[str, ...] = (
+    "allows_state_writes",
+    "allows_memory_mutation",
+)
+
 
 def explain_assurance_for_record(record: CommandAuthorityRecord) -> AssuranceDerivation:
     """Map legacy authority metadata into the sharper high-assurance state lattice, and say why.
@@ -415,6 +425,9 @@ def explain_assurance_for_record(record: CommandAuthorityRecord) -> AssuranceDer
     for flag in _BOUNDED_FLAGS:
         if getattr(record, flag):
             return AssuranceDerivation(BOUNDED_EXECUTION_VERIFIED, f"`{flag}` is set")
+    for flag in _LOCAL_STATE_FLAGS:
+        if getattr(record, flag):
+            return AssuranceDerivation(LOCAL_STATE_MUTATION_VERIFIED, f"`{flag}` is set")
     return AssuranceDerivation(PASSIVE_ARTIFACT_VERIFIED, "no flag or state raises assurance above passive")
 
 
@@ -4259,9 +4272,9 @@ def render_command_authority_doc() -> str:
             f"A record carries {len(CAPABILITY_FLAGS)} capability flags. The `Capabilities` column names exactly the ones",
             "it sets, so a row reading `—` claims none.",
             "",
-            f"{len(ASSURANCE_DERIVING_FLAGS)} of the {len(CAPABILITY_FLAGS)} raise the assurance state. The remaining {len(ASSURANCE_INERT_FLAGS)} do not: a command may set",
-            f"{inert} and still derive `{_ASSURANCE_BASELINE}`. They are recorded",
-            "because they describe the command, not because they bound its risk.",
+            f"{len(ASSURANCE_DERIVING_FLAGS)} of the {len(CAPABILITY_FLAGS)} raise the assurance state. Only {inert} does not, and that",
+            f"is correct rather than an oversight: `{_ASSURANCE_BASELINE}` already permits writing",
+            "to the artifact store, so a command that writes only artifacts is passive by definition.",
             "",
             f"## Declared records ({declared})",
             "",
