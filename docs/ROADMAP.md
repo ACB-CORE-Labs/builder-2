@@ -90,6 +90,16 @@ R1 Config + Onboarding Kernel must precede B1 verification execution because exe
 - No commit/push automation
 - No CORE Workbench/UI coupling
 - No Deephaven changes
+- No CodeVault output as execution, verification, or promotion authority ([`ADR-0005`](adrs/ADR-0005-codevault-boundary-and-authority.md))
+
+### CodeVault (intelligence substrate — vision set)
+
+CodeVault is builder-II's governed reconstructive intelligence substrate (layout, identity, and
+future structure/relations/change/evidence → reconstruction). **F0–F1** exist at staged-acceptance
+capability states; F2+ and engineering utility on real repositories are gated, not claimed by docs.
+
+Official vision set index: [`CODE_VAULT.md`](CODE_VAULT.md) (vision section) and
+[`plan/CODE_VAULT_MASTER_PLAN.md`](plan/CODE_VAULT_MASTER_PLAN.md).
 
 ## Current operating loop
 

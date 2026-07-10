@@ -76,3 +76,14 @@ The boundary is enforced, not asserted. Existing enforcement this ADR is account
   which records every layer's capability state, failure mode, rollback path, and verification path.
 
 A future tier that cannot name its equivalent of these pins has not met this ADR.
+
+## Related vision set
+
+- [`../CODE_VAULT_VISION_AND_CAPABILITY_LADDER.md`](../CODE_VAULT_VISION_AND_CAPABILITY_LADDER.md) — destination and ladder  
+- [`../CODE_VAULT_PROOF_PROGRAM.md`](../CODE_VAULT_PROOF_PROGRAM.md) — claim classes R / D / U  
+- [`../CODE_VAULT_LANGUAGE_SUBSTRATE.md`](../CODE_VAULT_LANGUAGE_SUBSTRATE.md) — polyglot substrate law  
+- [`../CODE_VAULT_FIELD_BLUEPRINTS.md`](../CODE_VAULT_FIELD_BLUEPRINTS.md) — dual correction  
+- [`../plan/CODE_VAULT_MASTER_PLAN.md`](../plan/CODE_VAULT_MASTER_PLAN.md) — path to fruition  
+
+Intelligence never changes authority: a future reconstruction carries the same authority as a layout
+map — none.

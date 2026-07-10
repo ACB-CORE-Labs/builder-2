@@ -1,8 +1,19 @@
 # CodeVault Tier-1 encoder RFC
 
-Status: design-only RFC (decision D4; post-beta ladder item 1). This document proposes a doctrine
-amendment and an implementation plan. It implements nothing: no encoder, no schema change, no
-demo-proof change ships with it.
+Status: **Accepted design record; largely shipped** (F1 content-identity enrichment on main).
+Provisional scale `0.1` was **refuted** by the dominance audit; measurement fixed
+`TIER1_ENRICHMENT_SCALE = 0.001`. Remaining open questions are marked below.
+
+This file remains the historical RFC and measurement narrative (Axiom Zero exemplar). For the full
+vision set and path beyond F1, see
+[`../CODE_VAULT_VISION_AND_CAPABILITY_LADDER.md`](../CODE_VAULT_VISION_AND_CAPABILITY_LADDER.md) and
+[`CODE_VAULT_MASTER_PLAN.md`](CODE_VAULT_MASTER_PLAN.md).
+
+---
+
+*Original RFC framing (retained for history):* design-only proposal of doctrine amendment and plan.
+The paragraphs below describe the design as proposed; resolution notes in later sections record what
+measurement did.
 
 ## Purpose
 
