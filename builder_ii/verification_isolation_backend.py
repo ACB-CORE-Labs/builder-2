@@ -1,7 +1,21 @@
 import os
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
+
+# Where the target repository is mounted inside the container, and where any other import root the
+# caller chose (in practice builder-II's own package root) is mounted read-only beside it.
+_CONTAINER_WORKSPACE = "/workspace"
+_CONTAINER_BUILDER_II_ROOT = "/builder-ii"
+
+
+def _import_roots(env: dict[str, str]) -> list[str]:
+    return [root for root in env.get("PYTHONPATH", "").split(os.pathsep) if root]
+
+
+def _same_path(left: str, right: str) -> bool:
+    return Path(left).resolve() == Path(right).resolve()
 
 
 class IsolationBackendError(Exception):
@@ -76,11 +90,34 @@ class DockerBackend(IsolationBackend):
 
         docker_cmd = ["docker", "run", "--rm"]
 
-        docker_cmd.extend(["-v", f"{self.target_repo}:/workspace"])
-        docker_cmd.extend(["-w", "/workspace"])
+        docker_cmd.extend(["-v", f"{self.target_repo}:{_CONTAINER_WORKSPACE}"])
 
         container_env = dict(env)
-        container_env["PYTHONPATH"] = "/workspace"
+        # This used to be `container_env["PYTHONPATH"] = "/workspace"`, unconditionally. The caller
+        # had already decided which import roots this profile may use, and in which order, so that
+        # the repository under verification could not supply the `builder_ii` package that audits
+        # it. Overwriting the variable threw that decision away and put the target back first --
+        # every isolated run of the two safe profiles imported the target's code. Containment of
+        # the blast radius is not permission to relax what runs inside it.
+        #
+        # So translate the roots the caller chose into container paths instead of replacing them.
+        # The target repo is already mounted at /workspace; every other root is mounted read-only,
+        # in order, and none is silently dropped.
+        container_roots: list[str] = []
+        for index, host_root in enumerate(_import_roots(env)):
+            if _same_path(host_root, self.target_repo):
+                container_roots.append(_CONTAINER_WORKSPACE)
+                continue
+            mount_point = f"{_CONTAINER_BUILDER_II_ROOT}{'' if index == 0 else f'-{index}'}"
+            docker_cmd.extend(["-v", f"{host_root}:{mount_point}:ro"])
+            container_roots.append(mount_point)
+        if not container_roots:
+            # No PYTHONPATH at all: the workspace is the only thing that could be importable.
+            container_roots.append(_CONTAINER_WORKSPACE)
+
+        docker_cmd.extend(["-w", _CONTAINER_WORKSPACE])
+
+        container_env["PYTHONPATH"] = os.pathsep.join(container_roots)
         container_env["HOME"] = "/tmp/home"  # nosec B108
         container_env["TMPDIR"] = "/tmp"  # nosec B108
         container_env["TEMP"] = "/tmp"  # nosec B108

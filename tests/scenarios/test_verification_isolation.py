@@ -11,6 +11,7 @@ Covers:
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,7 @@ from builder_ii.verification_execution_receipt import (
     validate_verification_execution_receipt_artifact,
 )
 from builder_ii.verification_execution_runner import _minimal_env, run_approved_verification
-from builder_ii.verification_isolation_backend import NoneBackend, get_backend
+from builder_ii.verification_isolation_backend import DockerBackend, NoneBackend, get_backend
 from builder_ii.verification_isolation_policy import (
     finalize_verification_isolation_policy,
     validate_verification_isolation_policy_artifact,
@@ -206,7 +207,7 @@ def test_none_path_behavioral_identity() -> None:
     """NoneBackend.wrap_command returns identical argv and env — no transformation."""
     backend = NoneBackend(".", None)
     argv = ["pytest"]
-    env = _minimal_env(".")
+    env = _minimal_env(".", allow_target_repo_imports=False)
     new_argv, new_env = backend.wrap_command(argv, env)
     assert new_argv == argv
     assert new_env == env
@@ -412,3 +413,97 @@ def test_explicit_none_policy_produces_valid_receipt(monkeypatch: Any, tmp_path:
     )
     receipt_errors = validate_verification_execution_receipt_artifact(receipt)
     assert receipt_errors == [], f"receipt validator must accept: {receipt_errors}"
+
+
+# ---------------------------------------------------------------------------
+# Containment is not permission to relax what runs inside it.
+#
+# `DockerBackend.wrap_command` used to end with `container_env["PYTHONPATH"] = "/workspace"`,
+# unconditionally. The runner had already decided which import roots each profile may use and in
+# what order, precisely so that the repository under verification cannot supply the `builder_ii`
+# package that audits it. Overwriting the variable discarded that decision and put the target back
+# in front: every *isolated* run of `platform_status` / `docs_audit` imported the target's code.
+# ---------------------------------------------------------------------------
+
+
+def _docker_backend(monkeypatch: Any, target_repo: str) -> Any:
+    """A DockerBackend whose daemon/image preflight is satisfied. wrap_command is pure."""
+
+    def ok(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=args, returncode=0, stdout="[]", stderr="")
+
+    monkeypatch.setattr("builder_ii.verification_isolation_backend.subprocess.run", ok)
+    policy = {"backend": "docker", "image_ref": "python:3.12-slim"}
+    return DockerBackend(target_repo, policy)
+
+
+def _wrap(backend: Any, *roots: str) -> tuple[list[str], str]:
+    env = {"PYTHONSAFEPATH": "1", "PYTHONPATH": os.pathsep.join(roots)}
+    argv, _ = backend.wrap_command(["/usr/bin/python3", "-m", "builder_ii.verification_runner_entrypoints"], env)
+    container_pythonpath = ""
+    for index, item in enumerate(argv):
+        if item == "-e" and argv[index + 1].startswith("PYTHONPATH="):
+            container_pythonpath = argv[index + 1].split("=", 1)[1]
+    return argv, container_pythonpath
+
+
+def test_docker_backend_preserves_the_callers_import_root_order(monkeypatch: Any, tmp_path: Path) -> None:
+    target = tmp_path / "target-repo"
+    builder = tmp_path / "builder-ii"
+    target.mkdir()
+    builder.mkdir()
+    backend = _docker_backend(monkeypatch, str(target))
+
+    argv, container_pythonpath = _wrap(backend, str(builder), str(target))
+
+    assert container_pythonpath == "/builder-ii:/workspace", (
+        "the target repo must not precede builder-II on the container's import path"
+    )
+    assert container_pythonpath != "/workspace", "this is the exact string the old code wrote"
+    assert f"{builder}:/builder-ii:ro" in argv, "builder-II's import root is not mounted"
+    assert f"{target}:/workspace" in argv
+    assert "-e" in argv and "PYTHONSAFEPATH=1" in argv, "safe-path must survive containerisation"
+
+
+def test_docker_backend_keeps_the_target_off_the_import_path_for_a_safe_profile(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    """platform_status / docs_audit get exactly one import root, and it is not the target."""
+    target = tmp_path / "target-repo"
+    builder = tmp_path / "builder-ii"
+    target.mkdir()
+    builder.mkdir()
+    backend = _docker_backend(monkeypatch, str(target))
+
+    _, container_pythonpath = _wrap(backend, str(builder))
+
+    assert container_pythonpath == "/builder-ii"
+    assert "/workspace" not in container_pythonpath.split(os.pathsep)
+
+
+def test_docker_backend_mounts_nothing_extra_when_builder_ii_is_the_target(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    """Self-verification: subject and verifier are one tree, so /workspace is the only root."""
+    repo = tmp_path / "builder-ii"
+    repo.mkdir()
+    backend = _docker_backend(monkeypatch, str(repo))
+
+    argv, container_pythonpath = _wrap(backend, str(repo))
+
+    assert container_pythonpath == "/workspace"
+    assert "/builder-ii:ro" not in " ".join(argv)
+
+
+def test_docker_backend_drops_no_import_root_silently(monkeypatch: Any, tmp_path: Path) -> None:
+    """Every root the caller passed reaches the container. Silent truncation is its own lie."""
+    target = tmp_path / "target-repo"
+    first = tmp_path / "root-a"
+    second = tmp_path / "root-b"
+    for path in (target, first, second):
+        path.mkdir()
+    backend = _docker_backend(monkeypatch, str(target))
+
+    _, container_pythonpath = _wrap(backend, str(first), str(second), str(target))
+
+    assert container_pythonpath.split(os.pathsep) == ["/builder-ii", "/builder-ii-1", "/workspace"]
