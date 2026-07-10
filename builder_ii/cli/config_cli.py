@@ -7,6 +7,7 @@ from typing import Any
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config_schema import (
     CONFIG_SCHEMA_KIND,
     dumps_config_schema,
@@ -85,7 +86,7 @@ def schema(
     """Print the canonical generic-first config schema artifact."""
     if output is not None:
         write_config_schema_artifact(output)
-    console.out(dumps_config_schema(), end="")
+    echo_stdout(dumps_config_schema())
 
 
 @config_app.command("resolve")
@@ -129,7 +130,7 @@ def resolve(
     )
     if output is not None:
         write_config_resolution_artifact(resolution, output)
-    console.out(dumps_config_resolution(resolution), end="")
+    echo_stdout(dumps_config_resolution(resolution))
     if resolution.errors:
         raise typer.Exit(1)
 
@@ -153,7 +154,7 @@ def validate(
             errors = validate_config_resolution_artifact(artifact)
         else:
             errors = [f"unsupported config artifact kind: {artifact.get('kind')}"]
-    console.out(_report("builder_ii.config_validation_report", not errors, errors), end="")
+    echo_stdout(_report("builder_ii.config_validation_report", not errors, errors))
     if errors:
         raise typer.Exit(1)
 

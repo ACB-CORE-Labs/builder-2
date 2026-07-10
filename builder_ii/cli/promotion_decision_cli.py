@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.promotion_decision_records import (
     PromotionDecision,
     create_promotion_decision_record_from_file,
@@ -47,7 +48,7 @@ def record(
         write_promotion_decision_record(item, output)
         console.print(f"Promotion decision record written to {output}")
     else:
-        console.out(dumps_promotion_decision_record(item), end="")
+        echo_stdout(dumps_promotion_decision_record(item))
 
 
 @promotion_decision_app.command("validate")

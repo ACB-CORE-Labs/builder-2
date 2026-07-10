@@ -7,6 +7,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.command_authority import enforce_command_authority
 from builder_ii.config import load_settings
 from builder_ii.event_ledger import (
@@ -16,11 +17,16 @@ from builder_ii.event_ledger import (
     write_event_record,
 )
 from builder_ii.readonly_authority import (
+    CONTENT_READ_RECEIPT_KIND,
+    DEFAULT_MAX_BYTES_PER_FILE,
+    DEFAULT_MAX_CONTENT_READ_FILES,
     DENIED_READ_KIND,
     READ_POLICY_KIND,
     READ_RECEIPT_KIND,
     create_read_policy,
+    execute_content_read,
     execute_governed_read,
+    validate_content_read_receipt,
     validate_read_policy,
     validate_read_receipt,
 )
@@ -70,7 +76,7 @@ def report(
         write_readonly_inspection_report(item, output)
         console.print(f"Readonly inspection report written to {output}")
     else:
-        console.out(dumps_readonly_inspection_report(item), end="")
+        echo_stdout(dumps_readonly_inspection_report(item))
 
 
 @readonly_app.command("policy")
@@ -186,6 +192,73 @@ def read_cmd(
         raise typer.Exit(1)
 
 
+@readonly_app.command("content-read")
+def content_read_cmd(
+    target: str = typer.Option("generic", "--target"),
+    file_path: list[Path] = typer.Option(..., "--file", help="Explicit file path to read. Repeat for multiple files."),
+    allowed_path: list[str] = typer.Option(None, "--allowed-path", help="Glob allow pattern. Defaults to explicit --file basenames."),
+    output_dir: Path = typer.Option(..., "--output-dir", help="Directory for content-read receipts."),
+    max_files: int = typer.Option(DEFAULT_MAX_CONTENT_READ_FILES, "--max-files"),
+    max_bytes: int = typer.Option(DEFAULT_MAX_BYTES_PER_FILE, "--max-bytes"),
+    session_id: str | None = typer.Option(None, "--session-id", help="Optional workflow session ID."),
+) -> None:
+    """Execute bounded content-read with redacted excerpt digests."""
+    enforce_command_authority("builder-readonly content-read", requested_effects=("artifact_write",))
+    if len(file_path) > max_files:
+        console.print(f"Too many files: max {max_files}")
+        raise typer.Exit(1)
+
+    settings = load_settings()
+    selected_target = target_profile(settings, _target(target))
+    allowed = allowed_path or [p.name for p in file_path]
+    policy = create_read_policy(
+        target_name=selected_target.name,
+        target_repo=selected_target.repo,
+        allowed_paths=allowed,
+        content_capture_allowed=True,
+        operator_note="builder-readonly content-read",
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    total_bytes = 0
+    failures = 0
+    for idx, path in enumerate(file_path):
+        receipt = execute_content_read(policy, path, max_bytes_per_file=max_bytes, current_read_bytes=total_bytes)
+        receipt_path = output_dir / f"content_read_{idx:03d}.json"
+        receipt_path.write_text(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if receipt.get("kind") == CONTENT_READ_RECEIPT_KIND:
+            total_bytes += int(receipt.get("bytes_read", 0))
+            console.print(f"Content-read receipt written to {receipt_path}")
+        else:
+            failures += 1
+            console.print(f"Content-read denied for {path}: {receipt.get('reason')}")
+
+        if session_id and receipt.get("kind") == CONTENT_READ_RECEIPT_KIND:
+            events_dir = Path(".builder/sessions") / session_id / "events"
+            events_dir.mkdir(parents=True, exist_ok=True)
+            existing_records = load_event_records(events_dir)
+            sequence = len(existing_records) + 1
+            current_stage = "initialized"
+            if existing_records:
+                replay_report = replay_events(existing_records, session_id=session_id)
+                if replay_report["valid"]:
+                    current_stage = replay_report["current_stage"]
+            event_record = create_event_record(
+                event_id=f"evt_content_read_{int(time.time())}_{sequence}",
+                session_id=session_id,
+                sequence=sequence,
+                event_type="content_read_executed",
+                stage=current_stage,
+                subject_refs=[artifact_ref(receipt, path=receipt_path, role="content_read_receipt", name="content read")],
+                command_surface="builder-readonly content-read",
+                policy_snapshot_ref=artifact_ref(policy, path=output_dir / "content-read-policy.json", role="read_policy", name="policy"),
+                message=f"Governed content-read of {path}",
+            )
+            write_event_record(event_record, events_dir / f"{sequence:03d}_content_read_executed.json")
+
+    if failures:
+        raise typer.Exit(1)
+
+
 @readonly_app.command("validate")
 def validate(path: Path) -> None:
     """Validate a readonly inspection report, policy, or receipt file."""
@@ -204,6 +277,8 @@ def validate(path: Path) -> None:
         errors = validate_read_policy(data)
     elif kind == READ_RECEIPT_KIND:
         errors = validate_read_receipt(data)
+    elif kind == CONTENT_READ_RECEIPT_KIND:
+        errors = validate_content_read_receipt(data)
     else:
         errors = validate_readonly_inspection_report(data)
 

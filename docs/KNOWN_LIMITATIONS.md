@@ -69,10 +69,10 @@ are not equivalent just because they share the legacy completion label.
   - Runtime materialization is intentionally not promoted by R0.
 - **config schema** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - R1.1 adds a versioned passive schema with generic BUILDER_* names, legacy CORE_* aliases, target roots, artifact roots, Goose paths, deepagents mode, and disabled capability defaults.
-  - Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing.
+  - Digest-bound builder-setup apply/rollback exist for declared setup paths; ambient runtime authority and migration tooling remain unpromoted.
 - **config source precedence** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - R1.1 records precedence as CLI overrides, process environment, .env, builder config file, target/profile defaults, then built-in defaults.
-  - Resolution is artifact-only; no setup apply, receipt, rollback, or runtime gate consumes it yet.
+  - Resolution artifacts are consumed by builder-setup apply and operator-lane composition; ambient runtime gate interception remains partial.
 - **non-interactive setup/apply/validate** — `MERGED_BUT_NOT_OPERATIONAL` (assurance `BLOCKED_BY_EVIDENCE`)
   - R1.4 disables legacy builder setup writes and redirects operators to the governed builder-setup artifact chain.
   - R1.3A adds digest-bound governed setup apply and setup receipts for declared setup targets only; R1.3B adds digest-bound setup rollback for changed paths covered by setup snapshots.
@@ -106,13 +106,14 @@ are not equivalent just because they share the legacy completion label.
   - Invocation envelope and effect classification are missing.
   - Version checks remain operator-managed tooling.
 - **MCP invocation** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
-  - MCP inventory, policy, call envelopes and receipts are supported under passive foundation, but live MCP execution remains passive/non-operational.
+  - MCP inventory, policy, call envelopes and receipts exist.
+  - Live MCP server execution remains unpromoted; deterministic stub invocation is handled by low-risk tool gateway.
 - **passive orchestration assignment** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - Assignment binds artifacts by digest and starts no agents.
   - Runtime assignment execution must wait for B1/B5.
 - **workflow/event ledger** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
-  - Ledger records passive workflow events only.
-  - Runtime event kinds for reads, execution, model/tool calls, rollback, and memory mutation are missing.
+  - Ledger records workflow events including verification, model call, read/content-read, and tool stub lanes when session_id is supplied.
+  - Full replay policy for all runtime event kinds and memory mutation events remains partial.
 - **replay/audit** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - Replay validates passive event order and artifact links only.
   - Replay policy for nondeterministic execution receipts is missing.

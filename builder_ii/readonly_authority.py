@@ -13,13 +13,36 @@ READ_POLICY_SCHEMA_VERSION = 1
 READ_RECEIPT_KIND = "builder_ii.read_receipt"
 READ_RECEIPT_SCHEMA_VERSION = 1
 
+CONTENT_READ_RECEIPT_KIND = "builder_ii.content_read_receipt"
+CONTENT_READ_RECEIPT_SCHEMA_VERSION = 1
+DEFAULT_MAX_CONTENT_READ_FILES = 16
+DEFAULT_MAX_BYTES_PER_FILE = 256 * 1024
+DEFAULT_MAX_EXCERPT_CHARS = 512
+
 DENIED_READ_KIND = "builder_ii.denied_read"
 DENIED_READ_SCHEMA_VERSION = 1
 
 # Common secrets regex patterns or file suffixes
+# Best-effort secret detection for the content-read lane. This is a DENY gate, not a redactor:
+# the original keyword-only substitution left secret *values* -- `ghp_...`, `AKIA...`, a PEM body,
+# which carry no adjacent keyword -- verbatim in the persisted excerpt. `execute_content_read`
+# refuses any file whose content matches, matching the sibling `execute_governed_read` and the
+# governance record's own "secret-pattern denial" failure mode. Best-effort, never a guarantee:
+# no pattern set catches every secret format.
 SECRET_PATTERNS = [
-    re.compile(r"(?i)(api_key|private_key|password|secret|passwd|token)"),
+    re.compile(r"(?i)(api_key|private_key|password|passwd|secret|token)"),
+    re.compile(r"-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),  # GitHub personal/OAuth/refresh/server/user tokens
+    re.compile(r"\bAKIA[0-9A-Z]{12,}\b"),  # AWS access key id
+    re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"),  # Slack tokens
+    re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),  # JWT
 ]
+
+
+def _contains_secret(text: str) -> bool:
+    return any(pattern.search(text) for pattern in SECRET_PATTERNS)
+
+
 SECRET_FILE_SUFFIXES = {".pem", ".key", ".pkcs12", ".p12", ".env"}
 
 
@@ -99,37 +122,38 @@ def validate_read_policy_file(path: Path) -> list[str]:
     return validate_read_policy(data)
 
 
-def _is_path_allowed(path: Path, root: Path, allowed_patterns: list[str], denied_patterns: list[str]) -> bool:
+def _path_within_root(path: Path, root: Path) -> bool:
     try:
-        resolved = path.resolve()
-        resolved_root = root.resolve()
-
-        # Prevent path traversal
-        if not str(resolved).startswith(str(resolved_root)):
-            return False
-
-        # Secrets checks: filenames
-        if resolved.suffix in SECRET_FILE_SUFFIXES:
-            return False
-
-        # Convert path to relative for pattern matching
-        rel_path = resolved.relative_to(resolved_root).as_posix()
-
-        # Check against denied patterns (glob matching)
-        for pattern in denied_patterns:
-            if path.match(pattern) or Path(rel_path).match(pattern):
-                return False
-
-        # Check against allowed patterns (glob matching)
-        allowed = False
-        for pattern in allowed_patterns:
-            if pattern == "*" or path.match(pattern) or Path(rel_path).match(pattern):
-                allowed = True
-                break
-
-        return allowed
-    except Exception:
+        path.resolve().relative_to(root.resolve())
+    except ValueError:
         return False
+    return True
+
+
+def _is_path_allowed(path: Path, root: Path, allowed_patterns: list[str], denied_patterns: list[str]) -> bool:
+    resolved = path.resolve()
+    resolved_root = root.resolve()
+
+    if not _path_within_root(resolved, resolved_root):
+        return False
+
+    if resolved.suffix in SECRET_FILE_SUFFIXES:
+        return False
+
+    try:
+        rel_path = resolved.relative_to(resolved_root).as_posix()
+    except ValueError:
+        return False
+
+    for pattern in denied_patterns:
+        if path.match(pattern) or Path(rel_path).match(pattern):
+            return False
+
+    for pattern in allowed_patterns:
+        if pattern == "*" or path.match(pattern) or Path(rel_path).match(pattern):
+            return True
+
+    return False
 
 
 def _check_secrets_content(content: bytes) -> bool:
@@ -323,3 +347,164 @@ def validate_read_receipt_file(path: Path) -> list[str]:
     except Exception as exc:
         return [f"invalid JSON: {exc}"]
     return validate_read_receipt(data)
+
+
+
+
+def execute_content_read(
+    policy: dict[str, Any],
+    file_path: Path,
+    *,
+    max_bytes_per_file: int = DEFAULT_MAX_BYTES_PER_FILE,
+    max_excerpt_chars: int = DEFAULT_MAX_EXCERPT_CHARS,
+    current_read_bytes: int = 0,
+) -> dict[str, Any]:
+    """Bounded content-read lane: explicit paths only, with digest and redacted excerpt."""
+    target_repo = Path(policy["target"]["repo"])
+    allowed_paths = policy["allowed_paths"]
+    denied_paths = policy["denied_paths"]
+    budget = policy["max_bytes_budget"]
+
+    if file_path.is_symlink():
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="Symlink paths are not readable through governed content-read",
+        )
+
+    resolved = file_path.resolve()
+
+    if not _is_path_allowed(resolved, target_repo, allowed_paths, denied_paths):
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="Path not allowed or security policy violation (traversal, .git, secret suffixes)",
+        )
+
+    if not resolved.exists() or not resolved.is_file():
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="File not found or path is not a file",
+        )
+
+    if not allowed_paths:
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="Read policy has no allowed paths; explicit allowlist is required",
+        )
+
+    file_size = resolved.stat().st_size
+    if current_read_bytes + file_size > budget:
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason=f"Read budget exceeded (limit: {budget} bytes, requested size: {file_size} bytes)",
+        )
+    if file_size > max_bytes_per_file:
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason=f"File exceeds max_bytes_per_file limit ({max_bytes_per_file})",
+        )
+
+    try:
+        raw_bytes = resolved.read_bytes()
+        sha = hashlib.sha256(raw_bytes)
+    except Exception as exc:
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason=f"Failed to read file: {exc}",
+        )
+    if b"\x00" in raw_bytes:
+        return {
+            "kind": CONTENT_READ_RECEIPT_KIND,
+            "schema_version": CONTENT_READ_RECEIPT_SCHEMA_VERSION,
+            "target_file": str(resolved),
+            "bytes_read": file_size,
+            "sha256": sha.hexdigest(),
+            "content_digest": sha.hexdigest(),
+            "redacted_excerpt_digest": sha.hexdigest(),
+            "redacted_excerpt": "",
+            "binary_digest_only": True,
+            "captured_at": int(time.time()),
+            "governance": {
+                "capability_state": "OPERATIONALLY_VERIFIED",
+                "runtime_execution": "EXPLICIT_READ_ONLY",
+                "model_execution": "DISABLED",
+                "shell_execution": "DISABLED",
+                "source_writes": "DISABLED",
+                "memory_mutation": "DISABLED",
+                "artifact_is_authority": False,
+                "core_workbench_coupling": "NONE",
+            },
+        }
+
+    raw_text = raw_bytes.decode("utf-8", errors="replace")
+    # Deny, do not "redact". Keyword substitution left secret *values* verbatim in the persisted
+    # excerpt; a file whose content matches any secret pattern is refused outright, so no secret
+    # value ever reaches the receipt. This is the record's own `secret-pattern denial` failure mode.
+    if _contains_secret(raw_text):
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="File content matches a secret pattern; content-read refuses rather than persisting it",
+        )
+    excerpt = raw_text[:max_excerpt_chars]
+    content_digest = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+    excerpt_digest = hashlib.sha256(excerpt.encode("utf-8")).hexdigest()
+
+    return {
+        "kind": CONTENT_READ_RECEIPT_KIND,
+        "schema_version": CONTENT_READ_RECEIPT_SCHEMA_VERSION,
+        "target_file": str(resolved),
+        "target_root": str(target_repo.resolve()),
+        "bytes_read": file_size,
+        "sha256": sha.hexdigest(),
+        "content_digest": content_digest,
+        "redacted_excerpt_digest": excerpt_digest,
+        "redacted_excerpt": excerpt,
+        "binary_digest_only": False,
+        "captured_at": int(time.time()),
+        "governance": {
+            "capability_state": "OPERATIONALLY_VERIFIED",
+            "runtime_execution": "EXPLICIT_READ_ONLY",
+            "model_execution": "DISABLED",
+            "shell_execution": "DISABLED",
+            "source_writes": "DISABLED",
+            "memory_mutation": "DISABLED",
+            "artifact_is_authority": False,
+            "core_workbench_coupling": "NONE",
+        },
+    }
+
+
+def validate_content_read_receipt(receipt: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(receipt, dict):
+        return ["Content read receipt must be a dictionary"]
+    if receipt.get("kind") != CONTENT_READ_RECEIPT_KIND:
+        errors.append(f"kind must be {CONTENT_READ_RECEIPT_KIND}")
+    if receipt.get("schema_version") != CONTENT_READ_RECEIPT_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {CONTENT_READ_RECEIPT_SCHEMA_VERSION}")
+    for field in ("target_file", "content_digest", "redacted_excerpt_digest"):
+        val = receipt.get(field)
+        if not isinstance(val, str) or not val:
+            errors.append(f"{field} must be a non-empty string")
+    if not isinstance(receipt.get("bytes_read"), int) or receipt.get("bytes_read", -1) < 0:
+        errors.append("bytes_read must be a non-negative integer")
+    if not isinstance(receipt.get("sha256"), str) or len(receipt.get("sha256", "")) != 64:
+        errors.append("sha256 must be a SHA-256 hex digest")
+    return errors
+
+
+def validate_content_read_receipt_file(path: Path) -> list[str]:
+    if not path.exists():
+        return [f"file not found: {path}"]
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"invalid JSON: {exc}"]
+    return validate_content_read_receipt(data)

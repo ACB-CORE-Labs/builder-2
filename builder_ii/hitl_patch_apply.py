@@ -47,6 +47,7 @@ PATCH_APPLY_RECEIPT_KIND = "builder_ii.hitl_patch_apply_receipt"
 PATCH_APPLY_RECEIPT_SCHEMA_VERSION = 1
 ROLLBACK_BUNDLE_KIND = "builder_ii.rollback_bundle"
 ROLLBACK_BUNDLE_SCHEMA_VERSION = 1
+FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME = "forward_patch_for_reverse_apply.patch"
 
 
 def is_git_clean(repo_path: Path) -> bool:
@@ -289,6 +290,36 @@ def write_patch_apply_receipt(artifact: dict[str, Any], output: Path) -> None:
     output.write_text(dumps_patch_apply_receipt(artifact), encoding="utf-8")
 
 
+def _write_validation_failure_receipt(
+    output_dir: Path,
+    *,
+    settings: Settings | None,
+    target_name: str,
+    target_repo: Path,
+    proposal_path: Path,
+    error_summary: str,
+    patch_digest: str = "",
+) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    failure_receipt = create_patch_apply_receipt(
+        settings=settings,
+        target_name=target_name,  # type: ignore[arg-type]
+        proposal_ref=str(proposal_path),
+        rollback_plan_ref="",
+        postflight_ref="",
+        generic_repo=target_repo if target_name == "generic" else None,
+    )
+    failure_receipt["target"] = {
+        "name": target_name,
+        "repo": str(target_repo),
+    }
+    failure_receipt["status"] = "failed"
+    failure_receipt["error_summary"] = error_summary[:500]
+    if patch_digest:
+        failure_receipt["patch_digest"] = patch_digest
+    write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
+
+
 def apply_hitl_patch(
     proposal_path: Path,
     approval_path: Path,
@@ -323,14 +354,42 @@ def apply_hitl_patch(
     patch_digest = proposal["patch_digest"]
     unified_diff = proposal["unified_diff"]
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     # 2. Verify git state is clean
     if not is_git_clean(target_repo):
+        _write_validation_failure_receipt(
+            output_dir,
+            settings=settings,
+            target_name=target_name,
+            target_repo=target_repo,
+            proposal_path=proposal_path,
+            error_summary="Target repository working tree is not clean",
+            patch_digest=patch_digest,
+        )
         raise ValueError("Target repository working tree is not clean")
     pre_head = get_git_head_sha(target_repo)
+    pre_apply_status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=target_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    pre_apply_status_digest = compute_digest("\n".join(pre_apply_status))
 
     # 3. Read and validate verification receipt
     v_errors = _verification_receipt_errors(verification_receipt_path, target_repo=target_repo)
     if v_errors:
+        _write_validation_failure_receipt(
+            output_dir,
+            settings=settings,
+            target_name=target_name,
+            target_repo=target_repo,
+            proposal_path=proposal_path,
+            error_summary=f"Invalid verification receipt: {v_errors}",
+            patch_digest=patch_digest,
+        )
         raise ValueError(f"Invalid verification receipt: {v_errors}")
 
     # 4. Validate the approval as a governed artifact — NOT merely any JSON that happens
@@ -351,6 +410,18 @@ def apply_hitl_patch(
         patch_digest=patch_digest,
     )
     if binding_errors:
+        # The hardening line added a receipt for the digest-mismatch case specifically; on this
+        # lineage `approval_binding_errors` already covers that check (and more), so the receipt
+        # is emitted at the stronger guard rather than behind a second, unreachable digest test.
+        _write_validation_failure_receipt(
+            output_dir,
+            settings=settings,
+            target_name=target_name,
+            target_repo=target_repo,
+            proposal_path=proposal_path,
+            error_summary=f"Approval is not bound to this proposal: {binding_errors}",
+            patch_digest=patch_digest,
+        )
         raise ValueError(f"Approval is not bound to this proposal: {binding_errors}")
     if approval_is_expired(approval, now=int(time.time())):
         raise ValueError("Patch approval has expired")
@@ -358,8 +429,8 @@ def apply_hitl_patch(
     if compute_digest(unified_diff) != patch_digest:
         raise ValueError("Proposal patch digest does not match unified diff content")
 
-    # 5. Reverse patch / Rollback plan
-    reverse_diff_path = output_dir / "rollback.patch"
+    # 5. Forward patch stored for git apply -R rollback
+    reverse_diff_path = output_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME
     reverse_diff_path.parent.mkdir(parents=True, exist_ok=True)
 
     rollback_plan = create_rollback_plan(
@@ -373,6 +444,9 @@ def apply_hitl_patch(
     rollback_plan["target"] = dict(proposal["target"])
     rollback_plan["patch_digest"] = patch_digest
     rollback_plan["pre_head"] = pre_head
+    rollback_plan["pre_apply_status_digest"] = pre_apply_status_digest
+    rollback_plan["pre_apply_status_lines"] = pre_apply_status
+    rollback_plan["expected_workspace_clean_after_rollback"] = True
     rollback_plan_path = output_dir / "rollback_plan.json"
 
     temp_patch = output_dir / "apply.patch"
@@ -483,6 +557,7 @@ def apply_hitl_patch(
     receipt["status"] = "succeeded"
     receipt["patch_digest"] = patch_digest
     receipt["pre_head"] = pre_head
+    receipt["pre_apply_status_digest"] = pre_apply_status_digest
     receipt["proposal_digest"] = _json_digest(proposal)
     receipt["approval_digest"] = _json_digest(approval)
     receipt["verification_receipt_digest"] = _json_digest(verification_receipt)
@@ -724,6 +799,8 @@ def rollback_hitl_patch(
     plan = json_lib.loads(rollback_plan_path.read_text())
     target_repo = Path(plan["target"]["repo"])
     target_name = plan["target"]["name"]
+    if not target_repo.exists() or not target_repo.is_dir():
+        raise ValueError(f"Target repository {target_repo} does not exist or is not a directory")
 
     # 1. Authority: a rollback is itself a source mutation. It requires its own governed
     #    approval bound to THIS plan -- not merely the machine-generated plan existing (which
@@ -749,6 +826,16 @@ def rollback_hitl_patch(
     if isinstance(rollback_ref, dict):
         expected_digest = rollback_ref.get("sha256")
         if expected_digest and _file_digest(reverse_patch_path) != expected_digest:
+            _write_rollback_failure_receipt(
+                settings=settings,
+                target=plan["target"],
+                rollback_plan_ref=str(rollback_plan_path),
+                output_dir=output_dir,
+                outcome="REVERSE_PATCH_DIGEST_MISMATCH",
+                reason="reverse_patch_digest_mismatch",
+                pre_head=plan.get("pre_head"),
+                error_summary="Reverse patch digest does not match rollback plan binding",
+            )
             raise ValueError("Reverse patch digest does not match rollback plan binding")
 
     # 3. Drift-verifiability precondition (fail closed). The drift preflight below is an
@@ -797,6 +884,7 @@ def rollback_hitl_patch(
         capture_output=True,
         text=True,
     ).stdout.splitlines()
+    expected_pre_apply_digest = plan.get("pre_apply_status_digest")
 
     try:
         command = (
@@ -845,6 +933,27 @@ def rollback_hitl_patch(
         capture_output=True,
         text=True,
     ).stdout.splitlines()
+    post_rollback_status_digest = compute_digest("\n".join(after_status))
+    if expected_pre_apply_digest and post_rollback_status_digest != expected_pre_apply_digest:
+        # `git apply -R` exited 0 but the tree is not the pre-apply tree. A receipt claiming a
+        # clean rollback from here would be false; refuse with a recovery block instead.
+        _write_rollback_failure_receipt(
+            settings=settings,
+            target=plan["target"],
+            rollback_plan_ref=str(rollback_plan_path),
+            output_dir=output_dir,
+            outcome="ROLLBACK_DID_NOT_RESTORE",
+            reason="post_rollback_state_mismatch",
+            pre_head=pre_head,
+            error_summary=(
+                "Rollback did not restore pre-apply working tree state "
+                f"(expected digest {expected_pre_apply_digest}, got {post_rollback_status_digest})"
+            ),
+        )
+        raise RuntimeError(
+            "Rollback did not restore pre-apply working tree state "
+            f"(expected digest {expected_pre_apply_digest}, got {post_rollback_status_digest})"
+        )
     receipt["rollback_state"] = "EXECUTED"
     receipt["current_state"] = "OPERATIONALLY_VERIFIED"
     receipt["governance"]["capability_state"] = "OPERATIONALLY_VERIFIED"
@@ -857,6 +966,12 @@ def rollback_hitl_patch(
         path=reverse_patch_path,
         sha256=_file_digest(reverse_patch_path),
         role="rollback_reverse_patch",
+    )
+
+    receipt["pre_apply_status_digest"] = expected_pre_apply_digest
+    receipt["post_rollback_status_digest"] = post_rollback_status_digest
+    receipt["rollback_equivalence_verified"] = bool(
+        expected_pre_apply_digest and expected_pre_apply_digest == post_rollback_status_digest
     )
 
     receipt_path = output_dir / "rollback_receipt.json"

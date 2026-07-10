@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.command_authority import (
     COMMAND_AUTHORITY_REGISTRY,
     validate_registry_invariants,
@@ -33,6 +34,11 @@ from builder_ii.operator_golden_path import (
     dumps_operator_golden_path_report,
     validate_operator_golden_path_report,
     write_operator_golden_path_report,
+)
+from builder_ii.operator_lane import (
+    dumps_operator_lane_report,
+    run_operator_lane,
+    validate_operator_lane_report,
 )
 from builder_ii.operator_next import (
     create_operator_next_action_report,
@@ -91,14 +97,14 @@ def _validate_or_exit(root: Path | None = None) -> None:
 def matrix() -> None:
     """Print the source-derived platform capability matrix as JSON."""
     _validate_or_exit(root=Path.cwd())
-    console.out(dumps_matrix(), end="")
+    typer.echo(dumps_matrix(), nl=False)
 
 
 @platform_app.command("status")
 def status() -> None:
     """Print concise human-readable platform truth state."""
     _validate_or_exit(root=Path.cwd())
-    console.out(render_human_summary(), end="")
+    typer.echo(render_human_summary(), nl=False)
 
 
 @platform_app.command("known-limitations")
@@ -146,7 +152,7 @@ def operator_status(
     if output:
         write_operator_status_report(report, output.resolve())
 
-    console.out(dumps_operator_status_report(report), end="")
+    echo_stdout(dumps_operator_status_report(report))
 
 
 @platform_app.command("next")
@@ -172,7 +178,46 @@ def next_action(
     if output:
         write_operator_next_action_report(report, output.resolve())
 
-    console.out(dumps_operator_next_action_report(report), end="")
+    echo_stdout(dumps_operator_next_action_report(report))
+
+
+@platform_app.command("operator-lane")
+def operator_lane(
+    target: str = typer.Option("generic", "--target", "-t", help="Target profile: generic or builder."),
+    output_dir: Path = typer.Option(..., "--output-dir", "-o", help="Evidence output directory."),
+    dry_run: bool = typer.Option(True, "--dry-run/--execute", help="Dry-run composes artifacts only."),
+    path: list[Path] = typer.Option(None, "--path", help="Explicit file path for inspection or content-read."),
+    content_read: bool = typer.Option(False, "--content-read", help="Emit bounded content-read receipts for --path files."),
+) -> None:
+    """Compose governed platform capabilities into one evidence directory."""
+    _validate_or_exit(root=Path.cwd())
+    if target not in {"generic", "builder"}:
+        console.print("[red]operator-lane supports --target generic or builder only[/]")
+        raise typer.Exit(1)
+
+    explicit_paths = list(path or [])
+    content_paths = explicit_paths if content_read else []
+    inspection_paths = [] if content_read else explicit_paths
+
+    try:
+        report = run_operator_lane(
+            target_name=target,  # type: ignore[arg-type]
+            output_dir=output_dir.resolve(),
+            dry_run=dry_run,
+            explicit_paths=inspection_paths or None,
+            content_read_paths=content_paths or None,
+        )
+    except Exception as exc:
+        console.print(f"[red]operator lane failed:[/] {exc}")
+        raise typer.Exit(1)
+
+    errors = validate_operator_lane_report(report)
+    if errors:
+        for error in errors:
+            console.print(f"[red]operator lane validation error:[/] {error}")
+        raise typer.Exit(1)
+
+    typer.echo(dumps_operator_lane_report(report), nl=False)
 
 
 @platform_app.command("golden-path")
@@ -203,7 +248,7 @@ def golden_path(
         raise typer.Exit(1)
 
     write_operator_golden_path_report(report, output_dir / "golden-path-report.json")
-    console.out(dumps_operator_golden_path_report(report), end="")
+    echo_stdout(dumps_operator_golden_path_report(report))
 
 
 @platform_app.command("validate-golden-path")
@@ -232,9 +277,7 @@ def validate_golden_path(
             console.print(f"[red]operator golden path validation error:[/] {error}")
         raise typer.Exit(1)
 
-    console.out(
-        json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n", end=""
-    )
+    echo_stdout(json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n")
 
 
 @platform_app.command("demo-loop")
@@ -309,7 +352,7 @@ def demo_loop(
     except Exception as exc:
         console.print(f"[red]demo loop failed:[/] {exc}")
         raise typer.Exit(1)
-    console.out(dumps_demo_report(report), end="")
+    echo_stdout(dumps_demo_report(report))
 
 
 @platform_app.command("validate-demo-loop")
@@ -334,9 +377,7 @@ def validate_demo_loop(
         for error in errors:
             console.print(f"[red]demo report validation error:[/] {error}")
         raise typer.Exit(1)
-    console.out(
-        json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n", end=""
-    )
+    echo_stdout(json_lib.dumps({"valid": True, "report_file": str(report_file)}, indent=2, sort_keys=True) + "\n")
 
 
 @platform_app.command("wow")
@@ -376,7 +417,7 @@ def wow(
     except Exception as exc:
         console.print(f"[red]demo loop failed:[/] {exc}")
         raise typer.Exit(1)
-    console.out(dumps_demo_report(report), end="")
+    echo_stdout(dumps_demo_report(report))
 
 
 @platform_app.command("audit-docs")
@@ -396,7 +437,7 @@ def audit_docs(
     root = root.resolve()
     _validate_or_exit(root=root)
     report = render_docs_audit_jsonable(root)
-    console.out(dumps_docs_audit(root), end="")
+    echo_stdout(dumps_docs_audit(root))
     if not report["valid"]:
         raise typer.Exit(1)
 
@@ -534,7 +575,7 @@ def r1_closure(
         report["valid"] = False
 
     write_r1_closure_report(report, output_dir / "r1-closure-report.json")
-    console.out(dumps_r1_closure_report(report), end="")
+    echo_stdout(dumps_r1_closure_report(report))
     if not report["valid"]:
         raise typer.Exit(1)
 
@@ -577,7 +618,7 @@ def validate_r1_closure(
         "report_file": str(report_file),
         "errors": errors,
     }
-    console.out(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n", end="")
+    echo_stdout(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n")
     if not summary["valid"]:
         raise typer.Exit(1)
 

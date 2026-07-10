@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.research_adapters import (
     create_research_adapter_artifact,
     dumps_research_adapter_artifact,
@@ -108,7 +109,7 @@ def plan(
         write_research_plan_artifact(artifact, output)
         console.print(f"Research plan artifact written to {output}")
     else:
-        console.out(dumps_research_plan_artifact(artifact), end="")
+        echo_stdout(dumps_research_plan_artifact(artifact))
 
 
 @research_app.command("validate")
@@ -152,7 +153,7 @@ def adapter(
         write_research_adapter_artifact(artifact, output)
         console.print(f"Research adapter artifact written to {output}")
     else:
-        console.out(dumps_research_adapter_artifact(artifact), end="")
+        echo_stdout(dumps_research_adapter_artifact(artifact))
 
 
 @research_app.command("validate-adapter")

@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.handoff_bundle_records import (
     create_handoff_bundle_record_from_file,
     dumps_handoff_bundle_record,
@@ -38,7 +39,7 @@ def record(
         write_handoff_bundle_record(item, output)
         console.print(f"Handoff bundle record written to {output}")
     else:
-        console.out(dumps_handoff_bundle_record(item), end="")
+        echo_stdout(dumps_handoff_bundle_record(item))
 
 
 @handoff_app.command("validate")

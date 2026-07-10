@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.agent_profiles import AgentProfileName
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.orchestration_assignment import (
     AGENT_ASSIGNMENT_PLAN_KIND,
     ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
@@ -114,7 +115,7 @@ def plan_orchestration(
         output.write_text(serialized, encoding="utf-8")
         console.print(f"[green]Orchestration plan written to {output}[/]")
     else:
-        console.out(serialized, end="")
+        echo_stdout(serialized)
 
 
 @orchestration_app.command("validate")
@@ -316,7 +317,7 @@ def render_assignment(
         write_orchestration_assignment_plan(plan, output)
         console.print(f"[green]Orchestration assignment plan written to {output}[/]")
     else:
-        console.out(dumps_orchestration_assignment_plan(plan), end="")
+        echo_stdout(dumps_orchestration_assignment_plan(plan))
 
 
 @orchestration_app.command("dry-run")
@@ -343,7 +344,7 @@ def dry_run_assignment(
         write_orchestration_assignment_dry_run(dry_run, output)
         console.print(f"[green]Orchestration assignment dry-run written to {output}[/]")
     else:
-        console.out(dumps_orchestration_assignment_dry_run(dry_run), end="")
+        echo_stdout(dumps_orchestration_assignment_dry_run(dry_run))
 
 
 @orchestration_app.command("lane-policy")

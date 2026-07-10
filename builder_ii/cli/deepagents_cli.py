@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.deepagents_forge_cli import app as deepagents_forge_app
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config import load_settings
 from builder_ii.deepagents_execution import (
     BACKEND_MODES,
@@ -225,7 +226,7 @@ def policy(
         write_deepagents_policy_artifact(artifact, output)
         console.print(f"Deepagents policy artifact written to {output}")
     else:
-        console.out(dumps_deepagents_policy_artifact(artifact), end="")
+        echo_stdout(dumps_deepagents_policy_artifact(artifact))
 
 
 @deepagents_app.command("validate")
@@ -256,7 +257,7 @@ def readiness(
         write_deepagents_readiness_artifact(artifact, output)
         console.print(f"Deepagents readiness artifact written to {output}")
     else:
-        console.out(dumps_deepagents_readiness_artifact(artifact), end="")
+        echo_stdout(dumps_deepagents_readiness_artifact(artifact))
 
 
 @deepagents_app.command("validate-readiness")
@@ -325,7 +326,7 @@ def work_plan(
         write_deepagents_work_plan(artifact, output)
         console.print(f"Deepagents work plan written to {output}")
     else:
-        console.out(dumps_deepagents_work_plan(artifact), end="")
+        echo_stdout(dumps_deepagents_work_plan(artifact))
 
 
 @deepagents_app.command("assign-subagent")
@@ -351,7 +352,7 @@ def assign_subagent(
         write_deepagents_subagent_assignment(artifact, output)
         console.print(f"Subagent assignment written to {output}")
     else:
-        console.out(dumps_deepagents_subagent_assignment(artifact), end="")
+        echo_stdout(dumps_deepagents_subagent_assignment(artifact))
 
 
 @deepagents_app.command("record-result")
@@ -379,7 +380,7 @@ def record_result(
         write_deepagents_subagent_result(artifact, output)
         console.print(f"Subagent result written to {output}")
     else:
-        console.out(dumps_deepagents_subagent_result(artifact), end="")
+        echo_stdout(dumps_deepagents_subagent_result(artifact))
 
 
 @deepagents_app.command("review-result")
@@ -409,7 +410,7 @@ def review_result_command(
         write_deepagents_subagent_review(artifact, output)
         console.print(f"Subagent review written to {output}")
     else:
-        console.out(dumps_deepagents_subagent_review(artifact), end="")
+        echo_stdout(dumps_deepagents_subagent_review(artifact))
 
 
 @deepagents_app.command("request-human-gate")
@@ -431,7 +432,7 @@ def request_human_gate(
         write_deepagents_human_gate_request(artifact, output)
         console.print(f"Human gate request written to {output}")
     else:
-        console.out(dumps_deepagents_human_gate_request(artifact), end="")
+        echo_stdout(dumps_deepagents_human_gate_request(artifact))
 
 
 @deepagents_app.command("record-blocked-action")
@@ -459,7 +460,7 @@ def record_blocked_action(
         write_deepagents_blocked_action_record(artifact, output)
         console.print(f"Blocked action record written to {output}")
     else:
-        console.out(dumps_deepagents_blocked_action_record(artifact), end="")
+        echo_stdout(dumps_deepagents_blocked_action_record(artifact))
 
 
 @deepagents_app.command("proposal-result")
@@ -485,7 +486,7 @@ def proposal_result(
         write_deepagents_proposal_result(artifact, output)
         console.print(f"Proposal result written to {output}")
     else:
-        console.out(dumps_deepagents_proposal_result(artifact), end="")
+        echo_stdout(dumps_deepagents_proposal_result(artifact))
 
 
 @deepagents_app.command("validate-work-artifact")
@@ -654,7 +655,7 @@ def execution_candidate(
             f"Deepagents execution candidate written to {output}. Next: builder-deepagents approve-candidate --candidate {output} --approval-actor <name> --approval-reason <reason> --output <approval.json>"
         )
     else:
-        console.out(dumps_deepagents_execution_candidate(artifact), end="")
+        echo_stdout(dumps_deepagents_execution_candidate(artifact))
 
 
 @deepagents_app.command("backend-readiness")
@@ -711,7 +712,7 @@ def backend_readiness(
             f"Deepagents backend readiness gate written to {output}. Next: builder-deepagents execution-candidate --backend-mode optional_deepagents --backend-readiness-gate {output} ..."
         )
     else:
-        console.out(dumps_deepagents_backend_readiness_gate(artifact), end="")
+        echo_stdout(dumps_deepagents_backend_readiness_gate(artifact))
 
 
 @deepagents_app.command("approve-candidate")
@@ -751,7 +752,7 @@ def approve_candidate(
             f"Deepagents execution approval written to {output}. Next: builder-deepagents run-approved --candidate {candidate} --approval {output} --output-dir <run-dir>"
         )
     else:
-        console.out(dumps_deepagents_execution_approval(artifact), end="")
+        echo_stdout(dumps_deepagents_execution_approval(artifact))
 
 
 @deepagents_app.command("run-approved")
@@ -786,7 +787,7 @@ def run_approved(
     except Exception as exc:
         console.print(f"Error: {exc}")
         raise typer.Exit(1)
-    console.out(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n", end="")
+    echo_stdout(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n")
 
 
 @deepagents_app.command("resume-approved")
@@ -807,7 +808,7 @@ def resume_approved(
     except Exception as exc:
         console.print(f"Error: {exc}")
         raise typer.Exit(1)
-    console.out(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n", end="")
+    echo_stdout(json_lib.dumps(summary, indent=2, sort_keys=True) + "\n")
 
 
 @deepagents_app.command("replay-run")
@@ -821,12 +822,11 @@ def replay_run(
     except Exception as exc:
         console.print(f"Error: {exc}")
         raise typer.Exit(1)
-    console.out(
+    echo_stdout(
         json_lib.dumps(
             {"valid": replay["valid"], "status": replay["status"], "output": str(output)}, indent=2, sort_keys=True
         )
-        + "\n",
-        end="",
+        + "\n"
     )
     if replay["valid"] is not True:
         raise typer.Exit(1)
@@ -858,6 +858,4 @@ def evidence_bundle(
     except Exception as exc:
         console.print(f"Error: {exc}")
         raise typer.Exit(1)
-    console.out(
-        json_lib.dumps({"status": bundle["status"], "output": str(output)}, indent=2, sort_keys=True) + "\n", end=""
-    )
+    echo_stdout(json_lib.dumps({"status": bundle["status"], "output": str(output)}, indent=2, sort_keys=True) + "\n")

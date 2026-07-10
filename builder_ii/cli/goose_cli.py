@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config import load_settings
 from builder_ii.goose_command_proposal import (
     create_goose_command_proposal_from_manifest_file,
@@ -116,7 +117,7 @@ def manifest(
         write_goose_session_manifest(session_manifest, output)
         console.print(f"Goose session manifest written to {output}")
     else:
-        console.out(dumps_goose_session_manifest(session_manifest), end="")
+        echo_stdout(dumps_goose_session_manifest(session_manifest))
 
 
 @goose_app.command("validate")
@@ -146,7 +147,7 @@ def readonly_audit(
         write_readonly_runtime_audit(audit, output)
         console.print(f"Goose read-only audit written to {output}")
     else:
-        console.out(dumps_readonly_runtime_audit(audit), end="")
+        echo_stdout(dumps_readonly_runtime_audit(audit))
 
 
 @goose_app.command("validate-audit")
@@ -187,7 +188,7 @@ def inspect_readonly(
         write_readonly_inspection_audit(audit, output)
         console.print(f"Goose read-only inspection audit written to {output}")
     else:
-        console.out(dumps_readonly_inspection_audit(audit), end="")
+        echo_stdout(dumps_readonly_inspection_audit(audit))
 
 
 @goose_app.command("validate-inspection")
@@ -226,7 +227,7 @@ def propose_command(
         write_goose_command_proposal(proposal, output)
         console.print(f"Goose command proposal written to {output}")
     else:
-        console.out(dumps_goose_command_proposal(proposal), end="")
+        echo_stdout(dumps_goose_command_proposal(proposal))
 
 
 @goose_app.command("validate-command-proposal")
