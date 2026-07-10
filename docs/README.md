@@ -185,6 +185,8 @@ Vision set (destination, law, gates — design truth; does not promote capabilit
 | [`docs/CODE_VAULT_ROADMAP.md`](CODE_VAULT_ROADMAP.md) | Gate-ordered roadmap (no chronos) |
 | [`docs/CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md`](CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md) | Three-clock truth delta |
 | [`docs/plan/CODE_VAULT_MASTER_PLAN.md`](plan/CODE_VAULT_MASTER_PLAN.md) | Consolidated master plan to fruition |
+| [`docs/plan/CODE_VAULT_EXECUTION_MAP.md`](plan/CODE_VAULT_EXECUTION_MAP.md) | Per-PR execution map for the first slice (G1 → G1b → G2) |
+| [`docs/plan/CODE_VAULT_G1_WAVE_BRIEFS.md`](plan/CODE_VAULT_G1_WAVE_BRIEFS.md) | Wave-1 work orders (PR-1/2/3) |
 | [`docs/plan/CODE_VAULT_TIER1_ENCODER_RFC.md`](plan/CODE_VAULT_TIER1_ENCODER_RFC.md) | F1 encoder RFC and measurement history |
 | [`docs/adrs/ADR-0005-codevault-boundary-and-authority.md`](adrs/ADR-0005-codevault-boundary-and-authority.md) | CodeVault boundary and authority ADR |
 

@@ -1,0 +1,136 @@
+# CodeVault Execution Map — First Slice (G1 → G1b → G2)
+
+**Status:** Official per-PR execution truth for the master plan's first slice.  
+**Kind:** Design / execution map (RECORDED_ONLY). Implements no capability by existing.
+
+The [master plan](CODE_VAULT_MASTER_PLAN.md) fixes the gate order; this map fixes the **PR
+decomposition** of the first slice — what each PR touches, what it proves, what it may claim, and
+what it must refuse. **No chronos:** waves are dependency groupings, not sprints. Work orders for
+dispatchable PRs live in [`CODE_VAULT_G1_WAVE_BRIEFS.md`](CODE_VAULT_G1_WAVE_BRIEFS.md).
+
+Scope of this map: **G1, G1b, G2**. Gates G3–G7 stay at master-plan resolution because each is
+blocked on an upstream decision recorded in the [deferred-decision registry](#deferred-decision-registry)
+— specifying their PRs now would be planning theater, which Axiom Zero forbids.
+
+---
+
+## Code-clock starting line (measured, not assumed)
+
+The facts below were read from the modules, not inferred from docs. They are the honest baseline
+every wave-1 PR builds on.
+
+| Surface | Fact (code clock) |
+|---|---|
+| `code_vault/symbol_extractor.py` | Top-level `FunctionDef`/`AsyncFunctionDef`/`ClassDef` only; async collapsed to kind `function`; bounds `MAX_SYMBOLS_PER_FILE = 64`, `MAX_SYMBOL_CONTENT_BYTES = 8192`; syntax errors → `[]`. Fabricates nothing — but declares nothing (no manifest, no version, no unsupported list). |
+| `code_vault/hierarchy.py` | `HIERARCHICAL_FRAME_SCHEMA_VERSION = 2`; `SUPPORTED_FRAME_SCHEMA_VERSIONS = (1, 2)`; the additive-optional versioning policy is encoded at the constant (Tier-1 RFC). The frame carries **no repository-state provenance** (no commit id, dirty flag, or scope header anywhere in the build path). |
+| `repo_map.py` | Emits `truncated`, `file_count`, `ignored_directories`, default `max_files = 500` — truncation honesty exists at repo-map level but does **not** propagate onto the frame. |
+| `code_vault/reports/linter.py` | Containment scan is quadratic (per-symbol linear scans over file nodes); clone scan is linear (digest grouping). Spatial index named as bench prerequisite in the Tier-1 RFC; not shipped. |
+| Registration seams | New artifact kind = `*_KIND` string + `validate_*` + registration in `artifact_index_records.py` + row in `docs/ARTIFACT_INDEX.md`. New subcommand = Typer command in `cli/code_vault_cli.py` + entry in the `command_authority.py` subcommand enumeration + `docs/COMMAND_SURFACE_AUDIT.md`. Tests pin both. |
+| Severability precedent | `code_vault_receipt_bridge.py` lives **outside** the package so the vault never imports verification lanes. Any helper that touches repo state (e.g. git metadata) follows this precedent. |
+
+---
+
+## Wave structure
+
+```text
+Wave 1 (parallel, independent)          Wave 2 (after wave 1)            Wave 3 (after wave 2)
+  PR-1 ExtractorManifest                  PR-4 scope/coverage on frame     PR-7 StructuralField v1
+  PR-2 StructuralField schema stub        PR-5 refresh ≡ rebuild guard          via Python extractor
+  PR-3 frame provenance binding           PR-6 linter spatial index             (first R+D field)
+                                               (deferrable — see below)
+```
+
+Wave-1 PRs are mutually independent and safe to implement concurrently in **separate worktrees**.
+Work orders for wave 2 and wave 3 are authored only after wave 1 lands — schemas must settle before
+they are consumed (measure, then amend; never specify against an unlanded surface).
+
+---
+
+## Per-PR map
+
+| # | Gate | Scope | Proof | Claims unlocked | Refused claims |
+|---|---|---|---|---|---|
+| 1 | G1 | `ExtractorManifest` artifact + the Python extractor v0 declares one | R | "extractors are declared" | any structure intelligence |
+| 2 | G1 | `StructuralField` schema stub (validator only; no fact emission path) | R | "the F2 schema exists" | structural correspondence vocabulary |
+| 3 | G1b | Frame provenance block (additive-optional, caller-supplied; schema v2→v3) | R | "a frame can bind to a repo state" | lineage / change intelligence (F4) |
+| 4 | G1b | Truncation/coverage propagated from repo_map onto the frame; scope modes | R | honest scoped indexing | full-monorepo coverage without flags |
+| 5 | G1b | Refresh ≡ rebuild byte-identity guard (test-first; law before optimization) | R | — (an invariant, not a feature) | any incremental path that trades determinism |
+| 6 | G1b | Linter containment scan → spatial index (identical findings pre/post) | R | honest 10k-node bench path | — |
+| 7 | G2 | StructuralField v1 fed by Python extractor v1 (nested, async, signatures, decorators, ownership, imports-as-facts) + invariance fixtures | R+D | structural correspondence **candidates** (hypothesis) | multi-language structure; any utility language (U) |
+
+PR-6 is **deferrable within G1b**: the quadratic scan only bites past ~10k nodes, and no bench
+above 1k nodes is claimed today. It must land before any 10k-node bench result is published — that
+ordering is the constraint, not its position in the wave.
+
+Gate G1 opens only when **all** of its bullets in the [roadmap](../CODE_VAULT_ROADMAP.md) hold
+(manifest + stub + provenance skeleton + fail-closed posture) — landing PR-1 alone does not open
+G1, and no doc may say otherwise.
+
+---
+
+## Standing invariants (every PR in this slice inherits)
+
+1. **Severability** — no new imports from core lanes into `builder_ii/code_vault/`; helpers that
+   read repo state live outside the package (receipt-bridge precedent).
+2. **Governance block** — every new artifact carries the standard block: all execution surfaces
+   `DISABLED`, `artifact_is_authority: false`, a named `capability_state`. Promotion state stays
+   `artifact_only` / `validation_only`; no completion-matrix flip.
+3. **Claim law** ([proof program](../CODE_VAULT_PROOF_PROGRAM.md)) — R alone → artifact may exist;
+   R+D → `*_candidate` vocabulary; U → product language. Nothing in this slice reaches U.
+4. **Anti-transcription** — declarations derive from the code constants they describe (import the
+   constant, never re-type it). A manifest that transcribes is a manifest that drifts.
+5. **Fail closed** — unknown constructs, unknown enum states, and tampered digests are refusals,
+   never defaults.
+6. **TDD** — the work order's test list is written and failing before implementation; every new
+   module gets `tests/test_<module>.py` mirroring 1:1.
+7. **Docs in the same PR** — staged-acceptance row, gap-map delta update, and `ARTIFACT_INDEX` /
+   `COMMAND_SURFACE_AUDIT` rows land with the code that makes them true; `audit-docs` stays green.
+8. **Frame byte-stability** — no wave-1 PR may alter the bytes of a frame built with today's
+   inputs. New fields are additive-optional and absent by default (the schema-versioning policy at
+   `hierarchy.py`).
+
+---
+
+## Work-order protocol
+
+- Work orders are **implementer-agnostic**: they resolve every design decision so the implementer
+  (human or dispatched agent) inherits zero ambiguity and burns no reasoning on architecture.
+- One PR per work order; one branch per PR from `main`; concurrent work in separate worktrees.
+- Each work order names its acceptance commands. The PR body reports their output; `bash
+  scripts/ci.sh` is the final word before review.
+- A work order that survives contact with the code imperfectly is **amended in the same PR** that
+  discovers the mismatch — the map records the amendment, not a silent divergence.
+
+---
+
+## Deferred-decision registry (blocks G3+)
+
+| Decision | Blocks | Owner / mechanism | State |
+|---|---|---|---|
+| Parser strategy (native AST vs tree-sitter vs SCIP/LSIF vs hybrid) | G3 second-language extractor | HITL decision note scored on the [language substrate](../CODE_VAULT_LANGUAGE_SUBSTRATE.md) axes | Open — do not bind before G2 lessons |
+| U task registry + rubric design | G5 | HITL-approved RECORDED_ONLY design artifact (F6 blueprint law: unapproved rubric = unopened gate) | Open |
+| Tier-2 graded-similarity RFC | any similarity geometry | Operator-deferred at Tier-1 PR-1 time (RFC open question 2) | Deferred |
+| Bench self-snapshot corpus (pinned builder-II snapshot) | richer D evidence | Tier-1 RFC open question 3 | Open option |
+| Frame `dirty`-flag derivation (requires git status semantics) | provenance depth | Amendment to PR-3's helper after measurement; v1 declares `dirty` unknown rather than guessing | Open |
+
+---
+
+## Verification matrix
+
+| PR | Verification commands (minimum; `bash scripts/ci.sh` before review) |
+|---|---|
+| 1 | `uv run pytest tests/test_code_vault_extractor_manifest.py tests/test_code_vault_cli.py tests/test_command_authority.py tests/test_command_surface_audit.py tests/test_artifact_index_records.py -q` + `uv run builder-platform audit-docs` |
+| 2 | `uv run pytest tests/test_code_vault_structural_field.py tests/test_code_vault_cli.py tests/test_command_authority.py tests/test_artifact_index_records.py -q` + `uv run builder-platform audit-docs` |
+| 3 | `uv run pytest tests/test_code_vault_hierarchy.py tests/test_code_vault_provenance.py tests/test_code_vault_demo_loop.py -q` + `uv run builder-platform audit-docs` |
+| 4–7 | Named in their work orders when authored (after wave 1 lands) |
+
+---
+
+## Related
+
+- [`CODE_VAULT_G1_WAVE_BRIEFS.md`](CODE_VAULT_G1_WAVE_BRIEFS.md) — wave-1 work orders (PR-1/2/3)
+- [`CODE_VAULT_MASTER_PLAN.md`](CODE_VAULT_MASTER_PLAN.md) — gate law and path to fruition
+- [`../CODE_VAULT_ROADMAP.md`](../CODE_VAULT_ROADMAP.md) — gate definitions G0…G7
+- [`../CODE_VAULT_LANGUAGE_SUBSTRATE.md`](../CODE_VAULT_LANGUAGE_SUBSTRATE.md) — Artifact IR sketches the stubs implement
+- [`../CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md`](../CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md) — deltas these PRs close
+- [`../adrs/ADR-0005-codevault-boundary-and-authority.md`](../adrs/ADR-0005-codevault-boundary-and-authority.md) — authority boundary every PR inherits
