@@ -244,6 +244,30 @@ digest); helper: resolves HEAD in fixture git dirs (direct hash, ref file, packe
 `None` fail-closed on non-git dirs; helper performs no subprocess calls (no `subprocess` import —
 assert at module level); demo suite still passes untouched.
 
+### Amendments (recorded during implementation)
+
+Two decisions above survived contact with the code imperfectly and are amended here in the same PR
+(execution-map work-order protocol) rather than diverged from silently:
+
+1. **Decision #5 (versioning) — "schema 3" is realized as a *provenance-gated* bump, not a default
+   bump.** Decision #4 requires a no-provenance frame to be byte-identical to today's (schema v2),
+   and standing invariant #8 forbids altering the bytes of a frame built with today's inputs.
+   Bumping the default `HIERARCHICAL_FRAME_SCHEMA_VERSION` to 3 would change every frame's
+   `schema_version` bytes and break the demo/byte-stability pins. So the constant
+   `HIERARCHICAL_FRAME_SCHEMA_VERSION` **stays 2**; a new `PROVENANCE_FRAME_SCHEMA_VERSION = 3` is
+   added; `SUPPORTED_FRAME_SCHEMA_VERSIONS = (1, 2, 3)`. The builder emits `schema_version: 2` when
+   no provenance is attached and `3` only when a provenance block is present; the validator refuses
+   a provenance block on any non-v3 frame. This is the only reading consistent with decisions #4/#5
+   together.
+
+2. **Decision #2 (`.git` reads) — extended to the worktree `.git`-file indirection.** Decision #2
+   assumed `.git/HEAD` is directly readable, i.e. `.git` is a directory. This repo's own dev flow is
+   worktree-based, where `.git` is a *file* (`gitdir: <path>`) and branch refs live in a common dir
+   named by `commondir`. The helper therefore follows `.git` (file) → `gitdir:` → `commondir` →
+   `refs/…`/`packed-refs`, all via pure file reads with **no subprocess**, still fail-closed to
+   `commit_id: None` on any unresolvable state. This widens decision #2's file-read set; it does not
+   change its fail-closed contract or the no-subprocess constraint.
+
 ### Out of scope
 
 Deriving `dirty`; wiring prepare-package/workflow emission (wave 2); extractor or StructuralField
