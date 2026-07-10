@@ -377,3 +377,12 @@ def status_cmd(env_flag: bool = typer.Option(False, "--env", help="Print redacte
         from builder_ii.goose_launcher import goose_status
 
         console.print(goose_status())
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised as a subprocess, not imported
+    # Module entry point so a caller can invoke this governed CLI with a fixed argv
+    # `(sys.executable, "-m", "builder_ii.cli.goose_cli", ...)` rather than relying on a
+    # console script's location on PATH. Mirrors `builder_ii.verification_runner_entrypoints`,
+    # which `verification_execution_runner` invokes the same way. Adds no command surface, so it
+    # needs no `command_authority.py` record.
+    goose_app()

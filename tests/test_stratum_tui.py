@@ -1,3 +1,4 @@
+import json
 import pathlib
 from pathlib import Path
 from unittest.mock import patch
@@ -209,42 +210,85 @@ async def test_prepare_package_refuses_to_write_and_names_the_governed_cli(tmp_p
             assert "builder-session prepare-package" in message
 
 
+def test_tui_never_reaches_for_the_raw_goose_adapter_or_chooses_builtins() -> None:
+    """STRATUM invokes builder-II's governed CLI. It does not locate, configure, or spawn Goose.
+
+    Scoped to what actually matters: the raw adapter module, the binary finder, and any choice of
+    Goose builtins. (`"goose"` alone is a false positive -- `.builder/goose` is where the governed
+    manifest lives, and a pin that fires on a directory name is a pin nobody will keep.)
+    """
+    forbidden_symbols = ("launch_goose_session", "find_goose_binary", "derive_goose_environment")
+    for source in _TUI_DIR.rglob("*.py"):
+        text = source.read_text(encoding="utf-8")
+        code = "\n".join(line for line in text.splitlines() if not line.strip().startswith("#"))
+        for symbol in forbidden_symbols:
+            assert f"{symbol}(" not in code, f"{source.name} calls {symbol}; that is the ungoverned path"
+        for literal in _rendered_string_literals(source):
+            assert "--with-builtin" not in literal, f"{source.name} chooses Goose builtins itself"
+
+
 @pytest.mark.asyncio
-async def test_launch_goose_refuses_and_never_spawns() -> None:
-    import builder_ii.goose_launcher as launcher
+async def test_launch_goose_fails_closed_when_the_registry_forbids_the_governed_command() -> None:
+    from builder_ii.command_authority import CommandAuthorityError
 
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
-        mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = "TIER_0"
-
         app = StratumApp()
         async with app.run_test():
-            with patch.object(launcher, "launch_goose_session") as spawn, patch.object(app, "notify") as notify:
+            with (
+                patch("builder_ii.command_authority.enforce_command_authority", side_effect=CommandAuthorityError("nope")),
+                patch("subprocess.run") as run,
+                patch.object(app, "notify") as notify,
+            ):
                 app.action_launch_goose()
-                spawn.assert_not_called()
 
+            run.assert_not_called()
+            assert "not permitted" in notify.call_args[0][0]
+
+
+@pytest.mark.asyncio
+async def test_launch_goose_refuses_without_a_readonly_manifest_and_never_spawns(tmp_path) -> None:
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        app = StratumApp()
+        app.artifacts_dir = tmp_path / "artifacts"
+        async with app.run_test():
+            with patch("subprocess.run") as run, patch.object(app, "notify") as notify:
+                app.action_launch_goose()
+
+            run.assert_not_called()
             message = notify.call_args[0][0]
-            assert "cannot start a Goose runtime" in message
-            assert "builder-goose start-readonly" in message
+            assert "No read-only Goose session manifest found" in message
+            assert "builder-goose manifest --mode read_only" in message
+            assert "STRATUM does not mint manifests" in message
 
 
-def test_tui_sources_never_fabricate_an_artifact_kind() -> None:
-    """Every `kind:` literal under `builder_ii/tui/` must be a kind the registry actually knows.
+def test_manifest_discovery_rejects_a_manifest_that_does_not_request_read_only(tmp_path) -> None:
+    """A valid manifest asking for `disabled` mode is not a licence to start a runtime."""
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        app = StratumApp()
+        app.artifacts_dir = tmp_path / ".builder" / "artifacts"
+        goose_dir = tmp_path / ".builder" / "goose"
+        goose_dir.mkdir(parents=True)
+        (goose_dir / "session.json").write_text(json.dumps({"requested_runtime_mode": "disabled"}), encoding="utf-8")
 
-    STRATUM wrote `builder_ii.orchestration_assignment` (the governed kind is
-    `..._assignment_plan`) and `builder_ii.session_config` (the governed kind is
-    `builder_ii.session_configuration`). Inventing a kind to record a fabricated success under is
-    the artifact grammar's exact inverse.
-    """
-    import re
+        with patch("builder_ii.goose_session.validate_goose_session_manifest_file", return_value=[]):
+            assert app._governed_readonly_manifest() is None
 
-    from builder_ii.artifact_index_records import _VALIDATORS
 
-    known = set(_VALIDATORS)
-    for source in _TUI_DIR.rglob("*.py"):
-        for kind in re.findall(r'"(builder_ii\.[a-z_]+)"', source.read_text(encoding="utf-8")):
-            assert kind in known, f"{source.name} names unregistered artifact kind {kind!r}"
+@pytest.mark.asyncio
+async def test_launch_goose_reports_only_the_outcome_the_command_recorded() -> None:
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        app = StratumApp()
+        async with app.run_test():
+            with patch.object(app, "notify") as notify:
+                app._render_goose_session_outcome(1)
+            message, kwargs = notify.call_args[0][0], notify.call_args.kwargs
+            assert "exited 1" in message
+            assert kwargs.get("severity") == "error"
+            assert "completed" not in message, "a failed session must not be reported as success"
 
 
 # --- STRATUM claims no action it does not perform ------------------------------------------------

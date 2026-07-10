@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from textual.app import App, ComposeResult
@@ -500,26 +501,97 @@ class StratumApp(App[None]):
         self.notify("Validating package...")
         await self._verify_current_chain_async()
 
-    def action_launch_goose(self) -> None:
-        """Refuse. STRATUM must not launch a runtime the governed CLI gates at a higher tier.
+    # Fixed argv into builder-II's own governed CLI. Never `goose` directly, and never
+    # `goose_launcher.launch_goose_session` -- that spawns `goose session --with-builtin
+    # developer,skills,summon`, whose developer builtin carries file editing and shell, takes no
+    # preflight snapshot and emits no receipt. `builder-goose start-readonly` runs
+    # `GooseRuntimeHarness.launch_readonly`, which spawns `goose session --with-builtin ""` (no
+    # builtins at all), snapshots every target file's digest before launch, and on close emits a
+    # launch receipt, a close receipt and a no-mutation postflight that FAILS if the target moved.
+    GOVERNED_GOOSE_COMMAND = "builder-goose start-readonly"
+    _GOOSE_MANIFEST_DIR = "goose"
 
-        This binding used to call `goose_launcher.launch_goose_session`, which spawns
-        `goose session --with-builtin developer,skills,summon` -- the developer builtin carries file
-        editing and shell. No read-only policy, no launch receipt, no approval.
+    def _governed_readonly_manifest(self) -> Path | None:
+        """The newest session manifest that a read-only launch would accept. Read-only; writes nothing.
 
-        `builder stratum` is TIER_2, operator-managed, and its record declares no write authority.
-        The governed command for exactly this runtime, `builder-goose start-readonly`, is TIER_3,
-        STATE_READ_ONLY_RUNTIME_CANDIDATE, bounded by read-only policies, and "requires implicit or
-        explicit HITL approval for launch." A keypress inside a TIER_2 render surface must not
-        launder a TIER_3 approval boundary. Same principle that makes the HITL approve/reject
-        actions constitutive refusals: the surface that renders authority state does not get to
-        originate authority.
+        STRATUM does not mint the manifest -- that is `builder-goose manifest`'s artifact to emit.
+        It finds one, validates it with the manifest's own validator, and refuses if the operator has
+        not asked for `read_only`. A launch that had to invent its own manifest would be originating
+        the very authority this surface refuses.
         """
-        self.notify(
-            "STRATUM cannot start a Goose runtime; run `builder-goose start-readonly` in your "
-            "terminal, where the read-only policy and launch approval apply.",
-            severity="warning",
-        )
+        from builder_ii.goose_session import validate_goose_session_manifest_file
+
+        manifest_dir = self.artifacts_dir.parent / self._GOOSE_MANIFEST_DIR
+        if not manifest_dir.is_dir():
+            return None
+        candidates = sorted(manifest_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for candidate in candidates:
+            if validate_goose_session_manifest_file(candidate):
+                continue
+            try:
+                manifest = json.loads(candidate.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if manifest.get("requested_runtime_mode") == "read_only":
+                return candidate
+        return None
+
+    def action_launch_goose(self) -> None:
+        """Hand the terminal to the governed read-only command. STRATUM starts no runtime itself.
+
+        The surface that renders authority state does not originate authority -- so it does not spawn
+        Goose, and it does not harvest the confirmation the governed command asks for. It suspends,
+        gives the operator's terminal to `builder-goose start-readonly`, and lets that command apply
+        its own policy, emit its own receipts, and run its own no-mutation postflight. STRATUM then
+        reads what the command wrote. That is a launcher OF the governed lane, not a bypass around it.
+
+        Fail-closed twice before anything spawns: the registry must permit the governed command, and a
+        manifest the manifest validator accepts must already request `read_only`.
+        """
+        import subprocess
+        import sys
+
+        from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
+
+        try:
+            enforce_command_authority(self.GOVERNED_GOOSE_COMMAND)
+        except CommandAuthorityError as exc:
+            self.notify(f"{self.GOVERNED_GOOSE_COMMAND} is not permitted: {exc}", severity="error")
+            return
+
+        manifest = self._governed_readonly_manifest()
+        if manifest is None:
+            self.notify(
+                "No read-only Goose session manifest found. Run "
+                "`builder-goose manifest --mode read_only --output .builder/goose/session.json` "
+                "in your terminal first; STRATUM does not mint manifests.",
+                severity="warning",
+            )
+            return
+
+        argv = (sys.executable, "-m", "builder_ii.cli.goose_cli", "start-readonly", str(manifest))
+        with self.suspend():
+            completed = subprocess.run(argv, check=False)  # noqa: S603 - fixed argv, shell=False
+
+        self._render_goose_session_outcome(completed.returncode)
+
+    def _render_goose_session_outcome(self, returncode: int) -> None:
+        """Report what the governed command did. Never assert an outcome it did not record."""
+        if returncode == 0:
+            self.notify(f"{self.GOVERNED_GOOSE_COMMAND} completed; receipts written under .builder/receipts.")
+        else:
+            self.notify(
+                f"{self.GOVERNED_GOOSE_COMMAND} exited {returncode}; see its output and receipts.",
+                severity="error",
+            )
+        if self.stratum:
+            self.stratum.mode = StratumMode.IDLE
+        if self.signals:
+            self.signals.append_event(
+                datetime.now().strftime("%H:%M:%S"),
+                "goose_readonly",
+                f"{self.GOVERNED_GOOSE_COMMAND} exited {returncode}",
+            )
 
     def action_operator_next(self) -> None:
         from builder_ii.operator_next import create_operator_next_action_report

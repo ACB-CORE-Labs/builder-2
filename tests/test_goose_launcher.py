@@ -315,44 +315,50 @@ def test_missing_provider_or_key_raises_error():
             assert "No Goose provider could be derived from builder-II settings" in str(exc.value)
 
 
-def test_stratum_action_launch_goose_never_spawns_a_session():
-    """Strictly stronger than the assertion it replaces, and it must not be weakened back.
+def test_stratum_action_launch_goose_invokes_only_the_governed_command():
+    """Third revision of this pin, and each one is strictly stronger than the last.
 
-    This test was added by `ccb12d9 "restore governed Goose launch behavior and remove raw goose
-    session bypass"` and asserted that STRATUM's `g` binding routes through
-    `goose_launcher.launch_goose_session` rather than shelling out to `goose` directly. Its purpose
-    was: no raw bypass.
+    `ccb12d9` added it as "uses the adapter, not raw goose" -- but the adapter,
+    `goose_launcher.launch_goose_session`, spawns `goose session --with-builtin
+    developer,skills,summon`: file editing and shell, no preflight snapshot, no receipt, no approval.
+    Routing through it was not governance, only indirection.
 
-    But the adapter it routed to spawns `goose session --with-builtin developer,skills,summon` --
-    the developer builtin carries file editing and shell -- with no read-only policy, no launch
-    receipt, and no approval. `builder stratum` is TIER_2 and its record declares no write
-    authority; `builder-goose start-readonly` gates that same runtime at TIER_3,
-    STATE_READ_ONLY_RUNTIME_CANDIDATE, behind "implicit or explicit HITL approval for launch". A
-    keypress in a render surface must not launder a higher tier's approval boundary.
+    It then became "never spawns a session", which was true and safe but removed a deliberately
+    restored affordance.
 
-    So the binding now refuses and names the governed command. "Never spawns" implies "never
-    bypasses", so this assertion subsumes the original and does not relax it.
+    It is now the thing that was wanted all along: STRATUM hands its terminal to
+    `builder-goose start-readonly`, which runs `GooseRuntimeHarness.launch_readonly` --
+    `goose session --with-builtin ""` (no builtins), a preflight digest snapshot of every target
+    file, and on close a launch receipt, a close receipt and a no-mutation postflight that fails if
+    the target moved. The TUI is a launcher OF the governed lane, never a bypass around it.
 
-    **This changed a deliberately-restored operator affordance.** Restoring it is not a wording fix:
-    it needs the read-only policy, a launch receipt, and the approval boundary that
-    `builder-goose start-readonly` already has -- i.e. a promotion PR, not a patch.
+    So: the raw adapter is never called, `goose` is never spawned directly, and the one argv STRATUM
+    executes is the governed command with a validated read-only manifest.
     """
-    from unittest.mock import patch
+    import subprocess
+    import sys
+    from unittest.mock import MagicMock, patch
 
     import builder_ii.goose_launcher as launcher
     from builder_ii.tui.app import StratumApp
 
     app = StratumApp()
+    manifest = Path("/tmp/session.json")
 
     with (
-        patch.object(launcher, "launch_goose_session") as spawn,
-        patch.object(launcher, "find_goose_binary", return_value="/usr/local/bin/goose") as find_binary,
-        patch.object(StratumApp, "notify") as notify,
+        patch.object(StratumApp, "suspend"),
+        patch.object(StratumApp, "notify"),
+        patch.object(StratumApp, "_governed_readonly_manifest", return_value=manifest),
+        patch.object(launcher, "launch_goose_session") as raw_adapter,
+        patch.object(launcher, "find_goose_binary") as find_binary,
+        patch.object(subprocess, "run", return_value=MagicMock(returncode=0)) as run,
     ):
         app.action_launch_goose()
 
-    spawn.assert_not_called()
+    raw_adapter.assert_not_called()
     find_binary.assert_not_called()
-    message = notify.call_args[0][0]
-    assert "cannot start a Goose runtime" in message
-    assert "builder-goose start-readonly" in message
+    run.assert_called_once()
+    argv = run.call_args[0][0]
+    assert argv == (sys.executable, "-m", "builder_ii.cli.goose_cli", "start-readonly", str(manifest))
+    assert run.call_args.kwargs.get("check") is False
+    assert "shell" not in run.call_args.kwargs
