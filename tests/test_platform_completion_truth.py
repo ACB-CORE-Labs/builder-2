@@ -187,8 +187,30 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     # Ladder 4 PR-8 closure flip (docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md): bounded
     # execution over protocol_fake — never LIVE_*, never a native-backend claim.
     assert rows["governed obligation delegation"]["assurance_state"] == "BOUNDED_EXECUTION_VERIFIED"
+    # Same trunk, same module, same envelope as the delegation row above. It read PASSIVE only
+    # because it rode the old fall-through default.
+    assert rows["deepagents runtime/subagents"]["assurance_state"] == "BOUNDED_EXECUTION_VERIFIED"
     assert rows["interactive setup wizard"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
     assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+    assert rows["postflight verification"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+
+
+def test_the_two_rows_that_describe_the_deepagents_trunk_agree_about_its_risk() -> None:
+    """One lane cannot carry two risk labels.
+
+    `governed obligation delegation` and `deepagents runtime/subagents` both cite
+    `builder_ii/deepagents_execution.py`, and the second row's own blockers describe the first
+    row's trunk (`execution-candidate -> approve-candidate -> run-approved` over protocol_fake) as
+    the verified content. Ladder 4 classified the trunk explicitly; this row was left to the
+    default and silently read PASSIVE. When two rows describe one lane, the higher-risk label is
+    the honest one -- and they must now move together or this fails.
+    """
+    rows = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
+    trunk = rows["deepagents runtime/subagents"]
+    delegation = rows["governed obligation delegation"]
+
+    assert "builder_ii/deepagents_execution.py" in set(trunk.evidence_files) & set(delegation.evidence_files)
+    assert assurance_state_for_row(trunk) == assurance_state_for_row(delegation)
 
 
 def test_ladder4_obligation_delegation_flip_is_scoped_to_protocol_fake() -> None:

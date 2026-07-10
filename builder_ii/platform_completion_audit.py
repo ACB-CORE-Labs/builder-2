@@ -168,6 +168,16 @@ _OPERATIONALLY_VERIFIED_ASSURANCE: dict[str, AssuranceState] = {
     # Causes work to run inside a fixed, pre-approved envelope, and receipts the invocation.
     "low-risk tool invocation": BOUNDED_EXECUTION_VERIFIED,
     "governed obligation delegation": BOUNDED_EXECUTION_VERIFIED,
+    # Same lane, same module (`deepagents_execution.py`), same envelope as the row above: the
+    # verified trunk is `execution-candidate -> approve-candidate -> run-approved` over the
+    # protocol_fake backend, emitting execution receipts and a tamper-evident event chain. Ladder 4
+    # filed that trunk as BOUNDED_EXECUTION_VERIFIED under the delegation row while this row --
+    # whose surfaces are `run-approved`, `replay-run`, `collect-results` -- was left to the old
+    # default and read PASSIVE. Two rows describing one lane must not disagree about its risk, and
+    # when they do the higher-risk label is the honest one. protocol_fake denies shell, source
+    # writes, git, MCP, Goose, memory and model invocation; `bounded` describes that envelope, and
+    # says nothing about the quality of anything an agent produces inside it.
+    "deepagents runtime/subagents": BOUNDED_EXECUTION_VERIFIED,
     # Verified only against a synthetic target, inside the demo loop.
     "governed demo loop": DEMO_ONLY_VERIFIED,
     # ---- Passive: reads, builds, validates, renders. Starts nothing; spawns nothing. ----
@@ -201,9 +211,6 @@ _OPERATIONALLY_VERIFIED_ASSURANCE: dict[str, AssuranceState] = {
     # shell=False, under two-key HITL approval, and receipts it. Filed passive by the old default
     # for as long as the default existed.
     "HITL-approved verification execution": PASSIVE_ARTIFACT_VERIFIED,
-    # Runs `execution-candidate -> approve-candidate -> run-approved` over the protocol_fake
-    # backend, emitting execution receipts and a tamper-evident event chain.
-    "deepagents runtime/subagents": PASSIVE_ARTIFACT_VERIFIED,
 }
 
 
