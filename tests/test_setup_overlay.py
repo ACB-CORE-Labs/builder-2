@@ -174,3 +174,38 @@ def test_missing_parent_is_classified_but_allowed_for_future_atomic_apply(tmp_pa
 
     assert by_id["builder_config_file_candidate"]["conflict_classification"] == "missing_parent"
     assert not validate_setup_overlay_plan_artifact(overlay)
+
+
+def test_every_real_planner_materialization_change_can_be_applied_byte_for_byte(tmp_path: Path) -> None:
+    """Apply must be able to reconstruct exactly the bytes the plan digested -- for the REAL planner.
+
+    `setup_apply` grew a digest-parity preflight that refuses to write bytes the plan did not
+    digest. Good. But every test that exercised it built its own change dicts, so nothing ever
+    asked whether the *planner's own* changes survive it. Two did not:
+
+    - `builder_config_file_candidate` digested `content` and stored `metadata={"candidate": content}`
+    - `moim_session_context_candidate` digested `content` and stored a two-key *label*
+
+    `setup_apply._content_text` reconstructs the file body from `metadata`, so apply would have
+    written a wrapper -- or a label -- into the target in place of the document the plan digested.
+    Silently, under a green `applied` receipt, because `content` is never carried in the artifact
+    and nothing compared the two.
+
+    This pin closes the whole class: for every create/replace change the real planner emits, the
+    bytes apply would write must hash to the change's own `content_digest`.
+    """
+    from builder_ii.setup_apply import _content_text, _sha256_bytes
+
+    overlay = _overlay(tmp_path)
+    materializations = [c for c in overlay["planned_changes"] if c["operation_type"] in {"create", "replace"}]
+    assert materializations, "the planner must emit at least one materialization change"
+
+    mismatched = [
+        c["change_id"]
+        for c in materializations
+        if c.get("content_digest") != _sha256_bytes(_content_text(c).encode("utf-8"))
+    ]
+    assert not mismatched, (
+        f"apply would write bytes these planner changes never digested: {mismatched}. "
+        "For a materialization change, `metadata` must BE the digested `content`."
+    )
