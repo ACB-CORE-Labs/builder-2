@@ -410,7 +410,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/test_platform_completion_truth.py",
         ),
         (
-            "Plan 2.2 builder init prompts the four wizard decisions (registry-validated, never free text) and plans target repo, artifact root, profiles, model/backend, Goose overlay candidates, skill install plan, and capability state before apply; the wizard itself never applies.",
+            "Plan 2.2 builder init prompts all nine onboarding decisions (registry-validated, never free text) and plans target repo, artifact root, profiles, model/backend, Goose overlay candidates, skill install plan, and capability state before apply; the wizard itself never applies. Ladder 5 wizard v2 promoted the five formerly-defaulted decisions -- agent profile, verification profile, artifact root, runtime mode, allow-artifact-root-inside-target -- from silently resolved and echoed to prompted, with the same flag > prompt > resolved-default precedence.",
             "Goose config merge, skill copying, and recipe installation remain manual operator steps (R1.7); setup mutation remains exclusively the separately digest-approved builder-setup apply.",
         ),
         "R1 complete (2.6)",
