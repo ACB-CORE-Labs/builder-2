@@ -391,6 +391,20 @@ def apply_setup_overlay(
                 reasons.append(f"{operation} requires rollback snapshot coverage")
             before = _digest_path(target)
             text = _content_text(change)
+            # `content_digest` is the plan's own hash of the bytes it intends to exist at the
+            # target. Found by the cross-author audit, by driving it: a change with empty
+            # `metadata` degrades `_content_text` to its `redacted_preview`, and apply then wrote
+            # literal "<redacted>" placeholders to disk under a green `applied`/`changed` receipt
+            # -- planned != executed with no tell anywhere. Digest parity makes that class
+            # unrepresentable: apply refuses to write any bytes the plan did not digest, and the
+            # refusal is a preflight denial rather than a quiet divergence.
+            if operation in {"create", "replace"} and change.get("content_digest") != _sha256_bytes(
+                text.encode("utf-8")
+            ):
+                reasons.append(
+                    "planned content digest mismatch: the bytes apply would write are not the bytes the "
+                    "plan digested under content_digest"
+                )
             op_record = {
                 "change_id": change["change_id"],
                 "target_path": str(target),
