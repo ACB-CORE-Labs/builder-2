@@ -85,20 +85,17 @@ the `deepagents_runtime.py:219` honesty fix; the tamper beat; operator-applied f
   review-result, request-human-gate, record-blocked-action, proposal-result, …). Space-form
   names; `docs/COMMAND_AUTHORITY.md` is a generated table (regen snippet below).
 
-**COMMAND_AUTHORITY.md regeneration snippet (the only sanctioned way to update the table):**
+**COMMAND_AUTHORITY.md regeneration (the only sanctioned way to update the doc):**
 
-```python
-from pathlib import Path
-from builder_ii.command_authority import render_registry_markdown_table
-doc = Path("docs/COMMAND_AUTHORITY.md")
-lines = doc.read_text(encoding="utf-8").splitlines(keepends=True)
-start = next(i for i, line in enumerate(lines) if line.startswith("| "))
-end = start
-while end < len(lines) and lines[end].startswith("|"):
-    end += 1
-table = render_registry_markdown_table()
-doc.write_text("".join(lines[:start]) + table + ("" if table.endswith("\n") else "\n") + "".join(lines[end:]), encoding="utf-8")
+```bash
+uv run python -m builder_ii.command_authority > docs/COMMAND_AUTHORITY.md
 ```
+
+The snippet that used to live here spliced only the rows between the first `| ` line and the last
+consecutive `|` line. The document now carries two tables, a generated assurance vocabulary and
+generated record counts; an in-place splice of the first table would leave the rest stale while
+looking successful. `tests/test_command_authority.py` compares the whole file against
+`render_command_authority_doc()`, so a partial regeneration fails rather than passing quietly.
 
 ## Object model (exact schemas — implement as written; do not invent fields)
 
