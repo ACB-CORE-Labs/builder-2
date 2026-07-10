@@ -24,13 +24,6 @@ from builder_ii.wizard_framework import (
     transcribed_registry_members,
 )
 
-# The named, deliberate PR-1 exemptions: `builder-setup wizard` steps ported AS-IS, lie and
-# all, so the framework extraction and the lie fix cannot blur into one change. PR-2 fixes
-# the prompts and MUST delete both this set and its guard test below -- the guard fails the
-# moment an exempted step stops transcribing, so the exemption cannot outlive the lie.
-PR2_PENDING_TRANSCRIPTION_EXEMPTIONS = {"target_profile", "model_backend"}
-
-
 # --- the invariant -------------------------------------------------------------------------
 
 
@@ -40,8 +33,13 @@ def test_no_wizard_step_transcribes_members_of_any_decision_registry() -> None:
     Prompt text is rendered FROM the registry at prompt time (`render_question`), never
     transcribed INTO the step definition -- so adding a ninth backend updates every wizard
     automatically and a stale prompt is unrepresentable. Falsifiability is proven in the
-    PR body: append a registry member to an init question, watch this fail naming it,
+    PR bodies: append a registry member to an init question, watch this fail naming it,
     remove it, watch it pass.
+
+    PR-1 carried a named, self-liquidating exemption here for the two `builder-setup
+    wizard` steps it ported as-is, lie and all; PR-2 fixed those prompts, the exemption's
+    guard test failed exactly as designed, and both were deleted. The sweep is now total:
+    every step of every framework wizard, no exceptions.
     """
     registries = tuple(known_decision_registries().values())
     surfaces = (
@@ -50,8 +48,6 @@ def test_no_wizard_step_transcribes_members_of_any_decision_registry() -> None:
     )
     for surface, steps in surfaces:
         for step in steps:
-            if surface == "setup" and step.id in PR2_PENDING_TRANSCRIPTION_EXEMPTIONS:
-                continue
             hits = transcribed_registry_members(step.question, registries)
             assert not hits, (
                 f"wizard step {surface}:{step.id} transcribes registry member(s) {hits} into its "
@@ -59,48 +55,36 @@ def test_no_wizard_step_transcribes_members_of_any_decision_registry() -> None:
             )
 
 
-def test_the_exemptions_are_exactly_todays_lies_and_cannot_outlive_them() -> None:
-    """The exemption list is self-liquidating.
-
-    It must name exactly the two `builder-setup wizard` steps that transcribe today, and
-    every exempted step must actually still transcribe. When PR-2 renders those prompts
-    from the registries, this test fails until the exemption set is deleted -- so the
-    exemption cannot silently grow, and cannot survive the fix it exists to wait for.
-    """
-    assert PR2_PENDING_TRANSCRIPTION_EXEMPTIONS == {"target_profile", "model_backend"}
-    registries = tuple(known_decision_registries().values())
-    setup_steps = {step.id: step for step in setup_wizard_step_definitions()}
-    for step_id in sorted(PR2_PENDING_TRANSCRIPTION_EXEMPTIONS):
-        hits = transcribed_registry_members(setup_steps[step_id].question, registries)
-        assert hits, (
-            f"setup wizard step {step_id!r} no longer transcribes registry members -- "
-            "PR-2 has landed for it; delete it from PR2_PENDING_TRANSCRIPTION_EXEMPTIONS"
-        )
-
-
-def test_registry_drift_reaches_the_init_wizard_with_no_wizard_code_change(
+def test_registry_drift_reaches_both_wizards_with_no_wizard_code_change(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Add a ninth backend to the registry; the wizard offers and accepts it, untouched.
+    """Add a ninth backend to the registry; both wizards offer and accept it, untouched.
 
-    This is the payoff of the invariant, asserted directly. The contrast is the ported
-    setup-wizard lie, whose transcribed prompt text does NOT pick up the new backend --
-    which is precisely why PR-2 exists.
+    This is the payoff of the invariant, asserted directly. Under PR-1 this test held the
+    opposite contrast for the setup wizard (its transcribed prompt did NOT pick up the new
+    backend); PR-2 landed and the assertion inverted, exactly as its docstring promised.
+    The alias step renders no options by presentation choice, but the registry reference
+    still carries drift: the new alias validates with no code change.
     """
     from builder_ii import init_decisions
 
     monkeypatch.setattr(init_decisions, "BACKENDS", (*init_decisions.BACKENDS, "fake-backend-nine"))
+    monkeypatch.setattr(init_decisions, "MODEL_ALIASES", (*init_decisions.MODEL_ALIASES, "fake-alias"))
 
-    backend_step = {s.id: s for s in init_wizard_step_definitions()}["model_backend"]
-    assert "fake-backend-nine" in backend_step.allowed_values()
-    assert "fake-backend-nine" in backend_step.render_question()
-    assert backend_step.validate("fake-backend-nine") == []
+    init_backend = {s.id: s for s in init_wizard_step_definitions()}["model_backend"]
+    assert "fake-backend-nine" in init_backend.allowed_values()
+    assert "fake-backend-nine" in init_backend.render_question()
+    assert init_backend.validate("fake-backend-nine") == []
 
-    lying_step = {s.id: s for s in setup_wizard_step_definitions()}["model_backend"]
-    assert "fake-backend-nine" not in lying_step.render_question(), (
-        "the PR-1 as-is port must still be lying; if this fails, PR-2 landed and this "
-        "contrast assertion should be inverted"
-    )
+    setup_steps = {s.id: s for s in setup_wizard_step_definitions()}
+    assert "fake-backend-nine" in setup_steps["model_backend"].allowed_values()
+    assert "fake-backend-nine" in setup_steps["model_backend"].render_question()
+    assert setup_steps["model_backend"].validate("fake-backend-nine") == []
+
+    alias_step = setup_steps["model_alias"]
+    assert "fake-alias" in alias_step.allowed_values()
+    assert "fake-alias" not in alias_step.render_question(), "the alias question renders no options by design"
+    assert alias_step.validate("fake-alias") == []
 
 
 def test_word_boundary_matching_does_not_false_positive_on_substrings() -> None:
@@ -187,6 +171,17 @@ def test_render_question_composes_from_the_provider_at_call_time() -> None:
     assert step.render_question() == "Pick (one, two)"
     live.append("three")
     assert step.render_question() == "Pick (one, two, three)", "options must be read at prompt time, never earlier"
+
+
+def test_render_options_is_all_from_the_registry_or_nothing() -> None:
+    """A large registry may opt out of enumerating into the prompt line, but the step keeps
+    its registry reference: values and validation stay live. There is no mechanism for
+    rendering a subset -- a prompt can never claim fewer values than exist."""
+    step = WizardStep(
+        id="s", question="Pick", options_provider=lambda: ("one", "two"), render_options_in_question=False
+    )
+    assert step.render_question() == "Pick"
+    assert step.allowed_values() == ("one", "two")
 
 
 def test_prompt_loop_retries_then_aborts_at_max_attempts() -> None:

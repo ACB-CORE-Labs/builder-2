@@ -8,17 +8,18 @@ would notice. This suite is the evidence that the OV row survives the
 extraction: exact prompt order, exact prompt text, exact defaults, the
 accept/reject boundary, and the emitted artifact set, for both wizards.
 
-Two of these pins are pins on defects, held open deliberately:
+History these pins carry:
 
-- `builder-setup wizard`'s prompts hard-code a 3-entry subset of the 8-entry
-  backend registry and validate nothing at the prompt. PR-1 ports that behavior
-  unchanged (one change per commit); PR-2 fixes it and is REQUIRED to update the
-  lie-pinning tests here -- failing in that direction is these pins doing their
-  job. Do not "fix" a pin below without the behavior change it pins.
-- `tests/test_setup_onboarding_wizard_cli.py:18` drives the wizard with
-  positional stdin, so nothing asserted prompt ORDER before this file: reorder
-  the steps and that test still passes while answering the wrong questions with
-  the wrong values. The order pins below close that.
+- PR-1 pinned `builder-setup wizard`'s prompts verbatim INCLUDING their defect: a
+  hard-coded 3-of-8 subset of the backend registry, with nothing validated at the
+  prompt. PR-2 fixed exactly that, and the lie-pinning tests failed in the designed
+  direction and were updated with it: the backend needle is now composed from the
+  live registry, and garbage is refused AT the prompt (three attempts, exit 2, no
+  artifacts) instead of surfacing late as an invalid artifact with exit 1.
+- `tests/test_setup_onboarding_wizard_cli.py` drives the wizard with positional
+  stdin, so nothing asserted prompt ORDER before this file: reorder the steps and
+  that test still passed while answering the wrong questions with the wrong
+  values. The order pins below (and the order pin added there by PR-2) close that.
 """
 
 from __future__ import annotations
@@ -36,13 +37,16 @@ from builder_ii.target_profiles import target_names
 
 runner = CliRunner()
 
-# The four `builder-setup wizard` prompts, verbatim, including typer's rendered
-# default. The backend line names 3 of the 8 registry backends: that is the lie
-# PR-2 exists to fix, pinned here exactly as the operator sees it today.
+# The four `builder-setup wizard` prompts as the operator sees them, including typer's
+# rendered default. Since PR-2 the profile and backend lines are RENDERED from the live
+# registries at prompt time, so their needles are composed from those registries here: a
+# registry change updates prompt and pin together, and a transcribed subset is
+# unrepresentable. The alias question deliberately renders none of its 50 registry
+# entries -- see setup_wizard_step_definitions' presentation decision.
 SETUP_WIZARD_PROMPTS = (
     "Enter output directory for onboarding artifacts [.builder/setup-artifacts]:",
-    "Select target profile (generic, builder, core) [generic]:",
-    "Select local model backend (rapid-mlx, mlx-lm, ollama) [rapid-mlx]:",
+    f"Select target profile ({', '.join(target_names())}) [generic]:",
+    f"Select local model backend ({', '.join(BACKENDS)}) [rapid-mlx]:",
     "Select primary model alias [phi-reasoning]:",
 )
 
@@ -96,14 +100,15 @@ def test_setup_wizard_default_answers_land_in_the_intent_artifact(wizard_env: Pa
     assert not (out_dir / "setup-receipt.json").exists(), "wizard must never apply"
 
 
-def test_setup_wizard_accepts_a_real_backend_its_prompt_does_not_offer(wizard_env: Path) -> None:
-    """The acceptance half of the prompt lie: `openai` is a real registry backend the
-    prompt text does not name, and the wizard takes it with exit 0. PR-2 keeps this
-    passing (openai becomes an *offered* value); if it ever starts failing, a backend
-    was dropped from the registry or prompt-time validation grew stricter than the
-    registry -- both are behavior changes to an OPERATIONALLY_VERIFIED surface."""
+def test_setup_wizard_offers_and_accepts_every_registry_backend(wizard_env: Path) -> None:
+    """PR-1 pinned the lie's acceptance half: `openai` was accepted while the prompt text
+    never named it. PR-2 closes the gap from the other side -- every registry backend is
+    now OFFERED (rendered into the prompt from the registry) and accepted. If this starts
+    failing, a backend was dropped from the registry or prompt-time validation grew
+    stricter than the registry -- both are behavior changes to an OPERATIONALLY_VERIFIED
+    surface."""
     assert "openai" in BACKENDS
-    assert "openai" not in SETUP_WIZARD_PROMPTS[2]
+    assert "openai" in SETUP_WIZARD_PROMPTS[2], "PR-2 renders the full backend registry into the prompt"
     out_dir = wizard_env / "wizard-out"
     result = runner.invoke(
         setup_app, ["wizard", "--root", str(wizard_env)], input=f"{out_dir}\ngeneric\nopenai\nphi-reasoning\n"
@@ -113,23 +118,40 @@ def test_setup_wizard_accepts_a_real_backend_its_prompt_does_not_offer(wizard_en
     assert "openai" in json.dumps(intent)
 
 
-def test_setup_wizard_surfaces_garbage_late_as_an_invalid_artifact_not_a_prompt_refusal(wizard_env: Path) -> None:
-    """The rejection half of the defect PR-2 fixes, pinned as it behaves today: garbage
-    is NOT refused at the prompt -- every prompt is asked exactly once, the pipeline
-    runs, and the failure surfaces afterwards as `"valid": false` with exit 1 and no
-    artifacts on disk. PR-2 must flip this to a prompt-time refusal and update this pin;
-    failing in that direction is the pin working."""
+def test_setup_wizard_refuses_garbage_at_the_prompt_and_reprompts(wizard_env: Path) -> None:
+    """PR-2's rejection boundary: garbage never reaches the pipeline. The prompt itself
+    refuses (echoing the full registry), re-asks, and accepts a corrected answer -- this is
+    the prompt-time refusal, not the artifact's late `"valid": false`, which PR-1 pinned
+    and PR-2 removed."""
     out_dir = wizard_env / "wizard-out"
     result = runner.invoke(
         setup_app,
         ["wizard", "--root", str(wizard_env)],
-        input=f"{out_dir}\ngeneric\nnot-a-backend\nphi-reasoning\n",
+        input=f"{out_dir}\ngeneric\nnot-a-backend\nopenai\nphi-reasoning\n",
     )
-    assert result.exit_code == 1, result.output
-    _assert_appears_in_order_exactly_once(result.output, SETUP_WIZARD_PROMPTS)
-    assert '"valid": false' in result.output
+    assert result.exit_code == 0, result.output
+    assert "invalid answer" in result.output
     assert "model_backend must be one of" in result.output
-    assert not out_dir.exists(), "an invalid wizard run must not leave artifacts behind"
+    assert result.output.count("Select local model backend") == 2, "one refusal, one re-ask"
+    assert '"valid": false' not in result.output
+    intent = json.loads((out_dir / "onboarding-intent.json").read_text(encoding="utf-8"))
+    assert "openai" in json.dumps(intent)
+
+
+def test_setup_wizard_aborts_after_three_invalid_answers_without_writing(wizard_env: Path) -> None:
+    """Exhausting the three attempts fails closed with exit 2 and zero artifacts --
+    mirroring `builder init`'s boundary exactly. Before PR-2 the same garbage produced
+    exit 1 AFTER running the pipeline."""
+    out_dir = wizard_env / "wizard-out"
+    result = runner.invoke(
+        setup_app,
+        ["wizard", "--root", str(wizard_env)],
+        input=f"{out_dir}\ngeneric\nbad-one\nbad-two\nbad-three\n",
+    )
+    assert result.exit_code == 2, result.output
+    assert "no valid answer after 3 attempts" in result.output
+    assert '"valid": false' not in result.output
+    assert not out_dir.exists(), "a refused wizard run must not leave artifacts behind"
 
 
 def test_setup_wizard_flags_bypass_exactly_their_own_prompts(wizard_env: Path) -> None:

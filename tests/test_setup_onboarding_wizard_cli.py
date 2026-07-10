@@ -18,6 +18,22 @@ def test_wizard_emits_artifacts_and_instructions(tmp_path: Path, monkeypatch: py
     result = runner.invoke(setup_app, ["wizard", "--root", str(tmp_path)], input=inputs)
     assert result.exit_code == 0, f"wizard failed: {result.output}"
 
+    # These positional stdin answers are only meaningful if the prompts arrive in this
+    # order -- which nothing asserted before Ladder 5: a reordering answered the wrong
+    # questions with the wrong values and this test stayed green. Pin the order the
+    # answers assume (exact text lives in tests/test_wizard_characterization.py).
+    position = -1
+    for prompt_prefix in (
+        "Enter output directory for onboarding artifacts",
+        "Select target profile",
+        "Select local model backend",
+        "Select primary model alias",
+    ):
+        found = result.output.find(prompt_prefix)
+        assert found != -1, f"missing prompt: {prompt_prefix!r}\n{result.output}"
+        assert found > position, f"prompt out of order: {prompt_prefix!r}\n{result.output}"
+        position = found
+
     plan_path = out_dir / "setup-plan.json"
     overlay_path = out_dir / "setup-overlay.json"
     snapshot_path = out_dir / "setup-rollback-snapshot.json"
