@@ -306,7 +306,10 @@ class ForgeWizard:
 
     @property
     def history(self) -> list[int]:
-        return self._engine.history
+        """A snapshot. The engine's own list drives `back()`; handing it out invites a caller to
+        clear it (silently refusing an undo) or to append an out-of-range index (an `IndexError` on
+        the next `current_step()`). No caller mutates it today; none should be able to."""
+        return list(self._engine.history)
 
     def current_step(self) -> ForgeStep:
         """Return the ForgeStep at the current cursor position."""

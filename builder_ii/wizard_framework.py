@@ -122,6 +122,11 @@ class WizardEngine:
     answers: dict[str, Any] = field(default_factory=dict)
     cursor: int = 0
     history: list[int] = field(default_factory=list)
+    # Answers that arrived from outside the prompt loop (a CLI flag), which are the only ones
+    # `_skip_preanswered` may pass over on that basis. An answer given *at* the prompt is not one:
+    # the operator can navigate back and change an earlier answer, and the step it made necessary
+    # must be asked again.
+    preanswered: set[str] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         self.steps = tuple(self.steps)
@@ -143,6 +148,7 @@ class WizardEngine:
         if step_id not in {step.id for step in self.steps}:
             raise KeyError(f"unknown wizard step id: {step_id!r}")
         self.answers[step_id] = value
+        self.preanswered.add(step_id)
         if not self.is_complete():
             self.cursor = self._skip_preanswered(self.cursor)
 
@@ -192,10 +198,17 @@ class WizardEngine:
         `ForgeWizard._next_cursor` inspected only the immediate next step and matched it by
         hardcoded id, so two consecutive conditionally-required steps would have left the second
         one prompted. The loop and the predicate are the same question asked properly.
+
+        Only a *preanswered* step is passed over on the strength of having an answer -- the name of
+        this method is the rule. Passing over any answered step meant a conditionally-required one,
+        once answered, was never reconsidered: grant `write_files`, answer `hitl_gates`, go back,
+        also grant `run_shell`, and the wizard sailed past `hitl_gates` to completion with a shell
+        capability and no `before_shell` gate. `_next_cursor` never did that, because it had no
+        memory of answers at all; it asked the predicate every time. So does this, now.
         """
         while index < len(self.steps):
             step = self.steps[index]
-            if step.id in self.answers:
+            if step.id in self.preanswered:
                 index += 1
                 continue
             if step.required_when is not None and not step.required_when(dict(self.answers)):
