@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, replace
 
 from builder_ii.assurance import (
     BLOCKED_BY_EVIDENCE,
@@ -10,6 +10,7 @@ from builder_ii.assurance import (
     READ_ONLY_RUNTIME_VERIFIED,
     SAFETY_CRITICAL_PROHIBITED,
     AssuranceState,
+    render_assurance_definitions_markdown,
 )
 
 # Standard authority tiers
@@ -166,6 +167,15 @@ class CommandAuthorityRecord:
         return self.is_command_group
 
 
+# Every `allows_*` field the record carries, in declaration order. Derived from the dataclass rather
+# than transcribed beside it: a hand-written list is a second place for the truth to live, and
+# `render_registry_markdown_table` already demonstrated what happens when one drifts -- it named five
+# of eleven flags for as long as the flags existed, and nothing failed, because nothing compared them.
+CAPABILITY_FLAGS: tuple[str, ...] = tuple(
+    field.name for field in fields(CommandAuthorityRecord) if field.name.startswith("allows_")
+)
+
+
 def _readonly_tui_record(name: str) -> CommandAuthorityRecord:
     return CommandAuthorityRecord(
         name=name,
@@ -272,26 +282,92 @@ _EFFECT_FLAGS: dict[str, tuple[str, ...]] = {
 }
 
 
+@dataclass(frozen=True)
+class AssuranceDerivation:
+    """An assurance state together with the single fact that produced it."""
+
+    state: AssuranceState
+    because: str
+
+
+# Order matters: the first branch that matches decides. `_BOUNDED_FLAGS` is the tail of the chain, so
+# a record setting several of them is attributed to the first one declared here.
+_BOUNDED_FLAGS: tuple[str, ...] = (
+    "allows_process_control",
+    "allows_shell_execution",
+    "allows_external_tool_invocation",
+    "allows_readonly_subprocess",
+)
+
+
+def explain_assurance_for_record(record: CommandAuthorityRecord) -> AssuranceDerivation:
+    """Map legacy authority metadata into the sharper high-assurance state lattice, and say why.
+
+    The state alone is not reviewable. Three records -- `builder-readonly`, `builder-goose
+    start-readonly`, `builder-goose close-readonly` -- derive READ_ONLY_RUNTIME_VERIFIED with *no*
+    capability flag set, from their promotion state. A reader given only the eleven flags and the
+    state cannot reconcile them, and would reasonably conclude the state was wrong. It is not; the
+    derivation simply was not written down. Now it is, and `render_command_authority_doc` prints it.
+    """
+    if record.tier == TIER_4:
+        return AssuranceDerivation(BLOCKED_BY_EVIDENCE, "tier is `Tier 4`")
+    if record.promotion_state == STATE_FORBIDDEN_UNPROMOTED:
+        return AssuranceDerivation(BLOCKED_BY_EVIDENCE, f"promotion state is `{STATE_FORBIDDEN_UNPROMOTED}`")
+    if "demo" in record.name:
+        return AssuranceDerivation(DEMO_ONLY_VERIFIED, "the command name says `demo`")
+    if "demo" in record.notes.lower():
+        return AssuranceDerivation(DEMO_ONLY_VERIFIED, "the notes say `demo`")
+    if record.allows_source_writes:
+        return AssuranceDerivation(MUTATION_WITH_ROLLBACK_VERIFIED, "`allows_source_writes` is set")
+    if record.allows_git_mutation:
+        return AssuranceDerivation(MUTATION_WITH_ROLLBACK_VERIFIED, "`allows_git_mutation` is set")
+    if record.allows_model_execution:
+        return AssuranceDerivation(LIVE_PROVIDER_VERIFIED, "`allows_model_execution` is set")
+    if record.allows_runtime_start:
+        return AssuranceDerivation(READ_ONLY_RUNTIME_VERIFIED, "`allows_runtime_start` is set")
+    if record.promotion_state == STATE_READ_ONLY_RUNTIME_CANDIDATE:
+        return AssuranceDerivation(READ_ONLY_RUNTIME_VERIFIED, f"promotion state is `{STATE_READ_ONLY_RUNTIME_CANDIDATE}`")
+    for flag in _BOUNDED_FLAGS:
+        if getattr(record, flag):
+            return AssuranceDerivation(BOUNDED_EXECUTION_VERIFIED, f"`{flag}` is set")
+    return AssuranceDerivation(PASSIVE_ARTIFACT_VERIFIED, "no flag or state raises assurance above passive")
+
+
 def assurance_state_for_record(record: CommandAuthorityRecord) -> AssuranceState:
     """Map legacy authority metadata into the sharper high-assurance state lattice."""
-    if record.tier == TIER_4 or record.promotion_state == STATE_FORBIDDEN_UNPROMOTED:
-        return BLOCKED_BY_EVIDENCE
-    if "demo" in record.name or "demo" in record.notes.lower():
-        return DEMO_ONLY_VERIFIED
-    if record.allows_source_writes or record.allows_git_mutation:
-        return MUTATION_WITH_ROLLBACK_VERIFIED
-    if record.allows_model_execution:
-        return LIVE_PROVIDER_VERIFIED
-    if record.allows_runtime_start or record.promotion_state == STATE_READ_ONLY_RUNTIME_CANDIDATE:
-        return READ_ONLY_RUNTIME_VERIFIED
-    if (
-        record.allows_process_control
-        or record.allows_shell_execution
-        or record.allows_external_tool_invocation
-        or record.allows_readonly_subprocess
-    ):
-        return BOUNDED_EXECUTION_VERIFIED
-    return PASSIVE_ARTIFACT_VERIFIED
+    return explain_assurance_for_record(record).state
+
+
+def _assurance_probe(**flags: bool) -> CommandAuthorityRecord:
+    """A record whose only distinguishing feature is which capability flags are set."""
+    return CommandAuthorityRecord(
+        name="probe",
+        entrypoint="probe",
+        tier=TIER_2,
+        promotion_state=STATE_ENABLED,
+        runtime_boundary="probe",
+        write_boundary="probe",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="probe",
+        output_behavior="probe",
+        failure_mode="probe",
+        notes="probe",
+        **flags,
+    )
+
+
+# Which flags actually move the assurance state, discovered by perturbation rather than by reading
+# the chain above and transcribing the answer. A transcription goes stale the moment the chain
+# changes; this cannot. `docs/COMMAND_AUTHORITY.md` prints both sets, so a reader can see that
+# `allows_memory_mutation`, `allows_artifact_writes` and `allows_state_writes` -- two of which were
+# among the only five flags the doc used to render -- carry no risk signal at all.
+_ASSURANCE_BASELINE: AssuranceState = assurance_state_for_record(_assurance_probe())
+
+ASSURANCE_DERIVING_FLAGS: tuple[str, ...] = tuple(
+    flag for flag in CAPABILITY_FLAGS if assurance_state_for_record(_assurance_probe(**{flag: True})) != _ASSURANCE_BASELINE
+)
+
+ASSURANCE_INERT_FLAGS: tuple[str, ...] = tuple(flag for flag in CAPABILITY_FLAGS if flag not in ASSURANCE_DERIVING_FLAGS)
 
 
 def check_command_authority(
@@ -3798,18 +3874,23 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
 )
 
 
+# Which base record each synthesized name inherited its authority from. Recorded rather than
+# discarded: a command that holds authority *by inheritance* is exactly the thing a reader of the
+# policy snapshot needs to be told, and 34 of these inherit from a command group -- a record whose
+# defining property is that it abstains from authority and delegates it to its subcommands.
+_SYNTHESIZED_PARENTS: dict[str, str] = {}
+
+
 def _generate_extra_records(base_registry: tuple[CommandAuthorityRecord, ...]) -> list[CommandAuthorityRecord]:
     extra_records = []
-    import dataclasses
-
     for name in _EXTRA_COMMAND_NAMES:
         best_parent = None
         for r in base_registry:
             if name.startswith(r.name) and (best_parent is None or len(r.name) > len(best_parent.name)):
                 best_parent = r
         if best_parent:
-            cloned = dataclasses.replace(best_parent, name=name)
-            extra_records.append(cloned)
+            extra_records.append(replace(best_parent, name=name))
+            _SYNTHESIZED_PARENTS[name] = best_parent.name
     return extra_records
 
 
@@ -3942,21 +4023,138 @@ def validate_registry_invariants() -> list[str]:
     return errors
 
 
+NO_CAPABILITIES = "—"
+
+
+def _capabilities_cell(record: CommandAuthorityRecord) -> str:
+    """Name every capability the record claims, or say plainly that it claims none.
+
+    A column per flag would print eleven `No`s for `builder-goose start-readonly`, which hands the
+    operator's terminal to a Goose runtime. Naming only what is set makes an authority-bearing row
+    impossible to mistake for an inert one, and makes `—` mean what it says.
+    """
+    claimed = [flag.removeprefix("allows_") for flag in CAPABILITY_FLAGS if getattr(record, flag)]
+    return ", ".join(f"`{name}`" for name in claimed) if claimed else NO_CAPABILITIES
+
+
+def _registry_row(record: CommandAuthorityRecord) -> str:
+    derivation = explain_assurance_for_record(record)
+    return (
+        f"| `{record.name}` | {record.tier} | `{record.promotion_state}` | {record.runtime_boundary} "
+        f"| {record.write_boundary} | `{record.approval_mode}` | {record.approval_boundary} "
+        f"| {_capabilities_cell(record)} | `{derivation.state}` | {derivation.because} |"
+    )
+
+
 def render_registry_markdown_table() -> str:
-    """Helper function to render the command registry into a Markdown table for docs."""
+    """Render the directly-declared records: what each command may do, and how assured it is.
+
+    This table used to carry five boolean columns -- `Allows Shell`, `Process Control`,
+    `Allows Writes`, `Artifact Writes`, `State Writes` -- against a record holding eleven capability
+    flags. Eight of the eleven decide the assurance state. Five of those eight had no column, so 14
+    rows printed five `No`s while carrying real authority: `builder capabilities` reaches a live model
+    provider and printed as five `No`s. Two of the five columns that *were* printed
+    (`Artifact Writes`, `State Writes`) move no assurance state at all.
+
+    `builder-platform audit-docs` could never catch this. It detects a doc that overstates a
+    capability. This doc understated one, in the file whose whole job is to say what each command is
+    permitted to do.
+    """
     lines = [
-        "| Command Name | Tier | State | Runtime Boundary | Write Boundary | Approval Mode | Approval Boundary | Allows Shell | Process Control | Allows Writes | Artifact Writes | State Writes |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "| Command Name | Tier | State | Runtime Boundary | Write Boundary | Approval Mode | Approval Boundary | Capabilities | Assurance | Assurance Derived From |",
+        "|---|---|---|---|---|---|---|---|---|---|",
     ]
-    for r in COMMAND_AUTHORITY_REGISTRY:
-        if r.name in _EXTRA_COMMAND_NAMES:
+    lines.extend(_registry_row(r) for r in COMMAND_AUTHORITY_REGISTRY if r.name not in _EXTRA_COMMAND_NAMES)
+    return "\n".join(lines)
+
+
+def render_synthesized_markdown_table() -> str:
+    """Render the records nobody wrote: cloned from the longest base record that prefixes their name.
+
+    These 99 were absent from the policy snapshot entirely. Their authority is not declared anywhere
+    -- it is inherited, by string prefix, from whichever base record happened to match longest. When
+    that parent is a command *group*, the subcommand inherits the group's deliberate abstention: the
+    group holds no flags precisely because its subcommands are supposed to hold them.
+
+    None of them currently claims authority it does not have; `builder-hitl run-command`, the one
+    Tier-3 entry here, writes artifacts and holds `subprocess_execution: DISABLED`. That is luck
+    rather than design, and it is only checkable now that the inheritance is printed.
+    """
+    lines = [
+        "| Command Name | Inherits Authority From | Tier | State | Capabilities | Assurance | Assurance Derived From |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for name in _EXTRA_COMMAND_NAMES:
+        record = get_command_record(name)
+        if record is None:  # pragma: no cover - every synthesized name resolves to a parent today
             continue
-        shell_str = "Yes" if r.allows_shell_execution else "No"
-        process_str = "Yes" if r.allows_process_control else "No"
-        write_str = "Yes" if r.allows_source_writes else "No"
-        art_str = "Yes" if r.allows_artifact_writes else "No"
-        state_str = "Yes" if r.allows_state_writes else "No"
+        derivation = explain_assurance_for_record(record)
+        parent = _SYNTHESIZED_PARENTS[name]
+        group = " (command group)" if (p := get_command_record(parent)) is not None and p.is_command_group else ""
         lines.append(
-            f"| `{r.name}` | {r.tier} | `{r.promotion_state}` | {r.runtime_boundary} | {r.write_boundary} | `{r.approval_mode}` | {r.approval_boundary} | {shell_str} | {process_str} | {write_str} | {art_str} | {state_str} |"
+            f"| `{name}` | `{parent}`{group} | {record.tier} | `{record.promotion_state}` "
+            f"| {_capabilities_cell(record)} | `{derivation.state}` | {derivation.because} |"
         )
     return "\n".join(lines)
+
+
+def render_command_authority_doc() -> str:
+    """Render `docs/COMMAND_AUTHORITY.md` in full.
+
+    The doc is hashed into every governed workflow event as `policy_snapshot_ref`. Rendering the
+    whole file -- not just the table inside it -- lets the pin compare byte for byte, so no prose can
+    be hand-added around a generated table and inherit its authority.
+
+    Regenerate with:  uv run python -m builder_ii.command_authority > docs/COMMAND_AUTHORITY.md
+    """
+    declared = sum(1 for r in COMMAND_AUTHORITY_REGISTRY if r.name not in _EXTRA_COMMAND_NAMES)
+    synthesized = len(COMMAND_AUTHORITY_REGISTRY) - declared
+    inert = ", ".join(f"`{flag}`" for flag in ASSURANCE_INERT_FLAGS)
+    return "\n".join(
+        [
+            "# Command Authority",
+            "",
+            "Generated from `builder_ii/command_authority.py`. Do not hand-edit: this file is hashed",
+            "into every governed workflow event as `policy_snapshot_ref`, and",
+            "`tests/test_command_authority.py` compares it byte for byte against its generator.",
+            "",
+            "```",
+            "uv run python -m builder_ii.command_authority > docs/COMMAND_AUTHORITY.md",
+            "```",
+            "",
+            "## Assurance states",
+            "",
+            "`Assurance` is authoritative for risk interpretation. It is derived from the record, never",
+            "declared by it, and `Assurance Derived From` names the single fact that decided it.",
+            "",
+            render_assurance_definitions_markdown(),
+            "",
+            "## Capabilities",
+            "",
+            f"A record carries {len(CAPABILITY_FLAGS)} capability flags. The `Capabilities` column names exactly the ones",
+            "it sets, so a row reading `—` claims none.",
+            "",
+            f"{len(ASSURANCE_DERIVING_FLAGS)} of the {len(CAPABILITY_FLAGS)} raise the assurance state. The remaining {len(ASSURANCE_INERT_FLAGS)} do not: a command may set",
+            f"{inert} and still derive `{_ASSURANCE_BASELINE}`. They are recorded",
+            "because they describe the command, not because they bound its risk.",
+            "",
+            f"## Declared records ({declared})",
+            "",
+            "Authority written down, command by command.",
+            "",
+            render_registry_markdown_table(),
+            "",
+            f"## Synthesized records ({synthesized})",
+            "",
+            "Authority *inherited* by longest-prefix clone of a declared record, not written down for",
+            "these commands. A clone of a command group inherits that group's abstention from",
+            "authority. Promoting any of these requires classifying it directly, not editing its parent.",
+            "",
+            render_synthesized_markdown_table(),
+            "",
+        ]
+    )
+
+
+if __name__ == "__main__":  # pragma: no cover - regeneration entrypoint, stdout only, writes nothing
+    print(render_command_authority_doc(), end="")
