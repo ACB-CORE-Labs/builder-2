@@ -12,6 +12,7 @@ builder-II is CORE-born and governed by the Builder's Signet, but it is a generi
 | [`ADR-0002`](ADR-0002-builder-convention-layer-over-codename-goose.md) | Accepted | Define the builder convention layer over Codename Goose: stable builder commands/config/profiles/artifacts above, Goose-native env/recipe/context/session surfaces underneath. |
 | [`ADR-0003`](ADR-0003-builder-ii-generic-platform-identity-and-capability-factory.md) | Accepted | Refine builder-II identity as a generic governed platform, define repo docs as source of truth over Notion planning, and establish the profile-pack/capability-factory direction. |
 | [`ADR-0004`](ADR-0004-core-born-builders-signet-doctrine.md) | Accepted | Define `CORE-born` as originating design lineage plus embedded Builder's Signet doctrine, while keeping CORE-specific behavior target-profile scoped. |
+| [`ADR-0005`](ADR-0005-codevault-boundary-and-authority.md) | Accepted | Define CodeVault as a reconstructive intelligence substrate whose outputs never grant execution or promotion authority; builder-II remains the sole governance/control plane at every capability tier. |
 
 ## ADR discipline
 
