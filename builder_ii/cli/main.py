@@ -69,6 +69,24 @@ app = typer.Typer(
 console = Console()
 
 
+def _as_answer(value: object) -> str | None:
+    """Render a resolved config value as the string a wizard answer is.
+
+    Config resolution yields `bool` for `allow_artifact_root_inside_target` and `Path` for
+    `artifact_root`; a wizard answer is always a string, and `BOOL_ANSWERS` is `("false", "true")`.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return str(value).lower()
+    return str(value)
+
+
+def _as_bool(answer: str) -> bool:
+    """The inverse, for the one decision the onboarding pipeline wants typed."""
+    return answer.strip().lower() == "true"
+
+
 def _backend_ready_for_selected_model(settings) -> tuple[bool, str]:
     from builder_ii.backends import check_health, check_serves_active_model
 
@@ -205,41 +223,42 @@ def init(
         None, "--model-alias", help="Model alias (prompted when omitted; registry-validated)."
     ),
     agent_profile: Optional[str] = typer.Option(
-        None, "--agent-profile", help="Defaulted decision override: agent profile (registry-validated)."
+        None, "--agent-profile", help="Agent profile (prompted when omitted; registry-validated)."
     ),
     verification_profile: Optional[str] = typer.Option(
-        None, "--verification-profile", help="Defaulted decision override: verification profile (registry-validated)."
+        None, "--verification-profile", help="Verification profile (prompted when omitted; registry-validated)."
     ),
     artifact_root: Optional[Path] = typer.Option(
-        None, "--artifact-root", help="Defaulted decision override: platform artifact root."
+        None, "--artifact-root", help="Platform artifact root (prompted when omitted)."
     ),
     runtime_mode: Optional[str] = typer.Option(
-        None, "--runtime-mode", help="Defaulted decision override: runtime mode."
+        None, "--runtime-mode", help="Runtime mode (prompted when omitted; registry-validated)."
     ),
     allow_artifact_root_inside_target: Optional[bool] = typer.Option(
         None,
         "--allow-artifact-root-inside-target/--no-allow-artifact-root-inside-target",
-        help="Defaulted decision override: allow artifact root inside target source paths.",
+        help="Allow artifact root inside target source paths (prompted when omitted).",
     ),
     non_interactive: bool = typer.Option(
         False,
         "--non-interactive",
-        help="Never prompt; missing prompted decisions take their resolved documented defaults.",
+        help="Never prompt; missing decisions take their resolved documented defaults.",
     ),
 ) -> None:
     """Unified governed onboarding orchestrator: emits plan/overlay/snapshot/intent artifacts, never applies.
 
-    Composes the existing 4-decision wizard surface with registry-validated answers and
-    documented defaults for the remaining decisions. The apply step is a separately
-    invoked, digest-confirmed command (builder-setup apply) — init renders digests but
-    never harvests the confirmation.
+    Wizard v2 (Ladder 5) prompts all nine onboarding decisions, each registry-validated, with the
+    precedence the original four always had: flag > prompt > resolved default. Five of the nine
+    used to be resolved silently and echoed afterwards — including where artifacts land and
+    whether a runtime may start. The apply step is a separately invoked, digest-confirmed command
+    (builder-setup apply) — init renders digests but never harvests the confirmation.
     """
     from builder_ii.config_sources import resolve_config_sources
     from builder_ii.init_decisions import (
         DEFAULT_INIT_OUTPUT_DIR,
-        defaulted_decisions,
+        TARGET_PROFILE_DECISION,
+        decisions,
         init_wizard_step_definitions,
-        prompted_decisions,
         validate_decision_value,
     )
     from builder_ii.setup_onboarding import run_onboarding_pipeline
@@ -251,14 +270,26 @@ def init(
             console.print(f"[red]config resolution error:[/] {error}")
         raise typer.Exit(1)
 
-    # Registry-validate every flag-provided answer up front — fail closed, never free text.
-    flag_answers = {
+    # Every decision's flag answer, keyed by decision name. One entry per decision, no exceptions:
+    # a decision whose flag is missing from this map would silently ignore the flag.
+    flag_answers: dict[str, str | None] = {
+        "output_dir": str(output_dir) if output_dir is not None else None,
         "target_profile": target_profile,
         "model_backend": model_backend,
         "model_alias": model_alias,
         "agent_profile": agent_profile,
         "verification_profile": verification_profile,
+        "artifact_root": str(artifact_root) if artifact_root is not None else None,
+        "runtime_mode": runtime_mode,
+        "allow_artifact_root_inside_target": (
+            None if allow_artifact_root_inside_target is None else str(allow_artifact_root_inside_target).lower()
+        ),
     }
+    missing_flags = {d.name for d in decisions()} - set(flag_answers)
+    if missing_flags:  # pragma: no cover - pinned by tests/test_wizard_v2.py
+        raise RuntimeError(f"decisions with no flag wired into `builder init`: {sorted(missing_flags)}")
+
+    # Registry-validate every flag-provided answer up front — fail closed, never free text.
     for decision_name, provided in flag_answers.items():
         if provided is None:
             continue
@@ -268,28 +299,54 @@ def init(
                 console.print(f"[red]invalid decision:[/] {error}")
             raise typer.Exit(2)
 
-    # The four wizard decisions: flag > interactive registry-validated prompt > resolved default.
-    # Re-expressed on builder_ii.wizard_framework (Ladder 5 PR-1), behavior-identically:
-    # prompt text renders from the live registries at prompt time, answers are registry-
-    # validated with the same three-attempt boundary, and the exact observable behavior is
-    # pinned by tests/test_wizard_characterization.py (run against unmodified main first).
-    defaults: dict[str, str | None] = {}
-    flag_values: dict[str, str | None] = {}
-    for decision in prompted_decisions():
-        if decision.name == "output_dir":
-            flag_values[decision.name] = str(output_dir) if output_dir is not None else None
-            defaults[decision.name] = DEFAULT_INIT_OUTPUT_DIR
-        else:
-            flag_values[decision.name] = flag_answers[decision.name]
-            defaults[decision.name] = resolution.value(decision.resolution_field or "")
+    # All nine decisions: flag > interactive registry-validated prompt > resolved default.
+    # Prompt text renders from the live registries at prompt time, answers are registry-validated
+    # with the same three-attempt boundary, and the observable behavior is pinned by
+    # tests/test_wizard_characterization.py (run against unmodified main before PR-1).
+    #
+    # `output_dir` alone has no config-resolution field: its default is a constant.
+    defaults: dict[str, str | None] = {
+        decision.name: (
+            DEFAULT_INIT_OUTPUT_DIR
+            if decision.resolution_field is None
+            else _as_answer(resolution.value(decision.resolution_field))
+        )
+        for decision in decisions()
+    }
 
-    engine = WizardEngine(steps=init_wizard_step_definitions(defaults))
-    for decision_name, provided in flag_values.items():
+    # `agent_profile` and `verification_profile` are resolved *from* the target profile, and the
+    # resolution above ran before the operator picked one. Re-resolve them against the target
+    # actually chosen, or `--target-profile generic` shows -- and on Enter records -- `builder`'s
+    # `patch_planner` / `builder_full`, in a plan whose own verification profile then declares
+    # itself incompatible with the target beside it.
+    _field_by_decision = {d.name: d.resolution_field for d in decisions()}
+    # The override key is the target decision's own resolution field, never the decision's name.
+    # `resolve_config_sources` ignores an unrecognised key in silence, so a transcribed one is a
+    # re-resolution that quietly changes nothing and hands back the same stale default.
+    _target_field = _field_by_decision[TARGET_PROFILE_DECISION]
+
+    def _default_for_target(decision_name: str, chosen_target: str) -> str | None:
+        field = _field_by_decision[decision_name]
+        if field is None:  # pragma: no cover - only `output_dir` lacks a field, and it is not dependent
+            return defaults[decision_name]
+        retargeted = resolve_config_sources(
+            project_root=root,
+            builder_config_file=config_file,
+            cli_overrides={_target_field: chosen_target},
+        )
+        return _as_answer(retargeted.value(field))
+
+    engine = WizardEngine(steps=init_wizard_step_definitions(defaults, _default_for_target))
+    for decision_name, provided in flag_answers.items():
         if provided is not None:
             engine.preanswer(decision_name, provided)
 
     if non_interactive:
-        chosen = {step.id: engine.answers.get(step.id, defaults[step.id]) for step in engine.steps}
+        # In step order, so a later step's `default_from` sees the earlier answers it depends on.
+        # Membership, not truthiness: an answer of "" is an answer, and must not fall to a default.
+        chosen = {}
+        for step in engine.steps:
+            chosen[step.id] = engine.answers[step.id] if step.id in engine.answers else step.resolved_default(chosen)
         prompted_any = False
     else:
         try:
@@ -303,20 +360,21 @@ def init(
             console.print("[red]no valid answer after 3 attempts; aborting without writing artifacts[/]")
             raise typer.Exit(2) from None
 
+    chosen_artifact_root = chosen.get("artifact_root")
     result = run_onboarding_pipeline(
         output_dir=Path(chosen["output_dir"]),
         onboarding_mode="wizard" if prompted_any else "init",
         root=root,
         config_file=config_file,
         target_repo=target_repo,
-        artifact_root=artifact_root,
+        artifact_root=Path(chosen_artifact_root) if chosen_artifact_root else None,
         target_profile=chosen["target_profile"],
-        agent_profile=agent_profile,
-        verification_profile=verification_profile,
+        agent_profile=chosen["agent_profile"],
+        verification_profile=chosen["verification_profile"],
         model_backend=chosen["model_backend"],
         model_alias=chosen["model_alias"],
-        runtime_mode=runtime_mode,
-        allow_artifact_root_inside_target=allow_artifact_root_inside_target,
+        runtime_mode=chosen["runtime_mode"],
+        allow_artifact_root_inside_target=_as_bool(chosen["allow_artifact_root_inside_target"]),
     )
     if not result.valid:
         console.out(json.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
@@ -324,22 +382,8 @@ def init(
 
     console.out("Onboarding plan generated (no setup was applied).\n\n", end="")
     console.out("Selected decisions:\n", end="")
-    for name in ("target_profile", "model_backend", "model_alias", "output_dir"):
-        console.out(f"  {name}: {chosen[name]}\n", end="")
-    console.out("\nDefaulted decisions (documented defaults; override flags shown):\n", end="")
-    for defaulted in defaulted_decisions():
-        value = resolution.value(defaulted.resolution_field)
-        if defaulted.name == "agent_profile" and agent_profile is not None:
-            value = agent_profile
-        if defaulted.name == "verification_profile" and verification_profile is not None:
-            value = verification_profile
-        if defaulted.name == "artifact_root" and artifact_root is not None:
-            value = str(artifact_root)
-        if defaulted.name == "runtime_mode" and runtime_mode is not None:
-            value = runtime_mode
-        if defaulted.name == "allow_artifact_root_inside_target" and allow_artifact_root_inside_target is not None:
-            value = str(allow_artifact_root_inside_target).lower()
-        console.out(f"  {defaulted.name}: {value}  (override: {defaulted.override_flag})\n", end="")
+    for decision in decisions():
+        console.out(f"  {decision.name}: {chosen[decision.name]}  (override: {decision.override_flag})\n", end="")
     console.out("\nArtifacts:\n", end="")
     console.out(f"  setup plan:        {result.setup_plan_path}\n", end="")
     console.out(f"  overlay plan:      {result.setup_overlay_path}\n", end="")

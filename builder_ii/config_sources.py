@@ -36,7 +36,10 @@ _PATH_FIELDS = {
 }
 _BOOL_FIELDS = {"allow_artifact_root_inside_target"}
 _SECRET_MARKERS = ("secret", "token", "api_key", "apikey", "password", "credential", "bearer")
-_ALLOWED_RUNTIME_MODES = {"passive", "disabled", "operator_managed_legacy"}
+# Ordered, because a wizard renders it into prompt text. A set has no order, so a prompt built from
+# one shows its options in a different sequence on every run under hash randomization.
+RUNTIME_MODES: tuple[str, ...] = ("passive", "disabled", "operator_managed_legacy")
+_ALLOWED_RUNTIME_MODES = set(RUNTIME_MODES)
 _ALLOWED_SKILLS_POLICIES = {
     "disabled",
     "plan_only_target_agents_skills",
