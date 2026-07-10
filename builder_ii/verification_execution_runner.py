@@ -45,6 +45,11 @@ from builder_ii.verification_isolation_backend import IsolationBackendError, get
 
 STDOUT_STDERR_CAPTURE_BYTES = 65536
 GIT_STATUS_TIMEOUT_SECONDS = 10
+
+# The directory that contains builder-II's own `builder_ii` package -- i.e. the import root of the
+# code that is *doing* the verifying. Every child the runner spawns resolves `builder_ii` here and
+# nowhere else, so the repository under verification can never supply the module that audits it.
+BUILDER_II_IMPORT_ROOT = Path(__file__).resolve().parent.parent
 FORBIDDEN_ARG_TOKENS = ("&&", "||", ";", "|", "`", "$(", "\n", "\r", ">", "<")
 SAFE_ENV_KEYS = (
     "PATH",
@@ -183,13 +188,44 @@ def _validate_output_path(*, output: Path, target_repo: Path, artifact_root: Pat
     return errors
 
 
-def _minimal_env(target_repo: Path) -> dict[str, str]:
+def _minimal_env(target_repo: Path, *, allow_target_repo_imports: bool) -> dict[str, str]:
+    """Compose the child environment. `allow_target_repo_imports` is deliberately required.
+
+    The runner spawns children with `cwd=target_repo`. Python then puts the target repository at
+    `sys.path[0]`, and the old unconditional `PYTHONPATH=target_repo` put it there a second time.
+    Two consequences, both confirmed by running them:
+
+    - the target's `sitecustomize.py` is imported by `site` at interpreter startup, before `main()`;
+    - the target's `builder_ii/` package shadows builder-II's own, so
+      `-m builder_ii.verification_runner_entrypoints` dispatches the *target's* module.
+
+    So `platform_status` and `docs_audit` -- the two profiles documented as running builder-II's own
+    checks and never the target's code -- executed target code. The repository under verification
+    supplied the auditor that cleared it. `VERIFICATION_ISOLATION_RFC.md` names the shape: "there is
+    nothing an isolated run can evidence that an unisolated run could not forge."
+
+    `PYTHONSAFEPATH` removes `sys.path[0]`, and `BUILDER_II_IMPORT_ROOT` always precedes the target,
+    so every child resolves `builder_ii` to the verifying code. A target-code profile still gets the
+    target on the path -- it runs the target's suite by design (D7) -- but it can no longer replace
+    the runner's own dispatch module on the way there.
+
+    The caller derives this flag from `TARGET_CODE_EXECUTING_PROFILES`, the same constant that makes
+    the approval demand an execution-risk acknowledgement. One list, two consequences: a profile the
+    operator must knowingly accept target-code risk for is exactly a profile allowed to import target
+    code. A second, independent flag here would be a second place to forget.
+    """
     env = {key: value for key, value in os.environ.items() if key in SAFE_ENV_KEYS}
+    import_roots = [str(BUILDER_II_IMPORT_ROOT)]
+    if allow_target_repo_imports:
+        import_roots.append(str(target_repo))
     env.update(
         {
             "CORE_REPO_PATH": ".",
             "PYTHONUNBUFFERED": "1",
-            "PYTHONPATH": str(target_repo),
+            "PYTHONPATH": os.pathsep.join(import_roots),
+            # Drop `sys.path[0]` (the cwd, i.e. the target repo). Without this, PYTHONPATH ordering
+            # is irrelevant: cwd precedes it and the target shadows `builder_ii` anyway.
+            "PYTHONSAFEPATH": "1",
             # Suppress __pycache__/*.pyc so a pytest run does not create bytecode byproducts
             # that would otherwise register as workspace changes.
             "PYTHONDONTWRITEBYTECODE": "1",
@@ -238,7 +274,7 @@ def _git_commit_identity(target_repo: Path) -> tuple[str | None, str | None]:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD", "--abbrev-ref", "HEAD"],
             cwd=target_repo,
-            env=_minimal_env(target_repo),
+            env=_minimal_env(target_repo, allow_target_repo_imports=False),
             capture_output=True,
             text=True,
             timeout=GIT_STATUS_TIMEOUT_SECONDS,
@@ -259,7 +295,7 @@ def _git_state(target_repo: Path, label: str) -> dict[str, Any]:
         result = subprocess.run(
             ["git", "status", "--porcelain=v1"],
             cwd=target_repo,
-            env=_minimal_env(target_repo),
+            env=_minimal_env(target_repo, allow_target_repo_imports=False),
             capture_output=True,
             text=True,
             timeout=GIT_STATUS_TIMEOUT_SECONDS,
@@ -779,7 +815,13 @@ def run_approved_verification(
             if not policy_digest or len(policy_digest) != 64 or not all(c in "0123456789abcdef" for c in policy_digest):
                 raise IsolationBackendError("isolation policy digest is missing or invalid")
 
-        run_argv, run_env = isolation_backend.wrap_command(list(profile.argv), _minimal_env(target_repo))
+        run_argv, run_env = isolation_backend.wrap_command(
+            list(profile.argv),
+            _minimal_env(
+                target_repo,
+                allow_target_repo_imports=profile.profile in TARGET_CODE_EXECUTING_PROFILES,
+            ),
+        )
     except IsolationBackendError as exc:
         return _receipt_for_block(
             plan=plan,
