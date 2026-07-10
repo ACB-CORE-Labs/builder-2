@@ -21,6 +21,9 @@ from builder_ii.command_authority import (
     REQUIRED_SUBCOMMANDS,
     TIER_0,
     TIER_1,
+    TIER_2,
+    TIER_3,
+    TIER_4,
     CommandAuthorityError,
     CommandAuthorityRecord,
     _assurance_probe,
@@ -748,21 +751,42 @@ def test_memory_mutation_is_a_prohibition_no_record_may_claim() -> None:
     `memory_mutation: DISABLED`, and the B8 memory lane writes memory *artifacts*, claiming
     `allows_artifact_writes` instead. So the flag names an authority builder-II declines to grant.
 
-    It now derives `LOCAL_STATE_MUTATION_VERIFIED` if ever set, which is what mutating a store outside
-    the artifact store means -- but the pin below is what keeps it from being set at all.
+    It derives `SAFETY_CRITICAL_PROHIBITED`, whose definition says exactly that: a capability whose
+    promotion is refused regardless of the evidence offered for it.
     """
-    from builder_ii.assurance import LOCAL_STATE_MUTATION_VERIFIED
+    from builder_ii.assurance import SAFETY_CRITICAL_PROHIBITED
 
     holders = [r.name for r in COMMAND_AUTHORITY_REGISTRY if r.allows_memory_mutation]
     assert holders == [], f"memory mutation is prohibited; these records claim it: {holders}"
 
     assert "allows_memory_mutation" in ASSURANCE_DERIVING_FLAGS, "a prohibited flag must not read as harmless"
     probe = explain_assurance_for_record(_assurance_probe(allows_memory_mutation=True))
-    assert probe.state == LOCAL_STATE_MUTATION_VERIFIED
+    assert probe.state == SAFETY_CRITICAL_PROHIBITED
 
     memory_writers = [r for r in COMMAND_AUTHORITY_REGISTRY if r.name.startswith("builder-memory ")]
     assert memory_writers, "the B8 memory lane must exist for this pin to mean anything"
     assert any(r.allows_artifact_writes for r in memory_writers), "the memory lane writes artifacts, not memory"
+
+
+def test_the_memory_mutation_prohibition_is_a_registry_invariant_at_every_tier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An empty-holders assertion says the flag is unclaimed today. It does not stop tomorrow.
+
+    `validate_registry_invariants` forbade the flag at Tier 0 and Tier 1 only -- the tiers that
+    forbid every execution flag anyway. Tier 2 (`operator_managed`) and Tier 3
+    (`hitl_runtime_candidate`) are exactly the tiers a record claiming it would plausibly sit at, and
+    they were unguarded. The claim rested on a test in another file, which is not an invariant.
+    """
+    import builder_ii.command_authority as module
+
+    assert validate_registry_invariants() == [], "baseline: no record claims it"
+
+    for tier in (TIER_0, TIER_1, TIER_2, TIER_3, TIER_4):
+        claimant = replace(_assurance_probe(allows_memory_mutation=True), tier=tier)
+        monkeypatch.setattr(module, "COMMAND_AUTHORITY_REGISTRY", (claimant,))
+        errors = " ".join(validate_registry_invariants())
+        assert "no record may claim at any tier" in errors, f"tier {tier} left the prohibition unenforced"
 
 
 def test_every_capability_flag_is_requestable_as_an_effect() -> None:
@@ -829,7 +853,10 @@ def test_each_capability_flag_derives_the_state_the_lattice_promises() -> None:
         "allows_external_tool_invocation": "BOUNDED_EXECUTION_VERIFIED",
         "allows_readonly_subprocess": "BOUNDED_EXECUTION_VERIFIED",
         "allows_state_writes": "LOCAL_STATE_MUTATION_VERIFIED",
-        "allows_memory_mutation": "LOCAL_STATE_MUTATION_VERIFIED",
+        # Not LOCAL_STATE_MUTATION_VERIFIED, though it too mutates a store outside the artifact
+        # store: that state ends "calls no provider", and this flag is the one capability whose
+        # promotion is refused on any evidence. The refused capability does not get the safe label.
+        "allows_memory_mutation": "SAFETY_CRITICAL_PROHIBITED",
     }
     assert set(expected) == set(ASSURANCE_DERIVING_FLAGS)
     for flag, state in expected.items():

@@ -87,8 +87,11 @@ ASSURANCE_STATE_DEFINITIONS: dict[AssuranceState, str] = {
         "never a default for something that runs."
     ),
     SAFETY_CRITICAL_PROHIBITED: (
-        "Reserved. No mapping derives it and no current row carries it. It names a capability whose "
-        "promotion is refused regardless of the evidence offered for it."
+        "Names a capability whose promotion is refused regardless of the evidence offered for it. "
+        "`allows_memory_mutation` is the only one, and `validate_registry_invariants` rejects it at "
+        "every tier, so the state is derivable but no row or record carries it: a record claiming "
+        "the flag is refused before anything can read its state. Unlike BLOCKED_BY_EVIDENCE, no "
+        "evidence unblocks it."
     ),
 }
 

@@ -389,10 +389,14 @@ _BOUNDED_FLAGS: tuple[str, ...] = (
 # chain -- `builder-runtime stop` deletes the same marker `clear-marker` does, and also kills a
 # process, which is the larger claim. Above the passive fall-through, which is the whole point:
 # `PASSIVE_ARTIFACT_VERIFIED` promises the command "writes nothing outside the artifact store".
-_LOCAL_STATE_FLAGS: tuple[str, ...] = (
-    "allows_state_writes",
-    "allows_memory_mutation",
-)
+#
+# `allows_memory_mutation` is deliberately absent. It also mutates a store outside the artifact
+# store, so it reads like a member -- but this state's definition ends "starts no runtime, spawns no
+# process, and calls no provider", a *positive* safety claim, and `allows_memory_mutation` is the one
+# capability builder-II refuses to promote on any evidence. Granting the refused capability the
+# safest available label is the defect this whole chain exists to prevent, one level up. It derives
+# SAFETY_CRITICAL_PROHIBITED instead.
+_LOCAL_STATE_FLAGS: tuple[str, ...] = ("allows_state_writes",)
 
 
 def explain_assurance_for_record(record: CommandAuthorityRecord) -> AssuranceDerivation:
@@ -404,6 +408,11 @@ def explain_assurance_for_record(record: CommandAuthorityRecord) -> AssuranceDer
     state cannot reconcile them, and would reasonably conclude the state was wrong. It is not; the
     derivation simply was not written down. Now it is, and `render_command_authority_doc` prints it.
     """
+    # First, above tier and promotion state, because a refused capability is refused whatever else
+    # the record says about itself. A Tier 4 record claiming it would otherwise read
+    # BLOCKED_BY_EVIDENCE -- "blocked pending evidence" -- and no evidence unblocks this one.
+    if record.allows_memory_mutation:
+        return AssuranceDerivation(SAFETY_CRITICAL_PROHIBITED, "`allows_memory_mutation` is set")
     if record.tier == TIER_4:
         return AssuranceDerivation(BLOCKED_BY_EVIDENCE, "tier is `Tier 4`")
     if record.promotion_state == STATE_FORBIDDEN_UNPROMOTED:
@@ -4119,6 +4128,14 @@ def validate_registry_invariants() -> list[str]:
             )
             if has_forbidden_tier1:
                 errors.append(f"Tier 1 record '{r.name}' claims forbidden execution/mutation authority")
+
+        # At every tier, not only Tier 0 and Tier 1. No record has ever claimed it, every governed
+        # platform bundle asserts `memory_mutation: DISABLED`, and the B8 memory lane writes memory
+        # *artifacts* under `allows_artifact_writes` instead. Forbidding it only at the tiers that
+        # forbid everything left the claim resting on a test in another file; a Tier 2 or Tier 3
+        # record could have claimed it and been read as a promotion candidate.
+        if r.allows_memory_mutation:
+            errors.append(f"Record '{r.name}' claims `allows_memory_mutation`, which no record may claim at any tier")
 
         errors.extend(inheritance_errors(r))
 

@@ -21,7 +21,7 @@ declared by it, and `Assurance Derived From` names the single fact that decided 
 - `LIVE_PROVIDER_VERIFIED` — Reaches a live model provider over the network. Its output is not deterministic and is never, on its own, evidence.
 - `DEMO_ONLY_VERIFIED` — Exercised end to end only inside the governed demo loop, against a synthetic target. A demo pass is not evidence for the corresponding real lane.
 - `BLOCKED_BY_EVIDENCE` — No claim is supported: the capability is not operationally verified, or its command surface is a forbidden or unpromoted record. This is the state that absence takes. It is never a default for something that runs.
-- `SAFETY_CRITICAL_PROHIBITED` — Reserved. No mapping derives it and no current row carries it. It names a capability whose promotion is refused regardless of the evidence offered for it.
+- `SAFETY_CRITICAL_PROHIBITED` — Names a capability whose promotion is refused regardless of the evidence offered for it. `allows_memory_mutation` is the only one, and `validate_registry_invariants` rejects it at every tier, so the state is derivable but no row or record carries it: a record claiming the flag is refused before anything can read its state. Unlike BLOCKED_BY_EVIDENCE, no evidence unblocks it.
 
 ## Capabilities
 
