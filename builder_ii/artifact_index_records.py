@@ -32,6 +32,10 @@ from builder_ii.code_vault.context_bridge import (
     CONTEXT_PROJECTION_KIND,
     validate_context_projection,
 )
+from builder_ii.code_vault.extractor_manifest import (
+    EXTRACTOR_MANIFEST_KIND,
+    validate_extractor_manifest,
+)
 from builder_ii.code_vault.hierarchy import (
     HIERARCHICAL_FRAME_KIND,
     hierarchical_frame_from_dict,
@@ -493,6 +497,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     DEEPAGENTS_READINESS_KIND: validate_deepagents_readiness_artifact,
     REPO_MAP_KIND: validate_repo_map,
     HIERARCHICAL_FRAME_KIND: _validate_hierarchical_frame_record,
+    EXTRACTOR_MANIFEST_KIND: validate_extractor_manifest,
     LINTER_REPORT_KIND: validate_linter_report,
     CONTEXT_PROJECTION_KIND: validate_context_projection,
     RECALL_REPORT_KIND: validate_recall_report,

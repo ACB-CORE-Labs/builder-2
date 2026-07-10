@@ -870,7 +870,10 @@ def test_the_policy_snapshot_documents_every_command_including_the_ones_nobody_d
     # 98, down from 99: the github/main reconciliation declared `builder-hitl run-command` as a
     # real Tier 4 fail-closed record (and declared `builder-readonly content-read` and
     # `builder-platform operator-lane` outright), so those names are no longer prefix-clones.
-    assert len(_SYNTHESIZED_PARENTS) == 98
+    # 100, up from 98: CodeVault G1 PR-1 added `builder-code-vault extractor-manifest` and
+    # `builder-code-vault validate-extractor-manifest` as undeclared prefix-clones of the
+    # `builder-code-vault` group.
+    assert len(_SYNTHESIZED_PARENTS) == 100
     for record in COMMAND_AUTHORITY_REGISTRY:
         assert f"`{record.name}`" in doc, f"`{record.name}` is in the registry and absent from the policy snapshot"
 
