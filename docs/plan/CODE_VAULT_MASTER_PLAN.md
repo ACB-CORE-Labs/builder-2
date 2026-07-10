@@ -159,6 +159,10 @@ Fruition is achieved when:
 3. Then **G2** StructuralField with TDD.  
 4. Do not claim U until **G5**.
 
+The per-PR decomposition of this slice — wave structure, standing invariants, and dispatchable
+work orders — is recorded in [`CODE_VAULT_EXECUTION_MAP.md`](CODE_VAULT_EXECUTION_MAP.md) and
+[`CODE_VAULT_G1_WAVE_BRIEFS.md`](CODE_VAULT_G1_WAVE_BRIEFS.md).
+
 ---
 
 ## Related platform
