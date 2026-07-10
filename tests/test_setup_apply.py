@@ -320,6 +320,49 @@ def test_create_existing_target_denied_in_preflight_without_mutating_prior_chang
     assert existing_path.read_text(encoding="utf-8") == "preexisting\n"
 
 
+def test_apply_refuses_to_write_bytes_the_plan_did_not_digest(tmp_path):
+    """Found by the cross-author audit, by driving it rather than reading it.
+
+    A change whose `metadata` is empty degrades `_content_text` to the change's own
+    `redacted_preview`, and apply then wrote literal "<redacted>" placeholders to the target
+    under a green `applied`/`changed` receipt: the overlay validated, the receipt validated,
+    and nothing anywhere compared the written bytes against the plan's `content_digest`.
+    planned != executed, with no tell. This pins the digest-parity preflight denial that makes
+    the class unrepresentable. If this test fails because the denial vanished, the garbage
+    write is back -- do not weaken the assertion, restore the guard.
+    """
+    target = tmp_path / "artifacts" / "setup" / "planned.yaml"
+    change = _change(target, op="create", content="model: real-planned-content\n")
+    change["metadata"] = {}
+    # What a redacted preview looks like -- NOT the planned content the digest names.
+    change["redacted_preview"] = "model: <redacted>\n"
+    overlay, snap = _artifacts(tmp_path, [change])
+    op, sp = _write(tmp_path, overlay, snap)
+    receipt_path = tmp_path / "receipt.json"
+
+    result = runner.invoke(
+        setup_app,
+        [
+            "apply",
+            str(op),
+            "--rollback-snapshot",
+            str(sp),
+            "--approve-digest",
+            overlay["overlay_plan_digest"],
+            "--output",
+            str(receipt_path),
+        ],
+    )
+
+    assert result.exit_code != 0
+    receipt = json.loads(receipt_path.read_text())
+    assert receipt["operation_result"] == "denied"
+    assert receipt["changed_paths"] == []
+    assert change["target_path"] in receipt["denied_paths"]
+    assert "planned content digest mismatch" in receipt["operations"][0]["reason"]
+    assert not target.exists(), "the redacted preview must never be written as file content"
+
+
 def test_noop_source_repo_paths_are_skipped_not_denied(tmp_path):
     source = tmp_path / "builder" / ".goosehints"
     source.parent.mkdir()
