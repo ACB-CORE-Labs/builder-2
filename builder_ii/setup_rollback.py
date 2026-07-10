@@ -20,10 +20,30 @@ _SECRET_MARKERS = ("secret", "token", "api_key", "apikey", "password", "credenti
 
 # See setup_apply._MERGE_PREVIEW_WITHHELD. Redaction recognises key NAMES, not credentials, so no
 # preview of an operator-owned file is safe to embed in a governed artifact.
-_MERGE_PREVIEW_WITHHELD = (
-    "<withheld: a merge target may hold operator credentials under keys redaction cannot recognise; "
+_OPERATOR_FILE_PREVIEW_WITHHELD = (
+    "<withheld: an operator-owned file may hold credentials under keys redaction cannot recognise; "
     "see prior_content_digest and prior_content_size_bytes>"
 )
+_WITHHELD_REDACTION_STATE = "withheld_operator_owned_file_may_contain_credentials"
+
+# Backwards-compatible alias: the first cut of this guard only fired for `merge`.
+_MERGE_PREVIEW_WITHHELD = _OPERATOR_FILE_PREVIEW_WITHHELD
+
+
+def _is_operator_owned(change: dict[str, Any], operation: str) -> bool:
+    """Is the prior file at this path one builder-II did not author?
+
+    Gating the withholding on ``operation == "merge"`` was too narrow: a `replace` of the very same
+    Goose config previews it, and marker redaction lets a credential under `openai_key` straight
+    through. Proven by running it. What actually decides the question is *whose file it is*, not what
+    we are about to do to it.
+
+    `inside_user_config_dir` marks a path under the operator's own config directory (`~/.config/goose`
+    and friends). A `merge` is operator-owned by construction: nothing else is merge-able. Files inside
+    builder-II's own repo and artifact root -- the `.env` recommendation, `.goosehints`, session context
+    -- keep their line-redacted preview, which is what `tests/test_setup_rollback.py` pins.
+    """
+    return bool(change.get("inside_user_config_dir")) or operation == "merge"
 _EXISTENCE_STATES = {"missing", "file", "directory", "symlink", "unsupported"}
 _STORAGE_POLICIES = {
     "not_stored_missing_file_marker_only",
@@ -178,13 +198,12 @@ def _snapshot_path(path: Path, *, change: dict[str, Any]) -> dict[str, Any]:
         if path.is_file():
             raw = path.read_bytes()
             text = raw.decode("utf-8", errors="replace")
-            if operation == "merge":
-                # A merge target is, by declaration, a file builder-II does not own and which may
-                # hold operator credentials. Marker-based redaction only elides values under key
-                # names it recognises, so an unrecognised one (`openai_key`, `session_cookie`, ...)
-                # would be copied verbatim into this snapshot. The digest and size below identify
-                # the prior file without reproducing any of it.
-                preview, redaction_state = (_MERGE_PREVIEW_WITHHELD, "withheld_merge_target_may_contain_credentials")
+            if _is_operator_owned(change, operation):
+                # A file builder-II does not own may hold operator credentials. Marker-based
+                # redaction only elides values under key names it recognises, so an unrecognised one
+                # (`openai_key`, `session_cookie`, ...) would be copied verbatim into this snapshot.
+                # The digest and size below identify the prior file without reproducing any of it.
+                preview, redaction_state = (_OPERATOR_FILE_PREVIEW_WITHHELD, _WITHHELD_REDACTION_STATE)
             else:
                 preview, redaction_state = _redact_text(text)
             return {
