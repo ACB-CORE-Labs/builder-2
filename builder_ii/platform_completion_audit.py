@@ -135,22 +135,130 @@ class CapabilityRow:
         return data
 
 
+class UnclassifiedCapabilityError(ValueError):
+    """An OPERATIONALLY_VERIFIED row whose assurance nobody decided."""
+
+
+# Every OPERATIONALLY_VERIFIED capability appears here exactly once, by an explicit decision.
+#
+# This used to be an if/elif chain ending in `return PASSIVE_ARTIFACT_VERIFIED`. The field that
+# `docs/PLATFORM_COMPLETION_AUDIT.md` calls "authoritative for risk interpretation" therefore
+# assigned its LOWEST-risk label to any row nobody had classified -- eleven of the nineteen, at the
+# last count, including the one lane that spawns a subprocess. Not because anyone judged them
+# passive; because nobody judged them at all, and the default guessed in the green direction. A
+# field authoritative for risk must fail closed. That one failed open.
+#
+# `builder-platform audit-docs` cannot catch this class: it detects docs that OVERSTATE capability,
+# never records that understate risk. Truth is symmetric; that audit is not. So the guard is
+# structural instead: a missing key raises, a stale key is a matrix validation error, and a new
+# OPERATIONALLY_VERIFIED row cannot reach the matrix without someone deciding what it does. The
+# understatement is now unrepresentable rather than merely fixed once.
+#
+# Read `builder_ii/assurance.py` for what each state means before adding a line here. The state
+# describes what the capability DOES, not how important it feels.
+_OPERATIONALLY_VERIFIED_ASSURANCE: dict[str, AssuranceState] = {
+    # Writes the target's source tree or git state, behind digest-prefix approval + snapshot.
+    "HITL patch application": MUTATION_WITH_ROLLBACK_VERIFIED,
+    "rollback execution": MUTATION_WITH_ROLLBACK_VERIFIED,
+    # Reaches a live provider over the network.
+    "model/provider execution": LIVE_PROVIDER_VERIFIED,
+    # Starts a runtime whose own policy denies writes.
+    "governed read-only runtime": READ_ONLY_RUNTIME_VERIFIED,
+    "Goose readonly runtime": READ_ONLY_RUNTIME_VERIFIED,
+    # Causes work to run inside a fixed, pre-approved envelope, and receipts the invocation.
+    "low-risk tool invocation": BOUNDED_EXECUTION_VERIFIED,
+    "governed obligation delegation": BOUNDED_EXECUTION_VERIFIED,
+    # Spawns `sys.executable -m builder_ii.verification_runner_entrypoints <sub>` with fixed argv,
+    # shell=False, a minimal env, and an import path the target repo cannot supply, under two-key
+    # HITL approval, and binds a digest-stable receipt to the plan and the approval. Scoped exactly
+    # to the platform_status and docs_audit profiles, which run builder-II's own audit code over the
+    # target's data; pytest_full and builder_full execute the target's own suite behind the D7
+    # execution-risk acknowledgement and are outside this claim. `bounded` describes the envelope of
+    # the invocation. It says nothing about the behaviour of the code that ran inside it.
+    # docs/audits/LADDER9_ASSURANCE_CLOSURE_AUDIT.md
+    "HITL-approved verification execution": BOUNDED_EXECUTION_VERIFIED,
+    # Same lane, same module (`deepagents_execution.py`), same envelope as the row above: the
+    # verified trunk is `execution-candidate -> approve-candidate -> run-approved` over the
+    # protocol_fake backend, emitting execution receipts and a tamper-evident event chain. Ladder 4
+    # filed that trunk as BOUNDED_EXECUTION_VERIFIED under the delegation row while this row --
+    # whose surfaces are `run-approved`, `replay-run`, `collect-results` -- was left to the old
+    # default and read PASSIVE. Two rows describing one lane must not disagree about its risk, and
+    # when they do the higher-risk label is the honest one. protocol_fake denies shell, source
+    # writes, git, MCP, Goose, memory and model invocation; `bounded` describes that envelope, and
+    # says nothing about the quality of anything an agent produces inside it.
+    "deepagents runtime/subagents": BOUNDED_EXECUTION_VERIFIED,
+    # Verified only against a synthetic target, inside the demo loop.
+    "governed demo loop": DEMO_ONLY_VERIFIED,
+    # ---- Passive: reads, builds, validates, renders. Starts nothing; spawns nothing. ----
+    # Each of these was read before it was filed here; none inherited its state from the old
+    # default. The reasoning that survives is recorded next to the row it justifies.
+    #
+    # `builder-hitl propose-patch` emits a proposal artifact; application is a different row.
+    "HITL patch proposal": PASSIVE_ARTIFACT_VERIFIED,
+    # `check_command_authority` is a pure decision function over the registry. It permits the
+    # subprocess that `builder-verify run-approved` then spawns; it spawns nothing itself.
+    "command authority as runtime gate": PASSIVE_ARTIFACT_VERIFIED,
+    "context packs": PASSIVE_ARTIFACT_VERIFIED,
+    # `builder init` prompts, plans, and stops. Setup mutation is `builder-setup apply` (R1.7).
+    "interactive setup wizard": PASSIVE_ARTIFACT_VERIFIED,
+    # Registry and routing are policy artifacts. The call that reaches a provider is
+    # `model/provider execution`, above, and it is filed as LIVE_PROVIDER_VERIFIED.
+    "model registry": PASSIVE_ARTIFACT_VERIFIED,
+    "model routing": PASSIVE_ARTIFACT_VERIFIED,
+    # Generated from the truth matrix, command authority, and memory artifacts, and the row's own
+    # blockers say it "demonstrates a complete governed local workflow without runtime execution".
+    "operator quickstart/golden path": PASSIVE_ARTIFACT_VERIFIED,
+    # `create_verification_runner_postflight` reads `receipt["postflight_git_state"]`, compares
+    # preflight and postflight fingerprints, and writes a record. The `git status` that captured
+    # that state was spawned by `run-approved`, whose own row carries the execution risk;
+    # `execution_postflight_records.py` disables `command_execution` and `shell_execution` in its
+    # governance block. Postflight originates no process. It is passive because of what it does,
+    # not because it was never looked at.
+    "postflight verification": PASSIVE_ARTIFACT_VERIFIED,
+    "target profiles": PASSIVE_ARTIFACT_VERIFIED,
+}
+
+
+def validate_assurance_classification(
+    rows: tuple[CapabilityRow, ...] = (),
+) -> list[str]:
+    """Every OPERATIONALLY_VERIFIED row is classified, and nothing else is.
+
+    Both directions matter. A missing key is the fail-open default returning under another name.
+    A stale key is a decision about a capability that no longer holds the state it was decided for
+    -- `MCP invocation` sat in the old BOUNDED set while its row was `PASSIVE_FOUNDATION`, so that
+    entry had been dead for as long as anyone had been reading the chain to understand the mapping.
+    """
+    rows = rows or REQUIRED_CAPABILITY_ROWS
+    operationally_verified = {row.capability for row in rows if row.state == OPERATIONALLY_VERIFIED}
+    classified = set(_OPERATIONALLY_VERIFIED_ASSURANCE)
+
+    errors = [
+        f"operationally verified capability '{capability}' has no assurance classification: decide "
+        "what it does and add it to _OPERATIONALLY_VERIFIED_ASSURANCE"
+        for capability in sorted(operationally_verified - classified)
+    ]
+    errors.extend(
+        f"assurance classification for '{capability}' is stale: the capability is not "
+        "OPERATIONALLY_VERIFIED, so its state comes from the non-verified branch"
+        for capability in sorted(classified - operationally_verified)
+    )
+    return errors
+
+
 def assurance_state_for_row(row: CapabilityRow) -> AssuranceState:
     if row.state != OPERATIONALLY_VERIFIED:
         if row.state in (PASSIVE_FOUNDATION, ARTIFACT_ONLY):
             return PASSIVE_ARTIFACT_VERIFIED
         return BLOCKED_BY_EVIDENCE
-    if row.capability in {"HITL patch application", "rollback execution"}:
-        return MUTATION_WITH_ROLLBACK_VERIFIED
-    if row.capability == "model/provider execution":
-        return LIVE_PROVIDER_VERIFIED
-    if row.capability in {"governed read-only runtime", "Goose readonly runtime"}:
-        return READ_ONLY_RUNTIME_VERIFIED
-    if row.capability in {"low-risk tool invocation", "MCP invocation", "governed obligation delegation"}:
-        return BOUNDED_EXECUTION_VERIFIED
-    if row.capability == "governed demo loop":
-        return DEMO_ONLY_VERIFIED
-    return PASSIVE_ARTIFACT_VERIFIED
+    try:
+        return _OPERATIONALLY_VERIFIED_ASSURANCE[row.capability]
+    except KeyError:
+        raise UnclassifiedCapabilityError(
+            f"'{row.capability}' is OPERATIONALLY_VERIFIED with no assurance classification. "
+            "There is no default: decide what the capability does (see builder_ii/assurance.py) "
+            "and record it in _OPERATIONALLY_VERIFIED_ASSURANCE."
+        ) from None
 
 
 def _row(
@@ -672,6 +780,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "B1.4A/B/C/D add passive verification ledger indexing, query, integrity, and reconstruction reporting.",
             "Receipt state may be NOT_EXECUTED, BLOCKED_BEFORE_EXECUTION, EXECUTED, or FAILED depending on runner outcome.",
             "The approved verification lane is operationally verified only for fixed platform_status and docs_audit profiles; arbitrary argv, broad shell, live read authority, patching, model/MCP/Goose/deepagents runtime, and B2 write authority remain disabled.",
+            "Assurance BOUNDED_EXECUTION_VERIFIED (Ladder 9) describes the envelope of the invocation -- fixed argv, shell=False, two-key approval, an import path the target repo cannot supply, a digest-bound receipt -- and never the behaviour of the code that ran inside it (risk-register D7).",
+            "Under an applied isolation policy the receipt records the approved fixed profile argv, not the container-wrapped argv that executed, so isolation_status is the runner's own assertion about itself; local isolation is containment, never attestation (docs/plan/VERIFICATION_ISOLATION_RFC.md).",
+            "builder-verify plan exposes no isolation flag: isolation_policy exists in the plan schema, the runner and the receipt, but no governed CLI surface can request it.",
         ),
         "B2.0",
     ),
@@ -1199,6 +1310,10 @@ def validate_command_surfaces(
 
 def validate_completion_matrix(root: Path | None = None) -> list[str]:
     errors = validate_matrix_shape()
+    # An unclassified OPERATIONALLY_VERIFIED row makes `assurance_state_for_row` raise. Report it as
+    # a matrix error too, so `builder-platform matrix` and the platform_status verification profile
+    # name the missing decision instead of dying in a traceback.
+    errors.extend(validate_assurance_classification())
     if root is not None:
         errors.extend(validate_referenced_files(root))
     return errors

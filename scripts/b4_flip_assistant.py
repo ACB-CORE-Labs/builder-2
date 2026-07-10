@@ -48,12 +48,20 @@ MIRROR_DOC = REPO / "docs" / "PLATFORM_COMPLETION_AUDIT.md"
 # docs/audits/R1_CLOSURE_AUDIT_2_6.md); it also participates in the assurance + mirror checks only.
 # "governed obligation delegation" was added by the Ladder 4 PR-8 closure flip (protocol_fake
 # scope; docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md); assurance + mirror checks only.
+# "deepagents runtime/subagents" was added when the fall-through default was removed: it names the
+# same protocol_fake trunk as "governed obligation delegation" and must never drift from it;
+# assurance + mirror checks only.
+# "HITL-approved verification execution" was added by the Ladder 9 assurance flip
+# (docs/audits/LADDER9_ASSURANCE_CLOSURE_AUDIT.md): the completion state and count do not move, only
+# the assurance field; assurance + mirror checks only.
 FLIP_CAPABILITIES = (
     "HITL patch application",
     "rollback execution",
     "governed demo loop",
     "interactive setup wizard",
     "governed obligation delegation",
+    "deepagents runtime/subagents",
+    "HITL-approved verification execution",
 )
 EXECUTOR_STAMP_ROW = "HITL patch application"
 

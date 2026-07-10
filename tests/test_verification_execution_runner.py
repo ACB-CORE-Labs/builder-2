@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +13,7 @@ from builder_ii.verification_execution_approval import (
     write_verification_execution_approval,
 )
 from builder_ii.verification_execution_plan import (
+    TARGET_CODE_EXECUTING_PROFILES,
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )
@@ -19,7 +22,12 @@ from builder_ii.verification_execution_receipt import (
     SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
     validate_verification_execution_receipt_artifact,
 )
-from builder_ii.verification_execution_runner import _minimal_env, run_approved_verification
+from builder_ii.verification_execution_runner import (
+    BUILDER_II_IMPORT_ROOT,
+    SUPPORTED_COMMAND_PROFILES,
+    _minimal_env,
+    run_approved_verification,
+)
 
 
 def _artifact_root(tmp_path: Path) -> Path:
@@ -255,13 +263,17 @@ def test_minimal_env_preserves_path_without_forwarding_secrets(monkeypatch: Any,
     monkeypatch.setenv("GITHUB_TOKEN", "secret")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "secret")
 
-    env = _minimal_env(tmp_path)
+    env = _minimal_env(tmp_path, allow_target_repo_imports=False)
 
     assert env["PATH"] == "/usr/bin:/bin"
     assert env["TERM"] == "xterm-256color"
     assert env["SYSTEMDRIVE"] == "C:"
     assert env["CORE_REPO_PATH"] == "."
-    assert env["PYTHONPATH"] == str(tmp_path)
+    # This used to read `== str(tmp_path)`: the safe profiles put the *target repo* on the child's
+    # import path, which is what let a target shadow `builder_ii` and `sitecustomize`. A profile
+    # that may not execute target code resolves imports against builder-II alone.
+    assert env["PYTHONPATH"] == str(BUILDER_II_IMPORT_ROOT)
+    assert env["PYTHONSAFEPATH"] == "1"
     assert "OPENAI_API_KEY" not in env
     assert "ANTHROPIC_API_KEY" not in env
     assert "GITHUB_TOKEN" not in env
@@ -829,3 +841,121 @@ def test_generic_plan_injecting_builder_self_profile_blocks_end_to_end(monkeypat
     assert receipt["valid"] is False
     assert any("runs builder-II's own checks" in error for error in receipt["errors"])
     assert calls == [], "no subprocess may run for a refused builder-self profile"
+
+
+# ---------------------------------------------------------------------------
+# The subject must not supply the auditor that clears it.
+#
+# `run_approved_verification` spawns children with `cwd=target_repo`. Python puts the cwd at
+# `sys.path[0]`, and `_minimal_env` used to add `PYTHONPATH=target_repo` on top. So a target
+# repository could ship its own `builder_ii/` package and its own `sitecustomize.py`, and the two
+# profiles documented as running builder-II's own checks -- `platform_status` and `docs_audit` --
+# would execute the target's code instead. `sitecustomize` runs at interpreter startup, before
+# `main()` is ever reached.
+#
+# These pins spawn the real child, both ways. The negative control reproduces the old behavior
+# exactly, so the fix cannot decay into a comment.
+# ---------------------------------------------------------------------------
+
+_RUNNER_MODULE = "builder_ii.verification_runner_entrypoints"
+# The real module, invoked with no subcommand, prints this and exits 2. A stand-in that lacks a
+# `__main__` block exits 0 in silence. That difference identifies whose code ran, and needs no
+# side effect to observe.
+_REAL_MODULE_DIAGNOSTIC = "unsupported verification runner entrypoint"
+
+
+def _target_repo_that_shadows_builder_ii(tmp_path: Path) -> Path:
+    """A target repo carrying its own `builder_ii` package and a `sitecustomize.py`."""
+    target = tmp_path / "target-repo"
+    (target / "builder_ii").mkdir(parents=True)
+    (target / "builder_ii" / "__init__.py").write_text("", encoding="utf-8")
+    # No `__main__` block: if this module is the one `-m` runs, the child exits 0 silently.
+    (target / "builder_ii" / "verification_runner_entrypoints.py").write_text(
+        "MARKER = 'this module belongs to the target repository'\n", encoding="utf-8"
+    )
+    (target / "sitecustomize.py").write_text(
+        "print('target-sitecustomize-executed')\n", encoding="utf-8"
+    )
+    return target
+
+
+def _spawn_runner_module(target: Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-m", _RUNNER_MODULE],
+        cwd=target,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        shell=False,
+    )
+
+
+def test_a_target_repo_cannot_supply_the_module_that_audits_it(tmp_path: Path) -> None:
+    target = _target_repo_that_shadows_builder_ii(tmp_path)
+
+    completed = _spawn_runner_module(target, _minimal_env(target, allow_target_repo_imports=False))
+
+    assert completed.returncode == 2, (
+        "the child did not run builder-II's own entrypoint module; a target repo shadowing "
+        f"`builder_ii` was able to answer for it. stdout={completed.stdout!r}"
+    )
+    assert _REAL_MODULE_DIAGNOSTIC in completed.stderr
+    assert "target-sitecustomize-executed" not in completed.stdout, (
+        "the target repo's sitecustomize.py executed at interpreter startup"
+    )
+
+
+def test_the_shadowing_the_pin_forbids_is_real_and_not_hypothetical(tmp_path: Path) -> None:
+    """Negative control: reproduce the pre-fix environment and watch the target's code win.
+
+    Without this, the pin above could pass for the wrong reason -- e.g. if `-m` never resolved
+    against the cwd on some platform -- and would silently stop protecting anything.
+    """
+    target = _target_repo_that_shadows_builder_ii(tmp_path)
+    unsafe = _minimal_env(target, allow_target_repo_imports=False)
+    unsafe.pop("PYTHONSAFEPATH")  # restore `sys.path[0]` == cwd == the target repo
+    unsafe["PYTHONPATH"] = str(target)  # and the old unconditional target-first import root
+
+    completed = _spawn_runner_module(target, unsafe)
+
+    assert completed.returncode == 0
+    assert _REAL_MODULE_DIAGNOSTIC not in completed.stderr
+    assert "target-sitecustomize-executed" in completed.stdout
+
+
+def test_only_the_profiles_that_may_execute_target_code_get_it_on_the_import_path() -> None:
+    """One list decides two things, so neither can drift from the other.
+
+    `TARGET_CODE_EXECUTING_PROFILES` is what makes the approval demand an execution-risk
+    acknowledgement (D7). It is now also what puts the target repository on the child's import
+    path. A profile the operator must knowingly accept target-code risk for is exactly a profile
+    permitted to import target code -- and no other.
+    """
+    target = Path("/tmp/target-repo")
+    builder_root = str(BUILDER_II_IMPORT_ROOT)
+
+    for name in SUPPORTED_COMMAND_PROFILES:
+        may_import = name in TARGET_CODE_EXECUTING_PROFILES
+        env = _minimal_env(target, allow_target_repo_imports=may_import)
+        roots = env["PYTHONPATH"].split(os.pathsep)
+
+        assert env["PYTHONSAFEPATH"] == "1", f"{name}: cwd must never reach sys.path"
+        assert roots[0] == builder_root, f"{name}: builder-II must resolve `builder_ii` first"
+        assert (str(target) in roots) is may_import, (
+            f"{name}: target on import path={str(target) in roots}, may execute target code={may_import}"
+        )
+
+    assert {"platform_status", "docs_audit"}.isdisjoint(TARGET_CODE_EXECUTING_PROFILES), (
+        "the two profiles this lane is promoted for must never be allowed to import target code"
+    )
+
+
+def test_a_target_code_profile_still_cannot_replace_the_runners_dispatch_module(tmp_path: Path) -> None:
+    """pytest_full runs the target's suite by design -- but not the module that decides to run it."""
+    target = _target_repo_that_shadows_builder_ii(tmp_path)
+
+    completed = _spawn_runner_module(target, _minimal_env(target, allow_target_repo_imports=True))
+
+    assert completed.returncode == 2
+    assert _REAL_MODULE_DIAGNOSTIC in completed.stderr

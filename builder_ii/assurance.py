@@ -34,5 +34,60 @@ ASSURANCE_STATES: tuple[AssuranceState, ...] = (
 )
 
 
+# `docs/PLATFORM_COMPLETION_AUDIT.md` calls the assurance state "authoritative for risk
+# interpretation". A field cannot be authoritative for risk in eight undefined words, and until now
+# these eight were listed and never defined -- in this module, in that doc, or anywhere else.
+#
+# These definitions are written down from how the existing rows and command-authority records
+# already use each state. They are a transcription of current truth, not new law: if a definition
+# here would misdescribe a row that already carries the state, the definition is wrong, not the row.
+# Each says what the capability *does*, so that classifying a new capability is a decision about
+# behaviour rather than a search for the nearest-sounding label.
+ASSURANCE_STATE_DEFINITIONS: dict[AssuranceState, str] = {
+    PASSIVE_ARTIFACT_VERIFIED: (
+        "Builds, validates, or reads governed artifacts and renders them. It starts no runtime, "
+        "spawns no process, calls no provider, and writes nothing outside the artifact store."
+    ),
+    READ_ONLY_RUNTIME_VERIFIED: (
+        "Starts, or hands the operator's terminal to, a runtime whose policy denies writes. The "
+        "read-only boundary is enforced by that runtime's own preflight and postflight, never by "
+        "the caller's intent."
+    ),
+    BOUNDED_EXECUTION_VERIFIED: (
+        "Causes work to run -- a subprocess, an external tool, or a sealed backend -- inside a "
+        "fixed, pre-approved envelope: fixed argv with shell=False or a digest-bound seal, an "
+        "approval, and a digest-bound receipt. It attests the envelope of the invocation. It never "
+        "attests the behaviour of the code that ran inside it."
+    ),
+    MUTATION_WITH_ROLLBACK_VERIFIED: (
+        "Writes to the target repository's source tree or git state, and only behind an interactive "
+        "digest-prefix approval, a required verification receipt, and a snapshot that makes the "
+        "write reversible."
+    ),
+    LIVE_PROVIDER_VERIFIED: (
+        "Reaches a live model provider over the network. Its output is not deterministic and is "
+        "never, on its own, evidence."
+    ),
+    DEMO_ONLY_VERIFIED: (
+        "Exercised end to end only inside the governed demo loop, against a synthetic target. A "
+        "demo pass is not evidence for the corresponding real lane."
+    ),
+    BLOCKED_BY_EVIDENCE: (
+        "No claim is supported: the capability is not operationally verified, or its command "
+        "surface is a forbidden or unpromoted record. This is the state that absence takes. It is "
+        "never a default for something that runs."
+    ),
+    SAFETY_CRITICAL_PROHIBITED: (
+        "Reserved. No mapping derives it and no current row carries it. It names a capability whose "
+        "promotion is refused regardless of the evidence offered for it."
+    ),
+}
+
+
+def render_assurance_definitions_markdown() -> str:
+    """Render the vocabulary for docs. The doc mirrors this; a pin keeps them identical."""
+    return "\n".join(f"- `{state}` — {ASSURANCE_STATE_DEFINITIONS[state]}" for state in ASSURANCE_STATES)
+
+
 def is_assurance_state(value: object) -> bool:
     return value in ASSURANCE_STATES

@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
@@ -18,12 +19,17 @@ from builder_ii.platform_completion_audit import (
     R1_OPERATOR_FLIPPED_CAPABILITIES,
     REQUIRED_CAPABILITIES,
     REQUIRED_CAPABILITY_ROWS,
+    CapabilityRow,
+    UnclassifiedCapabilityError,
+    assurance_state_for_row,
     render_human_summary,
     render_matrix_jsonable,
+    validate_assurance_classification,
     validate_command_surfaces,
     validate_completion_matrix,
     validate_r1_config_onboarding_mapping,
 )
+from builder_ii.verification_execution_plan import TARGET_CODE_EXECUTING_PROFILES
 
 runner = CliRunner()
 
@@ -182,8 +188,53 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     # Ladder 4 PR-8 closure flip (docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md): bounded
     # execution over protocol_fake — never LIVE_*, never a native-backend claim.
     assert rows["governed obligation delegation"]["assurance_state"] == "BOUNDED_EXECUTION_VERIFIED"
+    # Same trunk, same module, same envelope as the delegation row above. It read PASSIVE only
+    # because it rode the old fall-through default.
+    assert rows["deepagents runtime/subagents"]["assurance_state"] == "BOUNDED_EXECUTION_VERIFIED"
+    # Ladder 9 assurance flip (docs/audits/LADDER9_ASSURANCE_CLOSURE_AUDIT.md): the one lane that
+    # spawns a subprocess. Bounded describes the envelope of the invocation, never the behaviour of
+    # what ran inside it. Scoped to platform_status + docs_audit; the count does not move.
+    assert rows["HITL-approved verification execution"]["assurance_state"] == "BOUNDED_EXECUTION_VERIFIED"
     assert rows["interactive setup wizard"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
     assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+    # Reads `receipt["postflight_git_state"]` and compares fingerprints. The `git status` that
+    # captured it belongs to run-approved, i.e. to the row promoted just above.
+    assert rows["postflight verification"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+
+
+def test_the_ladder9_flip_is_scoped_to_the_two_profiles_that_never_run_target_code() -> None:
+    """Promoting the envelope must not quietly promote pytest_full/builder_full with it.
+
+    Those two execute the target repository's own suite and sit behind the D7 execution-risk
+    acknowledgement. The row's blocker sentence names the scope, and the runner's own constant
+    names the profiles that are outside it -- both must keep saying the same thing.
+    """
+    row = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}["HITL-approved verification execution"]
+
+    assert assurance_state_for_row(row) == "BOUNDED_EXECUTION_VERIFIED"
+    assert any("platform_status and docs_audit" in blocker for blocker in row.blockers), (
+        "the scope sentence this promotion is bounded by has been removed"
+    )
+    assert set(TARGET_CODE_EXECUTING_PROFILES) == {"pytest_full", "builder_full"}
+    assert {"platform_status", "docs_audit"}.isdisjoint(TARGET_CODE_EXECUTING_PROFILES)
+
+
+def test_the_two_rows_that_describe_the_deepagents_trunk_agree_about_its_risk() -> None:
+    """One lane cannot carry two risk labels.
+
+    `governed obligation delegation` and `deepagents runtime/subagents` both cite
+    `builder_ii/deepagents_execution.py`, and the second row's own blockers describe the first
+    row's trunk (`execution-candidate -> approve-candidate -> run-approved` over protocol_fake) as
+    the verified content. Ladder 4 classified the trunk explicitly; this row was left to the
+    default and silently read PASSIVE. When two rows describe one lane, the higher-risk label is
+    the honest one -- and they must now move together or this fails.
+    """
+    rows = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
+    trunk = rows["deepagents runtime/subagents"]
+    delegation = rows["governed obligation delegation"]
+
+    assert "builder_ii/deepagents_execution.py" in set(trunk.evidence_files) & set(delegation.evidence_files)
+    assert assurance_state_for_row(trunk) == assurance_state_for_row(delegation)
 
 
 def test_ladder4_obligation_delegation_flip_is_scoped_to_protocol_fake() -> None:
@@ -242,3 +293,53 @@ def test_next_sequence_rejects_r0_b5() -> None:
     result_matrix = runner.invoke(platform_app, ["matrix"])
     assert "R0 -> B5" not in result_matrix.output
     assert "R1 -> B1" not in result_matrix.output
+
+
+def _synthetic_row(capability: str, state: str) -> CapabilityRow:
+    return CapabilityRow(
+        capability=capability,
+        state=state,
+        evidence_files=(),
+        command_surfaces=(),
+        tests=(),
+        blockers=(),
+        next_pr="",
+    )
+
+
+def test_an_operationally_verified_row_without_an_assurance_decision_is_an_error() -> None:
+    """No default. The understatement this closes must be unrepresentable, not merely fixed once.
+
+    `assurance_state_for_row` used to end in `return PASSIVE_ARTIFACT_VERIFIED`, so an
+    OPERATIONALLY_VERIFIED row nobody classified silently received the lowest-risk label in the
+    field the docs call authoritative for risk. A risk field must fail closed.
+    """
+    unclassified = _synthetic_row("a capability nobody classified", OPERATIONALLY_VERIFIED)
+
+    with pytest.raises(UnclassifiedCapabilityError, match="no assurance classification"):
+        assurance_state_for_row(unclassified)
+
+    errors = validate_assurance_classification(REQUIRED_CAPABILITY_ROWS + (unclassified,))
+    assert any("a capability nobody classified" in error for error in errors)
+
+
+def test_a_stale_assurance_classification_is_an_error() -> None:
+    """The reverse direction: a decision kept for a capability that no longer holds that state.
+
+    `MCP invocation` sat in the old BOUNDED_EXECUTION_VERIFIED set while its row was
+    PASSIVE_FOUNDATION -- a dead branch, unreachable and misleading, for as long as anyone read the
+    mapping to learn what the lane does.
+    """
+    demoted = tuple(
+        _synthetic_row(row.capability, PASSIVE_FOUNDATION) if row.capability == "context packs" else row
+        for row in REQUIRED_CAPABILITY_ROWS
+    )
+
+    errors = validate_assurance_classification(demoted)
+
+    assert any("'context packs' is stale" in error for error in errors)
+
+
+def test_the_live_matrix_classifies_every_operationally_verified_row_and_nothing_else() -> None:
+    assert validate_assurance_classification(REQUIRED_CAPABILITY_ROWS) == []
+    assert validate_completion_matrix() == []

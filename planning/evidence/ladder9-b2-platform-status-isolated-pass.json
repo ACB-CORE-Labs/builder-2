@@ -1,0 +1,156 @@
+{
+  "allowed_actions": [
+    "evaluate_promotion_gates",
+    "validate_promotion_evidence"
+  ],
+  "capability_name": "HITL-approved verification execution",
+  "evidence_state": "RECORDED_ONLY",
+  "failed_gates": [],
+  "flips_matrix": false,
+  "gates": [
+    {
+      "detail": "plan artifact validates",
+      "evidence": "plan_digest=95406a951ae4a7272807251a2df48da6cabb3d6e72b28774d2cf6d6e6b8cee30",
+      "gate": "plan_valid",
+      "state": "PASS"
+    },
+    {
+      "detail": "approval artifact validates",
+      "evidence": "approval_digest=0a400c52946fbdc50d77ac1f25dc29856f9e27a3ebd2f0d4c1d5a58150f9963e",
+      "gate": "approval_valid",
+      "state": "PASS"
+    },
+    {
+      "detail": "approval digests bind to plan",
+      "evidence": "plan_digest=95406a951ae4a7272807251a2df48da6cabb3d6e72b28774d2cf6d6e6b8cee30",
+      "gate": "approval_bound_to_plan",
+      "state": "PASS"
+    },
+    {
+      "detail": "receipt artifact validates",
+      "evidence": "receipt_digest=ef71d54c15f3f719912cb104d995f4710ce8ced9e5ea921aa0344b95afcbc804",
+      "gate": "receipt_valid",
+      "state": "PASS"
+    },
+    {
+      "detail": "receipt digests bind to plan and approval",
+      "evidence": "plan_digest=95406a951ae4a7272807251a2df48da6cabb3d6e72b28774d2cf6d6e6b8cee30;approval_digest=0a400c52946fbdc50d77ac1f25dc29856f9e27a3ebd2f0d4c1d5a58150f9963e",
+      "gate": "receipt_bound_to_plan_and_approval",
+      "state": "PASS"
+    },
+    {
+      "detail": "receipt executed cleanly",
+      "evidence": "receipt_status=EXECUTED;valid=True",
+      "gate": "receipt_executed",
+      "state": "PASS"
+    },
+    {
+      "detail": "no workspace mutation detected",
+      "evidence": "workspace_mutation_detected=False",
+      "gate": "workspace_unmutated",
+      "state": "PASS"
+    },
+    {
+      "detail": "commit identity present",
+      "evidence": "target_commit=a560caf6e3efa0c4562f7a5621fa03671f80aa87;target_branch=feat/ladder9-assurance-promotion",
+      "gate": "commit_identity_recorded",
+      "state": "PASS"
+    },
+    {
+      "detail": "approval unexpired",
+      "evidence": "approval has no expires_at (open-ended)",
+      "gate": "approval_unexpired",
+      "state": "PASS"
+    },
+    {
+      "detail": "ledger binds plan/approval/receipt",
+      "evidence": "ledger_digest=f8e02fb60caa70800eeb01bdf2b51fdb2fe201b4964a1f697c9fb848998887c2",
+      "gate": "ledger_chain_consistent",
+      "state": "PASS"
+    },
+    {
+      "detail": "expected profile present in process_results",
+      "evidence": "expected_profile=platform_status;observed=['platform_status']",
+      "gate": "profile_matches_capability",
+      "state": "PASS"
+    }
+  ],
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "artifacts_are_authority": false,
+    "autonomous_agent_authority": "DISABLED",
+    "benchmark_execution": "DISABLED",
+    "capability_state": "verification_promotion_evidence",
+    "claims_verification_passed": "DISABLED",
+    "command_execution": "DISABLED",
+    "commit_push": "DISABLED",
+    "core_workbench_coupling": "NONE",
+    "deepagents_construction": "DISABLED",
+    "deepagents_delegation": "DISABLED",
+    "deepagents_runtime": "DISABLED",
+    "deepagents_runtime_start": "DISABLED",
+    "deephaven_touch": "DISABLED",
+    "executes_commands": false,
+    "file_mutation": "DISABLED",
+    "git_mutation": "DISABLED",
+    "git_status_inspection": "DISABLED",
+    "goose_runtime_activation": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "hardware_probe": "DISABLED",
+    "mcp_execution": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "model_execution_loops": "DISABLED",
+    "network_access": "DISABLED",
+    "network_mcp_execution": "DISABLED",
+    "notes_vault_mutation": "DISABLED",
+    "patch_application": "DISABLED",
+    "proof_of_capability_only": true,
+    "pull_request_creation": "DISABLED",
+    "quality_gate_executes_commands": "DISABLED",
+    "report_is_completed_evidence": "DISABLED",
+    "repository_file_reads": "DISABLED",
+    "repository_writes": "DISABLED",
+    "runtime_activation": "DISABLED",
+    "runtime_authority": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "runtime_executor": false,
+    "search_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_collection": "DISABLED",
+    "source_patches_applied": "DISABLED",
+    "source_writes": "DISABLED",
+    "subagent_construction": "DISABLED",
+    "subprocess_backed_authority": "DISABLED",
+    "subprocess_execution": "DISABLED",
+    "target_artifact_reads": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "ticket_creation": "DISABLED",
+    "web_search": "DISABLED"
+  },
+  "grants_action_authority": false,
+  "grants_runtime_authority": false,
+  "kind": "builder_ii.verification_promotion_evidence",
+  "overall_state": "PASS",
+  "performed_actions": [
+    "evaluate_promotion_gates"
+  ],
+  "ready_for_operator_promotion_review": true,
+  "receipt_status": "EXECUTED",
+  "runner_mode": "bounded_approved_verification",
+  "schema_version": 1,
+  "subject_refs": {
+    "approval_digest": "0a400c52946fbdc50d77ac1f25dc29856f9e27a3ebd2f0d4c1d5a58150f9963e",
+    "approval_path": ".builder/verification/approval-iso.json",
+    "ledger_digest": "f8e02fb60caa70800eeb01bdf2b51fdb2fe201b4964a1f697c9fb848998887c2",
+    "ledger_path": ".builder/ledger/ledger-iso.json",
+    "plan_digest": "95406a951ae4a7272807251a2df48da6cabb3d6e72b28774d2cf6d6e6b8cee30",
+    "plan_path": ".builder/verification/plan-docker.json",
+    "receipt_digest": "ef71d54c15f3f719912cb104d995f4710ce8ced9e5ea921aa0344b95afcbc804",
+    "receipt_path": ".builder/verification/receipt-iso.json"
+  },
+  "target_branch": "feat/ladder9-assurance-promotion",
+  "target_commit": "a560caf6e3efa0c4562f7a5621fa03671f80aa87",
+  "verification_promotion_evidence_digest": "62d55b0381080aa94a112814f40f66aa4e75199c944646d188b79ced3417da7a"
+}
