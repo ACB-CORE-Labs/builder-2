@@ -136,3 +136,35 @@ def test_the_cli_no_longer_transcribes_the_target_registry() -> None:
     assert "_VALID_TARGETS" not in source, "the set literal is gone"
     assert 'help="Target profile: generic, builder, core"' not in source, "the help string is gone"
     assert "must be one of: generic, builder, core" not in source, "the error message is gone"
+
+
+def test_two_commands_that_share_an_emitter_name_the_same_failures() -> None:
+    """A record is a claim about behaviour. `wizard` and `scaffold` run the *same* emitter.
+
+    The equality pin beside this one compares tier, promotion state, approval mode and the eleven
+    capability flags -- every field except the prose. So the wizard's newly authored `failure_mode`
+    could drop a clause its sibling names for the identical code, and nothing noticed:
+    `_emit_manifest` -> `create_profile_pack_manifest` -> `_source_ref` reads a dozen `builder_ii/*.py`
+    files under `project_root` and raises when one is absent. `scaffold` says so. The wizard did not.
+    """
+    scaffold = get_command_record("builder-profile-pack scaffold")
+    wizard = get_command_record("builder-profile-pack wizard")
+    assert scaffold is not None and wizard is not None
+
+    for phrase in ("source refs", "manifest validation fails"):
+        assert phrase in scaffold.failure_mode.lower(), f"this pin is vacuous if scaffold stops saying {phrase!r}"
+        assert phrase in wizard.failure_mode.lower(), f"the wizard runs the same code and must say {phrase!r}"
+
+
+def test_the_named_source_ref_failure_is_a_failure_both_commands_really_have(tmp_path) -> None:
+    """Named, and true of both: a project root with no `builder_ii/` source tree fails either one."""
+    empty = tmp_path / "no-source-tree"
+    empty.mkdir()
+
+    for argv in (
+        ["wizard", "--project-root", str(empty), "--non-interactive"],
+        ["scaffold", "--project-root", str(empty)],
+    ):
+        result = runner.invoke(profile_pack_app, argv)
+        assert result.exit_code != 0, argv
+        assert not list(empty.iterdir()), "no artifact is written when the source refs are missing"

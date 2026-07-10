@@ -2885,7 +2885,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         approval_mode=MODE_NONE,
         approval_boundary="None. It plans a manifest; rendering and applying are separate commands.",
         output_behavior="Prints manifest JSON or writes it to the requested output file.",
-        failure_mode="Exits 2 on a rejected flag or after three invalid answers, without writing artifacts; exits non-zero if generated manifest validation fails.",
+        failure_mode="Exits 2 on a rejected flag or after three invalid answers, without writing artifacts; exits non-zero if source refs are missing or generated manifest validation fails.",
         notes="Holds no authority `builder-profile-pack scaffold` does not: both call one emitter. No runtime, model, Goose, deepagents, MCP, shell, verification, target-repo, or git authority.",
         allows_artifact_writes=True,
     ),
