@@ -29,6 +29,7 @@ from builder_ii.platform_completion_audit import (
     validate_completion_matrix,
     validate_r1_config_onboarding_mapping,
 )
+from builder_ii.verification_execution_plan import TARGET_CODE_EXECUTING_PROFILES
 
 runner = CliRunner()
 
@@ -190,9 +191,32 @@ def test_matrix_exposes_sharper_assurance_states() -> None:
     # Same trunk, same module, same envelope as the delegation row above. It read PASSIVE only
     # because it rode the old fall-through default.
     assert rows["deepagents runtime/subagents"]["assurance_state"] == "BOUNDED_EXECUTION_VERIFIED"
+    # Ladder 9 assurance flip (docs/audits/LADDER9_ASSURANCE_CLOSURE_AUDIT.md): the one lane that
+    # spawns a subprocess. Bounded describes the envelope of the invocation, never the behaviour of
+    # what ran inside it. Scoped to platform_status + docs_audit; the count does not move.
+    assert rows["HITL-approved verification execution"]["assurance_state"] == "BOUNDED_EXECUTION_VERIFIED"
     assert rows["interactive setup wizard"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
     assert rows["command authority as runtime gate"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+    # Reads `receipt["postflight_git_state"]` and compares fingerprints. The `git status` that
+    # captured it belongs to run-approved, i.e. to the row promoted just above.
     assert rows["postflight verification"]["assurance_state"] == "PASSIVE_ARTIFACT_VERIFIED"
+
+
+def test_the_ladder9_flip_is_scoped_to_the_two_profiles_that_never_run_target_code() -> None:
+    """Promoting the envelope must not quietly promote pytest_full/builder_full with it.
+
+    Those two execute the target repository's own suite and sit behind the D7 execution-risk
+    acknowledgement. The row's blocker sentence names the scope, and the runner's own constant
+    names the profiles that are outside it -- both must keep saying the same thing.
+    """
+    row = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}["HITL-approved verification execution"]
+
+    assert assurance_state_for_row(row) == "BOUNDED_EXECUTION_VERIFIED"
+    assert any("platform_status and docs_audit" in blocker for blocker in row.blockers), (
+        "the scope sentence this promotion is bounded by has been removed"
+    )
+    assert set(TARGET_CODE_EXECUTING_PROFILES) == {"pytest_full", "builder_full"}
+    assert {"platform_status", "docs_audit"}.isdisjoint(TARGET_CODE_EXECUTING_PROFILES)
 
 
 def test_the_two_rows_that_describe_the_deepagents_trunk_agree_about_its_risk() -> None:

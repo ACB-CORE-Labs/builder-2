@@ -168,6 +168,15 @@ _OPERATIONALLY_VERIFIED_ASSURANCE: dict[str, AssuranceState] = {
     # Causes work to run inside a fixed, pre-approved envelope, and receipts the invocation.
     "low-risk tool invocation": BOUNDED_EXECUTION_VERIFIED,
     "governed obligation delegation": BOUNDED_EXECUTION_VERIFIED,
+    # Spawns `sys.executable -m builder_ii.verification_runner_entrypoints <sub>` with fixed argv,
+    # shell=False, a minimal env, and an import path the target repo cannot supply, under two-key
+    # HITL approval, and binds a digest-stable receipt to the plan and the approval. Scoped exactly
+    # to the platform_status and docs_audit profiles, which run builder-II's own audit code over the
+    # target's data; pytest_full and builder_full execute the target's own suite behind the D7
+    # execution-risk acknowledgement and are outside this claim. `bounded` describes the envelope of
+    # the invocation. It says nothing about the behaviour of the code that ran inside it.
+    # docs/audits/LADDER9_ASSURANCE_CLOSURE_AUDIT.md
+    "HITL-approved verification execution": BOUNDED_EXECUTION_VERIFIED,
     # Same lane, same module (`deepagents_execution.py`), same envelope as the row above: the
     # verified trunk is `execution-candidate -> approve-candidate -> run-approved` over the
     # protocol_fake backend, emitting execution receipts and a tamper-evident event chain. Ladder 4
@@ -207,10 +216,6 @@ _OPERATIONALLY_VERIFIED_ASSURANCE: dict[str, AssuranceState] = {
     # not because it was never looked at.
     "postflight verification": PASSIVE_ARTIFACT_VERIFIED,
     "target profiles": PASSIVE_ARTIFACT_VERIFIED,
-    # Spawns `sys.executable -m builder_ii.verification_runner_entrypoints <sub>` with fixed argv,
-    # shell=False, under two-key HITL approval, and receipts it. Filed passive by the old default
-    # for as long as the default existed.
-    "HITL-approved verification execution": PASSIVE_ARTIFACT_VERIFIED,
 }
 
 
@@ -775,6 +780,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "B1.4A/B/C/D add passive verification ledger indexing, query, integrity, and reconstruction reporting.",
             "Receipt state may be NOT_EXECUTED, BLOCKED_BEFORE_EXECUTION, EXECUTED, or FAILED depending on runner outcome.",
             "The approved verification lane is operationally verified only for fixed platform_status and docs_audit profiles; arbitrary argv, broad shell, live read authority, patching, model/MCP/Goose/deepagents runtime, and B2 write authority remain disabled.",
+            "Assurance BOUNDED_EXECUTION_VERIFIED (Ladder 9) describes the envelope of the invocation -- fixed argv, shell=False, two-key approval, an import path the target repo cannot supply, a digest-bound receipt -- and never the behaviour of the code that ran inside it (risk-register D7).",
+            "Under an applied isolation policy the receipt records the approved fixed profile argv, not the container-wrapped argv that executed, so isolation_status is the runner's own assertion about itself; local isolation is containment, never attestation (docs/plan/VERIFICATION_ISOLATION_RFC.md).",
+            "builder-verify plan exposes no isolation flag: isolation_policy exists in the plan schema, the runner and the receipt, but no governed CLI surface can request it.",
         ),
         "B2.0",
     ),
