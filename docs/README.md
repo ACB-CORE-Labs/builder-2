@@ -160,16 +160,33 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 
 ### CodeVault
 
+Operator surface and layer notes:
+
 | Document | Purpose |
 | --- | --- |
-| [`docs/CODE_VAULT.md`](CODE_VAULT.md) | CodeVault |
-| [`docs/CODE_VAULT_BACKENDS.md`](CODE_VAULT_BACKENDS.md) | CodeVault Backends |
-| [`docs/CODE_VAULT_CGA_ENTITIES.md`](CODE_VAULT_CGA_ENTITIES.md) | CodeVault CGA Entities |
-| [`docs/CODE_VAULT_CONTEXT_PACKS.md`](CODE_VAULT_CONTEXT_PACKS.md) | CodeVault Context Packs |
-| [`docs/CODE_VAULT_FINDINGS.md`](CODE_VAULT_FINDINGS.md) | CodeVault Findings |
-| [`docs/CODE_VAULT_GEOMETRIC_ONTOLOGY.md`](CODE_VAULT_GEOMETRIC_ONTOLOGY.md) | CodeVault Geometric Ontology |
-| [`docs/CODE_VAULT_HIERARCHY.md`](CODE_VAULT_HIERARCHY.md) | CodeVault Hierarchy |
-| [`docs/CODE_VAULT_STAGED_ACCEPTANCE.md`](CODE_VAULT_STAGED_ACCEPTANCE.md) | CodeVault Staged Acceptance Ledger |
+| [`docs/CODE_VAULT.md`](CODE_VAULT.md) | CodeVault operator overview + vision-set index |
+| [`docs/CODE_VAULT_BACKENDS.md`](CODE_VAULT_BACKENDS.md) | CodeVault recall backends |
+| [`docs/CODE_VAULT_CGA_ENTITIES.md`](CODE_VAULT_CGA_ENTITIES.md) | CodeVault CGA entities |
+| [`docs/CODE_VAULT_CONTEXT_PACKS.md`](CODE_VAULT_CONTEXT_PACKS.md) | CodeVault context projection |
+| [`docs/CODE_VAULT_FINDINGS.md`](CODE_VAULT_FINDINGS.md) | CodeVault hypothesis findings |
+| [`docs/CODE_VAULT_GEOMETRIC_ONTOLOGY.md`](CODE_VAULT_GEOMETRIC_ONTOLOGY.md) | CodeVault geometric ontology |
+| [`docs/CODE_VAULT_HIERARCHY.md`](CODE_VAULT_HIERARCHY.md) | CodeVault hierarchical frame |
+| [`docs/CODE_VAULT_STAGED_ACCEPTANCE.md`](CODE_VAULT_STAGED_ACCEPTANCE.md) | CodeVault staged acceptance ledger |
+
+Vision set (destination, law, gates — design truth; does not promote capabilities):
+
+| Document | Purpose |
+| --- | --- |
+| [`docs/CODE_VAULT_VISION_AND_CAPABILITY_LADDER.md`](CODE_VAULT_VISION_AND_CAPABILITY_LADDER.md) | Vision, axioms, capability ladder, fruition bar |
+| [`docs/CODE_VAULT_GLOSSARY.md`](CODE_VAULT_GLOSSARY.md) | Vocabulary lock |
+| [`docs/CODE_VAULT_PROOF_PROGRAM.md`](CODE_VAULT_PROOF_PROGRAM.md) | Proof classes R / D / U and Axiom Zero |
+| [`docs/CODE_VAULT_LANGUAGE_SUBSTRATE.md`](CODE_VAULT_LANGUAGE_SUBSTRATE.md) | Polyglot substrate: Artifact IR + grade doctrine + extractors |
+| [`docs/CODE_VAULT_FIELD_BLUEPRINTS.md`](CODE_VAULT_FIELD_BLUEPRINTS.md) | Dual-correction blueprints for fields F0–F6 |
+| [`docs/CODE_VAULT_ROADMAP.md`](CODE_VAULT_ROADMAP.md) | Gate-ordered roadmap (no chronos) |
+| [`docs/CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md`](CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md) | Three-clock truth delta |
+| [`docs/plan/CODE_VAULT_MASTER_PLAN.md`](plan/CODE_VAULT_MASTER_PLAN.md) | Consolidated master plan to fruition |
+| [`docs/plan/CODE_VAULT_TIER1_ENCODER_RFC.md`](plan/CODE_VAULT_TIER1_ENCODER_RFC.md) | F1 encoder RFC and measurement history |
+| [`docs/adrs/ADR-0005-codevault-boundary-and-authority.md`](adrs/ADR-0005-codevault-boundary-and-authority.md) | CodeVault boundary and authority ADR |
 
 ### Models, lanes, and personas
 
