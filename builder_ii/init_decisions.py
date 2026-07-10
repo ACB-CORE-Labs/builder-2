@@ -114,3 +114,48 @@ def validate_decision_value(decision_name: str, value: str) -> list[str]:
     if value not in allowed:
         return [f"{decision_name} must be one of: {', '.join(allowed)} (got {value!r})"]
     return []
+
+
+def prompted_decision_options_provider(decision_name: str):
+    """The live registry behind one prompted decision, as a *callable* reference.
+
+    A wizard step may reference the registry that owns its values; it may never transcribe
+    them into prompt text (see ``builder_ii/wizard_framework.py``). The lambdas read this
+    module's globals at call time, so a registry change -- or a monkeypatched registry in
+    the drift test -- reaches every prompt render and every validation with no wizard code
+    change.
+    """
+    providers = {
+        "target_profile": lambda: tuple(target_names()),
+        "model_backend": lambda: tuple(BACKENDS),
+        "model_alias": lambda: tuple(MODEL_ALIASES),
+    }
+    return providers.get(decision_name)
+
+
+def init_wizard_step_definitions(defaults: dict[str, str | None] | None = None):
+    """The four prompted decisions as :class:`~builder_ii.wizard_framework.WizardStep`s.
+
+    ``defaults`` is supplied by ``builder init`` from config resolution at runtime; the
+    definitions stay importable without one because the transcription pin in
+    ``tests/test_wizard_framework.py`` needs only questions and providers. Question text,
+    registry rendering, and acceptance are exactly what ``builder init`` has always shown:
+    the question literal, allowed values rendered from the live registry at prompt time,
+    and :func:`validate_decision_value` as the boundary.
+    """
+    from builder_ii.wizard_framework import WizardStep
+
+    resolved = dict(defaults or {})
+    steps = []
+    for decision in prompted_decisions():
+        steps.append(
+            WizardStep(
+                id=decision.name,
+                question=decision.question,
+                options_provider=prompted_decision_options_provider(decision.name),
+                validator=(lambda value, _name=decision.name: validate_decision_value(_name, value)),
+                default=resolved.get(decision.name),
+                free_form=not decision.allowed,
+            )
+        )
+    return tuple(steps)

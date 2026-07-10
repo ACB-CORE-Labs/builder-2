@@ -452,6 +452,62 @@ def setup_init(
     console.out(f"  {result.onboarding_intent['validate_receipt_command']}\n", end="")
 
 
+def setup_wizard_step_definitions():
+    """The ``builder-setup wizard`` decisions: registry-rendered, prompt-validated (Ladder 5 PR-2).
+
+    PR-1 ported these steps as-is, lie and all: the backend question transcribed 3 of the 8
+    live registry backends and nothing was validated at the prompt, so ``openai`` was
+    accepted while never offered and garbage surfaced late as an invalid artifact. Now the
+    prompts render from the live registries at prompt time and every answer is validated at
+    the prompt boundary by :func:`~builder_ii.init_decisions.validate_decision_value`,
+    exactly as ``builder init`` has always done.
+
+    Presentation decision, made deliberately: ``MODEL_ALIASES`` has 50 entries, and the
+    alias question renders none of them (``render_options_in_question=False``). A truncated
+    enumeration would be a subset claim -- the exact defect class this ladder fixes -- and a
+    full enumeration is unusable on a prompt line. The registry is the source of truth
+    either way: the step references it through ``options_provider``, a wrong answer is
+    refused at the prompt with the full registry named in the error, and a ninth alias is
+    offered/accepted with no wizard code change. ``builder init`` still enumerates all 50
+    (pre-existing, characterized behavior); harmonizing it is an operator decision outside
+    this PR.
+    """
+    from builder_ii.init_decisions import prompted_decision_options_provider, validate_decision_value
+    from builder_ii.wizard_framework import WizardStep
+
+    return (
+        WizardStep(
+            id="output_dir",
+            question="Enter output directory for onboarding artifacts",
+            validator=lambda value: validate_decision_value("output_dir", value),
+            default=".builder/setup-artifacts",
+            free_form=True,
+        ),
+        WizardStep(
+            id="target_profile",
+            question="Select target profile",
+            options_provider=prompted_decision_options_provider("target_profile"),
+            validator=lambda value: validate_decision_value("target_profile", value),
+            default="generic",
+        ),
+        WizardStep(
+            id="model_backend",
+            question="Select local model backend",
+            options_provider=prompted_decision_options_provider("model_backend"),
+            validator=lambda value: validate_decision_value("model_backend", value),
+            default="rapid-mlx",
+        ),
+        WizardStep(
+            id="model_alias",
+            question="Select primary model alias",
+            options_provider=prompted_decision_options_provider("model_alias"),
+            validator=lambda value: validate_decision_value("model_alias", value),
+            default="phi-reasoning",
+            render_options_in_question=False,
+        ),
+    )
+
+
 @setup_app.command("wizard")
 def setup_wizard(
     output_dir: Path | None = typer.Option(None, "--output-dir", help="Output directory for onboarding artifacts."),
@@ -463,22 +519,40 @@ def setup_wizard(
     model_alias: str | None = typer.Option(None, "--model-alias", help="Model alias override."),
 ) -> None:
     """Interactive guided onboarding wizard flow."""
-    out_path = output_dir or Path(
-        typer.prompt("Enter output directory for onboarding artifacts", default=".builder/setup-artifacts")
-    )
-    profile = target_profile or typer.prompt("Select target profile (generic, builder, core)", default="generic")
-    backend = model_backend or typer.prompt(
-        "Select local model backend (rapid-mlx, mlx-lm, ollama)", default="rapid-mlx"
-    )
-    alias = model_alias or typer.prompt("Select primary model alias", default="phi-reasoning")
+    from builder_ii.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
+
+    engine = WizardEngine(steps=setup_wizard_step_definitions())
+    for step_id, provided in (
+        ("output_dir", str(output_dir) if output_dir else None),
+        ("target_profile", target_profile),
+        ("model_backend", model_backend),
+        ("model_alias", model_alias),
+    ):
+        if provided:
+            engine.preanswer(step_id, provided)
+    # strip_answers=False: this wizard has always taken prompt answers exactly as typed.
+    # Prompt-boundary validation mirrors builder init: three attempts per step, every
+    # rejection echoing the full registry, then a fail-closed abort with no artifacts.
+    try:
+        answers, _prompted_any = run_typer_prompt_loop(
+            engine,
+            prompt_fn=typer.prompt,
+            invalid_echo=lambda error: console.print(f"[red]invalid answer:[/] {error}"),
+            max_attempts=3,
+            strip_answers=False,
+        )
+    except WizardAborted:
+        console.print("[red]no valid answer after 3 attempts; aborting without writing artifacts[/]")
+        raise typer.Exit(2) from None
+    out_path = output_dir if output_dir else Path(answers["output_dir"])
 
     result = run_onboarding_pipeline(
         output_dir=out_path,
         onboarding_mode="wizard",
         root=root,
-        target_profile=profile,
-        model_backend=backend,
-        model_alias=alias,
+        target_profile=answers["target_profile"],
+        model_backend=answers["model_backend"],
+        model_alias=answers["model_alias"],
     )
     if not result.valid:
         console.out(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
