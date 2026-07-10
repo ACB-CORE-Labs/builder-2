@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from builder_ii.readonly_authority import (
@@ -37,15 +38,39 @@ def test_content_read_denies_path_escape(tmp_path: Path) -> None:
     assert receipt["kind"] == DENIED_READ_KIND
 
 
-def test_content_read_redacts_secrets(tmp_path: Path) -> None:
+def test_content_read_denies_secrets_and_never_persists_their_value(tmp_path: Path) -> None:
+    """The lane refuses a secret-bearing file; the old form substituted the keyword and left the
+    VALUE verbatim in the excerpt. The keyword-less cases (a token, an AWS key, a PEM body) are the
+    ones the substitution form missed entirely -- they carry no keyword to replace."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    secret_file = repo / "config.txt"
-    secret_file.write_text("api_key = 'supersecretvalue123456'", encoding="utf-8")
     policy = create_read_policy(target_name="generic", target_repo=repo, allowed_paths=["config.txt"])
-    receipt = execute_content_read(policy, secret_file)
+
+    cases = [
+        ("api_key = 'supersecretvalue123456'", "supersecretvalue123456"),
+        ("token=ghp_0123456789abcdefghijABCDEFGHIJ0123", "ghp_0123456789abcdefghijABCDEFGHIJ0123"),
+        ("aws = AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7EXAMPLE"),
+        ("-----BEGIN RSA PRIVATE KEY-----\nMIIEbody\n-----END RSA PRIVATE KEY-----", "MIIEbody"),
+    ]
+    for content, secret_value in cases:
+        secret_file = repo / "config.txt"
+        secret_file.write_text(content, encoding="utf-8")
+        receipt = execute_content_read(policy, secret_file)
+        assert receipt["kind"] == DENIED_READ_KIND, f"secret-bearing file must be denied: {content!r}"
+        # The whole point: the secret value appears in NO field of the receipt.
+        assert secret_value not in json.dumps(receipt), f"secret value leaked into the receipt: {secret_value!r}"
+
+
+def test_content_read_captures_a_clean_file(tmp_path: Path) -> None:
+    """A file with no secret pattern still yields a content receipt with a real excerpt."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    clean = repo / "notes.txt"
+    clean.write_text("ordinary project notes, nothing sensitive here", encoding="utf-8")
+    policy = create_read_policy(target_name="generic", target_repo=repo, allowed_paths=["notes.txt"])
+    receipt = execute_content_read(policy, clean)
     assert receipt["kind"] == CONTENT_READ_RECEIPT_KIND
-    assert "[REDACTED]" in receipt["redacted_excerpt"]
+    assert "ordinary project notes" in receipt["redacted_excerpt"]
 
 
 def test_content_read_denies_symlink(tmp_path: Path) -> None:

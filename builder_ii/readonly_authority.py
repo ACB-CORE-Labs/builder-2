@@ -23,9 +23,26 @@ DENIED_READ_KIND = "builder_ii.denied_read"
 DENIED_READ_SCHEMA_VERSION = 1
 
 # Common secrets regex patterns or file suffixes
+# Best-effort secret detection for the content-read lane. This is a DENY gate, not a redactor:
+# the original keyword-only substitution left secret *values* -- `ghp_...`, `AKIA...`, a PEM body,
+# which carry no adjacent keyword -- verbatim in the persisted excerpt. `execute_content_read`
+# refuses any file whose content matches, matching the sibling `execute_governed_read` and the
+# governance record's own "secret-pattern denial" failure mode. Best-effort, never a guarantee:
+# no pattern set catches every secret format.
 SECRET_PATTERNS = [
-    re.compile(r"(?i)(api_key|private_key|password|secret|passwd|token)"),
+    re.compile(r"(?i)(api_key|private_key|password|passwd|secret|token)"),
+    re.compile(r"-----BEGIN(?: [A-Z0-9]+)* PRIVATE KEY-----"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),  # GitHub personal/OAuth/refresh/server/user tokens
+    re.compile(r"\bAKIA[0-9A-Z]{12,}\b"),  # AWS access key id
+    re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b"),  # Slack tokens
+    re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b"),  # JWT
 ]
+
+
+def _contains_secret(text: str) -> bool:
+    return any(pattern.search(text) for pattern in SECRET_PATTERNS)
+
+
 SECRET_FILE_SUFFIXES = {".pem", ".key", ".pkcs12", ".p12", ".env"}
 
 
@@ -332,11 +349,6 @@ def validate_read_receipt_file(path: Path) -> list[str]:
     return validate_read_receipt(data)
 
 
-def _redact_secrets(text: str) -> str:
-    redacted = text
-    for pattern in SECRET_PATTERNS:
-        redacted = pattern.sub("[REDACTED]", redacted)
-    return redacted
 
 
 def execute_content_read(
@@ -431,8 +443,16 @@ def execute_content_read(
         }
 
     raw_text = raw_bytes.decode("utf-8", errors="replace")
-    redacted = _redact_secrets(raw_text)
-    excerpt = redacted[:max_excerpt_chars]
+    # Deny, do not "redact". Keyword substitution left secret *values* verbatim in the persisted
+    # excerpt; a file whose content matches any secret pattern is refused outright, so no secret
+    # value ever reaches the receipt. This is the record's own `secret-pattern denial` failure mode.
+    if _contains_secret(raw_text):
+        return create_denied_read(
+            policy=policy,
+            file_path=file_path,
+            reason="File content matches a secret pattern; content-read refuses rather than persisting it",
+        )
+    excerpt = raw_text[:max_excerpt_chars]
     content_digest = hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
     excerpt_digest = hashlib.sha256(excerpt.encode("utf-8")).hexdigest()
 

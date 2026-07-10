@@ -1162,3 +1162,21 @@ def test_stratum_declares_the_runtime_it_starts_and_derives_the_matching_assuran
         "STRATUM's Goose keybinding is a launcher of the governed lane, so it can be no more "
         "assured -- and no less -- than the command it launches"
     )
+
+
+def test_operator_lane_declares_the_git_subprocess_it_actually_spawns() -> None:
+    """`run_operator_lane` shells out to read-only `git rev-parse`/`git status` on every run.
+
+    The record arrived from the github/main reconciliation with only `allows_artifact_writes`, so it
+    fell through to PASSIVE_ARTIFACT_VERIFIED -- whose definition says "spawns no process". False:
+    it spawns three per invocation. It now declares `allows_readonly_subprocess` like its sibling
+    `builder-git-state`, so the assurance state is honest about the process it starts.
+    """
+    from builder_ii.assurance import BOUNDED_EXECUTION_VERIFIED, PASSIVE_ARTIFACT_VERIFIED
+
+    record = get_command_record("builder-platform operator-lane")
+    assert record is not None
+    assert record.allows_readonly_subprocess, "the lane spawns read-only git subprocesses"
+    state = assurance_state_for_record(record)
+    assert state == BOUNDED_EXECUTION_VERIFIED
+    assert state != PASSIVE_ARTIFACT_VERIFIED, "a command that spawns a process must not read as passive"
