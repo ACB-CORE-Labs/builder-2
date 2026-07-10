@@ -156,13 +156,44 @@ def test_engine_rejects_duplicate_step_ids() -> None:
         WizardEngine(steps=(step, step))
 
 
-def test_engine_skip_when_branching_hook() -> None:
-    engine = WizardEngine(
-        steps=_steps(),
-        skip_when=lambda step, answers: step.id == "b" and answers.get("a") == "no-b",
+def test_engine_required_when_branching() -> None:
+    """The branch lives on the step, not on the engine.
+
+    `WizardEngine.skip_when` was PR-1's guess at how the forge wizard branches -- an engine-level
+    hook no caller ever used. The forge, migrated, put the predicate where it belongs: `hitl_gates`
+    is required exactly when a write or shell capability was granted, which is a fact about that
+    step. Two ways to skip a step was one too many.
+    """
+    steps = list(_steps())
+    steps[1] = WizardStep(
+        id="b",
+        question="B",
+        options_provider=lambda: ("one", "two"),
+        required_when=lambda answers: answers.get("a") != "no-b",
     )
+    engine = WizardEngine(steps=tuple(steps))
     engine.apply("no-b")
-    assert engine.current_step().id == "c", "the branching hook generalizes the forge hitl_gates auto-skip"
+    assert engine.current_step().id == "c", "a step whose predicate says no is passed over"
+
+    engine = WizardEngine(steps=tuple(steps))
+    engine.apply("yes-b")
+    assert engine.current_step().id == "b", "and asked when it says yes"
+
+
+def test_engine_passes_over_every_unneeded_step_not_merely_the_next_one() -> None:
+    """`ForgeWizard._next_cursor` inspected only the immediate next step.
+
+    Two consecutive conditionally-required steps would have left the second one prompted. Nothing
+    caught it because `hitl_gates` was the only such step in the only wizard that had one.
+    """
+    never = WizardStep(id="skip_me", question="?", free_form=True, required_when=lambda _a: False)
+    also_never = WizardStep(id="skip_me_too", question="?", free_form=True, required_when=lambda _a: False)
+    last = WizardStep(id="last", question="Last", free_form=True)
+    first = WizardStep(id="first", question="First", free_form=True)
+
+    engine = WizardEngine(steps=(first, never, also_never, last))
+    assert engine.apply("x") == []
+    assert engine.current_step().id == "last", "both unneeded steps must be passed over"
 
 
 def test_render_question_composes_from_the_provider_at_call_time() -> None:

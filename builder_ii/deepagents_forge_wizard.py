@@ -25,6 +25,7 @@ from builder_ii.deepagents_forge_schema import (
     has_write_capability,
     validate_relative_artifact_path,
 )
+from builder_ii.wizard_framework import WizardEngine, WizardStep
 
 # ---------------------------------------------------------------------------
 # Validation result
@@ -252,11 +253,23 @@ FORGE_STEPS: list[ForgeStep] = [
 
 
 class ForgeWizard:
-    """
-    Step engine that drives the Forge wizard.
-    Maintains a DeepAgentSpec that accumulates values step by step.
-    Supports forward navigation (with branching), back navigation,
-    and optional step skipping.
+    """Drives the Forge wizard: a `WizardEngine` plus the `DeepAgentSpec` it accumulates onto.
+
+    `WizardStep`/`WizardEngine` were extracted from `ForgeStep`/`ForgeWizard` in Ladder 5 PR-1,
+    and this class kept its own copy of the cursor/history/branching state machine. It no longer
+    has one. What remains here is the part that was never generic: a domain accumulator, and
+    `ForgeStep`'s richer descriptor (`field`, `multi_select`, `render_mode`) which the Textual TUI
+    renders from and which `current_step` therefore still returns.
+
+    Two things the migration fixes, both pinned before and after:
+
+    - `_next_cursor` auto-skipped by hardcoded step id (`next_step.id == "hitl_gates"`) rather than
+      by asking `is_required`, the predicate that already answers it. A second `auto_required_if`
+      step would never have been auto-skipped.
+    - It inspected only the immediate next step, so it could pass over at most one in a row.
+
+    The spec is the answers. `required_when` reads it rather than the engine's `answers` dict,
+    because `auto_required_if` is written against the spec and both hold the same information.
     """
 
     def __init__(self, seed_name: str = "", seed_profile: str = "generic") -> None:
@@ -267,8 +280,36 @@ class ForgeWizard:
         if seed_name:
             self.spec.auto_derive_slug()
         self.steps = FORGE_STEPS
-        self.cursor: int = 0
-        self.history: list[int] = []
+        self._engine = WizardEngine(steps=tuple(self._as_wizard_step(step) for step in FORGE_STEPS))
+
+    def _as_wizard_step(self, forge_step: ForgeStep) -> WizardStep:
+        """Express one `ForgeStep` in the framework's vocabulary, bound to this wizard's spec."""
+        return WizardStep(
+            id=forge_step.id,
+            question=forge_step.prompt,
+            validator=lambda value, _step=forge_step: self._validation_errors(_step, value),
+            optional=forge_step.optional,
+            required_when=(
+                (lambda _answers, _step=forge_step: _step.is_required(self.spec))
+                if forge_step.auto_required_if is not None
+                else None
+            ),
+        )
+
+    def _validation_errors(self, forge_step: ForgeStep, value: Any) -> list[str]:
+        result = forge_step.validate(value, self.spec)
+        return [] if result.ok else [result.error or f"{forge_step.title} is invalid."]
+
+    @property
+    def cursor(self) -> int:
+        return self._engine.cursor
+
+    @property
+    def history(self) -> list[int]:
+        """A snapshot. The engine's own list drives `back()`; handing it out invites a caller to
+        clear it (silently refusing an undo) or to append an out-of-range index (an `IndexError` on
+        the next `current_step()`). No caller mutates it today; none should be able to."""
+        return list(self._engine.history)
 
     def current_step(self) -> ForgeStep:
         """Return the ForgeStep at the current cursor position."""
@@ -276,58 +317,35 @@ class ForgeWizard:
 
     def get_progress(self) -> tuple[int, int]:
         """Return (1-based current step index, total steps)."""
-        return self.cursor + 1, len(self.steps)
+        return self._engine.get_progress()
 
     def apply(self, value: Any) -> ValidationResult:
-        """
-        Validate and apply a value to the current step.
-        Advances cursor on success (with branching/skip logic).
-        Returns ValidationResult.
-        """
+        """Validate and apply a value to the current step, advancing on success."""
         step = self.current_step()
         result = step.validate(value, self.spec)
-        if result.ok:
-            step.apply_to(value, self.spec)
-            self.history.append(self.cursor)
-            self.cursor = self._next_cursor(self.cursor)
-        return result
+        if not result.ok:
+            return result
+
+        # The spec is written before the engine advances, because `required_when` reads the spec
+        # and the branch after `capabilities` depends on the value being applied right now. This
+        # is exactly the order `_next_cursor` used: `apply_to`, then advance.
+        step.apply_to(value, self.spec)
+
+        # The engine re-runs the same validator. Forge validators are pure functions of the value,
+        # so this costs a call and buys a single source of truth for cursor advancement.
+        errors = self._engine.apply(value)
+        if errors:  # pragma: no cover - the validator above just accepted this value
+            return ValidationResult(ok=False, error=errors[0])
+        return ValidationResult(ok=True)
 
     def skip(self) -> bool:
-        """
-        Skip the current step if it is optional.
-        Returns True if skipped, False if step is required.
-        """
-        step = self.current_step()
-        if step.optional or not step.is_required(self.spec):
-            self.history.append(self.cursor)
-            self.cursor = self._next_cursor(self.cursor)
-            return True
-        return False
+        """Skip the current step when it needs no answer. False when it is required."""
+        return self._engine.skip()
 
     def back(self) -> bool:
         """Go back to the previous step. Returns True if successful."""
-        if self.history:
-            self.cursor = self.history.pop()
-            return True
-        return False
+        return self._engine.back()
 
     def is_complete(self) -> bool:
         """Return True when wizard has passed the final step."""
-        return self.cursor >= len(self.steps)
-
-    def _next_cursor(self, current: int) -> int:
-        """
-        Determine the next cursor position.
-        Skips hitl_gates step automatically if no write/shell caps selected.
-        """
-        next_idx = current + 1
-        if next_idx >= len(self.steps):
-            return next_idx  # past end = complete
-
-        next_step = self.steps[next_idx]
-
-        # Auto-skip hitl_gates if not required
-        if next_step.id == "hitl_gates" and not _hitl_auto_required(self.spec):
-            return next_idx + 1
-
-        return next_idx
+        return self._engine.is_complete()
