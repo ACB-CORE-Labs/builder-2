@@ -3992,6 +3992,7 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
     "builder-code-vault validate-lint",
     "builder-code-vault validate-context",
     "builder-code-vault validate-recall",
+    "builder-code-vault validate-structural-field",
     "builder-code-vault demo",
     "builder-code-vault validate-demo",
     "builder-code-vault bench",

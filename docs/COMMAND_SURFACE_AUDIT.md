@@ -54,7 +54,7 @@ Governed setup subcommands:
 - `builder-session`
 - `builder-workflow`
 - `builder-ledger`
-- `builder-code-vault` — governed read-only CodeVault hierarchical frame, lint, recall, context projection, determinism demo, and validation; Tier 1 artifact-only; no shell, model, Goose, deepagents, or target-repo writes
+- `builder-code-vault` — governed read-only CodeVault hierarchical frame, lint, recall, context projection, determinism demo, StructuralField schema validation, and validation; Tier 1 artifact-only; no shell, model, Goose, deepagents, or target-repo writes
 
 ## Artifact Chain / Governance Records
 - `builder-records`
@@ -203,3 +203,9 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder ledger reconstruct-receipts` is the root-command equivalent surface.
 - The report reconstructs passive receipt-chain projections, summary counts, invalid/rejected record diagnostics, chain continuity status, and evidence refs.
 - B1.4D is passive/read-only only: it does not write report artifacts, replay execution, re-run verification, run subprocesses, execute shell, call models/tools, invoke MCP, start Goose/deepagents, apply patches, mutate source/target repo files, mutate git, mutate memory, or promote B2 authority.
+
+## CodeVault G1 PR-2 command surface delta
+
+- `builder-code-vault validate-structural-field` validates a `builder_ii.code_vault.structural_field` (F2) artifact file: kind/schema_version, `extractor_manifest_ref` shape, `scope`, `facts[]` fact vocabulary and invariance-class vocabulary, `unsupported[]`, governance, and `field_digest`.
+- No build/emission subcommand ships with it: no extractor fills this artifact yet, so only the schema and its validator exist (RECORDED_ONLY). Fact emission is G2 work against this settled schema.
+- This delta does not add fact emission, extractor changes, structural-correspondence claims, shell/model/Goose/deepagents/runtime authority, or target-repo writes.

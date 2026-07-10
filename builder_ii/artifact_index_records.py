@@ -45,6 +45,10 @@ from builder_ii.code_vault.reports.linter import (
     LINTER_REPORT_KIND,
     validate_linter_report,
 )
+from builder_ii.code_vault.structural_field import (
+    STRUCTURAL_FIELD_KIND,
+    validate_structural_field,
+)
 from builder_ii.code_vault_receipt_bridge import (
     CODE_VAULT_CORROBORATION_RECORD_KIND,
     validate_code_vault_corroboration_record,
@@ -494,6 +498,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     REPO_MAP_KIND: validate_repo_map,
     HIERARCHICAL_FRAME_KIND: _validate_hierarchical_frame_record,
     LINTER_REPORT_KIND: validate_linter_report,
+    STRUCTURAL_FIELD_KIND: validate_structural_field,
     CONTEXT_PROJECTION_KIND: validate_context_projection,
     RECALL_REPORT_KIND: validate_recall_report,
     CODE_VAULT_BENCH_REPORT_KIND: validate_code_vault_bench_report,
