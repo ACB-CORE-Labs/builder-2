@@ -256,6 +256,7 @@ def init(
     from builder_ii.config_sources import resolve_config_sources
     from builder_ii.init_decisions import (
         DEFAULT_INIT_OUTPUT_DIR,
+        TARGET_PROFILE_DECISION,
         decisions,
         init_wizard_step_definitions,
         validate_decision_value,
@@ -313,13 +314,39 @@ def init(
         for decision in decisions()
     }
 
-    engine = WizardEngine(steps=init_wizard_step_definitions(defaults))
+    # `agent_profile` and `verification_profile` are resolved *from* the target profile, and the
+    # resolution above ran before the operator picked one. Re-resolve them against the target
+    # actually chosen, or `--target-profile generic` shows -- and on Enter records -- `builder`'s
+    # `patch_planner` / `builder_full`, in a plan whose own verification profile then declares
+    # itself incompatible with the target beside it.
+    _field_by_decision = {d.name: d.resolution_field for d in decisions()}
+    # The override key is the target decision's own resolution field, never the decision's name.
+    # `resolve_config_sources` ignores an unrecognised key in silence, so a transcribed one is a
+    # re-resolution that quietly changes nothing and hands back the same stale default.
+    _target_field = _field_by_decision[TARGET_PROFILE_DECISION]
+
+    def _default_for_target(decision_name: str, chosen_target: str) -> str | None:
+        field = _field_by_decision[decision_name]
+        if field is None:  # pragma: no cover - only `output_dir` lacks a field, and it is not dependent
+            return defaults[decision_name]
+        retargeted = resolve_config_sources(
+            project_root=root,
+            builder_config_file=config_file,
+            cli_overrides={_target_field: chosen_target},
+        )
+        return _as_answer(retargeted.value(field))
+
+    engine = WizardEngine(steps=init_wizard_step_definitions(defaults, _default_for_target))
     for decision_name, provided in flag_answers.items():
         if provided is not None:
             engine.preanswer(decision_name, provided)
 
     if non_interactive:
-        chosen = {step.id: engine.answers.get(step.id, defaults[step.id]) for step in engine.steps}
+        # In step order, so a later step's `default_from` sees the earlier answers it depends on.
+        # Membership, not truthiness: an answer of "" is an answer, and must not fall to a default.
+        chosen = {}
+        for step in engine.steps:
+            chosen[step.id] = engine.answers[step.id] if step.id in engine.answers else step.resolved_default(chosen)
         prompted_any = False
     else:
         try:

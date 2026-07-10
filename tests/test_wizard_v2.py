@@ -181,3 +181,95 @@ def test_the_decision_record_is_the_only_place_a_decision_lives() -> None:
         assert not any(
             value in decision.question for value in decision.allowed()
         ), f"`{decision.name}` transcribed a registry value into its question"
+
+
+def test_a_target_dependent_default_is_read_after_the_target_is_chosen_not_before() -> None:
+    """`builder init --target-profile generic` must not offer, or record, `builder`'s profiles.
+
+    `agent_profile` and `verification_profile` are resolved *from* the target profile. Config
+    resolution ran once, up front, before the operator had picked one, and its answer was threaded
+    forward as an explicit override that shadowed the pipeline's own target-aware resolution. So
+    `--target-profile generic` wrote `patch_planner` / `builder_full` into `setup-plan.json` -- and
+    `builder_full.compatible_targets` is `("builder",)`, so the plan contradicted itself and
+    validated clean.
+    """
+    from builder_ii.config_sources import _default_agent_for_target
+    from builder_ii.verification_profiles import default_profile_for_target
+
+    for target in ("generic", "builder", "core"):
+        expected_agent = _default_agent_for_target(target)
+        expected_verification = default_profile_for_target(target).name
+
+        steps = {s.id: s for s in init_wizard_step_definitions(
+            defaults={d.name: "stale" for d in decisions()},
+            default_for_target=lambda name, t: (
+                _default_agent_for_target(t) if name == "agent_profile" else default_profile_for_target(t).name
+            ),
+        )}
+        answers = {"target_profile": target}
+        assert steps["agent_profile"].resolved_default(answers) == expected_agent, target
+        assert steps["verification_profile"].resolved_default(answers) == expected_verification, target
+
+        # A decision that does not depend on the target keeps its up-front default.
+        assert steps["model_backend"].resolved_default(answers) == "stale"
+
+
+def test_the_target_dependent_decisions_are_derived_from_the_resolver_not_transcribed() -> None:
+    """A fourth target-dependent field must reach the wizard without anyone editing a list."""
+    from pathlib import Path
+
+    from builder_ii.config_sources import _target_profile_defaults
+    from builder_ii.init_decisions import target_dependent_decisions, target_dependent_resolution_fields
+
+    assert target_dependent_resolution_fields() == frozenset(_target_profile_defaults(Path("/"), "generic"))
+    assert target_dependent_decisions() == ("agent_profile", "verification_profile")
+
+    dependent = target_dependent_resolution_fields()
+    for decision in decisions():
+        if decision.name in target_dependent_decisions():
+            assert decision.resolution_field in dependent
+
+
+def test_the_retarget_override_key_is_the_resolution_field_not_the_decision_name() -> None:
+    """`resolve_config_sources` ignores an unknown override key in silence.
+
+    Overriding with the *decision name* `target_profile` changes nothing and returns the same stale
+    default -- a re-resolution that looks like a fix and is not. The key is the target decision's own
+    `resolution_field`. This pin is what caught it.
+    """
+    from pathlib import Path
+
+    from builder_ii.config_sources import resolve_config_sources
+    from builder_ii.init_decisions import TARGET_PROFILE_DECISION, get_decision
+
+    field = get_decision(TARGET_PROFILE_DECISION).resolution_field
+    assert field == "active_target_profile", "the override key is the resolution field"
+
+    honoured = resolve_config_sources(project_root=Path("/tmp"), cli_overrides={field: "generic"})
+    assert honoured.value("active_target_profile") == "generic"
+    assert honoured.value("active_agent_profile") == "repo_mapper"
+
+    ignored = resolve_config_sources(project_root=Path("/tmp"), cli_overrides={TARGET_PROFILE_DECISION: "generic"})
+    assert ignored.value("active_target_profile") != "generic", "an unknown key is silently ignored"
+
+
+def test_non_interactive_records_the_target_it_was_given(tmp_path) -> None:
+    """The `--non-interactive` fallback drew from the same up-front defaults dict."""
+    import json
+
+    for target, agent, verification in (
+        ("generic", "repo_mapper", "generic_basic"),
+        ("builder", "patch_planner", "builder_full"),
+    ):
+        root = tmp_path / target
+        root.mkdir()
+        result = runner.invoke(
+            app,
+            ["init", "--root", str(root), "--output-dir", str(root / "out"), "--non-interactive",
+             "--target-profile", target, "--model-backend", "mlx-lm", "--model-alias", "qwen-coder"],
+        )
+        assert result.exit_code == 0, result.output
+        plan = json.loads((root / "out" / "setup-plan.json").read_text())
+        assert plan["selected_target_profile"] == target
+        assert plan["selected_agent_profile"] == agent, plan
+        assert plan["selected_verification_profile"] == verification, plan

@@ -183,7 +183,34 @@ def prompted_decision_options_provider(decision_name: str) -> Callable[[], tuple
     return decision.options_provider if decision is not None else None
 
 
-def init_wizard_step_definitions(defaults: dict[str, str | None] | None = None):
+TARGET_PROFILE_DECISION = "target_profile"
+
+
+def target_dependent_resolution_fields() -> frozenset[str]:
+    """The ``ConfigResolution`` fields whose value depends on which target profile is active.
+
+    Derived from :func:`~builder_ii.config_sources._target_profile_defaults`, which is the one
+    function that computes them, rather than transcribed beside it. A fourth target-dependent field
+    added there reaches this set without anyone editing it -- and a decision reading that field gets
+    a live default instead of a stale one, which is the bug this exists to prevent.
+    """
+    from pathlib import Path
+
+    from builder_ii.config_sources import _target_profile_defaults
+
+    return frozenset(_target_profile_defaults(Path("/"), "generic"))
+
+
+def target_dependent_decisions() -> tuple[str, ...]:
+    """The decisions whose resolved default cannot be known before ``target_profile`` is answered."""
+    dependent = target_dependent_resolution_fields()
+    return tuple(d.name for d in decisions() if d.resolution_field in dependent)
+
+
+def init_wizard_step_definitions(
+    defaults: dict[str, str | None] | None = None,
+    default_for_target: Callable[[str, str], str | None] | None = None,
+):
     """All nine decisions as :class:`~builder_ii.wizard_framework.WizardStep`s.
 
     ``defaults`` is supplied by ``builder init`` from config resolution at runtime; the
@@ -192,10 +219,30 @@ def init_wizard_step_definitions(defaults: dict[str, str | None] | None = None):
     registry rendering, and acceptance are what ``builder init`` has always shown for the four:
     the question literal, allowed values rendered from the live registry at prompt time,
     and :func:`validate_decision_value` as the boundary. The other five now show the same.
+
+    ``default_for_target(decision_name, target_profile)`` supplies the default for the decisions in
+    :func:`target_dependent_decisions`, at prompt time, once ``target_profile`` has been answered.
+    Without it those decisions fall back to ``defaults`` -- correct only when nobody changes the
+    target, which is exactly the case the wizard exists to let them change.
     """
     from builder_ii.wizard_framework import WizardStep
 
     resolved = dict(defaults or {})
+    dependent = set(target_dependent_decisions())
+
+    def _default_from(name: str) -> Callable[[dict[str, str]], str | None] | None:
+        if default_for_target is None or name not in dependent:
+            return None
+        resolver = default_for_target
+
+        def _resolve(answers: dict[str, str], _name: str = name) -> str | None:
+            target = answers.get(TARGET_PROFILE_DECISION)
+            if not target:  # pragma: no cover - decision order puts target_profile first
+                return resolved.get(_name)
+            return resolver(_name, target)
+
+        return _resolve
+
     return tuple(
         WizardStep(
             id=decision.name,
@@ -203,6 +250,7 @@ def init_wizard_step_definitions(defaults: dict[str, str | None] | None = None):
             options_provider=decision.options_provider,
             validator=(lambda value, _name=decision.name: validate_decision_value(_name, value)),
             default=resolved.get(decision.name),
+            default_from=_default_from(decision.name),
             free_form=decision.free_form,
             render_options_in_question=decision.render_options_in_question,
         )

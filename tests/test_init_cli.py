@@ -142,3 +142,31 @@ def test_init_non_interactive_uses_documented_defaults(tmp_path: Path, monkeypat
     assert not (out_dir / "setup-receipt.json").exists()
     # Defaults are taken without prompting, so mode stays "init".
     assert _intent(out_dir)["onboarding_mode"] == "init"
+
+
+def test_the_authority_record_describes_the_output_builder_init_actually_prints(tmp_path) -> None:
+    """`output_behavior` is a claim about behaviour, and nothing was checking it against behaviour.
+
+    Wizard v2 merged the "Defaulted decisions" section into one "Selected decisions" block -- and a
+    test in this file asserts the old section is gone -- while `builder init`'s authority record went
+    on promising "selected decisions, defaulted decisions with override flags". `runtime_boundary`
+    four lines above it was updated in the same commit; `output_behavior` was not.
+    """
+    from builder_ii.command_authority import get_command_record
+
+    record = get_command_record("builder init")
+    assert record is not None
+
+    root = tmp_path / "repo"
+    root.mkdir()
+    result = runner.invoke(
+        app,
+        ["init", "--root", str(root), "--output-dir", str(root / "out"), "--non-interactive"],
+    )
+    assert result.exit_code == 0, result.output
+
+    assert "Selected decisions" in result.output
+    assert "Defaulted decisions" not in result.output
+    assert "defaulted decisions" not in record.output_behavior.lower(), record.output_behavior
+    for promised in ("artifact paths", "digests", "apply command"):
+        assert promised in record.output_behavior.lower(), promised

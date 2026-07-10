@@ -61,6 +61,12 @@ class WizardStep:
     options_provider: Callable[[], tuple[str, ...]] | None = None
     validator: Callable[[str], list[str]] | None = None
     default: str | None = None
+    # A default that cannot be known before an earlier step is answered. `builder init` shows the
+    # agent and verification profiles that *this* target profile implies, and the operator has not
+    # chosen a target when the wizard is built. Snapshotting the default there showed -- and, on
+    # Enter, recorded -- another target's profiles. Read at prompt time, from the answers so far,
+    # for the same reason `options_provider` is read at prompt time rather than snapshotted.
+    default_from: Callable[[dict[str, str]], str | None] | None = None
     free_form: bool = False
     # Presentation, not policy: a large registry (MODEL_ALIASES has 50 entries) may choose
     # not to enumerate into the prompt line. The step still references its registry through
@@ -75,6 +81,12 @@ class WizardStep:
         if self.options_provider is None:
             return ()
         return tuple(self.options_provider())
+
+    def resolved_default(self, answers: dict[str, str]) -> str | None:
+        """The default to show, given every answer taken so far."""
+        if self.default_from is None:
+            return self.default
+        return self.default_from(answers)
 
     def render_question(self) -> str:
         """Compose the prompt text from the live registry at prompt time, never earlier."""
@@ -201,7 +213,7 @@ def run_typer_prompt_loop(
         prompted_any = True
         attempts = 0
         while True:
-            answer = str(prompt_fn(question, default=step.default))
+            answer = str(prompt_fn(question, default=step.resolved_default(engine.answers)))
             if strip_answers:
                 answer = answer.strip()
             errors = engine.apply(answer)
