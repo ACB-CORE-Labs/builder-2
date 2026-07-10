@@ -5,8 +5,15 @@ from pathlib import Path
 import pytest
 
 from builder_ii.command_authority import (
+    _EFFECT_FLAGS,
+    _EXTRA_COMMAND_NAMES,
+    _SYNTHESIZED_PARENTS,
+    ASSURANCE_DERIVING_FLAGS,
+    ASSURANCE_INERT_FLAGS,
+    CAPABILITY_FLAGS,
     COMMAND_AUTHORITY_REGISTRY,
     MODE_NONE,
+    NO_CAPABILITIES,
     READONLY_TUI_COMMAND_GROUPS,
     READONLY_TUI_COMMANDS,
     REQUIRED_SUBCOMMANDS,
@@ -14,8 +21,14 @@ from builder_ii.command_authority import (
     TIER_1,
     CommandAuthorityError,
     CommandAuthorityRecord,
+    _assurance_probe,
+    _registry_row,
+    assurance_state_for_record,
     check_command_authority,
     enforce_command_authority,
+    explain_assurance_for_record,
+    get_command_record,
+    render_command_authority_doc,
     render_registry_markdown_table,
     validate_registry_invariants,
 )
@@ -585,13 +598,194 @@ def test_command_authority_doc_mirrors_the_registry_verbatim() -> None:
     Comparing against the generator's own output has neither failure mode: it is exact, it needs no
     theory about which records get rows, and it says the true thing -- edit the registry, regenerate,
     never the other way round.
+
+    A third weakness outlived both: `table in doc` constrains only the table. Any prose could be
+    hand-added around it and would inherit the generated table's authority while being subject to no
+    check at all -- in a file hashed into every governed workflow event. The comparison is now against
+    the *whole* rendered document, so there is no unchecked region left to write a lie into.
     """
     doc = (Path(__file__).resolve().parents[1] / "docs" / "COMMAND_AUTHORITY.md").read_text(encoding="utf-8")
-    table = render_registry_markdown_table().strip()
-    assert table in doc, (
-        "docs/COMMAND_AUTHORITY.md has drifted from builder_ii/command_authority.py. "
-        "Regenerate it from render_registry_markdown_table() -- do not hand-edit it."
+    assert doc == render_command_authority_doc(), (
+        "docs/COMMAND_AUTHORITY.md has drifted from builder_ii/command_authority.py. Regenerate it: "
+        "uv run python -m builder_ii.command_authority > docs/COMMAND_AUTHORITY.md"
     )
+
+
+def test_a_hand_written_paragraph_outside_the_table_cannot_hide_in_the_policy_snapshot() -> None:
+    """Holds open the weakness whole-document equality closes.
+
+    The previous `table in doc` pin passes on a document that appends an unchecked claim after the
+    generated table. This asserts that it did, and that the current pin does not.
+    """
+    doc = (Path(__file__).resolve().parents[1] / "docs" / "COMMAND_AUTHORITY.md").read_text(encoding="utf-8")
+    forged = doc + "\n\n`builder capabilities` performs no model execution.\n"
+
+    assert render_registry_markdown_table().strip() in forged, "the old table-substring pin would still pass"
+    assert forged != render_command_authority_doc(), "whole-document equality must catch the appended claim"
+
+
+def test_no_row_hides_a_capability_the_record_holds() -> None:
+    """The defect this file exists to prevent, stated as the smallest true sentence.
+
+    `render_registry_markdown_table` printed five boolean columns against a record carrying eleven
+    capability flags. The five were not the risky five: two of them (`allows_artifact_writes`,
+    `allows_state_writes`) move no assurance state, while five flags that *do* had no column. Fourteen
+    rows therefore printed five `No`s while holding real authority -- among them `builder capabilities`,
+    which reaches a live model provider.
+
+    Nothing failed. `builder-platform audit-docs` catches a doc that overstates a capability; this doc
+    understated one. The doc-parity pin passed because the document faithfully mirrored a generator
+    that omitted. Truth is symmetric; neither check was.
+    """
+    for record in COMMAND_AUTHORITY_REGISTRY:
+        if record.name in _EXTRA_COMMAND_NAMES:
+            continue
+        row = _registry_row(record)
+        for flag in CAPABILITY_FLAGS:
+            if getattr(record, flag):
+                assert f"`{flag.removeprefix('allows_')}`" in row, (
+                    f"`{record.name}` sets {flag} and the policy snapshot does not say so"
+                )
+        if not any(getattr(record, flag) for flag in CAPABILITY_FLAGS):
+            assert NO_CAPABILITIES in row, f"`{record.name}` claims no capability and must render as {NO_CAPABILITIES}"
+
+
+def test_every_flag_that_can_move_the_assurance_state_is_named_in_the_policy_snapshot() -> None:
+    """Discover the risk-bearing flags by perturbation, not by transcribing the derivation chain.
+
+    A hand-kept list of "the flags that matter" is a second place for the truth to live, and it goes
+    stale the first time the lattice changes. Flipping each flag on an otherwise-identical record and
+    watching the derived state is the same question asked of the code itself.
+    """
+    baseline = assurance_state_for_record(_assurance_probe())
+    deriving = {flag for flag in CAPABILITY_FLAGS if assurance_state_for_record(_assurance_probe(**{flag: True})) != baseline}
+
+    assert deriving == set(ASSURANCE_DERIVING_FLAGS), "the module's perturbation and this test's disagree"
+    assert len(deriving) == 8, f"expected 8 risk-bearing flags, found {len(deriving)}: re-derive this pin"
+
+    header = render_registry_markdown_table().splitlines()[0]
+    assert "Assurance" in header and "Assurance Derived From" in header
+
+    rendered = {
+        flag
+        for flag in CAPABILITY_FLAGS
+        for record in [_assurance_probe(**{flag: True})]
+        if f"`{flag.removeprefix('allows_')}`" in _registry_row(record)
+    }
+    assert deriving <= rendered, f"flags decide the assurance state and are invisible: {sorted(deriving - rendered)}"
+
+
+def test_the_three_flags_that_carry_no_risk_signal_are_named_as_such() -> None:
+    """Two of them were among the only five the doc ever printed.
+
+    `allows_memory_mutation`, `allows_artifact_writes` and `allows_state_writes` can each be set on a
+    record without changing its assurance state. That is a fact about the derivation chain, not a bug
+    to fix here -- but a reader of the policy snapshot must not infer risk from a column that carries
+    none. If the lattice later gives one of these a consequence, this pin fails and says so.
+    """
+    assert ASSURANCE_INERT_FLAGS == ("allows_memory_mutation", "allows_artifact_writes", "allows_state_writes")
+
+    old_columns = {"allows_shell_execution", "allows_process_control", "allows_source_writes",
+                   "allows_artifact_writes", "allows_state_writes"}
+    assert set(ASSURANCE_INERT_FLAGS) & old_columns == {"allows_artifact_writes", "allows_state_writes"}
+    assert len(set(ASSURANCE_DERIVING_FLAGS) - old_columns) == 5, "five risk-bearing flags had no column"
+
+    doc = render_command_authority_doc()
+    for flag in ASSURANCE_INERT_FLAGS:
+        assert f"`{flag}`" in doc, f"the doc must name {flag} as carrying no risk signal"
+
+
+def test_every_capability_flag_is_requestable_as_an_effect() -> None:
+    """A flag no caller can ask about is a permission that can never be enforced.
+
+    `check_command_authority` answers questions phrased as effect names. If a twelfth flag is added to
+    the record and not to `_EFFECT_FLAGS`, no command can ever be denied for it.
+    """
+    requestable = {flag for flags in _EFFECT_FLAGS.values() for flag in flags}
+    assert requestable == set(CAPABILITY_FLAGS), (
+        f"unrequestable flags: {sorted(set(CAPABILITY_FLAGS) - requestable)}; "
+        f"effects naming no flag: {sorted(requestable - set(CAPABILITY_FLAGS))}"
+    )
+
+
+def test_a_record_can_carry_authority_with_no_capability_flag_set() -> None:
+    """Why the snapshot prints the derived state, and not merely the flags that feed it.
+
+    `builder-goose start-readonly` hands the operator's terminal to a Goose runtime. It sets no
+    capability flag; its assurance comes from its promotion state. A table of flags -- even all eleven
+    -- can therefore never explain it, and a reader given only flags would call the state wrong.
+
+    If every non-passive record one day derives from a flag, this pin has lost its point -- re-derive it.
+    """
+    flagless = [
+        record
+        for record in COMMAND_AUTHORITY_REGISTRY
+        if not any(getattr(record, flag) for flag in CAPABILITY_FLAGS)
+        and assurance_state_for_record(record) != "PASSIVE_ARTIFACT_VERIFIED"
+    ]
+    assert flagless, "no record derives authority without a flag -- re-derive this pin"
+
+    for record in flagless:
+        derivation = explain_assurance_for_record(record)
+        assert "is set" not in derivation.because, f"`{record.name}` has no flag set but blames one"
+        assert derivation.because in _registry_row(record) or record.name in _EXTRA_COMMAND_NAMES
+
+    start_readonly = get_command_record("builder-goose start-readonly")
+    assert start_readonly is not None
+    derivation = explain_assurance_for_record(start_readonly)
+    assert derivation.state == "READ_ONLY_RUNTIME_VERIFIED"
+    assert derivation.because == "promotion state is `read_only_runtime_candidate`"
+
+
+def test_explaining_the_assurance_state_never_changes_it() -> None:
+    """`assurance_state_for_record` is now a projection of `explain_assurance_for_record`.
+
+    Two functions with the same if-chain would be two places for the answer to drift. There is one
+    chain; this pins that the projection is total over every record the registry holds.
+    """
+    for record in COMMAND_AUTHORITY_REGISTRY:
+        assert assurance_state_for_record(record) == explain_assurance_for_record(record).state
+
+
+def test_each_capability_flag_derives_the_state_the_lattice_promises() -> None:
+    """The flag-to-state map, written out, so a silent change to the chain is a loud test failure."""
+    expected = {
+        "allows_source_writes": "MUTATION_WITH_ROLLBACK_VERIFIED",
+        "allows_git_mutation": "MUTATION_WITH_ROLLBACK_VERIFIED",
+        "allows_model_execution": "LIVE_PROVIDER_VERIFIED",
+        "allows_runtime_start": "READ_ONLY_RUNTIME_VERIFIED",
+        "allows_process_control": "BOUNDED_EXECUTION_VERIFIED",
+        "allows_shell_execution": "BOUNDED_EXECUTION_VERIFIED",
+        "allows_external_tool_invocation": "BOUNDED_EXECUTION_VERIFIED",
+        "allows_readonly_subprocess": "BOUNDED_EXECUTION_VERIFIED",
+    }
+    assert set(expected) == set(ASSURANCE_DERIVING_FLAGS)
+    for flag, state in expected.items():
+        derivation = explain_assurance_for_record(_assurance_probe(**{flag: True}))
+        assert (derivation.state, derivation.because) == (state, f"`{flag}` is set")
+
+
+def test_the_policy_snapshot_documents_every_command_including_the_ones_nobody_declared() -> None:
+    """99 of the 386 records were absent from the doc entirely.
+
+    They are clones: `_generate_extra_records` copies whichever declared record is the longest prefix
+    of the name. Thirty-four inherit from a command *group*, whose defining property is that it holds
+    no authority because its subcommands are supposed to. The inheritance was invisible, so the
+    abstention read as a classification. Printing it does not fix the classification -- it makes the
+    absence of one legible, which is the precondition for fixing it.
+    """
+    doc = render_command_authority_doc()
+    assert len(_SYNTHESIZED_PARENTS) == 99
+    for record in COMMAND_AUTHORITY_REGISTRY:
+        assert f"`{record.name}`" in doc, f"`{record.name}` is in the registry and absent from the policy snapshot"
+
+    for name, parent in _SYNTHESIZED_PARENTS.items():
+        assert name.startswith(parent), f"`{name}` inherits from `{parent}`, which does not prefix it"
+
+    groups = {n for n, p in _SYNTHESIZED_PARENTS.items() if (r := get_command_record(p)) and r.is_command_group}
+    assert len(groups) == 34, f"expected 34 clones of a command group, found {len(groups)}"
+    assert "builder-hitl run-command" in groups
+    assert "(command group)" in doc, "the doc must say when a clone inherits a group's abstention"
 
 
 # --- `builder stratum` must name exactly what is unfinished: no more, no fewer ------------------
