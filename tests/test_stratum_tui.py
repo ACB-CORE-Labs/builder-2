@@ -152,3 +152,95 @@ async def test_stratum_hitl_informative_refusal():
                     "STRATUM is display-only and cannot mutate approval state; run `builder-hitl rejection-record` in your terminal instead.",
                     severity="warning"
                 )
+
+
+# --- STRATUM originates neither writes nor runtimes ---------------------------------------------
+#
+# `builder stratum` is TIER_2, operator-managed, and its record declares no write authority. Two
+# keybindings contradicted that. `p` wrote `session_config.json` into the artifact root under
+# `kind: "builder_ii.session_config"` -- a kind registered nowhere, read by nothing. `g` called
+# `goose_launcher.launch_goose_session`, which spawns `goose session --with-builtin
+# developer,skills,summon`: file editing and shell, with no read-only policy, no launch receipt and
+# no approval. The governed command for that runtime, `builder-goose start-readonly`, is TIER_3 and
+# "requires implicit or explicit HITL approval for launch." A keypress in a render surface must not
+# launder a higher tier's approval boundary.
+
+
+def test_tui_sources_never_write_a_file() -> None:
+    for source in _TUI_DIR.rglob("*.py"):
+        text = source.read_text(encoding="utf-8")
+        assert ".write_text(" not in text, f"{source.name} writes a file; STRATUM has no write authority"
+        assert ".write_bytes(" not in text, f"{source.name} writes a file; STRATUM has no write authority"
+
+
+def test_tui_sources_never_start_a_goose_runtime() -> None:
+    for source in _TUI_DIR.rglob("*.py"):
+        text = source.read_text(encoding="utf-8")
+        code = "\n".join(line for line in text.splitlines() if not line.strip().startswith("#"))
+        assert "launch_goose_session(" not in code, (
+            f"{source.name} starts a Goose runtime; that is `builder-goose start-readonly`'s "
+            "TIER_3 boundary, not a TIER_2 render surface's keypress"
+        )
+
+
+@pytest.mark.asyncio
+async def test_prepare_package_refuses_to_write_and_names_the_governed_cli(tmp_path) -> None:
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.model_alias = "test"
+        mock_settings.return_value.model_tier = "TIER_0"
+
+        app = StratumApp()
+        app.artifacts_dir = tmp_path
+        async with app.run_test():
+            captured: dict = {}
+
+            def fake_push_screen(screen, callback=None):
+                captured["callback"] = callback
+
+            with patch.object(app, "push_screen", fake_push_screen), patch.object(app, "notify") as notify:
+                app.action_prepare_package()
+                captured["callback"]({"kind": "builder_ii.session_config", "corpus_name": "x"})
+
+            assert list(tmp_path.iterdir()) == [], "STRATUM wrote an artifact"
+            message = notify.call_args[0][0]
+            assert "does not write artifacts" in message
+            assert "builder-session prepare-package" in message
+
+
+@pytest.mark.asyncio
+async def test_launch_goose_refuses_and_never_spawns() -> None:
+    import builder_ii.goose_launcher as launcher
+
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.model_alias = "test"
+        mock_settings.return_value.model_tier = "TIER_0"
+
+        app = StratumApp()
+        async with app.run_test():
+            with patch.object(launcher, "launch_goose_session") as spawn, patch.object(app, "notify") as notify:
+                app.action_launch_goose()
+                spawn.assert_not_called()
+
+            message = notify.call_args[0][0]
+            assert "cannot start a Goose runtime" in message
+            assert "builder-goose start-readonly" in message
+
+
+def test_tui_sources_never_fabricate_an_artifact_kind() -> None:
+    """Every `kind:` literal under `builder_ii/tui/` must be a kind the registry actually knows.
+
+    STRATUM wrote `builder_ii.orchestration_assignment` (the governed kind is
+    `..._assignment_plan`) and `builder_ii.session_config` (the governed kind is
+    `builder_ii.session_configuration`). Inventing a kind to record a fabricated success under is
+    the artifact grammar's exact inverse.
+    """
+    import re
+
+    from builder_ii.artifact_index_records import _VALIDATORS
+
+    known = set(_VALIDATORS)
+    for source in _TUI_DIR.rglob("*.py"):
+        for kind in re.findall(r'"(builder_ii\.[a-z_]+)"', source.read_text(encoding="utf-8")):
+            assert kind in known, f"{source.name} names unregistered artifact kind {kind!r}"

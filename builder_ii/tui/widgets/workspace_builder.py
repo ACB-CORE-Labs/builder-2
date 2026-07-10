@@ -83,7 +83,6 @@ class SessionBuilderScreen(ModalScreen[dict[str, Any]]):
             model_input = self.query_one("#input-model", Select)
 
             config = {
-                "kind": "builder_ii.session_config",
                 "schema_version": "1.0",
                 "created_at_utc": datetime.now(timezone.utc).isoformat(),
                 "target_uri": uri_input.value,

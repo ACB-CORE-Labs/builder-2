@@ -390,25 +390,18 @@ class StratumApp(App[None]):
         from builder_ii.tui.widgets.teaming import DeepAgentTeamingScreen
 
         def on_dispatch(selected_agents: list[str]) -> None:
+            # This announced a dispatch and wrote `orchestration_assignment.json` under a bare
+            # assignment kind. Nothing was dispatched, and that kind does not exist -- the governed
+            # one carries a `_plan` suffix. So
+            # the TUI fabricated a success, invented an artifact kind to record it under, and wrote
+            # the result somewhere nothing reads. Fabricated success is the defect Ladder 4 removed
+            # from `deepagents_runtime`; it does not get to live on behind a keybinding.
             if selected_agents:
-                self.notify(f"Dispatched Squad: {', '.join(selected_agents)}")
-                import json
-                from datetime import datetime, timezone
-
-                payload = {
-                    "kind": "builder_ii.orchestration_assignment",
-                    "schema_version": "1.0",
-                    "created_at_utc": datetime.now(timezone.utc).isoformat(),
-                    "agents": selected_agents,
-                }
-
-                target = self.artifacts_dir / "orchestration_assignment.json"
-                target.write_text(json.dumps(payload, indent=2))
-
-                if self.signals:
-                    self.signals.append_event(
-                        datetime.now().strftime("%H:%M:%S"), "dispatch", f"Dispatched {len(selected_agents)} agents"
-                    )
+                self.notify(
+                    "STRATUM cannot dispatch subagents or write assignment artifacts; run "
+                    "`builder-deepagents assign-subagent` in your terminal.",
+                    severity="warning",
+                )
 
         self.push_screen(DeepAgentTeamingScreen(), on_dispatch)
 
@@ -476,20 +469,19 @@ class StratumApp(App[None]):
         from builder_ii.tui.widgets.workspace_builder import SessionBuilderScreen
 
         def on_save(config: dict[str, Any]) -> None:
+            # This used to write `session_config.json` into the artifact root, tagged
+            # under a session-config kind that is registered nowhere (the governed one is
+            # SESSION_CONFIG_KIND in `session_config.py`), and that nothing
+            # outside this TUI ever read. So the record's "No direct write authority at TUI render
+            # level" was false, and the bytes it wrote were not a governed artifact by any
+            # definition. The screen still collects the operator's choices; emitting them is the
+            # governed CLI's job, and only its job.
             if config:
-                import json
-                from datetime import datetime
-
-                target = self.artifacts_dir / "session_config.json"
-                target.write_text(json.dumps(config, indent=2))
-
-                self.notify("Workspace Session Configuration saved.")
-                if self.signals:
-                    self.signals.append_event(
-                        datetime.now().strftime("%H:%M:%S"),
-                        "prepare",
-                        f"Configured workspace: {config.get('corpus_name', 'unknown')}",
-                    )
+                self.notify(
+                    "STRATUM does not write artifacts; run `builder-session prepare-package` "
+                    "in your terminal to emit a governed session package.",
+                    severity="warning",
+                )
 
         self.push_screen(SessionBuilderScreen(), on_save)
 
@@ -498,63 +490,25 @@ class StratumApp(App[None]):
         await self._verify_current_chain_async()
 
     def action_launch_goose(self) -> None:
-        from datetime import datetime
+        """Refuse. STRATUM must not launch a runtime the governed CLI gates at a higher tier.
 
-        from builder_ii.goose_launcher import derive_goose_environment, launch_goose_session
+        This binding used to call `goose_launcher.launch_goose_session`, which spawns
+        `goose session --with-builtin developer,skills,summon` -- the developer builtin carries file
+        editing and shell. No read-only policy, no launch receipt, no approval.
 
-        try:
-            actual_env, report = derive_goose_environment(self.settings)
-        except Exception as e:
-            with self.suspend():
-                print("\n" + "=" * 50)
-                print(f"Error deriving Goose environment: {e}")
-                print(
-                    "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
-                )
-                print("=" * 50 + "\n")
-                input("Press Enter to return to STRATUM...")
-            return
-
-        with self.suspend():
-            print("\n" + "=" * 50)
-            print("Goose Launch Configuration (Governed):")
-            print(f"  Selected Backend   : {report['selected_backend']}")
-            print(f"  Selected Model     : {report['selected_model_alias']}")
-            print(f"  Goose Provider     : {report['goose_provider']}")
-            print(f"  Goose Model        : {report['goose_model']}")
-            print(f"  Provider Host      : {report['provider_host']}")
-            print(f"  Key Present        : {report['key_present']}")
-            print(f"  Recipe Path        : {report['recipe_path']}")
-            print(f"  MOIM File          : {report['moim_file']}")
-            print(f"  Launch Ready       : {'Yes' if report['launch_ready'] else 'No'}")
-            print("=" * 50 + "\n")
-
-            if not report["launch_ready"]:
-                print(
-                    "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
-                )
-                input("\nPress Enter to return to STRATUM...")
-                return
-
-            print("Launching Goose Session...")
-            try:
-                proc = launch_goose_session(self.settings)
-                ret = proc.wait()
-                if ret != 0:
-                    print(f"\n[Goose exited with code {ret}]")
-                    input("Press Enter to return to STRATUM...")
-            except Exception as e:
-                print(f"Error launching goose: {e}")
-                print(
-                    "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
-                )
-                input("Press Enter to return to STRATUM...")
-
-        if self.stratum:
-            self.stratum.mode = StratumMode.IDLE
-        if self.signals:
-            self.signals.append_event(datetime.now().strftime("%H:%M:%S"), "goose", "Goose session concluded")
-        self.notify("Returned from Goose session.")
+        `builder stratum` is TIER_2, operator-managed, and its record declares no write authority.
+        The governed command for exactly this runtime, `builder-goose start-readonly`, is TIER_3,
+        STATE_READ_ONLY_RUNTIME_CANDIDATE, bounded by read-only policies, and "requires implicit or
+        explicit HITL approval for launch." A keypress inside a TIER_2 render surface must not
+        launder a TIER_3 approval boundary. Same principle that makes the HITL approve/reject
+        actions constitutive refusals: the surface that renders authority state does not get to
+        originate authority.
+        """
+        self.notify(
+            "STRATUM cannot start a Goose runtime; run `builder-goose start-readonly` in your "
+            "terminal, where the read-only policy and launch approval apply.",
+            severity="warning",
+        )
 
     def action_operator_next(self) -> None:
         from builder_ii.operator_next import create_operator_next_action_report
