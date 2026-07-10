@@ -238,10 +238,12 @@ def init(
     from builder_ii.init_decisions import (
         DEFAULT_INIT_OUTPUT_DIR,
         defaulted_decisions,
+        init_wizard_step_definitions,
         prompted_decisions,
         validate_decision_value,
     )
     from builder_ii.setup_onboarding import run_onboarding_pipeline
+    from builder_ii.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
 
     resolution = resolve_config_sources(project_root=root, builder_config_file=config_file)
     if resolution.errors:
@@ -267,38 +269,39 @@ def init(
             raise typer.Exit(2)
 
     # The four wizard decisions: flag > interactive registry-validated prompt > resolved default.
-    chosen: dict[str, str] = {}
-    prompted_any = False
+    # Re-expressed on builder_ii.wizard_framework (Ladder 5 PR-1), behavior-identically:
+    # prompt text renders from the live registries at prompt time, answers are registry-
+    # validated with the same three-attempt boundary, and the exact observable behavior is
+    # pinned by tests/test_wizard_characterization.py (run against unmodified main first).
+    defaults: dict[str, str | None] = {}
+    flag_values: dict[str, str | None] = {}
     for decision in prompted_decisions():
         if decision.name == "output_dir":
-            if output_dir is not None:
-                chosen[decision.name] = str(output_dir)
-                continue
-            default = DEFAULT_INIT_OUTPUT_DIR
+            flag_values[decision.name] = str(output_dir) if output_dir is not None else None
+            defaults[decision.name] = DEFAULT_INIT_OUTPUT_DIR
         else:
-            provided = flag_answers[decision.name]
-            if provided is not None:
-                chosen[decision.name] = provided
-                continue
-            default = resolution.value(decision.resolution_field or "")
-        if non_interactive:
-            chosen[decision.name] = default
-            continue
-        prompted_any = True
-        question = decision.question
-        if decision.allowed:
-            question = f"{question} ({', '.join(decision.allowed)})"
-        for _attempt in range(3):
-            answer = str(typer.prompt(question, default=default)).strip()
-            errors = validate_decision_value(decision.name, answer)
-            if not errors:
-                chosen[decision.name] = answer
-                break
-            for error in errors:
-                console.print(f"[red]invalid answer:[/] {error}")
-        else:
+            flag_values[decision.name] = flag_answers[decision.name]
+            defaults[decision.name] = resolution.value(decision.resolution_field or "")
+
+    engine = WizardEngine(steps=init_wizard_step_definitions(defaults))
+    for decision_name, provided in flag_values.items():
+        if provided is not None:
+            engine.preanswer(decision_name, provided)
+
+    if non_interactive:
+        chosen = {step.id: engine.answers.get(step.id, defaults[step.id]) for step in engine.steps}
+        prompted_any = False
+    else:
+        try:
+            chosen, prompted_any = run_typer_prompt_loop(
+                engine,
+                prompt_fn=typer.prompt,
+                invalid_echo=lambda error: console.print(f"[red]invalid answer:[/] {error}"),
+                max_attempts=3,
+            )
+        except WizardAborted:
             console.print("[red]no valid answer after 3 attempts; aborting without writing artifacts[/]")
-            raise typer.Exit(2)
+            raise typer.Exit(2) from None
 
     result = run_onboarding_pipeline(
         output_dir=Path(chosen["output_dir"]),

@@ -452,6 +452,50 @@ def setup_init(
     console.out(f"  {result.onboarding_intent['validate_receipt_command']}\n", end="")
 
 
+def setup_wizard_step_definitions():
+    """The ``builder-setup wizard`` decisions, ported AS-IS onto the framework (Ladder 5 PR-1).
+
+    The target-profile and model-backend questions transcribe allowed values into their
+    literal text -- the backend line names 3 of the 8 live registry backends -- and nothing
+    is validated at the prompt: ``openai`` (a real backend the text does not offer) is
+    accepted, and garbage flows through to surface late as an invalid artifact with exit 1.
+    That defect is ported deliberately: PR-1 is behavior-preserving and one change per
+    commit, so fixing the lie here would make the characterization failures ambiguous.
+    PR-2 renders these prompts from the live registries, validates at the prompt boundary,
+    and removes these steps' named exemption from the transcription pin in
+    ``tests/test_wizard_framework.py``. Behavior is pinned verbatim by
+    ``tests/test_wizard_characterization.py``.
+    """
+    from builder_ii.wizard_framework import WizardStep
+
+    return (
+        WizardStep(
+            id="output_dir",
+            question="Enter output directory for onboarding artifacts",
+            default=".builder/setup-artifacts",
+            free_form=True,
+        ),
+        WizardStep(
+            id="target_profile",
+            question="Select target profile (generic, builder, core)",
+            default="generic",
+            free_form=True,
+        ),
+        WizardStep(
+            id="model_backend",
+            question="Select local model backend (rapid-mlx, mlx-lm, ollama)",
+            default="rapid-mlx",
+            free_form=True,
+        ),
+        WizardStep(
+            id="model_alias",
+            question="Select primary model alias",
+            default="phi-reasoning",
+            free_form=True,
+        ),
+    )
+
+
 @setup_app.command("wizard")
 def setup_wizard(
     output_dir: Path | None = typer.Option(None, "--output-dir", help="Output directory for onboarding artifacts."),
@@ -463,22 +507,28 @@ def setup_wizard(
     model_alias: str | None = typer.Option(None, "--model-alias", help="Model alias override."),
 ) -> None:
     """Interactive guided onboarding wizard flow."""
-    out_path = output_dir or Path(
-        typer.prompt("Enter output directory for onboarding artifacts", default=".builder/setup-artifacts")
-    )
-    profile = target_profile or typer.prompt("Select target profile (generic, builder, core)", default="generic")
-    backend = model_backend or typer.prompt(
-        "Select local model backend (rapid-mlx, mlx-lm, ollama)", default="rapid-mlx"
-    )
-    alias = model_alias or typer.prompt("Select primary model alias", default="phi-reasoning")
+    from builder_ii.wizard_framework import WizardEngine, run_typer_prompt_loop
+
+    engine = WizardEngine(steps=setup_wizard_step_definitions())
+    for step_id, provided in (
+        ("output_dir", str(output_dir) if output_dir else None),
+        ("target_profile", target_profile),
+        ("model_backend", model_backend),
+        ("model_alias", model_alias),
+    ):
+        if provided:
+            engine.preanswer(step_id, provided)
+    # strip_answers=False: this wizard has always taken prompt answers exactly as typed.
+    answers, _prompted_any = run_typer_prompt_loop(engine, prompt_fn=typer.prompt, strip_answers=False)
+    out_path = output_dir if output_dir else Path(answers["output_dir"])
 
     result = run_onboarding_pipeline(
         output_dir=out_path,
         onboarding_mode="wizard",
         root=root,
-        target_profile=profile,
-        model_backend=backend,
-        model_alias=alias,
+        target_profile=answers["target_profile"],
+        model_backend=answers["model_backend"],
+        model_alias=answers["model_alias"],
     )
     if not result.valid:
         console.out(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
