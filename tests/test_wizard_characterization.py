@@ -175,10 +175,24 @@ def test_init_prompts_render_their_allowed_values_from_the_live_registries(wizar
     """`builder init` is the wizard that already does it right: its prompt text is
     composed from the live registries at prompt time, so these needles are themselves
     composed from the registries. If a ninth backend is added, this test keeps passing
-    without edits -- that property is what the framework extraction must preserve."""
+    without edits -- that property is what the framework extraction must preserve.
+
+    Wizard v2 prompts all nine decisions, so all nine are checked. The five that used to be
+    resolved silently -- agent profile, verification profile, artifact root, runtime mode, and
+    whether the artifact root may sit inside the target repository -- now render the same way.
+    """
+    from builder_ii.agent_profiles import agent_profile_names
+    from builder_ii.config_sources import RUNTIME_MODES
+    from builder_ii.init_decisions import BOOL_ANSWERS, decisions
+    from builder_ii.verification_profiles import verification_profiles
+
     out_dir = wizard_env / "init-out"
-    result = runner.invoke(app, ["init", "--root", str(wizard_env)], input=f"{out_dir}\n\n\n\n")
+    # One answer per decision; an empty line accepts the rendered default.
+    answers = f"{out_dir}\n" + "\n" * len(decisions())
+    result = runner.invoke(app, ["init", "--root", str(wizard_env)], input=answers)
     assert result.exit_code == 0, result.output
+
+    verification_names = tuple(p.name for p in verification_profiles())
     _assert_appears_in_order_exactly_once(
         result.output,
         (
@@ -186,6 +200,11 @@ def test_init_prompts_render_their_allowed_values_from_the_live_registries(wizar
             f"Target profile ({', '.join(target_names())})",
             f"Local model backend ({', '.join(BACKENDS)})",
             f"Primary model alias ({', '.join(MODEL_ALIASES)})",
+            f"Agent profile ({', '.join(agent_profile_names())})",
+            f"Verification profile ({', '.join(verification_names)})",
+            "Platform artifact root",
+            f"Runtime mode ({', '.join(RUNTIME_MODES)})",
+            f"Allow the artifact root inside the target repository ({', '.join(BOOL_ANSWERS)})",
         ),
     )
 
@@ -199,6 +218,9 @@ def test_init_and_setup_wizard_agree_on_the_emitted_artifact_set(wizard_env: Pat
             "init",
             "--root",
             str(wizard_env),
+            # Wizard v2 prompts all nine decisions. This pin is about the artifact set, not the
+            # prompt sequence, so it takes the resolved defaults for the five it does not name.
+            "--non-interactive",
             "--output-dir",
             str(init_out),
             "--target-profile",

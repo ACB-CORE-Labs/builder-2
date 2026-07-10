@@ -238,7 +238,7 @@ It splits the nine onboarding decisions into two groups:
 The init summary ends with the exact `builder-setup apply` command to run next — printed **without** an inline `--approve-digest`. Approval happens only in the separately invoked apply step, via the interactive digest-prefix confirmation (or `--approve-digest` for scripted flows). The process that renders a digest never harvests its own confirmation.
 
 ```bash
-builder init                       # prompt for the four wizard decisions
+builder init                       # prompt for all nine onboarding decisions
 builder init --target-profile generic --model-backend mlx-lm --model-alias qwen-coder --non-interactive
 ```
 
