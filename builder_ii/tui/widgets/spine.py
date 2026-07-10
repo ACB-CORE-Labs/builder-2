@@ -27,13 +27,13 @@ from textual.widgets import Input, Static
 PIPELINE_STAGES: list[dict[str, str]] = [
     {"id": "repo-map", "label": "repo-map", "kind": "builder_ii.repo_map"},
     {"id": "ctx-pack", "label": "ctx-pack", "kind": "builder_ii.context_pack"},
-    {"id": "session", "label": "session", "kind": "builder_ii.session_config"},
+    {"id": "session", "label": "session", "kind": "builder_ii.session_configuration"},
     {"id": "projection", "label": "projection", "kind": "builder_ii.goose_projection"},
     {"id": "wrap-plan", "label": "wrap-plan", "kind": "builder_ii.goose_wrapper_plan"},
     {"id": "ver-plan", "label": "ver-plan", "kind": "builder_ii.verification_execution_plan"},
     {"id": "exec-req", "label": "exec-req", "kind": "builder_ii.execution_candidate_manifest"},
-    {"id": "postflight", "label": "postflight", "kind": "builder_ii.execution_postflight"},
-    {"id": "promote", "label": "promote", "kind": "builder_ii.promotion_readiness"},
+    {"id": "postflight", "label": "postflight", "kind": "builder_ii.execution_postflight_record"},
+    {"id": "promote", "label": "promote", "kind": "builder_ii.promotion_readiness_record"},
 ]
 
 

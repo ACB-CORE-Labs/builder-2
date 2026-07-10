@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from textual.app import App, ComposeResult
@@ -13,7 +14,7 @@ from textual.containers import Horizontal
 from textual.widgets import Footer, Static
 
 from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
+from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, check_command_authority
 from builder_ii.config import load_settings
 from builder_ii.tui.widgets.cli_passthrough import CLIPassthroughScreen, ConfirmScreen
 from builder_ii.tui.widgets.palette import CommandPaletteScreen
@@ -318,7 +319,6 @@ class StratumApp(App[None]):
     def action_open_palette(self) -> None:
         """Open the command palette."""
         cmds = []
-        from builder_ii.command_authority import check_command_authority
         for rec in COMMAND_AUTHORITY_REGISTRY:
             decision = check_command_authority(rec.name)
             allowed = decision.allowed
@@ -335,27 +335,39 @@ class StratumApp(App[None]):
                 }
             )
 
-        def run_cmd(cmd_name: str | None) -> None:
+        def on_selected(cmd_name: str | None) -> None:
+            # The palette is a tier-permission *inspector*. Selecting a row used to say
+            # "Executing: <cmd>" beside a comment reading "Real implementation would trigger the
+            # command logic here" -- it announced an execution that never happened. STRATUM runs no
+            # command, so it says what it did: it looked one up.
             if cmd_name:
-                self.notify(f"Executing: {cmd_name}")
-                # Real implementation would trigger the command logic here
+                decision = check_command_authority(cmd_name)
+                verdict = "permitted" if decision.allowed else "refused"
+                reason = f" ({', '.join(decision.reasons)})" if decision.reasons else ""
+                self.notify(f"{cmd_name}: {verdict}{reason}. Run it in your terminal.")
 
-        self.push_screen(CommandPaletteScreen(commands=cmds), run_cmd)
+        self.push_screen(CommandPaletteScreen(commands=cmds), on_selected)
 
     def action_open_cli(self) -> None:
-        """Open the raw CLI passthrough."""
+        """Compose a governed command with the current context injected. STRATUM runs nothing."""
         prefix = f"--target {self.settings.core_repo.name}"
         if self._current_session_id != "idle":
             prefix += f" --session {self._current_session_id}"
 
-        def run_cli(cmd: str | None) -> None:
-            if cmd:
-                self.notify(f"Raw CLI Exec: builder {cmd}")
-                # Real implementation would subprocess run `builder {cmd}` and stream to ledger/stratum
-                if self.signals:
-                    self.signals.append_event(datetime.now().strftime("%H:%M:%S"), "cli_passthrough", f"builder {cmd}")
+        self.push_screen(CLIPassthroughScreen(prefix_context=prefix), self._show_composed_command)
 
-        self.push_screen(CLIPassthroughScreen(prefix_context=prefix), run_cli)
+    def _show_composed_command(self, cmd: str | None) -> None:
+        """Surface the composed command for the operator to run. Never claim it ran.
+
+        This said `Raw CLI Exec: builder <cmd>` and appended a `cli_passthrough` event to the signal
+        rail -- writing a record of an execution that never occurred into the very panel that shows
+        the operator what happened -- next to a comment reading "Real implementation would subprocess
+        run". Running an arbitrary `builder` command from here would be the Goose problem again:
+        `builder` reaches TIER_3 and TIER_4 surfaces, whose approval boundaries a keypress may not
+        launder. So the screen composes, and the operator runs.
+        """
+        if cmd:
+            self.notify(f"Composed: builder {cmd} — run it in your terminal; STRATUM executes nothing.")
 
     def action_go_back(self) -> None:
         """Universal 'Back' / 'Clear' action to return to the default view."""
@@ -390,25 +402,18 @@ class StratumApp(App[None]):
         from builder_ii.tui.widgets.teaming import DeepAgentTeamingScreen
 
         def on_dispatch(selected_agents: list[str]) -> None:
+            # This announced a dispatch and wrote `orchestration_assignment.json` under a bare
+            # assignment kind. Nothing was dispatched, and that kind does not exist -- the governed
+            # one carries a `_plan` suffix. So
+            # the TUI fabricated a success, invented an artifact kind to record it under, and wrote
+            # the result somewhere nothing reads. Fabricated success is the defect Ladder 4 removed
+            # from `deepagents_runtime`; it does not get to live on behind a keybinding.
             if selected_agents:
-                self.notify(f"Dispatched Squad: {', '.join(selected_agents)}")
-                import json
-                from datetime import datetime, timezone
-
-                payload = {
-                    "kind": "builder_ii.orchestration_assignment",
-                    "schema_version": "1.0",
-                    "created_at_utc": datetime.now(timezone.utc).isoformat(),
-                    "agents": selected_agents,
-                }
-
-                target = self.artifacts_dir / "orchestration_assignment.json"
-                target.write_text(json.dumps(payload, indent=2))
-
-                if self.signals:
-                    self.signals.append_event(
-                        datetime.now().strftime("%H:%M:%S"), "dispatch", f"Dispatched {len(selected_agents)} agents"
-                    )
+                self.notify(
+                    "STRATUM cannot dispatch subagents or write assignment artifacts; run "
+                    "`builder-deepagents assign-subagent` in your terminal.",
+                    severity="warning",
+                )
 
         self.push_screen(DeepAgentTeamingScreen(), on_dispatch)
 
@@ -476,20 +481,19 @@ class StratumApp(App[None]):
         from builder_ii.tui.widgets.workspace_builder import SessionBuilderScreen
 
         def on_save(config: dict[str, Any]) -> None:
+            # This used to write `session_config.json` into the artifact root, tagged
+            # under a session-config kind that is registered nowhere (the governed one is
+            # SESSION_CONFIG_KIND in `session_config.py`), and that nothing
+            # outside this TUI ever read. So the record's "No direct write authority at TUI render
+            # level" was false, and the bytes it wrote were not a governed artifact by any
+            # definition. The screen still collects the operator's choices; emitting them is the
+            # governed CLI's job, and only its job.
             if config:
-                import json
-                from datetime import datetime
-
-                target = self.artifacts_dir / "session_config.json"
-                target.write_text(json.dumps(config, indent=2))
-
-                self.notify("Workspace Session Configuration saved.")
-                if self.signals:
-                    self.signals.append_event(
-                        datetime.now().strftime("%H:%M:%S"),
-                        "prepare",
-                        f"Configured workspace: {config.get('corpus_name', 'unknown')}",
-                    )
+                self.notify(
+                    "STRATUM does not write artifacts; run `builder-session prepare-package` "
+                    "in your terminal to emit a governed session package.",
+                    severity="warning",
+                )
 
         self.push_screen(SessionBuilderScreen(), on_save)
 
@@ -497,64 +501,97 @@ class StratumApp(App[None]):
         self.notify("Validating package...")
         await self._verify_current_chain_async()
 
-    def action_launch_goose(self) -> None:
-        from datetime import datetime
+    # Fixed argv into builder-II's own governed CLI. Never `goose` directly, and never
+    # `goose_launcher.launch_goose_session` -- that spawns `goose session --with-builtin
+    # developer,skills,summon`, whose developer builtin carries file editing and shell, takes no
+    # preflight snapshot and emits no receipt. `builder-goose start-readonly` runs
+    # `GooseRuntimeHarness.launch_readonly`, which spawns `goose session --with-builtin ""` (no
+    # builtins at all), snapshots every target file's digest before launch, and on close emits a
+    # launch receipt, a close receipt and a no-mutation postflight that FAILS if the target moved.
+    GOVERNED_GOOSE_COMMAND = "builder-goose start-readonly"
+    _GOOSE_MANIFEST_DIR = "goose"
 
-        from builder_ii.goose_launcher import derive_goose_environment, launch_goose_session
+    def _governed_readonly_manifest(self) -> Path | None:
+        """The newest session manifest that a read-only launch would accept. Read-only; writes nothing.
+
+        STRATUM does not mint the manifest -- that is `builder-goose manifest`'s artifact to emit.
+        It finds one, validates it with the manifest's own validator, and refuses if the operator has
+        not asked for `read_only`. A launch that had to invent its own manifest would be originating
+        the very authority this surface refuses.
+        """
+        from builder_ii.goose_session import validate_goose_session_manifest_file
+
+        manifest_dir = self.artifacts_dir.parent / self._GOOSE_MANIFEST_DIR
+        if not manifest_dir.is_dir():
+            return None
+        candidates = sorted(manifest_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for candidate in candidates:
+            if validate_goose_session_manifest_file(candidate):
+                continue
+            try:
+                manifest = json.loads(candidate.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if manifest.get("requested_runtime_mode") == "read_only":
+                return candidate
+        return None
+
+    def action_launch_goose(self) -> None:
+        """Hand the terminal to the governed read-only command. STRATUM starts no runtime itself.
+
+        The surface that renders authority state does not originate authority -- so it does not spawn
+        Goose, and it does not harvest the confirmation the governed command asks for. It suspends,
+        gives the operator's terminal to `builder-goose start-readonly`, and lets that command apply
+        its own policy, emit its own receipts, and run its own no-mutation postflight. STRATUM then
+        reads what the command wrote. That is a launcher OF the governed lane, not a bypass around it.
+
+        Fail-closed twice before anything spawns: the registry must permit the governed command, and a
+        manifest the manifest validator accepts must already request `read_only`.
+        """
+        import subprocess
+        import sys
+
+        from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
 
         try:
-            actual_env, report = derive_goose_environment(self.settings)
-        except Exception as e:
-            with self.suspend():
-                print("\n" + "=" * 50)
-                print(f"Error deriving Goose environment: {e}")
-                print(
-                    "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
-                )
-                print("=" * 50 + "\n")
-                input("Press Enter to return to STRATUM...")
+            enforce_command_authority(self.GOVERNED_GOOSE_COMMAND)
+        except CommandAuthorityError as exc:
+            self.notify(f"{self.GOVERNED_GOOSE_COMMAND} is not permitted: {exc}", severity="error")
             return
 
+        manifest = self._governed_readonly_manifest()
+        if manifest is None:
+            self.notify(
+                "No read-only Goose session manifest found. Run "
+                "`builder-goose manifest --mode read_only --output .builder/goose/session.json` "
+                "in your terminal first; STRATUM does not mint manifests.",
+                severity="warning",
+            )
+            return
+
+        argv = (sys.executable, "-m", "builder_ii.cli.goose_cli", "start-readonly", str(manifest))
         with self.suspend():
-            print("\n" + "=" * 50)
-            print("Goose Launch Configuration (Governed):")
-            print(f"  Selected Backend   : {report['selected_backend']}")
-            print(f"  Selected Model     : {report['selected_model_alias']}")
-            print(f"  Goose Provider     : {report['goose_provider']}")
-            print(f"  Goose Model        : {report['goose_model']}")
-            print(f"  Provider Host      : {report['provider_host']}")
-            print(f"  Key Present        : {report['key_present']}")
-            print(f"  Recipe Path        : {report['recipe_path']}")
-            print(f"  MOIM File          : {report['moim_file']}")
-            print(f"  Launch Ready       : {'Yes' if report['launch_ready'] else 'No'}")
-            print("=" * 50 + "\n")
+            completed = subprocess.run(argv, check=False)  # noqa: S603 - fixed argv, shell=False
 
-            if not report["launch_ready"]:
-                print(
-                    "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
-                )
-                input("\nPress Enter to return to STRATUM...")
-                return
+        self._render_goose_session_outcome(completed.returncode)
 
-            print("Launching Goose Session...")
-            try:
-                proc = launch_goose_session(self.settings)
-                ret = proc.wait()
-                if ret != 0:
-                    print(f"\n[Goose exited with code {ret}]")
-                    input("Press Enter to return to STRATUM...")
-            except Exception as e:
-                print(f"Error launching goose: {e}")
-                print(
-                    "No Goose provider could be derived from builder-II settings/.env. Set BUILDER_MODEL_BACKEND/BUILDER_MODEL_ALIAS plus the required key, or run goose configure."
-                )
-                input("Press Enter to return to STRATUM...")
-
+    def _render_goose_session_outcome(self, returncode: int) -> None:
+        """Report what the governed command did. Never assert an outcome it did not record."""
+        if returncode == 0:
+            self.notify(f"{self.GOVERNED_GOOSE_COMMAND} completed; receipts written under .builder/receipts.")
+        else:
+            self.notify(
+                f"{self.GOVERNED_GOOSE_COMMAND} exited {returncode}; see its output and receipts.",
+                severity="error",
+            )
         if self.stratum:
             self.stratum.mode = StratumMode.IDLE
         if self.signals:
-            self.signals.append_event(datetime.now().strftime("%H:%M:%S"), "goose", "Goose session concluded")
-        self.notify("Returned from Goose session.")
+            self.signals.append_event(
+                datetime.now().strftime("%H:%M:%S"),
+                "goose_readonly",
+                f"{self.GOVERNED_GOOSE_COMMAND} exited {returncode}",
+            )
 
     def action_operator_next(self) -> None:
         from builder_ii.operator_next import create_operator_next_action_report
@@ -566,16 +603,8 @@ class StratumApp(App[None]):
                 next_cmd = actions[0]["safe_commands"][0]
                 self.notify(f"Recommended Next Action: {next_cmd}")
 
-                # Pre-fill CLI Passthrough with this command
-                def run_cli(cmd: str | None) -> None:
-                    if cmd:
-                        self.notify(f"Raw CLI Exec: builder {cmd}")
-                        if self.signals:
-                            self.signals.append_event(
-                                datetime.now().strftime("%H:%M:%S"), "cli_passthrough", f"builder {cmd}"
-                            )
-
-                self.push_screen(CLIPassthroughScreen(prefix_context=f"{next_cmd}"), run_cli)
+                # Pre-fill the composer with the recommendation. It composes; it does not run.
+                self.push_screen(CLIPassthroughScreen(prefix_context=f"{next_cmd}"), self._show_composed_command)
             else:
                 self.notify("No pending actions found in Operator Next report.")
         except Exception as e:

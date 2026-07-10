@@ -653,3 +653,61 @@ def test_doc_parity_pin_catches_a_hand_edit_a_substring_check_would_miss() -> No
 
     assert victim.runtime_boundary in mutated, "the naive document-wide check would still pass -- that is the bug"
     assert render_registry_markdown_table().strip() not in mutated, "the generator-exact check must catch it"
+
+
+def test_stratum_record_names_every_action_that_would_originate_authority() -> None:
+    """STRATUM had three keybindings that originated authority the record denied it had.
+
+    `g` spawned a Goose session with the developer builtin -- file editing and shell -- with no
+    read-only policy, no launch receipt and no approval, while `builder-goose start-readonly` gates
+    exactly that runtime at TIER_3 behind HITL approval. `p` wrote an artifact under an unregistered
+    kind. `u` announced a dispatch that never happened and wrote another unregistered kind.
+
+    All three are now constitutive refusals. The record must say so, and must name the governed
+    command each one defers to, so that a reader of the registry can tell a designed boundary from
+    an unfinished feature.
+    """
+    record = _stratum_record()
+    surface = f"{record.runtime_boundary} {record.write_boundary} {record.approval_boundary}".lower()
+    for governed_command in (
+        "builder-goose start-readonly",
+        "builder-session prepare-package",
+        "builder-deepagents assign-subagent",
+    ):
+        assert governed_command in surface, f"the record does not name {governed_command!r}"
+    assert "no keybinding originates authority" in surface
+    assert "executes nothing else and claims no execution" in surface
+    assert "tier-permission inspector" in surface
+    assert "composer" in surface
+    # It starts exactly one runtime, and the governed command starts it -- not the render surface.
+    assert "starts exactly one runtime, and never itself" in surface
+    assert "never spawns goose directly and never selects goose builtins" in surface
+    assert "fails closed twice before anything spawns" in surface
+
+
+def test_stratum_declares_the_runtime_it_starts_and_derives_the_matching_assurance() -> None:
+    """The flags must say what the code does; the derived assurance follows from the flags.
+
+    Before this, `builder stratum` set no capability flags at all, so
+    `assurance_state_for_record` fell through to PASSIVE_ARTIFACT_VERIFIED for a surface that could
+    write files and spawn a shell-capable Goose session -- the same fail-open default that files the
+    verification lane as passive in the completion matrix. It now invokes exactly one governed
+    command, which starts a read-only runtime, so it declares that and derives the same assurance
+    state as the command it invokes.
+    """
+    from builder_ii.command_authority import assurance_state_for_record
+
+    record = _stratum_record()
+    governed = next(r for r in COMMAND_AUTHORITY_REGISTRY if r.name == "builder-goose start-readonly")
+
+    assert record.allows_runtime_start is True
+    assert record.allows_external_tool_invocation is True
+    assert record.allows_artifact_writes is False, "the receipts are written by the command it invokes"
+    assert record.allows_source_writes is False
+    assert record.allows_shell_execution is False
+
+    assert assurance_state_for_record(record) == "READ_ONLY_RUNTIME_VERIFIED"
+    assert assurance_state_for_record(record) == assurance_state_for_record(governed), (
+        "STRATUM's Goose keybinding is a launcher of the governed lane, so it can be no more "
+        "assured -- and no less -- than the command it launches"
+    )
