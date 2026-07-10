@@ -28,7 +28,12 @@ from builder_ii.verification_execution_receipt import (
     finalize_verification_execution_receipt,
     validate_verification_execution_receipt_artifact,
 )
-from builder_ii.verification_execution_runner import _minimal_env, run_approved_verification
+from builder_ii.verification_execution_runner import (
+    SUPPORTED_COMMAND_PROFILES,
+    _minimal_env,
+    _process_result_from_completed,
+    run_approved_verification,
+)
 from builder_ii.verification_isolation_backend import DockerBackend, NoneBackend, get_backend
 from builder_ii.verification_isolation_policy import (
     finalize_verification_isolation_policy,
@@ -507,3 +512,33 @@ def test_docker_backend_drops_no_import_root_silently(monkeypatch: Any, tmp_path
     _, container_pythonpath = _wrap(backend, str(first), str(second), str(target))
 
     assert container_pythonpath.split(os.pathsep) == ["/builder-ii", "/builder-ii-1", "/workspace"]
+
+
+def test_an_applied_isolation_receipt_records_the_approved_argv_not_the_executed_one() -> None:
+    """A recorded limitation, pinned so nobody later reads `argv` as "what ran".
+
+    `_process_result_from_completed` sets `argv = list(profile.argv)` on purpose: the receipt stays
+    self-describing and bound to the approved fixed profile rather than to a host-specific
+    `docker run …` line. The consequence is that under an applied isolation policy the receipt
+    names a command that did not execute, and `isolation_status: "applied"` is the runner's own
+    assertion about itself, corroborated by nothing else in the receipt.
+
+    `docs/plan/VERIFICATION_ISOLATION_RFC.md` is why that is tolerable rather than alarming:
+    "local isolation is containment, not attestation." A receipt was never going to attest it.
+    `docs/audits/LADDER9_ASSURANCE_CLOSURE_AUDIT.md` records it; this pin makes sure the sentence
+    stays true, or fails when someone changes the behaviour without changing the record.
+    """
+    profile = SUPPORTED_COMMAND_PROFILES["platform_status"]
+    completed = subprocess.CompletedProcess(
+        args=["docker", "run", "--rm", "python:3.12-slim", "python3", "-m", "x"], returncode=0, stdout="", stderr=""
+    )
+
+    result = _process_result_from_completed(
+        profile=profile,
+        completed=completed,
+        effective_timeout=120,
+        command_profile_ref="verification_profiles.builder_full.platform_status",
+    )
+
+    assert result["argv"] == list(profile.argv)
+    assert "docker" not in result["argv"], "if this ever changes, the closure audit must change with it"
