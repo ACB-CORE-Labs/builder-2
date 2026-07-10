@@ -554,7 +554,14 @@ def create_setup_overlay_plan(
             target_repo=target_repo,
             artifact_root=artifact_root,
             user_config_dir=config_root,
-            metadata={"candidate": builder_config_candidate},
+            # For a change that MATERIALIZES `content` at a target path, `metadata` must BE that
+            # content. The plan digests `content` into `content_digest`, but the change artifact
+            # never carries `content` -- `setup_apply._content_text` reconstructs the file body from
+            # `metadata`. A wrapper (`{"candidate": ...}`) or a label therefore makes apply write
+            # bytes the plan never digested, silently. `target_profile_reference_materialization_
+            # candidate` always had this right; these two did not, and nothing compared them until
+            # apply grew its digest-parity preflight.
+            metadata=builder_config_candidate,
         ),
         _planned_change(
             change_id="env_recommendation_candidate",
@@ -613,7 +620,11 @@ def create_setup_overlay_plan(
             target_repo=target_repo,
             artifact_root=artifact_root,
             user_config_dir=config_root,
-            metadata={"context_kind": "moim_session_context"},
+            # `metadata` IS the content for a materialization change -- see the note on
+            # `builder_config_file_candidate` below. This was `{"context_kind": ...}`, a label, so
+            # apply would have written that two-key label object into the target file in place of
+            # the session context the plan digested.
+            metadata=moim_session_context,
         ),
         _planned_change(
             change_id="recipe_path_registration_candidate",
