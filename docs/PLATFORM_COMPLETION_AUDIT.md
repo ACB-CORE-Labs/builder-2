@@ -31,6 +31,25 @@ Governed obligation delegation is `OPERATIONALLY_VERIFIED` with assurance `BOUND
 
 For high-consequence work, the assurance state is authoritative for risk interpretation. A live provider call, a temporary demo loop, and passive candidate specifications are not equivalent just because older rows may share the same legacy completion label.
 
+## Assurance States
+
+Each state says what the capability *does*. These lines are generated from
+`builder_ii/assurance.py`'s `ASSURANCE_STATE_DEFINITIONS` and pinned by
+`tests/test_assurance.py`; edit the module, never this list.
+
+- `PASSIVE_ARTIFACT_VERIFIED` — Builds, validates, or reads governed artifacts and renders them. It starts no runtime, spawns no process, calls no provider, and writes nothing outside the artifact store.
+- `READ_ONLY_RUNTIME_VERIFIED` — Starts, or hands the operator's terminal to, a runtime whose policy denies writes. The read-only boundary is enforced by that runtime's own preflight and postflight, never by the caller's intent.
+- `BOUNDED_EXECUTION_VERIFIED` — Causes work to run -- a subprocess, an external tool, or a sealed backend -- inside a fixed, pre-approved envelope: fixed argv with shell=False or a digest-bound seal, an approval, and a digest-bound receipt. It attests the envelope of the invocation. It never attests the behaviour of the code that ran inside it.
+- `MUTATION_WITH_ROLLBACK_VERIFIED` — Writes to the target repository's source tree or git state, and only behind an interactive digest-prefix approval, a required verification receipt, and a snapshot that makes the write reversible.
+- `LIVE_PROVIDER_VERIFIED` — Reaches a live model provider over the network. Its output is not deterministic and is never, on its own, evidence.
+- `DEMO_ONLY_VERIFIED` — Exercised end to end only inside the governed demo loop, against a synthetic target. A demo pass is not evidence for the corresponding real lane.
+- `BLOCKED_BY_EVIDENCE` — No claim is supported: the capability is not operationally verified, or its command surface is a forbidden or unpromoted record. This is the state that absence takes. It is never a default for something that runs.
+- `SAFETY_CRITICAL_PROHIBITED` — Reserved. No mapping derives it and no current row carries it. It names a capability whose promotion is refused regardless of the evidence offered for it.
+
+Every `OPERATIONALLY_VERIFIED` row is assigned one of these by an explicit decision recorded
+in `assurance_state_for_row`. There is no default: a row that no one classified is an error,
+not a passive artifact.
+
 ## State Labels
 
 Allowed labels:
