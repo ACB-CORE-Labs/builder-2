@@ -251,10 +251,13 @@ def test_command_match_exact_and_fallback_ambiguity():
     assert rec is not None
     assert rec.name == "builder-context pack"
 
-    # 2. Command group prefix fallback works for unregistered subcommands
+    # 2. Command group prefix fallback works for unregistered subcommands. The record answers for the
+    #    command asked about, not for the group it borrowed authority from -- flags are not part of a
+    #    command's name, so they are dropped, and `inherited_from` carries the group.
     rec_fallback = find_matching_record("builder-context unregistered-subcommand --arg")
     assert rec_fallback is not None
-    assert rec_fallback.name == "builder-context"
+    assert rec_fallback.name == "builder-context unregistered-subcommand"
+    assert rec_fallback.inherited_from == "builder-context"
 
     # 3. No fallback for non-command-groups
     rec_none = find_matching_record("builder-context pack unregistered-subcommand")
@@ -276,10 +279,30 @@ def test_group_fallback_hands_down_a_tier_ceiling_and_no_capability_flags():
 
     resolved = find_matching_record("builder-code-vault nonsense")
     assert resolved is not None
-    assert resolved.name == "builder-code-vault"
+    assert resolved.name == "builder-code-vault nonsense", "the record answers for the command that was asked about"
     assert resolved.tier == group.tier and resolved.promotion_state == group.promotion_state
     assert not any(getattr(resolved, flag) for flag in CAPABILITY_FLAGS), "the group's flags were handed down"
     assert resolved.authority_is_inherited and resolved.inherited_from == "builder-code-vault"
+
+
+def test_a_stand_in_record_never_inherits_from_itself():
+    """The fallback record is a copy, so it names a source, and the source is another record.
+
+    An earlier version left the group's own name on the copy while also marking it inherited, so it
+    said `builder-code-vault` inherits from `builder-code-vault`: a copy reported as a declaration,
+    wearing the name of a group that really does declare `allows_artifact_writes` while carrying
+    none. `inheritance_errors` is the single checker the registry is held to; the stand-in record is
+    held to the same one, because `validate_registry_invariants` never sees it.
+    """
+    from builder_ii.command_authority import inheritance_errors
+    from builder_ii.convention_kernel import find_matching_record
+
+    for command in ("builder-code-vault nonsense", "builder-goose frobnicate"):
+        resolved = find_matching_record(command)
+        assert resolved is not None, command
+        assert resolved.authority_is_inherited, command
+        assert resolved.inherited_from != resolved.name, f"{command} inherits from itself"
+        assert inheritance_errors(resolved) == [], command
 
 
 def test_a_group_that_declares_runtime_authority_does_not_delegate_it():

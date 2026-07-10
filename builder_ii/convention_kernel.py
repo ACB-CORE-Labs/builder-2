@@ -4,6 +4,7 @@ import hashlib
 import json as json_lib
 from dataclasses import dataclass, field, replace
 from enum import Enum
+from itertools import takewhile
 from pathlib import Path
 from typing import Any, Literal
 
@@ -456,9 +457,16 @@ def find_matching_record(command_str: str) -> CommandAuthorityRecord | None:
         # ceiling the subcommand cannot exceed, so those carry down. Its capability flags describe
         # the group and are cleared: `builder-runtime` declares `runtime_start`, and an unregistered
         # `builder-runtime <x>` must not inherit the right to start a runtime by name alone.
+        #
+        # The record answers "what authority applies to `command_str`", so it bears that name and
+        # inherits *from* the group. Leaving the group's own name on it would say `builder-goose`
+        # inherits from `builder-goose` -- a copy reported as a declaration, and a flagless record
+        # bearing the name of a group that declares flags. `inheritance_errors` rejects both.
         cleared: dict[str, Any] = {flag: False for flag in CAPABILITY_FLAGS}
+        path_words = tuple(takewhile(lambda word: not word.startswith("-"), cmd_words))
         return replace(
             matching_record,
+            name=" ".join(path_words),
             authority_is_inherited=True,
             inherited_from=matching_record.name,
             **cleared,
@@ -980,6 +988,8 @@ class ConventionKernel:
                         "approval_mode": "none",
                         "allowed_in_planned_only": False,
                         "status": "not_invoked_requires_operator_invocation",
+                        "authority_is_inherited": False,
+                        "inherited_from": "",
                     }
                 )
                 continue
@@ -999,6 +1009,8 @@ class ConventionKernel:
                     "approval_mode": record.approval_mode,
                     "allowed_in_planned_only": not is_tier_2_plus,
                     "status": "not_invoked_requires_operator_invocation" if is_tier_2_plus else "available",
+                    "authority_is_inherited": record.authority_is_inherited,
+                    "inherited_from": record.inherited_from,
                 }
             )
 
