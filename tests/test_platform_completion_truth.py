@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
@@ -18,8 +19,12 @@ from builder_ii.platform_completion_audit import (
     R1_OPERATOR_FLIPPED_CAPABILITIES,
     REQUIRED_CAPABILITIES,
     REQUIRED_CAPABILITY_ROWS,
+    CapabilityRow,
+    UnclassifiedCapabilityError,
+    assurance_state_for_row,
     render_human_summary,
     render_matrix_jsonable,
+    validate_assurance_classification,
     validate_command_surfaces,
     validate_completion_matrix,
     validate_r1_config_onboarding_mapping,
@@ -242,3 +247,53 @@ def test_next_sequence_rejects_r0_b5() -> None:
     result_matrix = runner.invoke(platform_app, ["matrix"])
     assert "R0 -> B5" not in result_matrix.output
     assert "R1 -> B1" not in result_matrix.output
+
+
+def _synthetic_row(capability: str, state: str) -> CapabilityRow:
+    return CapabilityRow(
+        capability=capability,
+        state=state,
+        evidence_files=(),
+        command_surfaces=(),
+        tests=(),
+        blockers=(),
+        next_pr="",
+    )
+
+
+def test_an_operationally_verified_row_without_an_assurance_decision_is_an_error() -> None:
+    """No default. The understatement this closes must be unrepresentable, not merely fixed once.
+
+    `assurance_state_for_row` used to end in `return PASSIVE_ARTIFACT_VERIFIED`, so an
+    OPERATIONALLY_VERIFIED row nobody classified silently received the lowest-risk label in the
+    field the docs call authoritative for risk. A risk field must fail closed.
+    """
+    unclassified = _synthetic_row("a capability nobody classified", OPERATIONALLY_VERIFIED)
+
+    with pytest.raises(UnclassifiedCapabilityError, match="no assurance classification"):
+        assurance_state_for_row(unclassified)
+
+    errors = validate_assurance_classification(REQUIRED_CAPABILITY_ROWS + (unclassified,))
+    assert any("a capability nobody classified" in error for error in errors)
+
+
+def test_a_stale_assurance_classification_is_an_error() -> None:
+    """The reverse direction: a decision kept for a capability that no longer holds that state.
+
+    `MCP invocation` sat in the old BOUNDED_EXECUTION_VERIFIED set while its row was
+    PASSIVE_FOUNDATION -- a dead branch, unreachable and misleading, for as long as anyone read the
+    mapping to learn what the lane does.
+    """
+    demoted = tuple(
+        _synthetic_row(row.capability, PASSIVE_FOUNDATION) if row.capability == "context packs" else row
+        for row in REQUIRED_CAPABILITY_ROWS
+    )
+
+    errors = validate_assurance_classification(demoted)
+
+    assert any("'context packs' is stale" in error for error in errors)
+
+
+def test_the_live_matrix_classifies_every_operationally_verified_row_and_nothing_else() -> None:
+    assert validate_assurance_classification(REQUIRED_CAPABILITY_ROWS) == []
+    assert validate_completion_matrix() == []
