@@ -160,20 +160,7 @@ def test_a_multi_field_step_writes_every_field_it_names() -> None:
     assert wizard.spec.rollback_path == ".builder/rollback"
 
 
-def test_auto_skip_is_keyed_on_a_hardcoded_step_id_not_on_is_required() -> None:
-    """A quirk, pinned because it is current behaviour and the migration removes it.
-
-    `_next_cursor` reads `next_step.id == "hitl_gates"`. `ForgeStep.is_required(spec)` already
-    answers the same question for any step. Give a second step an `auto_required_if` and it will
-    never be auto-skipped, silently.
-    """
-    import inspect
-
-    source = inspect.getsource(ForgeWizard._next_cursor)
-    assert '"hitl_gates"' in source, "the auto-skip is keyed on a step id"
-    assert "is_required" not in source, "and not on the predicate that already answers it"
-
+def test_hitl_gates_is_still_the_only_conditionally_required_step() -> None:
+    """The premise of the branch. If a second one appears, the pins above stop covering it."""
     auto_required = [step.id for step in FORGE_STEPS if step.auto_required_if is not None]
-    assert auto_required == ["hitl_gates"], (
-        "a second auto-required step exists and `_next_cursor` cannot see it: " f"{auto_required}"
-    )
+    assert auto_required == ["hitl_gates"]

@@ -1,0 +1,91 @@
+"""The forge wizard, re-expressed on `wizard_framework`. What the migration fixed.
+
+`tests/test_forge_wizard_characterization.py` pins the behaviour that must not change, and it was
+green against the pre-migration code. These pins are the ones that could *not* have been green
+before: they assert that the duplicate state machine is gone and that its two quirks went with it.
+"""
+
+from __future__ import annotations
+
+import inspect
+
+from builder_ii.deepagents_forge_wizard import FORGE_STEPS, ForgeWizard
+from builder_ii.wizard_framework import WizardEngine, WizardStep
+
+
+def test_the_forge_wizard_no_longer_owns_a_cursor_history_state_machine() -> None:
+    """The extraction is finished when its source no longer holds a copy.
+
+    Asserted structurally, not by grepping source text: these docstrings name `_next_cursor` and
+    `hitl_gates` in order to explain them, and a pin that reads source would be satisfied -- or
+    defeated -- by a comment.
+    """
+    assert not hasattr(ForgeWizard, "_next_cursor"), "the duplicate advance logic is gone"
+
+    wizard = ForgeWizard()
+    assert isinstance(wizard._engine, WizardEngine)
+    assert "cursor" not in vars(wizard), "the cursor is the engine's, not a second copy"
+    assert "history" not in vars(wizard), "so is the history"
+    assert wizard.cursor == wizard._engine.cursor
+    assert wizard.history is wizard._engine.history
+
+
+def test_the_branch_is_derived_from_the_predicate_that_already_answered_it() -> None:
+    """`_next_cursor` matched `next_step.id == "hitl_gates"`. `is_required` already knew."""
+    engine_source = inspect.getsource(WizardEngine._skip_preanswered)
+    assert "required_when" in engine_source
+    assert "hitl_gates" not in engine_source, "the framework must not know a forge step's name"
+
+    hitl = next(step for step in FORGE_STEPS if step.id == "hitl_gates")
+    assert hitl.auto_required_if is not None
+
+    wizard = ForgeWizard()
+    framework_step = next(s for s in wizard._engine.steps if s.id == "hitl_gates")
+    assert framework_step.required_when is not None, "the branch rides on the step"
+
+
+def test_a_second_conditionally_required_step_is_auto_skipped_too() -> None:
+    """It would not have been. `_next_cursor` only ever recognised `hitl_gates`.
+
+    This is the failure the old code was one step away from: add a second `auto_required_if` and
+    it silently prompts forever, because nothing but that one string was ever checked.
+    """
+    steps = (
+        WizardStep(id="first", question="First", free_form=True),
+        WizardStep(id="conditional_one", question="?", free_form=True, required_when=lambda _a: False),
+        WizardStep(id="conditional_two", question="?", free_form=True, required_when=lambda _a: False),
+        WizardStep(id="last", question="Last", free_form=True),
+    )
+    engine = WizardEngine(steps=steps)
+    assert engine.apply("x") == []
+    assert engine.current_step().id == "last"
+
+
+def test_skip_when_is_gone_and_nothing_lost_a_capability() -> None:
+    """An engine-level hook with no caller. The forge's branch belongs on the forge's step."""
+    assert "skip_when" not in WizardEngine.__dataclass_fields__
+    assert "required_when" in WizardStep.__dataclass_fields__, "and the capability it offered survives"
+
+    # What `skip_when` could express, `required_when` expresses -- on the step that owns the branch.
+    conditional = WizardStep(id="b", question="?", free_form=True, required_when=lambda a: a.get("first") != "no-b")
+    engine = WizardEngine(
+        steps=(WizardStep(id="first", question="?", free_form=True), conditional, WizardStep(id="c", question="?"))
+    )
+    engine.apply("no-b")
+    assert engine.current_step().id == "c"
+
+
+def test_the_wizard_still_refuses_to_skip_hitl_gates_when_a_write_capability_is_granted() -> None:
+    """The governance property the branch exists to protect, asserted through the new engine."""
+    wizard = ForgeWizard()
+    assert wizard.apply("pr_reviewer").ok
+    assert wizard.apply("You are an agent that writes patches.").ok
+    assert wizard.apply("generic").ok
+    assert wizard.apply(["write_files"]).ok
+
+    assert wizard.current_step().id == "hitl_gates"
+    assert not wizard.skip(), "a write capability must not reach the spec without a HITL gate"
+
+    framework_step = next(s for s in wizard._engine.steps if s.id == "hitl_gates")
+    assert framework_step.required_when is not None
+    assert framework_step.is_required(wizard._engine.answers)

@@ -36,6 +36,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from typing import Any
 
 
 class WizardAborted(Exception):
@@ -59,9 +60,19 @@ class WizardStep:
     id: str
     question: str
     options_provider: Callable[[], tuple[str, ...]] | None = None
-    validator: Callable[[str], list[str]] | None = None
+    validator: Callable[[Any], list[str]] | None = None
     default: str | None = None
     free_form: bool = False
+    # `optional` -- the step is asked, and may be passed over without an answer.
+    # `required_when` -- the step is asked only when the predicate says so, given the answers
+    # accumulated before it. A step whose predicate returns False is passed over silently.
+    #
+    # Together these replace `WizardEngine.skip_when`, an engine-level hook PR-1 added as a guess
+    # at how the forge wizard branches. The forge, migrated, shows the branch belongs on the step:
+    # `hitl_gates` is required exactly when a write or shell capability was granted. Two ways to
+    # skip a step is one way too many.
+    optional: bool = False
+    required_when: Callable[[dict[str, Any]], bool] | None = None
     # Presentation, not policy: a large registry (MODEL_ALIASES has 50 entries) may choose
     # not to enumerate into the prompt line. The step still references its registry through
     # options_provider -- validation and drift both keep working -- and a rejection surfaces
@@ -83,10 +94,18 @@ class WizardStep:
             return f"{self.question} ({', '.join(allowed)})"
         return self.question
 
-    def validate(self, value: str) -> list[str]:
+    def validate(self, value: Any) -> list[str]:
         if self.validator is None:
             return []
         return self.validator(value)
+
+    def is_required(self, answers: dict[str, Any]) -> bool:
+        """Must this step be answered, given what has been answered before it?"""
+        if self.optional:
+            return False
+        if self.required_when is not None:
+            return self.required_when(answers)
+        return True
 
 
 @dataclass
@@ -100,8 +119,7 @@ class WizardEngine:
     """
 
     steps: tuple[WizardStep, ...]
-    skip_when: Callable[[WizardStep, dict[str, str]], bool] | None = None
-    answers: dict[str, str] = field(default_factory=dict)
+    answers: dict[str, Any] = field(default_factory=dict)
     cursor: int = 0
     history: list[int] = field(default_factory=list)
 
@@ -137,7 +155,7 @@ class WizardEngine:
     def is_complete(self) -> bool:
         return self.cursor >= len(self.steps)
 
-    def apply(self, value: str) -> list[str]:
+    def apply(self, value: Any) -> list[str]:
         """Validate ``value`` for the current step; record it and advance when valid."""
         step = self.current_step()
         errors = step.validate(value)
@@ -149,9 +167,14 @@ class WizardEngine:
         return []
 
     def skip(self) -> bool:
-        """Advance past the current step without an answer. Free-form steps only."""
+        """Advance past the current step without an answer.
+
+        Permitted when the step does not need one: it is `optional`, its `required_when` predicate
+        says no given the answers so far, or it is free-form and so has no registry to validate
+        against. A registry-validated, required step is never skippable.
+        """
         step = self.current_step()
-        if not step.free_form:
+        if not step.free_form and step.is_required(self.answers):
             return False
         self.history.append(self.cursor)
         self.cursor = self._skip_preanswered(self.cursor + 1)
@@ -164,12 +187,18 @@ class WizardEngine:
         return False
 
     def _skip_preanswered(self, index: int) -> int:
+        """Advance past every step that needs no prompt, not merely the next one.
+
+        `ForgeWizard._next_cursor` inspected only the immediate next step and matched it by
+        hardcoded id, so two consecutive conditionally-required steps would have left the second
+        one prompted. The loop and the predicate are the same question asked properly.
+        """
         while index < len(self.steps):
             step = self.steps[index]
             if step.id in self.answers:
                 index += 1
                 continue
-            if self.skip_when is not None and self.skip_when(step, dict(self.answers)):
+            if step.required_when is not None and not step.required_when(dict(self.answers)):
                 index += 1
                 continue
             return index
