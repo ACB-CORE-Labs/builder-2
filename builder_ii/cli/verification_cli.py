@@ -89,7 +89,7 @@ def artifact(
         write_profile_artifact(selected, output, target=selected_target, task=task)
         console.print(f"Verification profile artifact written to {output}")
     else:
-        console.out(dumps_profile_artifact(selected, target=selected_target, task=task), end="")
+        typer.echo(dumps_profile_artifact(selected, target=selected_target, task=task), nl=False)
 
 
 @verification_app.command("validate")

@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 from builder_ii.command_authority import (
     COMMAND_AUTHORITY_REGISTRY,
     MODE_NONE,
+    STATE_ENABLED,
     TIER_1,
 )
 from builder_ii.platform_completion_audit import (
@@ -19,9 +20,11 @@ from builder_ii.platform_completion_audit import (
     R1_OPERATOR_FLIPPED_CAPABILITIES,
     REQUIRED_CAPABILITIES,
     REQUIRED_CAPABILITY_ROWS,
+    STALE_TRUTH_PHRASES,
     CapabilityRow,
     UnclassifiedCapabilityError,
     assurance_state_for_row,
+    matrix_blocker_violations,
     render_human_summary,
     render_matrix_jsonable,
     validate_assurance_classification,
@@ -32,6 +35,27 @@ from builder_ii.platform_completion_audit import (
 from builder_ii.verification_execution_plan import TARGET_CODE_EXECUTING_PROFILES
 
 runner = CliRunner()
+
+
+def test_matrix_blockers_are_truthful() -> None:
+    assert not matrix_blocker_violations()
+    truth_report = Path("docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md").read_text(encoding="utf-8")
+    for phrase in STALE_TRUTH_PHRASES:
+        assert phrase not in truth_report, f"stale phrase in truth report: {phrase}"
+
+    # The hardening line's version of this test also pinned both setup rows at
+    # OPERATIONALLY_VERIFIED -- a promotion this lineage has not taken. The registry enabling
+    # `builder-setup apply`/`rollback` (true on both lineages, pinned below) does not promote the
+    # capability rows: a command being invocable is not the capability being operationally
+    # verified. Flipping these rows requires an R1 closure audit through
+    # R1_OPERATOR_FLIPPED_CAPABILITIES, never a test edit.
+    by_cap = {r.capability: r for r in REQUIRED_CAPABILITY_ROWS}
+    assert by_cap["non-interactive setup/apply/validate"].state == MERGED_BUT_NOT_OPERATIONAL
+    assert by_cap["setup receipt + rollback artifact"].state == PASSIVE_FOUNDATION
+
+    by_name = {record.name: record for record in COMMAND_AUTHORITY_REGISTRY}
+    assert by_name["builder-setup apply"].promotion_state == STATE_ENABLED
+    assert by_name["builder-setup rollback"].promotion_state == STATE_ENABLED
 
 
 def test_all_required_capability_rows_exist_once() -> None:

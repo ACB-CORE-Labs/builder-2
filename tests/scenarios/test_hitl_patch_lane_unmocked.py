@@ -24,7 +24,7 @@ from hitl_patch_lane_helpers import PATCH_DIFF, init_target_repo, real_verificat
 from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
 from builder_ii.artifact_chain_verification import verify_artifact_chain
 from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-from builder_ii.hitl_patch_apply import apply_hitl_patch, rollback_hitl_patch
+from builder_ii.hitl_patch_apply import FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, apply_hitl_patch, rollback_hitl_patch
 from builder_ii.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
 from builder_ii.hitl_patch_ledger import (
     EVENT_PATCH_APPLIED,
@@ -96,7 +96,7 @@ def test_unmocked_apply_rollback_emits_and_chain_verifies_ledger(tmp_path: Path)
     rollback_out = out_dir / "rollback_out"
     rollback_hitl_patch(
         out_dir / "rollback_plan.json",
-        out_dir / "rollback.patch",
+        out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
         rollback_out,
         approval_path=rollback_approval_path,
     )

@@ -90,7 +90,7 @@ def plan(
     except OSError as exc:
         console.print(f"Verification execution plan could not be written: {exc}")
         raise typer.Exit(1) from None
-    console.out(dumps_verification_execution_plan(artifact), end="")
+    typer.echo(dumps_verification_execution_plan(artifact), nl=False)
 
 
 @verify_app.command("validate-plan")
@@ -100,7 +100,7 @@ def validate_plan(
     """Validate a verification execution plan artifact without running verification."""
     errors = validate_verification_execution_plan_file(path)
     report = {"valid": not errors, "errors": errors, "path": str(path)}
-    console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
+    typer.echo(json_lib.dumps(report, indent=2, sort_keys=True), nl=False)
     if errors:
         raise typer.Exit(1)
 
@@ -182,7 +182,7 @@ def approve_plan(
     except OSError as exc:
         console.print(f"Verification execution approval could not be written: {exc}")
         raise typer.Exit(1) from None
-    console.out(dumps_verification_execution_approval(artifact), end="")
+    typer.echo(dumps_verification_execution_approval(artifact), nl=False)
 
 
 @verify_app.command("validate-approval")
@@ -200,7 +200,7 @@ def validate_approval(
         errors.extend(validate_verification_execution_approval_against_plan(approval_data, plan_data))
 
     report = {"valid": not errors, "errors": errors, "path": str(path), "plan_path": str(plan)}
-    console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
+    typer.echo(json_lib.dumps(report, indent=2, sort_keys=True), nl=False)
     if errors:
         raise typer.Exit(1)
 
@@ -238,7 +238,7 @@ def validate_receipt(
         "plan_path": str(plan),
         "approval_path": str(approval),
     }
-    console.out(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", end="")
+    typer.echo(json_lib.dumps(report, indent=2, sort_keys=True), nl=False)
     if errors:
         raise typer.Exit(1)
 
@@ -320,6 +320,6 @@ def run_approved(
     except (OSError, json_lib.JSONDecodeError) as exc:
         console.print(f"Verification runner could not start: {exc}")
         raise typer.Exit(1) from None
-    console.out(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n", end="")
+    typer.echo(json_lib.dumps(receipt, indent=2, sort_keys=True), nl=False)
     if not receipt.get("valid", False):
         raise typer.Exit(1)

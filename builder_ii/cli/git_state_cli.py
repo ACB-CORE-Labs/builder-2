@@ -5,6 +5,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.git_state import (
     create_git_state_record,
     dumps_git_state_record,
@@ -59,7 +60,7 @@ def artifact(
         write_git_state_record(record, output)
         console.print(f"Git state record written to {output}")
     else:
-        console.out(dumps_git_state_record(record), end="")
+        echo_stdout(dumps_git_state_record(record))
 
 
 @git_state_app.command("validate")

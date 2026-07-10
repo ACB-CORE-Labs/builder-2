@@ -38,7 +38,11 @@ from builder_ii.execution_postflight_records import (
     create_execution_postflight_record,
     write_execution_postflight_record,
 )
-from builder_ii.hitl_patch_apply import apply_hitl_patch, rollback_hitl_patch
+from builder_ii.hitl_patch_apply import (
+    FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
+    apply_hitl_patch,
+    rollback_hitl_patch,
+)
 from builder_ii.hitl_patch_approval import (
     APPROVAL_CONFIRMATION_PREFIX_LENGTH,
     create_hitl_patch_approval,
@@ -252,7 +256,7 @@ class DemoPaths:
 
     @property
     def generated_reverse_patch_file(self) -> Path:
-        return self.patch_apply_dir / "rollback.patch"
+        return self.patch_apply_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME
 
     @property
     def rollback_dir(self) -> Path:

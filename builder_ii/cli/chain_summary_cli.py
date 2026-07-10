@@ -12,6 +12,7 @@ from builder_ii.chain_summary_records import (
     validate_chain_summary_record_file,
     write_chain_summary_record,
 )
+from builder_ii.cli.plain_stdout import echo_stdout
 
 chain_app = typer.Typer(help="Create and validate chain summary records.")
 console = Console()
@@ -41,7 +42,7 @@ def record(
         write_chain_summary_record(item, output)
         console.print(f"Chain summary record written to {output}")
     else:
-        console.out(dumps_chain_summary_record(item), end="")
+        echo_stdout(dumps_chain_summary_record(item))
 
 
 @chain_app.command("validate")
@@ -70,7 +71,7 @@ def verify_artifacts(
         output.write_text(report_json + "\n", encoding="utf-8")
         console.print(f"Verification report written to {output}")
     else:
-        console.out(report_json)
+        echo_stdout(report_json)
 
     if not report["valid"]:
         raise typer.Exit(1)

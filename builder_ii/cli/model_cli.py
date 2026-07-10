@@ -142,6 +142,7 @@ def call_cmd(
             temperature=temperature,
             envelope_path=output_envelope,
             receipt_path=output_receipt,
+            ledger_bound=True,
         )
     except Exception as exc:
         console.print(f"[red]Model execution failed: {exc}[/]")
@@ -273,9 +274,14 @@ def standalone_call_cmd(
             temperature=temperature,
             envelope_path=output_envelope,
             receipt_path=output_receipt,
+            ledger_bound=False,
         )
     except Exception as exc:
         console.print(f"[red]Model execution failed: {exc}[/]")
+        raise typer.Exit(1)
+
+    if receipt.get("ledger_bound"):
+        console.print("[yellow]Warning: standalone-call must not set ledger_bound[/]")
         raise typer.Exit(1)
 
     console.print("[green]Standalone model call executed successfully.[/]")

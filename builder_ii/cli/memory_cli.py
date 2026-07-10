@@ -36,6 +36,7 @@ from builder_ii.artifact_memory import (
     write_memory_reconstruction,
     write_memory_search_result,
 )
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.workflow_records import canonical_digest
 
 memory_app = typer.Typer(
@@ -69,7 +70,7 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _print_or_write(record: dict[str, Any], output: Path | None, writer: Any) -> None:
     if output is None:
-        console.out(dumps_memory_record(record), end="")
+        echo_stdout(dumps_memory_record(record))
         return
     writer(record, output)
     console.print(f"{record['kind']} written to {output}")

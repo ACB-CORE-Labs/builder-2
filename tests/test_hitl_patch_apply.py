@@ -8,6 +8,7 @@ import pytest
 
 from builder_ii.command_authority import CommandAuthorityError
 from builder_ii.hitl_patch_apply import (
+    FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
     PATCH_APPLY_RECEIPT_KIND,
     apply_hitl_patch,
     create_patch_apply_receipt,
@@ -16,6 +17,7 @@ from builder_ii.hitl_patch_apply import (
 )
 from builder_ii.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
 from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from tests.hitl_patch_test_helpers import write_executed_verification_receipt
 
 
 def _init_clean_repo(path: Path) -> Path:
@@ -57,6 +59,38 @@ def test_validate_patch_apply_receipt():
     assert not errors
 
 
+def test_apply_hitl_patch_succeeds_unmocked_with_schema_valid_receipt(tmp_path: Path):
+    """The whole apply boundary with nothing patched out: a real proposal, a real governed
+    approval, and a finalized, digest-bound verification receipt. The mocked variants below
+    each isolate one refusal; this one proves the lane works when everything is genuine."""
+    repo = _init_clean_repo(tmp_path / "repo")
+    (repo / "file.txt").write_text("b\n")
+    unified_diff = subprocess.run(
+        ["git", "diff"], cwd=repo, check=True, capture_output=True, text=True
+    ).stdout
+    subprocess.run(["git", "checkout", "--", "file.txt"], cwd=repo, check=True)
+
+    patch_digest = hashlib.sha256(unified_diff.encode("utf-8")).hexdigest()
+    prop_path = _write_proposal(tmp_path, repo, unified_diff=unified_diff, patch_digest=patch_digest)
+    proposal_data = json.loads(prop_path.read_text())
+
+    approval_path = tmp_path / "approval.json"
+    write_hitl_patch_approval(
+        create_hitl_patch_approval(proposal_data, confirmed_digest_prefix=patch_digest[:4]),
+        approval_path,
+    )
+    vr_path = tmp_path / "vr.json"
+    write_executed_verification_receipt(vr_path, repo)
+
+    out_dir = tmp_path / "out"
+    apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)
+
+    assert (repo / "file.txt").read_text() == "b\n"
+    assert (out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME).exists()
+    receipt = json.loads((out_dir / "patch_apply_receipt.json").read_text())
+    assert receipt["status"] == "succeeded"
+
+
 @patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])
 def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
     repo = _init_clean_repo(tmp_path / "repo")
@@ -68,8 +102,12 @@ def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
     approval_path.write_text(json.dumps({"patch_digest": "abc"}))
     vr_path = _write_passing_vr(tmp_path)
 
+    out_dir = tmp_path / "out"
     with pytest.raises(ValueError, match="Target repository working tree is not clean"):
-        apply_hitl_patch(prop_path, approval_path, vr_path, tmp_path / "out")
+        apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)
+    failure = out_dir / "patch_apply_failure_receipt.json"
+    assert failure.exists()
+    assert json.loads(failure.read_text())["status"] == "failed"
 
 
 @patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])
@@ -177,3 +215,44 @@ def test_rollback_consults_command_authority_gate_before_io(mock_gate, tmp_path:
         )
     mock_gate.assert_called_once()
     assert not (tmp_path / "out").exists()
+
+
+def test_apply_binding_failure_leaves_a_failure_receipt(tmp_path: Path):
+    """The refusal is evidence, not only an exception: a mis-bound approval writes a
+    patch_apply_failure_receipt before raising (hardening-line intent, applied at this
+    lineage's stronger binding guard)."""
+    repo = _init_clean_repo(tmp_path / "repo")
+    prop_path = _write_proposal(tmp_path, repo, unified_diff="patch", patch_digest="abc")
+    proposal_data = json.loads(prop_path.read_text())
+
+    approval = create_hitl_patch_approval(proposal_data, confirmed_digest_prefix="abc")
+    approval["proposal_digest"] = "0" * 64  # bound to a different proposal
+    approval_path = tmp_path / "approval.json"
+    write_hitl_patch_approval(approval, approval_path)
+    vr_path = tmp_path / "vr.json"
+    write_executed_verification_receipt(vr_path, repo)
+
+    out_dir = tmp_path / "out"
+    with pytest.raises(ValueError, match="not bound to this proposal"):
+        apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)
+    failure = json.loads((out_dir / "patch_apply_failure_receipt.json").read_text())
+    assert failure["status"] == "failed"
+    assert "not bound" in failure["error_summary"]
+
+
+def test_apply_hitl_patch_rejects_invalid_verification_receipt(tmp_path: Path):
+    repo = _init_clean_repo(tmp_path / "repo")
+    prop_path = _write_proposal(tmp_path, repo, unified_diff="patch", patch_digest="abc")
+    approval_path = tmp_path / "approval.json"
+    approval_path.write_text(json.dumps({"patch_digest": "abc"}))
+
+    vr_path = tmp_path / "vr.json"
+    vr_path.write_text(json.dumps({"kind": "wrong_kind", "receipt_status": "NOT_EXECUTED"}))
+
+    out_dir = tmp_path / "out"
+    with pytest.raises(ValueError, match="Invalid verification receipt"):
+        apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)
+    failure = json.loads((out_dir / "patch_apply_failure_receipt.json").read_text())
+    assert failure["status"] == "failed"
+    assert "Invalid verification receipt" in failure["error_summary"]
+

@@ -7,6 +7,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.config_cli import _override_map
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config_sources import resolve_config_sources
 from builder_ii.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH
 from builder_ii.onboarding_intent import validate_onboarding_intent_report_file
@@ -205,7 +206,7 @@ def plan(
     plan_artifact = create_setup_plan(resolution)
     if output is not None:
         write_setup_plan(plan_artifact, output)
-    console.out(dumps_setup_plan(plan_artifact), end="")
+    echo_stdout(dumps_setup_plan(plan_artifact))
     errors = validate_setup_plan_artifact(plan_artifact)
     if errors:
         raise typer.Exit(1)
@@ -217,7 +218,7 @@ def validate_plan(
 ) -> None:
     """Validate a passive setup plan artifact."""
     errors = validate_setup_plan_file(path)
-    console.out(_validation_report(errors), end="")
+    echo_stdout(_validation_report(errors))
     if errors:
         raise typer.Exit(1)
 
@@ -230,16 +231,16 @@ def overlay_plan(
     """Create a passive setup overlay plan artifact. This never applies setup."""
     plan_errors = validate_setup_plan_file(setup_plan_path)
     if plan_errors:
-        console.out(_validation_report(plan_errors), end="")
+        echo_stdout(_validation_report(plan_errors))
         raise typer.Exit(1)
     overlay_artifact = create_setup_overlay_plan(_load_json_file(setup_plan_path))
     errors = validate_setup_overlay_plan_artifact(overlay_artifact)
     if errors:
-        console.out(_overlay_validation_report(errors), end="")
+        echo_stdout(_overlay_validation_report(errors))
         raise typer.Exit(1)
     if output is not None:
         write_setup_overlay_plan(overlay_artifact, output)
-    console.out(dumps_setup_overlay_plan(overlay_artifact), end="")
+    echo_stdout(dumps_setup_overlay_plan(overlay_artifact))
 
 
 @setup_app.command("validate-overlay-plan")
@@ -248,7 +249,7 @@ def validate_overlay_plan(
 ) -> None:
     """Validate a passive setup overlay plan artifact."""
     errors = validate_setup_overlay_plan_file(path)
-    console.out(_overlay_validation_report(errors), end="")
+    echo_stdout(_overlay_validation_report(errors))
     if errors:
         raise typer.Exit(1)
 
@@ -263,16 +264,16 @@ def rollback_snapshot(
     """Create a passive rollback snapshot artifact. This never executes rollback."""
     overlay_errors = validate_setup_overlay_plan_file(setup_overlay_path)
     if overlay_errors:
-        console.out(_overlay_validation_report(overlay_errors), end="")
+        echo_stdout(_overlay_validation_report(overlay_errors))
         raise typer.Exit(1)
     snapshot_artifact = create_setup_rollback_snapshot(_load_json_file(setup_overlay_path))
     errors = validate_setup_rollback_snapshot_artifact(snapshot_artifact)
     if errors:
-        console.out(_rollback_validation_report(errors), end="")
+        echo_stdout(_rollback_validation_report(errors))
         raise typer.Exit(1)
     if output is not None:
         write_setup_rollback_snapshot(snapshot_artifact, output)
-    console.out(dumps_setup_rollback_snapshot(snapshot_artifact), end="")
+    echo_stdout(dumps_setup_rollback_snapshot(snapshot_artifact))
 
 
 @setup_app.command("validate-rollback-snapshot")
@@ -281,7 +282,7 @@ def validate_rollback_snapshot(
 ) -> None:
     """Validate a passive setup rollback snapshot artifact."""
     errors = validate_setup_rollback_snapshot_file(path)
-    console.out(_rollback_validation_report(errors), end="")
+    echo_stdout(_rollback_validation_report(errors))
     if errors:
         raise typer.Exit(1)
 
@@ -306,8 +307,8 @@ def apply(
     overlay_errors = validate_setup_overlay_plan_file(setup_overlay_path)
     rollback_errors = validate_setup_rollback_snapshot_file(rollback_snapshot)
     if overlay_errors or rollback_errors:
-        console.out(_overlay_validation_report(overlay_errors), end="")
-        console.out(_rollback_validation_report(rollback_errors), end="")
+        echo_stdout(_overlay_validation_report(overlay_errors))
+        echo_stdout(_rollback_validation_report(rollback_errors))
         raise typer.Exit(1)
     overlay = _load_json_file(setup_overlay_path)
     approval_mode = "explicit_digest_bound_cli_flag"
@@ -326,11 +327,11 @@ def apply(
         )
     except SetupApplyError as exc:
         if exc.receipt is not None:
-            console.out(json_lib.dumps(exc.receipt, indent=2, sort_keys=True) + "\n", end="")
+            echo_stdout(json_lib.dumps(exc.receipt, indent=2, sort_keys=True) + "\n")
         else:
-            console.out(str(exc) + "\n", end="")
+            echo_stdout(str(exc) + "\n")
         raise typer.Exit(1)
-    console.out(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n", end="")
+    echo_stdout(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n")
 
 
 @setup_app.command("validate-receipt")
@@ -339,7 +340,7 @@ def validate_receipt(
 ) -> None:
     """Validate a setup apply receipt artifact."""
     errors = validate_setup_receipt_file(path)
-    console.out(_receipt_validation_report(errors), end="")
+    echo_stdout(_receipt_validation_report(errors))
     if errors:
         raise typer.Exit(1)
 
@@ -364,8 +365,8 @@ def rollback(
     receipt_errors = validate_setup_receipt_file(setup_receipt_path)
     rollback_errors = validate_setup_rollback_snapshot_file(rollback_snapshot)
     if receipt_errors or rollback_errors:
-        console.out(_receipt_validation_report(receipt_errors), end="")
-        console.out(_rollback_validation_report(rollback_errors), end="")
+        echo_stdout(_receipt_validation_report(receipt_errors))
+        echo_stdout(_rollback_validation_report(rollback_errors))
         raise typer.Exit(1)
     setup_receipt = _load_json_file(setup_receipt_path)
     approval_mode = "explicit_digest_bound_cli_flag"
@@ -382,11 +383,11 @@ def rollback(
         )
     except SetupRollbackError as exc:
         if exc.receipt is not None:
-            console.out(json_lib.dumps(exc.receipt, indent=2, sort_keys=True) + "\n", end="")
+            echo_stdout(json_lib.dumps(exc.receipt, indent=2, sort_keys=True) + "\n")
         else:
-            console.out(str(exc) + "\n", end="")
+            echo_stdout(str(exc) + "\n")
         raise typer.Exit(1)
-    console.out(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n", end="")
+    echo_stdout(json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n")
 
 
 @setup_app.command("validate-rollback-receipt")
@@ -395,7 +396,7 @@ def validate_rollback_receipt(
 ) -> None:
     """Validate a setup rollback receipt artifact."""
     errors = validate_setup_rollback_receipt_file(path)
-    console.out(_rollback_receipt_validation_report(errors), end="")
+    echo_stdout(_rollback_receipt_validation_report(errors))
     if errors:
         raise typer.Exit(1)
 
@@ -406,7 +407,7 @@ def validate_onboarding_intent(
 ) -> None:
     """Validate an onboarding intent report artifact."""
     errors = validate_onboarding_intent_report_file(path)
-    console.out(_onboarding_intent_validation_report(errors), end="")
+    echo_stdout(_onboarding_intent_validation_report(errors))
     if errors:
         raise typer.Exit(1)
 
@@ -443,13 +444,13 @@ def setup_init(
         model_alias=model_alias,
     )
     if not result.valid:
-        console.out(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
+        echo_stdout(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n")
         raise typer.Exit(1)
 
-    console.out(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
-    console.out("\nExact next commands:\n", end="")
-    console.out(f"  {result.onboarding_intent['apply_command']}\n", end="")
-    console.out(f"  {result.onboarding_intent['validate_receipt_command']}\n", end="")
+    echo_stdout(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n")
+    echo_stdout("\nExact next commands:\n")
+    echo_stdout(f"  {result.onboarding_intent['apply_command']}\n")
+    echo_stdout(f"  {result.onboarding_intent['validate_receipt_command']}\n")
 
 
 def setup_wizard_step_definitions():
@@ -555,18 +556,17 @@ def setup_wizard(
         model_alias=answers["model_alias"],
     )
     if not result.valid:
-        console.out(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
+        echo_stdout(json_lib.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n")
         raise typer.Exit(1)
 
-    console.out(f"\nOnboarding Plan Generated Successfully!\nOutput Directory: {out_path}\n", end="")
-    console.out(f"Setup Plan Digest:        {result.setup_plan['plan_digest']}\n", end="")
-    console.out(f"Overlay Plan Digest:      {result.overlay_plan['overlay_plan_digest']}\n", end="")
-    console.out(f"Rollback Snapshot Digest: {result.rollback_snapshot['snapshot_id']}\n", end="")
-    console.out(
-        f"\nExact next commands:\n  {result.onboarding_intent['apply_command']}\n  {result.onboarding_intent['validate_receipt_command']}\n",
-        end="",
+    echo_stdout(f"\nOnboarding Plan Generated Successfully!\nOutput Directory: {out_path}\n")
+    echo_stdout(f"Setup Plan Digest:        {result.setup_plan['plan_digest']}\n")
+    echo_stdout(f"Overlay Plan Digest:      {result.overlay_plan['overlay_plan_digest']}\n")
+    echo_stdout(f"Rollback Snapshot Digest: {result.rollback_snapshot['snapshot_id']}\n")
+    echo_stdout(
+        f"\nExact next commands:\n  {result.onboarding_intent['apply_command']}\n  {result.onboarding_intent['validate_receipt_command']}\n"
     )
-    console.out("\nTo apply, run the printed builder-setup apply command after reviewing the overlay digest.\n", end="")
+    echo_stdout("\nTo apply, run the printed builder-setup apply command after reviewing the overlay digest.\n")
 
 
 if __name__ == "__main__":

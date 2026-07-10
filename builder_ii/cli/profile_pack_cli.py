@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.profile_pack_decisions import (
     DEFAULT_PACK_ID,
     DEFAULT_TASK,
@@ -89,7 +90,7 @@ def _emit_manifest(pack_id: str, target: str, task: str, project_root: Path, out
         write_profile_pack_manifest(manifest, output)
         console.print(f"[green]Profile pack manifest written to {output}[/]")
     else:
-        console.out(dumps_profile_pack_manifest(manifest), end="")
+        echo_stdout(dumps_profile_pack_manifest(manifest))
 
 
 @profile_pack_app.command("scaffold")
@@ -194,7 +195,7 @@ def render(
         write_profile_pack_render_plan(plan, output)
         console.print(f"[green]Profile pack render plan written to {output}[/]")
     else:
-        console.out(dumps_profile_pack_render_plan(plan), end="")
+        echo_stdout(dumps_profile_pack_render_plan(plan))
 
 
 @profile_pack_app.command("dry-run")
@@ -226,7 +227,7 @@ def dry_run(
         write_profile_pack_dry_run(dry_run_artifact, output)
         console.print(f"[green]Profile pack dry-run written to {output}[/]")
     else:
-        console.out(dumps_profile_pack_dry_run(dry_run_artifact), end="")
+        echo_stdout(dumps_profile_pack_dry_run(dry_run_artifact))
 
 
 @profile_pack_app.command("validate")
@@ -251,7 +252,7 @@ def validate(
         if output is not None:
             console.print(f"[green]Profile pack artifact {path} is valid. Report written to {output}[/]")
         else:
-            console.out(dumps_profile_pack_validation_report(report), end="")
+            echo_stdout(dumps_profile_pack_validation_report(report))
         return
 
     for error in report["errors"]:

@@ -867,7 +867,10 @@ def test_each_capability_flag_derives_the_state_the_lattice_promises() -> None:
 def test_the_policy_snapshot_documents_every_command_including_the_ones_nobody_declared() -> None:
     """99 of the 386 records were absent from the doc entirely. They are clones."""
     doc = render_command_authority_doc()
-    assert len(_SYNTHESIZED_PARENTS) == 99
+    # 98, down from 99: the github/main reconciliation declared `builder-hitl run-command` as a
+    # real Tier 4 fail-closed record (and declared `builder-readonly content-read` and
+    # `builder-platform operator-lane` outright), so those names are no longer prefix-clones.
+    assert len(_SYNTHESIZED_PARENTS) == 98
     for record in COMMAND_AUTHORITY_REGISTRY:
         assert f"`{record.name}`" in doc, f"`{record.name}` is in the registry and absent from the policy snapshot"
 

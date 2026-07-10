@@ -1,6 +1,9 @@
 from pathlib import Path
 
-from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
+from builder_ii.platform_completion_audit import (
+    REQUIRED_CAPABILITY_ROWS,
+    render_capability_table_markdown,
+)
 
 DOC = Path("docs/PLATFORM_COMPLETION_AUDIT.md")
 
@@ -39,6 +42,13 @@ def test_platform_completion_audit_mirrors_required_rows() -> None:
     text = _text()
     for row in REQUIRED_CAPABILITY_ROWS:
         assert f"| {row.capability} | `{row.state}` | {row.next_pr} |" in text
+
+
+def test_render_capability_table_markdown_matches_doc() -> None:
+    rendered = render_capability_table_markdown()
+    text = _text()
+    for line in rendered.splitlines()[2:]:
+        assert line in text
 
 
 def test_platform_completion_audit_names_non_goals() -> None:

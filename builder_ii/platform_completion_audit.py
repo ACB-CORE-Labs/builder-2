@@ -24,6 +24,15 @@ SCHEMA_VERSION = "1.0.0"
 SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
 NEXT_SEQUENCE = "B8 deferred; B9 complete"
 
+STALE_TRUTH_PHRASES: tuple[str, ...] = (
+    "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing",
+    "rollback execution, ledger event, and replay binding are missing",
+    "no setup apply, receipt, rollback, or runtime gate consumes it yet",
+    "Setup receipt, changed-path receipt, rollback execution, ledger event, and replay binding are missing",
+)
+
+DEFAULT_OPERATOR_LANE_READ_PATHS: tuple[str, ...] = ("README.md",)
+
 StateLabel = Literal[
     "NOT_STARTED",
     "DESIGN_ONLY",
@@ -251,6 +260,10 @@ def assurance_state_for_row(row: CapabilityRow) -> AssuranceState:
         if row.state in (PASSIVE_FOUNDATION, ARTIFACT_ONLY):
             return PASSIVE_ARTIFACT_VERIFIED
         return BLOCKED_BY_EVIDENCE
+    # The hardening line expressed this as an if-chain falling through to
+    # PASSIVE_ARTIFACT_VERIFIED -- the exact "absence read as a safe classification" defect the
+    # explicit table exists to prevent. The table's no-default raise survives; the chain's row
+    # classifications were folded into the table where the rows themselves survived the merge.
     try:
         return _OPERATIONALLY_VERIFIED_ASSURANCE[row.capability]
     except KeyError:
@@ -376,7 +389,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("tests/test_config_schema.py", "tests/test_config_setup_cli.py", "tests/test_platform_completion_truth.py"),
         (
             "R1.1 adds a versioned passive schema with generic BUILDER_* names, legacy CORE_* aliases, target roots, artifact roots, Goose paths, deepagents mode, and disabled capability defaults.",
-            "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing.",
+            "Digest-bound builder-setup apply/rollback exist for declared setup paths; ambient runtime authority and migration tooling remain unpromoted.",
         ),
         "R1",
     ),
@@ -388,7 +401,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("tests/test_config_sources.py", "tests/test_config_setup_cli.py", "tests/test_platform_completion_truth.py"),
         (
             "R1.1 records precedence as CLI overrides, process environment, .env, builder config file, target/profile defaults, then built-in defaults.",
-            "Resolution is artifact-only; no setup apply, receipt, rollback, or runtime gate consumes it yet.",
+            "Resolution artifacts are consumed by builder-setup apply and operator-lane composition; ambient runtime gate interception remains partial.",
         ),
         "R1",
     ),
@@ -640,7 +653,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("builder-mcp call", "builder-mcp inventory", "builder-mcp policy"),
         ("tests/test_mcp_cli.py",),
         (
-            "MCP inventory, policy, call envelopes and receipts are supported under passive foundation, but live MCP execution remains passive/non-operational.",
+            "MCP inventory, policy, call envelopes and receipts exist.",
+            "Live MCP server execution remains unpromoted; deterministic stub invocation is handled by low-risk tool gateway.",
         ),
         "B7",
     ),
@@ -663,8 +677,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ("builder-workflow", "builder-ledger"),
         ("tests/test_workflow_ledger.py",),
         (
-            "Ledger records passive workflow events only.",
-            "Runtime event kinds for reads, execution, model/tool calls, rollback, and memory mutation are missing.",
+            "Ledger records workflow events including verification, model call, read/content-read, and tool stub lanes when session_id is supplied.",
+            "Full replay policy for all runtime event kinds and memory mutation events remains partial.",
         ),
         "B1 then B6/B7/B8",
     ),
@@ -1047,9 +1061,19 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
     _row(
         "operator quickstart/golden path",
         OPERATIONALLY_VERIFIED,
-        ("docs/OPERATOR_QUICKSTART.md", "builder_ii/operator_golden_path.py"),
-        ("builder-platform operator-status", "builder-platform next", "builder-platform golden-path"),
-        ("tests/test_operator_golden_path.py", "tests/test_operator_status.py", "tests/test_operator_next.py"),
+        ("docs/OPERATOR_QUICKSTART.md", "builder_ii/operator_golden_path.py", "builder_ii/operator_lane.py"),
+        (
+            "builder-platform operator-status",
+            "builder-platform next",
+            "builder-platform golden-path",
+            "builder-platform operator-lane",
+        ),
+        (
+            "tests/test_operator_golden_path.py",
+            "tests/test_operator_status.py",
+            "tests/test_operator_next.py",
+            "tests/test_operator_lane.py",
+        ),
         (
             "Golden path UX generated from truth matrix, command authority, and B8 memory artifacts.",
             "Demonstrates a complete governed local workflow without runtime execution.",
@@ -1195,6 +1219,37 @@ def render_matrix_jsonable(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY
 
 def dumps_matrix(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:
     return json.dumps(render_matrix_jsonable(rows), indent=2, sort_keys=True) + "\n"
+
+
+def render_capability_table_markdown(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:
+    lines = ["| Capability | State | Next PR |", "|---|---|---|"]
+    for row in rows:
+        lines.append(f"| {row.capability} | `{row.state}` | {row.next_pr} |")
+    return "\n".join(lines) + "\n"
+
+
+def render_truth_report_capability_row(row: CapabilityRow) -> str:
+    evidence = ", ".join(row.evidence_files[:4])
+    if len(row.evidence_files) > 4:
+        evidence += ", ..."
+    commands = ", ".join(row.command_surfaces) if row.command_surfaces else "none dedicated"
+    tests = ", ".join(row.tests[:3])
+    if len(row.tests) > 3:
+        tests += ", ..."
+    blockers = " ".join(row.blockers)
+    return (
+        f"| {row.capability} | {row.state} | `{evidence}`; commands: {commands} | {blockers} | {row.next_pr} |"
+    )
+
+
+def matrix_blocker_violations(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> list[str]:
+    errors: list[str] = []
+    for row in rows:
+        for phrase in STALE_TRUTH_PHRASES:
+            for blocker in row.blockers:
+                if phrase in blocker:
+                    errors.append(f"{row.capability}: stale blocker phrase: {phrase}")
+    return errors
 
 
 def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_ROWS) -> str:

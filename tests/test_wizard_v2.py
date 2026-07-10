@@ -193,17 +193,17 @@ def test_a_target_dependent_default_is_read_after_the_target_is_chosen_not_befor
     `builder_full.compatible_targets` is `("builder",)`, so the plan contradicted itself and
     validated clean.
     """
-    from builder_ii.config_sources import _default_agent_for_target
+    from builder_ii.target_profile_defaults import default_agent_profile_for
     from builder_ii.verification_profiles import default_profile_for_target
 
     for target in ("generic", "builder", "core"):
-        expected_agent = _default_agent_for_target(target)
+        expected_agent = default_agent_profile_for(target)
         expected_verification = default_profile_for_target(target).name
 
         steps = {s.id: s for s in init_wizard_step_definitions(
             defaults={d.name: "stale" for d in decisions()},
             default_for_target=lambda name, t: (
-                _default_agent_for_target(t) if name == "agent_profile" else default_profile_for_target(t).name
+                default_agent_profile_for(t) if name == "agent_profile" else default_profile_for_target(t).name
             ),
         )}
         answers = {"target_profile": target}

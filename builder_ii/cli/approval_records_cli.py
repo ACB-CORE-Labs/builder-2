@@ -13,6 +13,7 @@ from builder_ii.approval_records import (
     validate_approval_record_file,
     write_approval_record,
 )
+from builder_ii.cli.plain_stdout import echo_stdout
 
 approval_app = typer.Typer(help="Create and validate approval record artifacts.")
 console = Console()
@@ -49,7 +50,7 @@ def record(
         write_approval_record(artifact, output)
         console.print(f"Approval record written to {output}")
     else:
-        console.out(dumps_approval_record(artifact), end="")
+        echo_stdout(dumps_approval_record(artifact))
 
 
 @approval_app.command("validate")
