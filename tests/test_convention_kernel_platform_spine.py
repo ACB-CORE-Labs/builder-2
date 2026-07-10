@@ -261,6 +261,50 @@ def test_command_match_exact_and_fallback_ambiguity():
     assert rec_none is None
 
 
+def test_group_fallback_hands_down_a_tier_ceiling_and_no_capability_flags():
+    """`builder-code-vault` declares `allows_artifact_writes`. `builder-code-vault <anything>` must not.
+
+    The fallback stands the group in for a subcommand nobody registered. The group's tier and
+    promotion state are a ceiling the subcommand cannot exceed, so those carry down. Its capability
+    flags describe the group, and handing them to an unwritten command grants authority by name.
+    """
+    from builder_ii.command_authority import CAPABILITY_FLAGS, get_command_record
+    from builder_ii.convention_kernel import find_matching_record
+
+    group = get_command_record("builder-code-vault")
+    assert group is not None and group.allows_artifact_writes, "this pin is vacuous if the group declares nothing"
+
+    resolved = find_matching_record("builder-code-vault nonsense")
+    assert resolved is not None
+    assert resolved.name == "builder-code-vault"
+    assert resolved.tier == group.tier and resolved.promotion_state == group.promotion_state
+    assert not any(getattr(resolved, flag) for flag in CAPABILITY_FLAGS), "the group's flags were handed down"
+    assert resolved.authority_is_inherited and resolved.inherited_from == "builder-code-vault"
+
+
+def test_a_group_that_declares_runtime_authority_does_not_delegate_it():
+    """`builder-runtime` declares `runtime_start`. No unregistered subcommand may resolve to it.
+
+    Note what the group holds versus what its declared subcommand holds: `builder-runtime` declares
+    `runtime_start`, and `builder-runtime status` -- which someone wrote down -- declares only
+    `readonly_subprocess` and `external_tool_invocation`. That gap is exactly the authority an
+    unregistered `builder-runtime <x>` would acquire for free if group-ness implied delegation.
+    """
+    from builder_ii.command_authority import get_command_record
+    from builder_ii.convention_kernel import find_matching_record
+
+    group = get_command_record("builder-runtime")
+    assert group is not None and group.allows_runtime_start and group.is_command_group
+
+    assert find_matching_record("builder-runtime frobnicate") is None
+
+    exact = find_matching_record("builder-runtime status")
+    assert exact is not None and exact.name == "builder-runtime status"
+    assert not exact.authority_is_inherited, "`builder-runtime status` is declared"
+    assert not exact.allows_runtime_start, "the declared subcommand claims less than its group"
+    assert exact.allows_readonly_subprocess
+
+
 def test_platform_bundle_validation_checks_child_artifact_governance(tmp_path):
     repo = _make_repo(tmp_path)
     settings = load_settings(project_root=ROOT)
