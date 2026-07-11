@@ -52,6 +52,16 @@ back into this map: standing invariant #1 was amended to an explicit import allo
 the process note under [work-order protocol](#work-order-protocol) now requires the battery to run
 **after** the last commit.
 
+**Wave 2 (G1b) landed 2026-07-11** (PRs #82 frame coverage honesty, #83 linter index, #84
+refresh≡rebuild law; plus #85, a status-board render fix for a host-dependent test the cross-vendor
+cold review of #84 surfaced — the flaky test was pre-existing on main, not a wave-2 regression).
+G1b's schemas are settled, so **wave-3 (G2) work orders are authored:**
+[`CODE_VAULT_G2_WAVE_BRIEFS.md`](CODE_VAULT_G2_WAVE_BRIEFS.md). On contact with the settled schemas,
+**PR-7 decomposes into a G2 wave** (PR-7a: emission pipeline + first fact kind, R+D end-to-end →
+PR-7b/7c: remaining fact kinds) — one order cannot carry a new extraction lane, a manifest builder,
+an emission path, a CLI surface, and six fact kinds each needing labeled invariance + discrimination
+fixtures. This is the decomposability law, applied exactly as G1 split into wave 1 / wave 2.
+
 ---
 
 ## Per-PR map
@@ -69,6 +79,12 @@ the process note under [work-order protocol](#work-order-protocol) now requires 
 PR-6 is **deferrable within G1b**: the quadratic scan only bites past ~10k nodes, and no bench
 above 1k nodes is claimed today. It must land before any 10k-node bench result is published — that
 ordering is the constraint, not its position in the wave.
+
+PR-7 is **decomposed into a G2 wave** in [`CODE_VAULT_G2_WAVE_BRIEFS.md`](CODE_VAULT_G2_WAVE_BRIEFS.md):
+PR-7a stands up the whole emission lane (structural extractor → structural manifest → field → CLI →
+validator) proven end-to-end with the `signature` fact kind under a labeled R+D fixture suite; PR-7b/7c
+add the remaining fact kinds against the settled pipeline and are authored only after PR-7a lands. The
+row above is the G2 target; the wave is how it is reached.
 
 Gate G1 opens only when **all** of its bullets in the [roadmap](../CODE_VAULT_ROADMAP.md) hold
 (manifest + stub + provenance skeleton + fail-closed posture) — landing PR-1 alone does not open
@@ -146,14 +162,18 @@ G1, and no doc may say otherwise.
 | 1 | `uv run pytest tests/test_code_vault_extractor_manifest.py tests/test_code_vault_cli.py tests/test_command_authority.py tests/test_command_surface_audit.py tests/test_artifact_index_records.py -q` + `uv run builder-platform audit-docs` |
 | 2 | `uv run pytest tests/test_code_vault_structural_field.py tests/test_code_vault_cli.py tests/test_command_authority.py tests/test_artifact_index_records.py -q` + `uv run builder-platform audit-docs` |
 | 3 | `uv run pytest tests/test_code_vault_hierarchy.py tests/test_code_vault_provenance.py tests/test_code_vault_demo_loop.py -q` + `uv run builder-platform audit-docs` |
-| 4–7 | Named in their work orders when authored (after wave 1 lands) |
+| 4 | `uv run pytest tests/test_code_vault_hierarchy.py -q` + `uv run builder-platform audit-docs` (landed, #82) |
+| 5 | `uv run pytest tests/test_code_vault_hierarchy.py -q` + `uv run builder-platform audit-docs` (landed, #84) |
+| 6 | `uv run pytest tests/test_code_vault_linter.py -q` + `uv run builder-platform audit-docs` (landed, #83) |
+| 7 | Decomposed into PR-7a/7b/7c — named in [`CODE_VAULT_G2_WAVE_BRIEFS.md`](CODE_VAULT_G2_WAVE_BRIEFS.md) |
 
 ---
 
 ## Related
 
 - [`CODE_VAULT_G1_WAVE_BRIEFS.md`](CODE_VAULT_G1_WAVE_BRIEFS.md) — wave-1 work orders (PR-1/2/3, landed)
-- [`CODE_VAULT_G1B_WAVE_BRIEFS.md`](CODE_VAULT_G1B_WAVE_BRIEFS.md) — wave-2 work orders (PR-4/5/6)
+- [`CODE_VAULT_G1B_WAVE_BRIEFS.md`](CODE_VAULT_G1B_WAVE_BRIEFS.md) — wave-2 work orders (PR-4/5/6, landed)
+- [`CODE_VAULT_G2_WAVE_BRIEFS.md`](CODE_VAULT_G2_WAVE_BRIEFS.md) — wave-3 / G2 work orders (PR-7a/7b/7c)
 - [`CODE_VAULT_MASTER_PLAN.md`](CODE_VAULT_MASTER_PLAN.md) — gate law and path to fruition
 - [`../CODE_VAULT_ROADMAP.md`](../CODE_VAULT_ROADMAP.md) — gate definitions G0…G7
 - [`../CODE_VAULT_LANGUAGE_SUBSTRATE.md`](../CODE_VAULT_LANGUAGE_SUBSTRATE.md) — Artifact IR sketches the stubs implement

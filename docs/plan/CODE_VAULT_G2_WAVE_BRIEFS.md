@@ -18,9 +18,9 @@ then-settled pipeline. This is a map amendment, recorded in
 
 > **Dispatch gate.** PR-7a does **not** dispatch until **wave 2 (G1b: PR-4, PR-5, PR-6) has fully
 > landed on `main`** — the StructuralField binds to the frame and manifest whose byte-stability wave 2
-> completes. As of this writing PR-4 (#82) and PR-6 (#83) are merged; **PR-5 (#84) must merge first.**
-> Author the PR-7b/7c detailed orders only after PR-7a lands (measure, then amend; never specify
-> against an unbuilt pipeline).
+> completes. **Wave 2 is fully landed** (PR-4 #82, PR-6 #83, PR-5 #84; plus the #85 status-board render
+> fix), so **PR-7a is cleared to dispatch** once this plan PR merges. Author the PR-7b/7c detailed
+> orders only after PR-7a lands (measure, then amend; never specify against an unbuilt pipeline).
 
 ---
 
