@@ -335,16 +335,17 @@ narrowing is a defect even when the code choice is right (that is the 7a lesson,
 
 ### Amendments recorded during implementation (PR-7b)
 
-Four places where the order met the code imperfectly. Recorded here per the work-order protocol,
-not silently absorbed.
+Five places where the order met the code imperfectly. Recorded here per the work-order protocol,
+not silently absorbed. (#5 was found in cold review of the PR, not by the implementer.)
 
 1. **`tests/test_code_vault_cli.py` needed an edit — it was not in the Files list.** Its
    structural-field assertion selected a subject's fact by `subject_layout_id` alone. Once a
    subject carries several kinds this is ambiguous, and it silently began reading the wrong fact:
    under the canonical sort key, `nesting` sorts ahead of `signature`. Fixed by selecting on
    `(subject, fact_kind)`. The same latent ambiguity existed in the extractor suite's `_fact_for`
-   helper, which is now keyed by `(subject, kind)` and still asserts exactly one match — a subject
-   must never carry two facts of one kind.
+   helper, which is now keyed by `(subject, kind)` and still asserts exactly one match — which
+   holds for those fixtures, but is *not* the universal invariant this amendment first claimed:
+   see #5.
 2. **The cap bounds *distinct* imports.** Decision #7 said to bound `import_fact`s "separately at
    the same constant" but did not say whether the bound applies before or after the decided
    dedupe. Implemented as **dedupe first, then cap**, so the bound counts distinct dependencies —
@@ -360,6 +361,20 @@ not silently absorbed.
    were genuinely RED before its own emission code existed. The cap pin was additionally
    **mutation-proven**: restoring PR-7a's `len(facts)` break makes it fail with 22 of 64 subjects
    walked — the latent truncation quantified.
+5. **Subject facts had to dedupe, and the order never said so** (found in cold review). Several
+   definitions can share one `subject_layout_id` — a property and its setter, an `@overload` set,
+   a conditional redefinition — so their `nesting` and `ownership` facts come out byte-identical,
+   and a fact is not more true for being emitted twice. Decision #6 reasoned this out for imports
+   ("two `import os` statements are one dependency") and the order never carried it to subject
+   facts, because under PR-7a's `signature` alone the collision was unreachable: a getter and its
+   setter differ by arity, so no exact duplicate could form. PR-7b is what makes it reachable, and
+   it is ordinary Python — it fires on `csv.py` in the CPython stdlib. Facts now dedupe on
+   `(subject_layout_id, fact_kind, normalized_value)`; facts that genuinely *differ* under a shared
+   coordinate (that same getter/setter arity pair) are never collapsed, so the dedup cannot hide a
+   definition. This also falsifies amendment #1's parting claim that "a subject must never carry
+   two facts of one kind" — a property/setter pair legitimately carries two `signature` facts. Zero
+   facts are removed from this repo (it has no colliding coordinates), so the emitted artifact is
+   unchanged here; the fix is for the arbitrary repos CodeVault is meant to be pointed at.
 
 ### Out of scope
 
