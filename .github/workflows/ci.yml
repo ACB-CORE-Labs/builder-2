@@ -6,6 +6,10 @@
 # `scripts/ci.sh`, which is the single source of truth for the gate battery. Do not
 # add a gate here -- add it to `scripts/ci.sh`, so that a developer running the
 # battery locally runs exactly what CI runs. `tests/test_ci_gate_parity.py` pins this.
+#
+# Everything below the checkout is PROVISIONING and caching. It exists to make the
+# environment cheap to assemble; it must never decide what is checked. Every gate runs
+# on every commit -- the battery is ~23s of real work, so there is nothing to tier away.
 
 name: CI
 
@@ -19,14 +23,50 @@ jobs:
   high-assurance-gates:
     runs-on: ubuntu-latest
     steps:
+      # Shallow on purpose. No gate reads git history -- the gate-battery receipt records only
+      # HEAD and the working-tree state -- so a full-history clone was paying for nothing.
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - uses: dtolnay/rust-toolchain@stable
 
+      # The real cost of a CI run here is PROVISIONING, not the gates. Measured on an M1: the
+      # whole 9-gate battery is ~23s and a COLD build of all 37 Rust crates is ~6s, while a run
+      # on the shared VM runner took ~30 minutes. The difference was re-downloading and
+      # rebuilding the world every time, with no cache anywhere in this file.
+      #
+      # Each cache below is keyed on the LOCKFILE that determines its contents, so it is reused
+      # until dependencies actually change, and a dependency change invalidates it automatically.
+      # A cache miss is never fatal: it degrades to exactly the old behaviour (build from
+      # scratch), so a runner without a cache backend still passes.
+      #
+      # NOTE ON PINS: actions/cache@v3 (not v4) for the same reason the artifact upload below is
+      # v3 -- v4 requires GitHub's newer proprietary backend, and v3 is the line the Forgejo
+      # runner implements against its own cache server.
+      #
+      # This adds NO gate and removes NO gate. `scripts/ci.sh` remains the single source of
+      # truth for the battery (pinned by tests/test_ci_gate_parity.py); caching only changes how
+      # fast the environment those gates need is assembled.
+      - name: Cache cargo registry + the Rust validator build
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            builder_ii_validation_rs/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('builder_ii_validation_rs/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      # `enable-cache` caches uv's download/build cache (wheels AND the CPython interpreter it
+      # provisions below), keyed on uv.lock. This is what makes `uv python install` and
+      # `uv sync` near-instant on a warm runner instead of a full re-download.
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
       # Deliberately NO actions/setup-python: it resolves prebuilt CPython archives against
       # GitHub's hosted-runner images, so on the Forgejo runner (whose `ubuntu-latest` label
