@@ -44,6 +44,14 @@ Wave-1 PRs are mutually independent and safe to implement concurrently in **sepa
 Work orders for wave 2 and wave 3 are authored only after wave 1 lands — schemas must settle before
 they are consumed (measure, then amend; never specify against an unlanded surface).
 
+**Wave 1 landed 2026-07-11** (PRs #78 ExtractorManifest, #79 frame provenance, #77 StructuralField
+stub; plus #80, a ruff-conformance hotfix for a trailing-newline defect an amendment commit left on
+main). Schemas are now settled, so wave-2 work orders are authored:
+[`CODE_VAULT_G1B_WAVE_BRIEFS.md`](CODE_VAULT_G1B_WAVE_BRIEFS.md) (PR-4/5/6). Two review findings fed
+back into this map: standing invariant #1 was amended to an explicit import allowlist (below), and
+the process note under [work-order protocol](#work-order-protocol) now requires the battery to run
+**after** the last commit.
+
 ---
 
 ## Per-PR map
@@ -70,8 +78,16 @@ G1, and no doc may say otherwise.
 
 ## Standing invariants (every PR in this slice inherits)
 
-1. **Severability** — no new imports from core lanes into `builder_ii/code_vault/`; helpers that
-   read repo state live outside the package (receipt-bridge precedent).
+1. **Severability** — the package stays excisable with a *named, small* vendoring surface, not zero
+   imports. **Allowed inbound imports:** `builder_ii.repo_map` (existing adapter seam) and
+   `builder_ii.governance_standard` (the one canonical governance-block builder/validator — a leaf
+   utility, not an authority lane). *Amended 2026-07-11: two wave-1 implementers independently
+   imported `governance_standard` rather than hand-roll a governance block; hand-rolling would be
+   its own drift vector, and the module is a pure formatter that vendors trivially on excision —
+   so it is allowed, not forbidden.* **Forbidden:** imports from authority/execution lanes
+   (verification execution, HITL, model/command execution, patch apply, Goose/deepagents runtime).
+   Helpers that *read repo state* still live outside the package (`code_vault_provenance.py` /
+   receipt-bridge precedent). Adding a new inbound import is a doctrine amendment, not a convenience.
 2. **Governance block** — every new artifact carries the standard block: all execution surfaces
    `DISABLED`, `artifact_is_authority: false`, a named `capability_state`. Promotion state stays
    `artifact_only` / `validation_only`; no completion-matrix flip.
@@ -100,6 +116,14 @@ G1, and no doc may say otherwise.
   scripts/ci.sh` is the final word before review.
 - A work order that survives contact with the code imperfectly is **amended in the same PR** that
   discovers the mismatch — the map records the amendment, not a silent divergence.
+- **Gate evidence binds to the final tree.** Run `bash scripts/ci.sh --receipt` **after the last
+  commit** (amendments included) and confirm the receipt's `head_sha_before == head_sha_after ==`
+  the pushed head. A receipt captured before a later fix is not evidence for what merges — wave 1's
+  #80 hotfix exists because an amendment commit landed a ruff defect behind a stale "gates passed"
+  receipt.
+- **Re-verify after merge.** After a PR merges, re-sync both remotes and confirm `main` is green on
+  a fresh checkout — a mirror silently fell behind and `main` was briefly red in wave 1 before this
+  step was added.
 
 ---
 
@@ -128,7 +152,8 @@ G1, and no doc may say otherwise.
 
 ## Related
 
-- [`CODE_VAULT_G1_WAVE_BRIEFS.md`](CODE_VAULT_G1_WAVE_BRIEFS.md) — wave-1 work orders (PR-1/2/3)
+- [`CODE_VAULT_G1_WAVE_BRIEFS.md`](CODE_VAULT_G1_WAVE_BRIEFS.md) — wave-1 work orders (PR-1/2/3, landed)
+- [`CODE_VAULT_G1B_WAVE_BRIEFS.md`](CODE_VAULT_G1B_WAVE_BRIEFS.md) — wave-2 work orders (PR-4/5/6)
 - [`CODE_VAULT_MASTER_PLAN.md`](CODE_VAULT_MASTER_PLAN.md) — gate law and path to fruition
 - [`../CODE_VAULT_ROADMAP.md`](../CODE_VAULT_ROADMAP.md) — gate definitions G0…G7
 - [`../CODE_VAULT_LANGUAGE_SUBSTRATE.md`](../CODE_VAULT_LANGUAGE_SUBSTRATE.md) — Artifact IR sketches the stubs implement
