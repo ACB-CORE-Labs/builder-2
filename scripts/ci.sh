@@ -11,9 +11,11 @@
 # Scope -- what this is and is not:
 #   * These are the BLOCKING gates. If this script exits 0, every blocking CI gate
 #     passed on this host.
-#   * `gitleaks` is deliberately NOT here. It is a GitHub Action, needs a token, and
-#     is configured `continue-on-error: true` -- i.e. advisory, never blocking. It
-#     therefore cannot change whether the battery is green.
+#   * There is no advisory (non-blocking) step anywhere: every gate in CI is in this
+#     script, and every gate in this script blocks. A `gitleaks` Action step used to sit
+#     in ci.yml as `continue-on-error: true`; it required an org license it never had, so
+#     it failed instantly on every run without scanning anything -- a permanent red mark
+#     that taught readers to ignore red. Secret scanning is a real BLOCKING gate below.
 #   * Environment provisioning (`uv sync`, toolchain installs) is NOT a gate and is
 #     NOT done here. Run `uv sync --all-groups` first.
 #

@@ -128,17 +128,22 @@ def test_workflow_uploads_the_receipt_even_when_the_battery_is_red() -> None:
         assert ".builder/artifacts/gate-battery-receipt.json" in block
 
 
-def test_only_the_advisory_gitleaks_step_may_continue_on_error() -> None:
-    """`continue-on-error` on the battery or upload would let a red battery -- or exit 3,
-    a requested-but-unwritten receipt -- read green. Gitleaks is the one advisory step."""
+def test_no_step_may_continue_on_error() -> None:
+    """No advisory steps: every step in ci.yml must be able to fail the job.
+
+    `continue-on-error` on the battery or the upload would let a red battery -- or exit 3, a
+    requested-but-unwritten receipt -- read green. The one step that ever carried it was a
+    `gitleaks` Action, which required an org license it never had: it failed instantly on every
+    run, scanned nothing, and stamped a permanent red mark on CI that taught readers to ignore
+    red. A check that can only fail is worse than no check. It is gone, and secret scanning is a
+    real BLOCKING gate in `scripts/ci.sh`, so the invariant is now the stronger one: **zero**
+    advisory steps.
+    """
     body = CI_WORKFLOW.read_text(encoding="utf-8")
     live_lines = [line for line in body.splitlines() if not line.strip().startswith("#")]
     hits = [line for line in live_lines if "continue-on-error" in line]
-    assert len(hits) == 1, (
-        f"exactly one continue-on-error is allowed in ci.yml (the advisory gitleaks step); found: {hits}"
-    )
-    gitleaks_block = [block for block in body.split("- name:") if "itleaks" in block]
-    assert gitleaks_block and "continue-on-error: true" in gitleaks_block[0]
+    assert hits == [], f"no continue-on-error is allowed in ci.yml; found: {hits}"
+    assert "gitleaks" not in body.lower(), "the licence-gated gitleaks Action must not come back"
 
 
 def test_gate_battery_contains_every_blocking_gate() -> None:

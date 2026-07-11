@@ -379,6 +379,18 @@ def test_one_dropped_record_among_several_gates_still_forces_incomplete(tmp_path
     `dropped_gate_records` knows a gate is missing, and it is what drags the verdict to
     INCOMPLETE. The battery's own exit code is untouched -- the receipt merely stops corroborating
     a verdict it cannot see.
+
+    The recorder failure is injected by redefining `_gbr_run_receipt_tool` for `record-gate`
+    only, NOT by `chmod 444` on the gate log. Permission bits do not stop root, and CI runs the
+    suite as root -- so under `chmod` the append quietly SUCCEEDED there, `second` was recorded,
+    and this test failed on CI while passing on every developer laptop (the defect that made a
+    locally-green battery worthless as independent evidence).
+
+    Making the log structurally unwritable instead (a directory) is root-proof but also makes it
+    unREADable, so the trap could not build the receipt this test needs to inspect. Injecting at
+    the recorder is the only mechanism that is simultaneously root-proof, portable, and leaves
+    the log readable -- and it simulates precisely what is under test: a gate ran, and its record
+    could not be appended. `build` still runs through the real tool.
     """
     repo = tmp_path / "repo"
     _init_repo(repo)
@@ -386,7 +398,12 @@ def test_one_dropped_record_among_several_gates_still_forces_incomplete(tmp_path
         tmp_path,
         repo,
         'gate "first" true\n'
-        'chmod 444 "$GATE_LOG"\n'  # every later record-gate append now fails
+        # Fail every later record-gate append -- for root too (a chmod would not).
+        "_gbr_real_tool() { uv run --project \"$_GBR_REPO_ROOT\" python -m builder_ii.gate_battery_receipt \"$@\"; }\n"
+        "_gbr_run_receipt_tool() {\n"
+        '  if [ "$1" = "record-gate" ]; then return 1; fi\n'
+        '  _gbr_real_tool "$@"\n'
+        "}\n"
         'gate "second" bash -c "exit 9"\n',
     )
     receipt_path = tmp_path / "receipt.json"
@@ -399,6 +416,38 @@ def test_one_dropped_record_among_several_gates_still_forces_incomplete(tmp_path
     assert receipt["dropped_gate_records"] == ["second"]
     assert receipt["overall_state"] == "INCOMPLETE", "gates[] alone said PASSED; the drop must override it"
     assert validate_gate_battery_receipt(receipt) == []
+
+
+def test_cleanup_failure_cannot_change_the_batterys_exit_code(tmp_path: Path) -> None:
+    """The receipt's own cleanup must never overwrite the battery's verdict.
+
+    `_gbr_emit_receipt` ends by removing the temp gate log. Under `set -o errexit` a failing `rm`
+    inside the trap aborts the handler *before* `exit "$final_rc"`, so the shell exits with rm's
+    status instead of the battery's -- turning a red battery (exit 9) into exit 1, and a green one
+    into a false red. That is exactly the failure this module exists to prevent ("the battery's
+    pass/fail verdict must never depend on whether its own bookkeeping succeeded"), reintroduced
+    by its own cleanup.
+
+    Provoked by leaving the gate log as something `rm -f` refuses (a directory). The verdict must
+    still be the gate's own exit code.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    script = _write_battery(
+        tmp_path,
+        repo,
+        'gate "first" true\n'
+        'rm -f "$GATE_LOG" && mkdir "$GATE_LOG"\n'  # cleanup will now fail
+        'gate "second" bash -c "exit 9"\n',
+    )
+    receipt_path = tmp_path / "receipt.json"
+
+    result = _run(script, "--receipt", str(receipt_path))
+
+    assert result.returncode == 9, (
+        "cleanup failure must not rewrite the verdict "
+        f"(got {result.returncode}; 1 means the trap's rm aborted the handler)"
+    )
 
 
 def test_env_var_absolute_path_never_leaks_into_receipt(tmp_path: Path) -> None:

@@ -171,7 +171,13 @@ _gbr_emit_receipt() {
         final_rc="$_GBR_RECEIPT_WRITE_FAILURE_EXIT_CODE"
       fi
     fi
-    rm -f "$GATE_LOG"
+    # Cleanup must never be able to change the verdict. Under `set -o errexit` a failing `rm`
+    # inside this trap aborts the handler *before* `exit "$final_rc"` runs, so the shell exits
+    # with rm's status instead of the battery's -- a red battery (exit 9) silently became exit 1.
+    # That is the very failure mode this module exists to prevent, reintroduced by its own
+    # bookkeeping. `-r` because the log may not still be a regular file; `|| true` because a
+    # cleanup that cannot fail is the only kind that is safe here.
+    rm -rf "$GATE_LOG" || true
   fi
   exit "$final_rc"
 }
