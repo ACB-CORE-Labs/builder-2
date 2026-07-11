@@ -874,7 +874,9 @@ def test_the_policy_snapshot_documents_every_command_including_the_ones_nobody_d
     # `builder-code-vault validate-extractor-manifest` (98->100), and CodeVault G1 PR-2 added
     # `builder-code-vault validate-structural-field` (100->101) — all three are undeclared
     # prefix-clones of the `builder-code-vault` group.
-    assert len(_SYNTHESIZED_PARENTS) == 101
+    # 102, up from 101: CodeVault G2 PR-7a added `builder-code-vault structural-field` (the
+    # emission command), also an undeclared prefix-clone of the `builder-code-vault` group.
+    assert len(_SYNTHESIZED_PARENTS) == 102
     for record in COMMAND_AUTHORITY_REGISTRY:
         assert f"`{record.name}`" in doc, f"`{record.name}` is in the registry and absent from the policy snapshot"
 
