@@ -9,15 +9,15 @@
 # developer runs the same thing.
 #
 # Scope -- what this is and is not:
-#   * These are the BLOCKING gates. If this script exits 0, every blocking CI gate
-#     passed on this host.
-#   * There is no advisory (non-blocking) step anywhere: every gate in CI is in this
-#     script, and every gate in this script blocks. A `gitleaks` Action step used to sit
-#     in ci.yml as `continue-on-error: true`; it required an org license it never had, so
-#     it failed instantly on every run without scanning anything -- a permanent red mark
-#     that taught readers to ignore red. Secret scanning is a real BLOCKING gate below.
-#   * Environment provisioning (`uv sync`, toolchain installs) is NOT a gate and is
-#     NOT done here. Run `uv sync --all-groups` first.
+# * These are the BLOCKING gates. If this script exits 0, every blocking CI gate
+#   passed on this host.
+# * There is no advisory (non-blocking) step anywhere: every gate in CI is in this
+#   script, and every gate in this script blocks. A `gitleaks` Action step used to sit
+#   in ci.yml as `continue-on-error: true`; it required an org license it never had, so
+#   it failed instantly on every run without scanning anything -- a permanent red mark
+#   that taught readers to ignore red. Secret scanning is a real BLOCKING gate below.
+# * Environment provisioning (`uv sync`, toolchain installs) is NOT a gate and is
+#   NOT done here. Run `uv sync --all-groups` first.
 #
 # Exit-code discipline: `set -o pipefail` plus never piping a gate into `head`/`tail`.
 # Piping a command into a pager silently reports the *pager's* exit status, which is
@@ -27,17 +27,31 @@
 # [SKIP] and is listed again in the final summary. CI provisions every toolchain, so
 # CI never skips -- a local green with skips is weaker than a CI green, and says so.
 #
-# --receipt <path> -- opt-in, additive. When given, emits a `builder_ii.gate_battery_receipt`
-# artifact to <path> naming exactly which gates ran, their argv/exit codes/durations, the git
+# --receipt -- opt-in, additive. When given, emits a `builder_ii.gate_battery_receipt`
+# artifact to naming exactly which gates ran, their argv/exit codes/durations, the git
 # HEAD before and after, and whether the tree was clean. It is a RECORDED_ONLY receipt, not an
 # independent proof -- see builder_ii/gate_battery_receipt.py's module docstring for the honest
 # limit. With no --receipt, this script's behavior is unchanged from before this flag existed.
+#
+# Resource discipline (shared Forgejo runner):
+#   The shared runner is budgeted ~1.5 cpu / 1.2 GB. Full `cargo build` of 37 crates and
+#   `pytest -n auto` thrash or OOM there even when the battery itself is only ~23s of real
+#   work. Under any CI indicator we therefore cap both at 2. Local M1 (and any host with
+#   real cores) keeps full parallelism. The gates, the set of checks, and the exit-code
+#   discipline are identical; only the degree of parallelism changes. This is not tiering
+#   of *what* runs -- every gate still runs on every commit.
 
 set -o errexit
 set -o nounset
 set -o pipefail
 
 cd "$(dirname "$0")/.."
+
+# Detect the constrained shared runner / any CI. Local stays full-power.
+_IN_CI=0
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${FORGEJO_ACTIONS:-}" ] || [ -n "${GITHUB_WORKFLOW:-}" ]; then
+  _IN_CI=1
+fi
 
 # gate()/skip()/the --receipt machinery live in lib/ so they're testable without running the
 # real (slow) nine-gate battery -- see scripts/lib/gate_battery_receipt.sh's header comment.
@@ -47,13 +61,17 @@ _gbr_init
 trap _gbr_emit_receipt EXIT
 
 # 1. Rust validation accelerator must build (optional toolchain; CI always has it).
-#    PyO3 otherwise resolves whatever `python3` is first on PATH. On a dev box that is
-#    often a newer Python than PyO3 supports, so the gate fails for a reason that has
-#    nothing to do with the change under test. Pin it to the project interpreter, which
-#    is 3.12 both locally (uv venv) and in CI (setup-python + uv sync).
+# PyO3 otherwise resolves whatever `python3` is first on PATH. On a dev box that is
+# often a newer Python than PyO3 supports, so the gate fails for a reason that has
+# nothing to do with the change under test. Pin it to the project interpreter, which
+# is 3.12 both locally (uv venv) and in CI (setup-python + uv sync).
 if command -v cargo >/dev/null 2>&1; then
   PYO3_PYTHON="$(uv run python -c 'import sys; print(sys.executable)')"
   export PYO3_PYTHON
+  if [ "$_IN_CI" -eq 1 ]; then
+    # Cap so the 1.2 GB runner does not OOM mid-link. Cache still hits.
+    export CARGO_BUILD_JOBS=2
+  fi
   gate "rust validator build" cargo build --manifest-path builder_ii_validation_rs/Cargo.toml
 else
   skip "rust validator build" "cargo not found on PATH"
@@ -75,20 +93,25 @@ gate "targeted mypy" uv run mypy
 gate "targeted bandit" uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
 
 # 6. Full suite. `addopts` in pyproject already carries `-q`; adding another `-q`
-#    turns it into `-qq` and suppresses the pass/fail summary line. Do not add one.
-#    -n auto: parallelize across CPU-detected worker processes (pytest-xdist).
-#    -p randomly: force-load pytest-randomly (it auto-activates once installed via a
-#    pytest11 entry point, so this is defensive/explicit rather than strictly required).
-#    pytest-randomly shuffles test order every run and prints "Using --randomly-seed=N"
-#    at the top of the run; reproduce a specific failing order with --randomly-seed=<N>.
-gate "full test suite" uv run pytest -n auto -p randomly
+# turns it into `-qq` and suppresses the pass/fail summary line. Do not add one.
+# -n auto: parallelize across CPU-detected worker processes (pytest-xdist).
+# -p randomly: force-load pytest-randomly (it auto-activates once installed via a
+#   pytest11 entry point, so this is defensive/explicit rather than strictly required).
+# pytest-randomly shuffles test order every run and prints "Using --randomly-seed=N"
+# at the top of the run; reproduce a specific failing order with --randomly-seed=.
+if [ "$_IN_CI" -eq 1 ]; then
+  _XDIST_N=2
+else
+  _XDIST_N=auto
+fi
+gate "full test suite" uv run pytest -n "$_XDIST_N" -p randomly
 
-printf '\n================================\n'
+printf '\n===\n'
 if [ ${#SKIPPED[@]} -eq 0 ]; then
   printf 'ALL BLOCKING GATES PASSED (no skips).\n'
 else
   printf 'ALL BLOCKING GATES PASSED, but %d gate(s) were SKIPPED on this host:\n' "${#SKIPPED[@]}"
-  for name in "${SKIPPED[@]}"; do printf '  - %s\n' "$name"; done
+  for name in "${SKIPPED[@]}"; do printf ' - %s\n' "$name"; done
   printf 'CI provisions every toolchain and will not skip these.\n'
 fi
-printf '================================\n'
+printf '===\n'
