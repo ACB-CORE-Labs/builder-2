@@ -21,10 +21,18 @@ then-settled pipeline. This is a map amendment, recorded in
 > completes. **Wave 2 is fully landed** (PR-4 #82, PR-6 #83, PR-5 #84; plus the #85 status-board render
 > fix), so **PR-7a is cleared to dispatch** once this plan PR merges. Author the PR-7b/7c detailed
 > orders only after PR-7a lands (measure, then amend; never specify against an unbuilt pipeline).
+>
+> **Update (this amendment): PR-7a is LANDED** (#87, merged 2026-07-10; cold-reviewed by running —
+> battery green, frame digest byte-identical to pre-PR main). The PR-7b order below is now the
+> detailed, dispatchable one, authored against the landed pipeline per the gate above; **PR-7b is
+> cleared to dispatch once this amendment merges.** PR-7c stays a stub until PR-7b lands.
 
 ---
 
 ## Code-clock starting line (measured on the settled schemas, not assumed)
+
+> Snapshot taken when PR-7a was authored (pre-#87). PR-7a has since landed; the **PR-7b starting
+> line** table inside the PR-7b order below re-measures the surfaces 7b builds on.
 
 | Surface | Fact (read from the modules) |
 |---|---|
@@ -41,8 +49,8 @@ then-settled pipeline. This is a map amendment, recorded in
 
 ```text
 Wave 3 (G2) — after wave 2 (G1b) fully lands
-  PR-7a  Structural emission pipeline + FIRST fact kind (signature), R+D end-to-end
-  PR-7b  fact kinds: nesting, ownership, decorator, import_fact (each R+D)   [authored after 7a]
+  PR-7a  Structural emission pipeline + FIRST fact kind (signature), R+D end-to-end  [LANDED #87]
+  PR-7b  fact kinds: nesting, ownership, decorator, import_fact (each R+D)   [order below — dispatchable]
   PR-7c  fact kind: motif — OR formally defer motif as a registered decision  [authored after 7b]
 ```
 
@@ -170,15 +178,164 @@ the field; U / utility claims of any kind.
 
 ---
 
-## PR-7b — `nesting`, `ownership`, `decorator`, `import_fact` (authored after PR-7a lands)
+## PR-7b — `nesting`, `ownership`, `decorator`, `import_fact` (G2, dispatchable)
 
-Adds four fact kinds against the settled PR-7a pipeline, each with its own labeled invariance +
-discrimination suite and declared `invariance_class`. Sketch (finalized in its own order):
-`nesting` = normalized scope-depth/path structure (invariant: comment/format/rename/reorder);
-`ownership` = method→owner-class membership (invariant: comment/format/reorder/move);
-`decorator` = normalized decorator-name set on a subject (invariant: comment/format);
-`import_fact` = normalized (module, imported-name) pair (invariant: format/reorder). Each grows
-`STRUCTURAL_SUPPORTED_CONSTRUCTS` → a `STRUCTURAL_EXTRACTOR_VERSION` bump + manifest re-declaration.
+**Objective:** add four fact kinds to the landed PR-7a emission pipeline, each proven R+D under its
+own labeled invariance + discrimination suite. After this PR, `builder-code-vault structural-field`
+emits five of the six registered fact kinds; only `motif` (PR-7c) remains.
+
+**Claims unlocked:** structural correspondence **candidates** (hypothesis) for four more constructs.
+**Refused:** `motif` (PR-7c); RelationField / dependency **edges** with source→target ids (G4 —
+`import_fact` here is a per-file fact, not an edge); similarity scoring over facts; a second
+language; touching the frame path; descending into function bodies for subjects; any U language.
+
+### PR-7b starting line (measured on landed `main` after #87 — verify, then build)
+
+| Surface | Fact (read from the modules) |
+|---|---|
+| `structural_extractor.py` | v`1.0.0`; `SUPPORTED = {function_def, async_function_def, method}`; walks module top-level + class bodies (any depth) for def subjects; **never** descends into function bodies. `MAX_STRUCTURAL_SUBJECTS_PER_FILE = 64` — but the loop breaks on `len(facts) >= 64`, i.e. it currently counts **facts**, which equals subjects only while each subject emits exactly one fact. Decision #7 below re-grounds it. |
+| `structural_field.py` | **Kind-agnostic**: `build_structural_field` aggregates whatever the extractor returns; `_validate_fact` requires `subject_layout_id` = any non-empty string, `fact_kind ∈ FACT_KINDS` (all six registered), `normalized_value` present (any JSON), `invariance_class` = non-empty subset of `INVARIANCE_CLASSES`. **Expect zero changes to this module.** |
+| `extractor_manifest.py` | `build_structural_extractor_manifest` imports the extractor constants — construct/version changes flow through with **no manifest-code edit**. |
+| Frame (`hierarchy.py`) | Top-level classes are real F0 nodes: `path:{p}#class:{Name}` (v0 symbol kind `"class"`). File nodes are `path:{p}` (pure path). Both give 7b facts real F0 binding targets. |
+| CLI / registration | `builder-code-vault structural-field` exists; `_SYNTHESIZED_PARENTS` pin = **102**. 7b adds **no command** — the pin does not move. |
+| 7a review debt (carried by this order) | (1) 7a's rename twin renamed args only — decision #9 closes it. (2) Literal digest pins are **forbidden** — see decision #8 for why. Recorded here so neither narrowing repeats silently. |
+
+### Resolved design decisions
+
+1. **Declared version event.** `STRUCTURAL_SUPPORTED_CONSTRUCTS` grows by
+   `{class_def, decorator_fact, import_fact, nesting_fact, ownership_fact}`;
+   `STRUCTURAL_UNSUPPORTED_CONSTRUCTS` keeps `{lambda_def, motif_fact, nested_function_def,
+   non_python_files, non_utf8_files, syntax_error_files}`. Bump `STRUCTURAL_EXTRACTOR_VERSION`
+   `"1.0.0"` → `"1.1.0"`. The manifest re-declares itself via its imports — no manifest edit. The
+   7a test pinning the exact 7a construct set is **updated deliberately** (rename it to match; this
+   is the declared version event, not a forbidden edit — say so in its docstring).
+
+2. **New subjects and their binding.** Classes become subjects: `subject_kind = "class"`, dotted
+   `qualname` (`Outer.Inner`); a top-level class's `subject_layout_id` **equals** its F0 frame node
+   id. Module-level facts (`import_fact`) bind the frame **file** node **verbatim**:
+   `subject_layout_id = f"path:{normalize_layout_id(path)}"` — no `#` fragment, exactly the frame's
+   file `layout_id` (the validator requires only a non-empty string; this is the strongest possible
+   F0 binding, zero invented scheme).
+
+3. **`nesting` — scope shape, no names.** Subjects: every walked def/class. `normalized_value =
+   {"depth": <int>, "scope_chain": ["module", "class", ...]}` — enclosing scope **kinds** only,
+   never names (`depth == len(scope_chain) - 1`; top-level def → `{"depth": 0, "scope_chain":
+   ["module"]}`; method or class-nested class → `["module", "class"]`, deeper as found). Closures
+   stay out (function bodies are not walked — unchanged). `invariance_class = ["comment", "format",
+   "rename", "reorder"]`. Discrimination is **cross-subject** where re-scoping changes the id: a
+   module function moved into a class is compared value-to-value between the old and new subjects.
+
+4. **`ownership` — the membership fact, path-free.** Subjects: methods only (per the sketch).
+   `normalized_value = {"member_kind": "method", "member_name": "<name>", "owner_qualname":
+   "<dotted class chain>"}`. It deliberately **carries names** and **no path**, so it is invariant
+   under `move` (same class in a different file → identical value, compared cross-subject) and
+   **not** under `rename` — renaming the method or its owner is a *genuine change* for this kind.
+   `invariance_class = ["comment", "format", "move", "reorder"]`.
+
+5. **`decorator` — ordered, called-aware; sketch refined.** Subjects: any walked def/class that has
+   decorators (**emit nothing for undecorated subjects** — absence of the fact means "no
+   decorators"; declared here). `normalized_value = [{"name": "<dotted>", "called": <bool>}, ...]`
+   in **source order, top to bottom**. Two refinements of the stub's "name set", recorded with
+   reasons: (a) an **ordered list**, not a set — Python composes decorators in order, and a sorted
+   set would make a decorator swap an undetectable collision (a worse declared false-positive
+   mode); (b) `called` distinguishes `@f` from `@f()`. The `name` is the dotted path of a
+   `Name`/`Attribute` callee (`property`, `functools.wraps`); a callee that is not statically a
+   dotted name normalizes to the declared sentinel `"<dynamic>"` — declared ignorance, never a
+   fabricated name (state this in the module docstring). `invariance_class = ["comment", "format",
+   "reorder"]` (`reorder` = of sibling definitions — **not** of the subject's own decorator
+   sequence, which is a genuine change; same parenthetical convention as `signature`'s parameters).
+
+6. **`import_fact` — the file's import surface.** Subject: the file node (decision #2). One fact
+   per imported binding, from **every** `Import`/`ImportFrom` node in the file (full-tree walk —
+   `if TYPE_CHECKING:`- and `try/except`-guarded imports are real dependencies; the
+   no-function-body rule protects definition *subjects*, and the subject here is the file).
+   `normalized_value = {"level": <int>, "module": "<str>", "name": <str | null>}` — `level` =
+   relative-import dot count (0 for absolute), `module` = the stated module (`""` for a bare
+   `from . import x`), `name` = the imported binding (`null` for `import os`; `"*"` for a star
+   import). Local aliases (`as z`) are **ignored** — the dependency is what is imported, not what
+   it is locally called. **Dedupe identical `(subject, fact_kind, normalized_value)` facts**
+   (declared; two `import os` statements are one dependency). `invariance_class = ["comment",
+   "format", "reorder"]` — a refinement of the stub's `format/reorder`: comment-invariance is
+   trivially provable, so declare and prove it.
+
+7. **Cap semantics re-grounded: the bound counts subjects, not facts.** With multiple kinds per
+   subject, a fact-count break truncates at ~13 subjects and its meaning silently drifts from the
+   manifest's `max_symbols_per_file`. Re-implement: walk at most `MAX_STRUCTURAL_SUBJECTS_PER_FILE`
+   (64) **subjects** per file, emitting *all* facts for each walked subject; bound `import_fact`s
+   separately at the same constant per file. Truncation stays **silent** (bound declared in the
+   manifest, no residue entry) — the v0 convention, kept deliberately (#87 disposition). Pin the
+   subject-cap semantics with a >64-subject fixture asserting complete fact sets per walked subject.
+
+8. **Determinism; literal digest pins FORBIDDEN.** Two builds over the same input are
+   byte-identical (pin by comparing the two builds). Do **not** pin a literal `field_digest` or
+   `manifest_digest` in any test: `field_digest` covers `extractor_manifest_ref` →
+   `manifest_digest` → `parser_version` = the **running Python version**, so a literal pin is a
+   host-dependent flake (7a review finding; the "pin the value" wording in the 7a order was the
+   defect). Facts sort under the existing `(subject_layout_id, fact_kind,
+   canonical_json(normalized_value))` key — unchanged.
+
+9. **Signature stays byte-stable; the 7a rename gap closes here.** (a) Regression pin: the
+   `signature`-kind subset of facts over 7a's canonical fixture is **identical** (subjects and
+   values) before and after this PR — new kinds add facts, they never change settled ones.
+   (b) Backfill the 7a narrowing: one new test renames a def **and** its args
+   (`alpha` → `omega`) and asserts the renamed subject's `signature` `normalized_value` equals the
+   canonical subject's, **cross-subject** — proving the descriptor is fully name-blind. (c) The
+   frame path stays frozen: `symbol_extractor.py` / `hierarchy.py` untouched; default frame digest
+   unchanged (invariant #8).
+
+10. **Governance / claim law — unchanged.** Same `capability_state`, `artifact_only` / `hypothesis`,
+    standard governance block, **no completion-matrix flip, no promotion, no new command** (count
+    stays 102). All docs and docstrings use *structural correspondence candidates*; "verified" /
+    "correct" / utility framing forbidden (U closed until G5).
+
+### The R+D fixture suite (the proof — one labeled suite per kind)
+
+For **each** of the four kinds, against a canonical source rich enough to exercise it:
+
+- **Invariance (must MATCH):** one twin per declared invariance class — reformatted (`format`),
+  comment/docstring-added (`comment`), sibling-defs-reordered (`reorder`); plus per kind:
+  `nesting` an args-**and-def** renamed twin (`rename`, cross-subject); `ownership` a same-content
+  twin at a **different file path** (`move`, cross-subject). Assert equal `normalized_value` for
+  the corresponding subject in every twin.
+- **Discrimination (must DIFFER — the declared false-positive audit):**
+  `nesting`: module function moved into a class; a class nested into another class.
+  `ownership`: method moved to a different class; method renamed; owner class renamed.
+  `decorator`: decorator added; removed; two decorators swapped; `@f` → `@f()`.
+  `import_fact`: import added; removed; module changed; `from x import y` → `from x import y, z`;
+  absolute → relative (`level` change); star import introduced.
+- **Baseline shape pins:** exact `normalized_value` dicts for representative subjects of each kind
+  (the 7a pattern — these exact-equality pins are what give the suite teeth against descriptor
+  drift).
+- **End-to-end:** one `build_structural_field` run over a mixed fixture emitting **all five kinds**;
+  validates with zero errors; two builds byte-identical; residue behavior unchanged (non-Python /
+  syntax-error / unreadable files); the decision-#7 subject-cap pin; the decision-#9 signature
+  regression + def-rename backfill pins.
+
+### Files
+
+Edit: `builder_ii/code_vault/structural_extractor.py` (four kinds + constants + version + cap
+semantics), `tests/test_code_vault_structural_extractor.py` (suites above; update the 7a exact-set
+constants test as a declared version event), `tests/test_code_vault_structural_field.py` (mixed-kind
+end-to-end additions), `docs/CODE_VAULT_LANGUAGE_SUBSTRATE.md` (readiness cell: F2 partial →
+`signature`+4, `motif` outstanding), `docs/CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md` (structural-
+intelligence row), `docs/CODE_VAULT_STAGED_ACCEPTANCE.md` (7b row),
+`docs/COMMAND_SURFACE_AUDIT.md` (the PR-7a delta prose says "`signature` facts only" — update to the
+five-kind truth), `builder_ii/cli/code_vault_cli.py` **docstring only** (same "signature facts only"
+staleness; no behavior change). Expected untouched: `structural_field.py`, `extractor_manifest.py`,
+`command_authority.py`, `symbol_extractor.py`, `hierarchy.py`.
+
+### Tests first
+
+Per kind: write the invariance + discrimination fixtures RED, then implement that kind to green,
+kind by kind (`nesting` → `ownership` → `decorator` → `import_fact`), then the mixed-kind
+end-to-end + cap + signature-regression pins. If the code contradicts this order anywhere, **amend
+this section in the same PR** and say so in the PR body — recorded divergence is protocol; silent
+narrowing is a defect even when the code choice is right (that is the 7a lesson, twice).
+
+### Out of scope
+
+`motif` (PR-7c); RelationField / edges (G4); similarity geometry; recall/lint consuming the field;
+second language; frame changes; closures/function-body subjects; new CLI surface.
 
 ## PR-7c — `motif`, or formally defer it (authored after PR-7b lands)
 
