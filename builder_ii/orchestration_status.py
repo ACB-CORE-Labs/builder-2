@@ -24,7 +24,7 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
-from rich.table import Table
+from rich.table import Column, Table
 
 from builder_ii.deepagents_execution import (
     DEEPAGENTS_EVENT_LEDGER_KIND,
@@ -62,6 +62,12 @@ _DISCHARGE_TO_BOARD_STATE = {
 _OBLIGATION_LIFECYCLE_EVENT_TYPES = ("obligation_minted", "obligation_mint_refused", "obligation_consumed")
 
 BUDGET_COLUMNS = ("max_subagents", "max_events", "max_output_bytes", "max_human_gates")
+
+# The board-state column is the load-bearing enum a reader scans first. Give it a fixed no-wrap
+# floor so Rich's proportional shrink truncates the cosmetic columns (long kinds, the output_dir in
+# the title) instead of ellipsizing "SATISFIED" -> "SATISF..." when the render is width-constrained.
+# Derived from BOARD_STATES so it can never drift from the enum it protects.
+_BOARD_STATE_COLUMN_WIDTH = max(len(state) for state in BOARD_STATES)
 
 
 def _read_json_object(path: Path, *, label: str) -> dict[str, Any]:
@@ -213,7 +219,7 @@ def build_obligation_board(output_dir: Path) -> dict[str, Any]:
 def render_status_table(board: dict[str, Any]) -> Table:
     table = Table(
         "obligation",
-        "state",
+        Column("state", no_wrap=True, min_width=_BOARD_STATE_COLUMN_WIDTH),
         "kind",
         "subagent",
         "max_subagents",

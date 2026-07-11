@@ -162,6 +162,38 @@ def test_status_board_prints_table_when_no_output_flag(tmp_path: Path) -> None:
         assert state in result.output
 
 
+def test_render_status_table_state_column_survives_narrow_width() -> None:
+    """Host-independent guard: the board-state enum column renders in full even when the table is
+    squeezed by long kinds / a long output_dir and a narrow render width. Regression test for Rich
+    proportional-shrink ellipsizing 'SATISFIED' -> 'SATISF...' (was host-fragile: passed on wide
+    terminals, failed on narrow ones under CliRunner)."""
+    from io import StringIO
+
+    from rich.console import Console
+
+    from builder_ii.orchestration_status import BOARD_STATES, render_status_table
+
+    board = {
+        "run_status": "COMPLETE",
+        "output_dir": "/a/deliberately/long/output/directory/path/that/consumes/render/width/run-0001",
+        "rows": [
+            {
+                "obligation_digest": f"{index:064x}",
+                "board_state": state,
+                "obligation_kind": "builder_ii.a_deliberately_long_obligation_contract_kind_name",
+                "subagent_profile": "a-long-subagent-profile-identifier",
+                "budget_partition": {column: 1 for column in ("max_subagents", "max_events", "max_output_bytes", "max_human_gates")},
+            }
+            for index, state in enumerate(BOARD_STATES)
+        ],
+    }
+    buffer = StringIO()
+    Console(file=buffer, width=60).print(render_status_table(board))
+    output = buffer.getvalue()
+    for state in BOARD_STATES:
+        assert state in output, f"state {state!r} was truncated in the rendered board:\n{output}"
+
+
 def test_status_missing_run_output_dir_exits_nonzero(tmp_path: Path) -> None:
     result = runner.invoke(orchestration_app, ["status", str(tmp_path / "does-not-exist")])
     assert result.exit_code == 1
