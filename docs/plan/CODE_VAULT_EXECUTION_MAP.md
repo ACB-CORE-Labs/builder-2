@@ -167,6 +167,17 @@ evidence and every other gate's current, honestly-scored state).
 | Frame `dirty`-flag derivation (requires git status semantics) | provenance depth | Amendment to PR-3's helper after measurement; v1 declares `dirty` unknown rather than guessing | Open |
 | `changed` scope mode (+ the frame/StructuralField scope-vocabulary divergence) | **Gate G1b** — it is the one UNMET G1b bullet | Design decision: `changed` needs repository state, and standing invariant #1 forbids the vault importing repo lanes — it must arrive via the `code_vault_provenance.py` precedent (helper *outside* the package). Also resolve whether `package` belongs on the frame or should leave the StructuralField; the two vocabularies disagree today (frame `{full, paths}` vs field `{paths, package, full}`) | **Deferred (registered)** — see [`../CODE_VAULT_GATE_STATE.md`](../CODE_VAULT_GATE_STATE.md) |
 
+**Amendment, 2026-07-11 (operator decision) — motif split out of G2 into Gate G2m.** Not entered as a
+row above because it does not block G3+ (unlike every row above, which does). PR-7c's review found
+motif does not fit the F2 schema's per-subject `subject_layout_id` binding as specified — a property
+of a *set* of subjects, not one. Rather than leave that mismatch sitting inside G2's bullet list
+forever (a `DEFERRED` bullet holds its gate closed permanently per the [gate-state
+ledger](../CODE_VAULT_GATE_STATE.md)'s own law), the roadmap's G2 definition is amended: motif moves
+to a new, explicitly unordered **Gate G2m** ([`../CODE_VAULT_ROADMAP.md`](../CODE_VAULT_ROADMAP.md) §
+Gate G2m). This is Axiom Zero's distinction in practice — a reasoned, recorded scope change is not
+the silent narrowing the axiom forbids. G2's other two open bullets (closures under "nested
+definitions"; the interface-stable-change fixture) are unaffected and do not depend on this amendment.
+
 ---
 
 ## Verification matrix
