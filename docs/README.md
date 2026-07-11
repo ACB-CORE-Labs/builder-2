@@ -183,6 +183,7 @@ Vision set (destination, law, gates — design truth; does not promote capabilit
 | [`docs/CODE_VAULT_LANGUAGE_SUBSTRATE.md`](CODE_VAULT_LANGUAGE_SUBSTRATE.md) | Polyglot substrate: Artifact IR + grade doctrine + extractors |
 | [`docs/CODE_VAULT_FIELD_BLUEPRINTS.md`](CODE_VAULT_FIELD_BLUEPRINTS.md) | Dual-correction blueprints for fields F0–F6 |
 | [`docs/CODE_VAULT_ROADMAP.md`](CODE_VAULT_ROADMAP.md) | Gate-ordered roadmap (no chronos) |
+| [`docs/CODE_VAULT_GATE_STATE.md`](CODE_VAULT_GATE_STATE.md) | Gate-state ledger: which roadmap bullets hold, and which gates are therefore closed |
 | [`docs/CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md`](CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md) | Three-clock truth delta |
 | [`docs/plan/CODE_VAULT_MASTER_PLAN.md`](plan/CODE_VAULT_MASTER_PLAN.md) | Consolidated master plan to fruition |
 | [`docs/plan/CODE_VAULT_EXECUTION_MAP.md`](plan/CODE_VAULT_EXECUTION_MAP.md) | Per-PR execution map for the first slice (G1 → G1b → G2) |
