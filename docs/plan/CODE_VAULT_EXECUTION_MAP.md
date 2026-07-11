@@ -99,7 +99,9 @@ gate opens only when every roadmap bullet holds, and no doc may say otherwise.
 
 Gate G1 opens only when **all** of its bullets in the [roadmap](../CODE_VAULT_ROADMAP.md) hold
 (manifest + stub + provenance skeleton + fail-closed posture) — landing PR-1 alone does not open
-G1, and no doc may say otherwise.
+G1, and no doc may say otherwise. **That condition now holds: Gate G1 is OPEN** (operator decision,
+2026-07-11 — see [`../CODE_VAULT_GATE_STATE.md`](../CODE_VAULT_GATE_STATE.md) for the per-bullet
+evidence and every other gate's current, honestly-scored state).
 
 ---
 
