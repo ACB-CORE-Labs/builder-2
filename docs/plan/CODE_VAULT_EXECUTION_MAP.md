@@ -163,6 +163,7 @@ G1, and no doc may say otherwise.
 | Tier-2 graded-similarity RFC | any similarity geometry | Operator-deferred at Tier-1 PR-1 time (RFC open question 2) | Deferred |
 | Bench self-snapshot corpus (pinned builder-II snapshot) | richer D evidence | Tier-1 RFC open question 3 | Open option |
 | Frame `dirty`-flag derivation (requires git status semantics) | provenance depth | Amendment to PR-3's helper after measurement; v1 declares `dirty` unknown rather than guessing | Open |
+| `changed` scope mode (+ the frame/StructuralField scope-vocabulary divergence) | **Gate G1b** — it is the one UNMET G1b bullet | Design decision: `changed` needs repository state, and standing invariant #1 forbids the vault importing repo lanes — it must arrive via the `code_vault_provenance.py` precedent (helper *outside* the package). Also resolve whether `package` belongs on the frame or should leave the StructuralField; the two vocabularies disagree today (frame `{full, paths}` vs field `{paths, package, full}`) | **Deferred (registered)** — see [`../CODE_VAULT_GATE_STATE.md`](../CODE_VAULT_GATE_STATE.md) |
 
 ---
 
@@ -191,4 +192,5 @@ G1, and no doc may say otherwise.
 - [`../CODE_VAULT_ROADMAP.md`](../CODE_VAULT_ROADMAP.md) — gate definitions G0…G7
 - [`../CODE_VAULT_LANGUAGE_SUBSTRATE.md`](../CODE_VAULT_LANGUAGE_SUBSTRATE.md) — Artifact IR sketches the stubs implement
 - [`../CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md`](../CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md) — deltas these PRs close
+- [`../CODE_VAULT_GATE_STATE.md`](../CODE_VAULT_GATE_STATE.md) — the gate-state ledger: which bullets hold, and which gates are therefore closed
 - [`../adrs/ADR-0005-codevault-boundary-and-authority.md`](../adrs/ADR-0005-codevault-boundary-and-authority.md) — authority boundary every PR inherits
