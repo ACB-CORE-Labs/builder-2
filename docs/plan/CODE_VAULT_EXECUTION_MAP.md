@@ -75,6 +75,7 @@ fixtures. This is the decomposability law, applied exactly as G1 split into wave
 | 5 | G1b | Refresh ≡ rebuild byte-identity guard (test-first; law before optimization) | R | — (an invariant, not a feature) | any incremental path that trades determinism |
 | 6 | G1b | Linter containment scan → spatial index (identical findings pre/post) | R | honest 10k-node bench path | — |
 | 7 | G2 | StructuralField v1 fed by Python extractor v1 (nested, async, signatures, decorators, ownership, imports-as-facts) + invariance fixtures | R+D | structural correspondence **candidates** (hypothesis) | multi-language structure; any utility language (U) |
+| 7d | G2 | **Scope-correct subject walk**: closures + definitions inside `if`/`try`/`with`/`for`/`while`/`match` guards. Extractor v1.1.0 → v1.2.0 | R (regression: zero of 10,339 pre-existing facts moved) + D | "nested definitions" (the G2 bullet) | any new fact kind; motif (G2m) |
 
 PR-6 is **deferrable within G1b**: the quadratic scan only bites past ~10k nodes, and no bench
 above 1k nodes is claimed today. It must land before any 10k-node bench result is published — that
@@ -194,6 +195,7 @@ definitions"; the interface-stable-change fixture) are unaffected and do not dep
 | 7a | `uv run pytest tests/test_code_vault_structural_extractor.py tests/test_code_vault_structural_field.py tests/test_code_vault_extractor_manifest.py tests/test_code_vault_cli.py tests/test_command_authority.py tests/test_command_surface_audit.py tests/test_artifact_index_records.py -q` + `uv run builder-platform audit-docs` (landed, #87) |
 | 7b | same suite as 7a (landed, #90). Frame byte-stability proven independently by comparing the default `frame_digest` on `main` vs the branch; the subject-cap semantics are mutation-proven (restoring the PR-7a `len(facts)` break walks 22 of 64 subjects) |
 | 7c | **No code.** `motif` is registered as a deferred decision — see [`CODE_VAULT_G2_WAVE_BRIEFS.md`](CODE_VAULT_G2_WAVE_BRIEFS.md) § PR-7c. Verified by `uv run builder-platform audit-docs` + `uv run pytest tests/test_docs_truth_enforcement.py -q` |
+| 7d | `uv run pytest tests/test_code_vault_structural_extractor.py tests/test_code_vault_structural_field.py tests/test_code_vault_extractor_manifest.py -q` + `uv run builder-platform audit-docs`. The load-bearing proof is the **regression**: the walk changed, so every fact the old walk emitted must come out byte-identical. Verified over the full `builder_ii/` tree (266 files) — **0 of 10,339 facts moved**, 79 gained. Mutation-proven three ways: dropping the `<locals>` marker fails the collision test; not walking scope-transparent blocks fails the guarded-def tests; not descending into function bodies fails the closure tests |
 
 ---
 
