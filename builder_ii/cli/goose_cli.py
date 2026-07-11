@@ -336,10 +336,15 @@ def close_readonly(
         try:
             close_receipt = json_lib.loads(close_path.read_text(encoding="utf-8"))
         except Exception as e:
-            console.print(f"Close receipt at {close_path} is unreadable: {e}")
+            console.print(f"Close receipt at {close_path} is unreadable: {e}", soft_wrap=True)
             raise typer.Exit(1) from e
         console.print(f"Session {session_id} was already closed by start-readonly.")
-        console.print(f"Close receipt: {close_path}")
+        # soft_wrap: a filesystem path is one token, and Rich's default word-wrap will break it
+        # mid-filename at the console width (80 when stdout is not a terminal). A path split
+        # across lines is unusable -- an operator cannot click or copy it, and a caller cannot
+        # grep it. Whether it wrapped depended on the length of the host's temp directory, which
+        # is why this only ever failed off my machine.
+        console.print(f"Close receipt: {close_path}", soft_wrap=True)
         console.print(f"Exit code: {close_receipt.get('exit_code')}")
         return
 

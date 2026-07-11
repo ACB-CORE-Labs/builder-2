@@ -214,3 +214,42 @@ def test_close_readonly_reports_existing_close_receipt_when_already_closed(monke
     assert result.exit_code == 0, result.output
     assert "already closed" in result.output.lower()
     assert "goose_4_close.json" in result.output
+
+
+def test_close_readonly_receipt_path_survives_a_path_longer_than_the_console(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    """The close-receipt path must render intact even when it exceeds the console width.
+
+    Rich word-wraps at the console width (80 when stdout is not a terminal), and a filesystem
+    path is a single unbreakable token, so the default renderer splits it *mid-filename*:
+    `.../receipts/g\\noose_4_close.json`. Whether that happened depended on how long the host's
+    temp directory was: it passed on a short `tmp_path` and failed on CI's
+    `/tmp/pytest-of-root/...`. That host-dependence is precisely what makes a locally-green
+    battery worthless as evidence, so the sibling test above is not enough -- it only fails on
+    hosts with long temp paths.
+
+    This one forces the condition through the real CLI on ANY host by nesting the target root
+    deep enough that the receipt path must exceed the console width. Without `soft_wrap=True` at
+    the print site it fails everywhere; with it, it passes everywhere.
+    """
+    deep_root = tmp_path / ("nested_" * 8) / ("deeper_" * 8)
+    deep_root.mkdir(parents=True)
+    monkeypatch.setattr(goose_cli, "load_settings", lambda *a, **k: _settings_at(deep_root))
+
+    receipts_dir = deep_root / ".builder" / "receipts"
+    receipts_dir.mkdir(parents=True, exist_ok=True)
+    (receipts_dir / "goose_4_launch.json").write_text(json.dumps({"session_id": "goose_4"}), encoding="utf-8")
+    close_path = receipts_dir / "goose_4_close.json"
+    close_path.write_text(
+        json.dumps({"session_id": "goose_4", "kind": "builder_ii.goose_close_receipt", "exit_code": 0}),
+        encoding="utf-8",
+    )
+    assert len(str(close_path)) > 80, "fixture must exceed the non-tty console width to have teeth"
+
+    result = runner.invoke(goose_app, ["close-readonly", "goose_4"])
+
+    assert result.exit_code == 0, result.output
+    # The filename must not be broken across lines, and the whole path must be recoverable.
+    assert "goose_4_close.json" in result.output
+    assert str(close_path) in result.output
