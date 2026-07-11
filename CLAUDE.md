@@ -35,6 +35,7 @@ Environment is managed with `uv` (Python 3.12.13, locked via `uv.lock`).
 ```bash
 uv sync --all-groups                # install deps (Python + dev group)
 bash scripts/ci.sh                  # the full blocking gate battery — exactly what CI runs
+bash scripts/ci-in-container.sh     # OPTIONAL, heavier: same battery inside a node:20-bookworm root container matching the Forgejo runner (catches root/console-width/host-dependent bugs)
 uv run pytest -q                    # full test suite (testpaths = tests/)
 uv run pytest tests/test_foo.py -q  # single test file
 uv run pytest tests/test_foo.py::test_name -q   # single test
