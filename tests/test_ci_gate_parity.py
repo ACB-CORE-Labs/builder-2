@@ -193,3 +193,74 @@ def test_gate_battery_sets_strict_shell_flags() -> None:
             f"scripts/lib/gate_battery_receipt.sh must assert {flag} at source time and refuse "
             "otherwise, not merely document the requirement in a comment"
         )
+
+
+# --- The battery is unconditional: caching may make CI cheap, never selective -----------------
+#
+# The measured shape of a CI run here is that the GATES ARE FREE and the PROVISIONING IS NOT:
+# the whole 9-gate battery is ~23s (and a cold build of all 37 Rust crates ~6s) against a ~30min
+# run on the shared VM runner. So the honest optimisation is caching the environment -- and the
+# dishonest one, which looks equally attractive and is the natural next idea, is to stop running
+# some gates on some commits ("full suite only after a wave").
+#
+# That would buy back seconds and cost the property the battery exists for. These pins make the
+# selective version impossible to introduce QUIETLY: the battery step must be unconditional, and
+# the workflow must fire on every pull request and every push to main with no path filter.
+
+
+def _workflow_lines() -> list[str]:
+    return [
+        line
+        for line in CI_WORKFLOW.read_text(encoding="utf-8").splitlines()
+        if not line.strip().startswith("#")
+    ]
+
+
+def test_the_gate_battery_step_is_unconditional() -> None:
+    """No `if:` may guard the battery. A conditionally-skipped gate is not a gate."""
+    lines = _workflow_lines()
+    battery_index = next(
+        i for i, line in enumerate(lines) if "scripts/ci.sh" in line and "run:" in line
+    )
+    # Walk back to the step's `- name:` and scan the step body for a condition.
+    start = battery_index
+    while start > 0 and not lines[start].strip().startswith("- "):
+        start -= 1
+    step = lines[start : battery_index + 1]
+    assert not any(line.strip().startswith("if:") for line in step), (
+        "the gate battery step must not be conditional -- every gate runs on every commit"
+    )
+
+
+def test_the_workflow_has_no_path_filter_that_could_skip_a_commit() -> None:
+    """`paths:`/`paths-ignore:` would let a commit land with no battery at all -- the
+    'docs-only change, skip CI' shortcut that eventually ships a red tree."""
+    body = "\n".join(_workflow_lines())
+    for skipper in ("paths:", "paths-ignore:", "branches-ignore:"):
+        assert skipper not in body, (
+            f"ci.yml must not use `{skipper}` -- it would let commits bypass the battery entirely"
+        )
+
+
+def test_the_workflow_still_fires_on_every_pr_and_every_push_to_main() -> None:
+    body = "\n".join(_workflow_lines())
+    assert "pull_request:" in body
+    assert "push:" in body
+    assert "- main" in body
+
+
+def test_caching_never_decides_what_is_checked() -> None:
+    """Caching is allowed (and now present) -- but a cache step must only ever `uses:` an action.
+    A cache that ran a gate, or a `run:` step that skipped one, would put the decision about
+    WHAT is verified inside the layer whose only job is to make it FAST.
+    """
+    body = CI_WORKFLOW.read_text(encoding="utf-8")
+    assert "actions/cache@v3" in body, (
+        "the cargo cache is what makes the battery cheap enough to run on every commit; "
+        "if it is removed, say so deliberately rather than by deleting a line"
+    )
+    # The existing `test_workflow_inlines_no_gate` already forbids a gate in any `run:` line.
+    # This is its complement: no step may CONDITIONALLY run the battery based on a cache result.
+    assert "cache-hit" not in body, (
+        "no step may branch on a cache hit -- the battery runs identically warm or cold"
+    )
