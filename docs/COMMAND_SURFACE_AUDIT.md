@@ -54,7 +54,7 @@ Governed setup subcommands:
 - `builder-session`
 - `builder-workflow`
 - `builder-ledger`
-- `builder-code-vault` — governed read-only CodeVault hierarchical frame, extractor manifest declaration, lint, recall, context projection, determinism demo, and validation; Tier 1 artifact-only; no shell, model, Goose, deepagents, or target-repo writes
+- `builder-code-vault` — governed read-only CodeVault hierarchical frame, extractor manifest declaration, lint, recall, context projection, determinism demo, StructuralField schema validation, and validation; Tier 1 artifact-only; no shell, model, Goose, deepagents, or target-repo writes
 
 ## Artifact Chain / Governance Records
 - `builder-records`
@@ -209,3 +209,9 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder-code-vault extractor-manifest --language python --output PATH` builds, validates, and writes a governed `builder_ii.code_vault.extractor_manifest` artifact declaring the registered Python extractor's identity (`extractor_id`, `extractor_version`, `parser_id`, `parser_version`), coverage (`structure_partial`), supported/unsupported constructs, and limits. Requesting an unregistered language (v1 registers `python` only) exits non-zero and writes nothing.
 - `builder-code-vault validate-extractor-manifest PATH` validates an extractor manifest artifact file, including digest re-derivation and governance conformance.
 - This is RECORDED_ONLY declaration of what the existing Python extractor (`symbol_extractor.py`) already does; it changes no extractor behavior, adds no structural-intelligence claim, and flips no completion-matrix row. Tier 1 `artifact_only`; `artifact_is_authority` remains false.
+
+## CodeVault G1 PR-2 command surface delta
+
+- `builder-code-vault validate-structural-field` validates a `builder_ii.code_vault.structural_field` (F2) artifact file: kind/schema_version, `extractor_manifest_ref` shape, `scope`, `facts[]` fact vocabulary and invariance-class vocabulary, `unsupported[]`, governance, and `field_digest`.
+- No build/emission subcommand ships with it: no extractor fills this artifact yet, so only the schema and its validator exist (RECORDED_ONLY). Fact emission is G2 work against this settled schema.
+- This delta does not add fact emission, extractor changes, structural-correspondence claims, shell/model/Goose/deepagents/runtime authority, or target-repo writes.
