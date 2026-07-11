@@ -25,11 +25,11 @@ jobs:
     steps:
       # Shallow on purpose. No gate reads git history -- the gate-battery receipt records only
       # HEAD and the working-tree state -- so a full-history clone was paying for nothing.
-      - uses: actions/checkout@v4
+      - uses: https://github.com/actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: https://github.com/dtolnay/rust-toolchain@stable
 
       # The real cost of a CI run here is PROVISIONING, not the gates. Measured on an M1: the
       # whole 9-gate battery is ~23s and a COLD build of all 37 Rust crates is ~6s, while a run
@@ -48,25 +48,26 @@ jobs:
       # This adds NO gate and removes NO gate. `scripts/ci.sh` remains the single source of
       # truth for the battery (pinned by tests/test_ci_gate_parity.py); caching only changes how
       # fast the environment those gates need is assembled.
-      - name: Cache cargo registry + the Rust validator build
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            builder_ii_validation_rs/target
-          key: cargo-${{ runner.os }}-${{ hashFiles('builder_ii_validation_rs/Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-
+      #
+      # Cache action disabled temporarily due to Forgejo runner cache timeout issues.
+      # - name: Cache cargo registry + the Rust validator build
+      #   uses: https://github.com/actions/cache@v3
+      #   with:
+      #     path: |
+      #       ~/.cargo/registry
+      #       ~/.cargo/git
+      #       builder_ii_validation_rs/target
+      #     key: cargo-${{ runner.os }}-${{ hashFiles('builder_ii_validation_rs/Cargo.lock') }}
+      #     restore-keys: |
+      #       cargo-${{ runner.os }}-
 
       # `enable-cache` caches uv's download/build cache (wheels AND the CPython interpreter it
       # provisions below), keyed on uv.lock. This is what makes `uv python install` and
       # `uv sync` near-instant on a warm runner instead of a full re-download.
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: https://github.com/astral-sh/setup-uv@v5
         with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
+          enable-cache: false
 
       # Deliberately NO actions/setup-python: it resolves prebuilt CPython archives against
       # GitHub's hosted-runner images, so on the Forgejo runner (whose `ubuntu-latest` label
@@ -100,7 +101,7 @@ jobs:
       # runner implements.
       - name: Upload gate battery receipt (even when the battery is red)
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: https://github.com/actions/upload-artifact@v3
         with:
           name: gate-battery-receipt
           path: .builder/artifacts/gate-battery-receipt.json
