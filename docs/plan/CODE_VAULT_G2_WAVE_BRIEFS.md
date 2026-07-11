@@ -52,7 +52,7 @@ then-settled pipeline. This is a map amendment, recorded in
 Wave 3 (G2) — after wave 2 (G1b) fully lands
   PR-7a  Structural emission pipeline + FIRST fact kind (signature), R+D end-to-end  [LANDED #87]
   PR-7b  fact kinds: nesting, ownership, decorator, import_fact (each R+D)   [LANDED — order below]
-  PR-7c  fact kind: motif — OR formally defer motif as a registered decision  [authored after 7b]
+  PR-7c  fact kind: motif — DEFERRED as a registered decision (blocked; see below)  [RESOLVED]
 ```
 
 PR-7a is the load-bearing de-risk: it lands the **entire** lane (extractor → manifest → field →
@@ -381,11 +381,66 @@ not silently absorbed. (#5 was found in cold review of the PR, not by the implem
 `motif` (PR-7c); RelationField / edges (G4); similarity geometry; recall/lint consuming the field;
 second language; frame changes; closures/function-body subjects; new CLI surface.
 
-## PR-7c — `motif`, or formally defer it (authored after PR-7b lands)
+## PR-7c — `motif` is REGISTERED AS A DEFERRED DECISION (resolved)
 
-`motif` (recurring structural pattern) is the fuzziest kind and has no settled normalized form. Per
-Axiom Zero, PR-7c either lands a precise, labeled definition or **registers `motif` as a deferred
-decision** (schema already reserves the kind) rather than specify against an unformed idea.
+**Outcome: deferral, not a spec.** Per Axiom Zero, PR-7c either lands a precise, labeled definition
+or registers `motif` as a deferred decision rather than specify against an unformed idea. It is the
+latter — and not because `motif` is merely "fuzzy", but because it is **structurally blocked by two
+constraints the project has already recorded.** Measured, not asserted:
+
+### What the doctrine actually says about `motif`
+
+Nothing. Every mention across the doctrine set is an item in an enumeration
+(`signature | nesting | ownership | decorator | import_fact | motif …` — language substrate line 149;
+"…ownership, imports-as-structure-facts, motifs" — roadmap G2; "signatures, nesting, ownership,
+motifs, …" — field blueprints). There is **no normalized form, no invariance declaration, no
+discrimination example, and no worked instance anywhere.** The kind was reserved in the v1 `FACT_KINDS`
+frozenset and never defined. That is the honest starting line.
+
+### Why it cannot simply be specified now — the two blocks
+
+1. **"Recurring" is not a property of one subject, and the schema binds every fact to one subject.**
+   Each landed kind is a *total function of a single subject's syntax*: arity counts, enclosing scope
+   kinds, membership, the decorator list, an import binding. A motif — "a recurring structural
+   pattern" — is a property of a **set** of subjects. The `StructuralField` schema requires
+   `subject_layout_id` on every fact, so a cross-subject motif has no subject to bind to. Expressing
+   one needs a **schema change** (a v1→v2 event), not a new fact kind.
+
+2. **Any cross-subject formulation needs similarity scoring, which is ALREADY operator-deferred.**
+   Grouping "similar-but-not-identical" structures is exactly the
+   [Tier-2 graded-similarity RFC](CODE_VAULT_EXECUTION_MAP.md#deferred-decision-registry), recorded
+   as *"Deferred — G2 emits facts, it does not score them."* Specifying `motif` that way would
+   silently reopen an operator-deferred decision from inside a work order. It must not.
+
+### The one viable non-blocked path, recorded so it is not re-derived from scratch
+
+A motif *can* be made per-subject and mechanical, avoiding both blocks: emit a **normalized structural
+skeleton** of a subject's body — the AST node-kind sequence with all names and literals erased.
+Recurrence then falls out of **exact equality** of `normalized_value` across subjects, computed by a
+consumer. No similarity geometry, no scoring, no schema change — the same exact-identity spirit as F1.
+
+Its cost is real and is why it is not being done inside G2: the structural extractor **never descends
+into a function body** (`nested_function_def` is UNSUPPORTED; PR-7b's out-of-scope refuses
+"closures/function-body subjects" explicitly). A body-skeleton motif requires walking bodies, which is:
+a construct-set growth and a declared version event; a re-examination of the 64-subject cap (bodies are
+unbounded where signatures are not); and a new false-positive surface (two functions with identical
+control-flow skeletons but unrelated meaning — the "synthetic beauty without labels" guard the proof
+program names). That is its own wave, not a tail-end PR.
+
+### The registered decision
+
+| Field | Value |
+|---|---|
+| **Decision** | `motif` normalized form |
+| **State** | **Deferred (registered)** — was "Open" |
+| **Blocked by** | (1) per-subject `subject_layout_id` binding in the F2 schema; (2) the operator-deferred Tier-2 graded-similarity RFC |
+| **Leading candidate** | per-subject normalized body skeleton (names/literals erased); recurrence = exact equality across subjects, derived downstream |
+| **What would unblock it** | an operator decision to walk function bodies (construct-set + version event + cap re-examination), OR a schema event admitting set-subject facts |
+| **Not blocked on** | anything in G2 — the other five kinds are complete and independent of it |
+
+`motif` therefore stays in `STRUCTURAL_UNSUPPORTED_CONSTRUCTS` (`motif_fact`), which is a *declared*
+refusal, not an omission — the extractor already fails closed on it and says so in its manifest. **No
+code changes in PR-7c.** Five of the six registered fact kinds emit; the sixth is honestly refused.
 
 ---
 
@@ -410,7 +465,7 @@ revert + delete emitted JSON.
 
 | Decision | Blocks | Mechanism | State |
 |---|---|---|---|
-| `motif` normalized form | PR-7c | precise labeled definition or a registered deferral | Open — do not specify before PR-7b lessons |
+| `motif` normalized form | nothing in G2 — the other five kinds are complete without it | precise labeled definition or a registered deferral | **Deferred (registered), PR-7c** — blocked by the F2 schema's per-subject binding and by the operator-deferred Tier-2 similarity RFC; leading candidate is a per-subject body skeleton, which needs function-body walking (a version event + cap re-examination). See the PR-7c section. |
 | Second-language extractor (parser strategy) | G3 | HITL note on the language-substrate axes | Open (already registered in the execution map) |
 | Similarity geometry over structural facts | any correspondence *scoring* | Tier-2 graded-similarity RFC (operator-deferred) | Deferred — G2 emits facts, it does not score them |
 | U task registry + rubric | G5 utility claims | HITL-approved RECORDED_ONLY design artifact | Open — nothing in G2 reaches U |

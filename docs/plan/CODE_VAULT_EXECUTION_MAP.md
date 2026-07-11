@@ -80,11 +80,22 @@ PR-6 is **deferrable within G1b**: the quadratic scan only bites past ~10k nodes
 above 1k nodes is claimed today. It must land before any 10k-node bench result is published — that
 ordering is the constraint, not its position in the wave.
 
-PR-7 is **decomposed into a G2 wave** in [`CODE_VAULT_G2_WAVE_BRIEFS.md`](CODE_VAULT_G2_WAVE_BRIEFS.md):
-PR-7a stands up the whole emission lane (structural extractor → structural manifest → field → CLI →
-validator) proven end-to-end with the `signature` fact kind under a labeled R+D fixture suite; PR-7b/7c
-add the remaining fact kinds against the settled pipeline and are authored only after PR-7a lands. The
-row above is the G2 target; the wave is how it is reached.
+PR-7 was **decomposed into a G2 wave** in [`CODE_VAULT_G2_WAVE_BRIEFS.md`](CODE_VAULT_G2_WAVE_BRIEFS.md).
+**The G2 wave is now LANDED:** PR-7a (#87) stood up the whole emission lane (structural extractor →
+structural manifest → field → CLI → validator), proven end-to-end with the `signature` fact kind under
+a labeled R+D fixture suite; PR-7b (#90) added `nesting`, `ownership`, `decorator`, and `import_fact`,
+each under its own labeled invariance + discrimination suite, and re-grounded the per-file bound to
+count **subjects** rather than facts (the PR-7a loop broke on `len(facts)`, which silently walked 22 of
+64 subjects once subjects became multi-fact). PR-7c **registers `motif` as a deferred decision** rather
+than specify against an unformed idea: it is blocked by the F2 schema's per-subject `subject_layout_id`
+binding and by the operator-deferred Tier-2 similarity RFC (see that section for the leading candidate
+and what would unblock it).
+
+**Five of the six registered fact kinds emit; the sixth is honestly refused** (`motif_fact` stays in
+`STRUCTURAL_UNSUPPORTED_CONSTRUCTS`, a declared refusal the manifest carries). Claims stay exactly where
+G2 allows: structural correspondence **candidates** (hypothesis, R+D). No completion-matrix flip, no
+promotion, no new command (the synthesized-count pin stays 102). **Gate G2 is not thereby "open"** — a
+gate opens only when every roadmap bullet holds, and no doc may say otherwise.
 
 Gate G1 opens only when **all** of its bullets in the [roadmap](../CODE_VAULT_ROADMAP.md) hold
 (manifest + stub + provenance skeleton + fail-closed posture) — landing PR-1 alone does not open
@@ -165,7 +176,9 @@ G1, and no doc may say otherwise.
 | 4 | `uv run pytest tests/test_code_vault_hierarchy.py -q` + `uv run builder-platform audit-docs` (landed, #82) |
 | 5 | `uv run pytest tests/test_code_vault_hierarchy.py -q` + `uv run builder-platform audit-docs` (landed, #84) |
 | 6 | `uv run pytest tests/test_code_vault_linter.py -q` + `uv run builder-platform audit-docs` (landed, #83) |
-| 7 | Decomposed into PR-7a/7b/7c — named in [`CODE_VAULT_G2_WAVE_BRIEFS.md`](CODE_VAULT_G2_WAVE_BRIEFS.md) |
+| 7a | `uv run pytest tests/test_code_vault_structural_extractor.py tests/test_code_vault_structural_field.py tests/test_code_vault_extractor_manifest.py tests/test_code_vault_cli.py tests/test_command_authority.py tests/test_command_surface_audit.py tests/test_artifact_index_records.py -q` + `uv run builder-platform audit-docs` (landed, #87) |
+| 7b | same suite as 7a (landed, #90). Frame byte-stability proven independently by comparing the default `frame_digest` on `main` vs the branch; the subject-cap semantics are mutation-proven (restoring the PR-7a `len(facts)` break walks 22 of 64 subjects) |
+| 7c | **No code.** `motif` is registered as a deferred decision — see [`CODE_VAULT_G2_WAVE_BRIEFS.md`](CODE_VAULT_G2_WAVE_BRIEFS.md) § PR-7c. Verified by `uv run builder-platform audit-docs` + `uv run pytest tests/test_docs_truth_enforcement.py -q` |
 
 ---
 
