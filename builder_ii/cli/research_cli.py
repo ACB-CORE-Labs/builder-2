@@ -120,7 +120,7 @@ def validate(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Research plan artifact {path} is valid.")
+    console.print(f"Research plan artifact {path} is valid.", soft_wrap=True)
 
 
 @research_app.command("adapter")
@@ -164,4 +164,4 @@ def validate_adapter(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Research adapter artifact {path} is valid.")
+    console.print(f"Research adapter artifact {path} is valid.", soft_wrap=True)

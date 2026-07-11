@@ -125,4 +125,4 @@ def validate_artifact(
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Artifact {path} is valid.")
+    console.print(f"Artifact {path} is valid.", soft_wrap=True)

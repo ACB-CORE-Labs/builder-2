@@ -68,7 +68,7 @@ def validate(path: Path | None = typer.Argument(None, help="Validate target prof
             for error in errors:
                 console.print(f"Validation error: {error}")
             raise typer.Exit(1)
-        console.print(f"Target profile artifact {path} is valid.")
+        console.print(f"Target profile artifact {path} is valid.", soft_wrap=True)
         return
 
     errors = [*validate_target_profiles(load_settings()), *validate_target_profile_demos()]

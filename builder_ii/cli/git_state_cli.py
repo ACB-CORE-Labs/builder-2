@@ -71,4 +71,4 @@ def validate(path: Path = typer.Argument(..., help="Path to git state record JSO
         for error in errors:
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
-    console.print(f"Git state record {path} is valid.")
+    console.print(f"Git state record {path} is valid.", soft_wrap=True)

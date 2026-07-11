@@ -128,7 +128,7 @@ def validate(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Goose session manifest {path} is valid.")
+    console.print(f"Goose session manifest {path} is valid.", soft_wrap=True)
 
 
 @goose_app.command("readonly-audit")
@@ -158,7 +158,7 @@ def validate_audit(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Goose read-only audit is valid: {path}")
+    console.print(f"Goose read-only audit is valid: {path}", soft_wrap=True)
 
 
 @goose_app.command("inspect-readonly")
@@ -199,7 +199,7 @@ def validate_inspection(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Goose read-only inspection audit is valid: {path}")
+    console.print(f"Goose read-only inspection audit is valid: {path}", soft_wrap=True)
 
 
 @goose_app.command("propose-command")
@@ -238,7 +238,7 @@ def validate_command_proposal(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Goose command proposal is valid: {path}")
+    console.print(f"Goose command proposal is valid: {path}", soft_wrap=True)
 
 
 @dataclass(frozen=True)

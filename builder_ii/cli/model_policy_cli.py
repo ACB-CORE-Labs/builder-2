@@ -86,7 +86,7 @@ def validate(
             console.print(f"[red]Validation error: {err}[/]")
         raise typer.Exit(1)
 
-    console.print(f"[green]Artifact {path} ({kind}) is valid.[/]")
+    console.print(f"[green]Artifact {path} ({kind}) is valid.[/]", soft_wrap=True)
 
 
 @model_policy_app.command("render")

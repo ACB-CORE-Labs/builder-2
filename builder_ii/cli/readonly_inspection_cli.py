@@ -287,4 +287,4 @@ def validate(path: Path) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
 
-    console.print(f"File {path} of kind '{kind}' is valid.")
+    console.print(f"File {path} of kind '{kind}' is valid.", soft_wrap=True)

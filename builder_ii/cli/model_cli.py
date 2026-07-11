@@ -299,7 +299,7 @@ def validate_receipt_cmd(
         for err in errors:
             console.print(f"[red]Validation error: {err}[/]")
         raise typer.Exit(1)
-    console.print(f"[green]Receipt {path} is valid.[/]")
+    console.print(f"[green]Receipt {path} is valid.[/]", soft_wrap=True)
 
 
 if __name__ == "__main__":

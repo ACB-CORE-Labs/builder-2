@@ -148,7 +148,7 @@ def validate_orchestration(
         raise typer.Exit(1)
     if output is not None and report is not None:
         console.print(f"[green]Validation report written to {output}[/]")
-    console.print(f"[green]Orchestration artifact {path} is valid.[/]")
+    console.print(f"[green]Orchestration artifact {path} is valid.[/]", soft_wrap=True)
 
 
 @orchestration_app.command("render-assignment")
@@ -392,7 +392,7 @@ def validate_lane_policy(
         for error in errors:
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
-    console.print(f"[green]Orchestration lane policy {path} is valid.[/]")
+    console.print(f"[green]Orchestration lane policy {path} is valid.[/]", soft_wrap=True)
 
 
 @orchestration_app.command("mint-obligation")
@@ -548,7 +548,7 @@ def validate_obligation(
         for error in errors:
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
-    console.print(f"[green]Orchestration obligation {path} is valid.[/]")
+    console.print(f"[green]Orchestration obligation {path} is valid.[/]", soft_wrap=True)
 
 
 @orchestration_app.command("status")

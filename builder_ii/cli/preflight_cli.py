@@ -49,4 +49,4 @@ def validate(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Preflight record is valid: {path}")
+    console.print(f"Preflight record is valid: {path}", soft_wrap=True)

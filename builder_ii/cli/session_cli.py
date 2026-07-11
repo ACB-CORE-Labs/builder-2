@@ -136,7 +136,7 @@ def validate_session(path: Path = typer.Argument(..., help="Path to session plan
         for error in errors:
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
-    console.print(f"[green]Session plan artifact {path} is valid.[/]")
+    console.print(f"[green]Session plan artifact {path} is valid.[/]", soft_wrap=True)
 
 
 @session_app.command("config")
@@ -205,7 +205,7 @@ def validate_session_config_cmd(
         for error in errors:
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
-    console.print(f"[green]Session configuration artifact {path} is valid.[/]")
+    console.print(f"[green]Session configuration artifact {path} is valid.[/]", soft_wrap=True)
 
 
 @session_app.command("goose-projection")
@@ -254,7 +254,7 @@ def validate_goose_projection_cmd(
         for error in errors:
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
-    console.print(f"[green]Goose projection artifact {path} is valid.[/]")
+    console.print(f"[green]Goose projection artifact {path} is valid.[/]", soft_wrap=True)
 
 
 @session_app.command("goose-wrapper-plan")
@@ -301,7 +301,7 @@ def validate_goose_wrapper_plan_cmd(
         for error in errors:
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
-    console.print(f"[green]Goose wrapper plan artifact {path} is valid.[/]")
+    console.print(f"[green]Goose wrapper plan artifact {path} is valid.[/]", soft_wrap=True)
 
 
 @session_app.command("goose-readonly-plan")
@@ -388,7 +388,7 @@ def validate_goose_readonly_plan_cmd(
         for error in errors:
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
-    console.print(f"[green]Goose read-only session plan artifact {path} is valid.[/]")
+    console.print(f"[green]Goose read-only session plan artifact {path} is valid.[/]", soft_wrap=True)
 
 
 @session_app.command("repo-map")
@@ -510,7 +510,7 @@ def validate_prepare_package_cmd(
         for error in errors:
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
-    console.print(f"[green]Governed prepare package {path} is valid.[/]")
+    console.print(f"[green]Governed prepare package {path} is valid.[/]", soft_wrap=True)
 
 
 @session_app.command("summarize-prepare-package")

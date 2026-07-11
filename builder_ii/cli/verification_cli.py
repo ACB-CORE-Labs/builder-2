@@ -101,6 +101,6 @@ def validate(path: Path | None = typer.Argument(None)) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     if path:
-        console.print(f"Verification profile artifact {path} is valid.")
+        console.print(f"Verification profile artifact {path} is valid.", soft_wrap=True)
     else:
-        console.print("Verification profile registry is valid.")
+        console.print("Verification profile registry is valid.", soft_wrap=True)

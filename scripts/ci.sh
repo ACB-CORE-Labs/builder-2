@@ -76,7 +76,12 @@ gate "targeted bandit" uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B11
 
 # 6. Full suite. `addopts` in pyproject already carries `-q`; adding another `-q`
 #    turns it into `-qq` and suppresses the pass/fail summary line. Do not add one.
-gate "full test suite" uv run pytest
+#    -n auto: parallelize across CPU-detected worker processes (pytest-xdist).
+#    -p randomly: force-load pytest-randomly (it auto-activates once installed via a
+#    pytest11 entry point, so this is defensive/explicit rather than strictly required).
+#    pytest-randomly shuffles test order every run and prints "Using --randomly-seed=N"
+#    at the top of the run; reproduce a specific failing order with --randomly-seed=<N>.
+gate "full test suite" uv run pytest -n auto -p randomly
 
 printf '\n================================\n'
 if [ ${#SKIPPED[@]} -eq 0 ]; then

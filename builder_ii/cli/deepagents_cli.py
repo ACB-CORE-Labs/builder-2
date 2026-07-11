@@ -237,7 +237,7 @@ def validate(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Deepagents policy artifact is valid: {path}")
+    console.print(f"Deepagents policy artifact is valid: {path}", soft_wrap=True)
 
 
 @deepagents_app.command("readiness")
@@ -268,7 +268,7 @@ def validate_readiness(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Deepagents readiness artifact is valid: {path}")
+    console.print(f"Deepagents readiness artifact is valid: {path}", soft_wrap=True)
 
 
 @deepagents_app.command("delegate")
@@ -531,7 +531,7 @@ def validate_work_artifact(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Deepagents work artifact is valid: {path}")
+    console.print(f"Deepagents work artifact is valid: {path}", soft_wrap=True)
 
 
 @deepagents_app.command("run-plan")

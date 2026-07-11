@@ -250,7 +250,7 @@ def validate(
 
     if report["valid"]:
         if output is not None:
-            console.print(f"[green]Profile pack artifact {path} is valid. Report written to {output}[/]")
+            console.print(f"[green]Profile pack artifact {path} is valid. Report written to {output}[/]", soft_wrap=True)
         else:
             echo_stdout(dumps_profile_pack_validation_report(report))
         return

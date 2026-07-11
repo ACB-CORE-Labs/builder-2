@@ -75,4 +75,4 @@ def validate(path: Path) -> None:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
-    console.print(f"Bundle {path} is valid.")
+    console.print(f"Bundle {path} is valid.", soft_wrap=True)

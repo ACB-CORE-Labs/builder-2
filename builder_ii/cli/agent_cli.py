@@ -88,7 +88,7 @@ def validate(path: Path | None = typer.Argument(None, help="Validate an agent pr
             for error in errors:
                 console.print(f"Validation error: {error}")
             raise typer.Exit(1)
-        console.print(f"Agent profile record {path} is valid.")
+        console.print(f"Agent profile record {path} is valid.", soft_wrap=True)
         return
 
     errors = validate_agent_profiles()
