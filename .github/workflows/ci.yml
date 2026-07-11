@@ -27,6 +27,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: false
 
       # Deliberately NO actions/setup-python: it resolves prebuilt CPython archives against
       # GitHub's hosted-runner images, so on the Forgejo runner (whose `ubuntu-latest` label
