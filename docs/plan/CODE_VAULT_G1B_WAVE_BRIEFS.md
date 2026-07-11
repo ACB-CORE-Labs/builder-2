@@ -50,6 +50,16 @@ claim that a truncated frame is complete.
    like provenance. An in-package helper `build_frame_coverage(repo_map) -> dict` (repo_map is an
    allowed import — severability allowlist) reads `truncated`/`file_count`/`max_files` from a
    **full** repo_map and shapes the block; the caller passes its output in.
+
+   **Amendment (recorded during PR-4 implementation):** `create_repo_map`'s `max_files` bound is a
+   *call parameter* to `builder_ii/repo_map.py::create_repo_map`, not a key it persists onto the
+   emitted repo_map dict (only `truncated`, `file_count`, and `scan_state` are). `build_frame_coverage`
+   therefore cannot read `max_files` back off `repo_map` as this decision originally assumed. Resolved
+   without touching `repo_map.py` (out of scope for this PR; would also risk that artifact's own
+   byte-stability): `build_frame_coverage(repo_map, *, declared_bound: int | None = None)` takes
+   `declared_bound` as an explicit caller-supplied override — `None` means unbounded/unknown, matching
+   the block shape's existing `null` case below. Callers who know the `max_files` value they scanned
+   with (e.g. because they called `create_repo_map` themselves) pass it through explicitly.
 2. **Default-off / byte-stable.** `create_hierarchical_frame(..., coverage=None)` — absent → no block
    → byte-identical to today. The recorded schema-v2 digest pin (`97fa0331…277f`) and demo pins stay
    green. `canonical_frame_json` serializes `coverage` only when present (same conditional as
@@ -71,7 +81,9 @@ claim that a truncated frame is complete.
 coverage: {
   truncated: true | false,
   file_count: <int ≥ 0>,           # files actually in this frame's scope
-  declared_bound: <int> | null,    # e.g. repo_map max_files; null if unbounded
+  declared_bound: <int> | null,    # caller-supplied scan bound (e.g. max_files used), null if
+                                   # unbounded/unknown — see PR-4 amendment above: repo_map does
+                                   # not persist max_files, so this is not read off repo_map
   scan_state: "READ_ONLY"          # mirrors repo_map; fail-closed on any other value
 }
 ```
