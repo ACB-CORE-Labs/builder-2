@@ -264,3 +264,28 @@ def test_caching_never_decides_what_is_checked() -> None:
     assert "cache-hit" not in body, (
         "no step may branch on a cache hit -- the battery runs identically warm or cold"
     )
+
+def test_ci_parallelism_cap_is_ci_only() -> None:
+    """The xdist -n and CARGO_BUILD_JOBS caps must be guarded by _IN_CI, not unconditional.
+
+    The shared Forgejo runner is budgeted ~1.5 cpu / 1.2 GB. Capping parallelism at 2
+    keeps it from OOM-killing the battery. But the cap must never apply locally: an M1
+    (or any real developer machine) must keep -n auto / uncapped cargo. This pin verifies
+    the structural invariant: _XDIST_N and CARGO_BUILD_JOBS only appear inside an
+    _IN_CI guard, so local and CI runs differ only in degree of parallelism -- never in
+    which gates run or whether they pass.
+    """
+    script = CI_SCRIPT.read_text(encoding="utf-8")
+    # The CI detection block must be present.
+    assert "_IN_CI=0" in script, "scripts/ci.sh must initialise _IN_CI=0 before the detection block"
+    assert "_IN_CI=1" in script, "scripts/ci.sh must set _IN_CI=1 inside the CI-detection block"
+    assert "FORGEJO_ACTIONS" in script, "CI detection must cover FORGEJO_ACTIONS (not just GITHUB_ACTIONS)"
+    # The caps must be conditional, not bare assignments at the top level.
+    assert 'CARGO_BUILD_JOBS=2' in script, "the cargo build jobs cap must be present"
+    assert '_XDIST_N=2' in script, "the xdist worker cap must be present"
+    assert '_XDIST_N=auto' in script, "the uncapped local path must be present"
+    # The parity property: uv run pytest must still appear (gate not removed/conditionalized).
+    assert "uv run pytest" in script, "the pytest gate must still be unconditional"
+    assert "cargo build --manifest-path builder_ii_validation_rs/Cargo.toml" in script, \
+        "the cargo build gate must still be unconditional"
+        
