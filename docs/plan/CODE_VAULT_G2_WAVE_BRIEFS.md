@@ -24,8 +24,9 @@ then-settled pipeline. This is a map amendment, recorded in
 >
 > **Update (this amendment): PR-7a is LANDED** (#87, merged 2026-07-10; cold-reviewed by running —
 > battery green, frame digest byte-identical to pre-PR main). The PR-7b order below is now the
-> detailed, dispatchable one, authored against the landed pipeline per the gate above; **PR-7b is
-> cleared to dispatch once this amendment merges.** PR-7c stays a stub until PR-7b lands.
+> detailed, dispatchable one, authored against the landed pipeline per the gate above; **PR-7b has since
+> LANDED** (the order below, with its implementation amendments recorded in-section). PR-7c stays a
+> stub until its normalized form is decided or formally deferred.
 
 ---
 
@@ -50,7 +51,7 @@ then-settled pipeline. This is a map amendment, recorded in
 ```text
 Wave 3 (G2) — after wave 2 (G1b) fully lands
   PR-7a  Structural emission pipeline + FIRST fact kind (signature), R+D end-to-end  [LANDED #87]
-  PR-7b  fact kinds: nesting, ownership, decorator, import_fact (each R+D)   [order below — dispatchable]
+  PR-7b  fact kinds: nesting, ownership, decorator, import_fact (each R+D)   [LANDED — order below]
   PR-7c  fact kind: motif — OR formally defer motif as a registered decision  [authored after 7b]
 ```
 
@@ -178,7 +179,7 @@ the field; U / utility claims of any kind.
 
 ---
 
-## PR-7b — `nesting`, `ownership`, `decorator`, `import_fact` (G2, dispatchable)
+## PR-7b — `nesting`, `ownership`, `decorator`, `import_fact` (G2, LANDED)
 
 **Objective:** add four fact kinds to the landed PR-7a emission pipeline, each proven R+D under its
 own labeled invariance + discrimination suite. After this PR, `builder-code-vault structural-field`
@@ -331,6 +332,49 @@ kind by kind (`nesting` → `ownership` → `decorator` → `import_fact`), then
 end-to-end + cap + signature-regression pins. If the code contradicts this order anywhere, **amend
 this section in the same PR** and say so in the PR body — recorded divergence is protocol; silent
 narrowing is a defect even when the code choice is right (that is the 7a lesson, twice).
+
+### Amendments recorded during implementation (PR-7b)
+
+Five places where the order met the code imperfectly. Recorded here per the work-order protocol,
+not silently absorbed. (#5 was found in cold review of the PR, not by the implementer.)
+
+1. **`tests/test_code_vault_cli.py` needed an edit — it was not in the Files list.** Its
+   structural-field assertion selected a subject's fact by `subject_layout_id` alone. Once a
+   subject carries several kinds this is ambiguous, and it silently began reading the wrong fact:
+   under the canonical sort key, `nesting` sorts ahead of `signature`. Fixed by selecting on
+   `(subject, fact_kind)`. The same latent ambiguity existed in the extractor suite's `_fact_for`
+   helper, which is now keyed by `(subject, kind)` and still asserts exactly one match — which
+   holds for those fixtures, but is *not* the universal invariant this amendment first claimed:
+   see #5.
+2. **The cap bounds *distinct* imports.** Decision #7 said to bound `import_fact`s "separately at
+   the same constant" but did not say whether the bound applies before or after the decided
+   dedupe. Implemented as **dedupe first, then cap**, so the bound counts distinct dependencies —
+   the alternative would let one repeated `import os` consume budget that a real dependency needs.
+3. **`tests/test_code_vault_structural_field.py`'s two PR-7a `len(facts)` pins moved.** They
+   asserted exact fact *counts* (3, and 1) that only held while each subject emitted one fact.
+   Re-expressed as kind-aware assertions that still pin the `signature` subset exactly (decision
+   #9a) while admitting the added kinds.
+4. **TDD sequencing, stated honestly.** The four kinds hang off one shared subject walk, which was
+   rewritten during the `nesting` cycle (it is also where the decision-#7 cap fix lives). To keep
+   red-first real rather than nominal, the `ownership` / `decorator` / `import_fact` emission
+   blocks were **backed out** of that rewrite and re-added one at a time, so each kind's fixtures
+   were genuinely RED before its own emission code existed. The cap pin was additionally
+   **mutation-proven**: restoring PR-7a's `len(facts)` break makes it fail with 22 of 64 subjects
+   walked — the latent truncation quantified.
+5. **Subject facts had to dedupe, and the order never said so** (found in cold review). Several
+   definitions can share one `subject_layout_id` — a property and its setter, an `@overload` set,
+   a conditional redefinition — so their `nesting` and `ownership` facts come out byte-identical,
+   and a fact is not more true for being emitted twice. Decision #6 reasoned this out for imports
+   ("two `import os` statements are one dependency") and the order never carried it to subject
+   facts, because under PR-7a's `signature` alone the collision was unreachable: a getter and its
+   setter differ by arity, so no exact duplicate could form. PR-7b is what makes it reachable, and
+   it is ordinary Python — it fires on `csv.py` in the CPython stdlib. Facts now dedupe on
+   `(subject_layout_id, fact_kind, normalized_value)`; facts that genuinely *differ* under a shared
+   coordinate (that same getter/setter arity pair) are never collapsed, so the dedup cannot hide a
+   definition. This also falsifies amendment #1's parting claim that "a subject must never carry
+   two facts of one kind" — a property/setter pair legitimately carries two `signature` facts. Zero
+   facts are removed from this repo (it has no colliding coordinates), so the emitted artifact is
+   unchanged here; the fix is for the arbitrary repos CodeVault is meant to be pointed at.
 
 ### Out of scope
 
