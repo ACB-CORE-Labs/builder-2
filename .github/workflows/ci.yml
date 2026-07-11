@@ -6,10 +6,6 @@
 # `scripts/ci.sh`, which is the single source of truth for the gate battery. Do not
 # add a gate here -- add it to `scripts/ci.sh`, so that a developer running the
 # battery locally runs exactly what CI runs. `tests/test_ci_gate_parity.py` pins this.
-#
-# The one workflow-only step is gitleaks: it is an Action, needs a token, and is
-# `continue-on-error: true` -- advisory, never blocking, so it cannot change whether
-# the battery is green.
 
 name: CI
 
@@ -44,12 +40,6 @@ jobs:
 
       - name: Sync Python environment
         run: uv sync --all-groups
-
-      - name: Run Gitleaks scan (advisory, non-blocking)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true # Keep as warning/information unless explicitly blocked by repo admin
 
       # The receipt path sits under .builder/ (gitignored) deliberately, and
       # tests/test_ci_gate_parity.py pins it: `git status --porcelain` sees an untracked
