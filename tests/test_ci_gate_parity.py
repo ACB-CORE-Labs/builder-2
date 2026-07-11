@@ -288,4 +288,3 @@ def test_ci_parallelism_cap_is_ci_only() -> None:
     assert "uv run pytest" in script, "the pytest gate must still be unconditional"
     assert "cargo build --manifest-path builder_ii_validation_rs/Cargo.toml" in script, \
         "the cargo build gate must still be unconditional"
-        
