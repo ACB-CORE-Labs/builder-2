@@ -123,6 +123,23 @@ Roadmap G1 stays open — it needs all its bullets, not this PR alone.
 Extractor behavior changes; frame schema changes; StructuralField facts; second languages;
 completion-matrix flips; promotion of any kind.
 
+### Amendments
+
+**A1 — Digest convention deviation (review finding 2, applied post-review).**
+The work order (decision 5) specified the in-package linter convention: SHA-256 over
+canonical JSON with `ensure_ascii=False`. The submitted implementation instead imported
+`config_schema.digest_jsonable` (`ensure_ascii=True`) and claimed zero design deviation.
+PR-2 (`structural_field`) implemented the order correctly, producing two sibling artifacts
+in one package with divergent canonicalization — exactly the quiet drift the doctrine exists
+to refuse, and an undeclared deviation from the protocol.
+
+Resolution: `extractor_manifest.py` now defines `compute_manifest_digest` (mirroring
+`structural_field.compute_field_digest`, `ensure_ascii=False`) and removes the
+`config_schema` import entirely. The test helper `_redigest` is updated in parallel.
+No correctness bug existed for ASCII-only content; the change closes the canonicalization
+divergence and satisfies finding 1's severability allowlist reduction to a single module
+(`governance_standard`).
+
 ---
 
 ## PR-2 — StructuralField schema stub (validator without an emission path)
@@ -243,6 +260,30 @@ built without the param is byte-identical to before the change (assert against a
 digest); helper: resolves HEAD in fixture git dirs (direct hash, ref file, packed-refs), returns
 `None` fail-closed on non-git dirs; helper performs no subprocess calls (no `subprocess` import —
 assert at module level); demo suite still passes untouched.
+
+### Amendments (recorded during implementation)
+
+Two decisions above survived contact with the code imperfectly and are amended here in the same PR
+(execution-map work-order protocol) rather than diverged from silently:
+
+1. **Decision #5 (versioning) — "schema 3" is realized as a *provenance-gated* bump, not a default
+   bump.** Decision #4 requires a no-provenance frame to be byte-identical to today's (schema v2),
+   and standing invariant #8 forbids altering the bytes of a frame built with today's inputs.
+   Bumping the default `HIERARCHICAL_FRAME_SCHEMA_VERSION` to 3 would change every frame's
+   `schema_version` bytes and break the demo/byte-stability pins. So the constant
+   `HIERARCHICAL_FRAME_SCHEMA_VERSION` **stays 2**; a new `PROVENANCE_FRAME_SCHEMA_VERSION = 3` is
+   added; `SUPPORTED_FRAME_SCHEMA_VERSIONS = (1, 2, 3)`. The builder emits `schema_version: 2` when
+   no provenance is attached and `3` only when a provenance block is present; the validator refuses
+   a provenance block on any non-v3 frame. This is the only reading consistent with decisions #4/#5
+   together.
+
+2. **Decision #2 (`.git` reads) — extended to the worktree `.git`-file indirection.** Decision #2
+   assumed `.git/HEAD` is directly readable, i.e. `.git` is a directory. This repo's own dev flow is
+   worktree-based, where `.git` is a *file* (`gitdir: <path>`) and branch refs live in a common dir
+   named by `commondir`. The helper therefore follows `.git` (file) → `gitdir:` → `commondir` →
+   `refs/…`/`packed-refs`, all via pure file reads with **no subprocess**, still fail-closed to
+   `commit_id: None` on any unresolvable state. This widens decision #2's file-read set; it does not
+   change its fail-closed contract or the no-subprocess constraint.
 
 ### Out of scope
 

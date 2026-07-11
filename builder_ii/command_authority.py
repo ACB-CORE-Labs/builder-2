@@ -3985,6 +3985,8 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
     "builder-session context-pack",
     "builder-code-vault frame",
     "builder-code-vault digest",
+    "builder-code-vault extractor-manifest",
+    "builder-code-vault validate-extractor-manifest",
     "builder-code-vault lint",
     "builder-code-vault context",
     "builder-code-vault recall",
