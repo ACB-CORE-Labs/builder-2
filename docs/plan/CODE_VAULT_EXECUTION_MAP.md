@@ -166,7 +166,7 @@ evidence and every other gate's current, honestly-scored state).
 | Decision | Blocks | Owner / mechanism | State |
 |---|---|---|---|
 | Parser strategy (native AST vs tree-sitter vs SCIP/LSIF vs hybrid) | G3 second-language extractor | HITL decision note scored on the [language substrate](../CODE_VAULT_LANGUAGE_SUBSTRATE.md) axes | **Decided (ADR-0006)** — hybrid: pinned in-process grammar for G3 skeleton; caller-supplied digest-bound SCIP/LSIF for G4. Cites G2 lessons (semantics fidelity, parser_version-in-digest, residue/declared blindness) and ADR-0005 non-execution. |
-| U task registry + rubric design | G5 | HITL-approved RECORDED_ONLY design artifact (F6 blueprint law: unapproved rubric = unopened gate) | **Instrument landed (Track B)** — registry + eval + sealed held-out + baseline arm; HITL approval still **pending** before scored CodeVault arms |
+| U task registry + rubric design | G5 | HITL-approved RECORDED_ONLY design artifact (F6 blueprint law: unapproved rubric = unopened gate) | **Instrument landed (Track B)** — `code_vault.utility_task_registry` + `utility_eval_record` with sealed held-out + baseline arm; HITL approval still **pending** before any scored CodeVault arm (registry emits `hitl_approval.status=pending`) |
 | Tier-2 graded-similarity RFC | any similarity geometry | Operator-deferred at Tier-1 PR-1 time (RFC open question 2) | Deferred |
 | Bench self-snapshot corpus (pinned builder-II snapshot) | richer D evidence | Tier-1 RFC open question 3 | **In use** — default U registry binds `self_snapshot` / builder-II |
 | Frame `dirty`-flag derivation (requires git status semantics) | provenance depth | Amendment to PR-3's helper after measurement; v1 declares `dirty` unknown rather than guessing | Open |

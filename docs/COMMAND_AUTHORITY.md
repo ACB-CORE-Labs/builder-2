@@ -330,11 +330,11 @@ Authority written down, command by command.
 | `builder-tools invoke` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Executes explicitly bounded low-risk tool stub call from envelope. | Writes receipt and operational ledger events. | `explicit_operator_invocation` | Explicit envelope passing. | `artifact_writes`, `state_writes`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 | `builder-tools standalone-invoke` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Executes explicitly bounded low-risk tool stub call from envelope without logging to the workflow ledger. | Writes receipt to explicit output path only. | `explicit_operator_invocation` | Explicit envelope passing. | `artifact_writes`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 
-## Synthesized records (109)
+## Synthesized records (110)
 
 Nobody declared these commands. Each one's authority is *inherited* — copied from the
 nearest declared ancestor of its name, on a word boundary. That ancestor is always a
-command group, because a record becomes a group by acquiring subcommands: all 109 of
+command group, because a record becomes a group by acquiring subcommands: all 110 of
 these rows state a classification that describes their parent and was never checked
 against them.
 
@@ -395,6 +395,7 @@ editing its parent.
 | `builder-code-vault validate-relation-field` | `builder-code-vault` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-code-vault validate-evidence-relation` | `builder-code-vault` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-code-vault validate-reconstruction` | `builder-code-vault` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-code-vault validate-change-field` | `builder-code-vault` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-session operator-surface` | `builder-session` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-session command-surface` | `builder-session` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-agent profiles` | `builder-agent` (command group) | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |

@@ -4009,6 +4009,7 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
     "builder-code-vault validate-relation-field",
     "builder-code-vault validate-evidence-relation",
     "builder-code-vault validate-reconstruction",
+    "builder-code-vault validate-change-field",
     "builder-session operator-surface",
     "builder-session command-surface",
     "builder-agent profiles",

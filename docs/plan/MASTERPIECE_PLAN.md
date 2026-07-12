@@ -200,21 +200,18 @@ Subagents may include repo mapping, context planning, code review, patch plannin
 
 deepagents must not directly mutate files, bypass builder-II governance, bypass approvals, bypass audit artifacts, or become a hard dependency. If used within a Goose-governed runtime mode, it also must not bypass that runtime boundary.
 
-## Phase 6: HITL command proposal runtime
+## Phase 6: HITL command proposal runtime — PERMANENT NON-GOAL
 
-Add command proposal, validation, approval, and approved execution artifacts.
+**Reclassified 2026-07-11 (masterpiece ladder hygiene):** arbitrary HITL command execution is a
+**permanent non-goal**, not a deferred phase.
 
-Allowed command classes begin with verification/status/read-only commands. Forbidden defaults include destructive filesystem commands, unbounded shell, secret access, `git push`, and reset operations.
+`builder_ii/hitl_command_runner.py` raises `RunCommandDisabledError` unconditionally (fail-closed by
+design). Postflight / operator work uses the **bounded verification lane** instead — fixed argv,
+`shell=False`, per-profile timeouts, ignore-globs pinned in-profile (`platform_status`, `docs_audit`,
+`pytest_full`, `builder_full`, …). Growing the approved-profile registry is strictly safer than
+promoting arbitrary exec and gets the same work done.
 
-Every approved command execution must bind to:
-
-- exact command text
-- target profile
-- verification profile
-- approval artifact
-- timeout/failure behavior
-- audit output
-- rollback or no-mutation statement
+Do not implement Phase 6 as originally sketched. Do not enable `execute_hitl_command`.
 
 ## Phase 7: HITL patch proposal runtime
 
