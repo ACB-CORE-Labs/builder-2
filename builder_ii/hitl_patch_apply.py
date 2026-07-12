@@ -255,6 +255,7 @@ def create_patch_apply_receipt(
     rollback_plan_ref: str = "",
     postflight_ref: str = "",
     generic_repo: Path | None = None,
+    capability_state: str = "OPERATIONALLY_VERIFIED",
 ) -> dict[str, Any]:
     if settings is None:
         settings = load_settings()
@@ -277,7 +278,7 @@ def create_patch_apply_receipt(
         # matrix rows, the pinned truth asserts, and the docs (docs/audits/B4_CLOSURE_AUDIT.md);
         # kept consistent by scripts/b4_flip_assistant.py. This receipt is still evidence, not
         # authority (artifact_is_authority stays False).
-        "governance": build_standard_governance("OPERATIONALLY_VERIFIED"),
+        "governance": build_standard_governance(capability_state),
     }
 
 
@@ -301,13 +302,29 @@ def _write_validation_failure_receipt(
     patch_digest: str = "",
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    rollback_plan_path = output_dir / "rollback_plan.json"
+    rollback_plan = create_rollback_plan(
+        settings=settings,
+        target_name=target_name, # type: ignore[arg-type]
+        related_artifact_refs=[str(proposal_path)],
+        rollback_strategy="git_apply_reverse",
+        operator_note="Validation failed before apply",
+        generic_repo=target_repo if target_name == "generic" else None,
+    )
+    rollback_plan["target"] = {"name": target_name, "repo": str(target_repo)}
+    if patch_digest:
+        rollback_plan["patch_digest"] = patch_digest
+    write_rollback_plan(rollback_plan, rollback_plan_path)
+
     failure_receipt = create_patch_apply_receipt(
         settings=settings,
         target_name=target_name,  # type: ignore[arg-type]
         proposal_ref=str(proposal_path),
-        rollback_plan_ref="",
+        rollback_plan_ref=str(rollback_plan_path),
         postflight_ref="",
         generic_repo=target_repo if target_name == "generic" else None,
+        capability_state="BLOCKED_BY_EVIDENCE",
     )
     failure_receipt["target"] = {
         "name": target_name,
@@ -318,6 +335,17 @@ def _write_validation_failure_receipt(
     if patch_digest:
         failure_receipt["patch_digest"] = patch_digest
     write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
+
+    _write_rollback_failure_receipt(
+        settings=settings or load_settings(),
+        target={"name": target_name, "repo": str(target_repo)},
+        rollback_plan_ref=str(rollback_plan_path),
+        output_dir=output_dir,
+        outcome="NOT_EXECUTED_PATCH_FAILED",
+        reason="patch_validation_failed",
+        pre_head="",
+        error_summary=error_summary,
+    )
 
 
 def apply_hitl_patch(
@@ -462,16 +490,15 @@ def apply_hitl_patch(
             text=True,
         )
     except subprocess.CalledProcessError as e:
+        write_rollback_plan(rollback_plan, rollback_plan_path)
         failure_receipt = create_patch_apply_receipt(
             settings=settings,
             target_name=target_name,
             proposal_ref=str(proposal_path),
-            # rollback_plan_path is only written after a successful `git apply` (below);
-            # on this failure path the file does not exist yet, so referencing it here
-            # would be a dangling ref. Leave it empty like postflight_ref.
-            rollback_plan_ref="",
+            rollback_plan_ref=str(rollback_plan_path),
             postflight_ref="",
             generic_repo=target_repo if target_name == "generic" else None,
+            capability_state="BLOCKED_BY_EVIDENCE",
         )
         failure_receipt["target"] = dict(proposal["target"])
         failure_receipt["status"] = "failed"
@@ -479,6 +506,17 @@ def apply_hitl_patch(
         failure_receipt["patch_digest"] = patch_digest
         failure_receipt["pre_head"] = pre_head
         write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
+
+        _write_rollback_failure_receipt(
+            settings=settings or load_settings(),
+            target=dict(proposal["target"]),
+            rollback_plan_ref=str(rollback_plan_path),
+            output_dir=output_dir,
+            outcome="NOT_EXECUTED_PATCH_FAILED",
+            reason="patch_apply_failed",
+            pre_head=pre_head,
+            error_summary=(e.stderr or str(e)),
+        )
         raise RuntimeError(f"Patch application failed: {e.stderr}")
 
     reverse_diff_path.write_text(unified_diff, encoding="utf-8")
@@ -494,13 +532,15 @@ def apply_hitl_patch(
     try:
         post_apply_worktree_digest = _worktree_delta_digest(target_repo)
     except (subprocess.SubprocessError, OSError) as exc:
+        write_rollback_plan(rollback_plan, rollback_plan_path)
         failure_receipt = create_patch_apply_receipt(
             settings=settings,
             target_name=target_name,
             proposal_ref=str(proposal_path),
-            rollback_plan_ref="",
+            rollback_plan_ref=str(rollback_plan_path),
             postflight_ref="",
             generic_repo=target_repo if target_name == "generic" else None,
+            capability_state="BLOCKED_BY_EVIDENCE",
         )
         failure_receipt["target"] = dict(proposal["target"])
         failure_receipt["status"] = "failed"
@@ -508,6 +548,17 @@ def apply_hitl_patch(
         failure_receipt["patch_digest"] = patch_digest
         failure_receipt["pre_head"] = pre_head
         write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
+
+        _write_rollback_failure_receipt(
+            settings=settings or load_settings(),
+            target=dict(proposal["target"]),
+            rollback_plan_ref=str(rollback_plan_path),
+            output_dir=output_dir,
+            outcome="NOT_EXECUTED_PATCH_FAILED",
+            reason="post_apply_fingerprint_failed",
+            pre_head=pre_head,
+            error_summary=f"post-apply fingerprint failed after mutation: {exc}",
+        )
         raise RuntimeError(
             f"Post-apply fingerprint failed; the tree is mutated. Recover with "
             f"`git reset --hard {pre_head}` (discards uncommitted changes). Cause: {exc}"
