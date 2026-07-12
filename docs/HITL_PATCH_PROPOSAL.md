@@ -4,7 +4,7 @@
 
 builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
 
-This document specifies the Human-In-The-Loop (HITL) patch proposal and application path. The proposal, approval, application, and rollback mechanics described below are implemented and execute for real against a target repository (`builder-hitl propose-patch` / `approve-patch` / `apply-patch` / `rollback`), gated at every step by an explicit digest-bound approval artifact, a clean target working tree, and command-authority enforcement (`enforce_command_authority`) checked before any I/O. The completion-plan matrix tracks the operator-invoked lane as `OPERATIONALLY_VERIFIED` following the evidence-gated closure review (`docs/audits/B4_CLOSURE_AUDIT.md`, plan item 1.7). The command stays candidate tier `hitl_runtime_candidate` (Tier 3 — see `docs/CAPABILITY_PROMOTION.md`), not `enabled`: autonomous or automatic apply remains forbidden and unpromoted, so this promotion is scoped to the operator-invoked, approval-gated lane.
+This document specifies the Human-In-The-Loop (HITL) patch proposal and application path. The proposal, approval, application, and rollback mechanics described below are implemented and execute for real against a target repository (`builder-hitl propose-patch` / `approve-patch` / `apply-patch` / `rollback`), gated at every step by an explicit digest-bound approval artifact, a clean target working tree, and command-authority enforcement (`enforce_command_authority`) checked before any I/O. Code executing under strict HITL gates is not the same as the platform declaring the capability promoted: the completion-plan matrix still tracks this capability as `MERGED_BUT_NOT_OPERATIONAL` (candidate tier `hitl_runtime_candidate`, Tier 3 — see `docs/CAPABILITY_PROMOTION.md`) pending an evidence-gated closure review. This document uses candidate/not-enabled phrasing throughout; it does not assert promotion.
 
 ## Spec Artifact Definition
 
@@ -18,7 +18,7 @@ builder_ii.hitl_patch_proposal
 
 | Field | Value |
 |---|---|
-| `capability_state` (platform matrix) | `OPERATIONALLY_VERIFIED` |
+| `capability_state` (platform matrix) | `MERGED_BUT_NOT_OPERATIONAL` |
 | `promotion_tier` | `hitl_runtime_candidate` (Tier 3) |
 | `runtime` | Executes only via explicit, separately-invoked, human-gated commands; not autonomous, not platform-promoted |
 | `artifact_is_authority` | `false` |
@@ -40,7 +40,7 @@ The pipeline below reflects what is implemented today, distinguished from work s
 7. **verification record** — *Partial*. The pre-apply verification receipt is bound into the apply receipt as verification evidence; the rollback-side working-tree drift preflight is implemented (see item 6), while a dedicated post-apply verification record remains open completion-plan work.
 8. **handoff/postflight** — *Implemented* for postflight recording; the full proposal → approval → apply → rollback chain is indexed for `builder-chain verify` / `verify_artifact_chain`.
 
-The evidence-gated matrix flip described in the completion plan (plan item 1.7, `docs/audits/B4_CLOSURE_AUDIT.md`) has since promoted the operator-invoked lane to `OPERATIONALLY_VERIFIED`. The command stays `hitl_runtime_candidate`, not `enabled`; autonomous or automatic apply remains forbidden and unpromoted.
+None of the above changes this pipeline's platform promotion state. The capability remains `MERGED_BUT_NOT_OPERATIONAL` / `hitl_runtime_candidate` until the evidence-gated matrix flip described in the completion plan.
 
 ---
 
@@ -80,7 +80,7 @@ A capability existing, executing under HITL gates, and passing some of these gat
 
 | Field | Value |
 |---|---|
-| `capability_state` | `OPERATIONALLY_VERIFIED` |
+| `capability_state` | `MERGED_BUT_NOT_OPERATIONAL` |
 | `runtime_execution` | `DISABLED` |
 | `patch_application` | `DISABLED` |
 | `source_writes` | `DISABLED` |
