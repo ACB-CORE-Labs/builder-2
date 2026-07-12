@@ -110,7 +110,7 @@ def run_grep_arm(repo_root: Path, scope: str, question: str, *, max_matches: int
     for token in tokens:
         try:
             proc = subprocess.run(
-                ["rg", "-n", "--no-heading", "-m", "10", "-i", token, *search_roots],
+                ["rg", "-n", "--no-heading", "--sort=path", "-m", "10", "-i", token, *search_roots],
                 check=False,
                 capture_output=True,
                 text=True,
