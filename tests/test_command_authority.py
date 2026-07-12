@@ -876,7 +876,8 @@ def test_the_policy_snapshot_documents_every_command_including_the_ones_nobody_d
     # prefix-clones of the `builder-code-vault` group.
     # 102, up from 101: CodeVault G2 PR-7a added `builder-code-vault structural-field` (the
     # emission command), also an undeclared prefix-clone of the `builder-code-vault` group.
-    assert len(_SYNTHESIZED_PARENTS) == 102
+    # 106, up from 102: U instrument adds utility-registry/validate/baseline/validate-eval.
+    assert len(_SYNTHESIZED_PARENTS) == 106
     for record in COMMAND_AUTHORITY_REGISTRY:
         assert f"`{record.name}`" in doc, f"`{record.name}` is in the registry and absent from the policy snapshot"
 

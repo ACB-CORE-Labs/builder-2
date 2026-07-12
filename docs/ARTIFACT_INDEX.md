@@ -64,6 +64,8 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.code_vault.recall_report`
 - `builder_ii.code_vault.bench_report`
 - `builder_ii.code_vault.structural_field`
+- `builder_ii.code_vault.utility_task_registry`
+- `builder_ii.code_vault.utility_eval_record`
 - `builder_ii.verification_promotion_evidence`
 - `builder_ii.code_vault_corroboration_record`
 - `builder_ii.context_pack`

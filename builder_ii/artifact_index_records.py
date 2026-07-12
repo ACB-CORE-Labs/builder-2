@@ -53,6 +53,14 @@ from builder_ii.code_vault.structural_field import (
     STRUCTURAL_FIELD_KIND,
     validate_structural_field,
 )
+from builder_ii.code_vault.utility_eval_record import (
+    UTILITY_EVAL_RECORD_KIND,
+    validate_utility_eval_record,
+)
+from builder_ii.code_vault.utility_task_registry import (
+    UTILITY_TASK_REGISTRY_KIND,
+    validate_utility_task_registry,
+)
 from builder_ii.code_vault_receipt_bridge import (
     CODE_VAULT_CORROBORATION_RECORD_KIND,
     validate_code_vault_corroboration_record,
@@ -504,6 +512,8 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     EXTRACTOR_MANIFEST_KIND: validate_extractor_manifest,
     LINTER_REPORT_KIND: validate_linter_report,
     STRUCTURAL_FIELD_KIND: validate_structural_field,
+    UTILITY_TASK_REGISTRY_KIND: validate_utility_task_registry,
+    UTILITY_EVAL_RECORD_KIND: validate_utility_eval_record,
     CONTEXT_PROJECTION_KIND: validate_context_projection,
     RECALL_REPORT_KIND: validate_recall_report,
     CODE_VAULT_BENCH_REPORT_KIND: validate_code_vault_bench_report,
