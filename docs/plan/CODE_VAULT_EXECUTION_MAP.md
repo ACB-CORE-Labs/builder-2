@@ -93,10 +93,14 @@ binding and by the operator-deferred Tier-2 similarity RFC (see that section for
 and what would unblock it).
 
 **Five of the six registered fact kinds emit; the sixth is honestly refused** (`motif_fact` stays in
-`STRUCTURAL_UNSUPPORTED_CONSTRUCTS`, a declared refusal the manifest carries). Claims stay exactly where
-G2 allows: structural correspondence **candidates** (hypothesis, R+D). No completion-matrix flip, no
-promotion, no new command (the synthesized-count pin stays 102). **Gate G2 is not thereby "open"** — a
-gate opens only when every roadmap bullet holds, and no doc may say otherwise.
+`STRUCTURAL_UNSUPPORTED_CONSTRUCTS`, a declared refusal the manifest carries, now owned by Gate G2m).
+PR-7d (#100) closed the walk to be scope-correct — closures and definitions inside `if`/`try`/`with`/
+`for`/`while`/`match` blocks are now subjects, using CPython's own `__qualname__` scheme — which
+closed G2's last `PARTIAL` bullet. Claims stay exactly where G2 allows: structural correspondence
+**candidates** (hypothesis, R+D). No completion-matrix flip, no promotion, no new command (the
+synthesized-count pin stays 102). **That condition now holds: Gate G2 is OPEN** (operator decision,
+2026-07-11 — see [`../CODE_VAULT_GATE_STATE.md`](../CODE_VAULT_GATE_STATE.md) for the per-bullet
+evidence).
 
 Gate G1 opens only when **all** of its bullets in the [roadmap](../CODE_VAULT_ROADMAP.md) hold
 (manifest + stub + provenance skeleton + fail-closed posture) — landing PR-1 alone does not open
