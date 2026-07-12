@@ -200,7 +200,7 @@ def write_goose_command_proposal(proposal: dict[str, Any], output: Path) -> None
     output.write_text(dumps_goose_command_proposal(proposal), encoding="utf-8")
 
 
-def validate_goose_command_proposal(proposal: Any) -> list[str]:
+def validate_goose_command_proposal(proposal: dict[str, Any] | None) -> list[str]:
     errors: list[str] = []
     if not isinstance(proposal, dict):
         return ["Goose command proposal must be a JSON object"]
