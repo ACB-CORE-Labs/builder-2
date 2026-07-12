@@ -13,6 +13,7 @@ builder-II is CORE-born and governed by the Builder's Signet, but it is a generi
 | [`ADR-0003`](ADR-0003-builder-ii-generic-platform-identity-and-capability-factory.md) | Accepted | Refine builder-II identity as a generic governed platform, define repo docs as source of truth over Notion planning, and establish the profile-pack/capability-factory direction. |
 | [`ADR-0004`](ADR-0004-core-born-builders-signet-doctrine.md) | Accepted | Define `CORE-born` as originating design lineage plus embedded Builder's Signet doctrine, while keeping CORE-specific behavior target-profile scoped. |
 | [`ADR-0005`](ADR-0005-codevault-boundary-and-authority.md) | Accepted | Define CodeVault as a reconstructive intelligence substrate whose outputs never grant execution or promotion authority; builder-II remains the sole governance/control plane at every capability tier. |
+| [`ADR-0006`](ADR-0006-codevault-parser-strategy.md) | Accepted | Hybrid parser strategy: pinned in-process grammar for G3 skeleton; caller-supplied digest-bound SCIP/LSIF for G4 relation depth — CodeVault never runs an indexer. |
 
 ## ADR discipline
 
