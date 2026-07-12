@@ -112,6 +112,7 @@ files = [
     "builder_ii/verification_execution_plan.py",
     "builder_ii/tool_invocation_gateway.py",
     "builder_ii/readonly_inspection_promotion.py",
+    "builder_ii/goose_command_proposal.py",
 ]
 
 [tool.ruff]
