@@ -49,6 +49,10 @@ from builder_ii.code_vault.reports.linter import (
     LINTER_REPORT_KIND,
     validate_linter_report,
 )
+from builder_ii.code_vault.relation_field import (
+    RELATION_FIELD_KIND,
+    validate_relation_field,
+)
 from builder_ii.code_vault.structural_field import (
     STRUCTURAL_FIELD_KIND,
     validate_structural_field,
@@ -512,6 +516,7 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     EXTRACTOR_MANIFEST_KIND: validate_extractor_manifest,
     LINTER_REPORT_KIND: validate_linter_report,
     STRUCTURAL_FIELD_KIND: validate_structural_field,
+    RELATION_FIELD_KIND: validate_relation_field,
     UTILITY_TASK_REGISTRY_KIND: validate_utility_task_registry,
     UTILITY_EVAL_RECORD_KIND: validate_utility_eval_record,
     CONTEXT_PROJECTION_KIND: validate_context_projection,
