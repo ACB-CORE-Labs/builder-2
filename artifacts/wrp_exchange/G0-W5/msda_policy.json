@@ -1,0 +1,132 @@
+{
+  "artifact_state": "VALIDATION_ONLY",
+  "audit_required": true,
+  "default_effect": "deny",
+  "digest": "959fa60454300153fa50b0b11202fe22858bc9041bb24d2d906a7ffe14beae70",
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "artifacts_are_authority": false,
+    "autonomous_agent_authority": "DISABLED",
+    "benchmark_execution": "DISABLED",
+    "capability_state": "wrp_validation_only",
+    "claims_verification_passed": "DISABLED",
+    "command_execution": "DISABLED",
+    "commit_push": "DISABLED",
+    "core_workbench_coupling": "NONE",
+    "deepagents_construction": "DISABLED",
+    "deepagents_delegation": "DISABLED",
+    "deepagents_runtime": "DISABLED",
+    "deepagents_runtime_start": "DISABLED",
+    "deephaven_touch": "DISABLED",
+    "executes_commands": false,
+    "file_mutation": "DISABLED",
+    "git_mutation": "DISABLED",
+    "git_status_inspection": "DISABLED",
+    "goose_runtime_activation": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "hardware_probe": "DISABLED",
+    "mcp_execution": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "model_execution_loops": "DISABLED",
+    "network_access": "DISABLED",
+    "network_mcp_execution": "DISABLED",
+    "notes_vault_mutation": "DISABLED",
+    "patch_application": "DISABLED",
+    "proof_of_capability_only": true,
+    "pull_request_creation": "DISABLED",
+    "quality_gate_executes_commands": "DISABLED",
+    "report_is_completed_evidence": "DISABLED",
+    "repository_file_reads": "DISABLED",
+    "repository_writes": "DISABLED",
+    "runtime_activation": "DISABLED",
+    "runtime_authority": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "runtime_executor": false,
+    "search_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_collection": "DISABLED",
+    "source_patches_applied": "DISABLED",
+    "source_writes": "DISABLED",
+    "subagent_construction": "DISABLED",
+    "subprocess_backed_authority": "DISABLED",
+    "subprocess_execution": "DISABLED",
+    "target_artifact_reads": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "ticket_creation": "DISABLED",
+    "web_search": "DISABLED"
+  },
+  "grants_authority": false,
+  "kind": "builder_ii.wrp.msda_policy",
+  "non_authority": {
+    "artifact_is_authority": false,
+    "grants_execution": false,
+    "grants_promotion": false,
+    "model_output_is_approval": false
+  },
+  "policy_name": "wrp_default_msda",
+  "reference_frameworks": {
+    "langgraph": "subtask graph pattern reference only \u2014 no LangGraph dependency",
+    "maap": "experience / adjoint reference only",
+    "masrouter": "collaboration topology reference only",
+    "modernbert": "optional embedding backend unpromoted",
+    "moira": "agent factory lifecycle reference only",
+    "msda": "declarative access gating reference only",
+    "omnirouter": "fleet allocation reference only",
+    "star": "classification reference only",
+    "vllm_wrp": "research / non-default target profile reference only"
+  },
+  "rules": [
+    {
+      "data_domains": [
+        "local_workspace",
+        "artifact_store"
+      ],
+      "effect": "allow",
+      "max_risk": "local_network",
+      "rule_id": "allow_local_readonly_tools",
+      "tools": [
+        "repo_map",
+        "context_pack",
+        "artifact_validate",
+        "pytest_local"
+      ]
+    },
+    {
+      "data_domains": [
+        "*"
+      ],
+      "effect": "deny",
+      "rule_id": "deny_shell_by_default",
+      "tools": [
+        "shell",
+        "bash",
+        "subprocess_open"
+      ]
+    },
+    {
+      "data_domains": [
+        "external_network"
+      ],
+      "effect": "deny",
+      "rule_id": "deny_mcp_network_by_default",
+      "tools": [
+        "mcp_call",
+        "network_fetch"
+      ]
+    },
+    {
+      "data_domains": [
+        "secrets",
+        "credentials"
+      ],
+      "effect": "deny",
+      "rule_id": "deny_secret_domain",
+      "tools": [
+        "*"
+      ]
+    }
+  ],
+  "schema_version": 1
+}

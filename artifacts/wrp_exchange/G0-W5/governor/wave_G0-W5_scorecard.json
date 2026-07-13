@@ -1,0 +1,59 @@
+{
+  "artifact_is_authority": false,
+  "governor_agent": "Gemini-3.5-Flash",
+  "grants_authority": false,
+  "kind": "builder_ii.wrp.governor_scorecard",
+  "maker_manifest_digest": "9b80c9095b39b512e4148284245217c367d0b00413c7d02254480de1d590f7c1",
+  "metrics": {
+    "f0_classifier_accuracy": "95% (19/20 correct on golden fixtures)",
+    "f1_handoff_overhead": "0.0479ms average topology validation latency (<50ms limit)",
+    "f2_token_budget_variance": "budget utilization <= 110% on stress fixtures",
+    "f3_msda_validation_rate": "100% (all 12 access gate fixtures evaluated and logged)",
+    "f4_maap_error_reduction": "46.67% reduction over 5 epochs (>=30% required)",
+    "f6_replay_match": "100% digest match on subtask graph replay sequence"
+  },
+  "overall_pass": true,
+  "rows": [
+    {
+      "measured": 0.95,
+      "pass": true,
+      "threshold": 0.95,
+      "wave": "W0"
+    },
+    {
+      "measured": "0.0479ms",
+      "pass": true,
+      "threshold": "<50ms + zero_loss",
+      "wave": "W1"
+    },
+    {
+      "measured": "within_10pct",
+      "pass": true,
+      "threshold": "util<=1.10",
+      "wave": "W2"
+    },
+    {
+      "measured": 1.0,
+      "pass": true,
+      "threshold": 1.0,
+      "wave": "W3"
+    },
+    {
+      "measured": 0.4667,
+      "pass": true,
+      "threshold": 0.3,
+      "wave": "W4"
+    },
+    {
+      "measured": "perfect_match",
+      "pass": true,
+      "threshold": "perfect_match",
+      "wave": "W5"
+    }
+  ],
+  "schema_version": 1,
+  "scorer_model": "gemini-3.5-flash",
+  "source_note": "Governor Flash scorecard from measured acceptance harnesses; bound to maker_candidate_manifest digest 9b80c9095b39b512e4148284245217c367d0b00413c7d02254480de1d590f7c1.",
+  "status": "PASS",
+  "wave": "G0-W5"
+}

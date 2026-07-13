@@ -84,6 +84,21 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.orchestration_assignment_validation_report`
 - `builder_ii.orchestration_obligation`
 - `builder_ii.orchestration_lane_policy`
+- `builder_ii.wrp.workload_classification`
+- `builder_ii.wrp.collaboration_topology`
+- `builder_ii.wrp.fleet_allocation`
+- `builder_ii.wrp.msda_policy`
+- `builder_ii.wrp.msda_gate_decision`
+- `builder_ii.wrp.experience_store`
+- `builder_ii.wrp.agent_factory_plan`
+- `builder_ii.wrp.subtask_graph`
+- `builder_ii.wrp.trajectory_evaluation`
+- `builder_ii.wrp.forward_route`
+- `builder_ii.wrp.adjoint_correction`
+- `builder_ii.wrp.proof_record`
+- `builder_ii.wrp.replay_report`
+- `builder_ii.wrp.maker_candidate_manifest`
+- `builder_ii.wrp.governor_certification`
 - `builder_ii.runtime_activation_approval_spec`
 - `builder_ii.goose_readonly_session_plan`
 - `builder_ii.goose_projection`
@@ -167,6 +182,21 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.orchestration_assignment_validation_report` | Passive assignment validation report | Goal 2 |
 | `builder_ii.orchestration_obligation` | Governed delegation obligation (Law 1 ticket) | Ladder 4 |
 | `builder_ii.orchestration_lane_policy` | Obligation-kind → lane → discharge policy (derived view) | Ladder 4 |
+| `builder_ii.wrp.workload_classification` | WRP workload classification (recommendation) | ADR-0007 |
+| `builder_ii.wrp.collaboration_topology` | WRP Maker/Governor topology plan | ADR-0007 |
+| `builder_ii.wrp.fleet_allocation` | WRP fleet allocation recommendation | ADR-0007 |
+| `builder_ii.wrp.msda_policy` | WRP MSDA deny-by-default policy | ADR-0007 |
+| `builder_ii.wrp.msda_gate_decision` | WRP MSDA gate decision (validation) | ADR-0007 |
+| `builder_ii.wrp.experience_store` | WRP experience store (recorded only) | ADR-0007 |
+| `builder_ii.wrp.agent_factory_plan` | WRP agent factory lifecycle plan | ADR-0007 |
+| `builder_ii.wrp.subtask_graph` | WRP subtask graph plan | ADR-0007 |
+| `builder_ii.wrp.trajectory_evaluation` | WRP trajectory evaluation | ADR-0007 |
+| `builder_ii.wrp.forward_route` | WRP forward operator R recommendation | ADR-0007 |
+| `builder_ii.wrp.adjoint_correction` | WRP adjoint R* recommendation | ADR-0007 |
+| `builder_ii.wrp.proof_record` | WRP Class R/D/U proof record | ADR-0007 |
+| `builder_ii.wrp.replay_report` | WRP reconstructive replay report | ADR-0007 |
+| `builder_ii.wrp.maker_candidate_manifest` | Maker exchange package for Governor | ADR-0007 |
+| `builder_ii.wrp.governor_certification` | Governor merge-ceremony certification | ADR-0007 |
 | `builder_ii.runtime_activation_approval_spec` | Runtime activation spec | #133 |
 | `builder_ii.goose_readonly_session_plan` | Goose readonly plan | #133 |
 | `builder_ii.goose_projection` | Projection spec | #133 |
