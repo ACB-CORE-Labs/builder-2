@@ -1,0 +1,31 @@
+{
+  "kind": "builder_ii.wrp.governor_scorecard",
+  "wave": "mastery-P2-wires",
+  "pr": 139,
+  "branch": "feat/wrp-p2-remainder-wires",
+  "scorer": "gemini-3.5-flash",
+  "role": "G-FAST",
+  "wires": {
+    "fleet_binding": "PASS",
+    "msda_preflight": "PASS",
+    "classifier_embed": "PASS",
+    "s1_gap_honesty": "PASS"
+  },
+  "authority_language": {
+    "s2_live_claimed": false,
+    "defaults_safe": true,
+    "inflation_flags": []
+  },
+  "acceptance_touch": {
+    "W0_classifier": "PASS",
+    "W2_fleet": "PASS",
+    "W3_msda": "PASS"
+  },
+  "open_blockers_for_s2": [
+    "Live lane run-approved (S2) is currently unimplemented (OPEN in gap matrix)",
+    "Promotion decision S2 remains ungranted",
+    "MSDA preflight is default-off (must fail-closed/default-on for S2 live lane)",
+    "Fleet binding only drives model routing recommendations, not live session execution"
+  ],
+  "notes": "All substrate remainder wires pass. Defaults are safely off/advisory. Accuracy threshold met."
+}
