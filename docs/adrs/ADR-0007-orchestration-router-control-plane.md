@@ -1,6 +1,6 @@
 # ADR-0007: Orchestration & Router Control Plane (WRP)
 
-**Status:** Proposed (Maker draft — requires Governor dual-review + human acceptance)
+**Status:** Accepted
 
 **Date:** 2026-04-13
 
