@@ -700,6 +700,7 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp plan-rstar-apply",
     "builder-wrp approve-rstar-apply",
     "builder-wrp apply-rstar-approved",
+    "builder-wrp benchmark",
     "builder-model call",
     "builder-model standalone-call",
     "builder-model validate-receipt",
@@ -3412,6 +3413,24 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints or writes builder_ii.wrp.rstar_apply_receipt (+ optional phi_policy).",
         failure_mode="Exits non-zero on missing approval, digest mismatch, or delta-cap violation.",
         notes="HITL φ-policy versioning only; not S3 enabled multi-agent routing.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp benchmark",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "P5 Class U harness: local S2 v2 gateway scenarios with measured wall time / peak RSS; "
+            "emits class_u_report + proof_record U + performance_measurement rows. "
+            "Does not enable S3, cloud providers, or shell."
+        ),
+        write_boundary="Writes report/proof/measurement JSON only when explicit output paths are supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None; harness is validation-only measurement.",
+        output_behavior="Prints or writes builder_ii.wrp.class_u_report (and optional proof/measurements).",
+        failure_mode="Exits non-zero when Class U utility thresholds are not met.",
+        notes="Measured numbers only; not promotion authority; not S3 enablement.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
