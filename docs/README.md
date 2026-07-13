@@ -89,6 +89,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/CONVENTION_LAYER_KERNEL.md`](CONVENTION_LAYER_KERNEL.md) | Convention Layer Kernel |
 | [`docs/SESSION_WORKFLOW.md`](SESSION_WORKFLOW.md) | Governed Local Session Workflow |
 | [`docs/ORCHESTRATION_ASSIGNMENT.md`](ORCHESTRATION_ASSIGNMENT.md) | Orchestration Assignment |
+| [`docs/ORCHESTRATION_OBLIGATIONS.md`](ORCHESTRATION_OBLIGATIONS.md) | Orchestration Obligations (Law 1 Tickets) |
 | [`docs/STATE_LEDGER.md`](STATE_LEDGER.md) | State ledger |
 | [`docs/ARTIFACT_INDEX.md`](ARTIFACT_INDEX.md) | Artifact index |
 | [`docs/ARTIFACT_CHAIN_VERIFICATION.md`](ARTIFACT_CHAIN_VERIFICATION.md) | Artifact Chain Verification |

@@ -1,173 +1,29 @@
-# Governed Obligation Delegation (Ladder 4)
+# Orchestration Obligations (Law 1 Tickets)
 
-Status: **operationally verified, scoped to `protocol_fake`** (Ladder 4 PR-8, operator-applied).
-Two artifact kinds (`builder-orchestration`) plus the sealed runner on
-`builder-deepagents run-approved --obligation` (PR-4). Minting an obligation still emits an
-**inert** JSON artifact — it starts nothing. The runner enforces every mint against the sealed
-envelope and classifies each discharge **over the `protocol_fake` backend as CI truth**; the native
-backend is a separate, two-key-gated claim that this surface does **not** cover. The
-completion-matrix row `governed obligation delegation` is `OPERATIONALLY_VERIFIED` with assurance
-`BOUNDED_EXECUTION_VERIFIED` — a claim that the two laws below are enforced fail-closed and
-evidenced end-to-end, never a claim about agent-output quality. Evidence and the pinned-site edit
-set: `docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md`. See
-`docs/plan/ORCHESTRATION_OBLIGATIONS_RFC.md` for the doctrine and
-`planning/LADDER4_OBLIGATION_DELEGATION_PLAN.md` for the authoritative schema.
+Orchestration Obligations are deterministic, digest-bound artifacts that represent a bound delegation of authority to a subagent or tool runner. They enforce **Law 1: No speech without a ticket.** 
 
-## The two laws
+## Design
 
-> Authority attenuates monotonically down the delegation tree; evidence accumulates monotonically
-> up it. Obligations open down; digests seal up; speech is cheap; belief is expensive.
+An obligation artifact (`builder_ii.orchestration_obligation`) contains:
+- `obligation_kind`: The class of work (e.g., `planning_step`, `interactive_ops`, `mutation`, `verification`).
+- `lane`: The governed execution lane, derived from the active `builder_ii.orchestration_lane_policy`.
+- `task`: The prompt or assignment description.
+- `output_contract`: The evidence and artifact kinds the discharge must produce to satisfy the obligation.
+- `budget_partition`: Hard bounds on `max_subagents`, `max_events`, `max_output_bytes`, and `max_human_gates`.
 
-- **Law 1 — no speech without a ticket.** Nothing runs as a delegated step unless an **obligation**
-  exists first: who must produce what artifact kind, under what boundary, citing which file-refs
-  (never dumps), spending which budget partition, under which parent seal.
-- **Law 2 — no belief without discharge.** A result is treated as true only when a discharge binds
-  the obligation digest, satisfies the output contract, and attaches the required evidence. Discharge
-  classification is enforced by the sealed runner (see below): the proposal-only deepagents lane
-  attaches no downstream evidence, so an obligation that requires evidence classifies
-  `DISCHARGED_UNVERIFIED` — speech recorded, belief withheld — never a fabricated success.
+## Lifecycle
 
-## Artifact kinds
+1. **Minting:** An obligation is statically minted via `builder-orchestration mint-obligation`. The lane policy is evaluated, the budget is recorded, and the artifact is cryptographically sealed (digest pinned). 
+2. **Execution (The Seal):** The sealed obligation is consumed by a runner. The runner enforces the budget envelope dynamically, refusing to exceed `max_events` or `max_subagents`. 
+3. **Discharge:** The runner produces the artifacts and evidence required by the `output_contract`.
+4. **Validation:** The discharge is verified against the obligation's contract. If the evidence matches, the obligation transitions to `SATISFIED`.
 
-### `builder_ii.orchestration_obligation` (schema v1)
+## CLI Surface
 
-The minted unit of delegated work. Its `obligation_id` is a SHA-256 digest over the canonical
-content, so any tampering is detected on re-validation. Key fields: `lane`, `obligation_kind`
-(`planning_step | interactive_ops | model_call | mutation | verification`), `task` (≤ 2000 chars),
-`boundary` (deny-list), `output_contract` (`expected_kind` + `required_evidence_kinds`),
-`file_refs` (path + sha256 citations — **anti-dump enforced**: no oversized values, no
-`content`/`body`/`text` keys), `budget_partition` (`max_subagents`, `max_events`,
-`max_output_bytes`, `max_human_gates`), `parent_ref` (exactly one of `seal_digest` **or**
-`obligation_digest`), and `lane_policy_digest` (pins the policy in force).
-
-### `builder_ii.orchestration_lane_policy` (schema v1, derived view)
-
-Renders one fixed in-code table binding each `obligation_kind` to exactly one lane and its allowed
-discharge mechanisms:
-
-| obligation_kind | lane | allowed discharge mechanisms |
-| --- | --- | --- |
-| `planning_step` | `deepagents` | `builder-deepagents run-approved` (protocol) |
-| `interactive_ops` | `goose` | goose readonly session / proposal artifacts |
-| `model_call` | `gateway` | model execution receipt |
-| `mutation` | `hitl_patch` | `builder-hitl apply-patch` only |
-| `verification` | `verify` | verification execution receipt |
-
-Every `obligation_kind` maps to exactly one lane (totality); resolving a kind under the wrong lane
-raises a named `LanePolicyViolation`, never a silent "whichever adapter got invoked first". Each
-**command-form** discharge mechanism is checked against `COMMAND_AUTHORITY_REGISTRY` at render and
-validate time (read-only; the policy never edits the registry).
-
-## CLI surface (`builder-orchestration`)
-
-All six commands are Tier 1 (artifact-only / read-only / validation-only), require no approval,
-and never run, spawn, call models, or mutate a target repository.
-
-```bash
-# Render the lane policy (deterministic; also checks the registry linkage)
-builder-orchestration lane-policy --output lane-policy.json
-builder-orchestration validate-lane-policy lane-policy.json
-
-# Mint an obligation under a seal; the lane is derived from (and checked against) the policy
-builder-orchestration mint-obligation \
-    --obligation-kind planning_step \
-    --task "Draft the tree-profile plan for module X" \
-    --expected-kind builder_ii.deepagents_execution_receipt \
-    --required-evidence builder_ii.verification_execution_receipt \
-    --subagent-profile planner \
-    --lane-policy lane-policy.json \
-    --seal-digest <root-seal-digest> \
-    --max-subagents 1 --max-events 8 --max-output-bytes 4096 --max-human-gates 1 \
-    --output obligation.json
-builder-orchestration validate-obligation obligation.json
-```
-
-`mint-obligation` refuses fail-closed on: a lane/kind mismatch, anti-dump or schema violations, a
-`parent_ref` that is not exactly one of seal/obligation, or a `briefing_bytes` that exceeds
-`max_output_bytes`. The emitted obligation is validated before it is written.
-
-### `status` / `why` — read-only belief walks over a run (Ladder 4 PR-5)
-
-Two deterministic, read-only reports over a `builder-deepagents run-approved --obligation` output
-directory. Both re-derive the event replay fresh from the raw per-event JSON files on disk (never
-from the cached `deepagents-replay-report.json` snapshot, which would be stale against any
-post-run tampering) and cross-check the run's execution receipt and event ledger artifacts.
-
-```bash
-# One row per obligation minted/refused in the run: board state + granted budget partition.
-builder-orchestration status runs/obl --output board.json
-
-# The belief trace for exactly one obligation, located by one of its lifecycle event files
-# (obligation_minted / obligation_mint_refused / obligation_consumed under the run's events/ dir).
-builder-orchestration why runs/obl/events/event-0006-obligation_consumed.json
-```
-
-`status` renders one row per obligation with a **board state** — `OPEN` (minted, not yet
-discharged), `SATISFIED`, `UNVERIFIED`, `VIOLATED`, or `BLOCKED` (superset of the runner's
-`DISCHARGE_STATES`: `OPEN` covers a run that ended before an obligation reached
-`obligation_consumed`) — plus the `max_subagents` / `max_events` / `max_output_bytes` /
-`max_human_gates` budget granted at mint time. A `BLOCKED` row from a refused mint has no budget
-column: the runner's `obligation_mint_refused` event never stamps the attempted budget, so the
-board reports it honestly as unknown rather than fabricating a value.
-
-`why` prints a one-line belief verdict, e.g. `believed? NO — DISCHARGED_UNVERIFIED; required:
-builder_ii.verification_execution_receipt; attached: none; consumed: yes`, and exits non-zero
-unless the obligation is `CONTRACT_SATISFIED` with an intact event chain. Both commands exit
-non-zero on a broken/tampered event chain or missing run artifacts.
-
-**Registration note:** `status` and `why` were pre-registered as `STATE_SPEC_ONLY` by PR-4 so
-that PR-5 — a new-file surface — never edited the contended registry. Once the CLI landed, both
-records were promoted to `STATE_VALIDATION_ONLY` with boundary text describing the live commands;
-`test_status_why_records_promoted_to_validation_only_with_live_cli`
-(`tests/test_orchestration_delegation_run.py`) pins registry-matches-code in both directions.
-
-## The sealed runner (`builder-deepagents run-approved --obligation`)
-
-The root **seal** is the existing `builder_ii.deepagents_execution_approval` — minor-bumped, not
-forked — so the single flag-driven approval (`approve-candidate --approval-actor … --approval-reason …`;
-digest-bound, non-interactive — there is no typed-prefix prompt on this command) now also seals an
-**obligation envelope**:
-`lane_policy_digest`, a four-field `root_budget`, `allowed_obligation_kinds` (kind × max count),
-`refused_lanes`, and `native_backend_acknowledged`. The envelope fields live **inside the approval
-digest basis** (an unsealed envelope field would be a forgery channel). Legacy candidates/approvals
-without the envelope stay valid (N/N-1); an obligation-bearing run against a legacy approval is
-refused with a named error.
-
-Seal the candidate's declared envelope, then run:
-
-```bash
-builder-deepagents execution-candidate --work-plan plan.json --output-root runs/ \
-    --lane-policy lane-policy.json --allowed-obligation-kind planning_step:3 \
-    --refused-lane goose --output candidate.json
-builder-deepagents approve-candidate --candidate candidate.json \
-    --approval-actor "Op" --approval-reason "seal the envelope" --output approval.json
-builder-deepagents run-approved --candidate candidate.json --approval approval.json \
-    --output-dir runs/obl --obligation obligation-0.json --obligation obligation-1.json
-```
-
-Before any subagent runs, the runner enforces **every** mint against the sealed envelope,
-fail-closed (R4 grants-not-loans; no refunds in v1): lane policy still current, obligation kind
-authorized with count remaining, `budget_partition` fits component-wise inside the parent's
-remaining grant, `subagent_profile` approved, and `parent_ref` bound to the seal (or an already
-accepted parent). Each accepted mint emits `obligation_minted`; each refusal emits
-`obligation_mint_refused` carrying the exact `violated_rule` **and** a `fixing_edit` (zero dead
-ends). Each subagent then runs its **own** obligation task (not the root task), and the discharge is
-classified `CONTRACT_SATISFIED` / `DISCHARGED_UNVERIFIED` / `CONTRACT_VIOLATED` / `BLOCKED` and
-recorded in an `obligation_consumed` event stamped with the obligation and briefing digests. The
-run summary carries the discharge tally; the whole event chain replays deterministically.
-
-**Two-key native ack.** For `--backend-mode optional_deepagents`, the seal additionally requires
-`--native-backend-acknowledged` (the D7 second key); without it the seal is refused and the runner
-will not spawn. `protocol_fake` — the CI-truth backend — needs no ack and produces structural
-proposals only.
-
-## What stays refused
-
-No autonomous dispatch; no native deepagents construction, models, tools, shell, Goose, MCP,
-source writes, git mutation, or hidden memory. The deepagents lane is proposal-only: it attaches no
-downstream evidence, so evidence for `mutation`/`verification` obligations must come from the
-already-promoted `hitl_patch` / `verify` lanes — never from a fabricated success here. Registration
-and runner enforcement make these kinds *known, validatable, and bounded* — they do **not** promote
-the capability. The matrix flip happens only through the eight gates with end-to-end evidence over
-the `protocol_fake` backend, operator-applied (Ladder 4 PR-8); backend-initiated mid-run mints and
-cross-obligation budget refunds are explicit phase-2 deferrals.
+See `docs/COMMAND_AUTHORITY.md` for exact capabilities and promotion states.
+- `builder-orchestration mint-obligation`
+- `builder-orchestration validate-obligation`
+- `builder-orchestration lane-policy`
+- `builder-orchestration validate-lane-policy`
+- `builder-orchestration status`
+- `builder-orchestration why`
