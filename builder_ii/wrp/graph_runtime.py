@@ -289,11 +289,14 @@ def execute_graph(
     schedule = _schedule_nodes(g, pattern)
     if isinstance(schedule, str):
         # topological_order failure (cycle on non-cyclic pattern, unknown edge nodes, …)
-        err = schedule
-        if "cycle" in err.lower() and pattern != "cyclic":
-            err = f"trajectory graph contains a cycle (use pattern=cyclic with max_iterations): {err}"
-        return _failed_result(pattern=pattern, error=err, extra=extra)
+        schedule_err = schedule
+        if "cycle" in schedule_err.lower() and pattern != "cyclic":
+            schedule_err = (
+                f"trajectory graph contains a cycle (use pattern=cyclic with max_iterations): {schedule_err}"
+            )
+        return _failed_result(pattern=pattern, error=schedule_err, extra=extra)
 
+    ordered_nodes: list[str] = schedule
     state: dict[str, Any] = dict(handoff_state or {})
     global_keys = [str(k) for k in (required_keys or ())]
     trajectory: dict[str, Any] = {}
@@ -312,7 +315,7 @@ def execute_graph(
 
     for iteration_idx in range(iterations):
         iter_label = iteration_idx + 1 if pattern == "cyclic" else None
-        for node_id in schedule:
+        for node_id in ordered_nodes:
             spec = _spec_for(node_id, node_specs)
 
             # Global required_keys re-check before each node when not forced only at start
@@ -339,7 +342,7 @@ def execute_graph(
                         extra=extra,
                     )
 
-            event, state, trajectory, err = _run_node(
+            event, state, trajectory, node_err = _run_node(
                 node_id=node_id,
                 spec=spec,
                 handoff_state=state,
@@ -348,10 +351,10 @@ def execute_graph(
             )
             events = [*events, event]
             total_cost += float(event["cost_estimate"])
-            if err is not None:
+            if node_err is not None:
                 return _failed_result(
                     pattern=pattern,
-                    error=err,
+                    error=node_err,
                     execution_order=execution_order,
                     events=events,
                     trajectory=trajectory,

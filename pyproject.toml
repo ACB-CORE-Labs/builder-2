@@ -114,6 +114,10 @@ files = [
     "builder_ii/tool_invocation_gateway.py",
     "builder_ii/readonly_inspection_promotion.py",
     "builder_ii/goose_command_proposal.py",
+    # WRP authority-adjacent surfaces (S1 bind path + S2 live lane)
+    "builder_ii/model_routing_policy.py",
+    "builder_ii/wrp/live_lane.py",
+    "builder_ii/wrp/msda_preflight.py",
 ]
 
 [tool.ruff]
