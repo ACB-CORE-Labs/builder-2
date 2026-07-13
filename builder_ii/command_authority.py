@@ -692,6 +692,9 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp proof",
     "builder-wrp experience-init",
     "builder-wrp adjoint",
+    "builder-wrp plan-live",
+    "builder-wrp approve-live",
+    "builder-wrp run-approved",
     "builder-model call",
     "builder-model standalone-call",
     "builder-model validate-receipt",
@@ -1748,7 +1751,11 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         approval_boundary="None.",
         output_behavior="Dispatches to WRP recommendation/plan/validation artifact subcommands.",
         failure_mode="Exits non-zero on schema validation failures.",
-        notes="WRP control plane is recommendation/plan/validation only; no model, shell, MCP, Goose, or deepagents execution.",
+        notes=(
+            "WRP passive subcommands remain recommendation/plan/validation. "
+            "S2 HITL live lane is only via builder-wrp run-approved under digest-bound approval; "
+            "no shell; no model/tool gateway in S2 v1."
+        ),
     ),
     CommandAuthorityRecord(
         name="builder-model",
@@ -3275,6 +3282,51 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints or writes builder_ii.wrp.adjoint_correction; never mutates live routing policy.",
         failure_mode="Exits non-zero if store is frozen or invalid.",
         notes="requires_hitl_promotion_to_apply=true; grants no authority.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp plan-live",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Emits digest-bound WRP live run plan; does not execute.",
+        write_boundary="Writes plan JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None; execution requires approve-live + run-approved.",
+        output_behavior="Prints or writes builder_ii.wrp.live_run_plan.",
+        failure_mode="Exits non-zero on write failure.",
+        notes="S2 plan only; not authority.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp approve-live",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Emits digest-bound HITL approval for a live run plan; does not execute.",
+        write_boundary="Writes approval JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Operator supplies --approved-by; approval is not execution.",
+        output_behavior="Prints or writes builder_ii.wrp.live_run_approval.",
+        failure_mode="Exits non-zero if plan digest missing.",
+        notes="Approval alone does not run the lane.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp run-approved",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_3,
+        promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
+        runtime_boundary=(
+            "S2 HITL live lane: forced MSDA preflight + pure graph execute (noop/record only). "
+            "No shell; S2 v1 does not invoke model/tool gateways."
+        ),
+        write_boundary="Writes live run receipt JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Requires digest-bound builder_ii.wrp.live_run_approval matching plan.digest.",
+        output_behavior="Prints or writes builder_ii.wrp.live_run_receipt.",
+        failure_mode="Exits non-zero on missing approval, MSDA deny, or invalid plan.",
+        notes="HITL runtime candidate; not global enabled multi-agent autonomy. S3 separate.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(

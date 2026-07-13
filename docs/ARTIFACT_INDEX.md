@@ -99,6 +99,9 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.wrp.replay_report`
 - `builder_ii.wrp.maker_candidate_manifest`
 - `builder_ii.wrp.governor_certification`
+- `builder_ii.wrp.live_run_plan`
+- `builder_ii.wrp.live_run_approval`
+- `builder_ii.wrp.live_run_receipt`
 - `builder_ii.runtime_activation_approval_spec`
 - `builder_ii.goose_readonly_session_plan`
 - `builder_ii.goose_projection`
@@ -197,6 +200,9 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.wrp.replay_report` | WRP reconstructive replay report | ADR-0007 |
 | `builder_ii.wrp.maker_candidate_manifest` | Maker exchange package for Governor | ADR-0007 |
 | `builder_ii.wrp.governor_certification` | Governor merge-ceremony certification | ADR-0007 |
+| `builder_ii.wrp.live_run_plan` | S2 HITL live run plan (digest-bound; not authority) | ADR-0007 |
+| `builder_ii.wrp.live_run_approval` | S2 HITL approval bound to plan digest | ADR-0007 |
+| `builder_ii.wrp.live_run_receipt` | S2 HITL live lane receipt (graph + forced MSDA; no shell) | ADR-0007 |
 | `builder_ii.runtime_activation_approval_spec` | Runtime activation spec | #133 |
 | `builder_ii.goose_readonly_session_plan` | Goose readonly plan | #133 |
 | `builder_ii.goose_projection` | Projection spec | #133 |

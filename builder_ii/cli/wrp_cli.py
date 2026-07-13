@@ -38,7 +38,7 @@ from builder_ii.wrp.workload_classifier import (
 )
 
 wrp_app = typer.Typer(
-    help="WRP control plane (passive): classify, plan, allocate, gate, evaluate, replay, validate.",
+    help="WRP control plane: classify/plan/allocate/gate (passive) + S2 HITL live lane (run-approved).",
 )
 console = Console()
 
@@ -233,6 +233,63 @@ def graph_cmd(
     _emit(art, output)
 
 
+@wrp_app.command("plan-live")
+def plan_live_cmd(
+    task: str = typer.Option(..., "--task", "-t"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """S2: emit digest-bound live run plan (requires approve-live + run-approved)."""
+    from builder_ii.wrp.allocation_optimizer import allocate_fleet
+    from builder_ii.wrp.live_lane import build_live_run_plan
+    from builder_ii.wrp.workload_classifier import classify_workload
+
+    clf = classify_workload(text=task)
+    fleet = allocate_fleet(task_tier=clf["classification"]["tier"] if clf["classification"]["tier"] != "primary_constrained" else "primary", token_budget=100.0)
+    art = build_live_run_plan(
+        task=task,
+        fleet_binding=fleet.get("fleet_binding"),
+        wrp_binding={
+            "tier": clf["classification"]["tier"],
+            "recommended_model_alias": clf["recommended_model_alias"],
+            "classification_digest": clf["digest"],
+        },
+    )
+    _emit(art, output)
+
+
+@wrp_app.command("approve-live")
+def approve_live_cmd(
+    plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False),
+    approved_by: str = typer.Option(..., "--approved-by"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """S2: emit HITL approval bound to plan digest (not authority by itself)."""
+    from builder_ii.wrp.live_lane import build_live_run_approval
+
+    plan_art = _read_json(plan)
+    art = build_live_run_approval(plan=plan_art, approved_by=approved_by, approved=True)
+    _emit(art, output)
+
+
+@wrp_app.command("run-approved")
+def run_approved_cmd(
+    plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False),
+    approval: Path = typer.Option(..., "--approval", exists=True, dir_okay=False),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """S2: run HITL live lane under approval + forced MSDA preflight (graph noop/record only)."""
+    from builder_ii.wrp.live_lane import LiveLaneError, run_approved
+
+    plan_art = _read_json(plan)
+    approval_art = _read_json(approval)
+    try:
+        receipt = run_approved(plan=plan_art, approval=approval_art)
+    except LiveLaneError as exc:
+        console.print(f"[red]live lane refused: {exc}[/]")
+        raise typer.Exit(1) from exc
+    _emit(receipt, output)
+
+
 @wrp_app.command("package-exchange")
 def package_exchange_cmd(
     wave: str = typer.Option(..., "--wave"),
@@ -273,6 +330,15 @@ def validate_cmd(
         "builder_ii.wrp.forward_route": validate_forward_route,
         "builder_ii.wrp.adjoint_correction": validate_adjoint_correction,
         "builder_ii.wrp.replay_report": validate_replay_report,
+        "builder_ii.wrp.live_run_plan": __import__(
+            "builder_ii.wrp.live_lane", fromlist=["validate_live_run_plan"]
+        ).validate_live_run_plan,
+        "builder_ii.wrp.live_run_approval": __import__(
+            "builder_ii.wrp.live_lane", fromlist=["validate_live_run_approval"]
+        ).validate_live_run_approval,
+        "builder_ii.wrp.live_run_receipt": __import__(
+            "builder_ii.wrp.live_lane", fromlist=["validate_live_run_receipt"]
+        ).validate_live_run_receipt,
     }
     validator = validators.get(str(kind))
     if validator is None:
