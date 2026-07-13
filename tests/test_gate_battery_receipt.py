@@ -386,14 +386,14 @@ def test_clean_receipt_has_no_absolute_paths() -> None:
 
 
 def test_leaked_absolute_path_in_argv_rejected() -> None:
-    poisoned = gate_record_for_run("rust validator build", ["cargo", "/Users/dev/.venv/bin/python3"], 0, 1)
+    poisoned = gate_record_for_run("rust validator build", ["cargo", "/home/developer/.venv/bin/python3"], 0, 1)
     receipt = _receipt(gates=[poisoned])
     errors = validate_gate_battery_receipt(receipt)
     assert any("absolute path" in e for e in errors)
 
 
 def test_leaked_absolute_path_in_skip_reason_rejected() -> None:
-    poisoned = gate_record_for_skip("rust validator build", "/Users/dev/.cargo/bin not on PATH")
+    poisoned = gate_record_for_skip("rust validator build", "/home/developer/.cargo/bin not on PATH")
     receipt = _receipt(gates=[poisoned])
     errors = validate_gate_battery_receipt(receipt)
     assert any("absolute path" in e for e in errors)

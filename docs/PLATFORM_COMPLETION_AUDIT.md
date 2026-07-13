@@ -160,12 +160,12 @@ uv run builder-setup rollback-snapshot /tmp/builder-ii-setup-overlay-r1-4.json -
 uv run builder-setup validate-rollback-snapshot /tmp/builder-ii-setup-rollback-snapshot-r1-4.json
 uv run builder-platform r1-closure --output-dir /tmp/builder-ii-r1-6-proof
 uv run builder-platform validate-r1-closure /tmp/builder-ii-r1-6-proof/r1-closure-report.json
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
 uv run builder-platform validate-demo-loop /tmp/builder-ii-core-demo/demo-loop-report.json
 ```
 

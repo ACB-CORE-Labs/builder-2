@@ -2,11 +2,11 @@
 
 Status: passive plan artifact. Execution is disabled until a HITL approval artifact or receipt explicitly authorizes this plan.
 
-Objective source: `/Users/you/.codex/attachments/23d714f6-450f-4cd5-af30-a5f616d947af/goal-objective.md`
+Objective source: `<user_home>/.codex/attachments/23d714f6-450f-4cd5-af30-a5f616d947af/goal-objective.md`
 
 Repository state observed before this plan:
 
-- Worktree: `/Users/you/.codex/worktrees/ba03/builder-II`
+- Worktree: `<user_home>/.codex/worktrees/ba03/builder-II`
 - Local `origin/main`: `dae925c` (`Merge pull request #186 from AssetOverflow/feat/b7-tool-mcp-gateway`)
 - Current worktree state before this file: detached `HEAD` with no short-status modifications reported.
 - Required sequence: B8 first on `feat/b8-artifact-memory`; open B8 PR. B9 only after B8 is merged or after rebasing from the merged B8 base, on `feat/b9-operator-product-polish`; open B9 PR separately.

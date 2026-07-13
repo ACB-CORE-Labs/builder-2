@@ -64,7 +64,7 @@ demo credible to skeptical senior engineers.
 - Community files: CONTRIBUTING.md, SECURITY.md (incl. goose-installer curl-pipe supply-chain note), CODE_OF_CONDUCT.md, CHANGELOG.md, Forgejo issue/PR templates (.forgejo/)
 - Forgejo Actions CI parity: replace gitleaks-action (GitHub-API-coupled with GITHUB_TOKEN), verify runner labels (ubuntu-latest), address Linux uv sync failure from mlx-lm/rapid-mlx hard deps
 - History/PII strategy DECISION: fresh-start public repo (recommended) vs full history rewrite; either way full-refs secret scan (614 commits, 63 local + 172 remote branches incl. backup/main-before-reset, 1 stash) with gitleaks/trufflehog
-- PII scrub in 22 tracked files (kaizenpro paths, "Joshua Shay", assetoverflow@icloud.com on all commits, hardcoded /Users paths in docs/fixtures); edit agent-instruction files (CLAUDE.md/AGENTS.md/.cursorrules reference private Forgejo host git.acbcontent.org) for public consumption
+- PII scrub in 22 tracked files (<developer_name> paths, "<developer_name>", assetoverflow@icloud.com on all commits, hardcoded /Users paths in docs/fixtures); edit agent-instruction files (CLAUDE.md/AGENTS.md/.cursorrules reference private Forgejo host git.acbcontent.org) for public consumption
 - Platform gating: move mlx-lm/rapid-mlx to [project.optional-dependencies] so non-Mac uv sync works; document Mac-first boundary honestly in README
 - Install consolidation: single bootstrap path, remove gh from install-tools.sh required tier (contradicts repo's own Forgejo-only rule), pin goose installer by checksum
 - Docs funnel: docs/README.md index with 3-tier entry path (README → FIRST_SESSION → reference); fix OPERATOR_QUICKSTART hardcoded founder paths (112 top-level docs files, no index)

@@ -54,7 +54,7 @@ Here is an assessment of the `CORE_PAR_MASTER_COMPLETION_PLAN.md` and its suppor
 ## 3. Strategic "Cut the Knot" Recommendations
 
 **1. Force Decision D3 Now: Choose the "Fresh-Start" Public Repo**
-Do not attempt a `git filter-repo` history rewrite to scrub 614 commits and 235 branches of `assetoverflow@icloud.com` and `/Users/kaizenpro` paths. For a single operator, the risk of missing a dangling ref or a stash containing an old `.env` file is too high.
+Do not attempt a `git filter-repo` history rewrite to scrub 614 commits and 235 branches of `assetoverflow@icloud.com` and `<user_home>` paths. For a single operator, the risk of missing a dangling ref or a stash containing an old `.env` file is too high.
 
 * **Action:** Run your Phase 3 PII scrub on the working tree, `rm -rf .git`, `git init`, and make a single "Initial open-source release" commit. It guarantees zero leakage of historical secrets and saves days of agonizing work. Keep your private Forgejo intact for personal historical reference.
 

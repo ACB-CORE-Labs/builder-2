@@ -39,19 +39,19 @@ Use `--keep` to preserve the scratch workdir and per-step logs for inspection, `
 For a recordable real-world walkthrough, use the governed demo loop instead of a fixture. It runs against a temporary detached worktree of any operator-designated local git repository; `--target-name core` selects the CORE profile (AssetOverflow/core identity check + sensitive-module policy):
 
 ```bash
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
-uv run builder-platform demo-loop --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase prepare --force
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase approve --approve
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase apply
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase verify
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase rollback
+uv run builder-platform demo-loop --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --phase finalize
 uv run builder-platform validate-demo-loop /tmp/builder-ii-core-demo/demo-loop-report.json
 ```
 
 The same loop can be run as a one-command recording pass:
 
 ```bash
-uv run builder-platform wow --target-name core --target-repo /Users/you/Projects/core --output-dir /tmp/builder-ii-core-demo --approve --force
+uv run builder-platform wow --target-name core --target-repo <user_home>/Projects/core --output-dir /tmp/builder-ii-core-demo --approve --force
 ```
 
 For a generic (non-CORE) target, use any display name — no repository identity check applies:
