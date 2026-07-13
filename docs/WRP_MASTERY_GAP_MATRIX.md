@@ -23,9 +23,9 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | Spaces \(\mathcal{W},\mathcal{A},\mathcal{T},\Gamma\) typed | `LANDED` | — | `tests/test_wrp_spaces.py` |
 | Digest-bound artifact kinds + `builder-wrp` | `LANDED` | — | `tests/test_wrp_*.py`, CLI |
 | Dual-platform exchange + G0–W5 Governor cert | `LANDED` | P7 ops | `artifacts/wrp_exchange/` |
-| Advisory WRP annotation in model_router / dry-run | `PARTIAL` | P1 S1 | Must **bind** as required input, not warn-only |
-| Promotion readiness record | `PARTIAL` | P1 | `planning/evidence/wrp.json` — needs **decision** per stage |
-| Promotion **decision** S1–S3 | `OPEN` | P1 | readiness + decision + verify evidence + matrix |
+| Advisory WRP annotation in model_router / dry-run | `PARTIAL` | P1 S1 | **Code path landed:** `require_wrp_binding` / `BUILDER_II_WRP_BIND` / dry-run `require_wrp`; default still advisory |
+| Promotion readiness record | `PARTIAL` | P1 | `planning/evidence/wrp.json` + `wrp_s1_readiness.json` ready; HUMAN decision open |
+| Promotion **decision** S1–S3 | `PARTIAL` | P1 | S1 decision artifact **blocked** awaiting G-LEAD audit + HUMAN; S2/S3 OPEN |
 | Live lane `run-approved` | `OPEN` | P3 / S2 | `tests/scenarios/test_wrp_live_lane.py` |
 | WorkloadClassifier rules + 95% fixtures | `LANDED` | P2.0 deepen | `builder-wrp score-classifier` |
 | EmbeddingBackend + kNN (hash default; ModernBERT-class opt-in) | `PARTIAL` | P2.0 / P6 | Module + tests landed; wire into classifier + S4 embedder promo open |

@@ -795,6 +795,7 @@ def create_orchestration_assignment_dry_run(
     orchestration_assignment_plan: dict[str, Any],
     *,
     orchestration_assignment_plan_path: Path | None = None,
+    require_wrp: bool | None = None,
 ) -> dict[str, Any]:
     plan_errors = validate_orchestration_assignment_plan(orchestration_assignment_plan)
     if plan_errors:
@@ -814,7 +815,10 @@ def create_orchestration_assignment_dry_run(
         "require human promotion before any runtime or execution authority exists",
     ]
 
-    wrp_rec = {}
+    if require_wrp is None:
+        require_wrp = bool(orchestration_assignment_plan.get("require_wrp"))
+
+    wrp_rec: dict[str, Any] = {}
     try:
         from builder_ii.wrp.workload_classifier import classify_workload
         wrp_class = classify_workload(text=orchestration_assignment_plan["task"])
@@ -824,20 +828,29 @@ def create_orchestration_assignment_dry_run(
             "confidence": wrp_class["classification"]["confidence"],
             "rationale": wrp_class["classification"]["rationale"],
             "digest": wrp_class["digest"],
+            "source_kind": wrp_class["kind"],
+            "required": bool(require_wrp),
         }
         would_happen.append(
             f"recommend WRP tier '{wrp_class['classification']['tier']}' model '{wrp_class['recommended_model_alias']}'"
         )
-    except (ImportError, KeyError):
-        pass
+    except (ImportError, KeyError) as exc:
+        if require_wrp:
+            raise ValueError(f"require_wrp is true but WRP classification failed: {exc}") from exc
     except Exception as exc:
+        if require_wrp:
+            raise ValueError(f"require_wrp is true but WRP classification failed: {exc}") from exc
         import sys
         sys.stderr.write(f"Warning: WRP dry-run classification failed: {exc}\n")
+
+    if require_wrp and not wrp_rec.get("digest"):
+        raise ValueError("require_wrp is true but wrp_workload_recommendation is empty")
 
     dry_run = {
         "kind": ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
         "schema_version": ORCHESTRATION_ASSIGNMENT_DRY_RUN_SCHEMA_VERSION,
         "dry_run_state": "DRY_RUN_ONLY",
+        "require_wrp": bool(require_wrp),
         "source_orchestration_assignment_plan_ref": plan_ref,
         "source_refs": [plan_ref],
         "target": orchestration_assignment_plan["target"],
@@ -1461,6 +1474,12 @@ def validate_orchestration_assignment_dry_run(data: Any) -> list[str]:
         errors.append("target must be one of: generic, builder, core")
     if not isinstance(data.get("task"), str) or not data["task"]:
         errors.append("task must be a non-empty string")
+    if data.get("require_wrp") is True:
+        wrp = data.get("wrp_workload_recommendation")
+        if not isinstance(wrp, dict) or not wrp.get("digest"):
+            errors.append("require_wrp is true but wrp_workload_recommendation is missing or incomplete")
+        elif not wrp.get("model_alias") or not wrp.get("tier"):
+            errors.append("wrp_workload_recommendation must include tier and model_alias when require_wrp is true")
     errors.extend(
         _validate_ref(
             data.get("source_orchestration_assignment_plan_ref"),
