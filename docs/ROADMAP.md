@@ -190,12 +190,13 @@ These are the next capability promotions. Each requires the full capability prom
 - Passive model registry and routing artifacts already exist through `builder-model-policy`
 - Provider execution remains unpromoted until B6 adds an envelope, prompt/context digest, budget, receipt, ledger, and replay declaration
 
-### Phase: WRP orchestration & routing control plane (ADR-0007 Accepted)
-- Geometry-first Workload–Router–Pool plane under `builder_ii/wrp/` and `builder-wrp` (Tier 1) — landed on main with G0–W5, advisory wiring into `model_router` / assignment dry-runs, and `planning/evidence/wrp.json` (`target_state=recommendation_only`)
-- Waves G0–W5: classifier, collaboration topology, fleet allocation, MSDA gates, experience/adjoint, reconstructive replay
-- Dual-platform Maker (Grok Build) / Governor (Antigravity) file-mediated merge ceremony
-- Default state remains recommendation/plan/validation only — no live multi-agent execution promotion by module existence; cert ≠ enabled
-- See `docs/WRP_CONTROL_PLANE.md`, `docs/WRP_ACCEPTANCE.md`, ADR-0007
+### Phase: WRP orchestration & routing control plane (ADR-0007 Accepted — absolute mastery in progress)
+- Geometry-first Workload–Router–Pool plane under `builder_ii/wrp/` and `builder-wrp` (Tier 1)
+- **Substrate landed:** G0–W5 digest-bound operators, dual-platform exchange + Governor certs, advisory model_router / dry-run annotation, readiness record (`planning/evidence/wrp.json`)
+- **Current power:** `recommendation_only` — cert ≠ enabled; substrate is **not** absolute mastery
+- **Mastery program (P0–P7):** promotion decisions S1–S3 (bound recommendations → HITL live lane → scoped enabled); module deepening (embedding/kNN, fleet binding, MSDA preflight, OPA path, graph runtime, receipt-fed \(R^*\), Class U); opt-in backends (ModernBERT-class, vLLM research profile, LangGraph adapter) without M1 defaults
+- Dual-platform Maker (Grok Build) / Governor (Antigravity) merge ceremony required on authority-changing PRs
+- See `docs/WRP_CONTROL_PLANE.md`, `docs/WRP_ACCEPTANCE.md`, `docs/WRP_MASTERY_GAP_MATRIX.md`, ADR-0007
 
 ### Phase: live deepagents render (planning mode)
 - Render deepagents planning artifacts from session config

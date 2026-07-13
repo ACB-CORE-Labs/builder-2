@@ -1,0 +1,17 @@
+{
+  "kind": "builder_ii.wrp.governor_certification",
+  "wave": "mastery-P0",
+  "status": "PASS",
+  "authority_language_ok": true,
+  "findings": [],
+  "reviewed_refs": [
+    "docs/WRP_MASTERY_GAP_MATRIX.md",
+    "docs/WRP_CONTROL_PLANE.md",
+    "docs/WRP_ACCEPTANCE.md",
+    "docs/adrs/ADR-0007-orchestration-router-control-plane.md",
+    "docs/ROADMAP.md",
+    "docs/CAPABILITY_PROMOTION.md"
+  ],
+  "certifier": "gemini-3.1-pro",
+  "notes": "Scorecard: 15 OPEN gap-matrix rows remain."
+}
