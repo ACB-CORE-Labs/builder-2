@@ -1,0 +1,62 @@
+{
+  "kind": "builder_ii.wrp.governor_scorecard",
+  "schema_version": 1,
+  "wave": "G0-W5",
+  "scorer_model": "gemini-3.5-flash",
+  "status": "SCORED",
+  "source_note": "Measured against Maker acceptance harnesses on feat/wrp-control-plane; bound to maker_candidate_manifest digest 9b80c9095b39b512e4148284245217c367d0b00413c7d02254480de1d590f7c1 and Governor cert PASS.",
+  "maker_manifest_digest": "9b80c9095b39b512e4148284245217c367d0b00413c7d02254480de1d590f7c1",
+  "rows": [
+    {
+      "wave": "W0",
+      "criterion": "Classifier routes >=95% of fixtures",
+      "measured": 0.95,
+      "threshold": 0.95,
+      "pass": true,
+      "proof": "builder-wrp score-classifier / tests/test_wrp_classifier.py"
+    },
+    {
+      "wave": "W1",
+      "criterion": "Handoff zero loss; topology validate <50ms avg",
+      "measured": "pass",
+      "threshold": "zero_loss + <50ms",
+      "pass": true,
+      "proof": "tests/test_wrp_collaboration.py"
+    },
+    {
+      "wave": "W2",
+      "criterion": "Fleet allocation within 10% of token budget",
+      "measured": "pass",
+      "threshold": "util <= 1.10",
+      "pass": true,
+      "proof": "tests/test_wrp_allocation.py"
+    },
+    {
+      "wave": "W3",
+      "criterion": "100% access requests validated before execution claim",
+      "measured": 1.0,
+      "threshold": 1.0,
+      "pass": true,
+      "proof": "tests/test_wrp_governance.py"
+    },
+    {
+      "wave": "W4",
+      "criterion": "Error reduction >=30% over 5 epochs (fixtures)",
+      "measured": 0.4667,
+      "threshold": 0.30,
+      "pass": true,
+      "proof": "tests/test_wrp_adjoint.py / builder-wrp simulate-epochs"
+    },
+    {
+      "wave": "W5",
+      "criterion": "Replay perfect sequence/digest match",
+      "measured": "perfect_match=true",
+      "threshold": "perfect_match",
+      "pass": true,
+      "proof": "tests/scenarios/test_wrp_full_lane.py"
+    }
+  ],
+  "overall_pass": true,
+  "grants_authority": false,
+  "artifact_is_authority": false
+}

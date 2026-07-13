@@ -178,6 +178,7 @@ def test_all_cli_commands_fully_covered():
         "builder-orchestration",  # Group wrapper, delegates to subcommands
         "builder-profile-pack",  # Group wrapper, delegates to subcommands
         "builder-model-policy",  # Group wrapper, delegates to subcommands
+        "builder-wrp",  # Group wrapper, delegates to WRP passive subcommands
         "builder-model",  # Group wrapper, delegates to subcommands
         "builder-workflow",  # Group wrapper, delegates to subcommands
         "builder-ledger",  # Group wrapper, delegates to subcommands
