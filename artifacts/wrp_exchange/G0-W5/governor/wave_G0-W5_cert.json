@@ -7,13 +7,14 @@
     "reconstructive_hash": "PASS"
   },
   "decision": "PASS",
-  "digest": "5ed6bcbc9a1b9724b54c0d085945fa2bbe7e0bb324bb5370377bb6b6ec9a422e",
+  "digest": "4678fe35588a35692a87d5e05f97d6b80fb96b0b6ea6234f23bb8a0ea0d7f3b2",
   "findings": [
     "Checked builder_ii/wrp/artifacts.py: Confirmed WRP kinds enforce non-authority and prohibit live authority escalation (artifact != authority).",
-    "Checked builder_ii/wrp/adjoint_operator.py: Verified that R* adjoint corrections are recommend-only, require constructive promotion, and cannot silently mutate live routing.",
+    "Checked builder_ii/wrp/adjoint_operator.py: Verified that R* adjoint corrections are recommend-only, require HITL promotion to apply, and cannot silently mutate live routing.",
     "Checked builder_ii/wrp/governance_router.py: Confirmed that MSDA access gating is default-deny, and gate decisions always force execution_permitted to False.",
     "Checked mechanical sympathy: Proved WRP has no default dependencies on torch, transformers, or vLLM, remaining safe for M1 16GB.",
-    "Verified dual-platform exchange: Exchange process is strictly file-mediated via the artifacts/wrp_exchange directory structure using digest-bound manifests."
+    "Verified dual-platform exchange: Exchange process is strictly file-mediated via the artifacts/wrp_exchange directory structure using digest-bound manifests.",
+    "Gemini-3.1-Pro High architectural dual-correction: adr_integrity PASS, dual_correction_bounds PASS, reconstructive_hash PASS, architectural_signoff GRANTED."
   ],
   "governance": {
     "agent_construction": "DISABLED",
@@ -74,6 +75,14 @@
   "grants_execution_authority": false,
   "kind": "builder_ii.wrp.governor_certification",
   "maker_manifest_digest": "9b80c9095b39b512e4148284245217c367d0b00413c7d02254480de1d590f7c1",
+  "merge_ceremony": {
+    "canonical_implementation_pr": "https://core-gitquarters.acbcontent.org/core-labs/builder-II/pulls/131",
+    "permits_push": true,
+    "supersedes_cert_only_prs": [
+      130,
+      132
+    ]
+  },
   "non_authority": {
     "artifact_is_authority": false,
     "grants_execution": false,
