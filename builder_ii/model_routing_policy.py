@@ -58,7 +58,13 @@ def _default_routing_rules() -> list[dict[str, Any]]:
     ]
 
 
-def create_model_routing_policy() -> dict[str, Any]:
+def create_model_routing_policy(*, require_wrp_binding: bool = False) -> dict[str, Any]:
+    """Create a passive routing policy.
+
+    ``require_wrp_binding`` defaults False for backward compatibility. S1 promotion
+    may set it True on operator-selected policies so recommendations must carry a
+    digest-bound WRP classification binding (still RECOMMENDATION_ONLY — not live exec).
+    """
     return {
         "kind": MODEL_ROUTING_POLICY_KIND,
         "schema_version": MODEL_ROUTING_POLICY_SCHEMA_VERSION,
@@ -67,6 +73,7 @@ def create_model_routing_policy() -> dict[str, Any]:
         "executes_model": False,
         "grants_authority": False,
         "requires_human_promotion_for_execution": True,
+        "require_wrp_binding": bool(require_wrp_binding),
         "bound_registry_kind": MODEL_CLIENT_REGISTRY_KIND,
         "rules": _default_routing_rules(),
         "governance": {
@@ -191,6 +198,46 @@ def validate_model_routing_policy_file(path: Path) -> list[str]:
     return validate_model_routing_policy(data)
 
 
+def _build_wrp_binding(
+    *,
+    require: bool,
+    request: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Classify workload for S1 binding. Fail closed when require and classification fails.
+
+    Free-text classification uses ``task_text`` / ``task`` only (not bare task_intent tokens),
+    so default coding intents without free text do not re-rank candidates.
+    """
+    free_text = str(request.get("task_text") or request.get("task") or "").strip()
+    if require and not free_text:
+        # Fall back to task_intent only when binding is mandatory.
+        free_text = str(request.get("task_intent") or "").strip()
+        if not free_text:
+            raise ValueError(
+                "require_wrp_binding is true but request has no task_text/task/task_intent for classification"
+            )
+    if not free_text:
+        return None
+    try:
+        from builder_ii.wrp.workload_classifier import classify_workload
+
+        wrp_res = classify_workload(text=free_text)
+        clf = wrp_res["classification"]
+        return {
+            "required": require,
+            "classification_digest": wrp_res["digest"],
+            "tier": clf["tier"],
+            "recommended_model_alias": wrp_res["recommended_model_alias"],
+            "confidence": clf["confidence"],
+            "source_kind": wrp_res["kind"],
+            "rationale": clf.get("rationale", ""),
+        }
+    except Exception as exc:
+        if require:
+            raise ValueError(f"WRP binding required but classification failed: {exc}") from exc
+        return None
+
+
 def create_model_routing_recommendation(
     policy: dict[str, Any],
     registry: dict[str, Any],
@@ -206,6 +253,8 @@ def create_model_routing_recommendation(
         raise ValueError(f"Invalid model client registry: {registry_errors}")
 
     req = request or {"task_intent": "coding", "max_risk_classification": "local_network", "requires_tool_use": True}
+    require_wrp = bool(policy.get("require_wrp_binding")) or bool(req.get("require_wrp_binding"))
+    wrp_binding = _build_wrp_binding(require=require_wrp, request=req)
     req_intent = req.get("task_intent", "coding")
     req_max_risk = req.get("max_risk_classification", "local_network")
     if req_max_risk not in _RISK_HIERARCHY:
@@ -288,6 +337,26 @@ def create_model_routing_recommendation(
 
         candidates.append((score, cand, reasons))
 
+    # Re-rank only when S1 require_wrp_binding is active (operationally bound).
+    if wrp_binding is not None and require_wrp:
+        wrp_alias = wrp_binding.get("recommended_model_alias")
+        matched_idx = next(
+            (i for i, (_, cand, _) in enumerate(candidates) if cand.get("model_alias") == wrp_alias),
+            None,
+        )
+        if matched_idx is not None:
+            score, cand, reasons = candidates[matched_idx]
+            reasons = list(reasons) + [f"WRP binding prefers alias '{wrp_alias}' (S1)"]
+            candidates[matched_idx] = (score + 100, cand, reasons)
+        else:
+            wrp_binding = {
+                **wrp_binding,
+                "wrp_alias_excluded_reason": (
+                    f"WRP recommended alias '{wrp_alias}' not in filtered registry candidates; "
+                    "keeping policy-ranked winner (fail-open on alias, binding still recorded)"
+                ),
+            }
+
     candidates.sort(key=lambda x: x[0], reverse=True)
 
     if not candidates:
@@ -315,13 +384,14 @@ def create_model_routing_recommendation(
             }
         )
 
-    return {
+    result: dict[str, Any] = {
         "kind": MODEL_ROUTING_RECOMMENDATION_KIND,
         "schema_version": MODEL_ROUTING_RECOMMENDATION_SCHEMA_VERSION,
         "recommendation_state": "RECOMMENDATION_ONLY",
         "executes_model": False,
         "grants_authority": False,
         "requires_human_promotion_for_execution": True,
+        "require_wrp_binding": require_wrp,
         "request": req,
         "source_policy_ref": {
             "kind": MODEL_ROUTING_POLICY_KIND,
@@ -345,6 +415,9 @@ def create_model_routing_recommendation(
             "core_workbench_coupling": "NONE",
         },
     }
+    if wrp_binding is not None:
+        result["wrp_binding"] = wrp_binding
+    return result
 
 
 def dumps_model_routing_recommendation(rec: dict[str, Any]) -> str:
@@ -372,6 +445,29 @@ def validate_model_routing_recommendation(record: Any) -> list[str]:
         errors.append("grants_authority must be false or NOT_AUTHORIZED")
     if record.get("requires_human_promotion_for_execution") is not True:
         errors.append("requires_human_promotion_for_execution must be true")
+
+    require_wrp = record.get("require_wrp_binding") is True
+    wrp_binding = record.get("wrp_binding")
+    if require_wrp:
+        if not isinstance(wrp_binding, dict):
+            errors.append("require_wrp_binding is true but wrp_binding is missing or not an object")
+        else:
+            for key in (
+                "classification_digest",
+                "tier",
+                "recommended_model_alias",
+                "confidence",
+                "source_kind",
+            ):
+                if not wrp_binding.get(key):
+                    errors.append(f"wrp_binding.{key} is required when require_wrp_binding is true")
+            digest = wrp_binding.get("classification_digest")
+            if isinstance(digest, str) and not _SHA256_RE.match(digest):
+                errors.append("wrp_binding.classification_digest must be a 64-char hex SHA-256")
+            if wrp_binding.get("required") is not True:
+                errors.append("wrp_binding.required must be true when require_wrp_binding is true")
+    elif wrp_binding is not None and not isinstance(wrp_binding, dict):
+        errors.append("wrp_binding must be an object when present")
 
     policy_ref = record.get("source_policy_ref")
     if not isinstance(policy_ref, dict):

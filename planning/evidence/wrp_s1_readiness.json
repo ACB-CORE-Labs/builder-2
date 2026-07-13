@@ -1,0 +1,148 @@
+{
+  "allowed_actions": [
+    "record_promotion_readiness",
+    "validate_promotion_readiness"
+  ],
+  "capability_name": "WRP S1 bound recommendations",
+  "capability_state": "promotion_readiness_record",
+  "checks": [
+    {
+      "missing": [],
+      "name": "docs",
+      "ready": true,
+      "refs": [
+        "docs/plan/WRP_S1_BINDING_DESIGN.md",
+        "docs/WRP_CONTROL_PLANE.md",
+        "docs/WRP_ACCEPTANCE.md",
+        "docs/adrs/ADR-0007-orchestration-router-control-plane.md"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "tests",
+      "ready": true,
+      "refs": [
+        "tests/test_wrp_s1_binding.py",
+        "tests/test_model_routing_policy.py"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "cli_surface",
+      "ready": true,
+      "refs": [
+        "builder-wrp classify",
+        "builder-model-policy"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "failure_mode",
+      "ready": true,
+      "refs": [
+        "docs/plan/WRP_S1_BINDING_DESIGN.md"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "approval_boundary",
+      "ready": true,
+      "refs": [
+        "docs/CAPABILITY_PROMOTION.md",
+        "docs/WRP_MASTERY_AGENT_DISPATCH.md"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "output_artifact",
+      "ready": true,
+      "refs": [
+        "builder_ii.model_routing_recommendation wrp_binding"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "rollback_path",
+      "ready": true,
+      "refs": [
+        "set require_wrp_binding=false / unset BUILDER_II_WRP_BIND"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "verification_path",
+      "ready": true,
+      "refs": [
+        "uv run pytest tests/test_wrp_s1_binding.py -q"
+      ]
+    }
+  ],
+  "current_state": "DISABLED",
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "artifacts_are_authority": false,
+    "autonomous_agent_authority": "DISABLED",
+    "benchmark_execution": "DISABLED",
+    "capability_state": "promotion_readiness_record",
+    "claims_verification_passed": "DISABLED",
+    "command_execution": "DISABLED",
+    "commit_push": "DISABLED",
+    "core_workbench_coupling": "NONE",
+    "deepagents_construction": "DISABLED",
+    "deepagents_delegation": "DISABLED",
+    "deepagents_runtime": "DISABLED",
+    "deepagents_runtime_start": "DISABLED",
+    "deephaven_touch": "DISABLED",
+    "executes_commands": false,
+    "file_mutation": "DISABLED",
+    "git_mutation": "DISABLED",
+    "git_status_inspection": "DISABLED",
+    "goose_runtime_activation": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "hardware_probe": "DISABLED",
+    "mcp_execution": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "model_execution_loops": "DISABLED",
+    "network_access": "DISABLED",
+    "network_mcp_execution": "DISABLED",
+    "notes_vault_mutation": "DISABLED",
+    "patch_application": "DISABLED",
+    "proof_of_capability_only": true,
+    "pull_request_creation": "DISABLED",
+    "quality_gate_executes_commands": "DISABLED",
+    "report_is_completed_evidence": "DISABLED",
+    "repository_file_reads": "DISABLED",
+    "repository_writes": "DISABLED",
+    "runtime_activation": "DISABLED",
+    "runtime_authority": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "runtime_executor": false,
+    "search_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_collection": "DISABLED",
+    "source_patches_applied": "DISABLED",
+    "source_writes": "DISABLED",
+    "subagent_construction": "DISABLED",
+    "subprocess_backed_authority": "DISABLED",
+    "subprocess_execution": "DISABLED",
+    "target_artifact_reads": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "ticket_creation": "DISABLED",
+    "web_search": "DISABLED"
+  },
+  "grants_action_authority": false,
+  "grants_runtime_authority": false,
+  "kind": "builder_ii.promotion_readiness_record",
+  "missing": [],
+  "notes": "S1 lands operationally bound recommendations when require_wrp_binding=true or BUILDER_II_WRP_BIND=1. Default remains unbound advisory. Not live lane (S2).",
+  "performed_actions": [],
+  "ready": true,
+  "record_state": "RECORDED_ONLY",
+  "schema_version": 1,
+  "status": "ready",
+  "support_artifacts": [],
+  "target": "builder",
+  "target_state": "recommendation_only"
+}

@@ -160,14 +160,33 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
             "No strong signal detected; defaulting to qwen-coder implementation lane",
         )
 
+    wrp_bind = os.getenv("BUILDER_II_WRP_BIND", "").strip().lower() in {"1", "true", "yes", "on"}
     try:
         from builder_ii.wrp.workload_classifier import classify_workload
         wrp_res = classify_workload(text=text)
         wrp_clf = wrp_res["classification"]
-        rationale += f" [WRP Recommendation: tier={wrp_clf['tier']}, alias={wrp_res['recommended_model_alias']}, rationale={wrp_clf['rationale']}]"
+        wrp_alias = wrp_res["recommended_model_alias"]
+        wrp_tier = wrp_clf["tier"]
+        wrp_conf = wrp_clf["confidence"]
+        rationale += (
+            f" [WRP Recommendation: tier={wrp_tier}, alias={wrp_alias}, "
+            f"rationale={wrp_clf['rationale']}]"
+        )
+        # S1 bind: when BUILDER_II_WRP_BIND is set, WRP wins if confidence is high/medium.
+        if wrp_bind and wrp_conf in {"high", "medium"}:
+            tier = wrp_tier if wrp_tier in {"fast", "primary", "primary_constrained"} else tier
+            # Map primary_constrained → primary lane alias (still qwen-coder under M1 defaults).
+            if wrp_tier == "primary_constrained":
+                tier = "primary"
+            alias = wrp_alias
+            confidence = wrp_conf
+            rationale += f" [WRP BIND active: selected alias={alias} tier={tier}]"
     except (ImportError, KeyError):
-        pass
+        if wrp_bind:
+            raise
     except Exception as exc:
+        if wrp_bind:
+            raise
         import sys
         sys.stderr.write(f"Warning: WRP workload classification failed: {exc}\n")
 

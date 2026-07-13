@@ -34,7 +34,7 @@ Eight promotion gates are the **mechanism** of enablement, not a permanent stop.
 
 | Stage | Target power | Status |
 | --- | --- | --- |
-| S1 | Recommendations **bound** into routing / assignment dry-run | Open (readiness exists; decision not shipped) |
+| S1 | Recommendations **bound** into routing / assignment dry-run | **Code landed** (`require_wrp_binding` / `BUILDER_II_WRP_BIND` / dry-run `require_wrp`); promotion decision blocked until G-LEAD + HUMAN |
 | S2 | HITL live lane (`builder-wrp run-approved`) | Open |
 | S3 | Scoped `enabled` for declared profiles | Open |
 | S4 | Backend promotions (embed / OPA / vLLM research) | Open |
