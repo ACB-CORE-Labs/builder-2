@@ -1159,6 +1159,9 @@ def create_deepagents_replay_report(
     completed: list[str] = []
     scheduled: list[str] = []
     denied: list[str] = []
+    minted_obligations: list[str] = []
+    refused_obligations: list[str] = []
+    consumed_obligations: list[str] = []
     status = "RUNNING"
     previous_ref: dict[str, Any] | None = None
     expected_sequence = 1
@@ -1196,6 +1199,18 @@ def create_deepagents_replay_report(
             status = "COMPLETED"
         elif event_type == "run_failed":
             status = "FAILED"
+        elif event_type == "obligation_minted":
+            digest = payload.get("obligation_digest")
+            if isinstance(digest, str) and digest not in minted_obligations:
+                minted_obligations.append(digest)
+        elif event_type == "obligation_mint_refused":
+            digest = payload.get("obligation_digest")
+            if isinstance(digest, str) and digest not in refused_obligations:
+                refused_obligations.append(digest)
+        elif event_type == "obligation_consumed":
+            digest = payload.get("obligation_digest")
+            if isinstance(digest, str) and digest not in consumed_obligations:
+                consumed_obligations.append(digest)
 
     event_refs = [
         _artifact_ref(event, role="event", path=path, name=str(event.get("event_type", ""))) for event, path in ordered
@@ -1211,6 +1226,9 @@ def create_deepagents_replay_report(
         "completed_subagents": completed,
         "scheduled_subagents": scheduled,
         "denied_capabilities": denied,
+        "minted_obligations": minted_obligations,
+        "refused_obligations": refused_obligations,
+        "consumed_obligations": consumed_obligations,
         "event_refs": event_refs,
         "last_event_ref": event_refs[-1] if event_refs else None,
         "errors": errors,
@@ -1784,7 +1802,16 @@ def validate_deepagents_replay_report(data: Any) -> list[str]:
         errors.append("valid must be a boolean")
     if not isinstance(data.get("event_count"), int) or data["event_count"] < 0:
         errors.append("event_count must be a non-negative integer")
-    for field in ("completed_subagents", "scheduled_subagents", "denied_capabilities", "warnings", "errors"):
+    for field in (
+        "completed_subagents",
+        "scheduled_subagents",
+        "denied_capabilities",
+        "minted_obligations",
+        "refused_obligations",
+        "consumed_obligations",
+        "warnings",
+        "errors",
+    ):
         errors.extend(_string_list(data.get(field), field=field))
     if not isinstance(data.get("event_refs"), list):
         errors.append("event_refs must be a list")
