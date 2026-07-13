@@ -195,7 +195,8 @@ These are the next capability promotions. Each requires the full capability prom
 - **S1 decided approved** on main (bound recommendations when flagged)
 - **P2 wires on main:** fleet_binding, optional MSDA preflight env, embed classifier
 - **S2 decided approved on main:** `plan-live` / `approve-live` / `run-approved` (HITL graph + forced MSDA; noop|record only; no gateway nodes); not S3
-- **Not done:** S3 scoped enabled, \(R^*\) apply (P4), Class U (P5), heavy backends (P6)
+- **P4 R* apply on branch/main when merged:** real-receipt corrections → HITL `apply-rstar-approved` → versioned `phi_policy` (explicit classifier bind; no DEFAULT_PHI mutate)
+- **Not done:** S3 scoped enabled, Class U (P5), heavy backends (P6), S2 v2 gateway nodes
 - Dual-platform Maker / Governor ceremony for promotion decisions
 - See `docs/WRP_CONTROL_PLANE.md`, `docs/WRP_ACCEPTANCE.md`, `docs/WRP_MASTERY_GAP_MATRIX.md`, ADR-0007
 

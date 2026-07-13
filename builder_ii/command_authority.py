@@ -695,6 +695,11 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp plan-live",
     "builder-wrp approve-live",
     "builder-wrp run-approved",
+    "builder-wrp phi-policy-init",
+    "builder-wrp corrections-from-receipts",
+    "builder-wrp plan-rstar-apply",
+    "builder-wrp approve-rstar-apply",
+    "builder-wrp apply-rstar-approved",
     "builder-model call",
     "builder-model standalone-call",
     "builder-model validate-receipt",
@@ -1754,7 +1759,9 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         notes=(
             "WRP passive subcommands remain recommendation/plan/validation. "
             "S2 HITL live lane is only via builder-wrp run-approved under digest-bound approval; "
-            "no shell; no model/tool gateway in S2 v1."
+            "no shell; no model/tool gateway in S2 v1. "
+            "P4 R* φ apply is only via builder-wrp apply-rstar-approved under digest-bound approval; "
+            "never mutates DEFAULT_PHI; requires explicit classifier bind."
         ),
     ),
     CommandAuthorityRecord(
@@ -3327,6 +3334,79 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints or writes builder_ii.wrp.live_run_receipt.",
         failure_mode="Exits non-zero on missing approval, MSDA deny, or invalid plan.",
         notes="HITL runtime candidate; not global enabled multi-agent autonomy. S3 separate.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp phi-policy-init",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Emits version-0 phi_policy from DEFAULT_PHI; does not change live routing defaults.",
+        write_boundary="Writes policy JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints or writes builder_ii.wrp.phi_policy.",
+        failure_mode="Exits non-zero on write failure.",
+        notes="P4 base policy only; requires_explicit_bind.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp corrections-from-receipts",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Maps real receipts into experience exemplars and R* adjoint_correction artifacts; does not apply φ.",
+        write_boundary="Writes store/corrections JSON only when explicit output paths are supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None; φ apply requires plan-rstar-apply + approve + apply-rstar-approved.",
+        output_behavior="Prints or writes correction package + optional versioned experience store.",
+        failure_mode="Exits non-zero on malformed receipts.",
+        notes="P4 real-receipt path; corrections still require_hitl_promotion_to_apply.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp plan-rstar-apply",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Emits digest-bound R* apply plan aggregating correction digests into proposed φ; does not apply.",
+        write_boundary="Writes plan JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None; apply requires approve-rstar-apply + apply-rstar-approved.",
+        output_behavior="Prints or writes builder_ii.wrp.rstar_apply_plan.",
+        failure_mode="Exits non-zero when no apply-worthy failure deltas or invalid inputs.",
+        notes="P4 plan only; not authority.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp approve-rstar-apply",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary="Emits digest-bound HITL approval for an R* apply plan; does not apply φ.",
+        write_boundary="Writes approval JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Operator supplies --approved-by; approval is not apply.",
+        output_behavior="Prints or writes builder_ii.wrp.rstar_apply_approval.",
+        failure_mode="Exits non-zero if plan digest missing.",
+        notes="Approval alone does not apply φ.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp apply-rstar-approved",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_3,
+        promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
+        runtime_boundary=(
+            "P4 HITL R* apply: digest-bound plan+approval → new versioned phi_policy artifact. "
+            "Never mutates DEFAULT_PHI or live routing defaults; classifier must bind explicitly."
+        ),
+        write_boundary="Writes phi_policy and/or apply receipt JSON only when explicit output paths are supplied.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Requires digest-bound builder_ii.wrp.rstar_apply_approval matching plan.digest.",
+        output_behavior="Prints or writes builder_ii.wrp.rstar_apply_receipt (+ optional phi_policy).",
+        failure_mode="Exits non-zero on missing approval, digest mismatch, or delta-cap violation.",
+        notes="HITL φ-policy versioning only; not S3 enabled multi-agent routing.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(

@@ -25,10 +25,31 @@ def create_experience_store(*, store_id: str = "default") -> dict[str, Any]:
             "store_id": store_id,
             "exemplars": [],
             "frozen": False,
+            "version": 0,
+            "parent_digest": None,
             "grants_authority": False,
             "updates_live_routing": False,
         },
     )
+
+
+def version_store(store: dict[str, Any], *, notes: str = "") -> dict[str, Any]:
+    """Return a new store revision with version+1 and parent_digest linkage (immutable).
+
+    Used by P4 R* apply lineage. Does not freeze and does not grant live routing.
+    """
+    if store.get("frozen") is True:
+        raise ValueError("experience store is frozen; cannot version")
+    parent = store.get("digest")
+    if not isinstance(parent, str) or len(parent) != 64:
+        raise ValueError("store must be finalized with a 64-char digest before versioning")
+    updated = dict(store)
+    updated["version"] = int(store.get("version") or 0) + 1
+    updated["parent_digest"] = parent
+    if notes:
+        updated["version_notes"] = notes
+    updated.pop("digest", None)
+    return finalize_wrp_artifact(updated)
 
 
 def append_exemplar(
@@ -84,4 +105,12 @@ def validate_experience_store(record: Any) -> list[str]:
         errors.append("grants_authority must be false")
     if not isinstance(record.get("exemplars"), list):
         errors.append("exemplars must be a list")
+    version = record.get("version")
+    if version is not None and (
+        not isinstance(version, int) or isinstance(version, bool) or version < 0
+    ):
+        errors.append("version must be a non-negative int when present")
+    parent = record.get("parent_digest")
+    if parent is not None and (not isinstance(parent, str) or len(parent) != 64):
+        errors.append("parent_digest must be a 64-char hex digest when present")
     return errors

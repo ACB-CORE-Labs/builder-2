@@ -10,10 +10,10 @@ Geometry-first Workload–Router–Pool (WRP) orchestration & routing control pl
 
 | Dimension | State today |
 | --- | --- |
-| Capability promotion | `artifact_only` / `validation_only` / `recommendation_only` |
-| Command surface | `builder-wrp` (Tier 1) — plan/validate/recommend |
-| Live multi-agent execution | **Not enabled** — G0–W5 Governor cert ≠ enabled |
-| Absolute mastery | **In progress** (phases P0–P7); substrate landed, live lane and promotion decisions open |
+| Capability promotion | `artifact_only` / `validation_only` / `recommendation_only` + HITL candidates for S2 live + P4 φ apply |
+| Command surface | `builder-wrp` Tier 1 passive + Tier 3 `run-approved` / `apply-rstar-approved` |
+| Live multi-agent execution | **Not S3-enabled** — S2 HITL graph only; P4 φ apply does not enable multi-agent |
+| Absolute mastery | **In progress** (P4 landed on this phase; P5–P7 open) |
 
 This document states both **what exists** and the **mastery target**. Target language is not a grant of power.
 
@@ -60,13 +60,34 @@ rollback:
   - fail closed before mutate; delete receipts; no live policy apply
 ```
 
-**Honest limit:** Code on main is not a completed S2 **promotion** until `wrp_s2_decision.json` is HUMAN-approved after G-LEAD audit. Tier 3 `hitl_runtime_candidate` for `run-approved` is the command class, not S3 `enabled`.
+**Honest limit:** S2 is decided approved on main (`planning/evidence/wrp_s2_decision.json`). Tier 3 `hitl_runtime_candidate` for `run-approved` is the command class, not S3 `enabled`.
+
+## P4 R* apply contract (HITL φ-policy versioning)
+
+**CLI:** `phi-policy-init` → `corrections-from-receipts` → `plan-rstar-apply` → `approve-rstar-apply` → `apply-rstar-approved`.
+
+```text
+inputs:
+  - real receipts (model_call | tool_call | verification | wrp_live_step)
+  - digest-bound builder_ii.wrp.phi_policy (base version)
+  - digest-bound builder_ii.wrp.rstar_apply_plan (correction digests + proposed φ)
+  - digest-bound builder_ii.wrp.rstar_apply_approval (plan_digest must match)
+behavior:
+  - aggregate failure-driven suggested_phi_deltas with per-axis cap (MAX_DELTA_PER_AXIS)
+  - emit NEW versioned phi_policy (parent_policy_digest chain); never mutate DEFAULT_PHI
+  - classifier uses applied φ only when explicitly bound (phi= / phi_policy_digest)
+  - updates_live_routing_defaults=false always
+outputs:
+  - builder_ii.wrp.rstar_apply_receipt + optional new phi_policy
+rollback:
+  - discard plan/approval/receipt; keep prior phi_policy version; DEFAULT_PHI untouched
+```
 
 ## Non-authority boundaries (current)
 
 - Passive lane does **not** invoke model/tool gateways in S2 v1; no shell; no Goose/deepagents.
 - Does not grant promotion authority by module existence or by plan/approval alone.
-- Adjoint corrections still require separate HITL promotion to apply to live policy.
+- Adjoint corrections require HITL `apply-rstar-approved` to produce a versioned φ policy; still no silent live default mutation.
 - Maker packages are not self-certified; Governor cert is separate for promotion decisions.
 - Enabling by module existence alone is forbidden; **failing to complete the decision after G-LEAD PASS is also failure.**
 
@@ -78,7 +99,7 @@ rollback:
 | W1 | CollaborationPlanner | `builder-wrp plan-collab` | `builder_ii.wrp.collaboration_topology` |
 | W2 | AllocationOptimizer | `builder-wrp allocate` | `builder_ii.wrp.fleet_allocation` |
 | W3 | GovernanceRouter / MSDA | `builder-wrp gate`, `msda-policy` | `msda_policy`, `msda_gate_decision` |
-| W4 | ExperienceStore + \(R^*\) | `builder-wrp experience-init`, `adjoint`, `simulate-epochs` | `experience_store`, `adjoint_correction` |
+| W4 | ExperienceStore + \(R^*\) | `experience-init`, `adjoint`, `simulate-epochs`, `corrections-from-receipts`, `plan-rstar-apply`, `approve-rstar-apply`, `apply-rstar-approved`, `phi-policy-init` | `experience_store`, `adjoint_correction`, `phi_policy`, `rstar_apply_*` |
 | W5 | SubtaskGraph + replay | `builder-wrp graph`, `replay` | `subtask_graph`, `replay_report` |
 | compose | Forward \(R\) | `builder-wrp route` | `forward_route` |
 

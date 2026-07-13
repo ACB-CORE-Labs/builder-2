@@ -25,7 +25,7 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | Dual-platform exchange + G0–W5 Governor cert | `LANDED` | P7 ops | `artifacts/wrp_exchange/` |
 | Advisory WRP annotation in model_router / dry-run | `LANDED` | P1 S1 | **S1 decided (approved on main):** bind when `require_wrp_binding` / `BUILDER_II_WRP_BIND` / dry-run `require_wrp`; default still advisory |
 | Promotion readiness record | `LANDED` | P1 | `planning/evidence/wrp_s1_readiness.json` ready on main |
-| Promotion **decision** S1–S3 | `PARTIAL` | P1 | **S1 approved** (HUMAN after G-LEAD PASS); S2/S3 OPEN |
+| Promotion **decision** S1–S3 | `PARTIAL` | P1 | **S1+S2 approved** (HUMAN after G-LEAD PASS); S3 OPEN |
 | Live lane `run-approved` | `LANDED` | P3 / S2 | **S2 decided approved**: HITL v1 run-approved; forced MSDA; noop|record; no gateway nodes; not S3 |
 | WorkloadClassifier rules + 95% fixtures | `LANDED` | P2.0 deepen | `builder-wrp score-classifier` |
 | EmbeddingBackend + kNN (hash default; ModernBERT-class opt-in) | `PARTIAL` | P2.0 / P6 | Module + tests landed; wire into classifier + S4 embedder promo open |
@@ -37,9 +37,9 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | OPA export + optional OPA eval parity | `PARTIAL` | P2.3 / P6 | `opa_adapter.py` landed; preflight uses pure MSDA |
 | Classifier ↔ EmbeddingBackend wire | `PARTIAL` | P2.0 | `use_embedding` / `BUILDER_II_WRP_EMBED`; HashingEmbedder+kNN; default metric path |
 | ExperienceStore append/freeze | `LANDED` | P2.4 | — |
-| Receipt ingest → experience exemplars | `PARTIAL` | P2.4 / P4 | `receipt_ingest.py` landed; real ledger series + R* apply still OPEN |
-| \(R^*\) synthetic epochs ≥30% | `LANDED` | P4 | fixture path only today |
-| \(R^*\) from **real** receipts + **apply** via promotion | `OPEN` | P4 | receipt_ingest + apply path |
+| Receipt ingest → experience exemplars | `LANDED` | P2.4 / P4 | `receipt_ingest.py` + `corrections_from_receipts` / CLI |
+| \(R^*\) synthetic epochs ≥30% | `LANDED` | P4 | fixture path (`simulate-epochs`) |
+| \(R^*\) from **real** receipts + **apply** via promotion | `LANDED` | P4 | real-receipt epochs + HITL `plan-rstar-apply` → `approve-rstar-apply` → `apply-rstar-approved` → versioned `phi_policy`; explicit classifier bind only |
 | AgentFactory plan only | `PARTIAL` | P2.5 | spawn/retire under HITL at S2 |
 | SubtaskGraph plan + digest replay | `PARTIAL` | P2.6 / P2.8 | graph **runtime** landed (noop/record); live invoke + tree_hash OPEN |
 | Orchestration patterns at runtime | `PARTIAL` | P2.6 / P3 | sequential, fan-out, hierarchical, handoff, cyclic in graph_runtime; gateway-backed nodes OPEN |
@@ -69,7 +69,7 @@ See absolute mastery plan success definition. **None** of these boxes may be che
 ```text
 [ ] Master-Plan W0–W5 green with Maker + Governor evidence
 [ ] Live lane promoted and used under MSDA + budgets
-[ ] R deterministic; R* applied through promotion; adaptivity measured
+[x] R deterministic; R* applied through promotion (HITL φ-policy); adaptivity measured on receipt epochs
 [ ] Proof R, D, U evidenced (U with numbers)
 [ ] Dual-platform ceremony for authority changes
 [ ] CAPABILITY_PROMOTION / matrix / command_authority match real power
