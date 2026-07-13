@@ -194,9 +194,10 @@ These are the next capability promotions. Each requires the full capability prom
 - Geometry-first Workload–Router–Pool plane under `builder_ii/wrp/` and `builder-wrp`
 - **S1 decided approved** on main (bound recommendations when flagged)
 - **P2 wires on main:** fleet_binding, optional MSDA preflight env, embed classifier
-- **S2 decided approved on main:** `plan-live` / `approve-live` / `run-approved` (HITL graph + forced MSDA; noop|record only; no gateway nodes); not S3
-- **P4 R* apply on branch/main when merged:** real-receipt corrections → HITL `apply-rstar-approved` → versioned `phi_policy` (explicit classifier bind; no DEFAULT_PHI mutate)
-- **Not done:** S3 scoped enabled, Class U (P5), heavy backends (P6), S2 v2 gateway nodes
+- **S2 decided approved on main:** `plan-live` / `approve-live` / `run-approved` (HITL graph + forced MSDA; noop|record)
+- **P4 R* apply on main (#142):** real-receipt corrections → HITL `apply-rstar-approved` → versioned `phi_policy` (explicit classifier bind; no DEFAULT_PHI mutate)
+- **S2 v2 gateway nodes (HITL):** `model_gateway` / `tool_gateway` with default `record` mode (no cloud provider); `stub_tool` B7 allowlist only
+- **Not done:** S3 scoped enabled, Class U (P5), heavy backends (P6), cloud provider gateway invoke
 - Dual-platform Maker / Governor ceremony for promotion decisions
 - See `docs/WRP_CONTROL_PLANE.md`, `docs/WRP_ACCEPTANCE.md`, `docs/WRP_MASTERY_GAP_MATRIX.md`, ADR-0007
 

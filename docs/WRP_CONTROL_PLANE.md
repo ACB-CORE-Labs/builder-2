@@ -52,7 +52,7 @@ inputs (v1):
 behavior (v1):
   - forced MSDA allow for every declared tool or refuse
   - graph execute noop|record only (no shell node types)
-  - model_gateway_invoked=false; tool_gateway_invoked=false (gateway nodes = later slice)
+  - model_gateway_invoked=false; tool_gateway_invoked=false
   - never shell=True
 outputs:
   - builder_ii.wrp.live_run_receipt (+ optional experience_store digest)
@@ -61,6 +61,22 @@ rollback:
 ```
 
 **Honest limit:** S2 is decided approved on main (`planning/evidence/wrp_s2_decision.json`). Tier 3 `hitl_runtime_candidate` for `run-approved` is the command class, not S3 `enabled`.
+
+### S2 v2 gateway nodes (HITL; default record mode)
+
+**CLI:** `plan-live --s2-version v2 [--gateway-mode record|stub_tool]` → `approve-live` → `run-approved`.
+
+```text
+behavior (v2):
+  - allowed_node_types: noop|record|model_gateway|tool_gateway
+  - every gateway node forces MSDA preflight before any work
+  - gateway_mode=record (default): digest-bound synthetic gateway receipts; no network; no cloud provider
+  - gateway_mode=stub_tool: in-process B7 allowlist only (builtin.echo|builtin.utc_static); model_gateway refuses stub_tool
+  - cloud_provider_invoke must be false; executes_shell must be false
+  - plan flags model_gateway_invoked/tool_gateway_invoked must match actual node_specs
+```
+
+v2 extends node types under the same HITL class — not S3 scoped `enabled`, and not silent cloud model enablement.
 
 ## P4 R* apply contract (HITL φ-policy versioning)
 
@@ -85,7 +101,7 @@ rollback:
 
 ## Non-authority boundaries (current)
 
-- Passive lane does **not** invoke model/tool gateways in S2 v1; no shell; no Goose/deepagents.
+- S2 v1 does not invoke gateways; S2 v2 gateway nodes default to **record** (no cloud provider / no shell); no Goose/deepagents.
 - Does not grant promotion authority by module existence or by plan/approval alone.
 - Adjoint corrections require HITL `apply-rstar-approved` to produce a versioned φ policy; still no silent live default mutation.
 - Maker packages are not self-certified; Governor cert is separate for promotion decisions.

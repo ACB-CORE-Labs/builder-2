@@ -1,0 +1,28 @@
+{
+  "kind": "builder_ii.wrp.governor_scorecard",
+  "wave": "mastery/S2-v2",
+  "pr": 143,
+  "branch": "feat/wrp-s2-v2-gateway-nodes",
+  "scorer": "gemini-3.5-flash",
+  "role": "G-FAST",
+  "tests_seen": 2521,
+  "pass_count": 2519,
+  "fail_count": 0,
+  "skip_count": 2,
+  "pass_fail_counts": {
+    "passed": 2519,
+    "failed": 0,
+    "skipped": 2
+  },
+  "open_concerns": [
+    "S2 is in hitl_runtime_candidate state (not globally enabled for multi-agent live autonomy which is S3)",
+    "Cloud provider model execution is strictly disabled (cloud_provider_invoke is false)",
+    "Network access remains disabled for gateway nodes",
+    "Shell execution is denied across the live lane",
+    "In-process stub_tool mode is limited to the B7 allowlist (builtin.echo, builtin.utc_static), and model_gateway rejects stub_tool mode",
+    "WRP v1 plans continue to refuse gateway flags/nodes",
+    "G-LEAD certification is required for the merge ceremony as this is a non-blocking scorecard only"
+  ],
+  "blocking": false,
+  "notes": "PR #143 tests pass successfully. Security controls are verified to be safely restrictive. This G-FAST scorecard is non-blocking."
+}

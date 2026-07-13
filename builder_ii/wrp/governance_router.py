@@ -33,6 +33,14 @@ def create_default_msda_policy() -> dict[str, Any]:
                     "max_risk": "local_network",
                 },
                 {
+                    # S2 v2 gateway nodes (record/stub_tool only — not shell, not cloud MCP).
+                    "rule_id": "allow_wrp_gateway_local_tools",
+                    "effect": "allow",
+                    "tools": ["model_call", "builtin.echo", "builtin.utc_static"],
+                    "data_domains": ["local_workspace", "artifact_store"],
+                    "max_risk": "local_network",
+                },
+                {
                     "rule_id": "deny_shell_by_default",
                     "effect": "deny",
                     "tools": ["shell", "bash", "subprocess_open"],

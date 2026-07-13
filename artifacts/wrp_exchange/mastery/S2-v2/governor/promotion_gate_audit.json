@@ -1,0 +1,39 @@
+{
+  "kind": "builder_ii.wrp.promotion_gate_audit",
+  "wave": "mastery/S2-v2",
+  "pr": 143,
+  "gates": {
+    "1_docs_honest": {
+      "status": "PASS",
+      "evidence": "docs/CAPABILITY_PROMOTION.md states S2 v2 as hitl_runtime_candidate, clearly documenting constraints and omission of cloud model execution."
+    },
+    "2_command_surface": {
+      "status": "PASS",
+      "evidence": "builder_ii/command_authority.py contains builder-wrp run-approved bounding execution exactly to S2 live lane rules."
+    },
+    "3_tests": {
+      "status": "PASS",
+      "evidence": "Unit and e2e tests (tests/test_wrp_gateway_nodes.py, tests/test_wrp_live_lane_v2.py, tests/scenarios/test_wrp_s2_v2_gateway_e2e.py) succeed cleanly."
+    },
+    "4_failure_modes": {
+      "status": "PASS",
+      "evidence": "graph_runtime.py and live_lane.py explicitly throw fail-closed GatewayNodeError or LiveLaneError upon invariant breaches."
+    },
+    "5_human_approval": {
+      "status": "PASS",
+      "evidence": "run_approved mandates a LIVE_RUN_APPROVAL_KIND artifact tied identically by digest to the submitted plan."
+    },
+    "6_output_artifacts": {
+      "status": "PASS",
+      "evidence": "Upon successful execution, run_approved issues LIVE_RUN_RECEIPT_KIND wrapping gateway digests within the trajectory."
+    },
+    "7_rollback_path": {
+      "status": "PASS",
+      "evidence": "No mutation of DEFAULT_PHI or irreversible side-effects; rollback resolves via dropping receipts/plans."
+    },
+    "8_verification_path": {
+      "status": "PASS",
+      "evidence": "Verified via provided pytest path without issues."
+    }
+  }
+}

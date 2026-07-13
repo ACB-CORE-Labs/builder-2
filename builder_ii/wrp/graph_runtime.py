@@ -3,22 +3,31 @@
 Executes TrajectoryGraph / subtask_graph plans for orchestration patterns:
 sequential, fan_out_fan_in, hierarchical, handoff, cyclic (max_iterations hard cap).
 
-Node types (P2.6):
+Node types (P2.6 + S2 v2):
 - noop   — no side effects
 - record — records payload into the run trajectory
-
-Does NOT call model/tool gateways (that is P3 M-LEAD live lane).
-Fail closed on unknown node types, cycles without max_iterations, missing handoff keys.
+- model_gateway / tool_gateway — only when a ``gateway_handler`` is supplied
+  (live_lane S2 v2); pure runtime without handler still fail-closes these types.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, Mapping, Sequence
 
 from builder_ii.config_schema import attach_digest
 from builder_ii.wrp.spaces import TrajectoryGraph
 
+# Pure runtime always knows noop/record. Gateway types need a live-lane handler.
 SUPPORTED_NODE_TYPES: frozenset[str] = frozenset({"noop", "record"})
+GATEWAY_NODE_TYPES: frozenset[str] = frozenset({"model_gateway", "tool_gateway"})
+ALL_NODE_TYPES: frozenset[str] = SUPPORTED_NODE_TYPES | GATEWAY_NODE_TYPES
+
+# gateway_handler(node_id, spec, handoff_state) -> (event, new_state, trajectory_delta, error|None)
+GatewayHandler = Callable[
+    [str, dict[str, Any], dict[str, Any]],
+    tuple[dict[str, Any], dict[str, Any], dict[str, Any], str | None],
+]
 
 # Canonical pattern names accepted by the runtime.
 SUPPORTED_PATTERNS: frozenset[str] = frozenset(
@@ -174,6 +183,7 @@ def _run_node(
     handoff_state: dict[str, Any],
     trajectory: dict[str, Any],
     iteration: int | None = None,
+    gateway_handler: GatewayHandler | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], str | None]:
     """Execute one node. Returns (event, new_state, new_trajectory, error_or_none)."""
     node_type = spec["node_type"]
@@ -192,8 +202,26 @@ def _run_node(
                 msg,
             )
 
+    if node_type in GATEWAY_NODE_TYPES:
+        if gateway_handler is None:
+            msg = (
+                f"gateway node type {node_type!r} requires a gateway_handler "
+                "(S2 v2 live lane only; pure runtime refuses)"
+            )
+            return (
+                _event(node_id=node_id, status="failed", cost_estimate=cost, error=msg, iteration=iteration),
+                handoff_state,
+                trajectory,
+                msg,
+            )
+        event, new_state, traj_delta, err = gateway_handler(node_id, spec, handoff_state)
+        if iteration is not None and isinstance(event, dict) and "iteration" not in event:
+            event = {**event, "iteration": iteration}
+        new_trajectory = {**trajectory, **dict(traj_delta or {})}
+        return event, new_state, new_trajectory, err
+
     if node_type not in SUPPORTED_NODE_TYPES:
-        msg = f"unknown node type: {node_type!r} (supported: {sorted(SUPPORTED_NODE_TYPES)})"
+        msg = f"unknown node type: {node_type!r} (supported: {sorted(ALL_NODE_TYPES)})"
         return (
             _event(node_id=node_id, status="failed", cost_estimate=cost, error=msg, iteration=iteration),
             handoff_state,
@@ -232,6 +260,7 @@ def execute_graph(
     required_keys: Sequence[str] | None = None,
     max_iterations: int | None = None,
     require_keys_before_first_node: bool = True,
+    gateway_handler: GatewayHandler | None = None,
     extra: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Execute a TrajectoryGraph under the pure-Python runtime.
@@ -253,6 +282,9 @@ def execute_graph(
     require_keys_before_first_node:
         When True (default), global required_keys are checked before any node runs.
         When False, keys may be filled by an early ``record`` node before a later check.
+    gateway_handler:
+        Optional handler for model_gateway/tool_gateway nodes (S2 v2 live lane).
+        Pure runtime without handler fail-closes gateway node types.
     extra:
         Optional fields merged into the result dict before digest attach.
 
@@ -348,6 +380,7 @@ def execute_graph(
                 handoff_state=state,
                 trajectory=trajectory,
                 iteration=iter_label,
+                gateway_handler=gateway_handler,
             )
             events = [*events, event]
             total_cost += float(event["cost_estimate"])
@@ -401,6 +434,7 @@ def execute_from_plan(
     required_keys: Sequence[str] | None = None,
     max_iterations: int | None = None,
     require_keys_before_first_node: bool = True,
+    gateway_handler: GatewayHandler | None = None,
 ) -> dict[str, Any]:
     """Execute the graph embedded in a ``builder_ii.wrp.subtask_graph`` plan artifact."""
     if not isinstance(plan, Mapping):
@@ -423,5 +457,6 @@ def execute_from_plan(
         required_keys=required_keys,
         max_iterations=max_iterations,
         require_keys_before_first_node=require_keys_before_first_node,
+        gateway_handler=gateway_handler,
         extra=extra or None,
     )

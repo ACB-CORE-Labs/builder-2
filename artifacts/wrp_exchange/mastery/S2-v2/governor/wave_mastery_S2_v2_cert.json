@@ -1,0 +1,45 @@
+{
+  "kind": "builder_ii.wrp.governor_certification",
+  "wave": "mastery/S2-v2",
+  "pr": 143,
+  "branch": "feat/wrp-s2-v2-gateway-nodes",
+  "base_main": "953115f",
+  "status": "PASS",
+  "role": "G-LEAD",
+  "model": "Gemini 3.1 Pro",
+  "dual_correction": true,
+  "self_certifies_maker": false,
+  "claims_verified": [
+    "CLI exposes plan-live --s2-version v2 and gateway-mode.",
+    "Node types model_gateway and tool_gateway operate strictly without shell execution.",
+    "Default gateway_mode=record enforces MSDA preflight.",
+    "gateway_mode=record emits digest-bound synthetic receipts without cloud provider invocation.",
+    "gateway_mode=stub_tool enforces B7 allowlist.",
+    "S2 v1 cleanly refuses gateway node execution.",
+    "graph_runtime fail-closes model_gateway/tool_gateway if gateway_handler is missing.",
+    "plan boolean flags perfectly reflect the presence of actual gateway nodes.",
+    "Authority remains constrained at hitl_runtime_candidate, not S3 or silent cloud.",
+    "Documentation and Command Authority register both P4 and S2 v2 correctly without inflation."
+  ],
+  "claims_rejected": [],
+  "eight_gates": {
+    "1": "PASS",
+    "2": "PASS",
+    "3": "PASS",
+    "4": "PASS",
+    "5": "PASS",
+    "6": "PASS",
+    "7": "PASS",
+    "8": "PASS"
+  },
+  "security": {
+    "cloud_provider_invoke_default_false": true,
+    "shell_forbidden": true,
+    "msda_forced_on_gateway_nodes": true,
+    "v1_still_refuses_gateways": true,
+    "s3_not_claimed": true
+  },
+  "merge_recommendation": "MERGE",
+  "blockers": [],
+  "notes": "All claims verified. Code correctly enforces hitl_runtime_candidate limitations and isolates execution behind MSDA and digest-bound approvals."
+}
