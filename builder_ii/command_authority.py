@@ -1759,7 +1759,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         notes=(
             "WRP passive subcommands remain recommendation/plan/validation. "
             "S2 HITL live lane is only via builder-wrp run-approved under digest-bound approval; "
-            "no shell; no model/tool gateway in S2 v1. "
+            "no shell; v1 graph-only; v2 gateway nodes default to record mode (no cloud provider). "
             "P4 R* φ apply is only via builder-wrp apply-rstar-approved under digest-bound approval; "
             "never mutates DEFAULT_PHI; requires explicit classifier bind."
         ),
@@ -3325,15 +3325,20 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         tier=TIER_3,
         promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
         runtime_boundary=(
-            "S2 HITL live lane: forced MSDA preflight + pure graph execute (noop/record only). "
-            "No shell; S2 v1 does not invoke model/tool gateways."
+            "S2 HITL live lane: forced MSDA preflight + graph execute. "
+            "v1: noop|record only. v2: optional model_gateway|tool_gateway with default "
+            "gateway_mode=record (no network/cloud provider); stub_tool is B7 allowlist only. "
+            "No shell."
         ),
         write_boundary="Writes live run receipt JSON only when an explicit output path is supplied.",
         approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
         approval_boundary="Requires digest-bound builder_ii.wrp.live_run_approval matching plan.digest.",
         output_behavior="Prints or writes builder_ii.wrp.live_run_receipt.",
-        failure_mode="Exits non-zero on missing approval, MSDA deny, or invalid plan.",
-        notes="HITL runtime candidate; not global enabled multi-agent autonomy. S3 separate.",
+        failure_mode="Exits non-zero on missing approval, MSDA deny, invalid plan, or gateway deny.",
+        notes=(
+            "HITL runtime candidate; not global enabled multi-agent autonomy. "
+            "S2 v2 does not enable cloud provider model calls by default. S3 separate."
+        ),
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(

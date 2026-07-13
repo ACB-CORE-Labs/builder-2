@@ -239,24 +239,32 @@ def graph_cmd(
 @wrp_app.command("plan-live")
 def plan_live_cmd(
     task: str = typer.Option(..., "--task", "-t"),
+    s2_version: str = typer.Option("v1", "--s2-version", help="v1 graph-only | v2 gateway nodes"),
+    gateway_mode: str = typer.Option("record", "--gateway-mode", help="record | stub_tool (v2 only)"),
     output: Path | None = typer.Option(None, "--output", "-o"),
 ) -> None:
     """S2: emit digest-bound live run plan (requires approve-live + run-approved)."""
     from builder_ii.wrp.allocation_optimizer import allocate_fleet
-    from builder_ii.wrp.live_lane import build_live_run_plan
+    from builder_ii.wrp.live_lane import LiveLaneError, build_live_run_plan
     from builder_ii.wrp.workload_classifier import classify_workload
 
     clf = classify_workload(text=task)
     fleet = allocate_fleet(task_tier=clf["classification"]["tier"] if clf["classification"]["tier"] != "primary_constrained" else "primary", token_budget=100.0)
-    art = build_live_run_plan(
-        task=task,
-        fleet_binding=fleet.get("fleet_binding"),
-        wrp_binding={
-            "tier": clf["classification"]["tier"],
-            "recommended_model_alias": clf["recommended_model_alias"],
-            "classification_digest": clf["digest"],
-        },
-    )
+    try:
+        art = build_live_run_plan(
+            task=task,
+            fleet_binding=fleet.get("fleet_binding"),
+            wrp_binding={
+                "tier": clf["classification"]["tier"],
+                "recommended_model_alias": clf["recommended_model_alias"],
+                "classification_digest": clf["digest"],
+            },
+            s2_version=s2_version,
+            gateway_mode=gateway_mode,
+        )
+    except LiveLaneError as exc:
+        console.print(f"[red]plan refused: {exc}[/]")
+        raise typer.Exit(1) from exc
     _emit(art, output)
 
 

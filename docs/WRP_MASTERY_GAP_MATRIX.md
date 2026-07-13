@@ -42,7 +42,7 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | \(R^*\) from **real** receipts + **apply** via promotion | `LANDED` | P4 | real-receipt epochs + HITL `plan-rstar-apply` → `approve-rstar-apply` → `apply-rstar-approved` → versioned `phi_policy`; explicit classifier bind only |
 | AgentFactory plan only | `PARTIAL` | P2.5 | spawn/retire under HITL at S2 |
 | SubtaskGraph plan + digest replay | `PARTIAL` | P2.6 / P2.8 | graph **runtime** landed (noop/record); live invoke + tree_hash OPEN |
-| Orchestration patterns at runtime | `PARTIAL` | P2.6 / P3 | sequential, fan-out, hierarchical, handoff, cyclic in graph_runtime; gateway-backed nodes OPEN |
+| Orchestration patterns at runtime | `PARTIAL` | P2.6 / P3 | sequential, fan-out, hierarchical, handoff, cyclic in graph_runtime; **S2 v2** model/tool gateway nodes (record/stub) landed; cloud provider invoke still OPEN |
 | Evaluator + proof R/D kinds | `PARTIAL` | P2.7 | Class U harness missing |
 | Class U measured latency/cost | `OPEN` | P5 | `class_u_harness.py` + proof_record U |
 | Perf axes (accuracy, cost, latency, safety, adaptivity) | `OPEN` | P5 | artifact dashboards |

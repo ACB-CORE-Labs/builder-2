@@ -1,0 +1,16 @@
+{
+  "wave": "mastery/S2-v2",
+  "s2_version": "v2_gateway_hitl",
+  "claims": {
+    "cloud_provider_invoke": false,
+    "executes_shell": false,
+    "default_gateway_mode": "record",
+    "stub_tool_allowlist": [
+      "builtin.echo",
+      "builtin.utc_static"
+    ]
+  },
+  "test_commands": [
+    "uv run pytest tests/test_wrp_gateway_nodes.py tests/test_wrp_live_lane_v2.py tests/scenarios/test_wrp_s2_v2_gateway_e2e.py -q"
+  ]
+}
