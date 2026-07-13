@@ -459,7 +459,7 @@ def test_env_var_absolute_path_never_leaks_into_receipt(tmp_path: Path) -> None:
     script = _write_battery(
         tmp_path,
         repo,
-        'export PYO3_PYTHON="/Users/nobody/.venv/bin/python3"\n'
+        'export PYO3_PYTHON="<user_home>/.venv/bin/python3"\n'
         'gate "rust validator build" cargo build --manifest-path builder_ii_validation_rs/Cargo.toml\n',
     )
     receipt_path = tmp_path / "receipt.json"
@@ -470,7 +470,7 @@ def test_env_var_absolute_path_never_leaks_into_receipt(tmp_path: Path) -> None:
 
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     dumped = json.dumps(receipt)
-    assert "/Users/nobody/.venv/bin/python3" not in dumped
+    assert "<user_home>/.venv/bin/python3" not in dumped
     assert str(REPO_ROOT) not in dumped
     assert str(tmp_path) not in dumped
     assert find_absolute_paths(receipt) == []

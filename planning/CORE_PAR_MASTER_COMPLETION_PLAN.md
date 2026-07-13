@@ -188,7 +188,7 @@ Execution order within phase is load-bearing.
 
 | # | Item | Tier |
 | --- | --- | --- |
-| 3.1 | PII scrub of the 22 tracked files (kaizenpro paths, "Joshua Shay", hardcoded `/Users` paths in docs/fixtures) | A |
+| 3.1 | PII scrub of the 22 tracked files (<developer_name> paths, "<developer_name>", hardcoded `/Users` paths in docs/fixtures) | A |
 | 3.2 | Move `mlx-lm`/`rapid-mlx` to `[project.optional-dependencies]` (unblocks non-Mac `uv sync`); document Mac-first boundary in README | B |
 | 3.3 | Remove `gh` from `install-tools.sh` required tier (contradicts repo's own Forgejo rule); pin goose installer by checksum | A |
 | 3.4 | Docs funnel: `docs/README.md` index, 3-tier entry path (README → FIRST_SESSION → reference); fix OPERATOR_QUICKSTART founder paths | A |
