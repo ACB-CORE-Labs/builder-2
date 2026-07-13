@@ -6,6 +6,7 @@ Low-confidence STAR-style fallback routes to the safer local tier.
 
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
 
@@ -15,6 +16,8 @@ from builder_ii.wrp.artifacts import (
     validate_wrp_artifact_envelope,
 )
 from builder_ii.wrp.spaces import WorkloadPoint, workload_distance
+
+ENV_WRP_EMBED = "BUILDER_II_WRP_EMBED"
 
 # Anchor prototypes for nearest-centroid style classification (fixed, not trained).
 _ANCHORS: dict[str, WorkloadPoint] = {
@@ -110,24 +113,74 @@ def text_to_workload(text: str) -> WorkloadPoint:
     )
 
 
+def _use_embedding_backend(explicit: bool | None) -> bool:
+    if explicit is not None:
+        return bool(explicit)
+    return os.getenv(ENV_WRP_EMBED, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _classify_with_embedding(text: str) -> tuple[str, float, dict[str, float], str]:
+    """HashingEmbedder + kNN over anchor label strings (M1-safe default backend)."""
+    from builder_ii.wrp.embedding_backend import HashingEmbedder, knn_classify
+
+    embedder = HashingEmbedder()
+    labels = list(_ANCHORS.keys())
+    # Embed short canonical phrases for each anchor (stable, deterministic).
+    phrases = {
+        "fast_local": "explain list show status summarize read inspect",
+        "primary_local": "implement fix write refactor debug build test",
+        "high_complexity": "whole repo multi-file architecture-wide global migration",
+        "safety_audit": "audit security governance policy validate prove invariant",
+    }
+    vectors = embedder.embed([phrases[name] for name in labels])
+    anchors = {name: vec for name, vec in zip(labels, vectors, strict=True)}
+    query = embedder.embed([text])[0]
+    label, margin = knn_classify(query, anchors, k=1, metric="cosine")
+    # Cosine margin is small; map to distances for API compatibility.
+    distances = {name: (0.0 if name == label else 1.0 - min(margin, 0.99)) for name in labels}
+    distances[label] = max(0.0, 1.0 - margin)
+    return label, float(margin), distances, embedder.name
+
+
 def classify_workload(
     *,
     text: str | None = None,
     point: WorkloadPoint | None = None,
+    use_embedding: bool | None = None,
 ) -> dict[str, Any]:
-    """Classify a workload into tier + anchor with confidence and fallback path."""
+    """Classify a workload into tier + anchor with confidence and fallback path.
+
+    Default: rule + WorkloadPoint Euclidean anchors.
+    When ``use_embedding=True`` or ``BUILDER_II_WRP_EMBED=1``: HashingEmbedder + kNN
+    (ModernBERT remains opt-in via embedding_backend, not default here).
+    """
+    embed_mode = _use_embedding_backend(use_embedding)
+    embedder_name: str | None = None
+
     if point is None:
         if not text:
             raise ValueError("text or point is required")
-        point = text_to_workload(text)
-    elif text is None:
-        text = ""
+        if embed_mode:
+            best_name, margin, distances, embedder_name = _classify_with_embedding(text)
+            best_dist = distances[best_name]
+            point = text_to_workload(text)  # still emit workload coords for R integrity
+            second_dist = sorted(distances.values())[1] if len(distances) > 1 else best_dist + 1.0
+        else:
+            point = text_to_workload(text)
+            distances = {name: workload_distance(point, anchor) for name, anchor in _ANCHORS.items()}
+            ranked = sorted(distances.items(), key=lambda kv: kv[1])
+            best_name, best_dist = ranked[0]
+            second_dist = ranked[1][1] if len(ranked) > 1 else best_dist + 1.0
+            margin = second_dist - best_dist
+    else:
+        if text is None:
+            text = ""
+        distances = {name: workload_distance(point, anchor) for name, anchor in _ANCHORS.items()}
+        ranked = sorted(distances.items(), key=lambda kv: kv[1])
+        best_name, best_dist = ranked[0]
+        second_dist = ranked[1][1] if len(ranked) > 1 else best_dist + 1.0
+        margin = second_dist - best_dist
 
-    distances = {name: workload_distance(point, anchor) for name, anchor in _ANCHORS.items()}
-    ranked = sorted(distances.items(), key=lambda kv: kv[1])
-    best_name, best_dist = ranked[0]
-    second_dist = ranked[1][1] if len(ranked) > 1 else best_dist + 1.0
-    margin = second_dist - best_dist
     # Confidence: closer to anchor and larger margin → higher
     proximity = 1.0 / (1.0 + best_dist)
     confidence_score = proximity * (0.5 + 0.5 * min(1.0, margin / 0.5))
@@ -157,6 +210,8 @@ def classify_workload(
         f"nearest_anchor={best_name} dist={best_dist:.4f} margin={margin:.4f} "
         f"confidence={confidence} tier={tier} fallback={fallback_applied}"
     )
+    if embedder_name:
+        rationale += f" embedder={embedder_name}"
     return base_envelope(
         kind=WORKLOAD_CLASSIFICATION_KIND,
         artifact_state="RECOMMENDATION_ONLY",
@@ -173,6 +228,8 @@ def classify_workload(
                 "fallback_applied": fallback_applied,
                 "fallback_tier": _FALLBACK_TIER,
                 "rationale": rationale,
+                "method": "embedding_knn" if embed_mode and embedder_name else "workload_metric",
+                "embedder": embedder_name,
             },
             "recommended_model_alias": {
                 "fast": "phi-reasoning",

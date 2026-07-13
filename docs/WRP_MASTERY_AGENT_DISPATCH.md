@@ -282,10 +282,29 @@ Every Maker or Governor status report that maps **what is next / what is left** 
 ### Required sections (in order)
 
 1. **Status (truth)** — what is on `main` / open PRs / capability power *now* (not aspirational).
-2. **What’s left** — ordered remaining work (phases, PRs, promotion stages).
-3. **Recommendation(s)** — primary path, and secondary if any, **with why**.
+2. **What’s left** — ordered remaining work (phases, PRs, promotion stages), **mapped to plan IDs** (absolute mastery P0–P7 / S1–S4; Master-Plan W0–W5; Blueprint modules).
+3. **Recommendation(s)** — primary path, and secondary if any, **with why** (cite plan phase).
 4. **Concerns** — each risk with **reasoning** and **optimal mitigation** (table preferred).
-5. **Optimal path** — concrete sequence or decision tree (merge order, who runs in parallel, what waits).
+5. **Optimal path** — concrete sequence or decision tree (merge order, what waits).
+6. **Plan cross-reference — agent briefings** — **when / where** to brief or start each agent (M-LEAD, M-FAST, M-REVIEW, G-LEAD, G-FAST, HUMAN), with trigger + artifact/prompt path. Pull from this dispatch charter (§3–§4, §8) and the absolute mastery plan.
+7. **Plan cross-reference — parallel windows** — what **may** run concurrently vs **must** stay serial (contended files §2). Name lanes A/B/… and who owns each.
+
+### Plan sources to consult every map
+
+| Source | Use for |
+| --- | --- |
+| Session / repo absolute mastery plan (P0–P7, S1–S4) | Phase order, promotion stages, non-goals |
+| `docs/WRP_MASTERY_GAP_MATRIX.md` | OPEN/PARTIAL/LANDED rows → next work packages |
+| `docs/WRP_ACCEPTANCE.md` + Master-Plan W0–W5 | Acceptance criteria still red |
+| CORE R&D Blueprint (spaces, \(R/R^*\), modules, Class R/D/U) | Module fidelity gaps |
+| This file (§3 Antigravity triggers, §4 parallelism, §8 prompts) | **Who to brief, when, parallel vs serial** |
+| `docs/plan/WRP_S1_BINDING_DESIGN.md`, `WRP_P2_REMAINDER_WIRES.md`, … | Active slice contracts |
+
+### Agent briefing mini-table (required in §6)
+
+| Trigger (from plan) | Brief whom | Prompt / package | Concurrent with |
+| --- | --- | --- | --- |
+| *(fill per status)* | G-LEAD / G-FAST / M-FAST / HUMAN | path to exchange or paste prompt | lane ids |
 
 ### Why this is load-bearing
 
@@ -293,6 +312,7 @@ Every Maker or Governor status report that maps **what is next / what is left** 
 - Prevents soft-stop narratives (“we could optionally…”) from hiding the required next power step.
 - Forces explicit trade-offs (e.g. merge pure modules before S1 bind) so Governor can endorse or refute the path.
 - Aligns dual-platform work: Maker proposes the map; G-LEAD may endorse/amend; HUMAN decides merges and S1–S3.
+- **Prevents idle Governors and serial-only Maker thrash** by naming briefings and parallel windows from the plan instead of inventing ad-hoc process.
 
 ### Anti-patterns
 
@@ -300,6 +320,8 @@ Every Maker or Governor status report that maps **what is next / what is left** 
 - Recommendations without “why”  
 - Concerns without mitigation  
 - Claiming “done” when only docs or pure modules landed and promotion stages remain open  
+- Status maps that **never say who to brief next** (G-LEAD/G-FAST/M-FAST) or what can run in parallel  
+- Inventing agent roles not in §1 without updating this charter  
 
 ### Applies to
 
@@ -316,4 +338,4 @@ Dispatch is successful when:
 3. Wall-clock to S2 live lane is dominated by integration + cert, not by idle serial pure modules  
 4. Zero authority-file merge conflicts from parallel agents  
 5. Absolute mastery checklist still has **zero intentional skips**  
-6. Status maps consistently use §11 (recommendation + concerns + optimal path)
+6. Status maps consistently use §11 (rec + concerns + optimal path + **agent briefings** + **parallel windows** from plans)

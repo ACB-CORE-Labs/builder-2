@@ -314,6 +314,15 @@ class ModelExecutionGateway:
         if not prompt.strip():
             raise ValueError("Prompt must not be empty")
 
+        # Optional WRP MSDA preflight (off by default). Tool name is model_call; domain local.
+        from builder_ii.wrp.msda_preflight import assert_msda_preflight
+
+        assert_msda_preflight(
+            tool="model_call",
+            data_domain="local_workspace",
+            risk="local_network",
+        )
+
         # Secret scanning
         secret_errors = scan_for_secrets(prompt)
         if secret_errors:
