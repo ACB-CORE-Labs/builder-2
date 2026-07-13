@@ -114,7 +114,7 @@ def _install_subprocess_mocks(
     import subprocess
     real_popen = subprocess.Popen
     captured_procs: list[Any] = []
-    
+
     def fake_popen(*args: Any, **kwargs: Any) -> Any:
         cmd_args = args[0] if args else kwargs.get("args")
         if isinstance(cmd_args, list) and len(cmd_args) > 0 and "/fake/goose" in str(cmd_args[0]):
@@ -139,7 +139,7 @@ def test_start_readonly_launches_and_writes_receipts_when_no_mutation(monkeypatc
     result = runner.invoke(goose_app, ["start-readonly", str(manifest)])
 
     assert result.exit_code == 0, result.output
-    
+
     assert (tmp_path / ".builder" / "receipts" / "goose_12345_launch.json").exists()
     assert (tmp_path / ".builder" / "receipts" / "goose_12345_close.json").exists()
 
@@ -147,7 +147,7 @@ def test_start_readonly_launches_and_writes_receipts_when_no_mutation(monkeypatc
 def test_start_readonly_fails_when_mutation_detected_in_postflight(monkeypatch: Any, tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     _install_subprocess_mocks(monkeypatch, tmp_path, mutate_file="src/touched.py")
-    
+
     manifest = tmp_path / "manifest.json"
     _write_manifest(manifest)
 
@@ -180,12 +180,12 @@ def test_start_readonly_builds_launch_plan_from_manifest_fields(monkeypatch: Any
 
     assert result.exit_code == 0, result.output
     assert len(procs) == 1
-    
+
     # We can check that the created launch receipt has the proper agent/target.
     receipts_dir = tmp_path / ".builder" / "receipts"
     launch_receipts = list(receipts_dir.glob("*_launch.json"))
     assert len(launch_receipts) == 1
-    
+
     data = json.loads(launch_receipts[0].read_text(encoding="utf-8"))
     assert data["target_profile"] == "core"
     assert data["agent_profile"] == "reviewer"
