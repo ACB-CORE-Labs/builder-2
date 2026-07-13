@@ -42,7 +42,7 @@ def _get_target_files(target_root: Path) -> dict[str, str]:
     """Snapshot target files by content digest, not timestamp granularity."""
     snapshot: dict[str, str] = {}
     for p in target_root.rglob("*"):
-        if not p.is_file() or ".git" in p.parts:
+        if not p.is_file() or ".git" in p.parts or ".builder" in p.parts:
             continue
         digest = _file_sha256(p)
         if digest is not None:

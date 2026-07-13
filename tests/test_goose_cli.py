@@ -83,41 +83,71 @@ def test_start_readonly_refuses_non_read_only_manifest(tmp_path: Path) -> None:
 # --- Launch path (GooseRuntimeHarness replaced; no real Goose) ---
 
 
-def _install_fake_harness(monkeypatch: Any, tmp_path: Path, *, postflight: dict[str, Any], session_id: str) -> MagicMock:
+def _install_subprocess_mocks(
+    monkeypatch: Any, tmp_path: Path, *, mutate_file: str | None = None
+) -> list[Any]:
     monkeypatch.setattr(goose_cli, "load_settings", lambda *a, **k: _settings_at(tmp_path))
-    harness = MagicMock()
-    harness.launch_readonly.return_value = {"session_id": session_id, "digest": "a" * 64}
-    harness.close.return_value = (
-        {"session_id": session_id, "kind": "builder_ii.goose_close_receipt"},
-        postflight,
-    )
-    monkeypatch.setattr(goose_cli, "GooseRuntimeHarness", lambda *a, **k: harness)
-    return harness
+    monkeypatch.setattr("builder_ii.goose_runtime_harness.find_goose_binary", lambda: "/fake/goose")
+
+    class FakeProc:
+        def __init__(self, args: Any, cwd: Any, env: Any):
+            self.pid = 9999
+            self.returncode = 0
+            self.args = args
+            self.cwd = cwd
+            self.env = env
+            if mutate_file:
+                (Path(cwd) / mutate_file).write_text("mutated", encoding="utf-8")
+        def poll(self) -> int | None:
+            return 0
+        def wait(self, timeout: float | None = None) -> int:
+            return 0
+        def terminate(self) -> None:
+            pass
+        def kill(self) -> None:
+            pass
+        def __enter__(self):
+            return self
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            pass
+
+    import subprocess
+    real_popen = subprocess.Popen
+    captured_procs: list[Any] = []
+    
+    def fake_popen(*args: Any, **kwargs: Any) -> Any:
+        cmd_args = args[0] if args else kwargs.get("args")
+        if isinstance(cmd_args, list) and len(cmd_args) > 0 and "/fake/goose" in str(cmd_args[0]):
+            proc_cwd = kwargs.get("cwd")
+            proc = FakeProc(cmd_args, proc_cwd, kwargs.get("env"))
+            captured_procs.append(proc)
+            return proc
+        return real_popen(*args, **kwargs)
+
+    monkeypatch.setattr("builder_ii.goose_runtime_harness.subprocess.Popen", fake_popen)
+    return captured_procs
 
 
 def test_start_readonly_launches_and_writes_receipts_when_no_mutation(monkeypatch: Any, tmp_path: Path) -> None:
-    harness = _install_fake_harness(
-        monkeypatch, tmp_path, postflight={"valid": True, "mutations_detected": []}, session_id="goose_1"
-    )
+    _install_subprocess_mocks(monkeypatch, tmp_path)
     manifest = tmp_path / "manifest.json"
     _write_manifest(manifest)
+
+    # Monkeypatch time.time to have a predictable session ID
+    monkeypatch.setattr("builder_ii.goose_runtime_harness.time.time", lambda: 12345.0)
 
     result = runner.invoke(goose_app, ["start-readonly", str(manifest)])
 
     assert result.exit_code == 0, result.output
-    harness.launch_readonly.assert_called_once()
-    harness.close.assert_called_once_with("a" * 64)
-    assert (tmp_path / ".builder" / "receipts" / "goose_1_launch.json").exists()
-    assert (tmp_path / ".builder" / "receipts" / "goose_1_close.json").exists()
+    
+    assert (tmp_path / ".builder" / "receipts" / "goose_12345_launch.json").exists()
+    assert (tmp_path / ".builder" / "receipts" / "goose_12345_close.json").exists()
 
 
 def test_start_readonly_fails_when_mutation_detected_in_postflight(monkeypatch: Any, tmp_path: Path) -> None:
-    _install_fake_harness(
-        monkeypatch,
-        tmp_path,
-        postflight={"valid": False, "mutations_detected": ["src/touched.py"]},
-        session_id="goose_2",
-    )
+    (tmp_path / "src").mkdir()
+    _install_subprocess_mocks(monkeypatch, tmp_path, mutate_file="src/touched.py")
+    
     manifest = tmp_path / "manifest.json"
     _write_manifest(manifest)
 
@@ -129,27 +159,7 @@ def test_start_readonly_fails_when_mutation_detected_in_postflight(monkeypatch: 
 
 
 def test_start_readonly_builds_launch_plan_from_manifest_fields(monkeypatch: Any, tmp_path: Path) -> None:
-    # Regression test for MockPlan removal: the named GooseReadonlyLaunchPlan must carry the
-    # manifest's actual target/agent-profile names through to GooseRuntimeHarness, not just the
-    # hardcoded defaults a throwaway mock happened to use.
-    monkeypatch.setattr(goose_cli, "load_settings", lambda *a, **k: _settings_at(tmp_path))
-    captured: dict[str, Any] = {}
-
-    class _RecordingHarness:
-        def __init__(self, settings: Any, plan: Any, target_root: Any) -> None:
-            captured["plan"] = plan
-            self._proc = None
-
-        def launch_readonly(self) -> dict[str, Any]:
-            return {"session_id": "goose_plan", "digest": "b" * 64}
-
-        def close(self, digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
-            return (
-                {"session_id": "goose_plan", "kind": "builder_ii.goose_close_receipt"},
-                {"valid": True, "mutations_detected": []},
-            )
-
-    monkeypatch.setattr(goose_cli, "GooseRuntimeHarness", _RecordingHarness)
+    procs = _install_subprocess_mocks(monkeypatch, tmp_path)
 
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
@@ -169,8 +179,16 @@ def test_start_readonly_builds_launch_plan_from_manifest_fields(monkeypatch: Any
     result = runner.invoke(goose_app, ["start-readonly", str(manifest)])
 
     assert result.exit_code == 0, result.output
-    assert captured["plan"].target_name == "core"
-    assert captured["plan"].agent_profile == "reviewer"
+    assert len(procs) == 1
+    
+    # We can check that the created launch receipt has the proper agent/target.
+    receipts_dir = tmp_path / ".builder" / "receipts"
+    launch_receipts = list(receipts_dir.glob("*_launch.json"))
+    assert len(launch_receipts) == 1
+    
+    data = json.loads(launch_receipts[0].read_text(encoding="utf-8"))
+    assert data["target_profile"] == "core"
+    assert data["agent_profile"] == "reviewer"
 
 
 # --- close-readonly lifecycle / interruption recovery messaging ---
