@@ -203,6 +203,10 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.wrp.live_run_plan` | S2 HITL live run plan (digest-bound; not authority) | ADR-0007 |
 | `builder_ii.wrp.live_run_approval` | S2 HITL approval bound to plan digest | ADR-0007 |
 | `builder_ii.wrp.live_run_receipt` | S2 HITL live lane receipt (graph + forced MSDA; no shell) | ADR-0007 |
+| `builder_ii.wrp.phi_policy` | P4 versioned φ distance coefficients (recorded; requires explicit bind) | ADR-0007 |
+| `builder_ii.wrp.rstar_apply_plan` | P4 HITL R* apply plan (digest-bound; not authority) | ADR-0007 |
+| `builder_ii.wrp.rstar_apply_approval` | P4 HITL approval bound to R* apply plan digest | ADR-0007 |
+| `builder_ii.wrp.rstar_apply_receipt` | P4 HITL R* apply receipt (new phi_policy version; not live defaults) | ADR-0007 |
 | `builder_ii.runtime_activation_approval_spec` | Runtime activation spec | #133 |
 | `builder_ii.goose_readonly_session_plan` | Goose readonly plan | #133 |
 | `builder_ii.goose_projection` | Projection spec | #133 |

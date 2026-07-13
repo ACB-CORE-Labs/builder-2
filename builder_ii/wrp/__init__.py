@@ -6,7 +6,8 @@ described by ADR-0007 and the dual-platform Maker/Governor master plan.
 Promotion honesty:
 - All operators emit recommendation / plan / validation artifacts only.
 - Nothing here grants model, shell, MCP, Goose, or deepagents execution authority.
-- Adjoint corrections update *experience artifacts*, never live routing authority.
+- Adjoint corrections update *experience artifacts*; φ apply requires HITL
+  ``apply-rstar-approved`` and still never mutates DEFAULT_PHI / live defaults.
 """
 
 from __future__ import annotations

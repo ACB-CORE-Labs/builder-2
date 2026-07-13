@@ -28,6 +28,10 @@ GOVERNOR_CERTIFICATION_KIND = "builder_ii.wrp.governor_certification"
 LIVE_RUN_PLAN_KIND = "builder_ii.wrp.live_run_plan"
 LIVE_RUN_APPROVAL_KIND = "builder_ii.wrp.live_run_approval"
 LIVE_RUN_RECEIPT_KIND = "builder_ii.wrp.live_run_receipt"
+PHI_POLICY_KIND = "builder_ii.wrp.phi_policy"
+RSTAR_APPLY_PLAN_KIND = "builder_ii.wrp.rstar_apply_plan"
+RSTAR_APPLY_APPROVAL_KIND = "builder_ii.wrp.rstar_apply_approval"
+RSTAR_APPLY_RECEIPT_KIND = "builder_ii.wrp.rstar_apply_receipt"
 
 WRP_SCHEMA_VERSION = 1
 
@@ -51,6 +55,10 @@ WRP_ARTIFACT_KINDS: frozenset[str] = frozenset(
         LIVE_RUN_PLAN_KIND,
         LIVE_RUN_APPROVAL_KIND,
         LIVE_RUN_RECEIPT_KIND,
+        PHI_POLICY_KIND,
+        RSTAR_APPLY_PLAN_KIND,
+        RSTAR_APPLY_APPROVAL_KIND,
+        RSTAR_APPLY_RECEIPT_KIND,
     }
 )
 
@@ -75,6 +83,7 @@ ALLOWED_CAPABILITY_STATES = frozenset(
         "wrp_recorded_only",
         "wrp_exchange_only",
         "wrp_hitl_live_lane",  # S2 HITL-bounded live graph run (not global enabled)
+        "wrp_hitl_phi_apply",  # P4 HITL-bounded R* φ-policy apply (not global routing enablement)
     }
 )
 

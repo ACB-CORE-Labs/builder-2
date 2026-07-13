@@ -38,7 +38,10 @@ from builder_ii.wrp.workload_classifier import (
 )
 
 wrp_app = typer.Typer(
-    help="WRP control plane: classify/plan/allocate/gate (passive) + S2 HITL live lane (run-approved).",
+    help=(
+        "WRP control plane: classify/plan/allocate/gate (passive) + "
+        "S2 HITL live lane (run-approved) + P4 HITL R* φ apply (apply-rstar-approved)."
+    ),
 )
 console = Console()
 
@@ -290,6 +293,122 @@ def run_approved_cmd(
     _emit(receipt, output)
 
 
+@wrp_app.command("phi-policy-init")
+def phi_policy_init_cmd(
+    policy_id: str = typer.Option("default", "--policy-id"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """P4: emit version-0 φ-policy artifact (DEFAULT_PHI; not live routing)."""
+    from builder_ii.wrp.rstar_apply import create_phi_policy
+
+    _emit(create_phi_policy(policy_id=policy_id), output)
+
+
+@wrp_app.command("corrections-from-receipts")
+def corrections_from_receipts_cmd(
+    store_path: Path = typer.Option(..., "--store", exists=True, dir_okay=False),
+    receipts: Path = typer.Option(..., "--receipts", exists=True, dir_okay=False, help="JSON list of receipts"),
+    store_out: Path | None = typer.Option(None, "--store-out"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write corrections JSON list"),
+) -> None:
+    """P4: map real receipts → experience store + R* correction artifacts (no φ apply)."""
+    from builder_ii.wrp.rstar_apply import RStarApplyError, corrections_from_receipts
+
+    store = _read_json(store_path)
+    raw = json_lib.loads(receipts.read_text(encoding="utf-8"))
+    if not isinstance(raw, list):
+        console.print("[red]receipts must be a JSON list[/]")
+        raise typer.Exit(1)
+    try:
+        updated, corrections = corrections_from_receipts(store, raw)
+    except (RStarApplyError, ValueError) as exc:
+        console.print(f"[red]receipt R* path refused: {exc}[/]")
+        raise typer.Exit(1) from exc
+    if store_out is not None:
+        write_wrp(updated, store_out)
+    payload = {
+        "store_digest": updated.get("digest"),
+        "store_version": updated.get("version"),
+        "correction_count": len(corrections),
+        "corrections": corrections,
+    }
+    _emit(payload, output)
+
+
+@wrp_app.command("plan-rstar-apply")
+def plan_rstar_apply_cmd(
+    base_policy: Path = typer.Option(..., "--base-policy", exists=True, dir_okay=False),
+    corrections: Path = typer.Option(
+        ...,
+        "--corrections",
+        exists=True,
+        dir_okay=False,
+        help="JSON list of adjoint_correction artifacts (or object with corrections key)",
+    ),
+    experience_store: Path | None = typer.Option(None, "--store", exists=True, dir_okay=False),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """P4: emit digest-bound R* apply plan (requires approve-rstar-apply + apply-rstar-approved)."""
+    from builder_ii.wrp.rstar_apply import RStarApplyError, build_rstar_apply_plan
+
+    base = _read_json(base_policy)
+    raw = json_lib.loads(corrections.read_text(encoding="utf-8"))
+    if isinstance(raw, dict) and isinstance(raw.get("corrections"), list):
+        corr_list = raw["corrections"]
+    elif isinstance(raw, list):
+        corr_list = raw
+    else:
+        console.print("[red]corrections must be a JSON list or object with corrections[][/]")
+        raise typer.Exit(1)
+    store = _read_json(experience_store) if experience_store is not None else None
+    try:
+        art = build_rstar_apply_plan(base_policy=base, corrections=corr_list, experience_store=store)
+    except RStarApplyError as exc:
+        console.print(f"[red]plan refused: {exc}[/]")
+        raise typer.Exit(1) from exc
+    _emit(art, output)
+
+
+@wrp_app.command("approve-rstar-apply")
+def approve_rstar_apply_cmd(
+    plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False),
+    approved_by: str = typer.Option(..., "--approved-by"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """P4: emit HITL approval bound to R* apply plan digest (not authority by itself)."""
+    from builder_ii.wrp.rstar_apply import RStarApplyError, build_rstar_apply_approval
+
+    plan_art = _read_json(plan)
+    try:
+        art = build_rstar_apply_approval(plan=plan_art, approved_by=approved_by, approved=True)
+    except RStarApplyError as exc:
+        console.print(f"[red]approval refused: {exc}[/]")
+        raise typer.Exit(1) from exc
+    _emit(art, output)
+
+
+@wrp_app.command("apply-rstar-approved")
+def apply_rstar_approved_cmd(
+    plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False),
+    approval: Path = typer.Option(..., "--approval", exists=True, dir_okay=False),
+    policy_out: Path | None = typer.Option(None, "--policy-out", help="Write new versioned phi_policy"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write apply receipt"),
+) -> None:
+    """P4: apply HITL-approved R* plan → new versioned phi_policy (never mutates DEFAULT_PHI)."""
+    from builder_ii.wrp.rstar_apply import RStarApplyError, apply_approved
+
+    plan_art = _read_json(plan)
+    approval_art = _read_json(approval)
+    try:
+        new_policy, receipt = apply_approved(plan=plan_art, approval=approval_art)
+    except RStarApplyError as exc:
+        console.print(f"[red]R* apply refused: {exc}[/]")
+        raise typer.Exit(1) from exc
+    if policy_out is not None:
+        write_wrp(new_policy, policy_out)
+    _emit(receipt, output)
+
+
 @wrp_app.command("package-exchange")
 def package_exchange_cmd(
     wave: str = typer.Option(..., "--wave"),
@@ -339,6 +458,18 @@ def validate_cmd(
         "builder_ii.wrp.live_run_receipt": __import__(
             "builder_ii.wrp.live_lane", fromlist=["validate_live_run_receipt"]
         ).validate_live_run_receipt,
+        "builder_ii.wrp.phi_policy": __import__(
+            "builder_ii.wrp.rstar_apply", fromlist=["validate_phi_policy"]
+        ).validate_phi_policy,
+        "builder_ii.wrp.rstar_apply_plan": __import__(
+            "builder_ii.wrp.rstar_apply", fromlist=["validate_rstar_apply_plan"]
+        ).validate_rstar_apply_plan,
+        "builder_ii.wrp.rstar_apply_approval": __import__(
+            "builder_ii.wrp.rstar_apply", fromlist=["validate_rstar_apply_approval"]
+        ).validate_rstar_apply_approval,
+        "builder_ii.wrp.rstar_apply_receipt": __import__(
+            "builder_ii.wrp.rstar_apply", fromlist=["validate_rstar_apply_receipt"]
+        ).validate_rstar_apply_receipt,
     }
     validator = validators.get(str(kind))
     if validator is None:

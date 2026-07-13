@@ -147,15 +147,20 @@ def classify_workload(
     text: str | None = None,
     point: WorkloadPoint | None = None,
     use_embedding: bool | None = None,
+    phi: dict[str, float] | None = None,
+    phi_policy_digest: str | None = None,
 ) -> dict[str, Any]:
     """Classify a workload into tier + anchor with confidence and fallback path.
 
-    Default: rule + WorkloadPoint Euclidean anchors.
+    Default: rule + WorkloadPoint Euclidean anchors (``DEFAULT_PHI``).
+    Optional ``phi`` (from HITL-applied ``phi_policy``) overrides distance weights only
+    when explicitly passed — never silent live default mutation.
     When ``use_embedding=True`` or ``BUILDER_II_WRP_EMBED=1``: HashingEmbedder + kNN
     (ModernBERT remains opt-in via embedding_backend, not default here).
     """
     embed_mode = _use_embedding_backend(use_embedding)
     embedder_name: str | None = None
+    phi_map = phi  # explicit bind only
 
     if point is None:
         if not text:
@@ -167,7 +172,10 @@ def classify_workload(
             second_dist = sorted(distances.values())[1] if len(distances) > 1 else best_dist + 1.0
         else:
             point = text_to_workload(text)
-            distances = {name: workload_distance(point, anchor) for name, anchor in _ANCHORS.items()}
+            distances = {
+                name: workload_distance(point, anchor, phi=phi_map)
+                for name, anchor in _ANCHORS.items()
+            }
             ranked = sorted(distances.items(), key=lambda kv: kv[1])
             best_name, best_dist = ranked[0]
             second_dist = ranked[1][1] if len(ranked) > 1 else best_dist + 1.0
@@ -175,7 +183,10 @@ def classify_workload(
     else:
         if text is None:
             text = ""
-        distances = {name: workload_distance(point, anchor) for name, anchor in _ANCHORS.items()}
+        distances = {
+            name: workload_distance(point, anchor, phi=phi_map)
+            for name, anchor in _ANCHORS.items()
+        }
         ranked = sorted(distances.items(), key=lambda kv: kv[1])
         best_name, best_dist = ranked[0]
         second_dist = ranked[1][1] if len(ranked) > 1 else best_dist + 1.0
@@ -236,6 +247,8 @@ def classify_workload(
                 "primary": "qwen-coder",
                 "primary_constrained": "qwen-coder",
             }.get(tier, "phi-reasoning"),
+            "phi_bound": phi_map is not None,
+            "phi_policy_digest": phi_policy_digest if phi_map is not None else None,
             "executes_model": False,
             "grants_authority": False,
         },

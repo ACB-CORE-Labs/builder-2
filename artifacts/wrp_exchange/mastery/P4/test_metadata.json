@@ -1,0 +1,17 @@
+{
+  "wave": "mastery/P4",
+  "phase": "P4",
+  "gap_rows_closed": [
+    "Receipt ingest \u2192 experience exemplars",
+    "R* from real receipts + apply via promotion"
+  ],
+  "test_commands": [
+    "uv run pytest tests/test_wrp_rstar_apply.py tests/scenarios/test_wrp_p4_rstar_apply_e2e.py tests/test_wrp_cli.py -q"
+  ],
+  "claims": {
+    "mutates_default_phi": false,
+    "updates_live_routing_defaults": false,
+    "requires_hitl_approval": true,
+    "explicit_classifier_bind_only": true
+  }
+}
