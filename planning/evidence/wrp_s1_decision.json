@@ -4,7 +4,7 @@
     "render_promotion_decision",
     "validate_promotion_decision"
   ],
-  "approved": false,
+  "approved": true,
   "blockers": [],
   "capability_state": "promotion_decision_record",
   "checks": [
@@ -80,8 +80,8 @@
     }
   ],
   "current_state": "DISABLED",
-  "decided_by": "awaiting_human_after_g_lead_audit",
-  "decision": "blocked",
+  "decided_by": "HUMAN",
+  "decision": "approved",
   "governance": {
     "agent_construction": "DISABLED",
     "artifact_is_authority": false,
@@ -153,7 +153,7 @@
     "target": "builder",
     "target_state": "recommendation_only"
   },
-  "reason": "Code and readiness ready for S1 bound recommendation_only. Decision remains blocked until G-LEAD promotion_gate_audit PASS and HUMAN approve.",
+  "reason": "HUMAN approval after G-LEAD promotion_gate_audit PASS (gemini-3.1-pro) and M-LEAD verdict APPROVE/PASS. Artifacts: artifacts/wrp_exchange/mastery/S1/governor/promotion_gate_audit.json, wave_mastery_S1_cert.json. PR #138 comment #3917 standing-rule map. S1 power is bound recommendation_only when flags set; S2 not authorized.",
   "record_state": "RECORDED_ONLY",
   "schema_version": 1
 }
