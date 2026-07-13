@@ -194,7 +194,7 @@ These are the next capability promotions. Each requires the full capability prom
 - Geometry-first Workload–Router–Pool plane under `builder_ii/wrp/` and `builder-wrp`
 - **S1 decided approved** on main (bound recommendations when flagged)
 - **P2 wires on main:** fleet_binding, optional MSDA preflight env, embed classifier
-- **S2 v1 code on main:** `plan-live` / `approve-live` / `run-approved` (HITL graph + forced MSDA; no gateway nodes); **`wrp_s2_decision` still blocked** until G-LEAD PASS + HUMAN
+- **S2 decided approved on main:** `plan-live` / `approve-live` / `run-approved` (HITL graph + forced MSDA; noop|record only; no gateway nodes); not S3
 - **Not done:** S3 scoped enabled, \(R^*\) apply (P4), Class U (P5), heavy backends (P6)
 - Dual-platform Maker / Governor ceremony for promotion decisions
 - See `docs/WRP_CONTROL_PLANE.md`, `docs/WRP_ACCEPTANCE.md`, `docs/WRP_MASTERY_GAP_MATRIX.md`, ADR-0007

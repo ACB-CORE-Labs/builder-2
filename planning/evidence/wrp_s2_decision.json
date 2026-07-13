@@ -4,7 +4,7 @@
     "render_promotion_decision",
     "validate_promotion_decision"
   ],
-  "approved": false,
+  "approved": true,
   "blockers": [],
   "capability_state": "promotion_decision_record",
   "checks": [
@@ -79,8 +79,8 @@
     }
   ],
   "current_state": "DISABLED",
-  "decided_by": "awaiting_g_lead_and_human",
-  "decision": "blocked",
+  "decided_by": "HUMAN",
+  "decision": "approved",
   "governance": {
     "agent_construction": "DISABLED",
     "artifact_is_authority": false,
@@ -152,7 +152,7 @@
     "target": "builder",
     "target_state": "hitl_runtime_candidate"
   },
-  "reason": "S2 code+readiness ready; blocked until G-LEAD promotion_gate_audit PASS and HUMAN approve.",
+  "reason": "HUMAN approval after G-LEAD promotion_gate_audit PASS (gemini-3.1-pro) for S2 hitl_runtime_candidate v1. Audit: artifacts/wrp_exchange/mastery/S2/governor/promotion_gate_audit.json. S3 not authorized. Model/tool gateway nodes and shell not authorized in S2 v1.",
   "record_state": "RECORDED_ONLY",
   "schema_version": 1
 }
