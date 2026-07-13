@@ -122,46 +122,56 @@ def choose_model_alias(text: str) -> tuple[str, str, str, str]:
     task_snippet = _snippet(text)
 
     if logic_match and not deep_match:
-        return (
+        tier, alias, confidence, rationale = (
             "fast",
             "phi-reasoning",
             "high",
             f"Formal/constraint keyword '{logic_match.group()}' detected in task '{task_snippet}' -> phi-reasoning",
         )
-
-    if deep_match:
+    elif deep_match:
         extra = ""
         if heavy_match:
             extra = "; heavy-context hint detected, but M1 policy keeps heavy models explicit opt-in"
-        return (
+        tier, alias, confidence, rationale = (
             "primary",
             "qwen-coder",
             "high",
             f"Implementation keyword '{deep_match.group()}' detected in task '{task_snippet}' -> qwen-coder{extra}",
         )
-
-    if logic_match:
-        return (
+    elif logic_match:
+        tier, alias, confidence, rationale = (
             "fast",
             "phi-reasoning",
             "high",
             f"Formal/constraint keyword '{logic_match.group()}' detected in task '{task_snippet}' -> phi-reasoning",
         )
-
-    if fast_match:
-        return (
+    elif fast_match:
+        tier, alias, confidence, rationale = (
             "fast",
             "phi-reasoning",
             "high",
             f"Exploratory keyword '{fast_match.group()}' detected in task '{task_snippet}' -> phi-reasoning",
         )
+    else:
+        tier, alias, confidence, rationale = (
+            "primary",
+            "qwen-coder",
+            "low",
+            "No strong signal detected; defaulting to qwen-coder implementation lane",
+        )
 
-    return (
-        "primary",
-        "qwen-coder",
-        "low",
-        "No strong signal detected; defaulting to qwen-coder implementation lane",
-    )
+    try:
+        from builder_ii.wrp.workload_classifier import classify_workload
+        wrp_res = classify_workload(text=text)
+        wrp_clf = wrp_res["classification"]
+        rationale += f" [WRP Recommendation: tier={wrp_clf['tier']}, alias={wrp_res['recommended_model_alias']}, rationale={wrp_clf['rationale']}]"
+    except (ImportError, KeyError):
+        pass
+    except Exception as exc:
+        import sys
+        sys.stderr.write(f"Warning: WRP workload classification failed: {exc}\n")
+
+    return tier, alias, confidence, rationale
 
 
 def plan_session(mode: str = "orchestrator", task_hint: str = "") -> SessionPlan:

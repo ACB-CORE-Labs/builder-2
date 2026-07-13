@@ -116,6 +116,9 @@ def test_goal2_orchestration_assignment_dry_run_passes(tmp_path: Path) -> None:
     assert any("HITL approval" in item for item in dry_run["required_promotions"])
     assert dry_run["expected_evidence"]
     assert dry_run["handoff_expectations"]
+    assert "wrp_workload_recommendation" in dry_run
+    assert dry_run["wrp_workload_recommendation"]["tier"] in ("fast", "primary", "primary_constrained")
+    assert any("recommend WRP tier" in item for item in dry_run["would_happen"])
     assert dry_run["executes_model"] is False
     assert dry_run["executes_tools"] is False
     assert dry_run["executes_shell"] is False

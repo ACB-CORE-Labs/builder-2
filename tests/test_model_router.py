@@ -62,3 +62,8 @@ def test_env_model_alias_overrides_task_router(monkeypatch):
 def test_tier_for_mode_preserved():
     assert tier_for_mode("quick") == "fast"
     assert tier_for_mode("deep") == "primary"
+
+
+def test_wrp_recommendation_in_choose_model_alias():
+    tier, alias, confidence, rationale = choose_model_alias("implement MSDA validators")
+    assert "WRP Recommendation: tier=" in rationale

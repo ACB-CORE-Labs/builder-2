@@ -807,6 +807,33 @@ def create_orchestration_assignment_dry_run(
         name=str(orchestration_assignment_plan.get("target", "")),
     )
     planned_bindings = dict(orchestration_assignment_plan["planned_bindings"])
+
+    would_happen = [
+        "bind source artifacts by kind, role, and SHA-256 digest",
+        "present agent, model, context, verification, tool, HITL, output, and handoff surfaces for review",
+        "require human promotion before any runtime or execution authority exists",
+    ]
+
+    wrp_rec = {}
+    try:
+        from builder_ii.wrp.workload_classifier import classify_workload
+        wrp_class = classify_workload(text=orchestration_assignment_plan["task"])
+        wrp_rec = {
+            "tier": wrp_class["classification"]["tier"],
+            "model_alias": wrp_class["recommended_model_alias"],
+            "confidence": wrp_class["classification"]["confidence"],
+            "rationale": wrp_class["classification"]["rationale"],
+            "digest": wrp_class["digest"],
+        }
+        would_happen.append(
+            f"recommend WRP tier '{wrp_class['classification']['tier']}' model '{wrp_class['recommended_model_alias']}'"
+        )
+    except (ImportError, KeyError):
+        pass
+    except Exception as exc:
+        import sys
+        sys.stderr.write(f"Warning: WRP dry-run classification failed: {exc}\n")
+
     dry_run = {
         "kind": ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
         "schema_version": ORCHESTRATION_ASSIGNMENT_DRY_RUN_SCHEMA_VERSION,
@@ -816,11 +843,8 @@ def create_orchestration_assignment_dry_run(
         "target": orchestration_assignment_plan["target"],
         "task": orchestration_assignment_plan["task"],
         "planned_bindings": planned_bindings,
-        "would_happen": [
-            "bind source artifacts by kind, role, and SHA-256 digest",
-            "present agent, model, context, verification, tool, HITL, output, and handoff surfaces for review",
-            "require human promotion before any runtime or execution authority exists",
-        ],
+        "would_happen": would_happen,
+        "wrp_workload_recommendation": wrp_rec,
         "why": [
             "assignment planning is artifact-only",
             "model routing is advisory and not authorization",
