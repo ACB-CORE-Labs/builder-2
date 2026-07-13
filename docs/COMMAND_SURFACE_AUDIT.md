@@ -50,6 +50,7 @@ Governed setup subcommands:
 - `builder-context`
 - `builder-profile-pack`
 - `builder-model-policy`
+- `builder-wrp` — passive Workload–Router–Pool control plane (classify/plan/allocate/gate/evaluate/replay); Tier 1 recommendation/plan/validation only; no model, shell, MCP, Goose, deepagents, or live multi-agent execution authority
 - `builder-targets`
 - `builder-session`
 - `builder-workflow`
@@ -138,6 +139,7 @@ deepagents, apply patches, mutate git, or change source/target repositories.
 These command surfaces are registered in `pyproject.toml` and remain governed by builder-II's default no-autonomous-execution boundary unless their specific documentation states a narrower read-only or artifact-only behavior.
 
 - `builder-orchestration`
+- `builder-wrp`
 
 ## R1.4 command surface delta
 

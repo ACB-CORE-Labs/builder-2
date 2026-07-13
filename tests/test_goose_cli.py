@@ -155,7 +155,10 @@ def test_start_readonly_fails_when_mutation_detected_in_postflight(monkeypatch: 
 
     assert result.exit_code == 1
     assert "mutations detected" in result.output.lower()
-    assert "src/touched.py" in result.output
+    # Rich may soft-wrap long absolute paths in CI (narrow console), inserting newlines
+    # mid-token (e.g. "src/touch\\ned.py"). Compare against whitespace-stripped output.
+    compact_output = "".join(result.output.split())
+    assert "src/touched.py" in compact_output
 
 
 def test_start_readonly_builds_launch_plan_from_manifest_fields(monkeypatch: Any, tmp_path: Path) -> None:
