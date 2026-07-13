@@ -346,8 +346,9 @@ def create_model_routing_recommendation(
         prefer_alias = str(fleet_binding["selected_alias"])
 
     # Re-rank when S1 require_wrp_binding is active and/or fleet_binding selects an alias.
-    prefer_from_wrp = wrp_binding is not None and require_wrp
-    if prefer_from_wrp:
+    prefer_from_wrp = False
+    if wrp_binding is not None and require_wrp:
+        prefer_from_wrp = True
         prefer_alias = str(wrp_binding.get("recommended_model_alias") or prefer_alias or "")
 
     if prefer_alias:
