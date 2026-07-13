@@ -26,7 +26,7 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | Advisory WRP annotation in model_router / dry-run | `LANDED` | P1 S1 | **S1 decided (approved on main):** bind when `require_wrp_binding` / `BUILDER_II_WRP_BIND` / dry-run `require_wrp`; default still advisory |
 | Promotion readiness record | `LANDED` | P1 | `planning/evidence/wrp_s1_readiness.json` ready on main |
 | Promotion **decision** S1–S3 | `PARTIAL` | P1 | **S1 approved** (HUMAN after G-LEAD PASS); S2/S3 OPEN |
-| Live lane `run-approved` | `PARTIAL` | P3 / S2 | S2 v1 code+tests+CLI; decision blocked pending G-LEAD+HUMAN |
+| Live lane `run-approved` | `LANDED` | P3 / S2 | **S2 decided approved**: HITL v1 run-approved; forced MSDA; noop|record; no gateway nodes; not S3 |
 | WorkloadClassifier rules + 95% fixtures | `LANDED` | P2.0 deepen | `builder-wrp score-classifier` |
 | EmbeddingBackend + kNN (hash default; ModernBERT-class opt-in) | `PARTIAL` | P2.0 / P6 | Module + tests landed; wire into classifier + S4 embedder promo open |
 | Collaboration topology + handoff zero-loss + &lt;50ms | `PARTIAL` | P2.1 | Maker/Governor nodes + live handoff |

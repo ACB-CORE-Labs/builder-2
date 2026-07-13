@@ -99,6 +99,19 @@ def test_msda_deny_blocks_run() -> None:
         run_approved(plan=plan, approval=approval)
 
 
+def test_plan_validator_requires_msda_tools_and_binding_fields() -> None:
+    plan = _plan_with_bindings()
+    assert validate_live_run_plan(plan) == []
+    bad = dict(plan)
+    bad["msda_tools"] = []
+    # re-finalize not required for field checks used in validate beyond digest
+    from builder_ii.wrp.live_lane import validate_live_run_plan as v
+
+    # strip digest checks by using validate path that still flags empty tools
+    errors = v(bad)
+    assert any("msda_tools" in e for e in errors)
+
+
 def test_unknown_node_type_refused() -> None:
     plan = _plan_with_bindings(
         nodes=["a", "b"],

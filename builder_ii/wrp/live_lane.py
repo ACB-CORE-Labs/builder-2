@@ -236,10 +236,31 @@ def validate_live_run_plan(record: Any) -> list[str]:
         errors.append("msda_preflight_forced must be true")
     if record.get("executes_shell") is not False:
         errors.append("executes_shell must be false")
+    if record.get("model_gateway_invoked") is not False:
+        errors.append("model_gateway_invoked must be false in S2 v1")
+    if record.get("tool_gateway_invoked") is not False:
+        errors.append("tool_gateway_invoked must be false in S2 v1")
     if not record.get("task"):
         errors.append("task is required")
     if not isinstance(record.get("subtask_graph"), dict):
         errors.append("subtask_graph is required")
+    tools = record.get("msda_tools")
+    if not isinstance(tools, list) or not tools:
+        errors.append("msda_tools must be a non-empty list (forced preflight targets)")
+    fleet = record.get("fleet_binding")
+    if fleet is not None:
+        if not isinstance(fleet, dict):
+            errors.append("fleet_binding must be an object when present")
+        elif not fleet.get("selected_alias"):
+            errors.append("fleet_binding.selected_alias is required when fleet_binding is present")
+        elif fleet.get("grants_authority") is not False and "grants_authority" in fleet:
+            errors.append("fleet_binding.grants_authority must be false when set")
+    wrp = record.get("wrp_binding")
+    if wrp is not None:
+        if not isinstance(wrp, dict):
+            errors.append("wrp_binding must be an object when present")
+        elif not wrp.get("classification_digest"):
+            errors.append("wrp_binding.classification_digest is required when wrp_binding is present")
     return errors
 
 

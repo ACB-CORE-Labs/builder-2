@@ -184,7 +184,7 @@ def from_ledger_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             # Allow already-normalized kind on ledger-shaped records.
             kind = event.get("kind")
             if kind in ACCEPTED_RECEIPT_KINDS:
-                receipt = {
+                passthrough: dict[str, Any] = {
                     "kind": kind,
                     "success": bool(event["success"]) if isinstance(event.get("success"), bool) else True,
                 }
@@ -200,8 +200,8 @@ def from_ledger_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "notes",
                 ):
                     if optional in event:
-                        receipt[optional] = event[optional]
-                receipts.append(receipt)
+                        passthrough[optional] = event[optional]
+                receipts.append(passthrough)
             continue
 
         kind = _LEDGER_EVENT_TO_KIND.get(event_type)
@@ -218,7 +218,7 @@ def from_ledger_events(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         elif event.get("status") in ("succeeded", "executed", "ok"):
             success = True
 
-        receipt: dict[str, Any] = {
+        receipt = {
             "kind": kind,
             "success": success,
         }

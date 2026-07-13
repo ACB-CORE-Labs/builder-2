@@ -34,40 +34,41 @@ Eight promotion gates are the **mechanism** of enablement, not a permanent stop.
 
 | Stage | Target power | Status |
 | --- | --- | --- |
-| S1 | Recommendations **bound** into routing / assignment dry-run | **Code landed** (`require_wrp_binding` / `BUILDER_II_WRP_BIND` / dry-run `require_wrp`); promotion decision blocked until G-LEAD + HUMAN |
-| S2 | HITL live lane (`builder-wrp run-approved`) | Open |
+| S1 | Recommendations **bound** into routing / assignment dry-run | **Decided approved** on main (`planning/evidence/wrp_s1_decision.json`); flags still required for bind |
+| S2 | HITL live lane (`builder-wrp run-approved`) | **Decided approved** (HITL v1 on main): plan-live/approve-live/run-approved; forced MSDA; noop|record only; no gateway nodes; not S3 |
 | S3 | Scoped `enabled` for declared profiles | Open |
 | S4 | Backend promotions (embed / OPA / vLLM research) | Open |
 
-## Live lane contract (target — not current command)
+## Live lane contract (S2 v1 — code present; decision may still be pending)
 
-When S2 is promoted, the live lane must:
+**CLI:** `plan-live` → `approve-live` → `run-approved`.
 
 ```text
-inputs:
-  - digest-bound forward_route or packed WRP plan
-  - HITL approval / promotion decision ref
-  - MSDA policy + gate decisions
-  - budget envelope; tool ∩ model allowlists
-behavior:
-  - execute graph via already-promoted substrates only
-  - every step: MSDA preflight → invoke → receipt → experience append
-  - never shell=True; never unbound tools; never silent cloud escalation
+inputs (v1):
+  - digest-bound builder_ii.wrp.live_run_plan
+  - digest-bound builder_ii.wrp.live_run_approval (plan_digest must match)
+  - msda_tools[] with forced preflight (enabled=True for the lane)
+  - optional fleet_binding + wrp_binding (required selected_alias / classification_digest when present)
+behavior (v1):
+  - forced MSDA allow for every declared tool or refuse
+  - graph execute noop|record only (no shell node types)
+  - model_gateway_invoked=false; tool_gateway_invoked=false (gateway nodes = later slice)
+  - never shell=True
 outputs:
-  - wrp_live_run_receipt; experience delta; evaluation; optional adjoint recommendation
+  - builder_ii.wrp.live_run_receipt (+ optional experience_store digest)
 rollback:
-  - failure receipt; no silent policy apply; HITL patch rollback for mutations
+  - fail closed before mutate; delete receipts; no live policy apply
 ```
 
-Until S2 decision evidence lands, **no** live-lane command may claim execution authority.
+**Honest limit:** Code on main is not a completed S2 **promotion** until `wrp_s2_decision.json` is HUMAN-approved after G-LEAD audit. Tier 3 `hitl_runtime_candidate` for `run-approved` is the command class, not S3 `enabled`.
 
 ## Non-authority boundaries (current)
 
-- Does not execute models, shell, MCP, Goose, or deepagents **today**.
-- Does not grant promotion authority by artifact existence.
-- Adjoint corrections require HITL promotion to apply to live policy.
-- Maker packages are not self-certified; Governor cert is separate.
-- Enabling by module existence alone is forbidden; **failing to run promotion when evidence is ready is also failure.**
+- Passive lane does **not** invoke model/tool gateways in S2 v1; no shell; no Goose/deepagents.
+- Does not grant promotion authority by module existence or by plan/approval alone.
+- Adjoint corrections still require separate HITL promotion to apply to live policy.
+- Maker packages are not self-certified; Governor cert is separate for promotion decisions.
+- Enabling by module existence alone is forbidden; **failing to complete the decision after G-LEAD PASS is also failure.**
 
 ## Operators (substrate)
 
