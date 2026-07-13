@@ -25,6 +25,9 @@ PROOF_RECORD_KIND = "builder_ii.wrp.proof_record"
 REPLAY_REPORT_KIND = "builder_ii.wrp.replay_report"
 MAKER_CANDIDATE_MANIFEST_KIND = "builder_ii.wrp.maker_candidate_manifest"
 GOVERNOR_CERTIFICATION_KIND = "builder_ii.wrp.governor_certification"
+LIVE_RUN_PLAN_KIND = "builder_ii.wrp.live_run_plan"
+LIVE_RUN_APPROVAL_KIND = "builder_ii.wrp.live_run_approval"
+LIVE_RUN_RECEIPT_KIND = "builder_ii.wrp.live_run_receipt"
 
 WRP_SCHEMA_VERSION = 1
 
@@ -45,6 +48,9 @@ WRP_ARTIFACT_KINDS: frozenset[str] = frozenset(
         REPLAY_REPORT_KIND,
         MAKER_CANDIDATE_MANIFEST_KIND,
         GOVERNOR_CERTIFICATION_KIND,
+        LIVE_RUN_PLAN_KIND,
+        LIVE_RUN_APPROVAL_KIND,
+        LIVE_RUN_RECEIPT_KIND,
     }
 )
 
@@ -68,6 +74,7 @@ ALLOWED_CAPABILITY_STATES = frozenset(
         "wrp_artifact_only",
         "wrp_recorded_only",
         "wrp_exchange_only",
+        "wrp_hitl_live_lane",  # S2 HITL-bounded live graph run (not global enabled)
     }
 )
 
