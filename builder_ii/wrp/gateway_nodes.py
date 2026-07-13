@@ -43,7 +43,9 @@ def _msda_for_node(
     spec: Mapping[str, Any],
     msda_policy: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    payload = spec.get("payload") if isinstance(spec.get("payload"), Mapping) else {}
+    payload = spec.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
     if node_type == "model_gateway":
         tool = str(payload.get("tool") or "model_call")
         domain = str(payload.get("data_domain") or "local_workspace")
@@ -75,7 +77,9 @@ def _record_model_gateway(
     approved_by: str,
     msda_decision: Mapping[str, Any],
 ) -> dict[str, Any]:
-    payload = spec.get("payload") if isinstance(spec.get("payload"), Mapping) else {}
+    payload = spec.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
     model_id = str(payload.get("model_id") or "record-only-local")
     prompt_snippet = str(payload.get("prompt_snippet") or payload.get("task") or "")[:120]
     body = {
@@ -103,7 +107,9 @@ def _record_tool_gateway(
     approved_by: str,
     msda_decision: Mapping[str, Any],
 ) -> dict[str, Any]:
-    payload = spec.get("payload") if isinstance(spec.get("payload"), Mapping) else {}
+    payload = spec.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
     tool_id = str(payload.get("tool_id") or payload.get("tool") or "builtin.echo")
     body = {
         "kind": "builder_ii.wrp.gateway_tool_record",
@@ -130,13 +136,17 @@ def _stub_tool_gateway(
     msda_decision: Mapping[str, Any],
 ) -> dict[str, Any]:
     """In-process B7-aligned stub tools only — no shell, no network, no MCP servers."""
-    payload = spec.get("payload") if isinstance(spec.get("payload"), Mapping) else {}
+    payload = spec.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
     tool_id = str(payload.get("tool_id") or "builtin.echo")
     if tool_id not in _STUB_TOOL_ALLOWLIST:
         raise GatewayNodeError(
             f"stub_tool mode allows only {sorted(_STUB_TOOL_ALLOWLIST)}; got {tool_id!r}"
         )
-    arguments = payload.get("arguments") if isinstance(payload.get("arguments"), Mapping) else {}
+    arguments = payload.get("arguments")
+    if not isinstance(arguments, dict):
+        arguments = {}
     if tool_id == "builtin.echo":
         text = arguments.get("text", payload.get("text", f"gateway:{node_id}"))
         stdout = str(text)

@@ -345,7 +345,9 @@ def run_approved(
         }
     ]
     # Surface gateway digests as optional success signals for experience.
-    traj = run_result.get("trajectory") if isinstance(run_result.get("trajectory"), dict) else {}
+    traj = run_result.get("trajectory")
+    if not isinstance(traj, dict):
+        traj = {}
     for nid, payload in traj.items():
         if isinstance(payload, dict) and payload.get("digest"):
             receipts.append(
