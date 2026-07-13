@@ -24,7 +24,7 @@ VERIFICATION_EXECUTION_RECEIPT_KIND = "builder_ii.verification_execution_receipt
 # exact source state, records ignored pytest byproducts observed during the run
 # (`observed_byproducts`), and echoes the D7 execution-risk acknowledgment the runner
 # verified before spawning.
-VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION = 3
+VERIFICATION_EXECUTION_RECEIPT_SCHEMA_VERSION = 4
 RUNNER_MODE_CONTRACT_ONLY = "receipt_contract_only"
 RUNNER_MODE_BOUNDED_APPROVED = "bounded_approved_verification"
 SUBPROCESS_MODE_NOT_STARTED = "not_started"

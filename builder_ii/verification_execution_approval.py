@@ -20,7 +20,7 @@ VERIFICATION_EXECUTION_APPROVAL_KIND = "builder_ii.verification_execution_approv
 # Schema v2 (D9 hard cut, in lockstep with the plan and receipt): adds the D7
 # execution-risk acknowledgment fields required when a target-code-executing profile
 # (pytest_full/builder_full) is approved.
-VERIFICATION_EXECUTION_APPROVAL_SCHEMA_VERSION = 2
+VERIFICATION_EXECUTION_APPROVAL_SCHEMA_VERSION = 3
 APPROVAL_MODE = "hitl_plan_digest_approval"
 
 REQUIRED_DISABLED_AUTHORITY: dict[str, str] = {
