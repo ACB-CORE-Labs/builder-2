@@ -63,7 +63,7 @@ def _get_base_receipt_kwargs() -> dict[str, Any]:
             "approved_command_profiles": [],
             "verification_execution_approval_digest": "b" * 64,
             "kind": "builder_ii.verification_execution_approval",
-            "schema_version": 2,
+            "schema_version": 3,
         },
         "approval_path": "approval.json",
     }
