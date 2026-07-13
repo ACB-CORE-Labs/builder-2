@@ -275,7 +275,39 @@ and gap-matrix rows with PASS/FAIL/PARTIAL and command digests. Emit scorecard J
 
 ---
 
-## 11. Success of this dispatch model
+## 11. Standing rule — status maps (planned ≠ executed ≠ verified)
+
+Every Maker or Governor status report that maps **what is next / what is left** for WRP absolute mastery **must** use this layout. No status-only dump without judgment.
+
+### Required sections (in order)
+
+1. **Status (truth)** — what is on `main` / open PRs / capability power *now* (not aspirational).
+2. **What’s left** — ordered remaining work (phases, PRs, promotion stages).
+3. **Recommendation(s)** — primary path, and secondary if any, **with why**.
+4. **Concerns** — each risk with **reasoning** and **optimal mitigation** (table preferred).
+5. **Optimal path** — concrete sequence or decision tree (merge order, who runs in parallel, what waits).
+
+### Why this is load-bearing
+
+- Makes **planned ≠ executed ≠ verified ≠ promoted** hyper-visible in operator chat, not only in artifacts.
+- Prevents soft-stop narratives (“we could optionally…”) from hiding the required next power step.
+- Forces explicit trade-offs (e.g. merge pure modules before S1 bind) so Governor can endorse or refute the path.
+- Aligns dual-platform work: Maker proposes the map; G-LEAD may endorse/amend; HUMAN decides merges and S1–S3.
+
+### Anti-patterns
+
+- Listing leftovers without a recommended next action  
+- Recommendations without “why”  
+- Concerns without mitigation  
+- Claiming “done” when only docs or pure modules landed and promotion stages remain open  
+
+### Applies to
+
+M-LEAD status reports, G-LEAD endorsements of path, HUMAN steering notes that change sequence. Does **not** replace eight-gate promotion evidence packages.
+
+---
+
+## 12. Success of this dispatch model
 
 Dispatch is successful when:
 
@@ -283,4 +315,5 @@ Dispatch is successful when:
 2. Governor is busy whenever a package exists (no idle cert queue >1 packaged wave)  
 3. Wall-clock to S2 live lane is dominated by integration + cert, not by idle serial pure modules  
 4. Zero authority-file merge conflicts from parallel agents  
-5. Absolute mastery checklist still has **zero intentional skips**
+5. Absolute mastery checklist still has **zero intentional skips**  
+6. Status maps consistently use §11 (recommendation + concerns + optimal path)
