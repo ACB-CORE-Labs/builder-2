@@ -337,22 +337,34 @@ def create_model_routing_recommendation(
 
         candidates.append((score, cand, reasons))
 
-    # Re-rank only when S1 require_wrp_binding is active (operationally bound).
-    if wrp_binding is not None and require_wrp:
-        wrp_alias = wrp_binding.get("recommended_model_alias")
+    # Prefer fleet_binding.selected_alias when provided (P2 remainder / OmniRouter bind).
+    fleet_binding = req.get("fleet_binding")
+    if fleet_binding is None and isinstance(req.get("fleet_allocation"), dict):
+        fleet_binding = req["fleet_allocation"].get("fleet_binding")
+    prefer_alias: str | None = None
+    if isinstance(fleet_binding, dict) and fleet_binding.get("selected_alias"):
+        prefer_alias = str(fleet_binding["selected_alias"])
+
+    # Re-rank when S1 require_wrp_binding is active and/or fleet_binding selects an alias.
+    prefer_from_wrp = wrp_binding is not None and require_wrp
+    if prefer_from_wrp:
+        prefer_alias = str(wrp_binding.get("recommended_model_alias") or prefer_alias or "")
+
+    if prefer_alias:
         matched_idx = next(
-            (i for i, (_, cand, _) in enumerate(candidates) if cand.get("model_alias") == wrp_alias),
+            (i for i, (_, cand, _) in enumerate(candidates) if cand.get("model_alias") == prefer_alias),
             None,
         )
         if matched_idx is not None:
             score, cand, reasons = candidates[matched_idx]
-            reasons = list(reasons) + [f"WRP binding prefers alias '{wrp_alias}' (S1)"]
+            tag = "WRP binding" if prefer_from_wrp else "fleet_binding"
+            reasons = list(reasons) + [f"{tag} prefers alias '{prefer_alias}'"]
             candidates[matched_idx] = (score + 100, cand, reasons)
-        else:
+        elif prefer_from_wrp and wrp_binding is not None:
             wrp_binding = {
                 **wrp_binding,
                 "wrp_alias_excluded_reason": (
-                    f"WRP recommended alias '{wrp_alias}' not in filtered registry candidates; "
+                    f"WRP recommended alias '{prefer_alias}' not in filtered registry candidates; "
                     "keeping policy-ranked winner (fail-open on alias, binding still recorded)"
                 ),
             }
@@ -417,6 +429,14 @@ def create_model_routing_recommendation(
     }
     if wrp_binding is not None:
         result["wrp_binding"] = wrp_binding
+    if isinstance(fleet_binding, dict) and fleet_binding.get("selected_alias"):
+        result["fleet_binding"] = {
+            "selected_alias": fleet_binding.get("selected_alias"),
+            "token_budget_remaining": fleet_binding.get("token_budget_remaining"),
+            "risk_class": fleet_binding.get("risk_class"),
+            "source": "request.fleet_binding",
+            "grants_authority": False,
+        }
     return result
 
 

@@ -23,18 +23,19 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | Spaces \(\mathcal{W},\mathcal{A},\mathcal{T},\Gamma\) typed | `LANDED` | — | `tests/test_wrp_spaces.py` |
 | Digest-bound artifact kinds + `builder-wrp` | `LANDED` | — | `tests/test_wrp_*.py`, CLI |
 | Dual-platform exchange + G0–W5 Governor cert | `LANDED` | P7 ops | `artifacts/wrp_exchange/` |
-| Advisory WRP annotation in model_router / dry-run | `PARTIAL` | P1 S1 | **Code path landed:** `require_wrp_binding` / `BUILDER_II_WRP_BIND` / dry-run `require_wrp`; default still advisory |
-| Promotion readiness record | `PARTIAL` | P1 | `planning/evidence/wrp.json` + `wrp_s1_readiness.json` ready; HUMAN decision open |
-| Promotion **decision** S1–S3 | `PARTIAL` | P1 | S1 decision artifact **blocked** awaiting G-LEAD audit + HUMAN; S2/S3 OPEN |
+| Advisory WRP annotation in model_router / dry-run | `LANDED` | P1 S1 | **S1 decided (approved on main):** bind when `require_wrp_binding` / `BUILDER_II_WRP_BIND` / dry-run `require_wrp`; default still advisory |
+| Promotion readiness record | `LANDED` | P1 | `planning/evidence/wrp_s1_readiness.json` ready on main |
+| Promotion **decision** S1–S3 | `PARTIAL` | P1 | **S1 approved** (HUMAN after G-LEAD PASS); S2/S3 OPEN |
 | Live lane `run-approved` | `OPEN` | P3 / S2 | `tests/scenarios/test_wrp_live_lane.py` |
 | WorkloadClassifier rules + 95% fixtures | `LANDED` | P2.0 deepen | `builder-wrp score-classifier` |
 | EmbeddingBackend + kNN (hash default; ModernBERT-class opt-in) | `PARTIAL` | P2.0 / P6 | Module + tests landed; wire into classifier + S4 embedder promo open |
 | Collaboration topology + handoff zero-loss + &lt;50ms | `PARTIAL` | P2.1 | Maker/Governor nodes + live handoff |
 | Fleet allocation ±10% budget | `LANDED` | P2.2 | Stress tests; must emit **fleet_binding** |
-| Fleet binding drives session/model plan | `OPEN` | P1 S1 / P2.2 | consumed by router + live lane |
+| Fleet binding drives session/model plan | `PARTIAL` | P2.2 | `fleet_binding` on allocation + consumed by routing recommendation; live lane still OPEN |
 | MSDA declarative gates logged | `LANDED` | P2.3 | `tests/test_wrp_governance.py` |
-| MSDA preflight before tool/model/MCP invoke | `OPEN` | P2.3 / P3 | gateway integration tests |
-| OPA export + optional OPA eval parity | `PARTIAL` | P2.3 / P6 | `opa_adapter.py` landed; gateway preflight wire still OPEN |
+| MSDA preflight before tool/model/MCP invoke | `PARTIAL` | P2.3 / P3 | `msda_preflight` + gateway hooks when `BUILDER_II_WRP_MSDA_PREFLIGHT=1`; default off |
+| OPA export + optional OPA eval parity | `PARTIAL` | P2.3 / P6 | `opa_adapter.py` landed; preflight uses pure MSDA |
+| Classifier ↔ EmbeddingBackend wire | `PARTIAL` | P2.0 | `use_embedding` / `BUILDER_II_WRP_EMBED`; HashingEmbedder+kNN; default metric path |
 | ExperienceStore append/freeze | `LANDED` | P2.4 | — |
 | Receipt ingest → experience exemplars | `PARTIAL` | P2.4 / P4 | `receipt_ingest.py` landed; real ledger series + R* apply still OPEN |
 | \(R^*\) synthetic epochs ≥30% | `LANDED` | P4 | fixture path only today |

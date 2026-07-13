@@ -115,6 +115,19 @@ def allocate_fleet(
         projected = primary_cost * steps
 
     secondary = ranked[1].alias if len(ranked) > 1 else None
+    budget_remaining = max(0.0, float(token_budget) - float(projected))
+    fleet_binding = {
+        "selected_alias": primary.alias,
+        "secondary_alias": secondary,
+        "token_budget": float(token_budget),
+        "token_budget_remaining": budget_remaining,
+        "projected_cost_units": float(projected),
+        "risk_class": primary.risk_class,
+        "task_tier": task_tier,
+        "non_trivial": non_trivial,
+        "binds_session_routing": True,
+        "grants_authority": False,
+    }
     return base_envelope(
         kind=FLEET_ALLOCATION_KIND,
         artifact_state="RECOMMENDATION_ONLY",
@@ -134,6 +147,8 @@ def allocate_fleet(
                 or projected <= token_budget * 1.10,
                 "high_cost_conserved": primary.alias not in _HIGH_COST or non_trivial,
             },
+            # S1/P2 remainder: structured binding for router / recommendation consumers.
+            "fleet_binding": fleet_binding,
             "ranked": [
                 {
                     "alias": c.alias,
@@ -167,4 +182,15 @@ def validate_fleet_allocation(record: Any) -> list[str]:
             # only error if non_trivial is false and high cost used
             if not record.get("non_trivial") and alloc.get("primary_alias") in _HIGH_COST:
                 errors.append("high-cost model used without non_trivial=true")
+    binding = record.get("fleet_binding")
+    if binding is not None:
+        if not isinstance(binding, dict):
+            errors.append("fleet_binding must be an object when present")
+        else:
+            if not binding.get("selected_alias"):
+                errors.append("fleet_binding.selected_alias required")
+            if binding.get("grants_authority") is not False:
+                errors.append("fleet_binding.grants_authority must be false")
+            if isinstance(alloc, dict) and binding.get("selected_alias") != alloc.get("primary_alias"):
+                errors.append("fleet_binding.selected_alias must match allocation.primary_alias")
     return errors

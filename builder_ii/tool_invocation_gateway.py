@@ -47,6 +47,16 @@ def execute_tool_envelope(
     is_tool = kind == TOOL_ENVELOPE_KIND
     receipt_kind = TOOL_RECEIPT_KIND if is_tool else MCP_RECEIPT_KIND
 
+    # Optional WRP MSDA preflight (off by default; BUILDER_II_WRP_MSDA_PREFLIGHT=1).
+    from builder_ii.wrp.msda_preflight import assert_msda_preflight
+
+    tool_name = str(envelope.get("tool_id") or envelope.get("operation_name") or "unknown_tool")
+    data_domain = str(envelope.get("data_domain") or "local_workspace")
+    risk = str(envelope.get("risk_classification") or "local_offline")
+    # Map gateway risk labels into MSDA risk axis when needed.
+    msda_risk = risk if risk in {"local_offline", "local_network", "cloud_external"} else "local_network"
+    assert_msda_preflight(tool=tool_name, data_domain=data_domain, risk=msda_risk)
+
     # 1. Enforce Policy Restrictions and Drift Checks
     policy_digest = canonical_digest(policy)
     expected_digest = envelope.get("policy_ref", {}).get("sha256")
