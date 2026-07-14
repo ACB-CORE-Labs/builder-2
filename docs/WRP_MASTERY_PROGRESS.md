@@ -121,7 +121,7 @@ These are **not** silent failures of the platform grammar; they are residual ris
 
 ## 6. Recommended next steps (plan-ordered)
 
-1. **G-LEAD S3 promotion_gate_audit** against `planning/evidence/wrp_s3_readiness.json` + Class U sample (do not reuse P5 cert).  
+1. **G-LEAD S3 promotion_gate_audit** against `planning/evidence/wrp_s3_readiness.json` + Class U sample (do not reuse P5 cert). Exchange brief: `artifacts/wrp_exchange/mastery/S3-readiness/GOVERNOR_PROMPT.md`. Emit audit + `wave_mastery_S3_readiness_cert.json` under `governor/` (and optional `planning/evidence/wrp_s3_promotion_gate_audit.json`).  
 2. **HUMAN** replace `wrp_s3_decision.json` with decided_by=`HUMAN` and decision `approved|blocked` (current template is **blocked** / PENDING_HUMAN).  
 3. **Until S3 approved (if ever):** keep live path HITL-only; optional parallel:
    - **P6** — opt-in backends (embed/OPA/vLLM interface) with M1-safe defaults, **or**
