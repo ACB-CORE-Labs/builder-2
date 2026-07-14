@@ -709,6 +709,8 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp handoff-measure",
     "builder-wrp plan-agent-lifecycle",
     "builder-wrp msda-status",
+    "builder-wrp backends",
+    "builder-wrp doctor-backends",
     "builder-model call",
     "builder-model standalone-call",
     "builder-model validate-receipt",
@@ -3582,6 +3584,40 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints global_env_enabled / default_off / skip_mode_when_off.",
         failure_mode="Never fails; observation only.",
         notes="Does not enable MSDA globally; product default-on is a separate decision.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp backends",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "P6.1: list WRP backend inventory (hash/MSDA defaults + opt-in ModernBERT/OPA/"
+            "LangGraph/vLLM research + policy surfaces). Never starts engines or grants authority."
+        ),
+        write_boundary="Writes inventory JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints backend id/family/tier/health rows; s4_promoted=false.",
+        failure_mode="Exits non-zero only on unexpected inventory failure.",
+        notes="Inventory only; not S4 promotion; not S3 enablement.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp doctor-backends",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "P6.1: doctor WRP backends. ok=true when M1-safe default paths healthy; missing "
+            "opt-in binaries (opa/langgraph/modernbert) report unavailable without failing doctor."
+        ),
+        write_boundary="Writes doctor report JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints default_runtime_ok + per-backend health; exits 1 if defaults unhealthy.",
+        failure_mode="Exits non-zero only when default (hash/MSDA) paths are not ready.",
+        notes="Does not install deps or promote S4; never starts vLLM.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(

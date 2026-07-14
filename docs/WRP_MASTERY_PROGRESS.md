@@ -25,7 +25,7 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | P7 ceremony + W5 | P7 | **LANDED (substrate)** | #148 W5 repo-state + ceremony template |
 | Post-P6 PARTIAL harden | — | **LANDED (this wave)** | Class U adaptivity; handoff-measure; fleet plan annotation; agent-factory plan CLI; msda-status |
 
-**Cursor (now):** Substrate strong. S3 blocked. S4 backend promos OPEN. Cloud invoke OPEN. Next product forks: **S4 readiness drafts (no flip)** · **stronger Class U for S3 re-open** · **hygiene only**.
+**Cursor (now):** #149 on main. **W.1 Backend registry + doctor** shipping next. S3 blocked. S4 promo OPEN. Cloud invoke OPEN. Vision tracks (semantic/deepagents RO) parallel after registry.
 
 ---
 
@@ -63,7 +63,8 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | #146 | S3 readiness + G-LEAD (historical) | merged; enablement none |
 | #147 | S3 HUMAN decision blocked | merged |
 | #148 | P6 opt-in backends + P7/W5 | merged (`fb53511`) |
-| (open) | Post-P6 PARTIAL harden | `feat/wrp-post-p6-partial-close` |
+| #149 | Post-P6 PARTIAL harden | merged (`216324a`) |
+| (open) | W.1 backend registry + doctor | `feat/wrp-backend-registry-doctor` |
 
 Exchange: `artifacts/wrp_exchange/mastery/{P0,…,P6}/`.
 

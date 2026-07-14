@@ -463,6 +463,42 @@ def msda_status_cmd(
         )
 
 
+@wrp_app.command("backends")
+def backends_cmd(
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """P6.1: list WRP backend inventory (defaults + opt-in; no engine start)."""
+    from builder_ii.wrp.backend_registry import list_backends
+
+    art = {
+        "kind": "builder_ii.wrp.backend_inventory",
+        "schema_version": 1,
+        "grants_authority": False,
+        "s4_promoted": False,
+        "backends": list_backends(),
+    }
+    _emit(art, output)
+    console.print(f"[green]backends listed: {len(art['backends'])} (inventory only)[/]")
+
+
+@wrp_app.command("doctor-backends")
+def doctor_backends_cmd(
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """P6.1: doctor WRP backends (M1 defaults must be healthy; opt-in may be unavailable)."""
+    from builder_ii.wrp.backend_registry import doctor_backends
+
+    art = doctor_backends()
+    _emit(art, output)
+    if not art.get("ok"):
+        console.print("[red]doctor-backends: default runtime path unhealthy[/]")
+        raise typer.Exit(1)
+    console.print(
+        f"[green]doctor-backends ok={art.get('ok')} "
+        f"defaults={art.get('defaults')} unavailable_opt_in={art.get('unavailable')}[/]"
+    )
+
+
 @wrp_app.command("plan-live")
 def plan_live_cmd(
     task: str = typer.Option(..., "--task", "-t"),

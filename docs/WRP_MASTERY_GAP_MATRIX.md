@@ -45,6 +45,7 @@
 | Class U measured + adaptivity axis | `LANDED` | P5/H11 | `axes.adaptivity` via `simulate_receipt_epochs` |
 | Perf dashboards full | `PARTIAL` | P5 | axes filled; no product dashboard UI |
 | vLLM / LangGraph / ModernBERT opt-in | `LANDED` | P6 | #148 |
+| Backend registry + doctor inventory | `LANDED` | P6.1 | `backend_registry.py` + `builder-wrp backends` / `doctor-backends` (this PR) |
 | Trained R head | `DEFERRED` | P6 | research track doc |
 | Cloud provider model invoke | `OPEN` | S2+/S4 | record/stub only (H6) |
 | S4 backend promotion decisions | `OPEN` | S4 | readiness not decision |
