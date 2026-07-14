@@ -237,6 +237,7 @@ Vision set (destination, law, gates — design truth; does not promote capabilit
 | Document | Purpose |
 | --- | --- |
 | [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](plan/CORE_WORKBENCH_BOUNDARY.md) | V.5 CORE Workbench boundary (builder-II helps code, is not Workbench) |
+| [`docs/WRP_ABSOLUTE_MASTERY_SYNTHESIS.md`](WRP_ABSOLUTE_MASTERY_SYNTHESIS.md) | WRP/Vision absolute mastery synthesis (planning+evidence+smoke; not S3/S4 flip) |
 | [`docs/plan/ARTIFACT_MEMORY_RFC.md`](plan/ARTIFACT_MEMORY_RFC.md) | Artifact memory RFC |
 | [`docs/plan/B1_4A_VALIDATION_NOTE.md`](plan/B1_4A_VALIDATION_NOTE.md) | B1.4A Validation Note |
 | [`docs/plan/B8_B9_GOVERNED_EXECUTION_PLAN.md`](plan/B8_B9_GOVERNED_EXECUTION_PLAN.md) | B8/B9 governed execution plan |
