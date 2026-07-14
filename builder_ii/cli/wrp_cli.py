@@ -210,18 +210,58 @@ def replay_cmd(
     plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False),
     observed: Path = typer.Option(..., "--observed", exists=True, dir_okay=False, help="JSON list of {node_id,digest}"),
     output: Path | None = typer.Option(None, "--output", "-o"),
+    planned_commit: str | None = typer.Option(None, "--planned-commit", help="W5 planned commit_id override"),
+    planned_tree: str | None = typer.Option(None, "--planned-tree", help="W5 planned tree_hash override"),
+    observed_commit: str | None = typer.Option(None, "--observed-commit", help="W5 observed commit_id"),
+    observed_tree: str | None = typer.Option(None, "--observed-tree", help="W5 observed tree_hash"),
+    bind_repo: bool = typer.Option(False, "--bind-repo/--no-bind-repo", help="Capture cwd git state as observed"),
 ) -> None:
-    """W5: reconstructive replay validation."""
+    """W5: reconstructive replay validation (digests + optional repo commit/tree)."""
     planned = _read_json(plan)
     obs_raw = json_lib.loads(observed.read_text(encoding="utf-8"))
     if not isinstance(obs_raw, list):
         console.print("[red]observed must be a JSON list[/]")
         raise typer.Exit(1)
-    art = replay_graph_digests(planned=planned, observed_chain=obs_raw)
+
+    planned_repo: dict[str, Any] | None = None
+    if planned_commit is not None or planned_tree is not None:
+        planned_repo = {
+            "commit_id": planned_commit,
+            "tree_hash": planned_tree,
+            "is_git_tree": bool(planned_commit or planned_tree),
+            "source": "cli",
+        }
+
+    observed_repo: dict[str, Any] | None = None
+    if bind_repo:
+        from builder_ii.wrp.repo_state import capture_repo_state
+
+        observed_repo = capture_repo_state()
+    elif observed_commit is not None or observed_tree is not None:
+        observed_repo = {
+            "commit_id": observed_commit,
+            "tree_hash": observed_tree,
+            "is_git_tree": bool(observed_commit or observed_tree),
+            "source": "cli",
+        }
+
+    art = replay_graph_digests(
+        planned=planned,
+        observed_chain=obs_raw,
+        planned_repo_state=planned_repo,
+        observed_repo_state=observed_repo,
+    )
     _emit(art, output)
     if not art.get("perfect_match"):
-        console.print("[red]replay perfect_match=false[/]")
+        console.print(
+            f"[red]replay perfect_match=false "
+            f"(digest_ok={art.get('digest_sequence_ok')} "
+            f"repo_match={art.get('repo_state_match')} mode={art.get('repo_state_mode')})[/]"
+        )
         raise typer.Exit(1)
+    console.print(
+        f"[green]replay perfect_match=true mode={art.get('repo_state_mode')}[/]"
+    )
 
 
 @wrp_app.command("graph")
@@ -229,10 +269,118 @@ def graph_cmd(
     task: str = typer.Option(..., "--task", "-t"),
     nodes: str = typer.Option("maker_structural,maker_unit,governor_architecture", "--nodes"),
     output: Path | None = typer.Option(None, "--output", "-o"),
+    bind_repo: bool = typer.Option(False, "--bind-repo/--no-bind-repo", help="Embed cwd commit_id/tree_hash"),
 ) -> None:
-    """Emit a planned subtask graph artifact."""
+    """Emit a planned subtask graph artifact (optional W5 repo-state bind)."""
     node_list = [n.strip() for n in nodes.split(",") if n.strip()]
-    art = create_subtask_graph(sequential_chain(node_list), task=task)
+    repo_state = None
+    if bind_repo:
+        from builder_ii.wrp.repo_state import capture_repo_state
+
+        repo_state = capture_repo_state()
+    art = create_subtask_graph(sequential_chain(node_list), task=task, repo_state=repo_state)
+    _emit(art, output)
+
+
+@wrp_app.command("langgraph-project")
+def langgraph_project_cmd(
+    nodes: str = typer.Option("a,b,c", "--nodes"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+    compile_graph: bool = typer.Option(False, "--compile/--project-only", help="Opt-in compile (needs env+pkg)"),
+) -> None:
+    """P6: pure LangGraph-shaped projection (optional compile is fail-closed)."""
+    from builder_ii.wrp.langgraph_adapter import BackendUnavailableError, OptionalLangGraphAdapter
+    from builder_ii.wrp.patterns import sequential_chain
+
+    node_list = [n.strip() for n in nodes.split(",") if n.strip()]
+    adapter = OptionalLangGraphAdapter()
+    graph = sequential_chain(node_list)
+    if compile_graph:
+        try:
+            art = adapter.compile(graph)
+        except BackendUnavailableError as exc:
+            console.print(f"[red]langgraph compile fail-closed: {exc}[/]")
+            raise typer.Exit(1) from exc
+    else:
+        art = adapter.project(graph)
+    _emit(art, output)
+
+
+@wrp_app.command("vllm-profile")
+def vllm_profile_cmd(
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """P6: emit vLLM research profile status (never starts an engine)."""
+    from builder_ii.wrp.vllm_profile import profile_status
+
+    art = profile_status()
+    _emit(art, output)
+    if art.get("default_runtime") is not False:
+        console.print("[red]vLLM profile incorrectly claims default runtime[/]")
+        raise typer.Exit(1)
+    console.print("[green]vLLM research profile status (stub; not default runtime)[/]")
+
+
+@wrp_app.command("opa-eval")
+def opa_eval_cmd(
+    tool: str = typer.Option(..., "--tool"),
+    data_domain: str = typer.Option(..., "--domain", "--data-domain"),
+    policy: Path | None = typer.Option(None, "--policy", exists=True, dir_okay=False),
+    backend: str = typer.Option("python", "--backend", help="python | opa"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """P6: MSDA eval via pure Python (default) or optional opa binary."""
+    from builder_ii.wrp.opa_adapter import BackendUnavailableError, OpaEvalAdapter, eval_msda_python
+
+    pol = _read_json(policy) if policy else create_default_msda_policy()
+    request = {"tool": tool, "data_domain": data_domain, "risk": "local_offline"}
+    if backend == "python":
+        art = eval_msda_python(pol, request)
+    elif backend == "opa":
+        try:
+            art = OpaEvalAdapter().eval(pol, request)
+        except BackendUnavailableError as exc:
+            console.print(f"[red]opa backend fail-closed: {exc}[/]")
+            raise typer.Exit(1) from exc
+    else:
+        console.print("[red]--backend must be python or opa[/]")
+        raise typer.Exit(1)
+    _emit(art, output)
+
+
+@wrp_app.command("embed-status")
+def embed_status_cmd(
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """P6: report active embedder resolution (hash default; modernbert opt-in)."""
+    from builder_ii.wrp.embedding_backend import (
+        MODERNBERT_ENV,
+        MODERNBERT_ENV_VALUE,
+        modernbert_opt_in_enabled,
+        resolve_embedder,
+    )
+
+    backend = resolve_embedder()
+    art = {
+        "backend_name": backend.name,
+        "modernbert_opt_in": modernbert_opt_in_enabled(),
+        "env": MODERNBERT_ENV,
+        "env_value_for_opt_in": MODERNBERT_ENV_VALUE,
+        "is_default_hashing": backend.name == "hashing",
+        "grants_authority": False,
+    }
+    _emit(art, output)
+
+
+@wrp_app.command("repo-state")
+def repo_state_cmd(
+    cwd: Path | None = typer.Option(None, "--cwd", exists=True, file_okay=False),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """W5: capture commit_id + tree_hash (honest nulls when not a git tree)."""
+    from builder_ii.wrp.repo_state import capture_repo_state
+
+    art = capture_repo_state(cwd)
     _emit(art, output)
 
 

@@ -16,6 +16,8 @@ from builder_ii.wrp.embedding_backend import (
     HashingEmbedder,
     OptionalModernBertBackend,
     knn_classify,
+    modernbert_opt_in_enabled,
+    resolve_embedder,
 )
 
 # ---------------------------------------------------------------------------
@@ -324,6 +326,27 @@ def test_exports_all_public_names() -> None:
         "DEFAULT_EMBED_DIM",
         "MODERNBERT_ENV",
         "MODERNBERT_ENV_VALUE",
+        "resolve_embedder",
+        "modernbert_opt_in_enabled",
     ):
         assert name in mod.__all__
         assert hasattr(mod, name)
+
+
+def test_resolve_embedder_defaults_to_hashing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv(MODERNBERT_ENV, raising=False)
+    backend = resolve_embedder()
+    assert isinstance(backend, HashingEmbedder)
+    assert backend.name == "hashing"
+    assert modernbert_opt_in_enabled() is False
+    vectors = backend.embed(["default path"])
+    assert len(vectors) == 1 and len(vectors[0]) == DEFAULT_EMBED_DIM
+
+
+def test_resolve_embedder_modernbert_opt_in_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(MODERNBERT_ENV, MODERNBERT_ENV_VALUE)
+    backend = resolve_embedder()
+    assert isinstance(backend, OptionalModernBertBackend)
+    assert modernbert_opt_in_enabled() is True
+    with pytest.raises(BackendUnavailableError):
+        backend.embed(["no provider"])
