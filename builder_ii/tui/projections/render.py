@@ -1,4 +1,4 @@
-"""Theme-token markup helpers for STRATUM instruments.
+"""Theme palette markup helpers for STRATUM instruments.
 
 All colours come from ``theme_palette()`` — no hardcoded hex in call sites.
 """
@@ -25,36 +25,37 @@ _STATUS_GLYPHS: dict[str, tuple[str, str]] = {
 }
 
 
-def themed(token: str, text: str) -> str:
-    """Wrap ``text`` in Rich markup using a semantic palette token."""
+def themed(role: str, text: str) -> str:
+    """Wrap ``text`` in Rich markup using a semantic palette role."""
     p = theme_palette()
-    colour = p.get(token, p["hint"])
+    colour = p.get(role, p["hint"])
     return f"[{colour}]{text}[/]"
 
 
-def bold_themed(token: str, text: str) -> str:
+def bold_themed(role: str, text: str) -> str:
     p = theme_palette()
-    colour = p.get(token, p["bold"])
+    colour = p.get(role, p["bold"])
     return f"[bold {colour}]{text}[/]"
 
 
-def section_title(text: str, token: str = "active") -> str:
-    return bold_themed(token, text)
+def section_title(text: str, role: str = "active") -> str:
+    """Section header using a palette role (not a secret token)."""
+    return bold_themed(role, text)
 
 
 def rule(width: int = 46) -> str:
     return themed("dim", "─" * width)
 
 
-def kv(label: str, value: str, *, value_token: str = "bold", label_width: int = 14) -> str:
+def kv(label: str, value: str, *, value_role: str = "bold", label_width: int = 14) -> str:
     pad = max(0, label_width - len(label))
-    return f"  {themed('hint', label + ' ' * pad)}  {themed(value_token, value)}"
+    return f"  {themed('hint', label + ' ' * pad)}  {themed(value_role, value)}"
 
 
 def status_glyph(status: str) -> str:
     """Return a themed density glyph for a spine / gate status string."""
-    glyph, token = _STATUS_GLYPHS.get(status, ("?", "hint"))
-    return themed(token, glyph)
+    glyph, role = _STATUS_GLYPHS.get(status, ("?", "hint"))
+    return themed(role, glyph)
 
 
 def epistemic_node(label: str, state: str, digest: str) -> tuple[str, str]:

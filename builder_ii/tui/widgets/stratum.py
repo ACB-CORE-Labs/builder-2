@@ -218,10 +218,10 @@ class ActiveStratum(Vertical):
         lines = [
             section_title("SYSTEM"),
             kv("Platform", dash.platform),
-            kv("Target", dash.target, value_token="accent"),
-            kv("Model", dash.model, value_token="pass"),
+            kv("Target", dash.target, value_role="accent"),
+            kv("Model", dash.model, value_role="pass"),
             kv("Backend", dash.backend),
-            kv("Session", dash.session, value_token="hint"),
+            kv("Session", dash.session, value_role="hint"),
             "",
             section_title("PIPELINE"),
             kv("Artifacts", str(dash.chain_length)),
@@ -238,13 +238,13 @@ class ActiveStratum(Vertical):
                 [
                     "",
                     section_title("NEXT", "warn"),
-                    kv("Capability", dash.next_action.capability, value_token="active"),
-                    kv("State", dash.next_action.state, value_token="warn"),
+                    kv("Capability", dash.next_action.capability, value_role="active"),
+                    kv("State", dash.next_action.state, value_role="warn"),
                     f"  {themed('hint', dash.next_action.reason[:120])}",
                 ]
             )
             if dash.next_action.safe_command:
-                lines.append(kv("Compose", dash.next_action.safe_command, value_token="pass"))
+                lines.append(kv("Compose", dash.next_action.safe_command, value_role="pass"))
                 lines.append(f"  {themed('dim', 'Press N to prefill Command Composer')}")
 
         lines.extend(
@@ -296,15 +296,15 @@ class ActiveStratum(Vertical):
         lines = [
             section_title("HITL EXECUTION REQUEST", "warn"),
             rule(),
-            kv("Command", str(proposal.get("command", "—")), value_token="active"),
-            kv("Tier", str(proposal.get("tier", "—")), value_token="accent"),
-            kv("Authority", str(proposal.get("authority", "—")), value_token="warn"),
+            kv("Command", str(proposal.get("command", "—")), value_role="active"),
+            kv("Tier", str(proposal.get("tier", "—")), value_role="accent"),
+            kv("Authority", str(proposal.get("authority", "—")), value_role="warn"),
             kv("Effects", str(proposal.get("effects", "—"))),
-            kv("Digest", str(digest), value_token="hint"),
+            kv("Digest", str(digest), value_role="hint"),
         ]
         path = proposal.get("path")
         if path:
-            lines.append(kv("Path", str(path), value_token="hint"))
+            lines.append(kv("Path", str(path), value_role="hint"))
 
         artifact_data = proposal.get("artifact", {})
         if artifact_data:
@@ -333,25 +333,25 @@ class ActiveStratum(Vertical):
         kind = str(data.get("kind", "—"))
         lines = [
             section_title("ARTIFACT"),
-            kv("Kind", kind, value_token="active"),
+            kv("Kind", kind, value_role="active"),
         ]
         if self._inspected_path:
-            lines.append(kv("Path", self._inspected_path, value_token="hint"))
+            lines.append(kv("Path", self._inspected_path, value_role="hint"))
 
         # Surface real digest fields only, labeled as artifact fields (not chain digest).
         for key in ("digest", "content_digest", "sha256", "artifact_digest"):
             val = data.get(key)
             if isinstance(val, str) and val:
-                lines.append(kv(f"Field:{key}", val[:64], value_token="hint"))
+                lines.append(kv(f"Field:{key}", val[:64], value_role="hint"))
                 break
 
         gov = data.get("governance")
         if isinstance(gov, dict):
-            lines.append(kv("Authority", str(gov.get("artifact_is_authority", "—")), value_token="warn"))
+            lines.append(kv("Authority", str(gov.get("artifact_is_authority", "—")), value_role="warn"))
 
         errors = data.get("errors") or []
         if errors:
-            lines.append(kv("Errors", str(len(errors)), value_token="fail"))
+            lines.append(kv("Errors", str(len(errors)), value_role="fail"))
 
         lines.extend(["", section_title("DATA"), ""])
         self._write("\n".join(lines))
@@ -412,7 +412,7 @@ class ActiveStratum(Vertical):
                 lines.append(f"      {themed('hint', kind)}  {themed('warn', state)}")
         if not found:
             lines.append(themed("dim", "  No promotion readiness artifacts found."))
-            lines.append(kv("Compose", "builder-promote readiness …", value_token="pass"))
+            lines.append(kv("Compose", "builder-promote readiness …", value_role="pass"))
         door = project_third_door(self.artifacts_dir)
         lines.extend(["", f"  {themed('hint', f'Third Door source: {door.source}')}"])
         self._write("\n".join(lines))
@@ -429,7 +429,7 @@ class ActiveStratum(Vertical):
                     themed("hint", "  STRATUM does not stream model output."),
                     themed("hint", "  G suspends and hands the terminal to builder-goose start-readonly."),
                     "",
-                    kv("Compose", "builder-goose start-readonly <manifest>", value_token="pass"),
+                    kv("Compose", "builder-goose start-readonly <manifest>", value_role="pass"),
                 ]
             )
         )
@@ -443,7 +443,7 @@ class ActiveStratum(Vertical):
                     themed("hint", "  Collect session choices, then compose the governed CLI."),
                     themed("hint", "  STRATUM does not write session artifacts."),
                     "",
-                    kv("Compose", "builder-session prepare-package", value_token="pass"),
+                    kv("Compose", "builder-session prepare-package", value_role="pass"),
                     f"  {themed('dim', 'Press P to open the session configurator')}",
                 ]
             )
@@ -482,15 +482,15 @@ class ActiveStratum(Vertical):
         loc = view.local
         lines = [
             section_title("MODEL REGISTRY", "pass"),
-            kv("State", view.registry_state, value_token="hint"),
-            kv("Backends", " · ".join(view.backends) if view.backends else "—", value_token="active"),
+            kv("State", view.registry_state, value_role="hint"),
+            kv("Backends", " · ".join(view.backends) if view.backends else "—", value_role="active"),
             "",
             section_title("LOCAL CONFIG (.env)", "warn"),
-            kv("Backend", loc.backend, value_token="active"),
-            kv("Alias", loc.alias, value_token="pass"),
+            kv("Backend", loc.backend, value_role="active"),
+            kv("Alias", loc.alias, value_role="pass"),
             kv("Tier", loc.tier),
-            kv("Base URL", loc.base_url, value_token="hint"),
-            kv("Temp", loc.temperature, value_token="hint"),
+            kv("Base URL", loc.base_url, value_role="hint"),
+            kv("Temp", loc.temperature, value_role="hint"),
             f"  {themed('dim', loc.note)}",
             rule(),
         ]
@@ -549,12 +549,12 @@ class ActiveStratum(Vertical):
         cmds = compose_deepagents_commands(target=self._target)
         lines = [
             section_title("DEEPAGENTS ROSTER", "accent"),
-            kv("Readiness", view.readiness_verdict, value_token="warn"),
-            kv("Dependency", view.dependency_state, value_token="hint"),
+            kv("Readiness", view.readiness_verdict, value_role="warn"),
+            kv("Dependency", view.dependency_state, value_role="hint"),
             kv(
                 "Disabled",
                 ", ".join(view.disabled_capabilities[:4]) if view.disabled_capabilities else "—",
-                value_token="fail",
+                value_role="fail",
             ),
             rule(),
         ]
@@ -631,18 +631,18 @@ class ActiveStratum(Vertical):
             lines.append(themed("fail", f"  {view.error}"))
 
         if view.session_id:
-            lines.append(kv("Session", view.session_id, value_token="active"))
-            lines.append(kv("Stage", view.current_stage or "—", value_token="warn"))
+            lines.append(kv("Session", view.session_id, value_role="active"))
+            lines.append(kv("Stage", view.current_stage or "—", value_role="warn"))
             if view.task:
-                lines.append(kv("Task", view.task[:60], value_token="hint"))
+                lines.append(kv("Task", view.task[:60], value_role="hint"))
         else:
             lines.append(themed("dim", "  No workflow session artifact bound."))
 
         lines.extend(["", section_title("GOOSE MANIFEST")])
         if view.goose:
             token = "pass" if view.goose.valid_enough else "warn"
-            lines.append(kv("Path", view.goose.path, value_token="hint"))
-            lines.append(kv("Mode", view.goose.mode, value_token=token))
+            lines.append(kv("Path", view.goose.path, value_role="hint"))
+            lines.append(kv("Mode", view.goose.mode, value_role=token))
             lines.append(f"  {themed(token, view.goose.note)}")
         else:
             lines.append(themed("dim", "  No .builder/goose/*.json — mint before G."))
@@ -726,7 +726,7 @@ class ActiveStratum(Vertical):
         lines = [
             section_title("CODEVAULT", "pass"),
             f"  {themed('hint', view.note)}",
-            kv("Frames/artifacts", str(view.frame_count), value_token="active"),
+            kv("Frames/artifacts", str(view.frame_count), value_role="active"),
             rule(),
         ]
         if view.error:
@@ -778,7 +778,7 @@ class ActiveStratum(Vertical):
                     verification_profile="generic_basic",
                     task="stratum-inspect",
                 )
-            lines.append(kv("Target", str(gate.get("target", t)), value_token="active"))
+            lines.append(kv("Target", str(gate.get("target", t)), value_role="active"))
             lines.append("")
             lines.append(section_title("REQUIRED EVIDENCE", "pass"))
             for req in gate.get("required_evidence") or []:
