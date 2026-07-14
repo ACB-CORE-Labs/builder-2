@@ -25,7 +25,7 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | P7 ceremony + W5 | P7 | **LANDED (substrate)** | #148 W5 repo-state + ceremony template |
 | Post-P6 PARTIAL harden | — | **LANDED (this wave)** | Class U adaptivity; handoff-measure; fleet plan annotation; agent-factory plan CLI; msda-status |
 
-**Cursor (now):** #154 on main (W.5+V.4). Next: **W.6 S4 readiness drafts** (this PR). S3 blocked. S4 promo OPEN (drafts only).
+**Cursor (now):** #155 on main (W.6 S4 drafts). Next: **V.5 Workbench boundary doc** (this PR, docs-only). S3 blocked. S4 promo OPEN (drafts only; HUMAN decide each).
 
 ---
 
@@ -69,7 +69,8 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | #152 | W.3 fleet-fidelity + V.2 agent RO | merged |
 | #153 | W.4 patterns-prove + V.3 fixed-argv | merged |
 | #154 | W.5 AgentFactory lifecycle + V.4 CORE profile | merged |
-| (open) | W.6 S4 readiness drafts | `feat/wrp-w6-s4-readiness-drafts` |
+| #155 | W.6 S4 readiness drafts | merged |
+| (open) | V.5 Workbench boundary doc | `docs/v5-workbench-boundary` |
 
 Exchange: `artifacts/wrp_exchange/mastery/{P0,…,P6}/`.
 

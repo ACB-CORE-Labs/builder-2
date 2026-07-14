@@ -53,6 +53,8 @@ CORE product identity for builder-II
 CORE-only platform identity
 ```
 
+**V.5 (2026-07-13) cross-ref:** The full Workbench separation (what builder-II may do for Workbench *source* as target work vs what Workbench owns as product UI, plus design-only requirements for any future authorized adapter) lives in [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](../plan/CORE_WORKBENCH_BOUNDARY.md). That document is hygiene/spec only; it does not authorize coupling or promote a Workbench adapter.
+
 ## Source-of-truth hierarchy
 
 Repository documentation is authoritative for builder-II architecture.

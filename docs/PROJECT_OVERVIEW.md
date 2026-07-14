@@ -126,7 +126,11 @@ appears only as a target profile/adapter.
 ### CORE Workbench/UI
 
 CORE Workbench lives inside the CORE product context. builder-II must not
-become the Workbench or claim to drive Workbench UX flows.
+become the Workbench or claim to drive Workbench UX flows. builder-II may
+still help build and verify Workbench *source code* when that code is in a
+target repository — that is target work, not product identity.
+
+Full boundary (V.5, design-only): [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](plan/CORE_WORKBENCH_BOUNDARY.md).
 
 ### deepagents (optional harness)
 
