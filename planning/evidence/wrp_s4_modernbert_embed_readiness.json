@@ -1,0 +1,184 @@
+{
+  "allowed_actions": [
+    "record_promotion_readiness",
+    "validate_promotion_readiness"
+  ],
+  "backend_meta": {
+    "cli_commands": [
+      "builder-wrp embed-status"
+    ],
+    "family": "embedder",
+    "health_state": "unavailable",
+    "id": "modernbert_embed",
+    "inventory_present": true,
+    "module": "builder_ii.wrp.embedding_backend",
+    "notes": "OptionalModernBertBackend; never default. S4 promote separate.",
+    "opt_in_env": "BUILDER_II_WRP_EMBEDDER",
+    "tier": "opt_in"
+  },
+  "capability_name": "WRP S4 backend promotion: modernbert_embed",
+  "capability_state": "promotion_readiness_record",
+  "checks": [
+    {
+      "missing": [],
+      "name": "docs",
+      "ready": true,
+      "refs": [
+        "docs/WRP_CONTROL_PLANE.md",
+        "docs/WRP_MASTERY_GAP_MATRIX.md",
+        "docs/WRP_MASTERY_PROGRESS.md",
+        "docs/WRP_ACCEPTANCE.md",
+        "docs/CAPABILITY_PROMOTION.md",
+        "docs/adrs/ADR-0007-orchestration-router-control-plane.md",
+        "docs/WRP_CONTROL_PLANE.md"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "tests",
+      "ready": true,
+      "refs": [
+        "tests/test_wrp_backend_registry.py",
+        "tests/test_wrp_s4_readiness_drafts.py",
+        "backend inventory id=modernbert_embed"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "cli_surface",
+      "ready": true,
+      "refs": [
+        "builder-wrp backends",
+        "builder-wrp doctor-backends",
+        "builder-wrp s4-readiness draft",
+        "builder-wrp embed-status"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "failure_mode",
+      "ready": true,
+      "refs": [
+        "s4_promoted must remain false until HUMAN decision approved",
+        "doctor_backends never starts engines",
+        "opt-in backends fail closed when env/provider missing",
+        "backend=modernbert_embed remains non-default M1-safe"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "approval_boundary",
+      "ready": true,
+      "refs": [
+        "docs/CAPABILITY_PROMOTION.md eight-gate HUMAN decision",
+        "docs/WRP_ACCEPTANCE.md Promotion acceptance",
+        "HUMAN decides each backend independently (no bulk S4 flip)",
+        "PENDING_HUMAN \u2014 this draft is not an approval"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "output_artifact",
+      "ready": true,
+      "refs": [
+        "builder_ii.promotion_readiness_record planning/evidence/wrp_s4_modernbert_embed_readiness.json",
+        "builder_ii.promotion_decision_record planning/evidence/wrp_s4_modernbert_embed_decision.json",
+        "builder_ii.wrp.s4_promotion_gate_audit planning/evidence/wrp_s4_promotion_gate_audit.json"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "rollback_path",
+      "ready": true,
+      "refs": [
+        "keep s4_promoted=false on doctor/inventory reports",
+        "delete or supersede planning/evidence/wrp_s4_modernbert_embed_readiness.json + planning/evidence/wrp_s4_modernbert_embed_decision.json",
+        "do not merge enablement code without HUMAN approved decision"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "verification_path",
+      "ready": true,
+      "refs": [
+        "uv run pytest tests/test_wrp_s4_readiness_drafts.py tests/test_wrp_backend_registry.py -q",
+        "uv run builder-wrp doctor-backends",
+        "uv run builder-wrp s4-readiness draft --backend modernbert_embed",
+        "uv run builder-promotion validate <readiness path>",
+        "uv run builder-platform audit-docs"
+      ]
+    }
+  ],
+  "current_state": "DISABLED",
+  "draft_only": true,
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "artifacts_are_authority": false,
+    "autonomous_agent_authority": "DISABLED",
+    "benchmark_execution": "DISABLED",
+    "capability_state": "promotion_readiness_record",
+    "claims_verification_passed": "DISABLED",
+    "command_execution": "DISABLED",
+    "commit_push": "DISABLED",
+    "core_workbench_coupling": "NONE",
+    "deepagents_construction": "DISABLED",
+    "deepagents_delegation": "DISABLED",
+    "deepagents_runtime": "DISABLED",
+    "deepagents_runtime_start": "DISABLED",
+    "deephaven_touch": "DISABLED",
+    "executes_commands": false,
+    "file_mutation": "DISABLED",
+    "git_mutation": "DISABLED",
+    "git_status_inspection": "DISABLED",
+    "goose_runtime_activation": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "hardware_probe": "DISABLED",
+    "mcp_execution": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "model_execution_loops": "DISABLED",
+    "network_access": "DISABLED",
+    "network_mcp_execution": "DISABLED",
+    "notes_vault_mutation": "DISABLED",
+    "patch_application": "DISABLED",
+    "proof_of_capability_only": true,
+    "pull_request_creation": "DISABLED",
+    "quality_gate_executes_commands": "DISABLED",
+    "report_is_completed_evidence": "DISABLED",
+    "repository_file_reads": "DISABLED",
+    "repository_writes": "DISABLED",
+    "runtime_activation": "DISABLED",
+    "runtime_authority": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "runtime_executor": false,
+    "search_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_collection": "DISABLED",
+    "source_patches_applied": "DISABLED",
+    "source_writes": "DISABLED",
+    "subagent_construction": "DISABLED",
+    "subprocess_backed_authority": "DISABLED",
+    "subprocess_execution": "DISABLED",
+    "target_artifact_reads": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "ticket_creation": "DISABLED",
+    "web_search": "DISABLED"
+  },
+  "grants_action_authority": false,
+  "grants_runtime_authority": false,
+  "kind": "builder_ii.promotion_readiness_record",
+  "missing": [],
+  "notes": "W.6 S4 readiness DRAFT for backend=modernbert_embed (family=embedder, tier=opt_in). ready=true means eight-gate *evidence refs* are present for HUMAN review \u2014 not that S4 should be approved. Does NOT promote the backend, start engines, flip defaults, enable S3 multi-agent, or invoke cloud. Inventory present=True; health_state=unavailable. Module=builder_ii.wrp.embedding_backend. HUMAN must issue a separate per-backend decision.",
+  "performed_actions": [],
+  "ready": true,
+  "record_state": "RECORDED_ONLY",
+  "s3_enabled": false,
+  "s4_backend_id": "modernbert_embed",
+  "s4_promoted": false,
+  "schema_version": 1,
+  "status": "ready",
+  "support_artifacts": [],
+  "target": "builder",
+  "target_state": "promoted_opt_in"
+}

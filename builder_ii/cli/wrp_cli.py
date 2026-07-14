@@ -554,6 +554,89 @@ def backends_cmd(
     console.print(f"[green]backends listed: {len(art['backends'])} (inventory only)[/]")
 
 
+s4_readiness_app = typer.Typer(
+    help="W.6 S4 backend readiness drafts (validation_only; HUMAN decides each; no promo flip).",
+)
+wrp_app.add_typer(s4_readiness_app, name="s4-readiness")
+
+
+@s4_readiness_app.command("list")
+def s4_readiness_list_cmd(
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """List opt-in/research backends eligible for S4 readiness drafts."""
+    from builder_ii.wrp.s4_readiness import s4_draft_backend_ids
+
+    art = {
+        "kind": "builder_ii.wrp.s4_draft_backend_list",
+        "schema_version": 1,
+        "backends": list(s4_draft_backend_ids()),
+        "s4_promoted": False,
+        "s3_enabled": False,
+        "grants_authority": False,
+        "human_decision_required": True,
+        "notes": "Draft-eligible backends only. Defaults excluded. No promotion.",
+    }
+    _emit(art, output)
+    console.print(f"[green]s4-readiness backends: {', '.join(art['backends'])}[/]")
+
+
+@s4_readiness_app.command("draft")
+def s4_readiness_draft_cmd(
+    backend: str = typer.Option(
+        ...,
+        "--backend",
+        "-b",
+        help="Backend id: modernbert_embed | opa | langgraph | vllm_research (or 'all')",
+    ),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write draft package JSON"),
+    write_evidence: bool = typer.Option(
+        False,
+        "--write-evidence",
+        help="Also write readiness/decision (+ gate audit) under planning/evidence",
+    ),
+    evidence_dir: Path | None = typer.Option(
+        None,
+        "--evidence-dir",
+        help="Override evidence directory (default planning/evidence)",
+    ),
+) -> None:
+    """Emit S4 readiness draft package (decision always blocked / PENDING_HUMAN)."""
+    from builder_ii.wrp.s4_readiness import (
+        draft_all_s4_packages,
+        draft_s4_package,
+        write_s4_evidence,
+    )
+
+    try:
+        if backend.strip().lower() == "all":
+            art = draft_all_s4_packages()
+            if write_evidence:
+                written = write_s4_evidence(backend_id=None, evidence_dir=evidence_dir)
+                console.print(f"[green]wrote {len(written)} evidence files[/]")
+        else:
+            art = draft_s4_package(backend)
+            if write_evidence:
+                written = write_s4_evidence(backend_id=backend, evidence_dir=evidence_dir)
+                console.print(f"[green]wrote {len(written)} evidence files[/]")
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1) from exc
+    _emit(art, output)
+    if not art.get("ok"):
+        console.print("[red]s4-readiness draft failed honesty/validation checks[/]")
+        raise typer.Exit(1)
+    if art.get("s4_promoted") is not False or art.get("decision", {}).get("approved") is True:
+        # Aggregate package has no top-level decision; single package does.
+        if art.get("scope") != "all_s4_draft_backends":
+            console.print("[red]s4-readiness draft inflated promotion flags[/]")
+            raise typer.Exit(1)
+    console.print(
+        f"[green]s4-readiness draft ok backend={art.get('backend_id') or art.get('scope')} "
+        f"s4_promoted={art.get('s4_promoted')} human_required={art.get('human_decision_required')}[/]"
+    )
+
+
 @wrp_app.command("doctor-backends")
 def doctor_backends_cmd(
     output: Path | None = typer.Option(None, "--output", "-o"),
@@ -914,6 +997,9 @@ def validate_cmd(
         "builder_ii.wrp.agent_lifecycle_proof": __import__(
             "builder_ii.wrp.agent_factory", fromlist=["validate_agent_lifecycle_proof"]
         ).validate_agent_lifecycle_proof,
+        "builder_ii.wrp.s4_readiness_draft_package": __import__(
+            "builder_ii.wrp.s4_readiness", fromlist=["validate_s4_draft_package"]
+        ).validate_s4_draft_package,
     }
     validator = validators.get(str(kind))
     if validator is None:
