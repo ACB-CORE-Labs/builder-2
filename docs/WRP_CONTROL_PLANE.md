@@ -10,10 +10,10 @@ Geometry-first Workload–Router–Pool (WRP) orchestration & routing control pl
 
 | Dimension | State today |
 | --- | --- |
-| Capability promotion | `artifact_only` / `validation_only` / `recommendation_only` + HITL candidates for S2 live + P4 φ apply |
-| Command surface | `builder-wrp` Tier 1 passive + Tier 3 `run-approved` / `apply-rstar-approved` |
-| Live multi-agent execution | **Not S3-enabled** — S2 HITL graph only; P4 φ apply does not enable multi-agent |
-| Absolute mastery | **In progress** (P4 landed on this phase; P5–P7 open) |
+| Capability promotion | `artifact_only` / `validation_only` / `recommendation_only` + HITL candidates for S2 live/v2 gateways + P4 φ apply |
+| Command surface | `builder-wrp` Tier 1 (incl. `benchmark --class u`) + Tier 3 `run-approved` / `apply-rstar-approved` |
+| Live multi-agent execution | **Not S3-enabled** — S2 HITL graph (+ v2 record/stub gateways); P4/P5 do not enable multi-agent |
+| Absolute mastery | **In progress** — P0–P5 + S1/S2 decided on main; **S3 / P6 / P7 open** (see [`WRP_MASTERY_PROGRESS.md`](WRP_MASTERY_PROGRESS.md)) |
 
 This document states both **what exists** and the **mastery target**. Target language is not a grant of power.
 
@@ -35,8 +35,8 @@ Eight promotion gates are the **mechanism** of enablement, not a permanent stop.
 | Stage | Target power | Status |
 | --- | --- | --- |
 | S1 | Recommendations **bound** into routing / assignment dry-run | **Decided approved** on main (`planning/evidence/wrp_s1_decision.json`); flags still required for bind |
-| S2 | HITL live lane (`builder-wrp run-approved`) | **Decided approved** (HITL v1 on main): plan-live/approve-live/run-approved; forced MSDA; noop|record only; no gateway nodes; not S3 |
-| S3 | Scoped `enabled` for declared profiles | Open |
+| S2 | HITL live lane (`builder-wrp run-approved`) | **Decided approved** (v1 + v2 gateway nodes on main); forced MSDA; default gateway `record`; not S3 |
+| S3 | Scoped `enabled` for declared profiles | **Open** (Class U numbers available via P5; no decision yet) |
 | S4 | Backend promotions (embed / OPA / vLLM research) | Open |
 
 ## Live lane contract (S2 v1 — code present; decision may still be pending)
