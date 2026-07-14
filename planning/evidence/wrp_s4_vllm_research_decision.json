@@ -98,10 +98,11 @@
       ]
     }
   ],
+  "cloud_invoke": false,
   "current_state": "DISABLED",
-  "decided_by": "PENDING_HUMAN",
+  "decided_by": "HUMAN",
   "decision": "blocked",
-  "draft_only": true,
+  "engine_start": false,
   "governance": {
     "agent_construction": "DISABLED",
     "artifact_is_authority": false,
@@ -158,7 +159,7 @@
   },
   "grants_action_authority": false,
   "grants_runtime_authority": false,
-  "human_decision_required": true,
+  "implementation_pr_required": false,
   "kind": "builder_ii.promotion_decision_record",
   "performed_actions": [],
   "readiness": {
@@ -174,8 +175,9 @@
     "target": "builder",
     "target_state": "promoted_opt_in"
   },
-  "reason": "W.6 DRAFT only for backend=vllm_research. No HUMAN eight-gate ceremony completed. Decision remains blocked. Do not treat ready readiness as approval. S4 promo flip OPEN; engine start forbidden; cloud invoke OPEN; S3 still blocked.",
+  "reason": "HUMAN S4 decision (2026-07-14): blocked. Research stub only; heavy footprint; needs stronger U numbers + measured research-profile evidence in a separate wave. No engine start; no s4_promoted.",
   "record_state": "RECORDED_ONLY",
+  "runtime_enablement": false,
   "s3_enabled": false,
   "s4_backend_id": "vllm_research",
   "s4_promoted": false,

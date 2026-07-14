@@ -48,13 +48,14 @@
 | HITL verify fixed-argv expansion (V.3) | `LANDED` | V.3 | wrp_doctor/patterns/fleet + semantic_doctor/map in SUPPORTED_COMMAND_PROFILES (not TARGET_CODE) |
 | CORE target profile isolation | `LANDED` | V.4 | `builder_ii/targets/core.py` invariants + verification routing + path categories + semgrep *catalog*; `builder-targets show/doctor core`; no Workbench coupling |
 | CORE Workbench boundary doc | `LANDED` | V.5 | `docs/plan/CORE_WORKBENCH_BOUNDARY.md` — builder-II helps Workbench *code* as target work; is not Workbench; adapter requirements design-only; `core_workbench_coupling` remains NONE |
+| Final operating loop smoke | `LANDED` | V.6 | `builder_ii/final_loop_smoke.py` + `builder-platform final-loop-smoke` — passive targets→doctor→map→context→agent→quality→handoff for builder+core; smoke_only; no model/shell/S3/S4 |
 | Class U measured + adaptivity axis | `LANDED` | P5/H11 | `axes.adaptivity` via `simulate_receipt_epochs` |
 | Perf dashboards full | `PARTIAL` | P5 | axes filled; no product dashboard UI |
 | vLLM / LangGraph / ModernBERT opt-in | `LANDED` | P6 | #148 |
 | Backend registry + doctor inventory | `LANDED` | P6.1 | `backend_registry.py` + `builder-wrp backends` / `doctor-backends` (this PR) |
 | Trained R head | `DEFERRED` | P6 | research track doc |
 | Cloud provider model invoke | `OPEN` | S2+/S4 | record/stub only (H6) |
-| S4 backend promotion decisions | `PARTIAL` | S4 / W.6 | readiness+decision *drafts* + HUMAN review handoff (`planning/evidence/s4_review_summary.md`, `wrp_s4_human_review_handoff.json`, exchange `mastery/S4-readiness/`); **HUMAN decides each**; still `s4_promoted=false`; no promo flip |
+| S4 backend promotion decisions | `PARTIAL` | S4 / W.6 | HUMAN decisions recorded: **opa + modernbert_embed approved** (future opt-in implementation PR only); **langgraph + vllm_research blocked**; wave `s4_promoted=false`; no bulk flip / no runtime enablement |
 
 ## Promotion stages
 

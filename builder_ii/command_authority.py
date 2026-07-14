@@ -768,6 +768,7 @@ REQUIRED_SUBCOMMANDS = {
     "builder-platform next",
     "builder-platform operator-lane",
     "builder-platform golden-path",
+    "builder-platform final-loop-smoke",
     "builder-platform validate-golden-path",
     "builder-platform demo-loop",
     "builder-platform validate-demo-loop",
@@ -1613,6 +1614,24 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Outputs JSON golden path report.",
         failure_mode="Exits non-zero on schema validation failures.",
         notes="B9 governed operator golden path primitive.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-platform final-loop-smoke",
+        entrypoint="builder_ii.platform_status_cli:platform_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "V.6: passive final operating loop smoke for selected targets "
+            "(targets artifact → doctor → repo_map → context_pack → agent render → quality plan → handoff). "
+            "No model execution, no free-form shell, no target mutation, no S3/S4 enablement."
+        ),
+        write_boundary="Writes smoke artifacts under --output-dir only.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints final_loop_smoke_report; exits 1 if any step fails.",
+        failure_mode="Exits non-zero when a step fails or honesty pins inflate.",
+        notes="Smoke_only capstone for Vision track; Workbench coupling NONE.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(

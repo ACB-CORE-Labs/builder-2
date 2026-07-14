@@ -95,6 +95,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.wrp.agent_lifecycle_proof`
 - `builder_ii.wrp.s4_readiness_draft_package`
 - `builder_ii.wrp.s4_human_review_handoff`
+- `builder_ii.final_loop_smoke_report`
 - `builder_ii.wrp.subtask_graph`
 - `builder_ii.wrp.trajectory_evaluation`
 - `builder_ii.wrp.forward_route`
@@ -200,6 +201,7 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.wrp.agent_lifecycle_proof` | W.5 deterministic lifecycle proof report | ADR-0007 |
 | `builder_ii.wrp.s4_readiness_draft_package` | W.6 S4 per-backend readiness/decision draft package (not promo) | ADR-0007 |
 | `builder_ii.wrp.s4_human_review_handoff` | S4 HUMAN review package index (READY_FOR_HUMAN_REVIEW ≠ approved) | ADR-0007 |
+| `builder_ii.final_loop_smoke_report` | V.6 passive final operating loop smoke report | Vision / V.6 |
 | `builder_ii.wrp.subtask_graph` | WRP subtask graph plan | ADR-0007 |
 | `builder_ii.wrp.trajectory_evaluation` | WRP trajectory evaluation | ADR-0007 |
 | `builder_ii.wrp.forward_route` | WRP forward operator R recommendation | ADR-0007 |

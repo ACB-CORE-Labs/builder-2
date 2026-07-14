@@ -37,17 +37,39 @@
   "grants_authority": false,
   "honesty_locks": {
     "cloud_invoke": "none",
-    "decision.approved": false,
+    "decision.approved": "per-backend: opa+modernbert true; langgraph+vllm false",
     "decision.decided_by": "PENDING_HUMAN",
     "enablement": "none",
     "engine_start": "none",
     "readiness.ready": "per-backend evidence refs present for review",
-    "s4_promo_flip": "OPEN"
+    "s4_promo_flip": "still OPEN / not flipped"
   },
-  "human_decision_required": true,
+  "human_decision_required": false,
   "kind": "builder_ii.wrp.s4_promotion_gate_audit",
-  "notes": "W.6 skeleton only. Not G-LEAD PASS. Not HUMAN approval. Each backend needs its own later decision ceremony.",
-  "role": "MAKER_DRAFT",
+  "notes": "HUMAN decisions recorded per backend. Overall S4 promo remains unflipped. Approved = authorize future opt-in implementation PRs only. Not G-LEAD PASS for bulk S4.",
+  "per_backend_decisions": {
+    "langgraph": {
+      "approved": false,
+      "decision": "blocked",
+      "s4_promoted": false
+    },
+    "modernbert_embed": {
+      "approved": true,
+      "decision": "approved",
+      "s4_promoted": false
+    },
+    "opa": {
+      "approved": true,
+      "decision": "approved",
+      "s4_promoted": false
+    },
+    "vllm_research": {
+      "approved": false,
+      "decision": "blocked",
+      "s4_promoted": false
+    }
+  },
+  "role": "HUMAN_DECISIONS_RECORDED",
   "s3_enabled": false,
   "s4_promoted": false,
   "schema_version": 1,
