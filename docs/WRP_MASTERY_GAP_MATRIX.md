@@ -43,7 +43,8 @@
 | Experience + receipt ingest + R* apply | `LANDED` | P4 | HITL φ policy |
 | AgentFactory plan only | `LANDED` | P2.5 | `plan_agent_lifecycle` + CLI; `spawn_permitted=false` |
 | SubtaskGraph + W5 repo-state replay | `LANDED` | P7 | commit_id/tree_hash |
-| Orchestration patterns runtime | `PARTIAL` | P2.6 | patterns + S2 v2 gateways; cloud invoke OPEN |
+| Orchestration patterns runtime | `LANDED` | P2.6 / W.4 | pure `patterns-prove` + graph_runtime; S2 v2 gateways separate; cloud invoke OPEN |
+| HITL verify fixed-argv expansion (V.3) | `LANDED` | V.3 | wrp_doctor/patterns/fleet + semantic_doctor/map in SUPPORTED_COMMAND_PROFILES (not TARGET_CODE) |
 | Class U measured + adaptivity axis | `LANDED` | P5/H11 | `axes.adaptivity` via `simulate_receipt_epochs` |
 | Perf dashboards full | `PARTIAL` | P5 | axes filled; no product dashboard UI |
 | vLLM / LangGraph / ModernBERT opt-in | `LANDED` | P6 | #148 |

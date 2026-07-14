@@ -133,6 +133,42 @@ SUPPORTED_COMMAND_PROFILES: dict[str, BoundedCommandProfile] = {
         argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "docs-audit"),
         timeout_ceiling_seconds=120,
     ),
+    # V.3: validation_only fixed-argv profiles (not TARGET_CODE; no shell; no model).
+    "wrp_doctor_backends": BoundedCommandProfile(
+        profile="wrp_doctor_backends",
+        step_id="wrp_doctor_backends",
+        builder_self=True,
+        argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "wrp-doctor-backends"),
+        timeout_ceiling_seconds=60,
+    ),
+    "wrp_patterns_prove": BoundedCommandProfile(
+        profile="wrp_patterns_prove",
+        step_id="wrp_patterns_prove",
+        builder_self=True,
+        argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "wrp-patterns-prove"),
+        timeout_ceiling_seconds=60,
+    ),
+    "wrp_fleet_fidelity": BoundedCommandProfile(
+        profile="wrp_fleet_fidelity",
+        step_id="wrp_fleet_fidelity",
+        builder_self=True,
+        argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "wrp-fleet-fidelity"),
+        timeout_ceiling_seconds=60,
+    ),
+    "semantic_doctor": BoundedCommandProfile(
+        profile="semantic_doctor",
+        step_id="semantic_doctor",
+        builder_self=True,
+        argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "semantic-doctor"),
+        timeout_ceiling_seconds=120,
+    ),
+    "semantic_map": BoundedCommandProfile(
+        profile="semantic_map",
+        step_id="semantic_map",
+        builder_self=True,
+        argv=(sys.executable, "-m", "builder_ii.verification_runner_entrypoints", "semantic-map"),
+        timeout_ceiling_seconds=300,
+    ),
     "pytest_full": BoundedCommandProfile(
         profile="pytest_full",
         step_id="pytest_full",
