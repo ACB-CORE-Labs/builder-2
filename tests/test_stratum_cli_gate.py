@@ -27,6 +27,9 @@ def test_stratum_launches_with_experimental_flag(monkeypatch):
     launched = {}
 
     class _DummyStratumApp:
+        def __init__(self, *args, **kwargs):
+            launched["kwargs"] = kwargs
+
         def run(self):
             launched["ran"] = True
 
@@ -36,4 +39,9 @@ def test_stratum_launches_with_experimental_flag(monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert launched.get("ran") is True
-    assert "experimental" in result.output.lower()
+    assert "stratum" in result.output.lower()
+    assert "builder-stratum" in result.output.lower() or "operator console" in result.output.lower()
+
+    result_no_guide = runner.invoke(app, ["stratum", "--experimental", "--no-guide"])
+    assert result_no_guide.exit_code == 0, result_no_guide.output
+    assert launched.get("kwargs", {}).get("skip_guide") is True

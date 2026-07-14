@@ -17,11 +17,11 @@ def test_default_theme_palette_matches_stratum_css_defaults():
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "default"}):
         p = theme_palette()
         assert p["pass"] == "#3fb950"
-        assert p["warn"] == "#d29922"
+        assert p["warn"] == "#ffa657"
         assert p["fail"] == "#f85149"
-        assert p["hint"] == "#8b949e"
-        assert p["active"] == "#58a6ff"
-        assert p["dim"] == "#484f58"
+        assert p["hint"] == "#6e7681"
+        assert p["active"] == "#79c0ff"
+        assert p["dim"] == "#21262d"
         assert p["bold"] == "#c9d1d9"
         assert p["accent"] == "#d2a8ff"
 

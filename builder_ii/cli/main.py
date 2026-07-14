@@ -153,6 +153,16 @@ def stratum(
         "--experimental",
         help="Required flag to launch the pre-release STRATUM surface (see docs/OPERATOR_COMMAND_SURFACE.md).",
     ),
+    no_guide: bool = typer.Option(
+        False,
+        "--no-guide",
+        help="Skip first-session walkthrough auto-open (also: STRATUM_SKIP_GUIDE=1).",
+    ),
+    guide: bool = typer.Option(
+        False,
+        "--guide",
+        help="Force first-session walkthrough open even if previously dismissed.",
+    ),
 ) -> None:
     """Launch STRATUM: The Builder-II Operator TUI (experimental)."""
     from builder_ii.command_authority import enforce_command_authority
@@ -161,14 +171,17 @@ def stratum(
 
     if not experimental:
         console.print(
-            "[yellow]STRATUM is an experimental display surface.[/]\n"
+            "[yellow]STRATUM is an experimental operator console.[/]\n"
             "Command tier evaluation reads the real command-authority registry.\n"
             "No chain digest is shown: the verification report exposes none, so STRATUM displays an "
             "explicit absence rather than a value shaped like a digest.\n"
             "HITL approve/reject deliberately do nothing but refuse and name the governed CLI — a "
             "surface that renders a digest must not harvest its confirmation.\n"
             "The HITL diff viewer is still an unimplemented mockup.\n\n"
-            "Pass [bold]--experimental[/] to launch STRATUM anyway."
+            "First-session walkthrough auto-opens when .builder/artifacts is empty "
+            "(opt out: [bold]--no-guide[/], [bold]X[/] in-guide, or [bold]STRATUM_SKIP_GUIDE=1[/]).\n\n"
+            "Pass [bold]--experimental[/] to launch STRATUM anyway.\n"
+            "Docs: [bold]docs/STRATUM.md[/] · in-app [bold]H[/] help · [bold]0[/] walkthrough."
         )
         raise typer.Exit(1)
 
@@ -183,8 +196,15 @@ def stratum(
         console.print("[red]TUI dependencies not found.[/] Run [bold]uv sync[/] to install textual.")
         raise typer.Exit(1)
 
-    console.print("[yellow]Launching experimental STRATUM surface — display-only mockup, no real governance wiring.[/]")
-    tui_app = StratumApp()
+    console.print(
+        "[bold cyan]STRATUM[/] — builder-II operator console\n"
+        "[dim]Tip: [bold]uv run builder-stratum[/] is the short form (same gate).[/]\n"
+        "[dim]observe + compose only · docs/STRATUM.md · H help · 0 walkthrough[/]"
+    )
+    if guide and no_guide:
+        console.print("[red]--guide and --no-guide are mutually exclusive.[/]")
+        raise typer.Exit(1)
+    tui_app = StratumApp(show_guide=guide or None, skip_guide=no_guide)
     tui_app.run()
 
 

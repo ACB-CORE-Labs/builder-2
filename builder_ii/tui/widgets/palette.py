@@ -16,13 +16,17 @@ from textual.widgets import Input, Static
 
 # ── Tier display info ────────────────────────────────────────────────
 
-TIER_LABELS = {
-    "TIER_0": ("T0", "#3fb950", "READ-ONLY"),
-    "TIER_1": ("T1", "#58a6ff", "ARTIFACT-ONLY"),
-    "TIER_2": ("T2", "#d2a8ff", "OPERATOR"),
-    "TIER_3": ("T3", "#ffa657", "HITL-GATED"),
-    "TIER_4": ("T4", "#f85149", "FORBIDDEN"),
-}
+def _tier_labels() -> dict[str, tuple[str, str, str]]:
+    from builder_ii.tui_theme import theme_palette
+
+    p = theme_palette()
+    return {
+        "TIER_0": ("T0", p["pass"], "READ-ONLY"),
+        "TIER_1": ("T1", p["active"], "ARTIFACT-ONLY"),
+        "TIER_2": ("T2", p["accent"], "OPERATOR"),
+        "TIER_3": ("T3", p["warn"], "HITL-GATED"),
+        "TIER_4": ("T4", p["fail"], "FORBIDDEN"),
+    }
 
 
 # ── Single Palette Entry ────────────────────────────────────────────
@@ -51,19 +55,27 @@ class PaletteEntry(Static):
         self.add_class("palette-item")
 
     def render(self) -> str:
-        tier_short, tier_color, tier_label = TIER_LABELS.get(self.cmd_tier, ("??", "#484f58", "UNKNOWN"))
+        from builder_ii.tui_theme import theme_palette
 
-        # Authority flag
-        auth_glyph = " [bold #ffa657]⚡[/]" if self.cmd_requires_authority else "  "
+        p = theme_palette()
+        tier_short, tier_color, tier_label = _tier_labels().get(
+            self.cmd_tier, ("??", p["dim"], "UNKNOWN")
+        )
+
+        auth_glyph = f" [bold {p['warn']}]⚡[/]" if self.cmd_requires_authority else "  "
 
         if self.cmd_allowed:
             return (
                 f"  [{tier_color}]{tier_short}[/]  "
-                f"[#79c0ff]{self.cmd_name:<40}[/]"
+                f"[{p['active']}]{self.cmd_name:<40}[/]"
                 f"{auth_glyph}"
-                f"  [#484f58]{tier_label}[/]"
+                f"  [{p['dim']}]{tier_label}[/]"
             )
-        return f"  [{tier_color}]{tier_short}[/]  [#484f58]{self.cmd_name:<40}[/]  [#484f58]⊘ {self.cmd_reason[:30]}[/]"
+        return (
+            f"  [{tier_color}]{tier_short}[/]  "
+            f"[{p['dim']}]{self.cmd_name:<40}[/]  "
+            f"[{p['dim']}]⊘ {self.cmd_reason[:30]}[/]"
+        )
 
 
 # ── Command Palette Modal ───────────────────────────────────────────

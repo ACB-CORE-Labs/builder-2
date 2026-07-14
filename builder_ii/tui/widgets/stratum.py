@@ -1,13 +1,4 @@
-"""Active Stratum — The morphing center panel.
-
-This panel changes its contents based on the current pipeline state:
-  - Idle:        Operator status report (capability matrix, memory count)
-  - Prepare:     Manifest assembly + validation errors
-  - HITL Gate:   Full proposal display + approve/reject/diff
-  - Goose Live:  Model output stream with tool calls highlighted
-  - Post-flight: Evidence bundle viewer
-  - Promotion:   Before/after artifact comparison
-"""
+"""Active Stratum — morphing center instrument panel."""
 
 from __future__ import annotations
 
@@ -21,7 +12,19 @@ from textual.containers import ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.widgets import RichLog, Static
 
-# ── Stratum Modes ────────────────────────────────────────────────────
+from builder_ii.tui.projections.agents import (
+    compose_assign_command,
+    compose_deepagents_commands,
+    project_agent_roster,
+)
+from builder_ii.tui.projections.codevault import project_code_vault
+from builder_ii.tui.projections.gates import project_hitl_surface, project_third_door
+from builder_ii.tui.projections.models import project_model_matrix
+from builder_ii.tui.projections.operator import chain_validity_display, project_operator_dashboard
+from builder_ii.tui.projections.orchestration import project_orchestration
+from builder_ii.tui.projections.render import bold_themed, kv, rule, section_title, status_glyph, themed
+from builder_ii.tui.projections.workflow import project_workflow
+from builder_ii.tui.widgets.masterpiece import EpistemicMatrix, ThirdDoorGate
 
 
 class StratumMode:
@@ -39,70 +42,14 @@ class StratumMode:
     WORKFLOW = "workflow"
     QUALITY_GATES = "quality_gates"
     TOOLING_HEALTH = "tooling_health"
+    CODE_VAULT = "code_vault"
+    ORCHESTRATION = "orchestration"
     HELP = "help"
-
-
-# ── Idle Report ──────────────────────────────────────────────────────
-
-IDLE_REPORT_TEMPLATE = """\
-[bold #58a6ff]╔══════════════════════════════════════════════╗[/]
-[bold #58a6ff]║       STRATUM — OPERATOR STATUS REPORT       ║[/]
-[bold #58a6ff]╚══════════════════════════════════════════════╝[/]
-
-[bold #79c0ff]System[/]
-  [#8b949e]Platform     :[/]  [#c9d1d9]{platform}[/]
-  [#8b949e]Target       :[/]  [#d2a8ff]{target}[/]
-  [#8b949e]Model        :[/]  [#7ee787]{model}[/]
-  [#8b949e]Backend      :[/]  [#c9d1d9]{backend}[/]
-  [#8b949e]Session      :[/]  [#6e7681]{session}[/]
-
-[bold #79c0ff]Pipeline State[/]
-  [#8b949e]Chain Length  :[/]  [#c9d1d9]{chain_length} artifacts[/]
-  [#8b949e]Chain Valid   :[/]  {chain_valid_display}
-  [#8b949e]Memory Atoms  :[/]  [#c9d1d9]{memory_atoms}[/]
-  [#8b949e]Ledger Active :[/]  {ledger_display}
-
-[bold #79c0ff]Command Surfaces[/]
-  [#484f58]──────────────────────────────────────────────[/]
-  [#58a6ff][P][/][#6e7681]repare  [/] [#58a6ff][V][/][#6e7681]alidate  [/] [#58a6ff][G][/][#6e7681]oose  [/] [#58a6ff][N][/][#6e7681]ext-step[/]
-  [#58a6ff][?][/][#6e7681]palette [/] [#58a6ff][~][/][#6e7681]cli      [/] [#58a6ff][M][/][#6e7681]emory [/] [#58a6ff][S][/][#6e7681]ummary[/]
-  [#484f58]──────────────────────────────────────────────[/]
-
-[bold #79c0ff]Governance[/]
-  [#8b949e]Authority    :[/]  [#ffa657]artifact_is_authority[/]
-  [#8b949e]Model Output :[/]  [#f85149]NOT approval[/]
-  [#8b949e]Epistemology :[/]  [#6e7681]planned ≠ executed ≠ verified ≠ promoted[/]
-"""
-
-
-# ── HITL Gate Panel ──────────────────────────────────────────────────
-
-HITL_GATE_TEMPLATE = """\
-[bold #d29922]╔══════════════════════════════════════════════╗[/]
-[bold #d29922]║        HITL: EXECUTION REQUEST               ║[/]
-[bold #d29922]║  ──────────────────────────────────────────  ║[/]
-[bold #d29922]╚══════════════════════════════════════════════╝[/]
-
-  [#8b949e]CMD       :[/]  [#79c0ff]{command}[/]
-  [#8b949e]TIER      :[/]  [#d2a8ff]{tier}[/]
-  [#8b949e]AUTHORITY :[/]  [#ffa657]{authority}[/]
-  [#8b949e]EFFECTS   :[/]  [#c9d1d9]{effects}[/]
-  [#8b949e]DIGEST    :[/]  [#6e7681]{digest}[/]
-
-{artifact_preview}
-
-  [bold #3fb950][A][/][#6e7681] APPROVE    [/]  [bold #f85149][R][/][#6e7681] REJECT[/]
-  [bold #58a6ff][I][/][#6e7681] INSPECT    [/]  [bold #d2a8ff][D][/][#6e7681] DIFF vs PRIOR[/]
-"""
-
-
-from builder_ii.tui.widgets.masterpiece import EpistemicMatrix, ThirdDoorGate
-
-# ── Active Stratum Widget ───────────────────────────────────────────
+    GUIDE = "guide"
 
 
 class ActiveStratum(Vertical):
-    """The morphing center panel of STRATUM."""
+    """Morphing center panel of STRATUM."""
 
     mode = reactive(StratumMode.IDLE)
 
@@ -112,20 +59,21 @@ class ActiveStratum(Vertical):
         self._content: RichLog | None = None
         self._title_bar: Static | None = None
         self._chain_bar: Static | None = None
-
-        # Masterpiece widgets
         self._epistemic_matrix: EpistemicMatrix | None = None
         self._third_door: ThirdDoorGate | None = None
 
-        # State for rendering
         self._platform_info: dict[str, str] = {}
         self._hitl_proposal: dict[str, Any] = {}
         self._inspected_artifact: dict[str, Any] = {}
-        self._chain_digest = ""
+        self._inspected_path: str | None = None
+        self._chain_digest = "—"
         self._authority_granted: bool | None = None
+        self._target = "generic"
+        self._help_page = 0  # 0=keymap 1=walkthrough 2=boundaries
+        self._repo_root: Path | None = None
 
     def compose(self) -> ComposeResult:
-        self._title_bar = Static("THE ACTIVE STRATUM", id="stratum-title-bar")
+        self._title_bar = Static("OPERATOR", id="stratum-title-bar")
         yield self._title_bar
         with ScrollableContainer(id="stratum-content"):
             self._epistemic_matrix = EpistemicMatrix()
@@ -144,12 +92,7 @@ class ActiveStratum(Vertical):
             self._third_door.display = False
             yield self._third_door
 
-        self._chain_bar = Static(
-            "  [#484f58]CHAIN DIGEST:[/]  [#6e7681]—[/]     "
-            "[#484f58]AUTHORITY:[/]  [#6e7681]NOT GRANTED[/]     "
-            "[#484f58]GOVERNANCE:[/]  [#3fb950]artifact_is_authority = FALSE ✓[/]",
-            id="stratum-chain-bar",
-        )
+        self._chain_bar = Static("", id="stratum-chain-bar")
         yield self._chain_bar
 
     def on_mount(self) -> None:
@@ -157,6 +100,10 @@ class ActiveStratum(Vertical):
 
     def watch_mode(self, new_mode: str) -> None:
         self._render_current_mode()
+
+    def _write(self, text: str) -> None:
+        if self._content is not None:
+            self._content.write(text)
 
     def _render_current_mode(self) -> None:
         if self._content is None or self._epistemic_matrix is None or self._third_door is None:
@@ -166,38 +113,36 @@ class ActiveStratum(Vertical):
         self._epistemic_matrix.display = False
         self._third_door.display = False
 
+        renderers = {
+            StratumMode.IDLE: self._render_idle,
+            StratumMode.HITL_GATE: self._render_hitl_gate,
+            StratumMode.ARTIFACT_INSPECT: self._render_artifact_inspect,
+            StratumMode.POSTFLIGHT: self._render_postflight,
+            StratumMode.PROMOTION: self._render_promotion,
+            StratumMode.GOOSE_LIVE: self._render_goose_live,
+            StratumMode.PREPARE: self._render_prepare,
+            StratumMode.MEMORY_BROWSE: self._render_memory_browse,
+            StratumMode.MODEL_MATRIX: self._render_model_matrix,
+            StratumMode.AGENT_PROFILES: self._render_agent_profiles,
+            StratumMode.PLATFORM_AUDIT: self._render_platform_audit,
+            StratumMode.WORKFLOW: self._render_workflow,
+            StratumMode.QUALITY_GATES: self._render_quality_gates,
+            StratumMode.TOOLING_HEALTH: self._render_tooling_health,
+            StratumMode.CODE_VAULT: self._render_code_vault,
+            StratumMode.ORCHESTRATION: self._render_orchestration,
+            StratumMode.HELP: self._render_help,
+            StratumMode.GUIDE: self._render_guide,
+        }
+        renderer = renderers.get(self.mode)
+        if renderer:
+            renderer()
+
         if self.mode == StratumMode.IDLE:
-            self._render_idle()
             self._epistemic_matrix.display = True
-        elif self.mode == StratumMode.HITL_GATE:
-            self._render_hitl_gate()
+        if self.mode == StratumMode.HITL_GATE:
             self._third_door.display = True
-        elif self.mode == StratumMode.ARTIFACT_INSPECT:
-            self._render_artifact_inspect()
-        elif self.mode == StratumMode.POSTFLIGHT:
-            self._render_postflight()
-        elif self.mode == StratumMode.PROMOTION:
-            self._render_promotion()
-        elif self.mode == StratumMode.GOOSE_LIVE:
-            self._render_goose_live()
-        elif self.mode == StratumMode.PREPARE:
-            self._render_prepare()
-        elif self.mode == StratumMode.MEMORY_BROWSE:
-            self._render_memory_browse()
-        elif self.mode == StratumMode.MODEL_MATRIX:
-            self._render_model_matrix()
-        elif self.mode == StratumMode.AGENT_PROFILES:
-            self._render_agent_profiles()
-        elif self.mode == StratumMode.PLATFORM_AUDIT:
-            self._render_platform_audit()
-        elif self.mode == StratumMode.WORKFLOW:
-            self._render_workflow()
-        elif self.mode == StratumMode.QUALITY_GATES:
-            self._render_quality_gates()
-        elif self.mode == StratumMode.TOOLING_HEALTH:
-            self._render_tooling_health()
-        elif self.mode == StratumMode.HELP:
-            self._render_help()
+            door = project_third_door(self.artifacts_dir)
+            self._third_door.set_constraints(door.constraints)
 
         self._update_title_bar()
         self._update_chain_bar()
@@ -206,381 +151,766 @@ class ActiveStratum(Vertical):
         if self._title_bar is None:
             return
         labels = {
-            StratumMode.IDLE: "OPERATOR STATUS",
-            StratumMode.PREPARE: "PREPARE PACKAGE",
-            StratumMode.HITL_GATE: "⚡ HITL AUTHORITY GATE",
-            StratumMode.GOOSE_LIVE: "▶ GOOSE SESSION — LIVE",
-            StratumMode.POSTFLIGHT: "POST-FLIGHT EVIDENCE",
-            StratumMode.PROMOTION: "PROMOTION DECISION",
-            StratumMode.ARTIFACT_INSPECT: "ARTIFACT INSPECTOR",
-            StratumMode.MEMORY_BROWSE: "MEMORY ATOMS",
-            StratumMode.MODEL_MATRIX: "MODEL REGISTRY & ROSTER",
-            StratumMode.AGENT_PROFILES: "DEEPAGENTS PROFILE MATRIX",
-            StratumMode.PLATFORM_AUDIT: "PLATFORM CAPABILITY AUDIT",
-            StratumMode.WORKFLOW: "WORKFLOW ORCHESTRATOR",
-            StratumMode.QUALITY_GATES: "QUALITY GATES & EVIDENCE",
-            StratumMode.TOOLING_HEALTH: "EXTERNAL TOOLING HEALTH",
-            StratumMode.HELP: "OPERATOR COMMAND MANUAL",
+            StratumMode.IDLE: "OPERATOR",
+            StratumMode.PREPARE: "PREPARE",
+            StratumMode.HITL_GATE: "HITL GATE",
+            StratumMode.GOOSE_LIVE: "GOOSE",
+            StratumMode.POSTFLIGHT: "POSTFLIGHT",
+            StratumMode.PROMOTION: "PROMOTION",
+            StratumMode.ARTIFACT_INSPECT: "INSPECT",
+            StratumMode.MEMORY_BROWSE: "MEMORY",
+            StratumMode.MODEL_MATRIX: "MODELS",
+            StratumMode.AGENT_PROFILES: "AGENTS",
+            StratumMode.PLATFORM_AUDIT: "AUDIT",
+            StratumMode.WORKFLOW: "WORKFLOW",
+            StratumMode.QUALITY_GATES: "GATES",
+            StratumMode.TOOLING_HEALTH: "TOOLING",
+            StratumMode.CODE_VAULT: "CODEVAULT",
+            StratumMode.ORCHESTRATION: "ORCHESTRATION",
+            StratumMode.HELP: "HELP",
+            StratumMode.GUIDE: "WALKTHROUGH",
         }
-        self._title_bar.update(labels.get(self.mode, "THE ACTIVE STRATUM"))
+        self._title_bar.update(labels.get(self.mode, "STRATUM"))
 
     def _update_chain_bar(self) -> None:
         if self._chain_bar is None:
             return
 
-        digest_display = self._chain_digest[:12] + "…" if self._chain_digest and self._chain_digest != "—" else "—"
+        digest_display = "—"
+        if self._chain_digest and self._chain_digest != "—":
+            # Real digest field only — truncate for bar, never invent.
+            digest_display = self._chain_digest[:12] + "…"
+
         if self._authority_granted is True:
-            auth_display = "[bold #3fb950]GRANTED[/]"
-            gov_display = "[#f85149 bold]artifact_is_authority = TRUE ⚠[/]"
+            auth_display = bold_themed("pass", "GRANTED")
+            gov_display = bold_themed("fail", "artifact_is_authority = TRUE ⚠")
         elif self._authority_granted is False:
-            auth_display = "[#f85149]DENIED[/]"
-            gov_display = "[#3fb950]artifact_is_authority = FALSE ✓[/]"
+            auth_display = themed("fail", "DENIED")
+            gov_display = themed("pass", "artifact_is_authority = FALSE ✓")
         else:
-            auth_display = "[#6e7681]NOT EVALUATED[/]"
-            gov_display = "[#3fb950]artifact_is_authority = FALSE ✓[/]"
+            auth_display = themed("hint", "NOT EVALUATED")
+            gov_display = themed("pass", "artifact_is_authority = FALSE ✓")
 
         self._chain_bar.update(
-            f"  [#484f58]CHAIN DIGEST:[/]  [#6e7681]{digest_display}[/]     "
-            f"[#484f58]AUTHORITY:[/]  {auth_display}     "
-            f"[#484f58]GOVERNANCE:[/]  {gov_display}"
+            f"  {themed('dim', 'DIGEST')}  {themed('hint', digest_display)}     "
+            f"{themed('dim', 'AUTH')}  {auth_display}     "
+            f"{themed('dim', 'GOV')}  {gov_display}"
         )
 
     # ── Renderers ────────────────────────────────────────────────────
 
     def _render_idle(self) -> None:
-        assert self._content is not None
         info = self._platform_info
-        report = IDLE_REPORT_TEMPLATE.format(
-            platform=info.get("platform", "builder-II"),
-            target=info.get("target", "—"),
+        dash = project_operator_dashboard(
+            artifacts_dir=self.artifacts_dir,
+            target=info.get("target") or self._target,
             model=info.get("model", "—"),
             backend=info.get("backend", "—"),
-            session=info.get("session", "—"),
-            chain_length=info.get("chain_length", "0"),
-            chain_valid_display=info.get("chain_valid_display", "[#6e7681]—[/]"),
-            memory_atoms=info.get("memory_atoms", "0"),
-            ledger_display=info.get("ledger_display", "[#6e7681]—[/]"),
+            session=info.get("session", "idle"),
         )
-        self._content.write(report)
+
+        if self._epistemic_matrix is not None:
+            self._epistemic_matrix.apply_epistemic(dash.epistemic)
+
+        valid_text, valid_token = chain_validity_display(dash.chain_valid)
+        ledger = themed("pass", "ACTIVE") if dash.ledger_active else themed("warn", "INACTIVE")
+
+        lines = [
+            section_title("SYSTEM"),
+            kv("Platform", dash.platform),
+            kv("Target", dash.target, value_token="accent"),
+            kv("Model", dash.model, value_token="pass"),
+            kv("Backend", dash.backend),
+            kv("Session", dash.session, value_token="hint"),
+            "",
+            section_title("PIPELINE"),
+            kv("Artifacts", str(dash.chain_length)),
+            kv("Chain valid", themed(valid_token, valid_text)),
+            kv("Memory", str(dash.memory_atoms)),
+            kv("Ledger", ledger),
+            "",
+            section_title("CAPABILITY"),
+            f"  {themed('hint', dash.capability_summary)}",
+        ]
+
+        if dash.next_action:
+            lines.extend(
+                [
+                    "",
+                    section_title("NEXT", "warn"),
+                    kv("Capability", dash.next_action.capability, value_token="active"),
+                    kv("State", dash.next_action.state, value_token="warn"),
+                    f"  {themed('hint', dash.next_action.reason[:120])}",
+                ]
+            )
+            if dash.next_action.safe_command:
+                lines.append(kv("Compose", dash.next_action.safe_command, value_token="pass"))
+                lines.append(f"  {themed('dim', 'Press N to prefill Command Composer')}")
+
+        lines.extend(
+            [
+                "",
+                rule(),
+                f"  {bold_themed('active', 'P')}repare  "
+                f"{bold_themed('active', 'V')}alidate  "
+                f"{bold_themed('active', 'G')}oose  "
+                f"{bold_themed('active', 'N')}ext",
+                f"  {bold_themed('active', '?')}palette "
+                f"{bold_themed('active', '~')}compose  "
+                f"{bold_themed('active', 'O')}models "
+                f"{bold_themed('active', 'U')}agents",
+                f"  {themed('hint', 'planned ≠ executed ≠ verified ≠ promoted')}",
+            ]
+        )
+        for w in dash.warnings[:3]:
+            lines.append(f"  {themed('warn', '⚠')} {themed('hint', w[:80])}")
+
+        if dash.chain_length == 0:
+            lines.extend(
+                [
+                    "",
+                    section_title("FIRST SESSION?", "warn"),
+                    f"  {themed('hint', 'No artifacts in this tree .builder/artifacts yet.')}",
+                    f"  {bold_themed('active', '0')} walkthrough  "
+                    f"{bold_themed('active', 'H')} help  "
+                    f"{bold_themed('active', 'P')} prepare  "
+                    f"{bold_themed('active', 'O')} models  "
+                    f"{bold_themed('active', 'U')} agents",
+                    f"  {bold_themed('active', 'W')} recipes/goose  "
+                    f"{bold_themed('active', 'Y')} orch  "
+                    f"{bold_themed('active', 'B')} vault  "
+                    f"{bold_themed('active', 'C')} audit",
+                    f"  {themed('dim', 'cmd: uv run builder-session prepare-package generic -o .builder/session')}",
+                    f"  {themed('dim', 'STRATUM reads the project you launched from — not another clone.')}",
+                ]
+            )
+
+        self._write("\n".join(lines))
 
     def _render_hitl_gate(self) -> None:
-        assert self._content is not None
         proposal = self._hitl_proposal
-        preview = ""
+        digest = proposal.get("digest") or "—"
+        if not isinstance(digest, str) or not digest:
+            digest = "—"
+
+        lines = [
+            section_title("HITL EXECUTION REQUEST", "warn"),
+            rule(),
+            kv("Command", str(proposal.get("command", "—")), value_token="active"),
+            kv("Tier", str(proposal.get("tier", "—")), value_token="accent"),
+            kv("Authority", str(proposal.get("authority", "—")), value_token="warn"),
+            kv("Effects", str(proposal.get("effects", "—"))),
+            kv("Digest", str(digest), value_token="hint"),
+        ]
+        path = proposal.get("path")
+        if path:
+            lines.append(kv("Path", str(path), value_token="hint"))
+
         artifact_data = proposal.get("artifact", {})
         if artifact_data:
-            preview_json = json.dumps(artifact_data, indent=2)[:600]
-            preview = f"  [#484f58]───── Artifact Preview ─────[/]\n[#8b949e]{preview_json}[/]"
+            preview = json.dumps(artifact_data, indent=2)[:500]
+            lines.extend(["", section_title("ARTIFACT PREVIEW", "hint"), themed("hint", preview)])
 
-        gate = HITL_GATE_TEMPLATE.format(
-            command=proposal.get("command", "—"),
-            tier=proposal.get("tier", "—"),
-            authority=proposal.get("authority", "—"),
-            effects=proposal.get("effects", "—"),
-            digest=proposal.get("digest", "—"),
-            artifact_preview=preview,
+        lines.extend(
+            [
+                "",
+                rule(),
+                f"  {bold_themed('pass', 'A')} compose approve   "
+                f"{bold_themed('fail', 'R')} compose reject",
+                f"  {bold_themed('active', 'I')} inspect payload   "
+                f"{bold_themed('accent', 'D')} diff (unimplemented)",
+                f"  {themed('hint', 'STRATUM does not harvest confirmation — run the composed CLI')}",
+            ]
         )
-        self._content.write(gate)
+        self._write("\n".join(lines))
 
     def _render_artifact_inspect(self) -> None:
-        assert self._content is not None
-        if self._inspected_artifact:
-            rendered = json.dumps(self._inspected_artifact, indent=2)
-            self._content.write("[bold #58a6ff]═══ ARTIFACT DATA ═══[/]\n")
-            # Use Syntax for JSON highlighting
-            self._content.write(Syntax(rendered, "json", theme="monokai"))
-        else:
-            self._content.write("[#484f58]No artifact selected for inspection.[/]")
+        if not self._inspected_artifact:
+            self._write(themed("dim", "No artifact selected. Use spine ↑↓ then Space, or pin a stage."))
+            return
+
+        data = self._inspected_artifact
+        kind = str(data.get("kind", "—"))
+        lines = [
+            section_title("ARTIFACT"),
+            kv("Kind", kind, value_token="active"),
+        ]
+        if self._inspected_path:
+            lines.append(kv("Path", self._inspected_path, value_token="hint"))
+
+        # Surface real digest fields only, labeled as artifact fields (not chain digest).
+        for key in ("digest", "content_digest", "sha256", "artifact_digest"):
+            val = data.get(key)
+            if isinstance(val, str) and val:
+                lines.append(kv(f"Field:{key}", val[:64], value_token="hint"))
+                break
+
+        gov = data.get("governance")
+        if isinstance(gov, dict):
+            lines.append(kv("Authority", str(gov.get("artifact_is_authority", "—")), value_token="warn"))
+
+        errors = data.get("errors") or []
+        if errors:
+            lines.append(kv("Errors", str(len(errors)), value_token="fail"))
+
+        lines.extend(["", section_title("DATA"), ""])
+        self._write("\n".join(lines))
+        if self._content is not None:
+            rendered = json.dumps(data, indent=2)
+            self._content.write(Syntax(rendered, "json", theme="monokai", line_numbers=False))
 
     def _render_postflight(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #58a6ff]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #58a6ff]║         POST-FLIGHT EVIDENCE BUNDLE          ║[/]\n"
-            "[bold #58a6ff]╚══════════════════════════════════════════════╝[/]\n"
-        )
+        lines = [section_title("POSTFLIGHT EVIDENCE"), rule()]
+        found = False
         if self.artifacts_dir:
-            postflight_dir = self.artifacts_dir / "postflight"
-            if postflight_dir.exists():
-                for path in sorted(postflight_dir.glob("*.json")):
+            for search in (self.artifacts_dir / "postflight", self.artifacts_dir):
+                if not search.exists():
+                    continue
+                for path in sorted(search.glob("*.json")):
                     try:
-                        data = json.loads(path.read_text())
-                        status = data.get("status", "unknown")
-                        glyph = "✓" if status == "pass" else "✗"
-                        color = "#3fb950" if status == "pass" else "#f85149"
-                        name = data.get("name", path.stem)
-                        self._content.write(f"  [{color}]{glyph}[/]  [{color}]{name}[/]  [#484f58]{status}[/]")
+                        data = json.loads(path.read_text(encoding="utf-8"))
                     except (json.JSONDecodeError, OSError):
                         continue
-            else:
-                self._content.write("[#484f58]No postflight evidence found.[/]")
+                    kind = str(data.get("kind", ""))
+                    if "postflight" not in kind and search == self.artifacts_dir:
+                        continue
+                    found = True
+                    status = str(data.get("status", data.get("result", "present")))
+                    name = str(data.get("name", path.stem))
+                    if status.lower() in ("pass", "passed", "ok"):
+                        glyph = status_glyph("pass")
+                    elif status.lower() in ("fail", "failed", "error"):
+                        glyph = status_glyph("failed")
+                    else:
+                        glyph = status_glyph("pending")
+                    lines.append(f"  {glyph}  {themed('bold', name)}  {themed('hint', status)}")
+        if not found:
+            lines.append(themed("dim", "  No postflight evidence on disk."))
+            lines.append(themed("hint", "  Run governed verification to emit records."))
+        self._write("\n".join(lines))
 
     def _render_promotion(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #58a6ff]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #58a6ff]║          PROMOTION READINESS CHECK           ║[/]\n"
-            "[bold #58a6ff]╚══════════════════════════════════════════════╝[/]\n\n"
-            "  [#8b949e]Chain integrity  :[/]  [#3fb950]✓ verified[/]\n"
-            "  [#8b949e]Postflight       :[/]  [#3fb950]✓ all pass[/]\n"
-            "  [#8b949e]Governance sign  :[/]  [#d29922]● awaiting[/]\n\n"
-            "  [bold #3fb950][P][/][#6e7681] PROMOTE[/]   "
-            "[bold #f85149][C][/][#6e7681] CANCEL[/]"
-        )
+        lines = [
+            section_title("PROMOTION READINESS"),
+            rule(),
+            themed("hint", "  Read-only projection — no promote action from STRATUM."),
+            "",
+        ]
+        found = False
+        if self.artifacts_dir and self.artifacts_dir.exists():
+            for path in sorted(self.artifacts_dir.rglob("*.json")):
+                try:
+                    data = json.loads(path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, OSError):
+                    continue
+                kind = str(data.get("kind", ""))
+                if "promotion" not in kind:
+                    continue
+                found = True
+                state = str(data.get("state") or data.get("readiness_state") or data.get("status") or "present")
+                lines.append(f"  {status_glyph('pending')}  {themed('bold', path.name)}")
+                lines.append(f"      {themed('hint', kind)}  {themed('warn', state)}")
+        if not found:
+            lines.append(themed("dim", "  No promotion readiness artifacts found."))
+            lines.append(kv("Compose", "builder-promote readiness …", value_token="pass"))
+        door = project_third_door(self.artifacts_dir)
+        lines.extend(["", f"  {themed('hint', f'Third Door source: {door.source}')}"])
+        self._write("\n".join(lines))
+        if self._third_door is not None:
+            self._third_door.display = True
+            self._third_door.set_constraints(door.constraints)
 
     def _render_goose_live(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #7ee787]▶ GOOSE SESSION — LIVE STREAM[/]\n"
-            "[#484f58]═══════════════════════════════════════════════[/]\n"
-            "[#6e7681]Waiting for model output…[/]\n"
+        self._write(
+            "\n".join(
+                [
+                    section_title("GOOSE", "pass"),
+                    rule(),
+                    themed("hint", "  STRATUM does not stream model output."),
+                    themed("hint", "  G suspends and hands the terminal to builder-goose start-readonly."),
+                    "",
+                    kv("Compose", "builder-goose start-readonly <manifest>", value_token="pass"),
+                ]
+            )
         )
 
     def _render_prepare(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #58a6ff]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #58a6ff]║           PREPARE EXECUTION PACKAGE          ║[/]\n"
-            "[bold #58a6ff]╚══════════════════════════════════════════════╝[/]\n\n"
-            "  [#8b949e]Assembling manifest…[/]\n"
+        self._write(
+            "\n".join(
+                [
+                    section_title("PREPARE PACKAGE"),
+                    rule(),
+                    themed("hint", "  Collect session choices, then compose the governed CLI."),
+                    themed("hint", "  STRATUM does not write session artifacts."),
+                    "",
+                    kv("Compose", "builder-session prepare-package", value_token="pass"),
+                    f"  {themed('dim', 'Press P to open the session configurator')}",
+                ]
+            )
         )
 
     def _render_memory_browse(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #d2a8ff]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #d2a8ff]║            MEMORY ATOM BROWSER               ║[/]\n"
-            "[bold #d2a8ff]╚══════════════════════════════════════════════╝[/]\n\n"
-            "  [#8b949e]Loading memory atoms…[/]\n"
-        )
+        lines = [section_title("MEMORY ATOMS", "accent"), rule()]
+        atoms: list[dict[str, Any]] = []
         if self.artifacts_dir:
             memory_dir = self.artifacts_dir / "memory"
             if memory_dir.exists():
-                atoms = []
                 for path in sorted(memory_dir.glob("*.json")):
                     try:
-                        data = json.loads(path.read_text())
-                        atoms.append(data)
+                        atoms.append(json.loads(path.read_text(encoding="utf-8")))
                     except (json.JSONDecodeError, OSError):
                         continue
-                for atom in atoms[:30]:
-                    atom_type = atom.get("type", "unknown")
-                    content = str(atom.get("content", ""))[:50]
-                    score = atom.get("relevance_score", 0.0)
-                    pinned = "📌" if atom.get("pinned") else "  "
-                    self._content.write(
-                        f"  {pinned} [#d2a8ff]{atom_type:<12}[/] [#ffa657]{score:.2f}[/]  [#8b949e]{content}[/]"
-                    )
-                if not atoms:
-                    self._content.write("  [#484f58]No memory atoms found.[/]")
+        if not atoms:
+            lines.append(themed("dim", "  No memory atoms found."))
+        for atom in atoms[:40]:
+            atom_type = str(atom.get("type", "unknown"))
+            content = str(atom.get("content", ""))[:48]
+            score = atom.get("relevance_score", 0.0)
+            pin = "◆" if atom.get("pinned") else "·"
+            try:
+                score_s = f"{float(score):.2f}"
+            except (TypeError, ValueError):
+                score_s = "—"
+            lines.append(
+                f"  {themed('accent', pin)} {themed('accent', f'{atom_type:<12}')} "
+                f"{themed('warn', score_s)}  {themed('hint', content)}"
+            )
+        self._write("\n".join(lines))
 
     def _render_model_matrix(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #7ee787]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #7ee787]║        GOVERNED MODEL ROSTER & REGISTRY      ║[/]\n"
-            "[bold #7ee787]╚══════════════════════════════════════════════╝[/]\n\n"
-        )
-        try:
-            from builder_ii.model_client_registry import create_model_client_registry
+        view = project_model_matrix()
+        loc = view.local
+        lines = [
+            section_title("MODEL REGISTRY", "pass"),
+            kv("State", view.registry_state, value_token="hint"),
+            kv("Backends", " · ".join(view.backends) if view.backends else "—", value_token="active"),
+            "",
+            section_title("LOCAL CONFIG (.env)", "warn"),
+            kv("Backend", loc.backend, value_token="active"),
+            kv("Alias", loc.alias, value_token="pass"),
+            kv("Tier", loc.tier),
+            kv("Base URL", loc.base_url, value_token="hint"),
+            kv("Temp", loc.temperature, value_token="hint"),
+            f"  {themed('dim', loc.note)}",
+            rule(),
+        ]
+        if view.error:
+            lines.append(themed("fail", f"  {view.error}"))
 
-            registry = create_model_client_registry()
-            clients = registry.get("clients", [])
-            for client in clients[:25]:
-                name = client.get("model_name", "Unknown Model")
-                alias = client.get("model_alias", "—")
-                provider = client.get("provider_name", "Unknown Provider")
-                ctx = client.get("context_window", 0)
-                cost = client.get("cost_class", "unknown")
-                enabled = "✓ ACTIVE" if client.get("enabled") else "⊘ DISABLED"
-                color = "#3fb950" if client.get("enabled") else "#484f58"
-                self._content.write(
-                    f"  [{color}]{enabled}[/]  [bold #79c0ff]{name:<30}[/] alias: [#ffa657]{alias:<15}[/]\n"
-                    f"            Provider: [#8b949e]{provider}[/] · Ctx: [#d2a8ff]{ctx}[/] · Cost: [#f85149]{cost}[/]\n"
+        by_backend: dict[str, list] = {}
+        for row in view.rows:
+            by_backend.setdefault(row.endpoint_kind, []).append(row)
+
+        for backend, rows in by_backend.items():
+            lines.append(f"  {bold_themed('active', backend)}")
+            for row in rows:
+                mark = themed("pass", "●") if row.enabled else themed("dim", "○")
+                name = f"{row.name[:36]:<36}"
+                alias = f"{row.alias[:14]:<14}"
+                ctx = f"{row.context_window:>6}"
+                active_mark = themed("warn", " ◂") if row.alias == loc.alias and loc.alias != "—" else ""
+                lines.append(
+                    f"    {mark} {themed('bold', name)} "
+                    f"{themed('warn', alias)} "
+                    f"{themed('hint', ctx)}  "
+                    f"{themed('accent', row.cost_class)}{active_mark}"
                 )
-            if not clients:
-                self._content.write("  [#484f58]No registered model clients found.[/]")
-        except Exception as e:
-            self._content.write(f"  [#f85149]Error loading model registry:[/] {e}")
+            lines.append("")
+
+        if view.rules:
+            lines.append(section_title("ROUTING RULES", "accent"))
+            for rule_v in view.rules[:12]:
+                pref = ", ".join(rule_v.preferred[:3]) if rule_v.preferred else "—"
+                fb = ", ".join(rule_v.fallback[:2]) if rule_v.fallback else "—"
+                lines.append(f"  {themed('active', rule_v.rule_id)}  {themed('bold', rule_v.task_intent)}")
+                lines.append(
+                    f"    {themed('pass', '→')} {themed('hint', pref)}  "
+                    f"{themed('dim', 'fb:')} {themed('hint', fb)}"
+                )
+                if rule_v.rationale:
+                    lines.append(f"    {themed('dim', rule_v.rationale[:72])}")
+
+        lines.extend(
+            [
+                "",
+                section_title("COMPOSE", "hint"),
+                f"  {themed('pass', view.compose_models)}",
+                f"  {themed('pass', view.compose_policy_render)}",
+                f"  {themed('dim', 'uv run builder-model call — only when gateway is permitted; receipts required')}",
+                f"  {themed('hint', 'STRATUM never calls a provider. Secrets never appear here.')}",
+            ]
+        )
+        if not view.rows and not view.error:
+            lines.append(themed("dim", "  No model clients registered."))
+        self._write("\n".join(lines))
 
     def _render_agent_profiles(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #d2a8ff]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #d2a8ff]║          DEEPAGENTS PROFILE WORKBENCH        ║[/]\n"
-            "[bold #d2a8ff]╚══════════════════════════════════════════════╝[/]\n\n"
-        )
-        try:
-            from builder_ii.agent_profiles import agent_profiles
+        view = project_agent_roster(target=self._target)
+        cmds = compose_deepagents_commands(target=self._target)
+        lines = [
+            section_title("DEEPAGENTS ROSTER", "accent"),
+            kv("Readiness", view.readiness_verdict, value_token="warn"),
+            kv("Dependency", view.dependency_state, value_token="hint"),
+            kv(
+                "Disabled",
+                ", ".join(view.disabled_capabilities[:4]) if view.disabled_capabilities else "—",
+                value_token="fail",
+            ),
+            rule(),
+        ]
+        if view.error:
+            lines.append(themed("fail", f"  {view.error}"))
 
-            profiles = agent_profiles()
-            for profile in profiles:
-                name = profile.name
-                desc = profile.description
-                auth = profile.authority
-                allowed = ", ".join(profile.allowed_tools)
-                self._content.write(
-                    f"  [bold #d2a8ff]● {name:<20}[/] Authority: [bold #ffa657]{auth}[/]\n"
-                    f"    [#8b949e]{desc}[/]\n"
-                    f"    Tools allowed: [#7ee787]{allowed}[/]\n"
-                )
-            if not profiles:
-                self._content.write("  [#484f58]No agent profiles found.[/]")
-        except Exception as e:
-            self._content.write(f"  [#f85149]Error loading agent profiles:[/] {e}")
+        n = len(view.profiles)
+        for i, p in enumerate(view.profiles):
+            branch = "└─" if i == n - 1 else "├─"
+            cont = "  " if i == n - 1 else "│ "
+            lines.append(
+                f"  {themed('dim', branch)} {bold_themed('accent', p.name)}  "
+                f"{themed('warn', p.authority)}"
+            )
+            lines.append(f"  {themed('dim', cont)} {themed('hint', p.description[:70])}")
+            tools = ", ".join(p.allowed_tools[:6])
+            lines.append(f"  {themed('dim', cont)} {themed('pass', 'tools')} {themed('hint', tools)}")
+            if p.yaml_path:
+                lines.append(f"  {themed('dim', cont)} {themed('dim', p.yaml_path)}")
+
+        if view.required_gates:
+            lines.extend(["", section_title("BRIDGE PROMOTION GATES", "hint")])
+            for g in view.required_gates:
+                lines.append(f"  {themed('dim', '▫')} {themed('hint', g)}")
+
+        lines.extend(
+            [
+                "",
+                section_title("COMPOSE (never dispatches)", "hint"),
+                f"  {themed('pass', cmds['forge'])}",
+                f"  {themed('pass', cmds['readiness'])}",
+                f"  {themed('pass', cmds['policy'])}",
+                f"  {themed('pass', cmds['work_plan'])}",
+                f"  {themed('dim', compose_assign_command('<profile>', target=self._target))}",
+                f"  {themed('hint', 'Press U again for profile multi-select compose picker')}",
+            ]
+        )
+        if not view.profiles and not view.error:
+            lines.append(themed("dim", "  No agent profiles loaded."))
+        self._write("\n".join(lines))
 
     def _render_platform_audit(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #58a6ff]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #58a6ff]║      PLATFORM CAPABILITY AUDIT MATRIX        ║[/]\n"
-            "[bold #58a6ff]╚══════════════════════════════════════════════╝[/]\n\n"
-        )
+        lines = [section_title("PLATFORM AUDIT"), rule()]
         try:
             from builder_ii.platform_completion_audit import capability_rows
 
-            rows = capability_rows()
-            for row in rows:
+            for row in capability_rows():
                 state_str = str(row.state)
-                # Parse StateLabel enum if needed or just use name
                 state_name = state_str.split(".")[-1] if "." in state_str else state_str
-
                 if "VERIFIED" in state_name:
-                    color = "#3fb950"
-                    glyph = "✓"
+                    token, glyph = "pass", "✓"
                 elif "FOUNDATION" in state_name or "BOUNDARIES" in state_name:
-                    color = "#d2a8ff"
-                    glyph = "●"
+                    token, glyph = "accent", "●"
                 elif "NOT_STARTED" in state_name:
-                    color = "#484f58"
-                    glyph = "○"
+                    token, glyph = "dim", "○"
                 else:
-                    color = "#d29922"
-                    glyph = "▶"
-
-                self._content.write(f"  [{color}]{glyph}[/] [bold #79c0ff]{row.name:<32}[/] [{color}]{state_name}[/]")
-
-            if not rows:
-                self._content.write("  [#484f58]No capability rows defined.[/]")
+                    token, glyph = "warn", "▶"
+                lines.append(
+                    f"  {themed(token, glyph)} {themed('active', f'{row.name:<32}')} "
+                    f"{themed(token, state_name)}"
+                )
         except Exception as e:
-            self._content.write(f"  [#f85149]Error loading platform audit:[/] {e}")
+            lines.append(themed("fail", f"  Error: {e}"))
+        self._write("\n".join(lines))
 
     def _render_workflow(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #d2a8ff]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #d2a8ff]║        ACTIVE WORKFLOW ORCHESTRATOR          ║[/]\n"
-            "[bold #d2a8ff]╚══════════════════════════════════════════════╝[/]\n\n"
+        view = project_workflow(
+            artifacts_dir=self.artifacts_dir,
+            repo_root=self._repo_root,
+            target=self._target,
         )
-        self._content.write("  [#8b949e]No active workflow session bound in TUI yet.[/]\n")
-        self._content.write("  [#484f58]Launch a workflow session via `builder run` to see it here.[/]")
+        lines = [section_title("WORKFLOW · RECIPES · GOOSE", "accent"), rule()]
+        if view.error:
+            lines.append(themed("fail", f"  {view.error}"))
+
+        if view.session_id:
+            lines.append(kv("Session", view.session_id, value_token="active"))
+            lines.append(kv("Stage", view.current_stage or "—", value_token="warn"))
+            if view.task:
+                lines.append(kv("Task", view.task[:60], value_token="hint"))
+        else:
+            lines.append(themed("dim", "  No workflow session artifact bound."))
+
+        lines.extend(["", section_title("GOOSE MANIFEST")])
+        if view.goose:
+            token = "pass" if view.goose.valid_enough else "warn"
+            lines.append(kv("Path", view.goose.path, value_token="hint"))
+            lines.append(kv("Mode", view.goose.mode, value_token=token))
+            lines.append(f"  {themed(token, view.goose.note)}")
+        else:
+            lines.append(themed("dim", "  No .builder/goose/*.json — mint before G."))
+            lines.append(f"  {themed('pass', view.compose_manifest)}")
+
+        lines.extend(["", section_title("STAGES")])
+        for stage in view.stages:
+            if view.current_stage == stage:
+                lines.append(f"  {themed('active', '▶')} {bold_themed('active', stage)}")
+            else:
+                lines.append(f"  {themed('dim', '·')} {themed('hint', stage)}")
+
+        lines.extend(["", section_title("RECIPES (Goose YAML)")])
+        if view.recipes:
+            for r in view.recipes:
+                tag = themed("accent", "sub") if r.is_subrecipe else themed("active", "top")
+                lines.append(f"  {tag} {themed('bold', r.name)}  {themed('hint', r.title[:40])}")
+                lines.append(f"      {themed('dim', r.path)}")
+        else:
+            lines.append(themed("dim", "  No recipes/ YAML found in project root."))
+
+        lines.extend(
+            [
+                "",
+                section_title("COMPOSE", "hint"),
+                f"  {themed('pass', view.compose_manifest)}",
+                f"  {themed('pass', view.compose_start_readonly)}",
+                f"  {themed('hint', 'G = start-readonly hand-off only · recipes ≠ authority')}",
+                f"  {themed('dim', 'Press Y for orchestration plans / obligations')}",
+            ]
+        )
+        self._write("\n".join(lines))
+
+    def _render_orchestration(self) -> None:
+        view = project_orchestration(artifacts_dir=self.artifacts_dir, target=self._target)
+        lines = [
+            section_title("ORCHESTRATION", "accent"),
+            f"  {themed('hint', 'artifact_only / plan_only — no agents constructed here')}",
+            rule(),
+        ]
+        if view.error:
+            lines.append(themed("fail", f"  {view.error}"))
+
+        lines.append(section_title("PLANS / ASSIGNMENTS"))
+        if view.plans:
+            for p in view.plans:
+                lines.append(f"  {themed('active', '▸')} {themed('bold', p.kind)}")
+                lines.append(f"      {themed('hint', p.summary[:70])}")
+                lines.append(f"      {themed('dim', p.path)}")
+        else:
+            lines.append(themed("dim", "  No orchestration plan artifacts on disk."))
+
+        lines.extend(["", section_title("OBLIGATIONS")])
+        if view.obligations:
+            for o in view.obligations:
+                lines.append(f"  {themed('warn', '●')} {themed('bold', o.kind)}")
+                lines.append(f"      {themed('hint', o.summary[:70])}")
+        else:
+            lines.append(themed("dim", "  No obligation tickets — Law 1: no speech without a ticket."))
+
+        if view.other:
+            lines.extend(["", section_title("OTHER ORCH KINDS", "hint")])
+            for o in view.other:
+                lines.append(f"  {themed('dim', '·')} {o.kind}  {themed('dim', Path(o.path).name)}")
+
+        lines.extend(
+            [
+                "",
+                section_title("COMPOSE", "hint"),
+                f"  {themed('pass', view.compose_plan)}",
+                f"  {themed('pass', view.compose_lane_policy)}",
+                f"  {themed('pass', view.compose_status)}",
+                f"  {themed('dim', 'uv run builder-orchestration validate <path>')}",
+                f"  {themed('dim', 'uv run builder-orchestration dry-run — passive; no execution')}",
+            ]
+        )
+        self._write("\n".join(lines))
+
+    def _render_code_vault(self) -> None:
+        view = project_code_vault(artifacts_dir=self.artifacts_dir, project_root=self._repo_root)
+        lines = [
+            section_title("CODEVAULT", "pass"),
+            f"  {themed('hint', view.note)}",
+            kv("Frames/artifacts", str(view.frame_count), value_token="active"),
+            rule(),
+        ]
+        if view.error:
+            lines.append(themed("fail", f"  {view.error}"))
+        if view.artifacts:
+            for a in view.artifacts:
+                lines.append(f"  {themed('pass', '◆')} {themed('bold', a.label[:32])}")
+                lines.append(f"      {themed('hint', a.kind[:48])}")
+                lines.append(f"      {themed('dim', a.path)}")
+        else:
+            lines.append(themed("dim", "  No vault/frame JSON found under .builder yet."))
+            lines.append(themed("hint", "  prepare-package --code-vault or builder-code-vault frame"))
+
+        lines.extend(
+            [
+                "",
+                section_title("COMPOSE", "hint"),
+                f"  {themed('pass', view.compose_status)}",
+                f"  {themed('pass', view.compose_demo)}",
+                f"  {themed('pass', view.compose_frame)}",
+                f"  {themed('dim', 'uv run builder-code-vault validate-demo')}",
+                f"  {themed('hint', 'Exact recall only — refuse ANN/HNSW/cosine narratives')}",
+            ]
+        )
+        self._write("\n".join(lines))
 
     def _render_quality_gates(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #ffa657]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #ffa657]║           QUALITY GATES & EVIDENCE           ║[/]\n"
-            "[bold #ffa657]╚══════════════════════════════════════════════╝[/]\n\n"
-        )
+        lines = [section_title("QUALITY GATES", "warn"), rule()]
+        target = self._platform_info.get("target") or self._target or "generic"
         try:
             from builder_ii.quality_gates import create_quality_gate_artifact
+            from builder_ii.target_profiles import target_names
+            from builder_ii.verification_profiles import default_profile_for_target
 
-            gate = create_quality_gate_artifact("generic", "generic")
-            self._content.write("  [bold #79c0ff]TARGET:[/] generic\n")
-            for req in gate.get("required_evidence", []):
-                self._content.write(f"  [#3fb950]✓[/] [#c9d1d9]{req}[/]")
-            self._content.write("\n  [bold #f85149]MERGE BLOCKERS:[/]\n")
-            for blk in gate.get("merge_blockers", []):
-                self._content.write(f"  [#f85149]✗[/] [#c9d1d9]{blk}[/]")
-
+            t = target if target in target_names() else "generic"
+            try:
+                profile = default_profile_for_target(t).name  # type: ignore[arg-type]
+            except Exception:
+                profile = "generic_basic"
+            try:
+                gate = create_quality_gate_artifact(
+                    target=t,  # type: ignore[arg-type]
+                    verification_profile=profile,  # type: ignore[arg-type]
+                    task="stratum-inspect",
+                )
+            except Exception:
+                gate = create_quality_gate_artifact(
+                    target="generic",
+                    verification_profile="generic_basic",
+                    task="stratum-inspect",
+                )
+            lines.append(kv("Target", str(gate.get("target", t)), value_token="active"))
+            lines.append("")
+            lines.append(section_title("REQUIRED EVIDENCE", "pass"))
+            for req in gate.get("required_evidence") or []:
+                lines.append(f"  {themed('pass', '·')} {themed('bold', str(req))}")
+            lines.append("")
+            lines.append(section_title("MERGE BLOCKERS", "fail"))
+            for blk in gate.get("merge_blockers") or []:
+                lines.append(f"  {themed('fail', '·')} {themed('bold', str(blk))}")
+            lines.append("")
+            lines.append(section_title("ROLLBACK", "hint"))
+            for rb in gate.get("rollback_requirements") or []:
+                lines.append(f"  {themed('hint', '·')} {themed('hint', str(rb))}")
+            lines.append("")
+            lines.append(themed("hint", "  Gate artifact is advisory — does not execute commands."))
         except Exception as e:
-            self._content.write(f"  [#f85149]Error loading quality gates:[/] {e}")
+            lines.append(themed("fail", f"  Error: {e}"))
+        self._write("\n".join(lines))
 
     def _render_tooling_health(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #7ee787]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #7ee787]║            EXTERNAL TOOLING HEALTH           ║[/]\n"
-            "[bold #7ee787]╚══════════════════════════════════════════════╝[/]\n\n"
-        )
+        lines = [section_title("TOOLING HEALTH", "pass"), rule()]
         try:
             from builder_ii.tool_registry import check_tools
 
-            checks = check_tools()
-            for chk in checks:
+            for chk in check_tools():
                 if chk.installed:
-                    color = "#3fb950"
-                    glyph = "✓"
-                    ver = chk.version_string or "unknown version"
-                    msg = f"[#8b949e]{ver}[/]"
+                    glyph = themed("pass", "✓")
+                    msg = themed("hint", chk.version_string or "installed")
                 else:
-                    color = "#f85149"
-                    glyph = "✗"
-                    msg = f"[#f85149]MISSING[/] — run: {chk.tool.install_instructions}"
-
-                self._content.write(f"  [{color}]{glyph}[/] [bold #79c0ff]{chk.tool.name:<15}[/] {msg}")
+                    glyph = themed("fail", "✗")
+                    msg = themed("fail", f"MISSING — {chk.tool.install_instructions}")
+                lines.append(f"  {glyph} {themed('active', f'{chk.tool.name:<16}')} {msg}")
         except Exception as e:
-            self._content.write(f"  [#f85149]Error loading tooling health:[/] {e}")
+            lines.append(themed("fail", f"  Error: {e}"))
+        self._write("\n".join(lines))
 
     def _render_help(self) -> None:
-        assert self._content is not None
-        self._content.write(
-            "[bold #ffa657]╔══════════════════════════════════════════════╗[/]\n"
-            "[bold #ffa657]║       STRATUM OPERATOR COMMAND MANUAL        ║[/]\n"
-            "[bold #ffa657]╚══════════════════════════════════════════════╝[/]\n\n"
-            "  [bold #d2a8ff]CORE CONSOLE CONTROLS[/]\n"
-            "    [bold #79c0ff][TAB][/]      Cycle focus across the 3 Columns (Spine ◂▸ Active ◂▸ Signals)\n"
-            "    [bold #79c0ff][ESC][/]      Universal 'Back' / Clear panel to default Operator Status\n"
-            "    [bold #79c0ff][CTRL+Q][/]   Safely quit STRATUM\n\n"
-            "  [bold #d2a8ff]SPINE NAVIGATION (Left Column)[/]\n"
-            "    [bold #79c0ff][UP/DOWN][/]  Navigate through the artifact pipeline stages\n"
-            "    [bold #79c0ff][j/k][/]      Vim-style navigation for spine stages\n"
-            "    [bold #79c0ff][SPC][/]      Pin highlighted artifact to center panel for inspection\n"
-            "    [bold #79c0ff][/][/]        Toggle live search/filter for spine artifacts\n\n"
-            "  [bold #d2a8ff]STRATUM MODES (Center Panel Toggles)[/]\n"
-            "    [bold #79c0ff][M][/]        Memory Atom Browser\n"
-            "    [bold #79c0ff][O][/]        Model Registry & Cost Matrix\n"
-            "    [bold #79c0ff][U][/]        DeepAgents Profile Matrix\n"
-            "    [bold #79c0ff][C][/]        Platform Capability Audit (Matrix completion status)\n"
-            "    [bold #79c0ff][W][/]        Active Workflow Orchestrator & stage gate tracking\n"
-            "    [bold #79c0ff][E][/]        Quality Gates & Rollback evidence requirements\n"
-            "    [bold #79c0ff][T][/]        External Tooling Health check\n"
-            "    [bold #79c0ff][H / F1][/]   Open this Operator Command Manual\n\n"
-            "  [bold #d2a8ff]GOVERNANCE ESCALATIONS[/]\n"
-            "    [bold #79c0ff][?][/]        Governed Command Palette (Tier permission checker)\n"
-            "    [bold #79c0ff][~][/]        Command Composer (injects context; STRATUM runs nothing)\n\n"
-            "  [bold #d2a8ff]PIPELINE COMMANDS[/]\n"
-            "    [bold #79c0ff][P][/]        Prepare Workspace (build local environment)\n"
-            "    [bold #79c0ff][V][/]        Validate Codebase (run verification checks)\n"
-            "    [bold #79c0ff][G][/]        Launch Goose Session projection\n"
-            "    [bold #79c0ff][N][/]        Retrieve Operator 'Next Step' guidance\n\n"
-            "  [bold #d2a8ff]HITL OVERRIDES (Signals Rail)[/]\n"
-            "    [bold #79c0ff][A][/]        Approve pending HITL gate\n"
-            "    [bold #79c0ff][R][/]        Reject pending HITL gate\n"
-            "    [bold #79c0ff][I][/]        Inspect gate payload details\n"
-            "    [bold #79c0ff][D][/]        Diff candidate vs authority main"
+        from builder_ii.stratum_guide import help_boundary_lines, help_keymap_lines, walkthrough_lines
+
+        pages = (
+            ("KEYMAP", help_keymap_lines()),
+            ("WALKTHROUGH", walkthrough_lines(include_opt_out_hint=True)),
+            ("BOUNDARIES", help_boundary_lines()),
         )
+        page = self._help_page % len(pages)
+        title, body = pages[page]
+        lines = [
+            section_title(f"HELP · {title}", "warn"),
+            f"  {themed('hint', f'page {page + 1}/{len(pages)}  ·  [ ] next page  ·  0 walkthrough  ·  ESC idle')}",
+            rule(),
+        ]
+        for raw in body:
+            if not raw:
+                lines.append("")
+            elif raw.startswith("   cmd:") or "uv run " in raw or raw.strip().startswith("cmd:"):
+                lines.append(themed("pass", raw if raw.startswith(" ") else f"  {raw}"))
+            elif raw.startswith("  "):
+                lines.append(themed("hint", raw))
+            elif raw.isupper() and any(c.isalpha() for c in raw):
+                lines.append(bold_themed("accent", raw))
+            else:
+                lines.append(themed("bold", raw))
+        self._write("\n".join(lines))
+
+    def _render_guide(self) -> None:
+        from builder_ii.stratum_guide import walkthrough_lines
+
+        lines = [
+            section_title("FIRST SESSION WALKTHROUGH", "warn"),
+            f"  {themed('hint', 'X dismiss auto-open  ·  ESC idle  ·  H multi-page help')}",
+            rule(),
+        ]
+        for raw in walkthrough_lines(include_opt_out_hint=True):
+            if not raw:
+                lines.append("")
+            elif raw.startswith("   cmd:"):
+                lines.append(themed("pass", raw))
+            elif raw.startswith("   "):
+                lines.append(themed("hint", raw))
+            elif len(raw) > 2 and raw[0].isdigit() and raw[1] == ".":
+                lines.append(bold_themed("active", raw))
+            elif raw.isupper() and any(c.isalpha() for c in raw):
+                lines.append(bold_themed("accent", raw))
+            else:
+                lines.append(themed("bold", raw))
+        self._write("\n".join(lines))
+
+    def cycle_help_page(self, delta: int = 1) -> None:
+        self._help_page = (self._help_page + delta) % 3
+        if self.mode == StratumMode.HELP:
+            self._render_current_mode()
 
     # ── Public API ───────────────────────────────────────────────────
 
     def set_platform_info(self, info: dict[str, str]) -> None:
-        """Update the idle report platform info and re-render if idle."""
         self._platform_info = info
+        if info.get("target"):
+            self._target = info["target"]
         if self.mode == StratumMode.IDLE:
             self._render_current_mode()
 
+    def set_repo_root(self, root: Path | None) -> None:
+        self._repo_root = root
+
     def show_hitl_gate(self, proposal: dict[str, Any]) -> None:
-        """Switch to HITL gate mode with the given proposal."""
         self._hitl_proposal = proposal
         self.mode = StratumMode.HITL_GATE
 
-    def inspect_artifact(self, artifact: dict[str, Any]) -> None:
-        """Switch to artifact inspection mode."""
+    def try_bind_pending_hitl(self) -> bool:
+        """If a pending HITL artifact exists, open gate mode. Returns True when bound."""
+        view = project_hitl_surface(self.artifacts_dir)
+        if view is None:
+            return False
+        self.show_hitl_gate(
+            {
+                "command": view.command,
+                "tier": view.tier,
+                "authority": view.authority,
+                "effects": view.effects,
+                "digest": view.digest,
+                "artifact": view.artifact,
+                "path": view.path,
+            }
+        )
+        return True
+
+    def inspect_artifact(self, artifact: dict[str, Any], *, path: str | None = None) -> None:
         self._inspected_artifact = artifact
+        self._inspected_path = path
         self.mode = StratumMode.ARTIFACT_INSPECT
 
     def set_chain_digest(self, digest: str) -> None:
-        self._chain_digest = digest
+        self._chain_digest = digest if digest else "—"
         self._update_chain_bar()
 
     def set_authority_granted(self, granted: bool | None) -> None:
@@ -588,6 +918,5 @@ class ActiveStratum(Vertical):
         self._update_chain_bar()
 
     def append_goose_output(self, text: str) -> None:
-        """Append live model output during a Goose session."""
         if self._content and self.mode == StratumMode.GOOSE_LIVE:
             self._content.write(text)

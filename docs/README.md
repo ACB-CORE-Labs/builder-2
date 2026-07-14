@@ -9,14 +9,18 @@ builder-II documentation is organized as three tiers, each narrower and deeper t
 
 1. **[`README.md`](../README.md)** (repo root) — what builder-II is, the governing distinctions,
    install, and a curated "Documentation map" of the ~40 documents most readers need first.
-2. **[`FIRST_SESSION.md`](../FIRST_SESSION.md)** (repo root) — the single validated onboarding
-   path: clone to one complete governed patch loop in one sitting.
-   **[`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md)** is the step after it: the operator
-   golden path (`builder-platform status` / `operator-status` / `next` / `golden-path`) plus the
-   governed demo loop entrypoint (CORE profile and generic targets) — only what is currently true
-   is documented here; see [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) and
-   [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) for what is and isn't
-   promoted.
+2. **New-operator path**
+   - **[`docs/GETTING_STARTED.md`](GETTING_STARTED.md)** — **start here as a new builder**: mental
+     model (determinism / audit / governance), optimal setup order, and how to leverage **STRATUM**
+     against every major subsystem (artifacts, HITL, Goose, deepagents, models, CodeVault, promotion).
+   - **[`FIRST_SESSION.md`](../FIRST_SESSION.md)** (repo root) — the single validated onboarding
+     path: clone to one complete governed patch loop in one sitting (CI-smoked).
+   - **[`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md)** — operator golden path
+     (`builder-platform status` / `operator-status` / `next` / `golden-path`) plus the
+     governed demo-loop entrypoint. Only what is currently true is documented; see
+     [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) and
+     [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) for promotion state.
+   - **[`docs/STRATUM.md`](STRATUM.md)** — STRATUM console reference (keys, flags, walkthrough opt-out).
 3. **This file** — the reference tier: every document in `docs/`, grouped by subsystem, for anyone
    going deeper than the curated map.
 
@@ -44,6 +48,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 
 | Document | Purpose |
 | --- | --- |
+| [`docs/GETTING_STARTED.md`](GETTING_STARTED.md) | **New builder start here** — setup order, governance mental model, STRATUM × full platform |
 | [`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md) | Operator Quickstart |
 | [`docs/OPERATOR_GUIDE.md`](OPERATOR_GUIDE.md) | builder-II operator guide |
 | [`docs/OPERATOR_PLAYBOOK.md`](OPERATOR_PLAYBOOK.md) | builder-II Operator Playbook |
@@ -102,6 +107,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/READONLY_INSPECTION_REPORTS.md`](READONLY_INSPECTION_REPORTS.md) | Read-only inspection reports |
 | [`docs/STACKED_NOTES_READONLY_INSPECTION.md`](STACKED_NOTES_READONLY_INSPECTION.md) | Stacked PR note: read-only inspection boundary |
 | [`docs/TUI_INSPECTION_SURFACE.md`](TUI_INSPECTION_SURFACE.md) | TUI Inspection Surface |
+| [`docs/STRATUM.md`](STRATUM.md) | STRATUM operator console — first-session walkthrough, keymap, boundaries |
 
 ### HITL governance chain
 
