@@ -25,7 +25,7 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | P7 ceremony + W5 | P7 | **LANDED (substrate)** | #148 W5 repo-state + ceremony template |
 | Post-P6 PARTIAL harden | — | **LANDED (this wave)** | Class U adaptivity; handoff-measure; fleet plan annotation; agent-factory plan CLI; msda-status |
 
-**Cursor (now):** #151 on main (W.2+V.1). Next: **W.3 fleet-fidelity** + **V.2 agent RO** (this PR). S3 blocked. S4 OPEN.
+**Cursor (now):** #152 on main (W.3+V.2). Next: **W.4 patterns-prove** + **V.3 verify fixed-argv profiles** (this PR). S3 blocked. S4 OPEN.
 
 ---
 

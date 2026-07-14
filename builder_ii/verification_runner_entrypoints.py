@@ -96,6 +96,75 @@ def run_builder_full() -> int:
     return exit_code
 
 
+def run_wrp_doctor_backends() -> int:
+    """Bounded validation_only: WRP backend doctor (inventory health; no engines)."""
+    import json
+
+    from builder_ii.wrp.backend_registry import doctor_backends
+
+    report = doctor_backends()
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0 if report.get("ok") else 1
+
+
+def run_wrp_patterns_prove() -> int:
+    """Bounded validation_only: pure graph_runtime five-pattern mastery proof."""
+    from builder_ii.wrp.pattern_proof import prove_patterns_entrypoint
+
+    return prove_patterns_entrypoint()
+
+
+def run_semantic_doctor() -> int:
+    """Bounded validation_only: semantic RO doctor (detect-only)."""
+    import json
+
+    from builder_ii.semantic_readonly import doctor_semantic
+
+    report = doctor_semantic(repo_path=Path.cwd())
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0 if report.get("ok") else 1
+
+
+def run_semantic_map() -> int:
+    """Bounded validation_only: semantic RO map (create_repo_map, fixed max_files)."""
+    import json
+
+    from builder_ii.semantic_readonly import map_semantic
+
+    art = map_semantic(Path.cwd(), target_name="builder", max_files=100)
+    print(json.dumps(art, indent=2, sort_keys=True))
+    return 0
+
+
+def run_wrp_fleet_fidelity() -> int:
+    """Bounded validation_only: fleet fidelity from pinned paths under .builder/verification/.
+
+    Operator stages:
+      .builder/verification/fleet-fidelity/allocation.json
+      .builder/verification/fleet-fidelity/plan.json
+    before run-approved. No free-form path args (fixed argv envelope).
+    """
+    import json
+
+    from builder_ii.wrp.allocation_optimizer import fleet_fidelity_report
+
+    base = Path.cwd() / ".builder" / "verification" / "fleet-fidelity"
+    alloc_path = base / "allocation.json"
+    plan_path = base / "plan.json"
+    if not alloc_path.is_file() or not plan_path.is_file():
+        print(
+            "fleet-fidelity pinned inputs missing: "
+            f"{alloc_path} and {plan_path} required",
+            file=sys.stderr,
+        )
+        return 1
+    allocation = json.loads(alloc_path.read_text(encoding="utf-8"))
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    report = fleet_fidelity_report(allocation, plan)
+    print(json.dumps(report, indent=2, sort_keys=True))
+    return 0 if report.get("ok") else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     args = list(sys.argv[1:] if argv is None else argv)
     if args == ["platform-status"]:
@@ -106,6 +175,16 @@ def main(argv: list[str] | None = None) -> int:
         return run_pytest_full()
     if args == ["builder-full"]:
         return run_builder_full()
+    if args == ["wrp-doctor-backends"]:
+        return run_wrp_doctor_backends()
+    if args == ["wrp-patterns-prove"]:
+        return run_wrp_patterns_prove()
+    if args == ["wrp-fleet-fidelity"]:
+        return run_wrp_fleet_fidelity()
+    if args == ["semantic-doctor"]:
+        return run_semantic_doctor()
+    if args == ["semantic-map"]:
+        return run_semantic_map()
     print("unsupported verification runner entrypoint", file=sys.stderr)
     return 2
 

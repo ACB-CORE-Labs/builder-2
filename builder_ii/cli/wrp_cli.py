@@ -519,6 +519,26 @@ def fleet_fidelity_cmd(
     console.print("[green]fleet-fidelity ok (alias/budget/risk/binds_session_routing)[/]")
 
 
+@wrp_app.command("patterns-prove")
+def patterns_prove_cmd(
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """W.4: prove five orchestration patterns via pure graph_runtime (no S2/live)."""
+    from builder_ii.wrp.pattern_proof import prove_all_patterns
+
+    art = prove_all_patterns()
+    _emit(art, output)
+    if not art.get("ok"):
+        for row in art.get("patterns") or []:
+            if not row.get("ok"):
+                console.print(f"[red]pattern {row.get('pattern')}: {row.get('error') or 'failed'}[/]")
+        raise typer.Exit(1)
+    console.print(
+        f"[green]patterns-prove ok count={art.get('pattern_count')} "
+        f"s2_live={art.get('s2_live')} grants_authority={art.get('grants_authority')}[/]"
+    )
+
+
 @wrp_app.command("plan-live")
 def plan_live_cmd(
     task: str = typer.Option(..., "--task", "-t"),

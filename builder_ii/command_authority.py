@@ -713,6 +713,7 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp backends",
     "builder-wrp doctor-backends",
     "builder-wrp fleet-fidelity",
+    "builder-wrp patterns-prove",
     "builder-semantic",
     "builder-semantic doctor",
     "builder-semantic map",
@@ -3677,6 +3678,23 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints ok/errors; exits non-zero on mismatch.",
         failure_mode="Exits non-zero when plan binding drifts from allocation.",
         notes="Validation only; not provider session authority; not S3.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp patterns-prove",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "W.4: pure graph_runtime mastery proof for sequential, fan_out_fan_in, hierarchical, "
+            "handoff, cyclic. No S2 live, no gateway_handler, no shell/model."
+        ),
+        write_boundary="Writes pattern_mastery_report JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints per-pattern ok/wall_ms; exits non-zero if any pattern fails.",
+        failure_mode="Exits non-zero when any pattern status!=success or authority flags inflate.",
+        notes="Not S3 live multi-agent; not cloud invoke.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
