@@ -701,6 +701,11 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp approve-rstar-apply",
     "builder-wrp apply-rstar-approved",
     "builder-wrp benchmark",
+    "builder-wrp langgraph-project",
+    "builder-wrp vllm-profile",
+    "builder-wrp opa-eval",
+    "builder-wrp embed-status",
+    "builder-wrp repo-state",
     "builder-model call",
     "builder-model standalone-call",
     "builder-model validate-receipt",
@@ -3199,13 +3204,16 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         entrypoint="builder_ii.cli.wrp_cli:wrp_app",
         tier=TIER_1,
         promotion_state=STATE_VALIDATION_ONLY,
-        runtime_boundary="Reconstructive replay validation of planned subtask graphs against observed digests.",
+        runtime_boundary=(
+            "W5 reconstructive replay: planned digests/order plus optional commit_id/tree_hash "
+            "repo-state binding vs observed chain; perfect_match requires both."
+        ),
         write_boundary="Writes replay report JSON only when an explicit output path is supplied.",
         approval_mode=MODE_NONE,
         approval_boundary="None.",
         output_behavior="Prints or writes builder_ii.wrp.replay_report; exits non-zero if perfect_match is false.",
-        failure_mode="Exits non-zero on digest/sequence mismatch.",
-        notes="W5 reconstructive hash check; no git/network authority.",
+        failure_mode="Exits non-zero on digest/sequence/repo-state mismatch.",
+        notes="Validation only; optional git identity read via --bind-repo; no network/mutation authority.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
@@ -3213,13 +3221,16 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         entrypoint="builder_ii.cli.wrp_cli:wrp_app",
         tier=TIER_1,
         promotion_state=STATE_ARTIFACT_ONLY,
-        runtime_boundary="Emits planned subtask graph artifacts (pure-Python DAG; no LangGraph dependency).",
+        runtime_boundary=(
+            "Emits planned subtask graph artifacts (pure-Python DAG; no LangGraph dependency). "
+            "Optional --bind-repo embeds cwd commit_id/tree_hash for W5 (read-only git)."
+        ),
         write_boundary="Writes graph JSON only when an explicit output path is supplied.",
         approval_mode=MODE_NONE,
         approval_boundary="None.",
         output_behavior="Prints or writes builder_ii.wrp.subtask_graph plan artifacts.",
         failure_mode="Exits non-zero on invalid node lists.",
-        notes="PLANNED_ONLY; UNBOUND runtime.",
+        notes="PLANNED_ONLY; UNBOUND runtime; not S3/S4 enablement.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
@@ -3431,6 +3442,92 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints or writes builder_ii.wrp.class_u_report (and optional proof/measurements).",
         failure_mode="Exits non-zero when Class U utility thresholds are not met.",
         notes="Measured numbers only; not promotion authority; not S3 enablement.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp langgraph-project",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary=(
+            "P6: pure LangGraph-shaped projection of TrajectoryGraph (always available). "
+            "Optional --compile requires BUILDER_II_WRP_LANGGRAPH=1 and importable/injected compiler; "
+            "fail-closed otherwise. Never default runtime; never grants model/tool authority."
+        ),
+        write_boundary="Writes projection/compile-handle JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints pure projection or opt-in compile handle (grants_authority=false).",
+        failure_mode="Exits non-zero when --compile is requested without opt-in env/compiler.",
+        notes="Substrate only; S4 LangGraph promotion is a separate decision.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp vllm-profile",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary=(
+            "P6: emit vLLM WRP research profile status metadata. Never starts an engine, "
+            "never imports torch/vLLM by default, never becomes default runtime path."
+        ),
+        write_boundary="Writes profile status JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints research profile status (default_runtime=false, engine_started=false).",
+        failure_mode="Exits non-zero if profile incorrectly claims default runtime.",
+        notes="Research/stub interface only; not S4 backend promotion; not cloud invoke.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp opa-eval",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "P6: MSDA gate evaluation via pure-Python backend (default) or optional external opa binary "
+            "(--backend opa). Never executes tools/models; optional opa fails closed when missing."
+        ),
+        write_boundary="Writes decision JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints compact MSDA decision dict (effect/rule_id/allow/backend).",
+        failure_mode="Exits non-zero when opa backend requested but binary unavailable or eval fails.",
+        notes="Pure MSDA is the reference; OPA is optional parity surface, not authority.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp embed-status",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary=(
+            "P6: report resolved WRP embedder (HashingEmbedder default; ModernBERT only when "
+            "BUILDER_II_WRP_EMBEDDER=modernbert). Does not load heavy weights by default."
+        ),
+        write_boundary="Writes status JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints backend_name / modernbert_opt_in / is_default_hashing flags.",
+        failure_mode="Exits non-zero on unexpected resolution failure.",
+        notes="Status only; embed() of ModernBERT still fail-closes without provider.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp repo-state",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "W5: capture git commit_id + tree_hash for a cwd (or honest nulls when not a git tree). "
+            "Read-only git rev-parse only; shell=False fixed argv."
+        ),
+        write_boundary="Writes repo-state JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints commit_id/tree_hash/is_git_tree (grants_authority=false).",
+        failure_mode="Never fails closed on non-git; returns honest nulls with capture_error.",
+        notes="Identity capture for reconstructive match; not mutation or network authority.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
