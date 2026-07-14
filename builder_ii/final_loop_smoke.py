@@ -147,8 +147,14 @@ def run_final_loop_smoke_for_target(
                 "kind": report.get("kind"),
                 "detail": f"ok={report.get('ok')} workbench={report.get('workbench_coupling')}",
             }
-        # builder: lightweight registry doctor via validate profiles
-        errors = validate_target_profiles(settings)
+        # builder: doctor only *this* target — do not fail when sibling core checkout is absent.
+        errors = [
+            e
+            for e in validate_target_profiles(settings)
+            if "core repo missing" not in e and not (e.startswith("target profile core") and "missing" in e)
+        ]
+        if not profile.repo.exists():
+            errors.append(f"builder repo missing: {profile.repo}")
         path = tdir / "doctor-builder.json"
         report = {
             "kind": "builder_ii.target_profile_doctor_report",
@@ -159,6 +165,7 @@ def run_final_loop_smoke_for_target(
             "grants_runtime_authority": False,
             "semgrep_executed": False,
             "promotion_state": "validation_only",
+            "notes": "Ignores sibling core-repo absence when smoking builder alone.",
         }
         _write_json(path, report)
         if errors:
