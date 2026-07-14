@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json as json_lib
 from pathlib import Path
 
 import typer
@@ -110,6 +111,40 @@ def demo(name: str) -> None:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     console.print(render_target_profile_demo(get_target_profile_demo(_normalize_target(name))))
+
+
+@targets_app.command("doctor")
+def doctor_target(
+    name: str = typer.Argument("core", help="Target profile to doctor (V.4: core isolation)"),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write doctor report JSON"),
+) -> None:
+    """Doctor target-profile isolation (CORE: catalog + coupling checks; no semgrep run)."""
+    target = _normalize_target(name)
+    if target != "core":
+        console.print(
+            f"[yellow]doctor for target={target} is not specialized; "
+            "V.4 doctor checks apply to core only.[/]"
+        )
+        raise typer.Exit(2)
+    settings = load_settings()
+    from builder_ii.targets.core import doctor_core_profile
+
+    report = doctor_core_profile(settings)
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json_lib.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        console.print(f"Target doctor report written to {output}")
+    else:
+        echo_stdout(json_lib.dumps(report, indent=2, sort_keys=True) + "\n")
+    if not report.get("ok"):
+        for check in report.get("checks") or []:
+            if not check.get("ok"):
+                console.print(f"[red]doctor {check.get('name')}: {check.get('errors')}[/]")
+        raise typer.Exit(1)
+    console.print(
+        f"[green]doctor core ok workbench_coupling={report.get('workbench_coupling')} "
+        f"semgrep_executed={report.get('semgrep_executed')}[/]"
+    )
 
 
 @targets_app.command("readonly-founder-demo")

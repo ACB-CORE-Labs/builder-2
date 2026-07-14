@@ -446,6 +446,79 @@ def plan_agent_lifecycle_cmd(
         raise typer.Exit(1)
 
 
+agent_factory_app = typer.Typer(
+    help="W.5 AgentFactory lifecycle records (spawn/retire/prove; validation_only; no process spawn).",
+)
+wrp_app.add_typer(agent_factory_app, name="agent-factory")
+
+
+@agent_factory_app.command("spawn")
+def agent_factory_spawn_cmd(
+    role: str = typer.Option(..., "--role", help="Bound role (e.g. code_reviewer)"),
+    task: str = typer.Option(..., "--task", help="Task binding for the lifecycle record"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """Emit a lifecycle spawn *record* (spawn_executed=false; not a process spawn)."""
+    from builder_ii.wrp.agent_factory import spawn_agent
+
+    try:
+        art = spawn_agent(role=role, task=task)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1) from exc
+    _emit(art, output)
+    if art.get("spawn_executed") is not False or art.get("spawn_permitted") is not False:
+        console.print("[red]spawn flags inflated[/]")
+        raise typer.Exit(1)
+    console.print(
+        f"[green]agent-factory spawn record agent_id={art.get('agent_id')} "
+        f"spawn_executed={art.get('spawn_executed')} runtime_binding={art.get('runtime_binding')}[/]"
+    )
+
+
+@agent_factory_app.command("retire")
+def agent_factory_retire_cmd(
+    spawn_record: Path = typer.Option(
+        ..., "--spawn-record", exists=True, dir_okay=False, help="Prior spawn lifecycle record JSON"
+    ),
+    reason: str = typer.Option("task_complete", "--reason"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """Emit a lifecycle retire *record* bound to a spawn digest."""
+    from builder_ii.wrp.agent_factory import retire_agent
+
+    data = _read_json(spawn_record)
+    try:
+        art = retire_agent(spawn_record=data, reason=reason)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1) from exc
+    _emit(art, output)
+    console.print(
+        f"[green]agent-factory retire record agent_id={art.get('agent_id')} "
+        f"spawn_digest={str(art.get('spawn_digest') or '')[:12]}…[/]"
+    )
+
+
+@agent_factory_app.command("prove")
+def agent_factory_prove_cmd(
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """W.5: deterministic spawn/retire lifecycle proof (validation_only)."""
+    from builder_ii.wrp.agent_factory import prove_agent_lifecycle
+
+    art = prove_agent_lifecycle()
+    _emit(art, output)
+    if not art.get("ok"):
+        console.print("[red]agent-factory prove failed[/]")
+        raise typer.Exit(1)
+    console.print(
+        f"[green]agent-factory prove ok cases={art.get('case_count')} "
+        f"experience_bound={art.get('experience_store_bound')} "
+        f"spawn_executed={art.get('spawn_executed')}[/]"
+    )
+
+
 @wrp_app.command("msda-status")
 def msda_status_cmd(
     output: Path | None = typer.Option(None, "--output", "-o"),
@@ -835,6 +908,12 @@ def validate_cmd(
         "builder_ii.wrp.agent_factory_plan": __import__(
             "builder_ii.wrp.agent_factory", fromlist=["validate_agent_factory_plan"]
         ).validate_agent_factory_plan,
+        "builder_ii.wrp.agent_lifecycle_record": __import__(
+            "builder_ii.wrp.agent_factory", fromlist=["validate_agent_lifecycle_record"]
+        ).validate_agent_lifecycle_record,
+        "builder_ii.wrp.agent_lifecycle_proof": __import__(
+            "builder_ii.wrp.agent_factory", fromlist=["validate_agent_lifecycle_proof"]
+        ).validate_agent_lifecycle_proof,
     }
     validator = validators.get(str(kind))
     if validator is None:

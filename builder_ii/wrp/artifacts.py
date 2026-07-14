@@ -17,6 +17,8 @@ MSDA_POLICY_KIND = "builder_ii.wrp.msda_policy"
 MSDA_GATE_DECISION_KIND = "builder_ii.wrp.msda_gate_decision"
 EXPERIENCE_STORE_KIND = "builder_ii.wrp.experience_store"
 AGENT_FACTORY_PLAN_KIND = "builder_ii.wrp.agent_factory_plan"
+AGENT_LIFECYCLE_RECORD_KIND = "builder_ii.wrp.agent_lifecycle_record"
+AGENT_LIFECYCLE_PROOF_KIND = "builder_ii.wrp.agent_lifecycle_proof"
 SUBTASK_GRAPH_KIND = "builder_ii.wrp.subtask_graph"
 TRAJECTORY_EVALUATION_KIND = "builder_ii.wrp.trajectory_evaluation"
 FORWARD_ROUTE_KIND = "builder_ii.wrp.forward_route"
@@ -45,6 +47,8 @@ WRP_ARTIFACT_KINDS: frozenset[str] = frozenset(
         MSDA_GATE_DECISION_KIND,
         EXPERIENCE_STORE_KIND,
         AGENT_FACTORY_PLAN_KIND,
+        AGENT_LIFECYCLE_RECORD_KIND,
+        AGENT_LIFECYCLE_PROOF_KIND,
         SUBTASK_GRAPH_KIND,
         TRAJECTORY_EVALUATION_KIND,
         FORWARD_ROUTE_KIND,

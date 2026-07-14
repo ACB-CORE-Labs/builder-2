@@ -91,6 +91,8 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.wrp.msda_gate_decision`
 - `builder_ii.wrp.experience_store`
 - `builder_ii.wrp.agent_factory_plan`
+- `builder_ii.wrp.agent_lifecycle_record`
+- `builder_ii.wrp.agent_lifecycle_proof`
 - `builder_ii.wrp.subtask_graph`
 - `builder_ii.wrp.trajectory_evaluation`
 - `builder_ii.wrp.forward_route`
@@ -192,6 +194,8 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.wrp.msda_gate_decision` | WRP MSDA gate decision (validation) | ADR-0007 |
 | `builder_ii.wrp.experience_store` | WRP experience store (recorded only) | ADR-0007 |
 | `builder_ii.wrp.agent_factory_plan` | WRP agent factory lifecycle plan | ADR-0007 |
+| `builder_ii.wrp.agent_lifecycle_record` | W.5 AgentFactory spawn/retire record (validation_only; not process spawn) | ADR-0007 |
+| `builder_ii.wrp.agent_lifecycle_proof` | W.5 deterministic lifecycle proof report | ADR-0007 |
 | `builder_ii.wrp.subtask_graph` | WRP subtask graph plan | ADR-0007 |
 | `builder_ii.wrp.trajectory_evaluation` | WRP trajectory evaluation | ADR-0007 |
 | `builder_ii.wrp.forward_route` | WRP forward operator R recommendation | ADR-0007 |

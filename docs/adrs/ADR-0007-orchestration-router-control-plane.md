@@ -38,7 +38,7 @@ Implement the WRP control plane as **digest-bound artifacts** under `builder_ii/
 | AllocationOptimizer (F2) | `allocation_optimizer.py` | `builder_ii.wrp.fleet_allocation` |
 | GovernanceRouter (F3) | `governance_router.py` | `builder_ii.wrp.msda_policy`, `msda_gate_decision` |
 | ExperienceStore (F4) | `experience_store.py` | `builder_ii.wrp.experience_store` |
-| AgentFactory | `agent_factory.py` | `builder_ii.wrp.agent_factory_plan` (+ bound lifecycle under promotion) |
+| AgentFactory | `agent_factory.py` | `builder_ii.wrp.agent_factory_plan` + W.5 `agent_lifecycle_record` / `agent_lifecycle_proof` (validation_only records; spawn_executed=false; not S3 process spawn) |
 | SubtaskGraphManager | `subtask_graph.py` / `graph_runtime.py` | `subtask_graph`, `replay_report`, live run receipts |
 | Evaluator | `evaluator.py` | `trajectory_evaluation`, `proof_record` |
 | Forward \(R\) | `forward_operator.py` | `builder_ii.wrp.forward_route` |
