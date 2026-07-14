@@ -40,17 +40,26 @@ class Palette(TypedDict):
 
 
 # ---------------------------------------------------------------------------
-# Default theme  — original slate / indigo / sky
+# Default theme  — Cosmic Void (STRATUM instrument console)
 # ---------------------------------------------------------------------------
 _DEFAULT: dict[str, str] = {
-    "pass": "#3fb950",
-    "warn": "#d29922",
-    "fail": "#f85149",
-    "hint": "#8b949e",
-    "active": "#58a6ff",
-    "dim": "#484f58",
-    "bold": "#c9d1d9",
-    "accent": "#d2a8ff",
+    "pass": "#3fb950",  # Emerald — verified determinism
+    "warn": "#ffa657",  # Amber — gate / needs attention
+    "fail": "#f85149",  # Crimson — broken chain / block
+    "hint": "#6e7681",  # Slate — de-emphasized context
+    "active": "#79c0ff",  # Ice Blue — resonance highlight
+    "dim": "#21262d",  # Muted — grid lines, rules
+    "bold": "#c9d1d9",  # Frost White — primary text
+    "accent": "#d2a8ff",  # Amethyst — deepagents / forge
+    # Extended surface tokens (also via theme_extras):
+    "_bg": "#0a0e14",
+    "_panel": "#0d1117",
+    "_panel_light": "#161b22",
+    "_border": "#21262d",
+    "_selected": "#1f2937",
+    "_hover": "#1c2333",
+    "_selected_text": "#f0f6fc",
+    "_disabled": "#30363d",
 }
 
 # ---------------------------------------------------------------------------

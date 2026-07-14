@@ -8,7 +8,7 @@
 
 Screen {
     background: $stratum-bg;
-    color: #c5c8c6;
+    color: $stratum-bold;
 }
 
 /* ─── Header Bar (The Stratum Banner) ──────────────────── */
@@ -118,7 +118,7 @@ HeaderBanner .banner-time {
 }
 
 .spine-item {
-    height: 1;
+    height: 2;
     padding: 0 1;
 }
 

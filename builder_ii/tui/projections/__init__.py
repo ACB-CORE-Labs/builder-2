@@ -1,0 +1,41 @@
+"""STRATUM projection layer — pure view-models over governed modules.
+
+Observers only: no writes, no subprocess, no authority origin.
+Missing data is absence (None / "—" / unevaluated), never synthesis.
+"""
+
+from __future__ import annotations
+
+from builder_ii.tui.projections.agents import project_agent_roster
+from builder_ii.tui.projections.chain import PIPELINE_STAGES, project_chain
+from builder_ii.tui.projections.codevault import project_code_vault
+from builder_ii.tui.projections.gates import project_hitl_surface, project_third_door
+from builder_ii.tui.projections.models import project_model_matrix
+from builder_ii.tui.projections.operator import project_operator_dashboard
+from builder_ii.tui.projections.orchestration import project_orchestration
+from builder_ii.tui.projections.render import (
+    kv,
+    rule,
+    section_title,
+    status_glyph,
+    themed,
+)
+from builder_ii.tui.projections.workflow import project_workflow
+
+__all__ = [
+    "PIPELINE_STAGES",
+    "kv",
+    "project_agent_roster",
+    "project_chain",
+    "project_code_vault",
+    "project_hitl_surface",
+    "project_model_matrix",
+    "project_operator_dashboard",
+    "project_orchestration",
+    "project_third_door",
+    "project_workflow",
+    "rule",
+    "section_title",
+    "status_glyph",
+    "themed",
+]

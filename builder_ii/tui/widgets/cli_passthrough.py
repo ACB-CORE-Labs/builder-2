@@ -31,21 +31,23 @@ class CLIPassthroughScreen(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
         with Vertical(id="cli-container"):
             yield Static(
-                " [bold #3fb950]~ RAW CLI PASSTHROUGH[/]  [#484f58]Governed Context Injection[/]",
-                id="palette-title",  # Reusing palette title style
+                " [bold #3fb950]~ COMMAND COMPOSER[/]  [#6e7681]context injection · STRATUM runs nothing[/]",
+                id="palette-title",
             )
-            # We show what context is being injected
             if self.prefix_context:
                 yield Static(
-                    f" [bold #6e7681]Injected Context:[/] [#79c0ff]{self.prefix_context}[/]",
+                    f" [bold #6e7681]Prefill:[/] [#79c0ff]{self.prefix_context}[/]",
                     id="cli-hint",
                 )
             else:
-                yield Static(" [#484f58]No active session context to inject.[/]", id="cli-hint")
+                yield Static(
+                    " [#6e7681]Edit the line, Enter to surface it for your terminal.[/]",
+                    id="cli-hint",
+                )
 
             self._input = Input(
                 value=self.prefix_context if self.prefix_context else "",
-                placeholder="Enter builder command (e.g., 'start --task \"fix login\"')",
+                placeholder="builder command (e.g. session prepare-package --target generic)",
                 id="cli-input",
             )
             yield self._input

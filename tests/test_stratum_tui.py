@@ -142,18 +142,19 @@ async def test_stratum_hitl_informative_refusal():
         app = StratumApp()
         async with app.run_test():
             app.stratum.mode = StratumMode.HITL_GATE
-            with patch.object(app, "notify") as mock_notify:
+            with patch.object(app, "notify") as mock_notify, patch.object(app, "push_screen") as mock_push:
                 app.action_approve_hitl()
-                mock_notify.assert_called_with(
-                    "TUI cannot harvest confirmation for a digest it renders; run `builder-hitl approve-patch` in your terminal instead.",
-                    severity="warning"
-                )
+                approve_msg = mock_notify.call_args[0][0]
+                assert "cannot harvest confirmation" in approve_msg
+                assert "builder-hitl approve-patch" in approve_msg
+                assert mock_notify.call_args.kwargs.get("severity") == "warning"
+                mock_push.assert_called()
 
                 app.action_reject_hitl()
-                mock_notify.assert_called_with(
-                    "STRATUM is display-only and cannot mutate approval state; run `builder-hitl rejection-record` in your terminal instead.",
-                    severity="warning"
-                )
+                reject_msg = mock_notify.call_args[0][0]
+                assert "cannot mutate approval state" in reject_msg
+                assert "builder-hitl rejection-record" in reject_msg
+                assert mock_notify.call_args.kwargs.get("severity") == "warning"
 
 
 # --- STRATUM originates neither writes nor runtimes ---------------------------------------------

@@ -90,12 +90,12 @@ The operator command surface is organized by phase. Every command operates stric
 - **Writes**: Read-only; writes only stdout.
 
 #### STRATUM launcher (experimental)
-- **Command name**: `builder stratum --experimental`
-- **Purpose**: Launch the full Textual STRATUM operator interface.
-- **Status**: Pre-release surface, gated behind the required `--experimental` flag; the command refuses to launch without it. Command tier evaluation is wired to the real command-authority registry. **No chain digest is displayed** — `verify_artifact_chain` exposes none, so the surface renders an explicit absence marker rather than a synthesized value. HITL approve/reject never mutate approval state and are not pending features: a surface that renders a digest must not harvest its confirmation, so they refuse and name the governed CLI (`builder-hitl approve-patch` / `builder-hitl rejection-record`). The HITL diff viewer remains an unimplemented mockup.
-- **Output artifact, if any**: None; terminal UI only.
+- **Command name**: `builder stratum --experimental` (optional `--no-guide` / `--guide`)
+- **Purpose**: Launch the full Textual STRATUM operator console (Mastery Resonance instruments: chain spine, model/agent matrices, workflow lanes, HITL ceremony, command composer, first-session walkthrough).
+- **Status**: Pre-release surface, gated behind the required `--experimental` flag; the command refuses to launch without it. Instruments bind read-only projections over real modules (operator status/next, model client registry, agent profiles, platform audit, tooling health, on-disk artifacts). Command tier evaluation is wired to the real command-authority registry. **No chain digest is displayed** — `verify_artifact_chain` exposes none, so the surface renders an explicit absence marker rather than a synthesized value. HITL approve/reject never mutate approval state and are not pending features: a surface that renders a digest must not harvest its confirmation, so they refuse and prefill the Command Composer with the governed CLI (`builder-hitl approve-patch` / `builder-hitl rejection-record`). Prepare/agents similarly compose only; they never write artifacts or dispatch. The Goose keybinding suspends STRATUM and hands the terminal to `builder-goose start-readonly`. First-session walkthrough auto-opens when `.builder/artifacts` is empty unless opted out (`--no-guide`, `STRATUM_SKIP_GUIDE=1`, or in-app **X** writing `.builder/stratum_guide_dismissed`). In-app **H** is multi-page help; **0** reopens the walkthrough. Operator docs: `docs/STRATUM.md`. The HITL diff viewer remains an unimplemented mockup.
+- **Output artifact, if any**: None; terminal UI only. Optional guide-dismiss marker under `.builder/` is operator preference only (not authority).
 - **Execution authority**: operator-managed presentation layer; runtime-changing operations still require their own governed subcommand boundaries.
-- **Human responsibility**: Launch intentionally from an operator terminal when the full Textual app is desired; use the governed `builder tui` / `builder hitl` inspectors for real read-only status in the meantime.
+- **Human responsibility**: Launch intentionally from an operator terminal when the full Textual app is desired; use the governed `builder tui` / `builder hitl` inspectors for CI-friendly read-only status in the meantime. Follow `docs/STRATUM.md` / in-app walkthrough for first use.
 - **Writes**: No direct source, git, model, Goose, deepagents, or MCP authority at the launcher boundary.
 
 #### Root read-only TUI inspector

@@ -7,7 +7,9 @@ re-run end to end, from a fresh clone, by `scripts/clean-clone-smoke.sh` (see "C
 verified" at the bottom).
 
 For what builder-II is and why it's built this way, read the sections above this one in
-`README.md` first. For the full reference index, see [`docs/README.md`](docs/README.md).
+`README.md` first. For a **new-builder map** (governance mental model, setup order, and how to
+use the STRATUM TUI across the whole platform), see [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md).
+For the full reference index, see [`docs/README.md`](docs/README.md).
 
 ## Trust boundary — read this first
 

@@ -79,6 +79,8 @@ class StratumApp(App[None]):
         Binding("u", "toggle_agents", "Agents", show=True),
         Binding("c", "toggle_platform_audit", "Audit", show=True),
         Binding("w", "toggle_workflow", "Workflow", show=True),
+        Binding("y", "toggle_orchestration", "Orch", show=True),
+        Binding("b", "toggle_code_vault", "Vault", show=True),
         Binding("e", "toggle_quality_gates", "Gates", show=True),
         Binding("t", "toggle_tooling", "Tools", show=True),
         Binding("space", "pin_artifact", "Pin", show=True),
@@ -86,6 +88,10 @@ class StratumApp(App[None]):
         Binding("slash", "toggle_search", "Search", show=True),
         Binding("h", "toggle_help", "Help", show=True),
         Binding("f1", "toggle_help", "Help", show=False),
+        Binding("0", "open_guide", "Guide", show=True),
+        Binding("x", "dismiss_guide", "Dismiss guide", show=False),
+        Binding("left_square_bracket", "help_prev", "Help prev", show=False),
+        Binding("right_square_bracket", "help_next", "Help next", show=False),
         # Pipeline actions
         Binding("p", "prepare_package", "Prepare", show=True),
         Binding("v", "validate_package", "Validate", show=True),
@@ -98,7 +104,14 @@ class StratumApp(App[None]):
         Binding("d", "diff_hitl", "Diff", show=True),
     ]
 
-    def __init__(self, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        show_guide: bool | None = None,
+        skip_guide: bool = False,
+        show_splash: bool = True,
+        **kwargs: Any,
+    ) -> None:
         super().__init__(**kwargs)
         self.settings = load_settings()
         self.artifacts_dir = self.settings.project_root / ".builder" / "artifacts"
@@ -112,6 +125,11 @@ class StratumApp(App[None]):
 
         self._current_session_id = "idle"
         self._hitl_active = False
+        # show_guide=True forces walkthrough; skip_guide/--no-guide opts out
+        self._force_show_guide = bool(show_guide)
+        self._force_skip_guide = bool(skip_guide)
+        self._show_splash = bool(show_splash)
+        self._hitl_notified = False
 
         self._apply_theme()
 
@@ -120,8 +138,9 @@ class StratumApp(App[None]):
 
         from builder_ii.tui_theme import _REGISTRY, active_theme_name, list_themes, theme_extras, theme_palette
 
-        # Register default theme
+        # Register default Cosmic Void theme from palette + extras
         default_palette = _REGISTRY["default"]
+        default_extras = {k: v for k, v in default_palette.items() if k.startswith("_")}
         default_theme = Theme(
             name="builder_default",
             primary=default_palette["active"],
@@ -134,18 +153,18 @@ class StratumApp(App[None]):
                 "stratum-dim": default_palette["dim"],
                 "stratum-bold": default_palette["bold"],
                 "stratum-accent": default_palette["accent"],
-                "stratum-bg": "#0a0e14",
-                "stratum-panel": "#0d1117",
-                "stratum-border": "#21262d",
-                "stratum-panel-light": "#161b22",
-                "stratum-selected": "#1f2937",
-                "stratum-hover": "#1c2333",
-                "stratum-brand": "#79c0ff",
-                "stratum-model": "#7ee787",
-                "stratum-tier": "#ffa657",
-                "stratum-session": "#6e7681",
-                "stratum-selected-text": "#f0f6fc",
-                "stratum-disabled": "#30363d",
+                "stratum-bg": default_extras.get("_bg", "#0a0e14"),
+                "stratum-panel": default_extras.get("_panel", "#0d1117"),
+                "stratum-border": default_extras.get("_border", "#21262d"),
+                "stratum-panel-light": default_extras.get("_panel_light", "#161b22"),
+                "stratum-selected": default_extras.get("_selected", "#1f2937"),
+                "stratum-hover": default_extras.get("_hover", "#1c2333"),
+                "stratum-brand": default_palette["active"],
+                "stratum-model": default_palette["pass"],
+                "stratum-tier": default_palette["warn"],
+                "stratum-session": default_palette["hint"],
+                "stratum-selected-text": default_extras.get("_selected_text", "#f0f6fc"),
+                "stratum-disabled": default_extras.get("_disabled", "#30363d"),
             },
         )
         self.register_theme(default_theme)
@@ -214,16 +233,109 @@ class StratumApp(App[None]):
 
     async def on_mount(self) -> None:
         """Run on startup."""
-        self.notify("STRATUM Operational Surface Active.")
+        self.notify("STRATUM operator console active — observe & compose only.")
 
-        # Display the splash screen
-        from builder_ii.tui.widgets.splash import SplashScreen
+        # Opening splash: hero image ~3s (or any key), then instruments
+        if self._show_splash:
+            from builder_ii.tui.widgets.splash import SplashScreen
 
-        self.push_screen(SplashScreen())
+            try:
+                root = Path(self.settings.project_root)
+            except (TypeError, ValueError):
+                root = None
+            self.push_screen(SplashScreen(project_root=root))
 
         self.title = "STRATUM"
+        if self.spine is not None:
+            self.spine.set_selection_handler(self._on_spine_selection)
+        if self.stratum is not None:
+            try:
+                self.stratum.set_repo_root(Path(self.settings.project_root))
+            except (TypeError, ValueError):
+                pass
         self._refresh_task = asyncio.create_task(self._periodic_refresh())
         self._update_idle_report()
+        self._maybe_open_first_run_guide()
+        self._maybe_surface_hitl()
+
+    def _maybe_open_first_run_guide(self) -> None:
+        from builder_ii.stratum_guide import should_auto_open_guide
+
+        if not self.stratum:
+            return
+        try:
+            root = Path(self.settings.project_root)
+        except (TypeError, ValueError):
+            return
+        try:
+            open_guide = should_auto_open_guide(
+                project_root=root,
+                artifacts_dir=self.artifacts_dir if isinstance(self.artifacts_dir, Path) else None,
+                force_show=self._force_show_guide,
+                force_skip=self._force_skip_guide,
+            )
+        except (TypeError, OSError):
+            return
+        if open_guide:
+            self.stratum.mode = StratumMode.GUIDE
+            self.notify(
+                "First-session walkthrough — press X to opt out of auto-open, 0 anytime.",
+                timeout=6,
+            )
+
+    def action_open_guide(self) -> None:
+        if self.stratum:
+            self.stratum.mode = (
+                StratumMode.IDLE if self.stratum.mode == StratumMode.GUIDE else StratumMode.GUIDE
+            )
+
+    def action_dismiss_guide(self) -> None:
+        from builder_ii.stratum_guide import dismiss_guide
+
+        if not self.stratum or self.stratum.mode != StratumMode.GUIDE:
+            return
+        path = dismiss_guide(self.settings.project_root)
+        self.stratum.mode = StratumMode.IDLE
+        self.notify(f"Walkthrough auto-open dismissed ({path.name}). Press 0 anytime to reopen.")
+
+    def action_help_next(self) -> None:
+        if self.stratum and self.stratum.mode == StratumMode.HELP:
+            self.stratum.cycle_help_page(1)
+
+    def action_help_prev(self) -> None:
+        if self.stratum and self.stratum.mode == StratumMode.HELP:
+            self.stratum.cycle_help_page(-1)
+
+    def _on_spine_selection(self, stage: dict[str, str] | None) -> None:
+        """Auto-inspect selected spine stage (progressive disclosure)."""
+        if not stage or not self.stratum:
+            return
+        # Only auto-inspect when already inspecting or idle — do not yank operator out of instruments
+        if self.stratum.mode not in (StratumMode.IDLE, StratumMode.ARTIFACT_INSPECT):
+            return
+        self._inspect_stage(stage)
+
+    def _inspect_stage(self, stage: dict[str, str]) -> None:
+        if not self.stratum:
+            return
+        from builder_ii.tui.projections.chain import find_artifact_for_kind, find_artifact_path_for_kind
+
+        kind = stage.get("kind", "")
+        artifact_data = find_artifact_for_kind(self.artifacts_dir, kind)
+        path = find_artifact_path_for_kind(self.artifacts_dir, kind)
+        if artifact_data:
+            self.stratum.inspect_artifact(artifact_data, path=str(path) if path else None)
+        else:
+            self.stratum.inspect_artifact(
+                {
+                    "status": "awaiting_generation",
+                    "kind": kind,
+                    "message": (
+                        f"The '{stage.get('label')}' artifact has not been generated "
+                        "for this session yet."
+                    ),
+                }
+            )
 
     async def _periodic_refresh(self) -> None:
         """Poll for artifact and event changes."""
@@ -236,9 +348,24 @@ class StratumApp(App[None]):
 
             # Re-verify chain to update chain digest asynchronously
             await self._verify_current_chain_async()
+            self._maybe_surface_hitl(quiet=True)
 
             if self.banner:
                 self.banner.refresh()
+
+    def _maybe_surface_hitl(self, *, quiet: bool = False) -> None:
+        """Reflect pending HITL on the signal rail; notify once. Never auto-steal focus mid-instrument."""
+        from builder_ii.tui.projections.gates import scan_pending_hitl
+
+        open_, label = scan_pending_hitl(self.artifacts_dir)
+        if self.signals:
+            self.signals.update_gate(open_, label)
+        self._hitl_active = open_
+        if open_ and not self._hitl_notified and not quiet:
+            self._hitl_notified = True
+            self.notify(f"HITL pending: {label} — press I to inspect or open HITL instrument", severity="warning")
+        if not open_:
+            self._hitl_notified = False
 
     async def _verify_current_chain_async(self) -> None:
         """Run verify_artifact_chain on current artifacts asynchronously in a thread."""
@@ -336,15 +463,17 @@ class StratumApp(App[None]):
             )
 
         def on_selected(cmd_name: str | None) -> None:
-            # The palette is a tier-permission *inspector*. Selecting a row used to say
-            # "Executing: <cmd>" beside a comment reading "Real implementation would trigger the
-            # command logic here" -- it announced an execution that never happened. STRATUM runs no
-            # command, so it says what it did: it looked one up.
+            # Palette is a tier inspector. Selection composes for the operator; never executes.
             if cmd_name:
                 decision = check_command_authority(cmd_name)
                 verdict = "permitted" if decision.allowed else "refused"
                 reason = f" ({', '.join(decision.reasons)})" if decision.reasons else ""
-                self.notify(f"{cmd_name}: {verdict}{reason}. Run it in your terminal.")
+                self.notify(f"{cmd_name}: {verdict}{reason}.")
+                if decision.allowed:
+                    self.push_screen(
+                        CLIPassthroughScreen(prefix_context=cmd_name),
+                        self._show_composed_command,
+                    )
 
         self.push_screen(CommandPaletteScreen(commands=cmds), on_selected)
 
@@ -367,7 +496,10 @@ class StratumApp(App[None]):
         launder. So the screen composes, and the operator runs.
         """
         if cmd:
-            self.notify(f"Composed: builder {cmd} — run it in your terminal; STRATUM executes nothing.")
+            from builder_ii.stratum_guide import normalize_composed_command
+
+            display = normalize_composed_command(cmd)
+            self.notify(f"Composed: {display} — run it in your terminal; STRATUM executes nothing.")
 
     def action_go_back(self) -> None:
         """Universal 'Back' / 'Clear' action to return to the default view."""
@@ -398,24 +530,35 @@ class StratumApp(App[None]):
                 self.stratum.mode = StratumMode.MODEL_MATRIX
 
     def action_toggle_agents(self) -> None:
-        """Toggle agents profile view in the center panel."""
+        """Show agent roster; second press opens compose picker for assignment."""
+        from builder_ii.tui.projections.agents import compose_assign_command
         from builder_ii.tui.widgets.teaming import DeepAgentTeamingScreen
 
-        def on_dispatch(selected_agents: list[str]) -> None:
-            # This announced a dispatch and wrote `orchestration_assignment.json` under a bare
-            # assignment kind. Nothing was dispatched, and that kind does not exist -- the governed
-            # one carries a `_plan` suffix. So
-            # the TUI fabricated a success, invented an artifact kind to record it under, and wrote
-            # the result somewhere nothing reads. Fabricated success is the defect Ladder 4 removed
-            # from `deepagents_runtime`; it does not get to live on behind a keybinding.
-            if selected_agents:
-                self.notify(
-                    "STRATUM cannot dispatch subagents or write assignment artifacts; run "
-                    "`builder-deepagents assign-subagent` in your terminal.",
-                    severity="warning",
-                )
+        if self.stratum and self.stratum.mode != StratumMode.AGENT_PROFILES:
+            self.stratum.mode = StratumMode.AGENT_PROFILES
+            return
 
-        self.push_screen(DeepAgentTeamingScreen(), on_dispatch)
+        def on_compose(selected_agents: list[str]) -> None:
+            # Constitutive refusal to dispatch — compose the governed CLI only.
+            if not selected_agents:
+                if self.stratum and self.stratum.mode == StratumMode.AGENT_PROFILES:
+                    self.stratum.mode = StratumMode.IDLE
+                return
+            target = self.settings.core_repo.name if self.settings else "generic"
+            profile = selected_agents[0]
+            cmd = compose_assign_command(profile, target=target)
+            # compose_assign_command returns full binary name; strip for composer prefix style
+            prefill = cmd.removeprefix("builder-deepagents ").removeprefix("builder ")
+            if cmd.startswith("builder-deepagents"):
+                prefill = cmd
+            self.notify(
+                "STRATUM cannot dispatch subagents or write assignment artifacts; "
+                "composed assign-subagent for your terminal.",
+                severity="warning",
+            )
+            self.push_screen(CLIPassthroughScreen(prefix_context=prefill), self._show_composed_command)
+
+        self.push_screen(DeepAgentTeamingScreen(), on_compose)
 
     def action_toggle_platform_audit(self) -> None:
         if self.stratum:
@@ -426,6 +569,18 @@ class StratumApp(App[None]):
     def action_toggle_workflow(self) -> None:
         if self.stratum:
             self.stratum.mode = StratumMode.IDLE if self.stratum.mode == StratumMode.WORKFLOW else StratumMode.WORKFLOW
+
+    def action_toggle_orchestration(self) -> None:
+        if self.stratum:
+            self.stratum.mode = (
+                StratumMode.IDLE if self.stratum.mode == StratumMode.ORCHESTRATION else StratumMode.ORCHESTRATION
+            )
+
+    def action_toggle_code_vault(self) -> None:
+        if self.stratum:
+            self.stratum.mode = (
+                StratumMode.IDLE if self.stratum.mode == StratumMode.CODE_VAULT else StratumMode.CODE_VAULT
+            )
 
     def action_toggle_quality_gates(self) -> None:
         if self.stratum:
@@ -447,33 +602,10 @@ class StratumApp(App[None]):
         """Pin the selected artifact from the spine into the center panel."""
         if not self.spine or not self.stratum:
             return
-
         selected = self.spine.get_selected_artifact()
         if not selected:
             return
-
-        kind = selected.get("kind", "")
-
-        # Try to find it on disk
-        artifact_data = None
-        for path in self.artifacts_dir.glob("*.json"):
-            try:
-                data = json.loads(path.read_text())
-                if data.get("kind") == kind:
-                    artifact_data = data
-                    break
-            except Exception:
-                continue
-
-        if artifact_data:
-            self.stratum.inspect_artifact(artifact_data)
-        else:
-            self.stratum.inspect_artifact(
-                {
-                    "status": "awaiting_generation",
-                    "message": f"The '{selected.get('label')}' artifact has not been generated for this session yet.",
-                }
-            )
+        self._inspect_stage(selected)
 
     # ── Pipeline Actions ──────────────────────────────────────────────────
 
@@ -481,25 +613,30 @@ class StratumApp(App[None]):
         from builder_ii.tui.widgets.workspace_builder import SessionBuilderScreen
 
         def on_save(config: dict[str, Any]) -> None:
-            # This used to write `session_config.json` into the artifact root, tagged
-            # under a session-config kind that is registered nowhere (the governed one is
-            # SESSION_CONFIG_KIND in `session_config.py`), and that nothing
-            # outside this TUI ever read. So the record's "No direct write authority at TUI render
-            # level" was false, and the bytes it wrote were not a governed artifact by any
-            # definition. The screen still collects the operator's choices; emitting them is the
-            # governed CLI's job, and only its job.
-            if config:
-                self.notify(
-                    "STRATUM does not write artifacts; run `builder-session prepare-package` "
-                    "in your terminal to emit a governed session package.",
-                    severity="warning",
-                )
+            # Collect choices only; emit is the governed CLI's job.
+            if not config:
+                return
+            compose = str(config.get("compose_command") or "builder-session prepare-package")
+            self.notify(
+                "STRATUM does not write artifacts; run `builder-session prepare-package` "
+                "in your terminal (Command Composer prefilled).",
+                severity="warning",
+            )
+            self.push_screen(CLIPassthroughScreen(prefix_context=compose), self._show_composed_command)
 
         self.push_screen(SessionBuilderScreen(), on_save)
 
     async def action_validate_package(self) -> None:
-        self.notify("Validating package...")
+        """Re-verify on-disk chain; also offer the governed validate-prepare-package compose line."""
+        self.notify("Re-checking artifact chain on disk…")
         await self._verify_current_chain_async()
+        # Compose the real package validator — operator runs it; STRATUM does not write.
+        self.push_screen(
+            CLIPassthroughScreen(
+                prefix_context="uv run builder-session validate-prepare-package .builder/session"
+            ),
+            self._show_composed_command,
+        )
 
     # Fixed argv into builder-II's own governed CLI. Never `goose` directly, and never
     # `goose_launcher.launch_goose_session` -- that spawns `goose session --with-builtin
@@ -613,19 +750,49 @@ class StratumApp(App[None]):
     # ── HITL Actions ──────────────────────────────────────────────────────
 
     def action_approve_hitl(self) -> None:
-        if not self.stratum or self.stratum.mode != StratumMode.HITL_GATE:
+        if not self.stratum:
             return
-        self.notify("TUI cannot harvest confirmation for a digest it renders; run `builder-hitl approve-patch` in your terminal instead.", severity="warning")
+        if self.stratum.mode != StratumMode.HITL_GATE and not self.stratum.try_bind_pending_hitl():
+            self.notify("No HITL gate open to approve.", severity="warning")
+            return
+        self.notify(
+            "TUI cannot harvest confirmation for a digest it renders; "
+            "composing `builder-hitl approve-patch` for your terminal.",
+            severity="warning",
+        )
+        self.push_screen(
+            CLIPassthroughScreen(prefix_context="uv run builder-hitl approve-patch"),
+            self._show_composed_command,
+        )
 
     def action_reject_hitl(self) -> None:
-        if not self.stratum or self.stratum.mode != StratumMode.HITL_GATE:
+        if not self.stratum:
             return
-        self.notify("STRATUM is display-only and cannot mutate approval state; run `builder-hitl rejection-record` in your terminal instead.", severity="warning")
+        if self.stratum.mode != StratumMode.HITL_GATE and not self.stratum.try_bind_pending_hitl():
+            self.notify("No HITL gate open to reject.", severity="warning")
+            return
+        self.notify(
+            "STRATUM is display-only and cannot mutate approval state; "
+            "composing `builder-hitl rejection-record` for your terminal.",
+            severity="warning",
+        )
+        self.push_screen(
+            CLIPassthroughScreen(prefix_context="uv run builder-hitl rejection-record"),
+            self._show_composed_command,
+        )
 
     def action_inspect_hitl(self) -> None:
-        if self.stratum and self.stratum.mode == StratumMode.HITL_GATE:
-            artifact = self.stratum._hitl_proposal.get("artifact", {})
-            self.stratum.inspect_artifact(artifact)
+        if not self.stratum:
+            return
+        if self.stratum.mode != StratumMode.HITL_GATE:
+            # Progressive: I binds pending HITL if present
+            if self.stratum.try_bind_pending_hitl():
+                return
+            self.notify("No pending HITL proposal on disk.", severity="warning")
+            return
+        artifact = self.stratum._hitl_proposal.get("artifact", {})
+        path = self.stratum._hitl_proposal.get("path")
+        self.stratum.inspect_artifact(artifact, path=str(path) if path else None)
 
     def action_diff_hitl(self) -> None:
         self.notify(f"{STRATUM_UNIMPLEMENTED_SURFACES[0]} is not implemented in this surface.")
