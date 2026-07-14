@@ -1,0 +1,46 @@
+{
+  "kind": "builder_ii.wrp.maker_candidate_manifest",
+  "artifact_state": "EXCHANGE_ONLY",
+  "wave": "mastery/S4-readiness",
+  "scope": "planning_evidence_human_handoff",
+  "self_certified": false,
+  "requires_governor_cert": false,
+  "grants_authority": false,
+  "s4_promoted": false,
+  "s3_enabled": false,
+  "decision_approved": false,
+  "decided_by": "PENDING_HUMAN",
+  "runtime_code_changed": false,
+  "backends": [
+    "modernbert_embed",
+    "opa",
+    "langgraph",
+    "vllm_research"
+  ],
+  "artifacts": [
+    "planning/evidence/s4_review_summary.md",
+    "planning/evidence/wrp_s4_promotion_gate_audit.json",
+    "planning/evidence/wrp_s4_modernbert_embed_readiness.json",
+    "planning/evidence/wrp_s4_modernbert_embed_decision.json",
+    "planning/evidence/wrp_s4_opa_readiness.json",
+    "planning/evidence/wrp_s4_opa_decision.json",
+    "planning/evidence/wrp_s4_langgraph_readiness.json",
+    "planning/evidence/wrp_s4_langgraph_decision.json",
+    "planning/evidence/wrp_s4_vllm_research_readiness.json",
+    "planning/evidence/wrp_s4_vllm_research_decision.json",
+    "artifacts/wrp_exchange/mastery/S4-readiness/README.md",
+    "artifacts/wrp_exchange/mastery/S4-readiness/GOVERNOR_PROMPT.md",
+    "builder_ii/wrp/s4_readiness.py",
+    "docs/WRP_MASTERY_PROGRESS.md",
+    "docs/WRP_MASTERY_GAP_MATRIX.md",
+    "docs/WRP_CONTROL_PLANE.md"
+  ],
+  "test_commands": [
+    "uv run pytest tests/test_wrp_s4_readiness_drafts.py tests/test_wrp_backend_registry.py -q",
+    "uv run builder-promotion validate planning/evidence/wrp_s4_opa_readiness.json",
+    "uv run builder-promotion-decision validate planning/evidence/wrp_s4_opa_decision.json",
+    "uv run builder-wrp doctor-backends",
+    "uv run builder-platform audit-docs"
+  ],
+  "notes": "Maker HUMAN-handoff package for S4 readiness review only. Decisions remain blocked/PENDING_HUMAN. No G-LEAD cert committed by Maker. No enablement. HUMAN decides each backend independently. Dual-platform G-LEAD optional this phase."
+}

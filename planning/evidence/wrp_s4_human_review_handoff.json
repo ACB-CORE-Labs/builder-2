@@ -1,0 +1,66 @@
+{
+  "kind": "builder_ii.wrp.s4_human_review_handoff",
+  "schema_version": 1,
+  "record_state": "RECORDED_ONLY",
+  "wave": "S4 readiness HUMAN review packages",
+  "status": "READY_FOR_HUMAN_REVIEW",
+  "grants_authority": false,
+  "s4_promoted": false,
+  "s3_enabled": false,
+  "engine_started": false,
+  "cloud_invoke": false,
+  "bulk_approve_forbidden": true,
+  "human_decision_required": true,
+  "decision_approved": false,
+  "decided_by": "PENDING_HUMAN",
+  "backends": [
+    {
+      "id": "modernbert_embed",
+      "readiness": "planning/evidence/wrp_s4_modernbert_embed_readiness.json",
+      "decision": "planning/evidence/wrp_s4_modernbert_embed_decision.json",
+      "decision_state": "blocked",
+      "approved": false
+    },
+    {
+      "id": "opa",
+      "readiness": "planning/evidence/wrp_s4_opa_readiness.json",
+      "decision": "planning/evidence/wrp_s4_opa_decision.json",
+      "decision_state": "blocked",
+      "approved": false
+    },
+    {
+      "id": "langgraph",
+      "readiness": "planning/evidence/wrp_s4_langgraph_readiness.json",
+      "decision": "planning/evidence/wrp_s4_langgraph_decision.json",
+      "decision_state": "blocked",
+      "approved": false
+    },
+    {
+      "id": "vllm_research",
+      "readiness": "planning/evidence/wrp_s4_vllm_research_readiness.json",
+      "decision": "planning/evidence/wrp_s4_vllm_research_decision.json",
+      "decision_state": "blocked",
+      "approved": false
+    }
+  ],
+  "summary": "planning/evidence/s4_review_summary.md",
+  "gate_audit": "planning/evidence/wrp_s4_promotion_gate_audit.json",
+  "exchange_package": "artifacts/wrp_exchange/mastery/S4-readiness/",
+  "governor_prompt": "artifacts/wrp_exchange/mastery/S4-readiness/GOVERNOR_PROMPT.md",
+  "honesty_locks": {
+    "readiness.ready": "evidence refs present for review",
+    "decision.approved": false,
+    "decision.decided_by": "PENDING_HUMAN",
+    "s4_promoted": false,
+    "s3_enabled": false,
+    "enablement": "none",
+    "engine_start": "none",
+    "cloud_invoke": "none",
+    "bulk_s4_flip": "forbidden"
+  },
+  "prerequisite_main": {
+    "w6_s4_drafts": "#155",
+    "v5_workbench_boundary": "#156"
+  },
+  "notes": "Handoff index for HUMAN eight-gate review per backend. READY_FOR_HUMAN_REVIEW means packages are assembled — not that any backend is promoted. Do not treat this file as a promotion decision."
+}
