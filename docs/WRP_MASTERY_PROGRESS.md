@@ -25,7 +25,7 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | P7 ceremony + W5 | P7 | **LANDED (substrate)** | #148 W5 repo-state + ceremony template |
 | Post-P6 PARTIAL harden | — | **LANDED (this wave)** | Class U adaptivity; handoff-measure; fleet plan annotation; agent-factory plan CLI; msda-status |
 
-**Cursor (now):** #153 on main (W.4+V.3). Next: **W.5 AgentFactory lifecycle** + **V.4 CORE profile only** (this PR). S3 blocked. S4 OPEN.
+**Cursor (now):** #154 on main (W.5+V.4). Next: **W.6 S4 readiness drafts** (this PR). S3 blocked. S4 promo OPEN (drafts only).
 
 ---
 
@@ -36,7 +36,7 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | S1 | Bound recommendations (flagged) | **Approved** — flags still required |
 | S2 | HITL live lane | **Approved** v1+v2 — `hitl_runtime_candidate` |
 | S3 | Scoped multi-agent `enabled` | **HUMAN blocked** — no enablement |
-| S4 | Backend promotions | **OPEN** — P6 interfaces only |
+| S4 | Backend promotions | **OPEN** — W.6 readiness/decision *drafts* present; HUMAN decide each; no promo flip |
 
 ---
 
@@ -68,7 +68,8 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | #151 | W.2 MSDA Option A + V.1 semantic RO | merged |
 | #152 | W.3 fleet-fidelity + V.2 agent RO | merged |
 | #153 | W.4 patterns-prove + V.3 fixed-argv | merged |
-| (open) | W.5 AgentFactory lifecycle + V.4 CORE profile | `feat/wrp-w5-v4-agent-factory-core-profile` |
+| #154 | W.5 AgentFactory lifecycle + V.4 CORE profile | merged |
+| (open) | W.6 S4 readiness drafts | `feat/wrp-w6-s4-readiness-drafts` |
 
 Exchange: `artifacts/wrp_exchange/mastery/{P0,…,P6}/`.
 

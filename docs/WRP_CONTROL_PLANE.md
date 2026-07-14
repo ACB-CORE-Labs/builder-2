@@ -37,7 +37,7 @@ Eight promotion gates are the **mechanism** of enablement, not a permanent stop.
 | S1 | Recommendations **bound** into routing / assignment dry-run | **Decided approved** on main (`planning/evidence/wrp_s1_decision.json`); flags still required for bind |
 | S2 | HITL live lane (`builder-wrp run-approved`) | **Decided approved** (v1 + v2 gateway nodes on main); forced MSDA; default gateway `record`; not S3 |
 | S3 | Scoped `enabled` for declared profiles | **HUMAN blocked** (`planning/evidence/wrp_s3_decision.json`) after readiness G-LEAD PASS — Class U micro-only (H7); no enablement runtime |
-| S4 | Backend promotions (embed / OPA / vLLM research) | Open — P6 interfaces/stubs exist; no promotion decision |
+| S4 | Backend promotions (embed / OPA / LangGraph / vLLM research) | Open — W.6 readiness+decision *drafts* under `planning/evidence/wrp_s4_*` (`builder-wrp s4-readiness draft`); HUMAN decides each; `s4_promoted=false` |
 
 ## Live lane contract (S2 v1 — code present; decision may still be pending)
 

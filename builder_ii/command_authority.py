@@ -717,6 +717,9 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp msda-status",
     "builder-wrp backends",
     "builder-wrp doctor-backends",
+    "builder-wrp s4-readiness",
+    "builder-wrp s4-readiness list",
+    "builder-wrp s4-readiness draft",
     "builder-wrp fleet-fidelity",
     "builder-wrp patterns-prove",
     "builder-semantic",
@@ -3748,6 +3751,54 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints default_runtime_ok + per-backend health; exits 1 if defaults unhealthy.",
         failure_mode="Exits non-zero only when default (hash/MSDA) paths are not ready.",
         notes="Does not install deps or promote S4; never starts vLLM.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp s4-readiness",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Delegates S4 readiness draft list/draft subcommands (validation_only).",
+        write_boundary="No direct write authority at group root.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Delegated to subcommands.",
+        output_behavior="Dispatches to s4-readiness subcommands.",
+        failure_mode="Exits non-zero on failure.",
+        notes="W.6 group wrapper. Not S4 promo flip; not engine start.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp s4-readiness list",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="List opt-in/research backends eligible for S4 readiness drafts.",
+        write_boundary="Writes list JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints modernbert_embed, opa, langgraph, vllm_research.",
+        failure_mode="Exits non-zero on emit failure.",
+        notes="Defaults excluded; no promotion.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp s4-readiness draft",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "W.6: emit per-backend S4 readiness + decision *draft* package "
+            "(decision always blocked / PENDING_HUMAN). Optional --write-evidence under "
+            "planning/evidence. Does not promote S4, start engines, or enable S3."
+        ),
+        write_boundary=(
+            "Writes draft package JSON when --output set; writes readiness/decision/gate "
+            "audit files only with --write-evidence."
+        ),
+        approval_mode=MODE_NONE,
+        approval_boundary="None. HUMAN eight-gate later per backend — drafts are not approval.",
+        output_behavior="Prints ok/backend_id; exits non-zero if honesty pins fail.",
+        failure_mode="Exits non-zero on unknown backend or inflated s4_promoted/approved flags.",
+        notes="Draft substrate only; each backend needs independent HUMAN decision.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(

@@ -1,0 +1,56 @@
+{
+  "artifacts": {
+    "langgraph": {
+      "decision": "planning/evidence/wrp_s4_langgraph_decision.json",
+      "readiness": "planning/evidence/wrp_s4_langgraph_readiness.json"
+    },
+    "modernbert_embed": {
+      "decision": "planning/evidence/wrp_s4_modernbert_embed_decision.json",
+      "readiness": "planning/evidence/wrp_s4_modernbert_embed_readiness.json"
+    },
+    "opa": {
+      "decision": "planning/evidence/wrp_s4_opa_decision.json",
+      "readiness": "planning/evidence/wrp_s4_opa_readiness.json"
+    },
+    "vllm_research": {
+      "decision": "planning/evidence/wrp_s4_vllm_research_decision.json",
+      "readiness": "planning/evidence/wrp_s4_vllm_research_readiness.json"
+    }
+  },
+  "backends": [
+    "modernbert_embed",
+    "opa",
+    "langgraph",
+    "vllm_research"
+  ],
+  "eight_gates": {
+    "1_docs": "DRAFT: docs list S4 OPEN; no inflated promoted claims",
+    "2_tests": "DRAFT: registry + s4 draft tests required before HUMAN review",
+    "3_surface": "DRAFT: builder-wrp s4-readiness draft (validation_only)",
+    "4_failure": "DRAFT: decision defaults blocked; s4_promoted=false",
+    "5_human": "DRAFT: HUMAN eight-gate per backend \u2014 not bulk approve",
+    "6_digest": "DRAFT: readiness/decision JSON pairs under planning/evidence",
+    "7_rollback": "DRAFT: delete planning/evidence wrp_s4_* files",
+    "8_verification": "DRAFT: builder-promotion validate + doctor-backends + audit-docs"
+  },
+  "gate_audit_path": "planning/evidence/wrp_s4_promotion_gate_audit.json",
+  "grants_authority": false,
+  "honesty_locks": {
+    "cloud_invoke": "none",
+    "decision.approved": false,
+    "decision.decided_by": "PENDING_HUMAN",
+    "enablement": "none",
+    "engine_start": "none",
+    "readiness.ready": "per-backend evidence refs present for review",
+    "s4_promo_flip": "OPEN"
+  },
+  "human_decision_required": true,
+  "kind": "builder_ii.wrp.s4_promotion_gate_audit",
+  "notes": "W.6 skeleton only. Not G-LEAD PASS. Not HUMAN approval. Each backend needs its own later decision ceremony.",
+  "role": "MAKER_DRAFT",
+  "s3_enabled": false,
+  "s4_promoted": false,
+  "schema_version": 1,
+  "status": "DRAFT",
+  "wave": "S4 readiness drafts (planning/evidence only)"
+}
