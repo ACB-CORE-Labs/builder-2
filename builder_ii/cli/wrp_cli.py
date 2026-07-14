@@ -499,6 +499,26 @@ def doctor_backends_cmd(
     )
 
 
+@wrp_app.command("fleet-fidelity")
+def fleet_fidelity_cmd(
+    allocation: Path = typer.Option(..., "--allocation", exists=True, dir_okay=False),
+    plan: Path = typer.Option(..., "--plan", exists=True, dir_okay=False),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """W.3: check fleet_binding fidelity allocation → live_run_plan (validation only)."""
+    from builder_ii.wrp.allocation_optimizer import fleet_fidelity_report
+
+    alloc = _read_json(allocation)
+    live_plan = _read_json(plan)
+    art = fleet_fidelity_report(alloc, live_plan)
+    _emit(art, output)
+    if not art.get("ok"):
+        for err in art.get("errors") or []:
+            console.print(f"[red]fidelity: {err}[/]")
+        raise typer.Exit(1)
+    console.print("[green]fleet-fidelity ok (alias/budget/risk/binds_session_routing)[/]")
+
+
 @wrp_app.command("plan-live")
 def plan_live_cmd(
     task: str = typer.Option(..., "--task", "-t"),

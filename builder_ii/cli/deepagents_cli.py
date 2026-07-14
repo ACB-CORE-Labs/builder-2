@@ -278,6 +278,54 @@ def delegate() -> None:
     raise typer.Exit(1)
 
 
+@deepagents_app.command("run-readonly")
+def run_readonly(
+    profile: str = typer.Option(
+        "code_reviewer",
+        "--profile",
+        "-p",
+        help="read_only agent profile (code_reviewer, repo_mapper, …)",
+    ),
+    task: str = typer.Option(..., "--task", "-t"),
+    repo: Path = typer.Option(Path("."), "--repo", exists=True, file_okay=False),
+    target: str = typer.Option("builder", "--target"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """V.2: RO agent inspection via shared runner (not native deepagents construction).
+
+    Does not enable ``delegate``. Stamps read_only_runtime_candidate only.
+    """
+    import json as json_lib
+
+    from builder_ii.agent_readonly_runner import AgentReadonlyError, run_readonly_agent
+    from builder_ii.cli.plain_stdout import echo_stdout
+
+    try:
+        receipt = run_readonly_agent(
+            profile_name=profile,
+            task=task,
+            repo_path=repo,
+            target_name=target,
+        )
+    except (AgentReadonlyError, KeyError, ValueError) as exc:
+        console.print(f"[red]run-readonly refused: {exc}[/]")
+        raise typer.Exit(1) from exc
+    if receipt.get("constructs_deepagents") is not False:
+        console.print("[red]constructs_deepagents must be false[/]")
+        raise typer.Exit(1)
+    text = json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n"
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding="utf-8")
+        console.print(f"[green]Wrote {output}[/]")
+    else:
+        echo_stdout(text)
+    console.print(
+        f"[green]deepagents run-readonly ok profile={receipt.get('profile_name')} "
+        f"(no construction/delegate)[/]"
+    )
+
+
 # Goal 3 Commands
 
 

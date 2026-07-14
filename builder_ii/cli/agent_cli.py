@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json as json_lib
 from pathlib import Path
 
 import typer
@@ -23,7 +24,9 @@ from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.config import load_settings
 from builder_ii.target_profiles import TargetName, target_profile
 
-agent_app = typer.Typer(help="Inspect and render generic builder-II agent profiles.")
+agent_app = typer.Typer(
+    help="Inspect/render agent profiles; RO run candidate (read_only profiles only)."
+)
 console = Console()
 _VALID_AGENTS = {profile.name for profile in agent_profiles()}
 _VALID_TARGETS: set[str] = {"generic", "builder", "core"}
@@ -127,3 +130,46 @@ def artifact(
         console.print(f"Agent profile record written to {output}")
     else:
         echo_stdout(dumps_agent_profile_record(record))
+
+
+@agent_app.command("run")
+def run_cmd(
+    profile: str = typer.Option(..., "--profile", "-p", help="Agent profile (read_only only)"),
+    task: str = typer.Option(..., "--task", "-t", help="Inspection task text"),
+    read_only: bool = typer.Option(True, "--read-only/--no-read-only", help="Must be true for V.2"),
+    repo: Path = typer.Option(Path("."), "--repo", exists=True, file_okay=False),
+    target: str = typer.Option("builder", "--target"),
+    max_files: int = typer.Option(100, "--max-files", min=1, max=500),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """V.2: RO agent inspection candidate (code_reviewer/repo_mapper only).
+
+    Requires --read-only. No deepagents construction, shell, writes, or model invoke.
+    """
+    from builder_ii.agent_readonly_runner import AgentReadonlyError, run_readonly_agent
+
+    if not read_only:
+        console.print("[red]V.2 agent run requires --read-only (no write/shell path)[/]")
+        raise typer.Exit(1)
+    try:
+        receipt = run_readonly_agent(
+            profile_name=_normalize_agent(profile),
+            task=task,
+            repo_path=repo,
+            target_name=_normalize_target(target),
+            max_files=max_files,
+        )
+    except AgentReadonlyError as exc:
+        console.print(f"[red]RO run refused: {exc}[/]")
+        raise typer.Exit(1) from exc
+    text = json_lib.dumps(receipt, indent=2, sort_keys=True) + "\n"
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(text, encoding="utf-8")
+        console.print(f"[green]Wrote RO receipt {output}[/]")
+    else:
+        echo_stdout(text)
+    console.print(
+        f"[green]RO run profile={receipt.get('profile_name')} "
+        f"status={receipt.get('status')} deepagents={receipt.get('constructs_deepagents')}[/]"
+    )

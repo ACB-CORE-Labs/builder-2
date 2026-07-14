@@ -35,7 +35,8 @@
 | WorkloadClassifier + embed wire | `LANDED` | P2/P6 | hash default; modernbert fail-closed |
 | Collaboration handoff zero-loss + &lt;50ms local | `LANDED` | P2.1 | `measure_handoff_overhead` + `builder-wrp handoff-measure` (local pure scope) |
 | Fleet allocation ±10% | `LANDED` | P2.2 | stress tests |
-| Fleet binding drives plan annotation | `LANDED` | P2.2 | `selected_alias` → record-mode `model_gateway` payload; **not** provider authority |
+| Fleet binding drives plan annotation | `LANDED` | P2.2 / W.3 | annotation + `check_fleet_plan_fidelity` / `builder-wrp fleet-fidelity`; **not** provider session authority |
+| Agent RO runner candidate | `LANDED` | V.2 | `builder-agent run --read-only` + `builder-deepagents run-readonly`; `read_only_runtime_candidate`; no delegate |
 | MSDA gates + OPA | `LANDED` | P2.3/P6 | pure + optional opa |
 | MSDA preflight before all invokes | `PARTIAL` | P2.3 / W.2 | Option A policy: live/gateway nodes forced; env default off; tool/model receipts annotate `skipped_default_off`; no soft default-on (`docs/plan/WRP_MSDA_PREFLIGHT_POLICY.md`) |
 | Semantic/structural RO doctor/map/preview | `LANDED` | V.1 | `builder-semantic` + `semantic_readonly.py` (repo_map based; serena/ast-grep detect-only; no rewrite) |
