@@ -5,6 +5,9 @@
 
 This document answers: **who works, on what, when, in parallel with whom, and what Antigravity/Gemini owns.**
 
+**Living progress marker (what is done / where we are / hiccups):** [`docs/WRP_MASTERY_PROGRESS.md`](WRP_MASTERY_PROGRESS.md).  
+Historical “parallel now” tables below may lag; do not treat §4.2 as the current cursor after P5.
+
 ---
 
 ## 1. Agent roster and excellence bar
@@ -101,13 +104,16 @@ Only **M-LEAD** may edit (one writer at a time):
                     │
          ┌──────────┴──────────┐
          ▼                     ▼
-    P4 R* apply           P6 backends (M-FAST adapters)
-         │                     │
-         └──────────┬──────────┘
-                    ▼
-              P5 Class U + S3 (M-LEAD + G-LEAD)
-                    ▼
-              P7 ceremony + W5 final (G-LEAD sign-off)
+    P4 R* apply [DONE #142]   P6 backends (M-FAST) [OPEN]
+         │
+         ▼
+    P5 Class U [DONE #144]
+         │
+         ▼
+    S3 scoped enabled [OPEN — HUMAN eight-gate; U numbers available]
+         │
+         ▼
+    P7 ceremony + W5 final [PARTIAL/OPEN]
 ```
 
 ### 4.2 What runs **in parallel right now** (post-P0 package)

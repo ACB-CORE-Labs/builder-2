@@ -3,9 +3,19 @@
 **Status:** RECORDED_ONLY gap ledger (not a promotion grant).  
 **Sources:** CORE R&D Blueprint (geometry-first WRP); Multi-Platform Execution Master-Plan (Grok + Antigravity).  
 **Charter:** session absolute-mastery plan (supersedes passive-only stop).  
-**Current capability (truth):** `artifact_only` / `validation_only` / `recommendation_only` — **not** live-enabled.
+**Current capability (truth):** `artifact_only` / `validation_only` / `recommendation_only` + S2/P4 **HITL candidates** — **not** S3 live-enabled multi-agent.
+
+**Progress marker (living cursor):** [`docs/WRP_MASTERY_PROGRESS.md`](WRP_MASTERY_PROGRESS.md) — what is DONE, where we stand after #144, hiccups/concerns.
 
 Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substrate is **failure**.
+
+### Pipeline cursor (summary)
+
+```text
+[x] P0  [x] P2 pure/wires  [x] S1 decided  [x] S2 v1 decided  [x] S2 v2 code
+[x] P4 R* apply  [x] P5 Class U numbers
+[ ] S3 scoped enabled  [ ] P6 backends (heavy)  [ ] P7 W5 repo-state / full ceremony
+```
 
 ## Legend
 
@@ -26,12 +36,12 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | Advisory WRP annotation in model_router / dry-run | `LANDED` | P1 S1 | **S1 decided (approved on main):** bind when `require_wrp_binding` / `BUILDER_II_WRP_BIND` / dry-run `require_wrp`; default still advisory |
 | Promotion readiness record | `LANDED` | P1 | `planning/evidence/wrp_s1_readiness.json` ready on main |
 | Promotion **decision** S1–S3 | `PARTIAL` | P1 | **S1+S2 approved** (HUMAN after G-LEAD PASS); S3 OPEN |
-| Live lane `run-approved` | `LANDED` | P3 / S2 | **S2 decided approved**: HITL v1 run-approved; forced MSDA; noop|record; no gateway nodes; not S3 |
+| Live lane `run-approved` | `LANDED` | P3 / S2 | **S2 decided approved**: HITL v1 + **v2 gateway nodes** (#143) on main; forced MSDA; not S3 |
 | WorkloadClassifier rules + 95% fixtures | `LANDED` | P2.0 deepen | `builder-wrp score-classifier` |
 | EmbeddingBackend + kNN (hash default; ModernBERT-class opt-in) | `PARTIAL` | P2.0 / P6 | Module + tests landed; wire into classifier + S4 embedder promo open |
 | Collaboration topology + handoff zero-loss + &lt;50ms | `PARTIAL` | P2.1 | Maker/Governor nodes + live handoff |
 | Fleet allocation ±10% budget | `LANDED` | P2.2 | Stress tests; must emit **fleet_binding** |
-| Fleet binding drives session/model plan | `PARTIAL` | P2.2 | `fleet_binding` on allocation + consumed by routing recommendation; live lane still OPEN |
+| Fleet binding drives session/model plan | `PARTIAL` | P2.2 | `fleet_binding` on allocation + routing recommendation + S2 plan fields; does not alone authorize session/model execution |
 | MSDA declarative gates logged | `LANDED` | P2.3 | `tests/test_wrp_governance.py` |
 | MSDA preflight before tool/model/MCP invoke | `PARTIAL` | P2.3 / P3 | `msda_preflight` + gateway hooks when `BUILDER_II_WRP_MSDA_PREFLIGHT=1`; default off |
 | OPA export + optional OPA eval parity | `PARTIAL` | P2.3 / P6 | `opa_adapter.py` landed; preflight uses pure MSDA |
@@ -51,7 +61,7 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | Trained R head research track | `OPEN` | P6 | offline dataset/pipeline; no silent override |
 | W5 Gitea/repo state reconstructive match | `OPEN` | P2.8 / P7 | commit_id + tree_hash binding |
 | Merge ceremony on every authority PR | `PARTIAL` | P7 | process + templates |
-| Scoped `enabled` live path | `OPEN` | P5 / S3 | eight-gate decision only |
+| Scoped `enabled` live path | `OPEN` | S3 (after P5) | eight-gate + HUMAN only; Class U numbers available (#144) but **do not** imply enablement |
 
 ## Promotion stages (target power)
 
@@ -67,12 +77,14 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 See absolute mastery plan success definition. **None** of these boxes may be checked by documentation alone.
 
 ```text
-[ ] Master-Plan W0–W5 green with Maker + Governor evidence
-[ ] Live lane promoted and used under MSDA + budgets
+[~] Master-Plan W0–W5 green with Maker + Governor evidence   (W5 repo-state still OPEN)
+[~] Live lane promoted and used under MSDA + budgets         (S2 HITL decided; not S3 enabled)
 [x] R deterministic; R* applied through promotion (HITL φ-policy); adaptivity measured on receipt epochs
-[x] Proof R, D, U evidenced (U with numbers via class_u_harness)
-[ ] Dual-platform ceremony for authority changes
-[ ] CAPABILITY_PROMOTION / matrix / command_authority match real power
-[ ] Heavy backends exist as opt-in with tests; defaults M1-safe
+[x] Proof R, D, U evidenced (U with numbers via class_u_harness #144)
+[~] Dual-platform ceremony for authority changes             (S2/S2-v2/P5 strong; P4 exchange cert thin)
+[~] CAPABILITY_PROMOTION / matrix / command_authority match  (WRP updated; watch drift on each PR)
+[~] Heavy backends exist as opt-in with tests; defaults M1-safe (hash embed/OPA partial; vLLM/LangGraph OPEN)
 [ ] This gap matrix has zero OPEN rows remaining
 ```
+
+See [`WRP_MASTERY_PROGRESS.md`](WRP_MASTERY_PROGRESS.md) §5 for hiccups H1–H12.

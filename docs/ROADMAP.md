@@ -197,10 +197,11 @@ These are the next capability promotions. Each requires the full capability prom
 - **S2 decided approved on main:** `plan-live` / `approve-live` / `run-approved` (HITL graph + forced MSDA; noop|record)
 - **P4 R* apply on main (#142):** real-receipt corrections → HITL `apply-rstar-approved` → versioned `phi_policy` (explicit classifier bind; no DEFAULT_PHI mutate)
 - **S2 v2 gateway nodes (HITL) on main (#143):** `model_gateway` / `tool_gateway` with default `record` mode; `stub_tool` B7 allowlist only
-- **P5 Class U harness:** `builder-wrp benchmark --class u` measures S2 v2 utility (wall ms, peak RSS, safety) → `class_u_report` + proof_record U + performance_measurement (validation only; not S3)
+- **P5 Class U harness on main (#144):** `builder-wrp benchmark --class u` → `class_u_report` + proof_record U + performance_measurement (validation only; not S3)
+- **Progress marker:** `docs/WRP_MASTERY_PROGRESS.md` (DONE/OPEN + hiccups H1–H12)
 - **Not done:** S3 scoped enabled, heavy backends (P6), cloud provider gateway invoke, W5 repo-state replay
 - Dual-platform Maker / Governor ceremony for promotion decisions
-- See `docs/WRP_CONTROL_PLANE.md`, `docs/WRP_ACCEPTANCE.md`, `docs/WRP_MASTERY_GAP_MATRIX.md`, ADR-0007
+- See `docs/WRP_CONTROL_PLANE.md`, `docs/WRP_ACCEPTANCE.md`, `docs/WRP_MASTERY_GAP_MATRIX.md`, `docs/WRP_MASTERY_PROGRESS.md`, ADR-0007
 
 ### Phase: live deepagents render (planning mode)
 - Render deepagents planning artifacts from session config
