@@ -251,6 +251,61 @@ def golden_path(
     echo_stdout(dumps_operator_golden_path_report(report))
 
 
+@platform_app.command("final-loop-smoke")
+def final_loop_smoke(
+    targets: str = typer.Option(
+        "builder,core",
+        "--targets",
+        help="Comma-separated targets: builder,core (and optionally generic)",
+    ),
+    output_dir: Path = typer.Option(
+        ...,
+        "--output-dir",
+        "-o",
+        help="Directory for per-target smoke artifacts + final-loop-smoke-report.json",
+    ),
+    task: str = typer.Option(
+        "V.6 final loop smoke (validation_only)",
+        "--task",
+        help="Task string stamped into context/agent/quality artifacts",
+    ),
+) -> None:
+    """V.6: passive final operating loop smoke (no model/shell/S3/S4 enablement)."""
+    from builder_ii.final_loop_smoke import run_final_loop_smoke, validate_final_loop_smoke_report
+
+    target_list = tuple(t.strip() for t in targets.split(",") if t.strip())
+    if not target_list:
+        console.print("[red]--targets must be non-empty[/]")
+        raise typer.Exit(1)
+    for t in target_list:
+        if t not in {"generic", "builder", "core"}:
+            console.print(f"[red]unknown target: {t}[/]")
+            raise typer.Exit(1)
+    report = run_final_loop_smoke(
+        settings=load_settings(),
+        targets=target_list,  # type: ignore[arg-type]
+        output_dir=output_dir.resolve(),
+        task=task,
+    )
+    errors = validate_final_loop_smoke_report(report)
+    if errors:
+        for error in errors:
+            console.print(f"[red]final-loop-smoke validation: {error}[/]")
+        raise typer.Exit(1)
+    echo_stdout(json_lib.dumps(report, indent=2, sort_keys=True) + "\n")
+    if not report.get("ok"):
+        console.print(
+            f"[yellow]final-loop-smoke completed with failures "
+            f"ok={report.get('ok')} targets={report.get('target_ids')}[/]"
+        )
+        raise typer.Exit(1)
+    console.print(
+        f"[green]final-loop-smoke ok targets={report.get('target_ids')} "
+        f"s3={report.get('s3_enabled')} s4={report.get('s4_promoted')} "
+        f"workbench={report.get('workbench_coupling')}[/]"
+    )
+
+
 @platform_app.command("validate-golden-path")
 def validate_golden_path(
     report_file: Path = typer.Argument(

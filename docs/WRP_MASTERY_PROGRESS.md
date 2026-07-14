@@ -25,7 +25,7 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | P7 ceremony + W5 | P7 | **LANDED (substrate)** | #148 W5 repo-state + ceremony template |
 | Post-P6 PARTIAL harden | — | **LANDED (this wave)** | Class U adaptivity; handoff-measure; fleet plan annotation; agent-factory plan CLI; msda-status |
 
-**Cursor (now):** #156 on main (V.5 Workbench boundary). Next: **HUMAN S4 review packages** (this PR — handoff only; no promo). S3 blocked. S4 promo OPEN until HUMAN decides each backend.
+**Cursor (now):** #157 on main (HUMAN S4 handoff). This PR: **HUMAN S4 decisions recorded** + **V.6 final loop smoke**. S3 blocked. S4: opa/modernbert approved (impl PR later); langgraph/vllm blocked; `s4_promoted=false`.
 
 ---
 
@@ -36,7 +36,7 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | S1 | Bound recommendations (flagged) | **Approved** — flags still required |
 | S2 | HITL live lane | **Approved** v1+v2 — `hitl_runtime_candidate` |
 | S3 | Scoped multi-agent `enabled` | **HUMAN blocked** — no enablement |
-| S4 | Backend promotions | **OPEN** — W.6 drafts + HUMAN review handoff assembled; still no approved decision / no promo flip |
+| S4 | Backend promotions | **PARTIAL** — HUMAN decided per backend (opa/modernbert approved for future opt-in PR; langgraph/vllm blocked); **no** runtime `s4_promoted` flip |
 
 ---
 
@@ -71,7 +71,8 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | #154 | W.5 AgentFactory lifecycle + V.4 CORE profile | merged |
 | #155 | W.6 S4 readiness drafts | merged |
 | #156 | V.5 Workbench boundary doc | merged |
-| (open) | HUMAN S4 review packages | `docs/wrp-s4-human-review-packages` |
+| #157 | HUMAN S4 review packages | merged |
+| (open) | HUMAN S4 decisions + V.6 final loop smoke | `feat/v6-final-loop-smoke-s4-human-decisions` |
 
 Exchange: `artifacts/wrp_exchange/mastery/{P0,…,P6}/`.
 
@@ -98,7 +99,7 @@ Exchange: `artifacts/wrp_exchange/mastery/{P0,…,P6}/`.
 
 ## 6. Recommended next steps
 
-1. **HUMAN S4 review** — use `planning/evidence/s4_review_summary.md` + per-backend pairs; decide each independently (no bulk flip).  
-2. **V.6 final loop smoke** (optional next) — design/smoke only if desired after/with HUMAN review.  
+1. **Optional S4 implementation PRs** for HUMAN-approved backends only (`opa`, `modernbert_embed`) — opt-in, M1-safe defaults, still no bulk flip.  
+2. **Re-open langgraph / vllm_research** only with V.6 evidence + stronger U / research profile.  
 3. **Re-open S3 only** with stronger production-shaped U + new readiness/decision (not #146/#147).  
 4. Cloud invoke remains deliberate OPEN until a separate design.

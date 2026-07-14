@@ -128,11 +128,25 @@ Any order is valid; independence is mandatory.
 
 ---
 
-## 9. Related paths
+## 9. HUMAN decisions recorded (2026-07-14)
+
+| Backend | Decision | approved | Implementation? |
+| --- | --- | --- | --- |
+| `opa` | **approved** | true | Future opt-in PR only; pure MSDA stays default; `s4_promoted=false` |
+| `modernbert_embed` | **approved** | true | Future opt-in PR only; never default; fail-closed; `s4_promoted=false` |
+| `langgraph` | **blocked** | false | Needs V.6 smoke + re-review |
+| `vllm_research` | **blocked** | false | Research stub; separate wave |
+
+Wave-level: **no bulk S4 flip**. `s4_promoted` remains false everywhere. Approved ≠ runtime enablement.
+
+---
+
+## 10. Related paths
 
 | Item | Path |
 | --- | --- |
 | Gate audit skeleton | `planning/evidence/wrp_s4_promotion_gate_audit.json` |
+| Handoff index | `planning/evidence/wrp_s4_human_review_handoff.json` |
 | G-LEAD brief | `artifacts/wrp_exchange/mastery/S4-readiness/GOVERNOR_PROMPT.md` |
 | Maker exchange | `artifacts/wrp_exchange/mastery/S4-readiness/maker_candidate_manifest.json` |
 | Package README | `artifacts/wrp_exchange/mastery/S4-readiness/README.md` |
