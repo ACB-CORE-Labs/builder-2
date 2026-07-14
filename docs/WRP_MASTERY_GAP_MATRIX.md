@@ -12,7 +12,7 @@
 [x] P0–P5  [x] S1/S2 decided  [x] S3 readiness + HUMAN blocked
 [x] P6 backends  [x] P7 W5 + ceremony template
 [x] Post-P6 PARTIAL harden (adaptivity, handoff measure, fleet annotate, agent plan CLI)
-[~] S4 readiness drafts (W.6)  [ ] S4 HUMAN promo decisions  [ ] cloud invoke  [ ] trained R head research
+[x] S4 readiness drafts (W.6)  [~] S4 HUMAN review packages ready  [ ] S4 HUMAN promo decisions  [ ] cloud invoke  [ ] trained R head research
 ```
 
 ## Legend
@@ -54,7 +54,7 @@
 | Backend registry + doctor inventory | `LANDED` | P6.1 | `backend_registry.py` + `builder-wrp backends` / `doctor-backends` (this PR) |
 | Trained R head | `DEFERRED` | P6 | research track doc |
 | Cloud provider model invoke | `OPEN` | S2+/S4 | record/stub only (H6) |
-| S4 backend promotion decisions | `PARTIAL` | S4 / W.6 | readiness+decision *drafts* for modernbert_embed/opa/langgraph/vllm_research + gate audit skeleton (`builder-wrp s4-readiness draft`); **HUMAN decides each**; `s4_promoted=false`; no promo flip |
+| S4 backend promotion decisions | `PARTIAL` | S4 / W.6 | readiness+decision *drafts* + HUMAN review handoff (`planning/evidence/s4_review_summary.md`, `wrp_s4_human_review_handoff.json`, exchange `mastery/S4-readiness/`); **HUMAN decides each**; still `s4_promoted=false`; no promo flip |
 
 ## Promotion stages
 
@@ -63,7 +63,7 @@
 | S1 | bound recommendations | Approved (flagged) |
 | S2 | HITL live | Approved |
 | S3 | scoped enabled | **Blocked** |
-| S4 | backend promos | OPEN (W.6 drafts only; no HUMAN approve) |
+| S4 | backend promos | OPEN (drafts + HUMAN handoff ready; no HUMAN approve yet) |
 
 ## Mastery checklist
 
