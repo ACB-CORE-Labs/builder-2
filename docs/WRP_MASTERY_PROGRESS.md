@@ -26,11 +26,11 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | S2 v2 gateway nodes | S2 v2 | **DONE (HITL candidate)** | #143; G-LEAD PASS; model/tool gateway record+stub_tool |
 | P4 R\* apply | P4 | **DONE (HITL φ-policy)** | #142; versioned `phi_policy`; no DEFAULT_PHI mutate |
 | P5 Class U measured | P5 | **DONE (validation_only)** | #144; G-LEAD PASS; `builder-wrp benchmark --class u` |
-| S3 scoped `enabled` | S3 | **READINESS DRAFTED / decision blocked** | `planning/evidence/wrp_s3_readiness.json` (ready for review); `wrp_s3_decision.json` **blocked** PENDING_HUMAN — **not** enabled |
+| S3 scoped `enabled` | S3 | **READINESS G-LEAD PASS / decision blocked** | Readiness package G-LEAD **PASS-MERGE** (#146); `wrp_s3_decision.json` still **blocked** PENDING_HUMAN — **not** enabled |
 | P6 backends | P6 | **OPEN / partial substrate** | Hash embed + OPA export landed; ModernBERT/vLLM/LangGraph open |
 | P7 ceremony + W5 | P7 | **PARTIAL** | Ceremony used on authority PRs; W5 commit/tree_hash still OPEN |
 
-**Cursor (now):** S3 **readiness package drafted** for G-LEAD/HUMAN ceremony. Decision template is **blocked** (no enablement). Next: G-LEAD S3 gate audit → HUMAN approve|keep-blocked, **or** defer and take P6/P7 while S3 stays blocked.
+**Cursor (now):** S3 **readiness G-LEAD PASS-MERGE** (planning/evidence only). Decision template remains **blocked**. Next: HUMAN replace decision (`approved|blocked`), **or** defer and take P6/P7 while enablement stays off.
 
 ---
 
@@ -78,7 +78,7 @@ Live path remains **HITL candidate**, not global enabled multi-agent.
 | #143 | S2 v2 gateways | merged (`d0aad9e`) |
 | #144 | P5 Class U | merged (`7401b1e`) |
 | #145 | Progress marker (DONE/OPEN/H1–H12) | merged (`ff0e5df`) |
-| (open) | S3 readiness draft | `planning/evidence/wrp_s3_{readiness,decision}.json` — decision **blocked** |
+| #146 | S3 readiness draft + G-LEAD certs | open→merge; decision **blocked**; enablement none |
 
 Exchange packages: `artifacts/wrp_exchange/mastery/{P0,P2-pure,P2-wires,S1,S2,S2-v2,P4,P5}/`.
 

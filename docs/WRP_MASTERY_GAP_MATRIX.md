@@ -61,7 +61,7 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | Trained R head research track | `OPEN` | P6 | offline dataset/pipeline; no silent override |
 | W5 Gitea/repo state reconstructive match | `OPEN` | P2.8 / P7 | commit_id + tree_hash binding |
 | Merge ceremony on every authority PR | `PARTIAL` | P7 | process + templates |
-| Scoped `enabled` live path | `PARTIAL` | S3 (after P5) | Readiness draft + decision **blocked** (H7: Class U micro-only); G-LEAD/HUMAN ceremony still required before any enablement code |
+| Scoped `enabled` live path | `PARTIAL` | S3 (after P5) | Readiness G-LEAD **PASS-MERGE** (#146) + decision **blocked** (H7: Class U micro-only); HUMAN decision still required before any enablement code |
 
 ## Promotion stages (target power)
 
