@@ -128,7 +128,6 @@ def test_operator_dashboard_empty_chain(tmp_path: Path) -> None:
 
 
 def test_workflow_lists_stages() -> None:
-    from builder_ii.tui.projections.workflow import project_workflow
 
     view = project_workflow(artifacts_dir=None)
     assert len(view.stages) >= 1
