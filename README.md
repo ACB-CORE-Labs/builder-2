@@ -228,6 +228,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/CORE_DEMO_WALKTHROUGH.md`](docs/CORE_DEMO_WALKTHROUGH.md) | Demo recording flow (CORE profile + generic targets) with evidence artifacts, approval boundary, verification, and rollback. |
 | [`docs/OPERATOR_COMMAND_SURFACE.md`](docs/OPERATOR_COMMAND_SURFACE.md) | Canonical index of all operator-facing commands, authority tiers, and output artifacts. |
 | [`docs/TARGETS.md`](docs/TARGETS.md) | Explicit target profiles: generic, builder, and core. |
+| [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](docs/plan/CORE_WORKBENCH_BOUNDARY.md) | V.5: builder-II helps Workbench *code* as target work; is not Workbench (design-only). |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | Generic agent profiles and authority contracts. |
 | [`docs/REPO_MAPS.md`](docs/REPO_MAPS.md) | Repo map artifact creation and validation. |
 | [`docs/CONTEXT_PACKS.md`](docs/CONTEXT_PACKS.md) | Context pack artifact creation and validation. |

@@ -5,7 +5,7 @@ builder-II capabilities must move through explicit, documented promotion states.
 builder-II is:
 `builder-II — Generic governed platform for local agent-assisted development.`
 
-CORE is only a target profile / lineage context, not the global platform identity. Conflating builder-II with CORE Workbench/UI is strictly forbidden.
+CORE is only a target profile / lineage context, not the global platform identity. Conflating builder-II with CORE Workbench/UI is strictly forbidden. See [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](plan/CORE_WORKBENCH_BOUNDARY.md) (V.5) for the full separation and design-only adapter requirements.
 
 This canonical registry records current implemented capabilities, the command authority registry, the ConventionKernel platform spine, governed prepare-package workflows, repo map and context pack foundations, artifact index ledgers, artifact chain verification, and the gates required before any future runtime promotion.
 

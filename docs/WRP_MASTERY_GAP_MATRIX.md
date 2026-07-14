@@ -47,6 +47,7 @@
 | Orchestration patterns runtime | `LANDED` | P2.6 / W.4 | pure `patterns-prove` + graph_runtime; S2 v2 gateways separate; cloud invoke OPEN |
 | HITL verify fixed-argv expansion (V.3) | `LANDED` | V.3 | wrp_doctor/patterns/fleet + semantic_doctor/map in SUPPORTED_COMMAND_PROFILES (not TARGET_CODE) |
 | CORE target profile isolation | `LANDED` | V.4 | `builder_ii/targets/core.py` invariants + verification routing + path categories + semgrep *catalog*; `builder-targets show/doctor core`; no Workbench coupling |
+| CORE Workbench boundary doc | `LANDED` | V.5 | `docs/plan/CORE_WORKBENCH_BOUNDARY.md` — builder-II helps Workbench *code* as target work; is not Workbench; adapter requirements design-only; `core_workbench_coupling` remains NONE |
 | Class U measured + adaptivity axis | `LANDED` | P5/H11 | `axes.adaptivity` via `simulate_receipt_epochs` |
 | Perf dashboards full | `PARTIAL` | P5 | axes filled; no product dashboard UI |
 | vLLM / LangGraph / ModernBERT opt-in | `LANDED` | P6 | #148 |
