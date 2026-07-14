@@ -29,6 +29,10 @@ uv run builder stratum --experimental
 | `--guide` | Force walkthrough open (even if dismissed before) |
 | `--no-splash` | `builder-stratum` only: skip opening hero |
 
+**Splash quality (macOS):** by default STRATUM floats the real `images/builder-ii-splash-hero.jpeg`
+in a borderless Cocoa window (~3.5s) via `swift` — full image quality, not terminal pixels.
+Disable native: `BUILDER_SPLASH_NATIVE=0`. Opt into low-res terminal image: `BUILDER_SPLASH_TERMINAL_IMAGE=1`.
+
 Env opt-out: `STRATUM_SKIP_GUIDE=1`  
 In-app opt-out: press **X** while the walkthrough is open (writes `.builder/stratum_guide_dismissed`).  
 Re-open anytime: **0**
