@@ -167,6 +167,109 @@ def validate_handoff_state(state: dict[str, Any]) -> list[str]:
     return errors
 
 
+def complete_handoff_state(
+    *,
+    task: str,
+    target: str = "builder-ii",
+    authority: str = "none",
+    risks: str = "local_offline",
+    evidence_status: str = "pending",
+    workload_digest: str = "0" * 64,
+    denied_actions: str = "shell,cloud_invoke",
+) -> dict[str, Any]:
+    """Build a full zero-loss handoff state for local graph continuity tests."""
+    return {
+        "task": task,
+        "target": target,
+        "authority": authority,
+        "risks": risks,
+        "evidence_status": evidence_status,
+        "workload_digest": workload_digest,
+        "denied_actions": denied_actions,
+    }
+
+
+def measure_handoff_overhead(
+    *,
+    iterations: int = 20,
+    threshold_ms: float = 50.0,
+) -> dict[str, Any]:
+    """Measure pure local handoff path wall time (topology + graph continuity).
+
+    Master-Plan W1 acceptance: handoff overhead &lt;50ms with zero state loss.
+    Local pure-Python only — not a network Maker↔Governor SLA claim.
+    Does not grant authority or spawn agents.
+    """
+    import statistics
+    import time
+
+    from builder_ii.wrp.graph_runtime import execute_graph
+    from builder_ii.wrp.patterns import handoff_route
+
+    if iterations < 1:
+        raise ValueError("iterations must be >= 1")
+
+    topology = plan_collaboration(task="handoff-measure", mode="standard", priority=1)
+    state = complete_handoff_state(task="handoff-measure")
+    keys = list(REQUIRED_HANDOFF_KEYS)
+    graph = handoff_route(["maker", "governor"])
+
+    walls: list[float] = []
+    for _ in range(iterations):
+        t0 = time.perf_counter()
+        topo_err = validate_collaboration_topology(topology)
+        hand_err = validate_handoff_state(state)
+        if topo_err or hand_err:
+            return {
+                "ok": False,
+                "meets_threshold": False,
+                "threshold_ms": threshold_ms,
+                "iterations": iterations,
+                "errors": [*topo_err, *hand_err],
+                "grants_authority": False,
+                "scope": "local_pure_python",
+            }
+        result = execute_graph(
+            graph,
+            handoff_state=state,
+            required_keys=keys,
+        )
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        walls.append(elapsed_ms)
+        if result.get("status") != "success":
+            return {
+                "ok": False,
+                "meets_threshold": False,
+                "threshold_ms": threshold_ms,
+                "iterations": iterations,
+                "errors": [str(result.get("error") or "graph handoff failed")],
+                "median_ms": round(statistics.median(walls), 4),
+                "grants_authority": False,
+                "scope": "local_pure_python",
+            }
+
+    median = statistics.median(walls)
+    p95 = sorted(walls)[max(0, int(0.95 * (len(walls) - 1)))]
+    return {
+        "ok": True,
+        "meets_threshold": median < threshold_ms,
+        "threshold_ms": threshold_ms,
+        "iterations": iterations,
+        "median_ms": round(float(median), 4),
+        "p95_ms": round(float(p95), 4),
+        "max_ms": round(float(max(walls)), 4),
+        "zero_loss": True,
+        "required_keys": keys,
+        "topology_digest": topology.get("digest"),
+        "grants_authority": False,
+        "scope": "local_pure_python",
+        "notes": (
+            "Measures pure topology validate + handoff_route execute with REQUIRED_HANDOFF_KEYS. "
+            "Not a cloud/network dual-platform handoff SLO."
+        ),
+    }
+
+
 def validate_collaboration_topology(record: Any) -> list[str]:
     errors = validate_wrp_artifact_envelope(record, expected_kind=COLLABORATION_TOPOLOGY_KIND)
     if not isinstance(record, dict):

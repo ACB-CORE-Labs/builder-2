@@ -55,22 +55,42 @@ def _normalize_lane_version(s2_version: str | None) -> str:
     )
 
 
-def _default_node_specs(node_list: list[str], *, lane_version: str) -> dict[str, dict[str, Any]]:
+def _default_node_specs(
+    node_list: list[str],
+    *,
+    lane_version: str,
+    fleet_binding: Mapping[str, Any] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Default node specs. When fleet_binding.selected_alias is set, annotate record-mode model_gateway.
+
+    Annotation is plan/receipt label only — does not invoke a provider or grant authority.
+    """
+    alias = None
+    if isinstance(fleet_binding, Mapping):
+        raw_alias = fleet_binding.get("selected_alias")
+        if isinstance(raw_alias, str) and raw_alias.strip():
+            alias = raw_alias.strip()
+
     specs: dict[str, dict[str, Any]] = {}
     for nid in node_list:
         if nid == "msda_probe":
             specs[nid] = {"node_type": "noop", "cost_estimate": 0.0, "payload": {"step": nid}}
         elif lane_version == S2_V2_LANE_VERSION and nid in {"model_call", "model_gateway"}:
+            model_id = f"record:{alias}" if alias else "record-only-local"
+            payload: dict[str, Any] = {
+                "step": nid,
+                "tool": "model_call",
+                "data_domain": "local_workspace",
+                "risk": "local_network",
+                "model_id": model_id,
+            }
+            if alias:
+                payload["fleet_selected_alias"] = alias
+                payload["fleet_binding_annotation_only"] = True
             specs[nid] = {
                 "node_type": "model_gateway",
                 "cost_estimate": 0.0,
-                "payload": {
-                    "step": nid,
-                    "tool": "model_call",
-                    "data_domain": "local_workspace",
-                    "risk": "local_network",
-                    "model_id": "record-only-local",
-                },
+                "payload": payload,
             }
         elif lane_version == S2_V2_LANE_VERSION and nid in {"tool_call", "tool_gateway"}:
             specs[nid] = {
@@ -129,7 +149,28 @@ def build_live_run_plan(
         node_list = nodes or ["classify", "allocate", "msda_probe", "handoff"]
     graph = sequential_chain(node_list)
     plan_graph = create_subtask_graph(graph, task=task)
-    specs = node_specs or _default_node_specs(node_list, lane_version=lane)
+    specs = node_specs or _default_node_specs(
+        node_list,
+        lane_version=lane,
+        fleet_binding=fleet_binding,
+    )
+    # When caller supplies node_specs, still annotate model_gateway with fleet alias if missing.
+    if node_specs is not None and fleet_binding and lane == S2_V2_LANE_VERSION:
+        alias = fleet_binding.get("selected_alias") if isinstance(fleet_binding, Mapping) else None
+        if isinstance(alias, str) and alias.strip():
+            specs = {k: dict(v) if isinstance(v, Mapping) else v for k, v in specs.items()}
+            for nid, spec in list(specs.items()):
+                if not isinstance(spec, Mapping):
+                    continue
+                if str(spec.get("node_type")) != "model_gateway":
+                    continue
+                payload = dict(spec.get("payload") or {})
+                if "fleet_selected_alias" not in payload:
+                    payload["fleet_selected_alias"] = alias.strip()
+                    payload["fleet_binding_annotation_only"] = True
+                    if not payload.get("model_id") or payload.get("model_id") == "record-only-local":
+                        payload["model_id"] = f"record:{alias.strip()}"
+                    specs[nid] = {**dict(spec), "payload": payload}
     model_flag, tool_flag = _flags_from_specs(specs)
     if lane == S2_V1_LANE_VERSION and (model_flag or tool_flag):
         raise LiveLaneError("S2 v1 plan cannot include gateway node types; use s2_version=v2")

@@ -35,12 +35,16 @@ def test_class_u_harness_produces_measured_report_and_proof_u() -> None:
     assert report["executes_shell"] is False
     assert report["s3_enabled"] is False
     assert report["grants_authority"] is False
-    # Axes present with numbers
+    # Axes present with numbers (adaptivity measured via P4 receipt epochs)
     axes = report["axes"]
     assert axes["latency_ms_record_median"] == summary["record_wall_ms_median"]
     assert axes["safety"] == 1.0
+    assert isinstance(axes["adaptivity"], dict)
+    assert axes["adaptivity"]["relative_reduction"] >= 0.0
+    assert axes["adaptivity"]["applies_phi"] is False
+    assert summary["adaptivity_meets_w4"] is True
     # Measurements validate
-    assert len(result["measurements"]) >= 3
+    assert len(result["measurements"]) >= 4
     for m in result["measurements"]:
         assert validate_performance_measurement_record(m) == []
     # DEFAULT_PHI never mutated

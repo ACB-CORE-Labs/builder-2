@@ -67,3 +67,29 @@ def assert_msda_preflight(
             decision=decision,
         )
     return decision
+
+
+def msda_preflight_status() -> dict[str, Any]:
+    """Honesty surface for H9: report whether global env preflight is on (default off).
+
+    Live lane and gateway *nodes* still force preflight independently. This status
+    describes the **default** tool/model gateway env gate only — not S2 lane force-on.
+    Does not enable anything; does not grant authority.
+    """
+    env_raw = os.getenv(ENV_MSDA_PREFLIGHT, "")
+    enabled = msda_preflight_enabled()
+    return {
+        "env_name": ENV_MSDA_PREFLIGHT,
+        "env_raw": env_raw,
+        "global_env_enabled": enabled,
+        "default_off": not enabled,
+        "skip_mode_when_off": "skipped_default_off",
+        "live_lane_forced": True,
+        "gateway_nodes_forced": True,
+        "product_default_on": False,
+        "grants_authority": False,
+        "notes": (
+            "Outside S2 live lane / gateway nodes, tool/model gateways skip MSDA unless "
+            f"{ENV_MSDA_PREFLIGHT}=1. Default-on is a product decision (needs allowlist redesign)."
+        ),
+    }

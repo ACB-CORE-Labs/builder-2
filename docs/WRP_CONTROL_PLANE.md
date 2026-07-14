@@ -13,7 +13,7 @@ Geometry-first Workload–Router–Pool (WRP) orchestration & routing control pl
 | Capability promotion | `artifact_only` / `validation_only` / `recommendation_only` + HITL candidates for S2 live/v2 gateways + P4 φ apply |
 | Command surface | `builder-wrp` Tier 1 (incl. `benchmark --class u`) + Tier 3 `run-approved` / `apply-rstar-approved` |
 | Live multi-agent execution | **Not S3-enabled** — S2 HITL graph (+ v2 record/stub gateways); P4/P5 do not enable multi-agent |
-| Absolute mastery | **In progress** — P0–P5 + S1/S2 decided; S3 HUMAN **blocked**; P6 opt-in backends + P7/W5 repo-state **substrate landed**; S4 backend promo + cloud invoke OPEN (see [`WRP_MASTERY_PROGRESS.md`](WRP_MASTERY_PROGRESS.md)) |
+| Absolute mastery | **In progress** — P0–P7 substrate + post-P6 PARTIAL harden; S3 HUMAN **blocked**; S4 + cloud invoke OPEN ([`WRP_MASTERY_PROGRESS.md`](WRP_MASTERY_PROGRESS.md)) |
 
 This document states both **what exists** and the **mastery target**. Target language is not a grant of power.
 

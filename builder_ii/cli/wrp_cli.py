@@ -384,6 +384,85 @@ def repo_state_cmd(
     _emit(art, output)
 
 
+@wrp_app.command("handoff-measure")
+def handoff_measure_cmd(
+    iterations: int = typer.Option(20, "--iterations", min=1, max=200),
+    threshold_ms: float = typer.Option(50.0, "--threshold-ms"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """W1: measure pure local handoff overhead (zero-loss + &lt;50ms local path)."""
+    from builder_ii.wrp.collaboration_planner import measure_handoff_overhead
+
+    art = measure_handoff_overhead(iterations=iterations, threshold_ms=threshold_ms)
+    _emit(art, output)
+    if not art.get("meets_threshold"):
+        console.print(
+            f"[red]handoff median_ms={art.get('median_ms')} "
+            f">= threshold_ms={threshold_ms} (scope={art.get('scope')})[/]"
+        )
+        raise typer.Exit(1)
+    console.print(
+        f"[green]handoff median_ms={art.get('median_ms')} "
+        f"p95={art.get('p95_ms')} zero_loss={art.get('zero_loss')}[/]"
+    )
+
+
+@wrp_app.command("plan-agent-lifecycle")
+def plan_agent_lifecycle_cmd(
+    roles: str = typer.Option(
+        "maker_structural,governor_architecture",
+        "--roles",
+        help="Comma-separated agent roles (plan only; spawn_permitted=false)",
+    ),
+    action: str = typer.Option("register_plan", "--action", help="register_plan | retire_plan"),
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """AgentFactory: emit lifecycle plan only (no spawn)."""
+    from builder_ii.wrp.agent_factory import plan_agent_lifecycle
+    from builder_ii.wrp.spaces import AgentPoint
+
+    role_list = [r.strip() for r in roles.split(",") if r.strip()]
+    if not role_list:
+        console.print("[red]--roles must be non-empty[/]")
+        raise typer.Exit(1)
+    agents = [
+        AgentPoint(
+            role=role,
+            reasoning_coverage=0.7,
+            tool_coverage=0.5,
+            model_family="plan-only",
+            platform="maker" if role.startswith("maker") else "governor",
+        )
+        for role in role_list
+    ]
+    try:
+        art = plan_agent_lifecycle(agents=agents, action=action)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/]")
+        raise typer.Exit(1) from exc
+    _emit(art, output)
+    if art.get("spawn_permitted") is not False:
+        console.print("[red]spawn_permitted must be false[/]")
+        raise typer.Exit(1)
+
+
+@wrp_app.command("msda-status")
+def msda_status_cmd(
+    output: Path | None = typer.Option(None, "--output", "-o"),
+) -> None:
+    """H9 honesty: report global MSDA preflight env state (default off; live lane forced)."""
+    from builder_ii.wrp.msda_preflight import msda_preflight_status
+
+    art = msda_preflight_status()
+    _emit(art, output)
+    if art.get("global_env_enabled"):
+        console.print("[yellow]MSDA preflight env is ON (global opt-in)[/]")
+    else:
+        console.print(
+            "[green]MSDA preflight env is OFF (default); live lane / gateway nodes still force on[/]"
+        )
+
+
 @wrp_app.command("plan-live")
 def plan_live_cmd(
     task: str = typer.Option(..., "--task", "-t"),
@@ -677,6 +756,9 @@ def validate_cmd(
         "builder_ii.wrp.class_u_report": __import__(
             "builder_ii.wrp.class_u_harness", fromlist=["validate_class_u_report"]
         ).validate_class_u_report,
+        "builder_ii.wrp.agent_factory_plan": __import__(
+            "builder_ii.wrp.agent_factory", fromlist=["validate_agent_factory_plan"]
+        ).validate_agent_factory_plan,
     }
     validator = validators.get(str(kind))
     if validator is None:
