@@ -1,5 +1,11 @@
 # WRP Absolute Mastery — Multi-Agent Dispatch Charter
 
+> **Cursor (post-#148):** Living progress is [`WRP_MASTERY_PROGRESS.md`](WRP_MASTERY_PROGRESS.md).  
+> **This phase:** Grok Build + in-process subagents (Composer-2.5-fast explore/TDD, code-reviewer) replace Antigravity G-LEAD/G-FAST for substrate work.  
+> HUMAN still owns S1–S4 **promotion decisions**. Do not self-certify promotion PASS.  
+> Historical G-LEAD/G-FAST tables below remain for dual-platform intent when Antigravity is used.
+
+
 **Purpose:** Maximum parallel throughput without dual-authority, file contention, or soft stops.  
 **Charter:** Absolute mastery plan (P0–P7, S1–S4). Substrate is incomplete; promotion and live lane are mandatory.
 

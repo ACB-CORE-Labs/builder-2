@@ -706,6 +706,9 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp opa-eval",
     "builder-wrp embed-status",
     "builder-wrp repo-state",
+    "builder-wrp handoff-measure",
+    "builder-wrp plan-agent-lifecycle",
+    "builder-wrp msda-status",
     "builder-model call",
     "builder-model standalone-call",
     "builder-model validate-receipt",
@@ -3528,6 +3531,57 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints commit_id/tree_hash/is_git_tree (grants_authority=false).",
         failure_mode="Never fails closed on non-git; returns honest nulls with capture_error.",
         notes="Identity capture for reconstructive match; not mutation or network authority.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp handoff-measure",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "W1: measure pure-Python collaboration handoff overhead (topology validate + "
+            "handoff_route execute with zero-loss keys). Local scope only; not network dual-platform SLA."
+        ),
+        write_boundary="Writes measurement JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints median/p95 ms and meets_threshold; exits non-zero if median >= threshold.",
+        failure_mode="Exits non-zero when median exceeds --threshold-ms (default 50).",
+        notes="Does not spawn agents or grant authority.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp plan-agent-lifecycle",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_ARTIFACT_ONLY,
+        runtime_boundary=(
+            "AgentFactory plan-only: emit register_plan/retire_plan artifacts with "
+            "spawn_permitted=false and UNBOUND runtime. No process/agent spawn."
+        ),
+        write_boundary="Writes plan JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints builder_ii.wrp.agent_factory_plan (spawn_permitted=false).",
+        failure_mode="Exits non-zero on invalid action or spawn_permitted inflation.",
+        notes="Plan-only LANDED; real spawn remains S3/deferred multi-agent adjacency.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp msda-status",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "H9 honesty: report whether BUILDER_II_WRP_MSDA_PREFLIGHT env enables global "
+            "gateway preflight (default off). Live lane / gateway nodes force independently."
+        ),
+        write_boundary="Writes status JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints global_env_enabled / default_off / skip_mode_when_off.",
+        failure_mode="Never fails; observation only.",
+        notes="Does not enable MSDA globally; product default-on is a separate decision.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
