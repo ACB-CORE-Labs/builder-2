@@ -69,6 +69,41 @@ def assert_msda_preflight(
     return decision
 
 
+def msda_preflight_skip_annotation() -> dict[str, Any]:
+    """Audit annotation when global env preflight is off (Option A — no soft-enable)."""
+    return {
+        "enforced": False,
+        "skipped": True,
+        "skip_mode": "skipped_default_off",
+        "env_name": ENV_MSDA_PREFLIGHT,
+        "grants_authority": False,
+    }
+
+
+def msda_preflight_enforced_annotation(decision: dict[str, Any]) -> dict[str, Any]:
+    """Audit annotation when preflight ran and allowed (digest if present)."""
+    digest = decision.get("digest") if isinstance(decision, dict) else None
+    effect = None
+    if isinstance(decision, dict):
+        effect = (decision.get("decision") or {}).get("effect")
+    return {
+        "enforced": True,
+        "skipped": False,
+        "skip_mode": None,
+        "env_name": ENV_MSDA_PREFLIGHT,
+        "decision_digest": digest,
+        "effect": effect,
+        "grants_authority": False,
+    }
+
+
+def annotate_msda_preflight_result(decision: dict[str, Any] | None) -> dict[str, Any]:
+    """Map assert_msda_preflight return → receipt-safe annotation (never authority)."""
+    if decision is None:
+        return msda_preflight_skip_annotation()
+    return msda_preflight_enforced_annotation(decision)
+
+
 def msda_preflight_status() -> dict[str, Any]:
     """Honesty surface for H9: report whether global env preflight is on (default off).
 

@@ -37,7 +37,8 @@
 | Fleet allocation ±10% | `LANDED` | P2.2 | stress tests |
 | Fleet binding drives plan annotation | `LANDED` | P2.2 | `selected_alias` → record-mode `model_gateway` payload; **not** provider authority |
 | MSDA gates + OPA | `LANDED` | P2.3/P6 | pure + optional opa |
-| MSDA preflight before all invokes | `PARTIAL` | P2.3 | live/gateway nodes forced; global env default off (`msda-status`); no soft default-on |
+| MSDA preflight before all invokes | `PARTIAL` | P2.3 / W.2 | Option A policy: live/gateway nodes forced; env default off; tool/model receipts annotate `skipped_default_off`; no soft default-on (`docs/plan/WRP_MSDA_PREFLIGHT_POLICY.md`) |
+| Semantic/structural RO doctor/map/preview | `LANDED` | V.1 | `builder-semantic` + `semantic_readonly.py` (repo_map based; serena/ast-grep detect-only; no rewrite) |
 | Experience + receipt ingest + R* apply | `LANDED` | P4 | HITL φ policy |
 | AgentFactory plan only | `LANDED` | P2.5 | `plan_agent_lifecycle` + CLI; `spawn_permitted=false` |
 | SubtaskGraph + W5 repo-state replay | `LANDED` | P7 | commit_id/tree_hash |
