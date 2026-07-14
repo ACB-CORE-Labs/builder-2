@@ -22,7 +22,7 @@ class TargetProfile:
     notes: tuple[str, ...] = ()
 
     def to_artifact_dict(self) -> dict[str, Any]:
-        return {
+        payload: dict[str, Any] = {
             "kind": TARGET_PROFILE_ARTIFACT_KIND,
             "schema_version": TARGET_PROFILE_SCHEMA_VERSION,
             "name": self.name,
@@ -43,6 +43,12 @@ class TargetProfile:
                 "core_workbench_coupling": "NONE",
             },
         }
+        # V.4: CORE-only extension block (isolated; never on generic/builder).
+        if self.name == "core":
+            from builder_ii.targets.core import core_profile_block
+
+            payload["core_profile"] = core_profile_block()
+        return payload
 
 
 _GENERIC_CONTEXT_DEFAULTS = (
@@ -120,14 +126,20 @@ def build_target_profiles(settings: Settings, *, generic_repo: Path | None = Non
                 "builder verify <changed-path>",
                 "run focused pytest suites",
                 "preserve CORE invariants",
+                "use builder-targets doctor core for isolation checks",
             ),
             principles=(
                 "treat CORE as target profile only",
                 "do not conflate with CORE Workbench/UI",
                 "preserve deterministic verification discipline",
                 "surface uncertainty and refusal boundaries",
+                "CORE invariants/semgrep catalogs stay under builder_ii.targets.core",
             ),
-            notes=("CORE-specific behavior must remain isolated in this target profile.",),
+            notes=(
+                "CORE-specific behavior must remain isolated in this target profile.",
+                "V.4: core_profile block carries invariants, verification routing defaults, "
+                "safe path categories, and semgrep rule catalogs (catalog only; not execution).",
+            ),
         ),
     )
 
@@ -183,6 +195,44 @@ def render_target_profile(profile: TargetProfile) -> str:
     if profile.notes:
         lines.extend(["", "## Notes", ""])
         lines.extend(f"- {note}" for note in profile.notes)
+    if profile.name == "core":
+        from builder_ii.targets.core import core_profile_block
+
+        block = core_profile_block()
+        lines.extend(
+            [
+                "",
+                "## CORE profile (V.4 isolation)",
+                "",
+                f"- isolation: `{block['isolation']}`",
+                f"- workbench_coupling: `{block['workbench_coupling']}`",
+                f"- grants_runtime_authority: `{block['grants_runtime_authority']}`",
+                f"- platform_identity: `{block['platform_identity']}`",
+                f"- promotion_state: `{block['promotion_state']}`",
+                "",
+                "### Invariants",
+                "",
+            ]
+        )
+        for inv in block["invariants"]:
+            lines.append(f"- `{inv['id']}`: {inv['statement']}")
+        lines.extend(["", "### Verification routing defaults", ""])
+        routing = block["verification_routing_defaults"]
+        lines.append(f"- default_verification_profile: `{routing['default_verification_profile']}`")
+        for cmd in routing["preferred_commands"]:
+            lines.append(f"- preferred: {cmd}")
+        lines.extend(["", "### Safe file path categories", ""])
+        for cat, paths in block["safe_file_path_categories"].items():
+            lines.append(f"- **{cat}**: {', '.join(f'`{p}`' for p in paths)}")
+        lines.extend(
+            [
+                "",
+                "### Semgrep rules catalog (not executed by this profile)",
+                "",
+            ]
+        )
+        for rule in block["semgrep_rules_catalog"]:
+            lines.append(f"- `{rule['id']}` ({rule['severity']}): {rule['intent']}")
     lines.append("")
     return "\n".join(lines)
 
@@ -236,6 +286,17 @@ def validate_target_profile_artifact(data: Any) -> list[str]:
             errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
             errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
+
+    # V.4: CORE artifacts must carry the isolated core_profile block; others must not.
+    if data.get("name") == "core":
+        from builder_ii.targets.core import validate_core_profile_block
+
+        if "core_profile" not in data:
+            errors.append("core target profile artifact requires core_profile block")
+        else:
+            errors.extend(validate_core_profile_block(data.get("core_profile")))
+    elif "core_profile" in data:
+        errors.append("core_profile is only valid on the core target profile")
     return errors
 
 

@@ -583,6 +583,7 @@ REQUIRED_SUBCOMMANDS = {
     "builder-targets validate",
     "builder-targets artifact",
     "builder-targets demo",
+    "builder-targets doctor",
     "builder-targets readonly-founder-demo",
     "builder-session prepare-package",
     "builder-session validate-prepare-package",
@@ -709,6 +710,10 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp repo-state",
     "builder-wrp handoff-measure",
     "builder-wrp plan-agent-lifecycle",
+    "builder-wrp agent-factory",
+    "builder-wrp agent-factory spawn",
+    "builder-wrp agent-factory retire",
+    "builder-wrp agent-factory prove",
     "builder-wrp msda-status",
     "builder-wrp backends",
     "builder-wrp doctor-backends",
@@ -1093,6 +1098,23 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Outputs markdown demo recipe.",
         failure_mode="Exits non-zero on target resolution error.",
         notes="Prints target profile demo command recipes.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-targets doctor",
+        entrypoint="builder_ii.targets_cli:targets_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "V.4: doctor CORE target isolation (invariants/catalog/coupling). "
+            "Does not run semgrep, mutate CORE repo, or claim Workbench identity."
+        ),
+        write_boundary="Writes doctor report JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints ok/checks for core profile isolation.",
+        failure_mode="Exits non-zero when isolation checks fail; exits 2 for non-core targets.",
+        notes="CORE target profile only; not generic platform doctor; not S3.",
+        allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
         name="builder-targets readonly-founder-demo",
@@ -3610,6 +3632,71 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints builder_ii.wrp.agent_factory_plan (spawn_permitted=false).",
         failure_mode="Exits non-zero on invalid action or spawn_permitted inflation.",
         notes="Plan-only LANDED; real spawn remains S3/deferred multi-agent adjacency.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp agent-factory",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary="Delegates AgentFactory spawn/retire/prove lifecycle record subcommands.",
+        write_boundary="No direct write authority at root agent-factory group level.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Delegated to subcommands.",
+        output_behavior="Dispatches to lifecycle record subcommands.",
+        failure_mode="Exits non-zero on failure.",
+        notes="W.5 group wrapper; validation_only lifecycle records; not process spawn.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp agent-factory spawn",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "W.5: emit agent lifecycle spawn *record* with role/task binding and optional "
+            "ExperienceStore digest linkage. spawn_executed=false; runtime_binding=UNBOUND; "
+            "no process/agent runtime; not S3 multi-agent."
+        ),
+        write_boundary="Writes lifecycle record JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints builder_ii.wrp.agent_lifecycle_record (spawn_executed=false).",
+        failure_mode="Exits non-zero on invalid role/task or authority flag inflation.",
+        notes="Lifecycle language only; AgentFactory does not start agents.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp agent-factory retire",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "W.5: emit agent lifecycle retire *record* bound to prior spawn digest. "
+            "Does not kill processes; spawn_executed remains false."
+        ),
+        write_boundary="Writes lifecycle record JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints builder_ii.wrp.agent_lifecycle_record retire action.",
+        failure_mode="Exits non-zero on invalid spawn record.",
+        notes="Pairs with spawn records for replay proofs; not S3.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp agent-factory prove",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "W.5: deterministic spawn/retire lifecycle proof with ExperienceStore exemplar "
+            "linkage. Pure records; no process spawn; no S3 enablement."
+        ),
+        write_boundary="Writes agent_lifecycle_proof JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints ok/case_count/experience_store_bound; exits non-zero if proof fails.",
+        failure_mode="Exits non-zero when replay digests or honesty flags fail.",
+        notes="Proof artifact only; not multi-agent runtime.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(

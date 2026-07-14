@@ -42,9 +42,11 @@
 | Semantic/structural RO doctor/map/preview | `LANDED` | V.1 | `builder-semantic` + `semantic_readonly.py` (repo_map based; serena/ast-grep detect-only; no rewrite) |
 | Experience + receipt ingest + R* apply | `LANDED` | P4 | HITL φ policy |
 | AgentFactory plan only | `LANDED` | P2.5 | `plan_agent_lifecycle` + CLI; `spawn_permitted=false` |
+| AgentFactory spawn/retire language | `LANDED` | W.5 | `spawn_agent`/`retire_agent`/`prove_agent_lifecycle` + `builder-wrp agent-factory`; lifecycle *records* only (`spawn_executed=false`, UNBOUND); ExperienceStore digest bind; not S3 process spawn |
 | SubtaskGraph + W5 repo-state replay | `LANDED` | P7 | commit_id/tree_hash |
 | Orchestration patterns runtime | `LANDED` | P2.6 / W.4 | pure `patterns-prove` + graph_runtime; S2 v2 gateways separate; cloud invoke OPEN |
 | HITL verify fixed-argv expansion (V.3) | `LANDED` | V.3 | wrp_doctor/patterns/fleet + semantic_doctor/map in SUPPORTED_COMMAND_PROFILES (not TARGET_CODE) |
+| CORE target profile isolation | `LANDED` | V.4 | `builder_ii/targets/core.py` invariants + verification routing + path categories + semgrep *catalog*; `builder-targets show/doctor core`; no Workbench coupling |
 | Class U measured + adaptivity axis | `LANDED` | P5/H11 | `axes.adaptivity` via `simulate_receipt_epochs` |
 | Perf dashboards full | `PARTIAL` | P5 | axes filled; no product dashboard UI |
 | vLLM / LangGraph / ModernBERT opt-in | `LANDED` | P6 | #148 |
