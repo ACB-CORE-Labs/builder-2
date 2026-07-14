@@ -5,7 +5,14 @@
     "validate_promotion_decision"
   ],
   "approved": false,
-  "blockers": [],
+  "blockers": [
+    "H7: Class U numbers are local/micro (record/stub only) \u2014 insufficient for scoped enabled",
+    "H11: adaptivity axis null on class_u_report",
+    "No cloud/production multi-agent utility measurements",
+    "No scoped-profile enablement runtime beyond hitl_runtime_candidate",
+    "H9: MSDA preflight default-off outside live lane",
+    "H10: fleet_binding does not alone drive session/model authority"
+  ],
   "capability_state": "promotion_decision_record",
   "checks": [
     {
@@ -107,7 +114,7 @@
     }
   ],
   "current_state": "DISABLED",
-  "decided_by": "PENDING_HUMAN",
+  "decided_by": "HUMAN",
   "decision": "blocked",
   "governance": {
     "agent_construction": "DISABLED",
@@ -180,7 +187,7 @@
     "target": "builder",
     "target_state": "enabled"
   },
-  "reason": "TEMPLATE / PRE-DECISION ONLY. HUMAN has not approved S3. Maker assessment: decision=blocked for target_state=enabled. Class U (#144) supplies measured local micro numbers (H7) and fail-closed safety scenarios; it does not evidence production multi-agent utility or authorize scoped default enablement. S2 remains hitl_runtime_candidate only. Replace this record after: (1) G-LEAD S3 promotion_gate_audit PASS or FAIL with findings, (2) HUMAN ceremony decides approved|blocked with decided_by=HUMAN. No runtime, command_authority, or s3_enabled change is authorized by this draft.",
+  "reason": "HUMAN decision after G-LEAD S3-readiness PASS-MERGE (#146; planning/evidence only). Decision=blocked for target_state=enabled. Class U (#144) proves local record/stub utility + fail-closed safety (pass_ratio=1.0, proof_u_held, s3_enabled=false, cloud_provider_invoke=false) but numbers are micro-only (H7: host ~0.76ms record / ~42MB RSS; exchange sample ~0.97ms / ~49MB). That is insufficient evidence for scoped default multi-agent enablement. Additional blockers: (1) adaptivity axis null on class_u_report (H11); (2) no production multi-agent / cloud-provider measured utility; (3) MSDA preflight default-off outside live lane (H9); (4) fleet_binding does not alone authorize session/model execution (H10); (5) no scoped-profile enablement runtime beyond hitl_runtime_candidate. S1+S2 remain approved; live path stays hitl_runtime_candidate. Next: defer enablement; prioritize P6 (opt-in backends, M1-safe defaults) and/or P7/W5 (repo-state + ceremony hygiene) while keeping s3_enabled=false. Re-open S3 only with stronger U evidence and an explicit enablement design under eight gates.",
   "record_state": "RECORDED_ONLY",
   "schema_version": 1
 }
