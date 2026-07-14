@@ -7,7 +7,7 @@ High-cost models only recommended for non-trivial work. RECOMMENDATION_ONLY.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
 
 from builder_ii.wrp.artifacts import (
     FLEET_ALLOCATION_KIND,
@@ -194,3 +194,139 @@ def validate_fleet_allocation(record: Any) -> list[str]:
             if isinstance(alloc, dict) and binding.get("selected_alias") != alloc.get("primary_alias"):
                 errors.append("fleet_binding.selected_alias must match allocation.primary_alias")
     return errors
+
+
+def check_fleet_binding_fidelity(
+    source_binding: Mapping[str, Any] | None,
+    plan_binding: Mapping[str, Any] | None,
+    *,
+    require_binds_session_routing: bool = True,
+) -> list[str]:
+    """Return errors if plan fleet_binding is not faithful to allocation fleet_binding.
+
+    Validation-only; does not grant authority or invoke providers.
+    """
+    errors: list[str] = []
+    if not isinstance(source_binding, Mapping) or not source_binding:
+        errors.append("source fleet_binding missing or empty")
+        return errors
+    if not isinstance(plan_binding, Mapping) or not plan_binding:
+        errors.append("plan fleet_binding missing or empty")
+        return errors
+
+    for key in (
+        "selected_alias",
+        "risk_class",
+        "token_budget",
+        "token_budget_remaining",
+        "projected_cost_units",
+    ):
+        if key not in source_binding:
+            errors.append(f"source fleet_binding missing {key}")
+            continue
+        if key not in plan_binding:
+            errors.append(f"plan fleet_binding missing {key}")
+            continue
+        sv, pv = source_binding[key], plan_binding[key]
+        if isinstance(sv, (int, float)) and isinstance(pv, (int, float)):
+            if abs(float(sv) - float(pv)) > 1e-9:
+                errors.append(f"fleet_binding.{key} mismatch: source={sv!r} plan={pv!r}")
+        elif sv != pv:
+            errors.append(f"fleet_binding.{key} mismatch: source={sv!r} plan={pv!r}")
+
+    if source_binding.get("grants_authority") is not False:
+        errors.append("source fleet_binding.grants_authority must be false")
+    if plan_binding.get("grants_authority") is not False:
+        errors.append("plan fleet_binding.grants_authority must be false")
+
+    if require_binds_session_routing:
+        if source_binding.get("binds_session_routing") is not True:
+            errors.append("source fleet_binding.binds_session_routing must be true")
+        if plan_binding.get("binds_session_routing") is not True:
+            errors.append("plan fleet_binding.binds_session_routing must be true")
+
+    remaining = plan_binding.get("token_budget_remaining")
+    if isinstance(remaining, (int, float)) and float(remaining) < 0:
+        errors.append("plan token_budget_remaining must be >= 0")
+
+    return errors
+
+
+def check_fleet_plan_fidelity(
+    allocation: Mapping[str, Any],
+    plan: Mapping[str, Any],
+    *,
+    require_binds_session_routing: bool = True,
+    check_gateway_annotation: bool = True,
+) -> list[str]:
+    """Cross-check fleet allocation artifact against live_run_plan fleet_binding.
+
+    Returns [] on match. Does not execute models or grant authority.
+    """
+    errors: list[str] = []
+    if not isinstance(allocation, Mapping):
+        return ["allocation must be a mapping"]
+    if not isinstance(plan, Mapping):
+        return ["plan must be a mapping"]
+
+    source = allocation.get("fleet_binding")
+    plan_binding = plan.get("fleet_binding")
+    errors.extend(
+        check_fleet_binding_fidelity(
+            source if isinstance(source, Mapping) else None,
+            plan_binding if isinstance(plan_binding, Mapping) else None,
+            require_binds_session_routing=require_binds_session_routing,
+        )
+    )
+
+    alloc = allocation.get("allocation")
+    if isinstance(alloc, Mapping) and isinstance(plan_binding, Mapping):
+        if plan_binding.get("selected_alias") != alloc.get("primary_alias"):
+            errors.append(
+                "plan fleet_binding.selected_alias must match allocation.primary_alias "
+                f"({plan_binding.get('selected_alias')!r} vs {alloc.get('primary_alias')!r})"
+            )
+
+    if check_gateway_annotation and isinstance(plan_binding, Mapping):
+        alias = plan_binding.get("selected_alias")
+        specs = plan.get("node_specs")
+        if isinstance(alias, str) and alias and isinstance(specs, Mapping):
+            for nid, spec in specs.items():
+                if not isinstance(spec, Mapping):
+                    continue
+                if str(spec.get("node_type")) != "model_gateway":
+                    continue
+                payload = spec.get("payload") if isinstance(spec.get("payload"), Mapping) else {}
+                if payload.get("fleet_selected_alias") != alias:
+                    errors.append(
+                        f"node {nid!r} model_gateway payload.fleet_selected_alias "
+                        f"must match fleet binding alias {alias!r}"
+                    )
+                if payload.get("fleet_binding_annotation_only") is not True:
+                    errors.append(
+                        f"node {nid!r} model_gateway must set fleet_binding_annotation_only=true"
+                    )
+    return errors
+
+
+def fleet_fidelity_report(
+    allocation: Mapping[str, Any],
+    plan: Mapping[str, Any],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Structured fidelity report for CLI (validation_only)."""
+    errors = check_fleet_plan_fidelity(allocation, plan, **kwargs)
+    return {
+        "kind": "builder_ii.wrp.fleet_fidelity_report",
+        "schema_version": 1,
+        "artifact_state": "VALIDATION_ONLY",
+        "ok": len(errors) == 0,
+        "errors": errors,
+        "grants_authority": False,
+        "executes_model": False,
+        "s3_enabled": False,
+        "notes": (
+            "Fleet→plan field fidelity only (alias/budget/risk/binds_session_routing). "
+            "Not provider session authority; not S3 enablement."
+        ),
+    }

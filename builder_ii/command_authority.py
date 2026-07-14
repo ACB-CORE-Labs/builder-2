@@ -628,6 +628,7 @@ REQUIRED_SUBCOMMANDS = {
     "builder-deepagents validate-readiness",
     "builder-deepagents forge",
     "builder-deepagents delegate",
+    "builder-deepagents run-readonly",
     "builder-deepagents work-plan",
     "builder-deepagents assign-subagent",
     "builder-deepagents record-result",
@@ -711,6 +712,7 @@ REQUIRED_SUBCOMMANDS = {
     "builder-wrp msda-status",
     "builder-wrp backends",
     "builder-wrp doctor-backends",
+    "builder-wrp fleet-fidelity",
     "builder-semantic",
     "builder-semantic doctor",
     "builder-semantic map",
@@ -1144,6 +1146,24 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Lists matching agent definitions.",
         failure_mode="Exits non-zero if spec parse fails.",
         notes="Verifies agent metadata without starting active sessions.",
+    ),
+    CommandAuthorityRecord(
+        name="builder-agent run",
+        entrypoint="builder_ii.cli.agent_cli:agent_app",
+        tier=TIER_3,
+        promotion_state=STATE_READ_ONLY_RUNTIME_CANDIDATE,
+        runtime_boundary=(
+            "V.2: RO agent inspection candidate. Requires --read-only. Only profiles with "
+            "authority=read_only (e.g. code_reviewer). No deepagents construction, shell, "
+            "writes, MCP, or model invoke."
+        ),
+        write_boundary="Writes RO receipt JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Operator must pass --read-only; refuses write/shell modes.",
+        output_behavior="Prints builder_ii.agent_readonly_run_receipt (read_only_runtime_candidate).",
+        failure_mode="Exits non-zero for proposal_only profiles, missing --read-only, or contract violations.",
+        notes="Not delegate; not S3; patch_planner refused for live RO.",
+        allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
         name="builder-bridge",
@@ -2345,6 +2365,23 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints deterministic preview/emit status, exact paths, warnings, blockers, and optional hook results.",
         failure_mode="Exits non-zero on invalid spec, governance blockers, unsafe slug/path, command-authority denial, or profile write failure; optional hook failures are reported without pretending success.",
         notes="Forge is a governed artifact factory for profiles and handoff intent only.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-deepagents run-readonly",
+        entrypoint="builder_ii.cli.deepagents_cli:deepagents_app",
+        tier=TIER_3,
+        promotion_state=STATE_READ_ONLY_RUNTIME_CANDIDATE,
+        runtime_boundary=(
+            "V.2: RO agent inspection via shared agent_readonly_runner (read_only profiles only). "
+            "Does not construct deepagents, invoke delegate, shell, write, or call models."
+        ),
+        write_boundary="Writes RO receipt JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Operator invokes run-readonly; not autonomous multi-agent.",
+        output_behavior="Prints receipt with capability_state=read_only_runtime_candidate.",
+        failure_mode="Exits non-zero for non-read_only profiles or contract violations.",
+        notes="Not delegate; not optional_deepagents promote; not S3.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
@@ -3623,6 +3660,23 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Prints default_runtime_ok + per-backend health; exits 1 if defaults unhealthy.",
         failure_mode="Exits non-zero only when default (hash/MSDA) paths are not ready.",
         notes="Does not install deps or promote S4; never starts vLLM.",
+        allows_artifact_writes=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-wrp fleet-fidelity",
+        entrypoint="builder_ii.cli.wrp_cli:wrp_app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "W.3: cross-check fleet_binding fidelity from fleet_allocation → live_run_plan "
+            "(alias/budget/risk/binds_session_routing; optional model_gateway annotation)."
+        ),
+        write_boundary="Writes fidelity report JSON only when an explicit output path is supplied.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints ok/errors; exits non-zero on mismatch.",
+        failure_mode="Exits non-zero when plan binding drifts from allocation.",
+        notes="Validation only; not provider session authority; not S3.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
