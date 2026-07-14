@@ -32,6 +32,7 @@ PHI_POLICY_KIND = "builder_ii.wrp.phi_policy"
 RSTAR_APPLY_PLAN_KIND = "builder_ii.wrp.rstar_apply_plan"
 RSTAR_APPLY_APPROVAL_KIND = "builder_ii.wrp.rstar_apply_approval"
 RSTAR_APPLY_RECEIPT_KIND = "builder_ii.wrp.rstar_apply_receipt"
+CLASS_U_REPORT_KIND = "builder_ii.wrp.class_u_report"
 
 WRP_SCHEMA_VERSION = 1
 
@@ -59,6 +60,7 @@ WRP_ARTIFACT_KINDS: frozenset[str] = frozenset(
         RSTAR_APPLY_PLAN_KIND,
         RSTAR_APPLY_APPROVAL_KIND,
         RSTAR_APPLY_RECEIPT_KIND,
+        CLASS_U_REPORT_KIND,
     }
 )
 

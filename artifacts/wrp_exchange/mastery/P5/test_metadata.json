@@ -1,0 +1,16 @@
+{
+  "wave": "mastery/P5",
+  "gap_rows": [
+    "Class U measured latency/cost",
+    "Perf axes partial",
+    "Proof R,D,U"
+  ],
+  "claims": {
+    "s3_enabled": false,
+    "invented_numbers": false,
+    "measured": true
+  },
+  "test_commands": [
+    "uv run pytest tests/test_wrp_class_u_harness.py -q"
+  ]
+}

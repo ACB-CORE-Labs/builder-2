@@ -43,9 +43,9 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | AgentFactory plan only | `PARTIAL` | P2.5 | spawn/retire under HITL at S2 |
 | SubtaskGraph plan + digest replay | `PARTIAL` | P2.6 / P2.8 | graph **runtime** landed (noop/record); live invoke + tree_hash OPEN |
 | Orchestration patterns at runtime | `PARTIAL` | P2.6 / P3 | sequential, fan-out, hierarchical, handoff, cyclic in graph_runtime; **S2 v2** model/tool gateway nodes (record/stub) landed; cloud provider invoke still OPEN |
-| Evaluator + proof R/D kinds | `PARTIAL` | P2.7 | Class U harness missing |
-| Class U measured latency/cost | `OPEN` | P5 | `class_u_harness.py` + proof_record U |
-| Perf axes (accuracy, cost, latency, safety, adaptivity) | `OPEN` | P5 | artifact dashboards |
+| Evaluator + proof R/D kinds | `LANDED` | P2.7 / P5 | R/D via fixtures; Class U via `class_u_harness` |
+| Class U measured latency/cost | `LANDED` | P5 | `class_u_harness.py` + `builder-wrp benchmark --class u` + proof_record U + performance_measurement rows |
+| Perf axes (accuracy, cost, latency, safety, adaptivity) | `PARTIAL` | P5 | axes on class_u_report; adaptivity still P4 epoch path (not full dashboards) |
 | vLLM WRP research profile | `OPEN` | P6 | `docs/plan/WRP_VLLM_RESEARCH_PROFILE.md` + interface |
 | LangGraph optional adapter | `OPEN` | P2.6 / P6 | adapter + skip-if-missing tests |
 | Trained R head research track | `OPEN` | P6 | offline dataset/pipeline; no silent override |
@@ -70,7 +70,7 @@ See absolute mastery plan success definition. **None** of these boxes may be che
 [ ] Master-Plan W0–W5 green with Maker + Governor evidence
 [ ] Live lane promoted and used under MSDA + budgets
 [x] R deterministic; R* applied through promotion (HITL φ-policy); adaptivity measured on receipt epochs
-[ ] Proof R, D, U evidenced (U with numbers)
+[x] Proof R, D, U evidenced (U with numbers via class_u_harness)
 [ ] Dual-platform ceremony for authority changes
 [ ] CAPABILITY_PROMOTION / matrix / command_authority match real power
 [ ] Heavy backends exist as opt-in with tests; defaults M1-safe

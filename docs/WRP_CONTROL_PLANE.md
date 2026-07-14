@@ -99,6 +99,18 @@ rollback:
   - discard plan/approval/receipt; keep prior phi_policy version; DEFAULT_PHI untouched
 ```
 
+## P5 Class U harness (measured utility; validation only)
+
+**CLI:** `builder-wrp benchmark --class u --target builder [-o class_u_report.json]`.
+
+```text
+behavior:
+  - runs fixed local S2 v2 scenarios (record gateways, stub_tool B7, v1 refuse flags, MSDA shell deny)
+  - records wall_ms, peak_rss_mb, pass_ratio, safety flags
+  - emits builder_ii.wrp.class_u_report + proof_record U + performance_measurement rows
+  - proof U held only when thresholds met; still grants_authority=false; s3_enabled=false
+```
+
 ## Non-authority boundaries (current)
 
 - S2 v1 does not invoke gateways; S2 v2 gateway nodes default to **record** (no cloud provider / no shell); no Goose/deepagents.

@@ -417,6 +417,54 @@ def apply_rstar_approved_cmd(
     _emit(receipt, output)
 
 
+@wrp_app.command("benchmark")
+def benchmark_cmd(
+    proof_class: str = typer.Option("u", "--class", help="Only 'u' (Class U) is supported"),
+    target: str = typer.Option("builder", "--target", help="builder | generic | core"),
+    iterations: int = typer.Option(1, "--iterations", min=1, max=20),
+    output: Path | None = typer.Option(None, "--output", "-o", help="Write class_u_report JSON"),
+    proof_out: Path | None = typer.Option(None, "--proof-out", help="Write proof_record U JSON"),
+    measurements_out: Path | None = typer.Option(
+        None, "--measurements-out", help="Write performance_measurement list JSON"
+    ),
+) -> None:
+    """P5: Class U engineering-utility harness (measured numbers; no S3 enablement)."""
+    from builder_ii.wrp.class_u_harness import run_class_u_harness
+
+    if str(proof_class).strip().lower() not in {"u", "class_u", "class-u"}:
+        console.print("[red]Only --class u is supported for builder-wrp benchmark[/]")
+        raise typer.Exit(1)
+    try:
+        result = run_class_u_harness(target=target, iterations=iterations)
+    except ValueError as exc:
+        console.print(f"[red]benchmark refused: {exc}[/]")
+        raise typer.Exit(1) from exc
+
+    report = result["report"]
+    _emit(report, output)
+    if proof_out is not None:
+        write_wrp(result["proof"], proof_out)
+    if measurements_out is not None:
+        measurements_out.parent.mkdir(parents=True, exist_ok=True)
+        measurements_out.write_text(
+            json_lib.dumps(result["measurements"], indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    summary = report.get("summary") or {}
+    held = summary.get("proof_u_held")
+    console.print(
+        f"[cyan]Class U[/] pass_ratio={summary.get('pass_ratio')} "
+        f"record_ms={summary.get('record_wall_ms_median')} "
+        f"stub_ms={summary.get('stub_wall_ms_median')} "
+        f"peak_rss_mb={summary.get('peak_rss_mb')} "
+        f"proof_u_held={held}"
+    )
+    if not result.get("utility_ok"):
+        console.print("[red]Class U utility thresholds not met (report still written)[/]")
+        raise typer.Exit(1)
+    console.print("[green]Class U utility_ok=true[/]")
+
+
 @wrp_app.command("package-exchange")
 def package_exchange_cmd(
     wave: str = typer.Option(..., "--wave"),
@@ -478,6 +526,9 @@ def validate_cmd(
         "builder_ii.wrp.rstar_apply_receipt": __import__(
             "builder_ii.wrp.rstar_apply", fromlist=["validate_rstar_apply_receipt"]
         ).validate_rstar_apply_receipt,
+        "builder_ii.wrp.class_u_report": __import__(
+            "builder_ii.wrp.class_u_harness", fromlist=["validate_class_u_report"]
+        ).validate_class_u_report,
     }
     validator = validators.get(str(kind))
     if validator is None:

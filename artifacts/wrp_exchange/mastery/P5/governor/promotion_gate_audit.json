@@ -1,0 +1,27 @@
+{
+  "kind": "builder_ii.wrp.governor_certification",
+  "wave": "mastery/P5",
+  "pr": 144,
+  "branch": "feat/wrp-p5-class-u-harness",
+  "tip": "057a0ec",
+  "status": "PASS",
+  "role": "G-LEAD",
+  "model": "gemini-3.1-pro",
+  "dual_correction": true,
+  "numbers_measured": true,
+  "invented_numbers": false,
+  "s3_claimed": false,
+  "merge_recommendation": "MERGE",
+  "eight_gates": {
+    "docs_honest": "PASS",
+    "tests_green": "PASS",
+    "command_surface_tier_1": "PASS",
+    "failure_modes": "PASS",
+    "human_approval_boundary": "PASS",
+    "output_artifacts_digest_bound": "PASS",
+    "rollback": "PASS",
+    "verification": "PASS"
+  },
+  "blockers": [],
+  "notes": "P5 Class U harness successfully validated. Numbers are measured via perf_counter and ru_maxrss, not hardcoded. S3 scoped multi-agent is explicitly disabled. Command surface is correctly constrained to Tier 1 validation_only without granting execution authority."
+}
