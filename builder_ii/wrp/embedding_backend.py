@@ -199,6 +199,28 @@ def _try_load_modernbert_provider() -> EmbedProvider | None:
     return embed_fn  # type: ignore[return-value]
 
 
+def modernbert_opt_in_enabled() -> bool:
+    """True when env requests ModernBERT (does not imply provider available)."""
+    return os.environ.get(MODERNBERT_ENV) == MODERNBERT_ENV_VALUE
+
+
+def resolve_embedder(
+    *,
+    dim: int = DEFAULT_EMBED_DIM,
+    provider: EmbedProvider | None = None,
+) -> EmbeddingBackend:
+    """Resolve default embedder: HashingEmbedder unless ModernBERT opt-in is set.
+
+    When ``BUILDER_II_WRP_EMBEDDER=modernbert``:
+    - Returns ``OptionalModernBertBackend`` (may still fail on ``embed`` if provider missing).
+    Otherwise returns ``HashingEmbedder`` (M1-safe default, never requires torch).
+    """
+    if modernbert_opt_in_enabled():
+        return OptionalModernBertBackend(provider=provider)
+    return HashingEmbedder(dim=dim)
+
+
+
 def _as_float_list(values: Sequence[float], *, field: str) -> list[float]:
     if not isinstance(values, Sequence) or isinstance(values, (str, bytes)):
         raise ValueError(f"{field} must be a sequence of floats")
@@ -251,4 +273,6 @@ __all__ = [
     "HashingEmbedder",
     "OptionalModernBertBackend",
     "knn_classify",
+    "modernbert_opt_in_enabled",
+    "resolve_embedder",
 ]

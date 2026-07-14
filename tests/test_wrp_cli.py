@@ -114,3 +114,137 @@ def test_wrp_cli_gate_and_route(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     result = runner.invoke(wrp_app, ["route", "--text", "fix the digest mismatch", "-o", str(tmp_path / "r.json")])
     assert result.exit_code == 0, result.output
+
+
+def test_wrp_cli_replay_w5_null_git_and_bound(tmp_path: Path) -> None:
+    import json
+
+    plan_path = tmp_path / "plan.json"
+    obs_path = tmp_path / "obs.json"
+    out_path = tmp_path / "replay.json"
+    r = runner.invoke(wrp_app, ["graph", "--task", "w5", "--nodes", "a,b", "-o", str(plan_path)])
+    assert r.exit_code == 0, r.output
+    dig_a = "a" * 64
+    dig_b = "b" * 64
+    obs_path.write_text(
+        json.dumps([{"node_id": "a", "digest": dig_a}, {"node_id": "b", "digest": dig_b}]),
+        encoding="utf-8",
+    )
+    # null-git agreement → perfect_match
+    r = runner.invoke(
+        wrp_app,
+        ["replay", "--plan", str(plan_path), "--observed", str(obs_path), "-o", str(out_path)],
+    )
+    assert r.exit_code == 0, r.output
+    report = json.loads(out_path.read_text(encoding="utf-8"))
+    assert report["perfect_match"] is True
+    assert report["repo_state_mode"] == "null_git"
+
+    # bound match
+    out2 = tmp_path / "replay2.json"
+    r = runner.invoke(
+        wrp_app,
+        [
+            "replay",
+            "--plan",
+            str(plan_path),
+            "--observed",
+            str(obs_path),
+            "--planned-commit",
+            "abc",
+            "--planned-tree",
+            "def",
+            "--observed-commit",
+            "abc",
+            "--observed-tree",
+            "def",
+            "-o",
+            str(out2),
+        ],
+    )
+    assert r.exit_code == 0, r.output
+    report2 = json.loads(out2.read_text(encoding="utf-8"))
+    assert report2["perfect_match"] is True
+    assert report2["repo_state_mode"] == "bound"
+
+    # mismatch fails closed
+    r = runner.invoke(
+        wrp_app,
+        [
+            "replay",
+            "--plan",
+            str(plan_path),
+            "--observed",
+            str(obs_path),
+            "--planned-commit",
+            "abc",
+            "--planned-tree",
+            "def",
+            "--observed-commit",
+            "abc",
+            "--observed-tree",
+            "NOPE",
+        ],
+    )
+    assert r.exit_code == 1, r.output
+
+
+def test_wrp_cli_p6_surfaces(tmp_path: Path) -> None:
+    import json
+
+    # langgraph project (pure)
+    out = tmp_path / "lg.json"
+    r = runner.invoke(wrp_app, ["langgraph-project", "--nodes", "x,y", "-o", str(out)])
+    assert r.exit_code == 0, r.output
+    data = json.loads(out.read_text(encoding="utf-8"))
+    assert data["backend"] == "pure_projection"
+    assert data["grants_authority"] is False
+
+    # compile without env → fail-closed
+    r = runner.invoke(wrp_app, ["langgraph-project", "--nodes", "x,y", "--compile"])
+    assert r.exit_code == 1, r.output
+
+    # vllm profile
+    vp = tmp_path / "vllm.json"
+    r = runner.invoke(wrp_app, ["vllm-profile", "-o", str(vp)])
+    assert r.exit_code == 0, r.output
+    vdata = json.loads(vp.read_text(encoding="utf-8"))
+    assert vdata["default_runtime"] is False
+    assert vdata["engine_started"] is False
+
+    # opa-eval python
+    oe = tmp_path / "opa.json"
+    r = runner.invoke(
+        wrp_app,
+        ["opa-eval", "--tool", "repo_map", "--domain", "local_workspace", "-o", str(oe)],
+    )
+    assert r.exit_code == 0, r.output
+    odata = json.loads(oe.read_text(encoding="utf-8"))
+    assert odata["backend"] == "python_msda"
+    assert odata["effect"] == "allow"
+
+    # opa backend absent → fail-closed
+    r = runner.invoke(
+        wrp_app,
+        ["opa-eval", "--tool", "repo_map", "--domain", "local_workspace", "--backend", "opa"],
+    )
+    # may be 0 if opa installed, or 1 if not — structure: never crash without message
+    assert r.exit_code in (0, 1)
+    if r.exit_code == 1:
+        assert "fail-closed" in r.output.lower() or "opa" in r.output.lower()
+
+    # embed-status default hashing
+    es = tmp_path / "embed.json"
+    r = runner.invoke(wrp_app, ["embed-status", "-o", str(es)])
+    assert r.exit_code == 0, r.output
+    edata = json.loads(es.read_text(encoding="utf-8"))
+    assert edata["is_default_hashing"] is True
+    assert edata["backend_name"] == "hashing"
+
+    # repo-state
+    rs = tmp_path / "rs.json"
+    r = runner.invoke(wrp_app, ["repo-state", "-o", str(rs)])
+    assert r.exit_code == 0, r.output
+    rdata = json.loads(rs.read_text(encoding="utf-8"))
+    assert "commit_id" in rdata and "tree_hash" in rdata
+    assert rdata["grants_authority"] is False

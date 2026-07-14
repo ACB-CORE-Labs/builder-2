@@ -1,10 +1,10 @@
 # WRP Absolute Mastery — Progress Marker
 
 **Status:** RECORDED_ONLY progress ledger (not a promotion grant; not S3 enablement).  
-**As of:** main tip includes **#146** (S3 readiness + G-LEAD) · HUMAN S3 decision **blocked** · **#145** progress marker · **#144** P5 · S1/S2 approved.  
+**As of:** main tip includes **#146** (S3 readiness + G-LEAD) · HUMAN S3 decision **blocked** · **P6 opt-in backends + P7/W5 repo-state** on this branch · S1/S2 approved.  
 **Sources of truth:** this file + [`WRP_MASTERY_GAP_MATRIX.md`](WRP_MASTERY_GAP_MATRIX.md) + [`WRP_MASTERY_AGENT_DISPATCH.md`](WRP_MASTERY_AGENT_DISPATCH.md) + [`ROADMAP.md`](ROADMAP.md) WRP phase + exchange under `artifacts/wrp_exchange/mastery/`.
 
-> **Do not inflate.** Planned ≠ executed ≠ verified ≠ promoted. G-LEAD cert ≠ S3 enabled. Readiness `ready=true` ≠ decision approved. HUMAN **blocked** ≠ reopen without new evidence.
+> **Do not inflate.** Planned ≠ executed ≠ verified ≠ promoted. G-LEAD cert ≠ S3 enabled. Readiness `ready=true` ≠ decision approved. HUMAN **blocked** ≠ reopen without new evidence. P6 backends are **opt-in substrate**, not S4 promoted.
 
 ---
 
@@ -27,10 +27,10 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | P4 R\* apply | P4 | **DONE (HITL φ-policy)** | #142; versioned `phi_policy`; no DEFAULT_PHI mutate |
 | P5 Class U measured | P5 | **DONE (validation_only)** | #144; G-LEAD PASS; `builder-wrp benchmark --class u` |
 | S3 scoped `enabled` | S3 | **DECIDED blocked (HUMAN)** | Readiness G-LEAD PASS (#146); `wrp_s3_decision.json` **blocked** by HUMAN (H7 + blockers) — **not** enabled |
-| P6 backends | P6 | **OPEN / partial substrate** | **Next focus** after S3 block; hash embed + OPA export landed; heavy tracks open |
-| P7 ceremony + W5 | P7 | **PARTIAL** | Ceremony used on authority PRs; W5 commit/tree_hash still OPEN |
+| P6 backends | P6 | **LANDED (opt-in substrate)** | LangGraph pure+opt-in adapter; vLLM research profile stub; OPA eval parity; ModernBERT fail-closed + `resolve_embedder`; M1 defaults pure |
+| P7 ceremony + W5 | P7 | **LANDED (substrate)** | W5 `commit_id`/`tree_hash` binding on replay; ceremony template; R-head research deferred doc |
 
-**Cursor (now):** S3 **HUMAN-decided blocked**. Enablement off. Next high leverage: **P6** (opt-in backends, M1-safe) and/or **P7/W5**; re-open S3 only with stronger U evidence + enablement design.
+**Cursor (now):** S3 **HUMAN-decided blocked**. P6 opt-in backends + W5 repo-state reconstructive match landed as substrate. Next: optional G-LEAD on this PR; re-open S3 only with stronger U + enablement design; S4 backend promotion decisions remain OPEN.
 
 ---
 
@@ -41,7 +41,7 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | S1 | Bound recommendations (flagged) | **Approved** — default still advisory unless bind flags set |
 | S2 | HITL live lane | **Approved** v1 + **v2 gateway code** on main — still `hitl_runtime_candidate` |
 | S3 | Scoped multi-agent `enabled` | **HUMAN blocked** — readiness ready; Class U micro-only (H7); no `enabled` runtime |
-| S4 | Backend promotions | **OPEN** |
+| S4 | Backend promotions | **OPEN** — P6 interfaces exist; no promotion flip |
 
 Live path remains **HITL candidate**, not global enabled multi-agent.
 
@@ -50,14 +50,14 @@ Live path remains **HITL candidate**, not global enabled multi-agent.
 ## 3. Mastery checklist (marker)
 
 ```text
-[ ] Master-Plan W0–W5 green with Maker + Governor evidence  ← PARTIAL: substrate+HITL strong; W5 repo-state OPEN
-[ ] Live lane promoted and used under MSDA + budgets         ← PARTIAL: S2 decided HITL; not S3 "promoted enabled"
+[~] Master-Plan W0–W5 green with Maker + Governor evidence  ← W5 repo-state code LANDED; full dual-platform W0–W5 green still PARTIAL
+[~] Live lane promoted and used under MSDA + budgets         ← PARTIAL: S2 decided HITL; not S3 "promoted enabled"
 [x] R deterministic; R* applied through promotion; adaptivity on receipt epochs
 [x] Proof R, D, U evidenced (U with numbers via class_u_harness #144)
-[~] Dual-platform ceremony for authority changes            ← PARTIAL: used for S2/S2-v2/P5; uneven on P4 exchange certs
+[~] Dual-platform ceremony for authority changes            ← PARTIAL: template + S2/S2-v2/P5 practice; P4 cert thin (H4)
 [~] CAPABILITY_PROMOTION / matrix / command_authority match  ← PARTIAL: WRP rows updated; continuous drift risk
-[ ] Heavy backends opt-in with tests; defaults M1-safe       ← PARTIAL: hash embed/OPA export; heavy tracks OPEN
-[ ] Gap matrix zero OPEN rows                                ← FAIL until S3/P6/P7/W5 closed or deliberately deferred
+[x] Heavy backends opt-in with tests; defaults M1-safe       ← P6 landed (langgraph/vllm/opa/modernbert); S4 promo OPEN
+[~] Gap matrix zero OPEN rows                                ← intentional OPEN: S4 promo, trained R head research, cloud invoke
 ```
 
 `[x]` = closed with code+tests+docs (and G-LEAD where required).  
@@ -79,9 +79,10 @@ Live path remains **HITL candidate**, not global enabled multi-agent.
 | #144 | P5 Class U | merged (`7401b1e`) |
 | #145 | Progress marker (DONE/OPEN/H1–H12) | merged (`ff0e5df`) |
 | #146 | S3 readiness draft + G-LEAD certs | merged; enablement none |
-| (open) | S3 HUMAN decision blocked | `wrp_s3_decision.json` decided_by=HUMAN, decision=blocked |
+| #147 | S3 HUMAN decision blocked | merged (`58a41c9`) |
+| (this) | P6 opt-in backends + P7/W5 repo-state | branch `feat/wrp-p6-p7-mastery-remainder` |
 
-Exchange packages: `artifacts/wrp_exchange/mastery/{P0,P2-pure,P2-wires,S1,S2,S2-v2,P4,P5}/`.
+Exchange packages: `artifacts/wrp_exchange/mastery/{P0,P2-pure,P2-wires,S1,S2,S2-v2,P4,P5,S3-readiness,P6}/`.
 
 ---
 
@@ -104,7 +105,7 @@ These are **not** silent failures of the platform grammar; they are residual ris
 | ID | Concern | Severity | Notes / mitigation |
 | --- | --- | --- | --- |
 | H6 | **S2 v2 is not cloud invoke** | High (honesty) | Default `gateway_mode=record` = synthetic digests + MSDA. No provider network. **Do not market as “model gateway live.”** Cloud remains explicit future gate. |
-| H7 | **Class U numbers are local/micro** | Medium | **Reviewed (S3 readiness draft):** exchange sample ~`record_ms≈0.97`, `peak_rss_mb≈49`; host reconfirm ~`0.76` / `~42` RSS; structural match; `s3_enabled=false`. Proves harness + fail-closed path, **not** production multi-agent utility. **Outcome in readiness notes + decision=blocked:** U suite alone is **insufficient** to approve target_state=`enabled`. Remains open as product risk until HUMAN decides or stronger U evidence lands. |
+| H7 | **Class U numbers are local/micro** | Medium | **Reviewed (S3 readiness draft):** exchange sample ~`record_ms≈0.97`, `peak_rss_mb≈49`; host reconfirm ~`0.76` / `~42` RSS; structural match; `s3_enabled=false`. Proves harness + fail-closed path, **not** production multi-agent utility. **Outcome:** HUMAN **blocked** S3 enablement. Remains open as product risk until stronger U evidence. |
 | H8 | **S1 bind still flag-gated** | Medium | Approved decision does not default-bind routing; `require_wrp_binding` / env / dry-run flags required. Intentional; easy to misread as “S1 fully on.” |
 | H9 | **MSDA preflight default off outside live lane** | Medium | Live lane forces MSDA; model/tool gateways use env `BUILDER_II_WRP_MSDA_PREFLIGHT`. Real invoke paths can still skip preflight if env unset. |
 | H10 | **Fleet binding vs session plan** | Low–Med | `fleet_binding` on allocation + recommendations; not fully driving live session/model authority. Gap row still PARTIAL. |
@@ -116,15 +117,17 @@ These are **not** silent failures of the platform grammar; they are residual ris
 - Dual-platform G-LEAD/G-FAST ceremony for S2, S2-v2, P5 is working as designed.  
 - Fail-closed patterns (digest approval, shell deny, v1 refuse gateway flags) tested.  
 - DEFAULT_PHI immutability preserved under P4/P5.  
-- Mechanical sympathy defaults (M1-safe record/stub) held.
+- Mechanical sympathy defaults (M1-safe record/stub) held.  
+- P6 optional backends never become CI/default deps.
 
 ---
 
 ## 6. Recommended next steps (plan-ordered)
 
-1. **P6** — opt-in backends (embed/OPA/vLLM interface) with M1-safe defaults; do not soft-enable multi-agent.  
-2. **P7/W5** — repo-state reconstructive match + ceremony templates / H4 P4 cert hygiene.  
-3. **Re-open S3 only when:** stronger Class U (or production-shaped) evidence + scoped enablement design + new readiness/decision + G-LEAD (do not reuse #146 decision).
+1. **G-LEAD (optional)** — cert this P6/P7 substrate PR; do not self-certify promotion.  
+2. **S4 (when ready)** — separate readiness/decision for each backend (embed/OPA/vLLM); never soft-enable.  
+3. **Re-open S3 only when:** stronger Class U (or production-shaped) evidence + scoped enablement design + new readiness/decision + G-LEAD (do not reuse #146/#147 decision).  
+4. **Hygiene** — H4 P4 cert archival; H5 dispatch cursor polish as time allows.
 
 ---
 
