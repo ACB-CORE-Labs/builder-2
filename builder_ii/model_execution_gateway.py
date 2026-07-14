@@ -315,13 +315,15 @@ class ModelExecutionGateway:
             raise ValueError("Prompt must not be empty")
 
         # Optional WRP MSDA preflight (off by default). Tool name is model_call; domain local.
-        from builder_ii.wrp.msda_preflight import assert_msda_preflight
+        # Option A: annotate skip/enforced — never soft-enable product default-on.
+        from builder_ii.wrp.msda_preflight import annotate_msda_preflight_result, assert_msda_preflight
 
-        assert_msda_preflight(
+        _msda_decision = assert_msda_preflight(
             tool="model_call",
             data_domain="local_workspace",
             risk="local_network",
         )
+        _msda_preflight_annotation = annotate_msda_preflight_result(_msda_decision)
 
         # Secret scanning
         secret_errors = scan_for_secrets(prompt)
@@ -546,6 +548,7 @@ class ModelExecutionGateway:
                 "role": "model_call_approval",
                 "required": human_approval_required,
             }
+        receipt["msda_preflight"] = _msda_preflight_annotation
         receipt["digest"] = _digest(receipt)
 
         rec_errors = validate_model_call_receipt(receipt)

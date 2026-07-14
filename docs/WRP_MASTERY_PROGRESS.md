@@ -25,7 +25,7 @@ pure modules → S1 bind → live lane (S2) → R* apply (P4) → Class U (P5) /
 | P7 ceremony + W5 | P7 | **LANDED (substrate)** | #148 W5 repo-state + ceremony template |
 | Post-P6 PARTIAL harden | — | **LANDED (this wave)** | Class U adaptivity; handoff-measure; fleet plan annotation; agent-factory plan CLI; msda-status |
 
-**Cursor (now):** #149 on main. **W.1 Backend registry + doctor** shipping next. S3 blocked. S4 promo OPEN. Cloud invoke OPEN. Vision tracks (semantic/deepagents RO) parallel after registry.
+**Cursor (now):** #150 on main (W.1 registry+doctor). **W.2 Option A** MSDA skip annotations + **V.1** `builder-semantic` RO scaffold. S3 blocked. S4 OPEN.
 
 ---
 
