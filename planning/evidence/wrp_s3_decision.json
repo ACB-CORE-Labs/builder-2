@@ -1,0 +1,186 @@
+{
+  "allowed_actions": [
+    "validate_readiness_record",
+    "render_promotion_decision",
+    "validate_promotion_decision"
+  ],
+  "approved": false,
+  "blockers": [],
+  "capability_state": "promotion_decision_record",
+  "checks": [
+    {
+      "missing": [],
+      "name": "docs",
+      "ready": true,
+      "refs": [
+        "docs/CAPABILITY_PROMOTION.md",
+        "docs/WRP_CONTROL_PLANE.md",
+        "docs/WRP_MASTERY_GAP_MATRIX.md",
+        "docs/WRP_MASTERY_PROGRESS.md",
+        "docs/WRP_ACCEPTANCE.md",
+        "docs/adrs/ADR-0007-orchestration-router-control-plane.md",
+        "artifacts/wrp_exchange/mastery/P5/governor/sample_class_u_report.json",
+        "artifacts/wrp_exchange/mastery/P5/governor/wave_mastery_P5_cert.json",
+        "artifacts/wrp_exchange/mastery/P5/governor/promotion_gate_audit.json"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "tests",
+      "ready": true,
+      "refs": [
+        "tests/test_wrp_class_u_harness.py",
+        "tests/test_wrp_live_lane.py",
+        "tests/test_wrp_live_lane_v2.py",
+        "tests/test_wrp_gateway_nodes.py",
+        "tests/scenarios/test_wrp_s2_live_lane_e2e.py",
+        "tests/scenarios/test_wrp_s2_v2_gateway_e2e.py"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "cli_surface",
+      "ready": true,
+      "refs": [
+        "builder-wrp plan-live",
+        "builder-wrp approve-live",
+        "builder-wrp run-approved",
+        "builder-wrp benchmark --class u"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "failure_mode",
+      "ready": true,
+      "refs": [
+        "builder_ii/wrp/class_u_harness.py s3_enabled must remain false",
+        "builder_ii/wrp/live_lane.py LiveLaneError / forced MSDA",
+        "builder_ii/wrp/gateway_nodes.py refuse cloud/shell; v1 refuses gateway flags",
+        "docs/WRP_MASTERY_PROGRESS.md H6 H7 H9"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "approval_boundary",
+      "ready": true,
+      "refs": [
+        "docs/CAPABILITY_PROMOTION.md",
+        "docs/WRP_ACCEPTANCE.md Promotion acceptance",
+        "planning/evidence/wrp_s2_decision.json (HITL only; not S3)",
+        "HUMAN eight-gate + G-LEAD promotion_gate_audit required before any enablement"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "output_artifact",
+      "ready": true,
+      "refs": [
+        "builder_ii.promotion_readiness_record planning/evidence/wrp_s3_readiness.json",
+        "builder_ii.promotion_decision_record planning/evidence/wrp_s3_decision.json",
+        "builder_ii.wrp.class_u_report (validation_only)",
+        "builder_ii.wrp.proof_record class U",
+        "future: governor.promotion_gate_audit for S3 (not yet)"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "rollback_path",
+      "ready": true,
+      "refs": [
+        "keep s3_enabled=false on all class_u reports",
+        "do not merge enablement code without HUMAN approved decision",
+        "delete this readiness/decision pair if superseded",
+        "live path remains hitl_runtime_candidate only"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "verification_path",
+      "ready": true,
+      "refs": [
+        "uv run pytest tests/test_wrp_class_u_harness.py tests/test_wrp_live_lane_v2.py -q",
+        "uv run builder-wrp benchmark --class u --target builder",
+        "uv run builder-platform audit-docs",
+        "uv run builder-promotion validate planning/evidence/wrp_s3_readiness.json",
+        "uv run builder-promotion-decision validate planning/evidence/wrp_s3_decision.json"
+      ]
+    }
+  ],
+  "current_state": "DISABLED",
+  "decided_by": "PENDING_HUMAN",
+  "decision": "blocked",
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "artifacts_are_authority": false,
+    "autonomous_agent_authority": "DISABLED",
+    "benchmark_execution": "DISABLED",
+    "capability_state": "promotion_decision_record",
+    "claims_verification_passed": "DISABLED",
+    "command_execution": "DISABLED",
+    "commit_push": "DISABLED",
+    "core_workbench_coupling": "NONE",
+    "deepagents_construction": "DISABLED",
+    "deepagents_delegation": "DISABLED",
+    "deepagents_runtime": "DISABLED",
+    "deepagents_runtime_start": "DISABLED",
+    "deephaven_touch": "DISABLED",
+    "executes_commands": false,
+    "file_mutation": "DISABLED",
+    "git_mutation": "DISABLED",
+    "git_status_inspection": "DISABLED",
+    "goose_runtime_activation": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "hardware_probe": "DISABLED",
+    "mcp_execution": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "model_execution_loops": "DISABLED",
+    "network_access": "DISABLED",
+    "network_mcp_execution": "DISABLED",
+    "notes_vault_mutation": "DISABLED",
+    "patch_application": "DISABLED",
+    "proof_of_capability_only": true,
+    "pull_request_creation": "DISABLED",
+    "quality_gate_executes_commands": "DISABLED",
+    "report_is_completed_evidence": "DISABLED",
+    "repository_file_reads": "DISABLED",
+    "repository_writes": "DISABLED",
+    "runtime_activation": "DISABLED",
+    "runtime_authority": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "runtime_executor": false,
+    "search_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_collection": "DISABLED",
+    "source_patches_applied": "DISABLED",
+    "source_writes": "DISABLED",
+    "subagent_construction": "DISABLED",
+    "subprocess_backed_authority": "DISABLED",
+    "subprocess_execution": "DISABLED",
+    "target_artifact_reads": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "ticket_creation": "DISABLED",
+    "web_search": "DISABLED"
+  },
+  "grants_action_authority": false,
+  "grants_runtime_authority": false,
+  "kind": "builder_ii.promotion_decision_record",
+  "performed_actions": [],
+  "readiness": {
+    "capability_name": "WRP S3 scoped enabled multi-agent",
+    "expected_kind": "builder_ii.promotion_readiness_record",
+    "kind": "builder_ii.promotion_readiness_record",
+    "path": "planning/evidence/wrp_s3_readiness.json",
+    "ready": true,
+    "sha256": "9abaaa7491ef5904f4e80c0a1a742c0dd852fa5cd783ebae0a6b5fcfb06d6664",
+    "status": "ready",
+    "support_artifact_count": 0,
+    "support_artifact_kinds": [],
+    "target": "builder",
+    "target_state": "enabled"
+  },
+  "reason": "TEMPLATE / PRE-DECISION ONLY. HUMAN has not approved S3. Maker assessment: decision=blocked for target_state=enabled. Class U (#144) supplies measured local micro numbers (H7) and fail-closed safety scenarios; it does not evidence production multi-agent utility or authorize scoped default enablement. S2 remains hitl_runtime_candidate only. Replace this record after: (1) G-LEAD S3 promotion_gate_audit PASS or FAIL with findings, (2) HUMAN ceremony decides approved|blocked with decided_by=HUMAN. No runtime, command_authority, or s3_enabled change is authorized by this draft.",
+  "record_state": "RECORDED_ONLY",
+  "schema_version": 1
+}

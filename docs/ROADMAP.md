@@ -199,7 +199,8 @@ These are the next capability promotions. Each requires the full capability prom
 - **S2 v2 gateway nodes (HITL) on main (#143):** `model_gateway` / `tool_gateway` with default `record` mode; `stub_tool` B7 allowlist only
 - **P5 Class U harness on main (#144):** `builder-wrp benchmark --class u` → `class_u_report` + proof_record U + performance_measurement (validation only; not S3)
 - **Progress marker:** `docs/WRP_MASTERY_PROGRESS.md` (DONE/OPEN + hiccups H1–H12)
-- **Not done:** S3 scoped enabled, heavy backends (P6), cloud provider gateway invoke, W5 repo-state replay
+- **S3 readiness draft (not enablement):** `planning/evidence/wrp_s3_readiness.json` + `wrp_s3_decision.json` (**blocked** / PENDING_HUMAN)
+- **Not done:** S3 scoped enabled (decision blocked), heavy backends (P6), cloud provider gateway invoke, W5 repo-state replay
 - Dual-platform Maker / Governor ceremony for promotion decisions
 - See `docs/WRP_CONTROL_PLANE.md`, `docs/WRP_ACCEPTANCE.md`, `docs/WRP_MASTERY_GAP_MATRIX.md`, `docs/WRP_MASTERY_PROGRESS.md`, ADR-0007
 

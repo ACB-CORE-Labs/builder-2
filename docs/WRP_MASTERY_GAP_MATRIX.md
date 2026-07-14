@@ -14,7 +14,7 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 ```text
 [x] P0  [x] P2 pure/wires  [x] S1 decided  [x] S2 v1 decided  [x] S2 v2 code
 [x] P4 R* apply  [x] P5 Class U numbers
-[ ] S3 scoped enabled  [ ] P6 backends (heavy)  [ ] P7 W5 repo-state / full ceremony
+[~] S3 readiness drafted (decision blocked)  [ ] P6 backends (heavy)  [ ] P7 W5 repo-state / full ceremony
 ```
 
 ## Legend
@@ -35,7 +35,7 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | Dual-platform exchange + G0–W5 Governor cert | `LANDED` | P7 ops | `artifacts/wrp_exchange/` |
 | Advisory WRP annotation in model_router / dry-run | `LANDED` | P1 S1 | **S1 decided (approved on main):** bind when `require_wrp_binding` / `BUILDER_II_WRP_BIND` / dry-run `require_wrp`; default still advisory |
 | Promotion readiness record | `LANDED` | P1 | `planning/evidence/wrp_s1_readiness.json` ready on main |
-| Promotion **decision** S1–S3 | `PARTIAL` | P1 | **S1+S2 approved** (HUMAN after G-LEAD PASS); S3 OPEN |
+| Promotion **decision** S1–S3 | `PARTIAL` | P1 | **S1+S2 approved**; S3 readiness recorded + decision **blocked** PENDING_HUMAN (`planning/evidence/wrp_s3_{readiness,decision}.json`) — not enabled |
 | Live lane `run-approved` | `LANDED` | P3 / S2 | **S2 decided approved**: HITL v1 + **v2 gateway nodes** (#143) on main; forced MSDA; not S3 |
 | WorkloadClassifier rules + 95% fixtures | `LANDED` | P2.0 deepen | `builder-wrp score-classifier` |
 | EmbeddingBackend + kNN (hash default; ModernBERT-class opt-in) | `PARTIAL` | P2.0 / P6 | Module + tests landed; wire into classifier + S4 embedder promo open |
@@ -61,7 +61,7 @@ Eight gates are **how** stages promote, not reasons to stop. Soft-stop at substr
 | Trained R head research track | `OPEN` | P6 | offline dataset/pipeline; no silent override |
 | W5 Gitea/repo state reconstructive match | `OPEN` | P2.8 / P7 | commit_id + tree_hash binding |
 | Merge ceremony on every authority PR | `PARTIAL` | P7 | process + templates |
-| Scoped `enabled` live path | `OPEN` | S3 (after P5) | eight-gate + HUMAN only; Class U numbers available (#144) but **do not** imply enablement |
+| Scoped `enabled` live path | `PARTIAL` | S3 (after P5) | Readiness G-LEAD **PASS-MERGE** (#146) + decision **blocked** (H7: Class U micro-only); HUMAN decision still required before any enablement code |
 
 ## Promotion stages (target power)
 
