@@ -73,6 +73,8 @@ Governed setup subcommands:
 
 ## Inspection/Read-Only Candidate
 - `builder-readonly`
+- `builder-stratum` — experimental STRATUM operator console (observe + compose; console-script alias of `builder stratum --experimental`)
+- `builder-semantic` — V.1 semantic/structural read-only lane (doctor/map/preview/validate); no model, shell, Goose start, or target writes
 
 Root read-only TUI inspector subcommands:
 
@@ -84,6 +86,7 @@ Root read-only TUI inspector subcommands:
 - `builder postflight`
 - `builder goose`
 - `builder code-vault`
+- `builder stratum`
 
 These root inspector groups are Tier 0 observer surfaces. They read existing
 governed artifacts from `$BUILDER_DIR`, render terminal diagnostics, and do not

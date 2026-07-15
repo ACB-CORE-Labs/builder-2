@@ -1163,7 +1163,8 @@ def test_stratum_declares_the_runtime_it_starts_and_derives_the_matching_assuran
 
     assert record.allows_runtime_start is True
     assert record.allows_external_tool_invocation is True
-    assert record.allows_artifact_writes is False, "the receipts are written by the command it invokes"
+    # Passive .builder Goose manifest only after ConfirmScreen; receipts still from start-readonly.
+    assert record.allows_artifact_writes is True, "operator-confirmed passive manifest mint under .builder/goose"
     assert record.allows_source_writes is False
     assert record.allows_shell_execution is False
 
