@@ -255,18 +255,8 @@ class StratumApp(App[None]):
                 pass
         self._refresh_task = asyncio.create_task(self._periodic_refresh())
         self._update_idle_report()
-        self._ensure_local_scaffold()
         self._maybe_open_first_run_guide()
         self._maybe_surface_hitl()
-
-    def _ensure_local_scaffold(self) -> None:
-        """Create empty .builder/{artifacts,goose,receipts} so instruments have a home."""
-        try:
-            from builder_ii.stratum_prepare import ensure_builder_scaffold
-
-            ensure_builder_scaffold(self.artifacts_dir.parent)
-        except Exception:
-            pass
 
     def _maybe_open_first_run_guide(self) -> None:
         from builder_ii.stratum_guide import should_auto_open_guide
@@ -677,55 +667,72 @@ class StratumApp(App[None]):
                 return candidate
         return None
 
-    def _ensure_readonly_goose_manifest(self) -> Path | None:
-        """Find or auto-prepare a passive read_only manifest for G.
+    def _goose_manifest_compose_line(self) -> str:
+        target = "builder" if (Path(self.settings.project_root) / "builder_ii").is_dir() else "generic"
+        return (
+            f"uv run builder-goose manifest --target {target} --mode read_only "
+            f'--task "readonly inspect" --output .builder/goose/session.json'
+        )
 
-        Auto-prep is local scaffolding only (``.builder/goose/stratum-auto-readonly.json``).
-        It does not start Goose and does not grant authority — start-readonly still runs its own
-        policy, receipts, and postflight. Prep lives in ``stratum_prepare`` (outside the TUI write
-        boundary), not as an authority origin in this surface.
+    def _offer_manual_goose_manifest_compose(self) -> None:
+        """Surface the manual mint command; does not run it."""
+        self.push_screen(
+            CLIPassthroughScreen(prefix_context=self._goose_manifest_compose_line()),
+            self._show_composed_command,
+        )
+
+    def _mint_readonly_goose_manifest(self) -> Path | None:
+        """Operator-approved local prep: scaffold + passive read_only manifest if needed.
+
+        Called only after ConfirmScreen yes. Does not start Goose or grant authority.
         """
-        existing = self._governed_readonly_manifest()
-        if existing is not None:
-            return existing
-
         from builder_ii.stratum_prepare import ensure_readonly_goose_manifest
 
-        builder_root = self.artifacts_dir.parent
-        path, note = ensure_readonly_goose_manifest(settings=self.settings, builder_root=builder_root)
+        path, note = ensure_readonly_goose_manifest(
+            settings=self.settings,
+            builder_root=self.artifacts_dir.parent,
+        )
         if path is not None:
             self.notify(note)
             return path
         self.notify(
-            f"{note}. Run `builder-goose manifest --mode read_only --output .builder/goose/session.json` "
-            "if auto-prepare cannot run.",
+            f"{note}. Compose a manual manifest when ready.",
             severity="warning",
         )
-        target = getattr(getattr(self.settings, "core_repo", None), "name", None) or "generic"
-        if (Path(self.settings.project_root) / "builder_ii").is_dir():
-            target = "builder"
-        self.push_screen(
-            CLIPassthroughScreen(
-                prefix_context=(
-                    f"uv run builder-goose manifest --target {target} --mode read_only "
-                    f'--task "readonly inspect" --output .builder/goose/session.json'
-                )
-            ),
-            self._show_composed_command,
-        )
+        self._offer_manual_goose_manifest_compose()
         return None
+
+    def _hand_off_goose_readonly(self, manifest: Path) -> None:
+        """Suspend and give the terminal to start-readonly for an existing manifest path."""
+        import subprocess
+        import sys
+
+        argv = (sys.executable, "-m", "builder_ii.cli.goose_cli", "start-readonly", str(manifest))
+        with self.suspend():
+            completed = subprocess.run(argv, check=False)  # noqa: S603 - fixed argv, shell=False
+        self._render_goose_session_outcome(completed.returncode)
+
+    def _on_goose_autoprep_confirm(self, confirmed: bool | None) -> None:
+        """After operator answers the auto-prep prompt for G."""
+        if not confirmed:
+            self.notify(
+                "Skipped auto-prep. Compose a read-only manifest first, or press G again to be asked.",
+            )
+            self._offer_manual_goose_manifest_compose()
+            return
+        manifest = self._mint_readonly_goose_manifest()
+        if manifest is None:
+            return
+        self._hand_off_goose_readonly(manifest)
 
     def action_launch_goose(self) -> None:
         """Hand the terminal to the governed read-only command. STRATUM starts no runtime itself.
 
-        Auto-prepares a default read_only manifest under .builder/goose when none exists (local
-        convenience only). Still fail-closed on command authority, and start-readonly applies its
-        own policy, receipts, and no-mutation postflight. That is a launcher OF the governed lane,
-        not a bypass around it.
+        If a valid read_only manifest already exists, hands off immediately. If not, asks the
+        operator before minting a passive default under .builder/goose (local convenience only).
+        Still fail-closed on command authority; start-readonly applies its own policy, receipts,
+        and no-mutation postflight.
         """
-        import subprocess
-        import sys
-
         from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
 
         try:
@@ -734,15 +741,22 @@ class StratumApp(App[None]):
             self.notify(f"{self.GOVERNED_GOOSE_COMMAND} is not permitted: {exc}", severity="error")
             return
 
-        manifest = self._ensure_readonly_goose_manifest()
-        if manifest is None:
+        existing = self._governed_readonly_manifest()
+        if existing is not None:
+            self._hand_off_goose_readonly(existing)
             return
 
-        argv = (sys.executable, "-m", "builder_ii.cli.goose_cli", "start-readonly", str(manifest))
-        with self.suspend():
-            completed = subprocess.run(argv, check=False)  # noqa: S603 - fixed argv, shell=False
-
-        self._render_goose_session_outcome(completed.returncode)
+        self.push_screen(
+            ConfirmScreen(
+                "PREPARE READ-ONLY GOOSE MANIFEST?",
+                "No valid read-only Goose session manifest found under .builder/goose.\n\n"
+                "Create a passive default (stratum-auto-readonly.json) and hand off to "
+                "builder-goose start-readonly?\n\n"
+                "This only writes a local artifact under .builder/ — it does not start Goose "
+                "or grant authority. start-readonly still applies its own policy.",
+            ),
+            self._on_goose_autoprep_confirm,
+        )
 
     def _render_goose_session_outcome(self, returncode: int) -> None:
         """Report what the governed command did. Never assert an outcome it did not record."""

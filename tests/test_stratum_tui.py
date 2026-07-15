@@ -248,22 +248,44 @@ async def test_launch_goose_fails_closed_when_the_registry_forbids_the_governed_
 
 
 @pytest.mark.asyncio
-async def test_launch_goose_auto_prepares_readonly_manifest_then_hands_off(tmp_path) -> None:
-    """When no manifest exists, STRATUM may auto-prep a passive read_only file, then hand off."""
+async def test_launch_goose_asks_before_auto_prep_when_manifest_missing(tmp_path) -> None:
+    """Missing manifest: ask first; do not mint or spawn until the operator confirms."""
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "generic"
+        mock_settings.return_value.project_root = tmp_path
         app = StratumApp()
         app.artifacts_dir = tmp_path / ".builder" / "artifacts"
         app.artifacts_dir.mkdir(parents=True)
         async with app.run_test():
-            prepared = tmp_path / ".builder" / "goose" / "stratum-auto-readonly.json"
-            prepared.parent.mkdir(parents=True, exist_ok=True)
-            prepared.write_text(
-                json.dumps({"kind": "builder_ii.goose_session_manifest", "requested_runtime_mode": "read_only"}),
-                encoding="utf-8",
-            )
             with (
-                patch.object(app, "_ensure_readonly_goose_manifest", return_value=prepared),
+                patch("subprocess.run") as run,
+                patch.object(app, "push_screen") as push,
+            ):
+                app.action_launch_goose()
+
+            run.assert_not_called()
+            push.assert_called_once()
+            screen = push.call_args[0][0]
+            from builder_ii.tui.widgets.cli_passthrough import ConfirmScreen
+
+            assert isinstance(screen, ConfirmScreen)
+            assert "PREPARE" in screen.title_text.upper() or "MANIFEST" in screen.title_text.upper()
+            assert push.call_args[0][1] == app._on_goose_autoprep_confirm
+
+
+@pytest.mark.asyncio
+async def test_launch_goose_after_confirm_mints_then_hands_off(tmp_path) -> None:
+    """Operator yes → mint passive manifest → hand off to start-readonly."""
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "generic"
+        mock_settings.return_value.project_root = tmp_path
+        app = StratumApp()
+        app.artifacts_dir = tmp_path / ".builder" / "artifacts"
+        app.artifacts_dir.mkdir(parents=True)
+        prepared = tmp_path / ".builder" / "goose" / "stratum-auto-readonly.json"
+        async with app.run_test():
+            with (
+                patch.object(app, "_mint_readonly_goose_manifest", return_value=prepared),
                 patch("subprocess.run") as run,
                 patch.object(app, "suspend") as suspend,
             ):
@@ -271,7 +293,7 @@ async def test_launch_goose_auto_prepares_readonly_manifest_then_hands_off(tmp_p
 
                 suspend.return_value = nullcontext()
                 run.return_value = type("R", (), {"returncode": 0})()
-                app.action_launch_goose()
+                app._on_goose_autoprep_confirm(True)
 
             run.assert_called_once()
             argv = run.call_args[0][0]
@@ -280,20 +302,42 @@ async def test_launch_goose_auto_prepares_readonly_manifest_then_hands_off(tmp_p
 
 
 @pytest.mark.asyncio
-async def test_launch_goose_never_spawns_when_prepare_fails(tmp_path) -> None:
+async def test_launch_goose_decline_auto_prep_never_spawns(tmp_path) -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.project_root = tmp_path
         app = StratumApp()
         app.artifacts_dir = tmp_path / "artifacts"
         async with app.run_test():
             with (
-                patch.object(app, "_ensure_readonly_goose_manifest", return_value=None),
                 patch("subprocess.run") as run,
                 patch.object(app, "notify"),
-                patch.object(app, "push_screen"),
+                patch.object(app, "push_screen") as push,
+            ):
+                app._on_goose_autoprep_confirm(False)
+            run.assert_not_called()
+            # Offers composer for manual mint
+            assert push.called
+
+
+@pytest.mark.asyncio
+async def test_launch_goose_with_existing_manifest_skips_prompt(tmp_path) -> None:
+    """Existing valid read_only path discovery short-circuits the confirm."""
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "generic"
+        mock_settings.return_value.project_root = tmp_path
+        app = StratumApp()
+        app.artifacts_dir = tmp_path / ".builder" / "artifacts"
+        existing = tmp_path / ".builder" / "goose" / "session.json"
+        async with app.run_test():
+            with (
+                patch.object(app, "_governed_readonly_manifest", return_value=existing),
+                patch.object(app, "_hand_off_goose_readonly") as handoff,
+                patch.object(app, "push_screen") as push,
             ):
                 app.action_launch_goose()
-            run.assert_not_called()
+            handoff.assert_called_once_with(existing)
+            push.assert_not_called()
 
 
 def test_manifest_discovery_rejects_a_manifest_that_does_not_request_read_only(tmp_path) -> None:

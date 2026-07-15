@@ -101,16 +101,21 @@ In STRATUM: **V** re-checks on-disk chain validity and composes the validate com
 
 ### 6. Read-only Goose (G)
 
-**G** auto-prepares local scaffolding when needed:
+**G** behavior:
 
-- ensures `.builder/{artifacts,goose,receipts}` exist
-- if no valid `read_only` Goose session manifest is present, mints a passive
-  `.builder/goose/stratum-auto-readonly.json` (same shape as `builder-goose manifest`)
+1. If a valid `read_only` Goose session manifest already exists under `.builder/goose` → hand off
+   immediately to `builder-goose start-readonly`.
+2. If none exists → **ask** (ConfirmScreen) before writing anything. On **yes**:
+   - ensures `.builder/{artifacts,goose,receipts}`
+   - mints passive `.builder/goose/stratum-auto-readonly.json`
+   - then hands off to `start-readonly`
+3. On **no** / cancel → opens the command composer with a manual `builder-goose manifest …` line
+   (STRATUM still does not run it).
 
-Then STRATUM suspends and hands off to `builder-goose start-readonly` (still fail-closed on
-command authority; start-readonly still does its own receipts and no-mutation postflight).
+Still fail-closed on command authority; start-readonly still does its own receipts and
+no-mutation postflight. Auto-prep never runs silently.
 
-Optional: mint your own manifest instead of the auto file:
+Optional: mint your own manifest so **G** skips the prompt:
 
 ```bash
 mkdir -p .builder/goose
