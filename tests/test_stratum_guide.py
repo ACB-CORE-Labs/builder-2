@@ -83,9 +83,9 @@ async def test_stratum_app_accepts_guide_flags() -> None:
         mock_settings.return_value.backend = "test"
         from builder_ii.tui.app import StratumApp
 
-        app = StratumApp(skip_guide=True)
+        app = StratumApp(skip_guide=True, show_splash=False)
         assert app._force_skip_guide is True
-        app2 = StratumApp(show_guide=True)
+        app2 = StratumApp(show_guide=True, show_splash=False)
         assert app2._force_show_guide is True
 
 
