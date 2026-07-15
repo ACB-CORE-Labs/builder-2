@@ -28,14 +28,22 @@ def test_doctor_ok_on_this_repo() -> None:
     assert validate_semantic_doctor(report) == []
 
 
-def test_map_and_preview_readonly() -> None:
-    mapped = map_semantic(Path.cwd(), target_name="builder", max_files=50)
+def test_map_and_preview_readonly(tmp_path: Path) -> None:
+    """Use a fixture tree so hit_count is not dependent on repo_map sampling order in CI."""
+    repo = tmp_path / "repo"
+    (repo / "builder_ii").mkdir(parents=True)
+    (repo / "builder_ii" / "sample.py").write_text("x = 1\n", encoding="utf-8")
+    (repo / "README.md").write_text("# repo\n", encoding="utf-8")
+    (repo / "docs").mkdir()
+    (repo / "docs" / "note.md").write_text("note\n", encoding="utf-8")
+
+    mapped = map_semantic(repo, target_name="generic", max_files=50)
     assert mapped["kind"] == "builder_ii.semantic_map"
     assert mapped["file_count"] >= 1
     assert mapped["mutates_target_repo"] is False
     assert validate_semantic_map(mapped) == []
 
-    prev = preview_semantic(Path.cwd(), query="builder_ii", target_name="builder", max_files=50)
+    prev = preview_semantic(repo, query="builder_ii", target_name="generic", max_files=50)
     assert prev["kind"] == "builder_ii.semantic_preview"
     assert prev["invokes_serena_rewrite"] is False
     assert prev["invokes_ast_grep_apply"] is False

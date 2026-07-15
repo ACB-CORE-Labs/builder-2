@@ -84,7 +84,7 @@ async def test_stratum_chain_digest_absence(tmp_path):
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "TIER_0"
 
-        app = StratumApp()
+        app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path
 
         async with app.run_test():
@@ -106,7 +106,7 @@ async def test_stratum_palette_authority():
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "TIER_0"
 
-        app = StratumApp()
+        app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test() as pilot:
             with patch("builder_ii.tui.app.COMMAND_AUTHORITY_REGISTRY") as mock_registry, patch("builder_ii.tui.app.check_command_authority") as mock_check:
                 from unittest.mock import MagicMock
@@ -139,7 +139,7 @@ async def test_stratum_hitl_informative_refusal():
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "TIER_0"
 
-        app = StratumApp()
+        app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
             app.stratum.mode = StratumMode.HITL_GATE
             with patch.object(app, "notify") as mock_notify, patch.object(app, "push_screen") as mock_push:
@@ -193,7 +193,7 @@ async def test_prepare_package_refuses_to_write_and_names_the_governed_cli(tmp_p
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "TIER_0"
 
-        app = StratumApp()
+        app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path
         async with app.run_test():
             captured: dict = {}
@@ -234,7 +234,7 @@ async def test_launch_goose_fails_closed_when_the_registry_forbids_the_governed_
 
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
-        app = StratumApp()
+        app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
             with (
                 patch("builder_ii.command_authority.enforce_command_authority", side_effect=CommandAuthorityError("nope")),
@@ -248,27 +248,103 @@ async def test_launch_goose_fails_closed_when_the_registry_forbids_the_governed_
 
 
 @pytest.mark.asyncio
-async def test_launch_goose_refuses_without_a_readonly_manifest_and_never_spawns(tmp_path) -> None:
+async def test_launch_goose_asks_before_auto_prep_when_manifest_missing(tmp_path) -> None:
+    """Missing manifest: ask first; do not mint or spawn until the operator confirms."""
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
-        app = StratumApp()
-        app.artifacts_dir = tmp_path / "artifacts"
+        mock_settings.return_value.core_repo.name = "generic"
+        mock_settings.return_value.project_root = tmp_path
+        app = StratumApp(show_splash=False, skip_guide=True)
+        app.artifacts_dir = tmp_path / ".builder" / "artifacts"
+        app.artifacts_dir.mkdir(parents=True)
         async with app.run_test():
-            with patch("subprocess.run") as run, patch.object(app, "notify") as notify:
+            with (
+                patch("subprocess.run") as run,
+                patch.object(app, "push_screen") as push,
+            ):
                 app.action_launch_goose()
 
             run.assert_not_called()
-            message = notify.call_args[0][0]
-            assert "No read-only Goose session manifest found" in message
-            assert "builder-goose manifest --mode read_only" in message
-            assert "STRATUM does not mint manifests" in message
+            push.assert_called_once()
+            screen = push.call_args[0][0]
+            from builder_ii.tui.widgets.cli_passthrough import ConfirmScreen
+
+            assert isinstance(screen, ConfirmScreen)
+            assert "PREPARE" in screen.title_text.upper() or "MANIFEST" in screen.title_text.upper()
+            assert push.call_args[0][1] == app._on_goose_autoprep_confirm
+
+
+@pytest.mark.asyncio
+async def test_launch_goose_after_confirm_mints_then_hands_off(tmp_path) -> None:
+    """Operator yes → mint passive manifest → hand off to start-readonly."""
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "generic"
+        mock_settings.return_value.project_root = tmp_path
+        app = StratumApp(show_splash=False, skip_guide=True)
+        app.artifacts_dir = tmp_path / ".builder" / "artifacts"
+        app.artifacts_dir.mkdir(parents=True)
+        prepared = tmp_path / ".builder" / "goose" / "stratum-auto-readonly.json"
+        async with app.run_test():
+            with (
+                patch.object(app, "_mint_readonly_goose_manifest", return_value=prepared),
+                patch("subprocess.run") as run,
+                patch.object(app, "suspend") as suspend,
+            ):
+                from contextlib import nullcontext
+
+                suspend.return_value = nullcontext()
+                run.return_value = type("R", (), {"returncode": 0})()
+                app._on_goose_autoprep_confirm(True)
+
+            run.assert_called_once()
+            argv = run.call_args[0][0]
+            assert "start-readonly" in argv
+            assert str(prepared) in argv
+
+
+@pytest.mark.asyncio
+async def test_launch_goose_decline_auto_prep_never_spawns(tmp_path) -> None:
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.project_root = tmp_path
+        app = StratumApp(show_splash=False, skip_guide=True)
+        app.artifacts_dir = tmp_path / "artifacts"
+        async with app.run_test():
+            with (
+                patch("subprocess.run") as run,
+                patch.object(app, "notify"),
+                patch.object(app, "push_screen") as push,
+            ):
+                app._on_goose_autoprep_confirm(False)
+            run.assert_not_called()
+            # Offers composer for manual mint
+            assert push.called
+
+
+@pytest.mark.asyncio
+async def test_launch_goose_with_existing_manifest_skips_prompt(tmp_path) -> None:
+    """Existing valid read_only path discovery short-circuits the confirm."""
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "generic"
+        mock_settings.return_value.project_root = tmp_path
+        app = StratumApp(show_splash=False, skip_guide=True)
+        app.artifacts_dir = tmp_path / ".builder" / "artifacts"
+        existing = tmp_path / ".builder" / "goose" / "session.json"
+        async with app.run_test():
+            with (
+                patch.object(app, "_governed_readonly_manifest", return_value=existing),
+                patch.object(app, "_hand_off_goose_readonly") as handoff,
+                patch.object(app, "push_screen") as push,
+            ):
+                app.action_launch_goose()
+            handoff.assert_called_once_with(existing)
+            push.assert_not_called()
 
 
 def test_manifest_discovery_rejects_a_manifest_that_does_not_request_read_only(tmp_path) -> None:
     """A valid manifest asking for `disabled` mode is not a licence to start a runtime."""
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
-        app = StratumApp()
+        app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path / ".builder" / "artifacts"
         goose_dir = tmp_path / ".builder" / "goose"
         goose_dir.mkdir(parents=True)
@@ -282,7 +358,7 @@ def test_manifest_discovery_rejects_a_manifest_that_does_not_request_read_only(t
 async def test_launch_goose_reports_only_the_outcome_the_command_recorded() -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
-        app = StratumApp()
+        app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
             with patch.object(app, "notify") as notify:
                 app._render_goose_session_outcome(1)
@@ -350,7 +426,7 @@ async def test_cli_passthrough_composes_and_says_it_ran_nothing() -> None:
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "TIER_0"
 
-        app = StratumApp()
+        app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
             app.signals = None
             with patch.object(app, "notify") as notify:

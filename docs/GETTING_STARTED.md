@@ -208,7 +208,7 @@ Footer chain bar: **DIGEST —** until verification exposes one; **AUTH** not ev
 | **~** | Composer | Context-injected CLI line | **Never executes** |
 | **P** | Prepare wizard | Session prepare choices | Composes `builder-session prepare-package …` |
 | **V** | Validate | Chain re-check + compose validate-prepare | |
-| **G** | Goose hand-off | `builder-goose start-readonly` only | Fail-closed; needs read_only manifest |
+| **G** | Goose hand-off | Uses existing read_only manifest, or **asks** before auto-prep; then `start-readonly` | Fail-closed on authority; still no raw Goose |
 | **N** | Next | `create_operator_next_action_report` | Prefills composer |
 | **A / R / I** | HITL ceremony | Pending proposal if any | Compose approve/reject; **I** inspect |
 
@@ -222,7 +222,7 @@ Think in **lanes**, not features:
 2. **Session lane** — **P** → terminal prepare → spine fills → **SPC** inspect  
 3. **Model policy lane** — **O** (what *could* run; not a live call)  
 4. **Agent design lane** — **U** (roster/readiness; forge/assign via composed CLI)  
-5. **Runtime lane** — mint manifest outside → **G** hand-off only  
+5. **Runtime lane** — **G** asks before minting a passive read_only manifest if none exists, then hands off to `start-readonly`  
 6. **HITL lane** — when a proposal is on disk, gate ceremony + compose **A/R**  
 7. **Quality / tooling lane** — **E**, **T** before you claim “ready to merge”  
 
@@ -322,17 +322,16 @@ describe (YAML/JSON) → validate → (optional HITL) → execute only if promot
 # Inspect inventory
 ls recipes recipes/subrecipes
 
-# Prepare a read-only Goose manifest (no session start)
-mkdir -p .builder/goose
-uv run builder-goose manifest --target generic --mode read_only \
-  --task "inspect only" --output .builder/goose/session.json
-uv run builder-goose validate .builder/goose/session.json   # if validate surface available
-
-# STRATUM: W shows recipe inventory; G only for start-readonly after checks
+# STRATUM: W shows recipe inventory; G asks before minting a read_only manifest
+# if none exists, then hands off to builder-goose start-readonly (authority-gated)
 uv run builder stratum --experimental
+# Optional: mint ahead of time so G skips the prompt
+# mkdir -p .builder/goose && uv run builder-goose manifest --target generic --mode read_only \
+#   --task "inspect only" --output .builder/goose/session.json
 ```
 
-**Mental model:** recipes = *how the operator runtime should behave if launched*; manifests + promotion = *whether it may launch*.
+**Mental model:** recipes = *how the operator runtime should behave if launched*; manifests + promotion = *whether it may launch*. Auto-prep is opt-in (confirm dialog) and only creates a passive artifact — it does not start Goose or grant authority.
+
 
 Docs: [`GOOSE_SESSION.md`](GOOSE_SESSION.md), [`GOOSE_RUNTIME.md`](GOOSE_RUNTIME.md), [`GOOSE_CONVENTION_LAYER.md`](GOOSE_CONVENTION_LAYER.md).
 

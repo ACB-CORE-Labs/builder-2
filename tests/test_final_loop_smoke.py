@@ -83,10 +83,22 @@ def test_final_loop_smoke_core_missing_repo_honest(tmp_path: Path) -> None:
 
 def test_cli_final_loop_smoke(tmp_path: Path, monkeypatch) -> None:
     settings = _settings(tmp_path)
-    # load_settings used by CLI — patch via monkeypatch of load_settings
-    import builder_ii.cli.platform_status_cli as plat
+    # The CLI does `from builder_ii.final_loop_smoke import run_final_loop_smoke` at call time.
+    # Force the smoke runner to use tmp fixtures regardless of ambient load_settings/core_repo.
+    real_run = run_final_loop_smoke
 
-    monkeypatch.setattr(plat, "load_settings", lambda: settings)
+    def _run_with_fixture_settings(**kwargs):
+        return real_run(
+            settings=settings,  # type: ignore[arg-type]
+            targets=kwargs["targets"],
+            output_dir=kwargs["output_dir"],
+            task=kwargs.get("task", "V.6 final loop smoke (validation_only)"),
+        )
+
+    monkeypatch.setattr(
+        "builder_ii.final_loop_smoke.run_final_loop_smoke",
+        _run_with_fixture_settings,
+    )
     out = tmp_path / "cli-out"
     r = CliRunner().invoke(
         platform_app,
