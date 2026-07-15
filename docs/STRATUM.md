@@ -99,15 +99,24 @@ uv run builder-session validate-prepare-package .builder/session
 
 In STRATUM: **V** re-checks on-disk chain validity and composes the validate command.
 
-### 6. Optional: read-only Goose manifest
+### 6. Read-only Goose (G)
+
+**G** auto-prepares local scaffolding when needed:
+
+- ensures `.builder/{artifacts,goose,receipts}` exist
+- if no valid `read_only` Goose session manifest is present, mints a passive
+  `.builder/goose/stratum-auto-readonly.json` (same shape as `builder-goose manifest`)
+
+Then STRATUM suspends and hands off to `builder-goose start-readonly` (still fail-closed on
+command authority; start-readonly still does its own receipts and no-mutation postflight).
+
+Optional: mint your own manifest instead of the auto file:
 
 ```bash
 mkdir -p .builder/goose
 uv run builder-goose manifest --target generic --mode read_only \
   --task "readonly inspect" --output .builder/goose/session.json
 ```
-
-Then **G** may suspend and hand off to `builder-goose start-readonly` (fail-closed if registry or manifest refuses).
 
 ### 7. Launch STRATUM
 

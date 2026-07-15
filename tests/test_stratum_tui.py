@@ -248,20 +248,52 @@ async def test_launch_goose_fails_closed_when_the_registry_forbids_the_governed_
 
 
 @pytest.mark.asyncio
-async def test_launch_goose_refuses_without_a_readonly_manifest_and_never_spawns(tmp_path) -> None:
+async def test_launch_goose_auto_prepares_readonly_manifest_then_hands_off(tmp_path) -> None:
+    """When no manifest exists, STRATUM may auto-prep a passive read_only file, then hand off."""
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "generic"
+        app = StratumApp()
+        app.artifacts_dir = tmp_path / ".builder" / "artifacts"
+        app.artifacts_dir.mkdir(parents=True)
+        async with app.run_test():
+            prepared = tmp_path / ".builder" / "goose" / "stratum-auto-readonly.json"
+            prepared.parent.mkdir(parents=True, exist_ok=True)
+            prepared.write_text(
+                json.dumps({"kind": "builder_ii.goose_session_manifest", "requested_runtime_mode": "read_only"}),
+                encoding="utf-8",
+            )
+            with (
+                patch.object(app, "_ensure_readonly_goose_manifest", return_value=prepared),
+                patch("subprocess.run") as run,
+                patch.object(app, "suspend") as suspend,
+            ):
+                from contextlib import nullcontext
+
+                suspend.return_value = nullcontext()
+                run.return_value = type("R", (), {"returncode": 0})()
+                app.action_launch_goose()
+
+            run.assert_called_once()
+            argv = run.call_args[0][0]
+            assert "start-readonly" in argv
+            assert str(prepared) in argv
+
+
+@pytest.mark.asyncio
+async def test_launch_goose_never_spawns_when_prepare_fails(tmp_path) -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         app = StratumApp()
         app.artifacts_dir = tmp_path / "artifacts"
         async with app.run_test():
-            with patch("subprocess.run") as run, patch.object(app, "notify") as notify:
+            with (
+                patch.object(app, "_ensure_readonly_goose_manifest", return_value=None),
+                patch("subprocess.run") as run,
+                patch.object(app, "notify"),
+                patch.object(app, "push_screen"),
+            ):
                 app.action_launch_goose()
-
             run.assert_not_called()
-            message = notify.call_args[0][0]
-            assert "No read-only Goose session manifest found" in message
-            assert "builder-goose manifest --mode read_only" in message
-            assert "STRATUM does not mint manifests" in message
 
 
 def test_manifest_discovery_rejects_a_manifest_that_does_not_request_read_only(tmp_path) -> None:
