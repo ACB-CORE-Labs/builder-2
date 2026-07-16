@@ -91,10 +91,12 @@ A small PyO3 extension (`validate_artifact`) plus a standalone `--kind`/stdin CL
 
 ### TUI Exploration & Testing
 
-A governed TUI exploration driver (`scripts/tui_driver.py`) drives the interactive surfaces using `pexpect` or Textual's testing harness.
-- **Smoke test**: `uv run python scripts/tui_driver.py --smoke` (uses `pexpect` to verify STRATUM app launch).
-- **Verification test**: `uv run pytest tests/scenarios/tui_exploration.py -q` (uses Textual Pilot for deterministic tests).
-- **Report Validation**: Run `uv run python scripts/validate_tui_exploration.py <report-path>` to validate exploration reports (`kind: builder_ii.tui_exploration_report`).
+The governed TUI exploration driver is `scripts/semantic_tui_driver.py`. It drives interactive surfaces **in-process** through Textual's test harness and extracts diffable DOM state. Driving a TUI by spawning a pty and reading rendered bytes is forbidden: `pexpect` is not a dependency, and `docs/CAPABILITY_PROMOTION.md` §7 carries the measurement behind the ban (the retired `scripts/tui_driver.py` exited `0` while capturing 306 characters of terminal preamble and no STRATUM output at all). `tests/test_no_tty_scraping.py` enforces it.
+- **Exploration**: `uv run python scripts/semantic_tui_driver.py '{"app": "StratumApp", "steps": [{"action": "press", "target": "escape"}]}'` — state JSON on stdout, one hash-chained event appended to the ledger per observed state.
+- **Verification test**: `uv run pytest tests/scenarios/test_tui_exploration.py -q` (Textual Pilot; deterministic).
+- **Ledger validation**: `uv run python scripts/validate_tui_audit_ledger.py <ledger-path>` (`kind: builder_ii.tui_audit_ledger_event`). The ledger is a `RECORDED_ONLY` receipt: the driver writes its own chain, so it is not independent proof and is not promotion authority.
+
+Known orphan (do not build on it): `scripts/validate_tui_exploration.py` validates `kind: builder_ii.tui_exploration_report`, which **no code in this repo produces**, though `docs/ARTIFACT_INDEX.md` still lists the kind as current. Its disposition is an open operator decision.
 
 ### Docs are load-bearing, not decorative
 
