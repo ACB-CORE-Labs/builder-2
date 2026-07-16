@@ -880,7 +880,9 @@ def test_the_policy_snapshot_documents_every_command_including_the_ones_nobody_d
     # 106, up from 102: U instrument adds utility-registry/validate/baseline/validate-eval.
     # 110, up from 106: G4–G7 validate-* (relation/evidence/reconstruction/change).
     # 114, up from 110: G4–G7 emit commands (relation-field/change-field/evidence-relation/reconstruction).
-    assert len(_SYNTHESIZED_PARENTS) == 114
+    # 116, up from 114: Added `builder-code-vault frame/recall` and `builder-platform tui` for TUI exploration driver.
+    assert len(_SYNTHESIZED_PARENTS) == 116
+
     for record in COMMAND_AUTHORITY_REGISTRY:
         assert f"`{record.name}`" in doc, f"`{record.name}` is in the registry and absent from the policy snapshot"
 

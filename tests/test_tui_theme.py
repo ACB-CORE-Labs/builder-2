@@ -59,7 +59,7 @@ def test_header_banner_colors():
 
 
 @pytest.mark.asyncio
-async def test_stratum_app_theme():
+async def test_stratum_app_theme_default():
     # test default theme preserves original palette and registers builder_default
     with mock.patch.dict(os.environ, clear=True):
         app = StratumApp()
@@ -79,6 +79,9 @@ async def test_stratum_app_theme():
             assert app.theme_variables["stratum-bg"].lower() == center_widget.styles.background.hex.lower()
             assert app.theme_variables["stratum-panel"].lower() == header_widget.styles.background.hex.lower()
 
+
+@pytest.mark.asyncio
+async def test_stratum_app_theme_invalid():
     # test invalid BUILDER_THEME falls back safely to builder_default
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "invalid_theme_name"}):
         app_invalid = StratumApp()
@@ -86,6 +89,9 @@ async def test_stratum_app_theme():
             assert app_invalid.theme == "builder_default"
             assert "builder_custom" not in app_invalid.available_themes
 
+
+@pytest.mark.asyncio
+async def test_stratum_app_theme_chargers():
     # test Chargers registers and drives theme variables
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "chargers"}):
         app_chargers = StratumApp()
@@ -110,3 +116,4 @@ async def test_stratum_app_theme():
             # Assert theme_variables and actual resolved widget style agree
             assert app_chargers.theme_variables["stratum-bg"].lower() == center_widget.styles.background.hex.lower()
             assert app_chargers.theme_variables["stratum-panel"].lower() == header_widget.styles.background.hex.lower()
+
