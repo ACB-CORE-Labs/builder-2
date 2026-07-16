@@ -214,10 +214,10 @@ New lanes — each **derives** its expectation from the real registry and **refu
 | — | The driver skips `display=False` widgets entirely, so "hidden" and "absent" are indistinguishable in the ledger | LOW |
 | — | Driver has no text truncation; a large render can flood the ledger and any reader's context | LOW |
 | — | Driver's `notify` hook hardcodes `timeout=5.0`, overriding Textual's `NOTIFICATION_TIMEOUT` default; the observer mutates the observed | LOW |
-| — | Driver reports `status:"success"` for a keypress that did nothing (splash ate `?`; see §7 log) | LOW |
-| — | `SplashScreen` consumes the first keypress; driver cannot pass `show_splash`/`skip_guide`, so every run burns one | LOW |
+| — | Driver reports `status:"success"` for a keypress that did nothing (splash ate `?`; see §7 log) | ~~LOW~~ → **fixed**, see §9 |
+| — | `SplashScreen` consumes the first keypress; driver cannot pass `show_splash`/`skip_guide`, so every run burns one | ~~LOW~~ → **CRITICAL, misrated here.** See §9.1 |
 | — | `palette.py` docstring says "fuzzy search"; `on_input_changed` implements substring | LOW |
-| — | `PaletteEntry`/`SpineItem`/`CapabilityItem`/`FooterKey` all have `id=None` — unaddressable by selector | LOW |
+| — | `PaletteEntry`/`SpineItem`/`CapabilityItem`/~~`FooterKey`~~ all have `id=None` — unaddressable by selector | ~~LOW~~ → **fixed**; `FooterKey` misattributed, see §9.2 |
 | — | `PaletteEntry.render()` unknown-tier fallback uses `p["dim"]` (fail-open); should render `p["fail"]` | LOW |
 | — | Pre-existing Pyright errors in `app.py` (`push_screen` callback variance). Not in CI's gate set | INFO |
 
@@ -263,3 +263,42 @@ Findings were reported first and executed only on approval; nothing here was sel
 **Workspace note.** The brief's setup (`git checkout main`; `git worktree add … main`) **would have failed**: `main` is checked out at `builder-II-codevault-split`, and the local `main` ref is stale at `beeb021` — pinning to it would have verified the wrong commit. The worktree was pinned to `origin/main` on branch `claude/tui-opus-phase-3-4`, which this repo requires anyway (never direct-to-`main`).
 
 **One deviation from a literal directive, stated plainly.** Item 2 said to rebind *the* digest to the state payload and add `prev_digest`. Implemented as two fields instead, because the single-field version does not achieve the directive's own stated guarantee — it leaves the chain forgeable (§3.4). The intent was honored; the letter was not.
+
+---
+
+## 9. Corrections to this report — issued 2026-07-16, at `2efa0d0`
+
+§7 says an audit that hides its own errors is not an audit. Three of this report's claims were falsified by the follow-on hardening pass, and are corrected here rather than quietly edited away.
+
+### 9.1 The splash finding was correct and its severity was wrong — the driver never observed STRATUM
+
+This report rated the splash **LOW**, describing the cost as one burned keypress. Measured directly, the cost was the entire instrument:
+
+| | before | after |
+|---|---|---|
+| `active_screen` recorded | `SplashScreen` | `Screen` |
+| widgets recorded | 5 (`Center`/`Static`/`Vertical`) | 37 |
+| driver wall-clock | 6.48s | 1.60s |
+
+`on_mount` pushes `SplashScreen`, so `app.screen` **is** the splash, and the driver reads `app.screen`. Every state it ever recorded was the loading screen — so §5's ledger, and the whole hash chain §3.4 built over it, chained states of a splash. The covering lane asserts only that `initial_state`, `widgets` and `active_screen` are *present*, and a splash has all three, so it stayed green throughout.
+
+This is the same error PR #163 made and this report criticised it for: **I found the visible symptom (a burned keypress), fixed nothing, and never asked what the splash owned.** Rating it LOW is what let it survive a report specifically looking for measurement artifacts.
+
+### 9.2 `FooterKey` is Textual's, not builder-II's — a misattribution originating here
+
+§6 listed `FooterKey` beside `PaletteEntry`/`SpineItem`/`CapabilityItem` as though all four were builder-II widgets. It is `textual.widgets._footer.FooterKey`, constructed inside Textual's own `Footer.compose`; this codebase never instantiates it and cannot give it an id without subclassing `Footer` and reimplementing a compose that reaches into `active_bindings`/`KeyGroup`/`data_bind`. The other three are now addressable; `FooterKey` is not, needs not to be (a driver presses the key rather than clicking its label), and should not have been listed.
+
+### 9.3 The "known flake" had a mechanism, and it was not host load
+
+§7 attributed `WaitForScreenTimeout` in `test_stratum_app_theme_chargers` and `test_semantic_tui_driver_initial_state` to host oversubscription, having ruled out `read_chain_head` at 0.26 ms. The characterisation was accurate and the conclusion was incomplete. Same host, same moment, one test:
+
+| run | wall-clock |
+|---|---|
+| `test_stratum_app_theme_chargers` | **6.36s** |
+| same, `BUILDER_SPLASH_NATIVE=0` | **0.93s** |
+
+The splash compiles and runs a Swift program to float the hero JPEG in a real Cocoa panel whenever `swift` is on `PATH` and the JPEG exists — both true here, and `headless=True` does not prevent it. The suite was **launching GUI windows**, and a pilot blocked ~5.4s on one has seconds of slack to lose before it times out; an oversubscribed box takes them. Load was the trigger, not the cause. The two tests I called flaky are precisely the two that reach that subprocess — a correlation I noted and did not chase.
+
+Fixed at the four call sites and closed as a class by `conftest.py` defaulting `BUILDER_SPLASH_NATIVE=0`. Full suite at `2efa0d0`: **2357 passed, 2 skipped in 16.10s** under `pytest -n auto` — the configuration that was red at 68s on the previous HEAD.
+
+**Standing caveat, unchanged.** The `-n auto` worker count still derives from `nproc` rather than available capacity, so a heavily contended host can still make this suite's verdict a function of what else is running. That is a live risk for a merge gate and is the operator's call, not addressed here.
