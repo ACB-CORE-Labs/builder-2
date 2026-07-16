@@ -102,7 +102,19 @@ gate "targeted bandit" uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B11
 if [ "$_IN_CI" -eq 1 ]; then
   _XDIST_N=2
 else
-  _XDIST_N=auto
+  # Local hosts (like M1s) might be heavily contended by other agent workloads (e.g. Grok, VMs).
+  # Pick _XDIST_N from available capacity (cores - load average) to prevent Pilot timeouts.
+  _XDIST_N=$(uv run python -c '
+import os, math
+try:
+    cores = os.cpu_count() or 4
+    load1, _, _ = os.getloadavg()
+    # At minimum 2 workers, up to total cores, degraded by 1-minute load average
+    available = max(2, math.floor(cores - load1))
+    print(min(cores, available))
+except Exception:
+    print("auto")
+')
 fi
 gate "full test suite" uv run pytest -n "$_XDIST_N" -p randomly
 
