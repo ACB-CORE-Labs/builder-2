@@ -53,7 +53,7 @@ code_vault_app = typer.Typer(help="Read-only CodeVault artifact inspection surfa
 @code_vault_app.callback()
 def code_vault_callback() -> None:
     try:
-        import builder_ii.code_vault  # noqa: F401
+        import builder_ii_code_vault  # noqa: F401
     except ImportError:
         typer.echo("CodeVault not installed. Upgrade your builder-ii package.", err=True)
         raise typer.Exit(1)
