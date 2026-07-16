@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from textual import events
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import ScrollableContainer, Vertical
@@ -17,15 +18,16 @@ from textual.widgets import Input, Static
 # ── Tier display info ────────────────────────────────────────────────
 
 def _tier_labels() -> dict[str, tuple[str, str, str]]:
+    from builder_ii.command_authority import TIER_0, TIER_1, TIER_2, TIER_3, TIER_4
     from builder_ii.tui_theme import theme_palette
 
     p = theme_palette()
     return {
-        "TIER_0": ("T0", p["pass"], "READ-ONLY"),
-        "TIER_1": ("T1", p["active"], "ARTIFACT-ONLY"),
-        "TIER_2": ("T2", p["accent"], "OPERATOR"),
-        "TIER_3": ("T3", p["warn"], "HITL-GATED"),
-        "TIER_4": ("T4", p["fail"], "FORBIDDEN"),
+        TIER_0: ("T0", p["pass"], "READ-ONLY"),
+        TIER_1: ("T1", p["active"], "ARTIFACT-ONLY"),
+        TIER_2: ("T2", p["accent"], "OPERATOR"),
+        TIER_3: ("T3", p["warn"], "HITL-GATED"),
+        TIER_4: ("T4", p["fail"], "FORBIDDEN"),
     }
 
 
@@ -116,15 +118,16 @@ class CommandPaletteScreen(ModalScreen[str | None]):
 
     def _build_entries(self) -> None:
         """Build palette entries from command records."""
+        from builder_ii.command_authority import TIER_4
         # Sort by tier, then by name
         sorted_cmds = sorted(
             self._commands,
-            key=lambda c: (c.get("tier", "TIER_4"), c.get("name", "")),
+            key=lambda c: (c.get("tier", TIER_4), c.get("name", "")),
         )
         for cmd in sorted_cmds:
             entry = PaletteEntry(
                 cmd_name=cmd.get("name", "unknown"),
-                tier=cmd.get("tier", "TIER_0"),
+                tier=cmd.get("tier", TIER_4),
                 promotion_state=cmd.get("promotion_state", ""),
                 allowed=cmd.get("allowed", True),
                 reason=cmd.get("reason", ""),
@@ -146,7 +149,7 @@ class CommandPaletteScreen(ModalScreen[str | None]):
     def action_dismiss_palette(self) -> None:
         self.dismiss(None)
 
-    def on_static_click(self, event: Static.Click) -> None:
+    def on_click(self, event: events.Click) -> None:
         """Handle clicking on a palette entry."""
         # Walk up to find the PaletteEntry
         widget = event.widget if hasattr(event, "widget") else None

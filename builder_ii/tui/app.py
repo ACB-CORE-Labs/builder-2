@@ -46,7 +46,8 @@ class HeaderBanner(Static):
         super().__init__(id="stratum-header", **kwargs)
         self.target = "generic"
         self.model = "unknown"
-        self.tier = "TIER_0"
+        from builder_ii.command_authority import TIER_0
+        self.tier = TIER_0
         self.session = "—"
 
     def render(self) -> str:

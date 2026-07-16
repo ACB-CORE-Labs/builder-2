@@ -9,6 +9,8 @@ import json
 import sys
 import time
 import os
+import uuid
+import hashlib
 from pathlib import Path
 from typing import Any, Dict, List
 from textual.app import App
@@ -25,42 +27,36 @@ except ImportError as e:
     print(json.dumps({"error": "CRITICAL_FAILURE", "message": f"Failed to import core applications: {e}"}))
     sys.exit(1)
 
-async def extract_semantic_state(app: App) -> dict:
-    """
-    Extracts a token-efficient, logically rigorous representation of the UI.
-    Explicitly tracks the active screen to detect Governance Modals.
-    """
-    state: Dict[str, Any] = {
+async def extract_semantic_state(app: App) -> Dict[str, Any]:
+    """Extracts a semantic dictionary representation of the UI state."""
+    state = {
+        "focused_id": app.focused.id if app.focused and app.focused.id else None,
         "active_screen": app.screen.__class__.__name__,
-        "focused_id": None, 
-        "widgets": []
+        "widgets": [],
+        "notifications": list(notifications_log) # Captured from hook
     }
     
-    if app.focused:
-        state["focused_id"] = app.focused.id or f"anonymous_{app.focused.__class__.__name__}"
-
-    # Walk only the active screen (this naturally captures modals if they are pushed)
     for widget in app.screen.walk_children():
-        w_data = {
+        if not widget.display:
+            continue
+            
+        w_state = {
             "type": widget.__class__.__name__,
             "id": widget.id,
-            "classes": list(widget.classes),
-            "display": widget.display,
+            "classes": sorted(list(widget.classes)),
         }
         
-        # Safely extract values without conflating visual render with runtime data
-        if hasattr(widget, "value"):
-            w_data["value"] = str(widget.value)
-        elif hasattr(widget, "render"):
+        if hasattr(widget, "render"):
             try:
-                rendered = str(widget.render())
-                # Truncate strings to protect LLM context windows (Mechanical Sympathy)
-                if len(rendered) < 250: 
-                    w_data["text"] = rendered
+                renderable = widget.render()
+                text = str(renderable)
+                import re
+                text = re.sub(r'0x[0-9a-fA-F]+', '0x[MEM_ADDR]', text)
+                w_state["text"] = text
             except Exception:
                 pass
                 
-        state["widgets"].append(w_data)
+        state["widgets"].append(w_state)
         
     return state
 
@@ -69,6 +65,17 @@ async def run_exploration(app_class, script_steps: List[Dict]):
     # Handle both direct App classes and factory functions
     app = app_class() if isinstance(app_class, type) else app_class
     
+    run_id = str(uuid.uuid4())
+    global notifications_log
+    notifications_log = []
+    
+    # Hook notify to capture toasts deterministically
+    original_notify = app.notify
+    def recording_notify(message: str, title: str = "", severity: str = "information", timeout: float = 5.0, **kwargs):
+        notifications_log.append({"message": str(message), "title": str(title), "severity": str(severity)})
+        return original_notify(message, title=title, severity=severity, timeout=timeout, **kwargs)
+    app.notify = recording_notify
+
     ledger_dir = Path(".builder/artifacts")
     ledger_dir.mkdir(parents=True, exist_ok=True)
     ledger_path = ledger_dir / "tui_audit_ledger.jsonl"
@@ -79,9 +86,17 @@ async def run_exploration(app_class, script_steps: List[Dict]):
         initial_state = await extract_semantic_state(app)
         results["initial_state"] = initial_state
         
-        # Append initial state to ledger
+        # Create third door compliant ledger entry
+        entry = {
+            "kind": "builder_ii.tui_audit_ledger_event",
+            "run_id": run_id,
+            "timestamp": time.time(),
+            "event": "MOUNT",
+            "state": initial_state
+        }
+        entry["digest"] = hashlib.sha256(json.dumps(entry, sort_keys=True).encode()).hexdigest()
         with open(ledger_path, "a") as f:
-            f.write(json.dumps({"timestamp": time.time(), "event": "MOUNT", "state": initial_state}) + "\n")
+            f.write(json.dumps(entry) + "\n")
         
         for step in script_steps:
             action = step.get("action")
@@ -108,17 +123,20 @@ async def run_exploration(app_class, script_steps: List[Dict]):
             # Extract state immediately after the action settles
             current_state = await extract_semantic_state(app)
             
-            # Stream the discrete event and resulting state to the ledger
+            entry = {
+                "kind": "builder_ii.tui_audit_ledger_event",
+                "run_id": run_id,
+                "timestamp": time.time(),
+                "event": "ACTION",
+                "action": action,
+                "target": target,
+                "status": step_log["status"],
+                "error": step_log["error"],
+                "resulting_state": current_state
+            }
+            entry["digest"] = hashlib.sha256(json.dumps(entry, sort_keys=True).encode()).hexdigest()
             with open(ledger_path, "a") as f:
-                f.write(json.dumps({
-                    "timestamp": time.time(),
-                    "event": "ACTION",
-                    "action": action,
-                    "target": target,
-                    "status": step_log["status"],
-                    "error": step_log["error"],
-                    "resulting_state": current_state
-                }) + "\n")
+                f.write(json.dumps(entry) + "\n")
             
         results["final_state"] = await extract_semantic_state(app)
         
@@ -137,7 +155,6 @@ if __name__ == "__main__":
 
     app_map = {
         "StratumApp": StratumApp,
-        "InspectionApp": get_inspection_app
     }
     
     target_name = payload.get("app")
