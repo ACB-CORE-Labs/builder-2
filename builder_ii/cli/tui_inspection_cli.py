@@ -53,7 +53,7 @@ code_vault_app = typer.Typer(help="Read-only CodeVault artifact inspection surfa
 @code_vault_app.callback()
 def code_vault_callback() -> None:
     try:
-        import builder_ii.code_vault  # noqa: F401
+        import builder_ii_code_vault  # noqa: F401
     except ImportError:
         typer.echo("CodeVault not installed. Upgrade your builder-ii package.", err=True)
         raise typer.Exit(1)
@@ -400,3 +400,21 @@ def code_vault_governance(verbose: bool = typer.Option(False, "--verbose", "-v")
 @code_vault_app.command("validate")
 def code_vault_validate() -> None:
     _dispatch("builder code-vault validate", "builder_ii.code_vault_tui", ["validate"])
+
+
+tui_inspection_app = typer.Typer(
+    name="builder-tui-inspection",
+    help="Launch the TUI status/inspection surface.",
+    add_completion=False,
+    invoke_without_command=True,
+)
+
+@tui_inspection_app.callback()
+def main_inspection(
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Launch the main TUI platform status panel."""
+    from builder_ii.cli.tui_cli import render_platform_status
+    from builder_ii.config import load_settings
+    render_platform_status(load_settings(), verbose=verbose)
+

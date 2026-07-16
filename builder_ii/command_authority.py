@@ -27,6 +27,7 @@ VALID_TIERS = {TIER_0, TIER_1, TIER_2, TIER_3, TIER_4}
 
 # Valid promotion states
 STATE_SPEC_ONLY = "spec_only"
+STATE_SMOKE_ONLY = "smoke_only"
 STATE_ARTIFACT_ONLY = "artifact_only"
 STATE_VALIDATION_ONLY = "validation_only"
 STATE_READ_ONLY_RUNTIME_CANDIDATE = "read_only_runtime_candidate"
@@ -37,6 +38,7 @@ STATE_ENABLED = "enabled"
 
 VALID_PROMOTION_STATES = {
     STATE_SPEC_ONLY,
+    STATE_SMOKE_ONLY,
     STATE_ARTIFACT_ONLY,
     STATE_VALIDATION_ONLY,
     STATE_READ_ONLY_RUNTIME_CANDIDATE,
@@ -45,6 +47,7 @@ VALID_PROMOTION_STATES = {
     STATE_FORBIDDEN_UNPROMOTED,
     STATE_ENABLED,
 }
+
 
 # Valid approval modes
 MODE_NONE = "none"
@@ -864,6 +867,20 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         allows_runtime_start=True,
         allows_artifact_writes=True,
     ),
+    CommandAuthorityRecord(
+        name="builder-tui-inspection",
+        entrypoint="builder_ii.cli.tui_inspection_cli:tui_inspection_app",
+        tier=TIER_1,
+        promotion_state=STATE_SMOKE_ONLY,
+        runtime_boundary="Launches passive TUI platform status panels; no runtime, model, shell, Goose, deepagents, MCP, or tool execution.",
+        write_boundary="No changes to workspace.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Displays TUI status or subcommands panels.",
+        failure_mode="Exits non-zero on failure or crash.",
+        notes="Read-only TUI status/inspection surface.",
+    ),
+
     CommandAuthorityRecord(
         name="builder-runtime",
         entrypoint="builder_ii.runtime_control:runtime_app",
@@ -4888,7 +4905,11 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
 
 # --- Dynamically Generated Subcommand Records to Close Registry Gaps ---
 _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
+    "builder-code-vault frame/recall",
+    "builder-platform tui",
     "builder tui status",
+
+
     "builder tui roster",
     "builder tui gates",
     "builder tui hitl",

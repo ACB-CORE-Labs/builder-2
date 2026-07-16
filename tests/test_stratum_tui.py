@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from builder_ii.artifact_chain_verification import verify_artifact_chain
+from builder_ii.command_authority import TIER_0
 from builder_ii.tui.app import CHAIN_DIGEST_ABSENT, StratumApp
 from builder_ii.tui.widgets.stratum import StratumMode
 
@@ -82,7 +83,7 @@ async def test_stratum_chain_digest_absence(tmp_path):
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = "TIER_0"
+        mock_settings.return_value.model_tier = TIER_0
 
         app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path
@@ -104,7 +105,7 @@ async def test_stratum_palette_authority():
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = "TIER_0"
+        mock_settings.return_value.model_tier = TIER_0
 
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test() as pilot:
@@ -112,7 +113,7 @@ async def test_stratum_palette_authority():
                 from unittest.mock import MagicMock
                 mock_record = MagicMock()
                 mock_record.name = "test"
-                mock_record.tier = "TIER_0"
+                mock_record.tier = TIER_0
                 mock_record.promotion_state = "VERIFIED"
                 mock_registry.__iter__.return_value = [mock_record]
                 mock_check_decision = MagicMock()
@@ -137,7 +138,7 @@ async def test_stratum_hitl_informative_refusal():
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = "TIER_0"
+        mock_settings.return_value.model_tier = TIER_0
 
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
@@ -191,7 +192,7 @@ async def test_prepare_package_refuses_to_write_and_names_the_governed_cli(tmp_p
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = "TIER_0"
+        mock_settings.return_value.model_tier = TIER_0
 
         app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path
@@ -424,7 +425,7 @@ async def test_cli_passthrough_composes_and_says_it_ran_nothing() -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = "TIER_0"
+        mock_settings.return_value.model_tier = TIER_0
 
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():

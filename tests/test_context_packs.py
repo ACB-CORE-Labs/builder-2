@@ -96,9 +96,9 @@ def test_context_pack_boundaries_and_guidance(tmp_path: Path) -> None:
 
 
 def test_architecture_aware_context_pack_merges_code_vault_metadata(tmp_path: Path) -> None:
-    pytest.importorskip("builder_ii.code_vault")
-    from builder_ii.code_vault.hierarchy import create_hierarchical_frame
-    from builder_ii.code_vault.repo_map_adapter import hierarchical_input_from_repo_map
+    pytest.importorskip("builder_ii_code_vault")
+    from builder_ii_code_vault.hierarchy import create_hierarchical_frame
+    from builder_ii_code_vault.repo_map_adapter import hierarchical_input_from_repo_map
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / "src").mkdir()

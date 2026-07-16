@@ -75,6 +75,8 @@ Governed setup subcommands:
 - `builder-readonly`
 - `builder-stratum` — experimental STRATUM operator console (observe + compose; console-script alias of `builder stratum --experimental`)
 - `builder-semantic` — V.1 semantic/structural read-only lane (doctor/map/preview/validate); no model, shell, Goose start, or target writes
+- `builder-tui-inspection` — read-only TUI status/inspection surface
+
 
 Root read-only TUI inspector subcommands:
 

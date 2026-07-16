@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **CRITICAL**: This repository is hosted on a private **Forgejo** server, NOT GitHub.
 - Do NOT use the `gh` (GitHub) CLI, and do not push/pull/clone from `github.com`.
-- Use the `tea` CLI (Gitea/Forgejo CLI) or the provided Forgejo MCP tools for issues, PRs, and repo management.
+- Do NOT use the `tea` CLI (which hangs/fails due to Cloudflare 524 timeouts). Use standard `git` CLI or `git+ssh://` for push/pull/branch/commit operations. Use Gitea/Forgejo MCP tools exclusively for PRs, issues, or repo management.
 
 ## What this is
 
@@ -26,7 +26,7 @@ For non-trivial design/R&D work — anything touching a load-bearing module (`co
 4. **Enumerate every change precisely** — file, reason, and a commit message that reflects it; no "refactor"/"cleanup" on load-bearing modules.
 5. **Prove against a real claim, not "tests pass"** — name the pinned assertion (a `platform_completion_audit.py` matrix row, a `test_platform_completion_truth.py` / `test_docs_truth_enforcement.py` pin, a `docs/CAPABILITY_PROMOTION.md` state, or a digest-bound artifact + `validate-*` lane) and the exact command that verifies it (smallest `uv run pytest …`, plus `builder-platform audit-docs`/`matrix` when docs/matrix change). No covering lane = a finding.
 6. **Tie it to the governance model** — state which distinction it strengthens (**planned ≠ executed ≠ verified ≠ promoted**, **artifact ≠ authority**, **model output ≠ approval**) and whether it crosses a promotion boundary (which needs the eight gates + an evidence-backed matrix flip, never docs alone). builder-II has no internal cognition pipeline to map onto — this governance grammar is its model.
-7. **Commit with discipline** — confirm branch, branch from `main`, PR via `tea` (never `gh`/`github.com`, never direct-to-`main`), run the smallest CI slice that proves the change.
+7. **Commit with discipline** — confirm branch, branch from `main`, PR via Gitea/Forgejo MCP tools (never `gh` or `tea`, never direct-to-`main`), run the smallest CI slice that proves the change.
 
 ## Commands
 
@@ -87,6 +87,13 @@ A small PyO3 extension (`validate_artifact`) plus a standalone `--kind`/stdin CL
 ### Tests
 
 `tests/` mirrors `builder_ii/` mostly 1:1 as `test_<module>.py` (~200 files) plus `tests/scenarios/` for full governed-lane, multi-artifact flows (e.g. `test_full_governed_preparation_lane.py`) and `tests/fixtures/` for sample repos/artifacts used by those scenarios. `conftest.py` at the repo root puts both the repo root and `tests/` on `sys.path`. Prefer adding a scenario test when a change spans multiple artifact stages, not just when it changes one module.
+
+### TUI Exploration & Testing
+
+A governed TUI exploration driver (`scripts/tui_driver.py`) drives the interactive surfaces using `pexpect` or Textual's testing harness.
+- **Smoke test**: `uv run python scripts/tui_driver.py --smoke` (uses `pexpect` to verify STRATUM app launch).
+- **Verification test**: `uv run pytest tests/scenarios/tui_exploration.py -q` (uses Textual Pilot for deterministic tests).
+- **Report Validation**: Run `uv run python scripts/validate_tui_exploration.py <report-path>` to validate exploration reports (`kind: builder_ii.tui_exploration_report`).
 
 ### Docs are load-bearing, not decorative
 

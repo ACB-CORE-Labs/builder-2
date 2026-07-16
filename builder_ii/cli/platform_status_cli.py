@@ -678,5 +678,25 @@ def validate_r1_closure(
         raise typer.Exit(1)
 
 
+@platform_app.command("tui")
+def platform_tui(
+    no_guide: bool = typer.Option(
+        False,
+        "--no-guide",
+        help="Skip first-session walkthrough auto-open.",
+    ),
+    no_splash: bool = typer.Option(
+        False,
+        "--no-splash",
+        help="Skip the opening hero splash.",
+    ),
+) -> None:
+    """Launch STRATUM: The Builder-II Operator TUI."""
+    from builder_ii.tui.app import StratumApp
+    app = StratumApp(skip_guide=no_guide, show_splash=not no_splash)
+    app.run()
+
+
 if __name__ == "__main__":
     platform_app()
+

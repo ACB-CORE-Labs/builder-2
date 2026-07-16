@@ -81,6 +81,8 @@ builder-memory = "builder_ii.cli.memory_cli:memory_app"
 builder-config = "builder_ii.cli.config_cli:config_app"
 builder-stratum = "builder_ii.cli.stratum_cli:stratum_app"
 builder-setup = "builder_ii.cli.setup_cli:setup_app"
+builder-tui-inspection = "builder_ii.cli.tui_inspection_cli:tui_inspection_app"
+
 
 [dependency-groups]
 dev = [
@@ -93,6 +95,7 @@ dev = [
     "mypy>=1.14.0",
     "bandit>=1.8.0",
     "types-PyYAML",
+    "pexpect>=4.9.0",
 ]
 
 [tool.setuptools.packages.find]
