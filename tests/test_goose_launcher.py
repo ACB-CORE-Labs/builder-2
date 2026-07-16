@@ -342,7 +342,7 @@ def test_stratum_action_launch_goose_invokes_only_the_governed_command():
     import builder_ii.goose_launcher as launcher
     from builder_ii.tui.app import StratumApp
 
-    app = StratumApp()
+    app = StratumApp(show_splash=False)
     manifest = Path("/tmp/session.json")
 
     with (

@@ -17,6 +17,21 @@ for path in (ROOT, TESTS):
         sys.path.insert(0, text)
 
 
+# A headless test must not open a window. `StratumApp`'s splash floats a real Cocoa panel through a
+# Swift subprocess (`builder_ii.tui.widgets.splash.run_native_hero_splash`) whenever `swift` is on
+# PATH and the hero JPEG is present -- both true on the Apple Silicon host this repo targets. Four
+# tests constructed `StratumApp()` bare and each paid ~5.4s of wall clock blocking on that window:
+# `test_stratum_app_theme_chargers` takes 6.36s with it and 0.93s without, and timing out under host
+# load is what made it look like a flake.
+#
+# The call sites now pass `show_splash=False`; this closes the class rather than those four
+# instances, so a test written next year cannot quietly reintroduce a GUI subprocess into the suite.
+# It disables only the *native* path -- the splash still composes its ASCII form, so `test_splash.py`
+# keeps testing something real. `setdefault` leaves a developer deliberately exercising Cocoa free to
+# export a 1.
+os.environ.setdefault("BUILDER_SPLASH_NATIVE", "0")
+
+
 def config_environment_keys() -> tuple[str, ...]:
     """Every environment variable the config layer reads, derived from the specs that name them.
 
