@@ -183,6 +183,17 @@ Redacting them would make the ledger lie about what the UI shows. Reported rathe
 | `98f68d4` | `scripts/semantic_tui_driver.py` | writes chained events; payload key unified to `state`; dead `get_inspection_app` import dropped |
 | `98f68d4` | `docs/ARTIFACT_INDEX.md` | registers `builder_ii.tui_audit_ledger_event` |
 | `98f68d4` | `tests/test_tui_audit_ledger.py` | **new** — **+19 lanes**, full tamper matrix |
+| `c30e8ce` | `scripts/semantic_tui_driver.py` | legacy-ledger refusal as structured JSON; optional `ledger_path` (§5.1) |
+| `c30e8ce` | `tests/scenarios/test_tui_exploration.py` | ledger isolated to `tmp_path`; **+2 lanes** (§5.1) |
+
+### 5.1 Two defects the chain introduced — caught by verifying, not by reviewing
+
+Both were found by running the gates against the **committed** tree, and neither would have been visible in the diff:
+
+1. **The driver died with a traceback on any pre-existing ledger.** Every ledger already on disk predates the chain and carries no `entry_digest`, so `read_chain_head` raised out of `run_exploration`. Refusing is correct — appending to an unverifiable tail leaves a gap nothing could later detect — but a raw `ValueError` breaks the driver's "always emits JSON" contract, on first run after upgrade, for precisely the people who had used it before. Now `{"error": "LEDGER_CHAIN_UNREADABLE", ...}` naming the remedy.
+2. **The chain made the ledger path load-bearing, and a test depended on it.** `test_semantic_tui_driver_initial_state` invoked the driver in the repo, so it wrote to the real gitignored `.builder/` ledger on every suite run and could be failed by a stale file having nothing to do with the driver — which is exactly how it failed once here. The driver now accepts `ledger_path`; the tests use `tmp_path`.
+
+The second is the more instructive: a change to *how state is recorded* silently coupled an unrelated test to accumulated disk state. Nothing about the diff said so.
 
 New lanes — each **derives** its expectation from the real registry and **refuses to pass vacuously**:
 
@@ -217,12 +228,14 @@ New lanes — each **derives** its expectation from the real registry and **refu
 Per the brief's *"do not self-certify correctness"*:
 
 - **The gate receipt is not proof.** `artifacts/opus_phase_4_evidence/gate_receipt.json` is `capability_state: RECORDED_ONLY`, and its own governance block hard-pins `artifact_is_authority: false`, `independent_observer: false`, `merge_authority: operator`. The same host that ran the gates wrote the receipt. It closes transcription error, commit mismatch and dirty-tree ambiguity. **It does not close dishonesty.**
-- **The gates did NOT run on a clean tree.** The receipt records `working_tree_clean: false` — 9/9 gates passed at `head_sha_before == head_sha_after == 2990a59` **plus uncommitted modifications**. It does **not** prove any committed state. Nothing is committed (§8).
+- **The receipt certifies the committed tree, and says which one.** `working_tree_clean: true`, `head_sha_before == head_sha_after == c30e8ce`, 9/9 gates exit 0. An earlier run of the same battery reported `working_tree_clean: false` at `2990a59` — green on a *dirty* tree, which proves nothing about any commit. That is why the battery was re-run after committing rather than the first receipt being shipped. A receipt cannot certify the commit that contains it; this one certifies its parent.
 - **The load-bearing evidence is adversarial, not affirmative.** The strongest result here is that the codebase's *own* test suite passes on broken code (§3.2). That is evidence *against* the suite — the opposite of self-certification.
 - **Independently reconcilable.** The DOM measurement (18 `⚡`) and the registry (18 permitted) are separate sources that agree. Every number is regenerable by a third party: `bash artifacts/opus_phase_4_evidence/reproduce.sh`.
 - **One prior claim of mine was wrong and is retracted.** In the previous audit I reported TAB focus-cycling as a permanent no-op. It was a false positive — a completed 5-widget focus lap misread as zero movement. `action_cycle_focus` is genuinely unreachable (Screen resolves `tab` before App), but focus *does* cycle. Recorded here because an audit that hides its own errors is not an audit.
 
-Gates: `9/9 PASSED` — rust build, bytecode compile, docs truth audit, completion truth matrix, secret scan, ruff, targeted mypy, targeted bandit, full suite (**2338 passed, 2 skipped**). Reconciles exactly: baseline `main` 2316 + 3 palette lanes + 19 ledger lanes = 2338. `audit-docs` independently accepts the new `ARTIFACT_INDEX` entry.
+Gates: `9/9 PASSED` at `c30e8ce`, clean tree — rust build, bytecode compile, docs truth audit, completion truth matrix, secret scan, ruff, targeted mypy, targeted bandit, full suite (**2340 passed, 2 skipped**). Reconciles exactly: baseline `main` 2316 + 3 palette + 19 ledger + 2 driver = 2340. `audit-docs` independently accepts the new `ARTIFACT_INDEX` entry.
+
+**Known flake, not introduced here.** `test_stratum_app_theme_chargers` and `test_semantic_tui_driver_initial_state` can both raise `textual.pilot.WaitForScreenTimeout` under `pytest -n auto` when the host is oversubscribed. Characterised rather than waved at: it reproduced only while a second full battery ran concurrently (58s and 55s wall-clock), and four consecutive unloaded runs are clean at 2340 (20–28s). Both pass in isolation. The mechanism I *could* have introduced — `read_chain_head` reading the ledger on every start — was measured at **0.26 ms** and ruled out.
 
 ### Evidence bundle — `artifacts/opus_phase_4_evidence/`
 

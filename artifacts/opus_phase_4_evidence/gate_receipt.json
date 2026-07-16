@@ -1,0 +1,159 @@
+{
+  "capability_state": "RECORDED_ONLY",
+  "covered_gates": "blocking",
+  "dropped_gate_records": [],
+  "errors": [],
+  "gate_battery_receipt_digest": "740cf5543dcadc3ae12ebd8dcd596b9d9b2111ae327452e2aabd4c4b0fdf3e9f",
+  "gates": [
+    {
+      "argv": [
+        "cargo",
+        "build",
+        "--manifest-path",
+        "builder_ii_validation_rs/Cargo.toml"
+      ],
+      "duration_seconds": 0.0,
+      "exit_code": 0,
+      "name": "rust validator build",
+      "skip_reason": null,
+      "status": "PASSED"
+    },
+    {
+      "argv": [
+        "uv",
+        "run",
+        "python",
+        "-m",
+        "compileall",
+        "-q",
+        "builder_ii",
+        "tests"
+      ],
+      "duration_seconds": 0.0,
+      "exit_code": 0,
+      "name": "python bytecode compile",
+      "skip_reason": null,
+      "status": "PASSED"
+    },
+    {
+      "argv": [
+        "uv",
+        "run",
+        "builder-platform",
+        "audit-docs"
+      ],
+      "duration_seconds": 1.0,
+      "exit_code": 0,
+      "name": "docs truth audit",
+      "skip_reason": null,
+      "status": "PASSED"
+    },
+    {
+      "argv": [
+        "uv",
+        "run",
+        "builder-platform",
+        "matrix"
+      ],
+      "duration_seconds": 0.0,
+      "exit_code": 0,
+      "name": "completion truth matrix",
+      "skip_reason": null,
+      "status": "PASSED"
+    },
+    {
+      "argv": [
+        "uv",
+        "run",
+        "python",
+        "scripts/secret_scan.py"
+      ],
+      "duration_seconds": 1.0,
+      "exit_code": 0,
+      "name": "high-confidence secret scan",
+      "skip_reason": null,
+      "status": "PASSED"
+    },
+    {
+      "argv": [
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "builder_ii",
+        "tests"
+      ],
+      "duration_seconds": 0.0,
+      "exit_code": 0,
+      "name": "ruff lint",
+      "skip_reason": null,
+      "status": "PASSED"
+    },
+    {
+      "argv": [
+        "uv",
+        "run",
+        "mypy"
+      ],
+      "duration_seconds": 0.0,
+      "exit_code": 0,
+      "name": "targeted mypy",
+      "skip_reason": null,
+      "status": "PASSED"
+    },
+    {
+      "argv": [
+        "uv",
+        "run",
+        "bandit",
+        "-q",
+        "-r",
+        "builder_ii",
+        "-s",
+        "B101,B105,B106,B110,B112,B404,B603,B607"
+      ],
+      "duration_seconds": 5.0,
+      "exit_code": 0,
+      "name": "targeted bandit",
+      "skip_reason": null,
+      "status": "PASSED"
+    },
+    {
+      "argv": [
+        "uv",
+        "run",
+        "pytest",
+        "-n",
+        "auto",
+        "-p",
+        "randomly"
+      ],
+      "duration_seconds": 26.0,
+      "exit_code": 0,
+      "name": "full test suite",
+      "skip_reason": null,
+      "status": "PASSED"
+    }
+  ],
+  "generated_at": "2026-07-16T21:37:50.653765+00:00",
+  "governance": {
+    "artifact_is_authority": false,
+    "independent_observer": false,
+    "merge_authority": "operator"
+  },
+  "head_sha_after": "c30e8ceb07ec9f77029a503f3f2bb8f08048e707",
+  "head_sha_before": "c30e8ceb07ec9f77029a503f3f2bb8f08048e707",
+  "head_sha_stable": true,
+  "host": {
+    "cargo_present": true,
+    "machine": "arm64",
+    "platform": "Darwin",
+    "python_version": "3.12.13"
+  },
+  "kind": "builder_ii.gate_battery_receipt",
+  "overall_state": "PASSED",
+  "schema_version": 1,
+  "skipped": [],
+  "valid": true,
+  "working_tree_clean": true
+}
