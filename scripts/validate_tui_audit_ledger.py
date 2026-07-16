@@ -4,11 +4,13 @@
 kind: builder_ii.tui_audit_ledger_event
 
 Re-checks every event's schema, recomputes both digests, and walks the `prev_digest` chain so a
-deleted, reordered or rewritten line is reported rather than assumed absent. Sibling of
-`scripts/validate_tui_exploration.py`, which validates `builder_ii.tui_exploration_report`; like
-that one this is a plain script rather than a `builder-*` console script, so it adds no entry to
-`[project.scripts]` and therefore no `command_authority.py` surface -- the same reasoning
-`gate_battery_receipt` records for its own `python -m` validator.
+deleted, reordered or rewritten line is reported rather than assumed absent.
+
+This is a plain script rather than a `builder-*` console script, so it adds no entry to
+`[project.scripts]` and therefore no `command_authority.py` surface. That is deliberate:
+`tests/test_command_authority.py::test_pyproject_scripts_fully_covered` requires every console
+script to carry an authority record, and a dev-facing validator should not buy a governed surface
+it does not need. Same reasoning `gate_battery_receipt` records for its own `python -m` validator.
 
 Usage:
     uv run python scripts/validate_tui_audit_ledger.py .builder/artifacts/tui_audit_ledger.jsonl
