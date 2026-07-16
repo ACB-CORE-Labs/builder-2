@@ -63,7 +63,7 @@ def test_header_banner_colors():
 async def test_stratum_app_theme_default():
     # test default theme preserves original palette and registers builder_default
     with mock.patch.dict(os.environ, clear=True):
-        app = StratumApp()
+        app = StratumApp(show_splash=False)
         async with app.run_test():
             assert app.theme == "builder_default"
             # Assert default mode still resolves to existing default palette
@@ -85,7 +85,7 @@ async def test_stratum_app_theme_default():
 async def test_stratum_app_theme_invalid():
     # test invalid BUILDER_THEME falls back safely to builder_default
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "invalid_theme_name"}):
-        app_invalid = StratumApp()
+        app_invalid = StratumApp(show_splash=False)
         async with app_invalid.run_test():
             assert app_invalid.theme == "builder_default"
             assert "builder_custom" not in app_invalid.available_themes
@@ -95,7 +95,7 @@ async def test_stratum_app_theme_invalid():
 async def test_stratum_app_theme_chargers():
     # test Chargers registers and drives theme variables
     with mock.patch.dict(os.environ, {"BUILDER_THEME": "chargers"}):
-        app_chargers = StratumApp()
+        app_chargers = StratumApp(show_splash=False)
         async with app_chargers.run_test():
             assert app_chargers.theme == "builder_custom"
             assert "builder_custom" in app_chargers.available_themes
