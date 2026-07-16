@@ -6,8 +6,15 @@ from unittest.mock import patch
 import pytest
 
 from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.command_authority import TIER_0
+from builder_ii.command_authority import (
+    COMMAND_AUTHORITY_REGISTRY,
+    TIER_0,
+    TIER_3,
+    TIER_4,
+    VALID_TIERS,
+)
 from builder_ii.tui.app import CHAIN_DIGEST_ABSENT, StratumApp
+from builder_ii.tui.widgets.palette import _tier_labels
 from builder_ii.tui.widgets.stratum import StratumMode
 
 _TUI_DIR = Path(__file__).resolve().parents[1] / "builder_ii" / "tui"
@@ -83,7 +90,7 @@ async def test_stratum_chain_digest_absence(tmp_path):
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = TIER_0
+        mock_settings.return_value.model_tier = "primary"
 
         app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path
@@ -105,7 +112,7 @@ async def test_stratum_palette_authority():
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = TIER_0
+        mock_settings.return_value.model_tier = "primary"
 
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test() as pilot:
@@ -138,7 +145,7 @@ async def test_stratum_hitl_informative_refusal():
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = TIER_0
+        mock_settings.return_value.model_tier = "primary"
 
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
@@ -192,7 +199,7 @@ async def test_prepare_package_refuses_to_write_and_names_the_governed_cli(tmp_p
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = TIER_0
+        mock_settings.return_value.model_tier = "primary"
 
         app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path
@@ -425,7 +432,7 @@ async def test_cli_passthrough_composes_and_says_it_ran_nothing() -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.core_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
-        mock_settings.return_value.model_tier = TIER_0
+        mock_settings.return_value.model_tier = "primary"
 
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
@@ -438,3 +445,93 @@ async def test_cli_passthrough_composes_and_says_it_ran_nothing() -> None:
             assert "STRATUM executes nothing" in message
             for lie in ("Exec", "Executing"):
                 assert lie not in message
+
+
+def test_palette_tier_labels_cover_exactly_the_registry_vocabulary() -> None:
+    """Every tier `command_authority` can emit must have a label, and no label may be invented.
+
+    `_tier_labels()` keys on the tier *constants*, whose values are prose. A tier with no entry
+    falls through to `??`/UNKNOWN, which is what the whole surface looked like when this table was
+    keyed on identifier spellings instead. Set equality (not `>=`) is deliberate in both
+    directions: a sixth tier added to `VALID_TIERS` without a label would silently render `??`,
+    and a label for a tier the registry cannot emit is dead code claiming a vocabulary that does
+    not exist.
+    """
+    assert set(_tier_labels()) == VALID_TIERS
+
+
+@pytest.mark.asyncio
+async def test_palette_flags_every_authority_requiring_command_in_the_real_registry() -> None:
+    """The palette's authority flag must agree with the real registry, not with a mock.
+
+    This drives the *actual* `COMMAND_AUTHORITY_REGISTRY`. `test_stratum_palette_authority` above
+    patches the registry down to a single fabricated TIER_0 record and patches
+    `check_command_authority` to a canned decision, so it asserts that its own fixtures echo back
+    and cannot observe this defect: `action_open_palette` computed
+    `rec.tier in ("TIER_3", "TIER_4")` against tier values that are prose, so it reported 0 of the
+    registry's authority-requiring commands and the palette's `⚡` glyph was unreachable. The full
+    suite stayed green throughout. A lane that mocks away the vocabulary under test cannot pin the
+    vocabulary.
+
+    The expectation is derived from the registry rather than hardcoded, so the pin survives the
+    registry growing -- but it is asserted non-empty first, because a registry with no TIER_3/
+    TIER_4 record would make `set() == set()` pass while proving nothing.
+    """
+    expected = {rec.name for rec in COMMAND_AUTHORITY_REGISTRY if rec.tier in (TIER_3, TIER_4)}
+    assert expected, "no TIER_3/TIER_4 command in the registry; this lane would be vacuous"
+
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.model_alias = "test"
+        mock_settings.return_value.model_tier = "primary"
+
+        app = StratumApp(show_splash=False, skip_guide=True)
+        async with app.run_test() as pilot:
+            app.action_open_palette()
+            await pilot.pause()
+            screen = app.screen
+            assert screen.__class__.__name__ == "CommandPaletteScreen"
+
+            assert len(screen._commands) == len(list(COMMAND_AUTHORITY_REGISTRY))
+            flagged = {c["name"] for c in screen._commands if c["requires_authority"]}
+            assert flagged == expected
+
+            # No command may reach the operator as an unclassifiable tier.
+            assert all("??" not in entry.render() for entry in screen._entries)
+
+            # `render()` only emits the glyph on its permitted branch; a refused command shows
+            # `⊘ <reason>` instead, which is the truthful marker for it. So the glyph is asserted
+            # over the permitted subset, and that subset is asserted non-empty -- otherwise this
+            # would pass in exactly the world where the glyph is dead again.
+            permitted = [e for e in screen._entries if e.cmd_requires_authority and e.cmd_allowed]
+            assert permitted, "no permitted authority-requiring command; `⚡` would be unprovable"
+            for entry in permitted:
+                assert "⚡" in entry.render()
+
+            refused = [e for e in screen._entries if e.cmd_requires_authority and not e.cmd_allowed]
+            for entry in refused:
+                assert "⊘" in entry.render()
+
+            assert {e.cmd_tier for e in screen._entries if e.cmd_requires_authority} == {
+                TIER_3,
+                TIER_4,
+            }
+
+
+def test_header_model_tier_is_not_a_command_authority_tier() -> None:
+    """The header's `tier` slot is a *model* tier and must never hold an authority tier.
+
+    `HeaderBanner.tier` is overwritten from `settings.model_tier`, whose vocabulary is
+    `config.MODEL_TIERS` and is enforced there with a ValueError. A previous revision initialised
+    it to `command_authority.TIER_0` -- a value `load_settings` would itself reject -- which is
+    invisible at runtime because `on_mount` overwrites it, and so could only ever be caught by
+    reading. The two vocabularies are unrelated; conflating them invites a future reader to
+    "correct" the header into displaying authority tier it never had.
+    """
+    from builder_ii.config import MODEL_TIERS
+    from builder_ii.tui.app import HeaderBanner
+
+    banner = HeaderBanner()
+    assert banner.tier not in VALID_TIERS
+    assert banner.tier == "unknown", "placeholder should mirror the sibling `model` slot"
+    assert set(MODEL_TIERS).isdisjoint(VALID_TIERS), "the two tier vocabularies must stay distinct"
