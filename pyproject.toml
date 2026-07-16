@@ -95,7 +95,6 @@ dev = [
     "mypy>=1.14.0",
     "bandit>=1.8.0",
     "types-PyYAML",
-    "pexpect>=4.9.0",
 ]
 
 [tool.setuptools.packages.find]

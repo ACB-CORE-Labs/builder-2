@@ -11,6 +11,7 @@ the artifact is a shell script rather than a `kind`-tagged JSON document.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -270,10 +271,18 @@ def test_ci_parallelism_cap_is_ci_only() -> None:
 
     The shared Forgejo runner is budgeted ~1.5 cpu / 1.2 GB. Capping parallelism at 2
     keeps it from OOM-killing the battery. But the cap must never apply locally: an M1
-    (or any real developer machine) must keep -n auto / uncapped cargo. This pin verifies
+    (or any real developer machine) must keep an uncapped local path. This pin verifies
     the structural invariant: _XDIST_N and CARGO_BUILD_JOBS only appear inside an
     _IN_CI guard, so local and CI runs differ only in degree of parallelism -- never in
     which gates run or whether they pass.
+
+    This asserted `_XDIST_N=auto` literally until `e1c107b` made the local path derive its
+    worker count from available capacity (cores - load average) instead, to stop a contended
+    M1 timing out Textual Pilot lanes. The invariant was intact; only the spelling changed --
+    so the pin failed, and `main` sat red. A pin that freezes one implementation of a property
+    rather than the property fails on the fix as loudly as on the regression, which trains
+    people to edit the pin. It now asserts the shape: a CI cap of 2, and a local branch that
+    is something else.
     """
     script = CI_SCRIPT.read_text(encoding="utf-8")
     # The CI detection block must be present.
@@ -282,8 +291,12 @@ def test_ci_parallelism_cap_is_ci_only() -> None:
     assert "FORGEJO_ACTIONS" in script, "CI detection must cover FORGEJO_ACTIONS (not just GITHUB_ACTIONS)"
     # The caps must be conditional, not bare assignments at the top level.
     assert 'CARGO_BUILD_JOBS=2' in script, "the cargo build jobs cap must be present"
-    assert '_XDIST_N=2' in script, "the xdist worker cap must be present"
-    assert '_XDIST_N=auto' in script, "the uncapped local path must be present"
+
+    assignments = re.findall(r"^\s*_XDIST_N=(\S*)", script, re.MULTILINE)
+    assert "2" in assignments, f"the xdist worker cap must be present (found {assignments})"
+    assert [value for value in assignments if value != "2"], (
+        f"the uncapped local path must be present -- every _XDIST_N assignment is the CI cap ({assignments})"
+    )
     # The parity property: uv run pytest must still appear (gate not removed/conditionalized).
     assert "uv run pytest" in script, "the pytest gate must still be unconditional"
     assert "cargo build --manifest-path builder_ii_validation_rs/Cargo.toml" in script, \
