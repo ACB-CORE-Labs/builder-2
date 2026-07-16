@@ -54,7 +54,7 @@ async def extract_semantic_state(app: App) -> Dict[str, Any]:
         
     return state
 
-async def run_exploration(app_class, script_steps: List[Dict]):
+async def run_exploration(app_class, script_steps: List[Dict], ledger_path_override: str | None = None):
     """Executes deterministic JSON payloads against the active DOM."""
     # Handle both direct App classes and factory functions
     app = app_class() if isinstance(app_class, type) else app_class
@@ -70,13 +70,34 @@ async def run_exploration(app_class, script_steps: List[Dict]):
         return original_notify(message, title=title, severity=severity, timeout=timeout, **kwargs)
     app.notify = recording_notify
 
-    ledger_dir = Path(".builder/artifacts")
-    ledger_dir.mkdir(parents=True, exist_ok=True)
-    ledger_path = ledger_dir / "tui_audit_ledger.jsonl"
+    # Overridable so a caller -- notably a test -- can point the chain at its own file. The chain
+    # made this necessary: appending links to one fixed path meant a run's outcome depended on
+    # whatever a gitignored file had accumulated, so a stale ledger on any developer's disk could
+    # fail a test that has nothing to do with it.
+    ledger_path = Path(ledger_path_override or ".builder/artifacts/tui_audit_ledger.jsonl")
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     # The chain spans the file, not the run: a new run continues from the last recorded link, so
     # deleting a whole run's block is as detectable as deleting a single line.
-    seq, prev_digest = read_chain_head(ledger_path)
+    #
+    # A ledger written before the chain existed has no `entry_digest` to continue from, and every
+    # ledger already on disk is one of those. Reported as this driver's other failures are -- one
+    # line of JSON naming the remedy -- rather than as the raw traceback an uncaught ValueError
+    # produces, which would break the driver's "always emits JSON" contract on first run after
+    # upgrade for anyone holding an existing file.
+    try:
+        seq, prev_digest = read_chain_head(ledger_path)
+    except ValueError as exc:
+        print(json.dumps({
+            "error": "LEDGER_CHAIN_UNREADABLE",
+            "message": str(exc),
+            "remedy": (
+                f"Move or delete {ledger_path}, then re-run. A ledger whose tail predates the "
+                f"hash chain (or is corrupt) cannot be extended without leaving a gap that no "
+                f"later verification could detect, so this refuses rather than appending."
+            ),
+        }))
+        sys.exit(1)
 
     results = {"initial_state": {}, "execution_log": [], "final_state": {}}
 
@@ -163,4 +184,4 @@ if __name__ == "__main__":
         print(json.dumps({"error": "UNKNOWN_APP", "message": f"App '{target_name}' not found or failed to import."}))
         sys.exit(1)
         
-    asyncio.run(run_exploration(target_app, payload.get("steps", [])))
+    asyncio.run(run_exploration(target_app, payload.get("steps", []), payload.get("ledger_path")))
