@@ -140,7 +140,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.event_ledger`
 - `builder_ii.ledger_replay_report`
 - `builder_ii.gate_battery_receipt`
-- `builder_ii.tui_exploration_report`
+
 - `builder_ii.tui_audit_ledger_event`
 
 
@@ -247,7 +247,7 @@ The following artifact kinds are **governance, specification, and record artifac
 | `builder_ii.ledger_replay_report` | Deterministic ledger replay report | current |
 | `builder_ii.execution_candidate_manifest` | Bounded proposed future execution candidate | Goal 5 |
 | `builder_ii.execution_candidate_manifest_validation_report` | Candidate manifest validation report | Goal 5 |
-| `builder_ii.tui_exploration_report` | Governed TUI exploration session observations | current |
+
 | `builder_ii.tui_audit_ledger_event` | Hash-chained TUI exploration event; one JSONL line per observed state | current |
 
 
