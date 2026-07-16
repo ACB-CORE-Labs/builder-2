@@ -14,7 +14,12 @@ from textual.containers import Horizontal
 from textual.widgets import Footer, Static
 
 from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, check_command_authority
+from builder_ii.command_authority import (
+    COMMAND_AUTHORITY_REGISTRY,
+    TIER_3,
+    TIER_4,
+    check_command_authority,
+)
 from builder_ii.config import load_settings
 from builder_ii.tui.widgets.cli_passthrough import CLIPassthroughScreen, ConfirmScreen
 from builder_ii.tui.widgets.palette import CommandPaletteScreen
@@ -46,8 +51,15 @@ class HeaderBanner(Static):
         super().__init__(id="stratum-header", **kwargs)
         self.target = "generic"
         self.model = "unknown"
-        from builder_ii.command_authority import TIER_0
-        self.tier = TIER_0
+        # A *model* tier, not a command-authority tier: `on_mount` sets this from
+        # `settings.model_tier`, whose vocabulary is `config.MODEL_TIERS == ("primary", "fast")`
+        # and is enforced there with a ValueError. Binding this placeholder to
+        # `command_authority.TIER_0` put a value from an unrelated vocabulary ("Tier 0 — read-only
+        # inspection") into the field -- one `load_settings` would itself reject -- and implied to
+        # the next reader that this slot displays authority tier, which it never has. "unknown"
+        # matches the sibling `self.model` placeholder: not-yet-loaded, and obviously not a real
+        # tier.
+        self.tier = "unknown"
         self.session = "—"
 
     def render(self) -> str:
@@ -459,7 +471,15 @@ class StratumApp(App[None]):
                     "promotion_state": rec.promotion_state,
                     "allowed": allowed,
                     "reason": reason,
-                    "requires_authority": rec.tier in ("TIER_3", "TIER_4"),
+                    # Keyed on the tier constants, never on their identifier spelling. The values
+                    # of TIER_3/TIER_4 are prose ("Tier 3 — HITL-gated execution candidate"), so
+                    # `rec.tier in ("TIER_3", "TIER_4")` is a comparison that cannot ever be true:
+                    # it silently reported 0 of the registry's 29 authority-requiring commands and
+                    # made the palette's `⚡` glyph unreachable. `_tier_labels()` was corrected to
+                    # bind the constants while this site -- a tuple membership rather than an
+                    # assignment -- was left behind, which is why the palette's tier *badges* look
+                    # right while its authority *flag* stayed dead.
+                    "requires_authority": rec.tier in (TIER_3, TIER_4),
                 }
             )
 

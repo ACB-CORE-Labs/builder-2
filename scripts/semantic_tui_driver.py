@@ -8,9 +8,7 @@ import asyncio
 import json
 import sys
 import time
-import os
 import uuid
-import hashlib
 from pathlib import Path
 from typing import Any, Dict, List
 from textual.app import App
@@ -18,11 +16,7 @@ from textual.app import App
 # Load-bearing imports mapped directly to the builder-II architecture
 try:
     from builder_ii.tui.app import StratumApp
-    try:
-        from builder_ii.cli.tui_inspection_cli import get_inspection_app 
-        # Using a factory or mock if code_vault_tui isn't a direct App class
-    except ImportError:
-        get_inspection_app = None
+    from builder_ii.tui_audit_ledger import append_event, build_event, read_chain_head
 except ImportError as e:
     print(json.dumps({"error": "CRITICAL_FAILURE", "message": f"Failed to import core applications: {e}"}))
     sys.exit(1)
@@ -60,7 +54,7 @@ async def extract_semantic_state(app: App) -> Dict[str, Any]:
         
     return state
 
-async def run_exploration(app_class, script_steps: List[Dict]):
+async def run_exploration(app_class, script_steps: List[Dict], ledger_path_override: str | None = None):
     """Executes deterministic JSON payloads against the active DOM."""
     # Handle both direct App classes and factory functions
     app = app_class() if isinstance(app_class, type) else app_class
@@ -76,28 +70,52 @@ async def run_exploration(app_class, script_steps: List[Dict]):
         return original_notify(message, title=title, severity=severity, timeout=timeout, **kwargs)
     app.notify = recording_notify
 
-    ledger_dir = Path(".builder/artifacts")
-    ledger_dir.mkdir(parents=True, exist_ok=True)
-    ledger_path = ledger_dir / "tui_audit_ledger.jsonl"
-    
+    # Overridable so a caller -- notably a test -- can point the chain at its own file. The chain
+    # made this necessary: appending links to one fixed path meant a run's outcome depended on
+    # whatever a gitignored file had accumulated, so a stale ledger on any developer's disk could
+    # fail a test that has nothing to do with it.
+    ledger_path = Path(ledger_path_override or ".builder/artifacts/tui_audit_ledger.jsonl")
+    ledger_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # The chain spans the file, not the run: a new run continues from the last recorded link, so
+    # deleting a whole run's block is as detectable as deleting a single line.
+    #
+    # A ledger written before the chain existed has no `entry_digest` to continue from, and every
+    # ledger already on disk is one of those. Reported as this driver's other failures are -- one
+    # line of JSON naming the remedy -- rather than as the raw traceback an uncaught ValueError
+    # produces, which would break the driver's "always emits JSON" contract on first run after
+    # upgrade for anyone holding an existing file.
+    try:
+        seq, prev_digest = read_chain_head(ledger_path)
+    except ValueError as exc:
+        print(json.dumps({
+            "error": "LEDGER_CHAIN_UNREADABLE",
+            "message": str(exc),
+            "remedy": (
+                f"Move or delete {ledger_path}, then re-run. A ledger whose tail predates the "
+                f"hash chain (or is corrupt) cannot be extended without leaving a gap that no "
+                f"later verification could detect, so this refuses rather than appending."
+            ),
+        }))
+        sys.exit(1)
+
     results = {"initial_state": {}, "execution_log": [], "final_state": {}}
-    
+
     async with app.run_test(headless=True) as pilot:
         initial_state = await extract_semantic_state(app)
         results["initial_state"] = initial_state
-        
-        # Create third door compliant ledger entry
-        entry = {
-            "kind": "builder_ii.tui_audit_ledger_event",
-            "run_id": run_id,
-            "timestamp": time.time(),
-            "event": "MOUNT",
-            "state": initial_state
-        }
-        entry["digest"] = hashlib.sha256(json.dumps(entry, sort_keys=True).encode()).hexdigest()
-        with open(ledger_path, "a") as f:
-            f.write(json.dumps(entry) + "\n")
-        
+
+        entry = build_event(
+            seq=seq,
+            run_id=run_id,
+            timestamp=time.time(),
+            event="MOUNT",
+            state=initial_state,
+            prev_digest=prev_digest,
+        )
+        append_event(ledger_path, entry)
+        seq, prev_digest = seq + 1, entry["entry_digest"]
+
         for step in script_steps:
             action = step.get("action")
             target = step.get("target") # Can be an ID ("#btn") or key ("tab")
@@ -123,21 +141,23 @@ async def run_exploration(app_class, script_steps: List[Dict]):
             # Extract state immediately after the action settles
             current_state = await extract_semantic_state(app)
             
-            entry = {
-                "kind": "builder_ii.tui_audit_ledger_event",
-                "run_id": run_id,
-                "timestamp": time.time(),
-                "event": "ACTION",
-                "action": action,
-                "target": target,
-                "status": step_log["status"],
-                "error": step_log["error"],
-                "resulting_state": current_state
-            }
-            entry["digest"] = hashlib.sha256(json.dumps(entry, sort_keys=True).encode()).hexdigest()
-            with open(ledger_path, "a") as f:
-                f.write(json.dumps(entry) + "\n")
-            
+            # The payload key is `state` for every event type, MOUNT and ACTION alike -- a
+            # consumer should not have to know the event type to find the state it recorded.
+            entry = build_event(
+                seq=seq,
+                run_id=run_id,
+                timestamp=time.time(),
+                event="ACTION",
+                state=current_state,
+                prev_digest=prev_digest,
+                action=action,
+                target=target,
+                status=step_log["status"],
+                error=step_log["error"],
+            )
+            append_event(ledger_path, entry)
+            seq, prev_digest = seq + 1, entry["entry_digest"]
+
         results["final_state"] = await extract_semantic_state(app)
         
     print(json.dumps(results, indent=2))
@@ -164,4 +184,4 @@ if __name__ == "__main__":
         print(json.dumps({"error": "UNKNOWN_APP", "message": f"App '{target_name}' not found or failed to import."}))
         sys.exit(1)
         
-    asyncio.run(run_exploration(target_app, payload.get("steps", [])))
+    asyncio.run(run_exploration(target_app, payload.get("steps", []), payload.get("ledger_path")))
