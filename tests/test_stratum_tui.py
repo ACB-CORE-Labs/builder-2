@@ -535,3 +535,82 @@ def test_header_model_tier_is_not_a_command_authority_tier() -> None:
     assert banner.tier not in VALID_TIERS
     assert banner.tier == "unknown", "placeholder should mirror the sibling `model` slot"
     assert set(MODEL_TIERS).isdisjoint(VALID_TIERS), "the two tier vocabularies must stay distinct"
+
+
+def test_palette_entry_ids_are_unique_across_the_real_registry() -> None:
+    """No two of the registry's commands may claim one id, and none may need the collision suffix.
+
+    Both halves matter. Uniqueness is hard: Textual answers same-id siblings with `MountError`, so
+    a collision does not mislabel a row, it stops the palette opening at all. That the suffix
+    branch in `_build_entries` never fires is the softer and more useful claim -- it means an id is
+    a pure function of the command name, so a driver can *compute* `#palette-entry-…` from a name
+    it already knows instead of discovering it by walking the DOM. If some future command ever
+    needs a suffix, that predictability quietly dies, and this lane is where it says so.
+    """
+    from builder_ii.tui.widget_ids import widget_id
+
+    names = [rec.name for rec in COMMAND_AUTHORITY_REGISTRY]
+    assert names, "empty registry would make this lane vacuous"
+    ids = [widget_id("palette-entry", name) for name in names]
+    assert len(set(ids)) == len(ids), "two commands claim one palette id -- the palette will not mount"
+
+
+@pytest.mark.asyncio
+async def test_palette_entries_are_addressable_by_command_name() -> None:
+    """Mounting the real palette is the only proof that Textual accepts these ids.
+
+    The regex in `widget_ids` is this repo's reading of Textual's rule; Textual's own validator is
+    the authority, and it only speaks at mount. This lane also pins the addressability the ids were
+    added for: a driver holding a command name must reach that row by selector, rather than
+    tab-cycling past hundreds of siblings hoping to recognise it.
+    """
+    from builder_ii.tui.widget_ids import widget_id
+
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.model_alias = "test"
+        mock_settings.return_value.model_tier = "primary"
+
+        app = StratumApp(show_splash=False, skip_guide=True)
+        async with app.run_test() as pilot:
+            app.action_open_palette()
+            await pilot.pause()
+            screen = app.screen
+
+            assert screen._entries, "no palette entries; lane would be vacuous"
+            assert all(entry.id for entry in screen._entries), "an entry was left with Textual's default id of None"
+
+            # `builder hitl` and `builder-hitl` are the pair naive sanitising merges. Both are real
+            # commands, and each must resolve to exactly one node.
+            for name in ("builder", "builder-hitl", "builder hitl"):
+                selector = "#" + widget_id("palette-entry", name)
+                matched = screen.query(selector)
+                assert len(matched) == 1, f"{name!r} -> {selector} matched {len(matched)} nodes"
+                assert matched.first().cmd_name == name
+
+
+@pytest.mark.asyncio
+async def test_spine_and_capability_rows_are_addressable_by_id() -> None:
+    """The other two per-record widget families, each addressable by the record it stands for."""
+    from builder_ii.tui.widget_ids import widget_id
+    from builder_ii.tui.widgets.signals import CAPABILITIES
+
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.model_alias = "test"
+        mock_settings.return_value.model_tier = "primary"
+
+        app = StratumApp(show_splash=False, skip_guide=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+
+            spine_items = app.screen.query("SpineItem")
+            assert spine_items, "no spine items mounted; lane would be vacuous"
+            for item in spine_items:
+                assert item.id == widget_id("spine-item", item.artifact_id)
+
+            for cap in CAPABILITIES:
+                selector = "#" + widget_id("capability-item", cap)
+                matched = app.screen.query(selector)
+                assert len(matched) == 1, f"{cap!r} -> {selector} matched {len(matched)} nodes"
+                assert matched.first().cap_name == cap

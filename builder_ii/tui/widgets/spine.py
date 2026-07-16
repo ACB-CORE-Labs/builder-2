@@ -21,6 +21,7 @@ from textual.widgets import Input, Static
 
 from builder_ii.tui.projections.chain import PIPELINE_STAGES, StageView, project_chain
 from builder_ii.tui.projections.render import bold_themed, status_glyph, themed
+from builder_ii.tui.widget_ids import widget_id
 
 ArtifactStatus = type("ArtifactStatus", (), {
     "VERIFIED": "verified",
@@ -46,6 +47,9 @@ class SpineItem(Static):
         is_last: bool = False,
         **kwargs: Any,
     ) -> None:
+        # Addressable by the pipeline stage it stands for, so a driver can select one stage by id
+        # instead of counting `j`/`k` presses from the top of the chain.
+        kwargs.setdefault("id", widget_id("spine-item", artifact_id))
         super().__init__(**kwargs)
         self.artifact_id = artifact_id
         self.artifact_label = label

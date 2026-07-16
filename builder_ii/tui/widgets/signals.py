@@ -20,6 +20,7 @@ from textual.widgets import RichLog, Static
 
 from builder_ii.tui.projections.gates import scan_pending_hitl
 from builder_ii.tui.projections.render import bold_themed, themed
+from builder_ii.tui.widget_ids import widget_id
 from builder_ii.tui.widgets.masterpiece import MechanicalSympathyHud
 
 CAPABILITIES = [
@@ -52,6 +53,8 @@ class CapabilityItem(Static):
     state = reactive("DISABLED")
 
     def __init__(self, cap_name: str, **kwargs: Any) -> None:
+        # Addressable by the capability it reports, so a driver can assert on one row by id.
+        kwargs.setdefault("id", widget_id("capability-item", cap_name))
         super().__init__(**kwargs)
         self.cap_name = cap_name
 

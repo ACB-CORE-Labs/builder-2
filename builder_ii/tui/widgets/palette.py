@@ -15,6 +15,8 @@ from textual.containers import ScrollableContainer, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Input, Static
 
+from builder_ii.tui.widget_ids import widget_id
+
 # ── Tier display info ────────────────────────────────────────────────
 
 def _tier_labels() -> dict[str, tuple[str, str, str]]:
@@ -47,6 +49,10 @@ class PaletteEntry(Static):
         requires_authority: bool = False,
         **kwargs: Any,
     ) -> None:
+        # Addressable by the command it stands for, so a driver can click one entry out of 463
+        # without tab-cycling to it. `setdefault` leaves an explicitly passed id alone -- which is
+        # how `_build_entries` resolves the collision case below.
+        kwargs.setdefault("id", widget_id("palette-entry", cmd_name))
         super().__init__(**kwargs)
         self.cmd_name = cmd_name
         self.cmd_tier = tier
@@ -124,9 +130,26 @@ class CommandPaletteScreen(ModalScreen[str | None]):
             self._commands,
             key=lambda c: (c.get("tier", TIER_4), c.get("name", "")),
         )
+        # Two records carrying one name would claim one id, and Textual answers same-id siblings
+        # with `MountError` -- the palette would not open at all. The real registry holds 463
+        # distinct names and never reaches the suffix branch, which
+        # `test_palette_entry_ids_are_unique_across_the_real_registry` pins. This exists so that an
+        # arbitrary `commands` list, where a duplicate row used to render harmlessly, cannot become
+        # a crash now that entries carry ids. The sort above fixes the order, so the suffix a given
+        # command receives is deterministic.
+        claimed: set[str] = set()
         for cmd in sorted_cmds:
+            name = cmd.get("name", "unknown")
+            entry_id = widget_id("palette-entry", name)
+            if entry_id in claimed:
+                suffix = 2
+                while f"{entry_id}-{suffix}" in claimed:
+                    suffix += 1
+                entry_id = f"{entry_id}-{suffix}"
+            claimed.add(entry_id)
             entry = PaletteEntry(
-                cmd_name=cmd.get("name", "unknown"),
+                id=entry_id,
+                cmd_name=name,
                 tier=cmd.get("tier", TIER_4),
                 promotion_state=cmd.get("promotion_state", ""),
                 allowed=cmd.get("allowed", True),
