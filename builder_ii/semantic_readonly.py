@@ -119,7 +119,7 @@ def map_semantic(
     # Optional in-process symbol peek for a few source files (no external tools).
     symbol_samples: list[dict[str, Any]] = []
     try:
-        from builder_ii.code_vault.symbol_extractor import extract_symbols_from_file
+        from builder_ii_code_vault.symbol_extractor import extract_symbols_from_file
     except ImportError:
         extract_symbols_from_file = None  # type: ignore[assignment]
 

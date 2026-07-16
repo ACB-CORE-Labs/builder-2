@@ -65,15 +65,8 @@ def test_prepare_platform_spine_happy_path(tmp_path):
     assert "verification_profile_report" in bundle_dict
     assert "handoff_note" in bundle_dict
     assert "deepagents_readiness" in bundle_dict
-    assert "hierarchical_frame" in bundle_dict
-    assert bundle_dict["hierarchical_frame"]["kind"] == "builder_ii.code_vault.hierarchical_frame"
-    assert "code_vault_enrichment" in bundle_dict["context_pack"]
     assert "governance" in bundle_dict
 
-    frame_ref = next(
-        ref for ref in bundle_dict["prepare_package"]["artifact_refs"] if ref["path"] == "hierarchical-frame.json"
-    )
-    assert frame_ref["kind"] == "builder_ii.code_vault.hierarchical_frame"
 
     # Governance checks (fail-closed denials)
     gov = bundle_dict["governance"]

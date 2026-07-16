@@ -49,6 +49,15 @@ postflight_app = typer.Typer(help="Read-only postflight inspection surface.", no
 goose_app = typer.Typer(help="Read-only Goose session inspection surface.", no_args_is_help=True)
 code_vault_app = typer.Typer(help="Read-only CodeVault artifact inspection surface.", no_args_is_help=True)
 
+
+@code_vault_app.callback()
+def code_vault_callback() -> None:
+    try:
+        import builder_ii.code_vault  # noqa: F401
+    except ImportError:
+        typer.echo("CodeVault not installed. Upgrade your builder-ii package.", err=True)
+        raise typer.Exit(1)
+
 model_routing_app = typer.Typer(help="Read-only model routing artifact inspection.", no_args_is_help=True)
 model_registry_app = typer.Typer(help="Read-only model registry artifact inspection.", no_args_is_help=True)
 

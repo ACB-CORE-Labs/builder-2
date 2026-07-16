@@ -25,7 +25,6 @@ def test_v0_release_proof_harness_e2e(tmp_path: Path) -> None:
         "verification-profile-report.json",
         "repo-map.json",
         "context-pack.json",
-        "hierarchical-frame.json",
         "handoff-note.json",
         "deepagents-bridge-readiness.json",
         "platform-spine.json",

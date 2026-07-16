@@ -147,8 +147,15 @@ def test_code_vault_empty(tmp_path: Path) -> None:
     from builder_ii.tui.projections.codevault import project_code_vault
 
     view = project_code_vault(artifacts_dir=tmp_path, project_root=tmp_path)
+    # Frame count is always 0 for an empty directory
     assert view.frame_count == 0
-    assert "builder-code-vault" in view.compose_demo
+    # The projection must have a coherent note regardless of install state
+    if view.is_installed:
+        assert "CodeVault" in view.note
+        assert view.compose_demo  # populated when installed
+    else:
+        assert "not installed" in view.note.lower()
+        assert not view.compose_demo  # empty when not installed
 
 
 def test_model_matrix_includes_local_config() -> None:

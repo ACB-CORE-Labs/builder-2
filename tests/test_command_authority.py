@@ -182,7 +182,8 @@ def test_all_cli_commands_fully_covered():
         "builder-model",  # Group wrapper, delegates to subcommands
         "builder-workflow",  # Group wrapper, delegates to subcommands
         "builder-ledger",  # Group wrapper, delegates to subcommands
-        "builder-platform",  # Group wrapper, delegates to subcommands
+        "builder-platform",
+        "builder-code-vault",  # Graceful fallback stub for proprietary package
         "builder-memory",  # Group wrapper, delegates to subcommands
         "builder-config",  # Group wrapper, delegates to subcommands
         "builder-setup",  # Group wrapper, delegates to subcommands
