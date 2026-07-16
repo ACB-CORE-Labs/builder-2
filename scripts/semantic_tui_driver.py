@@ -7,6 +7,9 @@ Target: Apple Silicon M1 (Headless Pilot Execution)
 import asyncio
 import json
 import sys
+import time
+import os
+from pathlib import Path
 from typing import Any, Dict, List
 from textual.app import App
 
@@ -66,10 +69,19 @@ async def run_exploration(app_class, script_steps: List[Dict]):
     # Handle both direct App classes and factory functions
     app = app_class() if isinstance(app_class, type) else app_class
     
+    ledger_dir = Path(".builder/artifacts")
+    ledger_dir.mkdir(parents=True, exist_ok=True)
+    ledger_path = ledger_dir / "tui_audit_ledger.jsonl"
+    
     results = {"initial_state": {}, "execution_log": [], "final_state": {}}
     
     async with app.run_test(headless=True) as pilot:
-        results["initial_state"] = await extract_semantic_state(app)
+        initial_state = await extract_semantic_state(app)
+        results["initial_state"] = initial_state
+        
+        # Append initial state to ledger
+        with open(ledger_path, "a") as f:
+            f.write(json.dumps({"timestamp": time.time(), "event": "MOUNT", "state": initial_state}) + "\n")
         
         for step in script_steps:
             action = step.get("action")
@@ -92,6 +104,21 @@ async def run_exploration(app_class, script_steps: List[Dict]):
                 step_log["error"] = str(e)
             
             results["execution_log"].append(step_log)
+            
+            # Extract state immediately after the action settles
+            current_state = await extract_semantic_state(app)
+            
+            # Stream the discrete event and resulting state to the ledger
+            with open(ledger_path, "a") as f:
+                f.write(json.dumps({
+                    "timestamp": time.time(),
+                    "event": "ACTION",
+                    "action": action,
+                    "target": target,
+                    "status": step_log["status"],
+                    "error": step_log["error"],
+                    "resulting_state": current_state
+                }) + "\n")
             
         results["final_state"] = await extract_semantic_state(app)
         
