@@ -39,7 +39,7 @@ def project_code_vault(*, artifacts_dir: Path | None, project_root: Path | None 
     error: str | None = None
 
     try:
-        import builder_ii.code_vault  # noqa: F401
+        import builder_ii_code_vault  # noqa: F401
         is_installed = True
         note = (
             "CodeVault is exact geometric recall — not ANN/HNSW. "
@@ -47,8 +47,11 @@ def project_code_vault(*, artifacts_dir: Path | None, project_root: Path | None 
         )
     except ImportError:
         is_installed = False
-        note = "CodeVault not installed. Upgrade your builder-ii package to enable CodeVault features."
-        error = "CodeVault package not found"
+        note = (
+            "CodeVault is not installed. "
+            "Install builder-ii-code-vault to enable frames, recall, geometric lint, and CGA."
+        )
+        error = None
 
     if is_installed:
         try:
