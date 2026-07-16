@@ -148,7 +148,8 @@ def test_code_vault_empty(tmp_path: Path) -> None:
 
     view = project_code_vault(artifacts_dir=tmp_path, project_root=tmp_path)
     assert view.frame_count == 0
-    assert "builder-code-vault" in view.compose_demo
+    assert not view.is_installed
+    assert "CodeVault not installed" in view.note
 
 
 def test_model_matrix_includes_local_config() -> None:
