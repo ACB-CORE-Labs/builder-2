@@ -1,0 +1,3820 @@
+{
+  "initial_state": {
+    "focused_id": null,
+    "active_screen": "SplashScreen",
+    "widgets": [
+      {
+        "type": "Vertical",
+        "id": "splash-container",
+        "classes": [],
+        "text": "<textual.renderables.blank.Blank object at 0x[MEM_ADDR]>"
+      },
+      {
+        "type": "Center",
+        "id": null,
+        "classes": [],
+        "text": "<textual.renderables.blank.Blank object at 0x[MEM_ADDR]>"
+      },
+      {
+        "type": "Static",
+        "id": "splash-art",
+        "classes": [],
+        "text": "\n\u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2557   \u2588\u2588\u2557\u2588\u2588\u2557\u2588\u2588\u2557     \u2588\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2557        \u2588\u2588\u2557\u2588\u2588\u2557\n\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2554\u2550\u2550\u2550\u2550\u255d\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2557 \u2588\u2588\u2551\u2588\u2588\u2551\n\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2557  \u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u255a\u2550\u2550\u2550\u2550\u255d \u2588\u2588\u2551\u2588\u2588\u2551\n\u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557\u2588\u2588\u2551   \u2588\u2588\u2551\u2588\u2588\u2551\u2588\u2588\u2551     \u2588\u2588\u2551  \u2588\u2588\u2551\u2588\u2588\u2554\u2550\u2550\u255d  \u2588\u2588\u2554\u2550\u2550\u2588\u2588\u2557       \u2588\u2588\u2551\u2588\u2588\u2551\n\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u255a\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2551\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2588\u2588\u2588\u2588\u2554\u255d\u2588\u2588\u2588\u2588\u2588\u2588\u2588\u2557\u2588\u2588\u2551  \u2588\u2588\u2551       \u2588\u2588\u2551\u2588\u2588\u2551\n\u255a\u2550\u2550\u2550\u2550\u2550\u255d  \u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u255d\u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u2550\u2550\u2550\u2550\u255d \u255a\u2550\u2550\u2550\u2550\u2550\u2550\u255d\u255a\u2550\u255d  \u255a\u2550\u255d       \u255a\u2550\u255d\u255a\u2550\u255d\n\n                  Generic governed AI platform\n"
+      },
+      {
+        "type": "Static",
+        "id": "splash-tag",
+        "classes": [],
+        "text": "builder-II  \u00b7  governed local control plane"
+      },
+      {
+        "type": "Static",
+        "id": "splash-hint",
+        "classes": [],
+        "text": "STRATUM starting\u2026  (any key to continue)"
+      }
+    ],
+    "notifications": [
+      {
+        "message": "STRATUM operator console active \u2014 observe & compose only.",
+        "title": "",
+        "severity": "information"
+      },
+      {
+        "message": "First-session walkthrough \u2014 press X to opt out of auto-open, 0 anytime.",
+        "title": "",
+        "severity": "information"
+      }
+    ]
+  },
+  "execution_log": [
+    {
+      "step": {
+        "action": "press",
+        "target": "escape"
+      },
+      "status": "success",
+      "error": null
+    },
+    {
+      "step": {
+        "action": "press",
+        "target": "question_mark"
+      },
+      "status": "success",
+      "error": null
+    }
+  ],
+  "final_state": {
+    "focused_id": "palette-input",
+    "active_screen": "CommandPaletteScreen",
+    "widgets": [
+      {
+        "type": "Vertical",
+        "id": "palette-container",
+        "classes": [],
+        "text": "<textual.renderables.blank.Blank object at 0x[MEM_ADDR]>"
+      },
+      {
+        "type": "Static",
+        "id": "palette-title",
+        "classes": [],
+        "text": "\u2318 COMMAND PALETTE  type to search \u00b7 ESC to close"
+      },
+      {
+        "type": "Vertical",
+        "id": "palette-search",
+        "classes": [],
+        "text": "<textual.renderables.blank.Blank object at 0x[MEM_ADDR]>"
+      },
+      {
+        "type": "Input",
+        "id": "palette-input",
+        "classes": [],
+        "text": "<rich.panel.Panel object at 0x[MEM_ADDR]>"
+      },
+      {
+        "type": "ScrollableContainer",
+        "id": "palette-results",
+        "classes": [],
+        "text": "<textual.renderables.blank.Blank object at 0x[MEM_ADDR]>"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder code-vault                      [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder code-vault context              [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder code-vault determinism          [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder code-vault frame                [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder code-vault governance           [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder code-vault lint                 [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder code-vault recall               [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder code-vault status               [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder code-vault validate             [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder goose                           [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder goose actions                   [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder goose approval                  [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder goose governance                [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder goose links                     [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder goose manifest                  [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder goose status                    [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder goose validate                  [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder hitl                            [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder hitl approval                   [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder hitl chain                      [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder hitl evidence                   [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder hitl execution                  [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder hitl pending                    [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder hitl promote                    [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder hitl replay                     [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder hitl status                     [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder model                           [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder model registry diff             [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder model registry show             [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder model routing candidates        [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder model routing execution-policy  [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder model routing policy            [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder model routing show              [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder model routing simulate          [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder model routing validate          [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder postflight                      [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder postflight actions              [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder postflight governance           [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder postflight record               [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder postflight refs                 [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder postflight status               [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder postflight validate             [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder postflight verify               [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder profile                         [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder profile dry-run                 [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder profile history                 [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder profile lifecycle               [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder profile render-plan             [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder profile resolve                 [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder profile status                  [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder profile validate                [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder promote                         [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder promote artifact                [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder promote compatibility           [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder promote decision                [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder promote gates                   [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder promote history                 [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder promote readiness               [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder promote status                  [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder tui                             [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder tui gates                       [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder tui golden                      [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder tui handoff                     [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder tui hitl                        [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder tui roster                      [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder tui status                      [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-performance                     [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-performance benchmark-validation[/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-performance parity-report       [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-performance record              [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-performance validate            [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-readonly                        [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-readonly report                 [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-targets demo                    [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-targets list                    [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-targets show                    [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#3fb950]T0[/]  [#79c0ff]builder-targets validate                [/]    [#21262d]READ-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder config                          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder init                            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder init-prompt                     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder ledger audit                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder ledger export                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder ledger index-receipt            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder ledger list                     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder ledger query-receipts           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder ledger reconstruct-receipts     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder ledger replay                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder ledger validate-receipts        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder onboarding                      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder setup                           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder switch-model                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder workflow candidate              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder workflow handoff                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder workflow plan                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder workflow promote                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder workflow status                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder workflow verify-chain           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-bundle                          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-bundle create                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-bundle validate                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-chain                           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-chain record                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-chain validate                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-chain verify-artifacts          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault                      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault bench                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault change-field         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault context              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault corroborate          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault demo                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault digest               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault evidence-relation    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault extractor-manifest   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault frame                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault frame/recall         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault lint                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault recall               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault reconstruction       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault relation-field       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault structural-field     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault utility-baseline     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault utility-registry     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-bench       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-change-field[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-context     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-corroboration[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-demo        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-evidence-relation[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-extractor-manifest[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-frame       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-lint        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-recall      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-reconstruction[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-relation-field[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-structural-field[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-utility-eval[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-code-vault validate-utility-registry[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-config                          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-config resolve                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-config schema                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-config validate                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents approve-candidate    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents assign-subagent      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents backend-readiness    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents evidence-bundle      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents execution-candidate  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents forge                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents policy               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents proposal-result      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents readiness            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents record-blocked-action[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents record-result        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents replay-run           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents request-human-gate   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents review-result        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents run-plan             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents validate             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents validate-readiness   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents validate-work-artifact[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-deepagents work-plan            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-git-state                       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-git-state artifact              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-git-state validate              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose                           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose env                       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose inspect-readonly          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose manifest                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose propose-command           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose readonly-audit            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose validate                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose validate-audit            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose validate-command-proposal [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-goose validate-inspection       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-handoff                         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-handoff record                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-handoff validate                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl approval-boundary          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl approve-patch              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl approve-rollback           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl candidate-manifest         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl promotion-decision         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl promotion-request          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl promotion-review           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl propose-patch              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl rejection-record           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl validate                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl validate-candidate-manifest[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-hitl validate-promotion         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-index                           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-index record                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-index validate                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-intake                          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-intake record                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-intake validate                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-lanes                           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-lanes list                      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-lanes show                      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-ledger                          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-ledger audit                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-ledger export                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-ledger index-receipt            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-ledger list                     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-ledger query-receipts           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-ledger reconstruct-receipts     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-ledger replay                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-ledger validate-receipts        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-mcp inventory                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-mcp policy                      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-memory                          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-memory atom                     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-memory index                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-memory reconstruct              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-memory search                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-memory validate-atom            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-memory validate-index           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-memory validate-reconstruction  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-memory validate-search-result   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-model validate-receipt          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-model-policy                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-model-policy dry-run            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-model-policy render             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-model-policy validate           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-notes                           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-notes handoff                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-notes validate                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration dry-run           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration lane-policy       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration mint-obligation   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration plan              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration render-assignment [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration status            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration validate          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration validate-lane-policy[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration validate-obligation[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-orchestration why               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform                        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform audit-docs             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform final-loop-smoke       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform golden-path            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform known-limitations      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform matrix                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform next                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform operator-lane          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform operator-status        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform r1-closure             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform status                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform tui                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform validate-demo-loop     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform validate-golden-path   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-platform validate-r1-closure    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-preflight                       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-preflight record                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-preflight validate              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-profile-pack                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-profile-pack dry-run            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-profile-pack render             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-profile-pack scaffold           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-profile-pack validate           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-profile-pack wizard             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-promotion                       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-promotion record                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-promotion validate              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-promotion-decision              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-promotion-decision record       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-promotion-decision validate     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-quality                         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-quality plan                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-quality validate                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-readonly content-read           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-readonly policy                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-readonly read                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-readonly validate               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-receipt                         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-receipt record                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-receipt validate                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-records                         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-records record                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-records validate                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-research                        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-research adapter                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-research plan                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-research profiles               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-research show                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-research validate               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-research validate-adapter       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-research validate-profiles      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-semantic                        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-semantic doctor                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-semantic map                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-semantic preview                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-semantic validate               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session                         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session command-surface         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session config                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session context-pack            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session goose-projection        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session goose-readonly-plan     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session goose-wrapper-plan      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session operator-surface        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session plan                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session prepare-package         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session repo-map                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session summarize-prepare-package[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session validate                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session validate-config         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session validate-goose-projection[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session validate-goose-readonly-plan[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session validate-goose-wrapper-plan[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-session validate-prepare-package[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup                           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup init                      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup overlay-plan              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup plan                      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup rollback-snapshot         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup validate-onboarding-intent[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup validate-overlay-plan     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup validate-plan             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup validate-receipt          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup validate-rollback-receipt [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup validate-rollback-snapshot[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-setup wizard                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-snapshot                        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-snapshot record                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-snapshot validate               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-state-index                     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-state-index record              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-state-index validate            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-targets artifact                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-targets doctor                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-targets readonly-founder-demo   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-tui-inspection                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verification                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verification artifact           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verification list               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verification show               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verification validate           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verify approve-plan             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verify evaluate-promotion       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verify plan                     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verify validate-approval        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verify validate-plan            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verify validate-promotion-evidence[/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-verify validate-receipt         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-workflow                        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-workflow candidate              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-workflow handoff                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-workflow plan                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-workflow promote                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-workflow status                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-workflow verify-chain           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp                             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp adjoint                     [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp agent-factory               [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp agent-factory prove         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp agent-factory retire        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp agent-factory spawn         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp allocate                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp approve-live                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp approve-rstar-apply         [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp backends                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp benchmark                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp classify                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp corrections-from-receipts   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp doctor-backends             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp embed-status                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp evaluate                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp experience-init             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp fleet-fidelity              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp gate                        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp graph                       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp handoff-measure             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp langgraph-project           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp msda-policy                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp msda-status                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp opa-eval                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp package-exchange            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp patterns-prove              [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp phi-policy-init             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp plan-agent-lifecycle        [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp plan-collab                 [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp plan-live                   [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp plan-rstar-apply            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp proof                       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp replay                      [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp repo-state                  [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp route                       [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp s4-readiness                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp s4-readiness draft          [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp s4-readiness list           [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp score-classifier            [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp simulate-epochs             [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp validate                    [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#79c0ff]T1[/]  [#79c0ff]builder-wrp vllm-profile                [/]    [#21262d]ARTIFACT-ONLY[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder                                 [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder ask                             [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder benchmark                       [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder capabilities                    [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder doctor                          [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder models                          [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder pull                            [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder start                           [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder status                          [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder stratum                         [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder verify                          [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-agent                           [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-agent artifact                  [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-agent profiles                  [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-agent render                    [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-agent show                      [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-agent validate                  [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-bridge                          [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-bridge deepagents-smoke         [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-bridge doctor                   [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-bridge render                   [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-bridge validate-artifact        [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-context                         [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-context artifact                [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-context changed                 [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-context pack                    [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-context summarize               [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-context validate                [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-runtime                         [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-runtime clear-marker            [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-runtime reset                   [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-runtime status                  [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-runtime stop                    [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-setup apply                     [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-setup rollback                  [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-stratum                         [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-targets                         [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-tools check                     [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-tools list                      [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#d2a8ff]T2[/]  [#79c0ff]builder-tools missing                   [/]    [#21262d]OPERATOR[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-agent run                       [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-deepagents collect-results      [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#21262d]builder-deepagents resume-approved      [/]  [#21262d]\u2298 command requires a HITL approv[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#21262d]builder-deepagents run-approved         [/]  [#21262d]\u2298 command requires a HITL approv[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-deepagents run-readonly         [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-goose close-readonly            [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-goose start-readonly            [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#21262d]builder-hitl                            [/]  [#21262d]\u2298 command requires a HITL approv[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#21262d]builder-hitl apply-patch                [/]  [#21262d]\u2298 command requires a HITL approv[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#21262d]builder-hitl receipt                    [/]  [#21262d]\u2298 command requires a HITL approv[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#21262d]builder-hitl request                    [/]  [#21262d]\u2298 command requires a HITL approv[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#21262d]builder-hitl rollback                   [/]  [#21262d]\u2298 command requires a HITL approv[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-mcp                             [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-mcp call                        [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-mcp standalone-call             [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-model                           [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-model call                      [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-model standalone-call           [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-platform demo-loop              [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-platform wow                    [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-tools                           [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-tools invoke                    [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-tools standalone-invoke         [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#21262d]builder-verify run-approved             [/]  [#21262d]\u2298 command requires a HITL approv[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-wrp apply-rstar-approved        [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#ffa657]T3[/]  [#79c0ff]builder-wrp run-approved                [/]    [#21262d]HITL-GATED[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#f85149]T4[/]  [#21262d]builder-deepagents                      [/]  [#21262d]\u2298 command is forbidden or unprom[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#f85149]T4[/]  [#21262d]builder-deepagents delegate             [/]  [#21262d]\u2298 command is forbidden or unprom[/]"
+      },
+      {
+        "type": "PaletteEntry",
+        "id": null,
+        "classes": [
+          "palette-item"
+        ],
+        "text": "  [#f85149]T4[/]  [#21262d]builder-hitl run-command                [/]  [#21262d]\u2298 command is forbidden or unprom[/]"
+      }
+    ],
+    "notifications": [
+      {
+        "message": "STRATUM operator console active \u2014 observe & compose only.",
+        "title": "",
+        "severity": "information"
+      },
+      {
+        "message": "First-session walkthrough \u2014 press X to opt out of auto-open, 0 anytime.",
+        "title": "",
+        "severity": "information"
+      }
+    ]
+  }
+}
