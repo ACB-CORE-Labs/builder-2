@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **CRITICAL**: This repository is hosted on a private **Forgejo** server, NOT GitHub.
 - Do NOT use the `gh` (GitHub) CLI, and do not push/pull/clone from `github.com`.
 - Do NOT use the `tea` CLI (which hangs/fails due to Cloudflare 524 timeouts). Use standard `git` CLI or `git+ssh://` for push/pull/branch/commit operations. Use Gitea/Forgejo MCP tools exclusively for PRs, issues, or repo management.
+- **LOCAL CI ONLY**: You MUST run the local CI script (e.g. `bash scripts/ci.sh`) and ensure all gates pass BEFORE pushing commits or creating a Pull Request. Do not rely on the remote Forgejo runner to catch CI failures.
 
 ## What this is
 

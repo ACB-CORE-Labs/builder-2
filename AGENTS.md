@@ -38,6 +38,7 @@ When tasked with a feature or bug fix:
 - **DO NOT** attempt to push, pull, or clone from `github.com`.
 - **USE** the `tea` CLI (Gitea/Forgejo CLI) for issues, PRs, and repository management.
 - **USE** the provided Forgejo MCP tools if available.
+- **LOCAL CI ONLY**: You MUST run the local CI script (e.g. `bash scripts/ci.sh`) and ensure all gates pass BEFORE pushing commits or creating a Pull Request. Do not rely on the remote Forgejo runner to catch CI failures.
 
 ## 6. Reasoning & Problem-Solving Discipline (non-trivial design/R&D)
 
