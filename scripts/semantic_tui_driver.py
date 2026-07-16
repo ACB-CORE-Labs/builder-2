@@ -8,9 +8,7 @@ import asyncio
 import json
 import sys
 import time
-import os
 import uuid
-import hashlib
 from pathlib import Path
 from typing import Any, Dict, List
 from textual.app import App
@@ -18,11 +16,7 @@ from textual.app import App
 # Load-bearing imports mapped directly to the builder-II architecture
 try:
     from builder_ii.tui.app import StratumApp
-    try:
-        from builder_ii.cli.tui_inspection_cli import get_inspection_app 
-        # Using a factory or mock if code_vault_tui isn't a direct App class
-    except ImportError:
-        get_inspection_app = None
+    from builder_ii.tui_audit_ledger import append_event, build_event, read_chain_head
 except ImportError as e:
     print(json.dumps({"error": "CRITICAL_FAILURE", "message": f"Failed to import core applications: {e}"}))
     sys.exit(1)
@@ -79,25 +73,28 @@ async def run_exploration(app_class, script_steps: List[Dict]):
     ledger_dir = Path(".builder/artifacts")
     ledger_dir.mkdir(parents=True, exist_ok=True)
     ledger_path = ledger_dir / "tui_audit_ledger.jsonl"
-    
+
+    # The chain spans the file, not the run: a new run continues from the last recorded link, so
+    # deleting a whole run's block is as detectable as deleting a single line.
+    seq, prev_digest = read_chain_head(ledger_path)
+
     results = {"initial_state": {}, "execution_log": [], "final_state": {}}
-    
+
     async with app.run_test(headless=True) as pilot:
         initial_state = await extract_semantic_state(app)
         results["initial_state"] = initial_state
-        
-        # Create third door compliant ledger entry
-        entry = {
-            "kind": "builder_ii.tui_audit_ledger_event",
-            "run_id": run_id,
-            "timestamp": time.time(),
-            "event": "MOUNT",
-            "state": initial_state
-        }
-        entry["digest"] = hashlib.sha256(json.dumps(entry, sort_keys=True).encode()).hexdigest()
-        with open(ledger_path, "a") as f:
-            f.write(json.dumps(entry) + "\n")
-        
+
+        entry = build_event(
+            seq=seq,
+            run_id=run_id,
+            timestamp=time.time(),
+            event="MOUNT",
+            state=initial_state,
+            prev_digest=prev_digest,
+        )
+        append_event(ledger_path, entry)
+        seq, prev_digest = seq + 1, entry["entry_digest"]
+
         for step in script_steps:
             action = step.get("action")
             target = step.get("target") # Can be an ID ("#btn") or key ("tab")
@@ -123,21 +120,23 @@ async def run_exploration(app_class, script_steps: List[Dict]):
             # Extract state immediately after the action settles
             current_state = await extract_semantic_state(app)
             
-            entry = {
-                "kind": "builder_ii.tui_audit_ledger_event",
-                "run_id": run_id,
-                "timestamp": time.time(),
-                "event": "ACTION",
-                "action": action,
-                "target": target,
-                "status": step_log["status"],
-                "error": step_log["error"],
-                "resulting_state": current_state
-            }
-            entry["digest"] = hashlib.sha256(json.dumps(entry, sort_keys=True).encode()).hexdigest()
-            with open(ledger_path, "a") as f:
-                f.write(json.dumps(entry) + "\n")
-            
+            # The payload key is `state` for every event type, MOUNT and ACTION alike -- a
+            # consumer should not have to know the event type to find the state it recorded.
+            entry = build_event(
+                seq=seq,
+                run_id=run_id,
+                timestamp=time.time(),
+                event="ACTION",
+                state=current_state,
+                prev_digest=prev_digest,
+                action=action,
+                target=target,
+                status=step_log["status"],
+                error=step_log["error"],
+            )
+            append_event(ledger_path, entry)
+            seq, prev_digest = seq + 1, entry["entry_digest"]
+
         results["final_state"] = await extract_semantic_state(app)
         
     print(json.dumps(results, indent=2))
