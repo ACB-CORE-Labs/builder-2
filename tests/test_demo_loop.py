@@ -44,7 +44,7 @@ def _generic_repo(tmp_path: Path, name: str = "acme-lib") -> Path:
     return repo
 
 
-def _core_repo(tmp_path: Path) -> Path:
+def _target_repo(tmp_path: Path) -> Path:
     # Passes the CORE identity check via the "core" dirname fallback.
     repo = tmp_path / "core"
     _init_repo(repo)
@@ -137,7 +137,7 @@ def test_generic_demo_all_applies_verifies_rolls_back_and_indexes_evidence(tmp_p
 
 
 def test_core_profile_demo_all_keeps_identity_and_sensitive_checks(tmp_path: Path) -> None:
-    repo = _core_repo(tmp_path)
+    repo = _target_repo(tmp_path)
     output_dir = tmp_path / "demo"
 
     report = run_demo_loop(
@@ -216,7 +216,7 @@ def test_marker_path_shape_is_fail_closed(tmp_path: Path) -> None:
 
 
 def test_core_profile_refuses_marker_under_sensitive_prefix(tmp_path: Path) -> None:
-    repo = _core_repo(tmp_path)
+    repo = _target_repo(tmp_path)
     try:
         run_demo_loop(
             target_repo=repo,
@@ -368,8 +368,8 @@ def test_demo_cli_runs_prepare_checkpoint(tmp_path: Path) -> None:
     assert data["target"]["name"] == "acme-lib"
 
 
-def test_demo_cli_accepts_deprecated_core_repo_alias(tmp_path: Path) -> None:
-    repo = _core_repo(tmp_path)
+def test_demo_cli_accepts_deprecated_target_repo_alias(tmp_path: Path) -> None:
+    repo = _target_repo(tmp_path)
     output_dir = tmp_path / "demo"
 
     result = CliRunner().invoke(

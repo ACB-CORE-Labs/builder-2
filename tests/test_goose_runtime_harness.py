@@ -20,7 +20,7 @@ class MockSessionPlan:
 def mock_settings(tmp_path: Path) -> MagicMock:
     m = MagicMock(spec=Settings)
     m.project_root = tmp_path
-    m.core_repo = tmp_path
+    m.target_repo = tmp_path
     m.backend = "openai"
     m.api_key = "mock"
     m.base_url = "https://mock.com"

@@ -3,18 +3,19 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 from types import SimpleNamespace
-
 import pytest
 
 from builder_ii.profile_resolution import (
-    MissingFileError,
     ProfileResolver,
+    ResolutionResult,
+    ProfileResolutionError,
     UnknownProfileError,
+    MissingFileError,
     ValidationError,
+    PromptProfile,
     get_prompt_profile,
     prompt_profiles,
 )
-
 
 def _mock_settings(tmp_path: Path):
     core = tmp_path / "core"
@@ -24,7 +25,7 @@ def _mock_settings(tmp_path: Path):
     (core / "README.md").write_text("core", encoding="utf-8")
     (builder / "README.md").write_text("builder", encoding="utf-8")
     (builder / "builder_ii").mkdir()
-    return SimpleNamespace(core_repo=core, project_root=builder)
+    return SimpleNamespace(target_repo=core, project_root=builder)
 
 
 def test_prompt_profiles_resolution() -> None:
@@ -78,7 +79,7 @@ def test_resolver_core_defaults(tmp_path: Path) -> None:
     assert result.agent_profile.name == "code_reviewer"
     assert result.prompt_profile.name == "core_default"
     assert result.verification_profile.name == "core_smoke"
-    assert result.repo_path == str(settings.core_repo.resolve())
+    assert result.repo_path == str(settings.target_repo.resolve())
     assert "README.md" in result.context_defaults
 
 
@@ -124,8 +125,7 @@ def test_resolver_missing_files(tmp_path: Path) -> None:
     settings = _mock_settings(tmp_path)
     # Delete core directory to simulate missing repository path
     import shutil
-
-    shutil.rmtree(settings.core_repo)
+    shutil.rmtree(settings.target_repo)
 
     resolver = ProfileResolver(settings)
     with pytest.raises(MissingFileError, match="repository path does not exist"):

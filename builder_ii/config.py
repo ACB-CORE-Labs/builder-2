@@ -189,7 +189,7 @@ def normalize_model_alias(raw: str | None, *, tier_fallback: str = "primary") ->
 
 @dataclass(frozen=True)
 class Settings:
-    core_repo: Path
+    target_repo: Path
     backend: str
     model_tier: str
     model_alias: str
@@ -295,7 +295,7 @@ class Settings:
         return self.active_mlx_model if self.backend == "mlx-lm" else self.active_model
 
 
-def _resolve_core_repo(raw: str, project_root: Path) -> Path:
+def _resolve_target_repo(raw: str, project_root: Path) -> Path:
     path = Path(raw).expanduser()
     if not path.is_absolute():
         path = (project_root / path).resolve()
@@ -329,7 +329,7 @@ def load_settings(project_root: Path | None = None) -> Settings:
     alias = normalize_model_alias(_env("BUILDER_MODEL_ALIAS", "CORE_AGENT_MODEL_ALIAS", ""), tier_fallback=tier)
 
     return Settings(
-        core_repo=_resolve_core_repo(_env("BUILDER_TARGET_REPO", "CORE_REPO_PATH", "../core"), root),
+        target_repo=_resolve_target_repo(_env("BUILDER_TARGET_REPO", "TARGET_REPO_PATH", "../core"), root),
         backend=backend,
         model_tier=tier,
         model_alias=alias,

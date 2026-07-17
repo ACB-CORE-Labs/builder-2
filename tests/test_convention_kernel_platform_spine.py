@@ -1,4 +1,5 @@
 from __future__ import annotations
+from unittest.mock import patch
 
 import json
 from pathlib import Path
@@ -117,22 +118,21 @@ def test_prepare_platform_spine_omits_code_vault_when_disabled(tmp_path):
     )
 
 
-def test_prepare_platform_spine_rejects_unsafe_governance(tmp_path, monkeypatch):
+@patch("builder_ii.convention_kernel.create_session_workflow_plan")
+def test_prepare_platform_spine_rejects_unsafe_governance(mock_create, tmp_path):
     repo = _make_repo(tmp_path)
     settings = load_settings(project_root=ROOT)
     kernel = ConventionKernel()
 
     # Mock create_session_workflow_plan to return an unsafe governance block
-    import builder_ii.convention_kernel
-
-    orig_create_session = builder_ii.convention_kernel.create_session_workflow_plan
+    from builder_ii.session_workflow import create_session_workflow_plan as orig_create_session
 
     def unsafe_create_session(*args, **kwargs):
         res = orig_create_session(*args, **kwargs)
         res["governance"]["runtime_execution"] = "AUTHORIZED"  # Unsafe!
         return res
 
-    monkeypatch.setattr(builder_ii.convention_kernel, "create_session_workflow_plan", unsafe_create_session)
+    mock_create.side_effect = unsafe_create_session
 
     with pytest.raises(ValueError, match="unsafe governance block"):
         kernel.prepare_platform_spine(
@@ -142,22 +142,21 @@ def test_prepare_platform_spine_rejects_unsafe_governance(tmp_path, monkeypatch)
         )
 
 
-def test_prepare_platform_spine_rejects_unregistered_command(tmp_path, monkeypatch):
+@patch("builder_ii.convention_kernel.create_session_workflow_plan")
+def test_prepare_platform_spine_rejects_unregistered_command(mock_create, tmp_path):
     repo = _make_repo(tmp_path)
     settings = load_settings(project_root=ROOT)
     kernel = ConventionKernel()
 
     # Mock create_session_workflow_plan to inject an unregistered planned command
-    import builder_ii.convention_kernel
-
-    orig_create_session = builder_ii.convention_kernel.create_session_workflow_plan
+    from builder_ii.session_workflow import create_session_workflow_plan as orig_create_session
 
     def unregistered_cmd_session(*args, **kwargs):
         res = orig_create_session(*args, **kwargs)
         res["planned_commands"].append("builder-unknown-dangerous-cmd --execute-all")
         return res
 
-    monkeypatch.setattr(builder_ii.convention_kernel, "create_session_workflow_plan", unregistered_cmd_session)
+    mock_create.side_effect = unregistered_cmd_session
 
     with pytest.raises(ValueError, match="unregistered"):
         kernel.prepare_platform_spine(

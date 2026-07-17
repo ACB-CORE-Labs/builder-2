@@ -15,7 +15,7 @@ GOVERNANCE_FILES: tuple[str, ...] = (
 
 @dataclass(frozen=True)
 class SessionContext:
-    core_repo: Path
+    target_repo: Path
     governance_snippets: dict[str, str]
     recent_handoff: str | None
     git_status: str
@@ -32,18 +32,18 @@ def _read_text(path: Path, max_chars: int = 4000) -> str:
     return text
 
 
-def _recent_handoff(core_repo: Path) -> str | None:
-    if not core_repo.exists():
+def _recent_handoff(target_repo: Path) -> str | None:
+    if not target_repo.exists():
         return None
-    candidates = sorted(core_repo.glob("HANDOFF-*.md"), reverse=True)
+    candidates = sorted(target_repo.glob("HANDOFF-*.md"), reverse=True)
     return _read_text(candidates[0], max_chars=6000) if candidates else None
 
 
-def _git_status(core_repo: Path) -> str:
+def _git_status(target_repo: Path) -> str:
     try:
         proc = subprocess.run(
             ["git", "status", "--short", "--branch"],
-            cwd=core_repo,
+            cwd=target_repo,
             capture_output=True,
             text=True,
             timeout=10,
@@ -53,17 +53,17 @@ def _git_status(core_repo: Path) -> str:
         return "[git unavailable]"
 
 
-def _top_level_dirs(core_repo: Path) -> tuple[str, ...]:
-    if not core_repo.exists():
+def _top_level_dirs(target_repo: Path) -> tuple[str, ...]:
+    if not target_repo.exists():
         return ()
-    return tuple(sorted(p.name for p in core_repo.iterdir() if p.is_dir() and not p.name.startswith(".")))
+    return tuple(sorted(p.name for p in target_repo.iterdir() if p.is_dir() and not p.name.startswith(".")))
 
 
 def load_session_context(settings: Settings) -> SessionContext:
-    repo = settings.core_repo
+    repo = settings.target_repo
     snippets = {name: _read_text(repo / name) for name in GOVERNANCE_FILES}
     return SessionContext(
-        core_repo=repo,
+        target_repo=repo,
         governance_snippets=snippets,
         recent_handoff=_recent_handoff(repo),
         git_status=_git_status(repo),
@@ -74,7 +74,7 @@ def load_session_context(settings: Settings) -> SessionContext:
 
 def context_brief(ctx: SessionContext) -> str:
     lines = [
-        f"CORE repo: {ctx.core_repo}",
+        f"target repo: {ctx.target_repo}",
         f"dirs: {', '.join(ctx.top_level_dirs[:20])}",
         f"git: {ctx.git_status}",
         "governance loaded: " + ", ".join(ctx.governance_snippets),

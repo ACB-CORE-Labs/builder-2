@@ -34,7 +34,7 @@ class VerificationProfile:
     writes: str = "disabled except explicit artifact output path"
     executes_commands: bool = False
 
-    def to_artifact_dict(self, *, target: TargetName | None = None, task: str | None = None) -> dict[str, Any]:
+    def to_artifact_dict(self, *, target: TargetName | None = None, task: str | None = None, isolation: bool = False) -> dict[str, Any]:
         return {
             "kind": VERIFICATION_ARTIFACT_KIND,
             "schema_version": VERIFICATION_ARTIFACT_SCHEMA_VERSION,
@@ -58,6 +58,7 @@ class VerificationProfile:
                 "memory_mutation": "DISABLED",
                 "executes_commands": self.executes_commands,
                 "artifact_is_authority": False,
+                "isolation_policy": "STRICT" if isolation else "DISABLED",
                 "core_workbench_coupling": "NONE",
             },
         }
@@ -258,16 +259,16 @@ def render_verification_profile(
 
 
 def dumps_profile_artifact(
-    profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None
+    profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None, isolation: bool = False
 ) -> str:
-    return json_lib.dumps(profile.to_artifact_dict(target=target, task=task), indent=2, sort_keys=True) + "\n"
+    return json_lib.dumps(profile.to_artifact_dict(target=target, task=task, isolation=isolation), indent=2, sort_keys=True) + "\n"
 
 
 def write_profile_artifact(
-    profile: VerificationProfile, output: Path, *, target: TargetName | None = None, task: str | None = None
+    profile: VerificationProfile, output: Path, *, target: TargetName | None = None, task: str | None = None, isolation: bool = False
 ) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(dumps_profile_artifact(profile, target=target, task=task), encoding="utf-8")
+    output.write_text(dumps_profile_artifact(profile, target=target, task=task, isolation=isolation), encoding="utf-8")
 
 
 def _string_list_errors(value: Any, *, field: str) -> list[str]:
@@ -310,6 +311,8 @@ def validate_profile_artifact(data: Any) -> list[str]:
             errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
         if governance.get("core_workbench_coupling") != "NONE":
             errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
+        if governance.get("isolation_policy") not in ("DISABLED", "STRICT"):
+            errors.append("governance.isolation_policy must be DISABLED or STRICT")
     return errors
 
 

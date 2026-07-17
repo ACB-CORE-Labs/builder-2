@@ -57,6 +57,7 @@ def show(
     profile: str,
     target: str | None = typer.Option(None, "--target", help="Optional selected target"),
     task: str = typer.Option("", "--task", help="Optional task context"),
+    isolation: bool = typer.Option(False, "--isolation", help="Enable STRICT isolation policy in the verification profile"),
 ) -> None:
     """Show one verification profile as markdown."""
     selected_target = _target(target) if target else None
@@ -64,6 +65,7 @@ def show(
     if selected_target and selected_target not in selected.compatible_targets:
         console.print(f"verification profile {selected.name} is not compatible with target {selected_target}")
         raise typer.Exit(1)
+    # Note: render_verification_profile doesn't currently visualize isolation flag, but we accept it for API parity.
     console.print(render_verification_profile(selected, target=selected_target, task=task))
 
 
@@ -73,6 +75,7 @@ def artifact(
     target: str | None = typer.Option(None, "--target", help="Optional selected target"),
     task: str = typer.Option("", "--task", help="Optional task context"),
     output: Path | None = typer.Option(None, "--output", help="Write JSON artifact to path"),
+    isolation: bool = typer.Option(False, "--isolation", help="Enable STRICT isolation policy in the artifact governance"),
 ) -> None:
     """Emit a no-runtime verification profile artifact."""
     selected_target = _target(target) if target else None
@@ -80,16 +83,16 @@ def artifact(
     if selected_target and selected_target not in selected.compatible_targets:
         console.print(f"verification profile {selected.name} is not compatible with target {selected_target}")
         raise typer.Exit(1)
-    errors = validate_profile_artifact(selected.to_artifact_dict(target=selected_target, task=task))
+    errors = validate_profile_artifact(selected.to_artifact_dict(target=selected_target, task=task, isolation=isolation))
     if errors:
         for error in errors:
             console.print(f"Validation error: {error}")
         raise typer.Exit(1)
     if output is not None:
-        write_profile_artifact(selected, output, target=selected_target, task=task)
+        write_profile_artifact(selected, output, target=selected_target, task=task, isolation=isolation)
         console.print(f"Verification profile artifact written to {output}")
     else:
-        typer.echo(dumps_profile_artifact(selected, target=selected_target, task=task), nl=False)
+        typer.echo(dumps_profile_artifact(selected, target=selected_target, task=task, isolation=isolation), nl=False)
 
 
 @verification_app.command("validate")

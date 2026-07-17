@@ -227,7 +227,7 @@ class StratumApp(App[None]):
 
     def compose(self) -> ComposeResult:
         self.banner = HeaderBanner()
-        self.banner.target = self.settings.core_repo.name
+        self.banner.target = self.settings.target_repo.name
         self.banner.model = self.settings.model_alias
         self.banner.tier = self.settings.model_tier
         yield self.banner
@@ -422,7 +422,7 @@ class StratumApp(App[None]):
             self.stratum.set_platform_info(
                 {
                     "platform": "builder-II",
-                    "target": self.settings.core_repo.name,
+                    "target": self.settings.target_repo.name,
                     "model": self.settings.model_alias,
                     "backend": self.settings.backend,
                     "session": self._current_session_id,
@@ -525,7 +525,7 @@ class StratumApp(App[None]):
 
     def action_open_cli(self) -> None:
         """Compose a governed command with the current context injected. STRATUM runs nothing."""
-        prefix = f"--target {self.settings.core_repo.name}"
+        prefix = f"--target {self.settings.target_repo.name}"
         if self._current_session_id != "idle":
             prefix += f" --session {self._current_session_id}"
 
@@ -592,7 +592,7 @@ class StratumApp(App[None]):
                 if self.stratum and self.stratum.mode == StratumMode.AGENT_PROFILES:
                     self.stratum.mode = StratumMode.IDLE
                 return
-            target = self.settings.core_repo.name if self.settings else "generic"
+            target = self.settings.target_repo.name if self.settings else "generic"
             profile = selected_agents[0]
             cmd = compose_assign_command(profile, target=target)
             # compose_assign_command returns full binary name; strip for composer prefix style

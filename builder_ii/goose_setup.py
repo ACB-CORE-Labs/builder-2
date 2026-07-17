@@ -24,6 +24,7 @@ def skills_source(settings: Settings) -> Path:
     return settings.project_root / ".agents" / "skills"
 
 
+
 def build_goose_config(settings: Settings) -> dict:
     """Build the passive Goose config overlay candidate structure."""
     recipes = settings.project_root / "recipes"
@@ -138,7 +139,7 @@ def legacy_setup_redirect_payload(settings: Settings | None = None) -> dict[str,
         "kind": SETUP_REDIRECT_KIND,
         "schema_version": "1.0.0",
         "project_root": str(active_settings.project_root),
-        "target_repo": str(active_settings.core_repo),
+        "target_repo": str(active_settings.target_repo),
         "goose_config_path": str(goose_config_dir() / "config.yaml"),
         "skills_source": str(skills_source(active_settings)),
         "governed_setup_commands": list(governed_setup_command_sequence()),

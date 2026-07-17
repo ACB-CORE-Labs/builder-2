@@ -47,7 +47,7 @@ def test_summarize_context_pack_logic(tmp_path: Path) -> None:
     settings = replace(
         load_settings(),
         project_root=tmp_path,
-        core_repo=tmp_path / "core",
+        target_repo=tmp_path / "core",
         allow_cloud_models=False,
     )
 
@@ -84,7 +84,7 @@ def test_cli_summarize(tmp_path: Path) -> None:
     settings = replace(
         load_settings(),
         project_root=tmp_path,
-        core_repo=tmp_path / "core",
+        target_repo=tmp_path / "core",
         allow_cloud_models=False,
     )
 

@@ -38,12 +38,12 @@ def _git_diff_stat(repo: Path) -> tuple[int, int]:
     return staged_count, unstaged_count
 
 
-def _recent_handoffs(core_repo: Path, limit: int = 3) -> list[str]:
+def _recent_handoffs(target_repo: Path, limit: int = 3) -> list[str]:
     """Return up to `limit` recent HANDOFF-*.md filenames, newest first."""
-    if not core_repo.exists():
+    if not target_repo.exists():
         return []
     handoffs = sorted(
-        core_repo.glob("HANDOFF-*.md"),
+        target_repo.glob("HANDOFF-*.md"),
         key=lambda path: path.stat().st_mtime,
         reverse=True,
     )
@@ -56,15 +56,15 @@ def write_moim_context(settings: Settings) -> Path:
     cache.parent.mkdir(parents=True, exist_ok=True)
     ctx = load_session_context(settings)
 
-    branch = _git_branch(settings.core_repo)
-    staged, unstaged = _git_diff_stat(settings.core_repo)
-    recent_handoffs = _recent_handoffs(settings.core_repo)
+    branch = _git_branch(settings.target_repo)
+    staged, unstaged = _git_diff_stat(settings.target_repo)
+    recent_handoffs = _recent_handoffs(settings.target_repo)
 
     lines: list[str] = [
         "# Builder-II Session Context (auto-generated — do not edit)",
         "",
         "## Repository",
-        f"CORE repo: {ctx.core_repo}",
+        f"CORE repo: {ctx.target_repo}",
         f"Branch: {branch}",
         f"Git status: {ctx.git_status}",
         f"Staged files: {staged}  Unstaged files: {unstaged}",

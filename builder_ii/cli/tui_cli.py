@@ -240,15 +240,15 @@ def render_doctor(
             table.add_row("", "", _hint(hint))
 
     # CORE repo
-    core_ok = settings.core_repo.exists() and (settings.core_repo / ".git").exists()
+    core_ok = settings.target_repo.exists() and (settings.target_repo / ".git").exists()
     row(
         "pass" if core_ok else "fail",
         "target repo",
-        str(settings.core_repo),
+        str(settings.target_repo),
         hint="" if core_ok else "set BUILDER_TARGET_REPO or CORE_REPO_PATH",
     )
     if not core_ok:
-        failures.append(f"target repo missing: {settings.core_repo}")
+        failures.append(f"target repo missing: {settings.target_repo}")
 
     # Goose
     goose_ok = find_goose_binary() is not None

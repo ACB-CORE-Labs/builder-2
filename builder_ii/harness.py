@@ -81,7 +81,7 @@ def _core_invocation(settings: Settings, suite: str, extra_args: list[str]) -> l
     if core_bin:
         return [core_bin, *base]
 
-    repo = settings.core_repo
+    repo = settings.target_repo
     uv = shutil.which("uv")
     if uv and (repo / "pyproject.toml").exists():
         return [uv, "run", "--project", str(repo), "python", "-m", "core.cli", *base]
@@ -110,7 +110,7 @@ def run_verification(
                     Drives automatic suite selection via routing table.
         suite:      Override suite name directly (skips routing).
         extra_args: Additional pytest flags.
-        cwd:        Working directory (defaults to settings.core_repo).
+        cwd:        Working directory (defaults to settings.target_repo).
         fail_fast:  If True, passes -x to pytest to stop on first failure.
     """
     resolved_suite = suite or (suite_for_module(module) if module else "smoke")
@@ -120,7 +120,7 @@ def run_verification(
         base_args.append("-x")
     args = extra_args or base_args
     command = tuple(_core_invocation(settings, resolved_suite, args))
-    workdir = cwd or settings.core_repo
+    workdir = cwd or settings.target_repo
 
     proc = subprocess.run(
         list(command),

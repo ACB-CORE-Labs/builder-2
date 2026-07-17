@@ -44,7 +44,7 @@ class ContextPackResult:
 
 def repo_for_target(settings: Settings, target: RepoTarget) -> Path:
     if target == "core":
-        return settings.core_repo
+        return settings.target_repo
     if target == "builder":
         return settings.project_root
     if target == "generic":

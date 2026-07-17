@@ -12,7 +12,7 @@ builder-II supports three distinct target profiles:
 
 - `generic`: Default profile for standard local governed developer workflows.
 - `builder`: Specialized profile for self-developing the builder-II platform.
-- `core`: Target profile for governed sessions operating against CORE repositories (CORE is only a target profile, not an identity or runtime).
+- `core`: Target profile for governed sessions operating against target repositories (CORE is only a target profile, not an identity or runtime).
 
 ## Related Documentation
 

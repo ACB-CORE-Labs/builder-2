@@ -18,7 +18,7 @@ def _settings(tmp_path: Path):
     (core / "README.md").write_text("core", encoding="utf-8")
     (builder / "README.md").write_text("builder", encoding="utf-8")
     (builder / "builder_ii").mkdir()
-    return SimpleNamespace(core_repo=core, project_root=builder)
+    return SimpleNamespace(target_repo=core, project_root=builder)
 
 
 def test_target_names_are_stable() -> None:
@@ -33,7 +33,7 @@ def test_profiles_resolve_repositories(tmp_path: Path) -> None:
 
     assert profiles["generic"].repo == generic.resolve()
     assert profiles["builder"].repo == settings.project_root.resolve()
-    assert profiles["core"].repo == settings.core_repo.resolve()
+    assert profiles["core"].repo == settings.target_repo.resolve()
 
 
 def test_builder_profile_stays_generic_first(tmp_path: Path) -> None:
@@ -54,10 +54,10 @@ def test_validate_profiles_passes_for_existing_repos(tmp_path: Path) -> None:
     assert validate_target_profiles(_settings(tmp_path)) == ()
 
 
-def test_validate_profiles_reports_missing_core_repo(tmp_path: Path) -> None:
+def test_validate_profiles_reports_missing_target_repo(tmp_path: Path) -> None:
     builder = tmp_path / "builder"
     builder.mkdir()
-    settings = SimpleNamespace(core_repo=tmp_path / "missing-core", project_root=builder)
+    settings = SimpleNamespace(target_repo=tmp_path / "missing-target", project_root=builder)
 
     assert any("core repo missing" in error for error in validate_target_profiles(settings))
 
