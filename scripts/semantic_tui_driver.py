@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Tuple
 
 from textual.app import App
+from textual.dom import DOMNode
 
 # Private, deliberately: `App._press_keys` normalises a one-character key through this exact
 # function before dispatching it, and a reception check that normalised differently would disagree
@@ -41,10 +42,9 @@ except ImportError as e:
     print(json.dumps({"error": "CRITICAL_FAILURE", "message": f"Failed to import core applications: {e}"}))
     sys.exit(1)
 
-# One extracted text field is capped here. `EpistemicMatrix` renders 345 characters on STRATUM's
-# default screen today, so this is a live branch rather than a guard against a hypothetical.
-# (`ThirdDoorGate` renders 426 but carries `display = False`, and the walk below skips hidden
-# widgets -- a separate, pre-existing blind spot in this driver, not one this cap introduces.)
+# One extracted text field is capped here. `EpistemicMatrix` (345 characters) and `ThirdDoorGate`
+# (426) both exceed it on STRATUM's default screen, so this is a live branch rather than a guard
+# against a hypothetical.
 MAX_TEXT_CHARS = 250
 
 _MEM_ADDR = re.compile(r"0x[0-9a-fA-F]+")
@@ -95,6 +95,30 @@ def _render_failure(exc: BaseException) -> Dict[str, Any]:
         "render_error": _scrub(f"{type(exc).__name__}: {exc}")[:MAX_TEXT_CHARS],
         "render_error_at": where,
     }
+
+
+def _is_visible(widget: DOMNode) -> bool:
+    """Would an operator actually see this widget right now?
+
+    Deliberately neither of Textual's two look-alike properties, because each answers a different
+    question and neither answers this one:
+
+    * `widget.display` is the node's **own** `display` rule. A shown widget inside a hidden
+      container reports `True` from it while being unseeable, so it cannot be reported as
+      "visible" without lying.
+    * `widget.visible` is the `visibility` rule -- a *different* CSS concept, under which Textual
+      still reserves layout space. It already inherits from ancestors; `display` does not.
+
+    So `display` is walked up the ancestor chain by hand and `visible` is consulted for the rule it
+    actually owns. Both must hold. The distinction is worth the words: this driver has already been
+    burned once by a name that meant something else in the layer underneath it.
+    """
+    node: DOMNode | None = widget
+    while node is not None:
+        if not node.display:
+            return False
+        node = node.parent
+    return bool(getattr(widget, "visible", True))
 
 
 def _key_reception(app: App, key: str) -> Tuple[bool, str]:
@@ -148,14 +172,17 @@ async def extract_semantic_state(app: App) -> Dict[str, Any]:
         "notifications": list(notifications_log),  # Captured from hook
     }
 
+    # Every mounted widget, hidden ones included. Skipping `display = False` made the instrument
+    # blind to exactly the widgets worth asserting on: `ThirdDoorGate` -- the HITL gate -- is
+    # mounted with `display = False` and revealed by mode, so "is the gate mounted and waiting?"
+    # was unanswerable, and a gate that vanished from the DOM entirely looked identical to one
+    # merely hidden. Measured on STRATUM's default screen: 37 widgets reported, 39 mounted.
     for widget in app.screen.walk_children():
-        if not widget.display:
-            continue
-
         w_state: Dict[str, Any] = {
             "type": widget.__class__.__name__,
             "id": widget.id,
             "classes": sorted(list(widget.classes)),
+            "visible": _is_visible(widget),
         }
 
         if hasattr(widget, "render"):
@@ -188,18 +215,46 @@ async def run_exploration(
     global notifications_log
     notifications_log = []
 
-    # Hook notify to capture toasts deterministically
+    # Hook notify to capture toasts deterministically -- while changing nothing about them.
+    #
+    # The previous hook restated Textual's signature and got it wrong twice, in opposite
+    # directions. It defaulted `timeout` to a hardcoded `5.0`, but `App.notify` defaults it to
+    # `None` and resolves that to `self.NOTIFICATION_TIMEOUT`; an app that tunes that class
+    # attribute had its setting silently overridden the moment it was observed. And it accepted
+    # `title`/`severity`/`timeout` positionally where Textual makes them keyword-only, so
+    # `notify("x", "title")` -- a `TypeError` in production -- succeeded under the driver. Both are
+    # the same defect: an instrument that reports on mechanics it is itself changing.
+    #
+    # Forwarding `**kwargs` untouched fixes both at once. Textual's own signature stays the only
+    # authority on defaults and on what is even callable, because this hook no longer has an
+    # opinion. The resolved timeout is *recorded* rather than imposed, so what the notification
+    # actually got is observable without the observation deciding it.
     original_notify = app.notify
-    def recording_notify(message: str, title: str = "", severity: str = "information", timeout: float = 5.0, **kwargs):
-        notifications_log.append({"message": str(message), "title": str(title), "severity": str(severity)})
-        return original_notify(message, title=title, severity=severity, timeout=timeout, **kwargs)
+
+    def recording_notify(message: Any, **kwargs: Any) -> Any:
+        timeout = kwargs.get("timeout")
+        notifications_log.append({
+            "message": str(message),
+            "title": str(kwargs.get("title", "")),
+            "severity": str(kwargs.get("severity", "information")),
+            "timeout": app.NOTIFICATION_TIMEOUT if timeout is None else timeout,
+        })
+        return original_notify(message, **kwargs)
+
     app.notify = recording_notify
 
-    # Overridable so a caller -- notably a test -- can point the chain at its own file. The chain
-    # made this necessary: appending links to one fixed path meant a run's outcome depended on
-    # whatever a gitignored file had accumulated, so a stale ledger on any developer's disk could
-    # fail a test that has nothing to do with it.
-    ledger_path = Path(ledger_path_override or ".builder/artifacts/tui_audit_ledger.jsonl")
+    # One ledger per run, because one shared ledger was not merely untidy -- it was incorrect.
+    # Two runs appending to a single file both read the same chain head and both wrote from it,
+    # forking the chain. Measured: two concurrent runs produced four events in which every link
+    # after the first was broken, so the validator reported a file that no tampering had touched
+    # as "an event was deleted, reordered, or rewritten". Concurrency corrupted the evidence and
+    # then made the corruption indistinguishable from an attack. The run id already scopes the
+    # events; scoping the file to match costs nothing and bounds the file to one run's growth
+    # instead of every run this checkout ever made.
+    #
+    # An explicit override is still honoured verbatim -- tests point the chain at `tmp_path`, and
+    # continuing an existing file is exactly how the legacy-ledger refusal below stays reachable.
+    ledger_path = Path(ledger_path_override or f".builder/artifacts/tui_audit_ledger_{run_id}.jsonl")
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     # The chain spans the file, not the run: a new run continues from the last recorded link, so
@@ -224,7 +279,16 @@ async def run_exploration(
         }))
         sys.exit(1)
 
-    results: Dict[str, Any] = {"initial_state": {}, "execution_log": [], "final_state": {}}
+    # `ledger_path` is reported because it is no longer predictable. A fixed filename could be
+    # named in a doc and found later; a per-run one cannot, and an audit record nobody can locate
+    # is not a record. `run_id` ties the file's contents to this output.
+    results: Dict[str, Any] = {
+        "run_id": run_id,
+        "ledger_path": str(ledger_path),
+        "initial_state": {},
+        "execution_log": [],
+        "final_state": {},
+    }
 
     async with app.run_test(headless=True) as pilot:
         initial_state = await extract_semantic_state(app)

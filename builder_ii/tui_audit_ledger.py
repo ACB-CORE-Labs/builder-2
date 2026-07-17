@@ -21,16 +21,39 @@ line N and re-pointing line N+1's ``prev_digest`` at line N-1 would leave every 
 verifying. Committing the link into the hash is what actually makes deletion and reordering
 detectable, which is the property this file claims.
 
-The chain spans the **file**, not the run. A run resumes from the last line's ``entry_digest``
-(`None` only at genesis), so deleting a whole run's block is as detectable as deleting one line.
+The chain spans one **run**, written to one file per run. A run resumes from the last line's
+``entry_digest`` (`None` only at genesis), so within a run, deleting or reordering any event
+breaks the chain at that point.
+
+One file per run is a deliberate trade, not an oversight
+--------------------------------------------------------
+An earlier revision pointed every run at a single shared ledger and chained across runs, which
+bought one extra property: deleting a whole run's block from a retained file was as detectable as
+deleting a single line. That property is gone, and it is worth being exact about what it cost and
+what it bought.
+
+It bought correctness. Two runs sharing one file both read the same chain head and both wrote from
+it -- measured, two concurrent runs produced four events in which every link after the first was
+broken. Concurrency corrupted the ledger, and the corruption was *indistinguishable from tampering*:
+the validator reported deletion or reordering on a file nobody had touched. An evidence artifact
+whose integrity check fires on its own normal use trains the reader to ignore it, which is worse
+than not having it. It also bounds growth to one run rather than to every run a checkout ever made.
+
+It cost little, because the property was already nearly worthless. Nothing counter-signs these
+files, so deleting a whole ledger and re-running always produced a fresh chain that validates
+clean. Cross-run chaining only ever detected *partial* deletion from a file an attacker chose to
+retain -- and an attacker who can edit the file can delete it. What survives is the property that
+was doing the real work: within a run, the recorded sequence cannot be altered undetectably.
 
 What this does not close
 ------------------------
 Truncation from the end. Any append-only chain can be cut at the tail and still verify, absent an
-external anchor recording the expected length or head digest. Nothing here counter-signs the file:
-the same process that writes the events computes the digests, so this is tamper-**evident** under
-later editing, not proof of what happened. It is a record, never authority -- consistent with
-`artifact != authority`. It grants nothing, flips no matrix row, and gates no promotion.
+external anchor recording the expected length or head digest. Deletion of an entire run's file,
+which no longer leaves a gap in a longer chain -- and did not meaningfully do so before, per above.
+Nothing here counter-signs anything: the same process that writes the events computes the digests,
+so this is tamper-**evident** under later editing, not proof of what happened. It is a record,
+never authority -- consistent with `artifact != authority`. It grants nothing, flips no matrix row,
+and gates no promotion.
 """
 
 from __future__ import annotations

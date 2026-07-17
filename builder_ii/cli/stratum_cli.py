@@ -45,7 +45,7 @@ def main(
         raise typer.Exit(1)
 
     try:
-        from builder_ii.tui.app import StratumApp
+        from builder_ii.tui.app import StratumApp, run_tui
     except ImportError:
         console.print("[red]TUI dependencies not found.[/] Run [bold]uv sync[/] to install textual.")
         raise typer.Exit(1) from None
@@ -55,7 +55,7 @@ def main(
         "[dim]observe + compose only · docs/STRATUM.md · H help · 0 walkthrough[/]"
     )
     app = StratumApp(show_guide=guide or None, skip_guide=no_guide, show_splash=not no_splash)
-    app.run()
+    raise typer.Exit(run_tui(app))
 
 
 if __name__ == "__main__":
