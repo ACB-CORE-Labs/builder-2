@@ -540,6 +540,10 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
 try:
     from builder_ii_code_vault.bench import CODE_VAULT_BENCH_REPORT_KIND, validate_code_vault_bench_report
     from builder_ii_code_vault.change_field import CHANGE_FIELD_KIND, validate_change_field
+    from builder_ii_code_vault.code_vault_receipt_bridge import (
+        CODE_VAULT_CORROBORATION_RECORD_KIND,
+        validate_code_vault_corroboration_record,
+    )
     from builder_ii_code_vault.context_bridge import CONTEXT_PROJECTION_KIND, validate_context_projection
     from builder_ii_code_vault.evidence_correction import EVIDENCE_RELATION_KIND, validate_evidence_relation
     from builder_ii_code_vault.extractor_manifest import EXTRACTOR_MANIFEST_KIND, validate_extractor_manifest
@@ -557,10 +561,6 @@ try:
     from builder_ii_code_vault.utility_task_registry import (
         UTILITY_TASK_REGISTRY_KIND,
         validate_utility_task_registry,
-    )
-    from builder_ii_code_vault_receipt_bridge import (
-        CODE_VAULT_CORROBORATION_RECORD_KIND,
-        validate_code_vault_corroboration_record,
     )
 
     def _validate_hierarchical_frame_record(record: Any) -> list[str]:
