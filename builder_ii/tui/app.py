@@ -879,3 +879,25 @@ class StratumApp(App[None]):
 
     def action_diff_hitl(self) -> None:
         self.notify(f"{STRATUM_UNIMPLEMENTED_SURFACES[0]} is not implemented in this surface.")
+
+
+def run_tui(app: App[Any]) -> int:
+    """Run a Textual app and return the exit code it actually reported.
+
+    `App.run()` returning is not evidence the app worked. Textual catches an unhandled exception
+    from a message handler, prints the traceback into the terminal, tears the app down, and
+    *returns normally* -- recording the failure only in `app.return_code`. Every launch site here
+    called `app.run()` and discarded that, so a STRATUM that raised on mount still exited `0`:
+    measured, an app whose `on_mount` raises `RuntimeError` exits `0` both under a pty and without
+    one, while `return_code` is `1` and `_exception` is the `RuntimeError`.
+
+    That made every launcher report success for a crash, and made an exit code useless as evidence
+    to anything scripting the TUI -- which is precisely why no lane could assert that a `builder-*`
+    console script boots. Textual's own `return_code` docstring prescribes this exact pattern
+    (`my_app.run()` then `sys.exit(my_app.return_code)`); builder-II simply was not following it.
+
+    `None` means the app never exited, which cannot happen once `run()` has returned; it is mapped
+    to `0` rather than crashing the launcher on a state Textual says is impossible here.
+    """
+    app.run()
+    return 0 if app.return_code is None else app.return_code

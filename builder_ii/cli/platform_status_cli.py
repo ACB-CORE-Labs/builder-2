@@ -692,9 +692,9 @@ def platform_tui(
     ),
 ) -> None:
     """Launch STRATUM: The Builder-II Operator TUI."""
-    from builder_ii.tui.app import StratumApp
+    from builder_ii.tui.app import StratumApp, run_tui
     app = StratumApp(skip_guide=no_guide, show_splash=not no_splash)
-    app.run()
+    raise typer.Exit(run_tui(app))
 
 
 if __name__ == "__main__":

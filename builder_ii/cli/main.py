@@ -186,7 +186,7 @@ def stratum(
         raise typer.Exit(1)
 
     try:
-        from builder_ii.tui.app import StratumApp
+        from builder_ii.tui.app import StratumApp, run_tui
 
         has_tui = True
     except ImportError:
@@ -205,7 +205,7 @@ def stratum(
         console.print("[red]--guide and --no-guide are mutually exclusive.[/]")
         raise typer.Exit(1)
     tui_app = StratumApp(show_guide=guide or None, skip_guide=no_guide)
-    tui_app.run()
+    raise typer.Exit(run_tui(tui_app))
 
 
 @app.command("onboarding")

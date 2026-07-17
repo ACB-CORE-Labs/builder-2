@@ -1,7 +1,8 @@
 """Entry point for running the TUI directly."""
 
-from builder_ii.tui.app import StratumApp
+import sys
+
+from builder_ii.tui.app import StratumApp, run_tui
 
 if __name__ == "__main__":
-    app = StratumApp()
-    app.run()
+    sys.exit(run_tui(StratumApp()))
