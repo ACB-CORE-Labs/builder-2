@@ -555,6 +555,10 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
 
 try:
     from builder_ii_code_vault.bench import CODE_VAULT_BENCH_REPORT_KIND, validate_code_vault_bench_report
+    from builder_ii_code_vault.code_vault_receipt_bridge import (
+        CODE_VAULT_CORROBORATION_RECORD_KIND,
+        validate_code_vault_corroboration_record,
+    )
     from builder_ii_code_vault.context_bridge import CONTEXT_PROJECTION_KIND, validate_context_projection
     from builder_ii_code_vault.hierarchy import (
         HIERARCHICAL_FRAME_KIND,
@@ -563,10 +567,6 @@ try:
     )
     from builder_ii_code_vault.recall import RECALL_REPORT_KIND, validate_recall_report
     from builder_ii_code_vault.reports.linter import LINTER_REPORT_KIND, validate_linter_report
-    from builder_ii_code_vault_receipt_bridge import (
-        CODE_VAULT_CORROBORATION_RECORD_KIND,
-        validate_code_vault_corroboration_record,
-    )
 
     VALIDATORS.update(
         {
