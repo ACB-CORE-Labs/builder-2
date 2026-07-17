@@ -90,7 +90,7 @@ def _existing_defaults(repo: Path, defaults: tuple[str, ...]) -> tuple[str, ...]
 def build_target_profiles(settings: Settings, *, generic_repo: Path | None = None) -> tuple[TargetProfile, ...]:
     generic_root = (generic_repo or Path.cwd()).resolve()
     builder_root = settings.project_root.resolve()
-    core_root = settings.core_repo.resolve()
+    core_root = settings.target_repo.resolve()
     return (
         TargetProfile(
             name="generic",

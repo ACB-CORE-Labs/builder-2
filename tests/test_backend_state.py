@@ -8,7 +8,7 @@ def settings_stub(
     tmp_path: Path, *, alias: str = "qwen-coder", model_id: str = "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"
 ) -> Settings:
     return Settings(
-        core_repo=tmp_path / "core",
+        target_repo=tmp_path / "core",
         backend="mlx-lm",
         model_tier="primary",
         model_alias=alias,

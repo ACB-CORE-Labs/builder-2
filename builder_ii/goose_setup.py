@@ -24,6 +24,7 @@ def skills_source(settings: Settings) -> Path:
     return settings.project_root / ".agents" / "skills"
 
 
+
 def build_goose_config(settings: Settings) -> dict:
     """Build the passive Goose config overlay candidate structure."""
     recipes = settings.project_root / "recipes"

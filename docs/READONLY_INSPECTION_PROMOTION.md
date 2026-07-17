@@ -19,6 +19,6 @@
 ## Verification
 
 ```bash
-CORE_REPO_PATH=. uv run pytest tests/test_readonly_inspection_reports.py tests/test_promotion_compatibility.py tests/test_promotion_readiness_records.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py tests/test_registry_closure.py -q
-CORE_REPO_PATH=. uv run pytest -q
+TARGET_REPO_PATH=. uv run pytest tests/test_readonly_inspection_reports.py tests/test_promotion_compatibility.py tests/test_promotion_readiness_records.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py tests/test_registry_closure.py -q
+TARGET_REPO_PATH=. uv run pytest -q
 ```

@@ -89,7 +89,7 @@ target/profile resolution
 Recommended focused checks:
 
 ```bash
-CORE_REPO_PATH=. uv run pytest tests/test_handoff_notes.py tests/test_verification_profile_reports.py tests/test_goose_readonly_session.py tests/test_session_workflow.py tests/test_profile_resolution.py -q
-CORE_REPO_PATH=. uv run pytest -q
+TARGET_REPO_PATH=. uv run pytest tests/test_handoff_notes.py tests/test_verification_profile_reports.py tests/test_goose_readonly_session.py tests/test_session_workflow.py tests/test_profile_resolution.py -q
+TARGET_REPO_PATH=. uv run pytest -q
 git diff --check
 ```

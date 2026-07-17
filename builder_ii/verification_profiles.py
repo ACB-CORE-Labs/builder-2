@@ -32,9 +32,10 @@ class VerificationProfile:
     runtime_execution: str = "disabled"
     shell_execution: str = "disabled"
     writes: str = "disabled except explicit artifact output path"
+    isolation_policy: str = "disabled"
     executes_commands: bool = False
 
-    def to_artifact_dict(self, *, target: TargetName | None = None, task: str | None = None) -> dict[str, Any]:
+    def to_artifact_dict(self, *, target: TargetName | None = None, task: str | None = None, isolation: bool = False) -> dict[str, Any]:
         return {
             "kind": VERIFICATION_ARTIFACT_KIND,
             "schema_version": VERIFICATION_ARTIFACT_SCHEMA_VERSION,
@@ -56,6 +57,7 @@ class VerificationProfile:
                 "source_writes": "DISABLED",
                 "writes": self.writes.upper(),
                 "memory_mutation": "DISABLED",
+                "isolation_policy": "STRICT" if isolation else self.isolation_policy.upper(),
                 "executes_commands": self.executes_commands,
                 "artifact_is_authority": False,
                 "core_workbench_coupling": "NONE",
@@ -219,9 +221,7 @@ def validate_verification_profiles() -> tuple[str, ...]:
     return tuple(errors)
 
 
-def render_verification_profile(
-    profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None
-) -> str:
+def render_verification_profile(profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None) -> str:
     lines = [
         f"# Verification profile: {profile.name}",
         "",
@@ -245,29 +245,23 @@ def render_verification_profile(
     lines.extend(f"- {item}" for item in profile.required_evidence)
     lines.extend(["", "## Failure mode", "", profile.failure_mode])
     lines.extend(["", "## Rollback hint", "", profile.rollback_hint])
-    lines.extend(
-        [
-            "",
-            "## Governance boundary",
-            "",
-            "This profile proposes verification commands only. It does not execute commands, run models, construct agents, write files except explicit artifacts, mutate memory, commit, push, or grant runtime authority.",
-            "",
-        ]
-    )
+    lines.extend([
+        "",
+        "## Governance boundary",
+        "",
+        "This profile proposes verification commands only. It does not execute commands, run models, construct agents, write files except explicit artifacts, mutate memory, commit, push, or grant runtime authority.",
+        "",
+    ])
     return "\n".join(lines)
 
 
-def dumps_profile_artifact(
-    profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None
-) -> str:
-    return json_lib.dumps(profile.to_artifact_dict(target=target, task=task), indent=2, sort_keys=True) + "\n"
+def dumps_profile_artifact(profile: VerificationProfile, *, target: TargetName | None = None, task: str | None = None, isolation: bool = False) -> str:
+    return json_lib.dumps(profile.to_artifact_dict(target=target, task=task, isolation=isolation), indent=2, sort_keys=True) + "\n"
 
 
-def write_profile_artifact(
-    profile: VerificationProfile, output: Path, *, target: TargetName | None = None, task: str | None = None
-) -> None:
+def write_profile_artifact(profile: VerificationProfile, output: Path, *, target: TargetName | None = None, task: str | None = None, isolation: bool = False) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(dumps_profile_artifact(profile, target=target, task=task), encoding="utf-8")
+    output.write_text(dumps_profile_artifact(profile, target=target, task=task, isolation=isolation), encoding="utf-8")
 
 
 def _string_list_errors(value: Any, *, field: str) -> list[str]:
@@ -301,15 +295,17 @@ def validate_profile_artifact(data: Any) -> list[str]:
             errors.append("governance.capability_state must be verification_profile_artifact")
         for key in ("runtime_execution", "model_execution", "shell_execution", "source_writes", "memory_mutation"):
             if governance.get(key) != "DISABLED":
-                errors.append(f"governance.{key} must be DISABLED or NOT_AUTHORIZED")
+                errors.append(f"governance.{key} must be DISABLED")
+        if governance.get("isolation_policy") not in ("DISABLED", "STRICT"):
+            errors.append("governance.isolation_policy must be DISABLED or STRICT")
         if governance.get("writes") != "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH":
-            errors.append("governance.writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
+            errors.append("governance.writes must be DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH")
         if governance.get("executes_commands") is not False:
-            errors.append("governance.executes_commands must be false or NOT_AUTHORIZED")
+            errors.append("governance.executes_commands must be false")
         if governance.get("artifact_is_authority") is not False:
-            errors.append("governance.artifact_is_authority must be false or NOT_AUTHORIZED")
+            errors.append("governance.artifact_is_authority must be false")
         if governance.get("core_workbench_coupling") != "NONE":
-            errors.append("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED")
+            errors.append("governance.core_workbench_coupling must be NONE")
     return errors
 
 

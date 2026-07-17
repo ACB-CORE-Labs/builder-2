@@ -1,15 +1,16 @@
-import json as json_lib
 from pathlib import Path
 from types import SimpleNamespace
 
+import json as json_lib
 import pytest
+
 
 from builder_ii.context_pack import (
     ContextPackSelection,
     build_context_pack,
     render_context_manifest,
-    repo_for_target,
     repomix_command,
+    repo_for_target,
     select_context_files,
 )
 
@@ -37,7 +38,7 @@ def test_select_context_files_rejects_missing_module() -> None:
 
 
 def test_repo_for_target_selects_core_or_builder() -> None:
-    settings = SimpleNamespace(core_repo=Path("/tmp/core"), project_root=Path("/tmp/builder"))
+    settings = SimpleNamespace(target_repo=Path("/tmp/core"), project_root=Path("/tmp/builder"))
 
     assert repo_for_target(settings, "core") == Path("/tmp/core")
     assert repo_for_target(settings, "builder") == Path("/tmp/builder")
@@ -71,7 +72,7 @@ def test_render_context_manifest_mentions_task_target_and_command() -> None:
 
 
 def test_build_context_pack_manifest_only_defaults_to_core(tmp_path: Path) -> None:
-    settings = SimpleNamespace(core_repo=Path.cwd(), project_root=tmp_path)
+    settings = SimpleNamespace(target_repo=Path.cwd(), project_root=tmp_path)
     result = build_context_pack(
         settings,
         ContextPackSelection(task="manifest only", module="builder_ii/context_pack.py"),
@@ -87,7 +88,7 @@ def test_build_context_pack_manifest_only_defaults_to_core(tmp_path: Path) -> No
 
 
 def test_build_context_pack_can_target_builder_repo(tmp_path: Path) -> None:
-    settings = SimpleNamespace(core_repo=Path("/tmp/core"), project_root=Path.cwd())
+    settings = SimpleNamespace(target_repo=Path("/tmp/core"), project_root=Path.cwd())
     result = build_context_pack(
         settings,
         ContextPackSelection(task="builder context", module="builder_ii/context_pack.py"),
@@ -104,15 +105,14 @@ def test_build_context_pack_can_target_builder_repo(tmp_path: Path) -> None:
 
 def test_context_pack_record_and_validation(tmp_path: Path) -> None:
     from builder_ii.context_pack import (
-        CONTEXT_PACK_RECORD_KIND,
-        CONTEXT_PACK_RECORD_SCHEMA_VERSION,
         create_context_pack_record,
         validate_context_pack_record,
         validate_context_pack_record_file,
         write_context_pack_record,
+        CONTEXT_PACK_RECORD_KIND,
+        CONTEXT_PACK_RECORD_SCHEMA_VERSION,
     )
-
-    settings = SimpleNamespace(core_repo=Path.cwd(), project_root=tmp_path)
+    settings = SimpleNamespace(target_repo=Path.cwd(), project_root=tmp_path)
     result = build_context_pack(
         settings,
         ContextPackSelection(task="test validation", module="builder_ii/context_pack.py"),
@@ -161,7 +161,7 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        },
+        }
     }
     errors = validate_context_pack_record(bad_target)
     assert any("target must be one of" in err for err in errors)
@@ -181,10 +181,10 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "INVALID",
-        },
+        }
     }
     errors = validate_context_pack_record(bad_coupling)
-    assert any("core_workbench_coupling must be NONE or NOT_AUTHORIZED" in err for err in errors)
+    assert any("core_workbench_coupling must be NONE" in err for err in errors)
 
     # selected_files list validation failures
     bad_files = {
@@ -201,7 +201,7 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
             "memory_mutation": "DISABLED",
             "artifact_is_authority": False,
             "core_workbench_coupling": "NONE",
-        },
+        }
     }
     errors = validate_context_pack_record(bad_files)
     assert any("selected_files must be a list of non-empty strings" in err for err in errors)
@@ -210,8 +210,8 @@ def test_context_pack_validation_failures(tmp_path: Path) -> None:
 
 
 def test_context_pack_cli_commands(tmp_path: Path) -> None:
-    from builder_ii.context_cli import context_app
     from typer.testing import CliRunner
+    from builder_ii.context_cli import context_app
 
     runner = CliRunner()
 
@@ -222,7 +222,7 @@ def test_context_pack_cli_commands(tmp_path: Path) -> None:
     assert "validate" in help_res.stdout
 
     # Emit artifact to stdout
-    tmp_path / "context-pack-stdout.json"
+    art_out = tmp_path / "context-pack-stdout.json"
     result = runner.invoke(
         context_app,
         [

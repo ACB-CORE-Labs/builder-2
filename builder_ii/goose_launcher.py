@@ -321,7 +321,7 @@ def launch_goose_session(
     if not recipe.exists():
         raise FileNotFoundError(f"Missing recipe: {recipe}")
 
-    workdir = cwd or settings.core_repo
+    workdir = cwd or settings.target_repo
     load_session_context(settings)
 
     env, report = derive_goose_environment(settings, session=plan)

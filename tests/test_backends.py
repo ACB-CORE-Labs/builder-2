@@ -17,7 +17,7 @@ class _Response:
 
 def _settings(*, backend: str, base_url: str = "http://127.0.0.1:8080/v1") -> Settings:
     return Settings(
-        core_repo=Path("/tmp/core"),
+        target_repo=Path("/tmp/core"),
         backend=backend,
         model_tier="primary",
         model_alias="qwen-coder",

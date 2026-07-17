@@ -91,8 +91,8 @@ Reference-carrying artifacts must expose references to the artifact chain verifi
 The release audit is valid only when these checks pass:
 
 ```bash
-CORE_REPO_PATH=. uv run pytest tests/test_builder_platform_release_audit.py tests/test_runtime_governance_release_audit.py tests/test_command_surface_audit.py tests/test_registry_closure.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py -q
-CORE_REPO_PATH=. uv run pytest -q
+TARGET_REPO_PATH=. uv run pytest tests/test_builder_platform_release_audit.py tests/test_runtime_governance_release_audit.py tests/test_command_surface_audit.py tests/test_registry_closure.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py -q
+TARGET_REPO_PATH=. uv run pytest -q
 git diff --check
 ```
 

@@ -115,9 +115,9 @@ The first real execution surface, the bounded HITL command executor, must not st
 Use these checks for this foundation state:
 
 ```bash
-CORE_REPO_PATH=. uv run pytest tests/test_hitl_evidence_bundle.py tests/test_registry_closure.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py tests/test_runtime_governance_release_audit.py -q
+TARGET_REPO_PATH=. uv run pytest tests/test_hitl_evidence_bundle.py tests/test_registry_closure.py tests/test_artifact_index_records.py tests/test_artifact_chain_verification.py tests/test_runtime_governance_release_audit.py -q
 uv run pytest tests/test_command_surface_audit.py -q
-CORE_REPO_PATH=. uv run pytest -q
+TARGET_REPO_PATH=. uv run pytest -q
 git diff --check
 ```
 

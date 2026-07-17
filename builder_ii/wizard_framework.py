@@ -1,3 +1,4 @@
+
 """Generic wizard framework: the state machine behind builder-II's interactive onboarding surfaces.
 
 Ladder 5 PR-1. This generalizes the step engine that already existed in miniature in
@@ -304,3 +305,4 @@ def transcribed_registry_members(question: str, registries: Iterable[tuple[str, 
             if re.search(rf"(?<![\w-]){re.escape(member)}(?![\w-])", question):
                 hits.append(member)
     return sorted(set(hits))
+

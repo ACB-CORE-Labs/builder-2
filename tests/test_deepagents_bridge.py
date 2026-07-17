@@ -27,7 +27,7 @@ def _settings(tmp_path: Path):
     builder.mkdir()
     (core / "README.md").write_text("core", encoding="utf-8")
     (builder / "README.md").write_text("builder", encoding="utf-8")
-    return SimpleNamespace(core_repo=core, project_root=builder)
+    return SimpleNamespace(target_repo=core, project_root=builder)
 
 
 def test_availability_does_not_require_dependency() -> None:

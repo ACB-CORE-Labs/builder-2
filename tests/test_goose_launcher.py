@@ -13,7 +13,7 @@ from builder_ii.goose_launcher import (
 def _settings_with_base_url(base_url: str) -> Settings:
     existing_root = Path.cwd()
     return Settings(
-        core_repo=existing_root,
+        target_repo=existing_root,
         backend="mlx-lm",
         model_tier="primary",
         model_alias="qwen-coder",
