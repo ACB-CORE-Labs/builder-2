@@ -1,1 +1,0 @@
-"""STRATUM TUI widgets package."""
