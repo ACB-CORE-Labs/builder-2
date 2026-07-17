@@ -434,7 +434,23 @@ class StratumApp(App[None]):
             )
 
     def action_cycle_focus(self) -> None:
-        """Cycle focus between the three columns."""
+        """Never runs. TAB does cycle focus, but not through here.
+
+        Textual's `Screen.BINDINGS` binds `tab` to `focus_next`, and bindings resolve from the
+        focused widget up through its ancestors to the Screen *before* reaching the App -- so the
+        App-level `Binding("tab", "cycle_focus", ...)` above is permanently shadowed. Measured by
+        spying on this method: zero calls across five `tab` presses, while focus still advanced
+        through five distinct stops (spine-list, stratum-content, RichLog, ledger-log,
+        spine-container) under Textual's own `focus_next`. The Footer's "Cycle" hint is therefore
+        honest about the behaviour and wrong about its source.
+
+        Do not read this body as live. An audit already mistook it for the mechanism behind TAB and
+        reported a focus bug that did not exist. Making it authoritative needs `priority=True` on
+        the binding, and would swap Textual-idiomatic traversal for a three-stop cycle that no
+        longer reaches the scrollable panes -- a UX change, not a bug fix. Deleting it drops the
+        Footer label, since Textual's own tab binding is `show=False`. Both are operator calls;
+        `test_tab_cycles_focus_but_not_through_the_app_binding` pins the current state either way.
+        """
         if self.focused == self.spine:
             self.stratum.focus()
         elif self.focused == self.stratum:
