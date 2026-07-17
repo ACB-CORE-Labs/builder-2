@@ -392,7 +392,7 @@ def demo_loop(
     """Run the guided governed demo loop against a temporary detached worktree of the target repo."""
     _validate_or_exit(root=Path.cwd())
     settings = load_settings()
-    selected_target_repo = (target_repo or settings.core_repo).expanduser().resolve()
+    selected_target_repo = (target_repo or settings.target_repo).expanduser().resolve()
     try:
         report = run_demo_loop(
             target_repo=selected_target_repo,
@@ -459,7 +459,7 @@ def wow(
 ) -> None:
     """Alias for the governed demo loop, reserved for recording the product walkthrough."""
     settings = load_settings()
-    selected_target_repo = (target_repo or settings.core_repo).expanduser().resolve()
+    selected_target_repo = (target_repo or settings.target_repo).expanduser().resolve()
     try:
         report = run_demo_loop(
             target_repo=selected_target_repo,

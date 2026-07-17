@@ -196,7 +196,7 @@ def doctor_core_profile(settings: Settings) -> dict[str, Any]:
     Does not run semgrep, does not mutate the CORE repo, does not start Workbench.
     """
     checks: list[dict[str, Any]] = []
-    core_root = Path(settings.core_repo).expanduser().resolve(strict=False)
+    core_root = Path(settings.target_repo).expanduser().resolve(strict=False)
     block = core_profile_block()
     block_errors = validate_core_profile_block(block)
     checks.append(
@@ -208,11 +208,11 @@ def doctor_core_profile(settings: Settings) -> dict[str, Any]:
     )
     checks.append(
         {
-            "name": "core_repo_path_configured",
+            "name": "target_repo_path_configured",
             "ok": bool(str(core_root)),
             "path": str(core_root),
             "exists": core_root.exists(),
-            "errors": [] if core_root else ["core_repo empty"],
+            "errors": [] if core_root else ["target_repo empty"],
         }
     )
     checks.append(

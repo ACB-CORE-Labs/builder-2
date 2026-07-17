@@ -493,7 +493,7 @@ def start(
 
     _ensure_backend(settings, no_backend)
 
-    console.print(f"CORE repo: {settings.core_repo}")
+    console.print(f"CORE repo: {settings.target_repo}")
     console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")
     console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep")
     proc = launch_goose_session(settings, resume=resume, session=session, name=name)
@@ -701,8 +701,8 @@ def doctor() -> None:
     failures: list[str] = []
     table = Table("Check", "Result", "Details")
 
-    core_ok = settings.core_repo.exists() and (settings.core_repo / ".git").exists()
-    table.add_row("CORE repo", "PASS" if core_ok else "FAIL", str(settings.core_repo))
+    core_ok = settings.target_repo.exists() and (settings.target_repo / ".git").exists()
+    table.add_row("CORE repo", "PASS" if core_ok else "FAIL", str(settings.target_repo))
     if not core_ok:
         failures.append("CORE repo path is missing or not a git repository")
 
@@ -810,7 +810,7 @@ def config_dump() -> None:
     payload = legacy_setup_redirect_payload(settings)
     payload["settings"] = {
         "project_root": str(settings.project_root),
-        "target_repo": str(settings.core_repo),
+        "target_repo": str(settings.target_repo),
         "backend": settings.backend,
         "model_alias": settings.model_alias,
         "model_tier": settings.model_tier,

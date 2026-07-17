@@ -31,7 +31,7 @@ def _settings(tmp_path: Path):
     (core / "AGENTS.md").write_text("agents", encoding="utf-8")
     (builder / "README.md").write_text("builder", encoding="utf-8")
     (builder / "builder_ii").mkdir()
-    return SimpleNamespace(core_repo=core, project_root=builder)
+    return SimpleNamespace(target_repo=core, project_root=builder)
 
 
 def test_core_profile_block_valid() -> None:

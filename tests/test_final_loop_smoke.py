@@ -29,7 +29,7 @@ def _settings(tmp_path: Path) -> SimpleNamespace:
     (builder / "builder_ii").mkdir()
     (builder / "builder_ii" / "x.py").write_text("x = 1\n", encoding="utf-8")
     (builder / "docs").mkdir()
-    return SimpleNamespace(core_repo=core, project_root=builder)
+    return SimpleNamespace(target_repo=core, project_root=builder)
 
 
 def test_final_loop_smoke_builder_and_core(tmp_path: Path) -> None:
@@ -66,7 +66,7 @@ def test_final_loop_smoke_core_missing_repo_honest(tmp_path: Path) -> None:
     builder.mkdir()
     (builder / "README.md").write_text("b\n", encoding="utf-8")
     (builder / "builder_ii").mkdir()
-    settings = SimpleNamespace(core_repo=tmp_path / "missing-core", project_root=builder)
+    settings = SimpleNamespace(target_repo=tmp_path / "missing-core", project_root=builder)
     out = tmp_path / "smoke-missing"
     report = run_final_loop_smoke(
         settings=settings,  # type: ignore[arg-type]
@@ -84,7 +84,7 @@ def test_final_loop_smoke_core_missing_repo_honest(tmp_path: Path) -> None:
 def test_cli_final_loop_smoke(tmp_path: Path, monkeypatch) -> None:
     settings = _settings(tmp_path)
     # The CLI does `from builder_ii.final_loop_smoke import run_final_loop_smoke` at call time.
-    # Force the smoke runner to use tmp fixtures regardless of ambient load_settings/core_repo.
+    # Force the smoke runner to use tmp fixtures regardless of ambient load_settings/target_repo.
     real_run = run_final_loop_smoke
 
     def _run_with_fixture_settings(**kwargs):

@@ -76,7 +76,7 @@ def test_walkthrough_lines_include_opt_out() -> None:
 async def test_stratum_app_accepts_guide_flags() -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         root = Path("/tmp/stratum-guide-test-root")
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "TIER_0"
         mock_settings.return_value.project_root = root

@@ -88,7 +88,7 @@ def test_tui_never_synthesizes_anything_shaped_like_a_digest() -> None:
 async def test_stratum_chain_digest_absence(tmp_path):
     # We must patch load_settings since StratumApp.__init__ calls it
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "primary"
 
@@ -110,7 +110,7 @@ async def test_stratum_chain_digest_absence(tmp_path):
 @pytest.mark.asyncio
 async def test_stratum_palette_authority():
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "primary"
 
@@ -143,7 +143,7 @@ async def test_stratum_palette_authority():
 @pytest.mark.asyncio
 async def test_stratum_hitl_informative_refusal():
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "primary"
 
@@ -197,7 +197,7 @@ def test_tui_sources_never_start_a_goose_runtime() -> None:
 @pytest.mark.asyncio
 async def test_prepare_package_refuses_to_write_and_names_the_governed_cli(tmp_path) -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "primary"
 
@@ -241,7 +241,7 @@ async def test_launch_goose_fails_closed_when_the_registry_forbids_the_governed_
     from builder_ii.command_authority import CommandAuthorityError
 
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
             with (
@@ -259,7 +259,7 @@ async def test_launch_goose_fails_closed_when_the_registry_forbids_the_governed_
 async def test_launch_goose_asks_before_auto_prep_when_manifest_missing(tmp_path) -> None:
     """Missing manifest: ask first; do not mint or spawn until the operator confirms."""
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "generic"
+        mock_settings.return_value.target_repo.name = "generic"
         mock_settings.return_value.project_root = tmp_path
         app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path / ".builder" / "artifacts"
@@ -285,7 +285,7 @@ async def test_launch_goose_asks_before_auto_prep_when_manifest_missing(tmp_path
 async def test_launch_goose_after_confirm_mints_then_hands_off(tmp_path) -> None:
     """Operator yes → mint passive manifest → hand off to start-readonly."""
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "generic"
+        mock_settings.return_value.target_repo.name = "generic"
         mock_settings.return_value.project_root = tmp_path
         app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path / ".builder" / "artifacts"
@@ -312,7 +312,7 @@ async def test_launch_goose_after_confirm_mints_then_hands_off(tmp_path) -> None
 @pytest.mark.asyncio
 async def test_launch_goose_decline_auto_prep_never_spawns(tmp_path) -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.project_root = tmp_path
         app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path / "artifacts"
@@ -332,7 +332,7 @@ async def test_launch_goose_decline_auto_prep_never_spawns(tmp_path) -> None:
 async def test_launch_goose_with_existing_manifest_skips_prompt(tmp_path) -> None:
     """Existing valid read_only path discovery short-circuits the confirm."""
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "generic"
+        mock_settings.return_value.target_repo.name = "generic"
         mock_settings.return_value.project_root = tmp_path
         app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path / ".builder" / "artifacts"
@@ -351,7 +351,7 @@ async def test_launch_goose_with_existing_manifest_skips_prompt(tmp_path) -> Non
 def test_manifest_discovery_rejects_a_manifest_that_does_not_request_read_only(tmp_path) -> None:
     """A valid manifest asking for `disabled` mode is not a licence to start a runtime."""
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         app = StratumApp(show_splash=False, skip_guide=True)
         app.artifacts_dir = tmp_path / ".builder" / "artifacts"
         goose_dir = tmp_path / ".builder" / "goose"
@@ -365,7 +365,7 @@ def test_manifest_discovery_rejects_a_manifest_that_does_not_request_read_only(t
 @pytest.mark.asyncio
 async def test_launch_goose_reports_only_the_outcome_the_command_recorded() -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
             with patch.object(app, "notify") as notify:
@@ -430,7 +430,7 @@ def test_tui_never_records_a_command_execution_in_the_signal_rail() -> None:
 @pytest.mark.asyncio
 async def test_cli_passthrough_composes_and_says_it_ran_nothing() -> None:
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "primary"
 
@@ -481,7 +481,7 @@ async def test_palette_flags_every_authority_requiring_command_in_the_real_regis
     assert expected, "no TIER_3/TIER_4 command in the registry; this lane would be vacuous"
 
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "primary"
 
@@ -567,7 +567,7 @@ async def test_palette_entries_are_addressable_by_command_name() -> None:
     from builder_ii.tui.widget_ids import widget_id
 
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "primary"
 
@@ -596,7 +596,7 @@ async def test_spine_and_capability_rows_are_addressable_by_id() -> None:
     from builder_ii.tui.widgets.signals import CAPABILITIES
 
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
-        mock_settings.return_value.core_repo.name = "test"
+        mock_settings.return_value.target_repo.name = "test"
         mock_settings.return_value.model_alias = "test"
         mock_settings.return_value.model_tier = "primary"
 

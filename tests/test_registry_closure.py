@@ -910,7 +910,7 @@ def _session_config() -> dict[str, Any]:
 
 def _settings_stub(alias: str = "qwen-coder") -> Settings:
     return Settings(
-        core_repo=Path("/tmp/core"),
+        target_repo=Path("/tmp/core"),
         backend="mlx-lm",
         model_tier="primary",
         model_alias=alias,

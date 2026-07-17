@@ -27,7 +27,7 @@ from builder_ii.model_routing_policy import create_model_execution_policy
 
 def _settings(tmp_path: Path) -> Settings:
     return Settings(
-        core_repo=Path("/tmp/core"),
+        target_repo=Path("/tmp/core"),
         backend="mlx-lm",
         model_tier="primary",
         model_alias="qwen-coder",

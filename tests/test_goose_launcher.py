@@ -83,7 +83,7 @@ def test_platform_recipe_exists():
 
 def test_goose_env_mlx_lm_backend():
     settings = Settings(
-        core_repo=Path.cwd(),
+        target_repo=Path.cwd(),
         backend="mlx-lm",
         model_tier="primary",
         model_alias="qwen-coder",
@@ -122,7 +122,7 @@ def test_goose_env_mlx_lm_backend():
 
 def test_goose_env_groq_backend():
     settings = Settings(
-        core_repo=Path.cwd(),
+        target_repo=Path.cwd(),
         backend="groq",
         model_tier="primary",
         model_alias="groq-llama",
@@ -162,7 +162,7 @@ def test_goose_env_groq_backend():
 
 def test_goose_env_xai_backend():
     settings = Settings(
-        core_repo=Path.cwd(),
+        target_repo=Path.cwd(),
         backend="xai",
         model_tier="primary",
         model_alias="grok-beta",
@@ -202,7 +202,7 @@ def test_goose_env_xai_backend():
 
 def test_goose_env_openai_backend():
     settings = Settings(
-        core_repo=Path.cwd(),
+        target_repo=Path.cwd(),
         backend="openai",
         model_tier="primary",
         model_alias="gpt-4o",
@@ -242,7 +242,7 @@ def test_goose_env_openai_backend():
 
 def test_goose_env_anthropic_backend():
     settings = Settings(
-        core_repo=Path.cwd(),
+        target_repo=Path.cwd(),
         backend="anthropic",
         model_tier="primary",
         model_alias="claude-sonnet-5",
@@ -280,7 +280,7 @@ def test_goose_env_anthropic_backend():
 
 def test_missing_provider_or_key_raises_error():
     settings = Settings(
-        core_repo=Path.cwd(),
+        target_repo=Path.cwd(),
         backend="openai",
         model_tier="primary",
         model_alias="gpt-4o",
