@@ -614,3 +614,42 @@ async def test_spine_and_capability_rows_are_addressable_by_id() -> None:
                 matched = app.screen.query(selector)
                 assert len(matched) == 1, f"{cap!r} -> {selector} matched {len(matched)} nodes"
                 assert matched.first().cap_name == cap
+
+
+@pytest.mark.asyncio
+async def test_tab_cycles_focus_but_not_through_the_app_binding(monkeypatch):
+    """TAB moves focus, and `action_cycle_focus` is not how -- both halves, deliberately.
+
+    `StratumApp.BINDINGS` carries `Binding("tab", "cycle_focus", "Cycle")`, so the method reads as
+    the mechanism behind TAB. It is not. Textual's `Screen.BINDINGS` binds `tab` to `focus_next`
+    and resolves bindings from the focused widget up to the Screen before ever reaching the App, so
+    the App-level binding is permanently shadowed and the body never executes. An audit read that
+    body, believed it, and reported a focus bug that did not exist.
+
+    Asserting only "never fires" would be satisfied by a TUI where TAB does nothing at all -- the
+    opposite of the truth. So this pins the behaviour (focus advances through distinct widgets)
+    alongside the mechanism (not via this action). If someone later adds `priority=True` to make
+    the binding authoritative, this fails and says why: a UX decision worth making on purpose
+    rather than discovering afterwards.
+    """
+    app = StratumApp(show_splash=False, skip_guide=True)
+
+    calls: list[int] = []
+    original = StratumApp.action_cycle_focus
+
+    def spy(self) -> None:
+        calls.append(1)
+        original(self)
+
+    monkeypatch.setattr(StratumApp, "action_cycle_focus", spy)
+
+    async with app.run_test() as pilot:
+        stops: list[str] = []
+        for _ in range(5):
+            await pilot.press("tab")
+            await pilot.pause()
+            focused = app.focused
+            stops.append((getattr(focused, "id", None) or type(focused).__name__) if focused else "<none>")
+
+    assert not calls, f"action_cycle_focus fired {len(calls)}x -- the App binding is no longer shadowed"
+    assert len(set(stops)) > 1, f"TAB moved focus nowhere ({stops}); focus_next is not working either"

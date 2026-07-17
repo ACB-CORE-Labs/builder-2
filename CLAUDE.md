@@ -96,8 +96,6 @@ The governed TUI exploration driver is `scripts/semantic_tui_driver.py`. It driv
 - **Verification test**: `uv run pytest tests/scenarios/test_tui_exploration.py -q` (Textual Pilot; deterministic).
 - **Ledger validation**: `uv run python scripts/validate_tui_audit_ledger.py <ledger-path>` (`kind: builder_ii.tui_audit_ledger_event`). The ledger is a `RECORDED_ONLY` receipt: the driver writes its own chain, so it is not independent proof and is not promotion authority.
 
-Known orphan (do not build on it): `scripts/validate_tui_exploration.py` validates `kind: builder_ii.tui_exploration_report`, which **no code in this repo produces**, though `docs/ARTIFACT_INDEX.md` still lists the kind as current. Its disposition is an open operator decision.
-
 ### Docs are load-bearing, not decorative
 
 `docs/` (~110 files) is the source of truth for what is promoted vs. speculative, and CI runs `builder-platform audit-docs` to catch docs claiming capabilities the code doesn't back. If you change what a command actually does (especially crossing a promotion boundary), update the corresponding doc in the same change — see `README.md`'s "Documentation map" table for which doc owns which subsystem.
