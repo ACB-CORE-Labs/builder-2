@@ -3,6 +3,28 @@
 **Surface:** `StratumApp` (`builder-platform tui`) · **Method:** Semantic Pilot, driven in-process
 **Date:** 2026-07-17 · **Lanes:** `tests/scenarios/test_hitl_orchestration.py` (11, mutation-proved 4/4)
 
+> **Status — updated 2026-07-17, findings not rewritten.** This is the record of what was measured
+> on the date above; the findings below are left as they were found. Two have since been acted on,
+> and the rest still stand:
+>
+> * **§5.2 (Third Door reads VAULT LOCKED by default) — CLOSED.** `render()` collapsed every
+>   non-`True` slot into a refusal, so an unassessed door was indistinguishable from a refused one.
+>   `third_door_state()` now derives four states and an unassessed door reads `VAULT UNASSESSED`.
+>   Consequently the "VAULT LOCKED" wording in §1 and §3 describes the readout **as it was**, not as
+>   it is.
+> * **§5.1 (Third Door is decorative w.r.t. authority) — STILL TRUE, deliberately.** Wiring it to a
+>   mechanical lock was proposed and refused on measurement: the door reads unassessed on every host
+>   (no readiness artifact exists to read), so a lock would have refused every operator everywhere,
+>   and would have been enforcing *absence of evidence* as *denial*. The readout fix is the
+>   prerequisite; a lock, if ever built, binds to `THIRD_DOOR_LOCKED` and never to
+>   `THIRD_DOOR_UNASSESSED`.
+> * **§2's central claim was re-tested from the other side.** A proposal to auto-execute
+>   `TIER_0`/`TIER_1` commands from the TUI while airgapping `TIER_3`/`TIER_4` was refused, because
+>   `builder-hitl approve-patch` — the command the `a` key composes — **is `TIER_1`**. The tiers
+>   classify a command's mechanism (artifact-only), not its authority, and for that command writing
+>   the artifact *is* the approval. See
+>   `test_tier_is_a_blast_radius_classifier_not_an_authority_classifier`.
+
 ---
 
 ## Verdict in one line

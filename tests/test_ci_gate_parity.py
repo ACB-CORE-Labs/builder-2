@@ -31,6 +31,9 @@ REQUIRED_GATES: tuple[str, ...] = (
     "scripts/secret_scan.py",
     "ruff check builder_ii tests",
     "uv run mypy",
+    # Pinned separately from the bare `uv run mypy` above: this is a second invocation, and a
+    # substring match on "uv run mypy" alone would keep passing if it were deleted.
+    "uv run mypy builder_ii/tui/app.py --follow-imports=silent",
     "bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607",
     "uv run pytest",
 )

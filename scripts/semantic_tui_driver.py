@@ -37,14 +37,22 @@ from textual.widgets import Input, TextArea
 # Load-bearing imports mapped directly to the builder-II architecture
 try:
     from builder_ii.tui.app import StratumApp
-    from builder_ii.tui_audit_ledger import append_event, build_event, read_chain_head
+    from builder_ii.tui_audit_ledger import (
+        MASTER_INDEX_FILENAME,
+        append_event,
+        append_run_to_index,
+        build_event,
+        read_chain_head,
+    )
 except ImportError as e:
     print(json.dumps({"error": "CRITICAL_FAILURE", "message": f"Failed to import core applications: {e}"}))
     sys.exit(1)
 
-# One extracted text field is capped here. `EpistemicMatrix` (345 characters) and `ThirdDoorGate`
-# (426) both exceed it on STRATUM's default screen, so this is a live branch rather than a guard
-# against a hypothetical.
+# One extracted text field is capped here. `EpistemicMatrix` (340 characters) and `ThirdDoorGate`
+# (421-525, depending on its state) both exceed it on STRATUM's default screen, so this is a live
+# branch rather than a guard against a hypothetical -- which is why `_bounded_text` digests the
+# whole string: a `ThirdDoorGate` verdict lives past character 250 and would otherwise be invisible
+# to the change detector.
 MAX_TEXT_CHARS = 250
 
 _MEM_ADDR = re.compile(r"0x[0-9a-fA-F]+")
@@ -257,8 +265,10 @@ async def run_exploration(
     ledger_path = Path(ledger_path_override or f".builder/artifacts/tui_audit_ledger_{run_id}.jsonl")
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # The chain spans the file, not the run: a new run continues from the last recorded link, so
-    # deleting a whole run's block is as detectable as deleting a single line.
+    # The chain spans the file: a run continues from the last recorded link in whatever file it was
+    # pointed at. Across files, `append_run_to_index` is what makes a deleted run detectable -- this
+    # comment used to claim the per-file chain did that, which stopped being true the moment the
+    # ledger was split per run and stayed on the page anyway.
     #
     # A ledger written before the chain existed has no `entry_digest` to continue from, and every
     # ledger already on disk is one of those. Reported as this driver's other failures are -- one
@@ -279,12 +289,17 @@ async def run_exploration(
         }))
         sys.exit(1)
 
+    # The master index lives beside the ledgers it anchors, so an explicit `ledger_path` (tests,
+    # tmp_path) carries its own index with it rather than reaching into the real artifacts dir.
+    index_path = ledger_path.parent / MASTER_INDEX_FILENAME
+
     # `ledger_path` is reported because it is no longer predictable. A fixed filename could be
     # named in a doc and found later; a per-run one cannot, and an audit record nobody can locate
     # is not a record. `run_id` ties the file's contents to this output.
     results: Dict[str, Any] = {
         "run_id": run_id,
         "ledger_path": str(ledger_path),
+        "index_path": str(index_path),
         "initial_state": {},
         "execution_log": [],
         "final_state": {},
@@ -368,6 +383,19 @@ async def run_exploration(
             seq, prev_digest = seq + 1, entry["entry_digest"]
 
         results["final_state"] = await extract_semantic_state(app)
+
+    # Anchor the completed run. Deliberately after the app closes and outside the `async with`: a
+    # run that crashed mid-exploration has not finished, and indexing a partial chain as if it were
+    # a whole one would make the index's event_count a lie on exactly the runs worth inspecting.
+    # The cost is that a crashed run leaves an unindexed ledger, which is why `validate_master_index`
+    # does not treat one as tampering.
+    index_entry = append_run_to_index(
+        index_path,
+        run_id=run_id,
+        ledger_path=ledger_path,
+        timestamp=time.time(),
+    )
+    results["index_entry_digest"] = index_entry["entry_digest"]
 
     print(json.dumps(results, indent=2))
 

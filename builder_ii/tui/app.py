@@ -451,18 +451,27 @@ class StratumApp(App[None]):
         Footer label, since Textual's own tab binding is `show=False`. Both are operator calls;
         `test_tab_cycles_focus_but_not_through_the_app_binding` pins the current state either way.
         """
+        # The panes are `X | None` until `compose()` builds them, and this body dereferenced all
+        # three unguarded. It has never crashed only because it has never run (see above) -- so the
+        # guards are not defensive padding, they are what makes the method's claim about its own
+        # liveness checkable. Anything that made this binding live would have hit them.
         if self.focused == self.spine:
-            self.stratum.focus()
+            if self.stratum is not None:
+                self.stratum.focus()
         elif self.focused == self.stratum:
-            self.signals.focus()
-        else:
+            if self.signals is not None:
+                self.signals.focus()
+        elif self.spine is not None:
             self.spine.focus()
 
     def action_quit_app(self) -> None:
         """Quit the application, prompting if a gate is open."""
         if self._hitl_active:
 
-            def check_quit(confirm: bool) -> None:
+            # `bool | None`, not `bool`: `ModalScreen[bool]` is dismissed with no argument on
+            # escape, and Textual passes that `None` straight to this callback. The annotation
+            # claimed a value that cannot be relied on. The body already treated it as falsy.
+            def check_quit(confirm: bool | None) -> None:
                 if confirm:
                     self.exit()
 
@@ -575,7 +584,9 @@ class StratumApp(App[None]):
             self.stratum.mode = StratumMode.AGENT_PROFILES
             return
 
-        def on_compose(selected_agents: list[str]) -> None:
+        # `list[str] | None`: escaping the picker dismisses with no value. The `not selected_agents`
+        # guard below already covered it; only the annotation disagreed.
+        def on_compose(selected_agents: list[str] | None) -> None:
             # Constitutive refusal to dispatch — compose the governed CLI only.
             if not selected_agents:
                 if self.stratum and self.stratum.mode == StratumMode.AGENT_PROFILES:
@@ -649,7 +660,8 @@ class StratumApp(App[None]):
     def action_prepare_package(self) -> None:
         from builder_ii.tui.widgets.workspace_builder import SessionBuilderScreen
 
-        def on_save(config: dict[str, Any]) -> None:
+        # `dict[str, Any] | None`: escaping the builder dismisses with no value, same as above.
+        def on_save(config: dict[str, Any] | None) -> None:
             # Collect choices only; emit is the governed CLI's job.
             if not config:
                 return

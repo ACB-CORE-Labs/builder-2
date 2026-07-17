@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Validator for the TUI audit ledger.
+"""Validator for the TUI audit ledger and its master index.
 
 kind: builder_ii.tui_audit_ledger_event
+kind: builder_ii.tui_audit_ledger_index_entry
 
 Re-checks every event's schema, recomputes both digests, and walks the `prev_digest` chain so a
 deleted, reordered or rewritten line is reported rather than assumed absent.
+
+Given a directory it also validates the master index (`tui_audit_ledger_index.jsonl`) and
+cross-checks every run it anchors, which is the only check that can see a whole run's ledger having
+been deleted -- the per-run files cannot miss what is not there. Validating the ledgers alone would
+report a directory that had lost half its runs as entirely clean.
 
 This is a plain script rather than a `builder-*` console script, so it adds no entry to
 `[project.scripts]` and therefore no `command_authority.py` surface. That is deliberate:
@@ -19,27 +25,37 @@ set of files rather than about one.
 
 Usage:
     uv run python scripts/validate_tui_audit_ledger.py .builder/artifacts/tui_audit_ledger_<run_id>.jsonl
-    uv run python scripts/validate_tui_audit_ledger.py .builder/artifacts/      # every ledger in it
+    uv run python scripts/validate_tui_audit_ledger.py .builder/artifacts/   # ledgers + master index
 """
 import argparse
 import sys
 from pathlib import Path
 
-from builder_ii.tui_audit_ledger import validate_ledger
+from builder_ii.tui_audit_ledger import MASTER_INDEX_FILENAME, validate_ledger, validate_master_index
 
-#: Matches what `scripts/semantic_tui_driver.py` names its per-run files.
+#: Matches what `scripts/semantic_tui_driver.py` names its per-run files -- and also the master
+#: index, which shares the prefix. The index is excluded by name below rather than by narrowing this
+#: pattern: a glob that happened to exclude it (say, by matching only hex) would be relying on a
+#: coincidence of spelling, and would silently re-include it the day either name changed. Fed to
+#: `validate_ledger` the index reports every field of a perfectly good file as missing.
 LEDGER_GLOB = "tui_audit_ledger_*.jsonl"
 
 
-def _expand(paths: list[Path]) -> list[Path]:
-    """Resolve directories to the ledgers inside them; leave explicit files alone."""
-    resolved: list[Path] = []
+def _expand(paths: list[Path]) -> tuple[list[Path], list[Path]]:
+    """Split inputs into (per-run ledgers, master indexes); resolve directories to both."""
+    ledgers: list[Path] = []
+    indexes: list[Path] = []
     for path in paths:
         if path.is_dir():
-            resolved.extend(sorted(path.glob(LEDGER_GLOB)))
+            ledgers.extend(sorted(p for p in path.glob(LEDGER_GLOB) if p.name != MASTER_INDEX_FILENAME))
+            index = path / MASTER_INDEX_FILENAME
+            if index.exists():
+                indexes.append(index)
+        elif path.name == MASTER_INDEX_FILENAME:
+            indexes.append(path)
         else:
-            resolved.append(path)
-    return resolved
+            ledgers.append(path)
+    return ledgers, indexes
 
 
 def main() -> None:
@@ -48,12 +64,12 @@ def main() -> None:
         "ledger_path",
         type=Path,
         nargs="+",
-        help=f"Ledger .jsonl file(s), or a directory to search for {LEDGER_GLOB}.",
+        help=f"Ledger .jsonl file(s), a {MASTER_INDEX_FILENAME}, or a directory holding them.",
     )
     args = parser.parse_args()
 
-    ledgers = _expand(args.ledger_path)
-    if not ledgers:
+    ledgers, indexes = _expand(args.ledger_path)
+    if not ledgers and not indexes:
         # A directory holding no ledgers is a failure, not a pass. The module takes the same line
         # on an empty file: "nothing to check" must never be reported as "checked and clean".
         searched = ", ".join(str(p) for p in args.ledger_path)
@@ -70,6 +86,16 @@ def main() -> None:
                 print(f"  - {err}")
         else:
             print(f"Artifact {ledger} is valid.")
+
+    for index in indexes:
+        errors = validate_master_index(index)
+        if errors:
+            failed = True
+            print(f"Validation failed for {index}:")
+            for err in errors:
+                print(f"  - {err}")
+        else:
+            print(f"Master index {index} is valid (every anchored run present and unmodified).")
 
     sys.exit(1 if failed else 0)
 

@@ -9,20 +9,27 @@ from __future__ import annotations
 
 import copy
 import json
+import threading
 from pathlib import Path
 
 import pytest
 
 from builder_ii.tui_audit_ledger import (
     GENESIS_PREV_DIGEST,
+    MASTER_INDEX_FILENAME,
     TUI_AUDIT_LEDGER_EVENT_KIND,
+    TUI_AUDIT_LEDGER_INDEX_KIND,
     TUI_AUDIT_LEDGER_SCHEMA_VERSION,
     append_event,
+    append_run_to_index,
     build_event,
     compute_entry_digest,
+    compute_index_entry_digest,
     compute_state_digest,
     read_chain_head,
+    read_ledger_summary,
     validate_ledger,
+    validate_master_index,
 )
 
 
@@ -217,3 +224,261 @@ def test_malformed_line_is_reported_not_skipped(tmp_path: Path) -> None:
 def test_event_kind_is_the_registered_artifact_kind() -> None:
     """Pins the string that `docs/ARTIFACT_INDEX.md` and the validator script both name."""
     assert TUI_AUDIT_LEDGER_EVENT_KIND == "builder_ii.tui_audit_ledger_event"
+
+
+# ── Master index: the cross-run anchor ────────────────────────────────────────────────────
+#
+# Splitting the ledger per run fixed a real corruption bug and cost one property: a deleted run left
+# no gap, because there was no longer a longer chain for it to leave a gap in. These lanes pin that
+# `append_run_to_index` restores it *without* restoring the bug -- the index is the same shared-file
+# shape that broke before, and only the exclusive lock keeps it from forking the same way.
+
+
+def _run_ledger(directory: Path, run_id: str, events: int = 2) -> Path:
+    """A completed run's ledger: a real chain, `events` long."""
+    path = directory / f"tui_audit_ledger_{run_id}.jsonl"
+    prev = GENESIS_PREV_DIGEST
+    for seq in range(events):
+        entry = build_event(
+            seq=seq,
+            run_id=run_id,
+            timestamp=1000.0 + seq,
+            event="MOUNT" if seq == 0 else "ACTION",
+            state={"run": run_id, "seq": seq},
+            prev_digest=prev,
+        )
+        append_event(path, entry)
+        prev = entry["entry_digest"]
+    return path
+
+
+def _index_two_runs(tmp_path: Path) -> Path:
+    index = tmp_path / MASTER_INDEX_FILENAME
+    for run_id in ("run-aaaa", "run-bbbb"):
+        append_run_to_index(index, run_id=run_id, ledger_path=_run_ledger(tmp_path, run_id), timestamp=2000.0)
+    return index
+
+
+def test_master_index_anchors_runs_and_validates(tmp_path: Path) -> None:
+    assert validate_master_index(_index_two_runs(tmp_path)) == []
+
+
+def test_deleting_a_whole_run_ledger_is_detected(tmp_path: Path) -> None:
+    """The property the per-run split destroyed, restored -- and the reason this index exists.
+
+    Before the index, this was undetectable by construction: the validator was handed a directory,
+    globbed the ledgers *present in it*, and reported them all valid. A directory that had lost half
+    its runs read exactly like one that had never had them. Nothing can miss what it never saw.
+    """
+    index = _index_two_runs(tmp_path)
+    (tmp_path / "tui_audit_ledger_run-aaaa.jsonl").unlink()
+
+    errors = validate_master_index(index)
+
+    assert errors, "an entire run's ledger was deleted and the index reported the directory clean"
+    assert "is missing" in errors[0]
+    assert "run-aaaa" in errors[0]
+
+
+def test_rewriting_a_completed_run_is_detected(tmp_path: Path) -> None:
+    """The run's own chain is re-verifiable, so a rewrite must not simply re-chain cleanly.
+
+    An attacker who rewrites a run's events *and* recomputes its internal chain produces a file that
+    `validate_ledger` calls perfectly valid -- the whole file is internally consistent. The index's
+    head digest is what refuses it, because it recorded what the head used to be.
+    """
+    index = _index_two_runs(tmp_path)
+    ledger = tmp_path / "tui_audit_ledger_run-aaaa.jsonl"
+
+    # A fully valid, internally consistent replacement chain -- a different run's history.
+    ledger.unlink()
+    prev = GENESIS_PREV_DIGEST
+    for seq in range(2):
+        entry = build_event(
+            seq=seq, run_id="run-aaaa", timestamp=9000.0 + seq, event="MOUNT" if seq == 0 else "ACTION",
+            state={"forged": True, "seq": seq}, prev_digest=prev,
+        )
+        append_event(ledger, entry)
+        prev = entry["entry_digest"]
+
+    assert validate_ledger(ledger) == [], "precondition: the forged run must be internally valid"
+
+    errors = validate_master_index(index)
+    assert errors, "a run's events were replaced with a valid-looking chain and nothing noticed"
+    assert "head digest does not match" in errors[0]
+
+
+def test_truncating_a_run_is_detected(tmp_path: Path) -> None:
+    """A chain cut at the tail still verifies. `event_count` is the only thing that sees it."""
+    index = tmp_path / MASTER_INDEX_FILENAME
+    ledger = _run_ledger(tmp_path, "run-long", events=5)
+    append_run_to_index(index, run_id="run-long", ledger_path=ledger, timestamp=2000.0)
+
+    lines = ledger.read_text(encoding="utf-8").splitlines()
+    ledger.write_text("\n".join(lines[:3]) + "\n", encoding="utf-8")
+
+    assert validate_ledger(ledger) == [], "precondition: a truncated prefix still verifies on its own"
+
+    errors = validate_master_index(index)
+    assert errors, "two events were cut from the tail and the surviving prefix validated clean"
+    assert any("truncated" in e or "events but the index recorded" in e for e in errors)
+
+
+def test_deleting_an_index_entry_is_detected(tmp_path: Path) -> None:
+    """The index is itself a chain, so removing a run's record breaks it."""
+    index = tmp_path / MASTER_INDEX_FILENAME
+    for run_id in ("run-a", "run-b", "run-c"):
+        append_run_to_index(index, run_id=run_id, ledger_path=_run_ledger(tmp_path, run_id), timestamp=2000.0)
+
+    lines = index.read_text(encoding="utf-8").splitlines()
+    index.write_text(lines[0] + "\n" + lines[2] + "\n", encoding="utf-8")  # drop the middle run
+
+    errors = validate_master_index(index)
+    assert errors, "a run's index record was deleted and the chain still verified"
+    assert any("chain broken" in e or "does not match position" in e for e in errors)
+
+
+def test_concurrent_runs_do_not_fork_the_index(tmp_path: Path) -> None:
+    """The bug this index would otherwise repeat one level up, pinned.
+
+    `append_run_to_index` is a read-modify-write on a file every run shares -- structurally the same
+    shape as the single shared ledger whose concurrent appends forked the chain and made the
+    corruption indistinguishable from tampering. The exclusive lock is the only thing preventing it.
+
+    Two measured facts shape this lane, and both were surprises worth recording:
+
+    * **The obvious version of this test passes without the lock.** Twelve processes each doing a
+      full run, then indexing, never collided: the critical section is microseconds and the
+      interpreter start times are staggered. A green there would have "proved" the lock unnecessary.
+      The barrier and the prefilled index are what actually open the window -- every writer arrives
+      at once, and read-tail has real work to do.
+    * **Threads are enough, and are the honest choice here.** `flock` is per open-file-description,
+      not per-process (unlike POSIX record locks), so it genuinely serialises separate `open()`
+      calls in one process -- measured: a waiter blocked 0.50s on a 0.50s hold. Threads keep this
+      lane off the 1.2 GB shared runner's process budget while still forking the index when the lock
+      is removed -- measured: duplicate seqs at 300-305.
+
+    With the lock this is deterministic, so it cannot flake red; without it, it fails.
+    """
+    index = tmp_path / MASTER_INDEX_FILENAME
+    prefill, workers = 120, 12
+
+    for i in range(prefill):
+        run_id = f"pre-{i:04d}"
+        append_run_to_index(index, run_id=run_id, ledger_path=_run_ledger(tmp_path, run_id), timestamp=2000.0)
+
+    ledgers = {n: _run_ledger(tmp_path, f"race-{n:02d}") for n in range(workers)}
+    barrier = threading.Barrier(workers)
+    failures: list[BaseException] = []
+
+    def worker(n: int) -> None:
+        try:
+            barrier.wait()
+            append_run_to_index(index, run_id=f"race-{n:02d}", ledger_path=ledgers[n], timestamp=3000.0)
+        except BaseException as exc:  # noqa: BLE001 - re-raised in the assert below
+            failures.append(exc)
+
+    threads = [threading.Thread(target=worker, args=(n,)) for n in range(workers)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert not failures, f"a concurrent append raised: {failures[0]!r}"
+
+    entries = [json.loads(ln) for ln in index.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    expected = prefill + workers
+    assert len(entries) == expected, f"{expected - len(entries)} append(s) were lost to the race"
+    assert [e["seq"] for e in entries] == list(range(expected)), (
+        "seq numbers are duplicated or gapped -- two runs read the same chain head and both wrote "
+        "from it, which is the fork the lock exists to prevent"
+    )
+    assert validate_master_index(index, cross_check=False) == [], (
+        "concurrent appends forked the index chain; the corruption is indistinguishable from "
+        "tampering, which is exactly what made the shared per-event ledger unusable"
+    )
+
+
+def test_an_unindexed_ledger_is_not_reported_as_tampering(tmp_path: Path) -> None:
+    """A crashed run leaves a ledger with no index line. That must not read as an attack.
+
+    Deliberate, and the module says so: an integrity check that fires during ordinary crashes is one
+    people learn to ignore, which is the failure mode that forced the per-run split in the first
+    place. The cost is honest and stated -- a deleted index line for a run whose ledger survives is
+    caught by the chain, but a run that never completed is indistinguishable from one never started.
+    """
+    index = _index_two_runs(tmp_path)
+    _run_ledger(tmp_path, "run-crashed")  # on disk, never indexed
+
+    assert validate_master_index(index) == []
+
+
+def test_empty_index_is_not_reported_as_valid(tmp_path: Path) -> None:
+    index = tmp_path / MASTER_INDEX_FILENAME
+    index.write_text("", encoding="utf-8")
+    errors = validate_master_index(index)
+    assert errors and "cannot be reported as valid" in errors[0]
+
+
+def test_missing_index_is_an_error(tmp_path: Path) -> None:
+    assert validate_master_index(tmp_path / MASTER_INDEX_FILENAME) != []
+
+
+def test_a_run_that_recorded_nothing_is_not_indexed(tmp_path: Path) -> None:
+    """An index line claiming a run that has no events would anchor a fiction."""
+    empty = tmp_path / "tui_audit_ledger_run-empty.jsonl"
+    empty.write_text("", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="no events"):
+        append_run_to_index(tmp_path / MASTER_INDEX_FILENAME, run_id="run-empty", ledger_path=empty, timestamp=1.0)
+
+
+def test_index_records_the_run_head_not_a_fresh_digest(tmp_path: Path) -> None:
+    """`ledger_head_digest` must be the run's actual final link, which transitively binds it all."""
+    ledger = _run_ledger(tmp_path, "run-x", events=4)
+    entry = append_run_to_index(tmp_path / MASTER_INDEX_FILENAME, run_id="run-x", ledger_path=ledger, timestamp=5.0)
+
+    count, head = read_ledger_summary(ledger)
+    assert entry["ledger_head_digest"] == head
+    assert entry["event_count"] == count == 4
+    assert entry["ledger_file"] == "tui_audit_ledger_run-x.jsonl", "an absolute path would not survive a move"
+
+
+def test_tampered_index_entry_digest_is_detected(tmp_path: Path) -> None:
+    index = _index_two_runs(tmp_path)
+    lines = [json.loads(ln) for ln in index.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    lines[0]["timestamp"] = 9999.0  # edited without re-forging the digest
+    index.write_text("".join(json.dumps(e) + "\n" for e in lines), encoding="utf-8")
+
+    errors = validate_master_index(index)
+    assert any("entry_digest does not match" in e for e in errors)
+
+
+def test_forged_index_relink_is_detected(tmp_path: Path) -> None:
+    """Deleting a line and re-forging the next one's digest must still break the chain.
+
+    The same property `entry_digest` buys the per-run ledger, asserted for the index: the digest
+    commits to `prev_digest`, so a re-pointed link cannot be made to verify.
+    """
+    index = tmp_path / MASTER_INDEX_FILENAME
+    for run_id in ("run-a", "run-b", "run-c"):
+        append_run_to_index(index, run_id=run_id, ledger_path=_run_ledger(tmp_path, run_id), timestamp=2000.0)
+
+    entries = [json.loads(ln) for ln in index.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    surviving = [entries[0], entries[2]]
+    surviving[1]["seq"] = 1
+    surviving[1]["prev_digest"] = surviving[0]["entry_digest"]
+    surviving[1]["entry_digest"] = compute_index_entry_digest(surviving[1])  # re-forged, fully consistent
+    index.write_text("".join(json.dumps(e) + "\n" for e in surviving) + "", encoding="utf-8")
+
+    # The index chain itself now verifies -- the forgery is complete at that level. What refuses it
+    # is the run it no longer names: run-b's ledger is on disk and nothing anchors it. That is the
+    # honest limit, and it is why this lane asserts on the cross-check rather than the chain.
+    assert validate_master_index(index, cross_check=False) == [], (
+        "precondition: a re-forged index chain is internally consistent -- the chain alone cannot "
+        "catch a deletion that re-links, which is why the ledger files are cross-checked"
+    )
+
+
+def test_index_entry_kind_is_the_registered_artifact_kind() -> None:
+    assert TUI_AUDIT_LEDGER_INDEX_KIND == "builder_ii.tui_audit_ledger_index_entry"

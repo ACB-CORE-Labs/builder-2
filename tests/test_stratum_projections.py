@@ -3,15 +3,35 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from builder_ii.tui.projections.agents import compose_assign_command, project_agent_roster
 from builder_ii.tui.projections.chain import epistemic_from_chain, project_chain
-from builder_ii.tui.projections.gates import project_hitl_surface, project_third_door, scan_pending_hitl
+from builder_ii.tui.projections.gates import (
+    THIRD_DOOR_CONSTRAINTS,
+    THIRD_DOOR_INCOMPLETE,
+    THIRD_DOOR_LOCKED,
+    THIRD_DOOR_UNASSESSED,
+    THIRD_DOOR_UNLOCKED,
+    ThirdDoorView,
+    project_hitl_surface,
+    project_third_door,
+    scan_pending_hitl,
+    unassessed_third_door,
+)
 from builder_ii.tui.projections.models import project_model_matrix
 from builder_ii.tui.projections.operator import project_operator_dashboard
 from builder_ii.tui.projections.workflow import project_workflow
-from builder_ii.tui.widgets.masterpiece import EpistemicMatrix
+from builder_ii.tui.widgets.masterpiece import EpistemicMatrix, ThirdDoorGate
+
+#: Rich markup tags carry theme colours, which are not the claim under test. Asserting on raw
+#: `render()` output would couple every verdict lane to the palette and go red on a re-theme.
+_MARKUP = re.compile(r"\[/?[^\]]*\]")
+
+
+def _strip_markup(text: str) -> str:
+    return _MARKUP.sub("", text)
 
 
 def test_project_chain_empty_dir(tmp_path: Path) -> None:
@@ -68,6 +88,119 @@ def test_third_door_unevaluated_without_artifacts(tmp_path: Path) -> None:
     view = project_third_door(tmp_path)
     assert view.source == "unevaluated"
     assert all(v is None for v in view.constraints.values())
+
+
+# ── Third Door: four states, because two could not tell absence from refusal ──────────────
+#
+# `render()` used to derive its verdict as `all True -> UNLOCKED else LOCKED`. Measured against
+# this repository's own populated `.builder/artifacts`, and against a fresh clone: `VAULT LOCKED`,
+# every time, on every host -- because no promotion readiness artifact exists to read, not because
+# anything was refused. These lanes exist so a mechanical lock can one day bind to a state that
+# knows the difference; a lock bound to the old binary would have refused every operator forever.
+
+
+def _door(**overrides: bool | None) -> ThirdDoorView:
+    """A view over the canonical eight, unassessed except where named."""
+    constraints: dict[str, bool | None] = {name: None for name in THIRD_DOOR_CONSTRAINTS}
+    constraints.update(overrides)
+    return ThirdDoorView(constraints=constraints, source="readiness")
+
+
+def test_an_unassessed_third_door_is_not_reported_as_refused(tmp_path: Path) -> None:
+    """The defect, pinned at the level that matters: what an operator sees on a real checkout.
+
+    Deliberately routed through `project_third_door` on a real directory rather than a hand-built
+    view -- the bug was never in the constraint mapping, it was in what the absence of a readiness
+    artifact was then *called*. A unit test over a synthetic all-None dict would have passed both
+    before and after this change.
+    """
+    view = project_third_door(tmp_path)
+
+    assert view.state == THIRD_DOOR_UNASSESSED
+    assert view.state != THIRD_DOOR_LOCKED, (
+        "an unassessed door is reporting as refused again -- absence of evidence is being "
+        "rendered as denial, which is what made a Third Door lock unbuildable"
+    )
+
+    rendered = _strip_markup(str(ThirdDoorGate(view).render()))
+    assert "VAULT UNASSESSED" in rendered
+    assert "VAULT LOCKED" not in rendered
+
+
+def test_third_door_locks_only_on_an_explicit_refusal() -> None:
+    """LOCKED must mean something was evaluated and came back False. Nothing weaker."""
+    assert _door(Documentation=False).state == THIRD_DOOR_LOCKED
+    # One refusal shuts the door regardless of how much else is satisfied.
+    assert _door(**{name: True for name in THIRD_DOOR_CONSTRAINTS[:7]}, **{THIRD_DOOR_CONSTRAINTS[7]: False}).state == (
+        THIRD_DOOR_LOCKED
+    )
+    # ...and regardless of how much else is merely unassessed. An open slot cannot un-refuse.
+    assert _door(Tests=False).state == THIRD_DOOR_LOCKED
+
+
+def test_partial_evidence_with_no_refusal_is_incomplete_not_locked() -> None:
+    """The state that had nowhere to live before: real evidence, nothing refusing, not yet done."""
+    view = _door(Documentation=True, Tests=True)
+
+    assert view.state == THIRD_DOOR_INCOMPLETE
+    rendered = _strip_markup(str(ThirdDoorGate(view).render()))
+    assert "VAULT INCOMPLETE" in rendered
+    assert "2/8 satisfied" in rendered
+    assert "none refused" in rendered
+
+
+def test_third_door_unlocks_only_when_all_eight_are_satisfied() -> None:
+    """The claim the header makes ('authority requires all 8') must be the claim the code makes."""
+    assert _door(**{name: True for name in THIRD_DOOR_CONSTRAINTS}).state == THIRD_DOOR_UNLOCKED
+    # Seven of eight is not eight. Nothing refused, and the door still does not open.
+    seven = _door(**{name: True for name in THIRD_DOOR_CONSTRAINTS[:7]})
+    assert seven.state == THIRD_DOOR_INCOMPLETE
+    assert seven.state != THIRD_DOOR_UNLOCKED
+
+
+def test_the_widget_and_the_projection_cannot_disagree_about_the_verdict() -> None:
+    """The drift that caused the bug: two readers deriving one verdict by two different rules.
+
+    `ThirdDoorGate.render()` had its own inline copy, which is how it came to contradict the
+    docstring three lines above it. Both now read `third_door_state`, so this asserts they agree
+    across every state rather than trusting that they were written to.
+    """
+    expectations = {
+        THIRD_DOOR_UNASSESSED: "VAULT UNASSESSED",
+        THIRD_DOOR_INCOMPLETE: "VAULT INCOMPLETE",
+        THIRD_DOOR_LOCKED: "VAULT LOCKED",
+        THIRD_DOOR_UNLOCKED: "VAULT UNLOCKED",
+    }
+    views = [
+        _door(),
+        _door(Documentation=True),
+        _door(Documentation=False),
+        _door(**{name: True for name in THIRD_DOOR_CONSTRAINTS}),
+    ]
+    seen = set()
+    for view in views:
+        rendered = _strip_markup(str(ThirdDoorGate(view).render()))
+        assert expectations[view.state] in rendered, f"state {view.state!r} did not render as itself"
+        seen.add(view.state)
+
+    assert seen == set(expectations), f"a state went unexercised: {set(expectations) - seen}"
+
+
+def test_an_unassessed_door_says_which_kind_of_unassessed_it_is() -> None:
+    """'Mint a readiness artifact' and 'yours is unreadable' are different jobs.
+
+    `set_constraints(door.constraints)` dropped `source` at both call sites, so the widget could
+    not tell them apart and an operator staring at eight open slots had no way to know which one
+    they were in.
+    """
+    no_artifact = _strip_markup(str(ThirdDoorGate(unassessed_third_door()).render()))
+    assert "no promotion readiness artifact found" in no_artifact
+
+    constraints: dict[str, bool | None] = {name: None for name in THIRD_DOOR_CONSTRAINTS}
+    unreadable = ThirdDoorView(constraints=constraints, source="readiness")
+    rendered = _strip_markup(str(ThirdDoorGate(unreadable).render()))
+    assert "readiness artifact was found" in rendered
+    assert "no recognised constraint evidence" in rendered
 
 
 def test_scan_pending_hitl_clear_when_empty(tmp_path: Path) -> None:
