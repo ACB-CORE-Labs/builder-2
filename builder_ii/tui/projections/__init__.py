@@ -9,7 +9,15 @@ from __future__ import annotations
 from builder_ii.tui.projections.agents import project_agent_roster
 from builder_ii.tui.projections.chain import PIPELINE_STAGES, project_chain
 from builder_ii.tui.projections.codevault import project_code_vault
-from builder_ii.tui.projections.gates import project_hitl_surface, project_third_door
+from builder_ii.tui.projections.gates import (
+    THIRD_DOOR_INCOMPLETE,
+    THIRD_DOOR_LOCKED,
+    THIRD_DOOR_UNASSESSED,
+    THIRD_DOOR_UNLOCKED,
+    project_hitl_surface,
+    project_third_door,
+    third_door_state,
+)
 from builder_ii.tui.projections.models import project_model_matrix
 from builder_ii.tui.projections.operator import project_operator_dashboard
 from builder_ii.tui.projections.orchestration import project_orchestration
@@ -24,6 +32,10 @@ from builder_ii.tui.projections.workflow import project_workflow
 
 __all__ = [
     "PIPELINE_STAGES",
+    "THIRD_DOOR_INCOMPLETE",
+    "THIRD_DOOR_LOCKED",
+    "THIRD_DOOR_UNASSESSED",
+    "THIRD_DOOR_UNLOCKED",
     "kv",
     "project_agent_roster",
     "project_chain",
@@ -38,4 +50,5 @@ __all__ = [
     "section_title",
     "status_glyph",
     "themed",
+    "third_door_state",
 ]

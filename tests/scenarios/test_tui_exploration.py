@@ -317,8 +317,12 @@ def test_concurrent_driver_runs_do_not_corrupt_each_others_chains(tmp_path):
 
     This is the lane that would have caught it. With a shared default path the two processes
     interleave into one file and the validator reports every link after the first as broken.
+
+    It now also covers the master index, which is the one place those two processes still share a
+    file -- so this is the only lane where the index's lock is exercised by real concurrent driver
+    *processes* rather than by threads. Both halves of the concurrency story, one fixture.
     """
-    from builder_ii.tui_audit_ledger import validate_ledger
+    from builder_ii.tui_audit_ledger import MASTER_INDEX_FILENAME, validate_ledger, validate_master_index
 
     artifacts = tmp_path / ".builder" / "artifacts"
     procs = [
@@ -334,11 +338,25 @@ def test_concurrent_driver_runs_do_not_corrupt_each_others_chains(tmp_path):
     for stdout, stderr in outs:
         assert stdout, f"driver produced no output: {stderr[:300]}"
 
-    ledgers = sorted(artifacts.glob("tui_audit_ledger_*.jsonl"))
+    # Excluded by name, not by a cleverer glob. The index shares the ledgers' prefix, so the plain
+    # `tui_audit_ledger_*.jsonl` this lane used to run counted it as a third ledger the moment the
+    # index existed -- and would then have fed it to `validate_ledger`, which reports every field of
+    # a perfectly good index as missing. Same trap `scripts/validate_tui_audit_ledger.py` sidesteps.
+    ledgers = sorted(p for p in artifacts.glob("tui_audit_ledger_*.jsonl") if p.name != MASTER_INDEX_FILENAME)
     assert len(ledgers) == 2, f"two concurrent runs produced {len(ledgers)} ledger(s), expected one each"
 
     for ledger in ledgers:
         assert validate_ledger(ledger) == [], f"{ledger.name} was corrupted by the concurrent run"
+
+    # The shared file. Two processes, one index, one chain -- or the lock is not doing its job.
+    index = artifacts / MASTER_INDEX_FILENAME
+    assert index.exists(), "neither run anchored itself; a deleted ledger would now be invisible again"
+
+    entries = [json.loads(line) for line in index.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(entries) == 2, f"two runs produced {len(entries)} index entries; an append was lost to the race"
+    assert [e["seq"] for e in entries] == [0, 1], "the index chain forked: both runs read the same head"
+    assert {e["run_id"] for e in entries} == {json.loads(stdout)["run_id"] for stdout, _ in outs}
+    assert validate_master_index(index) == [], "the index does not verify against the runs it anchors"
 
 
 def test_semantic_tui_driver_invalid_app():

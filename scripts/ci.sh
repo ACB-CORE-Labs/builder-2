@@ -2,11 +2,12 @@
 # The blocking CI gate battery -- one definition, run identically by humans and CI.
 #
 # Why this file exists: `.github/workflows/ci.yml` used to inline every gate, so the
-# only way to check a change locally was to transcribe nine commands out of the
-# workflow (or out of CLAUDE.md) by hand. Two hand-transcriptions of a nine-step
+# only way to check a change locally was to transcribe the whole sequence out of the
+# workflow (or out of CLAUDE.md) by hand. Two hand-transcriptions of a ten-command
 # sequence is a lot of trust placed in copying. This script is now the single source
 # of truth: the workflow provisions an environment and then calls this, and a
-# developer runs the same thing.
+# developer runs the same thing. (Counts are deliberately not restated elsewhere: a
+# number in prose rots the first time a gate is added, and this comment already had.)
 #
 # Scope -- what this is and is not:
 # * These are the BLOCKING gates. If this script exits 0, every blocking CI gate
@@ -90,6 +91,23 @@ gate "high-confidence secret scan" uv run python scripts/secret_scan.py
 # 5. Lint, types, security.
 gate "ruff lint" uv run ruff check builder_ii tests
 gate "targeted mypy" uv run mypy
+
+# 5b. The TUI app surface, checked for its OWN errors only.
+#
+# A separate invocation rather than another entry in `[tool.mypy] files`, and the reason is a
+# measurement: `builder_ii/tui/app.py` type-clean in itself drags 122 errors out of 20 *other*
+# modules through its import graph (verification_execution_ledger alone contributes 46). Listing it
+# in `files` would therefore either fail the gate on debt that is not app.py's, or force
+# `follow_imports = "silent"` globally -- which would quietly stop the gate above from reporting
+# errors in anything the 14 authority modules import. Weakening an authority gate to strengthen a
+# UI one is a bad trade made silently.
+#
+# `--follow-imports=silent` resolves imports for type information and reports only the named file,
+# so this pins exactly the claim intended: app.py's own annotations do not regress. Verified by
+# re-narrowing a fixed callback to `bool` -- the gate catches it. It does not pretend to check
+# app.py's dependencies; that debt is real, unowned, and out of this gate's scope.
+gate "tui app mypy" uv run mypy builder_ii/tui/app.py --follow-imports=silent
+
 gate "targeted bandit" uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
 
 # 6. Full suite. `addopts` in pyproject already carries `-q`; adding another `-q`

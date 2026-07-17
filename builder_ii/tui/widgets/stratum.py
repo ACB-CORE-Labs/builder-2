@@ -142,7 +142,7 @@ class ActiveStratum(Vertical):
         if self.mode == StratumMode.HITL_GATE:
             self._third_door.display = True
             door = project_third_door(self.artifacts_dir)
-            self._third_door.set_constraints(door.constraints)
+            self._third_door.set_view(door)
 
         self._update_title_bar()
         self._update_chain_bar()
@@ -418,7 +418,7 @@ class ActiveStratum(Vertical):
         self._write("\n".join(lines))
         if self._third_door is not None:
             self._third_door.display = True
-            self._third_door.set_constraints(door.constraints)
+            self._third_door.set_view(door)
 
     def _render_goose_live(self) -> None:
         self._write(

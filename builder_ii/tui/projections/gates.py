@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,11 +20,67 @@ THIRD_DOOR_CONSTRAINTS: tuple[str, ...] = (
     "Verification Path",
 )
 
+#: All eight satisfied. The only state in which the door is not shut.
+THIRD_DOOR_UNLOCKED = "unlocked"
+#: At least one constraint was evaluated and came back False. Assessed, and refused.
+THIRD_DOOR_LOCKED = "locked"
+#: Some evidence, none of it refusing, not yet all eight. Shut, but nothing said no.
+THIRD_DOOR_INCOMPLETE = "incomplete"
+#: No constraint has any evidence either way. Shut because nobody has looked.
+THIRD_DOOR_UNASSESSED = "unassessed"
+
+
+def third_door_state(constraints: Mapping[str, bool | None]) -> str:
+    """Classify the eight constraints into one of the four states above.
+
+    The one place this is computed. It previously was not computed anywhere: `ThirdDoorGate.render`
+    derived a verdict inline as `all(v is True) -> UNLOCKED else LOCKED`, and that binary is the
+    defect. It collapses "assessed and refused" into "nobody has looked yet", which is precisely
+    the distinction the widget's own docstring promises to keep ("Unevaluated (None) is not pass
+    and not fail -- open slot"). Measured before this change: a checkout with a fully populated
+    `.builder/artifacts` -- and every fresh clone -- rendered `VAULT LOCKED`, because no promotion
+    readiness artifact exists to read. Locked on every machine, always, and never once because
+    anything failed.
+
+    That mattered beyond cosmetics. A mechanical lock bound to that verdict would have refused
+    every operator on every host forever, and it would have been enforcing *absence of evidence* as
+    *denial*. Any future lock binds here, to a state that distinguishes the two.
+
+    `LOCKED` takes precedence over everything except nothing: one explicit refusal shuts the door
+    regardless of how many other slots are still open. An unevaluated slot cannot un-refuse a
+    refused one.
+    """
+    values = [constraints.get(name) for name in THIRD_DOOR_CONSTRAINTS]
+    if any(v is False for v in values):
+        return THIRD_DOOR_LOCKED
+    if all(v is True for v in values):
+        return THIRD_DOOR_UNLOCKED
+    if all(v is None for v in values):
+        return THIRD_DOOR_UNASSESSED
+    return THIRD_DOOR_INCOMPLETE
+
 
 @dataclass(frozen=True)
 class ThirdDoorView:
     constraints: dict[str, bool | None]  # None = unevaluated
     source: str  # "readiness" | "unevaluated"
+
+    @property
+    def state(self) -> str:
+        """One of the four `THIRD_DOOR_*` states, derived -- never stored.
+
+        A property rather than a field so a view cannot be constructed whose recorded state
+        disagrees with its own constraints. The drift this file just fixed was two places deriving
+        the same verdict from different rules; a fifth copy stored in a field would be the same
+        trap with a longer fuse.
+        """
+        return third_door_state(self.constraints)
+
+
+def unassessed_third_door() -> ThirdDoorView:
+    """The honest default: nothing looked at, nothing refused, nothing claimed."""
+    constraints: dict[str, bool | None] = {name: None for name in THIRD_DOOR_CONSTRAINTS}
+    return ThirdDoorView(constraints=constraints, source="unevaluated")
 
 
 @dataclass(frozen=True)
@@ -43,7 +100,7 @@ def project_third_door(artifacts_dir: Path | None = None) -> ThirdDoorView:
     unevaluated = {name: None for name in THIRD_DOOR_CONSTRAINTS}
 
     if artifacts_dir is None or not artifacts_dir.exists():
-        return ThirdDoorView(constraints=unevaluated, source="unevaluated")
+        return unassessed_third_door()
 
     readiness: dict[str, Any] | None = None
     for path in sorted(artifacts_dir.rglob("*.json")):
@@ -59,7 +116,7 @@ def project_third_door(artifacts_dir: Path | None = None) -> ThirdDoorView:
             break
 
     if readiness is None:
-        return ThirdDoorView(constraints=unevaluated, source="unevaluated")
+        return unassessed_third_door()
 
     # Map known fields conservatively — only mark True when explicitly satisfied.
     constraints: dict[str, bool | None] = dict(unevaluated)

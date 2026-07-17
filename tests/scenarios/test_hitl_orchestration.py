@@ -11,10 +11,13 @@ that no key sequence reaches execution or mutates approval state at all, which i
 simpler property, and the one that would actually regress if someone wired a keypress to a
 subprocess "for convenience".
 
-`ThirdDoorGate` is likewise not a blocker. It is a `Static` that renders eight constraints and the
-words VAULT LOCKED; nothing in the codebase consults it for a decision. `test_the_third_door_is_a
-_readout_not_a_blocker` pins that directly, because a widget that *looks* like the authority is
-exactly the thing this repository keeps getting caught by.
+`ThirdDoorGate` is likewise not a blocker. It is a `Static` that renders eight constraints and a
+verdict; nothing in the codebase consults it for a decision. `test_the_third_door_is_a_readout_not
+_a_blocker` pins that directly, because a widget that *looks* like the authority is exactly the
+thing this repository keeps getting caught by.
+
+The tier system is the other thing that looks like an authority and is not, and
+`test_tier_is_a_blast_radius_classifier_not_an_authority_classifier` is the tripwire for it.
 """
 
 from __future__ import annotations
@@ -30,6 +33,8 @@ from textual.app import App
 
 from builder_ii.command_authority import (
     COMMAND_AUTHORITY_REGISTRY,
+    TIER_0,
+    TIER_1,
     TIER_3,
     TIER_4,
     check_command_authority,
@@ -51,6 +56,15 @@ FRICTION_APPROVE_PRESSES = 2
 
 APPROVE_COMPOSES = "uv run builder-hitl approve-patch"
 REJECT_COMPOSES = "uv run builder-hitl rejection-record"
+
+#: The registry names behind the three HITL gate keys. Every one of them *is* an approval act, and
+#: every one of them is TIER_1 -- see `test_tier_is_a_blast_radius_classifier_not_an_authority
+#: _classifier`, which exists solely to keep that pairing visible.
+GATE_KEY_COMMANDS = (
+    "builder-hitl approve-patch",
+    "builder-hitl rejection-record",
+    "builder-hitl approve-rollback",
+)
 
 #: A pending Tier-4 patch proposal -- the highest-authority gate STRATUM can be shown.
 #: `project_hitl_surface` selects on a `kind` containing "hitl" and a state that is not already
@@ -291,13 +305,18 @@ async def test_the_third_door_is_a_readout_not_a_blocker(
 ) -> None:
     """`ThirdDoorGate` displays authority constraints. It does not enforce them.
 
-    Worth a lane precisely because the name invites the opposite reading. With no promotion
-    readiness artifact present all eight constraints are unevaluated and it renders VAULT LOCKED --
-    and the composer is still reachable, because nothing consults it. It is a `Static`: no bindings,
-    no click handler, and no caller anywhere reads its state to decide anything.
+    Worth a lane precisely because the name invites the opposite reading. It is a `Static`: no
+    bindings, no click handler, and no caller anywhere reads its state to decide anything.
 
     If it ever *should* enforce, this lane is the one that has to change, deliberately, rather than
     a reviewer assuming it already does.
+
+    It has now changed once, and this is the record of why. The audit that added this lane asserted
+    `VAULT LOCKED` here, and separately reported the locked-by-default readout as a finding: with no
+    readiness artifact, all eight constraints are unevaluated, and `render()` collapsed every
+    non-True slot into a refusal. So the door read *refused* on every host, always, having refused
+    nothing. That was fixed -- absence of evidence now reads `VAULT UNASSESSED` -- and this lane
+    moved with it. The claim under test is unchanged: whatever the door says, it gates nothing.
     """
     _no_execution_allowed(monkeypatch)
 
@@ -312,12 +331,62 @@ async def test_the_third_door_is_a_readout_not_a_blocker(
         assert gate is not None and gate.display is True, "HITL_GATE mode must surface the Third Door"
 
         rendered = str(gate.render())
-        assert "VAULT LOCKED" in rendered, "no readiness artifact: the door must read locked"
+        assert "VAULT UNASSESSED" in rendered, (
+            "no readiness artifact exists here, so the door has evaluated nothing and must say so"
+        )
+        assert "VAULT LOCKED" not in rendered, (
+            "the door is reporting a refusal it never made -- see third_door_state()"
+        )
 
-        # Locked, and the authority path is open anyway -- which is the whole point.
+        # Shut, and the authority path is open anyway -- which is the whole point.
         await pilot.press("a")
         await pilot.pause()
         assert stratum.screen.__class__.__name__ == "CLIPassthroughScreen", (
             "the composer became unreachable -- if the Third Door now gates it, this lane is the "
             "record that it did not before, and the change needs saying out loud"
         )
+
+
+def test_tier_is_a_blast_radius_classifier_not_an_authority_classifier() -> None:
+    """`tier <= TIER_1` must never be used as a predicate for "safe to execute automatically".
+
+    This lane exists because that predicate is an attractive idea, was formally proposed, and is
+    wrong in a way that reads as obviously right. The tiers classify what a command's *mechanism*
+    touches -- TIER_1 is "artifact-only planning/validation", meaning it writes a JSON file and
+    nothing else. They do not classify what the act *means*. And for `builder-hitl approve-patch`,
+    writing that JSON file **is** the approval. Tier 1 blast radius, maximal authority.
+
+    So a TUI that auto-executed TIER_0/TIER_1 "because they're safe" would let a keypress approve a
+    patch, and an airgap that stops at TIER_3/TIER_4 -- the natural companion proposal -- catches
+    none of the three commands the gate keys compose. Measured, both halves. That combination is
+    precisely `model output != approval` failing through the governance system rather than around
+    it, which is the hardest kind to see.
+
+    If this lane goes red, do not simply update the constant. It means the tiering of an approval
+    command changed, and the question to answer first is whether anything downstream started
+    treating tier as permission.
+    """
+    by_name = {rec.name: rec for rec in COMMAND_AUTHORITY_REGISTRY}
+
+    for name in GATE_KEY_COMMANDS:
+        assert name in by_name, f"{name!r} is not registered; this lane's subject vanished"
+        record = by_name[name]
+
+        assert record.tier == TIER_1, (
+            f"{name!r} is {record.tier!r}, not TIER_1. This lane assumed the trap it guards still "
+            f"exists. Re-check whether any caller now reads tier as permission before editing it."
+        )
+        assert record.tier in (TIER_0, TIER_1), (
+            f"{name!r} would be captured by a `tier in (TIER_0, TIER_1)` auto-execute predicate"
+        )
+        assert record.tier not in (TIER_3, TIER_4), (
+            f"{name!r} would NOT be caught by a TIER_3/TIER_4 airgap -- the airgap does not "
+            f"protect the HITL boundary, which is the whole reason this lane is here"
+        )
+
+    # And the scale of the predicate, so "narrow read-only lane" cannot be claimed for it.
+    auto_exec_set = [rec for rec in COMMAND_AUTHORITY_REGISTRY if rec.tier in (TIER_0, TIER_1)]
+    assert len(auto_exec_set) > len(COMMAND_AUTHORITY_REGISTRY) * 0.8, (
+        f"`tier in (TIER_0, TIER_1)` selects {len(auto_exec_set)} of "
+        f"{len(COMMAND_AUTHORITY_REGISTRY)} registered commands -- it is not a narrow carve-out"
+    )

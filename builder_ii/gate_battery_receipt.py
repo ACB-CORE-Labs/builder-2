@@ -13,8 +13,8 @@ A locally generated receipt does not create independence. The same host that run
 writes the receipt; anyone who can run the battery can hand-edit its JSON afterward. This
 artifact's ``governance`` block says so explicitly: ``independent_observer`` and
 ``artifact_is_authority`` are both hard-pinned ``false``, and ``merge_authority`` is pinned to
-``"operator"``. What this receipt eliminates is transcription error (claiming nine gates ran
-when eight did), commit mismatch (a green battery cited for the wrong commit), and dirty-tree
+``"operator"``. What this receipt eliminates is transcription error (claiming every gate ran
+when one did not), commit mismatch (a green battery cited for the wrong commit), and dirty-tree
 ambiguity (a green battery that only proves something about an uncommitted local edit). What it
 does **not** eliminate is dishonesty, and it is not a substitute for an independent runner. This
 artifact is a *receipt*, never a *proof* and never a *verification* -- do not describe it as

@@ -18,7 +18,15 @@ from typing import Any
 from textual.reactive import reactive
 from textual.widgets import Static
 
-from builder_ii.tui.projections.gates import THIRD_DOOR_CONSTRAINTS
+from builder_ii.tui.projections.gates import (
+    THIRD_DOOR_CONSTRAINTS,
+    THIRD_DOOR_INCOMPLETE,
+    THIRD_DOOR_LOCKED,
+    THIRD_DOOR_UNASSESSED,
+    THIRD_DOOR_UNLOCKED,
+    ThirdDoorView,
+    unassessed_third_door,
+)
 from builder_ii.tui.projections.render import bold_themed, epistemic_node, themed
 
 
@@ -144,57 +152,99 @@ class MechanicalSympathyHud(Static):
 
 
 class ThirdDoorGate(Static):
-    """Eight authority constraints — vault stays locked until all are True.
+    """Eight authority constraints — vault stays shut until all are True.
 
-    Unevaluated (None) is not pass and not fail — open slot.
+    Unevaluated (None) is not pass and not fail — open slot. This class used to promise that in
+    this docstring and then contradict it four lines into `render()`, collapsing every non-True
+    slot into `VAULT LOCKED`. So a machine that had never been assessed reported the same verdict
+    as one that had been assessed and refused, and `docs/CAPABILITY_PROMOTION.md` recorded the
+    resulting readout as the truth. The verdict now comes from `third_door_state()`, which is the
+    single place the four states are derived.
+
+    It renders. It does not enforce: no caller consults its state to decide anything, which is
+    pinned by `test_the_third_door_is_a_readout_not_a_blocker`. If it is ever wired to a lock, that
+    lock binds to `third_door_state()`, and it must refuse only on `THIRD_DOOR_LOCKED` — refusing
+    on `THIRD_DOOR_UNASSESSED` would enforce the absence of evidence as denial and shut every
+    operator out of the surface on every host.
     """
 
-    def __init__(self, constraints: dict[str, bool | None] | None = None, **kwargs: Any) -> None:
+    def __init__(self, view: ThirdDoorView | None = None, **kwargs: Any) -> None:
         super().__init__(id="third-door-gate", **kwargs)
-        self._constraints: dict[str, bool | None] = constraints or {
-            name: None for name in THIRD_DOOR_CONSTRAINTS
-        }
+        self._view: ThirdDoorView = view if view is not None else unassessed_third_door()
 
-    def set_constraints(self, constraints: dict[str, bool | None]) -> None:
-        self._constraints = constraints
+    def set_view(self, view: ThirdDoorView) -> None:
+        """Take a whole projection, not loose constraints.
+
+        `set_constraints(door.constraints)` dropped `door.source` on the floor at both call sites,
+        so the widget could not tell "no readiness artifact exists" from "one exists and carries no
+        constraint evidence" — two states with different remedies. Passing the view makes losing
+        the source impossible rather than merely discouraged.
+        """
+        self._view = view
         self.refresh()
 
+    @staticmethod
+    def _slot(name: str, val: bool | None) -> str:
+        if val is True:
+            return themed("pass", f"▣ {name:<20}")
+        if val is False:
+            return themed("fail", f"□ {name:<20}")
+        return themed("dim", f"▫ {name:<20}")
+
+    def _verdict(self) -> str:
+        """The one line an operator actually reads. It must not overclaim in either direction."""
+        constraints = self._view.constraints
+        values = [constraints.get(name) for name in THIRD_DOOR_CONSTRAINTS]
+        satisfied = sum(1 for v in values if v is True)
+        refused = sum(1 for v in values if v is False)
+        unassessed = sum(1 for v in values if v is None)
+        state = self._view.state
+
+        if state == THIRD_DOOR_UNLOCKED:
+            return bold_themed("pass", "VAULT UNLOCKED — all 8 constraints satisfied")
+        if state == THIRD_DOOR_LOCKED:
+            detail = f"{refused} refused"
+            if unassessed:
+                detail += f", {unassessed} unassessed"
+            return bold_themed("fail", f"VAULT LOCKED — {detail}")
+        if state == THIRD_DOOR_INCOMPLETE:
+            return bold_themed(
+                "warn", f"VAULT INCOMPLETE — {satisfied}/8 satisfied, {unassessed} unassessed · none refused"
+            )
+        # THIRD_DOOR_UNASSESSED: shut, but nothing has been evaluated. Not a refusal, and saying so
+        # is the entire point of this branch existing.
+        return bold_themed("hint", "VAULT UNASSESSED — no constraint has been evaluated")
+
+    def _source_note(self) -> str | None:
+        """For an unassessed door, say which of the two reasons it is unassessed for.
+
+        "Mint a readiness artifact" and "your readiness artifact carries no recognised evidence"
+        are different jobs, and an operator staring at eight open slots cannot tell them apart from
+        the grid alone.
+        """
+        if self._view.state != THIRD_DOOR_UNASSESSED:
+            return None
+        if self._view.source == "readiness":
+            return themed("dim", "  a readiness artifact was found, but carries no recognised constraint evidence")
+        return themed("dim", "  no promotion readiness artifact found — compose: builder-promote readiness …")
+
     def render(self) -> str:
-        lines = [
-            f"{bold_themed('warn', 'THE THIRD DOOR')}  "
-            f"{themed('hint', 'authority requires all 8')}\n"
-        ]
+        lines = [f"{bold_themed('warn', 'THE THIRD DOOR')}  {themed('hint', 'authority requires all 8')}\n"]
 
-        keys = list(self._constraints.keys())
-        while len(keys) < 8:
-            keys.append("—")
+        # Iterated over the canonical eight rather than over `constraints.keys()`. The grid used to
+        # walk whatever keys it was handed and pad to eight with an em-dash, while the verdict below
+        # evaluated the canonical eight — so a view with unexpected keys drew one set of slots and
+        # judged a different set. Same bug class as the verdict itself: two readers, two rules.
+        constraints = self._view.constraints
+        for i in range(0, len(THIRD_DOOR_CONSTRAINTS), 2):
+            k1 = THIRD_DOOR_CONSTRAINTS[i]
+            k2 = THIRD_DOOR_CONSTRAINTS[i + 1]
+            lines.append(f"  {self._slot(k1, constraints.get(k1))}  {self._slot(k2, constraints.get(k2))}")
 
-        for i in range(0, 8, 2):
-            k1 = keys[i]
-            k2 = keys[i + 1] if i + 1 < len(keys) else "—"
-            v1 = self._constraints.get(k1)
-            v2 = self._constraints.get(k2)
-
-            def slot(name: str, val: bool | None) -> str:
-                if val is True:
-                    return themed("pass", f"▣ {name:<20}")
-                if val is False:
-                    return themed("fail", f"□ {name:<20}")
-                return themed("dim", f"▫ {name:<20}")
-
-            lines.append(f"  {slot(k1, v1)}  {slot(k2, v2)}")
-
-        evaluated = [self._constraints.get(k) for k in THIRD_DOOR_CONSTRAINTS]
-        if all(v is True for v in evaluated):
-            lines.append("")
-            lines.append(f"  {bold_themed('pass', 'VAULT UNLOCKED — all constraints satisfied')}")
-        else:
-            missing = sum(1 for v in evaluated if v is not True)
-            uneval = sum(1 for v in evaluated if v is None)
-            detail = f"{missing} incomplete"
-            if uneval:
-                detail += f" ({uneval} unevaluated)"
-            lines.append("")
-            lines.append(f"  {bold_themed('fail', f'VAULT LOCKED — {detail}')}")
+        lines.append("")
+        lines.append(f"  {self._verdict()}")
+        note = self._source_note()
+        if note is not None:
+            lines.append(note)
 
         return "\n".join(lines)
