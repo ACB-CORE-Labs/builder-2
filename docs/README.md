@@ -12,7 +12,7 @@ builder-II documentation is organized as three tiers, each narrower and deeper t
 2. **New-operator path**
    - **[`docs/GETTING_STARTED.md`](GETTING_STARTED.md)** — **start here as a new builder**: mental
      model (determinism / audit / governance), optimal setup order, and how to leverage **STRATUM**
-     against every major subsystem (artifacts, HITL, Goose, deepagents, models, CodeVault, promotion).
+     against every major subsystem (artifacts, HITL, Goose, deepagents, models, the CodeVault commercial seam, promotion).
    - **[`FIRST_SESSION.md`](../FIRST_SESSION.md)** (repo root) — the single validated onboarding
      path: clone to one complete governed patch loop in one sitting (CI-smoked).
    - **[`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md)** — operator golden path
@@ -21,6 +21,8 @@ builder-II documentation is organized as three tiers, each narrower and deeper t
      [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) and
      [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) for promotion state.
    - **[`docs/STRATUM.md`](STRATUM.md)** — STRATUM console reference (keys, flags, walkthrough opt-out).
+   - **[`docs/MAXIMIZING_PROFICIENCY.md`](MAXIMIZING_PROFICIENCY.md)** — walkthroughs for advanced setup, STRATUM console navigation, local model setup, and deepagents orchestration.
+   - **[`docs/GLOSSARY.md`](GLOSSARY.md)** — centralized definitions for core terminology.
 3. **This file** — the reference tier: every document in `docs/`, grouped by subsystem, for anyone
    going deeper than the curated map.
 
@@ -35,6 +37,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 
 | Document | Purpose |
 | --- | --- |
+| [`docs/GLOSSARY.md`](GLOSSARY.md) | builder-II Centralized Glossary |
 | [`docs/MANIFESTO.md`](MANIFESTO.md) | builder-II Manifesto |
 | [`docs/PROJECT_OVERVIEW.md`](PROJECT_OVERVIEW.md) | builder-II project overview |
 | [`docs/ROADMAP.md`](ROADMAP.md) | builder-II roadmap |
@@ -49,6 +52,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | Document | Purpose |
 | --- | --- |
 | [`docs/GETTING_STARTED.md`](GETTING_STARTED.md) | **New builder start here** — setup order, governance mental model, STRATUM × full platform |
+| [`docs/MAXIMIZING_PROFICIENCY.md`](MAXIMIZING_PROFICIENCY.md) | Walks through advanced setup, STRATUM console navigation, local model setups, and deepagent execution |
 | [`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md) | Operator Quickstart |
 | [`docs/OPERATOR_GUIDE.md`](OPERATOR_GUIDE.md) | builder-II operator guide |
 | [`docs/OPERATOR_PLAYBOOK.md`](OPERATOR_PLAYBOOK.md) | builder-II Operator Playbook |
@@ -59,7 +63,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/recordings/README.md`](recordings/README.md) | Recorded asciinema casts of the governed loop, tamper beat, and builder init |
 | [`docs/TARGET_PROFILE_DEMOS.md`](TARGET_PROFILE_DEMOS.md) | Target profile demos |
 | [`docs/demos/CORE_READONLY_FOUNDER_DEMO.md`](demos/CORE_READONLY_FOUNDER_DEMO.md) | CORE Read-Only Founder Demo |
-| [`docs/demos/CODE_VAULT_DETERMINISM_DEMO.md`](demos/CODE_VAULT_DETERMINISM_DEMO.md) | CodeVault Determinism Demo — Recording Walkthrough |
+| [`docs/demos/CODE_VAULT_DETERMINISM_DEMO.md`](demos/CODE_VAULT_DETERMINISM_DEMO.md) | CodeVault Determinism Demo — Recording Walkthrough (Requires Commercial Upgrade) |
 
 ### Command and capability governance
 
@@ -165,39 +169,37 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/ORCHESTRATION_OBLIGATIONS.md`](ORCHESTRATION_OBLIGATIONS.md) | Governed obligation delegation (Ladder 4) |
 | [`docs/BRIDGE.md`](BRIDGE.md) | deepagents bridge |
 
-### CodeVault
+### CodeVault (Commercial Extension)
 
-Operator surface and layer notes:
+The CodeVault engine has been cleanly separated from open core to a commercial paid plugin (`builder-ii-code-vault`) to provide advanced hierarchical frames, exact geometric/structural recall, polyglot extractor substrates, and exact-recall analysis. The open-source CLI command (`builder-code-vault`) functions as a fail-closed seam that informs the operator of the separation and guides them on how to upgrade. 
 
-| Document | Purpose |
-| --- | --- |
-| [`docs/CODE_VAULT.md`](CODE_VAULT.md) | CodeVault operator overview + vision-set index |
-| [`docs/CODE_VAULT_BACKENDS.md`](CODE_VAULT_BACKENDS.md) | CodeVault recall backends |
-| [`docs/CODE_VAULT_CGA_ENTITIES.md`](CODE_VAULT_CGA_ENTITIES.md) | CodeVault CGA entities |
-| [`docs/CODE_VAULT_CONTEXT_PACKS.md`](CODE_VAULT_CONTEXT_PACKS.md) | CodeVault context projection |
-| [`docs/CODE_VAULT_FINDINGS.md`](CODE_VAULT_FINDINGS.md) | CodeVault hypothesis findings |
-| [`docs/CODE_VAULT_GEOMETRIC_ONTOLOGY.md`](CODE_VAULT_GEOMETRIC_ONTOLOGY.md) | CodeVault geometric ontology |
-| [`docs/CODE_VAULT_HIERARCHY.md`](CODE_VAULT_HIERARCHY.md) | CodeVault hierarchical frame |
-| [`docs/CODE_VAULT_STAGED_ACCEPTANCE.md`](CODE_VAULT_STAGED_ACCEPTANCE.md) | CodeVault staged acceptance ledger |
+To inquire about acquiring the CodeVault commercial plugin, please reach out to the maintainers to ask about it.
 
-Vision set (destination, law, gates — design truth; does not promote capabilities):
+The following architectural and design documents reside in the commercial plugin repository:
 
-| Document | Purpose |
-| --- | --- |
-| [`docs/CODE_VAULT_VISION_AND_CAPABILITY_LADDER.md`](CODE_VAULT_VISION_AND_CAPABILITY_LADDER.md) | Vision, axioms, capability ladder, fruition bar |
-| [`docs/CODE_VAULT_GLOSSARY.md`](CODE_VAULT_GLOSSARY.md) | Vocabulary lock |
-| [`docs/CODE_VAULT_PROOF_PROGRAM.md`](CODE_VAULT_PROOF_PROGRAM.md) | Proof classes R / D / U and Axiom Zero |
-| [`docs/CODE_VAULT_LANGUAGE_SUBSTRATE.md`](CODE_VAULT_LANGUAGE_SUBSTRATE.md) | Polyglot substrate: Artifact IR + grade doctrine + extractors |
-| [`docs/CODE_VAULT_FIELD_BLUEPRINTS.md`](CODE_VAULT_FIELD_BLUEPRINTS.md) | Dual-correction blueprints for fields F0–F6 |
-| [`docs/CODE_VAULT_ROADMAP.md`](CODE_VAULT_ROADMAP.md) | Gate-ordered roadmap (no chronos) |
-| [`docs/CODE_VAULT_GATE_STATE.md`](CODE_VAULT_GATE_STATE.md) | Gate-state ledger: which roadmap bullets hold, and which gates are therefore closed |
-| [`docs/CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md`](CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md) | Three-clock truth delta |
-| [`docs/plan/CODE_VAULT_MASTER_PLAN.md`](plan/CODE_VAULT_MASTER_PLAN.md) | Consolidated master plan to fruition |
-| [`docs/plan/CODE_VAULT_EXECUTION_MAP.md`](plan/CODE_VAULT_EXECUTION_MAP.md) | Per-PR execution map for the first slice (G1 → G1b → G2) |
-| [`docs/plan/CODE_VAULT_G1_WAVE_BRIEFS.md`](plan/CODE_VAULT_G1_WAVE_BRIEFS.md) | Wave-1 work orders (PR-1/2/3, landed) |
-| [`docs/plan/CODE_VAULT_G1B_WAVE_BRIEFS.md`](plan/CODE_VAULT_G1B_WAVE_BRIEFS.md) | Wave-2 work orders (PR-4/5/6, G1b completion) |
-| [`docs/plan/CODE_VAULT_TIER1_ENCODER_RFC.md`](plan/CODE_VAULT_TIER1_ENCODER_RFC.md) | F1 encoder RFC and measurement history |
-| [`docs/adrs/ADR-0005-codevault-boundary-and-authority.md`](adrs/ADR-0005-codevault-boundary-and-authority.md) | CodeVault boundary and authority ADR |
+* `docs/CODE_VAULT.md` — CodeVault operator overview & vision-set index
+* `docs/CODE_VAULT_BACKENDS.md` — CodeVault recall backends
+* `docs/CODE_VAULT_CGA_ENTITIES.md` — CodeVault CGA entities
+* `docs/CODE_VAULT_CONTEXT_PACKS.md` — CodeVault context projection
+* `docs/CODE_VAULT_FINDINGS.md` — CodeVault hypothesis findings
+* `docs/CODE_VAULT_GEOMETRIC_ONTOLOGY.md` — CodeVault geometric ontology
+* `docs/CODE_VAULT_HIERARCHY.md` — CodeVault hierarchical frame
+* `docs/CODE_VAULT_STAGED_ACCEPTANCE.md` — CodeVault staged acceptance ledger
+* `docs/CODE_VAULT_VISION_AND_CAPABILITY_LADDER.md` — Vision, axioms, capability ladder, fruition bar
+* `docs/CODE_VAULT_GLOSSARY.md` — Vocabulary lock
+* `docs/CODE_VAULT_PROOF_PROGRAM.md` — Proof classes R / D / U and Axiom Zero
+* `docs/CODE_VAULT_LANGUAGE_SUBSTRATE.md` — Polyglot substrate: Artifact IR + grade doctrine + extractors
+* `docs/CODE_VAULT_FIELD_BLUEPRINTS.md` — Dual-correction blueprints for fields F0–F6
+* `docs/CODE_VAULT_ROADMAP.md` — Gate-ordered roadmap (no chronos)
+* `docs/CODE_VAULT_GATE_STATE.md` — Gate-state ledger: which roadmap bullets hold, and which gates are therefore closed
+* `docs/CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md` — Three-clock truth delta
+* `docs/plan/CODE_VAULT_MASTER_PLAN.md` — Consolidated master plan to fruition
+* `docs/plan/CODE_VAULT_EXECUTION_MAP.md` — Per-PR execution map for the first slice (G1 → G1b → G2)
+* `docs/plan/CODE_VAULT_G1_WAVE_BRIEFS.md` — Wave-1 work orders (PR-1/2/3, landed)
+* `docs/plan/CODE_VAULT_G1B_WAVE_BRIEFS.md` — Wave-2 work orders (PR-4/5/6, G1b completion)
+* `docs/plan/CODE_VAULT_TIER1_ENCODER_RFC.md` — F1 encoder RFC and measurement history
+* `docs/adrs/ADR-0005-codevault-boundary-and-authority.md` — CodeVault boundary and authority ADR
+
 
 ### Models, lanes, and personas
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
-from unittest.mock import patch
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 

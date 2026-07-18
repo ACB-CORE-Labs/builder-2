@@ -187,6 +187,20 @@ builder-deepagents forge \
 
 See [`docs/DEEPAGENTS_FORGE.md`](docs/DEEPAGENTS_FORGE.md) for the full guide.
 
+## CodeVault (Paid Commercial Plugin Upgrade)
+
+While builder-II core is a robust, open-source governed platform, its advanced software geometry engine, **CodeVault**, has been cleanly separated into a commercial plugin package (`builder-ii-code-vault`).
+
+### What CodeVault adds:
+- **Hierarchical Frames & Exact Recall:** Builds layout-geometry semantic graphs of your codebase (using Clifford algebra $\text{Cl}(4,1)$ coordinates) to achieve deterministic coordinate-addressed recall instead of approximate vector or ANN/HNSW searches.
+- **Polyglot Extractor Substrates:** Out-of-the-box AST extractors compiling structural geometry facts (import facts, decorator structures, method hierarchies, nesting scopes, signatures) into cryptographically bound frames.
+- **Context Projections:** Combines static repository mapping with geometry metadata to automatically project optimal context subsets to local agents.
+
+### The CLI Seam in Open Core
+The open-source core includes a **fail-closed CLI seam**. When any `builder-code-vault` command (such as `frame`, `digest`, or `recall`) is run, the CLI catches the invocation, exits with a non-zero status code, and outputs a helpful upgrade message pointing to the commercial plugin. This prevents any silent failures or usage typos while maintaining strict boundary integrity.
+
+If you are interested in CodeVault or would like to enquire about getting access to the commercial plugin, please **reach out to the core maintainers** to ask about it!
+
 ## Supported Models & Execution Backends
 
 `builder-II` stands out by deeply integrating a robust, native registry of over 25+ models across diverse local and cloud execution backends. Unlike generic AI coding tools, `builder-II` classifies, routes, and sandboxes these models through a strict governance gateway to ensure mechanical sympathy and predictable artifact outcomes.
@@ -225,6 +239,8 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the CORE-born, generic-first governed platform and its components. |
 | [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
 | [`docs/OPERATOR_QUICKSTART.md`](docs/OPERATOR_QUICKSTART.md) | Governed operator golden path and governed demo loop entrypoint. |
+| [`docs/MAXIMIZING_PROFICIENCY.md`](docs/MAXIMIZING_PROFICIENCY.md) | Step-by-step walkthroughs of advanced setup, STRATUM navigation, model configurations, and deepagent orchestration. |
+| [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | Centralized definitions for core terminology, harnesses, and operational modes. |
 | [`docs/CORE_DEMO_WALKTHROUGH.md`](docs/CORE_DEMO_WALKTHROUGH.md) | Demo recording flow (CORE profile + generic targets) with evidence artifacts, approval boundary, verification, and rollback. |
 | [`docs/OPERATOR_COMMAND_SURFACE.md`](docs/OPERATOR_COMMAND_SURFACE.md) | Canonical index of all operator-facing commands, authority tiers, and output artifacts. |
 | [`docs/TARGETS.md`](docs/TARGETS.md) | Explicit target profiles: generic, builder, and core. |
@@ -250,7 +266,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) | Capability promotion states and non-authority rule. |
 | [`docs/RUNTIME_PROMOTION.md`](docs/RUNTIME_PROMOTION.md) | Runtime-specific promotion gates for Goose, deepagents, commands, and patches. |
 | [`docs/ARTIFACT_INDEX.md`](docs/ARTIFACT_INDEX.md) | Index of all registered artifact kinds and non-authority boundaries. |
-| [`docs/CODE_VAULT.md`](docs/CODE_VAULT.md) | CodeVault: governed reconstructive intelligence substrate (operator surface + vision-set index). |
+| `builder_ii/cli/code_vault_cli.py` | CodeVault commercial plugin CLI seam (refuses execution in open core and guides upgrade). |
 | [`docs/RELEASE_PROOF.md`](docs/RELEASE_PROOF.md) | v0 release proof harness documentation and operator run instructions. |
 | [`docs/BETA_CHARTER.md`](docs/BETA_CHARTER.md) | What the beta is for, what feedback is wanted, what's out of scope, and how to send it. |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |

@@ -17,8 +17,9 @@ You are operating within `builder-II`, a governed control plane for local agent-
 **CRITICAL**: This repository is hosted on a private **Forgejo** server, NOT GitHub.
 - **DO NOT** use the `gh` (GitHub) CLI.
 - **DO NOT** attempt to push, pull, or clone from `github.com`.
-- **USE** the `tea` CLI (Gitea/Forgejo CLI) for issues, PRs, and repository management.
-- **USE** the provided Forgejo MCP tools if available.
+- **DO NOT** use the `tea` CLI (Gitea/Forgejo CLI). Our private Gitea/Forgejo instances are hosted behind Cloudflare and Traefik proxy layers, causing the `tea` CLI to hang and time out with `524` errors.
+- **USE** standard `git` CLI (or `git+ssh://`) for standard repository operations.
+- **USE** Gitea/Forgejo MCP Server Tools for issues, PRs, and repository management.
 
 ## 3. Engineering Pillars
 * **Mechanical Sympathy:** The primary target is an Apple Silicon M1 (16GB unified memory). Keep local MLX model footprints in the ~2GB-7GB range. Heavy dependencies must be avoided.
@@ -55,6 +56,6 @@ uv run builder-platform matrix       # R0 completion truth matrix
 ## 6. Architecture & Data Flow
 - **CLI**: One lazy-loaded Typer app per concern (`builder_ii/cli/main.py`). `builder-*` console scripts are defined in `pyproject.toml [project.scripts]`.
 - **Artifact-first data flow**: Non-trivial features build a governed artifact (Pydantic/dataclass), write it as JSON, re-check via a paired `validate-*` command, and pass it downstream. Look at `docs/ARTIFACT_INDEX.md` and `docs/CAPABILITY_PROMOTION.md`.
-- **CodeVault**: A deterministic, content-addressed "software geometry" recall substrate (`builder_ii/code_vault/`). It is explicitly not a vector DB, and not an autonomous engineer. 
+- **CodeVault (Commercial Upgrade)**: The CodeVault software geometry engine is cleanly separated from open core to a paid commercial plugin (`builder-ii-code-vault`). In the open core distribution, the `builder-code-vault` CLI command functions as a fail-closed seam that refuses execution with status `1` and guides users to inquire/upgrade. 
 - **Rust Validation Accelerator**: A small PyO3 extension (`builder_ii_validation_rs/`) for speed. The Python validators remain the reference implementation.
 - **Docs are load-bearing**: `docs/` is the source of truth for what is promoted vs. speculative. CI runs `builder-platform audit-docs` to enforce this. If you change a command's promotion boundary, update the docs!

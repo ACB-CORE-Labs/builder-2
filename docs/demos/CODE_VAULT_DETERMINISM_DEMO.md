@@ -1,5 +1,10 @@
 # CodeVault Determinism Demo — Recording Walkthrough
 
+> [!IMPORTANT]
+> **Commercial Plugin Required:** CodeVault is cleanly separated from the open core of builder-II. Running the demo commands below requires the commercial `builder-ii-code-vault` plugin to be installed. In the open core distribution, the `builder-code-vault` CLI command acts as a fail-closed seam that prints an upgrade instruction message and exits non-zero.
+>
+> If you are interested in trying CodeVault, please reach out to the core maintainers to ask about it!
+
 This walkthrough produces a **recordable, read-only** evidence bundle that proves CodeVault layout identity is deterministic, replay-stable, and non-authoritative. It mirrors the CORE founder demo pattern but never mutates the scanned repository.
 
 ## What you are proving on camera

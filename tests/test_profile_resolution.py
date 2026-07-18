@@ -3,19 +3,18 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 from types import SimpleNamespace
+
 import pytest
 
 from builder_ii.profile_resolution import (
-    ProfileResolver,
-    ResolutionResult,
-    ProfileResolutionError,
-    UnknownProfileError,
     MissingFileError,
+    ProfileResolver,
+    UnknownProfileError,
     ValidationError,
-    PromptProfile,
     get_prompt_profile,
     prompt_profiles,
 )
+
 
 def _mock_settings(tmp_path: Path):
     core = tmp_path / "core"

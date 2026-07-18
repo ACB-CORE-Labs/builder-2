@@ -77,9 +77,9 @@ Key artifact families (each documented under `docs/`, source mostly at repo root
 - **deepagents adapter**: `deepagents_bridge*.py`, `deepagents_policy.py`, `deepagents_work_artifacts.py`, `deepagents_forge_*.py` (the interactive agent-creation wizard, `builder-deepagents forge`) — planning/delegation harness, governed the same way as Goose.
 - **Command/capability governance**: `command_authority.py`, `capabilities.py`, `promotion_readiness_records.py`, `promotion_decision_records.py`, `governance_standard.py` — the authority-tier registry every command surface is checked against.
 
-### CodeVault (`builder_ii/code_vault/`)
+### CodeVault (excised to commercial `builder-ii-code-vault` / CLI seam at `builder_ii/cli/code_vault_cli.py`)
 
-A deterministic, content-addressed "software geometry" recall substrate — coordinates derive only from stable layout identity (never source content, embeddings, or insertion order). Chain: `repo_map` → digest-bound artifacts → hierarchical frame → optional CGA lift into Cl(4,1) (`geometry/`) → optional exact recall backend (`backend/`, with a pure-NumPy reference and an optional Rust-accelerated adapter) → advisory findings (`reports/`) → context-pack projection. It is explicitly not a vector DB, not an autonomous engineer, and not a second CORE runtime — see `docs/CODE_VAULT.md` and `docs/CODE_VAULT_STAGED_ACCEPTANCE.md`. CLI surface is `builder-code-vault` (frame/digest/lint/recall/context + matching `validate-*` subcommands, plus a `demo`/`validate-demo` determinism proof and a read-only TUI).
+The CodeVault software geometry engine (Cl(4,1) layout coordinates, polyglot CPython AST symbol extraction, and deterministic coordinate-addressed recall) has been cleanly separated from open core to a paid commercial plugin (`builder-ii-code-vault`). In the open core distribution, the `builder-code-vault` CLI command acts as a fail-closed seam (under `builder_ii/cli/code_vault_cli.py`) that catches all invocations, echoes a helpful upgrade message, and exits with status code `1` rather than allowing silent failures or typos. If you are interested in try-buying or inquiring about CodeVault, please reach out to the core maintainers!
 
 ### Rust validation accelerator (`builder_ii_validation_rs/`)
 
