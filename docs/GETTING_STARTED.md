@@ -7,12 +7,12 @@ This page is the **map**. Deeper paths stay specialized:
 
 | If you need… | Go to |
 |--------------|--------|
-| One proven 30‑min clone → patch loop (CI-smoked) | [`FIRST_SESSION.md`](../FIRST_SESSION.md) |
+| One proven 30‑min clone → patch loop (CI-smoked) | [`FIRST_SESSION.md`](FIRST_SESSION.md) |
 | Operator golden path / demo-loop | [`OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md) |
 | STRATUM keys, flags, empty-spine troubleshooting | [`STRATUM.md`](STRATUM.md) |
 | Philosophy / why the platform exists | [`MANIFESTO.md`](MANIFESTO.md) |
 | What is promoted vs speculative | [`CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md), [`ROADMAP.md`](ROADMAP.md) |
-| Full doc index | [`docs/README.md`](README.md) |
+| Full doc index | [`README.md`](README.md) |
 
 ---
 
@@ -270,16 +270,14 @@ These are the four configuration surfaces people ask about first after “what i
 | Orchestration | **W** + compose | `builder-orchestration *` |
 | Models / providers | **O** | `.env` + `builder-model-policy` / `builder models` / `builder-model` |
 
-### CodeVault (software geometry / exact recall)
+### CodeVault (Paid Commercial Plugin Upgrade)
 
-- Content-addressed **layout-identity** geometry — not a vector DB, not ANN/HNSW.  
-- Chain: repo_map → frames → optional CGA lift → exact recall → findings → context packs.  
-- CLI: `builder-code-vault` (+ `validate-*`, `demo` / `validate-demo`).  
-- Separate read-only inspector: `builder code-vault` TUI modes.  
-- Prepare package may include a CodeVault frame when enabled.  
-- Docs: [`CODE_VAULT.md`](CODE_VAULT.md), [`CODE_VAULT_STAGED_ACCEPTANCE.md`](CODE_VAULT_STAGED_ACCEPTANCE.md), determinism demo: [`demos/CODE_VAULT_DETERMINISM_DEMO.md`](demos/CODE_VAULT_DETERMINISM_DEMO.md).
-
-**Determinism expectation:** re-run vault demo/validate on a fixed fixture; digests should match. If demos differ only by wall-clock timestamps elsewhere in the platform, treat that as a known recording concern — not “the vault is fuzzy.”
+- **Clifford Algebra $\text{Cl}(4,1)$ Geometry:** Content-addressed **layout-identity** geometry — not a vector DB, and not approximate vector or ANN/HNSW searches.
+- **Chain:** `repo_map` → frames → optional CGA lift → exact recall → findings → context packs.
+- **Clean Separation:** The CodeVault engine has been cleanly separated from open core to a paid commercial plugin (`builder-ii-code-vault`).
+- **CLI Upgrade Seam:** In the open-source distribution, the `builder-code-vault` CLI command acts as a fail-closed seam. Every invocation (e.g. `frame`, `digest`, or `recall`) will echo a helpful upgrade message and exit with status `1`.
+- **Acquiring CodeVault:** If you are interested in advanced hierarchical frames, exact geometric/structural recall, polyglot CPython AST extraction, and determinism demos, please reach out to the maintainers to inquire/ask about it.
+- **Determinism expectation (with plugin):** Re-running vault demo/validate on a fixed repository fixture yields byte-identical frame digests.
 
 ### Quality gates & promotion
 
@@ -597,7 +595,7 @@ Primary design target: **Apple Silicon, ~16GB unified memory**. Local MLX models
 | Models | [`model_role_matrix.md`](model_role_matrix.md), `.env.example` |
 | Command encyclopedia | [`OPERATOR_COMMAND_SURFACE.md`](OPERATOR_COMMAND_SURFACE.md) |
 | Invariants | [`GOVERNANCE_INVARIANTS.md`](GOVERNANCE_INVARIANTS.md) |
-| CodeVault | [`CODE_VAULT.md`](CODE_VAULT.md) |
+| CodeVault | CodeVault CLI seam / `builder-code-vault` (Plugin Upgrade Required) |
 | Manifesto | [`MANIFESTO.md`](MANIFESTO.md) |
 
 ---
