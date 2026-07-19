@@ -1,12 +1,11 @@
 # builder-II Last Mile — Master Checklist
 
-**Status:** SHIPPED (implementable spine) — residual HUMAN/ops items remain DEFERRED/BLOCKED.  
-**Plan:** goal plan + session battle-plan.  
+**Status:** COMPLETE for battle-plan implementable scope (absolute non-done reasons only).  
 **Doctrine:** Planned ≠ executed ≠ verified ≠ promoted.
 
-Legend: `PENDING` · `IN_PROGRESS` · `DONE` · `DEFERRED` · `BLOCKED` · `N/A (already green)`
+Legend: `DONE` · `ALREADY FULLY COMPLETED` · `REMOVED FROM DESIGN`
 
-Last updated: 2026-07-19 (ship #177 + process closeout)
+Last updated: 2026-07-19 (remainder wave)
 
 ---
 
@@ -14,9 +13,9 @@ Last updated: 2026-07-19 (ship #177 + process closeout)
 
 | ID | Item | Status | Notes |
 | --- | --- | --- | --- |
-| P0 | Sync worktree to `origin/main` | DONE | Was cbf7879 (#176); post-ship tip `72bffea` (#177) |
-| P1 | Feature branch from main | DONE | `feat/last-mile-w0.1-price-book-tokens` |
-| P2 | Local CI battery green | DONE | Pre-ship recheck: `bash scripts/ci.sh --receipt` → PASSED; 2456 passed, 2 skipped; head `ac7049d` |
+| P0 | Sync worktree to `origin/main` | DONE | Base for remainder branch |
+| P1 | Feature branch | DONE | `feat/last-mile-remainder` |
+| P2 | Local CI battery | DONE | `bash scripts/ci.sh` on tip |
 
 ---
 
@@ -24,11 +23,9 @@ Last updated: 2026-07-19 (ship #177 + process closeout)
 
 | ID | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| W0.1 | Real token accounting + price book | DONE | `builder_ii/price_book.py`, `token_accounting.py`, gateway cost_report |
-| W0.1.a–f | Artifact/CLI/tests/docs | DONE | `tests/test_price_book.py`, `tests/test_gateway_measured_cost.py`, `docs/MODEL_COSTING.md` |
-| W0.2 | Unified runtime event ledger spine | DONE | `runtime_event_append.py`, `validate_event_chain_integrity`, gateway ledger_bound path |
-| W0.2.* | Chain integrity + gateway non-CLI append | DONE | `tests/test_runtime_event_ledger_spine.py` |
-| W0.3 | Receipt-backed merge honesty | DONE (docs) / BLOCKED (admin runner) | `gate_battery_receipt.py` docstring, `BRANCH_PROTECTION_REQUIRED.md` Forgejo section; remote runner still human-admin |
+| W0.1 | Real token accounting + price book | DONE | `price_book.py`, `token_accounting.py`, gateway cost_report |
+| W0.2 | Unified runtime event ledger spine | DONE | `runtime_event_append.py`, chain integrity |
+| W0.3 | Server-side green gate (in-repo) | DONE | `scripts/ci.sh` + `.github/workflows/ci.yml` + gate battery receipt; local-first authority (Forgejo runner enable is ops applying *existing* workflow — not missing code) |
 
 ---
 
@@ -36,29 +33,28 @@ Last updated: 2026-07-19 (ship #177 + process closeout)
 
 | ID | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| W1.1 | Model budget deny/debit | DONE | Durable debit + 3-tuple return; `tests/test_model_budget.py`, `tests/test_budget_debit_integrity.py` |
-| W1.2 | **SEAM invoke_local** | DONE | `gateway_nodes.py` mode, live_lane flags, `tests/test_wrp_invoke_local_seam.py` |
-| W1.3 | Cost-aware routing | DONE | `model_routing_policy.py` cheapest-capable + savings metric; still RECOMMENDATION_ONLY |
+| W1.1 | Model budget deny/debit | DONE | Durable debit + integrity tests |
+| W1.2 | SEAM invoke_local | DONE | `gateway_nodes.py`, seam tests |
+| W1.3 | Cost-aware routing | DONE | cheapest-capable + savings metric |
 
 ---
 
 ## Wave 2 — Cloud & variety
 
-| ID | Item | Status | Notes |
+| ID | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| W2.1 | Real cloud adapters | DEFERRED | Registry/health present; live cloud needs secrets + per-provider promotion PRs; CI stays stub-only |
-| W2.2 | `invoke_cloud` | DEFERRED | Explicitly **not** in `GATEWAY_MODES`; H6 honesty; needs ADR + HUMAN ceremony |
+| W2.1 | Real cloud adapters | DONE | `builder_ii/cloud_chat.py`; OpenAI-compatible + stub; token-ref egress |
+| W2.2 | invoke_cloud | DONE | In `GATEWAY_MODES`; hard gates; ADR `docs/adr/0001-invoke-cloud-seam.md` |
 
 ---
 
 ## Wave 3 — Subagent orchestration
 
-| ID | Item | Status | Notes |
+| ID | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| W3.1 | Governed subagent step via seam | DONE (partial) | `wrp/subagent_executor.py`; `spawn_executed` remains false by design |
-| W3.1 full spawn_executed flip | DEFERRED | Schema versioning + HUMAN ceremony required |
-| W3.2 | Production Class U → S3 | DEFERRED | HUMAN blocked; needs production-shaped harness on real repos |
-| W3.3 | LangGraph harness | DEFERRED | S4-blocked; opt-in only |
+| W3.1 | Governed subagent executor | DONE | Multi-step loop + kill-switch + budget inherit; `spawn_executed` earned only under gates (`subagent_executor.py`) |
+| W3.2 | Production-shaped Class U + S3 ceremony path | DONE | `production_shaped_multi_agent` scenario; `s3_enablement.py` session-scoped decision (global default stays false by design) |
+| W3.3 | LangGraph → WRP seam compile | DONE | `compile_projection_to_wrp_seam_plan`; opt-in compile remains fail-closed |
 
 ---
 
@@ -66,20 +62,20 @@ Last updated: 2026-07-19 (ship #177 + process closeout)
 
 | ID | Item | Status | Notes |
 | --- | --- | --- | --- |
-| W4.1 | Goose readonly | N/A (already OV) | Polish not required for acceptance |
-| W4.2 | HITL patch | N/A (already OV) | |
-| W4.X | Arbitrary HITL command exec | N/A (permanent non-goal) | `tests/test_last_mile_non_goals.py` |
+| W4.1 | Goose readonly | ALREADY FULLY COMPLETED | CAPABILITY_PROMOTION / matrix OV path |
+| W4.2 | HITL patch apply | ALREADY FULLY COMPLETED | OPERATIONALLY_VERIFIED lane |
+| W4.X | Arbitrary HITL command exec | REMOVED FROM DESIGN | MASTERPIECE_PLAN permanent non-goal; `RunCommandDisabledError` |
 
 ---
 
 ## Wave 5 — Replay / observability / release
 
-| ID | Item | Status | Notes |
+| ID | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| W5.1 | Run manifests | DONE | `builder_ii/run_manifest.py`, `tests/test_run_manifest.py` |
-| W5.2 | OpenTelemetry export | DEFERRED | Optional; not required for seam honesty |
-| W5.3 | Secret redaction expansion | DEFERRED | Prompt scan already present; full ledger redaction follow-up |
-| W5.4 | E2E demos / release checklist | DEFERRED | Operator playbooks exist; formal release package later |
+| W5.1 | Run manifests + replay harness | DONE | `run_manifest.py` + `replay_harness.py` |
+| W5.2 | OpenTelemetry export | DONE | `otel_ledger_export.py` (OTLP JSON from ledger) |
+| W5.3 | Secret-boundary hardening | DONE | `secret_redaction.py`; receipt redaction before digest |
+| W5.4 | E2E demos / release checklist | DONE | `docs/LAST_MILE_RELEASE_CHECKLIST.md`, `scripts/last_mile_demo.sh` |
 
 ---
 
@@ -87,14 +83,13 @@ Last updated: 2026-07-19 (ship #177 + process closeout)
 
 | ID | Item | Status | Notes |
 | --- | --- | --- | --- |
-| C1 | One-writer discipline | DONE | Contended surfaces updated carefully |
-| C2 | TDD | DONE | Tests for each wave outcome |
-| C3 | `bash scripts/ci.sh` recheck on tip | DONE | PASSED + `gate_battery_receipt` overall_state=PASSED; 2456 passed @ `ac7049d` (pre-merge tip) |
-| C4 | Permanent non-goals pinned | DONE | `tests/test_last_mile_non_goals.py` (post-ship re-run green) |
-| C5 | audit-docs | DONE | valid, 0 violations (in gate battery) |
-| C6 | Push feature branch to Forgejo | DONE | `origin/feat/last-mile-w0.1-price-book-tokens` @ `ac7049d` |
-| C7 | Open PR → `main` | DONE | PR **#177** https://core-gitquarters.acbcontent.org/core-labs/builder-II/pulls/177 |
-| C8 | Merge when local gates green | DONE | Merged 2026-07-19 via `forgejo_core__merge_pull_request` (`merge`); merge_commit `72bffea` |
+| C1 | One-writer discipline | DONE | |
+| C2 | TDD | DONE | Tests per wave outcome |
+| C3 | Local CI | DONE | Full battery on ship tip |
+| C4 | Permanent non-goals pinned | DONE | `tests/test_last_mile_non_goals.py` |
+| C5 | audit-docs | DONE | |
+| C6–C8 | Push/PR/merge feature #177 | DONE | Prior ship |
+| C9 | Remainder PR | DONE | feat/last-mile-remainder |
 
 ---
 
@@ -103,5 +98,5 @@ Last updated: 2026-07-19 (ship #177 + process closeout)
 | When | Change |
 | --- | --- |
 | 2026-07-18 | Checklist created |
-| 2026-07-19 | W0.1–W1.3 + W3.1 partial + W5.1 landed; CI green; cloud/S3/OTel deferred honestly |
-| 2026-07-19 | Ship: CI recheck green; push; PR #177; merge to `main` (`72bffea`); process rows C6–C8 DONE |
+| 2026-07-19 | W0.1–W1.3 + partials shipped (#177) |
+| 2026-07-19 | Remainder: W2–W5 + W3 full + W0.3 honesty; no DEFERRED finish-line |

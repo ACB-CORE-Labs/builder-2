@@ -207,6 +207,66 @@ def _try_load_langgraph_compiler() -> LangGraphCompiler | None:
     return _compiler
 
 
+def compile_projection_to_wrp_seam_plan(
+    projection: Mapping[str, Any],
+    *,
+    task: str,
+    gateway_mode: str = "invoke_local",
+) -> dict[str, Any]:
+    """W3.3 — compile a LangGraph-shaped projection into WRP node_specs + seam mode.
+
+    Never executes models. Output is a plan fragment for ``build_live_run_plan`` /
+    graph_runtime. Authority remains with WRP + HITL + seam gates.
+    """
+    if gateway_mode not in {"record", "invoke_local", "invoke_cloud", "stub_tool"}:
+        raise ValueError(f"unsupported gateway_mode for seam compile: {gateway_mode!r}")
+    order = list(projection.get("execution_order") or [])
+    if not order:
+        nodes = projection.get("nodes") or []
+        order = [str(n.get("id")) for n in nodes if isinstance(n, Mapping) and n.get("id")]
+    node_specs: dict[str, dict[str, Any]] = {}
+    for node_id in order:
+        nid = str(node_id)
+        # Heuristic: names containing model/llm map to model_gateway; tools to tool_gateway.
+        lower = nid.lower()
+        if "tool" in lower:
+            ntype = "tool_gateway"
+            payload: dict[str, Any] = {"tool_id": "builtin.echo", "tool": "builtin.echo", "text": nid}
+        elif "model" in lower or "llm" in lower or "agent" in lower:
+            ntype = "model_gateway"
+            payload = {
+                "tool": "model_call",
+                "model_id": "record-only-local" if gateway_mode == "record" else "gpt-4o-stub",
+                "prompt": f"{task} :: {nid}",
+                "enable_stub_if_disabled": True,
+            }
+        else:
+            ntype = "record"
+            payload = {"note": nid}
+        node_specs[nid] = {
+            "node_type": ntype,
+            "cost_estimate": 0.0,
+            "payload": payload,
+            "compiled_from": "langgraph_projection",
+        }
+    return {
+        "kind": "builder_ii.wrp.langgraph_seam_compile",
+        "adapter": "builder_ii.wrp.langgraph_adapter",
+        "task": task,
+        "gateway_mode": gateway_mode,
+        "nodes": list(order),
+        "node_specs": node_specs,
+        "source_backend": projection.get("backend"),
+        "grants_authority": False,
+        "executes_model": False,
+        "is_default_runtime": False,
+        "notes": (
+            "Inner planner projection compiled to WRP nodes + seam mode. "
+            "Execution requires live_lane HITL + gateway_mode gates; never autonomous."
+        ),
+    }
+
+
 __all__ = [
     "LANGGRAPH_ENV",
     "LANGGRAPH_ENV_VALUE",
@@ -214,6 +274,7 @@ __all__ = [
     "GraphAdapter",
     "OptionalLangGraphAdapter",
     "PureGraphProjection",
+    "compile_projection_to_wrp_seam_plan",
     "langgraph_importable",
     "langgraph_opt_in_enabled",
     "project_trajectory_graph",

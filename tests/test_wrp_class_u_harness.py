@@ -56,6 +56,7 @@ def test_class_u_scenarios_include_safety() -> None:
     ids = {s["scenario_id"] for s in result["report"]["scenarios"]}
     assert "s2v2_record_gateways" in ids
     assert "s2v2_stub_tool_echo" in ids
+    assert "production_shaped_multi_agent" in ids
     assert "s2v1_refuses_gateway_flags" in ids
     assert "msda_shell_denied" in ids
     for s in result["report"]["scenarios"]:

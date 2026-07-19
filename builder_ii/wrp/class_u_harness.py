@@ -241,6 +241,90 @@ def _scenario_msda_shell_denied() -> dict[str, Any]:
     }
 
 
+def _scenario_production_shaped_multi_agent() -> dict[str, Any]:
+    """W3.2 — production-shaped multi-node graph on a fixed local task (no cloud, no S3 flip).
+
+    Models a multi-agent collaboration skeleton (planner → model_gateway → tool → handoff)
+    under HITL live lane record mode. Measures wall/RSS; does not enable S3.
+    """
+    task = "class-u production-shaped multi-agent review on local fixture repo layout"
+    fleet_binding, wrp_binding = _bindings(task)
+
+    def run() -> dict[str, Any]:
+        plan = build_live_run_plan(
+            task=task,
+            s2_version="v2",
+            gateway_mode="record",
+            nodes=["planner", "model_gateway", "tool_gateway", "critic", "handoff"],
+            node_specs={
+                "planner": {
+                    "node_type": "record",
+                    "cost_estimate": 0.0,
+                    "payload": {"role": "planner", "task": task},
+                },
+                "model_gateway": {
+                    "node_type": "model_gateway",
+                    "cost_estimate": 0.0,
+                    "payload": {
+                        "tool": "model_call",
+                        "model_id": "record-only-local",
+                        "prompt_snippet": "review fixture module boundaries",
+                        "data_domain": "local_workspace",
+                        "risk": "local_network",
+                    },
+                },
+                "tool_gateway": {
+                    "node_type": "tool_gateway",
+                    "cost_estimate": 0.0,
+                    "payload": {
+                        "tool_id": "builtin.echo",
+                        "tool": "builtin.echo",
+                        "text": "repo-map:fixture",
+                    },
+                },
+                "critic": {
+                    "node_type": "record",
+                    "cost_estimate": 0.0,
+                    "payload": {"role": "critic", "checks": ["honesty", "boundaries"]},
+                },
+                "handoff": {
+                    "node_type": "record",
+                    "cost_estimate": 0.0,
+                    "payload": {"done": True, "production_shaped": True},
+                },
+            },
+            fleet_binding=fleet_binding,
+            wrp_binding=wrp_binding,
+        )
+        approval = build_live_run_approval(plan=plan, approved_by="class-u-harness")
+        receipt = run_approved(plan=plan, approval=approval)
+        return {"plan": plan, "receipt": receipt}
+
+    payload, wall_ms, peak_rss = _timed_run(run)
+    receipt = payload["receipt"]
+    order = (receipt.get("graph_run") or {}).get("execution_order") or []
+    ok = (
+        receipt.get("status") == "success"
+        and receipt.get("cloud_provider_invoke") is False
+        and receipt.get("executes_shell") is False
+        and receipt.get("model_gateway_invoked") is True
+        and receipt.get("tool_gateway_invoked") is True
+        and len(order) >= 4
+        and bool(receipt.get("digest"))
+    )
+    return {
+        "scenario_id": "production_shaped_multi_agent",
+        "ok": ok,
+        "wall_ms": round(wall_ms, 3),
+        "peak_rss_mb": round(peak_rss, 3),
+        "receipt_digest": receipt.get("digest"),
+        "execution_order_len": len(order),
+        "cloud_provider_invoke": receipt.get("cloud_provider_invoke"),
+        "s3_enabled": False,
+        "production_shaped": True,
+    }
+
+
 def _adaptivity_receipt_epochs() -> list[list[dict[str, Any]]]:
     """Fixed local receipt batches for adaptivity axis (P4-shaped; no network/HITL apply).
 
@@ -300,6 +384,14 @@ def run_class_u_harness(
         stub_walls.append(float(row["wall_ms"]))
         peak_rss_samples.append(float(row["peak_rss_mb"]))
 
+    # W3.2 production-shaped multi-agent (record mode; no S3 flip).
+    prod_walls: list[float] = []
+    for _ in range(iterations):
+        row = _scenario_production_shaped_multi_agent()
+        scenario_rows.append(row)
+        prod_walls.append(float(row["wall_ms"]))
+        peak_rss_samples.append(float(row["peak_rss_mb"]))
+
     safety_rows = [
         _scenario_v1_refuses_gateway_flags(),
         _scenario_msda_shell_denied(),
@@ -329,13 +421,17 @@ def run_class_u_harness(
 
     record_median = statistics.median(record_walls) if record_walls else 0.0
     stub_median = statistics.median(stub_walls) if stub_walls else 0.0
+    prod_median = statistics.median(prod_walls) if prod_walls else 0.0
     peak_rss = max(peak_rss_samples) if peak_rss_samples else 0.0
 
-    latency_ok = record_median <= MAX_SCENARIO_WALL_MS and stub_median <= MAX_SCENARIO_WALL_MS
+    latency_ok = (
+        record_median <= MAX_SCENARIO_WALL_MS
+        and stub_median <= MAX_SCENARIO_WALL_MS
+        and prod_median <= MAX_SCENARIO_WALL_MS
+    )
     memory_ok = peak_rss <= MAX_PEAK_RSS_MB
     safety_ok = all(r.get("ok") for r in safety_rows)
     utility_ok = pass_ratio >= MIN_SCENARIOS_PASSED_RATIO and latency_ok and memory_ok and safety_ok
-
     phi_after = dict(DEFAULT_PHI)
     phi_intact = phi_before == phi_after
 
@@ -454,6 +550,7 @@ def run_class_u_harness(
                 "pass_ratio": pass_ratio,
                 "record_wall_ms_median": round(record_median, 3),
                 "stub_wall_ms_median": round(stub_median, 3),
+                "production_shaped_wall_ms_median": round(prod_median, 3),
                 "peak_rss_mb": round(peak_rss, 3),
                 "latency_ok": latency_ok,
                 "memory_ok": memory_ok,

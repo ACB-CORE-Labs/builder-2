@@ -91,3 +91,16 @@ def test_compile_with_injected_compiler(monkeypatch: pytest.MonkeyPatch) -> None
 def test_default_env_not_opt_in() -> None:
     assert LANGGRAPH_ENV not in os.environ or os.environ.get(LANGGRAPH_ENV) != LANGGRAPH_ENV_VALUE
     assert langgraph_opt_in_enabled() is False
+
+
+def test_compile_projection_to_wrp_seam_plan() -> None:
+    from builder_ii.wrp.langgraph_adapter import compile_projection_to_wrp_seam_plan
+
+    proj = project_trajectory_graph(sequential_chain(["planner", "model_step", "tool_step", "handoff"]))
+    plan = compile_projection_to_wrp_seam_plan(proj, task="compile demo", gateway_mode="invoke_local")
+    assert plan["grants_authority"] is False
+    assert plan["executes_model"] is False
+    assert "model_step" in plan["node_specs"]
+    assert plan["node_specs"]["model_step"]["node_type"] == "model_gateway"
+    assert plan["node_specs"]["tool_step"]["node_type"] == "tool_gateway"
+

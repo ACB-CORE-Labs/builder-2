@@ -215,10 +215,12 @@ def build_live_run_plan(
             "gateway_mode": mode if lane == S2_V2_LANE_VERSION else None,
             "model_gateway_invoked": model_flag,
             "tool_gateway_invoked": tool_flag,
-            "model_provider_invoke": bool(model_flag and mode == "invoke_local"),
+            "model_provider_invoke": bool(
+                model_flag and mode in {"invoke_local", "invoke_cloud"}
+            ),
             "grants_authority": False,
             "executes_shell": False,
-            "cloud_provider_invoke": False,
+            "cloud_provider_invoke": bool(model_flag and mode == "invoke_cloud"),
         },
     )
 
@@ -303,14 +305,13 @@ def run_approved(
         raise LiveLaneError("plan.msda_preflight_forced must be true for S2")
     if plan.get("executes_shell") is not False:
         raise LiveLaneError("plan.executes_shell must be false")
-    if plan.get("cloud_provider_invoke") is True:
-        raise LiveLaneError("cloud_provider_invoke is not permitted on the live lane")
-
     lane = _normalize_lane_version(str(plan.get("s2_version") or S2_V1_LANE_VERSION))
     model_flag = bool(plan.get("model_gateway_invoked"))
     tool_flag = bool(plan.get("tool_gateway_invoked"))
 
     if lane == S2_V1_LANE_VERSION:
+        if plan.get("cloud_provider_invoke") is True:
+            raise LiveLaneError("cloud_provider_invoke is not permitted on S2 v1 live lane")
         if model_flag or tool_flag:
             raise LiveLaneError("S2 v1 refuses plans that claim model/tool gateway invocation")
         allowed = V1_NODE_TYPES
@@ -321,6 +322,13 @@ def run_approved(
         gateway_mode = str(plan.get("gateway_mode") or "record")
         if gateway_mode not in GATEWAY_MODES:
             raise LiveLaneError(f"plan.gateway_mode must be one of {sorted(GATEWAY_MODES)}")
+        # W2.2: cloud only when gateway_mode is invoke_cloud; other modes refuse plan flag.
+        if plan.get("cloud_provider_invoke") is True and gateway_mode != "invoke_cloud":
+            raise LiveLaneError(
+                "cloud_provider_invoke requires gateway_mode=invoke_cloud (H6 / W2.2)"
+            )
+        if gateway_mode == "invoke_cloud" and plan.get("cloud_provider_invoke") is not True:
+            raise LiveLaneError("gateway_mode=invoke_cloud requires plan.cloud_provider_invoke=true")
         plan_digest = str(plan.get("digest") or "")
         approved_by = str(approval.get("approved_by") or "")
 
@@ -431,8 +439,10 @@ def run_approved(
             "model_gateway_invoked": saw_model,
             "tool_gateway_invoked": saw_tool,
             "gateway_mode": gateway_mode if lane == S2_V2_LANE_VERSION else None,
-            "model_provider_invoke": bool(saw_model and gateway_mode == "invoke_local"),
-            "cloud_provider_invoke": False,
+            "model_provider_invoke": bool(
+                saw_model and gateway_mode in {"invoke_local", "invoke_cloud"}
+            ),
+            "cloud_provider_invoke": bool(saw_model and gateway_mode == "invoke_cloud"),
             "executes_shell": False,
             "grants_authority": False,
             "s2_version": lane,
@@ -450,8 +460,6 @@ def validate_live_run_plan(record: Any) -> list[str]:
         errors.append("msda_preflight_forced must be true")
     if record.get("executes_shell") is not False:
         errors.append("executes_shell must be false")
-    if record.get("cloud_provider_invoke") is True:
-        errors.append("cloud_provider_invoke must be false")
     if not record.get("task"):
         errors.append("task is required")
     if not isinstance(record.get("subtask_graph"), dict):
@@ -470,6 +478,8 @@ def validate_live_run_plan(record: Any) -> list[str]:
     model_flag = record.get("model_gateway_invoked")
     tool_flag = record.get("tool_gateway_invoked")
     if lane == S2_V1_LANE_VERSION:
+        if record.get("cloud_provider_invoke") is True:
+            errors.append("cloud_provider_invoke must be false in S2 v1")
         if model_flag is not False:
             errors.append("model_gateway_invoked must be false in S2 v1")
         if tool_flag is not False:
@@ -482,6 +492,11 @@ def validate_live_run_plan(record: Any) -> list[str]:
         mode = record.get("gateway_mode")
         if mode not in GATEWAY_MODES:
             errors.append(f"gateway_mode must be one of {sorted(GATEWAY_MODES)} in S2 v2")
+        # Cloud flag allowed only with invoke_cloud mode.
+        if record.get("cloud_provider_invoke") is True and mode != "invoke_cloud":
+            errors.append("cloud_provider_invoke requires gateway_mode=invoke_cloud")
+        if mode == "invoke_cloud" and record.get("cloud_provider_invoke") is not True:
+            errors.append("gateway_mode=invoke_cloud requires cloud_provider_invoke=true")
 
     fleet = record.get("fleet_binding")
     if fleet is not None:
@@ -528,15 +543,21 @@ def validate_live_run_receipt(record: Any) -> list[str]:
         errors.append("executes_shell must be false")
     if record.get("grants_authority") is not False:
         errors.append("grants_authority must be false")
-    if record.get("cloud_provider_invoke") is True:
-        errors.append("cloud_provider_invoke must be false")
     lane = record.get("s2_version") or S2_V1_LANE_VERSION
     if lane == S2_V1_LANE_VERSION:
+        if record.get("cloud_provider_invoke") is True:
+            errors.append("cloud_provider_invoke must be false in S2 v1")
         if record.get("model_gateway_invoked") is not False:
             errors.append("model_gateway_invoked must be false in S2 v1")
         if record.get("tool_gateway_invoked") is not False:
             errors.append("tool_gateway_invoked must be false in S2 v1")
     elif lane == S2_V2_LANE_VERSION:
+        mode = record.get("gateway_mode")
+        if record.get("cloud_provider_invoke") is True and mode != "invoke_cloud":
+            errors.append("cloud_provider_invoke requires gateway_mode=invoke_cloud on receipt")
+        if mode == "invoke_cloud" and record.get("cloud_provider_invoke") is not True:
+            errors.append("invoke_cloud receipt must set cloud_provider_invoke=true")
+
         if not isinstance(record.get("model_gateway_invoked"), bool):
             errors.append("model_gateway_invoked must be a bool in S2 v2")
         if not isinstance(record.get("tool_gateway_invoked"), bool):
