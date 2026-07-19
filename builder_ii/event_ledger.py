@@ -44,6 +44,17 @@ EVENT_TYPES = {
     "mcp_call_executed",
     "mcp_call_denied",
     "mcp_call_failed",
+    # Runtime / seam spine (non-workflow-transition events; stage stays put)
+    "budget_denied",
+    "budget_debited",
+    "routing_recommendation_recorded",
+    "wrp_gateway_node",
+    "wrp_live_run_started",
+    "wrp_live_run_completed",
+    "subagent_step",
+    "kill_switch",
+    "cloud_egress_recorded",
+    "secret_redaction",
 }
 
 EVENT_TYPE_STAGE = {
@@ -301,29 +312,29 @@ def load_event_records(events_dir: Path) -> list[tuple[dict[str, Any], Path]]:
             from builder_ii.async_ledger_wal import AsyncLedgerWAL
 
             wal = AsyncLedgerWAL(wal_path)
-            records = wal.read_records()
+            wal_records = wal.read_records()
             wal.close()
             return [
                 (
                     r,
                     events_dir / f"{r.get('sequence', 0):04d}-{r.get('event_type', 'unknown')}.json",
                 )
-                for r in records
+                for r in wal_records
             ]
         except Exception:
             pass
 
-    records: list[tuple[dict[str, Any], Path]] = []
+    file_records: list[tuple[dict[str, Any], Path]] = []
     if not events_dir.exists():
-        return records
+        return file_records
     for path in sorted(events_dir.glob("*.json")):
         try:
             data = json_lib.loads(path.read_text(encoding="utf-8"))
             if isinstance(data, dict) and data.get("kind") == EVENT_RECORD_KIND:
-                records.append((data, path))
+                file_records.append((data, path))
         except Exception:
             pass
-    return records
+    return file_records
 
 
 async def load_event_records_async(events_dir: Path) -> list[tuple[dict[str, Any], Path]]:
@@ -568,3 +579,50 @@ def validate_event_ledger_file(path: Path) -> list[str]:
     if kind == LEDGER_REPLAY_REPORT_KIND:
         return validate_ledger_replay_report(data)
     return [f"unsupported event ledger artifact kind: {kind}"]
+
+
+def validate_event_chain_integrity(events_dir: Path) -> dict[str, Any]:
+    """Validate hash-chain integrity for events in a directory.
+
+    Detects missing previous links, sequence gaps, and digest mismatches.
+    Returns a RECORDED_ONLY integrity report (not promotion authority).
+    """
+    records = load_event_records(events_dir)
+    ordered = sorted(
+        records,
+        key=lambda item: (
+            item[0].get("sequence") if isinstance(item[0].get("sequence"), int) else 10**9,
+            str(item[1]),
+        ),
+    )
+    replay = replay_events(ordered)
+    chain_errors: list[str] = list(replay.get("errors") or [])
+    # Explicit reorder / break probes via sequence and prev digest
+    for index, (event, path) in enumerate(ordered):
+        if index == 0:
+            continue
+        prev_event, _prev_path = ordered[index - 1]
+        expected_prev = canonical_digest(prev_event)
+        if event.get("previous_event_sha256") != expected_prev:
+            chain_errors.append(f"{path}: previous_event_sha256 chain break")
+        prev_ref = event.get("previous_event_ref")
+        if isinstance(prev_ref, dict) and prev_ref.get("sha256") != expected_prev:
+            chain_errors.append(f"{path}: previous_event_ref.sha256 chain break")
+    # Detect duplicate sequences (reorder/fork signal)
+    sequences = [e[0].get("sequence") for e in ordered]
+    if len(sequences) != len(set(sequences)):
+        chain_errors.append("duplicate sequence numbers detected")
+    valid = not chain_errors
+    return {
+        "kind": "builder_ii.event_ledger_integrity_report",
+        "schema_version": 1,
+        "report_state": "RECORDED_ONLY",
+        "events_dir": str(events_dir),
+        "event_count": len(ordered),
+        "valid": valid,
+        "status": "valid" if valid else "invalid",
+        "errors": chain_errors,
+        "artifact_is_authority": False,
+        "grants_authority": False,
+        "independent_observer": False,
+    }

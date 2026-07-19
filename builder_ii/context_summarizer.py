@@ -134,7 +134,7 @@ def summarize_context_pack(
     receipt_path = temp_dir / f"summary_rec_{unique_id}.json"
 
     try:
-        _, receipt = gateway.run_model_call(
+        _, receipt, _debited = gateway.run_model_call(
             model_id=model_id,
             prompt=prompt,
             envelope_path=envelope_path,

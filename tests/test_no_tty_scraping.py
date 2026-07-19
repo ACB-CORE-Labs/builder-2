@@ -27,11 +27,22 @@ _IMPORT_PEXPECT = re.compile(r"^\s*(?:import\s+pexpect|from\s+pexpect(?:\.\w+)*\
 
 
 def _python_sources() -> list[Path]:
-    return [
-        path
-        for path in ROOT.rglob("*.py")
-        if ".venv" not in path.parts and ".git" not in path.parts and "target" not in path.parts
-    ]
+    # Skip venv/git/build trees and nested agent worktrees under .claude/worktrees
+    # (those may carry retired drivers from other experiments and are not product source).
+    # Do not skip a bare "worktrees" path component — this repo may itself live under
+    # ~/.grok/worktrees/... and that would vacate the scan.
+    skip_parts = {".venv", ".git", "target", "node_modules"}
+    sources: list[Path] = []
+    for path in ROOT.rglob("*.py"):
+        if skip_parts.intersection(path.parts):
+            continue
+        parts = path.parts
+        if ".claude" in parts:
+            claude_i = parts.index(".claude")
+            if claude_i + 1 < len(parts) and parts[claude_i + 1] == "worktrees":
+                continue
+        sources.append(path)
+    return sources
 
 
 def test_pexpect_is_not_a_declared_dependency() -> None:

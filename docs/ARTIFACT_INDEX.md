@@ -16,6 +16,11 @@ It is metadata-only and does not activate artifact authority.
 
 ## Known artifact kinds
 
+- `builder_ii.price_book`
+- `builder_ii.model_budget`
+- `builder_ii.run_manifest`
+- `builder_ii.event_ledger_integrity_report`
+- `builder_ii.wrp.subagent_step_receipt`
 - `builder_ii.goose_command_proposal`
 - `builder_ii.approval_record`
 - `builder_ii.preflight_record`

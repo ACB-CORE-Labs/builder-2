@@ -32,7 +32,7 @@ it sets, so a row reading `—` claims none.
 is correct rather than an oversight: `PASSIVE_ARTIFACT_VERIFIED` already permits writing
 to the artifact store, so a command that writes only artifacts is passive by definition.
 
-## Declared records (347)
+## Declared records (349)
 
 Authority written down, command by command.
 
@@ -268,6 +268,8 @@ Authority written down, command by command.
 | `builder-model-policy validate` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates passive model client registry, routing policy, and recommendation artifacts. | Writes validation report JSON only when an explicit output path is supplied. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-model-policy render` | Tier 1 — artifact-only planning/validation | `artifact_only` | Renders passive model routing recommendation artifacts from registry and policy metadata. | Writes recommendation JSON only to an explicit artifact output path. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-model-policy dry-run` | Tier 1 — artifact-only planning/validation | `artifact_only` | Performs a passive routing recommendation dry-run showing recommended models without executing anything. | Writes dry-run recommendation JSON only to an explicit artifact output path. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-model-policy price-book` | Tier 1 — artifact-only planning/validation | `artifact_only` | Emits a RECORDED_ONLY builder_ii.price_book artifact with per-model rates and tokenizer ids. | Writes price-book JSON only to an explicit artifact output path. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-model-policy validate-price-book` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates a builder_ii.price_book artifact. | Does not write artifacts. | `none` | None. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-wrp classify` | Tier 1 — artifact-only planning/validation | `artifact_only` | Classifies workloads into local tier recommendations using deterministic features only. | Writes classification JSON only when an explicit output path is supplied. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-wrp score-classifier` | Tier 1 — artifact-only planning/validation | `validation_only` | Scores golden classifier fixtures against the W0 ≥95% acceptance criterion. | Writes score report JSON only when an explicit output path is supplied. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-wrp plan-collab` | Tier 1 — artifact-only planning/validation | `artifact_only` | Emits Maker/Governor collaboration topology plans with UNBOUND runtime binding. | Writes topology JSON only when an explicit output path is supplied. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |

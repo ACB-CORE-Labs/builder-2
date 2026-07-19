@@ -24,6 +24,12 @@ from builder_ii.model_routing_policy import (
     write_model_routing_policy,
     write_model_routing_recommendation,
 )
+from builder_ii.price_book import (
+    PRICE_BOOK_KIND,
+    create_default_price_book,
+    validate_price_book,
+    write_price_book,
+)
 
 model_policy_app = typer.Typer(help="Passive governed model/client registry and routing policy CLI.")
 console = Console()
@@ -67,8 +73,12 @@ def validate(
         errors = validate_model_routing_policy(data)
     elif kind == MODEL_ROUTING_RECOMMENDATION_KIND:
         errors = validate_model_routing_recommendation(data)
+    elif kind == PRICE_BOOK_KIND:
+        errors = validate_price_book(data)
     else:
-        errors = [f"Unknown artifact kind '{kind}'; expected model registry, policy, or recommendation"]
+        errors = [
+            f"Unknown artifact kind '{kind}'; expected model registry, policy, recommendation, or price book"
+        ]
 
     report = {
         "valid": len(errors) == 0,
@@ -196,6 +206,46 @@ def dry_run(
         requires_tools=True,
         output=output,
     )
+
+
+@model_policy_app.command("price-book")
+def price_book_cmd(
+    output: Path = typer.Option(
+        ...,
+        "--output",
+        "-o",
+        help="Path to write the default builder_ii.price_book JSON artifact",
+    ),
+) -> None:
+    """Emit the default digest-bound price book (RECORDED_ONLY; never executes models)."""
+    from builder_ii.command_authority import enforce_command_authority
+
+    enforce_command_authority("builder-model-policy price-book", requested_effects=("artifact_write",))
+    book = create_default_price_book()
+    errors = validate_price_book(book)
+    if errors:
+        for err in errors:
+            console.print(f"[red]{err}[/]")
+        raise typer.Exit(1)
+    write_price_book(book, output)
+    console.print(f"[green]Price book written to {output} (digest={book.get('digest')})[/]")
+
+
+@model_policy_app.command("validate-price-book")
+def validate_price_book_cmd(
+    path: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True, help="Price book JSON path"),
+) -> None:
+    """Validate a builder_ii.price_book artifact."""
+    from builder_ii.command_authority import enforce_command_authority
+
+    enforce_command_authority("builder-model-policy validate-price-book", requested_effects=())
+    data = _read_json(path)
+    errors = validate_price_book(data)
+    if errors:
+        for err in errors:
+            console.print(f"[red]Validation error: {err}[/]")
+        raise typer.Exit(1)
+    console.print(f"[green]Price book {path} is valid.[/]")
 
 
 if __name__ == "__main__":

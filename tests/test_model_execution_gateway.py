@@ -129,7 +129,7 @@ def test_model_execution_succeeds_on_authorized_cloud(
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"
 
-    envelope, receipt = gateway.run_model_call(
+    envelope, receipt, _debited = gateway.run_model_call(
         model_id="gpt-4o-stub",
         prompt="Tell me a joke",
         envelope_path=envelope_path,
@@ -330,7 +330,7 @@ def test_envelope_network_semantics_local_network(
     receipt_path = tmp_path / "receipt.json"
 
     with _patch("builder_ii.model_execution_gateway.run_direct_chat", return_value=stub_result):
-        envelope, receipt = gateway.run_model_call(
+        envelope, receipt, _debited = gateway.run_model_call(
             model_id="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
             prompt="Capital of France?",
             envelope_path=envelope_path,
@@ -357,7 +357,7 @@ def test_envelope_network_semantics_cloud_external(
     gateway = ModelExecutionGateway(cloud_settings, standard_registry, standard_execution_policy)
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"
-    envelope, receipt = gateway.run_model_call(
+    envelope, receipt, _debited = gateway.run_model_call(
         model_id="gpt-4o-stub",
         prompt="Capital of France?",
         envelope_path=envelope_path,

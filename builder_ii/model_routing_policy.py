@@ -335,6 +335,50 @@ def create_model_routing_recommendation(
                 score += 5
                 reasons.append(f"Matches preferred model family '{cand.get('model_family')}'")
 
+        # Cost / latency ranking (W1.3): cheapest-capable-first within filters.
+        # Prefer free_local > low > medium > high > placeholder; lower latency class preferred.
+        prefer_cheapest = bool(req.get("prefer_cheapest_capable", True))
+        if matched_rule and matched_rule.get("prefer_cheapest_capable") is False:
+            prefer_cheapest = False
+        cost_rank = {
+            "free_local": 40,
+            "low": 30,
+            "medium": 20,
+            "high": 10,
+            "placeholder": 5,
+        }
+        latency_rank = {
+            "local": 8,
+            "low": 6,
+            "medium": 4,
+            "high": 2,
+            "unknown": 0,
+        }
+        if prefer_cheapest:
+            cc = str(cand.get("cost_class") or "placeholder")
+            score += cost_rank.get(cc, 0)
+            reasons.append(f"Cost class '{cc}' contributes to cheapest-capable ranking")
+            # Optional price_book entry rates refine rank further (lower total $/1k better)
+            price_book = req.get("price_book")
+            if isinstance(price_book, dict):
+                try:
+                    from builder_ii.price_book import lookup_price_entry
+
+                    entry = lookup_price_entry(price_book, str(cand.get("model_id") or ""))
+                    if entry is not None:
+                        blended = float(entry.get("input_usd_per_1k") or 0) + float(
+                            entry.get("output_usd_per_1k") or 0
+                        )
+                        # Invert: free gets full 15; expensive approaches 0
+                        score += max(0, int(15 - min(blended * 1000, 15)))
+                        lat = str(entry.get("latency_class") or "unknown")
+                        score += latency_rank.get(lat, 0)
+                        reasons.append(
+                            f"Price-book blended rate {blended:.6f} USD/1k; latency_class={lat}"
+                        )
+                except Exception:
+                    pass
+
         candidates.append((score, cand, reasons))
 
     # Prefer fleet_binding.selected_alias when provided (P2 remainder / OmniRouter bind).
@@ -376,6 +420,8 @@ def create_model_routing_recommendation(
         raise ValueError("No candidate model client satisfies the requested criteria.")
 
     recommended_list = []
+    frontier_baseline_usd: float | None = None
+    price_book = req.get("price_book") if isinstance(req.get("price_book"), dict) else None
     for idx, (_, cand, reasons) in enumerate(candidates, start=1):
         cand_constraints = [
             f"Endpoint kind: {cand.get('endpoint_kind')}",
@@ -384,6 +430,22 @@ def create_model_routing_recommendation(
         ]
         if policy_cap_applied:
             cand_constraints.append(f"Policy risk cap applied: {effective_max_risk_label}")
+        blended_rate: float | None = None
+        if price_book is not None:
+            try:
+                from builder_ii.price_book import lookup_price_entry
+
+                entry = lookup_price_entry(price_book, str(cand.get("model_id") or ""))
+                if entry is not None:
+                    blended_rate = float(entry.get("input_usd_per_1k") or 0) + float(
+                        entry.get("output_usd_per_1k") or 0
+                    )
+            except Exception:
+                blended_rate = None
+        if blended_rate is not None and (
+            frontier_baseline_usd is None or blended_rate > frontier_baseline_usd
+        ):
+            frontier_baseline_usd = blended_rate
         recommended_list.append(
             {
                 "rank": idx,
@@ -392,10 +454,25 @@ def create_model_routing_recommendation(
                 "model_id": cand.get("model_id"),
                 "model_alias": cand.get("model_alias"),
                 "risk_classification": cand.get("risk_classification"),
+                "cost_class": cand.get("cost_class"),
+                "blended_usd_per_1k": blended_rate,
                 "reasons": reasons,
                 "constraints": cand_constraints,
             }
         )
+    # Attach savings vs frontier baseline on top candidate when price book present
+    savings_metric = None
+    if recommended_list and frontier_baseline_usd is not None:
+        top = recommended_list[0]
+        top_blended = top.get("blended_usd_per_1k")
+        if isinstance(top_blended, (int, float)):
+            savings_metric = {
+                "frontier_baseline_usd_per_1k": frontier_baseline_usd,
+                "recommended_usd_per_1k": top_blended,
+                "estimated_savings_usd_per_1k": max(0.0, float(frontier_baseline_usd) - float(top_blended)),
+                "ledgerable": True,
+                "grants_authority": False,
+            }
 
     result: dict[str, Any] = {
         "kind": MODEL_ROUTING_RECOMMENDATION_KIND,
@@ -428,6 +505,8 @@ def create_model_routing_recommendation(
             "core_workbench_coupling": "NONE",
         },
     }
+    if savings_metric is not None:
+        result["savings_vs_frontier_baseline"] = savings_metric
     if wrp_binding is not None:
         result["wrp_binding"] = wrp_binding
     if isinstance(fleet_binding, dict) and fleet_binding.get("selected_alias"):

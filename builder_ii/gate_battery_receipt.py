@@ -1,8 +1,11 @@
 """A receipt for one run of the blocking gate battery (``scripts/ci.sh``).
 
-builder-II's Forgejo Actions runner is offline. Merges to ``main`` are currently gated by a
-human running ``bash scripts/ci.sh`` locally and writing "it was green" into a pull-request
-body. That is testimony, not evidence. This module gives the gate battery the same treatment
+builder-II's remote Forgejo Actions runner may be offline or unenforced as a required
+status check. Merges to ``main`` must therefore not rely on honor-system testimony alone:
+attach a ``builder_ii.gate_battery_receipt`` from ``bash scripts/ci.sh --receipt <path>``
+(or a green required check when the runner is healthy). A PR body claim of "it was green"
+without a receipt (or remote green) is testimony, not evidence. This module gives the
+gate battery the same treatment
 every other builder-II subsystem gets: a ``kind``-tagged, digest-bound artifact plus a paired
 validator, so a verification run doesn't get to *say* it passed -- it emits a record naming
 exactly what ran, against what, under a digest.

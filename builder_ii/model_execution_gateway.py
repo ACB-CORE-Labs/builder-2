@@ -14,6 +14,13 @@ from builder_ii.model_client_registry import (
 from builder_ii.model_routing_policy import (
     validate_model_execution_policy,
 )
+from builder_ii.price_book import (
+    create_default_price_book,
+    lookup_price_entry,
+    price_book_ref,
+    validate_price_book,
+)
+from builder_ii.token_accounting import build_cost_report
 
 MODEL_CALL_ENVELOPE_KIND = "builder_ii.model_call_envelope"
 MODEL_CALL_ENVELOPE_SCHEMA_VERSION = 1
@@ -245,6 +252,21 @@ def validate_model_call_receipt(data: Any) -> list[str]:
         for f in ("input_tokens", "output_tokens", "total_tokens"):
             if not isinstance(cost.get(f), int) or cost[f] < 0:
                 errors.append(f"cost_report.{f} must be a non-negative integer")
+        accounting = cost.get("token_accounting")
+        if accounting not in ("measured", "estimated"):
+            errors.append("cost_report.token_accounting must be 'measured' or 'estimated'")
+        if accounting == "measured":
+            if not isinstance(cost.get("tokenizer_id"), str) or not cost.get("tokenizer_id"):
+                errors.append("cost_report.tokenizer_id is required when token_accounting is measured")
+            if not isinstance(cost.get("tokenizer_version"), str) or not cost.get("tokenizer_version"):
+                errors.append("cost_report.tokenizer_version is required when token_accounting is measured")
+        if accounting == "estimated" and not cost.get("estimated_reason"):
+            errors.append("cost_report.estimated_reason is required when token_accounting is estimated")
+        for usd_field in ("estimated_usd_input", "estimated_usd_output", "estimated_usd_total"):
+            if usd_field in cost:
+                val = cost.get(usd_field)
+                if not isinstance(val, (int, float)) or isinstance(val, bool) or val < 0:
+                    errors.append(f"cost_report.{usd_field} must be a non-negative number when present")
 
     if data.get("replay_declaration") != "non-deterministic-llm-completion":
         errors.append("replay_declaration must be non-deterministic-llm-completion")
@@ -285,8 +307,45 @@ def validate_model_call_receipt_file(path: Path) -> list[str]:
     return validate_model_call_receipt(data)
 
 
+def _resolve_price_book(price_book: dict[str, Any] | None) -> dict[str, Any]:
+    book = price_book if price_book is not None else create_default_price_book()
+    errs = validate_price_book(book)
+    if errs:
+        raise ValueError(f"invalid price book: {'; '.join(errs)}")
+    return book
+
+
+def _cost_report_for_call(
+    *,
+    prompt: str,
+    response_text: str,
+    model_id: str,
+    price_book: dict[str, Any],
+) -> dict[str, Any]:
+    entry = lookup_price_entry(price_book, model_id)
+    input_rate = float(entry["input_usd_per_1k"]) if entry else 0.0
+    output_rate = float(entry["output_usd_per_1k"]) if entry else 0.0
+    tokenizer_id = str(entry["tokenizer_id"]) if entry and entry.get("tokenizer_id") else None
+    return build_cost_report(
+        prompt=prompt,
+        response_text=response_text,
+        model_id=model_id,
+        input_usd_per_1k=input_rate,
+        output_usd_per_1k=output_rate,
+        currency=str((entry or {}).get("currency") or "USD"),
+        price_book_ref=price_book_ref(price_book),
+        tokenizer_id=tokenizer_id,
+    )
+
+
 class ModelExecutionGateway:
-    def __init__(self, settings: Settings, registry: dict[str, Any], execution_policy: dict[str, Any]):
+    def __init__(
+        self,
+        settings: Settings,
+        registry: dict[str, Any],
+        execution_policy: dict[str, Any],
+        price_book: dict[str, Any] | None = None,
+    ):
         reg_errs = validate_model_client_registry(registry)
         if reg_errs:
             raise ValueError(f"invalid model client registry: {'; '.join(reg_errs)}")
@@ -296,6 +355,7 @@ class ModelExecutionGateway:
         self.settings = settings
         self.registry = registry
         self.execution_policy = execution_policy
+        self.price_book = _resolve_price_book(price_book)
 
     def run_model_call(
         self,
@@ -309,7 +369,11 @@ class ModelExecutionGateway:
         receipt_path: Path,
         approval_path: Path | None = None,
         ledger_bound: bool = False,
-    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        budget: dict[str, Any] | None = None,
+        budget_path: Path | None = None,
+        events_dir: Path | None = None,
+        session_id: str | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any] | None]:
         # Fail closed on empty prompt or invalid outputs
         if not prompt.strip():
             raise ValueError("Prompt must not be empty")
@@ -420,12 +484,29 @@ class ModelExecutionGateway:
         envelope_path.parent.mkdir(parents=True, exist_ok=True)
         envelope_path.write_text(json_lib.dumps(envelope, indent=2, sort_keys=True), encoding="utf-8")
 
+        # Budget preflight (optional until seam requires it).
+        projected_cost = _cost_report_for_call(
+            prompt=prompt,
+            response_text="",
+            model_id=model_id,
+            price_book=self.price_book,
+        )
+        # Project max output conservatively using max_tokens as upper bound for debit check.
+        if budget is not None:
+            from builder_ii.model_budget import assert_budget_allows_call, project_call_cost
+
+            projected = project_call_cost(
+                prompt=prompt,
+                max_output_tokens=max_tokens,
+                model_id=model_id,
+                price_book=self.price_book,
+            )
+            assert_budget_allows_call(budget, projected)
+
         # Execute call
         # If stub provider, return stub response
         if client_record.get("provider_id") in ("openai_stub_provider", "anthropic_stub_provider"):
             result_text = f"Mocked stub response for model '{model_id}' to: {prompt[:30]}..."
-            input_tokens = len(prompt.split())
-            output_tokens = len(result_text.split())
         else:
             # Run local offline/network call
             chat_res: DirectChatResult = run_direct_chat(
@@ -445,6 +526,12 @@ class ModelExecutionGateway:
                     "name": f"Model call envelope for {model_id}",
                     "required": True,
                 }
+                fail_cost = _cost_report_for_call(
+                    prompt=prompt,
+                    response_text="",
+                    model_id=model_id,
+                    price_book=self.price_book,
+                )
                 failure_receipt = {
                     "kind": MODEL_CALL_RECEIPT_KIND,
                     "schema_version": MODEL_CALL_RECEIPT_SCHEMA_VERSION,
@@ -454,12 +541,7 @@ class ModelExecutionGateway:
                     "response_sha256": hashlib.sha256(b"").hexdigest(),
                     "response_storage_policy": "empty_failure_response",
                     "error_summary": str(chat_res.error or "model execution failed")[:500],
-                    "cost_report": {
-                        "input_tokens": len(prompt.split()) + 10,
-                        "output_tokens": 0,
-                        "total_tokens": len(prompt.split()) + 10,
-                        "token_accounting": "estimated",
-                    },
+                    "cost_report": fail_cost,
                     "replay_declaration": "non-deterministic-llm-completion",
                     "executes_model": True,
                     "executes_tools": False,
@@ -473,6 +555,7 @@ class ModelExecutionGateway:
                     "grants_authority": False,
                     "artifact_is_authority": False,
                     "requires_human_promotion_for_execution": True,
+                    "ledger_bound": ledger_bound,
                     "authority_boundary": _default_authority_boundary(
                         "model_call", performs_network_calls=performs_network
                     ),
@@ -484,10 +567,22 @@ class ModelExecutionGateway:
                     json_lib.dumps(failure_receipt, indent=2, sort_keys=True),
                     encoding="utf-8",
                 )
+                if ledger_bound and events_dir is not None:
+                    from builder_ii.runtime_event_append import append_model_call_event
+
+                    append_model_call_event(
+                        events_dir=events_dir,
+                        session_id=session_id or envelope.get("session_id") or "session-unknown",
+                        event_type="model_call_failed",
+                        envelope=envelope,
+                        receipt=failure_receipt,
+                        envelope_path=envelope_path,
+                        receipt_path=receipt_path,
+                        command_surface="ModelExecutionGateway.run_model_call",
+                        message=f"Model call failed: {chat_res.error}",
+                    )
                 raise RuntimeError(f"Model execution failed: {chat_res.error}")
             result_text = chat_res.content
-            input_tokens = len(prompt.split()) + 10  # approximate estimate
-            output_tokens = len(result_text.split())
 
         # Create receipt
         envelope_ref = {
@@ -503,6 +598,15 @@ class ModelExecutionGateway:
         bounded_text = result_text[:output_cap]
         output_truncated = len(result_text) > len(bounded_text)
 
+        cost_report = _cost_report_for_call(
+            prompt=prompt,
+            response_text=result_text,
+            model_id=model_id,
+            price_book=self.price_book,
+        )
+        # projected_cost used only for budget preflight above; silence unused if no budget.
+        _ = projected_cost
+
         receipt = {
             "kind": MODEL_CALL_RECEIPT_KIND,
             "schema_version": MODEL_CALL_RECEIPT_SCHEMA_VERSION,
@@ -512,12 +616,7 @@ class ModelExecutionGateway:
             "response_sha256": hashlib.sha256(result_text.encode("utf-8")).hexdigest(),
             "response_text_truncated": output_truncated,
             "response_storage_policy": "bounded_inline_response_text",
-            "cost_report": {
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "total_tokens": input_tokens + output_tokens,
-                "token_accounting": "estimated",
-            },
+            "cost_report": cost_report,
             "replay_declaration": "non-deterministic-llm-completion",
             "executes_model": True,
             "executes_tools": False,
@@ -549,6 +648,49 @@ class ModelExecutionGateway:
                 "required": human_approval_required,
             }
         receipt["msda_preflight"] = _msda_preflight_annotation
+
+        # Debit BEFORE digest/write so durable receipt and returned object match.
+        debited_budget: dict[str, Any] | None = None
+        if budget is not None:
+            from builder_ii.model_budget import (
+                assert_budget_allows_call,
+                debit_budget,
+                write_model_budget,
+            )
+            from builder_ii.model_budget import (
+                budget_ref as _budget_ref,
+            )
+
+            # Re-check remaining budget against measured actual cost (not just projection).
+            actual_projection = {
+                "input_tokens": int(cost_report["input_tokens"]),
+                "output_tokens": int(cost_report["output_tokens"]),
+                "total_tokens": int(cost_report["total_tokens"]),
+                "estimated_usd_total": float(cost_report.get("estimated_usd_total") or 0.0),
+            }
+            assert_budget_allows_call(budget, actual_projection)
+            debited_budget = debit_budget(budget, cost_report)
+
+            resolved_budget_path = budget_path
+            if resolved_budget_path is None:
+                resolved_budget_path = (
+                    receipt_path.parent / f"model_budget_v{debited_budget['budget_version']}.json"
+                )
+            write_model_budget(debited_budget, resolved_budget_path)
+
+            pre_ref = _budget_ref(budget)
+            post_ref = _budget_ref(debited_budget, path=resolved_budget_path)
+            receipt["budget_ref"] = {
+                **pre_ref,
+                "path": str(resolved_budget_path),
+                "pre_debit_sha256": pre_ref["sha256"],
+                "post_debit_sha256": post_ref["sha256"],
+                "budget_version": debited_budget.get("budget_version"),
+                "spent_total_tokens": debited_budget.get("spent_total_tokens"),
+                "spent_usd": debited_budget.get("spent_usd"),
+                "budget_state": debited_budget.get("budget_state"),
+            }
+
         receipt["digest"] = _digest(receipt)
 
         rec_errors = validate_model_call_receipt(receipt)
@@ -558,4 +700,19 @@ class ModelExecutionGateway:
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         receipt_path.write_text(json_lib.dumps(receipt, indent=2, sort_keys=True), encoding="utf-8")
 
-        return envelope, receipt
+        if ledger_bound and events_dir is not None:
+            from builder_ii.runtime_event_append import append_model_call_event
+
+            append_model_call_event(
+                events_dir=events_dir,
+                session_id=session_id or envelope.get("session_id") or "session-unknown",
+                event_type="model_call_executed",
+                envelope=envelope,
+                receipt=receipt,
+                envelope_path=envelope_path,
+                receipt_path=receipt_path,
+                command_surface="ModelExecutionGateway.run_model_call",
+                message=f"Model call executed: {model_id}",
+            )
+
+        return envelope, receipt, debited_budget
