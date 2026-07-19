@@ -26,20 +26,24 @@ ROOT = Path(__file__).resolve().parents[1]
 _IMPORT_PEXPECT = re.compile(r"^\s*(?:import\s+pexpect|from\s+pexpect(?:\.\w+)*\s+import)\b", re.MULTILINE)
 
 
-def _python_sources() -> list[Path]:
-    # Skip venv/git/build trees and nested agent worktrees under .claude/worktrees
-    # (those may carry retired drivers from other experiments and are not product source).
-    # Do not skip a bare "worktrees" path component — this repo may itself live under
-    # ~/.grok/worktrees/... and that would vacate the scan.
+def _python_sources(root: Path = ROOT) -> list[Path]:
+    # Skip venv/git/build trees and NESTED agent worktrees under this checkout's own
+    # .claude/worktrees (those may carry retired drivers from other experiments and are
+    # not product source). Match on parts *relative to root*, never absolute parts:
+    # builder-II's own worktrees live at .../.claude/worktrees/<name>, and the ban's
+    # execution doctrine runs the full battery from exactly such a worktree, so `root`
+    # itself may sit under a ".claude/worktrees" (or "target", "node_modules") path
+    # component. Keying on absolute parts would then match every file and vacate the scan
+    # — the failure this test's own vacuity guard is built to catch.
     skip_parts = {".venv", ".git", "target", "node_modules"}
     sources: list[Path] = []
-    for path in ROOT.rglob("*.py"):
-        if skip_parts.intersection(path.parts):
+    for path in root.rglob("*.py"):
+        rel_parts = path.relative_to(root).parts
+        if skip_parts.intersection(rel_parts):
             continue
-        parts = path.parts
-        if ".claude" in parts:
-            claude_i = parts.index(".claude")
-            if claude_i + 1 < len(parts) and parts[claude_i + 1] == "worktrees":
+        if ".claude" in rel_parts:
+            claude_i = rel_parts.index(".claude")
+            if claude_i + 1 < len(rel_parts) and rel_parts[claude_i + 1] == "worktrees":
                 continue
         sources.append(path)
     return sources
@@ -81,6 +85,32 @@ def test_no_module_imports_pexpect() -> None:
         if _IMPORT_PEXPECT.search(path.read_text(encoding="utf-8", errors="replace"))
     ]
     assert not offenders, f"pexpect imported in: {offenders}"
+
+
+def test_source_discovery_survives_a_dot_claude_worktree_root(tmp_path: Path) -> None:
+    """`_python_sources` must scan a checkout that itself lives under `.claude/worktrees`.
+
+    builder-II's own worktrees live at `.../.claude/worktrees/<name>`, and the ban's
+    execution doctrine ("isolated worktree per PR + full battery") runs from exactly such a
+    checkout. A skip rule keyed on absolute path parts matched every file there and vacated
+    the scan (0 files, caught only by the vacuity guard above). This pins the fix: scan the
+    checkout, but still skip a NESTED agent worktree inside it.
+    """
+    root = tmp_path / ".claude" / "worktrees" / "review-x"
+    (root / "builder_ii").mkdir(parents=True)
+    (root / "builder_ii" / "app.py").write_text("x = 1\n", encoding="utf-8")
+    (root / "tests").mkdir()
+    (root / "tests" / "test_x.py").write_text("y = 2\n", encoding="utf-8")
+    # A nested sub-worktree that MUST still be skipped (another checkout's retired driver).
+    nested = root / ".claude" / "worktrees" / "inner"
+    nested.mkdir(parents=True)
+    (nested / "retired_driver.py").write_text("import pexpect\n", encoding="utf-8")
+
+    names = {p.name for p in _python_sources(root)}
+    assert {"app.py", "test_x.py"} <= names, (
+        f"must scan a checkout under .claude/worktrees; found {sorted(names)}"
+    )
+    assert "retired_driver.py" not in names, "must still skip a NESTED agent worktree inside the checkout"
 
 
 def test_the_registry_still_carries_the_ban() -> None:
