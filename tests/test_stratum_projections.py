@@ -260,6 +260,103 @@ def test_operator_dashboard_empty_chain(tmp_path: Path) -> None:
     assert dash.epistemic["digest_planned"] == "—"
 
 
+# ── STRATUM idle report: memory_atoms / chain_length must be read, not fabricated ─────────────
+#
+# The idle HUD shipped `"memory_atoms": "0"  # Would read from memory browser` and a matching
+# `"chain_length": "0"`. Both were fabricated: the memory zero never looked at an index, and the
+# chain zero was overwritten by the async verifier moments later (and reset again on any refresh,
+# because set_platform_info replaces the whole dict). An operator cannot distinguish a fabricated
+# zero from a genuine empty state — so these pin the honest read, and the "—" for absent evidence.
+
+
+def test_idle_report_memory_atoms_reads_the_real_index(tmp_path: Path) -> None:
+    """An index of N atoms shows N — the number is read from `memory-index.json`, not hardcoded."""
+    from builder_ii.tui.projections.operator import memory_atom_display
+
+    index = {"kind": "builder_ii.memory_index", "atom_count": 3, "entries": [1, 2, 3]}
+    (tmp_path / "memory-index.json").write_text(json.dumps(index), encoding="utf-8")
+    assert memory_atom_display(tmp_path) == "3"
+
+
+def test_idle_report_memory_atoms_is_dash_when_no_index(tmp_path: Path) -> None:
+    """No index (or no dir) is unknown — "—", never a fabricated "0". Absence ≠ zero atoms."""
+    from builder_ii.tui.projections.operator import memory_atom_display
+
+    assert memory_atom_display(tmp_path) == "—"
+    assert memory_atom_display(None) == "—"
+
+
+def test_idle_report_memory_atoms_honours_a_truthful_zero(tmp_path: Path) -> None:
+    """A real index holding zero atoms shows "0" — because it was read, not guessed."""
+    from builder_ii.tui.projections.operator import memory_atom_display
+
+    index = {"kind": "builder_ii.memory_index", "atom_count": 0, "entries": []}
+    (tmp_path / "memory-index.json").write_text(json.dumps(index), encoding="utf-8")
+    assert memory_atom_display(tmp_path) == "0"
+
+
+def test_idle_report_memory_atoms_dash_on_unreadable_index(tmp_path: Path) -> None:
+    """A malformed index is "—" (unknown), not a fabricated zero and not a crash."""
+    from builder_ii.tui.projections.operator import memory_atom_display
+
+    (tmp_path / "memory-index.json").write_text("{not json", encoding="utf-8")
+    assert memory_atom_display(tmp_path) == "—"
+
+
+def test_idle_report_chain_length_counts_real_artifacts(tmp_path: Path) -> None:
+    """chain_length is the real *.json count (matching the async verifier), not a hardcoded 0."""
+    from builder_ii.tui.projections.operator import count_artifact_files
+
+    assert count_artifact_files(tmp_path) == 0
+    assert count_artifact_files(None) == 0
+    (tmp_path / "repo_map.json").write_text(json.dumps({"kind": "builder_ii.repo_map"}), encoding="utf-8")
+    (tmp_path / "ctx.json").write_text(json.dumps({"kind": "builder_ii.context_pack"}), encoding="utf-8")
+    assert count_artifact_files(tmp_path) == 2
+
+
+def test_idle_report_source_carries_no_fabricated_zero() -> None:
+    """Pin the wiring, not just the helpers: a revert to `"memory_atoms": "0"` must fail here.
+
+    The honest helpers can exist and be correct while `_update_idle_report` still hardcodes "0";
+    this asserts the fabrication is gone from the source and the real readers are the ones wired in.
+    """
+    app_src = (Path(__file__).resolve().parents[1] / "builder_ii" / "tui" / "app.py").read_text(encoding="utf-8")
+    assert '"memory_atoms": "0"' not in app_src, "idle report is fabricating a memory-atom zero again"
+    assert '"chain_length": "0"' not in app_src, "idle report is fabricating a chain-length zero again"
+    assert "idle_report_stats(" in app_src, "idle report must read real stats via idle_report_stats"
+
+
+def test_idle_report_stats_is_best_effort_and_never_raises() -> None:
+    """The two mount-path FS reads must degrade to "—", never crash the TUI at mount.
+
+    idle_report_stats is the only synchronous filesystem read on the mount path. A MagicMock
+    artifacts_dir is exactly what a TUI test that patches load_settings without a real project_root
+    produces (its `.read_text()` returns a mock that `json.loads` rejects with TypeError) — that
+    regression is what motivated this wrapper, so it is pinned here with the same object.
+    """
+    from unittest.mock import MagicMock
+
+    from builder_ii.tui.projections.operator import idle_report_stats
+
+    memory_atoms, chain_length = idle_report_stats(MagicMock())
+    assert memory_atoms == "—"
+    assert chain_length == "—"
+
+
+def test_idle_report_stats_reads_real_values(tmp_path: Path) -> None:
+    """On a real dir, the wrapper returns the honest (memory_atoms, chain_length) pair."""
+    from builder_ii.tui.projections.operator import idle_report_stats
+
+    index = {"kind": "builder_ii.memory_index", "atom_count": 2, "entries": [1, 2]}
+    (tmp_path / "memory-index.json").write_text(json.dumps(index), encoding="utf-8")
+    (tmp_path / "repo_map.json").write_text(json.dumps({"kind": "builder_ii.repo_map"}), encoding="utf-8")
+
+    memory_atoms, chain_length = idle_report_stats(tmp_path)
+    assert memory_atoms == "2"
+    # 2 files: memory-index.json + repo_map.json (chain_length counts all *.json).
+    assert chain_length == "2"
+
+
 def test_workflow_lists_stages() -> None:
 
     view = project_workflow(artifacts_dir=None)

@@ -418,20 +418,33 @@ class StratumApp(App[None]):
             pass
 
     def _update_idle_report(self) -> None:
-        if self.stratum:
-            self.stratum.set_platform_info(
-                {
-                    "platform": "builder-II",
-                    "target": self.settings.target_repo.name,
-                    "model": self.settings.model_alias,
-                    "backend": self.settings.backend,
-                    "session": self._current_session_id,
-                    "memory_atoms": "0",  # Would read from memory browser
-                    "chain_length": "0",
-                    "chain_valid_display": "[#6e7681]—[/]",
-                    "ledger_display": "[#3fb950]ACTIVE ✓[/]" if self.artifacts_dir.exists() else "[#d29922]INACTIVE[/]",
-                }
-            )
+        if not self.stratum:
+            return
+        from builder_ii.tui.projections.operator import idle_report_stats
+
+        # memory_atoms/chain_length were hardcoded "0" here -- a fabricated zero an operator could
+        # not tell from a genuine empty state. They now read the real memory-index atom_count and
+        # real *.json artifact count (best-effort: any read failure degrades to "—", never crashes
+        # mount -- see idle_report_stats).
+        memory_atoms, chain_length = idle_report_stats(self.artifacts_dir)
+
+        # set_platform_info replaces the whole dict, so the async verifier's live chain_valid_display
+        # (written directly onto _platform_info at verify time) must be carried forward rather than
+        # reset to "—": resetting it re-fabricated "not evaluated" over a real verdict on every call.
+        existing = self.stratum._platform_info
+        self.stratum.set_platform_info(
+            {
+                "platform": "builder-II",
+                "target": self.settings.target_repo.name,
+                "model": self.settings.model_alias,
+                "backend": self.settings.backend,
+                "session": self._current_session_id,
+                "memory_atoms": memory_atoms,
+                "chain_length": chain_length,
+                "chain_valid_display": existing.get("chain_valid_display") or "[#6e7681]—[/]",
+                "ledger_display": "[#3fb950]ACTIVE ✓[/]" if self.artifacts_dir.exists() else "[#d29922]INACTIVE[/]",
+            }
+        )
 
     def action_cycle_focus(self) -> None:
         """Never runs. TAB does cycle focus, but not through here.
