@@ -47,10 +47,33 @@ def test_project_chain_marks_present_artifact(tmp_path: Path) -> None:
     (tmp_path / "repo_map.json").write_text(json.dumps(artifact), encoding="utf-8")
     view = project_chain(tmp_path)
     repo = next(s for s in view.stages if s.stage_id == "repo-map")
-    assert repo.status == "verified"
+    # Presence on disk is "present", not cryptographic "verified".
+    assert repo.status == "present"
     assert repo.artifact is not None
     pending = next(s for s in view.stages if s.stage_id == "ctx-pack")
     assert pending.status == "pending"
+
+
+def test_project_chain_sees_prepare_package_under_session_sibling(tmp_path: Path) -> None:
+    """First-session prepare historically wrote under .builder/session; spine must find it."""
+    artifacts = tmp_path / ".builder" / "artifacts"
+    session = tmp_path / ".builder" / "session"
+    artifacts.mkdir(parents=True)
+    session.mkdir(parents=True)
+    (session / "repo-map.json").write_text(
+        json.dumps({"kind": "builder_ii.repo_map", "files": []}),
+        encoding="utf-8",
+    )
+    (session / "context-pack.json").write_text(
+        json.dumps({"kind": "builder_ii.context_pack", "chunks": []}),
+        encoding="utf-8",
+    )
+    view = project_chain(artifacts)
+    repo = next(s for s in view.stages if s.stage_id == "repo-map")
+    ctx = next(s for s in view.stages if s.stage_id == "ctx-pack")
+    assert repo.status == "present", "prepare under .builder/session must light repo-map"
+    assert ctx.status == "present", "prepare under .builder/session must light ctx-pack"
+    assert repo.path is not None and "session" in repo.path
 
 
 def test_project_chain_failed_on_errors(tmp_path: Path) -> None:

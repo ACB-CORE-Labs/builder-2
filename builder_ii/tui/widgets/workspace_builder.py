@@ -101,10 +101,13 @@ class SessionBuilderScreen(ModalScreen[dict[str, Any]]):
             target = str(target_sel.value) if target_sel.value != Select.BLANK else "generic"
             model = str(model_sel.value) if model_sel.value != Select.BLANK else ""
             # Matches: builder-session prepare-package TARGET -o DIR [--task …]
+            # Write under `.builder/artifacts` so the spine multi-root scan (and operators
+            # who only look at the configured artifacts root) see prepare-stage kinds.
+            # Sibling `.builder/session` remains scanned for legacy packages.
             task = corpus.strip() or "stratum-session"
             compose = (
                 f"uv run builder-session prepare-package {target} "
-                f"-o .builder/session --task \"{task}\""
+                f"-o .builder/artifacts --task \"{task}\""
             )
             config = {
                 "schema_version": "1.0",

@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-StageStatus = Literal["verified", "gate", "pending", "failed", "disabled"]
+# Presence on disk is not cryptographic chain proof. Prefer "present" over "verified".
+StageStatus = Literal["present", "gate", "pending", "failed", "disabled"]
 
 PIPELINE_STAGES: list[dict[str, str]] = [
     {"id": "repo-map", "label": "repo-map", "kind": "builder_ii.repo_map"},
@@ -20,6 +21,11 @@ PIPELINE_STAGES: list[dict[str, str]] = [
     {"id": "postflight", "label": "postflight", "kind": "builder_ii.execution_postflight_record"},
     {"id": "promote", "label": "promote", "kind": "builder_ii.promotion_readiness_record"},
 ]
+
+# Sibling dirs under ``.builder/`` that prepare / session / hitl may write into.
+# First-session prepare historically lands under ``.builder/session`` while the spine
+# only watched top-level ``.builder/artifacts/*.json`` — a structural empty-spine bug.
+_SIBLING_SCAN_NAMES = ("artifacts", "session", "hitl", "receipts")
 
 
 @dataclass(frozen=True)
@@ -41,20 +47,61 @@ class ChainView:
     found_kinds: tuple[str, ...] = ()
 
 
+def artifact_search_roots(artifacts_dir: Path | None) -> list[Path]:
+    """Roots whose top-level ``*.json`` participate in chain projection.
+
+    Includes the configured artifacts dir and sibling dirs under ``.builder/``
+    (notably ``session``, where prepare-package writes).
+    """
+    if artifacts_dir is None:
+        return []
+    roots: list[Path] = []
+    seen: set[Path] = set()
+
+    def _add(path: Path) -> None:
+        try:
+            resolved = path.resolve()
+        except OSError:
+            resolved = path
+        if resolved in seen:
+            return
+        seen.add(resolved)
+        if path.is_dir():
+            roots.append(path)
+
+    _add(artifacts_dir)
+    parent = artifacts_dir.parent
+    if parent.name == ".builder" or (parent / "artifacts").exists() or (parent / "session").exists():
+        for name in _SIBLING_SCAN_NAMES:
+            _add(parent / name)
+    # Also accept being pointed at ``.builder`` itself.
+    if artifacts_dir.name == ".builder":
+        for name in _SIBLING_SCAN_NAMES:
+            _add(artifacts_dir / name)
+    return roots
+
+
 def _load_artifacts(artifacts_dir: Path | None) -> dict[str, tuple[Path, dict[str, Any]]]:
     found: dict[str, tuple[Path, dict[str, Any]]] = {}
-    if artifacts_dir is None or not artifacts_dir.exists():
-        return found
-    for path in sorted(artifacts_dir.glob("*.json")):
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError, UnicodeDecodeError):
-            continue
-        if not isinstance(data, dict):
-            continue
-        kind = str(data.get("kind", ""))
-        if kind:
-            found[kind] = (path, data)
+    for root in artifact_search_roots(artifacts_dir):
+        for path in sorted(root.glob("*.json")):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+                continue
+            if not isinstance(data, dict):
+                continue
+            kind = str(data.get("kind", ""))
+            if kind:
+                # Prefer newer mtime when the same kind appears in multiple roots.
+                prev = found.get(kind)
+                if prev is not None:
+                    try:
+                        if path.stat().st_mtime < prev[0].stat().st_mtime:
+                            continue
+                    except OSError:
+                        pass
+                found[kind] = (path, data)
     return found
 
 
@@ -70,7 +117,7 @@ def _stage_status(artifact: dict[str, Any] | None, *, upstream_ok: bool) -> Stag
     # Presence without local errors — not cryptographic chain proof.
     # upstream_ok reserved for future blocked-downstream display.
     _ = upstream_ok
-    return "verified"
+    return "present"
 
 
 def project_chain(artifacts_dir: Path | None) -> ChainView:
@@ -113,18 +160,19 @@ def project_chain(artifacts_dir: Path | None) -> ChainView:
 
     chain_valid: bool | None = None
     file_count = 0
-    if artifacts_dir is not None and artifacts_dir.exists():
-        paths = [p for p in artifacts_dir.glob("*.json") if p.is_file()]
-        file_count = len(paths)
-        if paths:
-            try:
-                from builder_ii.artifact_chain_verification import verify_artifact_chain
+    all_paths: list[Path] = []
+    for root in artifact_search_roots(artifacts_dir):
+        all_paths.extend(p for p in root.glob("*.json") if p.is_file())
+    file_count = len(all_paths)
+    if all_paths:
+        try:
+            from builder_ii.artifact_chain_verification import verify_artifact_chain
 
-                report = verify_artifact_chain(paths)
-                chain_valid = bool(report.get("valid", False))
-                file_count = int((report.get("counts") or {}).get("files", file_count))
-            except Exception:
-                chain_valid = None
+            report = verify_artifact_chain(all_paths)
+            chain_valid = bool(report.get("valid", False))
+            file_count = int((report.get("counts") or {}).get("files", file_count))
+        except Exception:
+            chain_valid = None
 
     return ChainView(
         stages=tuple(stages),

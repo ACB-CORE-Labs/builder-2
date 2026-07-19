@@ -223,9 +223,12 @@ def project_hitl_surface(artifacts_dir: Path | None) -> HitlProposalView | None:
 
 
 def scan_pending_hitl(artifacts_dir: Path | None) -> tuple[bool, str]:
-    """Return (gate_open, label) for the signal rail indicator."""
+    """Return (gate_open, label) for the signal rail indicator.
+
+    Closed state means no pending HITL JSON was found — not that governance is cleared.
+    """
     view = project_hitl_surface(artifacts_dir)
     if view is None:
-        return False, "NO PENDING GATES"
+        return False, "NO PENDING HITL"
     label = view.command if view.command != "—" else (view.path or "pending HITL")
     return True, label[:48]

@@ -12,6 +12,9 @@ from builder_ii.tui_theme import theme_palette
 StatusKind = Literal["pass", "warn", "fail", "hint", "active", "dim", "bold", "accent", "pending", "gate", "disabled"]
 
 _STATUS_GLYPHS: dict[str, tuple[str, str]] = {
+    # "present" is the honest spine status for file-on-disk (not cryptographic proof).
+    # "verified" retained as alias so older CSS/tests do not blank-glyph.
+    "present": ("█", "pass"),
     "verified": ("█", "pass"),
     "pass": ("✓", "pass"),
     "gate": ("▒", "warn"),

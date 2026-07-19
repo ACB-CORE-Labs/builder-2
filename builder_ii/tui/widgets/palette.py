@@ -2,6 +2,9 @@
 
 Press `?` from anywhere to overlay this modal. Commands are grouped by tier,
 blocked commands show their reason, and authority-requiring commands are flagged.
+
+Keyboard-first: arrows / j/k move selection, Enter confirms an allowed entry,
+Escape dismisses. Mouse click remains available as a second path.
 """
 
 from __future__ import annotations
@@ -71,16 +74,18 @@ class PaletteEntry(Static):
         )
 
         auth_glyph = f" [bold {p['warn']}]⚡[/]" if self.cmd_requires_authority else "  "
+        selected = "palette-item-selected" in self.classes
+        cursor = f"[{p['active']}]▸[/]" if selected else " "
 
         if self.cmd_allowed:
             return (
-                f"  [{tier_color}]{tier_short}[/]  "
+                f"{cursor} [{tier_color}]{tier_short}[/]  "
                 f"[{p['active']}]{self.cmd_name:<40}[/]"
                 f"{auth_glyph}"
                 f"  [{p['dim']}]{tier_label}[/]"
             )
         return (
-            f"  [{tier_color}]{tier_short}[/]  "
+            f"{cursor} [{tier_color}]{tier_short}[/]  "
             f"[{p['dim']}]{self.cmd_name:<40}[/]  "
             f"[{p['dim']}]⊘ {self.cmd_reason[:30]}[/]"
         )
@@ -94,6 +99,11 @@ class CommandPaletteScreen(ModalScreen[str | None]):
 
     BINDINGS = [
         Binding("escape", "dismiss_palette", "Close", show=False),
+        Binding("up", "move_up", "Up", show=False),
+        Binding("down", "move_down", "Down", show=False),
+        Binding("k", "move_up", "Up (vim)", show=False),
+        Binding("j", "move_down", "Down (vim)", show=False),
+        Binding("enter", "select_entry", "Select", show=False),
     ]
 
     def __init__(self, commands: list[dict[str, Any]] | None = None, **kwargs: Any) -> None:
@@ -101,13 +111,15 @@ class CommandPaletteScreen(ModalScreen[str | None]):
         self._commands = commands or []
         self._entries: list[PaletteEntry] = []
         self._filtered: list[PaletteEntry] = []
+        self._selected_index = 0
         self._search_input: Input | None = None
         self._results_container: ScrollableContainer | None = None
 
     def compose(self) -> ComposeResult:
         with Vertical(id="palette-container"):
             yield Static(
-                "[bold #c9d1d9]⌘ COMMAND PALETTE[/]  [#484f58]type to search · ESC to close[/]",
+                "[bold #c9d1d9]⌘ COMMAND PALETTE[/]  "
+                "[#484f58]type to search · ↑↓/jk · Enter select · ESC close[/]",
                 id="palette-title",
             )
             with Vertical(id="palette-search"):
@@ -121,6 +133,12 @@ class CommandPaletteScreen(ModalScreen[str | None]):
                 self._build_entries()
                 for entry in self._entries:
                     yield entry
+
+    def on_mount(self) -> None:
+        self._rebuild_filtered()
+        self._apply_selection_highlight()
+        if self._search_input is not None:
+            self._search_input.focus()
 
     def _build_entries(self) -> None:
         """Build palette entries from command records."""
@@ -158,16 +176,70 @@ class CommandPaletteScreen(ModalScreen[str | None]):
             )
             self._entries.append(entry)
 
+    def _visible_entries(self) -> list[PaletteEntry]:
+        return [e for e in self._entries if e.display]
+
+    def _rebuild_filtered(self) -> None:
+        self._filtered = self._visible_entries()
+        if self._filtered:
+            self._selected_index = max(0, min(self._selected_index, len(self._filtered) - 1))
+        else:
+            self._selected_index = 0
+
+    def _apply_selection_highlight(self) -> None:
+        visible = self._visible_entries()
+        for i, entry in enumerate(self._entries):
+            if entry in visible and visible and entry is visible[self._selected_index]:
+                entry.add_class("palette-item-selected")
+            else:
+                entry.remove_class("palette-item-selected")
+            entry.refresh()
+        if visible and 0 <= self._selected_index < len(visible):
+            try:
+                visible[self._selected_index].scroll_visible(animate=False)
+            except Exception:
+                pass
+
     def on_input_changed(self, event: Input.Changed) -> None:
         """Filter entries based on search text."""
         query = event.value.lower().strip()
         if not query:
             for entry in self._entries:
                 entry.display = True
-            return
+        else:
+            for entry in self._entries:
+                entry.display = query in entry.cmd_name.lower()
+        self._selected_index = 0
+        self._rebuild_filtered()
+        self._apply_selection_highlight()
 
-        for entry in self._entries:
-            entry.display = query in entry.cmd_name.lower()
+    def action_move_up(self) -> None:
+        visible = self._visible_entries()
+        if not visible:
+            return
+        self._selected_index = (self._selected_index - 1) % len(visible)
+        self._apply_selection_highlight()
+
+    def action_move_down(self) -> None:
+        visible = self._visible_entries()
+        if not visible:
+            return
+        self._selected_index = (self._selected_index + 1) % len(visible)
+        self._apply_selection_highlight()
+
+    def action_select_entry(self) -> None:
+        """Confirm the keyboard-highlighted entry (same path as click)."""
+        visible = self._visible_entries()
+        if not visible or not (0 <= self._selected_index < len(visible)):
+            return
+        entry = visible[self._selected_index]
+        if entry.cmd_allowed:
+            self.dismiss(entry.cmd_name)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Enter in the search field confirms the highlighted entry (not a new search)."""
+        event.stop()
+        self.action_select_entry()
 
     def action_dismiss_palette(self) -> None:
         self.dismiss(None)
@@ -178,3 +250,21 @@ class CommandPaletteScreen(ModalScreen[str | None]):
         widget = event.widget if hasattr(event, "widget") else None
         if isinstance(widget, PaletteEntry) and widget.cmd_allowed:
             self.dismiss(widget.cmd_name)
+
+    def on_key(self, event: events.Key) -> None:
+        """When focus is in the search Input, still allow j/k/arrows via bindings.
+
+        Textual delivers binding actions when the screen has them; Input may swallow
+        some keys. Up/down/enter are bound at screen level; this keeps j/k usable
+        while typing is focused (j/k only navigate when the input is empty so
+        operators can still type those letters in the query).
+        """
+        if event.key in ("j", "k") and self._search_input is not None:
+            if self._search_input.value:
+                return  # let the character enter the search field
+            if event.key == "j":
+                self.action_move_down()
+                event.stop()
+            elif event.key == "k":
+                self.action_move_up()
+                event.stop()

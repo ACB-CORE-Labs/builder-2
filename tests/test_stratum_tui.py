@@ -151,18 +151,41 @@ async def test_stratum_hitl_informative_refusal():
         async with app.run_test():
             app.stratum.mode = StratumMode.HITL_GATE
             with patch.object(app, "notify") as mock_notify, patch.object(app, "push_screen") as mock_push:
+                # Unbound gate (mode forced without a path) must refuse incomplete bare compose.
+                app.stratum._hitl_proposal = {}
                 app.action_approve_hitl()
                 approve_msg = mock_notify.call_args[0][0]
-                assert "cannot harvest confirmation" in approve_msg
-                assert "builder-hitl approve-patch" in approve_msg
+                assert "refused" in approve_msg.lower() or "cannot harvest" in approve_msg.lower()
                 assert mock_notify.call_args.kwargs.get("severity") == "warning"
-                mock_push.assert_called()
+                # No incomplete bare prefix may be pushed.
+                if mock_push.called:
+                    pushed = mock_push.call_args[0][0]
+                    assert "--proposal" in getattr(pushed, "prefix_context", "")
 
+                mock_push.reset_mock()
+                app.stratum._hitl_proposal = {
+                    "path": "/tmp/proposal.json",
+                    "artifact": {"kind": "builder_ii.hitl_patch_proposal"},
+                }
+                app.action_approve_hitl()
+                approve_msg = mock_notify.call_args[0][0]
+                assert "builder-hitl approve-patch" in approve_msg
+                mock_push.assert_called()
+                approve_screen = mock_push.call_args[0][0]
+                assert "--proposal" in approve_screen.prefix_context
+                assert "--output" in approve_screen.prefix_context
+
+                mock_push.reset_mock()
                 app.action_reject_hitl()
                 reject_msg = mock_notify.call_args[0][0]
-                assert "cannot mutate approval state" in reject_msg
-                assert "builder-hitl rejection-record" in reject_msg
-                assert mock_notify.call_args.kwargs.get("severity") == "warning"
+                assert "cannot mutate approval state" in reject_msg or "refuse-patch" in reject_msg
+                assert mock_push.called, "bound reject must open the composer"
+                reject_screen = mock_push.call_args[0][0]
+                assert "refuse-patch" in reject_screen.prefix_context
+                # Composed CLI must not be the promotion ceremony (notify text may name it to contrast).
+                assert "rejection-record" not in reject_screen.prefix_context
+                assert "--proposal" in reject_screen.prefix_context
+                assert "--output" in reject_screen.prefix_context
 
 
 # --- STRATUM originates neither writes nor runtimes ---------------------------------------------

@@ -19,6 +19,7 @@ from textual.reactive import reactive
 from textual.widgets import RichLog, Static
 
 from builder_ii.tui.projections.gates import scan_pending_hitl
+from builder_ii.tui.projections.last_mile import format_last_mile_hud_lines, project_last_mile_hud
 from builder_ii.tui.projections.render import bold_themed, themed
 from builder_ii.tui.widget_ids import widget_id
 from builder_ii.tui.widgets.masterpiece import MechanicalSympathyHud
@@ -35,7 +36,7 @@ CAPABILITIES = [
 
 class HITLGateIndicator(Static):
     gate_open = reactive(False)
-    gate_label = reactive("NO PENDING GATES")
+    gate_label = reactive("NO PENDING HITL")
 
     def render(self) -> str:
         if self.gate_open:
@@ -43,9 +44,10 @@ class HITLGateIndicator(Static):
                 f"\n {bold_themed('warn', '● HITL GATE OPEN')}\n"
                 f"   {themed('hint', self.gate_label)}"
             )
+        # Honest: absence of pending HITL JSON ≠ cleared governance / all gates proven.
         return (
-            f"\n {themed('pass', '● ALL GATES CLEAR')}\n"
-            f"   {themed('dim', 'no pending authority')}"
+            f"\n {themed('pass', '● NO PENDING HITL')}\n"
+            f"   {themed('dim', 'no pending HITL JSON on disk')}"
         )
 
 
@@ -72,11 +74,54 @@ class CapabilityItem(Static):
         return f"  {self.cap_name}{' ' * pad}{glyph} {themed(token, self.state)}"
 
 
+class LastMileHud(Static):
+    """Always-on last-mile strip: budget · seam · ledger tail · measured cost.
+
+    Projection only — never debits, never invokes, never appends.
+    """
+
+    budget = reactive("—")
+    seam = reactive("none")
+    ledger_tail = reactive("—")
+    cost = reactive("—")
+
+    def __init__(self, artifacts_dir: Path | None = None, **kwargs: Any) -> None:
+        kwargs.setdefault("id", "last-mile-hud")
+        super().__init__(**kwargs)
+        self.artifacts_dir = artifacts_dir
+
+    def refresh_from_disk(self) -> None:
+        view = project_last_mile_hud(self.artifacts_dir)
+        self.budget = view.budget
+        self.seam = view.seam
+        self.ledger_tail = view.ledger_tail
+        self.cost = view.cost
+
+    def render(self) -> str:
+        from builder_ii.tui.projections.last_mile import LastMileHudView
+
+        view = LastMileHudView(
+            budget=self.budget,
+            seam=self.seam,
+            ledger_tail=self.ledger_tail,
+            cost=self.cost,
+        )
+        budget_line, seam_line, ledger_line, cost_line = format_last_mile_hud_lines(view)
+        return (
+            f" {bold_themed('active', 'LAST-MILE')}\n"
+            f" {themed('hint', budget_line)}\n"
+            f" {themed('hint', seam_line)}\n"
+            f" {themed('dim', ledger_line)}\n"
+            f" {themed('hint', cost_line)}"
+        )
+
+
 class SignalRail(Vertical):
     def __init__(self, artifacts_dir: Path | None = None, **kwargs: Any) -> None:
         super().__init__(id="signal-rail", **kwargs)
         self.artifacts_dir = artifacts_dir
         self._gate_indicator: HITLGateIndicator | None = None
+        self._last_mile: LastMileHud | None = None
         self._ledger_log: RichLog | None = None
         self._cap_items: dict[str, CapabilityItem] = {}
         self._seen_event_files: set[str] = set()
@@ -85,6 +130,9 @@ class SignalRail(Vertical):
     def compose(self) -> ComposeResult:
         self._gate_indicator = HITLGateIndicator(id="hitl-gate-indicator")
         yield self._gate_indicator
+
+        self._last_mile = LastMileHud(artifacts_dir=self.artifacts_dir)
+        yield self._last_mile
 
         with Vertical(id="ledger-section"):
             yield Static("EVENTS", id="ledger-title")
@@ -110,7 +158,13 @@ class SignalRail(Vertical):
     def on_mount(self) -> None:
         self._load_initial_ledger()
         self._refresh_hitl_gate()
+        self._refresh_last_mile()
         self._apply_default_capabilities()
+
+    def _refresh_last_mile(self) -> None:
+        if self._last_mile is not None:
+            self._last_mile.artifacts_dir = self.artifacts_dir
+            self._last_mile.refresh_from_disk()
 
     def _apply_default_capabilities(self) -> None:
         """Honest defaults: STRATUM surface itself grants no execution caps."""
@@ -205,3 +259,4 @@ class SignalRail(Vertical):
     async def refresh_data(self) -> None:
         self._load_initial_ledger()
         self._refresh_hitl_gate()
+        self._refresh_last_mile()

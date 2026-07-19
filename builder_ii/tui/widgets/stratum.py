@@ -280,7 +280,7 @@ class ActiveStratum(Vertical):
                     f"{bold_themed('active', 'Y')} orch  "
                     f"{bold_themed('active', 'B')} vault  "
                     f"{bold_themed('active', 'C')} audit",
-                    f"  {themed('dim', 'cmd: uv run builder-session prepare-package generic -o .builder/session')}",
+                    f"  {themed('dim', 'cmd: uv run builder-session prepare-package generic -o .builder/artifacts')}",
                     f"  {themed('dim', 'STRATUM reads the project you launched from — not another clone.')}",
                 ]
             )

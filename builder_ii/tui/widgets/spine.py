@@ -1,10 +1,10 @@
 """Artifact Spine — living dependency chain (left column).
 
 Density glyphs:
-  █  green  = artifact present, no local errors
+  █  green  = artifact present on disk (not chain proof)
   ▒  amber  = gate open / HITL required
   ░  dim    = not yet present
-  ✗  red    = verification/errors on artifact
+  ✗  red    = errors on artifact
   ⊘  gray   = intentionally disabled
 """
 
@@ -24,7 +24,8 @@ from builder_ii.tui.projections.render import bold_themed, status_glyph, themed
 from builder_ii.tui.widget_ids import widget_id
 
 ArtifactStatus = type("ArtifactStatus", (), {
-    "VERIFIED": "verified",
+    "PRESENT": "present",
+    "VERIFIED": "present",  # legacy alias — presence ≠ cryptographic proof
     "GATE_OPEN": "gate",
     "PENDING": "pending",
     "FAILED": "failed",
@@ -69,7 +70,8 @@ class SpineItem(Static):
 
     def watch_status(self, new_status: str) -> None:
         for cls in (
-            "artifact-verified",
+            "artifact-present",
+            "artifact-verified",  # legacy class name kept for CSS
             "artifact-gate",
             "artifact-pending",
             "artifact-failed",
@@ -77,7 +79,8 @@ class SpineItem(Static):
         ):
             self.remove_class(cls)
         css = {
-            "verified": "artifact-verified",
+            "present": "artifact-present",
+            "verified": "artifact-present",
             "gate": "artifact-gate",
             "pending": "artifact-pending",
             "failed": "artifact-failed",
