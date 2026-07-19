@@ -20,7 +20,7 @@ from typing import Any, Mapping
 from builder_ii.wrp.msda_preflight import MsdaPreflightDenied, assert_msda_preflight
 
 GATEWAY_NODE_TYPES: frozenset[str] = frozenset({"model_gateway", "tool_gateway"})
-GATEWAY_MODES: frozenset[str] = frozenset({"record", "stub_tool"})
+GATEWAY_MODES: frozenset[str] = frozenset({"record", "stub_tool", "invoke_local"})
 S2_V2_LANE_VERSION = "v2_gateway_hitl"
 S2_V1_LANE_VERSION = "v1_graph_msda_hitl"
 
@@ -95,6 +95,174 @@ def _record_model_gateway(
         "executes_model_provider": False,
         "executes_shell": False,
         "grants_authority": False,
+    }
+    return {**body, "digest": _sha(body)}
+
+
+def _invoke_local_model_gateway(
+    *,
+    node_id: str,
+    spec: Mapping[str, Any],
+    plan_digest: str,
+    approved_by: str,
+    msda_decision: Mapping[str, Any],
+    artifact_dir: Any = None,
+) -> dict[str, Any]:
+    """Invoke ModelExecutionGateway for local/stub providers only (the seam).
+
+    Requires payload fields: model_id, prompt (or prompt_snippet), and for
+    fail-closed governance: budget (dict), optional execution_policy/registry.
+    Cloud risk_classification models are refused.
+    """
+    from pathlib import Path
+
+    from builder_ii.config import load_settings
+    from builder_ii.model_budget import BudgetExceededError, create_model_budget
+    from builder_ii.model_client_registry import create_model_client_registry
+    from builder_ii.model_execution_gateway import ModelExecutionGateway
+    from builder_ii.model_routing_policy import create_model_execution_policy
+    from builder_ii.price_book import create_default_price_book
+
+    payload = spec.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
+
+    model_id = str(payload.get("model_id") or "").strip()
+    if not model_id or model_id.startswith("record:") or model_id == "record-only-local":
+        raise GatewayNodeError(
+            "invoke_local requires a real registry model_id (not record-only-local)"
+        )
+    prompt = str(payload.get("prompt") or payload.get("prompt_snippet") or payload.get("task") or "")
+    if not prompt.strip():
+        raise GatewayNodeError("invoke_local requires payload.prompt (or prompt_snippet/task)")
+
+    registry_raw = payload.get("registry")
+    registry: dict[str, Any] = (
+        dict(registry_raw) if isinstance(registry_raw, dict) else create_model_client_registry()
+    )
+    client_record: dict[str, Any] | None = None
+    for client in registry.get("clients", []):
+        if isinstance(client, dict) and client.get("model_id") == model_id:
+            client_record = client
+            break
+    if client_record is None:
+        raise GatewayNodeError(f"model_id {model_id!r} not found in registry")
+    if not client_record.get("enabled"):
+        # Auto-enable stub providers for governed tests / offline seam demos only when requested.
+        if client_record.get("provider_id") in ("openai_stub_provider", "anthropic_stub_provider") and payload.get(
+            "enable_stub_if_disabled"
+        ):
+            client_record = {**client_record, "enabled": True}
+            clients = [
+                client_record if isinstance(c, dict) and c.get("model_id") == model_id else c
+                for c in registry.get("clients", [])
+            ]
+            registry = {**registry, "clients": clients}
+        else:
+            raise GatewayNodeError(f"model_id {model_id!r} is disabled in registry")
+
+    risk = client_record.get("risk_classification")
+    if risk == "cloud_external" and client_record.get("provider_id") not in (
+        "openai_stub_provider",
+        "anthropic_stub_provider",
+    ):
+        raise GatewayNodeError(
+            "invoke_local refuses cloud_external providers (use invoke_cloud after ceremony; H6)"
+        )
+
+    # Budget required for seam
+    budget_raw = payload.get("budget")
+    budget: dict[str, Any]
+    if budget_raw is None:
+        if payload.get("auto_budget") is True:
+            budget = create_model_budget(
+                session_id=str(payload.get("session_id") or f"wrp-{plan_digest[:12]}"),
+                task_id=str(payload.get("task_id") or node_id),
+                max_input_tokens=int(payload.get("max_input_tokens") or 50_000),
+                max_output_tokens=int(payload.get("max_tokens") or 256),
+                max_total_tokens=int(payload.get("max_total_tokens") or 50_000),
+                max_usd=float(payload.get("max_usd") or 1.0),
+            )
+        else:
+            raise GatewayNodeError("invoke_local requires payload.budget (or auto_budget=true)")
+    elif isinstance(budget_raw, dict):
+        budget = dict(budget_raw)
+    else:
+        raise GatewayNodeError("payload.budget must be an object")
+
+    rec = {
+        "kind": "builder_ii.model_routing_recommendation",
+        "recommended_candidates": [{"model_id": model_id}],
+    }
+    policy_raw = payload.get("execution_policy")
+    execution_policy: dict[str, Any]
+    if isinstance(policy_raw, dict):
+        execution_policy = dict(policy_raw)
+    else:
+        execution_policy = create_model_execution_policy(rec, max_tokens=int(payload.get("max_tokens") or 256))
+    allowed = list(execution_policy.get("allowed_models") or [])
+    if model_id not in allowed:
+        execution_policy = {
+            **execution_policy,
+            "allowed_models": list(dict.fromkeys([*allowed, model_id])),
+        }
+
+    settings = load_settings()
+    # Stub cloud models need allow_cloud_models for risk gate even though they are stubs.
+    if client_record.get("provider_id") in ("openai_stub_provider", "anthropic_stub_provider"):
+        if not getattr(settings, "allow_cloud_models", False):
+            settings = type(settings)(**{**settings.__dict__, "allow_cloud_models": True})
+
+    pb_raw = payload.get("price_book")
+    price_book: dict[str, Any] = dict(pb_raw) if isinstance(pb_raw, dict) else create_default_price_book()
+    gateway = ModelExecutionGateway(settings, registry, execution_policy, price_book=price_book)
+
+    base = Path(artifact_dir) if artifact_dir is not None else Path(".builder/artifacts/wrp_invoke_local")
+    base = base / plan_digest[:16] / node_id
+    base.mkdir(parents=True, exist_ok=True)
+    envelope_path = base / "envelope.json"
+    receipt_path = base / "receipt.json"
+    events_dir = base / "events"
+    session_id = str(payload.get("session_id") or f"wrp-{plan_digest[:12]}")
+
+    try:
+        envelope, receipt = gateway.run_model_call(
+            model_id=model_id,
+            prompt=prompt,
+            system_prompt=str(payload.get("system_prompt") or "Answer helpfully.") or None,
+            max_tokens=int(payload.get("max_tokens") or 256),
+            temperature=payload.get("temperature"),
+            envelope_path=envelope_path,
+            receipt_path=receipt_path,
+            ledger_bound=True,
+            budget=budget,
+            events_dir=events_dir,
+            session_id=session_id,
+        )
+    except BudgetExceededError as exc:
+        raise GatewayNodeError(f"budget denied: {exc}") from exc
+    except Exception as exc:
+        raise GatewayNodeError(f"invoke_local failed: {exc}") from exc
+
+    body = {
+        "kind": "builder_ii.wrp.gateway_model_invoke",
+        "mode": "invoke_local",
+        "node_id": node_id,
+        "model_id": model_id,
+        "plan_digest": plan_digest,
+        "approved_by": approved_by,
+        "msda_decision_digest": msda_decision.get("digest"),
+        "envelope_digest": envelope.get("digest"),
+        "receipt_digest": receipt.get("digest"),
+        "cost_report": receipt.get("cost_report"),
+        "ledger_bound": True,
+        "events_dir": str(events_dir),
+        "performs_network": bool(envelope.get("performs_network_calls")),
+        "executes_model_provider": True,
+        "executes_shell": False,
+        "cloud_provider_invoke": False,
+        "grants_authority": False,
+        "artifact_is_authority": False,
     }
     return {**body, "digest": _sha(body)}
 
@@ -213,7 +381,20 @@ def run_gateway_node(
             msg,
         )
     if mode == "stub_tool" and node_type == "model_gateway":
-        msg = "stub_tool mode is not valid for model_gateway (use record; no provider invoke in S2 v2 default)"
+        msg = "stub_tool mode is not valid for model_gateway (use record or invoke_local)"
+        return (
+            {
+                "node_id": node_id,
+                "status": "failed",
+                "cost_estimate": float(spec.get("cost_estimate", 0.0)),
+                "error": msg,
+            },
+            dict(handoff_state),
+            {},
+            msg,
+        )
+    if mode == "invoke_local" and node_type != "model_gateway":
+        msg = "invoke_local mode is only valid for model_gateway"
         return (
             {
                 "node_id": node_id,
@@ -230,13 +411,25 @@ def run_gateway_node(
     try:
         msda_decision = _msda_for_node(node_type=node_type, spec=spec, msda_policy=msda_policy)
         if node_type == "model_gateway":
-            result = _record_model_gateway(
-                node_id=node_id,
-                spec=spec,
-                plan_digest=plan_digest,
-                approved_by=approved_by,
-                msda_decision=msda_decision,
-            )
+            if mode == "invoke_local":
+                result = _invoke_local_model_gateway(
+                    node_id=node_id,
+                    spec=spec,
+                    plan_digest=plan_digest,
+                    approved_by=approved_by,
+                    msda_decision=msda_decision,
+                    artifact_dir=(spec.get("payload") or {}).get("artifact_dir")
+                    if isinstance(spec.get("payload"), dict)
+                    else None,
+                )
+            else:
+                result = _record_model_gateway(
+                    node_id=node_id,
+                    spec=spec,
+                    plan_digest=plan_digest,
+                    approved_by=approved_by,
+                    msda_decision=msda_decision,
+                )
         elif mode == "stub_tool":
             result = _stub_tool_gateway(
                 node_id=node_id,

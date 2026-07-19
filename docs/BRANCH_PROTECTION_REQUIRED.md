@@ -1,9 +1,31 @@
-# GitHub Branch Protection Requirements
+# Branch protection requirements (Forgejo primary + GitHub mirror notes)
 
 > [!IMPORTANT]
-> GitHub branch protection is an external repository-level setting managed on GitHub.com. It is NOT a code-level guarantee and cannot be fully enforced by files within the repository.
+> **builder-II is Forgejo-primary** (`core-labs/builder-II`). Branch protection is an
+> external repository-level setting. It is NOT a code-level guarantee and cannot be fully
+> enforced by files within the repository.
+>
+> When the Forgejo Actions / Act runner is offline or not a required check, **local
+> `bash scripts/ci.sh --receipt .builder/artifacts/gate-battery-receipt.json` is the
+> merge evidence**. Attach the receipt path + HEAD digest in the PR body.
 
-To enforce the integrity of the `main` branch, repository administrators should ensure that the following branch protection settings or rulesets are configured for `main`.
+## Forgejo (source of truth)
+
+Administrators should configure branch protection / rulesets on Forgejo `main` to:
+
+1. Require pull requests before merge (no direct push to `main`).
+2. Prefer required status check `high-assurance-gates` when the runner is healthy.
+3. Block force pushes and branch deletion on `main`.
+4. When the runner is down: require human review + gate battery receipt artifact.
+
+## GitHub mirror (if present)
+
+GitHub.com settings below are **not** the deploy authority for CORE-primary repos; they
+apply only if a GitHub mirror is used. Use Forgejo admin UI / API for the primary host.
+
+# GitHub Branch Protection Requirements (mirror only)
+
+To enforce the integrity of the `main` branch on a GitHub mirror, repository administrators should ensure that the following branch protection settings or rulesets are configured for `main`.
 
 ## Recommended Settings
 1. **Require Pull Requests before merging**:

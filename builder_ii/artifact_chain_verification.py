@@ -214,6 +214,7 @@ from builder_ii.hitl_verification_candidate import (
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
     validate_hitl_verification_execution_candidate,
 )
+from builder_ii.model_budget import MODEL_BUDGET_KIND, validate_model_budget
 from builder_ii.model_capabilities import (
     MODEL_CAPABILITY_REGISTRY_KIND,
     validate_model_capability_registry,
@@ -262,6 +263,7 @@ from builder_ii.preflight_records import (
     PREFLIGHT_RECORD_KIND,
     validate_preflight_record,
 )
+from builder_ii.price_book import PRICE_BOOK_KIND, validate_price_book
 from builder_ii.profile_pack import PROFILE_PACK_KIND, validate_profile_pack
 from builder_ii.profile_pack_dry_run import (
     PROFILE_PACK_DRY_RUN_KIND,
@@ -504,6 +506,8 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     MODEL_CLIENT_REGISTRY_KIND: validate_model_client_registry,
     MODEL_ROUTING_POLICY_KIND: validate_model_routing_policy,
     MODEL_ROUTING_RECOMMENDATION_KIND: validate_model_routing_recommendation,
+    PRICE_BOOK_KIND: validate_price_book,
+    MODEL_BUDGET_KIND: validate_model_budget,
     AGENT_ASSIGNMENT_PLAN_KIND: validate_agent_assignment_plan,
     ORCHESTRATION_ASSIGNMENT_PLAN_KIND: validate_orchestration_assignment_plan,
     ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND: validate_orchestration_assignment_dry_run,
