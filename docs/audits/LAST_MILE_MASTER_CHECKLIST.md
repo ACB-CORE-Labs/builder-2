@@ -1,12 +1,12 @@
 # builder-II Last Mile — Master Checklist
 
-**Status:** ACTIVE tracking ledger (not a promotion grant).  
+**Status:** SHIPPED (implementable spine) — residual HUMAN/ops items remain DEFERRED/BLOCKED.  
 **Plan:** goal plan + session battle-plan.  
 **Doctrine:** Planned ≠ executed ≠ verified ≠ promoted.
 
 Legend: `PENDING` · `IN_PROGRESS` · `DONE` · `DEFERRED` · `BLOCKED` · `N/A (already green)`
 
-Last updated: 2026-07-19 (implementation wave)
+Last updated: 2026-07-19 (ship #177 + process closeout)
 
 ---
 
@@ -14,9 +14,9 @@ Last updated: 2026-07-19 (implementation wave)
 
 | ID | Item | Status | Notes |
 | --- | --- | --- | --- |
-| P0 | Sync worktree to `origin/main` | DONE | Fast-forward to cbf7879 (#176) |
+| P0 | Sync worktree to `origin/main` | DONE | Was cbf7879 (#176); post-ship tip `72bffea` (#177) |
 | P1 | Feature branch from main | DONE | `feat/last-mile-w0.1-price-book-tokens` |
-| P2 | Local CI battery green | DONE | `bash scripts/ci.sh --receipt` → PASSED; 2452 passed |
+| P2 | Local CI battery green | DONE | Pre-ship recheck: `bash scripts/ci.sh --receipt` → PASSED; 2456 passed, 2 skipped; head `ac7049d` |
 
 ---
 
@@ -89,9 +89,12 @@ Last updated: 2026-07-19 (implementation wave)
 | --- | --- | --- | --- |
 | C1 | One-writer discipline | DONE | Contended surfaces updated carefully |
 | C2 | TDD | DONE | Tests for each wave outcome |
-| C3 | `bash scripts/ci.sh` | DONE | PASSED + receipt |
-| C4 | Permanent non-goals pinned | DONE | `tests/test_last_mile_non_goals.py` |
-| C5 | audit-docs | DONE | valid, 0 violations |
+| C3 | `bash scripts/ci.sh` recheck on tip | DONE | PASSED + `gate_battery_receipt` overall_state=PASSED; 2456 passed @ `ac7049d` (pre-merge tip) |
+| C4 | Permanent non-goals pinned | DONE | `tests/test_last_mile_non_goals.py` (post-ship re-run green) |
+| C5 | audit-docs | DONE | valid, 0 violations (in gate battery) |
+| C6 | Push feature branch to Forgejo | DONE | `origin/feat/last-mile-w0.1-price-book-tokens` @ `ac7049d` |
+| C7 | Open PR → `main` | DONE | PR **#177** https://core-gitquarters.acbcontent.org/core-labs/builder-II/pulls/177 |
+| C8 | Merge when local gates green | DONE | Merged 2026-07-19 via `forgejo_core__merge_pull_request` (`merge`); merge_commit `72bffea` |
 
 ---
 
@@ -101,3 +104,4 @@ Last updated: 2026-07-19 (implementation wave)
 | --- | --- |
 | 2026-07-18 | Checklist created |
 | 2026-07-19 | W0.1–W1.3 + W3.1 partial + W5.1 landed; CI green; cloud/S3/OTel deferred honestly |
+| 2026-07-19 | Ship: CI recheck green; push; PR #177; merge to `main` (`72bffea`); process rows C6–C8 DONE |
