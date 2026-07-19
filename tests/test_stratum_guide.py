@@ -95,3 +95,13 @@ def test_walkthrough_prepare_matches_session_cli_shape() -> None:
     assert step.command is not None
     assert "builder-session prepare-package" in step.command
     assert " -o " in step.command or " -o." in step.command
+
+
+def test_the_goose_manifest_step_does_not_contradict_the_g_hand_off() -> None:
+    """H7: the G path asks-then-mints a passive manifest under confirm (a documented governed
+    exception), so the guide must not claim "STRATUM never mints one" -- that flatly contradicts
+    launch_goose's own behavior (test_launch_goose_after_confirm_mints_then_hands_off)."""
+    step = next(s for s in WALKTHROUGH_STEPS if "goose manifest" in s.title.lower())
+    text = f"{step.why} {step.stratum_after}".lower()
+    assert "never mints" not in text, "guide contradicts the G path, which mints a passive manifest under confirm"
+    assert "mint" in text and "confirm" in text, "guide must state that G asks before minting a passive manifest"
