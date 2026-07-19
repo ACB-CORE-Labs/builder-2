@@ -14,6 +14,10 @@ from builder_ii.hitl_command_runner import (
     RunCommandDisabledError,
     execute_hitl_command,
 )
+from builder_ii.hitl_decision_envelope import (
+    decision_envelope_flags_a_violation,
+    validate_hitl_decision_envelope_file,
+)
 from builder_ii.hitl_execution_records import (
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_EXECUTION_REQUEST_KIND,
@@ -167,3 +171,31 @@ def validate(
         raise typer.Exit(1)
 
     console.print(f"Artifact is valid: {path}", soft_wrap=True)
+
+
+@hitl_app.command("validate-decision-envelope")
+def validate_decision_envelope(
+    path: Path = typer.Argument(..., help="Path to a builder_ii.hitl_decision_envelope JSON artifact"),
+) -> None:
+    """Validate a HITL decision envelope and report whether any criterion is out of its range.
+
+    The envelope is decision support, never authority: this checks only that the evidence a human
+    weighs is well-formed, and surfaces the exception signal (a criterion out of its acceptable
+    range) an operator should see before deciding. It approves nothing.
+    """
+    errors = validate_hitl_decision_envelope_file(path)
+    if errors:
+        for err in errors:
+            console.print(f"Validation error: {err}")
+        raise typer.Exit(1)
+    try:
+        data = json_lib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json_lib.JSONDecodeError) as exc:
+        console.print(f"Validation error: invalid JSON: {exc}")
+        raise typer.Exit(1)
+    report = {
+        "valid": True,
+        "path": str(path),
+        "flags_a_violation": decision_envelope_flags_a_violation(data),
+    }
+    typer.echo(json_lib.dumps(report, indent=2, sort_keys=True))
