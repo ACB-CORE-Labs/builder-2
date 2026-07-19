@@ -21,7 +21,7 @@ def test_hitl_run_command_remains_disabled(tmp_path) -> None:
 
 
 def test_agent_factory_spawn_executed_false_by_default() -> None:
-    """AgentFactory lifecycle *records* stay honesty-pinned false by default."""
+    """Default lifecycle record is unearned (false) — not a ban on earned paths."""
     rec = spawn_agent(role="code_reviewer", task="review last-mile honesty")
     assert rec["spawn_executed"] is False
     assert rec["spawn_permitted"] is False

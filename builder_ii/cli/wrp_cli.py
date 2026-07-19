@@ -458,7 +458,7 @@ def agent_factory_spawn_cmd(
     task: str = typer.Option(..., "--task", help="Task binding for the lifecycle record"),
     output: Path | None = typer.Option(None, "--output", "-o"),
 ) -> None:
-    """Emit a lifecycle spawn *record* (spawn_executed=false; not a process spawn)."""
+    """Emit a lifecycle spawn record (default unearned; not an OS process spawn)."""
     from builder_ii.wrp.agent_factory import spawn_agent
 
     try:

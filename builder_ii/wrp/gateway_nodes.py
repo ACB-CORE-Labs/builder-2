@@ -3,12 +3,13 @@
 Default mode is ``record``: forced MSDA preflight + digest-bound synthetic
 gateway receipt fragments. No network, no shell, no cloud model call.
 
-Optional mode ``stub_tool`` invokes the B7 in-process stub allowlist
-(``builtin.echo`` / ``builtin.utc_static``) only — still no shell.
+Optional modes (implemented; activation gated — not "unimplemented"):
+- ``stub_tool`` — B7 in-process stub allowlist only
+- ``invoke_local`` — ModelExecutionGateway local/stub seam
+- ``invoke_cloud`` — harder-gated cloud seam (approval + spend cap + egress)
 
-Real cloud/provider model execution is intentionally out of the default path
-(mechanical sympathy + separate model-gateway authority). Dual-correction
-cannot self-grant broader provider enablement.
+Honesty: default ``record`` does **not** mean cloud/local invoke code is
+absent. See ``docs/HONESTY_PINS_VS_IMPLEMENTATION.md``.
 """
 
 from __future__ import annotations

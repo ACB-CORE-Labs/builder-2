@@ -94,6 +94,30 @@ def test_prove_agent_lifecycle_ok() -> None:
     assert again["digest"] == proof["digest"]
 
 
+def test_spawn_earned_seam_execution_path() -> None:
+    rec = spawn_agent(
+        role="code_reviewer",
+        task="earned bind",
+        seam_execution={
+            "subagent_loop_digest": "1" * 64,
+            "plan_digest": "2" * 64,
+            "approved_by": "human",
+            "gateway_mode": "invoke_local",
+            "steps_executed": 1,
+            "kill_switch_armed": True,
+        },
+    )
+    assert rec["spawn_executed"] is True
+    assert rec["spawn_permitted"] is True
+    assert rec["runtime_binding"] == "SEAM_BOUND"
+    assert rec["process_spawn"] is False
+    assert validate_agent_lifecycle_record(rec) == []
+    retire = retire_agent(spawn_record=rec, reason="done")
+    assert retire["spawn_executed"] is True
+    assert retire["runtime_binding"] == "SEAM_BOUND"
+    assert validate_agent_lifecycle_record(retire) == []
+
+
 def test_plan_agent_lifecycle_still_plan_only() -> None:
     agents = [
         AgentPoint(

@@ -16,6 +16,7 @@ All proposed code, plans, and architectures must reflect:
 * **Mechanical Sympathy:** The primary target is an Apple Silicon M1 (16GB unified memory). Do not propose heavy, memory-intensive dependencies. All MLX models must fit within a 2GB-7GB footprint.
 * **Semantic Rigor:** Maintain exact meaning across all artifacts. Never conflate a manifest with runtime evidence.
 * **The Third Door:** Every capability that changes authority requires docs, tests, a command surface, a failure mode, a human approval boundary, an output artifact, a rollback path, and a verification path.
+* **Honesty pins ≠ non-implementation:** A default `false` / fail-closed pin rejects *false claims*; it is **not** permission to skip building the governed execution path. Implement full logic; pin unearned claims. See `docs/HONESTY_PINS_VS_IMPLEMENTATION.md`.
 
 ## 3. Platform Integration Rules
 Do not attempt to bypass the governed control plane. All actions must flow through the appropriate adapter:

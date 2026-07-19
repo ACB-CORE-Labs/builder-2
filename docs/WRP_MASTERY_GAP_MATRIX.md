@@ -45,7 +45,7 @@
 | Semantic/structural RO doctor/map/preview | `LANDED` | V.1 | `builder-semantic` |
 | Experience + receipt ingest + R* apply | `LANDED` | P4 | HITL φ policy |
 | AgentFactory plan only | `LANDED` | P2.5 | `spawn_permitted=false` |
-| AgentFactory spawn/retire language | `LANDED` | W.5 | lifecycle records; `spawn_executed=false` |
+| AgentFactory spawn/retire language | `LANDED` | W.5 | default records unearned (`spawn_executed=false`); earned `SEAM_BOUND` path when subagent-loop evidence supplied (honesty pin ≠ non-implementation) |
 | SubtaskGraph + W5 repo-state replay | `LANDED` | P7 | commit_id/tree_hash |
 | Orchestration patterns runtime | `LANDED` | P2.6 / W.4 | `patterns-prove` |
 | HITL verify fixed-argv expansion (V.3) | `LANDED` | V.3 | RO profiles not TARGET_CODE |

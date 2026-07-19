@@ -233,6 +233,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | --- | --- |
 | [`FIRST_SESSION.md`](FIRST_SESSION.md) | The single validated path from a clean clone to one complete governed patch loop, in about 30 minutes. Start here. |
 | [`docs/MANIFESTO.md`](docs/MANIFESTO.md) | builder-II manifesto: signet, product ethos, Codename Goose relationship, and governed engineering promise. |
+| [`docs/HONESTY_PINS_VS_IMPLEMENTATION.md`](docs/HONESTY_PINS_VS_IMPLEMENTATION.md) | Honesty pins reject false claims; they are **not** a ban on implementing governed execution paths. |
 | [`docs/GOOSE_CONVENTION_LAYER.md`](docs/GOOSE_CONVENTION_LAYER.md) | Operational spec for the builder convention layer over Codename Goose. |
 | [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) | Architecture decision defining CORE builder-II as a governed engineering extension. |
 | [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) | Architecture decision requiring builder-II abstractions to compile down to Codename-Goose-native surfaces. |
