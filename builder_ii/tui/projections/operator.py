@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from builder_ii.tui.projections.chain import epistemic_from_chain, project_chain
+
+#: Canonical memory-index filename under an artifacts dir. Same file the operator status report
+#: reads (`operator_status.py`); named once here so the idle HUD cannot drift from it.
+MEMORY_INDEX_FILENAME = "memory-index.json"
 
 
 @dataclass(frozen=True)
@@ -107,3 +112,59 @@ def chain_validity_display(chain_valid: bool | None) -> tuple[str, str]:
     if chain_valid is False:
         return "FALSE", "fail"
     return "—", "hint"
+
+
+def count_artifact_files(artifacts_dir: Path | None) -> int:
+    """Number of ``*.json`` artifacts under ``artifacts_dir`` — the STRATUM idle report's chain
+    length, computed cheaply.
+
+    This is the same file count ``_verify_current_chain_async`` reports (it counts the very same
+    ``glob("*.json")`` before verifying), but a *count* is not a validity claim and needs no
+    verification: it can be read on the UI thread without invoking the heavy chain verifier. ``0``
+    means the directory was read and holds no artifacts — never a fabricated placeholder.
+    """
+    if artifacts_dir is None or not artifacts_dir.exists():
+        return 0
+    return sum(1 for path in artifacts_dir.glob("*.json") if path.is_file())
+
+
+def memory_atom_display(artifacts_dir: Path | None) -> str:
+    """Real memory-index ``atom_count`` as a string, or ``"—"`` when there is no index to read.
+
+    ``"0"`` is shown *only* when an index exists and truthfully carries zero atoms; the absence of
+    an index reads as ``"—"`` (unknown), never as a fabricated zero — the same distinction
+    ``chain_validity_display`` draws between ``FALSE`` and ``—``. This reads the same
+    ``memory-index.json`` / ``atom_count`` that the operator status report and ``builder-platform``
+    surface, so the idle HUD cannot disagree with them.
+    """
+    if artifacts_dir is None:
+        return "—"
+    index_path = artifacts_dir / MEMORY_INDEX_FILENAME
+    if not index_path.is_file():
+        return "—"
+    try:
+        data = json.loads(index_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        return "—"
+    count = data.get("atom_count") if isinstance(data, dict) else None
+    if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+        return "—"
+    return str(count)
+
+
+def idle_report_stats(artifacts_dir: Path | None) -> tuple[str, str]:
+    """``(memory_atoms, chain_length)`` for the STRATUM idle HUD — best-effort.
+
+    These are the only synchronous filesystem reads on the TUI mount path, so a read that raises
+    must degrade to ``"—"`` rather than propagate and crash the app at mount — the same posture the
+    ``_verify_current_chain_async`` sibling read takes with its own ``try/except``. On a real
+    ``Path`` (or ``None``) the underlying readers never raise; the guard is what lets mount survive
+    a caller that hands over something other than a real path.
+
+    The honest per-value logic still lives in ``memory_atom_display`` / ``count_artifact_files`` and
+    is unit-tested there on real paths; this only adds the never-raise integration contract.
+    """
+    try:
+        return memory_atom_display(artifacts_dir), str(count_artifact_files(artifacts_dir))
+    except Exception:
+        return "—", "—"
