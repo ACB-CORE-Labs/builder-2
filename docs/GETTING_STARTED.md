@@ -7,7 +7,7 @@ This page is the **map**. Deeper paths stay specialized:
 
 | If you need… | Go to |
 |--------------|--------|
-| One proven 30‑min clone → patch loop (CI-smoked) | [`FIRST_SESSION.md`](FIRST_SESSION.md) |
+| One proven 30‑min clone → patch loop (CI-smoked) | [`FIRST_SESSION.md`](../FIRST_SESSION.md) |
 | Operator golden path / demo-loop | [`OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md) |
 | STRATUM keys, flags, empty-spine troubleshooting | [`STRATUM.md`](STRATUM.md) |
 | Philosophy / why the platform exists | [`MANIFESTO.md`](MANIFESTO.md) |
