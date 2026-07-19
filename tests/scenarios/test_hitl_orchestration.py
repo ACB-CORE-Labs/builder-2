@@ -54,15 +54,18 @@ PERMITTED_GATED_COMMANDS = sorted(
 #: Asserted as an exact number so an added confirmation step has to be argued for, not slipped in.
 FRICTION_APPROVE_PRESSES = 2
 
-APPROVE_COMPOSES = "uv run builder-hitl approve-patch"
-REJECT_COMPOSES = "uv run builder-hitl rejection-record"
+#: Bound compose requires proposal path + output. Bare prefixes without flags are a regression.
+APPROVE_COMPOSE_MARKER = "builder-hitl approve-patch"
+REJECT_COMPOSE_MARKER = "builder-hitl refuse-patch"
+#: Wrong ceremony for patch proposals — must never appear in the patch gate compose path.
+PROMOTION_REJECT_MARKER = "rejection-record"
 
-#: The registry names behind the three HITL gate keys. Every one of them *is* an approval act, and
+#: The registry names behind the HITL gate keys. Every one of them *is* an approval/refusal act, and
 #: every one of them is TIER_1 -- see `test_tier_is_a_blast_radius_classifier_not_an_authority
 #: _classifier`, which exists solely to keep that pairing visible.
 GATE_KEY_COMMANDS = (
     "builder-hitl approve-patch",
-    "builder-hitl rejection-record",
+    "builder-hitl refuse-patch",
     "builder-hitl approve-rollback",
 )
 
@@ -179,19 +182,28 @@ async def test_selecting_a_permitted_command_composes_it_but_still_executes_noth
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("key", "composes"),
-    [("a", APPROVE_COMPOSES), ("r", REJECT_COMPOSES)],
+    ("key", "marker", "required_flags"),
+    [
+        ("a", APPROVE_COMPOSE_MARKER, ("--proposal", "--output")),
+        ("r", REJECT_COMPOSE_MARKER, ("--proposal", "--output", "--rationale")),
+    ],
     ids=["approve", "reject"],
 )
 async def test_the_gate_keys_compose_a_command_and_never_touch_approval_state(
-    stratum: StratumApp, artifacts_dir: Path, monkeypatch: pytest.MonkeyPatch, key: str, composes: str
+    stratum: StratumApp,
+    artifacts_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    key: str,
+    marker: str,
+    required_flags: tuple[str, ...],
 ) -> None:
     """`a` and `r` on a real pending Tier-4 gate must not decide anything.
 
     This is the governance claim in its load-bearing form: the artifact on disk is the approval
-    state, and a keypress must leave it byte-identical. STRATUM composes `builder-hitl approve-patch`
-    for the operator's terminal precisely because a TUI cannot harvest a confirmation for a digest
-    it merely rendered.
+    state, and a keypress must leave it byte-identical. STRATUM composes a *bound*
+    `builder-hitl approve-patch` / `refuse-patch` line for the operator's terminal precisely
+    because a TUI cannot harvest a confirmation for a digest it merely rendered. Bare prefixes
+    without path flags are incomplete compose theater and are not success.
     """
     _no_execution_allowed(monkeypatch)
 
@@ -202,9 +214,18 @@ async def test_the_gate_keys_compose_a_command_and_never_touch_approval_state(
 
         assert stratum.stratum.mode == StratumMode.HITL_GATE, "the pending gate was not bound"
         assert stratum.screen.__class__.__name__ == "CLIPassthroughScreen"
-        assert stratum.screen.prefix_context == composes, (
-            f"{key!r} composed {stratum.screen.prefix_context!r}, not the governed CLI command"
-        )
+        composed = stratum.screen.prefix_context
+        assert marker in composed, f"{key!r} composed {composed!r}, missing {marker!r}"
+        for flag in required_flags:
+            assert flag in composed, f"{key!r} composed incomplete line (missing {flag}): {composed!r}"
+        # Patch reject must never launder through promotion rejection-record.
+        if key == "r":
+            assert PROMOTION_REJECT_MARKER not in composed, (
+                f"reject composed promotion ceremony: {composed!r}"
+            )
+        # Proposal path from the bound gate must appear in the compose line.
+        proposal_path = artifacts_dir / "proposal.json"
+        assert str(proposal_path) in composed or proposal_path.name in composed
         assert _proposal_on_disk(artifacts_dir) == PENDING_PROPOSAL, (
             f"{key!r} mutated approval state from the TUI"
         )
@@ -252,8 +273,10 @@ async def test_friction_two_presses_compose_an_approval_and_that_is_the_terminus
         await pilot.pause()
         composer = stratum.screen
         assert composer.__class__.__name__ == "CLIPassthroughScreen"
-        # Prefilled, so the second press is a confirmation and not typing.
-        assert composer.query_one("#cli-input").value == APPROVE_COMPOSES
+        # Prefilled with a bound approve line, so the second press is a confirmation and not typing.
+        prefilled = composer.query_one("#cli-input").value
+        assert APPROVE_COMPOSE_MARKER in prefilled
+        assert "--proposal" in prefilled and "--output" in prefilled
 
         await pilot.press("enter")
         await pilot.pause()

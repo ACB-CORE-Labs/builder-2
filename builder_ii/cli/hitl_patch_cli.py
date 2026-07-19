@@ -117,6 +117,43 @@ def register_patch_commands(app: typer.Typer) -> None:
             "--verification-receipt <receipt.json> --output-dir <dir>"
         )
 
+    @app.command("refuse-patch")
+    def refuse_patch(
+        proposal: Path = typer.Option(..., "--proposal", help="Proposal JSON path"),
+        output: Path = typer.Option(..., "--output", help="Output path for refusal JSON"),
+        rationale: str = typer.Option(..., "--rationale", help="Why the proposal is refused"),
+        refused_by: str = typer.Option("operator", "--refused-by", help="Identity recorded as the refuser"),
+    ) -> None:
+        """Record a passive refusal of a patch proposal (no approval, no apply, no source mutation).
+
+        This is the patch-reject ceremony complementary to approve-patch. It is not a promotion
+        ``rejection-record`` (wrong kind for patch proposals).
+        """
+        from builder_ii.command_authority import enforce_command_authority
+        from builder_ii.hitl_patch_refusal import create_hitl_patch_refusal, write_hitl_patch_refusal
+
+        enforce_command_authority("builder-hitl refuse-patch", requested_effects=("artifact_write",))
+
+        errors = validate_hitl_patch_proposal_file(proposal)
+        if errors:
+            console.print(f"Invalid proposal: {errors}")
+            raise typer.Exit(1)
+
+        proposal_data = json.loads(proposal.read_text(encoding="utf-8"))
+        if not str(rationale).strip():
+            console.print("rationale must be non-empty; nothing written.")
+            raise typer.Exit(1)
+
+        record = create_hitl_patch_refusal(
+            proposal_data,
+            proposal_path=proposal,
+            rationale=rationale.strip(),
+            refused_by=refused_by,
+        )
+        write_hitl_patch_refusal(record, output)
+        console.print(f"Refusal written to {output}")
+        console.print("No approval was minted; proposal remains unapproved. Source tree untouched.")
+
     @app.command("apply-patch")
     def apply_patch_cmd(
         proposal: Path = typer.Option(..., "--proposal", help="Proposal JSON path"),

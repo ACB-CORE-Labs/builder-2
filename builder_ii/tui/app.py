@@ -110,9 +110,13 @@ class StratumApp(App[None]):
         Binding("v", "validate_package", "Validate", show=True),
         Binding("g", "launch_goose", "Goose", show=True),
         Binding("n", "operator_next", "Next", show=True),
-        # HITL actions
-        Binding("a", "approve_hitl", "Approve", show=True),
-        Binding("r", "reject_hitl", "Reject", show=True),
+        # Dead modes re-wired: real entry into existing renderers (not silent furniture).
+        Binding("f", "show_postflight", "Postflight", show=True),
+        Binding("s", "show_promotion", "Promote", show=True),
+        Binding("l", "show_goose_live", "Goose view", show=True),
+        # HITL actions — compose-only (footer labels must not imply harvest/authority).
+        Binding("a", "approve_hitl", "Compose Approve", show=True),
+        Binding("r", "reject_hitl", "Compose Reject", show=True),
         Binding("i", "inspect_hitl", "Inspect", show=True),
         Binding("d", "diff_hitl", "Diff", show=True),
     ]
@@ -673,6 +677,10 @@ class StratumApp(App[None]):
     def action_prepare_package(self) -> None:
         from builder_ii.tui.widgets.workspace_builder import SessionBuilderScreen
 
+        # Enter the PREPARE renderer (was dead furniture) before the compose wizard.
+        if self.stratum:
+            self.stratum.mode = StratumMode.PREPARE
+
         # `dict[str, Any] | None`: escaping the builder dismisses with no value, same as above.
         def on_save(config: dict[str, Any] | None) -> None:
             # Collect choices only; emit is the governed CLI's job.
@@ -688,6 +696,25 @@ class StratumApp(App[None]):
 
         self.push_screen(SessionBuilderScreen(), on_save)
 
+    def action_show_postflight(self) -> None:
+        if self.stratum:
+            self.stratum.mode = (
+                StratumMode.IDLE if self.stratum.mode == StratumMode.POSTFLIGHT else StratumMode.POSTFLIGHT
+            )
+
+    def action_show_promotion(self) -> None:
+        if self.stratum:
+            self.stratum.mode = (
+                StratumMode.IDLE if self.stratum.mode == StratumMode.PROMOTION else StratumMode.PROMOTION
+            )
+
+    def action_show_goose_live(self) -> None:
+        """Enter GOOSE_LIVE instrument view (read-only status). Hand-off remains G."""
+        if self.stratum:
+            self.stratum.mode = (
+                StratumMode.IDLE if self.stratum.mode == StratumMode.GOOSE_LIVE else StratumMode.GOOSE_LIVE
+            )
+
     async def action_validate_package(self) -> None:
         """Re-verify on-disk chain; also offer the governed validate-prepare-package compose line."""
         self.notify("Re-checking artifact chain on disk…")
@@ -695,7 +722,7 @@ class StratumApp(App[None]):
         # Compose the real package validator — operator runs it; STRATUM does not write.
         self.push_screen(
             CLIPassthroughScreen(
-                prefix_context="uv run builder-session validate-prepare-package .builder/session"
+                prefix_context="uv run builder-session validate-prepare-package .builder/artifacts"
             ),
             self._show_composed_command,
         )
@@ -858,34 +885,42 @@ class StratumApp(App[None]):
     # ── HITL Actions ──────────────────────────────────────────────────────
 
     def action_approve_hitl(self) -> None:
+        from builder_ii.tui.projections.hitl_compose import compose_hitl_approve
+
         if not self.stratum:
             return
         if self.stratum.mode != StratumMode.HITL_GATE and not self.stratum.try_bind_pending_hitl():
             self.notify("No HITL gate open to approve.", severity="warning")
             return
-        self.notify(
-            "TUI cannot harvest confirmation for a digest it renders; "
-            "composing `builder-hitl approve-patch` for your terminal.",
-            severity="warning",
+        result = compose_hitl_approve(
+            self.stratum._hitl_proposal,
+            artifacts_dir=self.artifacts_dir if isinstance(self.artifacts_dir, Path) else None,
         )
+        self.notify(result.reason, severity="warning")
+        if result.refused or not result.command:
+            return
         self.push_screen(
-            CLIPassthroughScreen(prefix_context="uv run builder-hitl approve-patch"),
+            CLIPassthroughScreen(prefix_context=result.command),
             self._show_composed_command,
         )
 
     def action_reject_hitl(self) -> None:
+        from builder_ii.tui.projections.hitl_compose import compose_hitl_reject
+
         if not self.stratum:
             return
         if self.stratum.mode != StratumMode.HITL_GATE and not self.stratum.try_bind_pending_hitl():
             self.notify("No HITL gate open to reject.", severity="warning")
             return
-        self.notify(
-            "STRATUM is display-only and cannot mutate approval state; "
-            "composing `builder-hitl rejection-record` for your terminal.",
-            severity="warning",
+        result = compose_hitl_reject(
+            self.stratum._hitl_proposal,
+            artifacts_dir=self.artifacts_dir if isinstance(self.artifacts_dir, Path) else None,
         )
+        self.notify(result.reason, severity="warning")
+        if result.refused or not result.command:
+            return
         self.push_screen(
-            CLIPassthroughScreen(prefix_context="uv run builder-hitl rejection-record"),
+            CLIPassthroughScreen(prefix_context=result.command),
             self._show_composed_command,
         )
 

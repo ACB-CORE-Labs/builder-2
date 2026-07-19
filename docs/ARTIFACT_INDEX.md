@@ -56,6 +56,7 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.hitl_patch_proposal`
 - `builder_ii.hitl_decision_envelope`
 - `builder_ii.hitl_patch_approval`
+- `builder_ii.hitl_patch_refusal`
 - `builder_ii.hitl_rollback_approval`
 - `builder_ii.hitl_patch_ledger_record`
 - `builder_ii.demo_deterministic_planner`

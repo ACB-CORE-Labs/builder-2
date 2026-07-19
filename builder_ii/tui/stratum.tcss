@@ -135,9 +135,18 @@ HeaderBanner .banner-time {
     background: $stratum-hover;
 }
 
-/* Artifact status glyphs */
-.artifact-verified {
+/* Artifact status glyphs — presence on disk, not cryptographic proof */
+.artifact-present {
     color: $stratum-pass;
+}
+
+.artifact-verified {
+    /* legacy alias of artifact-present */
+    color: $stratum-pass;
+}
+
+.palette-item-selected {
+    background: $stratum-selected;
 }
 
 .artifact-gate {
