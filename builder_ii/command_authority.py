@@ -3739,16 +3739,19 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         tier=TIER_1,
         promotion_state=STATE_VALIDATION_ONLY,
         runtime_boundary=(
-            "W.5: emit agent lifecycle spawn *record* with role/task binding and optional "
-            "ExperienceStore digest linkage. spawn_executed=false; runtime_binding=UNBOUND; "
-            "no process/agent runtime; not S3 multi-agent."
+            "W.5: emit agent lifecycle spawn record with role/task binding and optional "
+            "ExperienceStore digest linkage. Default unearned (spawn_executed=false, UNBOUND); "
+            "optional seam_execution evidence earns SEAM_BOUND. Not OS process spawn; not global S3."
         ),
         write_boundary="Writes lifecycle record JSON only when an explicit output path is supplied.",
         approval_mode=MODE_NONE,
         approval_boundary="None.",
-        output_behavior="Prints builder_ii.wrp.agent_lifecycle_record (spawn_executed=false).",
+        output_behavior=(
+            "Prints builder_ii.wrp.agent_lifecycle_record (default spawn_executed=false; "
+            "earned path requires seam evidence)."
+        ),
         failure_mode="Exits non-zero on invalid role/task or authority flag inflation.",
-        notes="Lifecycle language only; AgentFactory does not start agents.",
+        notes="Honesty pin is default-unearned, not non-implementation. See docs/HONESTY_PINS_VS_IMPLEMENTATION.md.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
@@ -3757,15 +3760,15 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         tier=TIER_1,
         promotion_state=STATE_VALIDATION_ONLY,
         runtime_boundary=(
-            "W.5: emit agent lifecycle retire *record* bound to prior spawn digest. "
-            "Does not kill processes; spawn_executed remains false."
+            "W.5: emit agent lifecycle retire record bound to prior spawn digest. "
+            "Does not kill OS processes; inherits spawn_executed/runtime_binding from spawn."
         ),
         write_boundary="Writes lifecycle record JSON only when an explicit output path is supplied.",
         approval_mode=MODE_NONE,
         approval_boundary="None.",
         output_behavior="Prints builder_ii.wrp.agent_lifecycle_record retire action.",
         failure_mode="Exits non-zero on invalid spawn record.",
-        notes="Pairs with spawn records for replay proofs; not S3.",
+        notes="Pairs with spawn records for replay proofs; not global S3 enablement.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(

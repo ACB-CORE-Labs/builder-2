@@ -62,10 +62,13 @@ uv run pytest tests/test_replay_harness.py tests/test_otel_ledger_export.py test
 uv run python -c "from builder_ii.wrp.class_u_harness import run_class_u_harness; r=run_class_u_harness(target='builder'); print(r['summary'])"
 ```
 
-## Release honesty pins
+## Release honesty pins (≠ non-implementation)
 
-- [ ] Permanent non-goal: HITL arbitrary command exec remains disabled
-- [ ] AgentFactory default lifecycle records still `spawn_executed=false`
-- [ ] Subagent **loop** may set `spawn_executed=true` only under budget+HITL+kill-switch
-- [ ] Global registry `s3_enabled` default remains false; session binding is separate
+See `docs/HONESTY_PINS_VS_IMPLEMENTATION.md`.
+
+- [ ] Permanent non-goal: HITL arbitrary command exec remains disabled (REMOVED FROM DESIGN)
+- [ ] AgentFactory **default** lifecycle records still `spawn_executed=false` (unearned)
+- [ ] AgentFactory **earned** path + subagent loop can set `spawn_executed=true` under budget+HITL+kill-switch evidence
+- [ ] Global registry `s3_enabled` default remains false; session binding implementation exists
+- [ ] `invoke_local` / `invoke_cloud` modes exist; default remains `record`
 - [ ] PR body cites local `bash scripts/ci.sh --receipt`, not remote honor-system alone

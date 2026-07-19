@@ -1,7 +1,8 @@
 # builder-II Last Mile — Master Checklist
 
 **Status:** COMPLETE for battle-plan implementable scope (absolute non-done reasons only).  
-**Doctrine:** Planned ≠ executed ≠ verified ≠ promoted.
+**Doctrine:** Planned ≠ executed ≠ verified ≠ promoted.  
+**Honesty pins ≠ non-implementation:** see `docs/HONESTY_PINS_VS_IMPLEMENTATION.md`.
 
 Legend: `DONE` · `ALREADY FULLY COMPLETED` · `REMOVED FROM DESIGN`
 
