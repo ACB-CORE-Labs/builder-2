@@ -83,6 +83,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 | interactive setup wizard | `OPERATIONALLY_VERIFIED` | R1 complete (2.6) |
 | non-interactive setup/apply/validate | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
 | Goose config overlay/rollback | `PASSIVE_FOUNDATION` | R1 |
+| HITL decision envelope | `ARTIFACT_ONLY` | HITL envelope: STRATUM composer wiring + operational assembly |
 | recipe generator/wizard | `ARTIFACT_ONLY` | R1 |
 | skill generator/installer/validator | `MERGED_BUT_NOT_OPERATIONAL` | R1 |
 | target profile wizard | `NOT_STARTED` | R1 |

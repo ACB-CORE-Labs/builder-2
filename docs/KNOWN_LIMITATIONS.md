@@ -53,7 +53,7 @@ are not equivalent just because they share the legacy completion label.
 
 ## Not operational today (from the matrix)
 
-19 of 52 matrix capabilities are operationally verified; the 33 below are not. Each entry lists the matrix state and its recorded blockers verbatim.
+19 of 53 matrix capabilities are operationally verified; the 34 below are not. Each entry lists the matrix state and its recorded blockers verbatim.
 
 - **generic platform identity** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - Truth-state enforcement was static before R0.
@@ -81,6 +81,10 @@ are not equivalent just because they share the legacy completion label.
   - Legacy merge-style Goose config application remains intentionally unimplemented.
   - R1.2 can describe Goose config overlay keys, recipe path registration, secrets-preservation policy, and rollback snapshot requirements passively.
   - R1.3A apply can write declared setup paths only when represented as supported create/replace/mkdir/no-op changes; R1.3B setup rollback can undo eligible setup-created paths. Merge-style Goose config overlay and generic rollback remain unimplemented.
+- **HITL decision envelope** — `ARTIFACT_ONLY` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
+  - Digest-bound decision-support artifact + validator exist: criteria with acceptable_range and observed value, assumptions, constraints, alternatives, consequences of approve/reject/escalate, and accountable ownership.
+  - Decision support only -- grants_authority / artifact_is_authority / is_approval are false and the validator rejects any true; the operator still approves through the digest-bound HITL lane.
+  - Composer wiring to surface the envelope at the STRATUM decision point, and an operational loop that assembles it from real evaluation, are not yet built -- so this stays ARTIFACT_ONLY, never operationally verified.
 - **recipe generator/wizard** — `ARTIFACT_ONLY` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - Recipe assets and projections exist.
   - Generator/wizard, preview, apply receipt, rollback path, and compatibility checks are missing.

@@ -32,7 +32,7 @@ it sets, so a row reading `—` claims none.
 is correct rather than an oversight: `PASSIVE_ARTIFACT_VERIFIED` already permits writing
 to the artifact store, so a command that writes only artifacts is passive by definition.
 
-## Declared records (349)
+## Declared records (350)
 
 Authority written down, command by command.
 
@@ -242,6 +242,7 @@ Authority written down, command by command.
 | `builder-hitl request` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Collects and validates HITL request details. | Writes HITL request JSON artifact. | `hitl_artifact_required` | Requires explicit operator approval signature. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-hitl receipt` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Records execution completion or failure receipt metadata. | Writes HITL receipt JSON artifact. | `hitl_artifact_required` | Operator must sign hitl request and verify receipts. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-hitl validate` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates request and receipt artifact files against schema. | No changes to workspace. | `none` | None. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder-hitl validate-decision-envelope` | Tier 1 — artifact-only planning/validation | `validation_only` | Validates a hitl_decision_envelope artifact against schema and reports whether any criterion is out of its acceptable range. | No changes to workspace. | `none` | None. A decision envelope is evidence a human weighs; it approves nothing. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-hitl promotion-request` | Tier 1 — artifact-only planning/validation | `artifact_only` | Renders passive promotion request statically. | Writes promotion request JSON only to explicit artifact output paths. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-hitl promotion-review` | Tier 1 — artifact-only planning/validation | `artifact_only` | Renders passive promotion review statically. | Writes promotion review JSON only to explicit artifact output paths. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-hitl promotion-decision` | Tier 1 — artifact-only planning/validation | `artifact_only` | Renders passive promotion decision statically. | Writes promotion decision JSON only to explicit artifact output paths. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |

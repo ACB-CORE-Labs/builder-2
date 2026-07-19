@@ -101,6 +101,7 @@ REQUIRED_CAPABILITIES: tuple[str, ...] = (
     "HITL promotion bridge",
     "execution candidate manifests",
     "HITL-approved verification execution",
+    "HITL decision envelope",
     "HITL patch proposal",
     "HITL patch application",
     "rollback execution",
@@ -473,6 +474,25 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "R1.3A apply can write declared setup paths only when represented as supported create/replace/mkdir/no-op changes; R1.3B setup rollback can undo eligible setup-created paths. Merge-style Goose config overlay and generic rollback remain unimplemented.",
         ),
         "R1",
+    ),
+    _row(
+        "HITL decision envelope",
+        ARTIFACT_ONLY,
+        ("builder_ii/hitl_decision_envelope.py", "docs/ARTIFACT_INDEX.md"),
+        ("builder-hitl validate-decision-envelope",),
+        ("tests/test_hitl_decision_envelope.py",),
+        (
+            "Digest-bound decision-support artifact + validator exist: criteria with acceptable_range "
+            "and observed value, assumptions, constraints, alternatives, consequences of "
+            "approve/reject/escalate, and accountable ownership.",
+            "Decision support only -- grants_authority / artifact_is_authority / is_approval are false "
+            "and the validator rejects any true; the operator still approves through the digest-bound "
+            "HITL lane.",
+            "Composer wiring to surface the envelope at the STRATUM decision point, and an operational "
+            "loop that assembles it from real evaluation, are not yet built -- so this stays "
+            "ARTIFACT_ONLY, never operationally verified.",
+        ),
+        "HITL envelope: STRATUM composer wiring + operational assembly",
     ),
     _row(
         "recipe generator/wizard",
