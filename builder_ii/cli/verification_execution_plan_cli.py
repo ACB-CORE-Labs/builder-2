@@ -29,6 +29,7 @@ from builder_ii.verification_execution_receipt import (
     validate_verification_execution_receipt_file,
 )
 from builder_ii.verification_execution_runner import run_approved_verification
+from builder_ii.verification_isolation_policy import finalize_verification_isolation_policy
 from builder_ii.verification_profiles import verification_profile_names
 from builder_ii.verification_promotion_gate import (
     dumps_promotion_evidence,
@@ -64,6 +65,38 @@ def _read_json_object(path: Path) -> dict[str, Any]:
     return json_lib.loads(path.read_text(encoding="utf-8"))
 
 
+def _isolation_policy(backend: str, image_ref: str | None, image_digest: str | None) -> dict[str, Any] | None:
+    """Build the plan's isolation_policy artifact, or None for the default 'none' backend.
+
+    'none' attaches nothing, so a default plan stays byte-identical to one rendered before this flag
+    existed -- the runner's get_backend treats an absent policy as the none backend. 'docker' mints a
+    digest-bound ``builder_ii.verification_isolation_policy`` that the runner honours:
+    verification_execution_runner reads plan['isolation_policy'], and when the backend is not 'none'
+    it verifies the policy digest and wraps the approved argv in the docker backend.
+
+    'docker' requires --isolation-image: DockerBackend has no usable default (it rejects a policy
+    with no image_ref), so a docker plan without an image is doomed at run time. Reject it here
+    rather than emit a plan that can only fail once approved. The image options are docker-only;
+    naming them with 'none' is a usage error, not a silent no-op.
+    """
+    if backend == "none":
+        if image_ref is not None or image_digest is not None:
+            console.print("--isolation-image / --isolation-image-digest require --isolation docker")
+            raise typer.Exit(1)
+        return None
+    if backend == "docker":
+        if image_ref is None:
+            console.print("--isolation docker requires --isolation-image (the docker backend has no default image)")
+            raise typer.Exit(1)
+        return finalize_verification_isolation_policy(
+            backend="docker",
+            image_ref=image_ref,
+            image_digest=image_digest,
+        )
+    console.print("--isolation must be one of: none, docker")
+    raise typer.Exit(1)
+
+
 @verify_app.command("plan")
 def plan(
     target_profile: str = typer.Option(..., "--target-profile", help="Target profile: generic, builder, core"),
@@ -73,13 +106,26 @@ def plan(
     artifact_root: str = typer.Option(
         ".builder/verification", "--artifact-root", help="Artifact root recorded in the plan"
     ),
+    isolation: str = typer.Option(
+        "none", "--isolation", help="Isolation backend recorded in the plan: 'none' (default) or 'docker'"
+    ),
+    isolation_image: str | None = typer.Option(
+        None, "--isolation-image", help="Docker image ref for the isolation backend (requires --isolation docker)"
+    ),
+    isolation_image_digest: str | None = typer.Option(
+        None,
+        "--isolation-image-digest",
+        help="Pinned docker image digest for the isolation backend (requires --isolation docker)",
+    ),
 ) -> None:
     """Emit a planned-only verification execution plan without running verification."""
+    isolation_policy = _isolation_policy(isolation, isolation_image, isolation_image_digest)
     artifact = finalize_verification_execution_plan(
         target_profile=_target_profile(target_profile),
         verification_profile=_verification_profile(verification_profile),
         target_repo=target_repo,
         artifact_root=artifact_root,
+        isolation_policy=isolation_policy,
     )
     errors = validate_verification_execution_plan_artifact(artifact)
     if errors:
