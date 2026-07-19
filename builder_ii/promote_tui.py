@@ -251,11 +251,13 @@ def _render_readiness(data: dict, *, verbose: bool, failures_only: bool = False)
         gate_items = iter([])
 
     all_pass = True
+    evaluated = 0
     for name, passed in gate_items:
-        if failures_only and passed:
-            continue
+        evaluated += 1
         if not passed:
             all_pass = False
+        if failures_only and passed:
+            continue
         g = G["pass"] if passed else G["fail"]
         label_t = _d(str(name))
         status_t = _p("PASS") if passed else _f("FAIL")
@@ -264,7 +266,13 @@ def _render_readiness(data: dict, *, verbose: bool, failures_only: bool = False)
             # try to print detail from list-form gate objects
             pass
 
-    return 0 if (overall or all_pass) else 1
+    # Absence of gates is not readiness: all([]) is vacuously True, which would green a promotion
+    # that evaluated nothing. A gate-derived READY therefore requires at least one gate to have been
+    # evaluated. An artifact's own explicit ready/promotion_ready/all_gates_passed flag is still
+    # honored -- that is the artifact's stated claim to render, not a verdict this renderer invents.
+    # No gates and no flag -> NOT ready, mirroring the Third Door's absence-is-not-satisfaction rule.
+    gates_ready = all_pass and evaluated > 0
+    return 0 if (overall or gates_ready) else 1
 
 
 # ---------------------------------------------------------------------------
