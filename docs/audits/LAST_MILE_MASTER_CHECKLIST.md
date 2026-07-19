@@ -36,7 +36,7 @@ Last updated: 2026-07-19 (implementation wave)
 
 | ID | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| W1.1 | Model budget deny/debit | DONE | `builder_ii/model_budget.py`, `tests/test_model_budget.py` |
+| W1.1 | Model budget deny/debit | DONE | Durable debit + 3-tuple return; `tests/test_model_budget.py`, `tests/test_budget_debit_integrity.py` |
 | W1.2 | **SEAM invoke_local** | DONE | `gateway_nodes.py` mode, live_lane flags, `tests/test_wrp_invoke_local_seam.py` |
 | W1.3 | Cost-aware routing | DONE | `model_routing_policy.py` cheapest-capable + savings metric; still RECOMMENDATION_ONLY |
 

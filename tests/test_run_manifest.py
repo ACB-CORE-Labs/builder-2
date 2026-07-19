@@ -47,7 +47,7 @@ def test_run_manifest_from_stub_call(tmp_path: Path) -> None:
         }
     )
     gw = ModelExecutionGateway(settings, registry, policy, price_book=create_default_price_book())
-    env, rec = gw.run_model_call(
+    env, rec, _debited = gw.run_model_call(
         model_id="gpt-4o-stub",
         prompt="manifest binding",
         envelope_path=tmp_path / "e.json",

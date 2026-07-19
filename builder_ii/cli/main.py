@@ -562,7 +562,7 @@ def ask(
     receipt_path = ask_root / f"{session_id}.receipt.json"
 
     try:
-        _envelope, receipt = ModelExecutionGateway(settings, registry, execution_policy).run_model_call(
+        _envelope, receipt, _debited = ModelExecutionGateway(settings, registry, execution_policy).run_model_call(
             model_id=active_model,
             prompt=prompt,
             system_prompt=system_prompt,

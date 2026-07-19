@@ -107,6 +107,7 @@ def _invoke_local_model_gateway(
     approved_by: str,
     msda_decision: Mapping[str, Any],
     artifact_dir: Any = None,
+    handoff_state: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Invoke ModelExecutionGateway for local/stub providers only (the seam).
 
@@ -170,11 +171,15 @@ def _invoke_local_model_gateway(
             "invoke_local refuses cloud_external providers (use invoke_cloud after ceremony; H6)"
         )
 
-    # Budget required for seam
+    # Budget required for seam — prefer payload, else chain from prior node debit.
     budget_raw = payload.get("budget")
+    handoff = dict(handoff_state or {})
     budget: dict[str, Any]
     if budget_raw is None:
-        if payload.get("auto_budget") is True:
+        chained = handoff.get("last_debited_budget")
+        if isinstance(chained, dict):
+            budget = dict(chained)
+        elif payload.get("auto_budget") is True:
             budget = create_model_budget(
                 session_id=str(payload.get("session_id") or f"wrp-{plan_digest[:12]}"),
                 task_id=str(payload.get("task_id") or node_id),
@@ -184,7 +189,9 @@ def _invoke_local_model_gateway(
                 max_usd=float(payload.get("max_usd") or 1.0),
             )
         else:
-            raise GatewayNodeError("invoke_local requires payload.budget (or auto_budget=true)")
+            raise GatewayNodeError(
+                "invoke_local requires payload.budget, handoff last_debited_budget, or auto_budget=true"
+            )
     elif isinstance(budget_raw, dict):
         budget = dict(budget_raw)
     else:
@@ -225,8 +232,9 @@ def _invoke_local_model_gateway(
     events_dir = base / "events"
     session_id = str(payload.get("session_id") or f"wrp-{plan_digest[:12]}")
 
+    budget_path = base / "budget.json"
     try:
-        envelope, receipt = gateway.run_model_call(
+        envelope, receipt, debited_budget = gateway.run_model_call(
             model_id=model_id,
             prompt=prompt,
             system_prompt=str(payload.get("system_prompt") or "Answer helpfully.") or None,
@@ -236,6 +244,7 @@ def _invoke_local_model_gateway(
             receipt_path=receipt_path,
             ledger_bound=True,
             budget=budget,
+            budget_path=budget_path,
             events_dir=events_dir,
             session_id=session_id,
         )
@@ -255,6 +264,10 @@ def _invoke_local_model_gateway(
         "envelope_digest": envelope.get("digest"),
         "receipt_digest": receipt.get("digest"),
         "cost_report": receipt.get("cost_report"),
+        "budget_ref": receipt.get("budget_ref"),
+        # Post-debit budget for multi-step chaining (next node must use this object).
+        "debited_budget": debited_budget,
+        "debited_budget_path": str(budget_path) if debited_budget is not None else None,
         "ledger_bound": True,
         "events_dir": str(events_dir),
         "performs_network": bool(envelope.get("performs_network_calls")),
@@ -421,6 +434,7 @@ def run_gateway_node(
                     artifact_dir=(spec.get("payload") or {}).get("artifact_dir")
                     if isinstance(spec.get("payload"), dict)
                     else None,
+                    handoff_state=handoff_state,
                 )
             else:
                 result = _record_model_gateway(
@@ -466,6 +480,10 @@ def run_gateway_node(
         "last_gateway_node": node_id,
         "last_gateway_type": node_type,
     }
+    # Chain post-debit budget for multi-step WRP runs (next model_gateway may read it).
+    if isinstance(result.get("debited_budget"), dict):
+        new_state["last_debited_budget"] = result["debited_budget"]
+        new_state[f"{node_id}_debited_budget"] = result["debited_budget"]
     event = {
         "node_id": node_id,
         "status": "ok",

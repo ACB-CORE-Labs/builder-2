@@ -134,7 +134,7 @@ def call_cmd(
         raise typer.Exit(1)
 
     try:
-        envelope, receipt = gateway.run_model_call(
+        envelope, receipt, _debited = gateway.run_model_call(
             model_id=model,
             prompt=actual_prompt,
             system_prompt=system_prompt,
@@ -266,7 +266,7 @@ def standalone_call_cmd(
     gateway = ModelExecutionGateway(settings, registry, execution_policy)
 
     try:
-        envelope, receipt = gateway.run_model_call(
+        envelope, receipt, _debited = gateway.run_model_call(
             model_id=model,
             prompt=actual_prompt,
             system_prompt=system_prompt,

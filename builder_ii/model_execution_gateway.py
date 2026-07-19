@@ -370,9 +370,10 @@ class ModelExecutionGateway:
         approval_path: Path | None = None,
         ledger_bound: bool = False,
         budget: dict[str, Any] | None = None,
+        budget_path: Path | None = None,
         events_dir: Path | None = None,
         session_id: str | None = None,
-    ) -> tuple[dict[str, Any], dict[str, Any]]:
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any] | None]:
         # Fail closed on empty prompt or invalid outputs
         if not prompt.strip():
             raise ValueError("Prompt must not be empty")
@@ -647,10 +648,49 @@ class ModelExecutionGateway:
                 "required": human_approval_required,
             }
         receipt["msda_preflight"] = _msda_preflight_annotation
-        if budget is not None:
-            from builder_ii.model_budget import budget_ref as _budget_ref
 
-            receipt["budget_ref"] = _budget_ref(budget)
+        # Debit BEFORE digest/write so durable receipt and returned object match.
+        debited_budget: dict[str, Any] | None = None
+        if budget is not None:
+            from builder_ii.model_budget import (
+                assert_budget_allows_call,
+                debit_budget,
+                write_model_budget,
+            )
+            from builder_ii.model_budget import (
+                budget_ref as _budget_ref,
+            )
+
+            # Re-check remaining budget against measured actual cost (not just projection).
+            actual_projection = {
+                "input_tokens": int(cost_report["input_tokens"]),
+                "output_tokens": int(cost_report["output_tokens"]),
+                "total_tokens": int(cost_report["total_tokens"]),
+                "estimated_usd_total": float(cost_report.get("estimated_usd_total") or 0.0),
+            }
+            assert_budget_allows_call(budget, actual_projection)
+            debited_budget = debit_budget(budget, cost_report)
+
+            resolved_budget_path = budget_path
+            if resolved_budget_path is None:
+                resolved_budget_path = (
+                    receipt_path.parent / f"model_budget_v{debited_budget['budget_version']}.json"
+                )
+            write_model_budget(debited_budget, resolved_budget_path)
+
+            pre_ref = _budget_ref(budget)
+            post_ref = _budget_ref(debited_budget, path=resolved_budget_path)
+            receipt["budget_ref"] = {
+                **pre_ref,
+                "path": str(resolved_budget_path),
+                "pre_debit_sha256": pre_ref["sha256"],
+                "post_debit_sha256": post_ref["sha256"],
+                "budget_version": debited_budget.get("budget_version"),
+                "spent_total_tokens": debited_budget.get("spent_total_tokens"),
+                "spent_usd": debited_budget.get("spent_usd"),
+                "budget_state": debited_budget.get("budget_state"),
+            }
+
         receipt["digest"] = _digest(receipt)
 
         rec_errors = validate_model_call_receipt(receipt)
@@ -659,23 +699,6 @@ class ModelExecutionGateway:
 
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
         receipt_path.write_text(json_lib.dumps(receipt, indent=2, sort_keys=True), encoding="utf-8")
-
-        debited_budget: dict[str, Any] | None = None
-        if budget is not None:
-            from builder_ii.model_budget import debit_budget
-
-            debited_budget = debit_budget(budget, cost_report)
-            prior_ref = receipt.get("budget_ref")
-            base_ref: dict[str, Any] = dict(prior_ref) if isinstance(prior_ref, dict) else {}
-            receipt["budget_ref"] = {
-                **base_ref,
-                "post_debit_sha256": debited_budget.get("digest"),
-                "budget_version": debited_budget.get("budget_version"),
-            }
-            # Keep pre-debit budget_ref fields on receipt; debited budget available on instance.
-            self._last_debited_budget: dict[str, Any] | None = debited_budget
-        else:
-            self._last_debited_budget = None
 
         if ledger_bound and events_dir is not None:
             from builder_ii.runtime_event_append import append_model_call_event
@@ -692,4 +715,4 @@ class ModelExecutionGateway:
                 message=f"Model call executed: {model_id}",
             )
 
-        return envelope, receipt
+        return envelope, receipt, debited_budget
