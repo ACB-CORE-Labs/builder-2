@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.config import Settings
-from builder_ii.direct_chat import DirectChatResult, run_direct_chat
+from builder_ii.direct_chat import run_direct_chat
 from builder_ii.model_client_registry import (
     validate_model_client_registry,
 )
@@ -20,6 +20,7 @@ from builder_ii.price_book import (
     price_book_ref,
     validate_price_book,
 )
+from builder_ii.secret_redaction import redact_receipt_for_storage, scan_secret_patterns
 from builder_ii.token_accounting import build_cost_report
 
 MODEL_CALL_ENVELOPE_KIND = "builder_ii.model_call_envelope"
@@ -30,23 +31,12 @@ MODEL_CALL_RECEIPT_SCHEMA_VERSION = 1
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
-# Secret scanning regexes
-SECRET_PATTERNS = [
-    re.compile(r"sk-[a-zA-Z0-9_]{32,}", re.IGNORECASE),
-    re.compile(r"gsk_[a-zA-Z0-9_]{32,}", re.IGNORECASE),
-    re.compile(r"AIza[a-zA-Z0-9_\-]{35}", re.IGNORECASE),
-    re.compile(r"bearer\s+[a-zA-Z0-9_\-\.\~]{10,}", re.IGNORECASE),
-    re.compile(r"ghp_[a-zA-Z0-9]{36}", re.IGNORECASE),
-    re.compile(r"(?:api_key|apikey|secret|token)\s*[:=]\s*[\"'][a-zA-Z0-9_\-]{8,}[\"']", re.IGNORECASE),
-]
+# Legacy name retained for external importers; patterns live in secret_redaction.
+SECRET_PATTERNS: list[re.Pattern[str]] = []
 
 
 def scan_for_secrets(text: str) -> list[str]:
-    errors: list[str] = []
-    for pattern in SECRET_PATTERNS:
-        if pattern.search(text):
-            errors.append(f"Potential secret/credential pattern detected: {pattern.pattern}")
-    return errors
+    return [f"Potential secret/credential pattern detected: {h}" for h in scan_secret_patterns(text)]
 
 
 def _digest(data: dict[str, Any]) -> str:
@@ -440,8 +430,9 @@ class ModelExecutionGateway:
         elif risk_level == "local_offline":
             raise ValueError("local_offline risk classification cannot perform network calls to execution backends")
 
-        # Create envelope
-        session_id = f"session-{_digest({'prompt': prompt})[:12]}"
+        # Create envelope (preserve caller session_id when provided)
+        if not session_id:
+            session_id = f"session-{_digest({'prompt': prompt})[:12]}"
         prompt_digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
         performs_network = risk_level in ("local_network", "cloud_external")
@@ -504,12 +495,100 @@ class ModelExecutionGateway:
             assert_budget_allows_call(budget, projected)
 
         # Execute call
+        cloud_egress: dict[str, Any] | None = None
         # If stub provider, return stub response
         if client_record.get("provider_id") in ("openai_stub_provider", "anthropic_stub_provider"):
             result_text = f"Mocked stub response for model '{model_id}' to: {prompt[:30]}..."
+            if client_record.get("endpoint_kind") == "cloud_stub" or risk_level == "cloud_external":
+                cloud_egress = {
+                    "kind": "builder_ii.cloud_egress_record",
+                    "provider_id": client_record.get("provider_id"),
+                    "endpoint_kind": "cloud_stub",
+                    "model_id": model_id,
+                    "performs_network": False,
+                    "grants_authority": False,
+                }
+        elif client_record.get("endpoint_kind") == "openai_compatible_cloud":
+            from builder_ii.cloud_chat import run_cloud_chat
+
+            chat_res, cloud_egress = run_cloud_chat(
+                client_record=client_record,
+                prompt=prompt,
+                system_prompt=system_prompt if system_prompt else "Answer helpfully.",
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            if not chat_res.ok:
+                envelope_ref = {
+                    "kind": MODEL_CALL_ENVELOPE_KIND,
+                    "path": str(envelope_path),
+                    "sha256": envelope["digest"],
+                    "role": "model_call_envelope",
+                    "name": f"Model call envelope for {model_id}",
+                    "required": True,
+                }
+                fail_cost = _cost_report_for_call(
+                    prompt=prompt,
+                    response_text="",
+                    model_id=model_id,
+                    price_book=self.price_book,
+                )
+                failure_receipt = {
+                    "kind": MODEL_CALL_RECEIPT_KIND,
+                    "schema_version": MODEL_CALL_RECEIPT_SCHEMA_VERSION,
+                    "status": "failed",
+                    "envelope_ref": envelope_ref,
+                    "response_text": "",
+                    "response_sha256": hashlib.sha256(b"").hexdigest(),
+                    "response_storage_policy": "empty_failure_response",
+                    "error_summary": str(chat_res.error or "cloud model execution failed")[:500],
+                    "cost_report": fail_cost,
+                    "cloud_egress": cloud_egress,
+                    "replay_declaration": "non-deterministic-llm-completion",
+                    "executes_model": True,
+                    "executes_tools": False,
+                    "executes_shell": False,
+                    "invokes_goose": False,
+                    "constructs_deepagents": False,
+                    "constructs_subagents": False,
+                    "invokes_mcp": False,
+                    "mutates_target_repo": False,
+                    "mutates_memory": False,
+                    "grants_authority": False,
+                    "artifact_is_authority": False,
+                    "requires_human_promotion_for_execution": True,
+                    "ledger_bound": ledger_bound,
+                    "authority_boundary": _default_authority_boundary(
+                        "model_call", performs_network_calls=performs_network
+                    ),
+                    "governance": _default_governance("model_call", network_calls_enabled=performs_network),
+                }
+                failure_receipt["digest"] = _digest(failure_receipt)
+                receipt_path.parent.mkdir(parents=True, exist_ok=True)
+                safe_fail = redact_receipt_for_storage(failure_receipt)
+                receipt_path.write_text(
+                    json_lib.dumps(safe_fail, indent=2, sort_keys=True),
+                    encoding="utf-8",
+                )
+                if ledger_bound and events_dir is not None:
+                    from builder_ii.runtime_event_append import append_model_call_event
+
+                    append_model_call_event(
+                        events_dir=events_dir,
+                        session_id=session_id or envelope.get("session_id") or "session-unknown",
+                        event_type="model_call_failed",
+                        envelope=envelope,
+                        receipt=failure_receipt,
+                        envelope_path=envelope_path,
+                        receipt_path=receipt_path,
+                        command_surface="ModelExecutionGateway.run_model_call",
+                        message=f"Cloud model call failed: {chat_res.error}",
+                    )
+                raise RuntimeError(f"Cloud model execution failed: {chat_res.error}")
+            result_text = chat_res.content
         else:
             # Run local offline/network call
-            chat_res: DirectChatResult = run_direct_chat(
+            chat_res = run_direct_chat(
                 self.settings,
                 prompt=prompt,
                 system_prompt=system_prompt if system_prompt else "Answer helpfully.",
@@ -638,6 +717,8 @@ class ModelExecutionGateway:
             "authority_boundary": _default_authority_boundary("model_call", performs_network_calls=performs_network),
             "governance": _default_governance("model_call", network_calls_enabled=performs_network),
         }
+        if cloud_egress is not None:
+            receipt["cloud_egress"] = cloud_egress
         if approval_path is not None and approval_path.is_file():
             approval_raw = approval_path.read_bytes()
             receipt["approval_ref"] = {
@@ -691,6 +772,9 @@ class ModelExecutionGateway:
                 "budget_state": debited_budget.get("budget_state"),
             }
 
+        # W5.3: redaction is applied *before* digest so on-disk == returned receipt.
+        receipt = redact_receipt_for_storage(receipt)
+        receipt.pop("digest", None)
         receipt["digest"] = _digest(receipt)
 
         rec_errors = validate_model_call_receipt(receipt)

@@ -20,7 +20,9 @@ from typing import Any, Mapping
 from builder_ii.wrp.msda_preflight import MsdaPreflightDenied, assert_msda_preflight
 
 GATEWAY_NODE_TYPES: frozenset[str] = frozenset({"model_gateway", "tool_gateway"})
-GATEWAY_MODES: frozenset[str] = frozenset({"record", "stub_tool", "invoke_local"})
+# W2.2: invoke_cloud is a first-class mode with harder gates (approval path + budget +
+# allow_cloud_models + egress record). Default remains record.
+GATEWAY_MODES: frozenset[str] = frozenset({"record", "stub_tool", "invoke_local", "invoke_cloud"})
 S2_V2_LANE_VERSION = "v2_gateway_hitl"
 S2_V1_LANE_VERSION = "v1_graph_msda_hitl"
 
@@ -168,7 +170,7 @@ def _invoke_local_model_gateway(
         "anthropic_stub_provider",
     ):
         raise GatewayNodeError(
-            "invoke_local refuses cloud_external providers (use invoke_cloud after ceremony; H6)"
+            "invoke_local refuses cloud_external providers (use gateway_mode=invoke_cloud; H6)"
         )
 
     # Budget required for seam — prefer payload, else chain from prior node debit.
@@ -233,6 +235,8 @@ def _invoke_local_model_gateway(
     session_id = str(payload.get("session_id") or f"wrp-{plan_digest[:12]}")
 
     budget_path = base / "budget.json"
+    approval_raw = payload.get("approval_path") or payload.get("cloud_call_approval_path")
+    approval_path = Path(str(approval_raw)) if approval_raw else None
     try:
         envelope, receipt, debited_budget = gateway.run_model_call(
             model_id=model_id,
@@ -242,6 +246,7 @@ def _invoke_local_model_gateway(
             temperature=payload.get("temperature"),
             envelope_path=envelope_path,
             receipt_path=receipt_path,
+            approval_path=approval_path,
             ledger_bound=True,
             budget=budget,
             budget_path=budget_path,
@@ -274,6 +279,210 @@ def _invoke_local_model_gateway(
         "executes_model_provider": True,
         "executes_shell": False,
         "cloud_provider_invoke": False,
+        "grants_authority": False,
+        "artifact_is_authority": False,
+    }
+    return {**body, "digest": _sha(body)}
+
+
+def _invoke_cloud_model_gateway(
+    *,
+    node_id: str,
+    spec: Mapping[str, Any],
+    plan_digest: str,
+    approved_by: str,
+    msda_decision: Mapping[str, Any],
+    artifact_dir: Any = None,
+    handoff_state: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """W2.2 — harder-gated cloud seam: approval file + budget + allow_cloud + egress.
+
+    Cloud stubs may run offline; real openai_compatible_cloud needs API key env.
+    """
+    from pathlib import Path
+
+    from builder_ii.config import load_settings
+    from builder_ii.model_budget import BudgetExceededError, create_model_budget
+    from builder_ii.model_client_registry import create_model_client_registry
+    from builder_ii.model_execution_gateway import ModelExecutionGateway
+    from builder_ii.model_routing_policy import create_model_execution_policy
+    from builder_ii.price_book import create_default_price_book
+
+    payload = spec.get("payload")
+    if not isinstance(payload, dict):
+        payload = {}
+
+    if not str(approved_by or "").strip():
+        raise GatewayNodeError("invoke_cloud requires approved_by (HITL)")
+
+    approval_raw = payload.get("approval_path") or payload.get("cloud_call_approval_path")
+    if not approval_raw:
+        raise GatewayNodeError(
+            "invoke_cloud requires payload.approval_path (per-call cloud approval artifact)"
+        )
+    approval_path = Path(str(approval_raw))
+    if not approval_path.is_file():
+        raise GatewayNodeError(f"invoke_cloud approval_path not found: {approval_path}")
+
+    model_id = str(payload.get("model_id") or "").strip()
+    if not model_id:
+        raise GatewayNodeError("invoke_cloud requires payload.model_id")
+    prompt = str(payload.get("prompt") or payload.get("prompt_snippet") or payload.get("task") or "")
+    if not prompt.strip():
+        raise GatewayNodeError("invoke_cloud requires payload.prompt")
+
+    hard_cap = payload.get("hard_spend_cap_usd")
+    if hard_cap is None:
+        hard_cap = payload.get("max_usd")
+    if hard_cap is None:
+        raise GatewayNodeError("invoke_cloud requires payload.hard_spend_cap_usd (or max_usd)")
+
+    registry_raw = payload.get("registry")
+    registry: dict[str, Any] = (
+        dict(registry_raw) if isinstance(registry_raw, dict) else create_model_client_registry()
+    )
+    client_record: dict[str, Any] | None = None
+    for client in registry.get("clients", []):
+        if isinstance(client, dict) and client.get("model_id") == model_id:
+            client_record = client
+            break
+    if client_record is None:
+        raise GatewayNodeError(f"model_id {model_id!r} not found in registry")
+    if not client_record.get("enabled"):
+        if client_record.get("provider_id") in ("openai_stub_provider", "anthropic_stub_provider") and payload.get(
+            "enable_stub_if_disabled"
+        ):
+            client_record = {**client_record, "enabled": True}
+            clients = [
+                client_record if isinstance(c, dict) and c.get("model_id") == model_id else c
+                for c in registry.get("clients", [])
+            ]
+            registry = {**registry, "clients": clients}
+        else:
+            raise GatewayNodeError(f"model_id {model_id!r} is disabled in registry")
+
+    if client_record.get("risk_classification") != "cloud_external":
+        raise GatewayNodeError("invoke_cloud requires risk_classification=cloud_external")
+
+    handoff = dict(handoff_state or {})
+    budget_raw = payload.get("budget")
+    if budget_raw is None:
+        chained = handoff.get("last_debited_budget")
+        if isinstance(chained, dict):
+            budget = dict(chained)
+        else:
+            budget = create_model_budget(
+                session_id=str(payload.get("session_id") or f"wrp-cloud-{plan_digest[:12]}"),
+                task_id=str(payload.get("task_id") or node_id),
+                max_input_tokens=int(payload.get("max_input_tokens") or 50_000),
+                max_output_tokens=int(payload.get("max_tokens") or 256),
+                max_total_tokens=int(payload.get("max_total_tokens") or 50_000),
+                max_usd=float(hard_cap),
+            )
+    elif isinstance(budget_raw, dict):
+        budget = dict(budget_raw)
+    else:
+        raise GatewayNodeError("payload.budget must be an object")
+
+    # Hard spend cap: budget max_usd must be ≤ hard cap.
+    if float(budget.get("max_usd") or 0.0) > float(hard_cap) + 1e-12:
+        raise GatewayNodeError(
+            f"invoke_cloud budget.max_usd {budget.get('max_usd')} exceeds hard_spend_cap_usd {hard_cap}"
+        )
+
+    rec = {
+        "kind": "builder_ii.model_routing_recommendation",
+        "recommended_candidates": [{"model_id": model_id}],
+    }
+    policy_raw = payload.get("execution_policy")
+    if isinstance(policy_raw, dict):
+        execution_policy = dict(policy_raw)
+    else:
+        execution_policy = create_model_execution_policy(rec, max_tokens=int(payload.get("max_tokens") or 256))
+    allowed = list(execution_policy.get("allowed_models") or [])
+    if model_id not in allowed:
+        execution_policy = {
+            **execution_policy,
+            "allowed_models": list(dict.fromkeys([*allowed, model_id])),
+        }
+
+    settings = load_settings()
+    if not getattr(settings, "allow_cloud_models", False):
+        # Stubs may proceed when enable_stub_if_disabled + local ceremony for offline CI.
+        if client_record.get("provider_id") in ("openai_stub_provider", "anthropic_stub_provider") and payload.get(
+            "enable_stub_if_disabled"
+        ):
+            settings = type(settings)(**{**settings.__dict__, "allow_cloud_models": True})
+        else:
+            raise GatewayNodeError(
+                "invoke_cloud denied: BUILDER_ALLOW_CLOUD_MODELS/settings.allow_cloud_models is false"
+            )
+
+    pb_raw = payload.get("price_book")
+    price_book: dict[str, Any] = dict(pb_raw) if isinstance(pb_raw, dict) else create_default_price_book()
+    gateway = ModelExecutionGateway(settings, registry, execution_policy, price_book=price_book)
+
+    base = Path(artifact_dir) if artifact_dir is not None else Path(".builder/artifacts/wrp_invoke_cloud")
+    base = base / plan_digest[:16] / node_id
+    base.mkdir(parents=True, exist_ok=True)
+    envelope_path = base / "envelope.json"
+    receipt_path = base / "receipt.json"
+    events_dir = base / "events"
+    budget_path = base / "budget.json"
+    session_id = str(payload.get("session_id") or f"wrp-cloud-{plan_digest[:12]}")
+
+    try:
+        envelope, receipt, debited_budget = gateway.run_model_call(
+            model_id=model_id,
+            prompt=prompt,
+            system_prompt=str(payload.get("system_prompt") or "Answer helpfully.") or None,
+            max_tokens=int(payload.get("max_tokens") or 256),
+            temperature=payload.get("temperature"),
+            envelope_path=envelope_path,
+            receipt_path=receipt_path,
+            approval_path=approval_path,
+            ledger_bound=True,
+            budget=budget,
+            budget_path=budget_path,
+            events_dir=events_dir,
+            session_id=session_id,
+        )
+    except BudgetExceededError as exc:
+        raise GatewayNodeError(f"budget denied: {exc}") from exc
+    except Exception as exc:
+        raise GatewayNodeError(f"invoke_cloud failed: {exc}") from exc
+
+    egress = receipt.get("cloud_egress") if isinstance(receipt.get("cloud_egress"), dict) else {
+        "kind": "builder_ii.cloud_egress_record",
+        "provider_id": client_record.get("provider_id"),
+        "model_id": model_id,
+        "performs_network": bool(envelope.get("performs_network_calls")),
+        "grants_authority": False,
+    }
+
+    body = {
+        "kind": "builder_ii.wrp.gateway_model_invoke",
+        "mode": "invoke_cloud",
+        "node_id": node_id,
+        "model_id": model_id,
+        "plan_digest": plan_digest,
+        "approved_by": approved_by,
+        "msda_decision_digest": msda_decision.get("digest"),
+        "envelope_digest": envelope.get("digest"),
+        "receipt_digest": receipt.get("digest"),
+        "cost_report": receipt.get("cost_report"),
+        "budget_ref": receipt.get("budget_ref"),
+        "debited_budget": debited_budget,
+        "debited_budget_path": str(budget_path) if debited_budget is not None else None,
+        "ledger_bound": True,
+        "events_dir": str(events_dir),
+        "hard_spend_cap_usd": float(hard_cap),
+        "approval_path": str(approval_path),
+        "cloud_egress": egress,
+        "performs_network": bool(envelope.get("performs_network_calls")),
+        "executes_model_provider": True,
+        "executes_shell": False,
+        "cloud_provider_invoke": True,
         "grants_authority": False,
         "artifact_is_authority": False,
     }
@@ -394,7 +603,7 @@ def run_gateway_node(
             msg,
         )
     if mode == "stub_tool" and node_type == "model_gateway":
-        msg = "stub_tool mode is not valid for model_gateway (use record or invoke_local)"
+        msg = "stub_tool mode is not valid for model_gateway (use record, invoke_local, or invoke_cloud)"
         return (
             {
                 "node_id": node_id,
@@ -406,8 +615,8 @@ def run_gateway_node(
             {},
             msg,
         )
-    if mode == "invoke_local" and node_type != "model_gateway":
-        msg = "invoke_local mode is only valid for model_gateway"
+    if mode in {"invoke_local", "invoke_cloud"} and node_type != "model_gateway":
+        msg = f"{mode} mode is only valid for model_gateway"
         return (
             {
                 "node_id": node_id,
@@ -426,6 +635,18 @@ def run_gateway_node(
         if node_type == "model_gateway":
             if mode == "invoke_local":
                 result = _invoke_local_model_gateway(
+                    node_id=node_id,
+                    spec=spec,
+                    plan_digest=plan_digest,
+                    approved_by=approved_by,
+                    msda_decision=msda_decision,
+                    artifact_dir=(spec.get("payload") or {}).get("artifact_dir")
+                    if isinstance(spec.get("payload"), dict)
+                    else None,
+                    handoff_state=handoff_state,
+                )
+            elif mode == "invoke_cloud":
+                result = _invoke_cloud_model_gateway(
                     node_id=node_id,
                     spec=spec,
                     plan_digest=plan_digest,

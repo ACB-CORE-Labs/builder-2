@@ -19,8 +19,15 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.price_book`
 - `builder_ii.model_budget`
 - `builder_ii.run_manifest`
+- `builder_ii.run_replay_report`
+- `builder_ii.otel_ledger_export`
 - `builder_ii.event_ledger_integrity_report`
 - `builder_ii.wrp.subagent_step_receipt`
+- `builder_ii.wrp.subagent_loop_receipt`
+- `builder_ii.wrp.subagent_evidence_bundle`
+- `builder_ii.wrp.s3_enablement_decision`
+- `builder_ii.wrp.s3_session_binding`
+- `builder_ii.cloud_egress_record`
 - `builder_ii.goose_command_proposal`
 - `builder_ii.approval_record`
 - `builder_ii.preflight_record`

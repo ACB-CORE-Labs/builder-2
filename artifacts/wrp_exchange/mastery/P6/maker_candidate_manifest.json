@@ -1,6 +1,6 @@
 {
   "artifact_digests": {
-    "builder_ii/wrp/langgraph_adapter.py": "cee5ae3e34d349338f4c1c6b1c0fe9cb6fd3e968ddbd86ceb806e21dddea994e",
+    "builder_ii/wrp/langgraph_adapter.py": "eb2b393473f21f0d96cab3ffea2d17fe885d97712a9b97454e77e2d34d67c9cd",
     "builder_ii/wrp/repo_state.py": "574b3cedca37c4ef45bc199264ed13d7541625e5b947d3931d4b4d40a427a316",
     "builder_ii/wrp/subtask_graph.py": "f09b1c3071fc36dbf31e3d7fbe35e64fe9c8724b4771545046513d98612980b0",
     "builder_ii/wrp/vllm_profile.py": "5314b57dbb96f78981f1aa3d2a807bf8a63f21ca0f9f4935de3030d4ef739ef1",
@@ -8,7 +8,7 @@
   },
   "artifact_state": "EXCHANGE_ONLY",
   "branch": "feat/wrp-p6-p7-mastery-remainder",
-  "digest": "83806b6d31b9039b4d9cfd7a483a9dafed0cc19888312c57ef714035405dc4a3",
+  "digest": "5d834b21a48f2aca74915cbe432a62a17936fc15940926df41260ff6fb9bf672",
   "governance": {
     "agent_construction": "DISABLED",
     "artifact_is_authority": false,
