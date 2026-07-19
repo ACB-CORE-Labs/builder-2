@@ -66,12 +66,19 @@ WALKTHROUGH_STEPS: tuple[WalkthroughStep, ...] = (
     WalkthroughStep(
         number=6,
         title="(Optional) Mint a read-only Goose manifest",
-        why="Required before G can hand off to builder-goose start-readonly.",
+        why=(
+            "A read_only manifest is required for the hand-off. Pre-minting it via CLI is optional "
+            "— G asks to mint a passive one if none exists."
+        ),
         command=(
             "uv run builder-goose manifest --target generic --mode read_only "
             "--task \"readonly inspect\" --output .builder/goose/session.json"
         ),
-        stratum_after="Press G only after a read_only manifest exists; STRATUM never mints one.",
+        stratum_after=(
+            "Press G to hand off to read-only Goose. If no read_only manifest exists, STRATUM asks "
+            "before minting a passive one (confirm required); it then runs the fixed "
+            "`builder-goose start-readonly` — never raw Goose, never write authority."
+        ),
         optional=True,
     ),
     WalkthroughStep(

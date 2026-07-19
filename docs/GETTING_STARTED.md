@@ -199,7 +199,7 @@ Footer chain bar: **DIGEST —** until verification exposes one; **AUTH** not ev
 | **O** | Models | `.env` config + registry + routing policy | Compose policy/models; no spend |
 | **U** | Deepagents | Profiles + readiness + forge compose lines | Second **U**: assign picker |
 | **C** | Platform audit | Completion matrix rows | Same family as `builder-platform matrix` |
-| **W** | Workflow / Goose | Recipes + workflow stages + goose manifest | Compose manifest / start-readonly |
+| **W** | Workflow | Recipes + workflow stages + goose manifest | Compose `builder-goose manifest` (hand-off is **G**) |
 | **Y** | Orchestration | Plans / assignments / obligations on disk | Compose plan / lane-policy |
 | **B** | CodeVault | Frame/vault JSON scan | Compose demo/status/frame |
 | **E** | Quality gates | Required evidence / blockers template | Advisory artifact shape |
