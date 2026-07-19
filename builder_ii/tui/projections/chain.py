@@ -154,7 +154,18 @@ def epistemic_from_chain(chain: ChainView) -> dict[str, str]:
     """
     kinds = set(chain.found_kinds)
     planned = any(k for k in kinds if "plan" in k or "repo_map" in k or "context_pack" in k or "session" in k)
-    executed = any(k for k in kinds if "receipt" in k or "postflight" in k or "execution" in k)
+    # "execution" in a kind name must mean an execution *happened*, not merely that a planned artifact
+    # carries the word. verification_execution_plan / _approval and execution_candidate_manifest (the
+    # exec-req stage) all contain "execution" yet are planned-only -- greening executed from them is
+    # exactly the planned != executed conflation the epistemic matrix exists to prevent. Require real
+    # post-execution evidence: a receipt, a postflight record, or an execution record that is not a
+    # plan/candidate/approval.
+    executed = any(
+        "receipt" in k
+        or "postflight" in k
+        or ("execution" in k and not any(w in k for w in ("plan", "candidate", "approval")))
+        for k in kinds
+    )
     verified = chain.chain_valid is True
     promoted = any("promotion" in k and "decision" in k for k in kinds) or any(
         "promotion_decision" in k for k in kinds
