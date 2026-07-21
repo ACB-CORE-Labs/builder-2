@@ -318,7 +318,7 @@ def load_settings(project_root: Path | None = None) -> Settings:
     root = (project_root or Path.cwd()).resolve()
     load_dotenv(root / ".env", override=False)
 
-    backend = _env("BUILDER_MODEL_BACKEND", "CORE_AGENT_BACKEND", "mlx-lm").strip().lower()
+    backend = _env("BUILDER_MODEL_BACKEND", "CORE_AGENT_BACKEND", "ollama").strip().lower()
     if backend not in BACKENDS:
         raise ValueError(f"BUILDER_MODEL_BACKEND must be one of {BACKENDS}, got {backend!r}")
 

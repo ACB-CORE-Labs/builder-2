@@ -142,7 +142,7 @@ CONFIG_FIELD_SPECS: tuple[ConfigFieldSpec, ...] = (
         primary_env="BUILDER_MODEL_BACKEND",
         legacy_env_aliases=("CORE_AGENT_BACKEND",),
         config_keys=("model_backend", "model.backend"),
-        default="mlx-lm",
+        default="ollama",
         description="Default model backend metadata. R1.1 never invokes it.",
     ),
     ConfigFieldSpec(

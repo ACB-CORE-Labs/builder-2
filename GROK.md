@@ -45,7 +45,7 @@ uv sync --all-groups                # install deps (Python + dev group)
 bash scripts/ci.sh                  # the full blocking gate battery — exactly what CI runs
 uv run pytest -q                    # full test suite (testpaths = tests/)
 uv run ruff check builder_ii tests  # lint (line-length 120)
-uv run mypy builder_ii/command_authority.py builder_ii/compliance.py builder_ii/hitl_patch_apply.py builder_ii/model_execution_gateway.py builder_ii/readonly_authority.py
+uv run mypy builder_ii/governance/authority/ builder_ii/governance/authority/compliance.py builder_ii/governance/hitl/hitl_patch_apply.py builder_ii/routing/model_execution_gateway.py builder_ii/governance/authority/readonly_authority.py
 cargo build --manifest-path builder_ii_validation_rs/Cargo.toml   # optional Rust validation accelerator
 uv run builder-platform audit-docs  # docs truth audit
 uv run builder-platform matrix       # R0 completion truth matrix

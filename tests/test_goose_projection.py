@@ -48,10 +48,11 @@ def test_create_goose_projection_from_session_config(tmp_path: Path) -> None:
 
     surface = projection["goose_native_surface"]
     env = surface["env"]
-    assert env["GOOSE_PROVIDER"] == "openai"
+    # OSS default backend is ollama; Goose maps provider 1:1 for that backend.
+    assert env["GOOSE_PROVIDER"] == "ollama"
     assert env["GOOSE_MODEL"] == settings.mlx_model_qwen
     assert env["GOOSE_TEMPERATURE"] == "0.0"
-    assert env["GOOSE_PLANNER_PROVIDER"] == "openai"
+    assert env["GOOSE_PLANNER_PROVIDER"] == "ollama"
     assert env["GOOSE_PLANNER_MODEL"] == settings.mlx_model_qwen
     assert env["BUILDER_MODEL_ALIAS"] == "qwen-coder"
     assert env["BUILDER_SESSION_MODE"] == "read_only"

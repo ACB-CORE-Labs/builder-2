@@ -22,6 +22,9 @@ on:
 jobs:
   high-assurance-gates:
     runs-on: ubuntu-latest
+    env:
+      # Non-Apple default for CI; mlx is optional extra only.
+      BUILDER_MODEL_BACKEND: ollama
     steps:
       # Shallow on purpose. No gate reads git history -- the gate-battery receipt records only
       # HEAD and the working-tree state -- so a full-history clone was paying for nothing.

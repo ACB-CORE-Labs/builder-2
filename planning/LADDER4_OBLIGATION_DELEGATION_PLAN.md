@@ -46,7 +46,7 @@ the `deepagents_runtime.py:219` honesty fix; the tamper beat; operator-applied f
 - Trunk CLI exists: `builder-deepagents execution-candidate` (`builder_ii/cli/deepagents_cli.py:554`),
   `approve-candidate` (`:664`), `run-approved` (`:695`). Legacy `run-plan` (`:519`) is NOT the
   trunk and must never be presented as it.
-- Spine kinds: `builder_ii/deepagents_execution.py:18-27` — execution_candidate, execution_approval,
+- Spine kinds: `builder_ii/adapters/deepagents/deepagents_execution.py:18-27` — execution_candidate, execution_approval,
   run_envelope, event_record, event_ledger, replay_report, checkpoint, execution_receipt,
   evidence_bundle, backend_readiness_gate.
 - Budgets: `deepagents_execution.py:786-788` — `max_subagents=8, max_events=256,
@@ -57,7 +57,7 @@ the `deepagents_runtime.py:219` honesty fix; the tamper beat; operator-applied f
   `validate_deepagents_execution_approval` (`:1377`),
   `validate_deepagents_execution_approval_against_candidate` (`:1421`);
   evidence bundle create/validate (`:1216`/`:1765`).
-- **Honesty defect in scope:** `builder_ii/deepagents_runtime.py:219` synthesizes
+- **Honesty defect in scope:** `builder_ii/adapters/deepagents/deepagents_runtime.py:219` synthesizes
   `"Subagent {subagent} successfully completed planning task."` — fabricated success text.
   Verified 2026-07-08: **no test pins this string** (`grep -rn "successfully completed" tests/`
   is empty), so the fix has no pinned-test blast radius.
@@ -65,12 +65,12 @@ the `deepagents_runtime.py:219` honesty fix; the tamper beat; operator-applied f
   (target/task/subagent_profile/work_plan_ref; `result_mode: "PROPOSAL_ONLY"`).
 - Policy house style: `deepagents_policy.py` — `DEEPAGENTS_POLICY_KIND`, deny-lists
   (`_DENIED_ACTIONS` includes `invoke_subagents`, `execute_shell`, `call_models`, …).
-- B2.0 evaluator: `builder_ii/verification_promotion_gate.py` — `PROMOTION_EVIDENCE_KIND`,
+- B2.0 evaluator: `builder_ii/lifecycle/candidate/verification_promotion_gate.py` — `PROMOTION_EVIDENCE_KIND`,
   state `RECORDED_ONLY`, `evaluate_verification_promotion_gates(_from_files)`; its docstring:
   a PASS artifact "is input to an operator-applied matrix update — it never flips capability
   state itself."
 - Approval ceremony grammar: `APPROVAL_CONFIRMATION_PREFIX_LENGTH = 4`
-  (`builder_ii/hitl_patch_approval.py:68`).
+  (`builder_ii/governance/hitl/hitl_patch_approval.py:68`).
 - Post-v0.1.0 versioning policy (CHANGELOG + `code_vault/hierarchy.py` precedent): an
   additive-optional field = **minor** schema bump; validators accept version N−1 for one release
   cycle; absence of new fields = old semantics.
@@ -88,7 +88,7 @@ the `deepagents_runtime.py:219` honesty fix; the tamper beat; operator-applied f
 **COMMAND_AUTHORITY.md regeneration (the only sanctioned way to update the doc):**
 
 ```bash
-uv run python -m builder_ii.command_authority > docs/COMMAND_AUTHORITY.md
+uv run python -m builder_ii.governance.authority > docs/COMMAND_AUTHORITY.md
 ```
 
 The snippet that used to live here spliced only the rows between the first `| ` line and the last
@@ -101,7 +101,7 @@ looking successful. `tests/test_command_authority.py` compares the whole file ag
 
 ### Obligation — NEW kind `builder_ii.orchestration_obligation` (schema v1)
 
-New module `builder_ii/orchestration_obligation.py`. Fields:
+New module `builder_ii/core/orchestration_obligation.py`. Fields:
 
 - `kind`, `schema_version: 1`
 - `obligation_id` — attach_digest over canonical content (use `builder_ii.config_schema.attach_digest`)
@@ -160,7 +160,7 @@ mode underneath; discharge classification is orthogonal metadata layered on it.
 
 ### Lane policy — NEW kind `builder_ii.orchestration_lane_policy` (derived view)
 
-New module `builder_ii/orchestration_lane_policy.py`. Rendered from ONE small in-code table
+New module `builder_ii/core/orchestration_lane_policy.py`. Rendered from ONE small in-code table
 (never hand-maintained as a parallel registry):
 
 | obligation_kind | lane | allowed discharge mechanisms |
@@ -314,7 +314,7 @@ finding); the object model verbatim; R1–R5 nuance maps summarized; phase-2 def
 *Boundary: `docs/plan/` only. Nothing else.*
 
 ### PR-1 — Obligation kind (Sonnet 5) — new files only
-`builder_ii/orchestration_obligation.py` + `tests/test_orchestration_obligation.py`.
+`builder_ii/core/orchestration_obligation.py` + `tests/test_orchestration_obligation.py`.
 Create/validate/dumps/write + budget-arithmetic helpers (`remaining()`, `fits_within()`).
 Tests: anti-dump rejection (oversized ref value; smuggled `content` key), ⊆ failures per
 component, conservation (Σ children > parent refused), human-gates check, parent_ref XOR,
@@ -322,7 +322,7 @@ task length bound, digest stability. *Boundary: the two new files ONLY. No regis
 no contended files (registration happens in PR-3).* Read: Object model, R4.
 
 ### PR-2 — Lane policy (Sonnet 5) — new files only
-`builder_ii/orchestration_lane_policy.py` + `tests/test_orchestration_lane_policy.py`.
+`builder_ii/core/orchestration_lane_policy.py` + `tests/test_orchestration_lane_policy.py`.
 The table above as code → render/validate; totality test (every obligation_kind exactly one
 lane); collision refusal test (mint `interactive_ops` under lane `deepagents` → named error);
 discharge-mechanism existence checked lazily against `COMMAND_AUTHORITY_REGISTRY` (import is
