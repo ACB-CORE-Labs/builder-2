@@ -3,8 +3,7 @@ from pathlib import Path
 from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, STATE_ENABLED
-from builder_ii.platform_completion_audit import (
+from builder_ii.core.platform_completion_audit import (
     REQUIRED_CAPABILITY_ROWS,
     STALE_TRUTH_PHRASES,
     matrix_blocker_violations,
@@ -12,6 +11,7 @@ from builder_ii.platform_completion_audit import (
     render_docs_audit_jsonable,
     scan_docs_for_false_completion,
 )
+from builder_ii.governance.authority import COMMAND_AUTHORITY_REGISTRY, STATE_ENABLED
 
 runner = CliRunner()
 

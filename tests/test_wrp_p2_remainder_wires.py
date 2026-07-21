@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from builder_ii.model_client_registry import create_model_client_registry
-from builder_ii.model_routing_policy import (
+from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_routing_policy import (
     create_model_routing_policy,
     create_model_routing_recommendation,
     validate_model_routing_recommendation,

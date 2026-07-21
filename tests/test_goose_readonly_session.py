@@ -4,17 +4,17 @@ from pathlib import Path
 from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
-from builder_ii.config import load_settings
-from builder_ii.context_pack import (
-    ContextPackSelection,
-    build_context_pack,
-    create_context_pack_record,
-)
-from builder_ii.goose_readonly_session import (
+from builder_ii.adapters.goose.goose_readonly_session import (
     GOOSE_READONLY_SESSION_PLAN_KIND,
     create_goose_readonly_session_plan,
     validate_goose_readonly_session_plan,
     validate_goose_readonly_session_plan_file,
+)
+from builder_ii.core.config import load_settings
+from builder_ii.core.context_pack import (
+    ContextPackSelection,
+    build_context_pack,
+    create_context_pack_record,
 )
 
 runner = CliRunner()

@@ -77,7 +77,7 @@ class SessionBuilderScreen(ModalScreen[dict[str, Any]]):
 
     def _model_options(self) -> list[tuple[str, str]]:
         try:
-            from builder_ii.model_client_registry import create_model_client_registry
+            from builder_ii.routing.model_client_registry import create_model_client_registry
 
             registry = create_model_client_registry()
             opts: list[tuple[str, str]] = []

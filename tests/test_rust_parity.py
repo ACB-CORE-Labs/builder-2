@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from builder_ii.rust_validator import find_rust_validator_binary, validate_via_rust
-from builder_ii.validation_benchmark import VALIDATORS, generate_mock_artifacts
+from builder_ii.validation.rust_validator import find_rust_validator_binary, validate_via_rust
+from builder_ii.validation.validation_benchmark import VALIDATORS, generate_mock_artifacts
 
 
 def test_rust_binary_or_fail_closed_python_fallback_exists() -> None:

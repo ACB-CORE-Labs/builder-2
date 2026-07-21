@@ -1,11 +1,11 @@
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.approval_records import create_approval_record
-from builder_ii.config import load_settings
-from builder_ii.goose_command_proposal import create_goose_command_proposal
-from builder_ii.goose_session import create_goose_session_manifest
-from builder_ii.preflight_records import (
+from builder_ii.adapters.goose.goose_command_proposal import create_goose_command_proposal
+from builder_ii.adapters.goose.goose_session import create_goose_session_manifest
+from builder_ii.core.config import load_settings
+from builder_ii.lifecycle.candidate.approval_records import create_approval_record
+from builder_ii.lifecycle.candidate.preflight_records import (
     create_preflight_record,
     dumps_preflight_record,
     validate_preflight_record,

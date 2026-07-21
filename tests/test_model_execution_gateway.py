@@ -6,17 +6,17 @@ import pytest
 from typer.testing import CliRunner
 
 from builder_ii.cli.model_cli import model_app
-from builder_ii.config import Settings
-from builder_ii.model_client_registry import (
+from builder_ii.core.config import Settings
+from builder_ii.routing.model_client_registry import (
     create_model_client_registry,
 )
-from builder_ii.model_execution_gateway import (
+from builder_ii.routing.model_execution_gateway import (
     ModelExecutionGateway,
     scan_for_secrets,
     validate_model_call_envelope,
     validate_model_call_receipt,
 )
-from builder_ii.model_routing_policy import (
+from builder_ii.routing.model_routing_policy import (
     create_model_execution_policy,
 )
 
@@ -322,7 +322,7 @@ def test_envelope_network_semantics_local_network(
     """local_network risk: envelope + authority_boundary + governance must declare network enabled."""
     from unittest.mock import patch as _patch
 
-    from builder_ii.direct_chat import DirectChatResult
+    from builder_ii.routing.direct_chat import DirectChatResult
 
     stub_result = DirectChatResult(ok=True, content="Paris", endpoint="http://x", model_id="m")
     gateway = ModelExecutionGateway(mock_settings, standard_registry, standard_execution_policy)

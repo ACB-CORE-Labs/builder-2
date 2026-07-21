@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.otel_ledger_export import export_events_dir_to_otel, validate_otel_export_receipt
-from builder_ii.runtime_event_append import append_runtime_event
+from builder_ii.governance.ledger.otel_ledger_export import export_events_dir_to_otel, validate_otel_export_receipt
+from builder_ii.lifecycle.candidate.runtime_event_append import append_runtime_event
 
 
 def test_export_spans_from_events(tmp_path: Path) -> None:

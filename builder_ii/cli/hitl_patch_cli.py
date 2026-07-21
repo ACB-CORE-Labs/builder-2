@@ -5,24 +5,24 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from builder_ii.hitl_patch_apply import apply_hitl_patch, rollback_hitl_patch
-from builder_ii.hitl_patch_approval import (
+from builder_ii.governance.hitl.hitl_patch_apply import apply_hitl_patch, rollback_hitl_patch
+from builder_ii.governance.hitl.hitl_patch_approval import (
     APPROVAL_CONFIRMATION_PREFIX_LENGTH,
     DEFAULT_APPROVAL_TTL_SECONDS,
     create_hitl_patch_approval,
     write_hitl_patch_approval,
 )
-from builder_ii.hitl_patch_proposal import (
+from builder_ii.governance.hitl.hitl_patch_proposal import (
     create_hitl_patch_proposal,
     validate_hitl_patch_proposal_file,
     write_hitl_patch_proposal,
 )
-from builder_ii.hitl_rollback_approval import (
+from builder_ii.governance.hitl.hitl_rollback_approval import (
     canonical_json_digest,
     create_hitl_rollback_approval,
     write_hitl_rollback_approval,
 )
-from builder_ii.rollback_artifacts import validate_rollback_plan_file
+from builder_ii.lifecycle.candidate.rollback_artifacts import validate_rollback_plan_file
 
 console = Console()
 
@@ -36,7 +36,7 @@ def register_patch_commands(app: typer.Typer) -> None:
         reason: str = typer.Option(..., "--reason", help="Reason for patch"),
     ) -> None:
         """Create a patch proposal."""
-        from builder_ii.command_authority import enforce_command_authority
+        from builder_ii.governance.authority import enforce_command_authority
 
         enforce_command_authority("builder-hitl propose-patch", requested_effects=("artifact_write",))
         if not diff_file.exists():
@@ -71,7 +71,7 @@ def register_patch_commands(app: typer.Typer) -> None:
         mode: scripting the confirmation would collapse the planned-vs-approved boundary.
         Typing the prefix is an attention control, not a security control.
         """
-        from builder_ii.command_authority import enforce_command_authority
+        from builder_ii.governance.authority import enforce_command_authority
 
         enforce_command_authority("builder-hitl approve-patch", requested_effects=("artifact_write",))
 
@@ -129,8 +129,8 @@ def register_patch_commands(app: typer.Typer) -> None:
         This is the patch-reject ceremony complementary to approve-patch. It is not a promotion
         ``rejection-record`` (wrong kind for patch proposals).
         """
-        from builder_ii.command_authority import enforce_command_authority
-        from builder_ii.hitl_patch_refusal import create_hitl_patch_refusal, write_hitl_patch_refusal
+        from builder_ii.governance.authority import enforce_command_authority
+        from builder_ii.governance.hitl.hitl_patch_refusal import create_hitl_patch_refusal, write_hitl_patch_refusal
 
         enforce_command_authority("builder-hitl refuse-patch", requested_effects=("artifact_write",))
 
@@ -162,7 +162,7 @@ def register_patch_commands(app: typer.Typer) -> None:
         output_dir: Path = typer.Option(..., "--output-dir", help="Output directory for generated artifacts"),
     ) -> None:
         """Apply a patch governed by HITL approval."""
-        from builder_ii.command_authority import enforce_command_authority
+        from builder_ii.governance.authority import enforce_command_authority
 
         enforce_command_authority(
             "builder-hitl apply-patch",
@@ -198,7 +198,7 @@ def register_patch_commands(app: typer.Typer) -> None:
         the operator to transcribe the digest prefix. There is intentionally no
         ``--yes``/non-interactive mode; typing the prefix is an attention control.
         """
-        from builder_ii.command_authority import enforce_command_authority
+        from builder_ii.governance.authority import enforce_command_authority
 
         enforce_command_authority("builder-hitl approve-rollback", requested_effects=("artifact_write",))
 
@@ -259,7 +259,7 @@ def register_patch_commands(app: typer.Typer) -> None:
         output_dir: Path = typer.Option(..., "--output-dir", help="Output directory for generated artifacts"),
     ) -> None:
         """Execute a rollback governed by a distinct rollback approval."""
-        from builder_ii.command_authority import enforce_command_authority
+        from builder_ii.governance.authority import enforce_command_authority
 
         enforce_command_authority(
             "builder-hitl rollback",

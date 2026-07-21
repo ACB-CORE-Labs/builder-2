@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from builder_ii.hitl_command_runner import RunCommandDisabledError, execute_hitl_command
+from builder_ii.governance.hitl.hitl_command_runner import RunCommandDisabledError, execute_hitl_command
 from builder_ii.wrp.agent_factory import spawn_agent, validate_agent_lifecycle_record
 from builder_ii.wrp.gateway_nodes import GATEWAY_MODES
 

@@ -1,11 +1,11 @@
 # Command Authority
 
-Generated from `builder_ii/command_authority.py`. Do not hand-edit: this file is hashed
+Generated from `builder_ii.governance.authority`. Do not hand-edit: this file is hashed
 into every governed workflow event as `policy_snapshot_ref`, and
 `tests/test_command_authority.py` compares it byte for byte against its generator.
 
 ```
-uv run python -m builder_ii.command_authority > docs/COMMAND_AUTHORITY.md
+uv run python -m builder_ii.governance.authority > docs/COMMAND_AUTHORITY.md
 ```
 
 ## Assurance states
@@ -32,7 +32,7 @@ it sets, so a row reading `—` claims none.
 is correct rather than an oversight: `PASSIVE_ARTIFACT_VERIFIED` already permits writing
 to the artifact store, so a command that writes only artifacts is passive by definition.
 
-## Declared records (350)
+## Declared records (351)
 
 Authority written down, command by command.
 

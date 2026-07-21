@@ -4,21 +4,21 @@ from pathlib import Path
 from builder_ii.tools_cli import tools_app
 from typer.testing import CliRunner
 
-from builder_ii.config import Settings
-from builder_ii.event_ledger import (
+from builder_ii.core.config import Settings
+from builder_ii.core.mcp_policy import (
+    ENVELOPE_SCHEMA_VERSION,
+    POLICY_SCHEMA_VERSION,
+    TOOL_ENVELOPE_KIND,
+    TOOL_POLICY_KIND,
+)
+from builder_ii.governance.ledger.event_ledger import (
     create_event_record,
     load_event_records,
     replay_events,
     validate_event_record,
     write_event_record,
 )
-from builder_ii.mcp_policy import (
-    ENVELOPE_SCHEMA_VERSION,
-    POLICY_SCHEMA_VERSION,
-    TOOL_ENVELOPE_KIND,
-    TOOL_POLICY_KIND,
-)
-from builder_ii.workflow_records import canonical_digest
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 
 def _settings(tmp_path: Path) -> Settings:

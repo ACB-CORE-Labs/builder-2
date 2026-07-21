@@ -7,21 +7,21 @@ from hitl_patch_lane_helpers import PATCH_DIFF, init_target_repo, real_verificat
 from typer.testing import CliRunner
 
 from builder_ii.cli.hitl_execution_cli import hitl_app
-from builder_ii.command_authority import CommandAuthorityError
-from builder_ii.hitl_patch_apply import apply_hitl_patch
-from builder_ii.hitl_patch_approval import (
+from builder_ii.governance.authority import CommandAuthorityError
+from builder_ii.governance.hitl.hitl_patch_apply import apply_hitl_patch
+from builder_ii.governance.hitl.hitl_patch_approval import (
     create_hitl_patch_approval,
     validate_hitl_patch_approval_file,
     write_hitl_patch_approval,
 )
-from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
-from builder_ii.hitl_rollback_approval import (
+from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.governance.hitl.hitl_rollback_approval import (
     canonical_json_digest,
     create_hitl_rollback_approval,
     validate_hitl_rollback_approval_file,
     write_hitl_rollback_approval,
 )
-from builder_ii.rollback_artifacts import create_rollback_plan, write_rollback_plan
+from builder_ii.lifecycle.candidate.rollback_artifacts import create_rollback_plan, write_rollback_plan
 
 runner = CliRunner()
 

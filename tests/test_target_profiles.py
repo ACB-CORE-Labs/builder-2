@@ -1,7 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from builder_ii.target_profiles import (
+from builder_ii.lifecycle.setup.target_profiles import (
     build_target_profiles,
     render_target_profile,
     target_names,
@@ -73,7 +73,7 @@ def test_render_profile_has_expected_sections(tmp_path: Path) -> None:
 
 
 def test_target_profile_to_artifact_dict(tmp_path: Path) -> None:
-    from builder_ii.target_profiles import (
+    from builder_ii.lifecycle.setup.target_profiles import (
         TARGET_PROFILE_ARTIFACT_KIND,
         TARGET_PROFILE_SCHEMA_VERSION,
         validate_target_profile_artifact,
@@ -103,7 +103,10 @@ def test_target_profile_to_artifact_dict(tmp_path: Path) -> None:
 
 
 def test_target_profile_validation_failures(tmp_path: Path) -> None:
-    from builder_ii.target_profiles import validate_target_profile_artifact, validate_target_profile_artifact_file
+    from builder_ii.lifecycle.setup.target_profiles import (
+        validate_target_profile_artifact,
+        validate_target_profile_artifact_file,
+    )
 
     # Non-dict validation
     assert any("must be a JSON object" in err for err in validate_target_profile_artifact([]))

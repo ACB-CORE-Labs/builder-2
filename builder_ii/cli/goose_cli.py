@@ -7,30 +7,27 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
-from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.config import load_settings
-from builder_ii.goose_command_proposal import (
+from builder_ii.adapters.goose.goose_command_proposal import (
     create_goose_command_proposal_from_manifest_file,
     dumps_goose_command_proposal,
     validate_goose_command_proposal_file,
     write_goose_command_proposal,
 )
-from builder_ii.goose_inspection import (
+from builder_ii.adapters.goose.goose_inspection import (
     DEFAULT_MAX_READ_BYTES,
     create_readonly_inspection_audit_from_manifest_file,
     dumps_readonly_inspection_audit,
     validate_readonly_inspection_audit_file,
     write_readonly_inspection_audit,
 )
-from builder_ii.goose_readonly import (
+from builder_ii.adapters.goose.goose_readonly import (
     create_readonly_runtime_audit_from_manifest_file,
     dumps_readonly_runtime_audit,
     validate_readonly_runtime_audit_file,
     write_readonly_runtime_audit,
 )
-from builder_ii.goose_runtime_harness import GooseRuntimeHarness
-from builder_ii.goose_session import (
+from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
+from builder_ii.adapters.goose.goose_session import (
     GooseRuntimeMode,
     create_goose_session_manifest,
     dumps_goose_session_manifest,
@@ -38,7 +35,10 @@ from builder_ii.goose_session import (
     validate_goose_session_manifest_file,
     write_goose_session_manifest,
 )
-from builder_ii.target_profiles import TargetName, target_names
+from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.core.config import load_settings
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names
+from builder_ii.routing.agent_profiles import AgentProfileName, agent_profile_names
 
 goose_app = typer.Typer(help="Create and validate governed Goose artifacts without starting Goose.")
 console = Console()
@@ -359,7 +359,7 @@ def close_readonly(
 @goose_app.command("env")
 def env_cmd() -> None:
     """Print redacted Goose launch environment report."""
-    from builder_ii.goose_launcher import derive_goose_environment
+    from builder_ii.adapters.goose.goose_launcher import derive_goose_environment
 
     settings = load_settings()
     _, report = derive_goose_environment(settings)
@@ -380,7 +380,7 @@ def status_cmd(env_flag: bool = typer.Option(False, "--env", help="Print redacte
     if env_flag:
         env_cmd()
     else:
-        from builder_ii.goose_launcher import goose_status
+        from builder_ii.adapters.goose.goose_launcher import goose_status
 
         console.print(goose_status())
 

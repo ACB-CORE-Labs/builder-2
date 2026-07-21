@@ -4,7 +4,7 @@ from pathlib import Path
 from builder_ii.git_state_cli import git_state_app
 from typer.testing import CliRunner
 
-from builder_ii.git_state import (
+from builder_ii.core.git_state import (
     GIT_STATE_RECORD_KIND,
     GIT_STATE_RECORD_SCHEMA_VERSION,
     create_git_state_record,

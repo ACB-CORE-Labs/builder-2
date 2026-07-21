@@ -6,8 +6,8 @@ from pathlib import Path
 from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
-from builder_ii.config import load_settings
-from builder_ii.governed_prepare_package import (
+from builder_ii.core.config import load_settings
+from builder_ii.core.governed_prepare_package import (
     GOVERNED_PREPARE_PACKAGE_KIND,
     create_governed_prepare_package,
     validate_governed_prepare_package,
@@ -178,7 +178,7 @@ def test_prepare_package_cli_writes_package(tmp_path):
 
 
 def test_prepare_package_source_does_not_import_execution_primitives():
-    source = (ROOT / "builder_ii" / "governed_prepare_package.py").read_text(encoding="utf-8")
+    source = (ROOT / "builder_ii" / "core" / "governed_prepare_package.py").read_text(encoding="utf-8")
 
     forbidden = [
         "subprocess",
@@ -203,7 +203,7 @@ def test_validate_prepare_package_directory_accepts_valid_package(tmp_path):
         output_dir=output_dir,
     )
 
-    from builder_ii.governed_prepare_package import validate_governed_prepare_package_directory
+    from builder_ii.core.governed_prepare_package import validate_governed_prepare_package_directory
 
     assert validate_governed_prepare_package_directory(output_dir) == []
     assert validate_governed_prepare_package_directory(output_dir / "prepare-package.json") == []
@@ -222,7 +222,7 @@ def test_validate_prepare_package_directory_rejects_missing_artifact(tmp_path):
 
     (output_dir / "handoff-note.json").unlink()
 
-    from builder_ii.governed_prepare_package import validate_governed_prepare_package_directory
+    from builder_ii.core.governed_prepare_package import validate_governed_prepare_package_directory
 
     errors = validate_governed_prepare_package_directory(output_dir)
     assert any("does not exist" in error for error in errors)
@@ -241,7 +241,7 @@ def test_validate_prepare_package_directory_rejects_hash_mismatch(tmp_path):
 
     (output_dir / "handoff-note.json").write_text('{"tampered": true}\n', encoding="utf-8")
 
-    from builder_ii.governed_prepare_package import validate_governed_prepare_package_directory
+    from builder_ii.core.governed_prepare_package import validate_governed_prepare_package_directory
 
     errors = validate_governed_prepare_package_directory(output_dir)
     assert any("sha256 mismatch" in error for error in errors)
@@ -263,7 +263,7 @@ def test_validate_prepare_package_directory_rejects_path_escape(tmp_path):
     manifest["artifact_refs"][0]["path"] = "../escaped.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    from builder_ii.governed_prepare_package import validate_governed_prepare_package_directory
+    from builder_ii.core.governed_prepare_package import validate_governed_prepare_package_directory
 
     errors = validate_governed_prepare_package_directory(output_dir)
     assert any("escapes the prepare package directory" in error for error in errors)
@@ -348,7 +348,7 @@ def test_summarize_prepare_package_directory_returns_human_inspection_summary(tm
         output_dir=output_dir,
     )
 
-    from builder_ii.governed_prepare_package import (
+    from builder_ii.core.governed_prepare_package import (
         GOVERNED_PREPARE_PACKAGE_SUMMARY_KIND,
         summarize_governed_prepare_package_directory,
         validate_governed_prepare_package_summary,
@@ -378,7 +378,7 @@ def test_summarize_prepare_package_directory_refuses_invalid_package(tmp_path):
 
     (output_dir / "handoff-note.json").unlink()
 
-    from builder_ii.governed_prepare_package import summarize_governed_prepare_package_directory
+    from builder_ii.core.governed_prepare_package import summarize_governed_prepare_package_directory
 
     try:
         summarize_governed_prepare_package_directory(output_dir)

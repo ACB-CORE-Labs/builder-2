@@ -166,7 +166,7 @@ def project_chain(artifacts_dir: Path | None) -> ChainView:
     file_count = len(all_paths)
     if all_paths:
         try:
-            from builder_ii.artifact_chain_verification import verify_artifact_chain
+            from builder_ii.core.artifact_chain_verification import verify_artifact_chain
 
             report = verify_artifact_chain(all_paths)
             chain_valid = bool(report.get("valid", False))

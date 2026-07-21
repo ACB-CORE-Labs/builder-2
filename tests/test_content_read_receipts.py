@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from builder_ii.readonly_authority import (
+from builder_ii.governance.authority.readonly_authority import (
     CONTENT_READ_RECEIPT_KIND,
     DENIED_READ_KIND,
     create_read_policy,

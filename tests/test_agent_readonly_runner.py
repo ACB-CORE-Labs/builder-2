@@ -6,13 +6,13 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from builder_ii.agent_readonly_runner import (
+from builder_ii.cli.agent_cli import agent_app
+from builder_ii.cli.deepagents_cli import deepagents_app
+from builder_ii.routing.agent_readonly_runner import (
     AgentReadonlyError,
     run_readonly_agent,
     validate_agent_readonly_receipt,
 )
-from builder_ii.cli.agent_cli import agent_app
-from builder_ii.cli.deepagents_cli import deepagents_app
 
 runner = CliRunner()
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from builder_ii.deepagents_forge_schema import (
+from builder_ii.adapters.deepagents.deepagents_forge_schema import (
     DeepAgentSpec,
     derive_slug,
     is_valid_slug,

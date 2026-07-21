@@ -1,7 +1,7 @@
 # Known Limitations
 
 What builder-II will NOT do for you today. Generated from the completion truth matrix
-(`builder_ii/platform_completion_audit.py`) by `builder-platform known-limitations`; a pinned
+(`builder_ii/core/platform_completion_audit.py`) by `builder-platform known-limitations`; a pinned
 test fails CI if this document drifts from the matrix. Regenerate with:
 
 ```bash

@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from builder_ii.config import Settings, load_settings
-from builder_ii.goose_launcher import (
+from builder_ii.adapters.goose.goose_launcher import (
     derive_goose_environment,
     goose_env,
     goose_status,
     launch_goose_session,
     recipe_path,
 )
+from builder_ii.core.config import Settings, load_settings
 
 
 def _settings_with_base_url(base_url: str) -> Settings:
@@ -75,7 +75,7 @@ def test_recipe_exists():
 
 
 def test_platform_recipe_exists():
-    from builder_ii.model_router import plan_session
+    from builder_ii.routing.model_router import plan_session
 
     settings = load_settings()
     assert recipe_path(settings, plan_session("orchestrator")).exists()
@@ -339,7 +339,7 @@ def test_stratum_action_launch_goose_invokes_only_the_governed_command():
     import sys
     from unittest.mock import MagicMock, patch
 
-    import builder_ii.goose_launcher as launcher
+    import builder_ii.adapters.goose.goose_launcher as launcher
     from builder_ii.tui.app import StratumApp
 
     app = StratumApp(show_splash=False)

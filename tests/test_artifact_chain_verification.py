@@ -8,35 +8,35 @@ from builder_ii.chain_summary_cli import chain_app
 from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 from typer.testing import CliRunner
 
-from builder_ii.approval_records import create_approval_record
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.artifact_index_records import create_artifact_index_record
-from builder_ii.chain_summary_records import create_chain_summary_record
-from builder_ii.config_schema import attach_digest
-from builder_ii.goose_command_proposal import create_goose_command_proposal
-from builder_ii.handoff_bundle_records import create_handoff_bundle_record
-from builder_ii.preflight_records import create_preflight_record
-from builder_ii.promotion_decision_records import create_promotion_decision_record
-from builder_ii.promotion_readiness_records import create_promotion_readiness_record
-from builder_ii.receipt_records import create_receipt_record
-from builder_ii.receive_records import create_receive_record
-from builder_ii.snapshot_records import create_snapshot_record
-from builder_ii.state_ledger_records import create_state_ledger_record
-from builder_ii.verification_execution_approval import (
-    finalize_verification_execution_approval,
-    write_verification_execution_approval,
-)
-from builder_ii.verification_execution_ledger import (
+from builder_ii.adapters.goose.goose_command_proposal import create_goose_command_proposal
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.governance.ledger.artifact_index_records import create_artifact_index_record
+from builder_ii.governance.ledger.chain_summary_records import create_chain_summary_record
+from builder_ii.governance.ledger.handoff_bundle_records import create_handoff_bundle_record
+from builder_ii.governance.ledger.receipt_records import create_receipt_record
+from builder_ii.governance.ledger.receive_records import create_receive_record
+from builder_ii.governance.ledger.snapshot_records import create_snapshot_record
+from builder_ii.governance.ledger.state_ledger_records import create_state_ledger_record
+from builder_ii.governance.ledger.verification_execution_ledger import (
     index_verification_execution_receipt,
     reconstruct_verification_execution_ledger,
     validate_verification_execution_ledger_integrity,
     write_verification_execution_ledger_record,
 )
-from builder_ii.verification_execution_plan import (
+from builder_ii.lifecycle.candidate.approval_records import create_approval_record
+from builder_ii.lifecycle.candidate.preflight_records import create_preflight_record
+from builder_ii.lifecycle.candidate.promotion_decision_records import create_promotion_decision_record
+from builder_ii.lifecycle.candidate.promotion_readiness_records import create_promotion_readiness_record
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
+    finalize_verification_execution_approval,
+    write_verification_execution_approval,
+)
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )
-from builder_ii.verification_execution_receipt import (
+from builder_ii.lifecycle.candidate.verification_execution_receipt import (
     RUNNER_MODE_BOUNDED_APPROVED,
     SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
     finalize_verification_execution_receipt,

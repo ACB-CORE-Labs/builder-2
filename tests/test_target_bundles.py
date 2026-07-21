@@ -5,7 +5,12 @@ from types import SimpleNamespace
 from builder_ii.bundle_cli import bundle_app
 from typer.testing import CliRunner
 
-from builder_ii.bundles import create_target_bundle, dumps_bundle, validate_target_bundle, validate_target_bundle_file
+from builder_ii.core.bundles import (
+    create_target_bundle,
+    dumps_bundle,
+    validate_target_bundle,
+    validate_target_bundle_file,
+)
 
 
 def _settings(tmp_path: Path):

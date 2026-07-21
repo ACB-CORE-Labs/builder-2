@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.command_authority import (
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.governance.authority import (
     COMMAND_AUTHORITY_REGISTRY,
     TIER_0,
     TIER_3,
@@ -33,7 +33,7 @@ def test_no_chain_digest_is_reachable_so_none_may_be_displayed(tmp_path: Path) -
     now recursive and also runs against a real chain containing a digest-bound artifact -- whose
     own embedded digest fields must NOT leak into the report.
     """
-    from builder_ii.gate_battery_receipt import (
+    from builder_ii.governance.ledger.gate_battery_receipt import (
         build_gate_battery_receipt,
         dumps_gate_battery_receipt,
         gate_record_for_run,
@@ -261,7 +261,7 @@ def test_tui_never_reaches_for_the_raw_goose_adapter_or_chooses_builtins() -> No
 
 @pytest.mark.asyncio
 async def test_launch_goose_fails_closed_when_the_registry_forbids_the_governed_command() -> None:
-    from builder_ii.command_authority import CommandAuthorityError
+    from builder_ii.governance.authority import CommandAuthorityError
 
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
         mock_settings.return_value.target_repo.name = "test"
@@ -551,7 +551,7 @@ def test_header_model_tier_is_not_a_command_authority_tier() -> None:
     reading. The two vocabularies are unrelated; conflating them invites a future reader to
     "correct" the header into displaying authority tier it never had.
     """
-    from builder_ii.config import MODEL_TIERS
+    from builder_ii.core.config import MODEL_TIERS
     from builder_ii.tui.app import HeaderBanner
 
     banner = HeaderBanner()

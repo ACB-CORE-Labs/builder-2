@@ -5,16 +5,16 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.artifact_index_records import create_artifact_index_record
-from builder_ii.profile_pack import create_profile_pack, dumps_profile_pack, validate_profile_pack
-from builder_ii.profile_pack_dry_run import (
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.governance.ledger.artifact_index_records import create_artifact_index_record
+from builder_ii.lifecycle.setup.profile_pack import create_profile_pack, dumps_profile_pack, validate_profile_pack
+from builder_ii.lifecycle.setup.profile_pack_dry_run import (
     PROFILE_PACK_DRY_RUN_KIND,
     create_profile_pack_dry_run,
     dumps_profile_pack_dry_run,
     validate_profile_pack_dry_run,
 )
-from builder_ii.profile_pack_manifest import (
+from builder_ii.lifecycle.setup.profile_pack_manifest import (
     PROFILE_PACK_MANIFEST_KIND,
     create_profile_pack_manifest,
     dumps_profile_pack_manifest,
@@ -22,13 +22,13 @@ from builder_ii.profile_pack_manifest import (
     validate_profile_pack_manifest_file,
     write_profile_pack_manifest,
 )
-from builder_ii.profile_pack_render_plan import (
+from builder_ii.lifecycle.setup.profile_pack_render_plan import (
     PROFILE_PACK_RENDER_PLAN_KIND,
     create_profile_pack_render_plan,
     dumps_profile_pack_render_plan,
     validate_profile_pack_render_plan,
 )
-from builder_ii.profile_pack_validation_report import (
+from builder_ii.lifecycle.setup.profile_pack_validation_report import (
     PROFILE_PACK_VALIDATION_REPORT_KIND,
     create_profile_pack_validation_report,
     dumps_profile_pack_validation_report,

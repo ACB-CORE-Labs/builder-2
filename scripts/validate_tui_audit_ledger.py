@@ -31,7 +31,7 @@ import argparse
 import sys
 from pathlib import Path
 
-from builder_ii.tui_audit_ledger import MASTER_INDEX_FILENAME, validate_ledger, validate_master_index
+from builder_ii.governance.ledger.tui_audit_ledger import MASTER_INDEX_FILENAME, validate_ledger, validate_master_index
 
 #: Matches what `scripts/semantic_tui_driver.py` names its per-run files -- and also the master
 #: index, which shares the prefix. The index is excluded by name below rather than by narrowing this

@@ -4,8 +4,11 @@ from pathlib import Path
 from builder_ii.performance_cli import performance_app
 from typer.testing import CliRunner
 
-from builder_ii.artifact_index_records import create_artifact_index_record, validate_artifact_index_record
-from builder_ii.performance_measurements import (
+from builder_ii.governance.ledger.artifact_index_records import (
+    create_artifact_index_record,
+    validate_artifact_index_record,
+)
+from builder_ii.validation.performance_measurements import (
     PERFORMANCE_MEASUREMENT_KIND,
     PERFORMANCE_MEASUREMENT_SCHEMA_VERSION,
     create_performance_measurement_record,

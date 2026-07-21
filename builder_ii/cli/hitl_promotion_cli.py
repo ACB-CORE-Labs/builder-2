@@ -7,7 +7,7 @@ from typing import Any
 import typer
 from rich.console import Console
 
-from builder_ii.hitl_promotion_artifacts import (
+from builder_ii.governance.hitl.hitl_promotion_artifacts import (
     HITL_APPROVAL_BOUNDARY_KIND,
     HITL_PROMOTION_DECISION_KIND,
     HITL_PROMOTION_REQUEST_KIND,

@@ -143,10 +143,10 @@ def render_platform_status(
     verbose: bool = False,
 ) -> None:
     """Full platform status panel — all vitals, one screen."""
-    from builder_ii.backends import check_health, check_serves_active_model
-    from builder_ii.compliance import run_compliance_checks
-    from builder_ii.goose_launcher import goose_status
-    from builder_ii.goose_recipe_validation import validate_recipes
+    from builder_ii.adapters.goose.goose_launcher import goose_status
+    from builder_ii.adapters.goose.goose_recipe_validation import validate_recipes
+    from builder_ii.governance.authority.compliance import run_compliance_checks
+    from builder_ii.routing.backends import check_health, check_serves_active_model
 
     render_header(subtitle="platform status")
 
@@ -220,11 +220,11 @@ def render_doctor(
     """Structured readiness check. Returns list of failure strings."""
     import shutil
 
-    from builder_ii.backends import check_health, check_serves_active_model
-    from builder_ii.compliance import run_compliance_checks
-    from builder_ii.goose_launcher import find_goose_binary, goose_status
-    from builder_ii.goose_recipe_validation import validate_recipes
-    from builder_ii.models import model_status_report
+    from builder_ii.adapters.goose.goose_launcher import find_goose_binary, goose_status
+    from builder_ii.adapters.goose.goose_recipe_validation import validate_recipes
+    from builder_ii.core.models import model_status_report
+    from builder_ii.governance.authority.compliance import run_compliance_checks
+    from builder_ii.routing.backends import check_health, check_serves_active_model
 
     render_header(subtitle="doctor — local readiness")
 
@@ -335,7 +335,7 @@ def render_model_roster(
     verbose: bool = False,
 ) -> None:
     """Compact model roster with inline cache bars."""
-    from builder_ii.models import model_definitions, model_status_report
+    from builder_ii.core.models import model_definitions, model_status_report
 
     status_by_alias = {m.alias: m for m in model_status_report(settings)}
     table = Table(
@@ -635,7 +635,7 @@ try:
         verbose: bool = _typer.Option(False, "--verbose", "-v", help="Show full detail."),
     ) -> None:
         """Full platform status panel."""
-        from builder_ii.config import load_settings
+        from builder_ii.core.config import load_settings
 
         render_platform_status(load_settings(), verbose=verbose)
 
@@ -644,7 +644,7 @@ try:
         verbose: bool = _typer.Option(False, "--verbose", "-v", help="Show HF repos and notes."),
     ) -> None:
         """Model roster with inline cache bars."""
-        from builder_ii.config import load_settings
+        from builder_ii.core.config import load_settings
 
         render_header(subtitle="model roster")
         render_model_roster(load_settings(), verbose=verbose)
@@ -655,9 +655,9 @@ try:
         chat: bool = _typer.Option(False, "--chat", help="Run live chat smoke test."),
     ) -> None:
         """Capability gate grid."""
-        from builder_ii.capabilities import capability_gates
-        from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
-        from builder_ii.config import load_settings
+        from builder_ii.core.config import load_settings
+        from builder_ii.governance.authority import CommandAuthorityError, enforce_command_authority
+        from builder_ii.governance.authority.capabilities import capability_gates
 
         try:
             enforce_command_authority(
@@ -678,8 +678,8 @@ try:
         verbose: bool = _typer.Option(False, "--verbose", "-v"),
     ) -> None:
         """Show pending HITL gate queue."""
-        from builder_ii.config import load_settings
-        from builder_ii.hitl_execution_records import load_pending_hitl_records
+        from builder_ii.core.config import load_settings
+        from builder_ii.governance.hitl.hitl_execution_records import load_pending_hitl_records
 
         render_header(subtitle="HITL queue")
         settings = load_settings()
@@ -704,8 +704,8 @@ try:
         verbose: bool = _typer.Option(False, "--verbose", "-v"),
     ) -> None:
         """Latest handoff note summary."""
-        from builder_ii.config import load_settings
-        from builder_ii.handoff_notes import load_latest_handoff_note
+        from builder_ii.core.config import load_settings
+        from builder_ii.core.handoff_notes import load_latest_handoff_note
 
         render_header(subtitle="handoff")
         settings = load_settings()
@@ -727,7 +727,7 @@ try:
         """Golden path summary."""
         from pathlib import Path as _Path
 
-        from builder_ii.operator_golden_path import (
+        from builder_ii.lifecycle.setup.operator_golden_path import (
             create_operator_golden_path_report,
             validate_operator_golden_path_report,
         )

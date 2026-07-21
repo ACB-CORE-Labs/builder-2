@@ -1,5 +1,10 @@
 # builder-II
 
+[![CI](https://github.com/AssetOverflow/builder-II/actions/workflows/ci.yml/badge.svg)](https://github.com/AssetOverflow/builder-II/actions/workflows/ci.yml)
+
+> **Trust signals:** `tests/scenarios/test_wrp_full_lane.py` and `tests/scenarios/test_hitl_orchestration.py` exercise WRP exchange and full HITL orchestration. Local truth: `bash scripts/ci.sh` (do not treat this badge as a substitute for the gate battery).
+
+
 <p align="center">
   <img src="images/builder-ii-splash-hero.jpeg" alt="builder-II opening splash artwork" width="960">
 </p>
@@ -200,6 +205,8 @@ While builder-II core is a robust, open-source governed platform, its advanced s
 The open-source core includes a **fail-closed CLI seam**. When any `builder-code-vault` command (such as `frame`, `digest`, or `recall`) is run, the CLI catches the invocation, exits with a non-zero status code, and outputs a helpful upgrade message pointing to the commercial plugin. This prevents any silent failures or usage typos while maintaining strict boundary integrity.
 
 If you are interested in CodeVault or would like to enquire about getting access to the commercial plugin, please **reach out to the core maintainers** to ask about it!
+
+Optional upgrade URL (env `CODEVAULT_URL`, default points at the README CodeVault section). Open-core repo scans attach an `upgrade_hint` only when genuinely truncated; the `builder-code-vault` CLI fail-closed seam keeps its existing upgrade voice.
 
 ## Supported Models & Execution Backends
 

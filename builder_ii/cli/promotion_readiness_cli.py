@@ -6,8 +6,8 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.promotion_compatibility import parse_support_artifact_ref
-from builder_ii.promotion_readiness_records import (
+from builder_ii.lifecycle.candidate.promotion_compatibility import parse_support_artifact_ref
+from builder_ii.lifecycle.candidate.promotion_readiness_records import (
     create_promotion_readiness_record,
     dumps_promotion_readiness_record,
     validate_promotion_readiness_record,

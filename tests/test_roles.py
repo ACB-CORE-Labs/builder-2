@@ -1,7 +1,7 @@
 import pytest
 
-from builder_ii.lane_guides import guide_names
-from builder_ii.roles import builder_roles, get_role, role_names, validate_roles
+from builder_ii.governance.authority.roles import builder_roles, get_role, role_names, validate_roles
+from builder_ii.lifecycle.setup.lane_guides import guide_names
 
 
 def test_expected_roles_are_registered() -> None:

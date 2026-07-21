@@ -36,11 +36,11 @@ lane across seven merged PRs (RFC, obligation kind, lane policy, registry/CLI wi
 runner enforcement + honesty fix, status/why board, unmocked E2E + tamper beat, B2.0 tree-profile
 evaluator). The mechanism, end to end:
 
-- **Law 1 — no speech without a ticket.** `builder_ii/orchestration_obligation.py` mints
+- **Law 1 — no speech without a ticket.** `builder_ii/core/orchestration_obligation.py` mints
   digest-stable obligation tickets: task (≤ 2000 chars), deny-list boundary, output contract,
   anti-dump file refs (no `content`/`body`/`text` keys anywhere, no value over 512 chars), a
   four-field budget partition, and a `parent_ref` bound (XOR) to the root seal or a parent
-  obligation. `builder_ii/orchestration_lane_policy.py` binds each obligation kind to exactly one
+  obligation. `builder_ii/core/orchestration_lane_policy.py` binds each obligation kind to exactly one
   lane (totality validated) and refuses collisions with a named `LanePolicyViolation` — never
   "whichever adapter got invoked first".
 - **The seal — one friction point.** `builder-deepagents approve-candidate` binds a flag-driven,
@@ -127,7 +127,7 @@ honesty items are reconciled here:
 
 ## Pin edit set authorized by this audit
 
-- `builder_ii/platform_completion_audit.py` — new `governed obligation delegation` row (state,
+- `builder_ii/core/platform_completion_audit.py` — new `governed obligation delegation` row (state,
   evidence files, command surfaces, tests, scope-honest blockers, `next_pr` "Ladder 4 complete
   (PR-8)"); `REQUIRED_CAPABILITIES` entry; `assurance_state_for_row` maps the row to
   `BOUNDED_EXECUTION_VERIFIED`; reworded `deepagents runtime/subagents` row.
@@ -138,11 +138,11 @@ honesty items are reconciled here:
   (assurance + mirror checks; the assistant still never writes).
 - `docs/PLATFORM_COMPLETION_AUDIT.md` — matrix table row, truth-state prose, flip paragraph,
   "Ladder 4 closure update (PR-8)" section.
-- `builder_ii/command_authority.py` — `builder-deepagents approve-candidate` runtime-boundary
+- `builder_ii/governance/authority/` — `builder-deepagents approve-candidate` runtime-boundary
   wording only (no tier, mode, or effect-flag changes) + regenerated `docs/COMMAND_AUTHORITY.md`.
 - `planning/evidence/ladder4-b2-delegation-tree-pass.json` (gate-8 evidence) +
   `tests/test_ladder4_closure_evidence.py` (its CI pin).
-- `builder_ii/cli/deepagents_cli.py` (docstring), `builder_ii/deepagents_execution.py` (comment),
+- `builder_ii/cli/deepagents_cli.py` (docstring), `builder_ii/adapters/deepagents/deepagents_execution.py` (comment),
   `docs/ORCHESTRATION_OBLIGATIONS.md` (status + seal wording + registration note),
   `docs/plan/ORCHESTRATION_OBLIGATIONS_RFC.md` (as-built note) — honesty reconcile set.
 - `docs/KNOWN_LIMITATIONS.md` — regenerated from the post-flip matrix via

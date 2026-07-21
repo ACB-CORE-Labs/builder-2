@@ -6,8 +6,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from builder_ii.target_profiles import TargetName, target_names
-from builder_ii.verification_profiles import (
+from builder_ii.lifecycle.candidate.verification_profiles import (
     dumps_profile_artifact,
     get_verification_profile,
     profiles_for_target,
@@ -19,6 +18,7 @@ from builder_ii.verification_profiles import (
     verification_profiles,
     write_profile_artifact,
 )
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names
 
 verification_app = typer.Typer(help="Render and validate no-runtime verification profiles.")
 console = Console()

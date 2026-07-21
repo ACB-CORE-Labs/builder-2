@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.tui_audit_ledger import (
+from builder_ii.governance.ledger.tui_audit_ledger import (
     GENESIS_PREV_DIGEST,
     MASTER_INDEX_FILENAME,
     TUI_AUDIT_LEDGER_EVENT_KIND,

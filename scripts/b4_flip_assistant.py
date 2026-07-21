@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Flip assistant / consistency checker for the B4 matrix flip (plan item 1.7).
 
-The completion matrix (``builder_ii/platform_completion_audit.py``) is the source of truth. Several
+The completion matrix (``builder_ii/core/platform_completion_audit.py``) is the source of truth. Several
 other sites must move in lockstep with it whenever a capability row's state changes: a pinned count
 assert, per-capability assurance-state asserts, and the receipt/postflight/bundle governance
 self-stamps in the executor. Missing one of them is the classic "flip commit that fails CI on a
@@ -27,7 +27,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from builder_ii.platform_completion_audit import (  # noqa: E402
+from builder_ii.core.platform_completion_audit import (  # noqa: E402
     OPERATIONALLY_VERIFIED,
     REQUIRED_CAPABILITY_ROWS,
     CapabilityRow,

@@ -4,7 +4,7 @@ from pathlib import Path
 from builder_ii.verification_cli import verification_app
 from typer.testing import CliRunner
 
-from builder_ii.verification_profiles import (
+from builder_ii.lifecycle.candidate.verification_profiles import (
     default_profile_for_target,
     dumps_profile_artifact,
     get_verification_profile,

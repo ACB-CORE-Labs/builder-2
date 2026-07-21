@@ -5,10 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
-from builder_ii.artifact_chain_verification import extract_references
-from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-from builder_ii.hitl_patch_ledger import (
+from builder_ii.core.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
+from builder_ii.core.artifact_chain_verification import extract_references
+from builder_ii.governance.hitl.hitl_patch_ledger import (
     EVENT_PATCH_APPLIED,
     EVENT_PATCH_ROLLED_BACK,
     HITL_PATCH_LEDGER_RECORD_KIND,
@@ -18,6 +17,7 @@ from builder_ii.hitl_patch_ledger import (
     validate_hitl_patch_ledger_record_file,
     write_hitl_patch_ledger_record,
 )
+from builder_ii.governance.ledger.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
 
 
 def _ref(tmp_path: Path, name: str = "proposal.json", *, role: str = "patch_proposal") -> dict:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
+from builder_ii.governance.authority.governance_standard import build_standard_governance, validate_standard_governance
 
 
 def test_validate_non_dict() -> None:

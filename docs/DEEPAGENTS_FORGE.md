@@ -179,11 +179,11 @@ Forge enforces these rules at the preview step before emit and at emit time. The
 
 | File | Role |
 |---|---|
-| `builder_ii/deepagents_forge_schema.py` | `DeepAgentSpec` dataclass, `derive_slug()`, `is_valid_slug()`, `is_emit_ready()`, `to_yaml()` |
-| `builder_ii/deepagents_forge_wizard.py` | `ForgeStep`, `ForgeWizard`, `FORGE_STEPS`, `ValidationResult` |
-| `builder_ii/deepagents_forge_preview.py` | `check_governance()`, `render_preview()`, `GovernanceCheck`, `ForgePreview` |
-| `builder_ii/deepagents_forge_emit.py` | `emit_agent()`, `EmitResult`, bounded write/register helpers |
-| `builder_ii/deepagents_forge_tui.py` | Textual TUI wizard, `ForgeApp`, `ForgeScreen`, widget set |
+| `builder_ii/adapters/deepagents/deepagents_forge_schema.py` | `DeepAgentSpec` dataclass, `derive_slug()`, `is_valid_slug()`, `is_emit_ready()`, `to_yaml()` |
+| `builder_ii/adapters/deepagents/deepagents_forge_wizard.py` | `ForgeStep`, `ForgeWizard`, `FORGE_STEPS`, `ValidationResult` |
+| `builder_ii/adapters/deepagents/deepagents_forge_preview.py` | `check_governance()`, `render_preview()`, `GovernanceCheck`, `ForgePreview` |
+| `builder_ii/adapters/deepagents/deepagents_forge_emit.py` | `emit_agent()`, `EmitResult`, bounded write/register helpers |
+| `builder_ii/adapters/deepagents/deepagents_forge_tui.py` | Textual TUI wizard, `ForgeApp`, `ForgeScreen`, widget set |
 | `builder_ii/deepagents_forge_cli.py` | Typer CLI module, `forge_agent()`, `run_headless_forge()` |
 | `profiles/deepagents/*.yaml` | Curated passive Forge templates; examples only, not runtime authority |
 

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from builder_ii.platform_completion_audit import (
+from builder_ii.core.platform_completion_audit import (
     REQUIRED_CAPABILITY_ROWS,
     render_capability_table_markdown,
 )
@@ -95,6 +95,6 @@ def test_b8_passive_foundation_requires_no_implied_mutation() -> None:
 
 def test_next_sequence_matches_incomplete_rows() -> None:
     # NEXT_SEQUENCE must match actual incomplete capability rows.
-    from builder_ii.platform_completion_audit import NEXT_SEQUENCE
+    from builder_ii.core.platform_completion_audit import NEXT_SEQUENCE
 
     assert NEXT_SEQUENCE == "B8 deferred; B9 complete"

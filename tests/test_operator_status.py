@@ -1,11 +1,11 @@
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
-from builder_ii.operator_status import (
+from builder_ii.core.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
+from builder_ii.governance.authority import COMMAND_AUTHORITY_REGISTRY
+from builder_ii.lifecycle.setup.operator_status import (
     OPERATOR_STATUS_REPORT_KIND,
     SCHEMA_VERSION,
     create_operator_status_report,
     validate_operator_status_report,
 )
-from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
 
 
 def test_create_operator_status_report():

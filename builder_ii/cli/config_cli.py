@@ -8,13 +8,13 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.config_schema import (
+from builder_ii.core.config_schema import (
     CONFIG_SCHEMA_KIND,
     dumps_config_schema,
     validate_config_schema_artifact,
     write_config_schema_artifact,
 )
-from builder_ii.config_sources import (
+from builder_ii.core.config_sources import (
     CONFIG_SOURCE_RESOLUTION_KIND,
     dumps_config_resolution,
     resolve_config_sources,

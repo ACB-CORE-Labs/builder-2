@@ -1,15 +1,14 @@
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.artifact_chain_verification import (
+from builder_ii.core.artifact_chain_verification import (
     VALIDATORS as CHAIN_VALIDATORS,
 )
-from builder_ii.artifact_chain_verification import (
+from builder_ii.core.artifact_chain_verification import (
     extract_references,
     verify_artifact_chain,
 )
-from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-from builder_ii.artifact_memory import (
+from builder_ii.core.artifact_memory import (
     MEMORY_ATOM_KIND,
     MEMORY_INDEX_KIND,
     MEMORY_RECONSTRUCTION_KIND,
@@ -29,9 +28,10 @@ from builder_ii.artifact_memory import (
     write_memory_reconstruction,
     write_memory_search_result,
 )
-from builder_ii.handoff_notes import HANDOFF_NOTE_KIND, create_handoff_note
-from builder_ii.research_plans import RESEARCH_PLAN_KIND, create_research_plan_artifact
-from builder_ii.workflow_records import canonical_digest
+from builder_ii.core.handoff_notes import HANDOFF_NOTE_KIND, create_handoff_note
+from builder_ii.core.research_plans import RESEARCH_PLAN_KIND, create_research_plan_artifact
+from builder_ii.governance.ledger.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 TIMESTAMP = "2026-07-01T18:00:00Z"
 
@@ -409,7 +409,7 @@ def test_b8_atom_state_rejected_and_invalidated() -> None:
     )
     atom_rejected["review_state"] = "rejected"
     # Recalculate digest
-    from builder_ii.workflow_records import canonical_digest
+    from builder_ii.governance.ledger.workflow_records import canonical_digest
 
     atom_rejected.pop("atom_digest", None)
     atom_rejected["atom_digest"] = canonical_digest(atom_rejected)
@@ -482,7 +482,7 @@ def test_b8_atom_authority_rejection() -> None:
     bad_atom_summary = dict(atom_ok)
     bad_atom_summary["model_summary_is_authority"] = True
     bad_atom_summary.pop("atom_digest", None)
-    from builder_ii.workflow_records import canonical_digest
+    from builder_ii.governance.ledger.workflow_records import canonical_digest
 
     bad_atom_summary["atom_digest"] = canonical_digest(bad_atom_summary)
     assert any("model_summary_is_authority must be false or NOT_AUTHORIZED" in err for err in validate_memory_atom(bad_atom_summary))

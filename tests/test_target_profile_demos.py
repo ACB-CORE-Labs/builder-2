@@ -1,10 +1,10 @@
-from builder_ii.target_profile_demos import (
+from builder_ii.lifecycle.setup.target_profile_demos import (
     get_target_profile_demo,
     render_target_profile_demo,
     target_profile_demos,
     validate_target_profile_demos,
 )
-from builder_ii.target_profiles import target_names
+from builder_ii.lifecycle.setup.target_profiles import target_names
 
 
 def test_target_profile_demos_cover_initial_targets() -> None:

@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.config_schema import attach_digest
-from builder_ii.verification_execution_approval import finalize_verification_execution_approval
-from builder_ii.verification_execution_plan import finalize_verification_execution_plan
-from builder_ii.verification_execution_receipt import (
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.lifecycle.candidate.verification_execution_approval import finalize_verification_execution_approval
+from builder_ii.lifecycle.candidate.verification_execution_plan import finalize_verification_execution_plan
+from builder_ii.lifecycle.candidate.verification_execution_receipt import (
     REQUIRED_DISABLED_AUTHORITY,
     VERIFICATION_EXECUTION_RECEIPT_KIND,
     finalize_verification_execution_receipt,

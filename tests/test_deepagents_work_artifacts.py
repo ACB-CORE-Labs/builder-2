@@ -3,10 +3,9 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.config import load_settings
-from builder_ii.deepagents_policy import create_deepagents_policy_artifact
-from builder_ii.deepagents_readiness import create_deepagents_readiness_artifact
-from builder_ii.deepagents_work_artifacts import (
+from builder_ii.adapters.deepagents.deepagents_policy import create_deepagents_policy_artifact
+from builder_ii.adapters.deepagents.deepagents_readiness import create_deepagents_readiness_artifact
+from builder_ii.adapters.deepagents.deepagents_work_artifacts import (
     DEEPAGENTS_BLOCKED_ACTION_RECORD_KIND,
     DEEPAGENTS_HUMAN_GATE_REQUEST_KIND,
     DEEPAGENTS_PROPOSAL_RESULT_KIND,
@@ -34,6 +33,7 @@ from builder_ii.deepagents_work_artifacts import (
     validate_deepagents_work_validation_report,
     write_deepagents_work_plan,
 )
+from builder_ii.core.config import load_settings
 from tests.orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 
@@ -581,7 +581,7 @@ def test_deepagents_work_cli(tmp_path: Path) -> None:
 
 
 def test_deepagents_chain_verification(tmp_path: Path) -> None:
-    from builder_ii.artifact_chain_verification import extract_references
+    from builder_ii.core.artifact_chain_verification import extract_references
 
     goal2_fixture = build_goal2_assignment_fixture(tmp_path)
     plan_data = goal2_fixture["artifacts"]["orchestration"]
@@ -691,16 +691,16 @@ def test_deepagents_chain_verification(tmp_path: Path) -> None:
 
 
 def test_deepagents_artifact_index_and_chain_resolution(tmp_path: Path) -> None:
-    from builder_ii.artifact_chain_verification import (
+    from builder_ii.core.artifact_chain_verification import (
         VALIDATORS as CHAIN_VALIDATORS,
     )
-    from builder_ii.artifact_chain_verification import (
+    from builder_ii.core.artifact_chain_verification import (
         verify_artifact_chain,
     )
-    from builder_ii.artifact_index_records import (
+    from builder_ii.governance.ledger.artifact_index_records import (
         _VALIDATORS as INDEX_VALIDATORS,
     )
-    from builder_ii.artifact_index_records import (
+    from builder_ii.governance.ledger.artifact_index_records import (
         create_artifact_index_record,
     )
 
@@ -832,7 +832,7 @@ def test_deepagents_artifact_index_and_chain_resolution(tmp_path: Path) -> None:
 
 
 def test_deepagents_command_authority() -> None:
-    from builder_ii.command_authority import (
+    from builder_ii.governance.authority import (
         COMMAND_AUTHORITY_REGISTRY,
         STATE_ARTIFACT_ONLY,
         STATE_FORBIDDEN_UNPROMOTED,

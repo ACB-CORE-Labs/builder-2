@@ -1,9 +1,9 @@
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.config import load_settings
-from builder_ii.goose_readonly_session import create_goose_readonly_session_plan
-from builder_ii.verification_profile_reports import (
+from builder_ii.adapters.goose.goose_readonly_session import create_goose_readonly_session_plan
+from builder_ii.core.config import load_settings
+from builder_ii.lifecycle.candidate.verification_profile_reports import (
     VERIFICATION_PROFILE_REPORT_KIND,
     create_verification_profile_report,
     validate_verification_profile_report,

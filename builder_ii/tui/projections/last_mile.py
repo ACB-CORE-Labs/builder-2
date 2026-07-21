@@ -75,7 +75,7 @@ def _find_latest_by_kind(roots: list[Path], kind: str) -> tuple[Path, dict[str, 
 
 
 def _project_budget(roots: list[Path]) -> tuple[str, str]:
-    from builder_ii.model_budget import MODEL_BUDGET_KIND, remaining, validate_model_budget
+    from builder_ii.routing.model_budget import MODEL_BUDGET_KIND, remaining, validate_model_budget
 
     hit = _find_latest_by_kind(roots, MODEL_BUDGET_KIND)
     if hit is None:
@@ -97,7 +97,7 @@ def _project_budget(roots: list[Path]) -> tuple[str, str]:
 
 def _project_seam(roots: list[Path]) -> tuple[str, str]:
     """Seam mode from latest run_manifest / receipt markers — honest absence when none."""
-    from builder_ii.run_manifest import RUN_MANIFEST_KIND
+    from builder_ii.core.run_manifest import RUN_MANIFEST_KIND
 
     hit = _find_latest_by_kind(roots, RUN_MANIFEST_KIND)
     if hit is None:

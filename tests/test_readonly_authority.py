@@ -6,8 +6,7 @@ import pytest
 from builder_ii.readonly_inspection_cli import readonly_app
 from typer.testing import CliRunner
 
-from builder_ii.event_ledger import load_event_records
-from builder_ii.readonly_authority import (
+from builder_ii.governance.authority.readonly_authority import (
     DENIED_READ_KIND,
     READ_POLICY_KIND,
     READ_RECEIPT_KIND,
@@ -16,6 +15,7 @@ from builder_ii.readonly_authority import (
     validate_read_policy,
     validate_read_receipt,
 )
+from builder_ii.governance.ledger.event_ledger import load_event_records
 
 
 def test_create_and_validate_read_policy(tmp_path: Path):

@@ -10,13 +10,13 @@ from unittest.mock import patch
 
 import pytest
 
-from builder_ii.hitl_patch_refusal import (
+from builder_ii.governance.hitl.hitl_patch_refusal import (
     HITL_PATCH_REFUSAL_KIND,
     create_hitl_patch_refusal,
     validate_hitl_patch_refusal,
     write_hitl_patch_refusal,
 )
-from builder_ii.model_budget import create_model_budget, write_model_budget
+from builder_ii.routing.model_budget import create_model_budget, write_model_budget
 from builder_ii.tui.app import STRATUM_UNIMPLEMENTED_SURFACES, StratumApp
 from builder_ii.tui.projections.gates import scan_pending_hitl
 from builder_ii.tui.projections.hitl_compose import compose_hitl_approve, compose_hitl_reject

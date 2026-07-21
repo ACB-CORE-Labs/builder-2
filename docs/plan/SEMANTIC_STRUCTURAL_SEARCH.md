@@ -31,8 +31,8 @@ External tool subprocess query may later raise to `read_only_runtime_candidate` 
 
 ## Reuse
 
-- `builder_ii/repo_map.py`
-- `builder_ii/tool_registry.py`
+- `builder_ii/core/repo_map.py`
+- `builder_ii/core/tool_registry.py`
 - `builder_ii/code_vault/symbol_extractor.py`
 
 Do **not** place under `builder-wrp` (routing plane).

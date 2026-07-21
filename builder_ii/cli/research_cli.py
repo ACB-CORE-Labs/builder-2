@@ -6,14 +6,14 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.research_adapters import (
+from builder_ii.core.research_adapters import (
     create_research_adapter_artifact,
     dumps_research_adapter_artifact,
     validate_research_adapter_artifact,
     validate_research_adapter_artifact_file,
     write_research_adapter_artifact,
 )
-from builder_ii.research_plans import (
+from builder_ii.core.research_plans import (
     create_research_plan_artifact,
     dumps_research_plan_artifact,
     get_research_profile,
@@ -24,7 +24,7 @@ from builder_ii.research_plans import (
     validate_research_profiles,
     write_research_plan_artifact,
 )
-from builder_ii.target_profiles import TargetName, target_names
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names
 
 research_app = typer.Typer(help="Create and validate no-execution research planning artifacts.")
 console = Console()

@@ -8,8 +8,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from builder_ii.cli.orchestration_cli import orchestration_app
-from builder_ii.orchestration_lane_policy import validate_orchestration_lane_policy_artifact
-from builder_ii.orchestration_obligation import validate_orchestration_obligation
+from builder_ii.core.orchestration_lane_policy import validate_orchestration_lane_policy_artifact
+from builder_ii.core.orchestration_obligation import validate_orchestration_obligation
 
 runner = CliRunner()
 

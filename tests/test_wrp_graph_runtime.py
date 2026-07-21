@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from builder_ii.config_schema import digest_jsonable
+from builder_ii.core.config_schema import digest_jsonable
 from builder_ii.wrp.graph_runtime import (
     SUPPORTED_NODE_TYPES,
     execute_from_plan,

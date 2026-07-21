@@ -2,15 +2,15 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.mcp_policy import (
+from builder_ii.core.mcp_policy import (
     ENVELOPE_SCHEMA_VERSION,
     POLICY_SCHEMA_VERSION,
     TOOL_ENVELOPE_KIND,
     TOOL_POLICY_KIND,
     validate_mcp_receipt,
 )
-from builder_ii.tool_invocation_gateway import execute_tool_envelope
-from builder_ii.workflow_records import canonical_digest
+from builder_ii.core.tool_invocation_gateway import execute_tool_envelope
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 
 def _create_valid_policy():

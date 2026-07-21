@@ -1,8 +1,8 @@
 import inspect
 from pathlib import Path
 
-import builder_ii.hitl_command_execution as hitl_mod
-from builder_ii.hitl_command_execution import (
+import builder_ii.governance.hitl.hitl_command_execution as hitl_mod
+from builder_ii.governance.hitl.hitl_command_execution import (
     HITL_COMMAND_EXECUTION_SPEC_KIND,
     create_hitl_command_execution_spec,
     validate_hitl_command_execution_spec,

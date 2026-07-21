@@ -91,7 +91,7 @@ def _as_bool(answer: str) -> bool:
 
 
 def _backend_ready_for_selected_model(settings) -> tuple[bool, str]:
-    from builder_ii.backends import check_health, check_serves_active_model
+    from builder_ii.routing.backends import check_health, check_serves_active_model
 
     ok, msg = check_health(settings)
     if not ok:
@@ -108,7 +108,7 @@ def _ensure_backend(settings, no_backend: bool) -> None:
     if no_backend:
         return
 
-    from builder_ii.backends import check_health, check_serves_active_model, list_start_command
+    from builder_ii.routing.backends import check_health, check_serves_active_model, list_start_command
 
     health_ok, health_msg = check_health(settings)
     if health_ok:
@@ -138,8 +138,8 @@ def _ensure_backend(settings, no_backend: bool) -> None:
 @app.command("setup")
 def setup() -> None:
     """Legacy compatibility wrapper for the governed R1 setup path."""
-    from builder_ii.config import load_settings
-    from builder_ii.goose_setup import render_legacy_setup_redirect_text
+    from builder_ii.adapters.goose.goose_setup import render_legacy_setup_redirect_text
+    from builder_ii.core.config import load_settings
 
     settings = load_settings()
     echo_stdout(render_legacy_setup_redirect_text(settings))
@@ -165,7 +165,7 @@ def stratum(
     ),
 ) -> None:
     """Launch STRATUM: The Builder-II Operator TUI (experimental)."""
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder stratum")
 
@@ -276,16 +276,16 @@ def init(
     whether a runtime may start. The apply step is a separately invoked, digest-confirmed command
     (builder-setup apply) — init renders digests but never harvests the confirmation.
     """
-    from builder_ii.config_sources import resolve_config_sources
-    from builder_ii.init_decisions import (
+    from builder_ii.core.config_sources import resolve_config_sources
+    from builder_ii.lifecycle.setup.init_decisions import (
         DEFAULT_INIT_OUTPUT_DIR,
         TARGET_PROFILE_DECISION,
         decisions,
         init_wizard_step_definitions,
         validate_decision_value,
     )
-    from builder_ii.setup_onboarding import run_onboarding_pipeline
-    from builder_ii.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
+    from builder_ii.lifecycle.setup.setup_onboarding import run_onboarding_pipeline
+    from builder_ii.lifecycle.setup.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
 
     resolution = resolve_config_sources(project_root=root, builder_config_file=config_file)
     if resolution.errors:
@@ -437,9 +437,9 @@ def pull(
     tier: str = typer.Option("recommended", "--tier", "-t", help="recommended|fast|primary|all-safe|status|legacy"),
 ) -> None:
     """Download/cache local models. Prefer scripts/pull-roster.sh for MLX-LM."""
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.config import load_settings
-    from builder_ii.goose_launcher import pull_models
+    from builder_ii.adapters.goose.goose_launcher import pull_models
+    from builder_ii.core.config import load_settings
+    from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder pull", requested_effects=("external_tool", "state_write"))
     settings = load_settings()
@@ -465,10 +465,10 @@ def start(
     name: Optional[str] = typer.Option(None, "--name", "-n", help="Goose session name"),
 ) -> None:
     """Start MLX backend + Goose session with governed CORE recipes."""
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.config import load_settings, normalize_model_alias
-    from builder_ii.goose_launcher import goose_status, launch_goose_session
-    from builder_ii.model_router import SESSION_MODES, explain_plan, plan_session
+    from builder_ii.adapters.goose.goose_launcher import goose_status, launch_goose_session
+    from builder_ii.core.config import load_settings, normalize_model_alias
+    from builder_ii.governance.authority import enforce_command_authority
+    from builder_ii.routing.model_router import SESSION_MODES, explain_plan, plan_session
 
     enforce_command_authority("builder start", requested_effects=("runtime_start", "state_write", "external_tool"))
     if mode not in SESSION_MODES:
@@ -513,12 +513,12 @@ def ask(
     no_backend: bool = typer.Option(False, "--no-backend"),
 ) -> None:
     """Ask the selected local model directly through /v1/chat/completions."""
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.config import load_settings, normalize_model_alias
-    from builder_ii.model_client_registry import create_model_client_registry
-    from builder_ii.model_execution_gateway import ModelExecutionGateway
-    from builder_ii.model_router import tier_for_alias
-    from builder_ii.model_routing_policy import create_model_execution_policy
+    from builder_ii.core.config import load_settings, normalize_model_alias
+    from builder_ii.governance.authority import enforce_command_authority
+    from builder_ii.routing.model_client_registry import create_model_client_registry
+    from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+    from builder_ii.routing.model_router import tier_for_alias
+    from builder_ii.routing.model_routing_policy import create_model_execution_policy
 
     enforce_command_authority("builder ask", requested_effects=("model_execution", "artifact_write"))
     if model_alias:
@@ -584,9 +584,9 @@ def verify(
     fail_fast: bool = typer.Option(False, "--fail-fast", "-x"),
 ) -> None:
     """Run CORE verification harness."""
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.config import load_settings
-    from builder_ii.harness import format_verify_report, run_verification
+    from builder_ii.core.config import load_settings
+    from builder_ii.core.harness import format_verify_report, run_verification
+    from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder verify", requested_effects=("readonly_subprocess", "external_tool"))
     settings = load_settings()
@@ -598,9 +598,9 @@ def verify(
 @app.command("benchmark")
 def benchmark(output: Optional[Path] = typer.Option(None, "--output", "-o")) -> None:
     """Benchmark TTFT, tool-calling, compliance, memory."""
-    from builder_ii.benchmark import format_benchmark_report, run_benchmark, write_benchmark_report
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.config import load_settings
+    from builder_ii.core.config import load_settings
+    from builder_ii.governance.authority import enforce_command_authority
+    from builder_ii.validation.benchmark import format_benchmark_report, run_benchmark, write_benchmark_report
 
     effects = ("model_execution", "external_tool") + (("artifact_write",) if output else ())
     enforce_command_authority("builder benchmark", requested_effects=effects)
@@ -615,9 +615,9 @@ def benchmark(output: Optional[Path] = typer.Option(None, "--output", "-o")) -> 
 @app.command("capabilities")
 def capabilities(chat: bool = typer.Option(False, "--chat", help="Run a live /v1/chat/completions smoke")) -> None:
     """Check local model capability gates without modifying CORE."""
-    from builder_ii.capabilities import capability_gates
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.config import load_settings
+    from builder_ii.core.config import load_settings
+    from builder_ii.governance.authority import enforce_command_authority
+    from builder_ii.governance.authority.capabilities import capability_gates
 
     effects = ("external_tool",) + (("model_execution",) if chat else ())
     enforce_command_authority("builder capabilities", requested_effects=effects)
@@ -636,8 +636,8 @@ def switch_model(
     backend: Optional[str] = typer.Option(None, "--backend", "-b"),
 ) -> None:
     """Print .env lines to switch model alias/tier. Restart backend after."""
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.config import BACKENDS, MODEL_TIERS, normalize_model_alias
+    from builder_ii.core.config import BACKENDS, MODEL_TIERS, normalize_model_alias
+    from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder switch-model")
     if alias in MODEL_TIERS:
@@ -659,9 +659,9 @@ def switch_model(
 @app.command("models")
 def models() -> None:
     """Show the configured model roster and cache status."""
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.config import load_settings
-    from builder_ii.models import model_definitions, model_status_report
+    from builder_ii.core.config import load_settings
+    from builder_ii.core.models import model_definitions, model_status_report
+    from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder models", requested_effects=("readonly_subprocess",))
     settings = load_settings()
@@ -688,13 +688,13 @@ def models() -> None:
 @app.command("doctor")
 def doctor() -> None:
     """Run a local platform readiness check without editing CORE."""
-    from builder_ii.backends import check_health, check_serves_active_model
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.compliance import run_compliance_checks
-    from builder_ii.config import load_settings
-    from builder_ii.goose_launcher import find_goose_binary, goose_status
-    from builder_ii.goose_recipe_validation import validate_recipes
-    from builder_ii.models import model_status_report
+    from builder_ii.adapters.goose.goose_launcher import find_goose_binary, goose_status
+    from builder_ii.adapters.goose.goose_recipe_validation import validate_recipes
+    from builder_ii.core.config import load_settings
+    from builder_ii.core.models import model_status_report
+    from builder_ii.governance.authority import enforce_command_authority
+    from builder_ii.governance.authority.compliance import run_compliance_checks
+    from builder_ii.routing.backends import check_health, check_serves_active_model
 
     enforce_command_authority("builder doctor", requested_effects=("readonly_subprocess", "external_tool"))
     settings = load_settings()
@@ -764,13 +764,13 @@ def doctor() -> None:
 @app.command("status")
 def status() -> None:
     """Backend, Goose, compliance, recipe, and model status."""
-    from builder_ii.backends import check_health, check_serves_active_model
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.compliance import run_compliance_checks
-    from builder_ii.config import load_settings
-    from builder_ii.goose_launcher import goose_status
-    from builder_ii.goose_recipe_validation import validate_recipes
-    from builder_ii.models import model_status_report
+    from builder_ii.adapters.goose.goose_launcher import goose_status
+    from builder_ii.adapters.goose.goose_recipe_validation import validate_recipes
+    from builder_ii.core.config import load_settings
+    from builder_ii.core.models import model_status_report
+    from builder_ii.governance.authority import enforce_command_authority
+    from builder_ii.governance.authority.compliance import run_compliance_checks
+    from builder_ii.routing.backends import check_health, check_serves_active_model
 
     enforce_command_authority("builder status", requested_effects=("readonly_subprocess", "external_tool"))
     settings = load_settings()
@@ -801,9 +801,9 @@ def status() -> None:
 @app.command("config")
 def config_dump() -> None:
     """Print passive config and legacy setup reconciliation metadata as JSON."""
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.config import load_settings
-    from builder_ii.goose_setup import legacy_setup_redirect_payload
+    from builder_ii.adapters.goose.goose_setup import legacy_setup_redirect_payload
+    from builder_ii.core.config import load_settings
+    from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder config")
     settings = load_settings()
@@ -822,8 +822,8 @@ def config_dump() -> None:
 @app.command("init-prompt")
 def init_prompt() -> None:
     """Print governed system prompt."""
-    from builder_ii.command_authority import enforce_command_authority
-    from builder_ii.init_content import CORE_INIT_SYSTEM_PROMPT, estimate_tokens
+    from builder_ii.governance.authority import enforce_command_authority
+    from builder_ii.lifecycle.setup.init_content import CORE_INIT_SYSTEM_PROMPT, estimate_tokens
 
     enforce_command_authority("builder init-prompt")
     console.print(CORE_INIT_SYSTEM_PROMPT)

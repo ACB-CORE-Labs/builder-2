@@ -148,7 +148,7 @@ The kind had **no paired `validate-*`** and **no `docs/ARTIFACT_INDEX.md` entry*
 
 Added `scripts/validate_tui_audit_ledger.py` and registered the kind in `docs/ARTIFACT_INDEX.md` (`builder-platform audit-docs` passes). It is a plain script like its sibling `scripts/validate_tui_exploration.py`, so it adds **no `[project.scripts]` entry and therefore no `command_authority` surface** — `tests/test_command_authority.py` enforces that every console script carries an authority record, and a dev-facing validator should not buy a governed surface it does not need. Same reasoning `gate_battery_receipt` records for its own `python -m` validator.
 
-Digest computation lives in `builder_ii/tui_audit_ledger.py` and is imported by **both** writer and validator. A validator re-implementing the writer's hashing cannot detect drift between them — it only proves two copies of the same bug agree.
+Digest computation lives in `builder_ii/governance/ledger/tui_audit_ledger.py` and is imported by **both** writer and validator. A validator re-implementing the writer's hashing cannot detect drift between them — it only proves two copies of the same bug agree.
 
 The ledger still writes to `.builder/`, gitignored at `.gitignore:9`, so it remains ephemeral by design; `reproduce.sh` regenerates it.
 
@@ -178,7 +178,7 @@ Redacting them would make the ledger lie about what the UI shows. Reported rathe
 | `635e72a` | `builder_ii/tui/app.py` | `requires_authority` bound to `TIER_3`/`TIER_4` constants (§3.1); `HeaderBanner.tier` → `"unknown"`, bogus `command_authority` import dropped (§3.3) |
 | `635e72a` | `tests/test_stratum_tui.py` | 5 `model_tier` mocks → `"primary"` (a real `MODEL_TIERS` value); **+3 lanes** |
 | `3811bd6` | `fix_all.py` | **deleted** (§3.6) |
-| `98f68d4` | `builder_ii/tui_audit_ledger.py` | **new** — `state_digest`/`entry_digest`/`prev_digest`, chain head resume, validator (§3.4) |
+| `98f68d4` | `builder_ii/governance/ledger/tui_audit_ledger.py` | **new** — `state_digest`/`entry_digest`/`prev_digest`, chain head resume, validator (§3.4) |
 | `98f68d4` | `scripts/validate_tui_audit_ledger.py` | **new** — the paired validator (§3.5) |
 | `98f68d4` | `scripts/semantic_tui_driver.py` | writes chained events; payload key unified to `state`; dead `get_inspection_app` import dropped |
 | `98f68d4` | `docs/ARTIFACT_INDEX.md` | registers `builder_ii.tui_audit_ledger_event` |

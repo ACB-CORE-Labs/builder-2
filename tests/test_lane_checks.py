@@ -1,5 +1,5 @@
-from builder_ii.lane_checks import check_role_lane_pair, run_lane_checks
-from builder_ii.roles import builder_roles
+from builder_ii.governance.authority.roles import builder_roles
+from builder_ii.validation.lane_checks import check_role_lane_pair, run_lane_checks
 
 
 def test_lane_checks_pass_for_current_manifest() -> None:

@@ -3,15 +3,18 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.config import load_settings
-from builder_ii.goose_projection import create_goose_projection, validate_goose_projection
-from builder_ii.goose_readonly_session import create_goose_readonly_session_plan, validate_goose_readonly_session_plan
-from builder_ii.goose_wrapper_plan import create_goose_wrapper_plan, validate_goose_wrapper_plan
-from builder_ii.handoff_artifacts import create_handoff_artifact, validate_handoff_artifact
-from builder_ii.orchestration_plan import create_orchestration_plan, validate_orchestration_plan
-from builder_ii.session_config import create_session_configuration, validate_session_configuration
-from builder_ii.verification_profile_reports import (
+from builder_ii.adapters.goose.goose_projection import create_goose_projection, validate_goose_projection
+from builder_ii.adapters.goose.goose_readonly_session import (
+    create_goose_readonly_session_plan,
+    validate_goose_readonly_session_plan,
+)
+from builder_ii.adapters.goose.goose_wrapper_plan import create_goose_wrapper_plan, validate_goose_wrapper_plan
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.core.config import load_settings
+from builder_ii.core.handoff_artifacts import create_handoff_artifact, validate_handoff_artifact
+from builder_ii.core.orchestration_plan import create_orchestration_plan, validate_orchestration_plan
+from builder_ii.core.session_config import create_session_configuration, validate_session_configuration
+from builder_ii.lifecycle.candidate.verification_profile_reports import (
     create_verification_profile_report,
     validate_verification_profile_report,
 )

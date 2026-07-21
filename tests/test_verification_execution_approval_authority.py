@@ -1,4 +1,4 @@
-from builder_ii.command_authority import (
+from builder_ii.governance.authority import (
     COMMAND_AUTHORITY_REGISTRY,
     MODE_HITL_ARTIFACT_REQUIRED,
     MODE_NONE,

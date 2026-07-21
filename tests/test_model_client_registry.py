@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from builder_ii.model_client_registry import (
+from builder_ii.routing.model_client_registry import (
     create_model_client_registry,
     dumps_model_client_registry,
     validate_model_client_registry,

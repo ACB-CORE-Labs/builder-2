@@ -134,9 +134,9 @@ deepagents, apply patches, mutate git, or change source/target repositories.
 | Surface | Current behavior | Reconciled behavior | Mode | Authority tier | Write/runtime boundary |
 |---|---|---|---|---|---|
 | `builder setup` | Legacy compatibility entrypoint | Fails closed and prints governed `builder-setup` sequence | `disabled_redirect` | Tier 1 compatibility redirect | No setup writes, no Goose start, no subprocess/shell, no model/tool/runtime promotion |
-| `builder_ii/goose_setup.py` | Passive Goose config and skill-source metadata | Passive-only setup/config-overlay helper | `passive_only` | Tier 1 passive metadata | No direct writes, no recipe validation, no skill copying |
+| `builder_ii/adapters/goose/goose_setup.py` | Passive Goose config and skill-source metadata | Passive-only setup/config-overlay helper | `passive_only` | Tier 1 passive metadata | No direct writes, no recipe validation, no skill copying |
 | `builder start` | Operator-managed runtime helper | No longer auto-runs legacy setup writes | `runtime_decoupled` | Tier 2 operator-managed runtime helper | Runtime state only; setup must go through governed artifacts |
-| `builder_ii/goose_launcher.py` | Runtime launcher | Runtime-only helper with session-context write | `runtime_only` | Tier 2 operator-managed runtime helper | No Goose setup delegation, no config writes, no skill installs |
+| `builder_ii/adapters/goose/goose_launcher.py` | Runtime launcher | Runtime-only helper with session-context write | `runtime_only` | Tier 2 operator-managed runtime helper | No Goose setup delegation, no config writes, no skill installs |
 
 
 ## Reconciliation additions

@@ -42,22 +42,22 @@ The plan is based on direct read-through of:
 - `docs/plan/ARTIFACT_MEMORY_RFC.md`
 - `docs/OPERATOR_QUICKSTART.md`
 - `docs/COMMAND_AUTHORITY.md`
-- `builder_ii/platform_completion_audit.py`
+- `builder_ii/core/platform_completion_audit.py`
 - `builder_ii/platform_status_cli.py`
-- `builder_ii/command_authority.py`
-- `builder_ii/event_ledger.py`
-- `builder_ii/artifact_chain_verification.py`
-- `builder_ii/handoff_notes.py`
-- `builder_ii/handoff_artifacts.py`
-- `builder_ii/handoff_bundle_records.py`
+- `builder_ii/governance/authority/`
+- `builder_ii/governance/ledger/event_ledger.py`
+- `builder_ii/core/artifact_chain_verification.py`
+- `builder_ii/core/handoff_notes.py`
+- `builder_ii/core/handoff_artifacts.py`
+- `builder_ii/governance/ledger/handoff_bundle_records.py`
 - `builder_ii/notes_cli.py`
-- `builder_ii/workflow_records.py`
-- `builder_ii/workflow_orchestrator.py`
+- `builder_ii/governance/ledger/workflow_records.py`
+- `builder_ii/core/workflow_orchestrator.py`
 - `builder_ii/ledger_cli.py`
 - `builder_ii/model_cli.py`
 - `builder_ii/tools_cli.py`
 - `builder_ii/mcp_cli.py`
-- `builder_ii/tool_invocation_gateway.py`
+- `builder_ii/core/tool_invocation_gateway.py`
 - recent tests around platform truth, command authority, ledger, model/tool/MCP receipts, and workflow golden path.
 
 ## Map
@@ -96,12 +96,12 @@ Branch and base after approval:
 
 Core implementation:
 
-- Add `builder_ii/artifact_memory.py`.
+- Add `builder_ii/core/artifact_memory.py`.
 - Add `builder_ii/memory_cli.py`.
 - Add `builder-memory` console script.
-- Register `builder-memory` and subcommands in `builder_ii/command_authority.py`.
-- Register memory artifact validators in `builder_ii/artifact_chain_verification.py`.
-- Update `builder_ii/platform_completion_audit.py` so `artifact memory` moves from `DESIGN_ONLY` to `PASSIVE_FOUNDATION`.
+- Register `builder-memory` and subcommands in `builder_ii/governance/authority/`.
+- Register memory artifact validators in `builder_ii/core/artifact_chain_verification.py`.
+- Update `builder_ii/core/platform_completion_audit.py` so `artifact memory` moves from `DESIGN_ONLY` to `PASSIVE_FOUNDATION`.
 - Update `docs/COMMAND_AUTHORITY.md` from the registry table.
 - Update `docs/PLATFORM_COMPLETION_AUDIT.md` and add or update memory docs, preferably `docs/ARTIFACT_MEMORY.md` while preserving the RFC as design history.
 
@@ -232,11 +232,11 @@ Branch and base:
 
 Core implementation:
 
-- Add `builder_ii/operator_status.py`.
-- Add `builder_ii/operator_next.py`.
-- Add `builder_ii/operator_golden_path.py` or equivalent if the golden path is not best housed in an existing module.
+- Add `builder_ii/lifecycle/setup/operator_status.py`.
+- Add `builder_ii/lifecycle/setup/operator_next.py`.
+- Add `builder_ii/lifecycle/setup/operator_golden_path.py` or equivalent if the golden path is not best housed in an existing module.
 - Extend `builder_ii/platform_status_cli.py` with unified platform commands.
-- Register new subcommands in `builder_ii/command_authority.py`.
+- Register new subcommands in `builder_ii/governance/authority/`.
 - Update `docs/COMMAND_AUTHORITY.md`, `docs/PLATFORM_COMPLETION_AUDIT.md`, and `docs/OPERATOR_QUICKSTART.md`.
 
 B9 command surface:

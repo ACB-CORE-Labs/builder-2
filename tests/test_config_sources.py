@@ -14,7 +14,7 @@ import importlib
 import inspect
 from pathlib import Path
 
-from builder_ii.config_sources import (
+from builder_ii.core.config_sources import (
     ConfigResolution,
     ResolvedValue,
     SourceRef,
@@ -264,7 +264,7 @@ def test_config_resolution_type_is_importable() -> None:
 # ---------------------------------------------------------------------------
 
 def test_config_sources_does_not_hardcode_core_strings() -> None:
-    import builder_ii.config_sources as cs_mod
+    import builder_ii.core.config_sources as cs_mod
     source = inspect.getsource(cs_mod)
     assert "core.patch_planner" not in source, (
         "core.patch_planner must live only in target_profile_defaults, not config_sources"
@@ -285,7 +285,7 @@ def test_demo_loop_core_strings_live_only_in_the_core_target_spec() -> None:
     CORE data (CORE_SENSITIVE_PATH_PREFIXES, CORE_DEMO_TARGET_SPEC) and its docstrings."""
     import ast as ast_mod
 
-    import builder_ii.demo_loop as demo_mod
+    import builder_ii.core.demo_loop as demo_mod
 
     source = inspect.getsource(demo_mod)
     tree = ast_mod.parse(source)
@@ -337,7 +337,7 @@ def test_import_platform_status_cli() -> None:
 
 
 def test_import_setup_onboarding() -> None:
-    mod = importlib.import_module("builder_ii.setup_onboarding")
+    mod = importlib.import_module("builder_ii.lifecycle.setup.setup_onboarding")
     assert mod is not None
 
 
@@ -346,20 +346,20 @@ def test_import_setup_onboarding() -> None:
 # ---------------------------------------------------------------------------
 
 def test_run_demo_loop_signature() -> None:
-    from builder_ii.demo_loop import run_demo_loop
+    from builder_ii.core.demo_loop import run_demo_loop
     sig = inspect.signature(run_demo_loop)
     params = set(sig.parameters.keys())
     assert {"target_repo", "output_dir", "target_name", "phase", "approve", "force", "cleanup_worktree"}.issubset(params)
 
 
 def test_dumps_demo_report_is_importable() -> None:
-    from builder_ii.demo_loop import dumps_demo_report, validate_demo_report
+    from builder_ii.core.demo_loop import dumps_demo_report, validate_demo_report
     assert callable(dumps_demo_report)
     assert callable(validate_demo_report)
 
 
 def test_core_demo_target_spec_is_present() -> None:
-    from builder_ii.demo_loop import CORE_DEMO_TARGET_SPEC
+    from builder_ii.core.demo_loop import CORE_DEMO_TARGET_SPEC
     assert CORE_DEMO_TARGET_SPEC.name == "core"
     assert "AssetOverflow/core" in (CORE_DEMO_TARGET_SPEC.expected_remote_substring or "")
     assert len(CORE_DEMO_TARGET_SPEC.sensitive_path_prefixes) > 0
@@ -368,7 +368,7 @@ def test_core_demo_target_spec_is_present() -> None:
 def test_demo_target_spec_does_not_drive_phase_logic() -> None:
     """DemoTargetSpec must be data, not a controller (the same rule the hardening line pinned
     for its CoreDemoAdapter)."""
-    from builder_ii.demo_loop import DemoTargetSpec
+    from builder_ii.core.demo_loop import DemoTargetSpec
     assert DemoTargetSpec.__dataclass_params__.frozen
     public_methods = [
         name for name, val in inspect.getmembers(DemoTargetSpec)
@@ -382,5 +382,5 @@ def test_demo_target_spec_does_not_drive_phase_logic() -> None:
 def test_platform_status_cli_demo_loop_can_call_run_demo_loop() -> None:
     mod = importlib.import_module("builder_ii.cli.platform_status_cli")
     assert mod is not None
-    from builder_ii.demo_loop import run_demo_loop
+    from builder_ii.core.demo_loop import run_demo_loop
     assert callable(run_demo_loop)

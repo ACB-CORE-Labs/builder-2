@@ -9,7 +9,7 @@ from types import SimpleNamespace
 from typer.testing import CliRunner
 
 from builder_ii.cli.targets_cli import targets_app
-from builder_ii.target_profiles import (
+from builder_ii.lifecycle.setup.target_profiles import (
     target_profile,
     validate_target_profile_artifact,
 )
@@ -81,7 +81,7 @@ def test_doctor_core_profile_ok(tmp_path: Path) -> None:
 
 
 def test_render_show_core_includes_v4_sections(tmp_path: Path) -> None:
-    from builder_ii.target_profiles import render_target_profile
+    from builder_ii.lifecycle.setup.target_profiles import render_target_profile
 
     rendered = render_target_profile(target_profile(_settings(tmp_path), "core"))
     assert "## CORE profile (V.4 isolation)" in rendered

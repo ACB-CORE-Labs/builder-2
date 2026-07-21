@@ -4,8 +4,8 @@ import inspect
 import json
 from pathlib import Path
 
-import builder_ii.rollback_artifacts as rollback_mod
-from builder_ii.rollback_artifacts import (
+import builder_ii.lifecycle.candidate.rollback_artifacts as rollback_mod
+from builder_ii.lifecycle.candidate.rollback_artifacts import (
     ROLLBACK_PLAN_KIND,
     ROLLBACK_RECEIPT_KIND,
     create_rollback_plan,

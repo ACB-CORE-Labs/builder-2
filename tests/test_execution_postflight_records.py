@@ -2,8 +2,8 @@ import inspect
 import json
 from pathlib import Path
 
-import builder_ii.execution_postflight_records as postflight_records_mod
-from builder_ii.execution_postflight_records import (
+import builder_ii.lifecycle.candidate.execution_postflight_records as postflight_records_mod
+from builder_ii.lifecycle.candidate.execution_postflight_records import (
     EXECUTION_POSTFLIGHT_RECORD_KIND,
     EXECUTION_VERIFICATION_RECORD_KIND,
     create_execution_postflight_record,

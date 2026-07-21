@@ -4,8 +4,8 @@ from pathlib import Path
 from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 
-import builder_ii.deepagents_readiness as readiness_mod
-from builder_ii.deepagents_readiness import (
+import builder_ii.adapters.deepagents.deepagents_readiness as readiness_mod
+from builder_ii.adapters.deepagents.deepagents_readiness import (
     create_deepagents_readiness_artifact,
     dumps_deepagents_readiness_artifact,
     validate_deepagents_readiness_artifact,

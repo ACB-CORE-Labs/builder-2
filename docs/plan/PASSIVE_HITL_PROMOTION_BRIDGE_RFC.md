@@ -193,7 +193,7 @@ The chain verifier (`builder_ii.artifact_chain_verification`) must be extended t
 
 ## 12. Command Authority Requirements
 
-All CLI commands associated with Goal 4 must be classified strictly under **Tier 1 (artifact-only planning/validation)** in `builder_ii/command_authority.py`:
+All CLI commands associated with Goal 4 must be classified strictly under **Tier 1 (artifact-only planning/validation)** in `builder_ii/governance/authority/`:
 - Promotion state: `STATE_ARTIFACT_ONLY` or `STATE_VALIDATION_ONLY`.
 - Approval mode: `MODE_NONE` (for generation/validation of passive records).
 - Runtime boundary: Emits passive JSON records only. No code execution.

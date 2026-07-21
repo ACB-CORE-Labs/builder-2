@@ -1,14 +1,17 @@
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.promotion_decision_records import (
+from builder_ii.lifecycle.candidate.promotion_decision_records import (
     create_promotion_decision_record,
     dumps_promotion_decision_record,
     validate_promotion_decision_record,
     validate_promotion_decision_record_file,
     write_promotion_decision_record,
 )
-from builder_ii.promotion_readiness_records import create_promotion_readiness_record, write_promotion_readiness_record
+from builder_ii.lifecycle.candidate.promotion_readiness_records import (
+    create_promotion_readiness_record,
+    write_promotion_readiness_record,
+)
 
 
 def _ready() -> dict:

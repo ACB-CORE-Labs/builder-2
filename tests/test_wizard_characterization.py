@@ -32,8 +32,8 @@ from builder_ii.setup_cli import setup_app
 from typer.testing import CliRunner
 
 from builder_ii.cli import app
-from builder_ii.config import BACKENDS, MODEL_ALIASES
-from builder_ii.target_profiles import target_names
+from builder_ii.core.config import BACKENDS, MODEL_ALIASES
+from builder_ii.lifecycle.setup.target_profiles import target_names
 
 runner = CliRunner()
 
@@ -181,10 +181,10 @@ def test_init_prompts_render_their_allowed_values_from_the_live_registries(wizar
     resolved silently -- agent profile, verification profile, artifact root, runtime mode, and
     whether the artifact root may sit inside the target repository -- now render the same way.
     """
-    from builder_ii.agent_profiles import agent_profile_names
-    from builder_ii.config_sources import RUNTIME_MODES
-    from builder_ii.init_decisions import BOOL_ANSWERS, decisions
-    from builder_ii.verification_profiles import verification_profiles
+    from builder_ii.core.config_sources import RUNTIME_MODES
+    from builder_ii.lifecycle.candidate.verification_profiles import verification_profiles
+    from builder_ii.lifecycle.setup.init_decisions import BOOL_ANSWERS, decisions
+    from builder_ii.routing.agent_profiles import agent_profile_names
 
     out_dir = wizard_env / "init-out"
     # One answer per decision; an empty line accepts the rendered default.

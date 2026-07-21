@@ -1,14 +1,14 @@
 from pathlib import Path
 
-from builder_ii.backends import check_health, check_serves_active_model, ensure_backend_supports_model
-from builder_ii.config import Settings
-from builder_ii.model_policy import (
+from builder_ii.core.config import Settings
+from builder_ii.core.models import model_definitions
+from builder_ii.routing.backends import check_health, check_serves_active_model, ensure_backend_supports_model
+from builder_ii.routing.model_policy import (
     can_launch_with_backend,
     launch_block_reason,
     operating_profiles,
     runtime_for_alias,
 )
-from builder_ii.models import model_definitions
 
 
 def settings_stub(alias: str = "qwen-coder") -> Settings:

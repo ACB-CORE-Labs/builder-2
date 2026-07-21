@@ -7,31 +7,31 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.profile_pack_decisions import (
+from builder_ii.lifecycle.setup.profile_pack_decisions import (
     DEFAULT_PACK_ID,
     DEFAULT_TASK,
     profile_pack_wizard_steps,
     validate_target,
 )
-from builder_ii.profile_pack_dry_run import (
+from builder_ii.lifecycle.setup.profile_pack_dry_run import (
     create_profile_pack_dry_run,
     dumps_profile_pack_dry_run,
     validate_profile_pack_dry_run,
     write_profile_pack_dry_run,
 )
-from builder_ii.profile_pack_manifest import (
+from builder_ii.lifecycle.setup.profile_pack_manifest import (
     create_profile_pack_manifest,
     dumps_profile_pack_manifest,
     validate_profile_pack_manifest,
     write_profile_pack_manifest,
 )
-from builder_ii.profile_pack_render_plan import (
+from builder_ii.lifecycle.setup.profile_pack_render_plan import (
     create_profile_pack_render_plan,
     dumps_profile_pack_render_plan,
     validate_profile_pack_render_plan,
     write_profile_pack_render_plan,
 )
-from builder_ii.profile_pack_validation_report import (
+from builder_ii.lifecycle.setup.profile_pack_validation_report import (
     create_profile_pack_validation_report,
     dumps_profile_pack_validation_report,
     validate_profile_pack_validation_report,
@@ -119,7 +119,7 @@ def wizard(
     Prompt text renders from the live target-profile registry at prompt time; a rejected answer
     re-prompts and names the registry. Flags bypass exactly their own prompts.
     """
-    from builder_ii.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
+    from builder_ii.lifecycle.setup.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
 
     steps = profile_pack_wizard_steps()
     flag_answers: dict[str, str | None] = {

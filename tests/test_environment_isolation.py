@@ -20,7 +20,7 @@ from conftest import config_environment_keys, isolated_config_environment
 
 def test_the_isolated_keys_are_derived_from_the_specs_that_name_them() -> None:
     """A hand-written key list drifts. This one cannot: it is read off the field specs."""
-    from builder_ii.config_sources import CONFIG_FIELD_SPECS
+    from builder_ii.core.config_sources import CONFIG_FIELD_SPECS
 
     expected: set[str] = set()
     for spec in CONFIG_FIELD_SPECS:
@@ -74,7 +74,7 @@ def test_the_leak_that_was_shipping_reproduced_from_first_principles(tmp_path: P
     exist, and config resolution fails before a single decision is prompted. Nothing about the
     command was wrong; it had inherited a path from a file it never read.
     """
-    from builder_ii.config_sources import resolve_config_sources
+    from builder_ii.core.config_sources import resolve_config_sources
 
     project_root = tmp_path / "generic"
     project_root.mkdir()

@@ -5,14 +5,14 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from builder_ii.artifact_index_records import (
+from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.governance.ledger.artifact_index_records import (
     create_artifact_index_record,
     dumps_artifact_index_record,
     validate_artifact_index_record,
     validate_artifact_index_record_file,
     write_artifact_index_record,
 )
-from builder_ii.cli.plain_stdout import echo_stdout
 
 index_app = typer.Typer(help="Create and validate artifact index records.")
 console = Console()

@@ -1,6 +1,6 @@
 import pytest
 
-from builder_ii.lane_guides import get_guide, guide_names, lane_guides, render_guide
+from builder_ii.lifecycle.setup.lane_guides import get_guide, guide_names, lane_guides, render_guide
 
 
 def test_expected_lane_guides_are_registered() -> None:

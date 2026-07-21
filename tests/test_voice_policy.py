@@ -2,7 +2,7 @@ import json
 import sys
 from pathlib import Path
 
-from builder_ii.voice_policy import (
+from builder_ii.core.voice_policy import (
     VOICE_IO_POLICY_KIND,
     create_voice_io_policy_artifact,
     dumps_voice_io_policy_artifact,
@@ -107,7 +107,7 @@ def test_voice_io_policy_future_capabilities_are_declarations_only() -> None:
 
 
 def test_no_runtime_imports() -> None:
-    import builder_ii.voice_policy  # noqa: F401
+    import builder_ii.core.voice_policy  # noqa: F401
 
     for module in ("torch", "torchaudio", "mlx", "mlx_whisper", "chatterbox"):
         assert module not in sys.modules

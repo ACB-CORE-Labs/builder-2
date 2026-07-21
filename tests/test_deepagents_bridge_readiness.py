@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from builder_ii.deepagents_bridge_readiness import (
+from builder_ii.adapters.deepagents.deepagents_bridge_readiness import (
     create_deepagents_bridge_readiness_report,
     validate_deepagents_bridge_readiness_report,
 )

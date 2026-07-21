@@ -1,19 +1,19 @@
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.approval_records import create_approval_record
-from builder_ii.chain_summary_records import create_chain_summary_record
-from builder_ii.config import load_settings
-from builder_ii.goose_command_proposal import create_goose_command_proposal
-from builder_ii.goose_session import create_goose_session_manifest
-from builder_ii.handoff_bundle_records import (
+from builder_ii.adapters.goose.goose_command_proposal import create_goose_command_proposal
+from builder_ii.adapters.goose.goose_session import create_goose_session_manifest
+from builder_ii.core.config import load_settings
+from builder_ii.governance.ledger.chain_summary_records import create_chain_summary_record
+from builder_ii.governance.ledger.handoff_bundle_records import (
     create_handoff_bundle_record,
     dumps_handoff_bundle_record,
     validate_handoff_bundle_record,
     validate_handoff_bundle_record_file,
 )
-from builder_ii.preflight_records import create_preflight_record
-from builder_ii.receipt_records import create_receipt_record
+from builder_ii.governance.ledger.receipt_records import create_receipt_record
+from builder_ii.lifecycle.candidate.approval_records import create_approval_record
+from builder_ii.lifecycle.candidate.preflight_records import create_preflight_record
 
 
 def _summary(tmp_path: Path) -> dict:

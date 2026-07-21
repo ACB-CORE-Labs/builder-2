@@ -3,15 +3,15 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-from builder_ii.config import load_settings
-from builder_ii.goose_recipe_context_projection import (
+from builder_ii.adapters.goose.goose_recipe_context_projection import (
     GOOSE_RECIPE_CONTEXT_PROJECTION_KIND,
     create_goose_recipe_context_projection,
     dumps_goose_recipe_context_projection,
     validate_goose_recipe_context_projection,
     validate_goose_recipe_context_projection_file,
 )
-from builder_ii.session_config import create_session_configuration
+from builder_ii.core.config import load_settings
+from builder_ii.core.session_config import create_session_configuration
 
 
 def _generic_repo(tmp_path: Path) -> Path:

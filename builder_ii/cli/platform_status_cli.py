@@ -7,52 +7,24 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.command_authority import (
-    COMMAND_AUTHORITY_REGISTRY,
-    validate_registry_invariants,
-)
-from builder_ii.config import load_settings
-from builder_ii.config_schema import (
+from builder_ii.core.config import load_settings
+from builder_ii.core.config_schema import (
     create_config_schema_artifact,
     validate_config_schema_artifact,
     write_config_schema_artifact,
 )
-from builder_ii.config_sources import (
+from builder_ii.core.config_sources import (
     resolve_config_sources,
     validate_config_resolution_artifact,
     write_config_resolution_artifact,
 )
-from builder_ii.demo_loop import (
+from builder_ii.core.demo_loop import (
     dumps_demo_report,
     run_demo_loop,
     validate_demo_report,
     verify_demo_report_artifact_refs,
 )
-from builder_ii.onboarding_intent import validate_onboarding_intent_report_artifact
-from builder_ii.operator_golden_path import (
-    create_operator_golden_path_report,
-    dumps_operator_golden_path_report,
-    validate_operator_golden_path_report,
-    write_operator_golden_path_report,
-)
-from builder_ii.operator_lane import (
-    dumps_operator_lane_report,
-    run_operator_lane,
-    validate_operator_lane_report,
-)
-from builder_ii.operator_next import (
-    create_operator_next_action_report,
-    dumps_operator_next_action_report,
-    validate_operator_next_action_report,
-    write_operator_next_action_report,
-)
-from builder_ii.operator_status import (
-    create_operator_status_report,
-    dumps_operator_status_report,
-    validate_operator_status_report,
-    write_operator_status_report,
-)
-from builder_ii.platform_completion_audit import (
+from builder_ii.core.platform_completion_audit import (
     dumps_docs_audit,
     dumps_matrix,
     render_docs_audit_jsonable,
@@ -60,7 +32,7 @@ from builder_ii.platform_completion_audit import (
     validate_command_surfaces,
     validate_completion_matrix,
 )
-from builder_ii.r1_closure_report import (
+from builder_ii.core.r1_closure_report import (
     dumps_r1_closure_report,
     finalize_r1_closure_report,
     format_docs_violation,
@@ -68,10 +40,38 @@ from builder_ii.r1_closure_report import (
     validate_r1_closure_report_file,
     write_r1_closure_report,
 )
-from builder_ii.setup_onboarding import run_onboarding_pipeline
-from builder_ii.setup_overlay import validate_setup_overlay_plan_artifact
-from builder_ii.setup_plan import validate_setup_plan_artifact
-from builder_ii.setup_rollback import validate_setup_rollback_snapshot_artifact
+from builder_ii.governance.authority import (
+    COMMAND_AUTHORITY_REGISTRY,
+    validate_registry_invariants,
+)
+from builder_ii.lifecycle.setup.onboarding_intent import validate_onboarding_intent_report_artifact
+from builder_ii.lifecycle.setup.operator_golden_path import (
+    create_operator_golden_path_report,
+    dumps_operator_golden_path_report,
+    validate_operator_golden_path_report,
+    write_operator_golden_path_report,
+)
+from builder_ii.lifecycle.setup.operator_lane import (
+    dumps_operator_lane_report,
+    run_operator_lane,
+    validate_operator_lane_report,
+)
+from builder_ii.lifecycle.setup.operator_next import (
+    create_operator_next_action_report,
+    dumps_operator_next_action_report,
+    validate_operator_next_action_report,
+    write_operator_next_action_report,
+)
+from builder_ii.lifecycle.setup.operator_status import (
+    create_operator_status_report,
+    dumps_operator_status_report,
+    validate_operator_status_report,
+    write_operator_status_report,
+)
+from builder_ii.lifecycle.setup.setup_onboarding import run_onboarding_pipeline
+from builder_ii.lifecycle.setup.setup_overlay import validate_setup_overlay_plan_artifact
+from builder_ii.lifecycle.setup.setup_plan import validate_setup_plan_artifact
+from builder_ii.lifecycle.setup.setup_rollback import validate_setup_rollback_snapshot_artifact
 
 platform_app = typer.Typer(
     help="Render builder-II platform completion truth without runtime, model, tool, Goose, or deepagents execution.",
@@ -117,7 +117,7 @@ def known_limitations(
     ),
 ) -> None:
     """Render the known-limitations document from the completion truth matrix."""
-    from builder_ii.known_limitations import render_known_limitations_markdown
+    from builder_ii.lifecycle.setup.known_limitations import render_known_limitations_markdown
 
     _validate_or_exit(root=Path.cwd())
     text = render_known_limitations_markdown()
@@ -271,7 +271,7 @@ def final_loop_smoke(
     ),
 ) -> None:
     """V.6: passive final operating loop smoke (no model/shell/S3/S4 enablement)."""
-    from builder_ii.final_loop_smoke import run_final_loop_smoke, validate_final_loop_smoke_report
+    from builder_ii.core.final_loop_smoke import run_final_loop_smoke, validate_final_loop_smoke_report
 
     target_list = tuple(t.strip() for t in targets.split(",") if t.strip())
     if not target_list:

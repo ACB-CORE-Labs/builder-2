@@ -1,16 +1,16 @@
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND
-from builder_ii.handoff_notes import (
+from builder_ii.adapters.goose.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND
+from builder_ii.core.handoff_notes import (
     HANDOFF_NOTE_KIND,
     create_artifact_ref,
     create_handoff_note,
     validate_handoff_note,
     validate_handoff_note_file,
 )
-from builder_ii.session_workflow import SESSION_WORKFLOW_PLAN_KIND
-from builder_ii.verification_profile_reports import VERIFICATION_PROFILE_REPORT_KIND
+from builder_ii.core.session_workflow import SESSION_WORKFLOW_PLAN_KIND
+from builder_ii.lifecycle.candidate.verification_profile_reports import VERIFICATION_PROFILE_REPORT_KIND
 
 
 def test_create_handoff_note_without_evidence_refs() -> None:
@@ -108,11 +108,11 @@ def test_validate_handoff_note_file(tmp_path: Path) -> None:
 
 
 def test_handoff_note_references_are_extracted_for_chain_verification():
-    from builder_ii.artifact_chain_verification import extract_references
-    from builder_ii.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND
-    from builder_ii.handoff_notes import create_artifact_ref, create_handoff_note
-    from builder_ii.session_workflow import SESSION_WORKFLOW_PLAN_KIND
-    from builder_ii.verification_profile_reports import VERIFICATION_PROFILE_REPORT_KIND
+    from builder_ii.adapters.goose.goose_readonly_session import GOOSE_READONLY_SESSION_PLAN_KIND
+    from builder_ii.core.artifact_chain_verification import extract_references
+    from builder_ii.core.handoff_notes import create_artifact_ref, create_handoff_note
+    from builder_ii.core.session_workflow import SESSION_WORKFLOW_PLAN_KIND
+    from builder_ii.lifecycle.candidate.verification_profile_reports import VERIFICATION_PROFILE_REPORT_KIND
 
     note = create_handoff_note(
         target_name="builder",

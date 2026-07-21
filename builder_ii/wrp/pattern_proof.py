@@ -9,7 +9,7 @@ from __future__ import annotations
 from time import perf_counter
 from typing import Any, Callable
 
-from builder_ii.config_schema import attach_digest
+from builder_ii.core.config_schema import attach_digest
 from builder_ii.wrp.graph_runtime import SUPPORTED_PATTERNS, execute_graph, normalize_pattern
 from builder_ii.wrp.patterns import (
     cyclic_revisitation,

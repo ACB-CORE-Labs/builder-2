@@ -10,7 +10,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.semantic_readonly import (
+from builder_ii.core.semantic_readonly import (
     doctor_semantic,
     map_semantic,
     preview_semantic,

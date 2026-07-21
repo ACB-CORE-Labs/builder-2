@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from builder_ii.config_schema import digest_jsonable
-from builder_ii.orchestration_obligation import (
+from builder_ii.core.config_schema import digest_jsonable
+from builder_ii.core.orchestration_obligation import (
     BUDGET_FIELDS,
     DEFAULT_ROOT_MAX_HUMAN_GATES,
     OBLIGATION_KIND,
@@ -40,7 +40,7 @@ def _valid_kwargs(**overrides: Any) -> dict[str, Any]:
         "output_contract_required_evidence_kinds": ["builder_ii.verification_execution_receipt"],
         "denied_actions": ["execute_shell"],
         "refused_lanes": ["goose"],
-        "file_refs": [{"path": "builder_ii/orchestration_obligation.py", "sha256": "c" * 64}],
+        "file_refs": [{"path": "builder_ii/core/orchestration_obligation.py", "sha256": "c" * 64}],
         "briefing_bytes": 128,
         "budget_partition": {
             "max_subagents": 1,

@@ -8,8 +8,8 @@ from test_full_obligation_delegation_lane import (
     _run_approved,
 )
 
-from builder_ii.deepagents_execution import DISCHARGE_CONTRACT_SATISFIED
-from builder_ii.verification_promotion_gate import (
+from builder_ii.adapters.deepagents.deepagents_execution import DISCHARGE_CONTRACT_SATISFIED
+from builder_ii.lifecycle.candidate.verification_promotion_gate import (
     evaluate_delegation_tree_promotion_gates_from_run,
     validate_promotion_evidence,
 )

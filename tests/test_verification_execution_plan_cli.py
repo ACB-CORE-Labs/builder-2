@@ -6,9 +6,9 @@ from pathlib import Path
 from builder_ii.verification_execution_plan_cli import verify_app
 from typer.testing import CliRunner
 
-from builder_ii.verification_execution_plan import validate_verification_execution_plan_artifact
-from builder_ii.verification_isolation_backend import get_backend
-from builder_ii.verification_isolation_policy import validate_verification_isolation_policy_artifact
+from builder_ii.lifecycle.candidate.verification_execution_plan import validate_verification_execution_plan_artifact
+from builder_ii.lifecycle.candidate.verification_isolation_backend import get_backend
+from builder_ii.lifecycle.candidate.verification_isolation_policy import validate_verification_isolation_policy_artifact
 
 runner = CliRunner()
 

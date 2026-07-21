@@ -8,8 +8,9 @@ from typing import Any
 import typer
 from rich.console import Console
 
-from builder_ii.artifact_chain_verification import VALIDATORS, extract_references
-from builder_ii.artifact_memory import (
+from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.core.artifact_chain_verification import VALIDATORS, extract_references
+from builder_ii.core.artifact_memory import (
     ATOM_STATES,
     CLAIM_BOUNDARIES,
     MEMORY_INDEX_KIND,
@@ -36,8 +37,7 @@ from builder_ii.artifact_memory import (
     write_memory_reconstruction,
     write_memory_search_result,
 )
-from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.workflow_records import canonical_digest
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 memory_app = typer.Typer(
     help="Create and validate governed artifact-memory atoms, indexes, reconstructions, and deterministic search results.",

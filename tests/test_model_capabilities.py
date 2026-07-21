@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
-from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-from builder_ii.config import MODEL_ALIASES, Settings
-from builder_ii.model_capabilities import (
+from builder_ii.core.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
+from builder_ii.core.config import MODEL_ALIASES, Settings
+from builder_ii.governance.ledger.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
+from builder_ii.routing.model_capabilities import (
     MODEL_CAPABILITY_REGISTRY_KIND,
     create_model_capability_registry,
     dumps_model_capability_registry,
@@ -42,10 +42,10 @@ def settings_stub(alias: str = "qwen-coder") -> Settings:
 def _repo_evidenced_aliases() -> set[str]:
     root = Path(__file__).resolve().parent.parent
     sources = [
-        root / "builder_ii" / "config.py",
-        root / "builder_ii" / "models.py",
-        root / "builder_ii" / "model_policy.py",
-        root / "builder_ii" / "model_router.py",
+        root / "builder_ii" / "core" / "config.py",
+        root / "builder_ii" / "core" / "models.py",
+        root / "builder_ii" / "routing" / "model_policy.py",
+        root / "builder_ii" / "routing" / "model_router.py",
         root / "docs" / "model_operating_policy.md",
         root / "docs" / "model_role_matrix.md",
         root / "tests" / "test_model_policy.py",

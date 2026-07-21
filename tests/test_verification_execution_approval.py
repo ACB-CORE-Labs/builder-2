@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.config_schema import attach_digest
-from builder_ii.verification_execution_approval import (
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
     REQUIRED_DISABLED_AUTHORITY,
     VERIFICATION_EXECUTION_APPROVAL_KIND,
     finalize_verification_execution_approval,
@@ -12,7 +12,7 @@ from builder_ii.verification_execution_approval import (
     validate_verification_execution_approval_file,
     write_verification_execution_approval,
 )
-from builder_ii.verification_execution_plan import finalize_verification_execution_plan
+from builder_ii.lifecycle.candidate.verification_execution_plan import finalize_verification_execution_plan
 
 
 def _sample_plan() -> dict:

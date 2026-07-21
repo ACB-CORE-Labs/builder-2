@@ -31,7 +31,7 @@ from typing import Any
 import pytest
 from textual.app import App
 
-from builder_ii.command_authority import (
+from builder_ii.governance.authority import (
     COMMAND_AUTHORITY_REGISTRY,
     TIER_0,
     TIER_1,

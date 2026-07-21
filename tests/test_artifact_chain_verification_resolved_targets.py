@@ -4,9 +4,9 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
-from builder_ii.approval_records import create_approval_record
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.goose_command_proposal import create_goose_command_proposal
+from builder_ii.adapters.goose.goose_command_proposal import create_goose_command_proposal
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.lifecycle.candidate.approval_records import create_approval_record
 
 _MANIFEST: dict[str, Any] = {
     "kind": "builder_ii.goose_session_manifest",

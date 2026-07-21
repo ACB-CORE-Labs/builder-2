@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
-from builder_ii.config_schema import attach_digest
-from builder_ii.config_sources import resolve_config_sources
-from builder_ii.setup_overlay import create_setup_overlay_plan, validate_setup_overlay_plan_artifact
-from builder_ii.setup_plan import create_setup_plan
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.core.config_sources import resolve_config_sources
+from builder_ii.lifecycle.setup.setup_overlay import create_setup_overlay_plan, validate_setup_overlay_plan_artifact
+from builder_ii.lifecycle.setup.setup_plan import create_setup_plan
 
 
 def _seed_source_tree(root: Path) -> None:
@@ -194,7 +194,7 @@ def test_every_real_planner_materialization_change_can_be_applied_byte_for_byte(
     This pin closes the whole class: for every create/replace change the real planner emits, the
     bytes apply would write must hash to the change's own `content_digest`.
     """
-    from builder_ii.setup_apply import _content_text, _sha256_bytes
+    from builder_ii.lifecycle.setup.setup_apply import _content_text, _sha256_bytes
 
     overlay = _overlay(tmp_path)
     materializations = [c for c in overlay["planned_changes"] if c["operation_type"] in {"create", "replace"}]

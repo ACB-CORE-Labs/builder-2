@@ -10,9 +10,9 @@ from typing import Any
 
 import pytest
 
-import builder_ii.hitl_evidence_bundle as bundle_mod
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.hitl_evidence_bundle import (
+import builder_ii.governance.hitl.hitl_evidence_bundle as bundle_mod
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.governance.hitl.hitl_evidence_bundle import (
     HITL_EVIDENCE_BUNDLE_KIND,
     create_hitl_evidence_bundle,
     dumps_hitl_evidence_bundle,
@@ -251,16 +251,16 @@ def test_no_forbidden_imports_or_execution() -> None:
 
 def test_bundle_chain_verification_resolves_all_links(tmp_path: Path) -> None:
     """A bundle pointing to valid artifacts must resolve and pass chain verification."""
-    from builder_ii.approval_records import create_approval_record
-    from builder_ii.config import load_settings
-    from builder_ii.execution_postflight_records import (
+    from builder_ii.adapters.goose.goose_command_proposal import create_goose_command_proposal
+    from builder_ii.adapters.goose.goose_session import create_goose_session_manifest
+    from builder_ii.core.config import load_settings
+    from builder_ii.governance.hitl.hitl_execution_records import create_hitl_execution_request
+    from builder_ii.lifecycle.candidate.approval_records import create_approval_record
+    from builder_ii.lifecycle.candidate.execution_postflight_records import (
         create_execution_postflight_record,
         create_execution_verification_record,
     )
-    from builder_ii.goose_command_proposal import create_goose_command_proposal
-    from builder_ii.goose_session import create_goose_session_manifest
-    from builder_ii.hitl_execution_records import create_hitl_execution_request
-    from builder_ii.preflight_records import create_preflight_record
+    from builder_ii.lifecycle.candidate.preflight_records import create_preflight_record
 
     # 1. Create references
     manifest = create_goose_session_manifest(

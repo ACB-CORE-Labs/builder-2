@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from builder_ii.workflow_records import WORKFLOW_STAGES
+from builder_ii.governance.ledger.workflow_records import WORKFLOW_STAGES
 
 
 @dataclass(frozen=True)
@@ -137,7 +137,7 @@ def _project_goose(artifacts_dir: Path | None) -> GooseManifestView | None:
     note = "eligible for STRATUM G hand-off" if ok else "not read_only — G will refuse"
     # Prefer real validator when present
     try:
-        from builder_ii.goose_session import validate_goose_session_manifest_file
+        from builder_ii.adapters.goose.goose_session import validate_goose_session_manifest_file
 
         errors = validate_goose_session_manifest_file(path)
         if errors:

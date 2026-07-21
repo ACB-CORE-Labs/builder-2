@@ -9,16 +9,16 @@ from rich.console import Console
 from builder_ii.cli.execution_candidate_manifest_cli import register_manifest_commands
 from builder_ii.cli.hitl_patch_cli import register_patch_commands
 from builder_ii.cli.hitl_promotion_cli import register_promotion_commands
-from builder_ii.hitl_command_runner import (
+from builder_ii.governance.hitl.hitl_command_runner import (
     RUN_COMMAND_DISABLED_MESSAGE,
     RunCommandDisabledError,
     execute_hitl_command,
 )
-from builder_ii.hitl_decision_envelope import (
+from builder_ii.governance.hitl.hitl_decision_envelope import (
     decision_envelope_flags_a_violation,
     validate_hitl_decision_envelope_file,
 )
-from builder_ii.hitl_execution_records import (
+from builder_ii.governance.hitl.hitl_execution_records import (
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_EXECUTION_REQUEST_KIND,
     create_hitl_execution_receipt,

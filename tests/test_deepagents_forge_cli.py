@@ -5,8 +5,8 @@ from pathlib import Path
 from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 
-from builder_ii.deepagents_forge_schema import DeepAgentSpec
-from builder_ii.deepagents_forge_tui import run_forge_tui
+from builder_ii.adapters.deepagents.deepagents_forge_schema import DeepAgentSpec
+from builder_ii.adapters.deepagents.deepagents_forge_tui import run_forge_tui
 
 runner = CliRunner()
 

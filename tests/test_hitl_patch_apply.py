@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from builder_ii.command_authority import CommandAuthorityError
-from builder_ii.hitl_patch_apply import (
+from builder_ii.governance.authority import CommandAuthorityError
+from builder_ii.governance.hitl.hitl_patch_apply import (
     FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
     PATCH_APPLY_RECEIPT_KIND,
     apply_hitl_patch,
@@ -15,8 +15,8 @@ from builder_ii.hitl_patch_apply import (
     rollback_hitl_patch,
     validate_patch_apply_receipt,
 )
-from builder_ii.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
-from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
+from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 from tests.hitl_patch_test_helpers import write_executed_verification_receipt
 
 

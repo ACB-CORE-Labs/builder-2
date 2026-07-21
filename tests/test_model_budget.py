@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from builder_ii.model_budget import (
+from builder_ii.routing.model_budget import (
     BudgetExceededError,
     assert_budget_allows_call,
     create_model_budget,
@@ -13,7 +13,7 @@ from builder_ii.model_budget import (
     remaining,
     validate_model_budget,
 )
-from builder_ii.price_book import create_default_price_book
+from builder_ii.routing.price_book import create_default_price_book
 
 
 def test_create_and_validate_budget() -> None:

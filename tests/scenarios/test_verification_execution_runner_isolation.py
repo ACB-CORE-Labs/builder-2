@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from builder_ii.verification_isolation_backend import DockerBackend, IsolationBackendError
+from builder_ii.lifecycle.candidate.verification_isolation_backend import DockerBackend, IsolationBackendError
 
 
 def test_isolation_backend_fail_closed_daemon_down(monkeypatch: pytest.MonkeyPatch) -> None:

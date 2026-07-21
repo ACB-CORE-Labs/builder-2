@@ -10,7 +10,7 @@
 # dependency (phase0 item 0.6).
 #
 # Step order note: `apply-patch` REQUIRES a verification receipt as an INPUT
-# (builder_ii/hitl_patch_apply.py), so verification is technically a
+# (builder_ii/governance/hitl/hitl_patch_apply.py), so verification is technically a
 # pre-apply gate in the shipped code, not a step that follows apply. This
 # script verifies before applying; the plan's "propose -> approve -> apply ->
 # verify -> rollback" prose is a narrative simplification of that.
@@ -289,7 +289,7 @@ git -C "$FIXTURE_DIR" checkout -q -- README.md
 
 cd "$FIXTURE_DIR"
 
-PREFIX_LEN=$(run python -c "from builder_ii.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH as n; print(n)")
+PREFIX_LEN=$(run python -c "from builder_ii.governance.hitl.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH as n; print(n)")
 
 PROPOSAL="$WORKDIR/proposal.json"
 APPROVAL="$WORKDIR/approval.json"
@@ -312,7 +312,7 @@ step "apply-patch" run builder-hitl apply-patch --proposal "$PROPOSAL" --approva
 ROLLBACK_PLAN="$APPLY_OUT/rollback_plan.json"
 ROLLBACK_PREFIX=$(run python -c "
 import json
-from builder_ii.hitl_rollback_approval import canonical_json_digest
+from builder_ii.governance.hitl.hitl_rollback_approval import canonical_json_digest
 data = json.load(open('$ROLLBACK_PLAN'))
 print(canonical_json_digest(data)[:$PREFIX_LEN])
 ")

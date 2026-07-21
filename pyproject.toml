@@ -32,11 +32,16 @@ mlx = [
     "mlx-lm>=0.31.3",
     "rapid-mlx>=0.8.12",
 ]
+# Docs alias: pip install 'builder-ii[apple]'
+apple = [
+    "mlx-lm>=0.31.3",
+    "rapid-mlx>=0.8.12",
+]
 
 [project.scripts]
 builder = "builder_ii.cli:app"
-builder-runtime = "builder_ii.runtime_control:runtime_app"
-builder-lanes = "builder_ii.lane_guides:lane_app"
+builder-runtime = "builder_ii.lifecycle.candidate.runtime_control:runtime_app"
+builder-lanes = "builder_ii.lifecycle.setup.lane_guides:lane_app"
 builder-tools = "builder_ii.cli.tools_cli:tools_app"
 builder-mcp = "builder_ii.cli.mcp_cli:mcp_app"
 builder-context = "builder_ii.cli.context_cli:context_app"
@@ -107,19 +112,22 @@ addopts = "-q --tb=short"
 
 [tool.mypy]
 files = [
-    "builder_ii/command_authority.py",
-    "builder_ii/compliance.py",
-    "builder_ii/hitl_patch_apply.py",
-    "builder_ii/model_execution_gateway.py",
-    "builder_ii/readonly_authority.py",
-    "builder_ii/hitl_command_execution.py",
-    "builder_ii/hitl_patch_proposal.py",
-    "builder_ii/verification_execution_plan.py",
-    "builder_ii/tool_invocation_gateway.py",
-    "builder_ii/readonly_inspection_promotion.py",
-    "builder_ii/goose_command_proposal.py",
+    "builder_ii/governance/authority/authority_registry.py",
+    "builder_ii/governance/authority/policy_evaluator.py",
+    "builder_ii/governance/authority/signet_verifier.py",
+    "builder_ii/governance/authority/tier_definitions.py",
+    "builder_ii/governance/authority/compliance.py",
+    "builder_ii/governance/hitl/hitl_patch_apply.py",
+    "builder_ii/routing/model_execution_gateway.py",
+    "builder_ii/governance/authority/readonly_authority.py",
+    "builder_ii/governance/hitl/hitl_command_execution.py",
+    "builder_ii/governance/hitl/hitl_patch_proposal.py",
+    "builder_ii/lifecycle/candidate/verification_execution_plan.py",
+    "builder_ii/core/tool_invocation_gateway.py",
+    "builder_ii/core/readonly_inspection_promotion.py",
+    "builder_ii/adapters/goose/goose_command_proposal.py",
     # WRP authority-adjacent surfaces (S1 bind path + S2 live lane)
-    "builder_ii/model_routing_policy.py",
+    "builder_ii/routing/model_routing_policy.py",
     "builder_ii/wrp/live_lane.py",
     "builder_ii/wrp/msda_preflight.py",
 ]

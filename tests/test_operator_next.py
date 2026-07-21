@@ -1,4 +1,4 @@
-from builder_ii.operator_next import (
+from builder_ii.lifecycle.setup.operator_next import (
     OPERATOR_NEXT_ACTION_REPORT_KIND,
     SCHEMA_VERSION,
     create_operator_next_action_report,

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from builder_ii.stratum_guide import (
+from builder_ii.lifecycle.setup.stratum_guide import (
     WALKTHROUGH_STEPS,
     dismiss_guide,
     is_guide_skipped,

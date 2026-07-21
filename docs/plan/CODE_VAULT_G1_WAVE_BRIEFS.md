@@ -47,8 +47,8 @@ the extractor's *behavior* does not change in this PR — PR-1 only declares wha
 | create | `builder_ii/code_vault/extractor_manifest.py` |
 | edit | `builder_ii/code_vault/symbol_extractor.py` (add declaration constants only — no behavior change) |
 | edit | `builder_ii/cli/code_vault_cli.py` (two subcommands) |
-| edit | `builder_ii/command_authority.py` (subcommand enumeration) |
-| edit | `builder_ii/artifact_index_records.py` (register kind + validator) |
+| edit | `builder_ii/governance/authority/` (subcommand enumeration) |
+| edit | `builder_ii/governance/ledger/artifact_index_records.py` (register kind + validator) |
 | create | `tests/test_code_vault_extractor_manifest.py` |
 | edit | `tests/test_code_vault_cli.py`, docs listed below |
 

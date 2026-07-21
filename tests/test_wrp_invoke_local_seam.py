@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.model_budget import create_model_budget
-from builder_ii.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_budget import create_model_budget
+from builder_ii.routing.model_client_registry import create_model_client_registry
 from builder_ii.wrp.gateway_nodes import run_gateway_node
 from builder_ii.wrp.live_lane import (
     build_live_run_approval,

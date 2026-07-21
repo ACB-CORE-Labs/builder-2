@@ -4,15 +4,15 @@ from pathlib import Path
 from builder_ii.goose_cli import goose_app
 from typer.testing import CliRunner
 
-from builder_ii.config import load_settings
-from builder_ii.goose_readonly import (
+from builder_ii.adapters.goose.goose_readonly import (
     create_readonly_runtime_audit,
     create_readonly_runtime_audit_from_manifest_file,
     dumps_readonly_runtime_audit,
     validate_readonly_runtime_audit,
     validate_readonly_runtime_audit_file,
 )
-from builder_ii.goose_session import create_goose_session_manifest, dumps_goose_session_manifest
+from builder_ii.adapters.goose.goose_session import create_goose_session_manifest, dumps_goose_session_manifest
+from builder_ii.core.config import load_settings
 
 
 def _read_only_manifest() -> dict:

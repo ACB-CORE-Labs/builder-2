@@ -7,17 +7,17 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from builder_ii.command_authority import enforce_command_authority
-from builder_ii.event_ledger import (
+from builder_ii.core.tool_invocation_gateway import execute_tool_envelope
+from builder_ii.core.tool_registry import ToolTier, check_tools, missing_required_tools
+from builder_ii.governance.authority import enforce_command_authority
+from builder_ii.governance.ledger.event_ledger import (
     EVENT_RECORD_KIND,
     create_event_record,
     load_event_records,
     replay_events,
     write_event_record,
 )
-from builder_ii.tool_invocation_gateway import execute_tool_envelope
-from builder_ii.tool_registry import ToolTier, check_tools, missing_required_tools
-from builder_ii.workflow_records import canonical_digest
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 
 def _artifact_ref(data: dict, path: Path, role: str) -> dict:
@@ -160,7 +160,7 @@ def invoke(
             message=f"Tool call failed: {e}",
         )
         # Validate event before writing
-        from builder_ii.event_ledger import validate_event_record
+        from builder_ii.governance.ledger.event_ledger import validate_event_record
 
         event_errors = validate_event_record(event_record)
         if event_errors:
@@ -171,7 +171,7 @@ def invoke(
         raise typer.Exit(1)
 
     # Validate receipt before writing
-    from builder_ii.mcp_policy import validate_mcp_receipt
+    from builder_ii.core.mcp_policy import validate_mcp_receipt
 
     receipt_errors = validate_mcp_receipt(receipt)
     if receipt_errors:
@@ -212,7 +212,7 @@ def invoke(
         message="Tool call executed",
     )
     # Validate event before writing
-    from builder_ii.event_ledger import validate_event_record
+    from builder_ii.governance.ledger.event_ledger import validate_event_record
 
     event_errors = validate_event_record(event_record)
     if event_errors:
@@ -247,7 +247,7 @@ def standalone_invoke(
         raise typer.Exit(1)
 
     # Validate receipt before writing
-    from builder_ii.mcp_policy import validate_mcp_receipt
+    from builder_ii.core.mcp_policy import validate_mcp_receipt
 
     receipt_errors = validate_mcp_receipt(receipt)
     if receipt_errors:

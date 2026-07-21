@@ -47,7 +47,7 @@ At the **process** level, no. Three defects, each confirmed by running it:
 
 1. **The subject supplied its own auditor.** The runner spawns children with `cwd=target_repo`, and
    `_minimal_env` set `PYTHONPATH=target_repo`. Python puts the cwd at `sys.path[0]`. A target
-   repository shipping `builder_ii/verification_runner_entrypoints.py` had its module dispatched
+   repository shipping `builder_ii/lifecycle/candidate/verification_runner_entrypoints.py` had its module dispatched
    instead of builder-II's; a target shipping `sitecustomize.py` had it executed by `site` at
    interpreter startup, before `main()` was reached. Fixed: `PYTHONSAFEPATH=1`, and
    `BUILDER_II_IMPORT_ROOT` always first. The flag that admits the target to the import path is
@@ -142,10 +142,10 @@ Two consequences of that principle, recorded rather than papered over:
 
 | file | why |
 |---|---|
-| `builder_ii/verification_execution_runner.py` | `PYTHONSAFEPATH`, builder-II import root first, roots keyed to `TARGET_CODE_EXECUTING_PROFILES` |
-| `builder_ii/verification_isolation_backend.py` | container import-path translation instead of overwrite |
-| `builder_ii/assurance.py` | the eight assurance states now have definitions |
-| `builder_ii/platform_completion_audit.py` | fall-through deleted; explicit classification; the flip |
+| `builder_ii/lifecycle/candidate/verification_execution_runner.py` | `PYTHONSAFEPATH`, builder-II import root first, roots keyed to `TARGET_CODE_EXECUTING_PROFILES` |
+| `builder_ii/lifecycle/candidate/verification_isolation_backend.py` | container import-path translation instead of overwrite |
+| `builder_ii/governance/authority/assurance.py` | the eight assurance states now have definitions |
+| `builder_ii/core/platform_completion_audit.py` | fall-through deleted; explicit classification; the flip |
 | `scripts/b4_flip_assistant.py` | the promoted row registered for assurance + mirror reconciliation |
 | `tests/test_platform_completion_truth.py` | assurance pin, no-fall-through pin, twin-row pin |
 | `tests/test_ladder9_promotion_evidence.py` | gate-8 pin over the committed evidence |

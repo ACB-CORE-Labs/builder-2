@@ -3,14 +3,14 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from builder_ii.cli import app
-from builder_ii.config import load_settings
-from builder_ii.goose_setup import (
+from builder_ii.adapters.goose.goose_setup import (
     SETUP_REDIRECT_KIND,
     build_goose_config,
     legacy_setup_redirect_payload,
     skills_source,
 )
+from builder_ii.cli import app
+from builder_ii.core.config import load_settings
 
 runner = CliRunner()
 
@@ -85,7 +85,7 @@ def test_builder_config_reports_redirect_metadata_without_writes(tmp_path: Path)
 
 
 def test_goose_setup_module_remains_passive_source() -> None:
-    source = Path("builder_ii/goose_setup.py").read_text(encoding="utf-8")
+    source = Path("builder_ii/adapters/goose/goose_setup.py").read_text(encoding="utf-8")
     assert "import subprocess" not in source
     assert "write_text(" not in source
     assert "copytree(" not in source

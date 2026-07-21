@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from builder_ii.hitl_patch_approval import (
+from builder_ii.governance.hitl.hitl_patch_approval import (
     APPROVAL_CONFIRMATION_PREFIX_LENGTH,
     HITL_PATCH_APPROVAL_KIND,
     HITL_PATCH_APPROVAL_SCHEMA_VERSION,
@@ -13,7 +13,7 @@ from builder_ii.hitl_patch_approval import (
     validate_hitl_patch_approval_file,
     write_hitl_patch_approval,
 )
-from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal
+from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal
 
 
 def _proposal(tmp_path: Path, *, patch_digest: str = "a7f2deadbeef") -> dict:

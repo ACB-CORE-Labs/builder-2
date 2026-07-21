@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
 
-from builder_ii.onboarding_intent import DISABLED_AUTHORITY
-from builder_ii.r1_closure_report import (
+from builder_ii.core.r1_closure_report import (
     R1_CLOSURE_REPORT_KIND,
     R1_CLOSURE_REPORT_SCHEMA_VERSION,
     finalize_r1_closure_report,
     validate_r1_closure_report_artifact,
 )
+from builder_ii.lifecycle.setup.onboarding_intent import DISABLED_AUTHORITY
 
 
 def _sample_status(valid: bool = True) -> dict[str, object]:
@@ -174,7 +174,7 @@ def _generate_valid_closure(tmp_path: Path):
 
 
 def test_evidence_status_digest_mismatch_fails(tmp_path):
-    from builder_ii.r1_closure_report import validate_r1_closure_evidence_chain
+    from builder_ii.core.r1_closure_report import validate_r1_closure_evidence_chain
 
     report, output_dir = _generate_valid_closure(tmp_path)
 
@@ -184,7 +184,7 @@ def test_evidence_status_digest_mismatch_fails(tmp_path):
 
     # Mutate a status digest to something wrong
     report["config_schema_status"]["digest"] = "b" * 64
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="r1_closure_digest")
     errors = validate_r1_closure_evidence_chain(report, base_dir=output_dir)
@@ -192,7 +192,7 @@ def test_evidence_status_digest_mismatch_fails(tmp_path):
 
 
 def test_missing_evidence_file_fails(tmp_path):
-    from builder_ii.r1_closure_report import validate_r1_closure_evidence_chain
+    from builder_ii.core.r1_closure_report import validate_r1_closure_evidence_chain
 
     report, output_dir = _generate_valid_closure(tmp_path)
 

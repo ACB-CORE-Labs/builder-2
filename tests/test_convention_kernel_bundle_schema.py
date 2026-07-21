@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.config import load_settings
-from builder_ii.convention_kernel import kernel, validate_convention_kernel_bundle
+from builder_ii.core.config import load_settings
+from builder_ii.governance.authority.convention_kernel import kernel, validate_convention_kernel_bundle
 
 
 def _generic_repo(tmp_path: Path) -> Path:

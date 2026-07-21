@@ -6,18 +6,18 @@ import pytest
 from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 
-from builder_ii.config import load_settings
-from builder_ii.deepagents_bridge import DeepAgentsAvailability
-from builder_ii.deepagents_policy import create_deepagents_policy_artifact
-from builder_ii.deepagents_readiness import create_deepagents_readiness_artifact
-from builder_ii.deepagents_runtime import DeepAgentsRuntimeHarness
-from builder_ii.deepagents_work_artifacts import (
+from builder_ii.adapters.deepagents.deepagents_bridge import DeepAgentsAvailability
+from builder_ii.adapters.deepagents.deepagents_policy import create_deepagents_policy_artifact
+from builder_ii.adapters.deepagents.deepagents_readiness import create_deepagents_readiness_artifact
+from builder_ii.adapters.deepagents.deepagents_runtime import DeepAgentsRuntimeHarness
+from builder_ii.adapters.deepagents.deepagents_work_artifacts import (
     create_deepagents_work_plan,
     validate_deepagents_blocked_action_record,
     validate_deepagents_proposal_result,
     validate_deepagents_runtime_envelope,
     validate_deepagents_subagent_execution_receipt,
 )
+from builder_ii.core.config import load_settings
 from tests.orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 

@@ -8,8 +8,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from builder_ii.artifact_index_records import validate_artifact_index_record_file
-from builder_ii.release_manifest import validate_v0_release_manifest_file
+from builder_ii.core.release_manifest import validate_v0_release_manifest_file
+from builder_ii.governance.ledger.artifact_index_records import validate_artifact_index_record_file
 from scripts.verify_v0_release import run_proof_harness
 
 

@@ -14,9 +14,9 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from builder_ii.cli.profile_pack_cli import profile_pack_app
-from builder_ii.command_authority import get_command_record
-from builder_ii.profile_pack_decisions import DECISION_IDS, profile_pack_wizard_steps, validate_target
-from builder_ii.target_profiles import target_names
+from builder_ii.governance.authority import get_command_record
+from builder_ii.lifecycle.setup.profile_pack_decisions import DECISION_IDS, profile_pack_wizard_steps, validate_target
+from builder_ii.lifecycle.setup.target_profiles import target_names
 
 runner = CliRunner()
 
@@ -38,7 +38,7 @@ def test_the_target_prompt_renders_the_live_registry_and_never_transcribes_it() 
 
 def test_a_registry_change_reaches_the_prompt_and_the_error_message(monkeypatch) -> None:
     """Both transcriptions are gone: the set literal and the sentence that repeated it."""
-    import builder_ii.profile_pack_decisions as decisions
+    import builder_ii.lifecycle.setup.profile_pack_decisions as decisions
 
     monkeypatch.setattr(decisions, "target_names", lambda: ("generic", "builder", "core", "a_fourth_profile"))
 
@@ -115,7 +115,7 @@ def test_non_interactive_takes_the_defaults(tmp_path: Path) -> None:
 
 def test_the_wizard_holds_no_authority_scaffold_does_not() -> None:
     """A new command surface is a new authority claim. This one claims exactly its sibling's."""
-    from builder_ii.command_authority import CAPABILITY_FLAGS
+    from builder_ii.governance.authority import CAPABILITY_FLAGS
 
     wizard = get_command_record("builder-profile-pack wizard")
     scaffold = get_command_record("builder-profile-pack scaffold")

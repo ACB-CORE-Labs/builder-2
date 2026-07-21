@@ -10,7 +10,7 @@
 ## 0. Locked decisions
 
 1. **Severance strategy — Optional-dependency + thin explicit registry.**
-   Reuse the idiom already present in `builder_ii/semantic_readonly.py:121`
+   Reuse the idiom already present in `builder_ii/core/semantic_readonly.py:121`
    (`try: import builder_ii.code_vault…; except ImportError: fallback`). Core's
    `command_authority.py` authority manifest stays **static and fail-closed**; the
    proprietary package ships its **own** frozen authority manifest, audited in its own
@@ -107,7 +107,7 @@ the core manifest) → requires the eight gates + evidence-backed matrix update,
   `cli/session_cli.py` fail-closed; keep the TUI viewer tab in an "upgrade" state; scrub
   `stratum_guide.py` help strings.
 - **Proof:** `uv run pytest tests/test_command_authority.py tests/test_stratum_projections.py -q`
-  + `uv run mypy builder_ii/command_authority.py`.
+  + `uv run mypy builder_ii/governance/authority/`.
 
 ### Phase 4 — Extract proprietary package · role: FORGE (operator-gated repo)
 - Move to `builder-ii-code-vault`: `code_vault/`, seam roots

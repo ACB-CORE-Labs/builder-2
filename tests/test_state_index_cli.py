@@ -4,8 +4,11 @@ from pathlib import Path
 from builder_ii.state_index_cli import state_index_app
 from typer.testing import CliRunner
 
-from builder_ii.promotion_decision_records import create_promotion_decision_record, write_promotion_decision_record
-from builder_ii.promotion_readiness_records import create_promotion_readiness_record
+from builder_ii.lifecycle.candidate.promotion_decision_records import (
+    create_promotion_decision_record,
+    write_promotion_decision_record,
+)
+from builder_ii.lifecycle.candidate.promotion_readiness_records import create_promotion_readiness_record
 
 
 def _write_decision(tmp_path: Path) -> Path:

@@ -6,18 +6,18 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.quality_gates import (
+from builder_ii.lifecycle.candidate.verification_profiles import (
+    VerificationProfileName,
+    get_verification_profile,
+    verification_profile_names,
+)
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names
+from builder_ii.validation.quality_gates import (
     create_quality_gate_artifact,
     dumps_quality_gate_artifact,
     validate_quality_gate_artifact,
     validate_quality_gate_artifact_file,
     write_quality_gate_artifact,
-)
-from builder_ii.target_profiles import TargetName, target_names
-from builder_ii.verification_profiles import (
-    VerificationProfileName,
-    get_verification_profile,
-    verification_profile_names,
 )
 
 quality_app = typer.Typer(help="Create and validate no-execution quality gate artifacts.")

@@ -8,15 +8,15 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.command_authority import enforce_command_authority
-from builder_ii.config import load_settings
-from builder_ii.event_ledger import (
-    create_event_record,
-    load_event_records,
-    replay_events,
-    write_event_record,
+from builder_ii.core.config import load_settings
+from builder_ii.core.readonly_inspection_reports import (
+    create_readonly_inspection_report,
+    dumps_readonly_inspection_report,
+    validate_readonly_inspection_report,
+    write_readonly_inspection_report,
 )
-from builder_ii.readonly_authority import (
+from builder_ii.governance.authority import enforce_command_authority
+from builder_ii.governance.authority.readonly_authority import (
     CONTENT_READ_RECEIPT_KIND,
     DEFAULT_MAX_BYTES_PER_FILE,
     DEFAULT_MAX_CONTENT_READ_FILES,
@@ -30,14 +30,14 @@ from builder_ii.readonly_authority import (
     validate_read_policy,
     validate_read_receipt,
 )
-from builder_ii.readonly_inspection_reports import (
-    create_readonly_inspection_report,
-    dumps_readonly_inspection_report,
-    validate_readonly_inspection_report,
-    write_readonly_inspection_report,
+from builder_ii.governance.ledger.event_ledger import (
+    create_event_record,
+    load_event_records,
+    replay_events,
+    write_event_record,
 )
-from builder_ii.target_profiles import TargetName, target_names, target_profile
-from builder_ii.workflow_records import artifact_ref
+from builder_ii.governance.ledger.workflow_records import artifact_ref
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names, target_profile
 
 readonly_app = typer.Typer(help="Create and validate explicit read-only inspection reports.")
 console = Console(width=240)

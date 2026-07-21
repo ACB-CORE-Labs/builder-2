@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from builder_ii.config import load_settings
-from builder_ii.goose_setup import build_goose_config
+from builder_ii.adapters.goose.goose_setup import build_goose_config
+from builder_ii.core.config import load_settings
 
 
 def test_configured_recipe_paths_exist() -> None:

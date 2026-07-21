@@ -4,13 +4,13 @@ from pathlib import Path
 from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 
-from builder_ii.config import load_settings
-from builder_ii.deepagents_policy import (
+from builder_ii.adapters.deepagents.deepagents_policy import (
     create_deepagents_policy_artifact,
     dumps_deepagents_policy_artifact,
     validate_deepagents_policy_artifact,
     validate_deepagents_policy_artifact_file,
 )
+from builder_ii.core.config import load_settings
 
 
 def test_create_deepagents_policy_artifact_shape() -> None:

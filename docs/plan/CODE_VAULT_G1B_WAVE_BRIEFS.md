@@ -52,7 +52,7 @@ claim that a truncated frame is complete.
    **full** repo_map and shapes the block; the caller passes its output in.
 
    **Amendment (recorded during PR-4 implementation):** `create_repo_map`'s `max_files` bound is a
-   *call parameter* to `builder_ii/repo_map.py::create_repo_map`, not a key it persists onto the
+   *call parameter* to `builder_ii/core/repo_map.py::create_repo_map`, not a key it persists onto the
    emitted repo_map dict (only `truncated`, `file_count`, and `scan_state` are). `build_frame_coverage`
    therefore cannot read `max_files` back off `repo_map` as this decision originally assumed. Resolved
    without touching `repo_map.py` (out of scope for this PR; would also risk that artifact's own

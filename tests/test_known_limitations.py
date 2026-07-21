@@ -10,13 +10,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.known_limitations import (
-    KNOWN_LIMITATIONS_DOC_PATH,
-    render_known_limitations_markdown,
-)
-from builder_ii.platform_completion_audit import (
+from builder_ii.core.platform_completion_audit import (
     OPERATIONALLY_VERIFIED,
     REQUIRED_CAPABILITY_ROWS,
+)
+from builder_ii.lifecycle.setup.known_limitations import (
+    KNOWN_LIMITATIONS_DOC_PATH,
+    render_known_limitations_markdown,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

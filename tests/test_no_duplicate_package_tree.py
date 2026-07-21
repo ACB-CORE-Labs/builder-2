@@ -52,8 +52,10 @@ def test_no_second_copy_of_the_package_is_committed() -> None:
     tracked = _tracked_files()
     assert len(tracked) > 500, f"only {len(tracked)} tracked files -- is git ls-files running in the repo?"
 
-    copies = [path for path in tracked if path.endswith("builder_ii/command_authority.py")]
-    assert copies == ["builder_ii/command_authority.py"], (
+    copies = [
+        path for path in tracked if path.endswith("builder_ii/governance/authority/authority_registry.py")
+    ]
+    assert copies == ["builder_ii/governance/authority/authority_registry.py"], (
         f"the package tree is duplicated in the repo: {copies}. A second copy is scanned by no gate "
         f"(ci.sh scopes compileall/ruff/bandit to builder_ii) and read as source by every audit."
     )

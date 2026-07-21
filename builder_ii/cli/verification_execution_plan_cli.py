@@ -7,8 +7,7 @@ from typing import Any
 import typer
 from rich.console import Console
 
-from builder_ii.target_profiles import target_names
-from builder_ii.verification_execution_approval import (
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
     dumps_verification_execution_approval,
     finalize_verification_execution_approval,
     validate_verification_execution_approval_against_plan,
@@ -16,7 +15,7 @@ from builder_ii.verification_execution_approval import (
     validate_verification_execution_approval_file,
     write_verification_execution_approval,
 )
-from builder_ii.verification_execution_plan import (
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
     TARGET_CODE_EXECUTING_PROFILES,
     dumps_verification_execution_plan,
     finalize_verification_execution_plan,
@@ -24,19 +23,20 @@ from builder_ii.verification_execution_plan import (
     validate_verification_execution_plan_file,
     write_verification_execution_plan,
 )
-from builder_ii.verification_execution_receipt import (
+from builder_ii.lifecycle.candidate.verification_execution_receipt import (
     validate_verification_execution_receipt_against_plan_and_approval,
     validate_verification_execution_receipt_file,
 )
-from builder_ii.verification_execution_runner import run_approved_verification
-from builder_ii.verification_isolation_policy import finalize_verification_isolation_policy
-from builder_ii.verification_profiles import verification_profile_names
-from builder_ii.verification_promotion_gate import (
+from builder_ii.lifecycle.candidate.verification_execution_runner import run_approved_verification
+from builder_ii.lifecycle.candidate.verification_isolation_policy import finalize_verification_isolation_policy
+from builder_ii.lifecycle.candidate.verification_profiles import verification_profile_names
+from builder_ii.lifecycle.candidate.verification_promotion_gate import (
     dumps_promotion_evidence,
     evaluate_verification_promotion_gates_from_files,
     validate_promotion_evidence,
     write_promotion_evidence,
 )
+from builder_ii.lifecycle.setup.target_profiles import target_names
 
 verify_app = typer.Typer(help="Render, approve, validate, and run bounded verification artifacts.")
 console = Console()

@@ -75,7 +75,7 @@ Alternatively, you can run the validation programmatically:
 ```bash
 uv run python -c "
 from pathlib import Path
-from builder_ii.artifact_chain_verification import verify_artifact_chain
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
 
 out = Path('.builder/demos/core-readonly')
 files = list((out / 'artifacts').glob('*.json')) + list((out / 'events').glob('*.json'))

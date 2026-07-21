@@ -3,21 +3,21 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
-from builder_ii.assurance import (
-    ASSURANCE_STATE_DEFINITIONS,
-    ASSURANCE_STATES,
-    LOCAL_STATE_MUTATION_VERIFIED,
-    SAFETY_CRITICAL_PROHIBITED,
-    render_assurance_definitions_markdown,
-)
-from builder_ii.command_authority import (
+from builder_ii.core.platform_completion_audit import REQUIRED_CAPABILITY_ROWS, assurance_state_for_row
+from builder_ii.governance.authority import (
     COMMAND_AUTHORITY_REGISTRY,
     TIER_4,
     _assurance_probe,
     assurance_state_for_record,
     explain_assurance_for_record,
 )
-from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS, assurance_state_for_row
+from builder_ii.governance.authority.assurance import (
+    ASSURANCE_STATE_DEFINITIONS,
+    ASSURANCE_STATES,
+    LOCAL_STATE_MUTATION_VERIFIED,
+    SAFETY_CRITICAL_PROHIBITED,
+    render_assurance_definitions_markdown,
+)
 
 _DOC = Path(__file__).resolve().parent.parent / "docs" / "PLATFORM_COMPLETION_AUDIT.md"
 

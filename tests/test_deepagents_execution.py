@@ -9,12 +9,7 @@ from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 
 from builder_ii import deepagents_execution as execution_module
-from builder_ii.artifact_index_records import (
-    create_artifact_index_record,
-    validate_artifact_index_record,
-)
-from builder_ii.config import load_settings
-from builder_ii.deepagents_execution import (
+from builder_ii.adapters.deepagents.deepagents_execution import (
     DEEPAGENTS_CHECKPOINT_KIND,
     DEEPAGENTS_EVIDENCE_BUNDLE_KIND,
     DEEPAGENTS_EXECUTION_APPROVAL_KIND,
@@ -33,9 +28,14 @@ from builder_ii.deepagents_execution import (
     validate_deepagents_execution_receipt,
     validate_deepagents_replay_report,
 )
-from builder_ii.deepagents_policy import create_deepagents_policy_artifact
-from builder_ii.deepagents_readiness import create_deepagents_readiness_artifact
-from builder_ii.deepagents_work_artifacts import create_deepagents_work_plan
+from builder_ii.adapters.deepagents.deepagents_policy import create_deepagents_policy_artifact
+from builder_ii.adapters.deepagents.deepagents_readiness import create_deepagents_readiness_artifact
+from builder_ii.adapters.deepagents.deepagents_work_artifacts import create_deepagents_work_plan
+from builder_ii.core.config import load_settings
+from builder_ii.governance.ledger.artifact_index_records import (
+    create_artifact_index_record,
+    validate_artifact_index_record,
+)
 from tests.orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 

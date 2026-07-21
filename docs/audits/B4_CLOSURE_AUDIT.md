@@ -77,11 +77,11 @@ source write. Ledger records index that an event occurred; they never re-execute
 This audit authorizes, as one atomic change, the following pinned-site edits (all consistency-checked by
 `scripts/b4_flip_assistant.py`):
 
-- `builder_ii/platform_completion_audit.py`: "HITL patch application" and "rollback execution" rows →
+- `builder_ii/core/platform_completion_audit.py`: "HITL patch application" and "rollback execution" rows →
   `OPERATIONALLY_VERIFIED`; evidence/tests/scope statements updated.
 - `tests/test_platform_completion_truth.py`: `operationally_verified_count` 15 → 17; the two assurance
   asserts `BLOCKED_BY_EVIDENCE` → `MUTATION_WITH_ROLLBACK_VERIFIED`.
-- `builder_ii/hitl_patch_apply.py`: the three receipt/postflight/bundle governance self-stamps →
+- `builder_ii/governance/hitl/hitl_patch_apply.py`: the three receipt/postflight/bundle governance self-stamps →
   `OPERATIONALLY_VERIFIED`, in lockstep with the matrix.
 - `docs/CAPABILITY_PROMOTION.md` and `docs/RUNTIME_PROMOTION.md`: reconciled so the operator-invoked
   lane reads as `OPERATIONALLY_VERIFIED` while autonomous apply stays not enabled.

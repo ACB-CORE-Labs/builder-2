@@ -10,8 +10,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.config_schema import attach_digest
-from builder_ii.hitl_decision_envelope import (
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.governance.hitl.hitl_decision_envelope import (
     HITL_DECISION_ENVELOPE_KIND,
     decision_envelope_flags_a_violation,
     finalize_hitl_decision_envelope,

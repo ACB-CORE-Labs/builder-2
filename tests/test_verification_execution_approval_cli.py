@@ -6,12 +6,12 @@ from pathlib import Path
 from builder_ii.verification_execution_plan_cli import verify_app
 from typer.testing import CliRunner
 
-from builder_ii.config_schema import attach_digest
-from builder_ii.verification_execution_approval import (
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
     validate_verification_execution_approval_against_plan,
     validate_verification_execution_approval_artifact,
 )
-from builder_ii.verification_execution_plan import (
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )

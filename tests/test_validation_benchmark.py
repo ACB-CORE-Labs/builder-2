@@ -6,7 +6,7 @@ from pathlib import Path
 from builder_ii.performance_cli import performance_app
 from typer.testing import CliRunner
 
-from builder_ii.validation_benchmark import (
+from builder_ii.validation.validation_benchmark import (
     VALIDATION_BENCHMARK_KIND,
     VALIDATION_PARITY_REPORT_KIND,
     benchmark_validator,

@@ -6,8 +6,8 @@ import pytest
 from builder_ii.targets_cli import targets_app
 from typer.testing import CliRunner
 
-from builder_ii.event_ledger import load_event_records, replay_events
-from builder_ii.readonly_founder_demo import generate_readonly_founder_demo
+from builder_ii.core.readonly_founder_demo import generate_readonly_founder_demo
+from builder_ii.governance.ledger.event_ledger import load_event_records, replay_events
 
 runner = CliRunner()
 
@@ -112,8 +112,8 @@ def test_readonly_founder_demo_cli_idempotence(tmp_path: Path) -> None:
 
 
 def test_readonly_founder_demo_force_safety_violations(tmp_path: Path) -> None:
-    from builder_ii.config import load_settings
-    from builder_ii.readonly_founder_demo import validate_safe_demo_directory_for_deletion
+    from builder_ii.core.config import load_settings
+    from builder_ii.core.readonly_founder_demo import validate_safe_demo_directory_for_deletion
 
     settings = load_settings()
     proj_root = Path(settings.project_root).resolve().absolute()

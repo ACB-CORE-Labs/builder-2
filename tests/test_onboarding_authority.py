@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from builder_ii.command_authority import (
+from builder_ii.governance.authority import (
     COMMAND_AUTHORITY_REGISTRY,
     REQUIRED_SUBCOMMANDS,
     TIER_1,

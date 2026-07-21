@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.state_ledger_records import (
+from builder_ii.governance.ledger.state_ledger_records import (
     create_state_ledger_record_from_files,
     dumps_state_ledger_record,
     validate_state_ledger_record_file,

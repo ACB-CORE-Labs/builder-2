@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from builder_ii.replay_harness import replay_from_manifest, validate_run_replay_report
-from builder_ii.run_manifest import create_run_manifest
+from builder_ii.core.replay_harness import replay_from_manifest, validate_run_replay_report
+from builder_ii.core.run_manifest import create_run_manifest
 
 
 def test_replay_ok_on_matching_manifest() -> None:

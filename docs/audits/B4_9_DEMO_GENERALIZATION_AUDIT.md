@@ -13,7 +13,7 @@ for unattended execution. No command changes promotion state.
 
 ## What generalized (mechanism)
 
-- `builder_ii/core_demo_loop.py` became `builder_ii/demo_loop.py`. A frozen `DemoTargetSpec`
+- `builder_ii/core_demo_loop.py` became `builder_ii/core/demo_loop.py`. A frozen `DemoTargetSpec`
   parameterizes the marker patch path, the sensitive-path-prefix policy, and the repo identity
   check. `target_name="core"` selects the CORE profile with its original
   `AssetOverflow/core`-remote/dirname identity check and its eight sensitive-module prefixes;
@@ -86,12 +86,12 @@ and checked untouched. The command-authority gate and the approval binding/expir
 
 Consistency-checked by `scripts/b4_flip_assistant.py` (extended with the "governed demo loop" row):
 
-- `builder_ii/platform_completion_audit.py`: row renamed to "governed demo loop"; evidence,
+- `builder_ii/core/platform_completion_audit.py`: row renamed to "governed demo loop"; evidence,
   tests, scope statements, and `next_pr` updated; `assurance_state_for_row` mapping renamed;
   human-summary sentence generalized.
 - `tests/test_platform_completion_truth.py`: the assurance assert keyed by the renamed row.
 - `docs/PLATFORM_COMPLETION_AUDIT.md`: the mirror table row and demo-loop prose.
-- `builder_ii/command_authority.py`: the three demo command records' narrative boundaries
+- `builder_ii/governance/authority/`: the three demo command records' narrative boundaries
   (tier and promotion state untouched); `docs/COMMAND_AUTHORITY.md` regenerated.
 
 ## Next gate

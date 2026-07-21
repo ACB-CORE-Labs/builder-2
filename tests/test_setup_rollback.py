@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
-from builder_ii.config_sources import resolve_config_sources
-from builder_ii.setup_overlay import create_setup_overlay_plan
-from builder_ii.setup_plan import create_setup_plan
-from builder_ii.setup_rollback import (
+from builder_ii.core.config_sources import resolve_config_sources
+from builder_ii.lifecycle.setup.setup_overlay import create_setup_overlay_plan
+from builder_ii.lifecycle.setup.setup_plan import create_setup_plan
+from builder_ii.lifecycle.setup.setup_rollback import (
     create_setup_rollback_snapshot,
     validate_setup_rollback_snapshot_artifact,
 )

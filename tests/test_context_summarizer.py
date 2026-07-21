@@ -7,8 +7,8 @@ from unittest.mock import patch
 from builder_ii.context_cli import context_app
 from typer.testing import CliRunner
 
-from builder_ii.context_pack import ContextPackSelection, build_context_pack, create_context_pack_record
-from builder_ii.context_summarizer import (
+from builder_ii.core.context_pack import ContextPackSelection, build_context_pack, create_context_pack_record
+from builder_ii.core.context_summarizer import (
     CONTEXT_SUMMARY_KIND,
     summarize_context_pack,
     validate_context_summary,
@@ -42,7 +42,7 @@ def test_validate_context_summary() -> None:
 def test_summarize_context_pack_logic(tmp_path: Path) -> None:
     from dataclasses import replace
 
-    from builder_ii.config import load_settings
+    from builder_ii.core.config import load_settings
 
     settings = replace(
         load_settings(),
@@ -79,7 +79,7 @@ def test_cli_summarize(tmp_path: Path) -> None:
 
     from dataclasses import replace
 
-    from builder_ii.config import load_settings
+    from builder_ii.core.config import load_settings
 
     settings = replace(
         load_settings(),

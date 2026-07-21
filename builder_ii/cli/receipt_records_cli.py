@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.receipt_records import (
+from builder_ii.governance.ledger.receipt_records import (
     ReceiptStatus,
     create_receipt_record_from_file,
     dumps_receipt_record,

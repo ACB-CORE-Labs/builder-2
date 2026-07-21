@@ -14,13 +14,13 @@
 
 The trunk CLI execution path is strictly `execution-candidate` -> `approve-candidate` -> `run-approved`.
 - Legacy `run-plan` (`builder_ii/cli/deepagents_cli.py:519`) is NOT the trunk and must never be presented as it. The correct path is `execution-candidate` (`:554`), `approve-candidate` (`:664`), and `run-approved` (`:695`).
-- **Honesty Defect:** At `builder_ii/deepagents_runtime.py:219`, there is an honesty defect where it synthesizes `"Subagent {subagent} successfully completed planning task."` — a fabricated success text. This must be replaced with derived, never asserted summaries based on discharge classification.
+- **Honesty Defect:** At `builder_ii/adapters/deepagents/deepagents_runtime.py:219`, there is an honesty defect where it synthesizes `"Subagent {subagent} successfully completed planning task."` — a fabricated success text. This must be replaced with derived, never asserted summaries based on discharge classification.
 
 ## Object Model
 
 ### Obligation — NEW kind `builder_ii.orchestration_obligation` (schema v1)
 
-New module `builder_ii/orchestration_obligation.py`. Fields:
+New module `builder_ii/core/orchestration_obligation.py`. Fields:
 
 - `kind`, `schema_version: 1`
 - `obligation_id` — attach_digest over canonical content (use `builder_ii.config_schema.attach_digest`)
@@ -59,7 +59,7 @@ States: `CONTRACT_SATISFIED` (result kind == `expected_kind` AND every `required
 
 ### Lane policy — NEW kind `builder_ii.orchestration_lane_policy` (derived view)
 
-New module `builder_ii/orchestration_lane_policy.py`. Rendered from ONE small in-code table:
+New module `builder_ii/core/orchestration_lane_policy.py`. Rendered from ONE small in-code table:
 
 | obligation_kind | lane | allowed discharge mechanisms |
 | --- | --- | --- |
