@@ -84,13 +84,13 @@ class StratumApp(App[None]):
     BINDINGS = [
         Binding("tab", "cycle_focus", "Cycle", show=True),
         Binding("escape", "go_back", "Back", show=True),
-        Binding("ctrl+q", "quit_app", "Quit", show=True),
+        Binding("q", "quit_app", "Quit", show=True),
         Binding("question_mark", "open_palette", "Palette", show=True),
-        Binding("tilde", "open_cli", "CLI Passthrough", show=True),
+        Binding("c", "open_cli", "CLI Passthrough", show=True),
         Binding("m", "toggle_memory", "Memory", show=True),
         Binding("o", "toggle_models", "Models", show=True),
         Binding("u", "toggle_agents", "Agents", show=True),
-        Binding("c", "toggle_platform_audit", "Audit", show=True),
+        Binding("z", "toggle_platform_audit", "Audit", show=True),
         Binding("w", "toggle_workflow", "Workflow", show=True),
         Binding("y", "toggle_orchestration", "Orch", show=True),
         Binding("b", "toggle_code_vault", "Vault", show=True),
@@ -362,6 +362,7 @@ class StratumApp(App[None]):
                 await self.spine.refresh_data()
             if self.signals:
                 await self.signals.refresh_data()
+                self.signals.refresh_capabilities()
 
             # Re-verify chain to update chain digest asynchronously
             await self._verify_current_chain_async()

@@ -19,6 +19,11 @@ stratum_app = typer.Typer(
 
 @stratum_app.callback()
 def main(
+    sandbox: bool = typer.Option(
+        False,
+        "--sandbox",
+        help="Launch STRATUM with strict execution confinement (read-only composition).",
+    ),
     no_guide: bool = typer.Option(
         False,
         "--no-guide",
@@ -52,6 +57,7 @@ def main(
 
     console.print(
         "[bold cyan]STRATUM[/] — builder-II operator console\n"
+        "[yellow]GOVERNANCE NOTICE: planned ≠ executed ≠ verified ≠ promoted[/]\n"
         "[dim]observe + compose only · docs/STRATUM.md · H help · 0 walkthrough[/]"
     )
     app = StratumApp(show_guide=guide or None, skip_guide=no_guide, show_splash=not no_splash)
