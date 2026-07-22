@@ -63,7 +63,7 @@ diff as its own closure audit — the default stays refusal.
 
 ## Pin edit set authorized by this audit
 
-- `builder_ii/platform_completion_audit.py` — row flip (state, evidence files, command surfaces,
+- `builder_ii/core/platform_completion_audit.py` — row flip (state, evidence files, command surfaces,
   tests, caveat blockers, `next_pr` "R1 complete (2.6)"); `R1_OPERATOR_FLIPPED_CAPABILITIES`
   allowlist + `validate_r1_config_onboarding_mapping` amendment.
 - `tests/test_platform_completion_truth.py` — wizard state pin (`NOT_STARTED` →

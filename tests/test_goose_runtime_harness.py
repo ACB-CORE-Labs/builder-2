@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from builder_ii.config import Settings
-from builder_ii.goose_runtime_harness import GooseRuntimeHarness
+from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
+from builder_ii.core.config import Settings
 
 
 class MockSessionPlan:

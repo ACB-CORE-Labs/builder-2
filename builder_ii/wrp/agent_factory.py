@@ -18,7 +18,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any, Mapping
 
-from builder_ii.config_schema import attach_digest
+from builder_ii.core.config_schema import attach_digest
 from builder_ii.wrp.artifacts import (
     AGENT_FACTORY_PLAN_KIND,
     AGENT_LIFECYCLE_PROOF_KIND,
@@ -547,7 +547,7 @@ def validate_agent_lifecycle_proof(record: Any) -> list[str]:
     if not isinstance(digest, str) or len(digest) != 64:
         errors.append("digest must be a 64-char hex sha256")
     else:
-        from builder_ii.config_schema import digest_jsonable
+        from builder_ii.core.config_schema import digest_jsonable
 
         if digest != digest_jsonable(record):
             errors.append("digest mismatch")

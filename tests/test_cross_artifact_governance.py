@@ -1,12 +1,12 @@
 from pathlib import Path
 from typing import Any
 
-from builder_ii.config import load_settings
-from builder_ii.deepagents_policy import create_deepagents_policy_artifact
-from builder_ii.deepagents_readiness import create_deepagents_readiness_artifact
-from builder_ii.goose_inspection import create_readonly_inspection_audit
-from builder_ii.goose_readonly import create_readonly_runtime_audit
-from builder_ii.goose_session import create_goose_session_manifest
+from builder_ii.adapters.deepagents.deepagents_policy import create_deepagents_policy_artifact
+from builder_ii.adapters.deepagents.deepagents_readiness import create_deepagents_readiness_artifact
+from builder_ii.adapters.goose.goose_inspection import create_readonly_inspection_audit
+from builder_ii.adapters.goose.goose_readonly import create_readonly_runtime_audit
+from builder_ii.adapters.goose.goose_session import create_goose_session_manifest
+from builder_ii.core.config import load_settings
 
 _COMMON_DISABLED_GOVERNANCE_KEYS = (
     "model_execution",

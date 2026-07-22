@@ -103,7 +103,7 @@ def _kill_switch_tripped(kill_switch_path: Path | None) -> bool:
 
 def _inherit_budget(parent: Mapping[str, Any], *, child_max_usd: float | None) -> dict[str, Any]:
     """Child may only spend ≤ parent remaining USD and remaining tokens."""
-    from builder_ii.model_budget import create_model_budget
+    from builder_ii.routing.model_budget import create_model_budget
 
     parent_max_usd = float(parent.get("max_usd") or 0.0)
     spent_usd = float(parent.get("spent_usd") or 0.0)

@@ -8,8 +8,7 @@ from builder_ii.ledger_cli import ledger_app
 from builder_ii.workflow_cli import workflow_app
 from typer.testing import CliRunner
 
-from builder_ii.event_ledger import replay_events
-from builder_ii.workflow_orchestrator import (
+from builder_ii.core.workflow_orchestrator import (
     WorkflowError,
     candidate_workflow,
     handoff_workflow,
@@ -18,6 +17,7 @@ from builder_ii.workflow_orchestrator import (
     verify_chain_workflow,
     workflow_status,
 )
+from builder_ii.governance.ledger.event_ledger import replay_events
 
 ROOT = Path(__file__).resolve().parents[1]
 

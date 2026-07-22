@@ -16,10 +16,10 @@ import pytest
 from typer.testing import CliRunner
 
 from builder_ii.cli import app
-from builder_ii.onboarding_intent import validate_onboarding_intent_report_file
-from builder_ii.setup_overlay import validate_setup_overlay_plan_file
-from builder_ii.setup_plan import validate_setup_plan_file
-from builder_ii.setup_rollback import validate_setup_rollback_snapshot_file
+from builder_ii.lifecycle.setup.onboarding_intent import validate_onboarding_intent_report_file
+from builder_ii.lifecycle.setup.setup_overlay import validate_setup_overlay_plan_file
+from builder_ii.lifecycle.setup.setup_plan import validate_setup_plan_file
+from builder_ii.lifecycle.setup.setup_rollback import validate_setup_rollback_snapshot_file
 
 runner = CliRunner()
 
@@ -67,7 +67,7 @@ def test_init_flags_path_emits_artifacts_and_never_applies(tmp_path: Path, monke
     # Wizard v2: one echo block, all nine decisions, each naming the flag that overrides it. There
     # is no longer a second "Defaulted decisions" section, because no decision is defaulted behind
     # the operator's back -- `--non-interactive` is how this test asks for the defaults out loud.
-    from builder_ii.init_decisions import decisions
+    from builder_ii.lifecycle.setup.init_decisions import decisions
 
     for decision in decisions():
         assert f"{decision.name}:" in result.output, f"decision {decision.name} is not echoed"
@@ -152,7 +152,7 @@ def test_the_authority_record_describes_the_output_builder_init_actually_prints(
     on promising "selected decisions, defaulted decisions with override flags". `runtime_boundary`
     four lines above it was updated in the same commit; `output_behavior` was not.
     """
-    from builder_ii.command_authority import get_command_record
+    from builder_ii.governance.authority import get_command_record
 
     record = get_command_record("builder init")
     assert record is not None

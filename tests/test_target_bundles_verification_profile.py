@@ -1,7 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from builder_ii.bundles import create_target_bundle, validate_target_bundle
+from builder_ii.core.bundles import create_target_bundle, validate_target_bundle
 
 
 def _settings(tmp_path: Path):

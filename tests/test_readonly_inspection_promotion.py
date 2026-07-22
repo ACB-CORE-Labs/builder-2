@@ -1,4 +1,4 @@
-from builder_ii.readonly_inspection_promotion import (
+from builder_ii.core.readonly_inspection_promotion import (
     READONLY_INSPECTION_PROMOTION_SPEC_KIND,
     READONLY_INSPECTION_PROMOTION_SPEC_SCHEMA_VERSION,
     create_readonly_inspection_promotion_spec,

@@ -6,13 +6,13 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from builder_ii.chain_summary_records import (
+from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.governance.ledger.chain_summary_records import (
     create_chain_summary_record_from_files,
     dumps_chain_summary_record,
     validate_chain_summary_record_file,
     write_chain_summary_record,
 )
-from builder_ii.cli.plain_stdout import echo_stdout
 
 chain_app = typer.Typer(help="Create and validate chain summary records.")
 console = Console()
@@ -61,7 +61,7 @@ def verify_artifacts(
     output: Path | None = typer.Option(None, "--output", "-o", help="Write verification report JSON to path"),
 ) -> None:
     """Validate a set of artifacts and verify their cross-record adjacency and digests."""
-    from builder_ii.artifact_chain_verification import verify_artifact_chain
+    from builder_ii.core.artifact_chain_verification import verify_artifact_chain
 
     report = verify_artifact_chain(paths)
 

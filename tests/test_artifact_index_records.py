@@ -3,38 +3,38 @@ from pathlib import Path
 
 from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
-from builder_ii.approval_records import create_approval_record, write_approval_record
-from builder_ii.artifact_index_records import (
+from builder_ii.adapters.goose.goose_command_proposal import (
+    create_goose_command_proposal,
+    write_goose_command_proposal,
+)
+from builder_ii.adapters.goose.goose_session import create_goose_session_manifest
+from builder_ii.core.config import load_settings
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.governance.ledger.artifact_index_records import (
     create_artifact_index_record,
     dumps_artifact_index_record,
     validate_artifact_index_record,
     validate_artifact_index_record_file,
 )
-from builder_ii.config import load_settings
-from builder_ii.config_schema import attach_digest
-from builder_ii.goose_command_proposal import (
-    create_goose_command_proposal,
-    write_goose_command_proposal,
-)
-from builder_ii.goose_session import create_goose_session_manifest
-from builder_ii.promotion_decision_records import (
-    create_promotion_decision_record,
-    write_promotion_decision_record,
-)
-from builder_ii.promotion_readiness_records import (
-    create_promotion_readiness_record,
-    write_promotion_readiness_record,
-)
-from builder_ii.snapshot_records import create_snapshot_record, write_snapshot_record
-from builder_ii.state_ledger_records import (
+from builder_ii.governance.ledger.snapshot_records import create_snapshot_record, write_snapshot_record
+from builder_ii.governance.ledger.state_ledger_records import (
     create_state_ledger_record,
     write_state_ledger_record,
 )
-from builder_ii.verification_execution_approval import (
+from builder_ii.lifecycle.candidate.approval_records import create_approval_record, write_approval_record
+from builder_ii.lifecycle.candidate.promotion_decision_records import (
+    create_promotion_decision_record,
+    write_promotion_decision_record,
+)
+from builder_ii.lifecycle.candidate.promotion_readiness_records import (
+    create_promotion_readiness_record,
+    write_promotion_readiness_record,
+)
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
     finalize_verification_execution_approval,
     write_verification_execution_approval,
 )
-from builder_ii.verification_execution_plan import (
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )

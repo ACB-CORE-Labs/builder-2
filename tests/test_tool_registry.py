@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from builder_ii.tool_registry import check_tool, missing_required_tools, tool_registry, tools_by_tier
+from builder_ii.core.tool_registry import check_tool, missing_required_tools, tool_registry, tools_by_tier
 
 
 def test_registry_contains_tier_one_and_tier_two_tools() -> None:

@@ -104,8 +104,8 @@ def test_every_guarded_core_module_imports_without_the_plugin(plugin_absent) -> 
 
 
 def test_context_pack_builds_and_omits_enrichment_without_the_plugin(plugin_absent, tmp_path: Path) -> None:
-    repo_map_mod = importlib.import_module("builder_ii.repo_map")
-    context_packs = importlib.import_module("builder_ii.context_packs")
+    repo_map_mod = importlib.import_module("builder_ii.core.repo_map")
+    context_packs = importlib.import_module("builder_ii.core.context_packs")
 
     repo = tmp_path / "target-repo"
     repo.mkdir()
@@ -127,8 +127,8 @@ def test_prepare_package_degrades_with_default_include_code_vault(plugin_absent,
     the plugin cannot be imported (no hierarchical frame file, no frame ref,
     no enrichment) — the severance is a downgrade, not a different API.
     """
-    config = importlib.import_module("builder_ii.config")
-    gpp = importlib.import_module("builder_ii.governed_prepare_package")
+    config = importlib.import_module("builder_ii.core.config")
+    gpp = importlib.import_module("builder_ii.core.governed_prepare_package")
 
     repo = tmp_path / "target-repo"
     repo.mkdir()
@@ -154,9 +154,9 @@ def test_prepare_package_degrades_with_default_include_code_vault(plugin_absent,
 
 
 def test_seam_stubs_refuse_with_the_upgrade_message(plugin_absent) -> None:
-    bridge = importlib.import_module("builder_ii.code_vault_receipt_bridge")
-    demo = importlib.import_module("builder_ii.code_vault_demo_loop")
-    baseline = importlib.import_module("builder_ii.utility_baseline_runner")
+    bridge = importlib.import_module("builder_ii.core.code_vault_receipt_bridge")
+    demo = importlib.import_module("builder_ii.core.code_vault_demo_loop")
+    baseline = importlib.import_module("builder_ii.core.utility_baseline_runner")
 
     for refusing_callable in (
         bridge.build_code_vault_corroboration_record,
@@ -176,7 +176,7 @@ def test_seam_stubs_refuse_with_the_upgrade_message(plugin_absent) -> None:
 def test_tui_stub_honours_the_dispatch_contract(plugin_absent, capsys) -> None:
     """tui_inspection_cli dispatches by getattr(module, "main") and exits with
     its return value; the absent stub must exit 1 and say why, not AttributeError."""
-    tui = importlib.import_module("builder_ii.code_vault_tui")
+    tui = importlib.import_module("builder_ii.core.code_vault_tui")
     exit_code = tui.main(["status"])
     assert exit_code == 1
     assert "CodeVault is not installed" in capsys.readouterr().out

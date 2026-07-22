@@ -3,10 +3,10 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-from builder_ii.config import load_settings
-from builder_ii.goose_projection import create_goose_projection, validate_goose_projection
-from builder_ii.goose_wrapper_plan import create_goose_wrapper_plan, validate_goose_wrapper_plan
-from builder_ii.session_config import create_session_configuration, validate_session_configuration
+from builder_ii.adapters.goose.goose_projection import create_goose_projection, validate_goose_projection
+from builder_ii.adapters.goose.goose_wrapper_plan import create_goose_wrapper_plan, validate_goose_wrapper_plan
+from builder_ii.core.config import load_settings
+from builder_ii.core.session_config import create_session_configuration, validate_session_configuration
 
 
 def _generic_repo(tmp_path: Path) -> Path:

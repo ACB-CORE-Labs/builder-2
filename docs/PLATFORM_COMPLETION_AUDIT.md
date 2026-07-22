@@ -29,14 +29,14 @@ Governed obligation delegation is `OPERATIONALLY_VERIFIED` with assurance `BOUND
 
 HITL-approved verification execution carries assurance `BOUNDED_EXECUTION_VERIFIED` (Ladder 9; `docs/audits/LADDER9_ASSURANCE_CLOSURE_AUDIT.md`). Its completion state does not change and `operationally_verified_count` stays 19: this is an assurance-only flip, the first of its kind. `builder-verify run-approved` spawns `sys.executable -m builder_ii.verification_runner_entrypoints <sub>` with fixed argv, `shell=False`, a minimal env, and an import path the target repository cannot supply, under two-key HITL approval, and binds a digest-stable receipt to the plan and the approval. The claim is scoped exactly to the fixed `platform_status` and `docs_audit` profiles, which run builder-II's own audit code over the target's data; `pytest_full` and `builder_full` execute the target repository's own suite behind the mandatory D7 execution-risk acknowledgement and are outside this claim. `BOUNDED_EXECUTION_VERIFIED` describes the envelope of the invocation and does not describe the behaviour of the code that ran inside it. Container isolation is containment of that residual, never attestation of the evidence (`docs/plan/VERIFICATION_ISOLATION_RFC.md`), so the assurance state does not depend on it.
 
-`OPERATIONALLY_VERIFIED` is a legacy matrix state, not a life-safety or global-runtime clearance. Machine-readable matrix rows now also carry a sharper `assurance_state`, drawn from the vocabulary defined below. That list is generated from `builder_ii/assurance.py` and pinned against it; this sentence deliberately does not repeat the state names, because a second copy of them is a second place for the truth to drift.
+`OPERATIONALLY_VERIFIED` is a legacy matrix state, not a life-safety or global-runtime clearance. Machine-readable matrix rows now also carry a sharper `assurance_state`, drawn from the vocabulary defined below. That list is generated from `builder_ii/governance/authority/assurance.py` and pinned against it; this sentence deliberately does not repeat the state names, because a second copy of them is a second place for the truth to drift.
 
 For high-consequence work, the assurance state is authoritative for risk interpretation. A live provider call, a temporary demo loop, and passive candidate specifications are not equivalent just because older rows may share the same legacy completion label.
 
 ## Assurance States
 
 Each state says what the capability *does*. These lines are generated from
-`builder_ii/assurance.py`'s `ASSURANCE_STATE_DEFINITIONS` and pinned by
+`builder_ii/governance/authority/assurance.py`'s `ASSURANCE_STATE_DEFINITIONS` and pinned by
 `tests/test_assurance.py`; edit the module, never this list.
 
 - `PASSIVE_ARTIFACT_VERIFIED` — Builds, validates, or reads governed artifacts and renders them. It starts no runtime, spawns no process, calls no provider, and writes nothing outside the artifact store.

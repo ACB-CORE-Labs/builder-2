@@ -16,8 +16,8 @@ import pytest
 from typer.testing import CliRunner
 
 from builder_ii.cli.main import app
-from builder_ii.config_sources import _ALLOWED_RUNTIME_MODES, RUNTIME_MODES
-from builder_ii.init_decisions import (
+from builder_ii.core.config_sources import _ALLOWED_RUNTIME_MODES, RUNTIME_MODES
+from builder_ii.lifecycle.setup.init_decisions import (
     BOOL_ANSWERS,
     Decision,
     decisions,
@@ -111,7 +111,7 @@ def test_runtime_modes_are_ordered_because_a_prompt_renders_them() -> None:
 
 def test_a_registry_change_reaches_the_prompt_with_no_wizard_edit(monkeypatch: pytest.MonkeyPatch) -> None:
     """The options provider is a callable reference, never a snapshot taken at import."""
-    import builder_ii.init_decisions as init_decisions
+    import builder_ii.lifecycle.setup.init_decisions as init_decisions
 
     monkeypatch.setattr(init_decisions, "RUNTIME_MODES", ("passive", "disabled", "a_ninth_mode"))
 
@@ -193,8 +193,8 @@ def test_a_target_dependent_default_is_read_after_the_target_is_chosen_not_befor
     `builder_full.compatible_targets` is `("builder",)`, so the plan contradicted itself and
     validated clean.
     """
-    from builder_ii.target_profile_defaults import default_agent_profile_for
-    from builder_ii.verification_profiles import default_profile_for_target
+    from builder_ii.lifecycle.candidate.verification_profiles import default_profile_for_target
+    from builder_ii.lifecycle.setup.target_profile_defaults import default_agent_profile_for
 
     for target in ("generic", "builder", "core"):
         expected_agent = default_agent_profile_for(target)
@@ -218,8 +218,8 @@ def test_the_target_dependent_decisions_are_derived_from_the_resolver_not_transc
     """A fourth target-dependent field must reach the wizard without anyone editing a list."""
     from pathlib import Path
 
-    from builder_ii.config_sources import _target_profile_defaults
-    from builder_ii.init_decisions import target_dependent_decisions, target_dependent_resolution_fields
+    from builder_ii.core.config_sources import _target_profile_defaults
+    from builder_ii.lifecycle.setup.init_decisions import target_dependent_decisions, target_dependent_resolution_fields
 
     assert target_dependent_resolution_fields() == frozenset(_target_profile_defaults(Path("/"), "generic"))
     assert target_dependent_decisions() == ("agent_profile", "verification_profile")
@@ -239,8 +239,8 @@ def test_the_retarget_override_key_is_the_resolution_field_not_the_decision_name
     """
     from pathlib import Path
 
-    from builder_ii.config_sources import resolve_config_sources
-    from builder_ii.init_decisions import TARGET_PROFILE_DECISION, get_decision
+    from builder_ii.core.config_sources import resolve_config_sources
+    from builder_ii.lifecycle.setup.init_decisions import TARGET_PROFILE_DECISION, get_decision
 
     field = get_decision(TARGET_PROFILE_DECISION).resolution_field
     assert field == "active_target_profile", "the override key is the resolution field"

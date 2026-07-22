@@ -1,7 +1,8 @@
 from pathlib import Path
 from types import SimpleNamespace
 
-from builder_ii.agent_profiles import (
+from builder_ii.lifecycle.setup.target_profiles import target_profile
+from builder_ii.routing.agent_profiles import (
     agent_profile_names,
     agent_profiles,
     get_agent_profile,
@@ -9,7 +10,6 @@ from builder_ii.agent_profiles import (
     render_agent_profile,
     validate_agent_profiles,
 )
-from builder_ii.target_profiles import target_profile
 
 BASE_AGENT_PROFILES = (
     "repo_mapper",
@@ -92,7 +92,7 @@ def test_render_agent_profile_with_target(tmp_path: Path) -> None:
 
 
 def test_agent_profile_record_and_validation(tmp_path: Path) -> None:
-    from builder_ii.agent_profiles import (
+    from builder_ii.routing.agent_profiles import (
         AGENT_PROFILE_RECORD_KIND,
         AGENT_PROFILE_RECORD_SCHEMA_VERSION,
         create_agent_profile_record,
@@ -124,7 +124,7 @@ def test_agent_profile_record_and_validation(tmp_path: Path) -> None:
 
 
 def test_agent_profile_validation_failures(tmp_path: Path) -> None:
-    from builder_ii.agent_profiles import validate_agent_profile_record, validate_agent_profile_record_file
+    from builder_ii.routing.agent_profiles import validate_agent_profile_record, validate_agent_profile_record_file
 
     assert "agent profile record must be a JSON object" in validate_agent_profile_record([])
 

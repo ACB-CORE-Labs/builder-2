@@ -46,7 +46,7 @@ def project_agent_roster(*, target: str = "generic", profiles_dir: Path | None =
                 yaml_index[path.stem] = path
 
     try:
-        from builder_ii.agent_profiles import agent_profiles
+        from builder_ii.routing.agent_profiles import agent_profiles
 
         for p in agent_profiles():
             yaml_path = yaml_index.get(p.name)
@@ -63,7 +63,7 @@ def project_agent_roster(*, target: str = "generic", profiles_dir: Path | None =
         error = f"agent profiles: {exc}"
 
     try:
-        from builder_ii.deepagents_bridge_readiness import create_deepagents_bridge_readiness_report
+        from builder_ii.adapters.deepagents.deepagents_bridge_readiness import create_deepagents_bridge_readiness_report
 
         report = create_deepagents_bridge_readiness_report(
             target_profile=target,

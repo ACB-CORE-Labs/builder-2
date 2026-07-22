@@ -5,14 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.approval_records import create_approval_record
-from builder_ii.artifact_chain_verification import extract_references, verify_artifact_chain
-from builder_ii.execution_postflight_records import (
-    create_execution_postflight_record,
-    create_execution_verification_record,
-)
-from builder_ii.goose_command_proposal import create_goose_command_proposal
-from builder_ii.hitl_chain_binding import (
+from builder_ii.adapters.goose.goose_command_proposal import create_goose_command_proposal
+from builder_ii.core.artifact_chain_verification import extract_references, verify_artifact_chain
+from builder_ii.governance.hitl.hitl_chain_binding import (
     HITL_CHAIN_BINDING_KIND,
     HITL_CHAIN_BINDING_SLOT_FIELDS,
     bind_hitl_chain_artifacts,
@@ -22,9 +17,17 @@ from builder_ii.hitl_chain_binding import (
     verify_hitl_chain_binding_files,
     write_hitl_chain_binding,
 )
-from builder_ii.hitl_evidence_bundle import create_hitl_evidence_bundle
-from builder_ii.hitl_execution_records import create_hitl_execution_receipt, create_hitl_execution_request
-from builder_ii.preflight_records import create_preflight_record
+from builder_ii.governance.hitl.hitl_evidence_bundle import create_hitl_evidence_bundle
+from builder_ii.governance.hitl.hitl_execution_records import (
+    create_hitl_execution_receipt,
+    create_hitl_execution_request,
+)
+from builder_ii.lifecycle.candidate.approval_records import create_approval_record
+from builder_ii.lifecycle.candidate.execution_postflight_records import (
+    create_execution_postflight_record,
+    create_execution_verification_record,
+)
+from builder_ii.lifecycle.candidate.preflight_records import create_preflight_record
 
 _DOC_PATH = Path(__file__).resolve().parent.parent / "docs" / "HITL_CHAIN_BINDING.md"
 

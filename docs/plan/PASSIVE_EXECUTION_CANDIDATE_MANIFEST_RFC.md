@@ -71,10 +71,10 @@ No artifact is authority. No artifact may bypass command authority, bypass verif
 
 The current codebase already provides the following relevant surfaces:
 
-- `builder_ii.hitl_promotion_request`, `builder_ii.hitl_promotion_review`, `builder_ii.hitl_promotion_decision`, `builder_ii.hitl_approval_boundary`, `builder_ii.hitl_rejection_record`, and `builder_ii.hitl_promotion_validation_report` in `builder_ii/hitl_promotion_artifacts.py`.
+- `builder_ii.hitl_promotion_request`, `builder_ii.hitl_promotion_review`, `builder_ii.hitl_promotion_decision`, `builder_ii.hitl_approval_boundary`, `builder_ii.hitl_rejection_record`, and `builder_ii.hitl_promotion_validation_report` in `builder_ii/governance/hitl/hitl_promotion_artifacts.py`.
 - `builder_ii.hitl_approval_boundary` requires `source_decision_result: approved_for_candidate_design`, `source_decision_record_state: DECISION_RECORDED_ONLY`, all authority flags false, and `requires_separate_execution_candidate: true`.
 - `builder_ii.hitl_approval_boundary.required_future_artifacts` defaults to `builder_ii.execution_candidate_manifest`.
-- `builder_ii.hitl_verification_execution_candidate` in `builder_ii/hitl_verification_candidate.py` is an existing specialized candidate for future operator-approved verification commands. It is candidate-only/planned-only, accepts narrow verification command classes or verification profile refs, requires proposal/approval/preflight/request refs, and encodes receipt/postflight/rollback/verification/chain-binding requirements as future evidence.
+- `builder_ii.hitl_verification_execution_candidate` in `builder_ii/governance/hitl/hitl_verification_candidate.py` is an existing specialized candidate for future operator-approved verification commands. It is candidate-only/planned-only, accepts narrow verification command classes or verification profile refs, requires proposal/approval/preflight/request refs, and encodes receipt/postflight/rollback/verification/chain-binding requirements as future evidence.
 - `builder_ii.hitl_execution_request` and `builder_ii.hitl_execution_receipt` are passive HITL record objects. The receipt template records `NOT_EXECUTED` and null execution-result fields in current validation.
 - `builder_ii.hitl_chain_binding` binds proposal, approval, preflight, request, receipt, postflight, verification, and optional evidence-bundle slots without execution authority.
 - `builder_ii.artifact_chain_verification` already traverses Goal 2, Goal 3, Goal 4, and existing HITL candidate refs by path/digest/kind.

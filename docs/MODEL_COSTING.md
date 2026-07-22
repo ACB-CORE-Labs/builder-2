@@ -7,9 +7,9 @@
 
 | Kind | Module | Role |
 | --- | --- | --- |
-| `builder_ii.price_book` | `builder_ii/price_book.py` | Per-model `$/1k` in+out, tokenizer id/version, latency class |
-| `builder_ii.model_budget` | `builder_ii/model_budget.py` | Session/task token+USD limits; immutable debit versions |
-| receipt `cost_report` | `builder_ii/model_execution_gateway.py` | Measured tokens + USD on every call |
+| `builder_ii.price_book` | `builder_ii/routing/price_book.py` | Per-model `$/1k` in+out, tokenizer id/version, latency class |
+| `builder_ii.model_budget` | `builder_ii/routing/model_budget.py` | Session/task token+USD limits; immutable debit versions |
+| receipt `cost_report` | `builder_ii/routing/model_execution_gateway.py` | Measured tokens + USD on every call |
 
 ## Token accounting honesty
 

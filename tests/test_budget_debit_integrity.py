@@ -7,20 +7,20 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.config import Settings
-from builder_ii.model_budget import (
+from builder_ii.core.config import Settings
+from builder_ii.routing.model_budget import (
     BudgetExceededError,
     create_model_budget,
     validate_model_budget,
 )
-from builder_ii.model_client_registry import create_model_client_registry
-from builder_ii.model_execution_gateway import (
+from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_execution_gateway import (
     ModelExecutionGateway,
     _digest,
     validate_model_call_receipt,
 )
-from builder_ii.model_routing_policy import create_model_execution_policy
-from builder_ii.price_book import create_default_price_book
+from builder_ii.routing.model_routing_policy import create_model_execution_policy
+from builder_ii.routing.price_book import create_default_price_book
 
 
 def _settings() -> Settings:
@@ -97,7 +97,7 @@ def test_receipt_digest_matches_on_disk_after_budget_debit(tmp_path: Path) -> No
     assert written_budget["digest"] == debited["digest"]
     assert written_budget["spent_total_tokens"] > 0
     # Ledger subject_ref must match durable receipt content (canonical_digest of file)
-    from builder_ii.workflow_records import canonical_digest
+    from builder_ii.governance.ledger.workflow_records import canonical_digest
 
     event_files = sorted((tmp_path / "events").glob("*.json"))
     assert event_files

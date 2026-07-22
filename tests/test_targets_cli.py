@@ -4,7 +4,7 @@ from pathlib import Path
 from builder_ii.targets_cli import targets_app
 from typer.testing import CliRunner
 
-from builder_ii.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, TARGET_PROFILE_SCHEMA_VERSION
+from builder_ii.lifecycle.setup.target_profiles import TARGET_PROFILE_ARTIFACT_KIND, TARGET_PROFILE_SCHEMA_VERSION
 
 
 def test_targets_cli_help() -> None:

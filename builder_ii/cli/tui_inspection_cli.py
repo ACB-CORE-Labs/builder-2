@@ -7,8 +7,8 @@ from typing import Callable
 
 import typer
 
-from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
-from builder_ii.tui_contract import GLYPHS, builder_dir, invalid_json_files
+from builder_ii.core.tui_contract import GLYPHS, builder_dir, invalid_json_files
+from builder_ii.governance.authority import CommandAuthorityError, enforce_command_authority
 
 MainFn = Callable[[list[str] | None], int]
 
@@ -167,7 +167,7 @@ def profile_history(verbose: bool = typer.Option(False, "--verbose", "-v")) -> N
 
 @model_routing_app.command("show")
 def model_routing_show(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
-    _dispatch("builder model routing show", "builder_ii.model_tui", _args("routing", "show", verbose=verbose))
+    _dispatch("builder model routing show", "builder_ii.routing.model_tui", _args("routing", "show", verbose=verbose))
 
 
 @model_routing_app.command("simulate")
@@ -186,7 +186,7 @@ def model_routing_simulate(
         argv.append("--tools")
     if verbose:
         argv.append("--verbose")
-    _dispatch("builder model routing simulate", "builder_ii.model_tui", argv)
+    _dispatch("builder model routing simulate", "builder_ii.routing.model_tui", argv)
 
 
 @model_routing_app.command("candidates")
@@ -198,7 +198,7 @@ def model_routing_candidates(verbose: bool = typer.Option(False, "--verbose", "-
 
 @model_routing_app.command("policy")
 def model_routing_policy(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
-    _dispatch("builder model routing policy", "builder_ii.model_tui", _args("routing", "policy", verbose=verbose))
+    _dispatch("builder model routing policy", "builder_ii.routing.model_tui", _args("routing", "policy", verbose=verbose))
 
 
 @model_routing_app.command("execution-policy")
@@ -212,17 +212,17 @@ def model_routing_execution_policy(verbose: bool = typer.Option(False, "--verbos
 
 @model_routing_app.command("validate")
 def model_routing_validate(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
-    _dispatch("builder model routing validate", "builder_ii.model_tui", _args("routing", "validate", verbose=verbose))
+    _dispatch("builder model routing validate", "builder_ii.routing.model_tui", _args("routing", "validate", verbose=verbose))
 
 
 @model_registry_app.command("show")
 def model_registry_show(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
-    _dispatch("builder model registry show", "builder_ii.model_tui", _args("registry", "show", verbose=verbose))
+    _dispatch("builder model registry show", "builder_ii.routing.model_tui", _args("registry", "show", verbose=verbose))
 
 
 @model_registry_app.command("diff")
 def model_registry_diff(target_registry: str | None = typer.Argument(None)) -> None:
-    _dispatch("builder model registry diff", "builder_ii.model_tui", _args("registry", "diff", target_registry))
+    _dispatch("builder model registry diff", "builder_ii.routing.model_tui", _args("registry", "diff", target_registry))
 
 
 model_app.add_typer(model_routing_app, name="routing")
@@ -356,50 +356,50 @@ def goose_approval(manifest_id: str | None = typer.Argument(None)) -> None:
 
 @code_vault_app.command("status")
 def code_vault_status(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
-    _dispatch("builder code-vault status", "builder_ii.code_vault_tui", _args("status", verbose=verbose))
+    _dispatch("builder code-vault status", "builder_ii.core.code_vault_tui", _args("status", verbose=verbose))
 
 
 @code_vault_app.command("frame")
 def code_vault_frame(
     frame_id: str | None = typer.Argument(None), verbose: bool = typer.Option(False, "--verbose", "-v")
 ) -> None:
-    _dispatch("builder code-vault frame", "builder_ii.code_vault_tui", _args("frame", frame_id, verbose=verbose))
+    _dispatch("builder code-vault frame", "builder_ii.core.code_vault_tui", _args("frame", frame_id, verbose=verbose))
 
 
 @code_vault_app.command("determinism")
 def code_vault_determinism(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
-    _dispatch("builder code-vault determinism", "builder_ii.code_vault_tui", _args("determinism", verbose=verbose))
+    _dispatch("builder code-vault determinism", "builder_ii.core.code_vault_tui", _args("determinism", verbose=verbose))
 
 
 @code_vault_app.command("recall")
 def code_vault_recall(
     report_id: str | None = typer.Argument(None), verbose: bool = typer.Option(False, "--verbose", "-v")
 ) -> None:
-    _dispatch("builder code-vault recall", "builder_ii.code_vault_tui", _args("recall", report_id, verbose=verbose))
+    _dispatch("builder code-vault recall", "builder_ii.core.code_vault_tui", _args("recall", report_id, verbose=verbose))
 
 
 @code_vault_app.command("lint")
 def code_vault_lint(
     report_id: str | None = typer.Argument(None), verbose: bool = typer.Option(False, "--verbose", "-v")
 ) -> None:
-    _dispatch("builder code-vault lint", "builder_ii.code_vault_tui", _args("lint", report_id, verbose=verbose))
+    _dispatch("builder code-vault lint", "builder_ii.core.code_vault_tui", _args("lint", report_id, verbose=verbose))
 
 
 @code_vault_app.command("context")
 def code_vault_context(
     projection_id: str | None = typer.Argument(None), verbose: bool = typer.Option(False, "--verbose", "-v")
 ) -> None:
-    _dispatch("builder code-vault context", "builder_ii.code_vault_tui", _args("context", projection_id, verbose=verbose))
+    _dispatch("builder code-vault context", "builder_ii.core.code_vault_tui", _args("context", projection_id, verbose=verbose))
 
 
 @code_vault_app.command("governance")
 def code_vault_governance(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
-    _dispatch("builder code-vault governance", "builder_ii.code_vault_tui", _args("governance", verbose=verbose))
+    _dispatch("builder code-vault governance", "builder_ii.core.code_vault_tui", _args("governance", verbose=verbose))
 
 
 @code_vault_app.command("validate")
 def code_vault_validate() -> None:
-    _dispatch("builder code-vault validate", "builder_ii.code_vault_tui", ["validate"])
+    _dispatch("builder code-vault validate", "builder_ii.core.code_vault_tui", ["validate"])
 
 
 tui_inspection_app = typer.Typer(
@@ -415,6 +415,6 @@ def main_inspection(
 ) -> None:
     """Launch the main TUI platform status panel."""
     from builder_ii.cli.tui_cli import render_platform_status
-    from builder_ii.config import load_settings
+    from builder_ii.core.config import load_settings
     render_platform_status(load_settings(), verbose=verbose)
 

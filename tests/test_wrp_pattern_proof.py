@@ -7,8 +7,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from builder_ii.cli.wrp_cli import wrp_app
-from builder_ii.verification_execution_plan import TARGET_CODE_EXECUTING_PROFILES
-from builder_ii.verification_execution_runner import SUPPORTED_COMMAND_PROFILES
+from builder_ii.lifecycle.candidate.verification_execution_plan import TARGET_CODE_EXECUTING_PROFILES
+from builder_ii.lifecycle.candidate.verification_execution_runner import SUPPORTED_COMMAND_PROFILES
 from builder_ii.wrp.graph_runtime import SUPPORTED_PATTERNS
 from builder_ii.wrp.pattern_proof import prove_all_patterns
 

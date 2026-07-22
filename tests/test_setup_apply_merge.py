@@ -19,11 +19,14 @@ from builder_ii.setup_cli import setup_app
 from test_setup_apply import _artifacts, _write
 from typer.testing import CliRunner
 
-from builder_ii.setup_apply import _MERGE_PREVIEW_WITHHELD, SUPPORTED_OPERATIONS, _redact
-from builder_ii.setup_overlay import _OPERATIONS as OVERLAY_OPERATIONS
-from builder_ii.setup_rollback import _OPERATOR_FILE_PREVIEW_WITHHELD as _SNAPSHOT_PREVIEW_WITHHELD
-from builder_ii.setup_rollback import create_setup_rollback_snapshot, validate_setup_rollback_snapshot_artifact
-from builder_ii.setup_rollback_execute import _preflight_state
+from builder_ii.lifecycle.setup.setup_apply import _MERGE_PREVIEW_WITHHELD, SUPPORTED_OPERATIONS, _redact
+from builder_ii.lifecycle.setup.setup_overlay import _OPERATIONS as OVERLAY_OPERATIONS
+from builder_ii.lifecycle.setup.setup_rollback import _OPERATOR_FILE_PREVIEW_WITHHELD as _SNAPSHOT_PREVIEW_WITHHELD
+from builder_ii.lifecycle.setup.setup_rollback import (
+    create_setup_rollback_snapshot,
+    validate_setup_rollback_snapshot_artifact,
+)
+from builder_ii.lifecycle.setup.setup_rollback_execute import _preflight_state
 
 runner = CliRunner()
 
@@ -203,7 +206,7 @@ def test_merge_denied_without_rollback_snapshot_coverage_leaves_target_untouched
 
     # Keep the snapshot well-formed (non-empty target_path_states) but drop coverage
     # for the merge target specifically, so the gate must refuse it.
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     snap["target_paths_covered"] = [dummy_change["target_path"]]
     snap["target_path_states"] = [
@@ -466,7 +469,7 @@ def test_the_validator_itself_refuses_a_snapshot_that_claims_raw_content(tmp_pat
     validator. Forging the promise must require lying in the validator, not merely omitting a
     builder path.
     """
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     target = tmp_path / "config" / "goose" / "config.yaml"
     target.parent.mkdir(parents=True)
@@ -520,7 +523,7 @@ def test_builder_owned_files_keep_their_line_redacted_preview(tmp_path: Path) ->
     `BUILDER_MODEL_API_TOKEN=<redacted>`. That preview is useful and safe; only operator-owned config
     is withheld. If this ever starts withholding, the discriminator has gone too wide.
     """
-    from builder_ii.setup_rollback import _is_operator_owned
+    from builder_ii.lifecycle.setup.setup_rollback import _is_operator_owned
 
     operator_change = {"inside_user_config_dir": True}
     builder_change = {"inside_user_config_dir": False}

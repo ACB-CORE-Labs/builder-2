@@ -5,7 +5,7 @@ from builder_ii.config_cli import config_app
 from builder_ii.setup_cli import setup_app
 from typer.testing import CliRunner
 
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, MODE_NONE, TIER_1
+from builder_ii.governance.authority import COMMAND_AUTHORITY_REGISTRY, MODE_NONE, TIER_1
 
 runner = CliRunner()
 

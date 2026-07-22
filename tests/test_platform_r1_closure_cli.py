@@ -4,7 +4,7 @@ from pathlib import Path
 from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
-from builder_ii.r1_closure_report import R1_CLOSURE_REPORT_KIND
+from builder_ii.core.r1_closure_report import R1_CLOSURE_REPORT_KIND
 
 runner = CliRunner()
 

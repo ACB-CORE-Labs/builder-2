@@ -290,7 +290,7 @@ async def test_the_default_ledger_is_scoped_to_one_run(tmp_path, monkeypatch, ca
     `chdir` into `tmp_path` because the path under test is the *default*; the override is what
     every other lane here exercises, and it is precisely the default that was shared.
     """
-    from builder_ii.tui_audit_ledger import validate_ledger
+    from builder_ii.governance.ledger.tui_audit_ledger import validate_ledger
 
     class _Trivial(App):
         def compose(self) -> ComposeResult:
@@ -322,7 +322,11 @@ def test_concurrent_driver_runs_do_not_corrupt_each_others_chains(tmp_path):
     file -- so this is the only lane where the index's lock is exercised by real concurrent driver
     *processes* rather than by threads. Both halves of the concurrency story, one fixture.
     """
-    from builder_ii.tui_audit_ledger import MASTER_INDEX_FILENAME, validate_ledger, validate_master_index
+    from builder_ii.governance.ledger.tui_audit_ledger import (
+        MASTER_INDEX_FILENAME,
+        validate_ledger,
+        validate_master_index,
+    )
 
     artifacts = tmp_path / ".builder" / "artifacts"
     procs = [
@@ -418,7 +422,7 @@ def test_semantic_tui_driver_refuses_a_legacy_ledger_with_clean_json(tmp_path):
 
 def test_semantic_tui_driver_writes_a_valid_chain(tmp_path):
     """The driver's own output must satisfy the validator that ships beside it."""
-    from builder_ii.tui_audit_ledger import validate_ledger
+    from builder_ii.governance.ledger.tui_audit_ledger import validate_ledger
 
     ledger = tmp_path / "chain.jsonl"
     payload = json.dumps({"app": "StratumApp", "steps": [{"action": "press", "target": "escape"}],

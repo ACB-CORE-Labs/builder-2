@@ -19,7 +19,7 @@ measurement did.
 
 CodeVault today is a **Tier-0** substrate: every geometric coordinate derives strictly from stable
 layout identity (`docs/CODE_VAULT.md`), and the determinism demo pins that with the proof
-`content_edit_changes_digest_not_center` (`builder_ii/code_vault_demo_loop.py`,
+`content_edit_changes_digest_not_center` (`builder_ii/core/code_vault_demo_loop.py`,
 `tests/test_code_vault_hierarchy.py::test_content_edit_changes_digest_not_center`). The only
 content-derived value anywhere in the frame is the per-node `content_digest`.
 

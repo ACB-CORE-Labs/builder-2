@@ -5,16 +5,16 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.handoff_artifacts import (
+from builder_ii.core.handoff_artifacts import (
     create_handoff_artifact,
     dumps_handoff_artifact,
     validate_handoff_artifact,
     validate_handoff_artifact_file,
     write_handoff_artifact,
 )
-from builder_ii.target_profiles import TargetName, target_names
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names
+from builder_ii.routing.agent_profiles import AgentProfileName, agent_profile_names
 
 notes_app = typer.Typer(help="Create and validate governed handoff artifacts.")
 console = Console()

@@ -4,7 +4,7 @@ from pathlib import Path
 from builder_ii.promotion_decision_cli import promotion_decision_app
 from typer.testing import CliRunner
 
-from builder_ii.promotion_readiness_records import create_promotion_readiness_record
+from builder_ii.lifecycle.candidate.promotion_readiness_records import create_promotion_readiness_record
 
 
 def _readiness(tmp_path: Path) -> Path:

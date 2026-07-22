@@ -7,7 +7,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from builder_ii.agent_profiles import (
+from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.core.config import load_settings
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_profile
+from builder_ii.routing.agent_profiles import (
     AgentProfileName,
     agent_profiles,
     create_agent_profile_record,
@@ -20,9 +23,6 @@ from builder_ii.agent_profiles import (
     validate_agent_profiles,
     write_agent_profile_record,
 )
-from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.config import load_settings
-from builder_ii.target_profiles import TargetName, target_profile
 
 agent_app = typer.Typer(
     help="Inspect/render agent profiles; RO run candidate (read_only profiles only)."
@@ -146,7 +146,7 @@ def run_cmd(
 
     Requires --read-only. No deepagents construction, shell, writes, or model invoke.
     """
-    from builder_ii.agent_readonly_runner import AgentReadonlyError, run_readonly_agent
+    from builder_ii.routing.agent_readonly_runner import AgentReadonlyError, run_readonly_agent
 
     if not read_only:
         console.print("[red]V.2 agent run requires --read-only (no write/shell path)[/]")

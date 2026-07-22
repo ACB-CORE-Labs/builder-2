@@ -7,22 +7,22 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from builder_ii.config_schema import attach_digest
-from builder_ii.verification_execution_approval import (
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
     finalize_verification_execution_approval,
     write_verification_execution_approval,
 )
-from builder_ii.verification_execution_plan import (
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
     TARGET_CODE_EXECUTING_PROFILES,
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )
-from builder_ii.verification_execution_receipt import (
+from builder_ii.lifecycle.candidate.verification_execution_receipt import (
     RUNNER_MODE_BOUNDED_APPROVED,
     SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
     validate_verification_execution_receipt_artifact,
 )
-from builder_ii.verification_execution_runner import (
+from builder_ii.lifecycle.candidate.verification_execution_runner import (
     BUILDER_II_IMPORT_ROOT,
     SUPPORTED_COMMAND_PROFILES,
     _minimal_env,
@@ -456,7 +456,7 @@ def _write_target_code_chain(
 ) -> tuple[Path, Path, Path]:
     """Build a chain that approves a single target-code-executing profile, with/without the D7 ack."""
     root = _artifact_root(tmp_path)
-    from builder_ii.verification_execution_plan import (
+    from builder_ii.lifecycle.candidate.verification_execution_plan import (
         finalize_verification_execution_plan,
         write_verification_execution_plan,
     )
@@ -768,7 +768,10 @@ def test_pytest_full_runs_for_generic_target(monkeypatch: Any, tmp_path: Path) -
 def test_builder_self_profile_refused_for_non_builder_verification_profile() -> None:
     # A builder-II self profile (runs builder-II's own matrix/docs checks) must be refused under a
     # non-builder verification profile; a target-code profile (pytest_full) is allowed anywhere.
-    from builder_ii.verification_execution_runner import SUPPORTED_COMMAND_PROFILES, _validate_fixed_profile
+    from builder_ii.lifecycle.candidate.verification_execution_runner import (
+        SUPPORTED_COMMAND_PROFILES,
+        _validate_fixed_profile,
+    )
 
     errors = _validate_fixed_profile(SUPPORTED_COMMAND_PROFILES["platform_status"], "generic_basic")
     assert any("requires verification_profile=builder_full" in error for error in errors)
@@ -782,7 +785,7 @@ def test_generic_plan_injecting_builder_self_profile_blocks_end_to_end(monkeypat
     # profile under a generic namespace (which the plan validator accepts structurally) is blocked
     # by the runner before any subprocess -- so builder-II's own checks can never run against a
     # foreign target repo.
-    from builder_ii.verification_execution_plan import (
+    from builder_ii.lifecycle.candidate.verification_execution_plan import (
         finalize_verification_execution_plan,
         write_verification_execution_plan,
     )

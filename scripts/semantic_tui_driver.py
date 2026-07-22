@@ -37,7 +37,7 @@ from textual.widgets import Input, TextArea
 # Load-bearing imports mapped directly to the builder-II architecture
 try:
     from builder_ii.tui.app import StratumApp
-    from builder_ii.tui_audit_ledger import (
+    from builder_ii.governance.ledger.tui_audit_ledger import (
         MASTER_INDEX_FILENAME,
         append_event,
         append_run_to_index,

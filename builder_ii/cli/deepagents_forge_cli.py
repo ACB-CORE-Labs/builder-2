@@ -11,9 +11,9 @@ from typing import Optional
 
 import typer
 
-from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
-from builder_ii.deepagents_forge_emit import EmitResult, emit_agent
-from builder_ii.deepagents_forge_schema import VALID_TARGET_PROFILES, DeepAgentSpec, derive_slug
+from builder_ii.adapters.deepagents.deepagents_forge_emit import EmitResult, emit_agent
+from builder_ii.adapters.deepagents.deepagents_forge_schema import VALID_TARGET_PROFILES, DeepAgentSpec, derive_slug
+from builder_ii.governance.authority import CommandAuthorityError, enforce_command_authority
 
 app = typer.Typer(help="deepagents Forge — create governed deepagent specs.")
 _VALID_PROFILES = set(VALID_TARGET_PROFILES)
@@ -83,7 +83,7 @@ def _split_csv(value: Optional[str]) -> list[str]:
 def _run_interactive(seed_name: str = "", seed_profile: str = "generic", dry_run: bool = False) -> None:
     """Launch the Textual TUI forge wizard."""
     try:
-        from builder_ii.deepagents_forge_tui import run_forge_tui
+        from builder_ii.adapters.deepagents.deepagents_forge_tui import run_forge_tui
 
         run_forge_tui(seed_name=seed_name, seed_profile=seed_profile, dry_run=dry_run)
     except ImportError as exc:

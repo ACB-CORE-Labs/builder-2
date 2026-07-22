@@ -3,17 +3,17 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-from builder_ii.config import load_settings
-from builder_ii.goose_projection import create_goose_projection
-from builder_ii.goose_wrapper_plan import create_goose_wrapper_plan
-from builder_ii.runtime_activation_approval import (
+from builder_ii.adapters.goose.goose_projection import create_goose_projection
+from builder_ii.adapters.goose.goose_wrapper_plan import create_goose_wrapper_plan
+from builder_ii.core.config import load_settings
+from builder_ii.core.session_config import create_session_configuration
+from builder_ii.lifecycle.candidate.runtime_activation_approval import (
     RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND,
     create_runtime_activation_approval_spec,
     dumps_runtime_activation_approval_spec,
     validate_runtime_activation_approval_spec,
     validate_runtime_activation_approval_spec_file,
 )
-from builder_ii.session_config import create_session_configuration
 
 
 def _generic_repo(tmp_path: Path) -> Path:

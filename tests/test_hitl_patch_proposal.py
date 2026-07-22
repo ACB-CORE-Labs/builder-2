@@ -6,8 +6,8 @@ import ast
 import inspect
 from pathlib import Path
 
-import builder_ii.hitl_patch_proposal as hitl_mod
-from builder_ii.hitl_patch_proposal import (
+import builder_ii.governance.hitl.hitl_patch_proposal as hitl_mod
+from builder_ii.governance.hitl.hitl_patch_proposal import (
     HITL_PATCH_PROPOSAL_KIND,
     create_hitl_patch_proposal,
     dumps_hitl_patch_proposal,

@@ -1,8 +1,8 @@
 import hashlib
 import json as json_lib
 
-from builder_ii.research_adapters import create_research_adapter_artifact, validate_research_adapter_artifact
-from builder_ii.research_plans import create_research_plan_artifact, dumps_research_plan_artifact
+from builder_ii.core.research_adapters import create_research_adapter_artifact, validate_research_adapter_artifact
+from builder_ii.core.research_plans import create_research_plan_artifact, dumps_research_plan_artifact
 
 
 def _digest(value: dict) -> str:

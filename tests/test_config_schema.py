@@ -1,4 +1,4 @@
-from builder_ii.config_schema import (
+from builder_ii.core.config_schema import (
     CONFIG_SCHEMA_VERSION,
     create_config_schema_artifact,
     legacy_alias_map,

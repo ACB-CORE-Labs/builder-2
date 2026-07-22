@@ -20,9 +20,8 @@ from test_deepagents_execution import _work_plan_fixture
 from test_optional_deepagents_readiness import _install_fake_deepagents
 from typer.testing import CliRunner
 
-from builder_ii.config import load_settings
-from builder_ii.deepagents_bridge import DeepAgentsAvailability
-from builder_ii.deepagents_execution import (
+from builder_ii.adapters.deepagents.deepagents_bridge import DeepAgentsAvailability
+from builder_ii.adapters.deepagents.deepagents_execution import (
     DISCHARGE_BLOCKED,
     DISCHARGE_CONTRACT_SATISFIED,
     DISCHARGE_CONTRACT_VIOLATED,
@@ -39,12 +38,13 @@ from builder_ii.deepagents_execution import (
     validate_deepagents_execution_approval_against_candidate,
     validate_deepagents_execution_candidate,
 )
-from builder_ii.deepagents_policy import create_deepagents_policy_artifact
-from builder_ii.deepagents_readiness import create_deepagents_readiness_artifact
-from builder_ii.deepagents_runtime import DeepAgentsRuntimeHarness
-from builder_ii.deepagents_work_artifacts import create_deepagents_work_plan
-from builder_ii.orchestration_lane_policy import create_orchestration_lane_policy_artifact
-from builder_ii.orchestration_obligation import create_orchestration_obligation
+from builder_ii.adapters.deepagents.deepagents_policy import create_deepagents_policy_artifact
+from builder_ii.adapters.deepagents.deepagents_readiness import create_deepagents_readiness_artifact
+from builder_ii.adapters.deepagents.deepagents_runtime import DeepAgentsRuntimeHarness
+from builder_ii.adapters.deepagents.deepagents_work_artifacts import create_deepagents_work_plan
+from builder_ii.core.config import load_settings
+from builder_ii.core.orchestration_lane_policy import create_orchestration_lane_policy_artifact
+from builder_ii.core.orchestration_obligation import create_orchestration_obligation
 from tests.orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 runner = CliRunner()
@@ -446,7 +446,7 @@ def test_status_why_records_promoted_to_validation_only_with_live_cli(tmp_path: 
     exist for each record (no docs-ahead-of-code, and no code-ahead-of-registry)."""
     from builder_ii.orchestration_cli import orchestration_app
 
-    from builder_ii.command_authority import STATE_VALIDATION_ONLY, get_command_record
+    from builder_ii.governance.authority import STATE_VALIDATION_ONLY, get_command_record
 
     live = set()
     import typer

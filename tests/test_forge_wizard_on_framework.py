@@ -11,8 +11,8 @@ import ast
 import inspect
 import textwrap
 
-from builder_ii.deepagents_forge_wizard import FORGE_STEPS, ForgeWizard
-from builder_ii.wizard_framework import WizardEngine, WizardStep
+from builder_ii.adapters.deepagents.deepagents_forge_wizard import FORGE_STEPS, ForgeWizard
+from builder_ii.lifecycle.setup.wizard_framework import WizardEngine, WizardStep
 
 
 def test_the_forge_wizard_no_longer_owns_a_cursor_history_state_machine() -> None:
@@ -147,7 +147,7 @@ def test_going_back_and_granting_one_more_capability_re_asks_for_the_gate_it_req
 
 def test_a_step_answered_at_the_prompt_is_not_a_step_answered_by_a_flag() -> None:
     """`_skip_preanswered` passes over preanswered steps. Only those."""
-    from builder_ii.wizard_framework import WizardStep
+    from builder_ii.lifecycle.setup.wizard_framework import WizardStep
 
     steps = (
         WizardStep(id="a", question="a?", free_form=True),

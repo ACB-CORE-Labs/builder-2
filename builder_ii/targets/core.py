@@ -12,7 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from builder_ii.config import Settings
+from builder_ii.core.config import Settings
 
 CORE_TARGET_NAME = "core"
 

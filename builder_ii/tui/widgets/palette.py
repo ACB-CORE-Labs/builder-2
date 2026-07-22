@@ -23,8 +23,8 @@ from builder_ii.tui.widget_ids import widget_id
 # ── Tier display info ────────────────────────────────────────────────
 
 def _tier_labels() -> dict[str, tuple[str, str, str]]:
-    from builder_ii.command_authority import TIER_0, TIER_1, TIER_2, TIER_3, TIER_4
-    from builder_ii.tui_theme import theme_palette
+    from builder_ii.core.tui_theme import theme_palette
+    from builder_ii.governance.authority import TIER_0, TIER_1, TIER_2, TIER_3, TIER_4
 
     p = theme_palette()
     return {
@@ -66,7 +66,7 @@ class PaletteEntry(Static):
         self.add_class("palette-item")
 
     def render(self) -> str:
-        from builder_ii.tui_theme import theme_palette
+        from builder_ii.core.tui_theme import theme_palette
 
         p = theme_palette()
         tier_short, tier_color, tier_label = _tier_labels().get(
@@ -142,7 +142,7 @@ class CommandPaletteScreen(ModalScreen[str | None]):
 
     def _build_entries(self) -> None:
         """Build palette entries from command records."""
-        from builder_ii.command_authority import TIER_4
+        from builder_ii.governance.authority import TIER_4
         # Sort by tier, then by name
         sorted_cmds = sorted(
             self._commands,

@@ -37,8 +37,8 @@ Only **M-LEAD** may edit (one writer at a time):
 
 | Resource | Why serial |
 | --- | --- |
-| `builder_ii/command_authority.py` | Tier/promotion truth |
-| `builder_ii/platform_completion_audit.py` + truth pins | Matrix claims |
+| `builder_ii/governance/authority/` | Tier/promotion truth |
+| `builder_ii/core/platform_completion_audit.py` + truth pins | Matrix claims |
 | `docs/CAPABILITY_PROMOTION.md` | Capability power claims |
 | `docs/ROADMAP.md` WRP rows | Public completion language |
 | Gateway preflight entry hooks (`model_execution_gateway.py`, `tool_invocation_gateway.py` MSDA inject) | Live deny path |

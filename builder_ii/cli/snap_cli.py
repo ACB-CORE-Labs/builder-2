@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.snapshot_records import (
+from builder_ii.governance.ledger.snapshot_records import (
     create_snapshot_record_from_files,
     dumps_snapshot_record,
     validate_snapshot_record_file,

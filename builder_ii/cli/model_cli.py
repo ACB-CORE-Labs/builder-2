@@ -8,23 +8,23 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from builder_ii.command_authority import enforce_command_authority
-from builder_ii.config import load_settings
-from builder_ii.event_ledger import (
+from builder_ii.core.config import load_settings
+from builder_ii.governance.authority import enforce_command_authority
+from builder_ii.governance.ledger.event_ledger import (
     EVENT_RECORD_KIND,
     create_event_record,
     load_event_records,
     replay_events,
     write_event_record,
 )
-from builder_ii.model_client_registry import (
+from builder_ii.governance.ledger.workflow_records import canonical_digest
+from builder_ii.routing.model_client_registry import (
     create_model_client_registry,
 )
-from builder_ii.model_execution_gateway import (
+from builder_ii.routing.model_execution_gateway import (
     ModelExecutionGateway,
     validate_model_call_receipt_file,
 )
-from builder_ii.workflow_records import canonical_digest
 
 model_app = typer.Typer(help="Governed model/provider execution gateway CLI.")
 console = Console()

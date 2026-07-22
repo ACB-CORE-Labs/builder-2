@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from builder_ii.profile_resolution import (
+from builder_ii.lifecycle.setup.profile_resolution import (
     MissingFileError,
     ProfileResolver,
     UnknownProfileError,

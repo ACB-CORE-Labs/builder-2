@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from builder_ii.verification_execution_plan import (
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
     B1_1_SUPPORTED_VERIFICATION_PROFILE,
     _default_allowed_command_profiles,
 )
-from builder_ii.verification_runner_entrypoints import main as entry_main
+from builder_ii.lifecycle.candidate.verification_runner_entrypoints import main as entry_main
 from builder_ii.wrp.allocation_optimizer import allocate_fleet
 from builder_ii.wrp.live_lane import build_live_run_plan
 

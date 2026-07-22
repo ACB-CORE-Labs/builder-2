@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.command_authority import (
+from builder_ii.governance.authority import (
     _EFFECT_FLAGS,
     _EXTRA_COMMAND_NAMES,
     _SYNTHESIZED_PARENTS,
@@ -223,7 +223,7 @@ def test_docs_contain_all_commands_and_table():
     doc_content = doc_path.read_text(encoding="utf-8")
 
     # Verify every registered command name is mentioned in the docs
-    from builder_ii.command_authority import _EXTRA_COMMAND_NAMES
+    from builder_ii.governance.authority import _EXTRA_COMMAND_NAMES
 
     for r in COMMAND_AUTHORITY_REGISTRY:
         if r.name in _EXTRA_COMMAND_NAMES:
@@ -243,7 +243,7 @@ def test_no_forbidden_identity_framing():
     forbidden_terms = ["CORE builder-II", "CORE Builder-II", "core builder-ii"]
 
     # Scan python registry file
-    registry_file = root / "builder_ii" / "command_authority.py"
+    registry_file = root / "builder_ii" / "governance" / "authority" / "authority_registry.py"
     reg_content = registry_file.read_text(encoding="utf-8")
     for term in forbidden_terms:
         occurrences = reg_content.count(term)
@@ -401,7 +401,7 @@ def test_readonly_tui_surfaces_are_registered_tier0_observers() -> None:
 def test_standalone_call_registered_in_authority() -> None:
     """builder-model standalone-call must be registered as Tier 3, declare model execution
     and artifact writes, and be in REQUIRED_SUBCOMMANDS."""
-    from builder_ii.command_authority import (
+    from builder_ii.governance.authority import (
         COMMAND_AUTHORITY_REGISTRY,
         REQUIRED_SUBCOMMANDS,
         TIER_3,
@@ -490,7 +490,7 @@ def test_builder_memory_commands_are_registered_as_tier1_surfaces() -> None:
 
 
 def test_runtime_gate_allows_passive_registered_command_without_hitl() -> None:
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.governance.authority import enforce_command_authority
 
     decision = enforce_command_authority("builder-targets list", requested_effects=())
 
@@ -500,7 +500,11 @@ def test_runtime_gate_allows_passive_registered_command_without_hitl() -> None:
 
 
 def test_runtime_gate_denies_unknown_command_fail_closed() -> None:
-    from builder_ii.command_authority import CommandAuthorityError, check_command_authority, enforce_command_authority
+    from builder_ii.governance.authority import (
+        CommandAuthorityError,
+        check_command_authority,
+        enforce_command_authority,
+    )
 
     with pytest.raises(CommandAuthorityError) as exc_info:
         enforce_command_authority("builder-unknown mutate", requested_effects=("source_writes",))
@@ -513,7 +517,11 @@ def test_runtime_gate_denies_unknown_command_fail_closed() -> None:
 
 
 def test_runtime_gate_denies_over_authority_effect() -> None:
-    from builder_ii.command_authority import CommandAuthorityError, check_command_authority, enforce_command_authority
+    from builder_ii.governance.authority import (
+        CommandAuthorityError,
+        check_command_authority,
+        enforce_command_authority,
+    )
 
     with pytest.raises(CommandAuthorityError) as exc_info:
         enforce_command_authority("builder-targets list", requested_effects=("source_writes",))
@@ -525,7 +533,11 @@ def test_runtime_gate_denies_over_authority_effect() -> None:
 
 
 def test_runtime_gate_requires_hitl_for_run_approved() -> None:
-    from builder_ii.command_authority import CommandAuthorityError, check_command_authority, enforce_command_authority
+    from builder_ii.governance.authority import (
+        CommandAuthorityError,
+        check_command_authority,
+        enforce_command_authority,
+    )
 
     with pytest.raises(CommandAuthorityError) as exc_info:
         enforce_command_authority(
@@ -545,7 +557,7 @@ def test_runtime_gate_requires_hitl_for_run_approved() -> None:
 
 
 def test_command_authority_compatibility_hitl_bound() -> None:
-    from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
+    from builder_ii.governance.authority import CommandAuthorityError, enforce_command_authority
 
     # 1. Denied with no approval_ref and no hitl_bound
     with pytest.raises(CommandAuthorityError) as exc:
@@ -616,8 +628,8 @@ def test_command_authority_doc_mirrors_the_registry_verbatim() -> None:
     """
     doc = (Path(__file__).resolve().parents[1] / "docs" / "COMMAND_AUTHORITY.md").read_text(encoding="utf-8")
     assert doc == render_command_authority_doc(), (
-        "docs/COMMAND_AUTHORITY.md has drifted from builder_ii/command_authority.py. Regenerate it: "
-        "uv run python -m builder_ii.command_authority > docs/COMMAND_AUTHORITY.md"
+        "docs/COMMAND_AUTHORITY.md has drifted from builder_ii/governance/authority/. Regenerate it: "
+        "uv run python -m builder_ii.governance.authority > docs/COMMAND_AUTHORITY.md"
     )
 
 
@@ -701,7 +713,7 @@ def test_exactly_one_flag_carries_no_risk_signal_and_that_is_correct() -> None:
     The predecessor of this test named three inert flags and said: "if the lattice later gives one of
     these a consequence, this pin fails and says so." It did, and it did.
     """
-    from builder_ii.assurance import ASSURANCE_STATE_DEFINITIONS, PASSIVE_ARTIFACT_VERIFIED
+    from builder_ii.governance.authority.assurance import ASSURANCE_STATE_DEFINITIONS, PASSIVE_ARTIFACT_VERIFIED
 
     assert ASSURANCE_INERT_FLAGS == ("allows_artifact_writes",)
     assert "writes nothing outside the artifact store" in ASSURANCE_STATE_DEFINITIONS[PASSIVE_ARTIFACT_VERIFIED]
@@ -727,7 +739,7 @@ def test_a_command_that_writes_local_state_is_not_passive() -> None:
     `BOUNDED_EXECUTION_VERIFIED`, but only because they also kill a process. That is the accident
     that kept the gap hidden.
     """
-    from builder_ii.assurance import LOCAL_STATE_MUTATION_VERIFIED
+    from builder_ii.governance.authority.assurance import LOCAL_STATE_MUTATION_VERIFIED
 
     record = get_command_record("builder-runtime clear-marker")
     assert record is not None and record.allows_state_writes
@@ -756,7 +768,7 @@ def test_memory_mutation_is_a_prohibition_no_record_may_claim() -> None:
     It derives `SAFETY_CRITICAL_PROHIBITED`, whose definition says exactly that: a capability whose
     promotion is refused regardless of the evidence offered for it.
     """
-    from builder_ii.assurance import SAFETY_CRITICAL_PROHIBITED
+    from builder_ii.governance.authority.assurance import SAFETY_CRITICAL_PROHIBITED
 
     holders = [r.name for r in COMMAND_AUTHORITY_REGISTRY if r.allows_memory_mutation]
     assert holders == [], f"memory mutation is prohibited; these records claim it: {holders}"
@@ -780,7 +792,7 @@ def test_the_memory_mutation_prohibition_is_a_registry_invariant_at_every_tier(
     (`hitl_runtime_candidate`) are exactly the tiers a record claiming it would plausibly sit at, and
     they were unguarded. The claim rested on a test in another file, which is not an invariant.
     """
-    import builder_ii.command_authority as module
+    import builder_ii.governance.authority as module
 
     assert validate_registry_invariants() == [], "baseline: no record claims it"
 
@@ -989,7 +1001,7 @@ def test_the_inheritance_invariant_is_enforced_not_merely_asserted(monkeypatch: 
     passes whether or not the checker is wired in, because the real registry is already coherent. So
     put a self-inheriting record in the registry and require the validator to find it.
     """
-    import builder_ii.command_authority as module
+    import builder_ii.governance.authority as module
 
     assert validate_registry_invariants() == [], "baseline: the real registry is coherent"
 
@@ -1047,8 +1059,8 @@ def test_the_perturbation_probe_starts_at_the_bottom_of_the_lattice() -> None:
     `BLOCKED_BY_EVIDENCE`; every flag then reads inert, and the doc would print all eleven as
     carrying no risk signal. Nothing said so out loud, and no pin asserted it.
     """
-    from builder_ii.assurance import PASSIVE_ARTIFACT_VERIFIED
-    from builder_ii.command_authority import _ASSURANCE_BASELINE
+    from builder_ii.governance.authority import _ASSURANCE_BASELINE
+    from builder_ii.governance.authority.assurance import PASSIVE_ARTIFACT_VERIFIED
 
     assert _ASSURANCE_BASELINE == PASSIVE_ARTIFACT_VERIFIED, "the probe's baseline is not the bottom of the lattice"
     assert assurance_state_for_record(_assurance_probe()) == PASSIVE_ARTIFACT_VERIFIED
@@ -1159,7 +1171,7 @@ def test_stratum_declares_the_runtime_it_starts_and_derives_the_matching_assuran
     command, which starts a read-only runtime, so it declares that and derives the same assurance
     state as the command it invokes.
     """
-    from builder_ii.command_authority import assurance_state_for_record
+    from builder_ii.governance.authority import assurance_state_for_record
 
     record = _stratum_record()
     governed = next(r for r in COMMAND_AUTHORITY_REGISTRY if r.name == "builder-goose start-readonly")
@@ -1186,7 +1198,7 @@ def test_operator_lane_declares_the_git_subprocess_it_actually_spawns() -> None:
     it spawns three per invocation. It now declares `allows_readonly_subprocess` like its sibling
     `builder-git-state`, so the assurance state is honest about the process it starts.
     """
-    from builder_ii.assurance import BOUNDED_EXECUTION_VERIFIED, PASSIVE_ARTIFACT_VERIFIED
+    from builder_ii.governance.authority.assurance import BOUNDED_EXECUTION_VERIFIED, PASSIVE_ARTIFACT_VERIFIED
 
     record = get_command_record("builder-platform operator-lane")
     assert record is not None

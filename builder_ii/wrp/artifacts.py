@@ -6,8 +6,8 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
-from builder_ii.config_schema import attach_digest, digest_jsonable
-from builder_ii.governance_standard import build_standard_governance, validate_standard_governance
+from builder_ii.core.config_schema import attach_digest, digest_jsonable
+from builder_ii.governance.authority.governance_standard import build_standard_governance, validate_standard_governance
 
 # Artifact kinds (digest-bound, recommendation/plan/validation only)
 WORKLOAD_CLASSIFICATION_KIND = "builder_ii.wrp.workload_classification"

@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.promotion_decision_records import (
+from builder_ii.lifecycle.candidate.promotion_decision_records import (
     PromotionDecision,
     create_promotion_decision_record_from_file,
     dumps_promotion_decision_record,

@@ -14,15 +14,15 @@ This audit covers the current builder-II governance foundation after the HITL co
 
 The current foundation includes these merged surfaces:
 
-- HITL command execution spec: `docs/HITL_COMMAND_EXECUTION.md`, `builder_ii/hitl_command_execution.py`, `tests/test_hitl_command_execution.py`
-- HITL execution request/receipt artifacts: `builder_ii/hitl_execution_records.py`, `docs/HITL_EXECUTION_RECORDS.md`, `tests/test_hitl_execution_records.py`
+- HITL command execution spec: `docs/HITL_COMMAND_EXECUTION.md`, `builder_ii/governance/hitl/hitl_command_execution.py`, `tests/test_hitl_command_execution.py`
+- HITL execution request/receipt artifacts: `builder_ii/governance/hitl/hitl_execution_records.py`, `docs/HITL_EXECUTION_RECORDS.md`, `tests/test_hitl_execution_records.py`
 - HITL execution artifact CLI: `builder_ii/hitl_execution_cli.py`, `docs/HITL_EXECUTION_CLI.md`, `tests/test_hitl_execution_cli.py`
-- HITL patch application spec: `builder_ii/hitl_patch_proposal.py`, `docs/HITL_PATCH_PROPOSAL.md`, `tests/test_hitl_patch_proposal.py`
-- Rollback plan/receipt artifacts: `builder_ii/rollback_artifacts.py`, `docs/ROLLBACK_ARTIFACTS.md`, `tests/test_rollback_artifacts.py`
-- Execution postflight and verification record specs: `builder_ii/execution_postflight_records.py`, `docs/EXECUTION_POSTFLIGHT_RECORDS.md`, `tests/test_execution_postflight_records.py`
+- HITL patch application spec: `builder_ii/governance/hitl/hitl_patch_proposal.py`, `docs/HITL_PATCH_PROPOSAL.md`, `tests/test_hitl_patch_proposal.py`
+- Rollback plan/receipt artifacts: `builder_ii/lifecycle/candidate/rollback_artifacts.py`, `docs/ROLLBACK_ARTIFACTS.md`, `tests/test_rollback_artifacts.py`
+- Execution postflight and verification record specs: `builder_ii/lifecycle/candidate/execution_postflight_records.py`, `docs/EXECUTION_POSTFLIGHT_RECORDS.md`, `tests/test_execution_postflight_records.py`
 - Command surface audit: `docs/COMMAND_SURFACE_AUDIT.md`, `tests/test_command_surface_audit.py`
-- Registry closure: `builder_ii/artifact_index_records.py`, `builder_ii/artifact_chain_verification.py`, `docs/ARTIFACT_INDEX.md`, `tests/test_registry_closure.py`
-- HITL execution evidence bundle index: `builder_ii/hitl_evidence_bundle.py`, `docs/HITL_EVIDENCE_BUNDLE.md`, `tests/test_hitl_evidence_bundle.py`
+- Registry closure: `builder_ii/governance/ledger/artifact_index_records.py`, `builder_ii/core/artifact_chain_verification.py`, `docs/ARTIFACT_INDEX.md`, `tests/test_registry_closure.py`
+- HITL execution evidence bundle index: `builder_ii/governance/hitl/hitl_evidence_bundle.py`, `docs/HITL_EVIDENCE_BUNDLE.md`, `tests/test_hitl_evidence_bundle.py`
 
 These surfaces are governance/spec/record surfaces. They describe future controlled behavior, but they do not grant runtime authority.
 

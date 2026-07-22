@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.handoff_bundle_records import (
+from builder_ii.governance.ledger.handoff_bundle_records import (
     create_handoff_bundle_record_from_file,
     dumps_handoff_bundle_record,
     validate_handoff_bundle_record_file,

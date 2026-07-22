@@ -8,8 +8,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from builder_ii.cli.wrp_cli import wrp_app
-from builder_ii.promotion_decision_records import validate_promotion_decision_record
-from builder_ii.promotion_readiness_records import validate_promotion_readiness_record
+from builder_ii.lifecycle.candidate.promotion_decision_records import validate_promotion_decision_record
+from builder_ii.lifecycle.candidate.promotion_readiness_records import validate_promotion_readiness_record
 from builder_ii.wrp.s4_readiness import (
     S4_DRAFT_BACKEND_IDS,
     build_s4_decision_record,

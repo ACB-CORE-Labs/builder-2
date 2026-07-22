@@ -44,7 +44,7 @@ Last updated: 2026-07-19 (remainder wave)
 
 | ID | Item | Status | Evidence |
 | --- | --- | --- | --- |
-| W2.1 | Real cloud adapters | DONE | `builder_ii/cloud_chat.py`; OpenAI-compatible + stub; token-ref egress |
+| W2.1 | Real cloud adapters | DONE | `builder_ii/adapters/openai_compat/cloud_chat.py`; OpenAI-compatible + stub; token-ref egress |
 | W2.2 | invoke_cloud | DONE | In `GATEWAY_MODES`; hard gates; ADR `docs/adr/0001-invoke-cloud-seam.md` |
 
 ---

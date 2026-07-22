@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from builder_ii.context_pack import (
+from builder_ii.core.context_pack import (
     ContextPackSelection,
     build_context_pack,
     render_context_manifest,
@@ -19,14 +19,14 @@ def test_select_context_files_uses_defaults_for_empty_selection() -> None:
     files = select_context_files(repo, ContextPackSelection())
 
     assert "README.md" in files
-    assert "builder_ii/context.py" in files
+    assert "builder_ii/core/context.py" in files
 
 
 def test_select_context_files_accepts_specific_file_module() -> None:
     repo = Path.cwd()
-    files = select_context_files(repo, ContextPackSelection(module="builder_ii/context_pack.py"))
+    files = select_context_files(repo, ContextPackSelection(module="builder_ii/core/context_pack.py"))
 
-    assert files == ("builder_ii/context_pack.py",)
+    assert files == ("builder_ii/core/context_pack.py",)
 
 
 def test_select_context_files_rejects_missing_module() -> None:
@@ -59,14 +59,14 @@ def test_render_context_manifest_mentions_task_target_and_command() -> None:
         repo=Path("/tmp/core"),
         target="core",
         selection=ContextPackSelection(task="review context", module="builder_ii", changed=True),
-        selected_files=("builder_ii/context.py",),
+        selected_files=("builder_ii/core/context.py",),
         repomix_output=Path(".builder/context-pack.xml"),
         command=("repomix", "--output", ".builder/context-pack.xml"),
     )
 
     assert "review context" in text
     assert "target: `core`" in text
-    assert "builder_ii/context.py" in text
+    assert "builder_ii/core/context.py" in text
     assert "Repomix command" in text
 
 
@@ -74,7 +74,7 @@ def test_build_context_pack_manifest_only_defaults_to_core(tmp_path: Path) -> No
     settings = SimpleNamespace(target_repo=Path.cwd(), project_root=tmp_path)
     result = build_context_pack(
         settings,
-        ContextPackSelection(task="manifest only", module="builder_ii/context_pack.py"),
+        ContextPackSelection(task="manifest only", module="builder_ii/core/context_pack.py"),
         run_repomix=False,
     )
 
@@ -83,14 +83,14 @@ def test_build_context_pack_manifest_only_defaults_to_core(tmp_path: Path) -> No
     assert result.ran_repomix is False
     assert result.markdown_path.exists()
     assert "manifest only" in result.markdown_path.read_text(encoding="utf-8")
-    assert result.selected_files == ("builder_ii/context_pack.py",)
+    assert result.selected_files == ("builder_ii/core/context_pack.py",)
 
 
 def test_build_context_pack_can_target_builder_repo(tmp_path: Path) -> None:
     settings = SimpleNamespace(target_repo=Path("/tmp/core"), project_root=Path.cwd())
     result = build_context_pack(
         settings,
-        ContextPackSelection(task="builder context", module="builder_ii/context_pack.py"),
+        ContextPackSelection(task="builder context", module="builder_ii/core/context_pack.py"),
         target="builder",
         markdown_output=tmp_path / "manifest.md",
         repomix_output=tmp_path / "context.xml",
@@ -99,11 +99,11 @@ def test_build_context_pack_can_target_builder_repo(tmp_path: Path) -> None:
 
     assert result.target == "builder"
     assert result.repo == Path.cwd()
-    assert result.selected_files == ("builder_ii/context_pack.py",)
+    assert result.selected_files == ("builder_ii/core/context_pack.py",)
 
 
 def test_context_pack_record_and_validation(tmp_path: Path) -> None:
-    from builder_ii.context_pack import (
+    from builder_ii.core.context_pack import (
         CONTEXT_PACK_RECORD_KIND,
         CONTEXT_PACK_RECORD_SCHEMA_VERSION,
         create_context_pack_record,
@@ -114,7 +114,7 @@ def test_context_pack_record_and_validation(tmp_path: Path) -> None:
     settings = SimpleNamespace(target_repo=Path.cwd(), project_root=tmp_path)
     result = build_context_pack(
         settings,
-        ContextPackSelection(task="test validation", module="builder_ii/context_pack.py"),
+        ContextPackSelection(task="test validation", module="builder_ii/core/context_pack.py"),
         run_repomix=False,
     )
     record = create_context_pack_record(result, task="test validation")
@@ -134,7 +134,7 @@ def test_context_pack_record_and_validation(tmp_path: Path) -> None:
 
 
 def test_context_pack_validation_failures(tmp_path: Path) -> None:
-    from builder_ii.context_pack import validate_context_pack_record, validate_context_pack_record_file
+    from builder_ii.core.context_pack import validate_context_pack_record, validate_context_pack_record_file
 
     assert "context pack record must be a JSON object" in validate_context_pack_record([])
 
@@ -228,7 +228,7 @@ def test_context_pack_cli_commands(tmp_path: Path) -> None:
             "--task",
             "cli test",
             "--module",
-            "builder_ii/context_pack.py",
+            "builder_ii/core/context_pack.py",
             "--target",
             "builder",
             "--no-repomix",
@@ -248,7 +248,7 @@ def test_context_pack_cli_commands(tmp_path: Path) -> None:
             "--task",
             "cli test file",
             "--module",
-            "builder_ii/context_pack.py",
+            "builder_ii/core/context_pack.py",
             "--target",
             "builder",
             "--no-repomix",

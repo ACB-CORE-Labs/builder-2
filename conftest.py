@@ -39,7 +39,7 @@ def config_environment_keys() -> tuple[str, ...]:
     without anyone editing a list here. A hand-written copy is a second place for the truth to live,
     and the one that drifts is this one.
     """
-    from builder_ii.config_sources import CONFIG_FIELD_SPECS
+    from builder_ii.core.config_sources import CONFIG_FIELD_SPECS
 
     keys: list[str] = []
     for spec in CONFIG_FIELD_SPECS:

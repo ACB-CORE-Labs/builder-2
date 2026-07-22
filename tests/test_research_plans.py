@@ -4,7 +4,7 @@ from pathlib import Path
 from builder_ii.research_cli import research_app
 from typer.testing import CliRunner
 
-from builder_ii.research_plans import (
+from builder_ii.core.research_plans import (
     create_research_plan_artifact,
     dumps_research_plan_artifact,
     research_profile_names,

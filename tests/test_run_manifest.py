@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.config import Settings
-from builder_ii.model_client_registry import create_model_client_registry
-from builder_ii.model_execution_gateway import ModelExecutionGateway
-from builder_ii.model_routing_policy import create_model_execution_policy
-from builder_ii.price_book import create_default_price_book
-from builder_ii.run_manifest import run_manifest_from_receipt, validate_run_manifest
+from builder_ii.core.config import Settings
+from builder_ii.core.run_manifest import run_manifest_from_receipt, validate_run_manifest
+from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+from builder_ii.routing.model_routing_policy import create_model_execution_policy
+from builder_ii.routing.price_book import create_default_price_book
 
 
 def test_run_manifest_from_stub_call(tmp_path: Path) -> None:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from builder_ii.secret_redaction import (
+from builder_ii.validation.secret_redaction import (
     REDACTED_MARKER,
     redact_receipt_for_storage,
     redact_structure,

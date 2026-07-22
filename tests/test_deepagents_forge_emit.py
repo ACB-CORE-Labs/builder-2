@@ -8,8 +8,8 @@ from pathlib import Path
 
 import yaml
 
-from builder_ii.deepagents_forge_emit import HookResult, emit_agent
-from builder_ii.deepagents_forge_schema import DeepAgentSpec
+from builder_ii.adapters.deepagents.deepagents_forge_emit import HookResult, emit_agent
+from builder_ii.adapters.deepagents.deepagents_forge_schema import DeepAgentSpec
 
 
 def _valid_spec(**overrides) -> DeepAgentSpec:
@@ -85,7 +85,7 @@ def test_emit_dry_run_invalid_spec_fails_before_write(tmp_path, monkeypatch):
 def test_emit_reports_optional_hook_failure_without_hiding_profile_write(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
-    import builder_ii.deepagents_forge_emit as emit_mod
+    import builder_ii.adapters.deepagents.deepagents_forge_emit as emit_mod
 
     monkeypatch.setattr(
         emit_mod,

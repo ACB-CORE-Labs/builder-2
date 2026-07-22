@@ -11,15 +11,15 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from builder_ii.verification_execution_approval import (
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
     finalize_verification_execution_approval,
     write_verification_execution_approval,
 )
-from builder_ii.verification_execution_plan import (
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )
-from builder_ii.verification_execution_receipt import (
+from builder_ii.lifecycle.candidate.verification_execution_receipt import (
     RUNNER_MODE_BOUNDED_APPROVED,
     SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
     finalize_verification_execution_receipt,

@@ -4,15 +4,15 @@ import copy
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.config import load_settings
-from builder_ii.goose_readonly_session import (
+from builder_ii.adapters.goose.goose_readonly_session import (
     create_goose_readonly_session_plan,
     validate_goose_readonly_session_plan,
 )
-from builder_ii.handoff_artifacts import create_handoff_artifact, validate_handoff_artifact
-from builder_ii.session_workflow import create_session_workflow_plan, validate_session_workflow_plan
-from builder_ii.verification_profile_reports import (
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.core.config import load_settings
+from builder_ii.core.handoff_artifacts import create_handoff_artifact, validate_handoff_artifact
+from builder_ii.core.session_workflow import create_session_workflow_plan, validate_session_workflow_plan
+from builder_ii.lifecycle.candidate.verification_profile_reports import (
     create_verification_profile_report,
     validate_verification_profile_report,
 )

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.repo_map import (
+from builder_ii.core.repo_map import (
     REPO_MAP_KIND,
     create_repo_map,
     dumps_repo_map,

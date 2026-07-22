@@ -3,15 +3,15 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-from builder_ii.config import load_settings
-from builder_ii.goose_projection import (
+from builder_ii.adapters.goose.goose_projection import (
     GOOSE_PROJECTION_KIND,
     create_goose_projection,
     dumps_goose_projection,
     validate_goose_projection,
     validate_goose_projection_file,
 )
-from builder_ii.session_config import create_session_configuration
+from builder_ii.core.config import load_settings
+from builder_ii.core.session_config import create_session_configuration
 
 
 def _generic_repo(tmp_path: Path) -> Path:
@@ -48,10 +48,11 @@ def test_create_goose_projection_from_session_config(tmp_path: Path) -> None:
 
     surface = projection["goose_native_surface"]
     env = surface["env"]
-    assert env["GOOSE_PROVIDER"] == "openai"
+    # OSS default backend is ollama; Goose maps provider 1:1 for that backend.
+    assert env["GOOSE_PROVIDER"] == "ollama"
     assert env["GOOSE_MODEL"] == settings.mlx_model_qwen
     assert env["GOOSE_TEMPERATURE"] == "0.0"
-    assert env["GOOSE_PLANNER_PROVIDER"] == "openai"
+    assert env["GOOSE_PLANNER_PROVIDER"] == "ollama"
     assert env["GOOSE_PLANNER_MODEL"] == settings.mlx_model_qwen
     assert env["BUILDER_MODEL_ALIAS"] == "qwen-coder"
     assert env["BUILDER_SESSION_MODE"] == "read_only"

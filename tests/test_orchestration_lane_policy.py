@@ -6,8 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, get_command_record
-from builder_ii.orchestration_lane_policy import (
+from builder_ii.core.orchestration_lane_policy import (
     LANE_POLICY_KIND,
     LANE_POLICY_ROWS,
     LANE_POLICY_SCHEMA_VERSION,
@@ -24,6 +23,7 @@ from builder_ii.orchestration_lane_policy import (
     validate_orchestration_lane_policy_artifact_file,
     write_orchestration_lane_policy_artifact,
 )
+from builder_ii.governance.authority import COMMAND_AUTHORITY_REGISTRY, get_command_record
 
 EXPECTED_TABLE = {
     "planning_step": "deepagents",

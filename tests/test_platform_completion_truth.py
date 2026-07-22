@@ -5,13 +5,7 @@ import pytest
 from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
-from builder_ii.command_authority import (
-    COMMAND_AUTHORITY_REGISTRY,
-    MODE_NONE,
-    STATE_ENABLED,
-    TIER_1,
-)
-from builder_ii.platform_completion_audit import (
+from builder_ii.core.platform_completion_audit import (
     ALLOWED_STATE_LABELS,
     MERGED_BUT_NOT_OPERATIONAL,
     OPERATIONALLY_VERIFIED,
@@ -32,7 +26,13 @@ from builder_ii.platform_completion_audit import (
     validate_completion_matrix,
     validate_r1_config_onboarding_mapping,
 )
-from builder_ii.verification_execution_plan import TARGET_CODE_EXECUTING_PROFILES
+from builder_ii.governance.authority import (
+    COMMAND_AUTHORITY_REGISTRY,
+    MODE_NONE,
+    STATE_ENABLED,
+    TIER_1,
+)
+from builder_ii.lifecycle.candidate.verification_execution_plan import TARGET_CODE_EXECUTING_PROFILES
 
 runner = CliRunner()
 
@@ -247,7 +247,7 @@ def test_the_two_rows_that_describe_the_deepagents_trunk_agree_about_its_risk() 
     """One lane cannot carry two risk labels.
 
     `governed obligation delegation` and `deepagents runtime/subagents` both cite
-    `builder_ii/deepagents_execution.py`, and the second row's own blockers describe the first
+    `builder_ii/adapters/deepagents/deepagents_execution.py`, and the second row's own blockers describe the first
     row's trunk (`execution-candidate -> approve-candidate -> run-approved` over protocol_fake) as
     the verified content. Ladder 4 classified the trunk explicitly; this row was left to the
     default and silently read PASSIVE. When two rows describe one lane, the higher-risk label is
@@ -257,7 +257,7 @@ def test_the_two_rows_that_describe_the_deepagents_trunk_agree_about_its_risk() 
     trunk = rows["deepagents runtime/subagents"]
     delegation = rows["governed obligation delegation"]
 
-    assert "builder_ii/deepagents_execution.py" in set(trunk.evidence_files) & set(delegation.evidence_files)
+    assert "builder_ii/adapters/deepagents/deepagents_execution.py" in set(trunk.evidence_files) & set(delegation.evidence_files)
     assert assurance_state_for_row(trunk) == assurance_state_for_row(delegation)
 
 

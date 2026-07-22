@@ -8,10 +8,7 @@ from typing import Any
 import typer
 from rich.console import Console
 
-from builder_ii.cli.deepagents_forge_cli import app as deepagents_forge_app
-from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.config import load_settings
-from builder_ii.deepagents_execution import (
+from builder_ii.adapters.deepagents.deepagents_execution import (
     BACKEND_MODES,
     DEEPAGENTS_BACKEND_READINESS_GATE_KIND,
     DEEPAGENTS_CHECKPOINT_KIND,
@@ -48,7 +45,7 @@ from builder_ii.deepagents_execution import (
     write_deepagents_execution_approval,
     write_deepagents_execution_candidate,
 )
-from builder_ii.deepagents_policy import (
+from builder_ii.adapters.deepagents.deepagents_policy import (
     DeepAgentsMemoryMode,
     DeepAgentsSubagentResultMode,
     create_deepagents_policy_artifact,
@@ -57,7 +54,7 @@ from builder_ii.deepagents_policy import (
     validate_deepagents_policy_artifact_file,
     write_deepagents_policy_artifact,
 )
-from builder_ii.deepagents_readiness import (
+from builder_ii.adapters.deepagents.deepagents_readiness import (
     DeepAgentsReadinessMode,
     create_deepagents_readiness_artifact,
     dumps_deepagents_readiness_artifact,
@@ -65,8 +62,8 @@ from builder_ii.deepagents_readiness import (
     validate_deepagents_readiness_artifact_file,
     write_deepagents_readiness_artifact,
 )
-from builder_ii.deepagents_runtime import DeepAgentsRuntimeHarness
-from builder_ii.deepagents_work_artifacts import (
+from builder_ii.adapters.deepagents.deepagents_runtime import DeepAgentsRuntimeHarness
+from builder_ii.adapters.deepagents.deepagents_work_artifacts import (
     create_deepagents_blocked_action_record,
     create_deepagents_human_gate_request,
     create_deepagents_proposal_result,
@@ -99,7 +96,10 @@ from builder_ii.deepagents_work_artifacts import (
     write_deepagents_subagent_review,
     write_deepagents_work_plan,
 )
-from builder_ii.target_profiles import TargetName, target_names
+from builder_ii.cli.deepagents_forge_cli import app as deepagents_forge_app
+from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.core.config import load_settings
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names
 
 deepagents_app = typer.Typer(help="Create and validate artifact-only governed deepagents JSON.")
 console = Console(width=240)
@@ -297,8 +297,8 @@ def run_readonly(
     """
     import json as json_lib
 
-    from builder_ii.agent_readonly_runner import AgentReadonlyError, run_readonly_agent
     from builder_ii.cli.plain_stdout import echo_stdout
+    from builder_ii.routing.agent_readonly_runner import AgentReadonlyError, run_readonly_agent
 
     try:
         receipt = run_readonly_agent(

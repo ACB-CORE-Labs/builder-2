@@ -31,7 +31,7 @@
 # --receipt -- opt-in, additive. When given, emits a `builder_ii.gate_battery_receipt`
 # artifact to naming exactly which gates ran, their argv/exit codes/durations, the git
 # HEAD before and after, and whether the tree was clean. It is a RECORDED_ONLY receipt, not an
-# independent proof -- see builder_ii/gate_battery_receipt.py's module docstring for the honest
+# independent proof -- see builder_ii/governance/ledger/gate_battery_receipt.py's module docstring for the honest
 # limit. With no --receipt, this script's behavior is unchanged from before this flag existed.
 #
 # Resource discipline (shared Forgejo runner):

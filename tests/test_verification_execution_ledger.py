@@ -7,12 +7,8 @@ from typing import Any
 from builder_ii.ledger_cli import ledger_app
 from typer.testing import CliRunner
 
-from builder_ii.config_schema import attach_digest
-from builder_ii.verification_execution_approval import (
-    finalize_verification_execution_approval,
-    write_verification_execution_approval,
-)
-from builder_ii.verification_execution_ledger import (
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.governance.ledger.verification_execution_ledger import (
     LEDGER_RECORD_STATE,
     VERIFICATION_EXECUTION_LEDGER_INTEGRITY_REPORT_KIND,
     VERIFICATION_EXECUTION_LEDGER_QUERY_REPORT_KIND,
@@ -34,11 +30,15 @@ from builder_ii.verification_execution_ledger import (
     validate_verification_execution_ledger_record,
     write_verification_execution_ledger_record,
 )
-from builder_ii.verification_execution_plan import (
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
+    finalize_verification_execution_approval,
+    write_verification_execution_approval,
+)
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )
-from builder_ii.verification_execution_receipt import (
+from builder_ii.lifecycle.candidate.verification_execution_receipt import (
     RUNNER_MODE_BOUNDED_APPROVED,
     SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
     finalize_verification_execution_receipt,

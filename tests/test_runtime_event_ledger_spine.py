@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.event_ledger import (
+from builder_ii.governance.ledger.event_ledger import (
     validate_event_chain_integrity,
     validate_event_record,
 )
-from builder_ii.runtime_event_append import append_runtime_event
+from builder_ii.lifecycle.candidate.runtime_event_append import append_runtime_event
 
 
 def test_append_runtime_event_hash_chain(tmp_path: Path) -> None:

@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.config import Settings
-from builder_ii.model_client_registry import create_model_client_registry
-from builder_ii.model_execution_gateway import ModelExecutionGateway, validate_model_call_receipt
-from builder_ii.model_routing_policy import create_model_execution_policy
-from builder_ii.price_book import create_default_price_book
-from builder_ii.token_accounting import count_tokens_whitespace_v1
+from builder_ii.core.config import Settings
+from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_execution_gateway import ModelExecutionGateway, validate_model_call_receipt
+from builder_ii.routing.model_routing_policy import create_model_execution_policy
+from builder_ii.routing.price_book import create_default_price_book
+from builder_ii.routing.token_accounting import count_tokens_whitespace_v1
 
 
 @pytest.fixture

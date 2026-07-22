@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.stratum_prepare import (
+from builder_ii.lifecycle.setup.stratum_prepare import (
     AUTO_GOOSE_MANIFEST_NAME,
     ensure_builder_scaffold,
     ensure_readonly_goose_manifest,
@@ -23,7 +23,7 @@ def test_ensure_builder_scaffold(tmp_path: Path) -> None:
 
 
 def test_ensure_readonly_goose_manifest_creates_when_missing(tmp_path: Path) -> None:
-    from builder_ii.config import load_settings
+    from builder_ii.core.config import load_settings
 
     settings = load_settings()
     builder_root = tmp_path / ".builder"
@@ -41,8 +41,8 @@ def test_ensure_readonly_goose_manifest_creates_when_missing(tmp_path: Path) -> 
 
 def test_ensure_readonly_reuses_other_valid_readonly_manifest(tmp_path: Path) -> None:
     """Prefer an operator-minted valid read_only file over minting the auto name."""
-    from builder_ii.config import load_settings
-    from builder_ii.goose_session import create_goose_session_manifest, write_goose_session_manifest
+    from builder_ii.adapters.goose.goose_session import create_goose_session_manifest, write_goose_session_manifest
+    from builder_ii.core.config import load_settings
 
     settings = load_settings()
     builder_root = tmp_path / ".builder"

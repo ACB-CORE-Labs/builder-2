@@ -7,9 +7,8 @@ from typing import Optional
 import typer
 from rich.console import Console
 
-from builder_ii.agent_profiles import AgentProfileName
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.orchestration_assignment import (
+from builder_ii.core.orchestration_assignment import (
     AGENT_ASSIGNMENT_PLAN_KIND,
     ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
     ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
@@ -28,14 +27,15 @@ from builder_ii.orchestration_assignment import (
     write_orchestration_assignment_dry_run,
     write_orchestration_assignment_plan,
 )
-from builder_ii.orchestration_plan import (
+from builder_ii.core.orchestration_plan import (
     ORCHESTRATION_PLAN_KIND,
     create_orchestration_plan,
     dumps_orchestration_plan,
     validate_orchestration_plan,
     validate_orchestration_plan_file,
 )
-from builder_ii.target_profiles import TargetName
+from builder_ii.lifecycle.setup.target_profiles import TargetName
+from builder_ii.routing.agent_profiles import AgentProfileName
 
 orchestration_app = typer.Typer(help="Create and validate governed agent orchestration plan artifacts.")
 console = Console()
@@ -352,7 +352,7 @@ def lane_policy(
     output: Optional[Path] = typer.Option(None, "--output", "-o", help="Write the lane policy artifact JSON to this path"),
 ) -> None:
     """Render the governed orchestration lane policy artifact (derived from the fixed lane table)."""
-    from builder_ii.orchestration_lane_policy import (
+    from builder_ii.core.orchestration_lane_policy import (
         create_orchestration_lane_policy_artifact,
         dumps_orchestration_lane_policy_artifact,
         validate_discharge_mechanisms_against_registry,
@@ -381,7 +381,7 @@ def validate_lane_policy(
     path: Path = typer.Argument(..., help="Path to an orchestration lane policy JSON file"),
 ) -> None:
     """Validate a governed orchestration lane policy artifact file (schema + live registry linkage)."""
-    from builder_ii.orchestration_lane_policy import (
+    from builder_ii.core.orchestration_lane_policy import (
         validate_discharge_mechanisms_against_registry,
         validate_orchestration_lane_policy_artifact_file,
     )
@@ -448,13 +448,13 @@ def mint_obligation(
     against) the supplied lane policy, and its digest is pinned into the obligation. No runtime
     enforcement of the budget envelope happens here — that is the seal/runner's job (PR-4).
     """
-    from builder_ii.orchestration_lane_policy import (
+    from builder_ii.core.orchestration_lane_policy import (
         LanePolicyViolation,
         lane_for_obligation_kind,
         require_lane_match,
         validate_orchestration_lane_policy_artifact,
     )
-    from builder_ii.orchestration_obligation import (
+    from builder_ii.core.orchestration_obligation import (
         create_orchestration_obligation,
         validate_orchestration_obligation,
     )
@@ -541,7 +541,7 @@ def validate_obligation(
     path: Path = typer.Argument(..., help="Path to an orchestration obligation JSON file"),
 ) -> None:
     """Validate a governed orchestration obligation artifact file."""
-    from builder_ii.orchestration_obligation import validate_orchestration_obligation_file
+    from builder_ii.core.orchestration_obligation import validate_orchestration_obligation_file
 
     errors = validate_orchestration_obligation_file(path)
     if errors:
@@ -564,7 +564,7 @@ def status(
     the granted budget partition. No model, no execution, no writes. Exits non-zero on a broken or
     tampered event chain, or on missing run artifacts.
     """
-    from builder_ii.orchestration_status import build_obligation_board, render_status_table
+    from builder_ii.core.orchestration_status import build_obligation_board, render_status_table
 
     try:
         board = build_obligation_board(run_output_dir)
@@ -601,7 +601,7 @@ def why(
     No model, no execution, no writes. Exits non-zero unless the obligation is CONTRACT_SATISFIED
     with an intact event chain.
     """
-    from builder_ii.orchestration_status import build_belief_trace
+    from builder_ii.core.orchestration_status import build_belief_trace
 
     try:
         trace = build_belief_trace(artifact_path)

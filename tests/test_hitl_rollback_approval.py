@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.hitl_rollback_approval import (
+from builder_ii.governance.hitl.hitl_rollback_approval import (
     HITL_ROLLBACK_APPROVAL_KIND,
     approval_is_expired,
     canonical_json_digest,

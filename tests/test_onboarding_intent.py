@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.onboarding_intent import (
+from builder_ii.lifecycle.setup.onboarding_intent import (
     ONBOARDING_INTENT_KIND,
     finalize_onboarding_intent_report,
     validate_onboarding_intent_report_artifact,
@@ -60,7 +60,7 @@ def test_missing_disabled_authority_fails():
     report = _sample_report()
     report["disabled_authority"]["runtime_execution"] = "enabled"
     # Re-sign digest so failure is specifically from disabled authority check
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
@@ -70,7 +70,7 @@ def test_missing_disabled_authority_fails():
 def test_command_string_with_unmanaged_language_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup apply && bash -c 'echo bad'"
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
@@ -91,7 +91,7 @@ def test_file_validation_and_write(tmp_path: Path):
 def test_apply_command_missing_approve_digest_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup apply /tmp/test/setup-overlay.json"
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
@@ -101,7 +101,7 @@ def test_apply_command_missing_approve_digest_fails():
 def test_apply_command_wrong_digest_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup apply /tmp/test/setup-overlay.json --approve-digest " + ("1" * 64)
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
@@ -111,7 +111,7 @@ def test_apply_command_wrong_digest_fails():
 def test_apply_command_wrong_subcommand_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup plan /tmp/test/setup-overlay.json --approve-digest " + ("b" * 64)
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
@@ -121,7 +121,7 @@ def test_apply_command_wrong_subcommand_fails():
 def test_validate_receipt_command_wrong_subcommand_fails():
     report = _sample_report()
     report["validate_receipt_command"] = "builder-setup validate-plan /tmp/test/receipt.json"
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
@@ -131,7 +131,7 @@ def test_validate_receipt_command_wrong_subcommand_fails():
 def test_rollback_command_missing_digest_placeholder_fails():
     report = _sample_report()
     report["rollback_command"] = "builder-setup rollback /tmp/test/receipt.json"
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
@@ -143,7 +143,7 @@ def test_rollback_command_missing_digest_placeholder_fails():
 def test_shell_separator_still_fails():
     report = _sample_report()
     report["apply_command"] = "builder-setup apply /tmp/test/setup-overlay.json ; rm -rf /"
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)
@@ -159,7 +159,7 @@ def test_command_allowing_model_lab_and_git_safe_dir_paths():
     report["rollback_command"] = (
         "builder-setup rollback /tmp/git-safe-dir/setup-receipt.json --approve-digest <setup_receipt_digest>"
     )
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     report = attach_digest(report, digest_key="onboarding_intent_digest")
     errors = validate_onboarding_intent_report_artifact(report)

@@ -21,24 +21,28 @@ from unittest.mock import patch
 
 from hitl_patch_lane_helpers import PATCH_DIFF, init_target_repo, real_verification_receipt
 
-from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-from builder_ii.hitl_patch_apply import FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, apply_hitl_patch, rollback_hitl_patch
-from builder_ii.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
-from builder_ii.hitl_patch_ledger import (
+from builder_ii.core.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.governance.hitl.hitl_patch_apply import (
+    FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
+    apply_hitl_patch,
+    rollback_hitl_patch,
+)
+from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
+from builder_ii.governance.hitl.hitl_patch_ledger import (
     EVENT_PATCH_APPLIED,
     EVENT_PATCH_ROLLED_BACK,
     HITL_PATCH_LEDGER_RECORD_KIND,
     validate_hitl_patch_ledger_record_file,
 )
-from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
-from builder_ii.hitl_rollback_approval import (
+from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.governance.hitl.hitl_rollback_approval import (
     canonical_json_digest,
     create_hitl_rollback_approval,
     write_hitl_rollback_approval,
 )
-from builder_ii.verification_execution_receipt import validate_verification_execution_receipt_file
+from builder_ii.governance.ledger.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
+from builder_ii.lifecycle.candidate.verification_execution_receipt import validate_verification_execution_receipt_file
 
 
 def test_unmocked_apply_rollback_emits_and_chain_verifies_ledger(tmp_path: Path) -> None:

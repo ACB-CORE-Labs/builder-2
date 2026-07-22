@@ -33,8 +33,7 @@ from builder_ii.deepagents_cli import deepagents_app
 from test_deepagents_execution import _work_plan_fixture
 from typer.testing import CliRunner
 
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.deepagents_execution import (
+from builder_ii.adapters.deepagents.deepagents_execution import (
     DISCHARGE_BLOCKED,
     DISCHARGE_CONTRACT_SATISFIED,
     DISCHARGE_CONTRACT_VIOLATED,
@@ -46,8 +45,9 @@ from builder_ii.deepagents_execution import (
     validate_deepagents_execution_approval_against_candidate,
     validate_deepagents_replay_report,
 )
-from builder_ii.orchestration_lane_policy import create_orchestration_lane_policy_artifact
-from builder_ii.orchestration_obligation import create_orchestration_obligation
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.core.orchestration_lane_policy import create_orchestration_lane_policy_artifact
+from builder_ii.core.orchestration_obligation import create_orchestration_obligation
 
 runner = CliRunner()
 

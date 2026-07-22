@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.price_book import (
+from builder_ii.routing.price_book import (
     PRICE_BOOK_KIND,
     create_default_price_book,
     lookup_price_entry,
     validate_price_book,
     write_price_book,
 )
-from builder_ii.token_accounting import (
+from builder_ii.routing.token_accounting import (
     TOKENIZER_WHITESPACE_V1,
     build_cost_report,
     count_tokens,
@@ -100,6 +100,6 @@ def test_price_book_write_roundtrip(tmp_path: Path) -> None:
     path = tmp_path / "price_book.json"
     write_price_book(book, path)
     assert path.is_file()
-    from builder_ii.price_book import validate_price_book_file
+    from builder_ii.routing.price_book import validate_price_book_file
 
     assert validate_price_book_file(path) == []

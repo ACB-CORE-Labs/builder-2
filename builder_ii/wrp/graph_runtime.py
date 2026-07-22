@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, Mapping, Sequence
 
-from builder_ii.config_schema import attach_digest
+from builder_ii.core.config_schema import attach_digest
 from builder_ii.wrp.spaces import TrajectoryGraph
 
 # Pure runtime always knows noop/record. Gateway types need a live-lane handler.

@@ -11,21 +11,36 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
-from builder_ii.approval_records import create_approval_record, validate_approval_record
-from builder_ii.artifact_index_records import create_artifact_index_record, validate_artifact_index_record
-from builder_ii.chain_summary_records import create_chain_summary_record, validate_chain_summary_record
-from builder_ii.goose_command_proposal import create_goose_command_proposal, validate_goose_command_proposal
-from builder_ii.handoff_bundle_records import create_handoff_bundle_record, validate_handoff_bundle_record
-from builder_ii.preflight_records import create_preflight_record, validate_preflight_record
-from builder_ii.promotion_decision_records import create_promotion_decision_record, validate_promotion_decision_record
-from builder_ii.promotion_readiness_records import (
+from builder_ii.adapters.goose.goose_command_proposal import (
+    create_goose_command_proposal,
+    validate_goose_command_proposal,
+)
+from builder_ii.governance.ledger.artifact_index_records import (
+    create_artifact_index_record,
+    validate_artifact_index_record,
+)
+from builder_ii.governance.ledger.chain_summary_records import (
+    create_chain_summary_record,
+    validate_chain_summary_record,
+)
+from builder_ii.governance.ledger.handoff_bundle_records import (
+    create_handoff_bundle_record,
+    validate_handoff_bundle_record,
+)
+from builder_ii.governance.ledger.receipt_records import create_receipt_record, validate_receipt_record
+from builder_ii.governance.ledger.receive_records import create_receive_record, validate_receive_record
+from builder_ii.governance.ledger.snapshot_records import create_snapshot_record, validate_snapshot_record
+from builder_ii.governance.ledger.state_ledger_records import create_state_ledger_record, validate_state_ledger_record
+from builder_ii.lifecycle.candidate.approval_records import create_approval_record, validate_approval_record
+from builder_ii.lifecycle.candidate.preflight_records import create_preflight_record, validate_preflight_record
+from builder_ii.lifecycle.candidate.promotion_decision_records import (
+    create_promotion_decision_record,
+    validate_promotion_decision_record,
+)
+from builder_ii.lifecycle.candidate.promotion_readiness_records import (
     create_promotion_readiness_record,
     validate_promotion_readiness_record,
 )
-from builder_ii.receipt_records import create_receipt_record, validate_receipt_record
-from builder_ii.receive_records import create_receive_record, validate_receive_record
-from builder_ii.snapshot_records import create_snapshot_record, validate_snapshot_record
-from builder_ii.state_ledger_records import create_state_ledger_record, validate_state_ledger_record
 
 # ---------------------------------------------------------------------------
 # Minimal fixture factories

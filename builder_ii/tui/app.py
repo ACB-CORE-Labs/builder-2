@@ -13,14 +13,14 @@ from textual.binding import Binding
 from textual.containers import Horizontal
 from textual.widgets import Footer, Static
 
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.command_authority import (
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.core.config import load_settings
+from builder_ii.governance.authority import (
     COMMAND_AUTHORITY_REGISTRY,
     TIER_3,
     TIER_4,
     check_command_authority,
 )
-from builder_ii.config import load_settings
 from builder_ii.tui.widgets.cli_passthrough import CLIPassthroughScreen, ConfirmScreen
 from builder_ii.tui.widgets.palette import CommandPaletteScreen
 from builder_ii.tui.widgets.signals import SignalRail
@@ -63,7 +63,7 @@ class HeaderBanner(Static):
         self.session = "—"
 
     def render(self) -> str:
-        from builder_ii.tui_theme import theme_palette
+        from builder_ii.core.tui_theme import theme_palette
 
         p = theme_palette()
         now = datetime.now().strftime("%H:%M")
@@ -153,7 +153,7 @@ class StratumApp(App[None]):
     def _apply_theme(self) -> None:
         from textual.theme import Theme
 
-        from builder_ii.tui_theme import _REGISTRY, active_theme_name, list_themes, theme_extras, theme_palette
+        from builder_ii.core.tui_theme import _REGISTRY, active_theme_name, list_themes, theme_extras, theme_palette
 
         # Register default Cosmic Void theme from palette + extras
         default_palette = _REGISTRY["default"]
@@ -276,7 +276,7 @@ class StratumApp(App[None]):
         self._maybe_surface_hitl()
 
     def _maybe_open_first_run_guide(self) -> None:
-        from builder_ii.stratum_guide import should_auto_open_guide
+        from builder_ii.lifecycle.setup.stratum_guide import should_auto_open_guide
 
         if not self.stratum:
             return
@@ -307,7 +307,7 @@ class StratumApp(App[None]):
             )
 
     def action_dismiss_guide(self) -> None:
-        from builder_ii.stratum_guide import dismiss_guide
+        from builder_ii.lifecycle.setup.stratum_guide import dismiss_guide
 
         if not self.stratum or self.stratum.mode != StratumMode.GUIDE:
             return
@@ -559,7 +559,7 @@ class StratumApp(App[None]):
         launder. So the screen composes, and the operator runs.
         """
         if cmd:
-            from builder_ii.stratum_guide import normalize_composed_command
+            from builder_ii.lifecycle.setup.stratum_guide import normalize_composed_command
 
             display = normalize_composed_command(cmd)
             self.notify(f"Composed: {display} — run it in your terminal; STRATUM executes nothing.")
@@ -739,7 +739,7 @@ class StratumApp(App[None]):
 
     def _governed_readonly_manifest(self) -> Path | None:
         """Newest valid read_only Goose session manifest under .builder/goose, if any."""
-        from builder_ii.goose_session import validate_goose_session_manifest_file
+        from builder_ii.adapters.goose.goose_session import validate_goose_session_manifest_file
 
         manifest_dir = self.artifacts_dir.parent / self._GOOSE_MANIFEST_DIR
         if not manifest_dir.is_dir():
@@ -775,7 +775,7 @@ class StratumApp(App[None]):
 
         Called only after ConfirmScreen yes. Does not start Goose or grant authority.
         """
-        from builder_ii.stratum_prepare import ensure_readonly_goose_manifest
+        from builder_ii.lifecycle.setup.stratum_prepare import ensure_readonly_goose_manifest
 
         path, note = ensure_readonly_goose_manifest(
             settings=self.settings,
@@ -822,7 +822,7 @@ class StratumApp(App[None]):
         Still fail-closed on command authority; start-readonly applies its own policy, receipts,
         and no-mutation postflight.
         """
-        from builder_ii.command_authority import CommandAuthorityError, enforce_command_authority
+        from builder_ii.governance.authority import CommandAuthorityError, enforce_command_authority
 
         try:
             enforce_command_authority(self.GOVERNED_GOOSE_COMMAND)
@@ -866,7 +866,7 @@ class StratumApp(App[None]):
             )
 
     def action_operator_next(self) -> None:
-        from builder_ii.operator_next import create_operator_next_action_report
+        from builder_ii.lifecycle.setup.operator_next import create_operator_next_action_report
 
         try:
             report = create_operator_next_action_report()

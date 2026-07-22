@@ -10,7 +10,7 @@ already ran.
 
 from pathlib import Path
 
-from builder_ii.verification_execution_runner import _parse_junit_structured_outcome
+from builder_ii.lifecycle.candidate.verification_execution_runner import _parse_junit_structured_outcome
 
 
 def test_valid_junit_yields_structured_counts(tmp_path: Path) -> None:

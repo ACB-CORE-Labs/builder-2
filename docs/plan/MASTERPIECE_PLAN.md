@@ -126,7 +126,7 @@ Status: candidate audit artifact surface implemented; actual repository inspecti
 Implemented candidate surfaces:
 
 - `docs/GOOSE_READONLY.md`
-- `builder_ii/goose_readonly.py`
+- `builder_ii/adapters/goose/goose_readonly.py`
 - `builder-goose readonly-audit`
 - `builder-goose validate-audit`
 - read-only candidate audit artifact tests
@@ -205,7 +205,7 @@ deepagents must not directly mutate files, bypass builder-II governance, bypass 
 **Reclassified 2026-07-11 (masterpiece ladder hygiene):** arbitrary HITL command execution is a
 **permanent non-goal**, not a deferred phase.
 
-`builder_ii/hitl_command_runner.py` raises `RunCommandDisabledError` unconditionally (fail-closed by
+`builder_ii/governance/hitl/hitl_command_runner.py` raises `RunCommandDisabledError` unconditionally (fail-closed by
 design). Postflight / operator work uses the **bounded verification lane** instead — fixed argv,
 `shell=False`, per-profile timeouts, ignore-globs pinned in-profile (`platform_status`, `docs_audit`,
 `pytest_full`, `builder_full`, …). Growing the approved-profile registry is strictly safer than

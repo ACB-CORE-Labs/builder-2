@@ -6,16 +6,16 @@ from unittest.mock import patch
 
 import pytest
 
-from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
-from builder_ii.artifact_index_records import _VALIDATORS
-from builder_ii.config import load_settings
-from builder_ii.convention_kernel import (
+from builder_ii.core.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
+from builder_ii.core.config import load_settings
+from builder_ii.governance.authority.convention_kernel import (
     CONVENTION_KERNEL_PLATFORM_BUNDLE_KIND,
     ConventionKernel,
     ConventionKernelPlatformBundle,
     check_artifact_governance_safety,
     validate_convention_kernel_platform_bundle,
 )
+from builder_ii.governance.ledger.artifact_index_records import _VALIDATORS
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -125,7 +125,7 @@ def test_prepare_platform_spine_rejects_unsafe_governance(mock_create, tmp_path)
     kernel = ConventionKernel()
 
     # Mock create_session_workflow_plan to return an unsafe governance block
-    from builder_ii.session_workflow import create_session_workflow_plan as orig_create_session
+    from builder_ii.core.session_workflow import create_session_workflow_plan as orig_create_session
 
     def unsafe_create_session(*args, **kwargs):
         res = orig_create_session(*args, **kwargs)
@@ -149,7 +149,7 @@ def test_prepare_platform_spine_rejects_unregistered_command(mock_create, tmp_pa
     kernel = ConventionKernel()
 
     # Mock create_session_workflow_plan to inject an unregistered planned command
-    from builder_ii.session_workflow import create_session_workflow_plan as orig_create_session
+    from builder_ii.core.session_workflow import create_session_workflow_plan as orig_create_session
 
     def unregistered_cmd_session(*args, **kwargs):
         res = orig_create_session(*args, **kwargs)
@@ -172,7 +172,7 @@ def test_prepare_platform_spine_rejects_unmarked_tier2_command(tmp_path, monkeyp
     kernel = ConventionKernel()
 
     # Mock create_session_workflow_plan to inject a Tier 2 command
-    import builder_ii.convention_kernel
+    import builder_ii.governance.authority.convention_kernel
 
     orig_create_session = builder_ii.convention_kernel.create_session_workflow_plan
 
@@ -236,7 +236,7 @@ def test_governance_safety_rejects_missing_keys():
 
 
 def test_command_match_exact_and_fallback_ambiguity():
-    from builder_ii.convention_kernel import find_matching_record
+    from builder_ii.governance.authority.convention_kernel import find_matching_record
 
     # 1. Exact match works
     rec = find_matching_record("builder-context pack --target builder")
@@ -263,8 +263,8 @@ def test_group_fallback_hands_down_a_tier_ceiling_and_no_capability_flags():
     promotion state are a ceiling the subcommand cannot exceed, so those carry down. Its capability
     flags describe the group, and handing them to an unwritten command grants authority by name.
     """
-    from builder_ii.command_authority import CAPABILITY_FLAGS, get_command_record
-    from builder_ii.convention_kernel import find_matching_record
+    from builder_ii.governance.authority import CAPABILITY_FLAGS, get_command_record
+    from builder_ii.governance.authority.convention_kernel import find_matching_record
 
     group = get_command_record("builder-code-vault")
     assert group is not None and group.allows_artifact_writes, "this pin is vacuous if the group declares nothing"
@@ -286,8 +286,8 @@ def test_a_stand_in_record_never_inherits_from_itself():
     none. `inheritance_errors` is the single checker the registry is held to; the stand-in record is
     held to the same one, because `validate_registry_invariants` never sees it.
     """
-    from builder_ii.command_authority import inheritance_errors
-    from builder_ii.convention_kernel import find_matching_record
+    from builder_ii.governance.authority import inheritance_errors
+    from builder_ii.governance.authority.convention_kernel import find_matching_record
 
     for command in ("builder-code-vault nonsense", "builder-goose frobnicate"):
         resolved = find_matching_record(command)
@@ -305,8 +305,8 @@ def test_a_group_that_declares_runtime_authority_does_not_delegate_it():
     `readonly_subprocess` and `external_tool_invocation`. That gap is exactly the authority an
     unregistered `builder-runtime <x>` would acquire for free if group-ness implied delegation.
     """
-    from builder_ii.command_authority import get_command_record
-    from builder_ii.convention_kernel import find_matching_record
+    from builder_ii.governance.authority import get_command_record
+    from builder_ii.governance.authority.convention_kernel import find_matching_record
 
     group = get_command_record("builder-runtime")
     assert group is not None and group.allows_runtime_start and group.is_command_group
@@ -341,7 +341,7 @@ def test_platform_bundle_validation_checks_child_artifact_governance(tmp_path):
 
 
 def test_platform_bundle_reference_extraction_handles_missing_handoff_note():
-    from builder_ii.artifact_chain_verification import extract_references
+    from builder_ii.core.artifact_chain_verification import extract_references
 
     refs = extract_references(
         {

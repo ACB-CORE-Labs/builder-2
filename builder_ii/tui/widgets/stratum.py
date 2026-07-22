@@ -599,7 +599,7 @@ class ActiveStratum(Vertical):
     def _render_platform_audit(self) -> None:
         lines = [section_title("PLATFORM AUDIT"), rule()]
         try:
-            from builder_ii.platform_completion_audit import capability_rows
+            from builder_ii.core.platform_completion_audit import capability_rows
 
             for row in capability_rows():
                 state_str = str(row.state)
@@ -759,9 +759,9 @@ class ActiveStratum(Vertical):
         lines = [section_title("QUALITY GATES", "warn"), rule()]
         target = self._platform_info.get("target") or self._target or "generic"
         try:
-            from builder_ii.quality_gates import create_quality_gate_artifact
-            from builder_ii.target_profiles import target_names
-            from builder_ii.verification_profiles import default_profile_for_target
+            from builder_ii.lifecycle.candidate.verification_profiles import default_profile_for_target
+            from builder_ii.lifecycle.setup.target_profiles import target_names
+            from builder_ii.validation.quality_gates import create_quality_gate_artifact
 
             t = target if target in target_names() else "generic"
             try:
@@ -802,7 +802,7 @@ class ActiveStratum(Vertical):
     def _render_tooling_health(self) -> None:
         lines = [section_title("TOOLING HEALTH", "pass"), rule()]
         try:
-            from builder_ii.tool_registry import check_tools
+            from builder_ii.core.tool_registry import check_tools
 
             for chk in check_tools():
                 if chk.installed:
@@ -817,7 +817,7 @@ class ActiveStratum(Vertical):
         self._write("\n".join(lines))
 
     def _render_help(self) -> None:
-        from builder_ii.stratum_guide import help_boundary_lines, help_keymap_lines, walkthrough_lines
+        from builder_ii.lifecycle.setup.stratum_guide import help_boundary_lines, help_keymap_lines, walkthrough_lines
 
         pages = (
             ("KEYMAP", help_keymap_lines()),
@@ -845,7 +845,7 @@ class ActiveStratum(Vertical):
         self._write("\n".join(lines))
 
     def _render_guide(self) -> None:
-        from builder_ii.stratum_guide import walkthrough_lines
+        from builder_ii.lifecycle.setup.stratum_guide import walkthrough_lines
 
         lines = [
             section_title("FIRST SESSION WALKTHROUGH", "warn"),

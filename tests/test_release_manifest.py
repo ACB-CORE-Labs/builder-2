@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.release_manifest import (
+from builder_ii.core.release_manifest import (
     V0_RELEASE_MANIFEST_KIND,
     create_artifact_ref,
     create_v0_release_manifest,

@@ -9,11 +9,11 @@ from types import SimpleNamespace
 from typer.testing import CliRunner
 
 from builder_ii.cli.platform_status_cli import platform_app
-from builder_ii.final_loop_smoke import (
+from builder_ii.core.final_loop_smoke import (
     run_final_loop_smoke,
     validate_final_loop_smoke_report,
 )
-from builder_ii.promotion_decision_records import validate_promotion_decision_record
+from builder_ii.lifecycle.candidate.promotion_decision_records import validate_promotion_decision_record
 
 
 def _settings(tmp_path: Path) -> SimpleNamespace:
@@ -83,7 +83,7 @@ def test_final_loop_smoke_core_missing_repo_honest(tmp_path: Path) -> None:
 
 def test_cli_final_loop_smoke(tmp_path: Path, monkeypatch) -> None:
     settings = _settings(tmp_path)
-    # The CLI does `from builder_ii.final_loop_smoke import run_final_loop_smoke` at call time.
+    # The CLI does `from builder_ii.core.final_loop_smoke import run_final_loop_smoke` at call time.
     # Force the smoke runner to use tmp fixtures regardless of ambient load_settings/target_repo.
     real_run = run_final_loop_smoke
 

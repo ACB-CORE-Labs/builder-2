@@ -4,7 +4,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from builder_ii.cli.platform_status_cli import platform_app
-from builder_ii.operator_lane import (
+from builder_ii.lifecycle.setup.operator_lane import (
     OPERATOR_LANE_REPORT_KIND,
     run_operator_lane,
     validate_operator_lane_report,

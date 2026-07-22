@@ -8,35 +8,35 @@ from rich.console import Console
 
 from builder_ii.cli.config_cli import _override_map
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.config_sources import resolve_config_sources
-from builder_ii.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH
-from builder_ii.onboarding_intent import validate_onboarding_intent_report_file
-from builder_ii.setup_apply import SetupApplyError, apply_setup_overlay
-from builder_ii.setup_onboarding import run_onboarding_pipeline
-from builder_ii.setup_overlay import (
+from builder_ii.core.config_sources import resolve_config_sources
+from builder_ii.governance.hitl.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH
+from builder_ii.lifecycle.setup.onboarding_intent import validate_onboarding_intent_report_file
+from builder_ii.lifecycle.setup.setup_apply import SetupApplyError, apply_setup_overlay
+from builder_ii.lifecycle.setup.setup_onboarding import run_onboarding_pipeline
+from builder_ii.lifecycle.setup.setup_overlay import (
     create_setup_overlay_plan,
     dumps_setup_overlay_plan,
     validate_setup_overlay_plan_artifact,
     validate_setup_overlay_plan_file,
     write_setup_overlay_plan,
 )
-from builder_ii.setup_plan import (
+from builder_ii.lifecycle.setup.setup_plan import (
     create_setup_plan,
     dumps_setup_plan,
     validate_setup_plan_artifact,
     validate_setup_plan_file,
     write_setup_plan,
 )
-from builder_ii.setup_receipt import validate_setup_receipt_file
-from builder_ii.setup_rollback import (
+from builder_ii.lifecycle.setup.setup_receipt import validate_setup_receipt_file
+from builder_ii.lifecycle.setup.setup_rollback import (
     create_setup_rollback_snapshot,
     dumps_setup_rollback_snapshot,
     validate_setup_rollback_snapshot_artifact,
     validate_setup_rollback_snapshot_file,
     write_setup_rollback_snapshot,
 )
-from builder_ii.setup_rollback_execute import SetupRollbackError, execute_setup_rollback
-from builder_ii.setup_rollback_receipt import validate_setup_rollback_receipt_file
+from builder_ii.lifecycle.setup.setup_rollback_execute import SetupRollbackError, execute_setup_rollback
+from builder_ii.lifecycle.setup.setup_rollback_receipt import validate_setup_rollback_receipt_file
 
 setup_app = typer.Typer(
     help="Create, validate, and digest-apply governed setup artifacts.",
@@ -473,8 +473,8 @@ def setup_wizard_step_definitions():
     (pre-existing, characterized behavior); harmonizing it is an operator decision outside
     this PR.
     """
-    from builder_ii.init_decisions import prompted_decision_options_provider, validate_decision_value
-    from builder_ii.wizard_framework import WizardStep
+    from builder_ii.lifecycle.setup.init_decisions import prompted_decision_options_provider, validate_decision_value
+    from builder_ii.lifecycle.setup.wizard_framework import WizardStep
 
     return (
         WizardStep(
@@ -520,7 +520,7 @@ def setup_wizard(
     model_alias: str | None = typer.Option(None, "--model-alias", help="Model alias override."),
 ) -> None:
     """Interactive guided onboarding wizard flow."""
-    from builder_ii.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
+    from builder_ii.lifecycle.setup.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
 
     engine = WizardEngine(steps=setup_wizard_step_definitions())
     for step_id, provided in (

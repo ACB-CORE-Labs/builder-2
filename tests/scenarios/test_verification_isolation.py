@@ -16,26 +16,26 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from builder_ii.verification_execution_approval import (
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
     finalize_verification_execution_approval,
     write_verification_execution_approval,
 )
-from builder_ii.verification_execution_plan import (
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )
-from builder_ii.verification_execution_receipt import (
+from builder_ii.lifecycle.candidate.verification_execution_receipt import (
     finalize_verification_execution_receipt,
     validate_verification_execution_receipt_artifact,
 )
-from builder_ii.verification_execution_runner import (
+from builder_ii.lifecycle.candidate.verification_execution_runner import (
     SUPPORTED_COMMAND_PROFILES,
     _minimal_env,
     _process_result_from_completed,
     run_approved_verification,
 )
-from builder_ii.verification_isolation_backend import DockerBackend, NoneBackend, get_backend
-from builder_ii.verification_isolation_policy import (
+from builder_ii.lifecycle.candidate.verification_isolation_backend import DockerBackend, NoneBackend, get_backend
+from builder_ii.lifecycle.candidate.verification_isolation_policy import (
     finalize_verification_isolation_policy,
     validate_verification_isolation_policy_artifact,
 )

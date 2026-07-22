@@ -21,7 +21,7 @@ This amendment identifies the highest-leverage integration and performance track
 
 ## Current-state boundary
 
-The source of truth for platform state is now the machine-readable capability matrix and docs audit surface in `builder_ii/platform_completion_audit.py`, exposed through `builder-platform status`, `builder-platform matrix`, and `builder-platform audit-docs`.
+The source of truth for platform state is now the machine-readable capability matrix and docs audit surface in `builder_ii/core/platform_completion_audit.py`, exposed through `builder-platform status`, `builder-platform matrix`, and `builder-platform audit-docs`.
 
 The Truth Report baseline has moved from plan prose into mechanically checkable state labels:
 

@@ -6,8 +6,7 @@ from builder_ii.bridge_cli import bridge_app
 from typer.testing import CliRunner
 
 from builder_ii import deepagents_bridge
-from builder_ii.agent_profiles import agent_profile_names, get_agent_profile
-from builder_ii.deepagents_bridge import (
+from builder_ii.adapters.deepagents.deepagents_bridge import (
     REQUIRED_DENIED_TOOLS,
     bridge_spec_for,
     deepagent_bridge_spec,
@@ -17,7 +16,8 @@ from builder_ii.deepagents_bridge import (
     validate_artifact_file,
     validate_bridge_spec,
 )
-from builder_ii.target_profiles import target_profile
+from builder_ii.lifecycle.setup.target_profiles import target_profile
+from builder_ii.routing.agent_profiles import agent_profile_names, get_agent_profile
 
 
 def _settings(tmp_path: Path):

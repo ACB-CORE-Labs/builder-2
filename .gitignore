@@ -18,3 +18,11 @@ target/
 **/target/
 
 .DS_Store
+
+# Ops / one-off pollution (do not reintroduce at repo root)
+commit_msg.txt
+replace_script.py
+patch_conflicts.sh
+/run_all_tests.py
+*.orig
+*.rej

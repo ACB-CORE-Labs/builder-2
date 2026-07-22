@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.gate_battery_receipt import find_absolute_paths, validate_gate_battery_receipt
+from builder_ii.governance.ledger.gate_battery_receipt import find_absolute_paths, validate_gate_battery_receipt
 
 _ROOT_SKIP = pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root bypasses permission bits")
 

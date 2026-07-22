@@ -6,23 +6,23 @@ from typing import Optional
 
 import typer
 
-from builder_ii.command_authority import enforce_command_authority
-from builder_ii.event_ledger import (
-    EVENT_RECORD_KIND,
-    create_event_record,
-    load_event_records,
-    replay_events,
-    write_event_record,
-)
-from builder_ii.mcp_policy import (
+from builder_ii.core.mcp_policy import (
     INVENTORY_SCHEMA_VERSION,
     MCP_INVENTORY_KIND,
     MCP_POLICY_KIND,
     POLICY_SCHEMA_VERSION,
     validate_mcp_policy,
 )
-from builder_ii.tool_invocation_gateway import execute_tool_envelope
-from builder_ii.workflow_records import canonical_digest
+from builder_ii.core.tool_invocation_gateway import execute_tool_envelope
+from builder_ii.governance.authority import enforce_command_authority
+from builder_ii.governance.ledger.event_ledger import (
+    EVENT_RECORD_KIND,
+    create_event_record,
+    load_event_records,
+    replay_events,
+    write_event_record,
+)
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 mcp_app = typer.Typer(help="Manage MCP (Model Context Protocol) tool policies and execution.")
 
@@ -183,7 +183,7 @@ def call(
             message=f"MCP call failed: {e}",
         )
         # Validate event before writing
-        from builder_ii.event_ledger import validate_event_record
+        from builder_ii.governance.ledger.event_ledger import validate_event_record
 
         event_errors = validate_event_record(event_record)
         if event_errors:
@@ -194,7 +194,7 @@ def call(
         raise typer.Exit(1)
 
     # Validate receipt before writing
-    from builder_ii.mcp_policy import validate_mcp_receipt
+    from builder_ii.core.mcp_policy import validate_mcp_receipt
 
     receipt_errors = validate_mcp_receipt(receipt)
     if receipt_errors:
@@ -235,7 +235,7 @@ def call(
         message="MCP call executed",
     )
     # Validate event before writing
-    from builder_ii.event_ledger import validate_event_record
+    from builder_ii.governance.ledger.event_ledger import validate_event_record
 
     event_errors = validate_event_record(event_record)
     if event_errors:
@@ -270,7 +270,7 @@ def standalone_call(
         raise typer.Exit(1)
 
     # Validate receipt before writing
-    from builder_ii.mcp_policy import validate_mcp_receipt
+    from builder_ii.core.mcp_policy import validate_mcp_receipt
 
     receipt_errors = validate_mcp_receipt(receipt)
     if receipt_errors:

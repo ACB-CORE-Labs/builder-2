@@ -4,30 +4,30 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
-from builder_ii.agent_profiles import create_agent_profile_record, get_agent_profile
-from builder_ii.config import load_settings
-from builder_ii.context_packs import create_context_pack
-from builder_ii.model_client_registry import create_model_client_registry
-from builder_ii.model_routing_policy import (
-    create_model_routing_policy,
-    create_model_routing_recommendation,
-)
-from builder_ii.orchestration_assignment import (
+from builder_ii.core.config import load_settings
+from builder_ii.core.context_packs import create_context_pack
+from builder_ii.core.orchestration_assignment import (
     create_agent_assignment_plan,
     create_orchestration_assignment_dry_run,
     create_orchestration_assignment_plan,
     create_orchestration_assignment_validation_report,
 )
-from builder_ii.profile_pack import create_profile_pack
-from builder_ii.profile_pack_dry_run import create_profile_pack_dry_run
-from builder_ii.profile_pack_manifest import create_profile_pack_manifest
-from builder_ii.profile_pack_render_plan import create_profile_pack_render_plan
-from builder_ii.profile_pack_validation_report import (
+from builder_ii.core.repo_map import create_repo_map
+from builder_ii.lifecycle.candidate.verification_profiles import get_verification_profile
+from builder_ii.lifecycle.setup.profile_pack import create_profile_pack
+from builder_ii.lifecycle.setup.profile_pack_dry_run import create_profile_pack_dry_run
+from builder_ii.lifecycle.setup.profile_pack_manifest import create_profile_pack_manifest
+from builder_ii.lifecycle.setup.profile_pack_render_plan import create_profile_pack_render_plan
+from builder_ii.lifecycle.setup.profile_pack_validation_report import (
     create_profile_pack_validation_report,
 )
-from builder_ii.repo_map import create_repo_map
-from builder_ii.target_profiles import target_profile
-from builder_ii.verification_profiles import get_verification_profile
+from builder_ii.lifecycle.setup.target_profiles import target_profile
+from builder_ii.routing.agent_profiles import create_agent_profile_record, get_agent_profile
+from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_routing_policy import (
+    create_model_routing_policy,
+    create_model_routing_recommendation,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -5,12 +5,12 @@ from pathlib import Path
 from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
-from builder_ii.demo_loop import (
+from builder_ii.core.demo_loop import (
     DEMO_REPORT_KIND,
     run_demo_loop,
     validate_demo_report,
 )
-from builder_ii.hitl_patch_apply import _verification_receipt_errors
+from builder_ii.governance.hitl.hitl_patch_apply import _verification_receipt_errors
 
 
 def _git(repo: Path, *args: str) -> str:
@@ -436,7 +436,7 @@ def test_demo_validate_cli_catches_retargeted_approval(tmp_path: Path) -> None:
     # Second tamper variant: re-pointing the governing approval at a different patch digest is
     # caught twice — the refs re-check names the edited file, and native approval validation
     # (via builder-chain verify-artifacts) rejects the broken digest-prefix confirmation binding.
-    from builder_ii.artifact_chain_verification import verify_artifact_chain
+    from builder_ii.core.artifact_chain_verification import verify_artifact_chain
 
     repo = _generic_repo(tmp_path)
     output_dir = tmp_path / "demo"

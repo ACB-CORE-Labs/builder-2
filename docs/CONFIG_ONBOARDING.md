@@ -184,7 +184,7 @@ builder-setup validate-rollback-receipt SETUP_ROLLBACK_RECEIPT.json
 R1.4 reconciles legacy setup surfaces into the governed R1 path:
 
 - `builder setup` is a fail-closed compatibility wrapper that prints the governed `builder-setup` sequence and exits non-zero.
-- `builder_ii/goose_setup.py` remains setup-artifact/config-overlay oriented and does not perform direct writes, skill copying, or recipe validation.
+- `builder_ii/adapters/goose/goose_setup.py` remains setup-artifact/config-overlay oriented and does not perform direct writes, skill copying, or recipe validation.
 - Goose setup remains represented as passive overlay candidates until the operator explicitly uses digest-bound `builder-setup apply`.
 - Skills, recipes, Goose config, and `.goosehints` are not installed through unmanaged writes.
 
@@ -281,7 +281,7 @@ This is not an oversight. A real Goose config almost always carries provider cre
 
 3. Back up the file before touching it — there is no governed rollback for a hand edit: `cp ~/.config/goose/config.yaml ~/.config/goose/config.yaml.bak`.
 
-4. Add only the `builder_ii` keys named in `overlay_keys`, leaving every existing key (providers, credentials, other extensions) untouched. `overlay_keys` is the authoritative list of *where* to add content; `builder_ii/goose_setup.py:build_goose_config()` is the best available reference for *what* content belongs in the extensions block. The two are maintained independently and are not yet unified into one schema — read both source references above rather than trusting a doc snippet that could drift; the shape below is illustrative:
+4. Add only the `builder_ii` keys named in `overlay_keys`, leaving every existing key (providers, credentials, other extensions) untouched. `overlay_keys` is the authoritative list of *where* to add content; `builder_ii/adapters/goose/goose_setup.py:build_goose_config()` is the best available reference for *what* content belongs in the extensions block. The two are maintained independently and are not yet unified into one schema — read both source references above rather than trusting a doc snippet that could drift; the shape below is illustrative:
 
    ```yaml
    extensions:

@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.receive_records import (
+from builder_ii.governance.ledger.receive_records import (
     ReceiveDecision,
     create_receive_record_from_file,
     dumps_receive_record,

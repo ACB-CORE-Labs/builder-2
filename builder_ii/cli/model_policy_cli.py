@@ -7,13 +7,13 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.model_client_registry import (
+from builder_ii.routing.model_client_registry import (
     MODEL_CLIENT_REGISTRY_KIND,
     create_model_client_registry,
     validate_model_client_registry,
     write_model_client_registry,
 )
-from builder_ii.model_routing_policy import (
+from builder_ii.routing.model_routing_policy import (
     MODEL_ROUTING_POLICY_KIND,
     MODEL_ROUTING_RECOMMENDATION_KIND,
     create_model_routing_policy,
@@ -24,7 +24,7 @@ from builder_ii.model_routing_policy import (
     write_model_routing_policy,
     write_model_routing_recommendation,
 )
-from builder_ii.price_book import (
+from builder_ii.routing.price_book import (
     PRICE_BOOK_KIND,
     create_default_price_book,
     validate_price_book,
@@ -218,7 +218,7 @@ def price_book_cmd(
     ),
 ) -> None:
     """Emit the default digest-bound price book (RECORDED_ONLY; never executes models)."""
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder-model-policy price-book", requested_effects=("artifact_write",))
     book = create_default_price_book()
@@ -236,7 +236,7 @@ def validate_price_book_cmd(
     path: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True, help="Price book JSON path"),
 ) -> None:
     """Validate a builder_ii.price_book artifact."""
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder-model-policy validate-price-book", requested_effects=())
     data = _read_json(path)

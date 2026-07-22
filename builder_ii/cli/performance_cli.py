@@ -7,15 +7,15 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.performance_measurements import (
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names
+from builder_ii.validation.performance_measurements import (
     create_performance_measurement_record,
     dumps_performance_measurement_record,
     validate_performance_measurement_record,
     validate_performance_measurement_record_file,
     write_performance_measurement_record,
 )
-from builder_ii.target_profiles import TargetName, target_names
-from builder_ii.validation_benchmark import (
+from builder_ii.validation.validation_benchmark import (
     benchmark_validator,
     generate_parity_report,
     validate_validation_benchmark,

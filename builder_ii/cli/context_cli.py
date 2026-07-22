@@ -8,8 +8,8 @@ from rich.console import Console
 from rich.table import Table
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.config import load_settings
-from builder_ii.context_pack import (
+from builder_ii.core.config import load_settings
+from builder_ii.core.context_pack import (
     ContextPackResult,
     ContextPackSelection,
     RepoTarget,
@@ -20,7 +20,7 @@ from builder_ii.context_pack import (
     validate_context_pack_record_file,
     write_context_pack_record,
 )
-from builder_ii.context_summarizer import summarize_context_pack, validate_context_summary
+from builder_ii.core.context_summarizer import summarize_context_pack, validate_context_summary
 
 context_app = typer.Typer(help="Build task-scoped context packs for local agents.")
 console = Console()

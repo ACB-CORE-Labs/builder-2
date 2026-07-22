@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-import builder_ii.verification_runner_entrypoints as entrypoints
+import builder_ii.lifecycle.candidate.verification_runner_entrypoints as entrypoints
 
 
 def test_main_dispatches_platform_status(monkeypatch: Any) -> None:

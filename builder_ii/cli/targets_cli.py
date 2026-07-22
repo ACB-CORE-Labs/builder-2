@@ -8,13 +8,13 @@ from rich.console import Console
 from rich.table import Table
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.config import load_settings
-from builder_ii.target_profile_demos import (
+from builder_ii.core.config import load_settings
+from builder_ii.lifecycle.setup.target_profile_demos import (
     get_target_profile_demo,
     render_target_profile_demo,
     validate_target_profile_demos,
 )
-from builder_ii.target_profiles import (
+from builder_ii.lifecycle.setup.target_profiles import (
     TargetName,
     build_target_profiles,
     dumps_target_profile_artifact,
@@ -156,7 +156,7 @@ def readonly_founder_demo(
     ),
 ) -> None:
     """Generate passive read-only founder demo artifacts."""
-    from builder_ii.readonly_founder_demo import generate_readonly_founder_demo
+    from builder_ii.core.readonly_founder_demo import generate_readonly_founder_demo
 
     settings = load_settings()
     target = _normalize_target(name)

@@ -3,13 +3,13 @@ import json
 from builder_ii.mcp_cli import mcp_app
 from typer.testing import CliRunner
 
-from builder_ii.mcp_policy import (
+from builder_ii.core.mcp_policy import (
     ENVELOPE_SCHEMA_VERSION,
     POLICY_SCHEMA_VERSION,
     TOOL_ENVELOPE_KIND,
     TOOL_POLICY_KIND,
 )
-from builder_ii.workflow_records import canonical_digest
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 runner = CliRunner()
 

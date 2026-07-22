@@ -7,7 +7,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from builder_ii.cli.wrp_cli import wrp_app
-from builder_ii.performance_measurements import validate_performance_measurement_record
+from builder_ii.validation.performance_measurements import validate_performance_measurement_record
 from builder_ii.wrp.class_u_harness import run_class_u_harness, validate_class_u_report
 from builder_ii.wrp.evaluator import validate_proof_record
 from builder_ii.wrp.spaces import DEFAULT_PHI

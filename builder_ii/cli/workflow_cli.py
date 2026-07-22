@@ -8,8 +8,7 @@ from typing import Any
 import typer
 from rich.console import Console
 
-from builder_ii.target_profiles import target_names
-from builder_ii.workflow_orchestrator import (
+from builder_ii.core.workflow_orchestrator import (
     WorkflowError,
     candidate_workflow,
     handoff_workflow,
@@ -18,6 +17,7 @@ from builder_ii.workflow_orchestrator import (
     verify_chain_workflow,
     workflow_status,
 )
+from builder_ii.lifecycle.setup.target_profiles import target_names
 
 workflow_app = typer.Typer(help="Governed passive workflow state machine.")
 console = Console()

@@ -4,14 +4,14 @@ from pathlib import Path
 from builder_ii.goose_cli import goose_app
 from typer.testing import CliRunner
 
-from builder_ii.config import load_settings
-from builder_ii.goose_command_proposal import (
+from builder_ii.adapters.goose.goose_command_proposal import (
     create_goose_command_proposal,
     dumps_goose_command_proposal,
     validate_goose_command_proposal,
     validate_goose_command_proposal_file,
 )
-from builder_ii.goose_session import create_goose_session_manifest, write_goose_session_manifest
+from builder_ii.adapters.goose.goose_session import create_goose_session_manifest, write_goose_session_manifest
+from builder_ii.core.config import load_settings
 
 
 def _manifest(tmp_path: Path) -> dict:

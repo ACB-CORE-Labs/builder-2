@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.backends import check_serves_active_model, health_url
-from builder_ii.config import Settings
+from builder_ii.core.config import Settings
+from builder_ii.routing.backends import check_serves_active_model, health_url
 
 
 class _Response:

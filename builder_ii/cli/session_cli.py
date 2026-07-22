@@ -7,48 +7,48 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.config import load_settings
-from builder_ii.context_packs import (
-    create_context_pack,
-    dumps_context_pack,
-    validate_context_pack,
-)
-from builder_ii.goose_projection import (
+from builder_ii.adapters.goose.goose_projection import (
     create_goose_projection,
     dumps_goose_projection,
     validate_goose_projection,
     validate_goose_projection_file,
 )
-from builder_ii.goose_wrapper_plan import (
+from builder_ii.adapters.goose.goose_wrapper_plan import (
     create_goose_wrapper_plan,
     dumps_goose_wrapper_plan,
     validate_goose_wrapper_plan,
     validate_goose_wrapper_plan_file,
 )
-from builder_ii.governed_prepare_package import (
+from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.core.config import load_settings
+from builder_ii.core.context_packs import (
+    create_context_pack,
+    dumps_context_pack,
+    validate_context_pack,
+)
+from builder_ii.core.governed_prepare_package import (
     create_governed_prepare_package,
     dumps_governed_prepare_package_summary,
     summarize_governed_prepare_package_directory,
     validate_governed_prepare_package_directory,
 )
-from builder_ii.profile_resolution import ProfileResolver
-from builder_ii.repo_map import (
+from builder_ii.core.repo_map import (
     create_repo_map,
     dumps_repo_map,
     validate_repo_map,
 )
-from builder_ii.session_config import (
+from builder_ii.core.session_config import (
     create_session_configuration,
     dumps_session_configuration,
     validate_session_configuration,
     validate_session_configuration_file,
 )
-from builder_ii.session_workflow import (
+from builder_ii.core.session_workflow import (
     create_session_workflow_plan,
     validate_session_workflow_plan,
     validate_session_workflow_plan_file,
 )
+from builder_ii.lifecycle.setup.profile_resolution import ProfileResolver
 
 session_app = typer.Typer(help="Inspect and plan governed local developer sessions.")
 console = Console(width=240)
@@ -336,7 +336,7 @@ def goose_readonly_plan(
             raise typer.Exit(1)
 
     try:
-        from builder_ii.goose_readonly_session import (
+        from builder_ii.adapters.goose.goose_readonly_session import (
             create_goose_readonly_session_plan,
             validate_goose_readonly_session_plan,
         )
@@ -381,7 +381,7 @@ def validate_goose_readonly_plan_cmd(
     path: Path = typer.Argument(..., help="Path to Goose read-only session plan JSON file to validate"),
 ) -> None:
     """Validate a Goose read-only session plan artifact file."""
-    from builder_ii.goose_readonly_session import validate_goose_readonly_session_plan_file
+    from builder_ii.adapters.goose.goose_readonly_session import validate_goose_readonly_session_plan_file
 
     errors = validate_goose_readonly_session_plan_file(path)
     if errors:

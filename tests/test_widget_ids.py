@@ -10,7 +10,7 @@ import re
 
 import pytest
 
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
+from builder_ii.governance.authority import COMMAND_AUTHORITY_REGISTRY
 from builder_ii.tui.widget_ids import TEXTUAL_ID, id_token, widget_id
 
 

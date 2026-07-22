@@ -1,6 +1,6 @@
 from subprocess import CompletedProcess
 
-from builder_ii.runtime_control import RuntimeProcess, _candidate_listener_pids
+from builder_ii.lifecycle.candidate.runtime_control import RuntimeProcess, _candidate_listener_pids
 
 
 class SettingsStub:

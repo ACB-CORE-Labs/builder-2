@@ -49,7 +49,7 @@ CTRL_Q = b"\x11"
 BOOT_DEADLINE_S = 60.0
 
 
-def _boot_under_pty(argv: list[str], deadline_s: float = BOOT_DEADLINE_S) -> int:
+def _boot_under_pty(argv: list[str], deadline_s: float = BOOT_DEADLINE_S, cwd: Path = ROOT) -> int:
     """Launch `argv` on a real pty, offer ctrl+q until it quits, and return its exit code.
 
     Two mechanics here were measured, not assumed, and both are load-bearing:
@@ -73,7 +73,7 @@ def _boot_under_pty(argv: list[str], deadline_s: float = BOOT_DEADLINE_S) -> int
         stdout=slave,
         stderr=slave,
         close_fds=True,
-        cwd=ROOT,
+        cwd=cwd,
         env={**os.environ, "TERM": "xterm-256color", "COLUMNS": "120", "LINES": "40"},
     )
     os.close(slave)
@@ -120,14 +120,14 @@ def test_the_console_script_under_test_exists() -> None:
     )
 
 
-def test_stratum_boots_under_a_real_tty_and_exits_zero() -> None:
+def test_stratum_boots_under_a_real_tty_and_exits_zero(tmp_path: Path) -> None:
     """The gap §7 names: a shipped console script, a real terminal, a clean exit.
 
     No visual assertion. If STRATUM raises on mount under a tty -- the class of defect an
     in-process `run_test()` structurally cannot see -- `run_tui` reports Textual's return code and
     this fails.
     """
-    returncode = _boot_under_pty([str(CONSOLE_SCRIPT), "tui", "--no-splash", "--no-guide"])
+    returncode = _boot_under_pty([str(CONSOLE_SCRIPT), "tui", "--no-splash", "--no-guide"], cwd=tmp_path)
 
     assert returncode == 0, f"STRATUM exited {returncode} booting under a real pty"
 

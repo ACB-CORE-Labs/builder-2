@@ -25,6 +25,6 @@ Default mode remains `record`. Cloud is never self-enabled by ambient ambient fl
 
 ## Consequences
 
-- Cloud adapters (`builder_ii/cloud_chat.py`) implement OpenAI-compatible HTTP clients.
+- Cloud adapters (`builder_ii/adapters/openai_compat/cloud_chat.py`) implement OpenAI-compatible HTTP clients.
 - CI uses stub providers + injected transport; live keys stay operator-owned env vars.
 - Permanent non-goal of arbitrary HITL shell exec is unchanged.

@@ -36,7 +36,7 @@ def main(
     ),
 ) -> None:
     """Start STRATUM with the experimental gate already satisfied."""
-    from builder_ii.command_authority import enforce_command_authority
+    from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder stratum")
 

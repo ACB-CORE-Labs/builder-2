@@ -1,6 +1,6 @@
 import pytest
 
-from builder_ii.role_gates import (
+from builder_ii.governance.authority.role_gates import (
     CAPABILITY_DIRECT_ASK,
     CAPABILITY_FILE_EDITING,
     CAPABILITY_GOOSE_TOOL_EXECUTION,
@@ -12,7 +12,7 @@ from builder_ii.role_gates import (
     role_capability_gates,
     validate_role_gates,
 )
-from builder_ii.roles import role_names
+from builder_ii.governance.authority.roles import role_names
 
 
 def test_every_role_has_complete_capability_coverage() -> None:

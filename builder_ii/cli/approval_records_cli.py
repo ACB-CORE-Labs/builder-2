@@ -6,14 +6,14 @@ from typing import cast
 import typer
 from rich.console import Console
 
-from builder_ii.approval_records import (
+from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.lifecycle.candidate.approval_records import (
     ApprovalDecision,
     create_approval_record_from_file,
     dumps_approval_record,
     validate_approval_record_file,
     write_approval_record,
 )
-from builder_ii.cli.plain_stdout import echo_stdout
 
 approval_app = typer.Typer(help="Create and validate approval record artifacts.")
 console = Console()

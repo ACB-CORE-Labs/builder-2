@@ -79,7 +79,7 @@ def project_model_matrix() -> ModelMatrixView:
     local = _local_config()
 
     try:
-        from builder_ii.model_client_registry import create_model_client_registry
+        from builder_ii.routing.model_client_registry import create_model_client_registry
 
         registry = create_model_client_registry()
         registry_state = str(registry.get("registry_state", "—"))
@@ -108,7 +108,7 @@ def project_model_matrix() -> ModelMatrixView:
         error = f"model registry: {exc}"
 
     try:
-        from builder_ii.model_routing_policy import create_model_routing_policy
+        from builder_ii.routing.model_routing_policy import create_model_routing_policy
 
         policy = create_model_routing_policy()
         for rule in policy.get("rules") or []:

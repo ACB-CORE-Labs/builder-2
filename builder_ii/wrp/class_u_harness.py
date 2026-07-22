@@ -20,7 +20,7 @@ import statistics
 import time
 from typing import Any
 
-from builder_ii.performance_measurements import create_performance_measurement_record
+from builder_ii.validation.performance_measurements import create_performance_measurement_record
 from builder_ii.wrp.allocation_optimizer import allocate_fleet
 from builder_ii.wrp.artifacts import CLASS_U_REPORT_KIND, base_envelope, validate_wrp_artifact_envelope
 from builder_ii.wrp.evaluator import create_proof_record, evaluate_trajectory

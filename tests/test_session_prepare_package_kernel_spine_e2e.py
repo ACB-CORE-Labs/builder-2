@@ -4,19 +4,19 @@ import hashlib
 import json
 from pathlib import Path
 
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.artifact_index_records import create_artifact_index_record
-from builder_ii.config import load_settings
-from builder_ii.convention_kernel import (
-    ConventionKernel,
-    ConventionKernelPlatformBundle,
-    validate_convention_kernel_platform_bundle,
-)
-from builder_ii.governed_prepare_package import (
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.core.config import load_settings
+from builder_ii.core.governed_prepare_package import (
     create_governed_prepare_package,
     summarize_governed_prepare_package_directory,
     validate_governed_prepare_package_directory,
 )
+from builder_ii.governance.authority.convention_kernel import (
+    ConventionKernel,
+    ConventionKernelPlatformBundle,
+    validate_convention_kernel_platform_bundle,
+)
+from builder_ii.governance.ledger.artifact_index_records import create_artifact_index_record
 
 ROOT = Path(__file__).resolve().parents[1]
 

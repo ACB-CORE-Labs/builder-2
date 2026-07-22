@@ -1,8 +1,0 @@
-Enforce TIER_X authority and Third Door audit ledger
-
-- Replaced hardcoded "TIER_0" literals in `builder_ii/tui/app.py`, `builder_ii/tui/widgets/palette.py`, and tests (`tests/test_stratum_tui.py`, `tests/test_stratum_guide.py`) with canonical `TIER_X` constants imported from `builder_ii.command_authority`. This enforces the invariant that the command authority is the sole owner of the tier vocabulary.
-- Hardened `scripts/semantic_tui_driver.py`:
-  - Hooked `app.notify` to deterministically capture toasts and prevent race conditions.
-  - Implemented Third Door compliant immutable append-only JSONL event stream `builder_ii.tui_audit_ledger_event` (with `timestamp`, `event`, `run_id`, and `digest`).
-  - Switched from fragile visual extraction (`widget.render()`) to strict semantic dictionary extraction.
-- Ran `scripts/ci.sh` which proved that the `command_authority` tier matrix is preserved and test coverage is restored.

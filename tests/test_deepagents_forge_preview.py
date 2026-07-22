@@ -4,13 +4,13 @@ tests/test_deepagents_forge_preview.py
 Tests for deepagents_forge_preview.py — governance checker and dry-run renderer.
 """
 
-from builder_ii.deepagents_forge_preview import (
+from builder_ii.adapters.deepagents.deepagents_forge_preview import (
     check_governance,
     collect_warnings,
     render_bridge_spec,
     render_preview,
 )
-from builder_ii.deepagents_forge_schema import DeepAgentSpec
+from builder_ii.adapters.deepagents.deepagents_forge_schema import DeepAgentSpec
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -199,7 +199,7 @@ class TestRenderBridgeSpec:
 
 class TestRenderPreview:
     def test_returns_forge_preview(self):
-        from builder_ii.deepagents_forge_preview import ForgePreview
+        from builder_ii.adapters.deepagents.deepagents_forge_preview import ForgePreview
 
         spec = _valid_spec()
         preview = render_preview(spec)

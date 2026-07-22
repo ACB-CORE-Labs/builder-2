@@ -2,8 +2,8 @@ import inspect
 import json
 from pathlib import Path
 
-import builder_ii.hitl_execution_records as hitl_records_mod
-from builder_ii.hitl_execution_records import (
+import builder_ii.governance.hitl.hitl_execution_records as hitl_records_mod
+from builder_ii.governance.hitl.hitl_execution_records import (
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_EXECUTION_REQUEST_KIND,
     create_hitl_execution_receipt,

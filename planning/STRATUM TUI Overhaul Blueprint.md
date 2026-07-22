@@ -15,14 +15,14 @@ An audit of the active codebase in [builder-II Repository](https://core-gitquart
 * **Overhaul Proposal:** A draggable teaming matrix node canvas with customization sliders and preview simulations.  
 * **Codebase Reality:** In `builder_ii/tui/app.py` under `action_toggle_agents`, STRATUM explicitly refuses to write `orchestration_assignment.json` or dispatch agents directly:self.notify("STRATUM cannot dispatch subagents or write assignment artifacts; run \`builder-deepagents assign-subagent\` in your terminal.")  
     
-  Deepagent profiles are read-only-loaded in `builder_ii/agent_profiles.py` and displayed using flat text in `builder_ii/tui/widgets/stratum.py`.  
+  Deepagent profiles are read-only-loaded in `builder_ii/routing/agent_profiles.py` and displayed using flat text in `builder_ii/tui/widgets/stratum.py`.  
     
 * **Alignment Plan:** A "Deepagents Forge Canvas" is structurally sound as a visual design wizard, but it must remain a pure configurator that outputs the exact CLI command to run (e.g., in the Command Composer / CLI Passthrough) or previews YAML files located in `profiles/deepagents/`. It must never write configuration files directly, preserving the rule that the TUI does not originate authority.
 
 ## **3\. Model Routing Canvas vs. Registry States**
 
 * **Overhaul Proposal:** Interactive node graphs with cost/context heatmaps and routed test previews.  
-* **Codebase Reality:** `StratumMode.MODEL_MATRIX` reads directly from `builder_ii/model_client_registry.py` to display active models, cost categories, context limits, and provider statuses.  
+* **Codebase Reality:** `StratumMode.MODEL_MATRIX` reads directly from `builder_ii/routing/model_client_registry.py` to display active models, cost categories, context limits, and provider statuses.  
 * **Alignment Plan:** High-density, horizontal matrix layouts utilizing ASCII borders, box-drawing characters, and semantic colors (`stratum-active` for routed paths, `stratum-fail` for disabled models) can achieve a routing canvas. Test queries must be routed strictly through the real `model_client_registry` using display-only channels.
 
 ## **4\. Dynamic Orchestrator vs. Governed Goose Sessions**
@@ -47,12 +47,12 @@ An audit of the active codebase in [builder-II Repository](https://core-gitquart
 ## **Pillar 2: Deepagents Matrix & Forge Workspace**
 
 * **Visual Metaphor:** Transform the flat agent profile listing into a horizontal node map using unicode line-drawing characters (`├─`, `─┬─`, `─┤`).  
-* **Behavior:** Clicking an agent profile highlights its allowed tools and displays its target configuration (e.g., `profiles/deepagents/governed_repo_cartographer.yaml`). It evaluates the team structure against `builder_ii/deepagents_bridge_readiness.py` to show a "Bridge Readiness Score."
+* **Behavior:** Clicking an agent profile highlights its allowed tools and displays its target configuration (e.g., `profiles/deepagents/governed_repo_cartographer.yaml`). It evaluates the team structure against `builder_ii/adapters/deepagents/deepagents_bridge_readiness.py` to show a "Bridge Readiness Score."
 
 ## **Pillar 3: Live Model Routing Grid**
 
 * **Visual Metaphor:** A grid matrix showing backends (Ollama, MLX, Frontier) as column headers and model classes as rows.  
-* **Behavior:** Displays real-time status of local runtimes. Hovering over a route highlights the current fallback path defined by `builder_ii/model_routing_policy.py`.
+* **Behavior:** Displays real-time status of local runtimes. Hovering over a route highlights the current fallback path defined by `builder_ii/routing/model_routing_policy.py`.
 
 ## **Pillar 4: Orchestrator Lane & Skill Projection**
 
@@ -68,7 +68,7 @@ An audit of the active codebase in [builder-II Repository](https://core-gitquart
 
 These palette variables map directly to the existing Textual variable system used in `StratumApp._apply_theme()` within `builder_ii/tui/app.py`.
 
-## **Refined `builder_ii/tui_theme.py` (Extended Stratum Void Scheme)**
+## **Refined `builder_ii/core/tui_theme.py` (Extended Stratum Void Scheme)**
 
 | Key | Hex Value | Semantic Role |
 | :---- | :---- | :---- |

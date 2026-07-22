@@ -3,7 +3,7 @@ from pathlib import Path
 from builder_ii.platform_status_cli import platform_app
 from typer.testing import CliRunner
 
-from builder_ii.operator_golden_path import (
+from builder_ii.lifecycle.setup.operator_golden_path import (
     OPERATOR_GOLDEN_PATH_REPORT_KIND,
     SCHEMA_VERSION,
     create_operator_golden_path_report,
@@ -94,7 +94,7 @@ def test_operator_golden_path_truthfulness(tmp_path):
     exercised_names = {c["capability"] for c in report["exercised_capabilities"]}
     skipped_names = {c["capability"] for c in report["skipped_capabilities"]}
 
-    from builder_ii.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
+    from builder_ii.core.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
 
     for row in REQUIRED_CAPABILITY_ROWS:
         if row.state == "PASSIVE_FOUNDATION":

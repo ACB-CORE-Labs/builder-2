@@ -120,12 +120,12 @@ def _invoke_local_model_gateway(
     """
     from pathlib import Path
 
-    from builder_ii.config import load_settings
-    from builder_ii.model_budget import BudgetExceededError, create_model_budget
-    from builder_ii.model_client_registry import create_model_client_registry
-    from builder_ii.model_execution_gateway import ModelExecutionGateway
-    from builder_ii.model_routing_policy import create_model_execution_policy
-    from builder_ii.price_book import create_default_price_book
+    from builder_ii.core.config import load_settings
+    from builder_ii.routing.model_budget import BudgetExceededError, create_model_budget
+    from builder_ii.routing.model_client_registry import create_model_client_registry
+    from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+    from builder_ii.routing.model_routing_policy import create_model_execution_policy
+    from builder_ii.routing.price_book import create_default_price_book
 
     payload = spec.get("payload")
     if not isinstance(payload, dict):
@@ -302,12 +302,12 @@ def _invoke_cloud_model_gateway(
     """
     from pathlib import Path
 
-    from builder_ii.config import load_settings
-    from builder_ii.model_budget import BudgetExceededError, create_model_budget
-    from builder_ii.model_client_registry import create_model_client_registry
-    from builder_ii.model_execution_gateway import ModelExecutionGateway
-    from builder_ii.model_routing_policy import create_model_execution_policy
-    from builder_ii.price_book import create_default_price_book
+    from builder_ii.core.config import load_settings
+    from builder_ii.routing.model_budget import BudgetExceededError, create_model_budget
+    from builder_ii.routing.model_client_registry import create_model_client_registry
+    from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+    from builder_ii.routing.model_routing_policy import create_model_execution_policy
+    from builder_ii.routing.price_book import create_default_price_book
 
     payload = spec.get("payload")
     if not isinstance(payload, dict):

@@ -14,9 +14,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from builder_ii.config_schema import attach_digest
-from builder_ii.promotion_decision_records import create_promotion_decision_record
-from builder_ii.promotion_readiness_records import (
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.lifecycle.candidate.promotion_decision_records import create_promotion_decision_record
+from builder_ii.lifecycle.candidate.promotion_readiness_records import (
     create_promotion_readiness_record,
     validate_promotion_readiness_record,
 )
@@ -369,7 +369,7 @@ def validate_s4_draft_package(record: Any) -> list[str]:
     if not isinstance(digest, str) or len(digest) != 64:
         errors.append("digest must be a 64-char hex sha256")
     else:
-        from builder_ii.config_schema import digest_jsonable
+        from builder_ii.core.config_schema import digest_jsonable
 
         if digest != digest_jsonable(record):
             errors.append("digest mismatch")

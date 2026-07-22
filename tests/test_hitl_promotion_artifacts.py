@@ -5,9 +5,9 @@ from pathlib import Path
 from builder_ii.hitl_promotion_cli import hitl_promotion_app
 from typer.testing import CliRunner
 
-import builder_ii.hitl_promotion_artifacts as hitl_promo_mod
-from builder_ii.artifact_chain_verification import extract_references
-from builder_ii.hitl_promotion_artifacts import (
+import builder_ii.governance.hitl.hitl_promotion_artifacts as hitl_promo_mod
+from builder_ii.core.artifact_chain_verification import extract_references
+from builder_ii.governance.hitl.hitl_promotion_artifacts import (
     HITL_APPROVAL_BOUNDARY_KIND,
     HITL_PROMOTION_DECISION_KIND,
     HITL_PROMOTION_REQUEST_KIND,

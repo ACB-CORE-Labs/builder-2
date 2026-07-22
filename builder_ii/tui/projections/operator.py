@@ -55,7 +55,7 @@ def project_operator_dashboard(
     memory_atoms = 0
 
     try:
-        from builder_ii.operator_status import create_operator_status_report
+        from builder_ii.lifecycle.setup.operator_status import create_operator_status_report
 
         status = create_operator_status_report(target=target)
         counts = status.get("capability_counts") or {}
@@ -71,7 +71,7 @@ def project_operator_dashboard(
         warnings.append(f"operator_status unavailable: {exc}")
 
     try:
-        from builder_ii.operator_next import create_operator_next_action_report
+        from builder_ii.lifecycle.setup.operator_next import create_operator_next_action_report
 
         report = create_operator_next_action_report()
         actions = report.get("ordered_next_actions") or []

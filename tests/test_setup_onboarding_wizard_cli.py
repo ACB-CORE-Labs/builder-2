@@ -6,7 +6,7 @@ import pytest
 from builder_ii.setup_cli import setup_app
 from typer.testing import CliRunner
 
-from builder_ii.onboarding_intent import validate_onboarding_intent_report_file
+from builder_ii.lifecycle.setup.onboarding_intent import validate_onboarding_intent_report_file
 
 runner = CliRunner()
 

@@ -4,15 +4,12 @@ import inspect
 import json as json_lib
 from pathlib import Path
 
-import builder_ii.hitl_verification_candidate as candidate_mod
-from builder_ii.approval_records import create_approval_record
-from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
-from builder_ii.artifact_chain_verification import extract_references, verify_artifact_chain
-from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-from builder_ii.artifact_index_records import create_artifact_index_record, validate_artifact_index_record
-from builder_ii.goose_command_proposal import create_goose_command_proposal
-from builder_ii.hitl_execution_records import create_hitl_execution_request
-from builder_ii.hitl_verification_candidate import (
+import builder_ii.governance.hitl.hitl_verification_candidate as candidate_mod
+from builder_ii.adapters.goose.goose_command_proposal import create_goose_command_proposal
+from builder_ii.core.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
+from builder_ii.core.artifact_chain_verification import extract_references, verify_artifact_chain
+from builder_ii.governance.hitl.hitl_execution_records import create_hitl_execution_request
+from builder_ii.governance.hitl.hitl_verification_candidate import (
     HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
     create_hitl_verification_execution_candidate,
     dumps_hitl_verification_execution_candidate,
@@ -20,7 +17,13 @@ from builder_ii.hitl_verification_candidate import (
     validate_hitl_verification_execution_candidate_file,
     write_hitl_verification_execution_candidate,
 )
-from builder_ii.preflight_records import create_preflight_record
+from builder_ii.governance.ledger.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
+from builder_ii.governance.ledger.artifact_index_records import (
+    create_artifact_index_record,
+    validate_artifact_index_record,
+)
+from builder_ii.lifecycle.candidate.approval_records import create_approval_record
+from builder_ii.lifecycle.candidate.preflight_records import create_preflight_record
 
 
 def _manifest() -> dict[str, object]:

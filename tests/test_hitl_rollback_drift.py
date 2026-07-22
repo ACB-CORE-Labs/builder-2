@@ -15,14 +15,14 @@ from unittest.mock import patch
 
 import pytest
 
-from builder_ii.hitl_patch_apply import (
+from builder_ii.governance.hitl.hitl_patch_apply import (
     FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
     apply_hitl_patch,
     rollback_hitl_patch,
 )
-from builder_ii.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
-from builder_ii.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
-from builder_ii.hitl_rollback_approval import (
+from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
+from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.governance.hitl.hitl_rollback_approval import (
     canonical_json_digest,
     create_hitl_rollback_approval,
     write_hitl_rollback_approval,
@@ -42,7 +42,7 @@ _DIFF = (
 
 def _apply(tmp_path: Path) -> tuple[Path, Path, Path]:
     """Run a full governed apply on a fresh repo; return (repo, out_dir, target_file)."""
-    from builder_ii.artifact_chain_verification import VALIDATORS
+    from builder_ii.core.artifact_chain_verification import VALIDATORS
 
     VALIDATORS["builder_ii.verification_execution_receipt"] = lambda data: []
 

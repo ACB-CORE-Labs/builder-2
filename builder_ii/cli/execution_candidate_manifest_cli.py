@@ -7,17 +7,17 @@ from typing import Any
 import typer
 from rich.console import Console
 
-from builder_ii.execution_candidate_manifest import (
+from builder_ii.governance.hitl.hitl_promotion_artifacts import (
+    _create_ref,
+    validate_hitl_approval_boundary,
+)
+from builder_ii.lifecycle.candidate.execution_candidate_manifest import (
     EXECUTION_CANDIDATE_MANIFEST_KIND,
     EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND,
     create_execution_candidate_manifest,
     validate_execution_candidate_manifest,
     validate_execution_candidate_manifest_validation_report,
     write_execution_candidate_manifest,
-)
-from builder_ii.hitl_promotion_artifacts import (
-    _create_ref,
-    validate_hitl_approval_boundary,
 )
 
 manifest_cli_app = typer.Typer(help="HITL candidate manifest CLI.")

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from builder_ii.cloud_chat import resolve_cloud_endpoint, run_cloud_chat
-from builder_ii.direct_chat import DirectChatResult
+from builder_ii.adapters.openai_compat.cloud_chat import resolve_cloud_endpoint, run_cloud_chat
+from builder_ii.routing.direct_chat import DirectChatResult
 
 
 def test_stub_cloud_no_network() -> None:

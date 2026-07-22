@@ -5,7 +5,7 @@ from pathlib import Path
 from builder_ii.readonly_inspection_cli import readonly_app
 from typer.testing import CliRunner
 
-from builder_ii.readonly_inspection_reports import (
+from builder_ii.core.readonly_inspection_reports import (
     READONLY_INSPECTION_REPORT_KIND,
     READONLY_INSPECTION_REPORT_SCHEMA_VERSION,
     create_readonly_inspection_report,
@@ -140,9 +140,9 @@ def test_cli_stdout_output_and_validate(tmp_path: Path) -> None:
 
 
 def test_report_registered_in_artifact_index_and_chain_verifier(tmp_path: Path) -> None:
-    from builder_ii.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
-    from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-    from builder_ii.artifact_index_records import create_artifact_index_record
+    from builder_ii.core.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
+    from builder_ii.governance.ledger.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
+    from builder_ii.governance.ledger.artifact_index_records import create_artifact_index_record
 
     source = tmp_path / "file.txt"
     source.write_text("hello", encoding="utf-8")

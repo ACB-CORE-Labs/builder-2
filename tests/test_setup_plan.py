@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from builder_ii.config_sources import resolve_config_sources
-from builder_ii.setup_plan import create_setup_plan, validate_setup_plan_artifact
+from builder_ii.core.config_sources import resolve_config_sources
+from builder_ii.lifecycle.setup.setup_plan import create_setup_plan, validate_setup_plan_artifact
 
 
 def _resolution(tmp_path: Path):
@@ -67,7 +67,7 @@ def test_setup_plan_records_expected_passive_setup_fields(tmp_path: Path) -> Non
     assert plan["selected_target_profile"] == "builder"
     assert plan["selected_agent_profile"] == "patch_planner"
     assert plan["selected_verification_profile"] == "builder_full"
-    assert plan["selected_model"]["backend"] == "mlx-lm"
+    assert plan["selected_model"]["backend"] == "ollama"
     assert plan["goose_config_target_path"].endswith(".config/goose/config.yaml")
     assert plan["skills_destination_policy"] == "plan_only_target_agents_skills"
     assert plan["deepagents_mode"] == "disabled"

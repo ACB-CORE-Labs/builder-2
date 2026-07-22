@@ -63,11 +63,11 @@ def test_release_modules_import_without_runtime_activation():
 
 def test_release_artifact_kinds_are_declared_in_source():
     source_paths = [
-        "builder_ii/session_workflow.py",
-        "builder_ii/goose_readonly_session.py",
-        "builder_ii/verification_profile_reports.py",
-        "builder_ii/handoff_notes.py",
-        "builder_ii/deepagents_bridge_readiness.py",
+        "builder_ii/core/session_workflow.py",
+        "builder_ii/adapters/goose/goose_readonly_session.py",
+        "builder_ii/lifecycle/candidate/verification_profile_reports.py",
+        "builder_ii/core/handoff_notes.py",
+        "builder_ii/adapters/deepagents/deepagents_bridge_readiness.py",
     ]
     joined = "\n".join(_read(path) for path in source_paths)
 
@@ -77,7 +77,7 @@ def test_release_artifact_kinds_are_declared_in_source():
 
 def test_release_artifact_kinds_are_registry_visible():
     registry_sources = (
-        _read("builder_ii/artifact_index_records.py") + "\n" + _read("builder_ii/artifact_chain_verification.py")
+        _read("builder_ii/governance/ledger/artifact_index_records.py") + "\n" + _read("builder_ii/core/artifact_chain_verification.py")
     )
 
     expected_registry_tokens = [
@@ -93,7 +93,7 @@ def test_release_artifact_kinds_are_registry_visible():
 
 
 def test_reference_carrying_handoff_notes_remain_chain_visible():
-    chain_source = _read("builder_ii/artifact_chain_verification.py")
+    chain_source = _read("builder_ii/core/artifact_chain_verification.py")
 
     assert "elif kind == HANDOFF_NOTE_KIND" in chain_source
     assert "session_ref" in chain_source
@@ -103,7 +103,7 @@ def test_reference_carrying_handoff_notes_remain_chain_visible():
 
 
 def test_deepagents_readiness_remains_optional_and_non_executing():
-    source = _read("builder_ii/deepagents_bridge_readiness.py")
+    source = _read("builder_ii/adapters/deepagents/deepagents_bridge_readiness.py")
     doc = _read("docs/DEEPAGENTS_BRIDGE_READINESS.md")
     combined = source + "\n" + doc
 

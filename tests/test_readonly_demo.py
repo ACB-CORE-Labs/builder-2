@@ -5,9 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.event_ledger import load_event_records, replay_events
-from builder_ii.readonly_founder_demo import (
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.core.readonly_founder_demo import (
     TARGET_INSPECTION_PLAN_KIND,
     TARGET_PATCH_PROPOSAL_KIND,
     TARGET_VERIFICATION_PLAN_KIND,
@@ -17,6 +16,7 @@ from builder_ii.readonly_founder_demo import (
     validate_target_patch_proposal,
     validate_target_verification_plan,
 )
+from builder_ii.governance.ledger.event_ledger import load_event_records, replay_events
 
 
 def test_forbidden_authority_boundaries() -> None:

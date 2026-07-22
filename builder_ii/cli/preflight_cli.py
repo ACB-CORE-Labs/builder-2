@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.preflight_records import (
+from builder_ii.lifecycle.candidate.preflight_records import (
     create_preflight_record_from_files,
     dumps_preflight_record,
     validate_preflight_record_file,

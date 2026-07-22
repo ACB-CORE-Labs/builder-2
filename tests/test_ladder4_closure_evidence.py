@@ -17,8 +17,8 @@ and evaluate ``evaluate_delegation_tree_promotion_gates_from_run`` over the outp
 import json
 from pathlib import Path
 
-from builder_ii.config_schema import digest_jsonable
-from builder_ii.verification_promotion_gate import validate_promotion_evidence
+from builder_ii.core.config_schema import digest_jsonable
+from builder_ii.lifecycle.candidate.verification_promotion_gate import validate_promotion_evidence
 
 EVIDENCE_PATH = Path("planning/evidence/ladder4-b2-delegation-tree-pass.json")
 

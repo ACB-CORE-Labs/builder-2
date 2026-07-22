@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.context_packs import (
+from builder_ii.core.context_packs import (
     CONTEXT_PACK_KIND,
     create_architecture_aware_context_pack,
     create_context_pack,
@@ -12,7 +12,7 @@ from builder_ii.context_packs import (
     validate_context_pack,
     validate_context_pack_file,
 )
-from builder_ii.repo_map import create_repo_map
+from builder_ii.core.repo_map import create_repo_map
 
 
 def test_context_pack_selects_in_stable_order(tmp_path: Path) -> None:

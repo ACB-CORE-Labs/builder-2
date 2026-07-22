@@ -4,12 +4,12 @@ import copy
 import json as json_lib
 from pathlib import Path
 
-from builder_ii.artifact_chain_verification import verify_artifact_chain
-from builder_ii.config import load_settings
-from builder_ii.goose_projection import create_goose_projection
-from builder_ii.goose_wrapper_plan import create_goose_wrapper_plan
-from builder_ii.orchestration_plan import create_orchestration_plan
-from builder_ii.session_config import create_session_configuration
+from builder_ii.adapters.goose.goose_projection import create_goose_projection
+from builder_ii.adapters.goose.goose_wrapper_plan import create_goose_wrapper_plan
+from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+from builder_ii.core.config import load_settings
+from builder_ii.core.orchestration_plan import create_orchestration_plan
+from builder_ii.core.session_config import create_session_configuration
 
 
 def _generic_repo(tmp_path: Path) -> Path:

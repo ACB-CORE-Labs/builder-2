@@ -1,4 +1,4 @@
-from builder_ii.promotion_readiness_records import (
+from builder_ii.lifecycle.candidate.promotion_readiness_records import (
     create_promotion_readiness_record,
     validate_promotion_readiness_record,
 )

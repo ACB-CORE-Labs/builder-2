@@ -8,7 +8,7 @@ This module was previously untested; these pins hold the fail-closed rule.
 
 from __future__ import annotations
 
-from builder_ii.promote_tui import _render_readiness
+from builder_ii.lifecycle.candidate.promote_tui import _render_readiness
 
 
 def test_empty_gates_without_a_ready_flag_is_not_ready() -> None:

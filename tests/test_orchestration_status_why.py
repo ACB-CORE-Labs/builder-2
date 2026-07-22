@@ -15,8 +15,7 @@ from pathlib import Path
 from test_orchestration_delegation_run import SMALL, TOO_BIG, _ladder4_candidate, _obligation, _seal
 from typer.testing import CliRunner
 
-from builder_ii.cli.orchestration_cli import orchestration_app
-from builder_ii.deepagents_execution import (
+from builder_ii.adapters.deepagents.deepagents_execution import (
     DISCHARGE_BLOCKED,
     DISCHARGE_CONTRACT_SATISFIED,
     DISCHARGE_CONTRACT_VIOLATED,
@@ -25,7 +24,8 @@ from builder_ii.deepagents_execution import (
     create_deepagents_event_record,
     run_deepagents_approved_candidate,
 )
-from builder_ii.orchestration_status import (
+from builder_ii.cli.orchestration_cli import orchestration_app
+from builder_ii.core.orchestration_status import (
     BOARD_STATE_BLOCKED,
     BOARD_STATE_OPEN,
     BOARD_STATE_SATISFIED,
@@ -171,7 +171,7 @@ def test_render_status_table_state_column_survives_narrow_width() -> None:
 
     from rich.console import Console
 
-    from builder_ii.orchestration_status import BOARD_STATES, render_status_table
+    from builder_ii.core.orchestration_status import BOARD_STATES, render_status_table
 
     board = {
         "run_status": "COMPLETE",

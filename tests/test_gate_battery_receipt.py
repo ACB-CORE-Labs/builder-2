@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.gate_battery_receipt import (
+from builder_ii.governance.ledger.gate_battery_receipt import (
     GATE_BATTERY_RECEIPT_KIND,
     build_gate_battery_receipt,
     dumps_gate_battery_receipt,
@@ -237,7 +237,7 @@ def test_overall_state_failed_with_no_failed_gate_rejected() -> None:
 
 
 def _resign(receipt: dict) -> dict:
-    from builder_ii.config_schema import attach_digest
+    from builder_ii.core.config_schema import attach_digest
 
     return attach_digest(receipt, digest_key="gate_battery_receipt_digest")
 

@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pytest
 
-from builder_ii.deepagents_forge_wizard import FORGE_STEPS, ForgeWizard
+from builder_ii.adapters.deepagents.deepagents_forge_wizard import FORGE_STEPS, ForgeWizard
 
 STEP_IDS = (
     "identity",

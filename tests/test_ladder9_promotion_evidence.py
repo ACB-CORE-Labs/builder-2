@@ -29,9 +29,9 @@ from pathlib import Path
 
 import pytest
 
-from builder_ii.config_schema import digest_jsonable
-from builder_ii.verification_isolation_policy import finalize_verification_isolation_policy
-from builder_ii.verification_promotion_gate import validate_promotion_evidence
+from builder_ii.core.config_schema import digest_jsonable
+from builder_ii.lifecycle.candidate.verification_isolation_policy import finalize_verification_isolation_policy
+from builder_ii.lifecycle.candidate.verification_promotion_gate import validate_promotion_evidence
 
 PROMOTED_CAPABILITY = "HITL-approved verification execution"
 _EVIDENCE_DIR = Path(__file__).resolve().parent.parent / "planning" / "evidence"

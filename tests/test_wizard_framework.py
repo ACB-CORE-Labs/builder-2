@@ -14,8 +14,8 @@ from __future__ import annotations
 import pytest
 
 from builder_ii.cli.setup_cli import setup_wizard_step_definitions
-from builder_ii.init_decisions import init_wizard_step_definitions
-from builder_ii.wizard_framework import (
+from builder_ii.lifecycle.setup.init_decisions import init_wizard_step_definitions
+from builder_ii.lifecycle.setup.wizard_framework import (
     WizardAborted,
     WizardEngine,
     WizardStep,

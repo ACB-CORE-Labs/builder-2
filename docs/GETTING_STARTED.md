@@ -343,7 +343,7 @@ Docs: [`GOOSE_SESSION.md`](GOOSE_SESSION.md), [`GOOSE_RUNTIME.md`](GOOSE_RUNTIME
 
 | Layer | Location | Role |
 |-------|----------|------|
-| Built-in profiles | `builder_ii/agent_profiles.py` | Named roles (`repo_mapper`, `patch_planner`, …) with authority + tool allow/deny |
+| Built-in profiles | `builder_ii/routing/agent_profiles.py` | Named roles (`repo_mapper`, `patch_planner`, …) with authority + tool allow/deny |
 | Forge YAML templates | `profiles/deepagents/*.yaml` | Passive specs (cartographer, handoff scribe, orchestration architect, …) — **passive**, not runtime authority |
 
 **builder-II’s way of creating a new deepagent:**

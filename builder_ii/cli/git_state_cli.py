@@ -6,7 +6,7 @@ import typer
 from rich.console import Console
 
 from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.git_state import (
+from builder_ii.core.git_state import (
     create_git_state_record,
     dumps_git_state_record,
     validate_git_state_record,

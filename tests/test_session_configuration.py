@@ -6,8 +6,8 @@ from pathlib import Path
 from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
-from builder_ii.config import load_settings
-from builder_ii.session_config import (
+from builder_ii.core.config import load_settings
+from builder_ii.core.session_config import (
     SESSION_CONFIG_KIND,
     create_session_configuration,
     dumps_session_configuration,
@@ -52,7 +52,7 @@ def test_create_generic_session_configuration_spine(tmp_path: Path) -> None:
     assert config["authority_mode"] == "read_only"
     assert config["context"]["context_pack_ref"] == ".builder/artifacts/context-pack.json"
     assert "README.md" in config["context"]["context_defaults"]
-    assert config["model_policy"]["provider_backend"] == "mlx-lm"
+    assert config["model_policy"]["provider_backend"] == "ollama"
     assert config["model_policy"]["model_alias"] == "qwen-coder"
     assert config["model_policy"]["governance"]["model_execution"] == "DISABLED"
     assert config["goose_projection_policy"]["projection_state"] == "PLANNED_ONLY"

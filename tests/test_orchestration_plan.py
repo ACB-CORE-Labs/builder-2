@@ -5,14 +5,14 @@ from pathlib import Path
 
 from orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
-from builder_ii.orchestration_assignment import (
+from builder_ii.core.orchestration_assignment import (
     AGENT_ASSIGNMENT_PLAN_KIND,
     ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
     create_orchestration_assignment_plan,
     validate_agent_assignment_plan,
     validate_orchestration_assignment_plan,
 )
-from builder_ii.orchestration_plan import (
+from builder_ii.core.orchestration_plan import (
     ORCHESTRATION_PLAN_KIND,
     create_orchestration_plan,
     dumps_orchestration_plan,
@@ -311,7 +311,7 @@ def test_goal2_assignment_context_binding_escalation_fails_closed(
 def test_validation_report_for_invalid_unknown_malformed_subjects(
     tmp_path: Path,
 ) -> None:
-    from builder_ii.orchestration_assignment import (
+    from builder_ii.core.orchestration_assignment import (
         create_orchestration_assignment_validation_report,
         validate_orchestration_assignment_validation_report,
     )

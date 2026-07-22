@@ -6,22 +6,22 @@ from pathlib import Path
 from builder_ii.hitl_execution_cli import hitl_app
 from typer.testing import CliRunner
 
-from builder_ii.artifact_chain_verification import extract_references
-from builder_ii.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY, TIER_1
-from builder_ii.execution_candidate_manifest import (
+from builder_ii.core.artifact_chain_verification import extract_references
+from builder_ii.governance.authority import COMMAND_AUTHORITY_REGISTRY, TIER_1
+from builder_ii.governance.hitl.hitl_promotion_artifacts import (
+    HITL_APPROVAL_BOUNDARY_KIND,
+    HITL_PROMOTION_DECISION_KIND,
+    HITL_PROMOTION_REQUEST_KIND,
+    HITL_PROMOTION_REVIEW_KIND,
+)
+from builder_ii.governance.ledger.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
+from builder_ii.lifecycle.candidate.execution_candidate_manifest import (
     EXECUTION_CANDIDATE_MANIFEST_KIND,
     EXECUTION_CANDIDATE_MANIFEST_VALIDATION_REPORT_KIND,
     create_execution_candidate_manifest,
     create_execution_candidate_manifest_validation_report,
     validate_execution_candidate_manifest,
     validate_execution_candidate_manifest_validation_report,
-)
-from builder_ii.hitl_promotion_artifacts import (
-    HITL_APPROVAL_BOUNDARY_KIND,
-    HITL_PROMOTION_DECISION_KIND,
-    HITL_PROMOTION_REQUEST_KIND,
-    HITL_PROMOTION_REVIEW_KIND,
 )
 
 runner = CliRunner()
@@ -448,7 +448,7 @@ def test_cli_commands(tmp_path: Path) -> None:
 
 
 def test_hitl_verification_candidate_sibling() -> None:
-    from builder_ii.hitl_verification_candidate import (
+    from builder_ii.governance.hitl.hitl_verification_candidate import (
         HITL_VERIFICATION_EXECUTION_CANDIDATE_KIND,
         validate_hitl_verification_execution_candidate,
     )

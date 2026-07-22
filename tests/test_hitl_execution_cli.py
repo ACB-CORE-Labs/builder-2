@@ -8,7 +8,7 @@ import builder_ii.hitl_execution_cli as cli_mod
 from builder_ii.hitl_execution_cli import hitl_app
 from typer.testing import CliRunner
 
-from builder_ii.hitl_execution_records import (
+from builder_ii.governance.hitl.hitl_execution_records import (
     HITL_EXECUTION_RECEIPT_KIND,
     HITL_EXECUTION_REQUEST_KIND,
 )

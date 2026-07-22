@@ -1,4 +1,4 @@
-from builder_ii.mcp_policy import (
+from builder_ii.core.mcp_policy import (
     ENVELOPE_SCHEMA_VERSION,
     INVENTORY_SCHEMA_VERSION,
     POLICY_SCHEMA_VERSION,

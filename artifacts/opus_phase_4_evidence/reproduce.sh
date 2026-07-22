@@ -5,7 +5,7 @@ set -uo pipefail
 
 echo "== A. Registry ground truth (no TUI involved) =="
 uv run python -c "
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY as R, TIER_3, TIER_4, check_command_authority as C
+from builder_ii.governance.authority import COMMAND_AUTHORITY_REGISTRY as R, TIER_3, TIER_4, check_command_authority as C
 auth=[r for r in R if r.tier in (TIER_3,TIER_4)]
 print('  records                    :', len(list(R)))
 print('  rec.tier in (\"TIER_3\",\"TIER_4\") ->', sum(1 for r in R if r.tier in ('TIER_3','TIER_4')), '(what the pre-fix app.py computed)')

@@ -4,7 +4,7 @@ from pathlib import Path
 from builder_ii.notes_cli import notes_app
 from typer.testing import CliRunner
 
-from builder_ii.handoff_artifacts import (
+from builder_ii.core.handoff_artifacts import (
     create_handoff_artifact,
     dumps_handoff_artifact,
     validate_handoff_artifact,

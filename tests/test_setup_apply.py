@@ -6,9 +6,9 @@ from pathlib import Path
 from builder_ii.setup_cli import setup_app
 from typer.testing import CliRunner
 
-from builder_ii.command_authority import COMMAND_AUTHORITY_REGISTRY
-from builder_ii.config_schema import attach_digest
-from builder_ii.setup_receipt import validate_setup_receipt_artifact
+from builder_ii.core.config_schema import attach_digest
+from builder_ii.governance.authority import COMMAND_AUTHORITY_REGISTRY
+from builder_ii.lifecycle.setup.setup_receipt import validate_setup_receipt_artifact
 
 runner = CliRunner()
 

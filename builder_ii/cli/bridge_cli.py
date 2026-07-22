@@ -8,17 +8,17 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from builder_ii.agent_profiles import AgentProfileName, agent_profile_names
-from builder_ii.cli.plain_stdout import echo_stdout
-from builder_ii.config import load_settings
-from builder_ii.deepagents_bridge import (
+from builder_ii.adapters.deepagents.deepagents_bridge import (
     bridge_spec_for,
     deepagents_availability,
     render_bridge_spec,
     validate_artifact_file,
     validate_bridge_spec,
 )
-from builder_ii.target_profiles import TargetName, target_names, target_profile
+from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.core.config import load_settings
+from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names, target_profile
+from builder_ii.routing.agent_profiles import AgentProfileName, agent_profile_names
 
 bridge_app = typer.Typer(help="Render optional bridge specs.")
 console = Console(width=240)

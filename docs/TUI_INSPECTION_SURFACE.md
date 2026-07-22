@@ -140,7 +140,7 @@ builder goose status || exit 1
 
 ## `builder hitl` — HITL Inspection
 
-**Module:** `builder_ii/hitl_tui.py`  
+**Module:** `builder_ii/governance/hitl/hitl_tui.py`  
 **Artifact kinds:** HITL chain bindings, approval records, evidence bundles,
 execution request/receipt records, promotion readiness/decision records, and
 HITL-relevant event ledger entries.
@@ -163,7 +163,7 @@ commands exit `0`.
 
 ## `builder profile` — Profile Pack Inspection
 
-**Module:** `builder_ii/profile_tui.py`  
+**Module:** `builder_ii/lifecycle/setup/profile_tui.py`  
 **Artifact kinds / data sources:** profile-pack manifests, lifecycle bindings,
 render plans, dry-run artifacts, validation reports, resolution metadata, and
 profile-pack history discovered under `$BUILDER_DIR`.
@@ -185,7 +185,7 @@ inspects only.
 
 ## `builder model` — Model Routing Inspection
 
-**Module:** `builder_ii/model_tui.py`  
+**Module:** `builder_ii/routing/model_tui.py`  
 **Data sources:** passive model routing policy, routing recommendation,
 execution policy, and model client registry artifacts discovered under
 `$BUILDER_DIR`.
@@ -208,7 +208,7 @@ does not call models or provider endpoints.
 
 ## `builder promote` — Promotion Pipeline Inspection
 
-**Module:** `builder_ii/promote_tui.py`  
+**Module:** `builder_ii/lifecycle/candidate/promote_tui.py`  
 **Artifact kinds:** `promotion_readiness_record`, `hitl_promotion_artifact`,
 `promotion_decision_record`, `promotion_compatibility` report
 
@@ -293,7 +293,7 @@ Designed to be the single command in a `make promote-check` target.
 
 ## `builder postflight` — Execution Postflight Inspection
 
-**Module:** `builder_ii/postflight_tui.py`  
+**Module:** `builder_ii/lifecycle/candidate/postflight_tui.py`  
 **Artifact kinds:**
 
 | Kind | States | Ref chain |
@@ -367,7 +367,7 @@ Exit `1` if any errors.
 
 ## `builder goose` — Goose Session Manifest Inspection
 
-**Module:** `builder_ii/goose_tui.py`  
+**Module:** `builder_ii/adapters/goose/goose_tui.py`  
 **Artifact kind:** `builder_ii.goose_session_manifest`
 
 ### Schema highlights

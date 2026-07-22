@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from builder_ii.tui_theme import theme_palette
+from builder_ii.core.tui_theme import theme_palette
 
 StatusKind = Literal["pass", "warn", "fail", "hint", "active", "dim", "bold", "accent", "pending", "gate", "disabled"]
 

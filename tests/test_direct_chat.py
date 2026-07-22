@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from builder_ii.config import Settings
-from builder_ii.direct_chat import (
+from builder_ii.core.config import Settings
+from builder_ii.routing.direct_chat import (
     EMPTY_SANITIZED_OUTPUT_MESSAGE,
     build_direct_chat_payload,
     run_direct_chat,

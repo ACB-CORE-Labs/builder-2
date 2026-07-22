@@ -7,16 +7,16 @@ import pytest
 from builder_ii.session_cli import session_app
 from typer.testing import CliRunner
 
-from builder_ii.config import load_settings
-from builder_ii.profile_resolution import (
-    get_prompt_profile,
-    prompt_profiles,
-)
-from builder_ii.session_workflow import (
+from builder_ii.core.config import load_settings
+from builder_ii.core.session_workflow import (
     SESSION_WORKFLOW_PLAN_KIND,
     create_session_workflow_plan,
     validate_session_workflow_plan,
     validate_session_workflow_plan_file,
+)
+from builder_ii.lifecycle.setup.profile_resolution import (
+    get_prompt_profile,
+    prompt_profiles,
 )
 
 runner = CliRunner()

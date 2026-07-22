@@ -15,14 +15,14 @@ from unittest.mock import patch
 from builder_ii.model_cli import model_app
 from typer.testing import CliRunner
 
-from builder_ii.config import Settings
-from builder_ii.event_ledger import (
+from builder_ii.core.config import Settings
+from builder_ii.governance.ledger.event_ledger import (
     create_event_record,
     load_event_records,
     replay_events,
     write_event_record,
 )
-from builder_ii.model_routing_policy import create_model_execution_policy
+from builder_ii.routing.model_routing_policy import create_model_execution_policy
 
 
 def _settings(tmp_path: Path) -> Settings:
@@ -71,7 +71,7 @@ def _run_call_cmd(tmp_path: Path, session_id: str, pol_path: Path, settings: Set
     env_path = tmp_path / f"envelope_{session_id}.json"
     rec_path = tmp_path / f"receipt_{session_id}.json"
 
-    from builder_ii.direct_chat import DirectChatResult
+    from builder_ii.routing.direct_chat import DirectChatResult
 
     stub = DirectChatResult(ok=True, content="Paris", endpoint="http://x", model_id="m")
 
@@ -153,8 +153,8 @@ def test_model_event_chains_to_prior_event(tmp_path: Path, monkeypatch) -> None:
     # Now run the model call -- it should chain to the prior event
     event = _run_call_cmd(tmp_path, session_id, pol_path, settings, monkeypatch)
 
-    from builder_ii.event_ledger import validate_event_record
-    from builder_ii.workflow_records import canonical_digest
+    from builder_ii.governance.ledger.event_ledger import validate_event_record
+    from builder_ii.governance.ledger.workflow_records import canonical_digest
 
     assert event["sequence"] == 2, f"Expected sequence 2, got {event['sequence']}"
     prev_ref = event.get("previous_event_ref")

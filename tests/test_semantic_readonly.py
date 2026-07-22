@@ -7,7 +7,7 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from builder_ii.cli.semantic_cli import semantic_app
-from builder_ii.semantic_readonly import (
+from builder_ii.core.semantic_readonly import (
     doctor_semantic,
     map_semantic,
     preview_semantic,

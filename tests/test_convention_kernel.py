@@ -2,7 +2,7 @@
 
 import pytest
 
-from builder_ii.convention_kernel import (
+from builder_ii.governance.authority.convention_kernel import (
     AuthorityMode,
     ConventionKernel,
     GooseNativeProjection,

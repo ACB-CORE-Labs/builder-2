@@ -41,7 +41,7 @@ then-settled pipeline. This is a map amendment, recorded in
 | `code_vault/symbol_extractor.py` | **Feeds the frame** (`extract_symbols_from_file` → `repo_map_adapter` → `create_hierarchical_frame`). Top-level func/class only; async collapsed to `function`; declares `EXTRACTOR_ID="python-ast-toplevel"`, v`0.1.0`, and lists `nested_definitions`/`async_function_distinction`/`decorators_as_facts`/`methods`/… as **unsupported**. Changing it changes frame bytes (invariant #8) — it is **frozen** for G2. |
 | `code_vault/extractor_manifest.py` | Schema v1 settled (#78). Generic enough to declare a v1 structural extractor **without a schema bump**: `coverage="structure"` is already a registered `READINESS_COVERAGE_STATES` value ("StructuralField R+D for declared construct set"). `build_extractor_manifest("python")` is bound to the v0 extractor's constants; it stays byte-identical. Manifest imports its constants from the extractor module (anti-transcription). |
 | `hierarchy.py` | Frame symbol nodes use `layout_id = f"path:{normalize_layout_id(path)}#{kind}:{name}"` (`_symbol_layout_id`). Top-level facts can bind to real frame nodes by reproducing this scheme; nested/method subjects extend it (StructuralField is a superset of the frame, not a subset). |
-| CLI / registration | `builder-code-vault validate-structural-field` exists and is registered in `command_authority.py` (a real command record) + `artifact_index_records.py` (validator map). **No emit command.** `_SYNTHESIZED_PARENTS` count pin = **101** (`tests/test_command_authority.py:877`); adding one emit command makes it **102** — flip it via the generator `uv run python -m builder_ii.command_authority`, never by hand. |
+| CLI / registration | `builder-code-vault validate-structural-field` exists and is registered in `command_authority.py` (a real command record) + `artifact_index_records.py` (validator map). **No emit command.** `_SYNTHESIZED_PARENTS` count pin = **101** (`tests/test_command_authority.py:877`); adding one emit command makes it **102** — flip it via the generator `uv run python -m builder_ii.governance.authority`, never by hand. |
 | Proof bar (`CODE_VAULT_PROOF_PROGRAM.md`) | **D = detection validity:** labeled fixtures, invariance / false-positive audits, a **declared false-positive mode**. Guard: "synthetic beauty without labels." R+D → `*_candidate` / hypothesis vocabulary; **U stays closed** (no product/utility language anywhere in G2). |
 
 ---
@@ -128,7 +128,7 @@ correspondence; any utility / U language; touching the frame-feeding extractor.
    source scope, builds the structural manifest, emits the field JSON. Register it: a real record in
    `command_authority.py` (structurally a leaf command, `artifact_only`, no execution authority) + a
    row in `docs/COMMAND_SURFACE_AUDIT.md`; re-generate the `_SYNTHESIZED_PARENTS` count (101 → 102)
-   via `uv run python -m builder_ii.command_authority`, never by hand. `validate-structural-field`
+   via `uv run python -m builder_ii.governance.authority`, never by hand. `validate-structural-field`
    already exists — leave it.
 
 8. **Governance / claim law.** `capability_state = code_vault_structural_field` (already registered);
