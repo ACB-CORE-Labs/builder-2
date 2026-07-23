@@ -145,7 +145,8 @@ uv run builder stratum --experimental
 | **O** **U** **W** **Z** **E** **T** **M** | Instruments |
 | **?** | Palette · **~** composer |
 | **P** **V** **G** **N** | Prepare compose · validate · goose · next |
-| **A/R** | Compose HITL approve/reject (no mutation) |
+| **L** | Run cockpit: runs roster + live ledger transcript ( **, .** select run ) |
+| **A/R** | Compose HITL approve/reject (no mutation) · **D** diff (read-only) |
 
 ---
 

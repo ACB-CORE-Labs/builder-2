@@ -205,13 +205,14 @@ Footer chain bar: **DIGEST —** until verification exposes one; **AUTH** not ev
 | **B** | CodeVault | Frame/vault JSON scan | Compose demo/status/frame |
 | **E** | Quality gates | Required evidence / blockers template | Advisory artifact shape |
 | **T** | Tooling | Local tool registry install check | — |
+| **L** | Run cockpit | Runs roster + live ledger transcript | **, .** select run |
 | **?** | Palette | Full `COMMAND_AUTHORITY` tiers | Compose if permitted |
 | **~** | Composer | Context-injected CLI line | **Never executes** |
 | **P** | Prepare wizard | Session prepare choices | Composes `builder-session prepare-package …` |
 | **V** | Validate | Chain re-check + compose validate-prepare | |
 | **G** | Goose hand-off | Uses existing read_only manifest, or **asks** before auto-prep; then `start-readonly` | Fail-closed on authority; still no raw Goose |
 | **N** | Next | `create_operator_next_action_report` | Prefills composer |
-| **A / R / I** | HITL ceremony | Pending proposal if any | Compose approve/reject; **I** inspect |
+| **A / R / I / D** | HITL ceremony | Pending proposal if any | Compose approve/reject; **I** inspect; **D** diff (read-only) |
 
 Details and flags: [`STRATUM.md`](STRATUM.md). In-app guide mirrors this.
 
