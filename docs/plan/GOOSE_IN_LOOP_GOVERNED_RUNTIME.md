@@ -67,7 +67,7 @@ now and would itself require dependency governance before use.
 | Piece | Location | Role |
 |---|---|---|
 | Hash-chained event ledger | `governance/ledger/event_ledger.py` (`create_event_record`, `replay_events`, `validate_event_chain_integrity`, `previous_event_ref`) | Transcript source (TUI) **and** in-loop receipt chain |
-| MCP policy/envelope/receipt validators | `core/mcp_policy.py` (deny-by-default; `executes_shell`/`mutates_target_repo` pinned false) | Governed-call schema; G4 relaxes the pins only behind a validated `approval_ref` |
+| MCP policy/envelope/receipt validators | `core/mcp_policy.py` (deny-by-default; `executes_shell`/`mutates_target_repo` pinned false) | Governed-call schema; stays read-only — G4 does not relax these pins, it delegates to the governed apply lane |
 | Tool invocation gateway | `core/tool_invocation_gateway.execute_tool_envelope`, `builder-mcp call` | Execution primitive the MCP server wraps |
 | deepagents run lifecycle | `adapters/deepagents/deepagents_execution.py` (`deepagents_run_envelope`, `deepagents_checkpoint`, `deepagents_execution_receipt`, `deepagents_evidence_bundle`; statuses `COMPLETED`/`CHECKPOINTED`/`FAILED`; `DeepAgentsBackend.run_subagent`) | Cockpit roster + subagent tree source; `run_subagent` is the subagent-with-subagents recursion point |
 | Goose read-only harness | `adapters/goose/goose_runtime_harness.py` (preflight digest snapshot + `no_mutation_postflight`) | Baseline evidence the read-only phases must preserve |
@@ -96,7 +96,7 @@ observe-and-compose contract.
 | **G1** | Governed MCP server, read-only tools | ⁺`adapters/mcp/server.py` ⁺`adapters/mcp/tools.py` ~`cli/mcp_cli.py` (`serve`) | `mcp_call_receipt` + `event_record`; `validate_mcp_receipt`, `validate_event_chain_integrity` | in-process test: read tool call → receipt validates, ledger chain intact, `executes_shell` stays false, no mutation | inside |
 | **G2** | Recipe interposition + governed launch | ⁺`recipes/governed-readonly.yaml` ~`adapters/goose/goose_runtime_harness.py` (`launch_governed`) | reuses launch/close/postflight receipts | launch test: argv carries our extension + `--with-builtin ""`; `no_mutation_postflight` passes; verify-by-experiment that Goose loads a stdio MCP extension | inside |
 | **G3** | In-loop HITL gate (mutating tools refuse) | ~`adapters/mcp/tools.py` ~`governance/hitl/hitl_command_execution.py` (wire) | `hitl_execution_request` + refusal `mcp_call_receipt` | test: a write/shell tool call emits a HITL request and a refusal receipt and never mutates the target; denied-action test | inside (refusal path only) |
-| **〔G4〕** | Write/shell unlock behind the gate | ~`core/mcp_policy.py` (conditional pins) ~`docs/RUNTIME_PROMOTION.md` (new state) ~completion matrix + `core/platform_completion_audit.py` | promotion decision record; eight gates | matrix row flips on closure evidence; digest-bound approval; docs and code land together | **crosses (deferred; briefed after G1–G3)** |
+| **G4** | In-loop governed patch apply (deny-by-default candidate) | ⁺`adapters/mcp/governed_apply.py` ~`adapters/mcp/server.py` (routes `propose_patch`) | delegates to `apply_hitl_patch`; no schema relax, no new write primitive | fail-closed tests; deny-by-default (flag + digest-bound approval); no matrix/OV flip | **implemented; closure audit to `enabled` is the operator step** |
 | **T2a** | Live ledger transcript widget | ⁺`tui/widgets/transcript.py` ⁺`tui/projections/run_transcript.py` | reads `event_record` chain; honest empty state | `tests/scenarios/test_tui_exploration.py` tails a fixture ledger; digest-literal ban stays green | inside |
 | **T2b** | Run roster + cockpit (Stage 1) | ⁺`tui/projections/runs.py` ~`tui/widgets/stratum.py` (`RUN_COCKPIT`) ~`tui/app.py` (binding) | projects deepagents `run_envelope`/status | scenario: roster renders fixture runs; Stop/Resume/Start compose argv only (no-dispatch pin) | inside |
 | **T3** | Live subagent tree | ⁺`tui/projections/subagent_tree.py` ~`tui/widgets/stratum.py` | projects `run_envelope` + subagent `execution_receipt` + `checkpoint` | scenario vs fixture multi-subagent run | inside |
@@ -117,6 +117,12 @@ through a validated approval"), a completion-matrix flip on closure evidence, an
 code landing together. G4 is a promotion, not a sprint — and G1–G3's in-loop refusal gate,
 producing real receipts, is the evidence that would earn it. G4 is briefed only after G1–G3
 are battery-green (locked decision).
+
+**Implemented 2026-07-23 (operator sign-off) via delegation — not a new state or a schema
+relaxation.** Reading the code showed builder-II already carries a governed source-write lane
+(`apply_hitl_patch`, `hitl_runtime_candidate`), so the in-loop gate routes a validated
+`propose_patch` to it, deny-by-default behind `BUILDER_MCP_GOVERNED_APPLY` and a digest-bound
+approval. The completion matrix is not flipped (OV unchanged); the closure audit that would move it to `enabled` is the operator step. Full detail: the G4 brief §0.
 
 ## 7. Proof discipline
 

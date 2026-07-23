@@ -220,7 +220,7 @@ These are the next capability promotions. Each requires the full capability prom
 - Interpose on Goose via a builder-II-owned governed MCP server loaded as its only extension (with `--with-builtin ""`); no Goose fork and no source patch
 - Read-only tools and a refusing in-flight HITL gate operate inside the current observe-and-compose contract; write and shell stay denied until a separate promotion
 - STRATUM streams the run by tailing the hash-chained event ledger the server writes; the TUI gains no dispatch authority
-- Write/shell unlock is design-gated behind the eight promotion gates and a matrix flip; it is not enabled by this phase
+- Write/shell: G4 is implemented as a deny-by-default candidate — the in-loop gate delegates a validated `propose_patch` to the governed apply lane behind the `BUILDER_MCP_GOVERNED_APPLY` flag + a digest-bound approval; it is not enabled by default, OV is unchanged, and the closure audit to `enabled` is an operator step
 - See `docs/plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md`, ADR-0009
 
 ### Phase: artifact memory and context reconstruction
