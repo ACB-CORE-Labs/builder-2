@@ -32,7 +32,7 @@ it sets, so a row reading `—` claims none.
 is correct rather than an oversight: `PASSIVE_ARTIFACT_VERIFIED` already permits writing
 to the artifact store, so a command that writes only artifacts is passive by definition.
 
-## Declared records (351)
+## Declared records (352)
 
 Authority written down, command by command.
 
@@ -387,6 +387,7 @@ Authority written down, command by command.
 | `builder-mcp policy` | Tier 1 — artifact-only planning/validation | `artifact_only` | Validates or emits passive MCP policy artifact. | Writes artifact to specified path if output flag passed. | `none` | None. | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-mcp call` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Executes explicitly bounded low-risk MCP stub call from envelope. | Writes receipt and operational ledger events. | `explicit_operator_invocation` | Explicit envelope passing. | `artifact_writes`, `state_writes`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 | `builder-mcp standalone-call` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Executes explicitly bounded low-risk MCP stub call from envelope without logging to the workflow ledger. | Writes receipt to explicit output path only. | `explicit_operator_invocation` | Explicit envelope passing. | `artifact_writes`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
+| `builder-mcp serve` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Runs a stdio JSON-RPC MCP server exposing only allowlisted low-risk read-only stub tools; each call runs the governed envelope->receipt->ledger ceremony. | Writes envelopes, receipts, and chained event records under .builder/sessions. | `explicit_operator_invocation` | Explicit operator invocation; every tool call is envelope-bound and deny-by-default. | `artifact_writes`, `state_writes`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 | `builder-tools invoke` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Executes explicitly bounded low-risk tool stub call from envelope. | Writes receipt and operational ledger events. | `explicit_operator_invocation` | Explicit envelope passing. | `artifact_writes`, `state_writes`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 | `builder-tools standalone-invoke` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Executes explicitly bounded low-risk tool stub call from envelope without logging to the workflow ledger. | Writes receipt to explicit output path only. | `explicit_operator_invocation` | Explicit envelope passing. | `artifact_writes`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 
