@@ -238,10 +238,14 @@ class SignalRail(Vertical):
             glyph = themed("warn", "⚡")
         elif "pass" in et or "verify" in et or "complete" in et:
             glyph = themed("pass", "✓")
+        elif "model" in et or "llm" in et or "inference" in et:
+            glyph = themed("accent", "🧠")
+        elif "sys" in et or "os" in et or "shell" in et or "cmd" in et:
+            glyph = themed("active", "⚙")
         else:
             glyph = themed("hint", "·")
 
-        self._ledger_log.write(f"{themed('dim', ts)} {glyph} {themed('hint', summary[:40])}")
+        self._ledger_log.write(f"{themed('dim', ts)} {glyph} {themed('bold', event_type[:12])} {themed('hint', summary[:60])}")
 
     def update_gate(self, is_open: bool, label: str = "") -> None:
         if self._gate_indicator:
@@ -252,6 +256,25 @@ class SignalRail(Vertical):
     def update_capability(self, cap_name: str, state: str) -> None:
         if cap_name in self._cap_items:
             self._cap_items[cap_name].state = state
+
+    def refresh_capabilities(self) -> None:
+        """Scan artifacts for granted capabilities and update HUD."""
+        if not self.artifacts_dir:
+            return
+            
+        cap_file = self.artifacts_dir / "capabilities.json"
+        if not cap_file.exists():
+            self._apply_default_capabilities()
+            return
+            
+        try:
+            data = json.loads(cap_file.read_text(encoding="utf-8"))
+            caps = data.get("capabilities", {})
+            for cap in CAPABILITIES:
+                state = caps.get(cap, "DISABLED")
+                self.update_capability(cap, state)
+        except (json.JSONDecodeError, OSError):
+            self._apply_default_capabilities()
 
     def append_event(self, ts: str, event_type: str, summary: str) -> None:
         self._write_ledger_line(ts, event_type, summary)

@@ -136,8 +136,8 @@ class ArtifactSpine(Vertical):
                 self._items.append(item)
                 yield item
         yield Static(
-            f" {bold_themed('active', 'TAB')} cycle  {bold_themed('active', '/')} filter\n"
-            f" {bold_themed('active', 'SPC')} pin    {bold_themed('active', 'j/k')} move",
+            f" {bold_themed('active', 'H')} help   {bold_themed('active', '?')} palette\n"
+            f" {bold_themed('active', 'C')} cli    {bold_themed('active', 'Q')} quit",
             id="spine-hints",
         )
 
@@ -189,13 +189,19 @@ class ArtifactSpine(Vertical):
             self._on_select(self.get_selected_artifact())
 
     def get_selected_artifact(self) -> dict[str, str] | None:
-        if 0 <= self.selected_index < len(PIPELINE_STAGES):
-            return dict(PIPELINE_STAGES[self.selected_index])
+        if 0 <= self.selected_index < len(self._items):
+            artifact_id = self._items[self.selected_index].artifact_id
+            for stage in PIPELINE_STAGES:
+                if stage["id"] == artifact_id:
+                    return dict(stage)
         return None
 
     def get_selected_stage_view(self) -> StageView | None:
-        if 0 <= self.selected_index < len(self._stage_views):
-            return self._stage_views[self.selected_index]
+        if 0 <= self.selected_index < len(self._items):
+            artifact_id = self._items[self.selected_index].artifact_id
+            for view in self._stage_views:
+                if view.stage_id == artifact_id:
+                    return view
         return None
 
     async def refresh_data(self) -> None:

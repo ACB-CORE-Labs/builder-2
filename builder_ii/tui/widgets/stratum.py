@@ -331,7 +331,12 @@ class ActiveStratum(Vertical):
 
         data = self._inspected_artifact
         kind = str(data.get("kind", "—"))
+        
+        breadcrumb = f"  {themed('dim', 'STRATUM')} {themed('hint', '›')} {themed('dim', 'INSPECT')} {themed('hint', '›')} {bold_themed('active', kind)}"
+        
         lines = [
+            breadcrumb,
+            "",
             section_title("ARTIFACT"),
             kv("Kind", kind, value_role="active"),
         ]

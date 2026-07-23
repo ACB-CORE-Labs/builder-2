@@ -148,10 +148,10 @@ def setup() -> None:
 
 @app.command("stratum")
 def stratum(
-    experimental: bool = typer.Option(
+    sandbox: bool = typer.Option(
         False,
-        "--experimental",
-        help="Required flag to launch the pre-release STRATUM surface (see docs/OPERATOR_COMMAND_SURFACE.md).",
+        "--sandbox",
+        help="Launch STRATUM with strict execution confinement (read-only composition).",
     ),
     no_guide: bool = typer.Option(
         False,
@@ -164,26 +164,10 @@ def stratum(
         help="Force first-session walkthrough open even if previously dismissed.",
     ),
 ) -> None:
-    """Launch STRATUM: The Builder-II Operator TUI (experimental)."""
+    """Launch STRATUM: The Builder-II Operator Console."""
     from builder_ii.governance.authority import enforce_command_authority
 
     enforce_command_authority("builder stratum")
-
-    if not experimental:
-        console.print(
-            "[yellow]STRATUM is an experimental operator console.[/]\n"
-            "Command tier evaluation reads the real command-authority registry.\n"
-            "No chain digest is shown: the verification report exposes none, so STRATUM displays an "
-            "explicit absence rather than a value shaped like a digest.\n"
-            "HITL approve/reject deliberately do nothing but refuse and name the governed CLI — a "
-            "surface that renders a digest must not harvest its confirmation.\n"
-            "The HITL diff viewer is still an unimplemented mockup.\n\n"
-            "First-session walkthrough auto-opens when .builder/artifacts is empty "
-            "(opt out: [bold]--no-guide[/], [bold]X[/] in-guide, or [bold]STRATUM_SKIP_GUIDE=1[/]).\n\n"
-            "Pass [bold]--experimental[/] to launch STRATUM anyway.\n"
-            "Docs: [bold]docs/STRATUM.md[/] · in-app [bold]H[/] help · [bold]0[/] walkthrough."
-        )
-        raise typer.Exit(1)
 
     try:
         from builder_ii.tui.app import StratumApp, run_tui
@@ -198,6 +182,7 @@ def stratum(
 
     console.print(
         "[bold cyan]STRATUM[/] — builder-II operator console\n"
+        "[yellow]GOVERNANCE NOTICE: planned ≠ executed ≠ verified ≠ promoted[/]\n"
         "[dim]Tip: [bold]uv run builder-stratum[/] is the short form (same gate).[/]\n"
         "[dim]observe + compose only · docs/STRATUM.md · H help · 0 walkthrough[/]"
     )
