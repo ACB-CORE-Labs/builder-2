@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 from typing import Any, TextIO
 
+from builder_ii.adapters.mcp.governed_apply import run_gated_patch_apply
 from builder_ii.adapters.mcp.governed_call import (
     GATED_TOOL_SPECS,
     TOOL_SPECS,
@@ -83,6 +84,27 @@ class GovernedMcpServer:
     def _tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         name = params.get("name")
         arguments = params.get("arguments") or {}
+
+        # G4: the write path routes to the governed apply lane behind a validated approval and
+        # the deny-by-default enablement flag. run_shell has no governed bounded lane to
+        # delegate to, so it stays refused (G3).
+        if name == "propose_patch":
+            outcome = run_gated_patch_apply(
+                arguments=dict(arguments),
+                session_id=self.session_id,
+                builder_root=self.builder_root,
+            )
+            return {
+                "content": [{"type": "text", "text": outcome.reason}],
+                "isError": outcome.status != "applied",
+                "_meta": {
+                    "governed": True,
+                    "gated": True,
+                    "applied": outcome.status == "applied",
+                    "event_path": str(outcome.event_path),
+                    "receipt_dir": outcome.receipt_dir,
+                },
+            }
 
         if name in GATED_TOOL_SPECS:
             refusal = refuse_gated_tool_call(

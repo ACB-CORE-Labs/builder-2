@@ -4573,15 +4573,21 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         tier=TIER_3,
         promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
         runtime_boundary=(
-            "Runs a stdio JSON-RPC MCP server exposing only allowlisted low-risk read-only "
-            "stub tools; each call runs the governed envelope->receipt->ledger ceremony."
+            "Runs a stdio JSON-RPC MCP server for Goose. Read-only stub tools run the governed "
+            "envelope->receipt->ledger ceremony. Mutating tool classes are advertised but refused "
+            "in-loop, deny-by-default (an mcp_call_denied event); the sole exception is propose_patch, "
+            "which routes to the governed builder-hitl apply-patch lane ONLY when the operator has set "
+            "BUILDER_MCP_GOVERNED_APPLY and supplies a schema-valid digest-bound approval, and even then "
+            "apply_hitl_patch re-validates authority, binding, expiry, clean tree, and verification and "
+            "fails closed. run_shell has no governed lane and always refuses. The server mints no write "
+            "primitive and does not relax the read-only envelope schema."
         ),
-        write_boundary="Writes envelopes, receipts, and chained event records under .builder/sessions.",
+        write_boundary="Writes envelopes, receipts, and chained event records under .builder/sessions; the actual source write, if any, is performed by the delegated builder-hitl apply-patch lane under its own authority.",
         approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
-        approval_boundary="Explicit operator invocation; every tool call is envelope-bound and deny-by-default.",
+        approval_boundary="Explicit operator invocation; read tool calls are envelope-bound; propose_patch additionally requires the BUILDER_MCP_GOVERNED_APPLY flag and a digest-bound hitl_patch_approval, verified inside apply_hitl_patch.",
         output_behavior="Speaks newline-delimited JSON-RPC on stdout.",
-        failure_mode="Denied calls return an error result; the process exits non-zero on fatal error.",
-        notes="G1 governed MCP interposition seam for Goose; introduces no new tool capability.",
+        failure_mode="Denied/refused calls return an isError result and ledger a denial; the process exits non-zero on fatal error.",
+        notes="Governed MCP interposition seam for Goose (ADR-0009 G1-G4). Read-only ceremony + in-loop refusing gate; G4 delegates propose_patch to the governed apply lane, deny-by-default (flag + approval), hitl_runtime_candidate not enabled-by-default.",
         allows_artifact_writes=True,
         allows_external_tool_invocation=True,
         allows_state_writes=True,
