@@ -1,0 +1,30 @@
+version: "1.0.0"
+title: "builder-II governed read-only session"
+description: >
+  Governed interposition recipe (G2). Goose's only tool surface is the builder-II governed
+  MCP server; there are no developer/shell builtins. Every tool call is mediated by
+  `builder-mcp serve`, which runs the governed envelope -> receipt -> ledger ceremony and
+  exposes only read-only stub tools. This recipe grants no authority and enables no write,
+  shell, or target mutation.
+instructions: |
+  All tool calls are mediated by the builder-II governed MCP server (extension
+  "builder_ii_governed"). Only read-only tools are available: there is no shell, no file
+  editing, and no target-repo mutation. Every call is recorded as a governed receipt and a
+  hash-chained event; nothing here grants execution or promotion authority.
+
+  If a task appears to require writing files, running shell, or mutating the target, stop and
+  report that it is out of scope for a governed read-only session -- do not attempt to work
+  around the absence of those tools.
+prompt: |
+  Governed read-only session ready. Only the builder-II governed MCP tools are available.
+settings:
+  temperature: 0.0
+  goose_mode: auto
+extensions:
+  - type: stdio
+    name: builder_ii_governed
+    cmd: builder-mcp
+    args:
+      - serve
+    timeout: 300
+    description: "builder-II governed MCP server (read-only stub tools; ledgered)"

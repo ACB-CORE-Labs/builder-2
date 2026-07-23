@@ -102,6 +102,63 @@ class GooseRuntimeHarness:
             start_time=start_time,
         )
 
+    # Recipe whose sole extension is the builder-II governed MCP server (G2). Unlike
+    # launch_readonly (which strips builtins so Goose has *no* tools), this gives Goose one
+    # tool surface -- our server -- so its tool calls flow through the governed ceremony.
+    GOVERNED_RECIPE_NAME = "governed-readonly.yaml"
+
+    def _governed_recipe_path(self) -> Path:
+        return self.settings.project_root / "recipes" / self.GOVERNED_RECIPE_NAME
+
+    @staticmethod
+    def _governed_argv(goose: str, recipe: Path) -> list[str]:
+        """Goose argv for a governed session: no builtins, our recipe as the tool surface."""
+        argv = [goose, "session", "--with-builtin", ""]
+        if recipe.exists():
+            argv.extend(["--recipe", str(recipe)])
+        return argv
+
+    def launch_governed(self) -> dict[str, Any]:
+        """Launch Goose with the builder-II governed MCP server as its only tool surface.
+
+        Points Goose at ``recipes/governed-readonly.yaml``, whose sole extension is
+        ``builder-mcp serve`` -- so every Goose tool call flows through the governed
+        envelope -> receipt -> ledger ceremony instead of a native builtin. Still no
+        developer/shell builtins (``--with-builtin ""``), still preflight-snapshotted and
+        no-mutation-postflighted on close. The in-loop refusal gate for mutating tool
+        classes arrives in G3; G2's exposed tools are read-only, so ``GOOSE_MODE`` stays
+        ``auto`` and the governance boundary lives in the MCP tool, not in Goose's prompt.
+        """
+        goose = find_goose_binary()
+        if not goose:
+            raise FileNotFoundError("Goose CLI not found.")
+
+        recipe = self._governed_recipe_path()
+        env = goose_env(self.settings, session=self.session_plan)
+        env["GOOSE_MODE"] = "auto"
+        # Scope the MCP server's ledger to this run so its events land under this session.
+        env["BUILDER_MCP_SESSION_ID"] = self.session_id
+
+        argv = self._governed_argv(goose, recipe)
+        self._preflight_snapshot = _get_target_files(self.target_root)
+
+        start_time = _current_time_utc()
+        self._proc = subprocess.Popen(
+            argv,
+            cwd=self.target_root,
+            env=env,
+        )
+
+        return create_goose_launch_receipt(
+            session_id=self.session_id,
+            target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
+            agent_profile=self.session_plan.agent_profile
+            if hasattr(self.session_plan, "agent_profile")
+            else "patch_planner",
+            pid=self._proc.pid,
+            start_time=start_time,
+        )
+
     async def launch_readonly_async(self) -> dict[str, Any]:
         """Launch Goose asynchronously in strict read-only mode, avoiding loop blockage."""
         goose = find_goose_binary()
