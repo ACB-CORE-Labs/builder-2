@@ -8,6 +8,7 @@ honest absence markers (``—`` / ``none``) when data is missing.
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -124,6 +125,24 @@ def _project_seam(roots: list[Path]) -> tuple[str, str]:
     return f"manifest · {model}", _path.name
 
 
+def _format_event_age(age_seconds: float) -> str:
+    """Compact age suffix for the ledger tail.
+
+    The tail echoes a recorded on-disk event, which may be hours or days old; without an
+    age it reads as this-session activity right next to a capability panel saying
+    model_exec DISABLED (audit F6). Recorded history must say it is history.
+    """
+    if age_seconds < 0:
+        age_seconds = 0.0
+    if age_seconds < 60:
+        return "now"
+    if age_seconds < 3600:
+        return f"{int(age_seconds // 60)}m ago"
+    if age_seconds < 86400:
+        return f"{int(age_seconds // 3600)}h ago"
+    return f"{int(age_seconds // 86400)}d ago"
+
+
 def _project_ledger_tail(roots: list[Path], builder_root: Path | None) -> str:
     event_dirs: list[Path] = []
     for root in roots:
@@ -158,7 +177,7 @@ def _project_ledger_tail(roots: list[Path], builder_root: Path | None) -> str:
                 latest = (mtime, summary)
     if latest is None:
         return "—"
-    return latest[1]
+    return f"{latest[1]} · {_format_event_age(time.time() - latest[0])}"
 
 
 def _project_cost(roots: list[Path]) -> tuple[str, str]:
