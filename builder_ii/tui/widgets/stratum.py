@@ -23,15 +23,17 @@ from builder_ii.tui.projections.models import project_model_matrix
 from builder_ii.tui.projections.operator import chain_validity_display, project_operator_dashboard
 from builder_ii.tui.projections.orchestration import project_orchestration
 from builder_ii.tui.projections.render import bold_themed, kv, rule, section_title, status_glyph, themed
+from builder_ii.tui.projections.runs import project_run_roster
 from builder_ii.tui.projections.workflow import project_workflow
 from builder_ii.tui.widgets.masterpiece import EpistemicMatrix, ThirdDoorGate
+from builder_ii.tui.widgets.transcript import RunTranscript
 
 
 class StratumMode:
     IDLE = "idle"
     PREPARE = "prepare"
     HITL_GATE = "hitl_gate"
-    GOOSE_LIVE = "goose_live"
+    RUN_COCKPIT = "run_cockpit"
     POSTFLIGHT = "postflight"
     PROMOTION = "promotion"
     ARTIFACT_INSPECT = "artifact_inspect"
@@ -71,6 +73,8 @@ class ActiveStratum(Vertical):
         self._target = "generic"
         self._help_page = 0  # 0=keymap 1=walkthrough 2=boundaries
         self._repo_root: Path | None = None
+        self._run_transcript: RunTranscript | None = None
+        self._selected_run_index = 0
 
     def compose(self) -> ComposeResult:
         self._title_bar = Static("OPERATOR", id="stratum-title-bar")
@@ -92,6 +96,10 @@ class ActiveStratum(Vertical):
             self._third_door.display = False
             yield self._third_door
 
+            self._run_transcript = RunTranscript()
+            self._run_transcript.display = False
+            yield self._run_transcript
+
         self._chain_bar = Static("", id="stratum-chain-bar")
         yield self._chain_bar
 
@@ -112,6 +120,8 @@ class ActiveStratum(Vertical):
         self._content.clear()
         self._epistemic_matrix.display = False
         self._third_door.display = False
+        if self._run_transcript is not None:
+            self._run_transcript.display = False
 
         renderers = {
             StratumMode.IDLE: self._render_idle,
@@ -119,7 +129,7 @@ class ActiveStratum(Vertical):
             StratumMode.ARTIFACT_INSPECT: self._render_artifact_inspect,
             StratumMode.POSTFLIGHT: self._render_postflight,
             StratumMode.PROMOTION: self._render_promotion,
-            StratumMode.GOOSE_LIVE: self._render_goose_live,
+            StratumMode.RUN_COCKPIT: self._render_run_cockpit,
             StratumMode.PREPARE: self._render_prepare,
             StratumMode.MEMORY_BROWSE: self._render_memory_browse,
             StratumMode.MODEL_MATRIX: self._render_model_matrix,
@@ -154,7 +164,7 @@ class ActiveStratum(Vertical):
             StratumMode.IDLE: "OPERATOR",
             StratumMode.PREPARE: "PREPARE",
             StratumMode.HITL_GATE: "HITL GATE",
-            StratumMode.GOOSE_LIVE: "GOOSE",
+            StratumMode.RUN_COCKPIT: "RUN COCKPIT",
             StratumMode.POSTFLIGHT: "POSTFLIGHT",
             StratumMode.PROMOTION: "PROMOTION",
             StratumMode.ARTIFACT_INSPECT: "INSPECT",
@@ -425,19 +435,65 @@ class ActiveStratum(Vertical):
             self._third_door.display = True
             self._third_door.set_view(door)
 
-    def _render_goose_live(self) -> None:
-        self._write(
-            "\n".join(
-                [
-                    section_title("GOOSE", "pass"),
-                    rule(),
-                    themed("hint", "  STRATUM does not stream model output."),
-                    themed("hint", "  G suspends and hands the terminal to builder-goose start-readonly."),
-                    "",
-                    kv("Compose", "builder-goose start-readonly <manifest>", value_role="pass"),
-                ]
+    def _builder_root(self) -> Path | None:
+        """`.builder` root for this tree (parent of the artifacts dir), if resolvable."""
+        if isinstance(self.artifacts_dir, Path):
+            return self.artifacts_dir.parent
+        return None
+
+    def _render_run_cockpit(self) -> None:
+        """Roster of ledgered runs + a live transcript of the selected run. Observe-only."""
+        view = project_run_roster(self._builder_root())
+        lines = [
+            section_title("RUN COCKPIT", "active"),
+            f"  {themed('hint', 'live event ledgers on disk — observe only, no dispatch')}",
+            rule(),
+        ]
+        if view.is_empty:
+            lines.append(themed("dim", "  No runs with an event ledger under .builder/sessions yet."))
+            lines.append(
+                themed("hint", "  Start a governed run (builder-goose / builder-mcp serve) to populate this.")
             )
+            self._write("\n".join(lines))
+            if self._run_transcript is not None:
+                self._run_transcript.display = False
+            return
+
+        idx = max(0, min(self._selected_run_index, len(view.rows) - 1))
+        self._selected_run_index = idx
+        selected = view.rows[idx]
+
+        lines.append(section_title("RUNS", "hint"))
+        for i, row in enumerate(view.rows):
+            marker = bold_themed("active", "▶") if i == idx else themed("dim", "·")
+            chain = themed("pass", "✓") if row.chain_valid else themed("fail", "✗")
+            lines.append(
+                f"  {marker} {themed('bold', f'{row.run_id[:22]:<22}')} "
+                f"{themed('hint', f'{row.event_count:>3}ev')}  {chain}  "
+                f"{themed('dim', row.last_event_type[:20])}"
+            )
+        lines.extend(
+            [
+                "",
+                f"  {themed('dim', ', prev · . next · tailing:')} {bold_themed('active', selected.run_id)}",
+            ]
         )
+        self._write("\n".join(lines))
+
+        if self._run_transcript is not None:
+            self._run_transcript.set_run(Path(selected.events_dir), run_id=selected.run_id)
+            self._run_transcript.display = True
+
+    def cockpit_select(self, delta: int) -> None:
+        """Move the cockpit's run selection and re-render (rebinds the transcript)."""
+        self._selected_run_index += delta
+        if self.mode == StratumMode.RUN_COCKPIT:
+            self._render_current_mode()
+
+    def refresh_cockpit_transcript(self) -> None:
+        """Append newly-landed events to the cockpit transcript (live streaming)."""
+        if self.mode == StratumMode.RUN_COCKPIT and self._run_transcript is not None:
+            self._run_transcript.refresh_from_disk()
 
     def _render_prepare(self) -> None:
         self._write(
@@ -923,7 +979,3 @@ class ActiveStratum(Vertical):
     def set_authority_granted(self, granted: bool | None) -> None:
         self._authority_granted = granted
         self._update_chain_bar()
-
-    def append_goose_output(self, text: str) -> None:
-        if self._content and self.mode == StratumMode.GOOSE_LIVE:
-            self._content.write(text)

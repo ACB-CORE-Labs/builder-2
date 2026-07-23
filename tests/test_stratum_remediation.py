@@ -180,7 +180,7 @@ async def test_dead_modes_enter_via_bindings() -> None:
 
             await pilot.press("l")
             await pilot.pause()
-            assert app.stratum.mode == StratumMode.GOOSE_LIVE
+            assert app.stratum.mode == StratumMode.RUN_COCKPIT
 
             await pilot.press("p")
             await pilot.pause()
