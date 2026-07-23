@@ -34,6 +34,7 @@ class StratumMode:
     IDLE = "idle"
     PREPARE = "prepare"
     HITL_GATE = "hitl_gate"
+    HITL_DIFF = "hitl_diff"
     RUN_COCKPIT = "run_cockpit"
     POSTFLIGHT = "postflight"
     PROMOTION = "promotion"
@@ -127,6 +128,7 @@ class ActiveStratum(Vertical):
         renderers = {
             StratumMode.IDLE: self._render_idle,
             StratumMode.HITL_GATE: self._render_hitl_gate,
+            StratumMode.HITL_DIFF: self._render_hitl_diff,
             StratumMode.ARTIFACT_INSPECT: self._render_artifact_inspect,
             StratumMode.POSTFLIGHT: self._render_postflight,
             StratumMode.PROMOTION: self._render_promotion,
@@ -165,6 +167,7 @@ class ActiveStratum(Vertical):
             StratumMode.IDLE: "OPERATOR",
             StratumMode.PREPARE: "PREPARE",
             StratumMode.HITL_GATE: "HITL GATE",
+            StratumMode.HITL_DIFF: "HITL DIFF",
             StratumMode.RUN_COCKPIT: "RUN COCKPIT",
             StratumMode.POSTFLIGHT: "POSTFLIGHT",
             StratumMode.PROMOTION: "PROMOTION",
@@ -329,11 +332,38 @@ class ActiveStratum(Vertical):
                 f"  {bold_themed('pass', 'A')} compose approve   "
                 f"{bold_themed('fail', 'R')} compose reject",
                 f"  {bold_themed('active', 'I')} inspect payload   "
-                f"{bold_themed('accent', 'D')} diff (unimplemented)",
+                f"{bold_themed('accent', 'D')} diff",
                 f"  {themed('hint', 'STRATUM does not harvest confirmation — run the composed CLI')}",
             ]
         )
         self._write("\n".join(lines))
+
+    def _render_hitl_diff(self) -> None:
+        """Render the bound patch proposal's unified diff, read-only. Applies nothing."""
+        artifact = self._hitl_proposal.get("artifact", {}) if isinstance(self._hitl_proposal, dict) else {}
+        if not isinstance(artifact, dict):
+            artifact = {}
+        diff = artifact.get("unified_diff", "")
+        description = str(artifact.get("patch_description", ""))
+        digest = artifact.get("patch_digest", "")
+
+        lines = [
+            section_title("HITL PATCH DIFF · read-only", "warn"),
+            rule(),
+        ]
+        if description:
+            lines.append(kv("Description", description[:70], value_role="hint"))
+        # A real artifact field, labelled as such — not a chain digest, never synthesized.
+        if isinstance(digest, str) and digest:
+            lines.append(kv("Field:patch_digest", digest[:64], value_role="hint"))
+        lines.append(f"  {themed('hint', 'STRATUM renders the proposal diff — it applies nothing.')}")
+        self._write("\n".join(lines))
+
+        if not isinstance(diff, str) or not diff.strip():
+            self._write(themed("dim", "  No unified_diff on the bound proposal."))
+            return
+        if self._content is not None:
+            self._content.write(Syntax(diff, "diff", theme="monokai", line_numbers=False))
 
     def _render_artifact_inspect(self) -> None:
         if not self._inspected_artifact:
@@ -974,6 +1004,10 @@ class ActiveStratum(Vertical):
     def show_hitl_gate(self, proposal: dict[str, Any]) -> None:
         self._hitl_proposal = proposal
         self.mode = StratumMode.HITL_GATE
+
+    def show_hitl_diff(self) -> None:
+        """Render the bound HITL proposal's unified diff (read-only)."""
+        self.mode = StratumMode.HITL_DIFF
 
     def try_bind_pending_hitl(self) -> bool:
         """If a pending HITL artifact exists, open gate mode. Returns True when bound."""
