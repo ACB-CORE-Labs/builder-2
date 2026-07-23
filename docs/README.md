@@ -46,6 +46,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) | ADR-0002: Builder Convention Layer over Codename Goose |
 | [`docs/adrs/ADR-0003-builder-ii-generic-platform-identity-and-capability-factory.md`](adrs/ADR-0003-builder-ii-generic-platform-identity-and-capability-factory.md) | ADR-0003: builder-II Generic Platform Identity and Capability Factory |
 | [`docs/adrs/ADR-0004-core-born-builders-signet-doctrine.md`](adrs/ADR-0004-core-born-builders-signet-doctrine.md) | ADR-0004: CORE-Born Builder's Signet Doctrine |
+| [`docs/adrs/ADR-0008-governed-deepagents-model-invocation-lane.md`](adrs/ADR-0008-governed-deepagents-model-invocation-lane.md) | ADR-0008: Governed deepagents Model-Invocation Lane (Proposed, DESIGN_ONLY) |
 
 ### Operator onboarding and guides
 
@@ -249,6 +250,7 @@ The following architectural and design documents reside in the commercial plugin
 | [`docs/plan/ARTIFACT_MEMORY_RFC.md`](plan/ARTIFACT_MEMORY_RFC.md) | Artifact memory RFC |
 | [`docs/plan/B1_4A_VALIDATION_NOTE.md`](plan/B1_4A_VALIDATION_NOTE.md) | B1.4A Validation Note |
 | [`docs/plan/B8_B9_GOVERNED_EXECUTION_PLAN.md`](plan/B8_B9_GOVERNED_EXECUTION_PLAN.md) | B8/B9 governed execution plan |
+| [`docs/plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md`](plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md) | Governed deepagents model-invocation lane full design (DESIGN_ONLY companion to ADR-0008) |
 | [`docs/plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md`](plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md) | deepagents work artifacts RFC |
 | [`docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md`](plan/GOOSE_DEEPAGENTS_MCP_SEAM.md) | Goose × deepagents × MCP seam |
 | [`docs/plan/MASTERPIECE_PLAN.md`](plan/MASTERPIECE_PLAN.md) | builder-II full mastery implementation plan |
