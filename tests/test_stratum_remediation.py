@@ -270,5 +270,36 @@ async def test_palette_escape_dismisses_without_selection() -> None:
             assert selected == [None]
 
 
-def test_unimplemented_surfaces_still_list_diff_viewer() -> None:
-    assert "HITL diff viewer" in STRATUM_UNIMPLEMENTED_SURFACES
+def test_hitl_diff_viewer_is_implemented_not_a_mockup() -> None:
+    # The diff viewer now renders the bound proposal's unified_diff read-only, so the record
+    # no longer names any unfinished surface (symmetric truth: tuple + record flip together).
+    assert "HITL diff viewer" not in STRATUM_UNIMPLEMENTED_SURFACES
+    assert STRATUM_UNIMPLEMENTED_SURFACES == ()
+
+
+@pytest.mark.asyncio
+async def test_d_renders_hitl_diff_from_bound_proposal() -> None:
+    with patch("builder_ii.tui.app.load_settings") as mock_settings:
+        mock_settings.return_value.target_repo.name = "test"
+        mock_settings.return_value.model_alias = "test"
+        mock_settings.return_value.model_tier = "primary"
+        mock_settings.return_value.project_root = Path(".")
+
+        app = StratumApp(show_splash=False, skip_guide=True)
+        async with app.run_test(headless=True) as pilot:
+            assert app.stratum is not None
+            app.stratum.show_hitl_gate(
+                {
+                    "command": "apply-patch",
+                    "path": "proposal.json",
+                    "artifact": {
+                        "kind": "builder_ii.hitl_patch_proposal",
+                        "patch_description": "tweak x",
+                        "unified_diff": "--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\n",
+                    },
+                }
+            )
+            await pilot.pause()
+            await pilot.press("d")
+            await pilot.pause()
+            assert app.stratum.mode == StratumMode.HITL_DIFF

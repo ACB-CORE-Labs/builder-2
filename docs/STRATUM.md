@@ -188,4 +188,4 @@ Full how-to: [`GETTING_STARTED.md` §5](GETTING_STARTED.md#5-how-builder-ii-conf
 ## Governance record
 
 Command authority: `builder stratum` (TIER_2, operator-managed, experimental).  
-Unimplemented mockup still named in the record: **HITL diff viewer**.
+The **HITL diff viewer** (**D**) renders the bound patch proposal's unified diff read-only; it applies nothing.

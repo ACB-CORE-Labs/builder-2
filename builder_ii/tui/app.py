@@ -38,10 +38,10 @@ CHAIN_DIGEST_ABSENT = "—"
 
 # Surfaces that are still mockups. `builder stratum`'s command_authority record must name exactly
 # these -- no fewer (it would understate what is unfinished) and no more (it would understate what
-# now works). `tests/test_stratum_tui.py` pins that correspondence in both directions, because
-# `builder-platform audit-docs` only catches docs that *overstate* a capability, never docs that
-# understate one, and truth is symmetric even when the audit is not.
-STRATUM_UNIMPLEMENTED_SURFACES: tuple[str, ...] = ("HITL diff viewer",)
+# now works). Truth is symmetric even when the audit is not. This is now empty: the HITL diff
+# viewer (the last named mockup) renders the bound proposal's unified_diff read-only (action_diff_hitl
+# -> ActiveStratum.show_hitl_diff), so the record no longer names it as unfinished.
+STRATUM_UNIMPLEMENTED_SURFACES: tuple[str, ...] = ()
 
 
 class HeaderBanner(Static):
@@ -962,7 +962,13 @@ class StratumApp(App[None]):
         self.stratum.inspect_artifact(artifact, path=str(path) if path else None)
 
     def action_diff_hitl(self) -> None:
-        self.notify(f"{STRATUM_UNIMPLEMENTED_SURFACES[0]} is not implemented in this surface.")
+        """Render the bound HITL patch proposal's unified diff, read-only. Applies nothing."""
+        if not self.stratum:
+            return
+        if self.stratum.mode not in (StratumMode.HITL_GATE, StratumMode.HITL_DIFF) and not self.stratum.try_bind_pending_hitl():
+            self.notify("No pending HITL proposal to diff.", severity="warning")
+            return
+        self.stratum.show_hitl_diff()
 
 
 def run_tui(app: App[Any]) -> int:
