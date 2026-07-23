@@ -18,6 +18,41 @@ Administrators should configure branch protection / rulesets on Forgejo `main` t
 3. Block force pushes and branch deletion on `main`.
 4. When the runner is down: require human review + gate battery receipt artifact.
 
+### Operator-ready Forgejo API payload
+
+Apply with an **admin** token (`FORGEJO_ADMIN_TOKEN`, never committed). The status-check
+context must match the exact context string Forgejo Actions reports on a recent `main`
+commit (shape: `CI / high-assurance-gates (push)` — check a recent commit's status list,
+or use a glob pattern as below):
+
+```bash
+curl -sS -X POST \
+  -H "Authorization: token ${FORGEJO_ADMIN_TOKEN}" \
+  -H "Content-Type: application/json" \
+  "https://core-gitquarters.acbcontent.org/api/v1/repos/core-labs/builder-II/branch_protections" \
+  -d '{
+    "branch_name": "main",
+    "enable_push": false,
+    "enable_status_check": true,
+    "status_check_contexts": ["CI / high-assurance-gates*"],
+    "block_on_outdated_branch": false,
+    "required_approvals": 1,
+    "block_on_rejected_reviews": true,
+    "dismiss_stale_approvals": true
+  }'
+```
+
+Notes:
+- A protected branch in Forgejo blocks force pushes and deletion by construction; no
+  separate toggles are needed.
+- `block_on_outdated_branch` stays `false` while the runner is a single local Mac queue —
+  strict up-to-date requirements + a sleeping runner would deadlock merges. Flip to
+  `true` once the runner is continuously available.
+- Verify afterwards: `GET .../branch_protections` should list the `main` rule, and a PR
+  with a red or absent `high-assurance-gates` status must show merge blocked.
+- When the runner is asleep, the documented fallback stands: human review + a
+  `gate_battery_receipt` artifact bound to the PR HEAD.
+
 ## GitHub mirror (if present)
 
 GitHub.com settings below are **not** the deploy authority for CORE-primary repos; they

@@ -41,8 +41,8 @@ uv run pytest -q                    # full test suite (testpaths = tests/)
 uv run pytest tests/test_foo.py -q  # single test file
 uv run pytest tests/test_foo.py::test_name -q   # single test
 uv run ruff check builder_ii tests  # lint (line-length 120, see pyproject [tool.ruff])
-uv run mypy builder_ii/governance/authority/ builder_ii/governance/authority/compliance.py builder_ii/governance/hitl/hitl_patch_apply.py builder_ii/routing/model_execution_gateway.py builder_ii/governance/authority/readonly_authority.py
-                                     # targeted mypy — CI only type-checks these authority-sensitive modules
+uv run mypy                          # targeted mypy — file list lives in pyproject [tool.mypy] files (authority-sensitive modules only); passing paths by hand duplicates that list and breaks on package/file overlap
+uv run mypy builder_ii/tui/app.py --follow-imports=silent   # TUI app surface, own errors only (see scripts/ci.sh for why it is a separate gate)
 uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
 uv run python -m compileall -q builder_ii tests
 cargo build --manifest-path builder_ii_validation_rs/Cargo.toml   # optional Rust validation accelerator
