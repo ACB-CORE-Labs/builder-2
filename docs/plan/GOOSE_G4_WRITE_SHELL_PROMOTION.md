@@ -7,6 +7,30 @@
 > Phase 3 (G4) design that [`ADR-0009`](../adrs/ADR-0009-goose-in-loop-governed-runtime.md)
 > defers until the read-only and refusal phases (G1–G3) land — which they now have.
 
+## 0. Implementation status (2026-07-23)
+
+Reading the code refined the design, and it is now implemented at a **deny-by-default candidate
+state**. It is **not** enabled by default and does **not** flip the completion matrix (OV
+unchanged); the remaining step **before** an `enabled` state is a closure audit, which is an
+operator decision and is **not** performed here.
+
+- **Delegation, not pin relaxation.** builder-II already carries a governed source-write lane,
+  `builder-hitl apply-patch` / `apply_hitl_patch`, which enforces command authority, a
+  schema-valid unexpired digest-bound approval, a clean tree, and a verification receipt at the
+  execution boundary, and emits a receipt + rollback bundle. G4 routes a validated
+  `propose_patch` in-loop call to that lane rather than relaxing the read-only `mcp_call_envelope`
+  schema. The read-only-by-schema law is therefore **not** touched, and no new write primitive is
+  minted. The honest state is the existing `hitl_runtime_candidate` — no new state is required.
+- **Deny-by-default at two levels.** The in-loop apply path is off unless the operator sets
+  `BUILDER_MCP_GOVERNED_APPLY`; even then a mutation requires a valid digest-bound approval, and
+  `apply_hitl_patch` re-validates everything and fails closed. Absent the flag or a valid
+  approval, `propose_patch` refuses exactly as G3 did (an `mcp_call_denied` event).
+- **Write path only.** `run_shell` has no governed bounded lane to delegate to, so it is **not**
+  unlocked and always refuses; arbitrary shell is out of G4 scope.
+- Code: `builder_ii/adapters/mcp/governed_apply.py` (+ server routing);
+  `tests/test_mcp_governed_apply.py` proves the deny-by-default and fail-closed matrix. Sections
+  1–7 below record the original design; this section governs where they differ.
+
 ## 1. Where G1–G3 leave us (the evidence base)
 
 Landed and inside the observe-and-compose contract:
