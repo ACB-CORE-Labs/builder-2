@@ -24,6 +24,7 @@ from builder_ii.tui.projections.operator import chain_validity_display, project_
 from builder_ii.tui.projections.orchestration import project_orchestration
 from builder_ii.tui.projections.render import bold_themed, kv, rule, section_title, status_glyph, themed
 from builder_ii.tui.projections.runs import project_run_roster
+from builder_ii.tui.projections.subagent_tree import SubagentNode, project_subagent_tree
 from builder_ii.tui.projections.workflow import project_workflow
 from builder_ii.tui.widgets.masterpiece import EpistemicMatrix, ThirdDoorGate
 from builder_ii.tui.widgets.transcript import RunTranscript
@@ -472,6 +473,17 @@ class ActiveStratum(Vertical):
                 f"{themed('hint', f'{row.event_count:>3}ev')}  {chain}  "
                 f"{themed('dim', row.last_event_type[:20])}"
             )
+        # Deepagents subagent tree (a run -> its subagents -> their subagents), if any exist.
+        tree = project_subagent_tree(self._builder_root())
+        if not tree.is_empty:
+            lines.extend(["", section_title("SUBAGENT TREES", "accent")])
+            for run in tree.runs:
+                lines.append(
+                    f"  {themed('active', '▸')} {bold_themed('accent', run.session_id[:24])}  "
+                    f"{themed('warn', run.envelope_state)}  {themed('dim', f'{run.subagent_count} subagents')}"
+                )
+                lines.extend(self._subagent_lines(run.subagents, depth=1))
+
         lines.extend(
             [
                 "",
@@ -483,6 +495,20 @@ class ActiveStratum(Vertical):
         if self._run_transcript is not None:
             self._run_transcript.set_run(Path(selected.events_dir), run_id=selected.run_id)
             self._run_transcript.display = True
+
+    def _subagent_lines(self, subagents: tuple[SubagentNode, ...], depth: int) -> list[str]:
+        out: list[str] = []
+        n = len(subagents)
+        for i, node in enumerate(subagents):
+            branch = "└─" if i == n - 1 else "├─"
+            indent = "  " + "   " * depth
+            out.append(
+                f"{indent}{themed('dim', branch)} {themed('bold', node.profile[:24])}  "
+                f"{themed('hint', node.receipt_state)}"
+            )
+            if node.children:
+                out.extend(self._subagent_lines(node.children, depth + 1))
+        return out
 
     def cockpit_select(self, delta: int) -> None:
         """Move the cockpit's run selection and re-render (rebinds the transcript)."""
