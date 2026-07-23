@@ -24,6 +24,7 @@ from builder_ii.tui.projections.operator import chain_validity_display, project_
 from builder_ii.tui.projections.orchestration import project_orchestration
 from builder_ii.tui.projections.render import bold_themed, kv, rule, section_title, status_glyph, themed
 from builder_ii.tui.projections.runs import project_run_roster
+from builder_ii.tui.projections.stages import project_operator_stages
 from builder_ii.tui.projections.subagent_tree import SubagentNode, project_subagent_tree
 from builder_ii.tui.projections.workflow import project_workflow
 from builder_ii.tui.widgets.masterpiece import EpistemicMatrix, ThirdDoorGate
@@ -213,6 +214,25 @@ class ActiveStratum(Vertical):
 
     # ── Renderers ────────────────────────────────────────────────────
 
+    def _stage_axis_lines(self) -> list[str]:
+        """The PREPARE->PLAN->APPROVE->EXECUTE->VERIFY->PROMOTE journey, state from the chain."""
+        view = project_operator_stages(self.artifacts_dir)
+        parts: list[str] = []
+        for cell in view.cells:
+            if cell.state == "done":
+                parts.append(bold_themed("pass", f"✓{cell.verb}"))
+            elif cell.state == "active":
+                parts.append(bold_themed("active", f"▶{cell.verb}"))
+            else:
+                parts.append(themed("dim", f"○{cell.verb}"))
+        axis = themed("dim", " ─ ").join(parts)
+        keys = "  ".join(f"{bold_themed('active', cell.key)} {themed('hint', cell.verb.lower())}" for cell in view.cells)
+        return [
+            section_title("OPERATOR JOURNEY", "accent"),
+            f"  {axis}",
+            f"  {keys}",
+        ]
+
     def _render_idle(self) -> None:
         info = self._platform_info
         dash = project_operator_dashboard(
@@ -230,6 +250,8 @@ class ActiveStratum(Vertical):
         ledger = themed("pass", "ACTIVE") if dash.ledger_active else themed("warn", "INACTIVE")
 
         lines = [
+            *self._stage_axis_lines(),
+            "",
             section_title("SYSTEM"),
             kv("Platform", dash.platform),
             kv("Target", dash.target, value_role="accent"),
