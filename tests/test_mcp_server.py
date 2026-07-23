@@ -39,13 +39,14 @@ def test_initialize_advertises_tools_capability(tmp_path: Path) -> None:
     assert resp["result"]["serverInfo"]["name"]
 
 
-def test_tools_list_returns_only_allowlisted_stubs(tmp_path: Path) -> None:
+def test_tools_list_advertises_readonly_stubs_and_gated_mutating_tools(tmp_path: Path) -> None:
     resp = _server(tmp_path).handle_request(
         {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}
     )
     assert resp is not None
     names = {t["name"] for t in resp["result"]["tools"]}
-    assert names == {"echo", "utc_static"}
+    assert {"echo", "utc_static"} <= names  # read-only stubs (run the ceremony)
+    assert {"propose_patch", "run_shell"} <= names  # gated mutating classes (refused in-loop)
     for tool in resp["result"]["tools"]:
         assert tool["inputSchema"]["type"] == "object"
 
@@ -122,6 +123,60 @@ def test_no_target_mutation_from_a_tool_call(tmp_path: Path) -> None:
         }
     )
     assert target.read_text(encoding="utf-8") == "original"
+
+
+def test_gated_tool_call_refuses_in_loop_and_ledgers_without_mutation(tmp_path: Path) -> None:
+    target = tmp_path / "target.txt"
+    target.write_text("original", encoding="utf-8")
+    resp = _server(tmp_path).handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 30,
+            "method": "tools/call",
+            "params": {"name": "run_shell", "arguments": {"cmd": "echo hi"}},
+        }
+    )
+    assert resp is not None
+    assert resp["result"]["isError"] is True
+    assert resp["result"]["_meta"]["gated"] is True
+    assert resp["result"]["_meta"]["refused"] is True
+
+    events = sorted(_events_dir(tmp_path).glob("*.json"))
+    assert events, "refusal was not ledgered"
+    refusal = json.loads(events[-1].read_text(encoding="utf-8"))
+    assert refusal["event_type"] == "mcp_call_denied"
+
+    # Nothing was mutated, and the refusal event still forms a valid chain.
+    assert target.read_text(encoding="utf-8") == "original"
+    assert validate_event_chain_integrity(_events_dir(tmp_path))["valid"]
+
+
+def test_gated_refusal_writes_no_execution_receipt(tmp_path: Path) -> None:
+    _server(tmp_path).handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 31,
+            "method": "tools/call",
+            "params": {"name": "propose_patch", "arguments": {"path": "x", "content": "y"}},
+        }
+    )
+    # A refused call builds no envelope and writes no execution receipt.
+    assert list(_mcp_dir(tmp_path).glob("*_receipt.json")) == []
+
+
+def test_readonly_and_gated_events_share_one_valid_chain(tmp_path: Path) -> None:
+    server = _server(tmp_path)
+    server.handle_request(
+        {"jsonrpc": "2.0", "id": 40, "method": "tools/call",
+         "params": {"name": "echo", "arguments": {"text": "ok"}}}
+    )
+    server.handle_request(
+        {"jsonrpc": "2.0", "id": 41, "method": "tools/call",
+         "params": {"name": "run_shell", "arguments": {"cmd": "rm -rf /"}}}
+    )
+    events = sorted(_events_dir(tmp_path).glob("*.json"))
+    assert len(events) == 2
+    assert validate_event_chain_integrity(_events_dir(tmp_path))["valid"]
 
 
 def test_serve_command_is_registered_in_authority_registry() -> None:

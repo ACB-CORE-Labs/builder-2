@@ -18,7 +18,12 @@ import sys
 from pathlib import Path
 from typing import Any, TextIO
 
-from builder_ii.adapters.mcp.governed_call import TOOL_SPECS, run_governed_tool_call
+from builder_ii.adapters.mcp.governed_call import (
+    GATED_TOOL_SPECS,
+    TOOL_SPECS,
+    refuse_gated_tool_call,
+    run_governed_tool_call,
+)
 
 _PROTOCOL_VERSION = "2024-11-05"
 _SERVER_NAME = "builder-ii-governed-mcp"
@@ -67,14 +72,36 @@ class GovernedMcpServer:
 
     @staticmethod
     def _tool_list() -> list[dict[str, Any]]:
+        # Read-only stubs run the governed ceremony; gated mutating classes are advertised
+        # but refused in-loop (G3) until the G4 promotion.
+        specs = {**TOOL_SPECS, **GATED_TOOL_SPECS}
         return [
             {"name": name, "description": spec["description"], "inputSchema": spec["inputSchema"]}
-            for name, spec in TOOL_SPECS.items()
+            for name, spec in specs.items()
         ]
 
     def _tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         name = params.get("name")
         arguments = params.get("arguments") or {}
+
+        if name in GATED_TOOL_SPECS:
+            refusal = refuse_gated_tool_call(
+                tool_name=str(name),
+                arguments=dict(arguments),
+                session_id=self.session_id,
+                builder_root=self.builder_root,
+            )
+            return {
+                "content": [{"type": "text", "text": f"{refusal.reason} {refusal.compose_hint}"}],
+                "isError": True,
+                "_meta": {
+                    "governed": True,
+                    "gated": True,
+                    "refused": True,
+                    "event_path": str(refusal.event_path),
+                },
+            }
+
         if name not in TOOL_SPECS:
             return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
 
