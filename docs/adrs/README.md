@@ -15,6 +15,7 @@ builder-II is CORE-born and governed by the Builder's Signet, but it is a generi
 | [`ADR-0005`](ADR-0005-codevault-boundary-and-authority.md) | Accepted | Define CodeVault as a reconstructive intelligence substrate whose outputs never grant execution or promotion authority; builder-II remains the sole governance/control plane at every capability tier. |
 | [`ADR-0006`](ADR-0006-codevault-parser-strategy.md) | Accepted | Hybrid parser strategy: pinned in-process grammar for G3 skeleton; caller-supplied digest-bound SCIP/LSIF for G4 relation depth — CodeVault never runs an indexer. |
 | [`ADR-0007`](ADR-0007-orchestration-router-control-plane.md) | Accepted | Geometry-first WRP control plane: substrate as digest-bound recommendation/plan/validation artifacts; staged promotion S1–S3 toward HITL live lane and scoped enablement; opt-in heavy backends non-default on M1. |
+| [`ADR-0008`](ADR-0008-governed-deepagents-model-invocation-lane.md) | Proposed | Governed deepagents model-invocation lane: think-steps route through the existing model execution gateway under a sealed, digest-approved, budget-bounded grant; every call ledgered; output stays proposal-only; DESIGN_ONLY until the eight gates and a closure audit. |
 
 ## ADR discipline
 
