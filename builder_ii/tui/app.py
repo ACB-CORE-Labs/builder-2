@@ -81,24 +81,29 @@ class StratumApp(App[None]):
 
     CSS_PATH = "stratum.tcss"
 
+    # Footer discipline (audit F5): the footer shows only the core loop — navigate, help,
+    # prepare → validate → goose → next, pin, CLI. Every other binding still works but is
+    # show=False: H carries the full keymap, and context surfaces (HITL gate light, panel
+    # hints) name their own keys where they matter. ~30 footer chips read as a cockpit
+    # wall; the platform's promise is simple on top, masterful underneath.
     BINDINGS = [
-        Binding("tab", "cycle_focus", "Cycle", show=True),
+        Binding("tab", "cycle_focus", "Cycle", show=False),
         Binding("escape", "go_back", "Back", show=True),
         Binding("q", "quit_app", "Quit", show=True),
         Binding("question_mark", "open_palette", "Palette", show=True),
         Binding("c", "open_cli", "CLI Passthrough", show=True),
-        Binding("m", "toggle_memory", "Memory", show=True),
-        Binding("o", "toggle_models", "Models", show=True),
-        Binding("u", "toggle_agents", "Agents", show=True),
-        Binding("z", "toggle_platform_audit", "Audit", show=True),
-        Binding("w", "toggle_workflow", "Workflow", show=True),
-        Binding("y", "toggle_orchestration", "Orch", show=True),
-        Binding("b", "toggle_code_vault", "Vault", show=True),
-        Binding("e", "toggle_quality_gates", "Gates", show=True),
-        Binding("t", "toggle_tooling", "Tools", show=True),
+        Binding("m", "toggle_memory", "Memory", show=False),
+        Binding("o", "toggle_models", "Models", show=False),
+        Binding("u", "toggle_agents", "Agents", show=False),
+        Binding("z", "toggle_platform_audit", "Audit", show=False),
+        Binding("w", "toggle_workflow", "Workflow", show=False),
+        Binding("y", "toggle_orchestration", "Orch", show=False),
+        Binding("b", "toggle_code_vault", "Vault", show=False),
+        Binding("e", "toggle_quality_gates", "Gates", show=False),
+        Binding("t", "toggle_tooling", "Tools", show=False),
         Binding("space", "pin_artifact", "Pin", show=True),
         Binding("enter", "pin_artifact", "Pin (Enter)", show=False),
-        Binding("slash", "toggle_search", "Search", show=True),
+        Binding("slash", "toggle_search", "Search", show=False),
         Binding("h", "toggle_help", "Help", show=True),
         Binding("f1", "toggle_help", "Help", show=False),
         Binding("0", "open_guide", "Guide", show=True),
@@ -111,14 +116,16 @@ class StratumApp(App[None]):
         Binding("g", "launch_goose", "Goose", show=True),
         Binding("n", "operator_next", "Next", show=True),
         # Dead modes re-wired: real entry into existing renderers (not silent furniture).
-        Binding("f", "show_postflight", "Postflight", show=True),
-        Binding("s", "show_promotion", "Promote", show=True),
-        Binding("l", "show_goose_live", "Goose view", show=True),
+        Binding("f", "show_postflight", "Postflight", show=False),
+        Binding("s", "show_promotion", "Promote", show=False),
+        Binding("l", "show_goose_live", "Goose view", show=False),
         # HITL actions — compose-only (footer labels must not imply harvest/authority).
-        Binding("a", "approve_hitl", "Compose Approve", show=True),
-        Binding("r", "reject_hitl", "Compose Reject", show=True),
-        Binding("i", "inspect_hitl", "Inspect", show=True),
-        Binding("d", "diff_hitl", "Diff", show=True),
+        # Hidden from the always-on footer; the HITL gate indicator names them when a
+        # gate is actually open, which is the only moment they mean anything.
+        Binding("a", "approve_hitl", "Compose Approve", show=False),
+        Binding("r", "reject_hitl", "Compose Reject", show=False),
+        Binding("i", "inspect_hitl", "Inspect", show=False),
+        Binding("d", "diff_hitl", "Diff", show=False),
     ]
 
     def __init__(

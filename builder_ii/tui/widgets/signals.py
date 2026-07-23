@@ -40,9 +40,12 @@ class HITLGateIndicator(Static):
 
     def render(self) -> str:
         if self.gate_open:
+            # The A/R/I/D keys are footer-hidden (progressive disclosure); an open gate is
+            # the one moment they matter, so the gate light itself names them.
             return (
                 f"\n {bold_themed('warn', '● HITL GATE OPEN')}\n"
-                f"   {themed('hint', self.gate_label)}"
+                f"   {themed('hint', self.gate_label)}\n"
+                f"   {themed('dim', 'A approve · R reject · I inspect · D diff (compose only)')}"
             )
         # Honest: absence of pending HITL JSON ≠ cleared governance / all gates proven.
         return (
