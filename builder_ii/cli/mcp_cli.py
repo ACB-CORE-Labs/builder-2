@@ -284,7 +284,11 @@ def standalone_call(
 
 @mcp_app.command("serve")
 def serve(
-    session_id: str = typer.Option(..., "--session-id", help="Session id for the operational ledger."),
+    session_id: str = typer.Option(
+        "",
+        "--session-id",
+        help="Session id for the operational ledger (default: $BUILDER_MCP_SESSION_ID or 'governed-session').",
+    ),
     builder_root: Path = typer.Option(
         Path(".builder"), "--builder-root", help="Root directory for session artifacts and events."
     ),
@@ -295,10 +299,16 @@ def serve(
     allowlisted read-only stub tools. Each ``tools/call`` runs the governed
     envelope -> receipt -> ledger ceremony (deny-by-default, no target mutation, no shell);
     the server grants no authority and adds no new tool capability.
+
+    ``--session-id`` is optional so a static recipe can invoke ``builder-mcp serve`` with no
+    args; ``launch_governed`` scopes the ledger by exporting ``BUILDER_MCP_SESSION_ID``.
     """
+    import os
+
+    resolved_session = session_id or os.environ.get("BUILDER_MCP_SESSION_ID") or "governed-session"
     enforce_command_authority(
         "builder-mcp serve", requested_effects=("external_tool", "artifact_write", "state_write")
     )
     from builder_ii.adapters.mcp.server import GovernedMcpServer
 
-    GovernedMcpServer(session_id=session_id, builder_root=builder_root).serve_stdio()
+    GovernedMcpServer(session_id=resolved_session, builder_root=builder_root).serve_stdio()
