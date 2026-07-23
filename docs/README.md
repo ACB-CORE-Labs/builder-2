@@ -252,6 +252,7 @@ The following architectural and design documents reside in the commercial plugin
 | [`docs/plan/B8_B9_GOVERNED_EXECUTION_PLAN.md`](plan/B8_B9_GOVERNED_EXECUTION_PLAN.md) | B8/B9 governed execution plan |
 | [`docs/plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md`](plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md) | Governed deepagents model-invocation lane full design (DESIGN_ONLY companion to ADR-0008) |
 | [`docs/plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md`](plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md) | deepagents work artifacts RFC |
+| [`docs/plan/STRATUM_ORCHESTRATION_COCKPIT.md`](plan/STRATUM_ORCHESTRATION_COCKPIT.md) | STRATUM orchestration cockpit staged design (DESIGN_ONLY; stage 2 crosses the STRATUM executor boundary) |
 | [`docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md`](plan/GOOSE_DEEPAGENTS_MCP_SEAM.md) | Goose × deepagents × MCP seam |
 | [`docs/plan/MASTERPIECE_PLAN.md`](plan/MASTERPIECE_PLAN.md) | builder-II full mastery implementation plan |
 | [`docs/plan/MCP_POLICY_ARTIFACT_RFC.md`](plan/MCP_POLICY_ARTIFACT_RFC.md) | MCP policy artifact RFC |
