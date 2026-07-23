@@ -73,7 +73,7 @@ uv sync
 uv run builder-platform matrix
 ```
 
-In STRATUM: **C** shows a read-only projection of capability rows.
+In STRATUM: **Z** shows a read-only projection of capability rows.
 
 ### 3. Operator next
 
@@ -142,7 +142,7 @@ uv run builder stratum --experimental
 | **X** | Dismiss walkthrough auto-open (when guide is open) |
 | **TAB** | Cycle Spine · Center · Signals |
 | **j/k** | Spine move · **SPC** pin/inspect |
-| **O** **U** **W** **C** **E** **T** **M** | Instruments |
+| **O** **U** **W** **Z** **E** **T** **M** | Instruments |
 | **?** | Palette · **~** composer |
 | **P** **V** **G** **N** | Prepare compose · validate · goose · next |
 | **A/R** | Compose HITL approve/reject (no mutation) |

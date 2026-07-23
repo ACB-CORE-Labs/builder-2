@@ -43,7 +43,7 @@ def test_stratum_launches(monkeypatch):
     result_no_guide = runner.invoke(app, ["stratum", "--no-guide"])
     assert result_no_guide.exit_code == 0, result_no_guide.output
     assert built[-1].launched_kwargs.get("skip_guide") is True
-    
+
     result_sandbox = runner.invoke(app, ["stratum", "--sandbox"])
     assert result_sandbox.exit_code == 0, result_sandbox.output
 

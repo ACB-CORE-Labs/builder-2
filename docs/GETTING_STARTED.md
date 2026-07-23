@@ -67,7 +67,7 @@ In STRATUM, **HITL / promotion instruments** surface this as the Third Door grid
 | **Determinism** | Same inputs → same digests / frames where the surface claims it (CodeVault demos, prepare packages, gate receipts) | Re-run validators; CodeVault `demo` / `validate-demo`; never trust wall-clock-only stories |
 | **Auditability** | Claims about the platform are matrix-backed; docs cannot over-claim | `builder-platform matrix`, `audit-docs`, `scripts/verify_v0_release.py` |
 | **Traceability** | Chain of kinds and refs on disk; spine is a view of that chain, not a fake progress bar | Spine + pin in STRATUM; `verify_artifact_chain`; `.builder/artifacts` |
-| **Governance** | Promotion states gate what may run; command authority tiers gate what may even be *attempted* | `builder-platform matrix` / **C** in STRATUM; `?` palette tier inspector |
+| **Governance** | Promotion states gate what may run; command authority tiers gate what may even be *attempted* | `builder-platform matrix` / **Z** in STRATUM; `?` palette tier inspector |
 
 ---
 
@@ -198,7 +198,8 @@ Footer chain bar: **DIGEST —** until verification exposes one; **AUTH** not ev
 | **M** | Memory | Artifact memory atoms if present | — |
 | **O** | Models | `.env` config + registry + routing policy | Compose policy/models; no spend |
 | **U** | Deepagents | Profiles + readiness + forge compose lines | Second **U**: assign picker |
-| **C** | Platform audit | Completion matrix rows | Same family as `builder-platform matrix` |
+| **Z** | Platform audit | Completion matrix rows | Same family as `builder-platform matrix` |
+| **C** | CLI passthrough | Governed `builder-*` command compose overlay | Compose + confirm before any run |
 | **W** | Workflow | Recipes + workflow stages + goose manifest | Compose `builder-goose manifest` (hand-off is **G**) |
 | **Y** | Orchestration | Plans / assignments / obligations on disk | Compose plan / lane-policy |
 | **B** | CodeVault | Frame/vault JSON scan | Compose demo/status/frame |
@@ -218,7 +219,7 @@ Details and flags: [`STRATUM.md`](STRATUM.md). In-app guide mirrors this.
 
 Think in **lanes**, not features:
 
-1. **Truth lane** — **C**, **N**, `matrix` / `next` outside  
+1. **Truth lane** — **Z**, **N**, `matrix` / `next` outside  
 2. **Session lane** — **P** → terminal prepare → spine fills → **SPC** inspect  
 3. **Model policy lane** — **O** (what *could* run; not a live call)  
 4. **Agent design lane** — **U** (roster/readiness; forge/assign via composed CLI)  
@@ -565,7 +566,7 @@ List/validate: `builder-targets list|validate`. Demo: [`TARGET_PROFILE_DEMOS.md`
 
 ## 8. Suggested weekly operator rhythm
 
-1. `builder-platform matrix` + **C** in STRATUM — what is true  
+1. `builder-platform matrix` + **Z** in STRATUM — what is true  
 2. `builder-platform next` + **N** — what to do next  
 3. Session prep / validate — keep the chain honest  
 4. Review recipes / deepagent YAML if session shape changed  

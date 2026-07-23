@@ -261,12 +261,12 @@ class SignalRail(Vertical):
         """Scan artifacts for granted capabilities and update HUD."""
         if not self.artifacts_dir:
             return
-            
+
         cap_file = self.artifacts_dir / "capabilities.json"
         if not cap_file.exists():
             self._apply_default_capabilities()
             return
-            
+
         try:
             data = json.loads(cap_file.read_text(encoding="utf-8"))
             caps = data.get("capabilities", {})
