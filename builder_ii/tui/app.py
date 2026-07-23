@@ -118,7 +118,11 @@ class StratumApp(App[None]):
         # Dead modes re-wired: real entry into existing renderers (not silent furniture).
         Binding("f", "show_postflight", "Postflight", show=False),
         Binding("s", "show_promotion", "Promote", show=False),
-        Binding("l", "show_goose_live", "Goose view", show=False),
+        # Run cockpit: roster of ledgered runs + a live transcript of the selected run.
+        # (Replaces the former static "GOOSE does not stream" view on the same key.)
+        Binding("l", "toggle_run_cockpit", "Runs", show=False),
+        Binding("comma", "cockpit_prev_run", "Prev run", show=False),
+        Binding("full_stop", "cockpit_next_run", "Next run", show=False),
         # HITL actions — compose-only (footer labels must not imply harvest/authority).
         # Hidden from the always-on footer; the HITL gate indicator names them when a
         # gate is actually open, which is the only moment they mean anything.
@@ -374,6 +378,10 @@ class StratumApp(App[None]):
             # Re-verify chain to update chain digest asynchronously
             await self._verify_current_chain_async()
             self._maybe_surface_hitl(quiet=True)
+
+            # Stream newly-landed events into the run cockpit transcript (when open).
+            if self.stratum is not None:
+                self.stratum.refresh_cockpit_transcript()
 
             if self.banner:
                 self.banner.refresh()
@@ -716,12 +724,20 @@ class StratumApp(App[None]):
                 StratumMode.IDLE if self.stratum.mode == StratumMode.PROMOTION else StratumMode.PROMOTION
             )
 
-    def action_show_goose_live(self) -> None:
-        """Enter GOOSE_LIVE instrument view (read-only status). Hand-off remains G."""
+    def action_toggle_run_cockpit(self) -> None:
+        """Toggle the run cockpit: roster of ledgered runs + a live transcript. Observe-only."""
         if self.stratum:
             self.stratum.mode = (
-                StratumMode.IDLE if self.stratum.mode == StratumMode.GOOSE_LIVE else StratumMode.GOOSE_LIVE
+                StratumMode.IDLE if self.stratum.mode == StratumMode.RUN_COCKPIT else StratumMode.RUN_COCKPIT
             )
+
+    def action_cockpit_prev_run(self) -> None:
+        if self.stratum and self.stratum.mode == StratumMode.RUN_COCKPIT:
+            self.stratum.cockpit_select(-1)
+
+    def action_cockpit_next_run(self) -> None:
+        if self.stratum and self.stratum.mode == StratumMode.RUN_COCKPIT:
+            self.stratum.cockpit_select(1)
 
     async def action_validate_package(self) -> None:
         """Re-verify on-disk chain; also offer the governed validate-prepare-package compose line."""
