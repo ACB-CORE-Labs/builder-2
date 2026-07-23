@@ -280,3 +280,25 @@ def standalone_call(
     content = json.dumps(receipt, indent=2) + "\n"
     receipt_output.write_text(content, encoding="utf-8")
     typer.echo(f"Wrote receipt to {receipt_output}")
+
+
+@mcp_app.command("serve")
+def serve(
+    session_id: str = typer.Option(..., "--session-id", help="Session id for the operational ledger."),
+    builder_root: Path = typer.Option(
+        Path(".builder"), "--builder-root", help="Root directory for session artifacts and events."
+    ),
+) -> None:
+    """Run the governed stdio MCP server so Goose can load builder-II as an extension.
+
+    Speaks newline-delimited JSON-RPC on stdin/stdout and exposes only the executor's
+    allowlisted read-only stub tools. Each ``tools/call`` runs the governed
+    envelope -> receipt -> ledger ceremony (deny-by-default, no target mutation, no shell);
+    the server grants no authority and adds no new tool capability.
+    """
+    enforce_command_authority(
+        "builder-mcp serve", requested_effects=("external_tool", "artifact_write", "state_write")
+    )
+    from builder_ii.adapters.mcp.server import GovernedMcpServer
+
+    GovernedMcpServer(session_id=session_id, builder_root=builder_root).serve_stdio()

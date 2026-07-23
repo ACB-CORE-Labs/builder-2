@@ -451,6 +451,7 @@ REQUIRED_SUBCOMMANDS = {
     "builder-mcp policy",
     "builder-mcp call",
     "builder-mcp standalone-call",
+    "builder-mcp serve",
     "builder-tools list",
     "builder-tools check",
     "builder-tools missing",
@@ -4565,6 +4566,25 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         notes="Ledger-free variant of builder-mcp call.",
         allows_artifact_writes=True,
         allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
+        name="builder-mcp serve",
+        entrypoint="builder_ii.mcp_cli:mcp_app",
+        tier=TIER_3,
+        promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
+        runtime_boundary=(
+            "Runs a stdio JSON-RPC MCP server exposing only allowlisted low-risk read-only "
+            "stub tools; each call runs the governed envelope->receipt->ledger ceremony."
+        ),
+        write_boundary="Writes envelopes, receipts, and chained event records under .builder/sessions.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation; every tool call is envelope-bound and deny-by-default.",
+        output_behavior="Speaks newline-delimited JSON-RPC on stdout.",
+        failure_mode="Denied calls return an error result; the process exits non-zero on fatal error.",
+        notes="G1 governed MCP interposition seam for Goose; introduces no new tool capability.",
+        allows_artifact_writes=True,
+        allows_external_tool_invocation=True,
+        allows_state_writes=True,
     ),
     CommandAuthorityRecord(
         name="builder-tools invoke",
