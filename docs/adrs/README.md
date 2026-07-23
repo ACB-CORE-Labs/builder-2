@@ -16,6 +16,7 @@ builder-II is CORE-born and governed by the Builder's Signet, but it is a generi
 | [`ADR-0006`](ADR-0006-codevault-parser-strategy.md) | Accepted | Hybrid parser strategy: pinned in-process grammar for G3 skeleton; caller-supplied digest-bound SCIP/LSIF for G4 relation depth — CodeVault never runs an indexer. |
 | [`ADR-0007`](ADR-0007-orchestration-router-control-plane.md) | Accepted | Geometry-first WRP control plane: substrate as digest-bound recommendation/plan/validation artifacts; staged promotion S1–S3 toward HITL live lane and scoped enablement; opt-in heavy backends non-default on M1. |
 | [`ADR-0008`](ADR-0008-governed-deepagents-model-invocation-lane.md) | Proposed | Governed deepagents model-invocation lane: think-steps route through the existing model execution gateway under a sealed, digest-approved, budget-bounded grant; every call ledgered; output stays proposal-only; DESIGN_ONLY until the eight gates and a closure audit. |
+| [`ADR-0009`](ADR-0009-goose-in-loop-governed-runtime.md) | Proposed | Goose in-loop governed runtime: interpose via a builder-II-owned governed MCP server loaded as Goose's only extension (no fork, no source patch); read-only tools and a refusing in-flight HITL gate inside the current observe-and-compose contract; write/shell design-gated behind the eight promotion gates and a matrix flip; DESIGN_ONLY. |
 
 ## ADR discipline
 

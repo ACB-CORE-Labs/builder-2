@@ -216,6 +216,13 @@ These are the next capability promotions. Each requires the full capability prom
 - Patch proposal artifact → operator review → approved patch application
 - Requires full verification evidence
 
+### Phase: Goose in-loop governed runtime (ADR-0009 Proposed — DESIGN_ONLY)
+- Interpose on Goose via a builder-II-owned governed MCP server loaded as its only extension (with `--with-builtin ""`); no Goose fork and no source patch
+- Read-only tools and a refusing in-flight HITL gate operate inside the current observe-and-compose contract; write and shell stay denied until a separate promotion
+- STRATUM streams the run by tailing the hash-chained event ledger the server writes; the TUI gains no dispatch authority
+- Write/shell unlock is design-gated behind the eight promotion gates and a matrix flip; it is not enabled by this phase
+- See `docs/plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md`, ADR-0009
+
 ### Phase: artifact memory and context reconstruction
 - B8 adds explicit artifact-memory envelopes, indexes, deterministic search results, and replay-stable reconstructions via `builder-memory`
 - No hidden memory mutation; summaries remain derived and non-authoritative
@@ -260,6 +267,7 @@ Current RFCs:
 - `docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md` — Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated integration seam.
 - `docs/plan/MCP_POLICY_ARTIFACT_RFC.md` — deny-by-default MCP policy artifact for tools, resources, prompts, roots, sampling, elicitation, auth, limits, and result handling.
 - `docs/plan/MCP_TOOL_INVENTORY_RFC.md` — MCP inventory artifact, tool/resource/prompt hashes, risk classification, and change detection before policy or invocation.
+- `docs/plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md` — Goose in-loop governed runtime via MCP interposition (read-only tools and a refusing gate now; write/shell design-gated behind the promotion gates); companion to ADR-0009.
 
 These RFCs are not implementation authority. They do not enable memory mutation, deepagents construction, Rust dependencies, shell execution, model calls, source mutation, MCP connection, MCP tool execution, target repo mutation, execution candidate activation, or Goose runtime activation.
 
