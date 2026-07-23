@@ -268,6 +268,7 @@ Current RFCs:
 - `docs/plan/MCP_POLICY_ARTIFACT_RFC.md` — deny-by-default MCP policy artifact for tools, resources, prompts, roots, sampling, elicitation, auth, limits, and result handling.
 - `docs/plan/MCP_TOOL_INVENTORY_RFC.md` — MCP inventory artifact, tool/resource/prompt hashes, risk classification, and change detection before policy or invocation.
 - `docs/plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md` — Goose in-loop governed runtime via MCP interposition (read-only tools and a refusing gate now; write/shell design-gated behind the promotion gates); companion to ADR-0009.
+- `docs/plan/GOOSE_G4_WRITE_SHELL_PROMOTION.md` — the Phase 3 (G4) write/shell unlock promotion design: relaxes the read-only envelope pins only behind a validated approval, behind the eight gates and a matrix flip; DESIGN_ONLY, enables nothing.
 
 These RFCs are not implementation authority. They do not enable memory mutation, deepagents construction, Rust dependencies, shell execution, model calls, source mutation, MCP connection, MCP tool execution, target repo mutation, execution candidate activation, or Goose runtime activation.
 
