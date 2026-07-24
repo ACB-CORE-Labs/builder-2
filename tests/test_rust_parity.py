@@ -18,6 +18,11 @@ def test_rust_binary_or_fail_closed_python_fallback_exists() -> None:
     [
         "builder_ii.goose_session_manifest",
         "builder_ii.goose_readonly_runtime_audit",
+        "builder_ii.goose_readonly_inspection_audit",
+        "builder_ii.performance_measurement",
+        "builder_ii.hitl_execution_request",
+        "builder_ii.hitl_execution_receipt",
+        "builder_ii.approval_record",
     ],
 )
 def test_python_rust_parity(kind: str) -> None:

@@ -4,6 +4,7 @@ import hashlib
 import json as json_lib
 import re
 from pathlib import Path
+from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any, Callable
 
 from builder_ii.core.context_packs import CONTEXT_PACK_KIND, validate_context_pack
@@ -151,11 +152,6 @@ _DENIED_CAPABILITIES = [
     "target repository mutation",
     "runtime authority grant",
 ]
-
-
-def canonical_digest(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _artifact_ref(

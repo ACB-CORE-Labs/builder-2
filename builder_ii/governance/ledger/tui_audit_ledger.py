@@ -79,6 +79,7 @@ import json
 import os
 from contextlib import contextmanager
 from pathlib import Path
+from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import IO, Any, Iterator
 
 try:  # POSIX only. Guarded so the read-only half of this module still imports where it is absent.
@@ -127,26 +128,15 @@ _REQUIRED_FIELDS = (
 )
 
 
-def canonical_json(value: Any) -> str:
-    """Serialise deterministically: sorted keys, no incidental whitespace, unescaped unicode.
-
-    Both digests hash this. `sort_keys` matters because dict ordering is insertion-ordered and the
-    writer's insertion order is not a property of the state being recorded; `ensure_ascii=False`
-    keeps the glyphs the TUI actually renders (`⚡`, `⊘`) from being re-encoded differently by a
-    reader that round-trips the file.
-    """
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
-
-
 def compute_state_digest(state: Any) -> str:
     """Digest of the semantic payload alone -- no run_id, no timestamp, no chain link."""
-    return hashlib.sha256(canonical_json(state).encode("utf-8")).hexdigest()
+    return hashlib.sha256(canonical_json(state, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
 def compute_entry_digest(entry: dict[str, Any]) -> str:
     """Digest of the entry excluding `entry_digest` itself; commits to `prev_digest`."""
     core = {k: v for k, v in entry.items() if k != "entry_digest"}
-    return hashlib.sha256(canonical_json(core).encode("utf-8")).hexdigest()
+    return hashlib.sha256(canonical_json(core, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
 def build_event(
@@ -281,7 +271,7 @@ def read_ledger_summary(path: Path) -> tuple[int, str]:
 def compute_index_entry_digest(entry: dict[str, Any]) -> str:
     """Digest of an index entry excluding `entry_digest` itself; commits to `prev_digest`."""
     core = {k: v for k, v in entry.items() if k != "entry_digest"}
-    return hashlib.sha256(canonical_json(core).encode("utf-8")).hexdigest()
+    return hashlib.sha256(canonical_json(core, ensure_ascii=False).encode("utf-8")).hexdigest()
 
 
 def append_run_to_index(index_path: Path, *, run_id: str, ledger_path: Path, timestamp: float) -> dict[str, Any]:

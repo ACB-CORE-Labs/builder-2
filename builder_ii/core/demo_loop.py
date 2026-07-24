@@ -45,7 +45,7 @@ from builder_ii.governance.hitl.hitl_patch_approval import (
     create_hitl_patch_approval,
 )
 from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
-from builder_ii.governance.hitl.hitl_rollback_approval import canonical_json_digest, create_hitl_rollback_approval
+from builder_ii.governance.hitl.hitl_rollback_approval import canonical_digest, create_hitl_rollback_approval
 from builder_ii.lifecycle.candidate.execution_postflight_records import (
     create_execution_postflight_record,
     write_execution_postflight_record,
@@ -1093,7 +1093,7 @@ def run_demo_loop(
         rollback_plan_for_approval = _read_json(paths.rollback_plan)
         rollback_approval = create_hitl_rollback_approval(
             rollback_plan_for_approval,
-            confirmed_digest_prefix=canonical_json_digest(rollback_plan_for_approval)[
+            confirmed_digest_prefix=canonical_digest(rollback_plan_for_approval)[
                 :APPROVAL_CONFIRMATION_PREFIX_LENGTH
             ],
             approved_by="demo-operator",

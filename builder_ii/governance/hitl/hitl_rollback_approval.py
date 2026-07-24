@@ -57,7 +57,7 @@ from builder_ii.governance.hitl.hitl_patch_approval import (
     DEFAULT_APPROVAL_TTL_SECONDS,
     _is_int,
     approval_is_expired,
-    canonical_json_digest,
+    canonical_digest,
 )
 from builder_ii.lifecycle.setup.target_profiles import target_names
 
@@ -77,7 +77,7 @@ __all__ = [
     "validate_hitl_rollback_approval_file",
     "rollback_approval_binding_errors",
     "approval_is_expired",
-    "canonical_json_digest",
+    "canonical_digest",
 ]
 
 
@@ -103,7 +103,7 @@ def create_hitl_rollback_approval(
         "schema_version": HITL_ROLLBACK_APPROVAL_SCHEMA_VERSION,
         "target": dict(rollback_plan.get("target", {})),
         "patch_digest": patch_digest,
-        "rollback_plan_digest": canonical_json_digest(rollback_plan),
+        "rollback_plan_digest": canonical_digest(rollback_plan),
         "approved_by": approved_by,
         "approved_at": approved_at,
         "expires_at": approved_at + int(ttl_seconds),

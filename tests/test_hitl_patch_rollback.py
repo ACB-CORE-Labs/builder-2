@@ -25,7 +25,7 @@ from builder_ii.governance.hitl.hitl_patch_apply import (
 from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
 from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 from builder_ii.governance.hitl.hitl_rollback_approval import (
-    canonical_json_digest,
+    canonical_digest,
     create_hitl_rollback_approval,
     write_hitl_rollback_approval,
 )
@@ -80,7 +80,7 @@ def _mint_rollback_approval(tmp_path: Path, rollback_plan_path: Path) -> Path:
     rollback_approval_path = tmp_path / "rollback_approval.json"
     write_hitl_rollback_approval(
         create_hitl_rollback_approval(
-            plan_data, confirmed_digest_prefix=canonical_json_digest(plan_data)[:4]
+            plan_data, confirmed_digest_prefix=canonical_digest(plan_data)[:4]
         ),
         rollback_approval_path,
     )
@@ -143,7 +143,7 @@ def test_successful_apply_and_rollback(tmp_path: Path):
     rollback_receipt = json.loads((rollback_out / "rollback_receipt.json").read_text())
     # The success receipt binds the rollback approval that authorized it (evidence parity with
     # the apply receipt's approval_digest).
-    assert rollback_receipt["rollback_approval_digest"] == canonical_json_digest(
+    assert rollback_receipt["rollback_approval_digest"] == canonical_digest(
         json.loads(rollback_approval_path.read_text())
     )
     # And it carries post-rollback equivalence evidence: the tree provably returned to the

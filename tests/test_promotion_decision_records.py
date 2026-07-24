@@ -108,8 +108,11 @@ def test_promotion_decision_json_round_trip() -> None:
 
 def test_promotion_decision_file_validation(tmp_path: Path) -> None:
     path = tmp_path / "promotion-decision.json"
+    readiness = _ready()
+    import json
+    (tmp_path / "promotion-readiness.json").write_text(json.dumps(readiness), encoding="utf-8")
     record = create_promotion_decision_record(
-        _ready(), readiness_path="promotion-readiness.json", decision="approved", decided_by="operator"
+        readiness, readiness_path="promotion-readiness.json", decision="approved", decided_by="operator"
     )
     write_promotion_decision_record(record, path)
 

@@ -12,7 +12,7 @@ from builder_ii.governance.authority.governance_standard import build_standard_g
 from builder_ii.governance.hitl.hitl_patch_approval import (
     approval_binding_errors,
     approval_is_expired,
-    canonical_json_digest,
+    canonical_digest,
     validate_hitl_patch_approval_file,
 )
 from builder_ii.governance.hitl.hitl_patch_ledger import (
@@ -116,7 +116,7 @@ def compute_digest(content: str) -> str:
 def _json_digest(data: Any) -> str:
     # Delegate to the approval module so the proposal-content binding is computed with
     # one identical algorithm on both the mint (approve) and verify (apply) sides.
-    return canonical_json_digest(data)
+    return canonical_digest(data)
 
 
 def _file_digest(path: Path) -> str:
@@ -434,7 +434,7 @@ def apply_hitl_patch(
     approval = json_lib.loads(approval_path.read_text())
     binding_errors = approval_binding_errors(
         approval,
-        proposal_digest=canonical_json_digest(proposal),
+        proposal_digest=canonical_digest(proposal),
         patch_digest=patch_digest,
     )
     if binding_errors:
@@ -864,7 +864,7 @@ def rollback_hitl_patch(
     approval = json_lib.loads(approval_path.read_text())
     binding_errors = rollback_approval_binding_errors(
         approval,
-        rollback_plan_digest=canonical_json_digest(plan),
+        rollback_plan_digest=canonical_digest(plan),
         patch_digest=str(plan.get("patch_digest", "")),
     )
     if binding_errors:
