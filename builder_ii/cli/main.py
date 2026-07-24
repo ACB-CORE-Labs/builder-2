@@ -481,8 +481,39 @@ def start(
     console.print(f"CORE repo: {settings.target_repo}")
     console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")
     console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep")
-    proc = launch_goose_session(settings, resume=resume, session=session, name=name)
+    session_name = name or f"builder_{int(time.time())}"
+    proc = launch_goose_session(settings, resume=resume, session=session, name=session_name)
     proc.wait()
+
+    try:
+        transcript_path_obj = settings.target_repo / ".builder" / "artifacts" / f"{session_name}.jsonl"
+        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        transcript_path = str(transcript_path_obj)
+        import subprocess
+        subprocess.run(["goose", "session", "export", "--name", session_name, "--format", "json", "--output", transcript_path], check=False)
+        
+        hasher = hashlib.sha256()
+        with open(transcript_path_obj, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                hasher.update(chunk)
+        transcript_digest = hasher.hexdigest()
+
+        from builder_ii.governance.ledger.event_ledger import create_event_record, append_event_record
+        event = create_event_record(
+            event_id=session_name + "_close",
+            session_id=session_name,
+            sequence=0,
+            event_type="goose_session_closed",
+            stage="orchestration",
+            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
+            command_surface="builder_ii",
+            policy_snapshot_ref={"kind": "null"},
+        )
+        ledger_path = settings.target_repo / ".builder" / "artifacts" / "event_ledger.jsonl"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        append_event_record(event, ledger_path)
+    except Exception as exc:
+        console.print(f"[yellow]Could not export session transcript or record ledger event:[/] {exc}")
 
 
 @app.command("ask")

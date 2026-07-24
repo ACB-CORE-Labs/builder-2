@@ -79,7 +79,7 @@ class GooseRuntimeHarness:
         env["GOOSE_MODE"] = "auto"
 
         # We restrict the capabilities by not supplying `developer` builtin.
-        argv = [goose, "session", "--with-builtin", ""]
+        argv = [goose, "session", "--with-builtin", "", "--name", self.session_id]
         if recipe.exists():
             argv.extend(["--recipe", str(recipe)])
 
@@ -110,10 +110,9 @@ class GooseRuntimeHarness:
     def _governed_recipe_path(self) -> Path:
         return self.settings.project_root / "recipes" / self.GOVERNED_RECIPE_NAME
 
-    @staticmethod
-    def _governed_argv(goose: str, recipe: Path) -> list[str]:
+    def _governed_argv(self, goose: str, recipe: Path) -> list[str]:
         """Goose argv for a governed session: no builtins, our recipe as the tool surface."""
-        argv = [goose, "session", "--with-builtin", ""]
+        argv = [goose, "session", "--with-builtin", "", "--name", self.session_id]
         if recipe.exists():
             argv.extend(["--recipe", str(recipe)])
         return argv
@@ -169,7 +168,7 @@ class GooseRuntimeHarness:
         env = goose_env(self.settings, session=self.session_plan)
         env["GOOSE_MODE"] = "auto"
 
-        argv = [goose, "session", "--with-builtin", ""]
+        argv = [goose, "session", "--with-builtin", "", "--name", self.session_id]
         if recipe.exists():
             argv.extend(["--recipe", str(recipe)])
 
@@ -224,16 +223,38 @@ class GooseRuntimeHarness:
             mutations_detected=mutations,
         )
 
-        transcript_path = str(Path.home() / ".config" / "goose" / "sessions" / self.session_id)
+        # Export the actual transcript to a JSON log instead of timestamp guessing
+        transcript_path_obj = self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
+        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        transcript_path = str(transcript_path_obj)
+        subprocess.run(["goose", "session", "export", "--name", self.session_id, "--format", "json", "--output", transcript_path], check=False)
+        transcript_digest = _file_sha256(transcript_path_obj) or ""
 
         close_receipt = create_goose_close_receipt(
             session_id=self.session_id,
             launch_receipt_digest=launch_receipt_digest,
             postflight_digest=postflight["digest"],
             transcript_path=transcript_path,
+            transcript_digest=transcript_digest,
             end_time=end_time,
             exit_code=exit_code,
         )
+        
+        # Record goose_session_closed in the event ledger
+        from builder_ii.governance.ledger.event_ledger import create_event_record, append_event_record
+        event = create_event_record(
+            event_id=self.session_id + "_close",
+            session_id=self.session_id,
+            sequence=0,
+            event_type="goose_session_closed",
+            stage="verification",
+            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
+            command_surface="builder_ii",
+            policy_snapshot_ref={"kind": "null"},
+        )
+        ledger_path = self.target_root / ".builder" / "artifacts" / "event_ledger.jsonl"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        append_event_record(event, ledger_path)
 
         return close_receipt, postflight
 
@@ -270,15 +291,37 @@ class GooseRuntimeHarness:
             mutations_detected=mutations,
         )
 
-        transcript_path = str(Path.home() / ".config" / "goose" / "sessions" / self.session_id)
+        # Export the actual transcript to a JSON log instead of timestamp guessing
+        transcript_path_obj = self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
+        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        transcript_path = str(transcript_path_obj)
+        subprocess.run(["goose", "session", "export", "--name", self.session_id, "--format", "json", "--output", transcript_path], check=False)
+        transcript_digest = _file_sha256(transcript_path_obj) or ""
 
         close_receipt = create_goose_close_receipt(
             session_id=self.session_id,
             launch_receipt_digest=launch_receipt_digest,
             postflight_digest=postflight["digest"],
             transcript_path=transcript_path,
+            transcript_digest=transcript_digest,
             end_time=end_time,
             exit_code=exit_code,
         )
+        
+        # Record goose_session_closed in the event ledger
+        from builder_ii.governance.ledger.event_ledger import create_event_record, append_event_record
+        event = create_event_record(
+            event_id=self.session_id + "_close",
+            session_id=self.session_id,
+            sequence=0,
+            event_type="goose_session_closed",
+            stage="verification",
+            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
+            command_surface="builder_ii",
+            policy_snapshot_ref={"kind": "null"},
+        )
+        ledger_path = self.target_root / ".builder" / "artifacts" / "event_ledger.jsonl"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        append_event_record(event, ledger_path)
 
         return close_receipt, postflight

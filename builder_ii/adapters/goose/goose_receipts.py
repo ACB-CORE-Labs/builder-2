@@ -63,6 +63,7 @@ def create_goose_close_receipt(
     launch_receipt_digest: str,
     postflight_digest: str,
     transcript_path: str,
+    transcript_digest: str,
     end_time: str,
     exit_code: int,
 ) -> dict[str, Any]:
@@ -73,6 +74,7 @@ def create_goose_close_receipt(
         "launch_receipt_digest": launch_receipt_digest,
         "postflight_digest": postflight_digest,
         "transcript_path": transcript_path,
+        "transcript_digest": transcript_digest,
         "end_time": end_time,
         "exit_code": exit_code,
     }
