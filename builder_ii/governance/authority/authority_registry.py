@@ -199,6 +199,13 @@ def _readonly_tui_record(name: str) -> CommandAuthorityRecord:
 
 READONLY_TUI_COMMAND_GROUPS: tuple[str, ...] = (
     "builder tui",
+    "builder inspect hitl",
+    "builder inspect profile",
+    "builder inspect model",
+    "builder inspect promote",
+    "builder inspect postflight",
+    "builder inspect goose",
+    "builder inspect code-vault",
     "builder hitl",
     "builder profile",
     "builder model",

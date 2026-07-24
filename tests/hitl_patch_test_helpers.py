@@ -51,6 +51,7 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
         plan_path=str(plan_path),
         approval_actor="patch-test",
         approval_reason="HITL patch apply test verification binding",
+        expires_at="2099-01-01T00:00:00Z",
     )
     approval_path.write_text(json.dumps(approval, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     receipt = finalize_verification_execution_receipt(

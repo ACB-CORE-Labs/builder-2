@@ -44,7 +44,7 @@ def _write_bound_artifacts(
 ) -> tuple[Path, Path, Path]:
     root = _artifact_root(tmp_path)
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="a"*40,
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -464,7 +464,7 @@ def _write_target_code_chain(
     )
 
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="a"*40,
         tree_clean=True,
         target_profile=target_profile,
         verification_profile=verification_profile,
@@ -799,7 +799,7 @@ def test_generic_plan_injecting_builder_self_profile_blocks_end_to_end(monkeypat
         "timeout_seconds": 120,
     }
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="a"*40,
         tree_clean=True,
         target_profile="generic",
         verification_profile="generic_basic",

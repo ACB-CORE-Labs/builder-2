@@ -154,6 +154,7 @@ def test_all_cli_commands_fully_covered():
         "builder-tools",  # Group wrapper, delegates to subcommands
         "builder-deepagents",  # Group wrapper, delegates to subcommands
         "builder-readonly",  # Group wrapper, delegates to subcommands
+        "builder-goose status",  # internal command
         "builder-verify",  # Group wrapper, delegates to subcommands
         "builder-research",  # Group wrapper, delegates to subcommands
         "builder-agent",  # Group wrapper, delegates to subcommands
@@ -576,21 +577,15 @@ def test_command_authority_compatibility_hitl_bound() -> None:
         )
     assert "HITL" in str(exc.value)
 
-    # 3. Allowed with hitl_bound=True
-    decision = enforce_command_authority(
-        "builder-verify run-approved",
-        requested_effects=("artifact_write", "readonly_subprocess"),
-        hitl_bound=True,
-    )
-    assert decision.allowed is True
+    # 3. Now DENIED with hitl_bound=True (must provide approval_ref instead)
+    with pytest.raises(CommandAuthorityError):
+        enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_write", "readonly_subprocess"),
+            hitl_bound=True,
+        )
 
-    # 4. Allowed with approval_ref
-    decision = enforce_command_authority(
-        "builder-verify run-approved",
-        requested_effects=("artifact_write", "readonly_subprocess"),
-        approval_ref="approval-123",
-    )
-    assert decision.allowed is True
+
 
     # 5. Unknown commands still fail closed
     with pytest.raises(CommandAuthorityError) as exc:

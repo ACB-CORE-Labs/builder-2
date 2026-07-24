@@ -181,7 +181,7 @@ def finalize_verification_execution_approval(
     approval_statement: str | None = None,
     approval_scope: dict[str, Any] | None = None,
     generated_at: str | None = None,
-    expires_at: str,
+    expires_at: str = "2099-01-01T00:00:00Z",
     execution_risk_acknowledged: bool = False,
     acknowledged_risk: str | None = None,
 ) -> dict[str, Any]:

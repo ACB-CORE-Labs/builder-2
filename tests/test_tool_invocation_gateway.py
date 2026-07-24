@@ -119,45 +119,53 @@ def test_mutation_without_approval():
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
 
-def test_mutation_denied_by_policy():
+def test_mutation_denied_by_policy(tmp_path: Path):
     policy = _create_valid_policy()
     policy["mutation_allowed"] = False
     envelope = _create_valid_envelope(policy)
     envelope["risk_classification"] = "mutation"
-    envelope["approval_ref"] = {"role": "approval", "kind": "approval", "path": "path", "sha256": "0" * 64}
+    approval_path = tmp_path / "app.json"
+    approval_path.write_text("""{"kind": "builder_ii.tool_call_approval", "valid": true, "arguments_digest": "b3f49e62fc7090a7f8d62620167bce6b771c91680cc78270b49fd37dd37fa897", "expires_at": 20000000000}""")
+    envelope["approval_ref"] = {"role": "approval", "kind": "approval", "path": str(approval_path), "sha256": "0" * 64}
 
     with pytest.raises(ValueError, match="Mutation is not allowed by policy"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
 
-def test_external_network_denied_by_policy():
+def test_external_network_denied_by_policy(tmp_path: Path):
     policy = _create_valid_policy()
     policy["network_allowed"] = False
     envelope = _create_valid_envelope(policy)
     envelope["risk_classification"] = "external_network"
-    envelope["approval_ref"] = {"role": "approval", "kind": "approval", "path": "path", "sha256": "0" * 64}
+    approval_path = tmp_path / "app.json"
+    approval_path.write_text("""{"kind": "builder_ii.tool_call_approval", "valid": true, "arguments_digest": "b3f49e62fc7090a7f8d62620167bce6b771c91680cc78270b49fd37dd37fa897", "expires_at": 20000000000}""")
+    envelope["approval_ref"] = {"role": "approval", "kind": "approval", "path": str(approval_path), "sha256": "0" * 64}
 
     with pytest.raises(ValueError, match="External network is not allowed by policy"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
 
-def test_credential_sensitive_denied_by_policy():
+def test_credential_sensitive_denied_by_policy(tmp_path: Path):
     policy = _create_valid_policy()
     policy["credential_access_allowed"] = False
     envelope = _create_valid_envelope(policy)
     envelope["risk_classification"] = "credential_sensitive"
-    envelope["approval_ref"] = {"role": "approval", "kind": "approval", "path": "path", "sha256": "0" * 64}
+    approval_path = tmp_path / "app.json"
+    approval_path.write_text("""{"kind": "builder_ii.tool_call_approval", "valid": true, "arguments_digest": "b3f49e62fc7090a7f8d62620167bce6b771c91680cc78270b49fd37dd37fa897", "expires_at": 20000000000}""")
+    envelope["approval_ref"] = {"role": "approval", "kind": "approval", "path": str(approval_path), "sha256": "0" * 64}
 
     with pytest.raises(ValueError, match="Credential access is not allowed by policy"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))
 
 
-def test_cost_bearing_denied_by_policy():
+def test_cost_bearing_denied_by_policy(tmp_path: Path):
     policy = _create_valid_policy()
     policy["cost_allowed"] = False
     envelope = _create_valid_envelope(policy)
     envelope["risk_classification"] = "cost_bearing"
-    envelope["approval_ref"] = {"role": "approval", "kind": "approval", "path": "path", "sha256": "0" * 64}
+    approval_path = tmp_path / "app.json"
+    approval_path.write_text("""{"kind": "builder_ii.tool_call_approval", "valid": true, "arguments_digest": "b3f49e62fc7090a7f8d62620167bce6b771c91680cc78270b49fd37dd37fa897", "expires_at": 20000000000}""")
+    envelope["approval_ref"] = {"role": "approval", "kind": "approval", "path": str(approval_path), "sha256": "0" * 64}
 
     with pytest.raises(ValueError, match="Cost-bearing operations are not allowed by policy"):
         execute_tool_envelope(envelope, Path("env.json"), policy, Path("pol.json"))

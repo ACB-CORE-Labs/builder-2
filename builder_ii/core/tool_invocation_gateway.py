@@ -114,7 +114,7 @@ def execute_tool_envelope(
 
                 arguments_digest = hashlib.sha256(json.dumps(envelope.get("arguments", {}), sort_keys=True).encode("utf-8")).hexdigest()
                 if approval.get("arguments_digest") != arguments_digest:
-                    raise ValueError("Approval is not bound to this proposal: arguments_digest mismatch")
+                    raise ValueError(f"Approval is not bound to this proposal: arguments_digest mismatch {approval.get('arguments_digest')} vs {arguments_digest} for {envelope.get('arguments')}")
 
                 if approval.get("expires_at") and approval["expires_at"] < int(time.time()):
                     raise ValueError("Patch approval has expired")

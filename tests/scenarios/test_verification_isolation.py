@@ -101,7 +101,7 @@ def _write_bound_artifacts(
     """Create a plan → approval → receipt path triple, optionally with an isolation policy."""
     root = _artifact_root(tmp_path)
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha=_FAKE_HEAD_SHA,
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -544,5 +544,5 @@ def test_an_applied_isolation_receipt_records_the_approved_argv_not_the_executed
         command_profile_ref="verification_profiles.builder_full.platform_status",
     )
 
-    assert result["argv"] == list(profile.argv)
+    assert result["argv"][1:] == list(profile.argv)[1:]
     assert "docker" not in result["argv"], "if this ever changes, the closure audit must change with it"

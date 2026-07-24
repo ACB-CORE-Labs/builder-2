@@ -367,13 +367,12 @@ def apply_hitl_patch(
     #    orchestrator, a test) would bypass the gate. Fail closed here, first — before
     #    settings resolution or any other IO.
     from builder_ii.governance.authority import enforce_command_authority
-
     enforce_command_authority(
         "builder-hitl apply-patch",
         requested_effects=("patch_application", "artifact_write"),
         approval_ref=str(approval_path),
     )
-
+    
     if settings is None:
         settings = load_settings()
 
@@ -510,7 +509,7 @@ def apply_hitl_patch(
         failure_receipt["status"] = "failed"
         failure_receipt["error_summary"] = (e.stderr or str(e))[:500]
         failure_receipt["patch_digest"] = patch_digest
-        failure_receipt["pre_head"] = pre_head
+        failure_receipt["pre_apply_head"] = pre_head
         write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
 
         _write_rollback_failure_receipt(
@@ -552,7 +551,7 @@ def apply_hitl_patch(
         failure_receipt["status"] = "failed"
         failure_receipt["error_summary"] = f"post-apply fingerprint failed after mutation: {exc}"[:500]
         failure_receipt["patch_digest"] = patch_digest
-        failure_receipt["pre_head"] = pre_head
+        failure_receipt["pre_apply_head"] = pre_head
         write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
 
         _write_rollback_failure_receipt(
@@ -613,7 +612,7 @@ def apply_hitl_patch(
     receipt["target"] = dict(proposal["target"])
     receipt["status"] = "succeeded"
     receipt["patch_digest"] = patch_digest
-    receipt["pre_head"] = pre_head
+    receipt["pre_apply_head"] = pre_head
     receipt["pre_apply_status_digest"] = pre_apply_status_digest
     receipt["proposal_digest"] = _json_digest(proposal)
     receipt["approval_digest"] = _json_digest(approval)

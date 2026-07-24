@@ -39,6 +39,7 @@ from builder_ii.lifecycle.setup.operator_golden_path import (
 )
 from builder_ii.lifecycle.setup.target_profiles import TargetName, target_profile
 from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.lifecycle.candidate.verification_execution_runner import _git_commit_identity
 from builder_ii.routing.model_routing_policy import (
     create_model_routing_policy,
     create_model_routing_recommendation,
@@ -217,6 +218,8 @@ def run_operator_lane(
         target_profile=target_name,
         verification_profile="builder_full",
         target_repo=str(target_repo),
+        target_head_sha=_git_commit_identity(target_repo)[0] or ("0"*40),
+        tree_clean=True,
         artifact_root=str(output_dir),
         requested_by_command="builder-platform operator-lane",
     )

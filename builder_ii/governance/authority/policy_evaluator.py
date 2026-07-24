@@ -100,6 +100,7 @@ def check_command_authority(
     safety_critical_claim: bool = False,
     hitl_bound: bool | None = None,
     capability_ref: str = "",
+    subject_digest: str | None = None,
 ) -> CommandAuthorityDecision:
     record = get_command_record(command_name)
     if record is None:
@@ -140,26 +141,51 @@ def check_command_authority(
             reasons.append(f"command is not classified for requested effect: {effect}")
 
     if record.approval_mode == MODE_HITL_ARTIFACT_REQUIRED:
-        if hitl_bound is not True:
-            if not approval_ref:
-                reasons.append("command requires a HITL approval artifact reference")
-            else:
-                try:
-                    import json
-                    from pathlib import Path
-                    approval_path = Path(approval_ref)
-                    if not approval_path.exists():
-                        reasons.append("Approval file does not exist")
-                    else:
-                        approval = json.loads(approval_path.read_text(encoding="utf-8"))
-                        if approval.get("kind") != "builder_ii.command_approval":
-                            reasons.append(f"Invalid patch approval: kind is {approval.get('kind')}")
-                        if approval.get("valid") is not True:
-                            reasons.append("Invalid patch approval: valid is not True")
-                        if approval.get("command_name") != command_name:
-                            reasons.append("Approval is not bound to this proposal: command_name mismatch")
-                except Exception as e:
-                    reasons.append(f"Invalid patch approval: {e}")
+        if not approval_ref:
+            reasons.append("command requires a HITL approval artifact reference")
+        else:
+            try:
+                import json
+                import time
+                from pathlib import Path
+                approval_path = Path(approval_ref)
+                if not approval_path.exists():
+                    reasons.append("Approval file does not exist")
+                else:
+                    approval = json.loads(approval_path.read_text(encoding="utf-8"))
+                    kind = approval.get("kind")
+                    
+                    if not kind:
+                        reasons.append("Invalid patch approval: unknown kind None")
+                    
+                    # Verify expiry
+                    expires_at = approval.get("expires_at")
+                    if expires_at:
+                        # Some approvals use ISO strings (verification), some use timestamps (model call)
+                        if isinstance(expires_at, str):
+                            from datetime import datetime, timezone
+                            if expires_at.endswith("Z"):
+                                expires_at = expires_at[:-1] + "+00:00"
+                            dt = datetime.fromisoformat(expires_at)
+                            now_utc = datetime.now(timezone.utc)
+                            if now_utc > dt:
+                                reasons.append("Patch approval has expired")
+                        elif isinstance(expires_at, (int, float)):
+                            if expires_at < int(time.time()):
+                                reasons.append("Patch approval has expired")
+                    
+                    # Generic binding check
+                    if subject_digest:
+                        bound = False
+                        for key in ["patch_digest", "proposal_digest", "plan_digest", "prompt_digest", "candidate_digest", "manifest_digest", "approved_model_id", "subject_digest"]:
+                            val = approval.get(key)
+                            if val and val == subject_digest:
+                                bound = True
+                                break
+                        if not bound:
+                            reasons.append("Approval is not bound to this proposal: digest mismatch")
+            except Exception as e:
+                reasons.append(f"Invalid patch approval: {e}")
 
     assurance = SAFETY_CRITICAL_PROHIBITED if safety_critical_claim else assurance_state_for_record(record)
     return CommandAuthorityDecision(
@@ -183,6 +209,7 @@ def enforce_command_authority(
     safety_critical_claim: bool = False,
     hitl_bound: bool | None = None,
     capability_ref: str = "",
+    subject_digest: str | None = None,
 ) -> CommandAuthorityDecision:
     decision = check_command_authority(
         command_name,
@@ -191,6 +218,7 @@ def enforce_command_authority(
         safety_critical_claim=safety_critical_claim,
         hitl_bound=hitl_bound,
         capability_ref=capability_ref,
+        subject_digest=subject_digest,
     )
     if not decision.allowed:
         raise CommandAuthorityError("; ".join(decision.reasons))

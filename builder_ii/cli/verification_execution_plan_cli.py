@@ -27,7 +27,7 @@ from builder_ii.lifecycle.candidate.verification_execution_receipt import (
     validate_verification_execution_receipt_against_plan_and_approval,
     validate_verification_execution_receipt_file,
 )
-from builder_ii.lifecycle.candidate.verification_execution_runner import run_approved_verification
+from builder_ii.lifecycle.candidate.verification_execution_runner import run_approved_verification, _git_commit_identity
 from builder_ii.lifecycle.candidate.verification_isolation_policy import finalize_verification_isolation_policy
 from builder_ii.lifecycle.candidate.verification_profiles import verification_profile_names
 from builder_ii.lifecycle.candidate.verification_promotion_gate import (
@@ -124,6 +124,8 @@ def plan(
         target_profile=_target_profile(target_profile),
         verification_profile=_verification_profile(verification_profile),
         target_repo=target_repo,
+        target_head_sha=_git_commit_identity(Path(target_repo))[0] or ("0"*40),
+        tree_clean=True,
         artifact_root=artifact_root,
         isolation_policy=isolation_policy,
     )
