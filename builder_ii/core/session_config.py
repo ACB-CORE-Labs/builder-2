@@ -15,7 +15,7 @@ SESSION_CONFIG_SCHEMA_VERSION = 1
 AuthorityMode = Literal["read_only", "planned_patch"]
 
 _ALLOWED_AUTHORITY_MODES = {"read_only", "planned_patch"}
-_ALLOWED_PROVIDER_BACKENDS = {"rapid-mlx", "mlx-lm", "ollama"}
+_ALLOWED_PROVIDER_BACKENDS = {"rapid-mlx", "mlx-lm", "ollama", "groq", "xai", "google", "anthropic", "openai"}
 _OPT_IN_MODEL_ALIASES = {"codegeex", "qwen-coder-14b", "qwen3-coder-heavy", "deepseek"}
 
 
@@ -35,7 +35,7 @@ def _model_id_for_alias(settings: Settings, alias: str) -> str:
 
 def _model_policy(settings: Settings, model_alias: str | None) -> dict[str, Any]:
     selected_alias = normalize_model_alias(model_alias or settings.model_alias, tier_fallback=settings.model_tier)
-    return {
+    policy = {
         "provider_backend": settings.backend,
         "model_alias": selected_alias,
         "model_id": _model_id_for_alias(settings, selected_alias),
@@ -49,6 +49,14 @@ def _model_policy(settings: Settings, model_alias: str | None) -> dict[str, Any]
             "artifact_is_authority": False,
         },
     }
+    if settings.backend in {"groq", "xai", "openai", "google", "anthropic"}:
+        policy["cloud_egress"] = {
+            "kind": "builder_ii.cloud_egress_record",
+            "provider_id": settings.backend,
+            "performs_network": True,
+            "grants_authority": False,
+        }
+    return policy
 
 
 def create_session_configuration(
@@ -219,7 +227,14 @@ def validate_session_configuration(data: Any) -> list[str]:
         errors.append("model_policy must be an object")
     else:
         if model_policy.get("provider_backend") not in _ALLOWED_PROVIDER_BACKENDS:
-            errors.append("model_policy.provider_backend must be one of: mlx-lm, ollama, rapid-mlx")
+            errors.append("model_policy.provider_backend must be one of: " + ", ".join(_ALLOWED_PROVIDER_BACKENDS))
+            
+        if model_policy.get("provider_backend") in {"groq", "xai", "openai", "google", "anthropic"}:
+            cloud_egress = model_policy.get("cloud_egress")
+            if not isinstance(cloud_egress, dict):
+                errors.append("model_policy.cloud_egress must be an object for cloud backends")
+            elif cloud_egress.get("kind") != "builder_ii.cloud_egress_record":
+                errors.append("model_policy.cloud_egress.kind must be builder_ii.cloud_egress_record")
         if model_policy.get("model_alias") not in MODEL_ALIASES:
             errors.append("model_policy.model_alias must be a known model alias")
         for field in ("model_id", "model_tier", "role", "recommended_context"):

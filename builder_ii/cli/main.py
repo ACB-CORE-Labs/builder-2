@@ -455,7 +455,6 @@ def start(
     from builder_ii.governance.authority import enforce_command_authority
     from builder_ii.routing.model_router import SESSION_MODES, explain_plan, plan_session
 
-    enforce_command_authority("builder start", requested_effects=("runtime_start", "state_write", "external_tool"))
     if mode not in SESSION_MODES:
         console.print(f"mode must be one of {SESSION_MODES}")
         raise typer.Exit(1)
@@ -481,7 +480,13 @@ def start(
     console.print(f"CORE repo: {settings.target_repo}")
     console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")
     console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep")
-    proc = launch_goose_session(settings, resume=resume, session=session, name=name)
+    proc = launch_goose_session(
+        settings, 
+        resume=resume, 
+        session=session, 
+        name=name, 
+        wrapper_plan_path=approval_artifact
+    )
     proc.wait()
 
 

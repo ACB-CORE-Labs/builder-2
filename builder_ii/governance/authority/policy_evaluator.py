@@ -140,8 +140,26 @@ def check_command_authority(
             reasons.append(f"command is not classified for requested effect: {effect}")
 
     if record.approval_mode == MODE_HITL_ARTIFACT_REQUIRED:
-        if not approval_ref and hitl_bound is not True:
-            reasons.append("command requires a HITL approval artifact reference")
+        if hitl_bound is not True:
+            if not approval_ref:
+                reasons.append("command requires a HITL approval artifact reference")
+            else:
+                try:
+                    from pathlib import Path
+                    import json
+                    approval_path = Path(approval_ref)
+                    if not approval_path.exists():
+                        reasons.append("Approval file does not exist")
+                    else:
+                        approval = json.loads(approval_path.read_text(encoding="utf-8"))
+                        if approval.get("kind") != "builder_ii.command_approval":
+                            reasons.append(f"Invalid patch approval: kind is {approval.get('kind')}")
+                        if approval.get("valid") is not True:
+                            reasons.append("Invalid patch approval: valid is not True")
+                        if approval.get("command_name") != command_name:
+                            reasons.append(f"Approval is not bound to this proposal: command_name mismatch")
+                except Exception as e:
+                    reasons.append(f"Invalid patch approval: {e}")
 
     assurance = SAFETY_CRITICAL_PROHIBITED if safety_critical_claim else assurance_state_for_record(record)
     return CommandAuthorityDecision(

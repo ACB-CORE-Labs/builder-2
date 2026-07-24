@@ -94,6 +94,34 @@ def execute_tool_envelope(
     if risk_class in ("mutation", "external_network", "credential_sensitive", "cost_bearing"):
         if "approval_ref" not in envelope or not envelope["approval_ref"]:
             raise ValueError(f"Risk classification '{risk_class}' requires an approval_ref")
+        else:
+            try:
+                from pathlib import Path
+                import json
+                import hashlib
+                import time
+                approval_path = Path(envelope["approval_ref"]["path"] if isinstance(envelope["approval_ref"], dict) else envelope["approval_ref"])
+                if not approval_path.exists():
+                    raise ValueError("Approval file does not exist")
+                approval = json.loads(approval_path.read_text(encoding="utf-8"))
+                if approval.get("kind") != "builder_ii.tool_call_approval":
+                    raise ValueError(f"Invalid patch approval: kind is {approval.get('kind')}")
+                if approval.get("valid") is not True:
+                    raise ValueError("Invalid patch approval: valid is not True")
+                
+                if approval.get("tool_name") != envelope.get("tool_name"):
+                    raise ValueError("Approval is not bound to this proposal: tool_name mismatch")
+                
+                arguments_digest = hashlib.sha256(json.dumps(envelope.get("arguments", {}), sort_keys=True).encode("utf-8")).hexdigest()
+                if approval.get("arguments_digest") != arguments_digest:
+                    raise ValueError("Approval is not bound to this proposal: arguments_digest mismatch")
+                
+                if approval.get("expires_at") and approval["expires_at"] < int(time.time()):
+                    raise ValueError("Patch approval has expired")
+            except ValueError:
+                raise
+            except Exception as e:
+                raise ValueError(f"Invalid patch approval: {e}")
 
         # Check corresponding policy allowance
         if risk_class == "mutation" and not policy.get("mutation_allowed"):
