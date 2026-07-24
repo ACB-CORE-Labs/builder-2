@@ -57,7 +57,8 @@ def register_patch_commands(app: typer.Typer) -> None:
 
     @app.command("approve-patch")
     def approve_patch(
-        proposal: Path = typer.Option(..., "--proposal", help="Proposal JSON path"),
+        proposal: Path | None = typer.Option(None, "--proposal", help="Proposal JSON path"),
+        from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve latest proposal"),
         output: Path = typer.Option(..., "--output", help="Output path for approval JSON"),
         approved_by: str = typer.Option("operator", "--approved-by", help="Identity recorded as the approver"),
         ttl_seconds: int = typer.Option(
@@ -74,6 +75,9 @@ def register_patch_commands(app: typer.Typer) -> None:
         from builder_ii.governance.authority import enforce_command_authority
 
         enforce_command_authority("builder-hitl approve-patch", requested_effects=("artifact_write",))
+
+        from builder_ii.cli._chain_resolve import resolve_path_or_last
+        proposal = resolve_path_or_last(proposal, from_last, "hitl_patch_proposal", "proposal")
 
         errors = validate_hitl_patch_proposal_file(proposal)
         if errors:
@@ -183,7 +187,8 @@ def register_patch_commands(app: typer.Typer) -> None:
 
     @app.command("approve-rollback")
     def approve_rollback(
-        rollback_plan: Path = typer.Option(..., "--rollback-plan", help="Rollback plan JSON path"),
+        rollback_plan: Path | None = typer.Option(None, "--rollback-plan", help="Rollback plan JSON path"),
+        from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve latest plan"),
         output: Path = typer.Option(..., "--output", help="Output path for rollback approval JSON"),
         approved_by: str = typer.Option("operator", "--approved-by", help="Identity recorded as the approver"),
         ttl_seconds: int = typer.Option(
@@ -201,6 +206,9 @@ def register_patch_commands(app: typer.Typer) -> None:
         from builder_ii.governance.authority import enforce_command_authority
 
         enforce_command_authority("builder-hitl approve-rollback", requested_effects=("artifact_write",))
+
+        from builder_ii.cli._chain_resolve import resolve_path_or_last
+        rollback_plan = resolve_path_or_last(rollback_plan, from_last, "rollback_plan", "rollback-plan")
 
         errors = validate_rollback_plan_file(rollback_plan)
         if errors:

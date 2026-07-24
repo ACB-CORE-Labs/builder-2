@@ -50,7 +50,8 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 @hitl_promotion_app.command("promotion-request")
 def promotion_request(
-    proposal_path: Path = typer.Option(..., "--proposal-path", help="Path to Goal 2 or Goal 3 proposal artifact"),
+    proposal_path: Path | None = typer.Option(None, "--proposal-path", help="Path to Goal 2 or Goal 3 proposal artifact"),
+    from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve latest proposal"),
     output: Path = typer.Option(..., "--output", help="Output path for the promotion request JSON"),
     requested_by: str = typer.Option("operator", "--requested-by", help="Operator or agent requesting promotion"),
     reason: str = typer.Option("", "--reason", help="Reason for promotion request"),
@@ -97,7 +98,8 @@ def promotion_request(
 
 @hitl_promotion_app.command("promotion-review")
 def promotion_review(
-    request_path: Path = typer.Option(..., "--request-path", help="Path to promotion request artifact"),
+    request_path: Path | None = typer.Option(None, "--request-path", help="Path to promotion request artifact"),
+    from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve latest request"),
     output: Path = typer.Option(..., "--output", help="Output path for review artifact"),
     disposition: str = typer.Option(
         "acceptable_for_decision",
@@ -145,8 +147,9 @@ def promotion_review(
 
 @hitl_promotion_app.command("promotion-decision")
 def promotion_decision(
-    request_path: Path = typer.Option(..., "--request-path", help="Path to promotion request artifact"),
-    review_path: Path = typer.Option(..., "--review-path", help="Path to promotion review artifact"),
+    request_path: Path | None = typer.Option(None, "--request-path", help="Path to promotion request artifact"),
+    review_path: Path | None = typer.Option(None, "--review-path", help="Path to promotion review artifact"),
+    from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve latest request and review"),
     output: Path = typer.Option(..., "--output", help="Output path for decision artifact"),
     decision_result: str = typer.Option(
         ...,
