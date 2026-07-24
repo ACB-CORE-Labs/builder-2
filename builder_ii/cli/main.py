@@ -443,6 +443,8 @@ def start(
     resume: bool = typer.Option(False, "--resume", "-r"),
     no_backend: bool = typer.Option(False, "--no-backend"),
     name: Optional[str] = typer.Option(None, "--name", "-n", help="Goose session name"),
+    wrapper_plan: Optional[Path] = typer.Option(None, "--wrapper-plan", help="Path to governed Goose wrapper plan artifact"),
+    from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve wrapper-plan from the last generated artifact"),
 ) -> None:
     """Start MLX backend + Goose session with governed CORE recipes."""
     from builder_ii.adapters.goose.goose_launcher import goose_status, launch_goose_session
@@ -476,12 +478,19 @@ def start(
     console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")
     console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep")
     session_name = name or f"builder_{int(time.time())}"
+    
+    approval_artifact = None
+    if wrapper_plan or from_last:
+        from builder_ii.cli._chain_resolve import resolve_path_or_last
+        resolved = resolve_path_or_last(wrapper_plan, from_last, "builder_ii.goose_wrapper_plan", "wrapper-plan")
+        approval_artifact = str(resolved)
+
     proc = launch_goose_session(
         settings, 
         resume=resume, 
         session=session, 
         name=session_name, 
-        wrapper_plan_path=None
+        wrapper_plan_path=approval_artifact
     )
     proc.wait()
 
