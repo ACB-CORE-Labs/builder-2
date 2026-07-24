@@ -449,7 +449,6 @@ def start(
     """Start MLX backend + Goose session with governed CORE recipes."""
     from builder_ii.adapters.goose.goose_launcher import goose_status, launch_goose_session
     from builder_ii.core.config import load_settings, normalize_model_alias
-    from builder_ii.governance.authority import enforce_command_authority
     from builder_ii.routing.model_router import SESSION_MODES, explain_plan, plan_session
 
     if mode not in SESSION_MODES:
@@ -478,7 +477,7 @@ def start(
     console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")
     console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep")
     session_name = name or f"builder_{int(time.time())}"
-    
+
     approval_artifact = None
     if wrapper_plan or from_last:
         from builder_ii.cli._chain_resolve import resolve_path_or_last
@@ -486,10 +485,10 @@ def start(
         approval_artifact = str(resolved)
 
     proc = launch_goose_session(
-        settings, 
-        resume=resume, 
-        session=session, 
-        name=session_name, 
+        settings,
+        resume=resume,
+        session=session,
+        name=session_name,
         wrapper_plan_path=approval_artifact
     )
     proc.wait()
@@ -500,14 +499,14 @@ def start(
         transcript_path = str(transcript_path_obj)
         import subprocess
         subprocess.run(["goose", "session", "export", "--name", session_name, "--format", "json", "--output", transcript_path], check=False)
-        
+
         hasher = hashlib.sha256()
         with open(transcript_path_obj, "rb") as handle:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 hasher.update(chunk)
         transcript_digest = hasher.hexdigest()
 
-        from builder_ii.governance.ledger.event_ledger import create_event_record, append_event_record
+        from builder_ii.governance.ledger.event_ledger import append_event_record, create_event_record
         event = create_event_record(
             event_id=session_name + "_close",
             session_id=session_name,

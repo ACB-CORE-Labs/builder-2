@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import re
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any, Callable
 
 from builder_ii.adapters.deepagents.deepagents_policy import (
@@ -15,6 +13,7 @@ from builder_ii.adapters.deepagents.deepagents_readiness import (
     DEEPAGENTS_READINESS_KIND,
     validate_deepagents_readiness_artifact,
 )
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.core.orchestration_assignment import (
     ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
     ORCHESTRATION_ASSIGNMENT_PLAN_KIND,

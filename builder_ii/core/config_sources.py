@@ -9,7 +9,8 @@ from typing import Any, Mapping
 import yaml
 from dotenv import dotenv_values
 
-from builder_ii.core.config import BACKENDS, MODEL_ALIASES, MODEL_TIERS, normalize_model_alias
+from builder_ii.core.config import BACKENDS, MODEL_TIERS
+from builder_ii.routing.model_catalog import MODEL_ALIASES, normalize_model_alias
 from builder_ii.core.config_schema import (
     CAPABILITY_DEFAULTS,
     CONFIG_FIELD_SPECS,

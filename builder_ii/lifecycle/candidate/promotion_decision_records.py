@@ -1,11 +1,10 @@
 from __future__ import annotations
-from builder_ii.core.canonical_json import canonical_digest
 
-import hashlib
 import json as json_lib
 from pathlib import Path
 from typing import Any, Literal
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.governance.authority.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.lifecycle.candidate.promotion_compatibility import support_artifact_kinds
 from builder_ii.lifecycle.candidate.promotion_readiness_records import (
@@ -204,7 +203,7 @@ def validate_promotion_decision_record_file(path: Path) -> list[str]:
     except json_lib.JSONDecodeError as exc:
         return [f"invalid JSON: {exc}"]
     errors = validate_promotion_decision_record(data)
-    
+
     # Re-derive readiness SHA-256 from the physical referenced file
     if not errors:
         readiness_path_str = data.get("readiness", {}).get("path")
@@ -212,7 +211,7 @@ def validate_promotion_decision_record_file(path: Path) -> list[str]:
             readiness_path = Path(readiness_path_str)
             if not readiness_path.is_absolute():
                 readiness_path = path.parent / readiness_path
-                
+
             if readiness_path.exists():
                 try:
                     readiness_data = json_lib.loads(readiness_path.read_text(encoding="utf-8"))

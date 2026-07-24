@@ -3,9 +3,9 @@ from __future__ import annotations
 import hashlib
 import json as json_lib
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.core.config_schema import attach_digest, digest_jsonable
 from builder_ii.lifecycle.candidate.verification_execution_approval import (
     VERIFICATION_EXECUTION_APPROVAL_KIND,
@@ -47,7 +47,6 @@ _EXPECTED_SUBJECT_REF_KINDS = {
 
 
 def _sha256_file(path: Path) -> str:
-    import hashlib
 
     return hashlib.sha256(path.expanduser().resolve().read_bytes()).hexdigest()
 
@@ -1276,6 +1275,7 @@ def validate_verification_execution_ledger_reconstruction_report(record: Any) ->
 import contextlib
 import typing
 
+
 @contextlib.contextmanager
 def _exclusive_ledger_lock(ledger_root: Path) -> typing.Iterator[None]:
     import fcntl
@@ -1303,7 +1303,7 @@ def append_verification_execution_receipt(
         if ledger_root is not None
         else (repo_path / ".builder" / "ledger")
     )
-    
+
     with _exclusive_ledger_lock(resolved_ledger_root):
         record = index_verification_execution_receipt(
             receipt_path=receipt_path,

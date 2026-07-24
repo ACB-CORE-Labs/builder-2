@@ -1,7 +1,8 @@
 import subprocess
-import sys
+
 import typer
 from rich.console import Console
+
 from builder_ii.governance.authority import enforce_command_authority
 
 console = Console()

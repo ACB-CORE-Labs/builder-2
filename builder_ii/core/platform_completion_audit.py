@@ -1438,15 +1438,15 @@ def _docs_to_scan(root: Path) -> list[Path]:
     docs_root = root / "docs"
     if docs_root.exists():
         files.extend(sorted(docs_root.rglob("*.md")))
-        
+
     cli_root = root / "builder_ii" / "cli"
     if cli_root.exists():
         files.extend(sorted(cli_root.rglob("*.py")))
-        
+
     tui_root = root / "builder_ii" / "tui"
     if tui_root.exists():
         files.extend(sorted(tui_root.rglob("*.py")))
-        
+
     forge_tui = root / "builder_ii" / "adapters" / "deepagents" / "deepagents_forge_tui.py"
     if forge_tui.exists():
         files.append(forge_tui)
@@ -1454,7 +1454,7 @@ def _docs_to_scan(root: Path) -> list[Path]:
     model_tui = root / "builder_ii" / "routing" / "model_tui.py"
     if model_tui.exists():
         files.append(model_tui)
-        
+
     files = sorted(list(set(files)))
     return [
         path

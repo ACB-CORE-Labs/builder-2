@@ -4,9 +4,9 @@ import hashlib
 import json as json_lib
 import re
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.lifecycle.setup.target_profiles import target_names
 
 PROFILE_PACK_MANIFEST_KIND = "builder_ii.profile_pack_manifest"

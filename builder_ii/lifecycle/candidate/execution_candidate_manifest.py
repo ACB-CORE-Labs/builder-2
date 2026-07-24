@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import re
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any
 
 from builder_ii.governance.authority import TIER_4, get_command_record

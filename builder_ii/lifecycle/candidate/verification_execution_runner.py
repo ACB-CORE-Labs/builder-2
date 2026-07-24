@@ -549,7 +549,7 @@ def _process_result_from_completed(
         status = "timeout"
     argv = list(profile.argv)
     if argv and argv[0] == sys.executable:
-        argv[0] = "python" 
+        argv[0] = "python"
     result: dict[str, Any] = {
         "step_id": profile.step_id,
         "profile": profile.profile,

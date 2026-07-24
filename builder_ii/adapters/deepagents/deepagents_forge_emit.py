@@ -29,7 +29,6 @@ from builder_ii.adapters.deepagents.deepagents_forge_preview import (
     GovernanceCheck,
     check_governance,
     collect_warnings,
-    render_bridge_spec,
 )
 from builder_ii.adapters.deepagents.deepagents_forge_schema import DeepAgentSpec, is_valid_slug, validate_spec
 

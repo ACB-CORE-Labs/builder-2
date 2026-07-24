@@ -1,4 +1,3 @@
-import re
 content = open("builder_ii/cli/tui_inspection_cli.py").read()
 if "inspect_app = typer.Typer" not in content:
     content = content.replace("hitl_app = typer.Typer", "inspect_app = typer.Typer(help=\"Read-only inspection surface.\", no_args_is_help=True)\n\nhitl_app = typer.Typer")

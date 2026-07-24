@@ -48,13 +48,12 @@ stays Tier 3 ``hitl_runtime_candidate``, not enabled (autonomous apply remains f
 
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import time
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.governance.authority.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.lifecycle.setup.target_profiles import target_names
 

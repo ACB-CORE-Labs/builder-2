@@ -227,7 +227,7 @@ def derive_goose_environment(
             raise ValueError(f"Invalid cloud approval kind: {approval.get('kind')}")
         if approval.get("valid") is not True:
             raise ValueError("Cloud approval artifact is not marked valid")
-            
+
     actual_env = env.copy()
     actual_env["GOOSE_PROVIDER"] = goose_provider
     actual_env["GOOSE_MODEL"] = goose_model
@@ -367,7 +367,7 @@ def launch_goose_session(
 
     from builder_ii.governance.authority import enforce_command_authority
     enforce_command_authority(
-        "builder start", 
+        "builder start",
         requested_effects=("runtime_start", "state_write", "external_tool"),
         approval_ref=wrapper_plan_path
     )
@@ -381,10 +381,10 @@ def launch_goose_session(
 
     if artifact.get("argv") != argv:
         raise ValueError(f"Drift detected: argv mismatch. Expected {artifact.get('argv')}, got {argv}")
-    
+
     if artifact.get("cwd") and str(artifact.get("cwd")) != str(workdir):
         raise ValueError("Drift detected: cwd mismatch")
-    
+
     # We do a subset check for env or exact match
     artifact_env = artifact.get("env", {})
     if artifact_env != env:

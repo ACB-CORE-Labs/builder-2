@@ -228,7 +228,7 @@ def validate_session_configuration(data: Any) -> list[str]:
     else:
         if model_policy.get("provider_backend") not in _ALLOWED_PROVIDER_BACKENDS:
             errors.append("model_policy.provider_backend must be one of: " + ", ".join(_ALLOWED_PROVIDER_BACKENDS))
-            
+
         if model_policy.get("provider_backend") in {"groq", "xai", "openai", "google", "anthropic"}:
             cloud_egress = model_policy.get("cloud_egress")
             if not isinstance(cloud_egress, dict):

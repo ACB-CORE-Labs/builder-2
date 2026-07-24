@@ -2,6 +2,7 @@ import hashlib
 import json
 from typing import Any
 
+
 def canonical_json(value: Any, ensure_ascii: bool = True) -> str:
     """Serialise deterministically: sorted keys, no incidental whitespace."""
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=ensure_ascii)

@@ -79,8 +79,9 @@ import json
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import IO, Any, Iterator
+
+from builder_ii.core.canonical_json import canonical_json
 
 try:  # POSIX only. Guarded so the read-only half of this module still imports where it is absent.
     import fcntl

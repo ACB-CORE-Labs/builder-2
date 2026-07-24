@@ -239,9 +239,9 @@ class GooseRuntimeHarness:
             end_time=end_time,
             exit_code=exit_code,
         )
-        
+
         # Record goose_session_closed in the event ledger
-        from builder_ii.governance.ledger.event_ledger import create_event_record, append_event_record
+        from builder_ii.governance.ledger.event_ledger import append_event_record, create_event_record
         event = create_event_record(
             event_id=self.session_id + "_close",
             session_id=self.session_id,
@@ -307,9 +307,9 @@ class GooseRuntimeHarness:
             end_time=end_time,
             exit_code=exit_code,
         )
-        
+
         # Record goose_session_closed in the event ledger
-        from builder_ii.governance.ledger.event_ledger import create_event_record, append_event_record
+        from builder_ii.governance.ledger.event_ledger import append_event_record, create_event_record
         event = create_event_record(
             event_id=self.session_id + "_close",
             session_id=self.session_id,

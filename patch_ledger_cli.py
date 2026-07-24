@@ -1,5 +1,3 @@
-import os
-import re
 
 f = "builder_ii/cli/ledger_cli.py"
 with open(f, "r") as fp:

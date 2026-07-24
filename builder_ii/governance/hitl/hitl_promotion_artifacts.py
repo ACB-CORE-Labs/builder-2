@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import re
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any, Callable
+
+from builder_ii.core.canonical_json import canonical_digest
 
 # Kinds and schema versions
 HITL_PROMOTION_REQUEST_KIND = "builder_ii.hitl_promotion_request"

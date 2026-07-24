@@ -1,5 +1,3 @@
-import os
-import re
 
 f = "builder_ii/governance/ledger/verification_execution_ledger.py"
 with open(f, "r") as fp:

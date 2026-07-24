@@ -432,13 +432,13 @@ class ModelExecutionGateway:
                 raise ValueError(f"Invalid patch approval: kind is {approval.get('kind')} instead of builder_ii.model_call_approval")
             if approval.get("valid") is not True:
                 raise ValueError("Invalid patch approval: valid is not True")
-            
+
             prompt_digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
             if approval.get("model_id") != model_id:
-                raise ValueError(f"Approval is not bound to this proposal: model_id mismatch")
+                raise ValueError("Approval is not bound to this proposal: model_id mismatch")
             if approval.get("prompt_digest") != prompt_digest:
-                raise ValueError(f"Approval is not bound to this proposal: prompt_digest mismatch")
-            
+                raise ValueError("Approval is not bound to this proposal: prompt_digest mismatch")
+
             if approval.get("expires_at"):
                 import time
                 if approval["expires_at"] < int(time.time()):

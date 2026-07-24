@@ -1,4 +1,3 @@
-import re
 
 content = open("builder_ii/cli/hitl_patch_cli.py").read()
 

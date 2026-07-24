@@ -10,11 +10,12 @@ explicit execution policy rather than a generic provider string.
 from __future__ import annotations
 
 import os
-from builder_ii.routing.model_catalog import MODEL_ALIASES, normalize_model_alias
 from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+from builder_ii.routing.model_catalog import normalize_model_alias
 
 BACKENDS = ("rapid-mlx", "mlx-lm", "ollama", "groq", "xai", "google", "openai", "anthropic")
 MODEL_TIERS = ("primary", "fast")

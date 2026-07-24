@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.core.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
 from builder_ii.lifecycle.setup.operator_next import (
     create_operator_next_action_report,

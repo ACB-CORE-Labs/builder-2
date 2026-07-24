@@ -96,10 +96,10 @@ def execute_tool_envelope(
             raise ValueError(f"Risk classification '{risk_class}' requires an approval_ref")
         else:
             try:
-                from pathlib import Path
-                import json
                 import hashlib
+                import json
                 import time
+                from pathlib import Path
                 approval_path = Path(envelope["approval_ref"]["path"] if isinstance(envelope["approval_ref"], dict) else envelope["approval_ref"])
                 if not approval_path.exists():
                     raise ValueError("Approval file does not exist")
@@ -108,14 +108,14 @@ def execute_tool_envelope(
                     raise ValueError(f"Invalid patch approval: kind is {approval.get('kind')}")
                 if approval.get("valid") is not True:
                     raise ValueError("Invalid patch approval: valid is not True")
-                
+
                 if approval.get("tool_name") != envelope.get("tool_name"):
                     raise ValueError("Approval is not bound to this proposal: tool_name mismatch")
-                
+
                 arguments_digest = hashlib.sha256(json.dumps(envelope.get("arguments", {}), sort_keys=True).encode("utf-8")).hexdigest()
                 if approval.get("arguments_digest") != arguments_digest:
                     raise ValueError("Approval is not bound to this proposal: arguments_digest mismatch")
-                
+
                 if approval.get("expires_at") and approval["expires_at"] < int(time.time()):
                     raise ValueError("Patch approval has expired")
             except ValueError:

@@ -145,8 +145,8 @@ def check_command_authority(
                 reasons.append("command requires a HITL approval artifact reference")
             else:
                 try:
-                    from pathlib import Path
                     import json
+                    from pathlib import Path
                     approval_path = Path(approval_ref)
                     if not approval_path.exists():
                         reasons.append("Approval file does not exist")
@@ -157,7 +157,7 @@ def check_command_authority(
                         if approval.get("valid") is not True:
                             reasons.append("Invalid patch approval: valid is not True")
                         if approval.get("command_name") != command_name:
-                            reasons.append(f"Approval is not bound to this proposal: command_name mismatch")
+                            reasons.append("Approval is not bound to this proposal: command_name mismatch")
                 except Exception as e:
                     reasons.append(f"Invalid patch approval: {e}")
 

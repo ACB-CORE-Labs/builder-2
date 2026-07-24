@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import re
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any
+
+from builder_ii.core.canonical_json import canonical_digest
 
 WORKFLOW_SESSION_KIND = "builder_ii.workflow_session"
 WORKFLOW_SESSION_SCHEMA_VERSION = 1

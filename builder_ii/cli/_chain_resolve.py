@@ -5,6 +5,7 @@ from typing import Any, Optional
 from builder_ii.core.config import load_settings
 from builder_ii.tui.projections.chain import artifact_search_roots
 
+
 def _load_artifacts(artifacts_dir: Path | None) -> dict[str, tuple[Path, dict[str, Any]]]:
     if artifacts_dir is None:
         try:
@@ -40,9 +41,9 @@ def find_artifact_path_for_kind(artifacts_dir: Path | None, kind: str) -> Path |
     return hit[0] if hit else None
 
 def resolve_path_or_last(
-    explicit_path: Optional[Path], 
-    from_last: bool, 
-    kind: str, 
+    explicit_path: Optional[Path],
+    from_last: bool,
+    kind: str,
     arg_name: str
 ) -> Path:
     import typer
@@ -51,7 +52,7 @@ def resolve_path_or_last(
     if not from_last:
         print(f"Error: Missing --{arg_name} or --from-last flag")
         raise typer.Exit(1)
-    
+
     path = find_artifact_path_for_kind(None, kind)
     if not path:
         print(f"Error: Could not find last artifact of kind {kind} for auto-resolve.")

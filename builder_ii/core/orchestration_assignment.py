@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import re
 from pathlib import Path
-from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any, Callable
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.core.context_packs import CONTEXT_PACK_KIND, validate_context_pack
 from builder_ii.core.governed_prepare_package import (
     GOVERNED_PREPARE_PACKAGE_KIND,
