@@ -4,7 +4,8 @@ import json as json_lib
 from pathlib import Path
 from typing import Any, Literal
 
-from builder_ii.core.config import MODEL_ALIASES, Settings, normalize_model_alias
+from builder_ii.core.config import Settings
+from builder_ii.routing.model_catalog import MODEL_ALIASES, normalize_model_alias
 from builder_ii.lifecycle.candidate.verification_profiles import VerificationProfileName, validate_profile_artifact
 from builder_ii.lifecycle.setup.profile_resolution import ProfileResolver, TargetName
 from builder_ii.lifecycle.setup.target_profiles import validate_target_profile_artifact
