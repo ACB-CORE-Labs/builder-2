@@ -548,6 +548,8 @@ def _process_result_from_completed(
     if timed_out:
         status = "timeout"
     argv = list(profile.argv)
+    if argv and argv[0] == sys.executable:
+        argv[0] = "python" 
     result: dict[str, Any] = {
         "step_id": profile.step_id,
         "profile": profile.profile,
@@ -913,7 +915,9 @@ def run_approved_verification(
     observed_byproducts, mutation_paths, head_changed = _partition_workspace_changes(
         preflight, postflight, profile.byproduct_ignore_globs
     )
-    workspace_mutation_detected = bool(mutation_paths) or head_changed or postflight_capture_failed
+    plan_head_sha = plan.get("target_head_sha")
+    head_sha_mismatch = bool(plan_head_sha) and (postflight.get("head_sha") != plan_head_sha)
+    workspace_mutation_detected = bool(mutation_paths) or head_changed or postflight_capture_failed or head_sha_mismatch
     receipt_status = "EXECUTED" if process_result["status"] == "success" else "FAILED"
     receipt_kwargs = dict(
         plan=plan,
@@ -959,6 +963,8 @@ def run_approved_verification(
         detail_parts = list(mutation_paths)
         if head_changed:
             detail_parts.append("HEAD changed")
+        if head_sha_mismatch:
+            detail_parts.append("postflight HEAD SHA does not match plan target_head_sha")
         if postflight_capture_failed:
             detail_parts.append("postflight git state could not be captured")
         detail = "; ".join(detail_parts) or "unspecified change"

@@ -256,6 +256,9 @@ def create_patch_apply_receipt(
     postflight_ref: str = "",
     generic_repo: Path | None = None,
     capability_state: str = "OPERATIONALLY_VERIFIED",
+    target_repo: str = "",
+    pre_apply_head: str = "",
+    proposal_digest: str = "",
 ) -> dict[str, Any]:
     if settings is None:
         settings = load_settings()
@@ -268,6 +271,9 @@ def create_patch_apply_receipt(
             "repo": str(selected.repo),
             "description": selected.description,
         },
+        "target_repo": target_repo or str(selected.repo),
+        "pre_apply_head": pre_apply_head,
+        "proposal_digest": proposal_digest,
         "proposal_ref": proposal_ref,
         "rollback_plan_ref": rollback_plan_ref,
         "postflight_ref": postflight_ref,
@@ -715,6 +721,12 @@ def validate_patch_apply_receipt(artifact: Any) -> list[str]:
         not isinstance(artifact["patch_digest"], str) or len(artifact["patch_digest"]) != 64
     ):
         errors.append("patch_digest must be a SHA-256 hex digest")
+    if not isinstance(artifact.get("target_repo"), str) or not artifact["target_repo"]:
+        errors.append("target_repo must be a non-empty string")
+    if not isinstance(artifact.get("pre_apply_head"), str) or not artifact["pre_apply_head"]:
+        errors.append("pre_apply_head must be a non-empty string")
+    if not isinstance(artifact.get("proposal_digest"), str) or len(artifact["proposal_digest"]) != 64:
+        errors.append("proposal_digest must be a SHA-256 hex digest")
     return errors
 
 
