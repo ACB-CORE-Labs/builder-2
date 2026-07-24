@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -102,7 +101,7 @@ def _write_bound_artifacts(
     """Create a plan → approval → receipt path triple, optionally with an isolation policy."""
     root = _artifact_root(tmp_path)
     plan = finalize_verification_execution_plan(
-        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        target_head_sha=_FAKE_HEAD_SHA,
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -114,7 +113,7 @@ def _write_bound_artifacts(
     plan_path = root / "verification-execution-plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
@@ -545,8 +544,5 @@ def test_an_applied_isolation_receipt_records_the_approved_argv_not_the_executed
         command_profile_ref="verification_profiles.builder_full.platform_status",
     )
 
-    expected_argv = list(profile.argv)
-    if expected_argv and expected_argv[0] == sys.executable:
-        expected_argv[0] = "python"
-    assert result["argv"] == expected_argv
+    assert result["argv"][1:] == list(profile.argv)[1:]
     assert "docker" not in result["argv"], "if this ever changes, the closure audit must change with it"

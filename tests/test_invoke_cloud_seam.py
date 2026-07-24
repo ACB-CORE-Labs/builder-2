@@ -50,9 +50,7 @@ def test_invoke_cloud_stub_with_approval(tmp_path: Path) -> None:
         if c["model_id"] == "gpt-4o-stub":
             c["enabled"] = True
     approval = tmp_path / "approval.json"
-    import hashlib
-    prompt_digest = hashlib.sha256("cloud hello under gates".encode("utf-8")).hexdigest()
-    approval.write_text(f'{{"approved": true, "kind": "builder_ii.model_call_approval", "valid": true, "model_id": "gpt-4o-stub", "prompt_digest": "{prompt_digest}"}}\n', encoding="utf-8")
+    approval.write_text('{"valid": true, "kind": "builder_ii.model_call_approval", "expires_at": 20000000000, "model_id": "gpt-4o-stub", "prompt_digest": "bac22c39560b7f4c50876c7733a9182d9d8704675c52082b187e7e9b03aee6a0"}\n', encoding="utf-8")
     budget = create_model_budget(session_id="c2", max_usd=2.0, max_total_tokens=50_000)
     event, state, traj, err = run_gateway_node(
         node_id="m1",

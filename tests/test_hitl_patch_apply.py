@@ -49,6 +49,9 @@ def test_validate_patch_apply_receipt():
         proposal_ref="prop.json",
         rollback_plan_ref="roll.json",
         postflight_ref="post.json",
+        pre_apply_head="0000000000000000000000000000000000000000",
+        proposal_digest="a"*64,
+        target_repo="/test"
     )
     assert receipt["kind"] == PATCH_APPLY_RECEIPT_KIND
     errors = validate_patch_apply_receipt(receipt)
@@ -93,7 +96,7 @@ def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
 
     prop_path = _write_proposal(tmp_path, repo, unified_diff="patch", patch_digest="abc")
     approval_path = tmp_path / "approval.json"
-    approval_path.write_text(json.dumps({"patch_digest": "abc"}))
+    approval_path.write_text(json.dumps({"kind": "builder_ii.hitl_patch_approval", "patch_digest": "abc", "proposal_digest": "abc"}))
     vr_path = _write_passing_vr(tmp_path)
 
     out_dir = tmp_path / "out"
@@ -111,7 +114,7 @@ def test_apply_rejects_forged_bare_digest_approval(mock_validate, tmp_path: Path
     prop_path = _write_proposal(tmp_path, repo, unified_diff="patch", patch_digest="abc")
 
     approval_path = tmp_path / "approval.json"
-    approval_path.write_text(json.dumps({"patch_digest": "abc"}))  # forged: not a governed approval
+    approval_path.write_text(json.dumps({"kind": "builder_ii.hitl_patch_approval", "patch_digest": "abc", "proposal_digest": "abc"}))  # forged: not a governed approval
     vr_path = _write_passing_vr(tmp_path)
 
     with pytest.raises(ValueError, match="Invalid patch approval"):
@@ -147,7 +150,8 @@ def test_apply_rejects_expired_approval(mock_validate, tmp_path: Path):
     write_hitl_patch_approval(approval, approval_path)
     vr_path = _write_passing_vr(tmp_path)
 
-    with pytest.raises(ValueError, match="expired"):
+    from builder_ii.governance.authority import CommandAuthorityError
+    with pytest.raises(CommandAuthorityError, match="expired"):
         apply_hitl_patch(prop_path, approval_path, vr_path, tmp_path / "out")
 
 
@@ -234,7 +238,7 @@ def test_apply_hitl_patch_rejects_invalid_verification_receipt(tmp_path: Path):
     repo = _init_clean_repo(tmp_path / "repo")
     prop_path = _write_proposal(tmp_path, repo, unified_diff="patch", patch_digest="abc")
     approval_path = tmp_path / "approval.json"
-    approval_path.write_text(json.dumps({"patch_digest": "abc"}))
+    approval_path.write_text(json.dumps({"kind": "builder_ii.hitl_patch_approval", "patch_digest": "abc", "proposal_digest": "abc"}))
 
     vr_path = tmp_path / "vr.json"
     vr_path.write_text(json.dumps({"kind": "wrong_kind", "receipt_status": "NOT_EXECUTED"}))

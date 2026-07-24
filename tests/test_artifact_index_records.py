@@ -232,7 +232,7 @@ def test_index_recognizes_verification_execution_approval_artifact(tmp_path: Pat
         artifact_root=".builder/verification",
         generated_at="2026-06-30T00:00:00+00:00",
     )
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path="verification-execution-plan.json",
         approval_actor="Jane Operator",
@@ -260,7 +260,7 @@ def test_index_rejects_malformed_verification_execution_approval_artifact(tmp_pa
         artifact_root=".builder/verification",
         generated_at="2026-06-30T00:00:00+00:00",
     )
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path="verification-execution-plan.json",
         approval_actor="Jane Operator",

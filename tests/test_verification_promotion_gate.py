@@ -41,7 +41,7 @@ def _write_chain(
     root = tmp_path / ".builder" / "verification"
     root.mkdir(parents=True, exist_ok=True)
     plan = finalize_verification_execution_plan(
-        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        target_head_sha="0000000000000000000000000000000000000000",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -59,7 +59,7 @@ def _write_chain(
         approved_command_profiles=["platform_status"],
         approved_step_ids=["platform_status"],
         generated_at="2026-07-08T00:01:00+00:00",
-        expires_at=expires_at or (datetime.now(timezone.utc) + timedelta(hours=8)).isoformat(),
+        expires_at=expires_at if expires_at is not None else "2099-01-01T00:00:00Z",
     )
     approval_path = root / "approval.json"
     write_verification_execution_approval(approval, approval_path)
@@ -179,7 +179,7 @@ def test_promotion_gate_includes_ledger_when_supplied(tmp_path: Path) -> None:
         approval_path=approval_path,
         ledger_root=tmp_path / ".builder" / "ledger",
     )
-    assert ledger_record.get("ledger_index") == 1
+    print(f"ERRORS: {ledger_record.get('errors')}"); assert ledger_record.get("ledger_index") == 1
     assert ledger_record.get("previous_ledger_record_digest") is None
     ledger_path = tmp_path / ".builder" / "ledger" / "record-1.json"
     write_verification_execution_ledger_record(ledger_record, ledger_path)

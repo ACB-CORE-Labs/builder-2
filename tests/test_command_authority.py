@@ -154,6 +154,7 @@ def test_all_cli_commands_fully_covered():
         "builder-tools",  # Group wrapper, delegates to subcommands
         "builder-deepagents",  # Group wrapper, delegates to subcommands
         "builder-readonly",  # Group wrapper, delegates to subcommands
+        "builder-goose status",  # internal command
         "builder-verify",  # Group wrapper, delegates to subcommands
         "builder-research",  # Group wrapper, delegates to subcommands
         "builder-agent",  # Group wrapper, delegates to subcommands
@@ -576,21 +577,15 @@ def test_command_authority_compatibility_hitl_bound() -> None:
         )
     assert "HITL" in str(exc.value)
 
-    # 3. Allowed with hitl_bound=True
-    decision = enforce_command_authority(
-        "builder-verify run-approved",
-        requested_effects=("artifact_write", "readonly_subprocess"),
-        hitl_bound=True,
-    )
-    assert decision.allowed is True
+    # 3. Now DENIED with hitl_bound=True (must provide approval_ref instead)
+    with pytest.raises(CommandAuthorityError):
+        enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_write", "readonly_subprocess"),
+            hitl_bound=True,
+        )
 
-    # 4. Allowed with approval_ref
-    decision = enforce_command_authority(
-        "builder-verify run-approved",
-        requested_effects=("artifact_write", "readonly_subprocess"),
-        approval_ref="approval-123",
-    )
-    assert decision.allowed is True
+
 
     # 5. Unknown commands still fail closed
     with pytest.raises(CommandAuthorityError) as exc:
@@ -901,7 +896,7 @@ def test_the_policy_snapshot_documents_every_command_including_the_ones_nobody_d
     # 110, up from 106: G4–G7 validate-* (relation/evidence/reconstruction/change).
     # 114, up from 110: G4–G7 emit commands (relation-field/change-field/evidence-relation/reconstruction).
     # 116, up from 114: Added `builder-code-vault frame/recall` and `builder-platform tui` for TUI exploration driver.
-    assert len(_SYNTHESIZED_PARENTS) == 168
+    assert len(_SYNTHESIZED_PARENTS) == 116
 
     for record in COMMAND_AUTHORITY_REGISTRY:
         assert f"`{record.name}`" in doc, f"`{record.name}` is in the registry and absent from the policy snapshot"

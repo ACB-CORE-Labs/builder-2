@@ -44,6 +44,8 @@ def test_goose_launch_enforces_read_only_env(
     mock_find_goose.return_value = "/mock/bin/goose"
     mock_proc = MagicMock()
     mock_proc.pid = 12345
+    mock_proc.communicate.return_value = (b"", b"")
+    mock_proc.__enter__.return_value = mock_proc
     mock_proc.poll.return_value = 0
     mock_proc.returncode = 0
     mock_proc.communicate.return_value = (b"", b"")
@@ -90,6 +92,8 @@ def test_goose_mutation_detected_fails_postflight(
     mock_find_goose.return_value = "/mock/bin/goose"
     mock_proc = MagicMock()
     mock_proc.pid = 12345
+    mock_proc.communicate.return_value = (b"", b"")
+    mock_proc.__enter__.return_value = mock_proc
     mock_proc.poll.return_value = 0
     mock_proc.returncode = 0
     mock_proc.communicate.return_value = (b"", b"")

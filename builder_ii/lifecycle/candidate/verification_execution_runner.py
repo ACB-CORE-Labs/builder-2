@@ -759,14 +759,16 @@ def run_approved_verification(
             "builder-verify run-approved",
             requested_effects=("artifact_writes", "readonly_subprocess"),
             capability_ref="HITL-approved verification execution",
-            hitl_bound=isinstance(approval_data, dict) and approval_data.get("valid") is True,
+            approval_ref=str(approval_path),
+            subject_digest=plan.get("verification_execution_plan_digest"),
         )
     except CommandAuthorityError as e:
         authority_decision = check_command_authority(
             "builder-verify run-approved",
             requested_effects=("artifact_writes", "readonly_subprocess"),
             capability_ref="HITL-approved verification execution",
-            hitl_bound=isinstance(approval_data, dict) and approval_data.get("valid") is True,
+            approval_ref=str(approval_path),
+            subject_digest=plan.get("verification_execution_plan_digest"),
         )
         errors.append(str(e))
     if not authority_decision.allowed:

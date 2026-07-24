@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
+from builder_ii.governance.authority.policy_evaluator import CommandAuthorityError
 from builder_ii.governance.hitl.hitl_patch_apply import (
     FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
     apply_hitl_patch,
@@ -121,7 +122,8 @@ def test_rollback_refuses_on_worktree_drift_with_recovery_block(tmp_path: Path) 
 
 def test_rollback_requires_approval_file(tmp_path: Path) -> None:
     _repo, out_dir, _target = _apply(tmp_path)
-    with pytest.raises(ValueError, match="Rollback approval file does not exist"):
+    with pytest.raises(CommandAuthorityError, match="Approval file does not exist"):
+
         rollback_hitl_patch(
             out_dir / "rollback_plan.json",
             out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
@@ -160,7 +162,8 @@ def test_rollback_rejects_expired_approval(tmp_path: Path) -> None:
         ),
         approval_path,
     )
-    with pytest.raises(ValueError, match="Rollback approval has expired"):
+    with pytest.raises(CommandAuthorityError, match="Patch approval has expired"):
+
         rollback_hitl_patch(
             out_dir / "rollback_plan.json",
             out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,

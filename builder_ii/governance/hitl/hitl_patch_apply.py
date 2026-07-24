@@ -367,7 +367,6 @@ def apply_hitl_patch(
     #    orchestrator, a test) would bypass the gate. Fail closed here, first — before
     #    settings resolution or any other IO.
     from builder_ii.governance.authority import enforce_command_authority
-
     enforce_command_authority(
         "builder-hitl apply-patch",
         requested_effects=("patch_application", "artifact_write"),
@@ -734,7 +733,7 @@ def validate_patch_apply_receipt(artifact: Any) -> list[str]:
             pass # allow empty on failure
         elif not isinstance(artifact.get("pre_apply_head"), str):
             errors.append("pre_apply_head must be a string")
-            
+
         if "proposal_digest" in artifact and artifact["proposal_digest"] == "":
             pass # allow empty on failure
         elif "proposal_digest" in artifact and (not isinstance(artifact["proposal_digest"], str) or len(artifact["proposal_digest"]) != 64):

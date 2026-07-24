@@ -464,7 +464,7 @@ def test_chain_accepts_verification_execution_approval_artifact(tmp_path: Path) 
         artifact_root=".builder/verification",
         generated_at="2026-06-30T00:00:00+00:00",
     )
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path="verification-execution-plan.json",
         approval_actor="Jane Operator",
@@ -491,7 +491,7 @@ def test_chain_rejects_malformed_verification_execution_approval_artifact(tmp_pa
         artifact_root=".builder/verification",
         generated_at="2026-06-30T00:00:00+00:00",
     )
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path="verification-execution-plan.json",
         approval_actor="Jane Operator",
@@ -527,7 +527,7 @@ def test_chain_accepts_verification_execution_ledger_record(tmp_path: Path) -> N
     plan_path = artifact_root / "verification-execution-plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
@@ -623,7 +623,7 @@ def test_chain_accepts_verification_execution_ledger_integrity_report(tmp_path: 
     plan_path = artifact_root / "verification-execution-plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
@@ -721,7 +721,7 @@ def test_chain_accepts_verification_execution_ledger_reconstruction_report(tmp_p
     plan_path = artifact_root / "verification-execution-plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",

@@ -44,7 +44,7 @@ def _write_bound_artifacts(
 ) -> tuple[Path, Path, Path]:
     root = _artifact_root(tmp_path)
     plan = finalize_verification_execution_plan(
-        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        target_head_sha="a"*40,
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -55,7 +55,7 @@ def _write_bound_artifacts(
     plan_path = root / "verification-execution-plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
@@ -464,7 +464,7 @@ def _write_target_code_chain(
     )
 
     plan = finalize_verification_execution_plan(
-        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        target_head_sha="a"*40,
         tree_clean=True,
         target_profile=target_profile,
         verification_profile=verification_profile,
@@ -475,7 +475,7 @@ def _write_target_code_chain(
     plan_path = root / "verification-execution-plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
@@ -696,7 +696,7 @@ def test_head_change_during_run_is_a_mutation(monkeypatch: Any, tmp_path: Path) 
             return _completed(args, stdout="")
         if args[:2] == ["git", "rev-parse"]:
             rev_parse_calls += 1
-            sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" if rev_parse_calls == 1 else ("b" * 40)  # HEAD moved between pre and post
+            sha = ("a" * 40) if rev_parse_calls == 1 else ("b" * 40)  # HEAD moved between pre and post
             return _completed(args, stdout=f"{sha}\nmain\n")
         return _completed(args, stdout="pytest-full ok\n")
 
@@ -799,7 +799,7 @@ def test_generic_plan_injecting_builder_self_profile_blocks_end_to_end(monkeypat
         "timeout_seconds": 120,
     }
     plan = finalize_verification_execution_plan(
-        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        target_head_sha="a"*40,
         tree_clean=True,
         target_profile="generic",
         verification_profile="generic_basic",
@@ -813,7 +813,7 @@ def test_generic_plan_injecting_builder_self_profile_blocks_end_to_end(monkeypat
     plan_path = root / "plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",

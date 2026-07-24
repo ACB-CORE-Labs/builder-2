@@ -506,7 +506,7 @@ def start(
                 hasher.update(chunk)
         transcript_digest = hasher.hexdigest()
 
-        from builder_ii.governance.ledger.event_ledger import write_event_record, create_event_record
+        from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
         event = create_event_record(
             event_id=session_name + "_close",
             session_id=session_name,

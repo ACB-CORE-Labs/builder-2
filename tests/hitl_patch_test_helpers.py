@@ -46,7 +46,8 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
         artifact_root=str((repo / ".builder").resolve()),
     )
     plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
+    approval = finalize_verification_execution_approval(
+        expires_at="2099-01-01T00:00:00Z",
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="patch-test",

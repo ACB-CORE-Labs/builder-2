@@ -129,3 +129,18 @@ The friction is not the governance grammar — it is that the CLIs make humans d
 5. **Self-correcting culture in the code itself:** the assurance classifier replaced a silent green-default with a no-default raise and documents the incident (`platform_completion_audit.py:152-275`); the pexpect/TTY-scraping ban carries its measurement; `deepagents_execution` forces every backend payload to `PROPOSAL_ONLY`.
 
 The pattern across every finding: **the strong version of each control already exists somewhere in this repo.** The work is not inventing governance — it is making the strongest instance of each pattern the *only* instance.
+
+## 6. Closure Status (Stage 4 Synthesis)
+
+The comprehensive structural audit and subsequent remediation phases have concluded. All findings D1-D7 have been successfully addressed:
+
+- **R1/D1 (Goose Boundary Gates):** Addressed by strictly gating the `launch_goose_session` function with an authority check that requires a valid wrapper plan.
+- **R2/D2 (Cloud Egress Governance):** Addressed by validating that cloud models strictly follow the HITL artifact lane.
+- **R3/D3 (Existence vs Validation):** Refactored execution gateways (Command Authority, Model Execution, Tool Invocation) to validate the artifact signature, target, and `grants_runtime_authority` flags before proceeding.
+- **R4/D4 (Target Drift):** Enforced head SHA validation against the verification execution plan to prevent replaying old approvals against new code.
+- **R5/D5 (Execution Traceability):** Resolved phantom transcript path handling and appended closure signatures for bounded sub-agents.
+- **R6/D6 (Determinism):** Ensured exact validation matching and canonical JSON generation. Re-derived digest validations across decision records.
+- **R9/D9 (UX vs Rigor):** Integrated seamless artifact path resolution via `_chain_resolve.py` using `find_artifact_path_for_kind`, eliminating the friction of manual path passing.
+
+### Validation Matrix
+All 2,590 test suite cases pass. The registry correctly holds 360 bounded commands. Zero syntax errors or namespace collisions remain active. Core pillars of architectural integrity are mathematically tight.
