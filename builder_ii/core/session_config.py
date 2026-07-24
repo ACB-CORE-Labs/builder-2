@@ -5,11 +5,11 @@ from pathlib import Path
 from typing import Any, Literal
 
 from builder_ii.core.config import Settings
-from builder_ii.routing.model_catalog import MODEL_ALIASES, normalize_model_alias
 from builder_ii.lifecycle.candidate.verification_profiles import VerificationProfileName, validate_profile_artifact
 from builder_ii.lifecycle.setup.profile_resolution import ProfileResolver, TargetName
 from builder_ii.lifecycle.setup.target_profiles import validate_target_profile_artifact
 from builder_ii.routing.agent_profiles import AgentProfileName, validate_agent_profile_record
+from builder_ii.routing.model_catalog import MODEL_ALIASES, normalize_model_alias
 
 SESSION_CONFIG_KIND = "builder_ii.session_configuration"
 SESSION_CONFIG_SCHEMA_VERSION = 1

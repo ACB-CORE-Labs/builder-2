@@ -10,7 +10,6 @@ import yaml
 from dotenv import dotenv_values
 
 from builder_ii.core.config import BACKENDS, MODEL_TIERS
-from builder_ii.routing.model_catalog import MODEL_ALIASES, normalize_model_alias
 from builder_ii.core.config_schema import (
     CAPABILITY_DEFAULTS,
     CONFIG_FIELD_SPECS,
@@ -23,6 +22,7 @@ from builder_ii.lifecycle.candidate.verification_profiles import default_profile
 from builder_ii.lifecycle.setup.target_profile_defaults import get_target_defaults
 from builder_ii.lifecycle.setup.target_profiles import target_names
 from builder_ii.routing.agent_profiles import agent_profile_names
+from builder_ii.routing.model_catalog import MODEL_ALIASES, normalize_model_alias
 
 CONFIG_SOURCE_RESOLUTION_KIND = "builder_ii.config_source_resolution"
 CONFIG_SOURCE_RESOLUTION_SCHEMA_VERSION = 1
