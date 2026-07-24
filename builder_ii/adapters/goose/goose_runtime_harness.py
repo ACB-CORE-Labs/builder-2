@@ -241,7 +241,7 @@ class GooseRuntimeHarness:
         )
 
         # Record goose_session_closed in the event ledger
-        from builder_ii.governance.ledger.event_ledger import append_event_record, create_event_record
+        from builder_ii.governance.ledger.event_ledger import write_event_record, create_event_record
         event = create_event_record(
             event_id=self.session_id + "_close",
             session_id=self.session_id,
@@ -254,7 +254,7 @@ class GooseRuntimeHarness:
         )
         ledger_path = self.target_root / ".builder" / "artifacts" / "event_ledger.jsonl"
         ledger_path.parent.mkdir(parents=True, exist_ok=True)
-        append_event_record(event, ledger_path)
+        write_event_record(event, ledger_path / f"{event['event_id']}.json")
 
         return close_receipt, postflight
 
@@ -309,7 +309,7 @@ class GooseRuntimeHarness:
         )
 
         # Record goose_session_closed in the event ledger
-        from builder_ii.governance.ledger.event_ledger import append_event_record, create_event_record
+        from builder_ii.governance.ledger.event_ledger import write_event_record, create_event_record
         event = create_event_record(
             event_id=self.session_id + "_close",
             session_id=self.session_id,
@@ -322,6 +322,6 @@ class GooseRuntimeHarness:
         )
         ledger_path = self.target_root / ".builder" / "artifacts" / "event_ledger.jsonl"
         ledger_path.parent.mkdir(parents=True, exist_ok=True)
-        append_event_record(event, ledger_path)
+        write_event_record(event, ledger_path / f"{event['event_id']}.json")
 
         return close_receipt, postflight

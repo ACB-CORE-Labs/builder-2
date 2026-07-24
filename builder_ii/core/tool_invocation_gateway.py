@@ -88,10 +88,18 @@ def execute_tool_envelope(
 
     risk_class = envelope.get("risk_classification")
     if risk_class not in policy.get("allowed_risk_classes", []):
-        raise ValueError(f"Risk class {risk_class} not permitted by policy")
-
-    # Enforce risk and approval requirements
+        raise ValueError(f"Risk class {risk_class} not permitted by policy")    # Enforce risk and approval requirements
     if risk_class in ("mutation", "external_network", "credential_sensitive", "cost_bearing"):
+        # Check corresponding policy allowance first
+        if risk_class == "mutation" and not policy.get("mutation_allowed"):
+            raise ValueError("Mutation is not allowed by policy")
+        if risk_class == "external_network" and not policy.get("network_allowed"):
+            raise ValueError("External network is not allowed by policy")
+        if risk_class == "credential_sensitive" and not policy.get("credential_access_allowed"):
+            raise ValueError("Credential access is not allowed by policy")
+        if risk_class == "cost_bearing" and not policy.get("cost_allowed"):
+            raise ValueError("Cost-bearing operations are not allowed by policy")
+
         if "approval_ref" not in envelope or not envelope["approval_ref"]:
             raise ValueError(f"Risk classification '{risk_class}' requires an approval_ref")
         else:
@@ -105,9 +113,9 @@ def execute_tool_envelope(
                     raise ValueError("Approval file does not exist")
                 approval = json.loads(approval_path.read_text(encoding="utf-8"))
                 if approval.get("kind") != "builder_ii.tool_call_approval":
-                    raise ValueError(f"Invalid patch approval: kind is {approval.get('kind')}")
+                    raise ValueError(f"Invalid tool invocation approval: kind is {approval.get('kind')} instead of builder_ii.tool_call_approval")
                 if approval.get("valid") is not True:
-                    raise ValueError("Invalid patch approval: valid is not True")
+                    raise ValueError("Invalid tool invocation approval: valid is not True")
 
                 if approval.get("tool_name") != envelope.get("tool_name"):
                     raise ValueError("Approval is not bound to this proposal: tool_name mismatch")
@@ -118,20 +126,11 @@ def execute_tool_envelope(
 
                 if approval.get("expires_at") and approval["expires_at"] < int(time.time()):
                     raise ValueError("Patch approval has expired")
+
             except ValueError:
                 raise
             except Exception as e:
-                raise ValueError(f"Invalid patch approval: {e}")
-
-        # Check corresponding policy allowance
-        if risk_class == "mutation" and not policy.get("mutation_allowed"):
-            raise ValueError("Mutation is not allowed by policy")
-        if risk_class == "external_network" and not policy.get("network_allowed"):
-            raise ValueError("External network is not allowed by policy")
-        if risk_class == "credential_sensitive" and not policy.get("credential_access_allowed"):
-            raise ValueError("Credential access is not allowed by policy")
-        if risk_class == "cost_bearing" and not policy.get("cost_allowed"):
-            raise ValueError("Cost-bearing operations are not allowed by policy")
+                raise ValueError(f"Invalid tool invocation approval: {e}")
 
     # Enforce low-risk read-only path invariants
     if risk_class in ("low", "low_risk"):

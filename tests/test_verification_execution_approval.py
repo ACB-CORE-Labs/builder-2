@@ -17,7 +17,7 @@ from builder_ii.lifecycle.candidate.verification_execution_plan import finalize_
 
 def _sample_plan() -> dict:
     return finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -28,7 +28,7 @@ def _sample_plan() -> dict:
 
 
 def _sample_approval(plan: dict | None = None) -> dict:
-    return finalize_verification_execution_approval(
+    return finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
         plan=plan or _sample_plan(),
         plan_path="/tmp/verification-execution-plan.json",
         approval_actor="Jane Operator",
@@ -168,7 +168,7 @@ def test_default_approval_excludes_target_code_profiles() -> None:
 
 def test_approving_target_code_profile_without_ack_fails() -> None:
     plan = _sample_plan()
-    approval = finalize_verification_execution_approval(
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
         plan=plan,
         plan_path="/tmp/verification-execution-plan.json",
         approval_actor="Jane Operator",
@@ -185,7 +185,7 @@ def test_approving_target_code_profile_without_ack_fails() -> None:
 
 def test_approving_target_code_profile_with_ack_validates() -> None:
     plan = _sample_plan()
-    approval = finalize_verification_execution_approval(
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
         plan=plan,
         plan_path="/tmp/verification-execution-plan.json",
         approval_actor="Jane Operator",
@@ -203,7 +203,7 @@ def test_approving_target_code_profile_with_ack_validates() -> None:
 
 def test_acknowledged_risk_rejects_shell_injection_tokens() -> None:
     plan = _sample_plan()
-    approval = finalize_verification_execution_approval(
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
         plan=plan,
         plan_path="/tmp/verification-execution-plan.json",
         approval_actor="Jane Operator",

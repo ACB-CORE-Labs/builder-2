@@ -18,7 +18,7 @@ from builder_ii.lifecycle.candidate.verification_execution_receipt import (
 
 def _sample_plan() -> dict:
     return finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -29,7 +29,7 @@ def _sample_plan() -> dict:
 
 
 def _sample_approval(plan: dict) -> dict:
-    return finalize_verification_execution_approval(
+    return finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
         plan=plan,
         plan_path="/tmp/verification-execution-plan.json",
         approval_actor="Jane Operator",

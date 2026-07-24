@@ -15,7 +15,7 @@ from builder_ii.lifecycle.candidate.verification_execution_plan import (
 
 def _sample_plan() -> dict:
     return finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -44,7 +44,7 @@ def test_valid_plan_validates() -> None:
 
 def test_builder_full_is_the_supported_b1_1_pair() -> None:
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -65,7 +65,7 @@ def test_compatible_target_verification_pairs_validate() -> None:
     ]
     for target_profile, verification_profile in cases:
         plan = finalize_verification_execution_plan(
-            target_head_sha="0000000000000000000000000000000000000000",
+            target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             tree_clean=True,
             target_profile=target_profile,
             verification_profile=verification_profile,
@@ -79,7 +79,7 @@ def test_compatible_target_verification_pairs_validate() -> None:
 
 def test_generic_plan_defaults_to_pytest_full_only() -> None:
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="generic",
         verification_profile="generic_basic",
@@ -102,7 +102,7 @@ def test_incompatible_target_verification_pair_fails() -> None:
         ("builder", "core_smoke"),
     ]:
         plan = finalize_verification_execution_plan(
-            target_head_sha="0000000000000000000000000000000000000000",
+            target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             tree_clean=True,
             target_profile=target_profile,
             verification_profile=verification_profile,

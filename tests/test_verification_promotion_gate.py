@@ -41,7 +41,7 @@ def _write_chain(
     root = tmp_path / ".builder" / "verification"
     root.mkdir(parents=True, exist_ok=True)
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -59,7 +59,7 @@ def _write_chain(
         approved_command_profiles=["platform_status"],
         approved_step_ids=["platform_status"],
         generated_at="2026-07-08T00:01:00+00:00",
-        expires_at=expires_at,
+        expires_at=expires_at or (datetime.now(timezone.utc) + timedelta(hours=8)).isoformat(),
     )
     approval_path = root / "approval.json"
     write_verification_execution_approval(approval, approval_path)

@@ -112,6 +112,7 @@ def test_missing_requires_human_promotion():
 
 def test_mutation_without_approval():
     policy = _create_valid_policy()
+    policy["mutation_allowed"] = True
     envelope = _create_valid_envelope(policy)
     envelope["risk_classification"] = "mutation"
 

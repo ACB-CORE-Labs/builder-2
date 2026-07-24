@@ -510,7 +510,7 @@ def apply_hitl_patch(
         failure_receipt["status"] = "failed"
         failure_receipt["error_summary"] = (e.stderr or str(e))[:500]
         failure_receipt["patch_digest"] = patch_digest
-        failure_receipt["pre_head"] = pre_head
+        failure_receipt["pre_apply_head"] = pre_head
         write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
 
         _write_rollback_failure_receipt(
@@ -552,7 +552,7 @@ def apply_hitl_patch(
         failure_receipt["status"] = "failed"
         failure_receipt["error_summary"] = f"post-apply fingerprint failed after mutation: {exc}"[:500]
         failure_receipt["patch_digest"] = patch_digest
-        failure_receipt["pre_head"] = pre_head
+        failure_receipt["pre_apply_head"] = pre_head
         write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
 
         _write_rollback_failure_receipt(
@@ -613,7 +613,7 @@ def apply_hitl_patch(
     receipt["target"] = dict(proposal["target"])
     receipt["status"] = "succeeded"
     receipt["patch_digest"] = patch_digest
-    receipt["pre_head"] = pre_head
+    receipt["pre_apply_head"] = pre_head
     receipt["pre_apply_status_digest"] = pre_apply_status_digest
     receipt["proposal_digest"] = _json_digest(proposal)
     receipt["approval_digest"] = _json_digest(approval)
@@ -721,12 +721,24 @@ def validate_patch_apply_receipt(artifact: Any) -> list[str]:
         not isinstance(artifact["patch_digest"], str) or len(artifact["patch_digest"]) != 64
     ):
         errors.append("patch_digest must be a SHA-256 hex digest")
-    if not isinstance(artifact.get("target_repo"), str) or not artifact["target_repo"]:
-        errors.append("target_repo must be a non-empty string")
-    if not isinstance(artifact.get("pre_apply_head"), str) or not artifact["pre_apply_head"]:
-        errors.append("pre_apply_head must be a non-empty string")
-    if not isinstance(artifact.get("proposal_digest"), str) or len(artifact["proposal_digest"]) != 64:
-        errors.append("proposal_digest must be a SHA-256 hex digest")
+    is_success = artifact.get("status") == "succeeded"
+    if is_success:
+        if not isinstance(artifact.get("target_repo"), str) or not artifact["target_repo"]:
+            errors.append("target_repo must be a non-empty string")
+        if not isinstance(artifact.get("pre_apply_head"), str) or not artifact["pre_apply_head"]:
+            errors.append("pre_apply_head must be a non-empty string")
+        if not isinstance(artifact.get("proposal_digest"), str) or len(artifact["proposal_digest"]) != 64:
+            errors.append("proposal_digest must be a SHA-256 hex digest")
+    else:
+        if "pre_apply_head" in artifact and artifact["pre_apply_head"] == "":
+            pass # allow empty on failure
+        elif not isinstance(artifact.get("pre_apply_head"), str):
+            errors.append("pre_apply_head must be a string")
+            
+        if "proposal_digest" in artifact and artifact["proposal_digest"] == "":
+            pass # allow empty on failure
+        elif "proposal_digest" in artifact and (not isinstance(artifact["proposal_digest"], str) or len(artifact["proposal_digest"]) != 64):
+            errors.append("proposal_digest must be a SHA-256 hex digest")
     return errors
 
 

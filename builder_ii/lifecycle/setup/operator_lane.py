@@ -219,6 +219,8 @@ def run_operator_lane(
         target_repo=str(target_repo),
         artifact_root=str(output_dir),
         requested_by_command="builder-platform operator-lane",
+        target_head_sha=git_record["commit_sha"],
+        tree_clean=(git_record["state"] == "clean"),
     )
     plan_path = output_dir / "verification-execution-plan.json"
     write_verification_execution_plan(verification_plan, plan_path)

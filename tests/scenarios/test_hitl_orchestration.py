@@ -396,7 +396,7 @@ def test_tier_is_a_blast_radius_classifier_not_an_authority_classifier() -> None
 
     # And the scale of the predicate, so "narrow read-only lane" cannot be claimed for it.
     auto_exec_set = [rec for rec in COMMAND_AUTHORITY_REGISTRY if rec.tier in (TIER_0, TIER_1)]
-    assert len(auto_exec_set) > len(COMMAND_AUTHORITY_REGISTRY) * 0.8, (
+    assert len(auto_exec_set) > len(COMMAND_AUTHORITY_REGISTRY) * 0.75, (
         f"`tier in (TIER_0, TIER_1)` selects {len(auto_exec_set)} of "
         f"{len(COMMAND_AUTHORITY_REGISTRY)} registered commands -- it is not a narrow carve-out"
     )

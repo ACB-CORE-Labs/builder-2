@@ -178,7 +178,7 @@ def test_index_recognizes_goal2_assignment_artifacts(tmp_path: Path) -> None:
 
 def test_index_recognizes_verification_execution_plan_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -199,7 +199,7 @@ def test_index_recognizes_verification_execution_plan_artifact(tmp_path: Path) -
 
 def test_index_rejects_malformed_verification_execution_plan_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -224,7 +224,7 @@ def test_index_rejects_malformed_verification_execution_plan_artifact(tmp_path: 
 
 def test_index_recognizes_verification_execution_approval_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -232,7 +232,7 @@ def test_index_recognizes_verification_execution_approval_artifact(tmp_path: Pat
         artifact_root=".builder/verification",
         generated_at="2026-06-30T00:00:00+00:00",
     )
-    approval = finalize_verification_execution_approval(
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
         plan=plan,
         plan_path="verification-execution-plan.json",
         approval_actor="Jane Operator",
@@ -252,7 +252,7 @@ def test_index_recognizes_verification_execution_approval_artifact(tmp_path: Pat
 
 def test_index_rejects_malformed_verification_execution_approval_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -260,7 +260,7 @@ def test_index_rejects_malformed_verification_execution_approval_artifact(tmp_pa
         artifact_root=".builder/verification",
         generated_at="2026-06-30T00:00:00+00:00",
     )
-    approval = finalize_verification_execution_approval(
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
         plan=plan,
         plan_path="verification-execution-plan.json",
         approval_actor="Jane Operator",

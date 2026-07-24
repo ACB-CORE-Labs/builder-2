@@ -1,4 +1,6 @@
 from pathlib import Path
+from unittest.mock import patch
+import pytest
 
 from builder_ii.adapters.goose.goose_launcher import (
     derive_goose_environment,
@@ -9,6 +11,13 @@ from builder_ii.adapters.goose.goose_launcher import (
 )
 from builder_ii.core.config import Settings, load_settings
 
+@pytest.fixture(autouse=True)
+def mock_cloud_validation_and_moim():
+    import json
+    with open("dummy_approval.json", "w") as f:
+        json.dump({"kind": "builder_ii.cloud_egress_record", "valid": True}, f)
+    with patch("builder_ii.adapters.goose.goose_launcher.write_moim_context", return_value="dummy context"):
+        yield
 
 def _settings_with_base_url(base_url: str) -> Settings:
     existing_root = Path.cwd()
@@ -43,7 +52,7 @@ def test_goose_status_is_string():
 
 def test_goose_env_openai_provider():
     settings = load_settings()
-    env = goose_env(settings)
+    env = goose_env(settings, cloud_approval_path='dummy_approval.json')
     if settings.backend == "ollama":
         assert env["GOOSE_PROVIDER"] == "ollama"
     else:
@@ -56,7 +65,7 @@ def test_goose_env_openai_provider():
 def test_goose_openai_host_is_server_root_not_v1_path():
     settings = _settings_with_base_url("http://127.0.0.1:8080/v1")
 
-    env = goose_env(settings)
+    env = goose_env(settings, cloud_approval_path='dummy_approval.json')
 
     assert env["OPENAI_HOST"] == "http://127.0.0.1:8080"
 
@@ -64,7 +73,7 @@ def test_goose_openai_host_is_server_root_not_v1_path():
 def test_goose_openai_host_keeps_root_url_unchanged():
     settings = _settings_with_base_url("http://127.0.0.1:8080")
 
-    env = goose_env(settings)
+    env = goose_env(settings, cloud_approval_path='dummy_approval.json')
 
     assert env["OPENAI_HOST"] == "http://127.0.0.1:8080"
 
@@ -110,7 +119,7 @@ def test_goose_env_mlx_lm_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"OPENAI_API_KEY": "dummy-secret-key"}):
-        env, report = derive_goose_environment(settings)
+        env, report = derive_goose_environment(settings, cloud_approval_path='dummy_approval.json')
         assert env["GOOSE_PROVIDER"] == "openai"
         assert env["GOOSE_PROVIDER__TYPE"] == "openai"
         assert env["GOOSE_MODEL"] == "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"
@@ -149,7 +158,7 @@ def test_goose_env_groq_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"GROQ_API_KEY": "groq-secret"}):
-        env, report = derive_goose_environment(settings)
+        env, report = derive_goose_environment(settings, cloud_approval_path='dummy_approval.json')
         assert env["GOOSE_PROVIDER"] == "openai"
         assert env["GOOSE_PROVIDER__TYPE"] == "openai"
         assert env["GOOSE_PROVIDER__HOST"] == "https://api.groq.com/openai"
@@ -189,7 +198,7 @@ def test_goose_env_xai_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"XAI_API_KEY": "xai-secret"}):
-        env, report = derive_goose_environment(settings)
+        env, report = derive_goose_environment(settings, cloud_approval_path='dummy_approval.json')
         assert env["GOOSE_PROVIDER"] == "openai"
         assert env["GOOSE_PROVIDER__TYPE"] == "openai"
         assert env["GOOSE_PROVIDER__HOST"] == "https://api.x.ai"
@@ -229,7 +238,7 @@ def test_goose_env_openai_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"OPENAI_API_KEY": "openai-secret"}):
-        env, report = derive_goose_environment(settings)
+        env, report = derive_goose_environment(settings, cloud_approval_path='dummy_approval.json')
         assert env["GOOSE_PROVIDER"] == "openai"
         assert env["GOOSE_PROVIDER__TYPE"] == "openai"
         assert env["GOOSE_PROVIDER__HOST"] == "https://api.openai.com"
@@ -269,7 +278,7 @@ def test_goose_env_anthropic_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "anthropic-secret"}):
-        env, report = derive_goose_environment(settings)
+        env, report = derive_goose_environment(settings, cloud_approval_path='dummy_approval.json')
         assert env["GOOSE_PROVIDER"] == "anthropic"
         assert env["GOOSE_PROVIDER__TYPE"] == "anthropic"
         assert env["GOOSE_PROVIDER__API_KEY"] == "anthropic-secret"
@@ -309,9 +318,9 @@ def test_missing_provider_or_key_raises_error():
     import pytest
 
     with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=True):
-        with patch("builder_ii.goose_launcher.find_goose_binary", return_value="/usr/local/bin/goose"):
+        with patch("builder_ii.adapters.goose.goose_launcher.find_goose_binary", return_value="/usr/local/bin/goose"):
             with pytest.raises(ValueError) as exc:
-                launch_goose_session(settings)
+                launch_goose_session(settings, wrapper_plan_path="dummy_approval.json")
             assert "No Goose provider could be derived from builder-II settings" in str(exc.value)
 
 

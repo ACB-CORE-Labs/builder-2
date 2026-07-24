@@ -427,11 +427,11 @@ class ModelExecutionGateway:
                 import json
                 approval = json.loads(approval_path.read_text(encoding="utf-8"))
             except Exception as e:
-                raise ValueError(f"Invalid patch approval: {e}")
+                raise ValueError(f"Invalid model call approval: {e}")
             if approval.get("kind") != "builder_ii.model_call_approval":
-                raise ValueError(f"Invalid patch approval: kind is {approval.get('kind')} instead of builder_ii.model_call_approval")
+                raise ValueError(f"Invalid model call approval: kind is {approval.get('kind')} instead of builder_ii.model_call_approval")
             if approval.get("valid") is not True:
-                raise ValueError("Invalid patch approval: valid is not True")
+                raise ValueError("Invalid model call approval: valid is not True")
 
             prompt_digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
             if approval.get("model_id") != model_id:

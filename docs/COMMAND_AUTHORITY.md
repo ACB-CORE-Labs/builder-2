@@ -32,7 +32,7 @@ it sets, so a row reading `—` claims none.
 is correct rather than an oversight: `PASSIVE_ARTIFACT_VERIFIED` already permits writing
 to the artifact store, so a command that writes only artifacts is passive by definition.
 
-## Declared records (352)
+## Declared records (353)
 
 Authority written down, command by command.
 
@@ -109,6 +109,7 @@ Authority written down, command by command.
 | `builder-runtime reset` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Composes stop plus marker cleanup for the local runtime listener. | Clears local runtime marker after attempted stop; does not mutate source repositories. | `explicit_operator_invocation` | Explicit operator invocation only; foreign process termination requires literal confirmation. | `process_control`, `state_writes`, `readonly_subprocess` | `BOUNDED_EXECUTION_VERIFIED` | `allows_process_control` is set |
 | `builder-lanes` | Tier 1 — artifact-only planning/validation | `validation_only` | Evaluates passive rules and checklists; no subprocess execution. | No changes to workspace. | `none` | Passive check, no approval required. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-tools` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Delegates governed external tool execution subcommands. | No direct write authority at root CLI level. | `none` | Delegated to subcommands. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Delegates read-only inspection subcommands. | Read-only. No write authority. | `none` | Passive commands, no approval required. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-tools list` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Runs local PATH/version probes for known external developer tools. | No changes to workspace, target repository, or external tool state. | `explicit_operator_invocation` | Explicit operator invocation only. | `readonly_subprocess`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 | `builder-tools check` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Runs bounded local version probes for known external developer tools. | No changes to workspace, target repository, or external tool state. | `explicit_operator_invocation` | Explicit operator invocation only. | `readonly_subprocess`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 | `builder-tools missing` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Runs bounded local version probes to identify missing required tools. | No changes to workspace, target repository, or external tool state. | `explicit_operator_invocation` | Explicit operator invocation only. | `readonly_subprocess`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
@@ -391,11 +392,11 @@ Authority written down, command by command.
 | `builder-tools invoke` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Executes explicitly bounded low-risk tool stub call from envelope. | Writes receipt and operational ledger events. | `explicit_operator_invocation` | Explicit envelope passing. | `artifact_writes`, `state_writes`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 | `builder-tools standalone-invoke` | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | Executes explicitly bounded low-risk tool stub call from envelope without logging to the workflow ledger. | Writes receipt to explicit output path only. | `explicit_operator_invocation` | Explicit envelope passing. | `artifact_writes`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 
-## Synthesized records (116)
+## Synthesized records (168)
 
 Nobody declared these commands. Each one's authority is *inherited* — copied from the
 nearest declared ancestor of its name, on a word boundary. That ancestor is always a
-command group, because a record becomes a group by acquiring subcommands: all 116 of
+command group, because a record becomes a group by acquiring subcommands: all 168 of
 these rows state a classification that describes their parent and was never checked
 against them.
 
@@ -407,6 +408,58 @@ editing its parent.
 | Command Name | Inherits Authority From | Tier | State | Capabilities | Assurance | Assurance Derived From |
 |---|---|---|---|---|---|---|
 | `builder-code-vault frame/recall` | `builder-code-vault` (command group) | Tier 1 — artifact-only planning/validation | `artifact_only` | `artifact_writes` | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect hitl status` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect hitl chain` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect hitl pending` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect hitl approval` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect hitl evidence` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect hitl execution` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect hitl promote` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect hitl replay` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect profile status` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect profile lifecycle` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect profile validate` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect profile render-plan` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect profile dry-run` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect profile resolve` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect profile history` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect model routing show` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect model routing simulate` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect model routing candidates` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect model routing policy` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect model routing execution-policy` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect model routing validate` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect model registry show` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect model registry diff` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect promote status` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect promote readiness` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect promote artifact` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect promote decision` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect promote compatibility` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect promote history` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect promote gates` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect postflight status` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect postflight record` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect postflight verify` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect postflight governance` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect postflight actions` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect postflight refs` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect postflight validate` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect goose status` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect goose manifest` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect goose links` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect goose actions` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect goose governance` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect goose validate` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect goose approval` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect code-vault status` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect code-vault frame` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect code-vault determinism` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect code-vault recall` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect code-vault lint` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect code-vault context` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect code-vault governance` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder inspect code-vault validate` | `builder inspect` (command group) | Tier 3 — HITL-gated execution candidate | `hitl_runtime_candidate` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-platform tui` | `builder-platform` (command group) | Tier 1 — artifact-only planning/validation | `validation_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder tui status` | `builder tui` (command group) | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder tui roster` | `builder tui` (command group) | Tier 0 — read-only inspection | `spec_only` | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |

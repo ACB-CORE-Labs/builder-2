@@ -38,7 +38,7 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
     plan_path = path.parent / "verification-plan.json"
     approval_path = path.parent / "verification-approval.json"
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="generic",
         verification_profile="builder_full",
@@ -46,7 +46,7 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
         artifact_root=str((repo / ".builder").resolve()),
     )
     plan_path.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    approval = finalize_verification_execution_approval(
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="patch-test",

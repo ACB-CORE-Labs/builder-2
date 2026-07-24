@@ -61,7 +61,7 @@ def _write_valid_chain(
 ) -> tuple[Path, Path, Path]:
     root = _artifact_root(tmp_path)
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -72,7 +72,7 @@ def _write_valid_chain(
     plan_path = root / "verification-execution-plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z", 
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
