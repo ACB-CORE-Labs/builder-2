@@ -177,6 +177,16 @@ deepagents receives only policy-wrapped MCP tools. Tool calls require event emis
 
 Only after capability promotion: MCP calls may execute under limits, timeouts, result validation, audit, rollback, and verification.
 
+### The "Zero-Glue" Implementation Principle
+
+A core tenet of this MCP seam is that **builder-II requires zero custom Python glue code or bespoke ACP server wrappers** to facilitate the connection between Goose and deepagents. 
+Attempting to write custom wrappers inside builder-II to host the deepagents server accidentally re-couples the agent harness to the governance layer (an architectural anti-pattern). 
+
+The correct governed integration relies entirely on native protocol support:
+- `deepagents` runs its standard ACP server directly (`uv run python -m deepagents_acp.server`).
+- `Goose` communicates natively via standard `config.yaml` provider configurations.
+- `builder-II` governs passively through the statically generated `deepagents-policy.json` artifact which the `deepagents` server is configured to respect on startup.
+
 ## Deny-by-default requirements
 
 All MCP integrations must default to:
