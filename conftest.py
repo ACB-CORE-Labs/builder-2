@@ -49,6 +49,16 @@ def config_environment_keys() -> tuple[str, ...]:
     return tuple(dict.fromkeys(keys))
 
 
+def is_repo_root_dotenv(path: object) -> bool:
+    """True when `path` is this repo's own `.env` -- the one file tests must never inherit."""
+    if path is None:
+        return False
+    try:
+        return Path(str(path)).resolve(strict=False) == (ROOT / ".env").resolve(strict=False)
+    except (TypeError, OSError, ValueError):
+        return False
+
+
 @contextmanager
 def isolated_config_environment() -> Iterator[None]:
     """Run a block with no config environment variable set, and restore the environment after.
@@ -56,13 +66,43 @@ def isolated_config_environment() -> Iterator[None]:
     Snapshot and restore the *whole* environment, not merely the keys removed on entry: a block that
     calls `load_settings()` adds keys that were never there to begin with, and a per-key undo would
     faithfully restore each one for whatever runs next.
+
+    Stripping variables is not enough: `load_settings()` re-reads the developer's repo-root `.env`
+    *during* the block (`load_dotenv(root / ".env")`), and `resolve_config_sources` does the same
+    through `dotenv_values`. A checkout whose `.env` holds `BUILDER_MODEL_BACKEND=groq` -- the
+    documented cloud-fallback recipe in docs/GOOSE_CONVENTION_LAYER.md -- failed 19 tests that way
+    (`KeyError('groq-gpt-oss-120b')`, session-config validators rejecting a non-local backend),
+    every one of them green in CI, which has no `.env`. So both readers are guarded here for the
+    repo-root `.env` only: a test that writes its own `.env` under a tmp path is exercising dotenv
+    behaviour on purpose, and still sees it.
     """
+    from builder_ii.core import config as config_module
+    from builder_ii.core import config_sources as config_sources_module
+
     snapshot = dict(os.environ)
     for key in config_environment_keys():
         os.environ.pop(key, None)
+
+    real_load_dotenv = config_module.load_dotenv
+    real_dotenv_values = config_sources_module.dotenv_values
+
+    def load_dotenv_ignoring_repo_env(dotenv_path: object = None, *args: object, **kwargs: object) -> bool:
+        if is_repo_root_dotenv(dotenv_path):
+            return False
+        return real_load_dotenv(dotenv_path, *args, **kwargs)  # type: ignore[arg-type]
+
+    def dotenv_values_ignoring_repo_env(dotenv_path: object = None, *args: object, **kwargs: object) -> dict:
+        if is_repo_root_dotenv(dotenv_path):
+            return {}
+        return dict(real_dotenv_values(dotenv_path, *args, **kwargs))  # type: ignore[arg-type]
+
+    config_module.load_dotenv = load_dotenv_ignoring_repo_env
+    config_sources_module.dotenv_values = dotenv_values_ignoring_repo_env
     try:
         yield
     finally:
+        config_module.load_dotenv = real_load_dotenv
+        config_sources_module.dotenv_values = real_dotenv_values
         os.environ.clear()
         os.environ.update(snapshot)
 

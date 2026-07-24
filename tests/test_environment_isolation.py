@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from conftest import config_environment_keys, isolated_config_environment
+from conftest import ROOT, config_environment_keys, is_repo_root_dotenv, isolated_config_environment
 
 
 def test_the_isolated_keys_are_derived_from_the_specs_that_name_them() -> None:
@@ -65,6 +65,39 @@ def test_and_the_next_test_starts_clean() -> None:
     assert "BUILDER_TARGET_PROFILE" not in os.environ
     for key in config_environment_keys():
         assert key not in os.environ, f"{key} leaked into this test"
+
+
+def test_repo_root_dotenv_reads_are_guarded_inside_isolation(tmp_path: Path) -> None:
+    """Stripping variables is not enough: `load_settings()` re-reads the repo-root `.env` mid-test.
+
+    A checkout whose `.env` held `BUILDER_MODEL_BACKEND=groq` (the documented cloud-fallback recipe)
+    failed 19 tests that were green in CI. The guard blanks exactly one file -- this repo's own
+    `.env` -- and leaves a test's tmp-path `.env` fully readable, so dotenv behaviour itself stays
+    testable.
+    """
+    from builder_ii.core import config as config_module
+    from builder_ii.core import config_sources as config_sources_module
+
+    assert is_repo_root_dotenv(ROOT / ".env")
+    assert not is_repo_root_dotenv(tmp_path / ".env")
+    assert not is_repo_root_dotenv(None)
+
+    with isolated_config_environment():
+        # The repo-root `.env` is answered without reading the file or mutating os.environ,
+        # whether or not the developer has one.
+        assert config_module.load_dotenv(ROOT / ".env") is False
+        assert config_sources_module.dotenv_values(ROOT / ".env") == {}
+        for key in config_environment_keys():
+            assert key not in os.environ, f"{key} leaked from the repo-root .env"
+
+        # A `.env` a test writes itself is real dotenv territory and still loads.
+        own_env = tmp_path / ".env"
+        own_env.write_text("BUILDER_TARGET_PROFILE=core\n", encoding="utf-8")
+        assert config_sources_module.dotenv_values(own_env) == {"BUILDER_TARGET_PROFILE": "core"}
+        assert config_module.load_dotenv(own_env) is True
+        assert os.environ["BUILDER_TARGET_PROFILE"] == "core"
+
+    assert "BUILDER_TARGET_PROFILE" not in os.environ, "the guard context restores the environment exactly"
 
 
 def test_the_leak_that_was_shipping_reproduced_from_first_principles(tmp_path: Path) -> None:
