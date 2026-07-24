@@ -1,8 +1,8 @@
 import pytest
 
 from builder_ii.core.config import load_settings
-from builder_ii.routing.model_catalog import MODEL_ALIASES, normalize_model_alias
 from builder_ii.core.models import model_definitions
+from builder_ii.routing.model_catalog import MODEL_ALIASES, normalize_model_alias
 
 
 def test_normalize_legacy_tiers():

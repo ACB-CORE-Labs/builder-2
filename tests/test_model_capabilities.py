@@ -4,7 +4,6 @@ from pathlib import Path
 
 from builder_ii.core.artifact_chain_verification import VALIDATORS as CHAIN_VALIDATORS
 from builder_ii.core.config import Settings
-from builder_ii.routing.model_catalog import MODEL_ALIASES
 from builder_ii.governance.ledger.artifact_index_records import _VALIDATORS as INDEX_VALIDATORS
 from builder_ii.routing.model_capabilities import (
     MODEL_CAPABILITY_REGISTRY_KIND,
@@ -12,6 +11,7 @@ from builder_ii.routing.model_capabilities import (
     dumps_model_capability_registry,
     validate_model_capability_registry,
 )
+from builder_ii.routing.model_catalog import MODEL_ALIASES
 
 
 def settings_stub(alias: str = "qwen-coder") -> Settings:
