@@ -121,6 +121,7 @@ AUTHORITY_DELEGATING_GROUPS: frozenset[str] = frozenset(
         "builder-mcp",
         "builder-tools",
         "builder-code-vault",
+        "builder inspect",
     }
 )
 
@@ -199,6 +200,13 @@ def _readonly_tui_record(name: str) -> CommandAuthorityRecord:
 
 READONLY_TUI_COMMAND_GROUPS: tuple[str, ...] = (
     "builder tui",
+    "builder inspect hitl",
+    "builder inspect profile",
+    "builder inspect model",
+    "builder inspect promote",
+    "builder inspect postflight",
+    "builder inspect goose",
+    "builder inspect code-vault",
     "builder hitl",
     "builder profile",
     "builder model",
@@ -624,6 +632,19 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         output_behavior="Dispatches to tool subcommands.",
         failure_mode="Exits non-zero on failure.",
         notes="Tool execution gateway.",
+    ),
+    CommandAuthorityRecord(
+        name="builder inspect",
+        entrypoint="builder_ii.cli.tui_inspection_cli:inspect_app",
+        tier=TIER_3,
+        promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
+        runtime_boundary="Delegates read-only inspection subcommands.",
+        write_boundary="Read-only. No write authority.",
+        approval_mode=MODE_NONE,
+        approval_boundary="Passive commands, no approval required.",
+        output_behavior="Dispatches to inspection subcommands.",
+        failure_mode="Exits non-zero on failure.",
+        notes="Inspection CLI gateway.",
     ),
     CommandAuthorityRecord(
         name="builder-tools list",

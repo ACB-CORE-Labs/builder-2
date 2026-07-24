@@ -89,13 +89,19 @@ def test_validation_gates() -> None:
     # Enabled execution
     bad_exec = plan.copy()
     bad_exec["shell_execution"] = "ENABLED"
-    assert any("shell_execution must be DISABLED or NOT_AUTHORIZED" in e for e in validate_goose_readonly_session_plan(bad_exec))
+    assert any(
+        "shell_execution must be DISABLED or NOT_AUTHORIZED" in e
+        for e in validate_goose_readonly_session_plan(bad_exec)
+    )
 
     # Bad governance
     bad_gov = plan.copy()
     bad_gov["governance"] = plan["governance"].copy()
     bad_gov["governance"]["runtime_execution"] = "ENABLED"
-    assert any("governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in e for e in validate_goose_readonly_session_plan(bad_gov))
+    assert any(
+        "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in e
+        for e in validate_goose_readonly_session_plan(bad_gov)
+    )
 
 
 def test_validate_file_helpers(tmp_path: Path) -> None:

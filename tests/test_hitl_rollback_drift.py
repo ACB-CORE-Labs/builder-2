@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
+from builder_ii.governance.authority.policy_evaluator import CommandAuthorityError
 from builder_ii.governance.hitl.hitl_patch_apply import (
     FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
     apply_hitl_patch,
@@ -23,7 +24,7 @@ from builder_ii.governance.hitl.hitl_patch_apply import (
 from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
 from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 from builder_ii.governance.hitl.hitl_rollback_approval import (
-    canonical_json_digest,
+    canonical_digest,
     create_hitl_rollback_approval,
     write_hitl_rollback_approval,
 )
@@ -62,9 +63,7 @@ def _apply(tmp_path: Path) -> tuple[Path, Path, Path]:
     write_hitl_patch_proposal(prop, prop_path)
 
     approval_path = tmp_path / "approval.json"
-    write_hitl_patch_approval(
-        create_hitl_patch_approval(prop, confirmed_digest_prefix=patch_digest[:4]), approval_path
-    )
+    write_hitl_patch_approval(create_hitl_patch_approval(prop, confirmed_digest_prefix=patch_digest[:4]), approval_path)
 
     vr_path = tmp_path / "vr.json"
     vr_path.write_text(
@@ -89,7 +88,7 @@ def _mint_rollback_approval(out_dir: Path, tmp_path: Path, *, plan_override: dic
     plan = plan_override or json.loads((out_dir / "rollback_plan.json").read_text())
     approval_path = tmp_path / "rollback_approval.json"
     write_hitl_rollback_approval(
-        create_hitl_rollback_approval(plan, confirmed_digest_prefix=canonical_json_digest(plan)[:4]),
+        create_hitl_rollback_approval(plan, confirmed_digest_prefix=canonical_digest(plan)[:4]),
         approval_path,
     )
     return approval_path
@@ -123,7 +122,8 @@ def test_rollback_refuses_on_worktree_drift_with_recovery_block(tmp_path: Path) 
 
 def test_rollback_requires_approval_file(tmp_path: Path) -> None:
     _repo, out_dir, _target = _apply(tmp_path)
-    with pytest.raises(ValueError, match="Rollback approval file does not exist"):
+    with pytest.raises(CommandAuthorityError, match="Approval file does not exist"):
+
         rollback_hitl_patch(
             out_dir / "rollback_plan.json",
             out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
@@ -156,13 +156,14 @@ def test_rollback_rejects_expired_approval(tmp_path: Path) -> None:
     write_hitl_rollback_approval(
         create_hitl_rollback_approval(
             plan,
-            confirmed_digest_prefix=canonical_json_digest(plan)[:4],
+            confirmed_digest_prefix=canonical_digest(plan)[:4],
             approved_at=1000,
             ttl_seconds=1,  # long expired relative to now
         ),
         approval_path,
     )
-    with pytest.raises(ValueError, match="Rollback approval has expired"):
+    with pytest.raises(CommandAuthorityError, match="Patch approval has expired"):
+
         rollback_hitl_patch(
             out_dir / "rollback_plan.json",
             out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
@@ -183,7 +184,9 @@ def test_rollback_refuses_plan_missing_drift_fingerprint(tmp_path: Path) -> None
 
     rollback_out = out_dir / "rollback_out"
     with pytest.raises(ValueError, match="missing post_apply_worktree_digest"):
-        rollback_hitl_patch(plan_path, out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, rollback_out, approval_path=approval_path)
+        rollback_hitl_patch(
+            plan_path, out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, rollback_out, approval_path=approval_path
+        )
     # Refused before any mutation: the applied change is still present, no success receipt.
     assert target_file.read_text() == "Line 1\nLine 2 modified\n"
     assert not (rollback_out / "rollback_receipt.json").exists()
@@ -199,7 +202,9 @@ def test_rollback_refuses_plan_missing_pre_head(tmp_path: Path) -> None:
 
     rollback_out = out_dir / "rollback_out"
     with pytest.raises(ValueError, match="missing pre_head"):
-        rollback_hitl_patch(plan_path, out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, rollback_out, approval_path=approval_path)
+        rollback_hitl_patch(
+            plan_path, out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, rollback_out, approval_path=approval_path
+        )
     assert target_file.read_text() == "Line 1\nLine 2 modified\n"
 
 

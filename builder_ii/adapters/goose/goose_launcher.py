@@ -121,6 +121,7 @@ def resolve_model_id(settings: Settings, alias: str) -> str:
 def derive_goose_environment(
     settings: Settings | None = None,
     session: SessionPlan | None = None,
+    cloud_approval_path: str | None = None,
 ) -> tuple[dict[str, str], dict[str, any]]:
     from builder_ii.core.config import load_settings
 
@@ -214,6 +215,19 @@ def derive_goose_environment(
     goose_installed = bool(find_goose_binary())
     launch_ready = goose_installed and key_present
 
+    # Cloud lane approval validation
+    cloud_backends = {"groq", "xai", "google", "anthropic", "openai"}
+    if settings.backend in cloud_backends:
+        if not cloud_approval_path:
+            raise ValueError(f"Cloud provider {settings.backend} requires a validated cloud-lane approval artifact.")
+        import json
+        with open(cloud_approval_path, "r", encoding="utf-8") as f:
+            approval = json.load(f)
+        if approval.get("kind") not in ("builder_ii.cloud_egress_record", "builder_ii.cloud_lane_approval"):
+            raise ValueError(f"Invalid cloud approval kind: {approval.get('kind')}")
+        if approval.get("valid") is not True:
+            raise ValueError("Cloud approval artifact is not marked valid")
+
     actual_env = env.copy()
     actual_env["GOOSE_PROVIDER"] = goose_provider
     actual_env["GOOSE_MODEL"] = goose_model
@@ -276,8 +290,8 @@ def derive_goose_environment(
     return actual_env, report
 
 
-def goose_env(settings: Settings, *, session: SessionPlan | None = None) -> dict[str, str]:
-    return derive_goose_environment(settings, session)[0]
+def goose_env(settings: Settings, *, session: SessionPlan | None = None, cloud_approval_path: str | None = None) -> dict[str, str]:
+    return derive_goose_environment(settings, session, cloud_approval_path=cloud_approval_path)[0]
 
 
 def recipe_path(settings: Settings, session: SessionPlan | None = None) -> Path:
@@ -309,6 +323,7 @@ def launch_goose_session(
     resume: bool = False,
     session: SessionPlan | None = None,
     name: str | None = None,
+    wrapper_plan_path: str | None = None,
 ) -> subprocess.Popen[str]:
     goose = find_goose_binary()
     if not goose:
@@ -324,7 +339,7 @@ def launch_goose_session(
     workdir = cwd or settings.target_repo
     load_session_context(settings)
 
-    env, report = derive_goose_environment(settings, session=plan)
+    env, report = derive_goose_environment(settings, session=plan, cloud_approval_path=wrapper_plan_path)
     if not report["launch_ready"]:
         raise ValueError(
             "No Goose provider could be derived from builder-II settings/.env. "
@@ -349,6 +364,31 @@ def launch_goose_session(
 
     if _supports_flag(help_text, "--with-builtin"):
         argv.extend(["--with-builtin", "developer,skills,summon"])
+
+    from builder_ii.governance.authority import enforce_command_authority
+    enforce_command_authority(
+        "builder start",
+        requested_effects=("runtime_start", "state_write", "external_tool"),
+        approval_ref=wrapper_plan_path
+    )
+
+    if wrapper_plan_path is None:
+        raise ValueError("A validated wrapper-plan artifact is required to launch.")
+
+    import json
+    with open(wrapper_plan_path, "r", encoding="utf-8") as f:
+        artifact = json.load(f)
+
+    if artifact.get("argv") != argv:
+        raise ValueError(f"Drift detected: argv mismatch. Expected {artifact.get('argv')}, got {argv}")
+
+    if artifact.get("cwd") and str(artifact.get("cwd")) != str(workdir):
+        raise ValueError("Drift detected: cwd mismatch")
+
+    # We do a subset check for env or exact match
+    artifact_env = artifact.get("env", {})
+    if artifact_env != env:
+        raise ValueError("Drift detected: env mismatch")
 
     return subprocess.Popen(argv, cwd=workdir, env=env)
 

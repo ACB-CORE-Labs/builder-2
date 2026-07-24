@@ -69,7 +69,6 @@ def test_workflow_golden_path_replays_and_audits(tmp_path: Path, monkeypatch) ->
     assert golden["model_execution"] == "DISABLED"
     assert (output_dir / "GOLDEN_PATH_DEMO_README.md").exists()
 
-
     chain = _read(output_dir / "artifacts" / "chain-verification-report.json")
     assert chain["valid"] is True
 

@@ -117,4 +117,3 @@ async def test_stratum_app_theme_chargers():
             # Assert theme_variables and actual resolved widget style agree
             assert app_chargers.theme_variables["stratum-bg"].lower() == center_widget.styles.background.hex.lower()
             assert app_chargers.theme_variables["stratum-panel"].lower() == header_widget.styles.background.hex.lower()
-

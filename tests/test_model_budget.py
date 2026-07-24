@@ -80,4 +80,6 @@ def test_debit_exhausts_budget() -> None:
     b2 = debit_budget(b, cost)
     assert b2["budget_state"] == "EXHAUSTED"
     with pytest.raises(BudgetExceededError):
-        assert_budget_allows_call(b2, {"input_tokens": 1, "output_tokens": 0, "total_tokens": 1, "estimated_usd_total": 0.0})
+        assert_budget_allows_call(
+            b2, {"input_tokens": 1, "output_tokens": 0, "total_tokens": 1, "estimated_usd_total": 0.0}
+        )

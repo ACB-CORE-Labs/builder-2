@@ -5,6 +5,7 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.core.config_schema import attach_digest, digest_jsonable
 from builder_ii.lifecycle.candidate.verification_execution_approval import (
     VERIFICATION_EXECUTION_APPROVAL_KIND,
@@ -46,7 +47,6 @@ _EXPECTED_SUBJECT_REF_KINDS = {
 
 
 def _sha256_file(path: Path) -> str:
-    import hashlib
 
     return hashlib.sha256(path.expanduser().resolve().read_bytes()).hexdigest()
 
@@ -198,11 +198,6 @@ def _ledger_record_sort_key(row: dict[str, Any]) -> tuple[str, str, str, str]:
         str(record.get("ledger_record_id", "")),
         str(row.get("path", "")),
     )
-
-
-def _canonical_sha256(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _record_digest(record: dict[str, Any]) -> str:
@@ -393,7 +388,7 @@ def _integrity_record_row(row: dict[str, Any]) -> dict[str, Any]:
         "path": row.get("path", ""),
         "ledger_record_id": record.get("ledger_record_id", ""),
         "verification_execution_ledger_record_digest": _record_digest(record),
-        "record_sha256": _canonical_sha256(record) if isinstance(record, dict) else "",
+        "record_sha256": canonical_digest(record) if isinstance(record, dict) else "",
         "recorded_at": record.get("recorded_at", ""),
         "chain_digest": record.get("chain_digest", ""),
         "receipt_digest": row.get("receipt_digest", ""),
@@ -410,7 +405,7 @@ def _ledger_record_evidence_ref(row: dict[str, Any]) -> dict[str, Any]:
         "role": "verification_execution_ledger_record",
         "kind": VERIFICATION_EXECUTION_LEDGER_RECORD_KIND,
         "path": row.get("path", ""),
-        "sha256": _canonical_sha256(record) if isinstance(record, dict) else "",
+        "sha256": canonical_digest(record) if isinstance(record, dict) else "",
         "artifact_digest": _record_digest(record),
         "required": True,
     }
@@ -1276,3 +1271,47 @@ def validate_verification_execution_ledger_reconstruction_report(record: Any) ->
             if governance.get(key) != value:
                 errors.append(f"governance.{key} must be {value}")
     return _dedupe_errors(errors)
+
+import contextlib
+import typing
+
+
+@contextlib.contextmanager
+def _exclusive_ledger_lock(ledger_root: Path) -> typing.Iterator[None]:
+    import fcntl
+    ledger_root.mkdir(parents=True, exist_ok=True)
+    lock_path = ledger_root / ".lock"
+    with lock_path.open("a") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+def append_verification_execution_receipt(
+    *,
+    receipt_path: Path,
+    plan_path: Path,
+    approval_path: Path,
+    ledger_root: Path | None = None,
+    output: Path | None = None,
+) -> dict[str, typing.Any]:
+    receipt = _load_json_object(receipt_path)
+    repo_path = Path(str(receipt.get("target_repo", "."))).expanduser().resolve()
+    resolved_ledger_root = (
+        ledger_root.expanduser().resolve()
+        if ledger_root is not None
+        else (repo_path / ".builder" / "ledger")
+    )
+
+    with _exclusive_ledger_lock(resolved_ledger_root):
+        record = index_verification_execution_receipt(
+            receipt_path=receipt_path,
+            plan_path=plan_path,
+            approval_path=approval_path,
+            ledger_root=resolved_ledger_root,
+        )
+        if record.get("valid") is True:
+            output_path = output or default_verification_execution_ledger_output(record)
+            write_verification_execution_ledger_record(record, output_path)
+        return record

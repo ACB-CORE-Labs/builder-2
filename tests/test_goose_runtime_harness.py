@@ -29,21 +29,28 @@ def mock_settings(tmp_path: Path) -> MagicMock:
     return m
 
 
-@patch("builder_ii.goose_runtime_harness.goose_env", return_value={})
-@patch("builder_ii.goose_runtime_harness.find_goose_binary")
-@patch("builder_ii.goose_runtime_harness.subprocess.Popen")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.goose_env", return_value={})
+@patch("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.subprocess.Popen")
 def test_goose_launch_enforces_read_only_env(
     mock_popen: MagicMock,
     mock_find_goose: MagicMock,
     mock_goose_env: MagicMock,
+    mock_subprocess_run: MagicMock,
     mock_settings: MagicMock,
     tmp_path: Path,
 ) -> None:
     mock_find_goose.return_value = "/mock/bin/goose"
     mock_proc = MagicMock()
     mock_proc.pid = 12345
+    mock_proc.communicate.return_value = (b"", b"")
+    mock_proc.__enter__.return_value = mock_proc
     mock_proc.poll.return_value = 0
     mock_proc.returncode = 0
+    mock_proc.communicate.return_value = (b"", b"")
+    mock_proc.__enter__.return_value = mock_proc
+    mock_proc.__exit__.return_value = None
     mock_popen.return_value = mock_proc
 
     plan = MockSessionPlan()
@@ -70,21 +77,28 @@ def test_goose_launch_enforces_read_only_env(
     assert postflight["files_checked"] == 1
 
 
-@patch("builder_ii.goose_runtime_harness.goose_env", return_value={})
-@patch("builder_ii.goose_runtime_harness.find_goose_binary")
-@patch("builder_ii.goose_runtime_harness.subprocess.Popen")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.goose_env", return_value={})
+@patch("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.subprocess.Popen")
 def test_goose_mutation_detected_fails_postflight(
     mock_popen: MagicMock,
     mock_find_goose: MagicMock,
     mock_goose_env: MagicMock,
+    mock_subprocess_run: MagicMock,
     mock_settings: MagicMock,
     tmp_path: Path,
 ) -> None:
     mock_find_goose.return_value = "/mock/bin/goose"
     mock_proc = MagicMock()
     mock_proc.pid = 12345
+    mock_proc.communicate.return_value = (b"", b"")
+    mock_proc.__enter__.return_value = mock_proc
     mock_proc.poll.return_value = 0
     mock_proc.returncode = 0
+    mock_proc.communicate.return_value = (b"", b"")
+    mock_proc.__enter__.return_value = mock_proc
+    mock_proc.__exit__.return_value = None
     mock_popen.return_value = mock_proc
 
     plan = MockSessionPlan()
@@ -103,7 +117,7 @@ def test_goose_mutation_detected_fails_postflight(
 
 
 def test_goose_launch_fails_without_goose_binary(mock_settings: Settings, tmp_path: Path) -> None:
-    with patch("builder_ii.goose_runtime_harness.find_goose_binary", return_value=None):
+    with patch("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary", return_value=None):
         plan = MockSessionPlan()
         harness = GooseRuntimeHarness(mock_settings, plan, tmp_path)
         with pytest.raises(FileNotFoundError):

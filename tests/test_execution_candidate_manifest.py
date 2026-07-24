@@ -263,7 +263,10 @@ def test_target_profile_outside_permitted_fails() -> None:
 def test_core_workbench_coupling_fails() -> None:
     manifest = _mock_valid_manifest()
     manifest["candidate_scope"]["core_workbench_coupling"] = "SOME_COUPLING"
-    assert "candidate_scope.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in validate_execution_candidate_manifest(manifest)
+    assert (
+        "candidate_scope.core_workbench_coupling must be NONE or NOT_AUTHORIZED"
+        in validate_execution_candidate_manifest(manifest)
+    )
 
 
 def test_deephaven_rejection() -> None:
@@ -342,7 +345,9 @@ def test_validation_report_happy_path() -> None:
 
     # Fails closed on authority invariants
     report["executes_model"] = True
-    assert "executes_model must be false or NOT_AUTHORIZED" in validate_execution_candidate_manifest_validation_report(report)
+    assert "executes_model must be false or NOT_AUTHORIZED" in validate_execution_candidate_manifest_validation_report(
+        report
+    )
 
 
 def test_artifact_chain_references() -> None:

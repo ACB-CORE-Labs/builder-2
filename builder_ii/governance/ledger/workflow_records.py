@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import re
 from pathlib import Path
 from typing import Any
+
+from builder_ii.core.canonical_json import canonical_digest
 
 WORKFLOW_SESSION_KIND = "builder_ii.workflow_session"
 WORKFLOW_SESSION_SCHEMA_VERSION = 1
@@ -28,11 +29,6 @@ WORKFLOW_STAGE_ORDER = {stage: index for index, stage in enumerate(WORKFLOW_STAG
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
-
-
-def canonical_digest(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def artifact_ref(

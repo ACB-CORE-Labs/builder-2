@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.core.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
 from builder_ii.lifecycle.setup.operator_next import (
     create_operator_next_action_report,
@@ -21,11 +21,6 @@ from builder_ii.lifecycle.setup.operator_status import (
 
 OPERATOR_GOLDEN_PATH_REPORT_KIND = "builder_ii.operator_golden_path_report"
 SCHEMA_VERSION = 2
-
-
-def canonical_digest(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _default_governance() -> dict[str, Any]:

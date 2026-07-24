@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import re
 from pathlib import Path
@@ -83,11 +82,6 @@ _SAFE_PASSIVE_EXACT_STRINGS = {
     "records_human_decision",
     "records_candidate_intent",
 }
-
-
-def canonical_digest(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _is_passive_or_denial_context(text: str, start: int, end: int) -> bool:

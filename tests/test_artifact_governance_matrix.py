@@ -262,8 +262,12 @@ def test_grants_authority_records_deny_runtime_authority(tmp_path: Path) -> None
     """Records that use grants_runtime_authority must set it false."""
     for label, record, _validator in _all_records(tmp_path):
         if label in _GRANTS_AUTHORITY_RECORDS:
-            assert record.get("grants_runtime_authority") is False, f"{label}: grants_runtime_authority must be false or NOT_AUTHORIZED"
-            assert record.get("grants_action_authority") is False, f"{label}: grants_action_authority must be false or NOT_AUTHORIZED"
+            assert record.get("grants_runtime_authority") is False, (
+                f"{label}: grants_runtime_authority must be false or NOT_AUTHORIZED"
+            )
+            assert record.get("grants_action_authority") is False, (
+                f"{label}: grants_action_authority must be false or NOT_AUTHORIZED"
+            )
 
 
 def test_command_proposal_denies_execution(tmp_path: Path) -> None:
@@ -292,21 +296,27 @@ def test_all_records_governance_artifact_is_not_authority(tmp_path: Path) -> Non
     """No artifact is authority."""
     for label, record, _validator in _all_records(tmp_path):
         gov = record["governance"]
-        assert gov.get("artifact_is_authority") is False, f"{label}: artifact_is_authority must be false or NOT_AUTHORIZED"
+        assert gov.get("artifact_is_authority") is False, (
+            f"{label}: artifact_is_authority must be false or NOT_AUTHORIZED"
+        )
 
 
 def test_all_records_governance_no_core_workbench_coupling(tmp_path: Path) -> None:
     """No record may have core workbench coupling."""
     for label, record, _validator in _all_records(tmp_path):
         gov = record["governance"]
-        assert gov.get("core_workbench_coupling") == "NONE", f"{label}: core_workbench_coupling must be NONE or NOT_AUTHORIZED"
+        assert gov.get("core_workbench_coupling") == "NONE", (
+            f"{label}: core_workbench_coupling must be NONE or NOT_AUTHORIZED"
+        )
 
 
 def test_all_records_governance_model_execution_disabled(tmp_path: Path) -> None:
     """model_execution must be DISABLED or NOT_AUTHORIZED in all governance blocks."""
     for label, record, _validator in _all_records(tmp_path):
         gov = record["governance"]
-        assert gov.get("model_execution") == "DISABLED", f"{label}: governance.model_execution must be DISABLED or NOT_AUTHORIZED"
+        assert gov.get("model_execution") == "DISABLED", (
+            f"{label}: governance.model_execution must be DISABLED or NOT_AUTHORIZED"
+        )
 
 
 def test_all_records_governance_source_writes_disabled_where_present(tmp_path: Path) -> None:
@@ -314,7 +324,9 @@ def test_all_records_governance_source_writes_disabled_where_present(tmp_path: P
     for label, record, _validator in _all_records(tmp_path):
         gov = record["governance"]
         if "source_writes" in gov:
-            assert gov["source_writes"] == "DISABLED", f"{label}: governance.source_writes must be DISABLED or NOT_AUTHORIZED"
+            assert gov["source_writes"] == "DISABLED", (
+                f"{label}: governance.source_writes must be DISABLED or NOT_AUTHORIZED"
+            )
 
 
 def test_all_records_governance_memory_mutation_disabled_where_present(tmp_path: Path) -> None:
@@ -322,7 +334,9 @@ def test_all_records_governance_memory_mutation_disabled_where_present(tmp_path:
     for label, record, _validator in _all_records(tmp_path):
         gov = record["governance"]
         if "memory_mutation" in gov:
-            assert gov["memory_mutation"] == "DISABLED", f"{label}: governance.memory_mutation must be DISABLED or NOT_AUTHORIZED"
+            assert gov["memory_mutation"] == "DISABLED", (
+                f"{label}: governance.memory_mutation must be DISABLED or NOT_AUTHORIZED"
+            )
 
 
 def test_all_records_governance_runtime_execution_disabled_where_present(tmp_path: Path) -> None:
@@ -330,7 +344,9 @@ def test_all_records_governance_runtime_execution_disabled_where_present(tmp_pat
     for label, record, _validator in _all_records(tmp_path):
         gov = record["governance"]
         if "runtime_execution" in gov:
-            assert gov["runtime_execution"] == "DISABLED", f"{label}: governance.runtime_execution must be DISABLED or NOT_AUTHORIZED"
+            assert gov["runtime_execution"] == "DISABLED", (
+                f"{label}: governance.runtime_execution must be DISABLED or NOT_AUTHORIZED"
+            )
 
 
 def test_all_records_pass_their_own_validator(tmp_path: Path) -> None:

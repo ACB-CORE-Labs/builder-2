@@ -29,9 +29,7 @@ def _base_receipt(**overrides: object) -> dict:
 
 
 def test_accepted_kinds_cover_required_set() -> None:
-    assert ACCEPTED_RECEIPT_KINDS == frozenset(
-        {"model_call", "tool_call", "verification", "wrp_live_step"}
-    )
+    assert ACCEPTED_RECEIPT_KINDS == frozenset({"model_call", "tool_call", "verification", "wrp_live_step"})
 
 
 def test_ingest_receipts_appends_exemplars_and_validates() -> None:

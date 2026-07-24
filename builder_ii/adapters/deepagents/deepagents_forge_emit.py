@@ -29,7 +29,6 @@ from builder_ii.adapters.deepagents.deepagents_forge_preview import (
     GovernanceCheck,
     check_governance,
     collect_warnings,
-    render_bridge_spec,
 )
 from builder_ii.adapters.deepagents.deepagents_forge_schema import DeepAgentSpec, is_valid_slug, validate_spec
 
@@ -138,48 +137,12 @@ def write_agent_profile(spec: DeepAgentSpec) -> str:
     return path.as_posix()
 
 
-def register_agent_profile(spec: DeepAgentSpec) -> HookResult:
-    """
-    Register the agent in the agent_profiles module.
-    Calls register_from_forge_spec() if available.
-    """
-    try:
-        from builder_ii.routing.agent_profiles import register_from_forge_spec
-    except (ImportError, AttributeError):
-        return HookResult("agent_profiles.register_from_forge_spec", "skipped")
-    try:
-        register_from_forge_spec(spec)
-    except Exception as exc:  # optional hook; failure is reported by EmitResult
-        return HookResult("agent_profiles.register_from_forge_spec", "failed", error=f"{type(exc).__name__}: {exc}")
-    return HookResult("agent_profiles.register_from_forge_spec", "succeeded")
-
-
-def register_bridge_spec(spec: DeepAgentSpec) -> HookResult:
-    """
-    Register the bridge spec in deepagents_bridge.
-    Calls register_forge_spec() if available.
-    """
-    try:
-        from builder_ii.adapters.deepagents.deepagents_bridge import register_forge_spec
-    except (ImportError, AttributeError):
-        return HookResult("deepagents_bridge.register_forge_spec", "skipped")
-    try:
-        bridge_spec = render_bridge_spec(spec)
-        register_forge_spec(bridge_spec)
-    except Exception as exc:  # optional hook; failure is reported by EmitResult
-        return HookResult("deepagents_bridge.register_forge_spec", "failed", error=f"{type(exc).__name__}: {exc}")
-    return HookResult("deepagents_bridge.register_forge_spec", "succeeded")
-
-
 def write_forge_handoff(spec: DeepAgentSpec) -> HookResult:
     """
     Write a governed forge handoff note when the handoff note API is available.
     The profile YAML remains the canonical Forge output.
     """
-    try:
-        from builder_ii.core.handoff_notes import create_handoff_note, write_handoff_note
-    except (ImportError, AttributeError):
-        return HookResult("handoff_notes.write_handoff_note", "skipped")
+    from builder_ii.core.handoff_notes import create_handoff_note, write_handoff_note
 
     output_path = DEEPAGENTS_PROFILES_DIR / f"forge_{spec.slug}.handoff.json"
     try:
@@ -215,32 +178,6 @@ def write_forge_handoff(spec: DeepAgentSpec) -> HookResult:
             error=f"{type(exc).__name__}: {exc}",
         )
     return HookResult("handoff_notes.write_handoff_note", "succeeded", path=output_path.as_posix())
-
-
-def log_forge_event(spec: DeepAgentSpec) -> HookResult:
-    """
-    Log the forge emit event to the event ledger.
-    Uses event_ledger if available.
-    """
-    try:
-        from builder_ii.governance.ledger.event_ledger import log_event
-    except (ImportError, AttributeError):
-        return HookResult("event_ledger.log_event", "skipped")
-    try:
-        log_event(
-            event_type="forge_emit",
-            payload={
-                "slug": spec.slug,
-                "name": spec.name,
-                "target_profile": spec.target_profile,
-                "capabilities": spec.capabilities,
-                "hitl_gates": spec.hitl_gates,
-                "created_at": spec.created_at,
-            },
-        )
-    except Exception as exc:  # optional hook; failure is reported by EmitResult
-        return HookResult("event_ledger.log_event", "failed", error=f"{type(exc).__name__}: {exc}")
-    return HookResult("event_ledger.log_event", "succeeded")
 
 
 def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
@@ -305,10 +242,7 @@ def emit_agent(spec: DeepAgentSpec, dry_run: bool = False) -> EmitResult:
         )
 
     hook_results = [
-        register_agent_profile(spec),
-        register_bridge_spec(spec),
         write_forge_handoff(spec),
-        log_forge_event(spec),
     ]
     hook_warnings = [f"optional hook failed: {hook.as_line()}" for hook in hook_results if hook.status == "failed"]
     handoff_hook = next(

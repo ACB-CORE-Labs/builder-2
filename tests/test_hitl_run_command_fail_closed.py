@@ -27,7 +27,9 @@ def test_execute_hitl_command_with_human_approved_subprocess_path_is_fail_closed
     out = tmp_path / "out"
 
     req.write_text('{"kind": "builder_ii.hitl_command_request", "command": "echo test"}', encoding="utf-8")
-    prop.write_text('{"kind": "builder_ii.hitl_command_proposal", "command": "echo test", "risk": "low"}', encoding="utf-8")
+    prop.write_text(
+        '{"kind": "builder_ii.hitl_command_proposal", "command": "echo test", "risk": "low"}', encoding="utf-8"
+    )
     app.write_text('{"kind": "builder_ii.hitl_approval", "status": "APPROVED", "approver": "human"}', encoding="utf-8")
 
     with pytest.raises(RunCommandDisabledError, match="fail-closed"):

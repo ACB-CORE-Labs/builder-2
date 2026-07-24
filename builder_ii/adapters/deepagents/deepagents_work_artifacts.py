@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import re
 from pathlib import Path
@@ -14,6 +13,7 @@ from builder_ii.adapters.deepagents.deepagents_readiness import (
     DEEPAGENTS_READINESS_KIND,
     validate_deepagents_readiness_artifact,
 )
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.core.orchestration_assignment import (
     ORCHESTRATION_ASSIGNMENT_DRY_RUN_KIND,
     ORCHESTRATION_ASSIGNMENT_PLAN_KIND,
@@ -85,11 +85,6 @@ _DENIED_CAPABILITIES = [
     "runtime authority grant",
     "memory mutation",
 ]
-
-
-def canonical_digest(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _artifact_ref(
@@ -1572,8 +1567,8 @@ def validate_deepagents_subagent_execution_receipt(data: Any) -> list[str]:
         errors.append(f"kind must be {DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND}")
     if data.get("schema_version") != DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_SCHEMA_VERSION:
         errors.append(f"schema_version must be {DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_SCHEMA_VERSION}")
-    if data.get("receipt_state") != "EXECUTED_ONLY":
-        errors.append("receipt_state must be EXECUTED_ONLY")
+    if data.get("receipt_state") != "PROJECTED_ONLY":
+        errors.append("receipt_state must be PROJECTED_ONLY")
     if not isinstance(data.get("subagent_profile"), str) or not data["subagent_profile"]:
         errors.append("subagent_profile must be a non-empty string")
 
@@ -1599,7 +1594,7 @@ def validate_deepagents_subagent_execution_receipt(data: Any) -> list[str]:
 
     errors.extend(_validate_authority_boundary(data, capability_state="deepagents_runtime"))
     errors.extend(_validate_governance(data.get("governance"), capability_state="deepagents_runtime"))
-    # The receipt has EXECUTED_ONLY state, so it does not check for no active state claims
+    # The receipt has PROJECTED_ONLY state, so it does not check for no active state claims
     return errors
 
 

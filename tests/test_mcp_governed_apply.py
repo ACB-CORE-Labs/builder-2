@@ -44,21 +44,21 @@ def test_enablement_flag_is_deny_by_default(monkeypatch) -> None:
 
 
 def test_refuses_when_not_enabled_and_never_calls_apply(tmp_path: Path) -> None:
-    with patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=False), patch(
-        "builder_ii.adapters.mcp.governed_apply.apply_hitl_patch"
-    ) as mock_apply:
-        outcome = run_gated_patch_apply(
-            arguments=_inputs(tmp_path), session_id="s", builder_root=tmp_path / ".builder"
-        )
+    with (
+        patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=False),
+        patch("builder_ii.adapters.mcp.governed_apply.apply_hitl_patch") as mock_apply,
+    ):
+        outcome = run_gated_patch_apply(arguments=_inputs(tmp_path), session_id="s", builder_root=tmp_path / ".builder")
     assert outcome.status == "refused"
     mock_apply.assert_not_called()
     assert _last_event_type(tmp_path) == "mcp_call_denied"
 
 
 def test_refuses_missing_inputs_even_when_enabled(tmp_path: Path) -> None:
-    with patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=True), patch(
-        "builder_ii.adapters.mcp.governed_apply.apply_hitl_patch"
-    ) as mock_apply:
+    with (
+        patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=True),
+        patch("builder_ii.adapters.mcp.governed_apply.apply_hitl_patch") as mock_apply,
+    ):
         outcome = run_gated_patch_apply(arguments={}, session_id="s", builder_root=tmp_path / ".builder")
     assert outcome.status == "refused"
     mock_apply.assert_not_called()
@@ -66,39 +66,38 @@ def test_refuses_missing_inputs_even_when_enabled(tmp_path: Path) -> None:
 
 def test_refuses_when_approval_is_not_schema_valid(tmp_path: Path) -> None:
     # validate_hitl_patch_approval_file runs for real on the dummy "{}" approval -> errors -> refuse.
-    with patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=True), patch(
-        "builder_ii.adapters.mcp.governed_apply.apply_hitl_patch"
-    ) as mock_apply:
-        outcome = run_gated_patch_apply(
-            arguments=_inputs(tmp_path), session_id="s", builder_root=tmp_path / ".builder"
-        )
+    with (
+        patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=True),
+        patch("builder_ii.adapters.mcp.governed_apply.apply_hitl_patch") as mock_apply,
+    ):
+        outcome = run_gated_patch_apply(arguments=_inputs(tmp_path), session_id="s", builder_root=tmp_path / ".builder")
     assert outcome.status == "refused"
     assert "schema-valid" in outcome.reason
     mock_apply.assert_not_called()
 
 
 def test_applies_via_governed_lane_when_enabled_and_valid(tmp_path: Path) -> None:
-    with patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=True), patch(
-        "builder_ii.adapters.mcp.governed_apply.validate_hitl_patch_approval_file", return_value=[]
-    ), patch("builder_ii.adapters.mcp.governed_apply.apply_hitl_patch") as mock_apply:
-        outcome = run_gated_patch_apply(
-            arguments=_inputs(tmp_path), session_id="s", builder_root=tmp_path / ".builder"
-        )
+    with (
+        patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=True),
+        patch("builder_ii.adapters.mcp.governed_apply.validate_hitl_patch_approval_file", return_value=[]),
+        patch("builder_ii.adapters.mcp.governed_apply.apply_hitl_patch") as mock_apply,
+    ):
+        outcome = run_gated_patch_apply(arguments=_inputs(tmp_path), session_id="s", builder_root=tmp_path / ".builder")
     assert outcome.status == "applied"
     mock_apply.assert_called_once()
     assert _last_event_type(tmp_path) == "mcp_call_executed"
 
 
 def test_fails_closed_when_governed_lane_raises(tmp_path: Path) -> None:
-    with patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=True), patch(
-        "builder_ii.adapters.mcp.governed_apply.validate_hitl_patch_approval_file", return_value=[]
-    ), patch(
-        "builder_ii.adapters.mcp.governed_apply.apply_hitl_patch",
-        side_effect=ValueError("Target repository working tree is not clean"),
+    with (
+        patch("builder_ii.adapters.mcp.governed_apply.governed_apply_enabled", return_value=True),
+        patch("builder_ii.adapters.mcp.governed_apply.validate_hitl_patch_approval_file", return_value=[]),
+        patch(
+            "builder_ii.adapters.mcp.governed_apply.apply_hitl_patch",
+            side_effect=ValueError("Target repository working tree is not clean"),
+        ),
     ):
-        outcome = run_gated_patch_apply(
-            arguments=_inputs(tmp_path), session_id="s", builder_root=tmp_path / ".builder"
-        )
+        outcome = run_gated_patch_apply(arguments=_inputs(tmp_path), session_id="s", builder_root=tmp_path / ".builder")
     assert outcome.status == "refused"
     assert "not clean" in outcome.reason
     assert _last_event_type(tmp_path) == "mcp_call_denied"

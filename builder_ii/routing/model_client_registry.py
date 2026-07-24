@@ -5,7 +5,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from builder_ii.core.config import MODEL_ALIASES
+from builder_ii.routing.model_catalog import MODEL_ALIASES
 
 MODEL_CLIENT_REGISTRY_KIND = "builder_ii.model_client_registry"
 MODEL_CLIENT_REGISTRY_SCHEMA_VERSION = 1

@@ -9,6 +9,7 @@ from builder_ii.lifecycle.candidate.verification_isolation_backend import Docker
 def test_isolation_backend_fail_closed_daemon_down(monkeypatch: pytest.MonkeyPatch) -> None:
     def _mock_run(*args: Any, **kwargs: Any) -> Any:
         raise FileNotFoundError("docker not found")
+
     monkeypatch.setattr(subprocess, "run", _mock_run)
 
     with pytest.raises(IsolationBackendError, match="docker daemon is unreachable or not installed"):
@@ -22,6 +23,7 @@ def test_isolation_backend_fail_closed_image_mismatch(monkeypatch: pytest.Monkey
         if "inspect" in cmd:
             return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="sha256:wrong")
         raise AssertionError("unexpected call")
+
     monkeypatch.setattr(subprocess, "run", _mock_run)
 
     with pytest.raises(IsolationBackendError, match="image digest mismatch"):

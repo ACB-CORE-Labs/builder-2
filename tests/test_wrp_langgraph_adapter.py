@@ -103,4 +103,3 @@ def test_compile_projection_to_wrp_seam_plan() -> None:
     assert "model_step" in plan["node_specs"]
     assert plan["node_specs"]["model_step"]["node_type"] == "model_gateway"
     assert plan["node_specs"]["tool_step"]["node_type"] == "tool_gateway"
-

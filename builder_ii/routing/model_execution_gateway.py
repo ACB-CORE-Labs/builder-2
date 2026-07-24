@@ -419,7 +419,31 @@ class ModelExecutionGateway:
         human_approval_required = (
             risk_level in ("cloud_external", "cost_bearing", "credential_sensitive") and not is_stub_provider
         )
-        human_approval_supplied = approval_path is not None and approval_path.is_file()
+        human_approval_supplied = False
+        if approval_path is not None:
+            if not approval_path.exists():
+                raise ValueError("Approval file does not exist")
+            try:
+                import json
+                approval = json.loads(approval_path.read_text(encoding="utf-8"))
+            except Exception as e:
+                raise ValueError(f"Invalid model call approval: {e}")
+            if approval.get("kind") != "builder_ii.model_call_approval":
+                raise ValueError(f"Invalid model call approval: kind is {approval.get('kind')} instead of builder_ii.model_call_approval")
+            if approval.get("valid") is not True:
+                raise ValueError("Invalid model call approval: valid is not True")
+
+            prompt_digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+            if approval.get("model_id") != model_id:
+                raise ValueError("Approval is not bound to this proposal: model_id mismatch")
+            if approval.get("prompt_digest") != prompt_digest:
+                raise ValueError("Approval is not bound to this proposal: prompt_digest mismatch")
+
+            if approval.get("expires_at"):
+                import time
+                if approval["expires_at"] < int(time.time()):
+                    raise ValueError("Patch approval has expired")
+            human_approval_supplied = True
         if risk_level == "cloud_external":
             if not self.settings.allow_cloud_models:
                 raise ValueError("Cloud/external model calls are disabled by environment configuration")

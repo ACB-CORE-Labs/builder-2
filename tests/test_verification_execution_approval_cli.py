@@ -26,6 +26,8 @@ def _write_plan(
     artifact_root: str = ".builder/verification",
 ) -> dict:
     plan = finalize_verification_execution_plan(
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=target_repo,

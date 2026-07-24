@@ -5,6 +5,7 @@ from typer.testing import CliRunner
 
 runner = CliRunner()
 
+
 def test_session_cli_commands(tmp_path: Path):
     invalid_json = tmp_path / "invalid.json"
     invalid_json.write_text("{invalid json", encoding="utf-8")
@@ -26,35 +27,47 @@ def test_session_cli_commands(tmp_path: Path):
     assert res.exit_code != 0
 
     # 2. config
-    res = runner.invoke(session_app, ["config", "generic", "--repo-path", repo, "--output", str(tmp_path / "config.json")])
+    res = runner.invoke(
+        session_app, ["config", "generic", "--repo-path", repo, "--output", str(tmp_path / "config.json")]
+    )
     assert res.exit_code == 0
 
     res = runner.invoke(session_app, ["validate-config", str(tmp_path / "config.json")])
     assert res.exit_code == 0
 
     # 3. goose-projection (requires config path)
-    res = runner.invoke(session_app, ["goose-projection", str(tmp_path / "config.json"), "--output", str(tmp_path / "goose_proj.json")])
+    res = runner.invoke(
+        session_app, ["goose-projection", str(tmp_path / "config.json"), "--output", str(tmp_path / "goose_proj.json")]
+    )
     assert res.exit_code == 0
 
     res = runner.invoke(session_app, ["validate-goose-projection", str(tmp_path / "goose_proj.json")])
     assert res.exit_code == 0
 
     # 4. goose-wrapper-plan (requires projection path)
-    res = runner.invoke(session_app, ["goose-wrapper-plan", str(tmp_path / "goose_proj.json"), "--output", str(tmp_path / "wrapper.json")])
+    res = runner.invoke(
+        session_app,
+        ["goose-wrapper-plan", str(tmp_path / "goose_proj.json"), "--output", str(tmp_path / "wrapper.json")],
+    )
     assert res.exit_code == 0
 
     res = runner.invoke(session_app, ["validate-goose-wrapper-plan", str(tmp_path / "wrapper.json")])
     assert res.exit_code == 0
 
     # 5. goose-readonly-plan
-    res = runner.invoke(session_app, ["goose-readonly-plan", "generic", "--repo-path", repo, "--output", str(tmp_path / "readonly.json")])
+    res = runner.invoke(
+        session_app,
+        ["goose-readonly-plan", "generic", "--repo-path", repo, "--output", str(tmp_path / "readonly.json")],
+    )
     assert res.exit_code == 0
 
     res = runner.invoke(session_app, ["validate-goose-readonly-plan", str(tmp_path / "readonly.json")])
     assert res.exit_code == 0
 
     # 6. prepare-package
-    res = runner.invoke(session_app, ["prepare-package", "generic", "--repo-path", repo, "--output-dir", str(tmp_path / "pkg")])
+    res = runner.invoke(
+        session_app, ["prepare-package", "generic", "--repo-path", repo, "--output-dir", str(tmp_path / "pkg")]
+    )
     assert res.exit_code == 0
 
     res = runner.invoke(session_app, ["validate-prepare-package", str(tmp_path / "pkg")])
@@ -72,11 +85,23 @@ def test_session_cli_commands(tmp_path: Path):
     assert res.exit_code == 0
 
     # 9. repo-map
-    res = runner.invoke(session_app, ["repo-map", "generic", "--repo-path", repo, "--output", str(tmp_path / "repo-map.json")])
+    res = runner.invoke(
+        session_app, ["repo-map", "generic", "--repo-path", repo, "--output", str(tmp_path / "repo-map.json")]
+    )
     assert res.exit_code == 0
 
     # 10. context-pack
-    res = runner.invoke(session_app, ["context-pack", "generic", "--repo-map", str(tmp_path / "repo-map.json"), "--output", str(tmp_path / "context-pack.json")])
+    res = runner.invoke(
+        session_app,
+        [
+            "context-pack",
+            "generic",
+            "--repo-map",
+            str(tmp_path / "repo-map.json"),
+            "--output",
+            str(tmp_path / "context-pack.json"),
+        ],
+    )
     assert res.exit_code == 0
 
     # Also test error branches for all commands with empty/invalid inputs
@@ -113,13 +138,21 @@ def test_session_cli_commands(tmp_path: Path):
     res = runner.invoke(session_app, ["goose-readonly-plan", "generic", "--repo-path", repo])
     assert res.exit_code == 0
 
-
     # Hit Profile Resolution ValueError by specifying non-existent profile overrides
     cmds_with_profiles = [
         ["plan", "generic", "--repo-path", repo, "--agent", "nonexistent_agent_99"],
         ["config", "generic", "--repo-path", repo, "--agent", "nonexistent_agent_99"],
         ["goose-readonly-plan", "generic", "--repo-path", repo, "--agent", "nonexistent_agent_99"],
-        ["prepare-package", "generic", "--repo-path", repo, "--agent", "nonexistent_agent_99", "--output-dir", str(tmp_path / "pkg2")],
+        [
+            "prepare-package",
+            "generic",
+            "--repo-path",
+            repo,
+            "--agent",
+            "nonexistent_agent_99",
+            "--output-dir",
+            str(tmp_path / "pkg2"),
+        ],
     ]
     for cmd in cmds_with_profiles:
         res = runner.invoke(session_app, cmd)
@@ -139,7 +172,6 @@ def test_session_cli_commands(tmp_path: Path):
         res = runner.invoke(session_app, cmd)
         assert res.exit_code != 0
 
-
     # 1. Test write failures
     bad_output = "/dev/null/output.json"
     runner.invoke(session_app, ["plan", "generic", "--repo-path", repo, "--output", bad_output])
@@ -148,7 +180,9 @@ def test_session_cli_commands(tmp_path: Path):
     runner.invoke(session_app, ["goose-wrapper-plan", str(tmp_path / "goose_proj.json"), "--output", bad_output])
     runner.invoke(session_app, ["goose-readonly-plan", "generic", "--repo-path", repo, "--output", bad_output])
     runner.invoke(session_app, ["repo-map", "generic", "--repo-path", repo, "--output", bad_output])
-    runner.invoke(session_app, ["context-pack", "generic", "--repo-map", str(tmp_path / "repo-map.json"), "--output", bad_output])
+    runner.invoke(
+        session_app, ["context-pack", "generic", "--repo-map", str(tmp_path / "repo-map.json"), "--output", bad_output]
+    )
     runner.invoke(session_app, ["prepare-package", "generic", "--repo-path", repo, "--output-dir", bad_output])
 
     # 2. Test JSON array instead of object
@@ -158,4 +192,3 @@ def test_session_cli_commands(tmp_path: Path):
 
     # 3. Test value errors in creation functions
     runner.invoke(session_app, ["goose-wrapper-plan", str(empty_json)])
-

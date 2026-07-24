@@ -68,7 +68,6 @@ def test_prepare_platform_spine_happy_path(tmp_path):
     assert "deepagents_readiness" in bundle_dict
     assert "governance" in bundle_dict
 
-
     # Governance checks (fail-closed denials)
     gov = bundle_dict["governance"]
     assert gov["runtime_execution"] == "DISABLED"
@@ -113,9 +112,7 @@ def test_prepare_platform_spine_omits_code_vault_when_disabled(tmp_path):
 
     assert "hierarchical_frame" not in bundle_dict
     assert "code_vault_enrichment" not in bundle_dict["context_pack"]
-    assert not any(
-        ref["path"] == "hierarchical-frame.json" for ref in bundle_dict["prepare_package"]["artifact_refs"]
-    )
+    assert not any(ref["path"] == "hierarchical-frame.json" for ref in bundle_dict["prepare_package"]["artifact_refs"])
 
 
 @patch("builder_ii.convention_kernel.create_session_workflow_plan")
@@ -334,10 +331,7 @@ def test_platform_bundle_validation_checks_child_artifact_governance(tmp_path):
     bundle_dict["repo_map"]["governance"]["runtime_execution"] = "AUTHORIZED"
 
     errors = validate_convention_kernel_platform_bundle(bundle_dict)
-    assert any(
-        "repo_map: governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in err
-        for err in errors
-    )
+    assert any("repo_map: governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in err for err in errors)
 
 
 def test_platform_bundle_reference_extraction_handles_missing_handoff_note():

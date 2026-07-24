@@ -105,8 +105,10 @@ def test_chain_spans_the_file_not_the_run(tmp_path: Path) -> None:
     assert next_seq == 2
     assert prev == json.loads(path.read_text().splitlines()[-1])["entry_digest"]
 
-    append_event(path, build_event(seq=next_seq, run_id="run-two", timestamp=5.0, event="MOUNT",
-                                   state=_state_a(), prev_digest=prev))
+    append_event(
+        path,
+        build_event(seq=next_seq, run_id="run-two", timestamp=5.0, event="MOUNT", state=_state_a(), prev_digest=prev),
+    )
     assert validate_ledger(path) == []
 
 
@@ -127,7 +129,7 @@ def test_missing_file_is_an_error(tmp_path: Path) -> None:
 
 
 def test_empty_ledger_is_not_reported_as_valid(tmp_path: Path) -> None:
-    """"Nothing to check" must never read as "checked and clean"."""
+    """ "Nothing to check" must never read as "checked and clean"."""
     errors = validate_ledger(_write(tmp_path / "l.jsonl", []))
     assert errors and "empty ledger" in errors[0]
 
@@ -295,8 +297,12 @@ def test_rewriting_a_completed_run_is_detected(tmp_path: Path) -> None:
     prev = GENESIS_PREV_DIGEST
     for seq in range(2):
         entry = build_event(
-            seq=seq, run_id="run-aaaa", timestamp=9000.0 + seq, event="MOUNT" if seq == 0 else "ACTION",
-            state={"forged": True, "seq": seq}, prev_digest=prev,
+            seq=seq,
+            run_id="run-aaaa",
+            timestamp=9000.0 + seq,
+            event="MOUNT" if seq == 0 else "ACTION",
+            state={"forged": True, "seq": seq},
+            prev_digest=prev,
         )
         append_event(ledger, entry)
         prev = entry["entry_digest"]

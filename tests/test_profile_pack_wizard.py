@@ -64,8 +64,19 @@ def test_the_wizard_prompts_and_writes_the_same_manifest_scaffold_writes(tmp_pat
 
     scaffolded = runner.invoke(
         profile_pack_app,
-        ["scaffold", "--pack-id", "my-pack", "--target", "generic", "--task", "some task",
-         "--project-root", str(Path.cwd()), "--output", str(scaffold_out)],
+        [
+            "scaffold",
+            "--pack-id",
+            "my-pack",
+            "--target",
+            "generic",
+            "--task",
+            "some task",
+            "--project-root",
+            str(Path.cwd()),
+            "--output",
+            str(scaffold_out),
+        ],
     )
     assert scaffolded.exit_code == 0, scaffolded.output
 

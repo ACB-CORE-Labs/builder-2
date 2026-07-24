@@ -88,14 +88,9 @@ def execute_tool_envelope(
 
     risk_class = envelope.get("risk_classification")
     if risk_class not in policy.get("allowed_risk_classes", []):
-        raise ValueError(f"Risk class {risk_class} not permitted by policy")
-
-    # Enforce risk and approval requirements
+        raise ValueError(f"Risk class {risk_class} not permitted by policy")    # Enforce risk and approval requirements
     if risk_class in ("mutation", "external_network", "credential_sensitive", "cost_bearing"):
-        if "approval_ref" not in envelope or not envelope["approval_ref"]:
-            raise ValueError(f"Risk classification '{risk_class}' requires an approval_ref")
-
-        # Check corresponding policy allowance
+        # Check corresponding policy allowance first
         if risk_class == "mutation" and not policy.get("mutation_allowed"):
             raise ValueError("Mutation is not allowed by policy")
         if risk_class == "external_network" and not policy.get("network_allowed"):
@@ -104,6 +99,38 @@ def execute_tool_envelope(
             raise ValueError("Credential access is not allowed by policy")
         if risk_class == "cost_bearing" and not policy.get("cost_allowed"):
             raise ValueError("Cost-bearing operations are not allowed by policy")
+
+        if "approval_ref" not in envelope or not envelope["approval_ref"]:
+            raise ValueError(f"Risk classification '{risk_class}' requires an approval_ref")
+        else:
+            try:
+                import hashlib
+                import json
+                import time
+                from pathlib import Path
+                approval_path = Path(envelope["approval_ref"]["path"] if isinstance(envelope["approval_ref"], dict) else envelope["approval_ref"])
+                if not approval_path.exists():
+                    raise ValueError("Approval file does not exist")
+                approval = json.loads(approval_path.read_text(encoding="utf-8"))
+                if approval.get("kind") != "builder_ii.tool_call_approval":
+                    raise ValueError(f"Invalid tool invocation approval: kind is {approval.get('kind')} instead of builder_ii.tool_call_approval")
+                if approval.get("valid") is not True:
+                    raise ValueError("Invalid tool invocation approval: valid is not True")
+
+                if approval.get("tool_name") != envelope.get("tool_name"):
+                    raise ValueError("Approval is not bound to this proposal: tool_name mismatch")
+
+                arguments_digest = hashlib.sha256(json.dumps(envelope.get("arguments", {}), sort_keys=True).encode("utf-8")).hexdigest()
+                if approval.get("arguments_digest") != arguments_digest:
+                    raise ValueError(f"Approval is not bound to this proposal: arguments_digest mismatch {approval.get('arguments_digest')} vs {arguments_digest} for {envelope.get('arguments')}")
+
+                if approval.get("expires_at") and approval["expires_at"] < int(time.time()):
+                    raise ValueError("Patch approval has expired")
+
+            except ValueError:
+                raise
+            except Exception as e:
+                raise ValueError(f"Invalid tool invocation approval: {e}")
 
     # Enforce low-risk read-only path invariants
     if risk_class in ("low", "low_risk"):

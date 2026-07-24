@@ -32,8 +32,9 @@ from builder_ii.setup_cli import setup_app
 from typer.testing import CliRunner
 
 from builder_ii.cli import app
-from builder_ii.core.config import BACKENDS, MODEL_ALIASES
+from builder_ii.core.config import BACKENDS
 from builder_ii.lifecycle.setup.target_profiles import target_names
+from builder_ii.routing.model_catalog import MODEL_ALIASES
 
 runner = CliRunner()
 

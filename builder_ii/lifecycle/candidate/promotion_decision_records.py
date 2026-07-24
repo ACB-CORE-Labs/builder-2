@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 from pathlib import Path
 from typing import Any, Literal
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.governance.authority.governance_standard import build_standard_governance, validate_standard_governance
 from builder_ii.lifecycle.candidate.promotion_compatibility import support_artifact_kinds
 from builder_ii.lifecycle.candidate.promotion_readiness_records import (
@@ -18,10 +18,6 @@ PROMOTION_DECISION_RECORD_KIND = "builder_ii.promotion_decision_record"
 PROMOTION_DECISION_RECORD_SCHEMA_VERSION = 1
 _READINESS_STATUSES = {"ready", "blocked"}
 
-
-def _digest(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _clean(value: str | None) -> str:
@@ -64,7 +60,7 @@ def create_promotion_decision_record(
             "path": str(readiness_path),
             "kind": readiness.get("kind", ""),
             "expected_kind": PROMOTION_READINESS_RECORD_KIND,
-            "sha256": _digest(readiness),
+            "sha256": canonical_digest(readiness),
             "status": readiness.get("status", ""),
             "ready": readiness.get("ready", False),
             "capability_name": readiness.get("capability_name", ""),
@@ -206,4 +202,26 @@ def validate_promotion_decision_record_file(path: Path) -> list[str]:
         data = json_lib.loads(path.read_text(encoding="utf-8"))
     except json_lib.JSONDecodeError as exc:
         return [f"invalid JSON: {exc}"]
-    return validate_promotion_decision_record(data)
+    errors = validate_promotion_decision_record(data)
+
+    # Re-derive readiness SHA-256 from the physical referenced file
+    if not errors:
+        readiness_path_str = data.get("readiness", {}).get("path")
+        if readiness_path_str:
+            readiness_path = Path(readiness_path_str)
+            if not readiness_path.is_absolute():
+                readiness_path = path.parent / readiness_path
+
+            if readiness_path.exists():
+                try:
+                    readiness_data = json_lib.loads(readiness_path.read_text(encoding="utf-8"))
+                    actual_digest = canonical_digest(readiness_data)
+                    expected_digest = data["readiness"].get("sha256")
+                    if actual_digest != expected_digest:
+                        errors.append(f"readiness file sha256 mismatch: expected {expected_digest}, got {actual_digest}")
+                except Exception as e:
+                    errors.append(f"failed to read or parse referenced readiness file for sha256 verification: {e}")
+            else:
+                errors.append(f"referenced readiness file not found: {readiness_path}")
+
+    return errors

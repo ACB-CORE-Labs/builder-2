@@ -263,7 +263,7 @@ def create_model_routing_recommendation(
     req_tools = req.get("requires_tool_use", False)
 
     # Validate explicit constraints against known universes before filtering
-    from builder_ii.routing.model_client_registry import MODEL_ALIASES
+    from builder_ii.routing.model_catalog import MODEL_ALIASES
 
     req_model_id = req.get("required_model_id")
     if req_model_id and req_model_id not in KNOWN_MODEL_IDS:

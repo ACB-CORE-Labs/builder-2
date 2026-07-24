@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 import re
 from pathlib import Path
 from typing import Any, Callable
+
+from builder_ii.core.canonical_json import canonical_digest
 
 # Kinds and schema versions
 HITL_PROMOTION_REQUEST_KIND = "builder_ii.hitl_promotion_request"
@@ -56,11 +57,6 @@ _FORBIDDEN_ACTIVE_STATE_RE = re.compile(
     r"(?<![a-z0-9])(" + "|".join(re.escape(term) for term in sorted(_FORBIDDEN_ACTIVE_STATES)) + r")(?![a-z0-9])",
     re.IGNORECASE,
 )
-
-
-def canonical_digest(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _create_ref(

@@ -485,14 +485,19 @@ def test_b8_atom_authority_rejection() -> None:
     from builder_ii.governance.ledger.workflow_records import canonical_digest
 
     bad_atom_summary["atom_digest"] = canonical_digest(bad_atom_summary)
-    assert any("model_summary_is_authority must be false or NOT_AUTHORIZED" in err for err in validate_memory_atom(bad_atom_summary))
+    assert any(
+        "model_summary_is_authority must be false or NOT_AUTHORIZED" in err
+        for err in validate_memory_atom(bad_atom_summary)
+    )
 
     # target_repo_mutation=true is rejected
     bad_atom_mutation = dict(atom_ok)
     bad_atom_mutation["target_repo_mutation"] = True
     bad_atom_mutation.pop("atom_digest", None)
     bad_atom_mutation["atom_digest"] = canonical_digest(bad_atom_mutation)
-    assert any("target_repo_mutation must be false or NOT_AUTHORIZED" in err for err in validate_memory_atom(bad_atom_mutation))
+    assert any(
+        "target_repo_mutation must be false or NOT_AUTHORIZED" in err for err in validate_memory_atom(bad_atom_mutation)
+    )
 
 
 def test_b8_index_schema_fields() -> None:

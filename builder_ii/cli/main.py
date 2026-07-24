@@ -29,13 +29,8 @@ class LazyGroup(TyperGroup):
         self.add_lazy_command("builder_ii.cli.ledger_cli", "ledger_app", "ledger")
         self.add_lazy_command("builder_ii.cli.tools_cli", "tools_app", "tools")
         self.add_lazy_command("builder_ii.cli.mcp_cli", "mcp_app", "mcp")
-        self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "hitl_app", "hitl")
-        self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "profile_app", "profile")
-        self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "model_app", "model")
-        self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "promote_app", "promote")
-        self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "postflight_app", "postflight")
-        self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "goose_app", "goose")
-        self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "code_vault_app", "code-vault")
+        self.add_lazy_command("builder_ii.cli.chain_cli", "chain_app", "chain")
+        self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "inspect_app", "inspect")
         self.add_lazy_command("builder_ii.cli.tui_cli", "tui_app", "tui")
         self.add_lazy_command("builder_ii.cli.orchestration_cli", "orchestration_app", "orchestration")
 
@@ -448,14 +443,14 @@ def start(
     resume: bool = typer.Option(False, "--resume", "-r"),
     no_backend: bool = typer.Option(False, "--no-backend"),
     name: Optional[str] = typer.Option(None, "--name", "-n", help="Goose session name"),
+    wrapper_plan: Optional[Path] = typer.Option(None, "--wrapper-plan", help="Path to governed Goose wrapper plan artifact"),
+    from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve wrapper-plan from the last generated artifact"),
 ) -> None:
     """Start MLX backend + Goose session with governed CORE recipes."""
     from builder_ii.adapters.goose.goose_launcher import goose_status, launch_goose_session
     from builder_ii.core.config import load_settings, normalize_model_alias
-    from builder_ii.governance.authority import enforce_command_authority
     from builder_ii.routing.model_router import SESSION_MODES, explain_plan, plan_session
 
-    enforce_command_authority("builder start", requested_effects=("runtime_start", "state_write", "external_tool"))
     if mode not in SESSION_MODES:
         console.print(f"mode must be one of {SESSION_MODES}")
         raise typer.Exit(1)
@@ -481,8 +476,52 @@ def start(
     console.print(f"CORE repo: {settings.target_repo}")
     console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")
     console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep")
-    proc = launch_goose_session(settings, resume=resume, session=session, name=name)
+    session_name = name or f"builder_{int(time.time())}"
+
+    approval_artifact = None
+    if wrapper_plan or from_last:
+        from builder_ii.cli._chain_resolve import resolve_path_or_last
+        resolved = resolve_path_or_last(wrapper_plan, from_last, "builder_ii.goose_wrapper_plan", "wrapper-plan")
+        approval_artifact = str(resolved)
+
+    proc = launch_goose_session(
+        settings,
+        resume=resume,
+        session=session,
+        name=session_name,
+        wrapper_plan_path=approval_artifact
+    )
     proc.wait()
+
+    try:
+        transcript_path_obj = settings.target_repo / ".builder" / "artifacts" / f"{session_name}.jsonl"
+        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        transcript_path = str(transcript_path_obj)
+        import subprocess
+        subprocess.run(["goose", "session", "export", "--name", session_name, "--format", "json", "--output", transcript_path], check=False)
+
+        hasher = hashlib.sha256()
+        with open(transcript_path_obj, "rb") as handle:
+            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                hasher.update(chunk)
+        transcript_digest = hasher.hexdigest()
+
+        from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
+        event = create_event_record(
+            event_id=session_name + "_close",
+            session_id=session_name,
+            sequence=0,
+            event_type="goose_session_closed",
+            stage="orchestration",
+            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
+            command_surface="builder_ii",
+            policy_snapshot_ref={"kind": "null"},
+        )
+        ledger_path = settings.target_repo / ".builder" / "artifacts" / "event_ledger.jsonl"
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        write_event_record(event, ledger_path / f"{event['event_id']}.json")
+    except Exception as exc:
+        console.print(f"[yellow]Could not export session transcript or record ledger event:[/] {exc}")
 
 
 @app.command("ask")

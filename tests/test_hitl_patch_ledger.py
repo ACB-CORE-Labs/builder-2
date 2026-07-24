@@ -32,8 +32,10 @@ def _record(tmp_path: Path, *, event_type: str = EVENT_PATCH_APPLIED) -> dict:
         target={"name": "generic", "repo": str(tmp_path)},
         patch_digest="a" * 64,
         pre_head="b" * 40,
-        subject_refs=[_ref(tmp_path, "proposal.json", role="patch_proposal"),
-                      _ref(tmp_path, "receipt.json", role="patch_apply_receipt")],
+        subject_refs=[
+            _ref(tmp_path, "proposal.json", role="patch_proposal"),
+            _ref(tmp_path, "receipt.json", role="patch_apply_receipt"),
+        ],
     )
 
 

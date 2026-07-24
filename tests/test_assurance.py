@@ -102,7 +102,9 @@ def test_local_state_mutation_is_carried_by_a_real_command() -> None:
     runtime marker. If a future change makes this state unreachable, the lattice has grown a word for
     nothing, and this pin says so.
     """
-    carriers = [r.name for r in COMMAND_AUTHORITY_REGISTRY if assurance_state_for_record(r) == LOCAL_STATE_MUTATION_VERIFIED]
+    carriers = [
+        r.name for r in COMMAND_AUTHORITY_REGISTRY if assurance_state_for_record(r) == LOCAL_STATE_MUTATION_VERIFIED
+    ]
     assert "builder-runtime clear-marker" in carriers, f"nothing derives {LOCAL_STATE_MUTATION_VERIFIED}: {carriers}"
 
     definition = ASSURANCE_STATE_DEFINITIONS[LOCAL_STATE_MUTATION_VERIFIED]

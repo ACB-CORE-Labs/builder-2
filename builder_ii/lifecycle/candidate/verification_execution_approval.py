@@ -181,7 +181,7 @@ def finalize_verification_execution_approval(
     approval_statement: str | None = None,
     approval_scope: dict[str, Any] | None = None,
     generated_at: str | None = None,
-    expires_at: str | None = None,
+    expires_at: str = "2099-01-01T00:00:00Z",
     execution_risk_acknowledged: bool = False,
     acknowledged_risk: str | None = None,
 ) -> dict[str, Any]:
@@ -434,8 +434,8 @@ def validate_verification_execution_approval_artifact(data: Any) -> list[str]:
     errors.extend(_validate_approval_scope(data.get("approval_scope")))
 
     expires_at = data.get("expires_at")
-    if expires_at is not None and not _is_non_empty_string(expires_at):
-        errors.append("expires_at must be null or a non-empty string")
+    if not _is_non_empty_string(expires_at):
+        errors.append("expires_at must be a non-empty string")
     if data.get("execution_enabled") is not False:
         errors.append("execution_enabled must be false or NOT_AUTHORIZED")
     if data.get("approval_enables_execution") is not False:

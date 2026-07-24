@@ -1434,17 +1434,33 @@ _DOC_AUDIT_EXCLUDED = {
 
 
 def _docs_to_scan(root: Path) -> list[Path]:
-    files = [root / "README.md"]
+    files = list(root.glob("*.md"))
     docs_root = root / "docs"
     if docs_root.exists():
         files.extend(sorted(docs_root.rglob("*.md")))
+
+    cli_root = root / "builder_ii" / "cli"
+    if cli_root.exists():
+        files.extend(sorted(cli_root.rglob("*.py")))
+
+    tui_root = root / "builder_ii" / "tui"
+    if tui_root.exists():
+        files.extend(sorted(tui_root.rglob("*.py")))
+
+    forge_tui = root / "builder_ii" / "adapters" / "deepagents" / "deepagents_forge_tui.py"
+    if forge_tui.exists():
+        files.append(forge_tui)
+
+    model_tui = root / "builder_ii" / "routing" / "model_tui.py"
+    if model_tui.exists():
+        files.append(model_tui)
+
+    files = sorted(list(set(files)))
     return [
         path
         for path in files
         if path.exists() and path.is_file() and path.relative_to(root).as_posix() not in _DOC_AUDIT_EXCLUDED
     ]
-
-
 def _non_operational_capability_names(rows: tuple[CapabilityRow, ...]) -> tuple[str, ...]:
     return tuple(row.capability for row in rows if row.state != OPERATIONALLY_VERIFIED)
 

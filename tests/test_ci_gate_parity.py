@@ -213,19 +213,13 @@ def test_gate_battery_sets_strict_shell_flags() -> None:
 
 
 def _workflow_lines() -> list[str]:
-    return [
-        line
-        for line in CI_WORKFLOW.read_text(encoding="utf-8").splitlines()
-        if not line.strip().startswith("#")
-    ]
+    return [line for line in CI_WORKFLOW.read_text(encoding="utf-8").splitlines() if not line.strip().startswith("#")]
 
 
 def test_the_gate_battery_step_is_unconditional() -> None:
     """No `if:` may guard the battery. A conditionally-skipped gate is not a gate."""
     lines = _workflow_lines()
-    battery_index = next(
-        i for i, line in enumerate(lines) if "scripts/ci.sh" in line and "run:" in line
-    )
+    battery_index = next(i for i, line in enumerate(lines) if "scripts/ci.sh" in line and "run:" in line)
     # Walk back to the step's `- name:` and scan the step body for a condition.
     start = battery_index
     while start > 0 and not lines[start].strip().startswith("- "):
@@ -265,9 +259,8 @@ def test_caching_never_decides_what_is_checked() -> None:
     )
     # The existing `test_workflow_inlines_no_gate` already forbids a gate in any `run:` line.
     # This is its complement: no step may CONDITIONALLY run the battery based on a cache result.
-    assert "cache-hit" not in body, (
-        "no step may branch on a cache hit -- the battery runs identically warm or cold"
-    )
+    assert "cache-hit" not in body, "no step may branch on a cache hit -- the battery runs identically warm or cold"
+
 
 def test_ci_parallelism_cap_is_ci_only() -> None:
     """The xdist -n and CARGO_BUILD_JOBS caps must be guarded by _IN_CI, not unconditional.
@@ -293,7 +286,7 @@ def test_ci_parallelism_cap_is_ci_only() -> None:
     assert "_IN_CI=1" in script, "scripts/ci.sh must set _IN_CI=1 inside the CI-detection block"
     assert "FORGEJO_ACTIONS" in script, "CI detection must cover FORGEJO_ACTIONS (not just GITHUB_ACTIONS)"
     # The caps must be conditional, not bare assignments at the top level.
-    assert 'CARGO_BUILD_JOBS=2' in script, "the cargo build jobs cap must be present"
+    assert "CARGO_BUILD_JOBS=2" in script, "the cargo build jobs cap must be present"
 
     assignments = re.findall(r"^\s*_XDIST_N=(\S*)", script, re.MULTILINE)
     assert "2" in assignments, f"the xdist worker cap must be present (found {assignments})"
@@ -302,5 +295,6 @@ def test_ci_parallelism_cap_is_ci_only() -> None:
     )
     # The parity property: uv run pytest must still appear (gate not removed/conditionalized).
     assert "uv run pytest" in script, "the pytest gate must still be unconditional"
-    assert "cargo build --manifest-path builder_ii_validation_rs/Cargo.toml" in script, \
+    assert "cargo build --manifest-path builder_ii_validation_rs/Cargo.toml" in script, (
         "the cargo build gate must still be unconditional"
+    )

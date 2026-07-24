@@ -50,9 +50,7 @@ def _apply_command_line(output: str) -> str:
 def test_init_flags_path_emits_artifacts_and_never_applies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("CORE_REPO_PATH", raising=False)
     out_dir = tmp_path / "init-out"
-    result = runner.invoke(
-        app, ["init", "--root", str(tmp_path), "--output-dir", str(out_dir), *FLAG_ANSWERS]
-    )
+    result = runner.invoke(app, ["init", "--root", str(tmp_path), "--output-dir", str(out_dir), *FLAG_ANSWERS])
     assert result.exit_code == 0, result.output
 
     assert validate_setup_plan_file(out_dir / "setup-plan.json") == []
@@ -81,9 +79,7 @@ def test_init_flags_path_emits_artifacts_and_never_applies(tmp_path: Path, monke
 def test_init_renders_apply_command_without_inline_digest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("CORE_REPO_PATH", raising=False)
     out_dir = tmp_path / "init-out"
-    result = runner.invoke(
-        app, ["init", "--root", str(tmp_path), "--output-dir", str(out_dir), *FLAG_ANSWERS]
-    )
+    result = runner.invoke(app, ["init", "--root", str(tmp_path), "--output-dir", str(out_dir), *FLAG_ANSWERS])
     assert result.exit_code == 0, result.output
 
     overlay = json.loads((out_dir / "setup-overlay.json").read_text(encoding="utf-8"))

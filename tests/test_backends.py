@@ -59,7 +59,8 @@ def test_check_serves_active_model_passes_matching_mlx_model(monkeypatch) -> Non
     def fake_get(url: str, timeout: float) -> _Response:
         return _Response(200, {"data": [{"id": settings.active_model_id}]})
 
-    monkeypatch.setattr("builder_ii.backends.httpx.get", fake_get)
+    monkeypatch.setattr("builder_ii.routing.backends.httpx.get", fake_get)
+    monkeypatch.setattr("builder_ii.routing.backends.write_backend_marker", lambda x: None)
 
     ok, message = check_serves_active_model(settings)
 
@@ -73,7 +74,8 @@ def test_check_serves_active_model_fails_mismatched_mlx_model(monkeypatch) -> No
     def fake_get(url: str, timeout: float) -> _Response:
         return _Response(200, {"data": [{"id": "mlx-community/Phi-4-mini-reasoning-4bit"}]})
 
-    monkeypatch.setattr("builder_ii.backends.httpx.get", fake_get)
+    monkeypatch.setattr("builder_ii.routing.backends.httpx.get", fake_get)
+    monkeypatch.setattr("builder_ii.routing.backends.write_backend_marker", lambda x: None)
 
     ok, message = check_serves_active_model(settings)
 

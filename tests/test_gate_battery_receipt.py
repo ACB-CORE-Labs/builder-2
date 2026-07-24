@@ -461,8 +461,12 @@ def test_write_failure_leaves_no_leftover_temp_file_and_does_not_touch_target(tm
     with pytest.raises(OSError):
         write_gate_battery_receipt(_receipt(), output)
 
-    assert output.read_text(encoding="utf-8") == "original content", "an interrupted write must never truncate the target"
-    assert [entry.name for entry in tmp_path.iterdir()] == ["receipt.json"], "the temp file must be cleaned up, not left behind"
+    assert output.read_text(encoding="utf-8") == "original content", (
+        "an interrupted write must never truncate the target"
+    )
+    assert [entry.name for entry in tmp_path.iterdir()] == ["receipt.json"], (
+        "the temp file must be cleaned up, not left behind"
+    )
 
 
 @pytest.mark.skipif(hasattr(os, "geteuid") and os.geteuid() == 0, reason="root bypasses permission bits")
@@ -548,7 +552,10 @@ def test_not_a_dict_rejected() -> None:
 def test_cli_record_gate_and_build_round_trip(tmp_path: Path) -> None:
     log = tmp_path / "gates.jsonl"
     output = tmp_path / "receipt.json"
-    assert main(["record-gate", "--log", str(log), "--name", "a", "--exit-code", "0", "--duration", "2", "--", "true"]) == 0
+    assert (
+        main(["record-gate", "--log", str(log), "--name", "a", "--exit-code", "0", "--duration", "2", "--", "true"])
+        == 0
+    )
     assert main(["record-gate", "--log", str(log), "--name", "b", "--skip-reason", "no tool"]) == 0
     rc = main(
         [

@@ -70,9 +70,7 @@ def test_failing_gate_still_emits_receipt_and_battery_exits_nonzero(tmp_path: Pa
     script = _write_battery(
         tmp_path,
         repo,
-        'gate "fake pass" true\n'
-        'gate "fake fail" bash -c "exit 7"\n'
-        'gate "never runs" true\n',
+        'gate "fake pass" true\ngate "fake fail" bash -c "exit 7"\ngate "never runs" true\n',
     )
     receipt_path = tmp_path / "receipt.json"
 
@@ -165,8 +163,7 @@ def test_skipped_gate_recorded_with_null_exit_code_not_zero(tmp_path: Path) -> N
     script = _write_battery(
         tmp_path,
         repo,
-        'skip "fake tool" "not found on PATH"\n'
-        'gate "fake pass" true\n',
+        'skip "fake tool" "not found on PATH"\ngate "fake pass" true\n',
     )
     receipt_path = tmp_path / "receipt.json"
 
@@ -189,8 +186,7 @@ def test_default_no_receipt_flag_emits_no_receipt_and_preserves_exit_code(tmp_pa
     script = _write_battery(
         tmp_path,
         repo,
-        'gate "fake pass" true\n'
-        'gate "fake fail" bash -c "exit 5"\n',
+        'gate "fake pass" true\ngate "fake fail" bash -c "exit 5"\n',
     )
 
     result = _run(script)  # no --receipt: behavior must be unchanged from before this flag existed
@@ -399,7 +395,7 @@ def test_one_dropped_record_among_several_gates_still_forces_incomplete(tmp_path
         repo,
         'gate "first" true\n'
         # Fail every later record-gate append -- for root too (a chmod would not).
-        "_gbr_real_tool() { uv run --project \"$_GBR_REPO_ROOT\" python -m builder_ii.gate_battery_receipt \"$@\"; }\n"
+        '_gbr_real_tool() { uv run --project "$_GBR_REPO_ROOT" python -m builder_ii.gate_battery_receipt "$@"; }\n'
         "_gbr_run_receipt_tool() {\n"
         '  if [ "$1" = "record-gate" ]; then return 1; fi\n'
         '  _gbr_real_tool "$@"\n'

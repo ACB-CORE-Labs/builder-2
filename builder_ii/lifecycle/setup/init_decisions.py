@@ -36,11 +36,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from builder_ii.core.config import BACKENDS, MODEL_ALIASES
+from builder_ii.core.config import BACKENDS
 from builder_ii.core.config_sources import RUNTIME_MODES
 from builder_ii.lifecycle.candidate.verification_profiles import verification_profiles
 from builder_ii.lifecycle.setup.target_profiles import target_names
 from builder_ii.routing.agent_profiles import agent_profile_names
+from builder_ii.routing.model_catalog import MODEL_ALIASES
 
 DEFAULT_INIT_OUTPUT_DIR = ".builder/setup-artifacts"
 

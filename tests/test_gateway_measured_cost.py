@@ -53,9 +53,7 @@ def test_stub_call_receipt_has_measured_cost(mock_settings: Settings, tmp_path: 
         },
         max_tokens=256,
     )
-    gateway = ModelExecutionGateway(
-        mock_settings, registry, policy, price_book=create_default_price_book()
-    )
+    gateway = ModelExecutionGateway(mock_settings, registry, policy, price_book=create_default_price_book())
     prompt = "alpha beta gamma"
     envelope, receipt, _debited = gateway.run_model_call(
         model_id="gpt-4o-stub",

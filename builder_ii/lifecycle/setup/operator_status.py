@@ -1,21 +1,16 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.core.platform_completion_audit import REQUIRED_CAPABILITY_ROWS
 from builder_ii.governance.authority import COMMAND_AUTHORITY_REGISTRY
 
 OPERATOR_STATUS_REPORT_KIND = "builder_ii.operator_status_report"
 SCHEMA_VERSION = 2
-
-
-def canonical_digest(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _default_governance() -> dict[str, Any]:

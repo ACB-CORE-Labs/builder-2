@@ -44,6 +44,8 @@ def _write_bound_artifacts(
 ) -> tuple[Path, Path, Path]:
     root = _artifact_root(tmp_path)
     plan = finalize_verification_execution_plan(
+        target_head_sha="a"*40,
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=str(tmp_path),
@@ -462,6 +464,8 @@ def _write_target_code_chain(
     )
 
     plan = finalize_verification_execution_plan(
+        target_head_sha="a"*40,
+        tree_clean=True,
         target_profile=target_profile,
         verification_profile=verification_profile,
         target_repo=str(tmp_path),
@@ -509,9 +513,7 @@ def _profile_stdout_run(profile_marker: str) -> Any:
 def test_pytest_full_runs_with_acknowledged_risk(monkeypatch: Any, tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
     plan_path, approval_path, receipt_path = _write_target_code_chain(tmp_path, profile="pytest_full")
-    monkeypatch.setattr(
-        "builder_ii.verification_execution_runner.subprocess.run", _profile_stdout_run("pytest-full")
-    )
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", _profile_stdout_run("pytest-full"))
 
     receipt = run_approved_verification(
         plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
@@ -531,9 +533,7 @@ def test_pytest_full_runs_with_acknowledged_risk(monkeypatch: Any, tmp_path: Pat
 def test_builder_full_runs_with_acknowledged_risk(monkeypatch: Any, tmp_path: Path) -> None:
     (tmp_path / ".git").mkdir()
     plan_path, approval_path, receipt_path = _write_target_code_chain(tmp_path, profile="builder_full")
-    monkeypatch.setattr(
-        "builder_ii.verification_execution_runner.subprocess.run", _profile_stdout_run("builder-full")
-    )
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", _profile_stdout_run("builder-full"))
 
     receipt = run_approved_verification(
         plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="builder_full"
@@ -748,9 +748,7 @@ def test_pytest_full_runs_for_generic_target(monkeypatch: Any, tmp_path: Path) -
     plan_path, approval_path, receipt_path = _write_target_code_chain(
         tmp_path, profile="pytest_full", target_profile="generic", verification_profile="generic_basic"
     )
-    monkeypatch.setattr(
-        "builder_ii.verification_execution_runner.subprocess.run", _profile_stdout_run("pytest-full")
-    )
+    monkeypatch.setattr("builder_ii.verification_execution_runner.subprocess.run", _profile_stdout_run("pytest-full"))
 
     receipt = run_approved_verification(
         plan_path=plan_path, approval_path=approval_path, output=receipt_path, requested_profile="pytest_full"
@@ -801,6 +799,8 @@ def test_generic_plan_injecting_builder_self_profile_blocks_end_to_end(monkeypat
         "timeout_seconds": 120,
     }
     plan = finalize_verification_execution_plan(
+        target_head_sha="a"*40,
+        tree_clean=True,
         target_profile="generic",
         verification_profile="generic_basic",
         target_repo=str(tmp_path),
@@ -876,9 +876,7 @@ def _target_repo_that_shadows_builder_ii(tmp_path: Path) -> Path:
     (target / "builder_ii" / "verification_runner_entrypoints.py").write_text(
         "MARKER = 'this module belongs to the target repository'\n", encoding="utf-8"
     )
-    (target / "sitecustomize.py").write_text(
-        "print('target-sitecustomize-executed')\n", encoding="utf-8"
-    )
+    (target / "sitecustomize.py").write_text("print('target-sitecustomize-executed')\n", encoding="utf-8")
     return target
 
 

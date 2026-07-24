@@ -31,9 +31,7 @@ from builder_ii.lifecycle.setup.setup_rollback_execute import _preflight_state
 runner = CliRunner()
 
 MERGE_FRAGMENT = {
-    "extensions": {
-        "builder_ii": {"developer": {"bundled": True, "enabled": True, "type": "builtin", "timeout": 600}}
-    },
+    "extensions": {"builder_ii": {"developer": {"bundled": True, "enabled": True, "type": "builtin", "timeout": 600}}},
     "recipes": {"builder_ii": {"path": "/recipes/builder_ii.yaml"}},
     "slash_commands": {"builder_ii": {"recipe_path": "/recipes/builder_ii.yaml"}},
 }
@@ -109,12 +107,7 @@ def test_copy_is_an_explicit_named_refusal(tmp_path: Path) -> None:
 
 
 def test_redact_nested_secret_never_leaks_through_unmarked_descendant() -> None:
-    text = (
-        "extensions:\n"
-        "  openai:\n"
-        "    api_key:\n"
-        "      value: sk-proj-REAL_SECRET_HERE\n"
-    )
+    text = "extensions:\n  openai:\n    api_key:\n      value: sk-proj-REAL_SECRET_HERE\n"
     redacted = _redact(text)
     assert "sk-proj-REAL_SECRET_HERE" not in redacted
     assert "api_key: <redacted>" in redacted
@@ -165,10 +158,7 @@ def test_nested_secret_never_leaks_into_any_emitted_artifact(tmp_path: Path) -> 
     target = tmp_path / "config" / "goose" / "config.yaml"
     target.parent.mkdir(parents=True)
     target.write_text(
-        "extensions:\n"
-        "  openai:\n"
-        "    api_key:\n"
-        "      value: sk-proj-REAL_SECRET_HERE\n",
+        "extensions:\n  openai:\n    api_key:\n      value: sk-proj-REAL_SECRET_HERE\n",
         encoding="utf-8",
     )
     change = _merge_change(target)

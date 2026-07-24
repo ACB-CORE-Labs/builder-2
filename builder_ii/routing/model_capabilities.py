@@ -4,8 +4,9 @@ import json as json_lib
 from pathlib import Path
 from typing import Any
 
-from builder_ii.core.config import MODEL_ALIASES, Settings, load_settings
+from builder_ii.core.config import Settings, load_settings
 from builder_ii.core.models import model_definitions
+from builder_ii.routing.model_catalog import MODEL_ALIASES
 from builder_ii.routing.model_policy import runtime_for_alias
 
 MODEL_CAPABILITY_REGISTRY_KIND = "builder_ii.model_capability_registry"

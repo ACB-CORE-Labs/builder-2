@@ -112,11 +112,17 @@ def test_evidence_grants_nothing_and_carries_no_host_paths(label: str, name: str
 
 def test_the_two_in_scope_profiles_are_the_only_ones_this_evidence_covers() -> None:
     """The flip is scoped to platform_status and docs_audit. pytest_full/builder_full stay outside."""
-    covered = {gate["evidence"] for name in EVIDENCE.values() for gate in _load(name)["gates"] if gate["gate"] == "profile_matches_capability"}
+    covered = {
+        gate["evidence"]
+        for name in EVIDENCE.values()
+        for gate in _load(name)["gates"]
+        if gate["gate"] == "profile_matches_capability"
+    }
 
-    assert not any("pytest_full" in item or "builder_full" in item.replace("verification_profiles.builder_full", "") for item in covered), (
-        "target-code-executing profiles must never appear in this promotion's evidence"
-    )
+    assert not any(
+        "pytest_full" in item or "builder_full" in item.replace("verification_profiles.builder_full", "")
+        for item in covered
+    ), "target-code-executing profiles must never appear in this promotion's evidence"
 
 
 def test_the_isolated_chain_is_a_different_run_from_the_unisolated_one() -> None:
@@ -141,7 +147,7 @@ def test_the_docker_policy_digest_cited_by_the_audit_is_reproducible() -> None:
 
     assert len(digest) == 64 and all(c in "0123456789abcdef" for c in digest)
 
-    audit = (Path(__file__).resolve().parent.parent / "docs" / "audits" / "LADDER9_ASSURANCE_CLOSURE_AUDIT.md").read_text(
-        encoding="utf-8"
-    )
+    audit = (
+        Path(__file__).resolve().parent.parent / "docs" / "audits" / "LADDER9_ASSURANCE_CLOSURE_AUDIT.md"
+    ).read_text(encoding="utf-8")
     assert digest in audit, "the closure audit cites an isolation policy digest this code no longer produces"

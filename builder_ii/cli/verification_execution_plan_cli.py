@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json as json_lib
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -120,7 +121,18 @@ def plan(
 ) -> None:
     """Emit a planned-only verification execution plan without running verification."""
     isolation_policy = _isolation_policy(isolation, isolation_image, isolation_image_digest)
+    from builder_ii.governance.hitl.hitl_patch_apply import get_git_head_sha, is_git_clean
+    try:
+        repo_path = Path(target_repo)
+        head_sha = get_git_head_sha(repo_path)
+        clean = is_git_clean(repo_path)
+    except Exception:
+        head_sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        clean = False
+
     artifact = finalize_verification_execution_plan(
+        target_head_sha=head_sha,
+        tree_clean=clean,
         target_profile=_target_profile(target_profile),
         verification_profile=_verification_profile(verification_profile),
         target_repo=target_repo,
@@ -178,6 +190,9 @@ def approve_plan(
     acknowledged_risk: str = typer.Option(
         "", "--acknowledged-risk", help="Custom acknowledgment wording (defaults to the canonical statement)."
     ),
+    expires_in_hours: int = typer.Option(
+        8, "--expires-in-hours", help="Number of hours until the approval expires."
+    ),
 ) -> None:
     """Emit a HITL approval artifact bound to an exact passive verification execution plan digest."""
     plan_errors = validate_verification_execution_plan_file(plan_path)
@@ -217,6 +232,7 @@ def approve_plan(
         approved_step_ids=selected,
         execution_risk_acknowledged=ack_flag,
         acknowledged_risk=ack_text,
+        expires_at=(datetime.now(timezone.utc) + timedelta(hours=expires_in_hours)).isoformat(),
     )
     errors = validate_verification_execution_approval_artifact(artifact)
     errors.extend(validate_verification_execution_approval_against_plan(artifact, plan))

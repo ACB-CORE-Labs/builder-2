@@ -7,7 +7,7 @@ from builder_ii.governance.hitl.hitl_patch_approval import (
     HITL_PATCH_APPROVAL_SCHEMA_VERSION,
     approval_binding_errors,
     approval_is_expired,
-    canonical_json_digest,
+    canonical_digest,
     create_hitl_patch_approval,
     validate_hitl_patch_approval,
     validate_hitl_patch_approval_file,
@@ -17,21 +17,17 @@ from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_pro
 
 
 def _proposal(tmp_path: Path, *, patch_digest: str = "a7f2deadbeef") -> dict:
-    return create_hitl_patch_proposal(
-        generic_repo=tmp_path, patch_digest=patch_digest, unified_diff="diff-body"
-    )
+    return create_hitl_patch_proposal(generic_repo=tmp_path, patch_digest=patch_digest, unified_diff="diff-body")
 
 
 def test_create_hitl_patch_approval_is_valid_and_non_authoritative(tmp_path: Path):
     proposal = _proposal(tmp_path)
-    approval = create_hitl_patch_approval(
-        proposal, confirmed_digest_prefix="a7f2", approved_at=1000, ttl_seconds=100
-    )
+    approval = create_hitl_patch_approval(proposal, confirmed_digest_prefix="a7f2", approved_at=1000, ttl_seconds=100)
     assert approval["kind"] == HITL_PATCH_APPROVAL_KIND
     assert approval["schema_version"] == HITL_PATCH_APPROVAL_SCHEMA_VERSION
     assert approval["artifact_is_authority"] is False
     assert approval["patch_digest"] == proposal["patch_digest"]
-    assert approval["proposal_digest"] == canonical_json_digest(proposal)
+    assert approval["proposal_digest"] == canonical_digest(proposal)
     assert approval["expires_at"] == 1100
     assert approval["confirmation"]["prefix_length"] == APPROVAL_CONFIRMATION_PREFIX_LENGTH
     assert validate_hitl_patch_approval(approval) == []
@@ -76,18 +72,14 @@ def test_binding_errors_flags_mismatch(tmp_path: Path):
     # Correct binding: no errors.
     assert (
         approval_binding_errors(
-            approval, proposal_digest=canonical_json_digest(proposal), patch_digest=proposal["patch_digest"]
+            approval, proposal_digest=canonical_digest(proposal), patch_digest=proposal["patch_digest"]
         )
         == []
     )
     # Wrong content digest.
-    assert approval_binding_errors(
-        approval, proposal_digest="0" * 64, patch_digest=proposal["patch_digest"]
-    )
+    assert approval_binding_errors(approval, proposal_digest="0" * 64, patch_digest=proposal["patch_digest"])
     # Wrong patch digest.
-    assert approval_binding_errors(
-        approval, proposal_digest=canonical_json_digest(proposal), patch_digest="different"
-    )
+    assert approval_binding_errors(approval, proposal_digest=canonical_digest(proposal), patch_digest="different")
 
 
 def test_approval_is_expired():

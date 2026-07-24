@@ -384,6 +384,8 @@ def finalize_verification_execution_plan(
     target_profile: str,
     verification_profile: str,
     target_repo: str,
+    target_head_sha: str,
+    tree_clean: bool,
     artifact_root: str,
     runtime_mode: str = "passive_planning_only",
     plan_scope: dict[str, Any] | None = None,
@@ -400,6 +402,8 @@ def finalize_verification_execution_plan(
         "target_profile": target_profile,
         "verification_profile": verification_profile,
         "target_repo": target_repo,
+        "target_head_sha": target_head_sha,
+        "tree_clean": tree_clean,
         "artifact_root": artifact_root,
         "runtime_mode": runtime_mode,
         "plan_mode": "planned_only",
@@ -648,6 +652,11 @@ def validate_verification_execution_plan_artifact(data: Any) -> list[str]:
         errors.append("verification_profile must be a known verification profile")
     if not _is_non_empty_string(data.get("target_repo")):
         errors.append("target_repo must be a non-empty string")
+    target_head_sha = data.get("target_head_sha")
+    if not isinstance(target_head_sha, str) or not target_head_sha.strip():
+        errors.append("target_head_sha must be a non-empty string")
+    if not isinstance(data.get("tree_clean"), bool):
+        errors.append("tree_clean must be a boolean")
     if not _is_non_empty_string(data.get("artifact_root")):
         errors.append("artifact_root must be a non-empty string")
     if data.get("runtime_mode") != "passive_planning_only":

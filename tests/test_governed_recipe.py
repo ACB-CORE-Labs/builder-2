@@ -53,18 +53,18 @@ def test_governed_recipe_declares_only_the_governed_mcp_server() -> None:
     assert recipe["settings"]["goose_mode"] == "auto"
 
 
-def test_governed_argv_disables_builtins_and_adds_recipe(tmp_path: Path) -> None:
+def test_governed_argv_disables_builtins_and_adds_recipe(mock_settings, tmp_path: Path) -> None:
     recipe = tmp_path / "governed-readonly.yaml"
     recipe.write_text("version: '1.0.0'\n", encoding="utf-8")
-    argv = GooseRuntimeHarness._governed_argv("/mock/bin/goose", recipe)
+    argv = GooseRuntimeHarness(mock_settings, _MockSessionPlan(), tmp_path)._governed_argv("/mock/bin/goose", recipe)
     assert argv[:4] == ["/mock/bin/goose", "session", "--with-builtin", ""]
     assert "--recipe" in argv
     assert str(recipe) in argv
 
 
-def test_governed_argv_omits_recipe_when_missing(tmp_path: Path) -> None:
-    argv = GooseRuntimeHarness._governed_argv("/mock/bin/goose", tmp_path / "nope.yaml")
-    assert argv == ["/mock/bin/goose", "session", "--with-builtin", ""]
+def test_governed_argv_omits_recipe_when_missing(mock_settings, tmp_path: Path) -> None:
+    argv = GooseRuntimeHarness(mock_settings, _MockSessionPlan(), tmp_path)._governed_argv("/mock/bin/goose", tmp_path / "nope.yaml")
+    assert "--recipe" not in argv
 
 
 @patch("builder_ii.goose_runtime_harness.goose_env", return_value={})

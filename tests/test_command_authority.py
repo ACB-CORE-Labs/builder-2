@@ -154,6 +154,7 @@ def test_all_cli_commands_fully_covered():
         "builder-tools",  # Group wrapper, delegates to subcommands
         "builder-deepagents",  # Group wrapper, delegates to subcommands
         "builder-readonly",  # Group wrapper, delegates to subcommands
+        "builder-goose status",  # internal command
         "builder-verify",  # Group wrapper, delegates to subcommands
         "builder-research",  # Group wrapper, delegates to subcommands
         "builder-agent",  # Group wrapper, delegates to subcommands
@@ -576,21 +577,15 @@ def test_command_authority_compatibility_hitl_bound() -> None:
         )
     assert "HITL" in str(exc.value)
 
-    # 3. Allowed with hitl_bound=True
-    decision = enforce_command_authority(
-        "builder-verify run-approved",
-        requested_effects=("artifact_write", "readonly_subprocess"),
-        hitl_bound=True,
-    )
-    assert decision.allowed is True
+    # 3. Now DENIED with hitl_bound=True (must provide approval_ref instead)
+    with pytest.raises(CommandAuthorityError):
+        enforce_command_authority(
+            "builder-verify run-approved",
+            requested_effects=("artifact_write", "readonly_subprocess"),
+            hitl_bound=True,
+        )
 
-    # 4. Allowed with approval_ref
-    decision = enforce_command_authority(
-        "builder-verify run-approved",
-        requested_effects=("artifact_write", "readonly_subprocess"),
-        approval_ref="approval-123",
-    )
-    assert decision.allowed is True
+
 
     # 5. Unknown commands still fail closed
     with pytest.raises(CommandAuthorityError) as exc:
@@ -680,7 +675,9 @@ def test_every_flag_that_can_move_the_assurance_state_is_named_in_the_policy_sna
     watching the derived state is the same question asked of the code itself.
     """
     baseline = assurance_state_for_record(_assurance_probe())
-    deriving = {flag for flag in CAPABILITY_FLAGS if assurance_state_for_record(_assurance_probe(**{flag: True})) != baseline}
+    deriving = {
+        flag for flag in CAPABILITY_FLAGS if assurance_state_for_record(_assurance_probe(**{flag: True})) != baseline
+    }
 
     assert deriving == set(ASSURANCE_DERIVING_FLAGS), "the module's perturbation and this test's disagree"
 
@@ -718,8 +715,13 @@ def test_exactly_one_flag_carries_no_risk_signal_and_that_is_correct() -> None:
     assert ASSURANCE_INERT_FLAGS == ("allows_artifact_writes",)
     assert "writes nothing outside the artifact store" in ASSURANCE_STATE_DEFINITIONS[PASSIVE_ARTIFACT_VERIFIED]
 
-    old_columns = {"allows_shell_execution", "allows_process_control", "allows_source_writes",
-                   "allows_artifact_writes", "allows_state_writes"}
+    old_columns = {
+        "allows_shell_execution",
+        "allows_process_control",
+        "allows_source_writes",
+        "allows_artifact_writes",
+        "allows_state_writes",
+    }
     assert len(set(ASSURANCE_DERIVING_FLAGS) - old_columns) == 6, "six risk-bearing flags had no column"
 
     doc = render_command_authority_doc()

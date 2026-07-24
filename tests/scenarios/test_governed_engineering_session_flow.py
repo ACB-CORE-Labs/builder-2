@@ -195,4 +195,6 @@ def test_governed_engineering_session_rejects_false_verification_and_runtime_cla
     assert chain_report["status"] == "invalid"
     assert chain_report["counts"]["native_invalid"] == 1
     assert any("shell_execution must be DISABLED or NOT_AUTHORIZED" in error for error in chain_report["errors"])
-    assert any("governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in error for error in chain_report["errors"])
+    assert any(
+        "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in error for error in chain_report["errors"]
+    )

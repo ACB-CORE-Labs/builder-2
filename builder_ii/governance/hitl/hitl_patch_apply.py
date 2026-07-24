@@ -12,7 +12,7 @@ from builder_ii.governance.authority.governance_standard import build_standard_g
 from builder_ii.governance.hitl.hitl_patch_approval import (
     approval_binding_errors,
     approval_is_expired,
-    canonical_json_digest,
+    canonical_digest,
     validate_hitl_patch_approval_file,
 )
 from builder_ii.governance.hitl.hitl_patch_ledger import (
@@ -116,7 +116,7 @@ def compute_digest(content: str) -> str:
 def _json_digest(data: Any) -> str:
     # Delegate to the approval module so the proposal-content binding is computed with
     # one identical algorithm on both the mint (approve) and verify (apply) sides.
-    return canonical_json_digest(data)
+    return canonical_digest(data)
 
 
 def _file_digest(path: Path) -> str:
@@ -256,6 +256,9 @@ def create_patch_apply_receipt(
     postflight_ref: str = "",
     generic_repo: Path | None = None,
     capability_state: str = "OPERATIONALLY_VERIFIED",
+    target_repo: str = "",
+    pre_apply_head: str = "",
+    proposal_digest: str = "",
 ) -> dict[str, Any]:
     if settings is None:
         settings = load_settings()
@@ -268,6 +271,9 @@ def create_patch_apply_receipt(
             "repo": str(selected.repo),
             "description": selected.description,
         },
+        "target_repo": target_repo or str(selected.repo),
+        "pre_apply_head": pre_apply_head,
+        "proposal_digest": proposal_digest,
         "proposal_ref": proposal_ref,
         "rollback_plan_ref": rollback_plan_ref,
         "postflight_ref": postflight_ref,
@@ -361,7 +367,6 @@ def apply_hitl_patch(
     #    orchestrator, a test) would bypass the gate. Fail closed here, first — before
     #    settings resolution or any other IO.
     from builder_ii.governance.authority import enforce_command_authority
-
     enforce_command_authority(
         "builder-hitl apply-patch",
         requested_effects=("patch_application", "artifact_write"),
@@ -434,7 +439,7 @@ def apply_hitl_patch(
     approval = json_lib.loads(approval_path.read_text())
     binding_errors = approval_binding_errors(
         approval,
-        proposal_digest=canonical_json_digest(proposal),
+        proposal_digest=canonical_digest(proposal),
         patch_digest=patch_digest,
     )
     if binding_errors:
@@ -504,7 +509,7 @@ def apply_hitl_patch(
         failure_receipt["status"] = "failed"
         failure_receipt["error_summary"] = (e.stderr or str(e))[:500]
         failure_receipt["patch_digest"] = patch_digest
-        failure_receipt["pre_head"] = pre_head
+        failure_receipt["pre_apply_head"] = pre_head
         write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
 
         _write_rollback_failure_receipt(
@@ -546,7 +551,7 @@ def apply_hitl_patch(
         failure_receipt["status"] = "failed"
         failure_receipt["error_summary"] = f"post-apply fingerprint failed after mutation: {exc}"[:500]
         failure_receipt["patch_digest"] = patch_digest
-        failure_receipt["pre_head"] = pre_head
+        failure_receipt["pre_apply_head"] = pre_head
         write_patch_apply_receipt(failure_receipt, output_dir / "patch_apply_failure_receipt.json")
 
         _write_rollback_failure_receipt(
@@ -607,7 +612,7 @@ def apply_hitl_patch(
     receipt["target"] = dict(proposal["target"])
     receipt["status"] = "succeeded"
     receipt["patch_digest"] = patch_digest
-    receipt["pre_head"] = pre_head
+    receipt["pre_apply_head"] = pre_head
     receipt["pre_apply_status_digest"] = pre_apply_status_digest
     receipt["proposal_digest"] = _json_digest(proposal)
     receipt["approval_digest"] = _json_digest(approval)
@@ -715,6 +720,24 @@ def validate_patch_apply_receipt(artifact: Any) -> list[str]:
         not isinstance(artifact["patch_digest"], str) or len(artifact["patch_digest"]) != 64
     ):
         errors.append("patch_digest must be a SHA-256 hex digest")
+    is_success = artifact.get("status") == "succeeded"
+    if is_success:
+        if not isinstance(artifact.get("target_repo"), str) or not artifact["target_repo"]:
+            errors.append("target_repo must be a non-empty string")
+        if not isinstance(artifact.get("pre_apply_head"), str) or not artifact["pre_apply_head"]:
+            errors.append("pre_apply_head must be a non-empty string")
+        if not isinstance(artifact.get("proposal_digest"), str) or len(artifact["proposal_digest"]) != 64:
+            errors.append("proposal_digest must be a SHA-256 hex digest")
+    else:
+        if "pre_apply_head" in artifact and artifact["pre_apply_head"] == "":
+            pass # allow empty on failure
+        elif not isinstance(artifact.get("pre_apply_head"), str):
+            errors.append("pre_apply_head must be a string")
+
+        if "proposal_digest" in artifact and artifact["proposal_digest"] == "":
+            pass # allow empty on failure
+        elif "proposal_digest" in artifact and (not isinstance(artifact["proposal_digest"], str) or len(artifact["proposal_digest"]) != 64):
+            errors.append("proposal_digest must be a SHA-256 hex digest")
     return errors
 
 
@@ -864,7 +887,7 @@ def rollback_hitl_patch(
     approval = json_lib.loads(approval_path.read_text())
     binding_errors = rollback_approval_binding_errors(
         approval,
-        rollback_plan_digest=canonical_json_digest(plan),
+        rollback_plan_digest=canonical_digest(plan),
         patch_digest=str(plan.get("patch_digest", "")),
     )
     if binding_errors:

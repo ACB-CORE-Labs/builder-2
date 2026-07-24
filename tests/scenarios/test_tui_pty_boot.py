@@ -66,7 +66,13 @@ def _boot_under_pty(argv: list[str], deadline_s: float = BOOT_DEADLINE_S, cwd: P
     difference between this and a sleep-and-read scraper -- there is no budget to expire, and no
     verdict that depends on guessing when boot finished.
     """
-    master, slave = pty.openpty()
+    import pytest
+    try:
+        master, slave = pty.openpty()
+    except OSError as exc:
+        if "out of pty devices" in str(exc).lower():
+            pytest.skip(f"Skipping test due to environment limitation: {exc}")
+        raise
     proc = subprocess.Popen(
         argv,
         stdin=slave,

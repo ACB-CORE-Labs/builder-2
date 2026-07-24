@@ -32,8 +32,7 @@ def test_naive_replacement_would_collide_which_is_why_id_token_escapes() -> None
     names = _registry_names()
     naive = {re.sub(r"[^a-zA-Z0-9_-]", "-", name) for name in names}
     assert len(naive) < len(names), (
-        "naive replacement no longer collides on this registry -- re-derive whether id_token still "
-        "needs to escape"
+        "naive replacement no longer collides on this registry -- re-derive whether id_token still needs to escape"
     )
     assert len({id_token(name) for name in names}) == len(names)
 

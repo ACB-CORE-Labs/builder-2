@@ -61,6 +61,8 @@ def _write_valid_chain(
 ) -> tuple[Path, Path, Path]:
     root = _artifact_root(tmp_path)
     plan = finalize_verification_execution_plan(
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=str(tmp_path),
@@ -70,7 +72,7 @@ def _write_valid_chain(
     plan_path = root / "verification-execution-plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
@@ -177,9 +179,7 @@ def test_ledger_index_chain_appends_with_previous_digest(tmp_path: Path) -> None
     write_verification_execution_ledger_record(first, ledger_root / "first.json")
 
     # Second chain with a different generated_at so chain_digest differs.
-    plan_path2, approval_path2, receipt_path2 = _write_valid_chain(
-        tmp_path, generated_at="2026-06-30T00:03:00+00:00"
-    )
+    plan_path2, approval_path2, receipt_path2 = _write_valid_chain(tmp_path, generated_at="2026-06-30T00:03:00+00:00")
     second = index_verification_execution_receipt(
         receipt_path=receipt_path2,
         plan_path=plan_path2,

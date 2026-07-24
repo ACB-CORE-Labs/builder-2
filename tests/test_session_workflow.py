@@ -100,7 +100,10 @@ def test_validation_functions(tmp_path: Path) -> None:
     bad_gov = plan.copy()
     bad_gov["governance"] = plan["governance"].copy()
     bad_gov["governance"]["runtime_execution"] = "ENABLED"
-    assert any("governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in e for e in validate_session_workflow_plan(bad_gov))
+    assert any(
+        "governance.runtime_execution must be DISABLED or NOT_AUTHORIZED" in e
+        for e in validate_session_workflow_plan(bad_gov)
+    )
 
     # File validation
     plan_file = tmp_path / "plan.json"

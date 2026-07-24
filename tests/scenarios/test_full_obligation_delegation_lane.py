@@ -270,13 +270,12 @@ def test_full_obligation_delegation_lane_unmocked_with_tamper_beat(tmp_path: Pat
     tamper_events_dir = Path(tamper_summary["events_dir"])
 
     # Find the CONTRACT_SATISFIED obligation_consumed event and its immediate successor.
-    tamper_events = sorted(
-        tamper_events_dir.glob("event-*-obligation_consumed.json"), key=lambda p: p.name
-    )
+    tamper_events = sorted(tamper_events_dir.glob("event-*-obligation_consumed.json"), key=lambda p: p.name)
     satisfied_event_paths = [
         path
         for path in tamper_events
-        if json_lib.loads(path.read_text(encoding="utf-8"))["payload"]["discharge_state"] == DISCHARGE_CONTRACT_SATISFIED
+        if json_lib.loads(path.read_text(encoding="utf-8"))["payload"]["discharge_state"]
+        == DISCHARGE_CONTRACT_SATISFIED
     ]
     assert len(satisfied_event_paths) == 1
     forged_path = satisfied_event_paths[0]
@@ -317,8 +316,7 @@ def test_full_obligation_delegation_lane_unmocked_with_tamper_beat(tmp_path: Pat
     assert any(str(forged_path) in error and "digest" in error.lower() for error in errors), errors
     # The chain breaks precisely on the previous_event_sha256 link, named at its successor.
     assert any(
-        str(successor_path) in error and "previous_event_sha256 does not match prior event" in error
-        for error in errors
+        str(successor_path) in error and "previous_event_sha256 does not match prior event" in error for error in errors
     ), errors
 
     # The clean bundle, built before any of this, remains completely untouched.

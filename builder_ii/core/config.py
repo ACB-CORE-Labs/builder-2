@@ -15,97 +15,15 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from builder_ii.routing.model_catalog import normalize_model_alias
+
 BACKENDS = ("rapid-mlx", "mlx-lm", "ollama", "groq", "xai", "google", "openai", "anthropic")
 MODEL_TIERS = ("primary", "fast")
 
 # Public aliases accepted by BUILDER_MODEL_ALIAS / CORE_AGENT_MODEL_ALIAS and
 # `builder switch-model`.
 # Keep these stable; docs/scripts depend on them.
-MODEL_ALIASES = (
-    "phi-reasoning",
-    "qwen-coder",
-    "gemma-fast",
-    "gemma-primary",
-    "llama",
-    "codegeex",
-    "qwen-coder-14b",
-    "qwen3-coder-heavy",
-    "deepseek",
-    "groq-llama",
-    "groq-mixtral",
-    "grok-reasoning",
-    "grok-beta",
-    "gemini-pro",
-    "gemini-flash",
-    "gemini-ultra",
-    "gemini-3.5-flash",
-    "gemini-3.1-pro",
-    "gemini-3.1-flash",
-    "gemini-3-flash",
-    "gemma4:e4b",
-    "gemma4:e2b",
-    "qwen3.5:2b",
-    "qwen3.5:0.8b",
-    "ibm/granite4.1:3b",
-    "groq-llama-instant",
-    "groq-gpt-oss-20b",
-    "groq-llama-scout",
-    "groq-gpt-oss-120b",
-    "groq-qwen3-32b",
-    "groq-kimi-k2",
-    "grok-4.3",
-    "grok-build-0.1",
-    "grok-4.1-fast",
-    "gpt-5.5",
-    "gpt-5.5-pro",
-    "gpt-5.4",
-    "gpt-5.4-mini",
-    "gpt-5.4-nano",
-    "gpt-5.3-codex",
-    "gpt-4o",
-    "o3",
-    "claude-fable-5",
-    "claude-opus-4.8",
-    "claude-opus-4.7",
-    "claude-opus-4.6",
-    "claude-sonnet-5",
-    "claude-sonnet-4.6",
-    "claude-sonnet-4.5",
-    "claude-haiku-4.5",
-)
 
-_ALIAS_NORMALIZATION = {
-    "fast": "phi-reasoning",
-    "phi": "phi-reasoning",
-    "phi4": "phi-reasoning",
-    "phi-4": "phi-reasoning",
-    "phi4-mini": "phi-reasoning",
-    "phi-mini": "phi-reasoning",
-    "primary": "qwen-coder",
-    "qwen": "qwen-coder",
-    "qwen7": "qwen-coder",
-    "qwen-7b": "qwen-coder",
-    "qwen2.5-coder": "qwen-coder",
-    "gemma": "gemma-primary",
-    "gemma-e4b": "gemma-fast",
-    "gemma-4-e4b": "gemma-fast",
-    "gemma-12b": "gemma-primary",
-    "gemma-4-12b": "gemma-primary",
-    "llama3": "llama",
-    "llama31": "llama",
-    "llama-3.1": "llama",
-    "cgx": "codegeex",
-    "codegeex4": "codegeex",
-    "codegeex4-9b": "codegeex",
-    "qwen14": "qwen-coder-14b",
-    "qwen-14b": "qwen-coder-14b",
-    "qwen2.5-coder-14b": "qwen-coder-14b",
-    "qwen3": "qwen3-coder-heavy",
-    "qwen3-coder": "qwen3-coder-heavy",
-    "qwen3-heavy": "qwen3-coder-heavy",
-    "deepseek-coder": "deepseek",
-    "deepseek-lite": "deepseek",
-}
 
 # Human-readable roster for `builder models` and documentation. The HF repos are
 # defaults only; every repo can be overridden by env var for rapid experimentation.
@@ -175,16 +93,6 @@ EXTENDED_ROSTER: tuple[tuple[str, str, str, str, str], ...] = (
     ),
 )
 
-
-def normalize_model_alias(raw: str | None, *, tier_fallback: str = "primary") -> str:
-    """Normalize user/env model aliases to a stable MODEL_ALIASES value."""
-    candidate = (raw or "").strip().lower().replace("_", "-")
-    if not candidate:
-        candidate = "phi-reasoning" if tier_fallback == "fast" else "qwen-coder"
-    candidate = _ALIAS_NORMALIZATION.get(candidate, candidate)
-    if candidate not in MODEL_ALIASES:
-        raise ValueError(f"BUILDER_MODEL_ALIAS must be one of {MODEL_ALIASES}, got {raw!r}")
-    return candidate
 
 
 @dataclass(frozen=True)

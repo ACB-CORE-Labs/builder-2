@@ -7,7 +7,7 @@ from builder_ii.adapters.goose.goose_launcher import (
     launch_goose_session,
     recipe_path,
 )
-from builder_ii.core.config import Settings, load_settings
+from builder_ii.core.config import Settings
 
 
 def _settings_with_base_url(base_url: str) -> Settings:
@@ -42,7 +42,7 @@ def test_goose_status_is_string():
 
 
 def test_goose_env_openai_provider():
-    settings = load_settings()
+    settings = _settings_with_base_url("http://localhost:8080")
     env = goose_env(settings)
     if settings.backend == "ollama":
         assert env["GOOSE_PROVIDER"] == "ollama"
@@ -70,18 +70,18 @@ def test_goose_openai_host_keeps_root_url_unchanged():
 
 
 def test_recipe_exists():
-    settings = load_settings()
+    settings = _settings_with_base_url("http://localhost:8080")
     assert recipe_path(settings).exists()
 
 
 def test_platform_recipe_exists():
     from builder_ii.routing.model_router import plan_session
 
-    settings = load_settings()
+    settings = _settings_with_base_url("http://localhost:8080")
     assert recipe_path(settings, plan_session("orchestrator")).exists()
 
 
-def test_goose_env_mlx_lm_backend():
+def test_goose_env_mlx_lm_backend(tmp_path: Path):
     settings = Settings(
         target_repo=Path.cwd(),
         backend="mlx-lm",
@@ -110,7 +110,9 @@ def test_goose_env_mlx_lm_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"OPENAI_API_KEY": "dummy-secret-key"}):
-        env, report = derive_goose_environment(settings)
+        approval = tmp_path / "cloud_approval.json"
+        approval.write_text('{"kind": "builder_ii.cloud_lane_approval", "valid": true}')
+        env, report = derive_goose_environment(settings, cloud_approval_path=str(approval))
         assert env["GOOSE_PROVIDER"] == "openai"
         assert env["GOOSE_PROVIDER__TYPE"] == "openai"
         assert env["GOOSE_MODEL"] == "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"
@@ -120,7 +122,7 @@ def test_goose_env_mlx_lm_backend():
         assert "dummy-secret-key" not in report.values()
 
 
-def test_goose_env_groq_backend():
+def test_goose_env_groq_backend(tmp_path: Path):
     settings = Settings(
         target_repo=Path.cwd(),
         backend="groq",
@@ -149,7 +151,9 @@ def test_goose_env_groq_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"GROQ_API_KEY": "groq-secret"}):
-        env, report = derive_goose_environment(settings)
+        approval = tmp_path / "cloud_approval.json"
+        approval.write_text('{"kind": "builder_ii.cloud_lane_approval", "valid": true}')
+        env, report = derive_goose_environment(settings, cloud_approval_path=str(approval))
         assert env["GOOSE_PROVIDER"] == "openai"
         assert env["GOOSE_PROVIDER__TYPE"] == "openai"
         assert env["GOOSE_PROVIDER__HOST"] == "https://api.groq.com/openai"
@@ -160,7 +164,7 @@ def test_goose_env_groq_backend():
         assert "groq-secret" not in report.values()
 
 
-def test_goose_env_xai_backend():
+def test_goose_env_xai_backend(tmp_path: Path):
     settings = Settings(
         target_repo=Path.cwd(),
         backend="xai",
@@ -189,7 +193,9 @@ def test_goose_env_xai_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"XAI_API_KEY": "xai-secret"}):
-        env, report = derive_goose_environment(settings)
+        approval = tmp_path / "cloud_approval.json"
+        approval.write_text('{"kind": "builder_ii.cloud_lane_approval", "valid": true}')
+        env, report = derive_goose_environment(settings, cloud_approval_path=str(approval))
         assert env["GOOSE_PROVIDER"] == "openai"
         assert env["GOOSE_PROVIDER__TYPE"] == "openai"
         assert env["GOOSE_PROVIDER__HOST"] == "https://api.x.ai"
@@ -200,7 +206,7 @@ def test_goose_env_xai_backend():
         assert "xai-secret" not in report.values()
 
 
-def test_goose_env_openai_backend():
+def test_goose_env_openai_backend(tmp_path: Path):
     settings = Settings(
         target_repo=Path.cwd(),
         backend="openai",
@@ -229,7 +235,9 @@ def test_goose_env_openai_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"OPENAI_API_KEY": "openai-secret"}):
-        env, report = derive_goose_environment(settings)
+        approval = tmp_path / "cloud_approval.json"
+        approval.write_text('{"kind": "builder_ii.cloud_lane_approval", "valid": true}')
+        env, report = derive_goose_environment(settings, cloud_approval_path=str(approval))
         assert env["GOOSE_PROVIDER"] == "openai"
         assert env["GOOSE_PROVIDER__TYPE"] == "openai"
         assert env["GOOSE_PROVIDER__HOST"] == "https://api.openai.com"
@@ -240,7 +248,7 @@ def test_goose_env_openai_backend():
         assert "openai-secret" not in report.values()
 
 
-def test_goose_env_anthropic_backend():
+def test_goose_env_anthropic_backend(tmp_path: Path):
     settings = Settings(
         target_repo=Path.cwd(),
         backend="anthropic",
@@ -269,7 +277,9 @@ def test_goose_env_anthropic_backend():
     from unittest.mock import patch
 
     with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "anthropic-secret"}):
-        env, report = derive_goose_environment(settings)
+        approval = tmp_path / "cloud_approval.json"
+        approval.write_text('{"kind": "builder_ii.cloud_lane_approval", "valid": true}')
+        env, report = derive_goose_environment(settings, cloud_approval_path=str(approval))
         assert env["GOOSE_PROVIDER"] == "anthropic"
         assert env["GOOSE_PROVIDER__TYPE"] == "anthropic"
         assert env["GOOSE_PROVIDER__API_KEY"] == "anthropic-secret"
@@ -278,7 +288,7 @@ def test_goose_env_anthropic_backend():
         assert "anthropic-secret" not in report.values()
 
 
-def test_missing_provider_or_key_raises_error():
+def test_missing_provider_or_key_raises_error(tmp_path: Path):
     settings = Settings(
         target_repo=Path.cwd(),
         backend="openai",
@@ -311,7 +321,9 @@ def test_missing_provider_or_key_raises_error():
     with patch.dict(os.environ, {"OPENAI_API_KEY": ""}, clear=True):
         with patch("builder_ii.goose_launcher.find_goose_binary", return_value="/usr/local/bin/goose"):
             with pytest.raises(ValueError) as exc:
-                launch_goose_session(settings)
+                approval = tmp_path / "app.json"
+                approval.write_text("""{"kind": "builder_ii.cloud_lane_approval", "valid": true}""")
+                launch_goose_session(settings, wrapper_plan_path=str(approval))
             assert "No Goose provider could be derived from builder-II settings" in str(exc.value)
 
 

@@ -36,7 +36,6 @@ from textual.widgets import Input, TextArea
 
 # Load-bearing imports mapped directly to the builder-II architecture
 try:
-    from builder_ii.tui.app import StratumApp
     from builder_ii.governance.ledger.tui_audit_ledger import (
         MASTER_INDEX_FILENAME,
         append_event,
@@ -44,6 +43,7 @@ try:
         build_event,
         read_chain_head,
     )
+    from builder_ii.tui.app import StratumApp
 except ImportError as e:
     print(json.dumps({"error": "CRITICAL_FAILURE", "message": f"Failed to import core applications: {e}"}))
     sys.exit(1)

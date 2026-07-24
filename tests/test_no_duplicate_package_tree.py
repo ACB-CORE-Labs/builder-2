@@ -52,9 +52,7 @@ def test_no_second_copy_of_the_package_is_committed() -> None:
     tracked = _tracked_files()
     assert len(tracked) > 500, f"only {len(tracked)} tracked files -- is git ls-files running in the repo?"
 
-    copies = [
-        path for path in tracked if path.endswith("builder_ii/governance/authority/authority_registry.py")
-    ]
+    copies = [path for path in tracked if path.endswith("builder_ii/governance/authority/authority_registry.py")]
     assert copies == ["builder_ii/governance/authority/authority_registry.py"], (
         f"the package tree is duplicated in the repo: {copies}. A second copy is scanned by no gate "
         f"(ci.sh scopes compileall/ruff/bandit to builder_ii) and read as source by every audit."
@@ -63,9 +61,7 @@ def test_no_second_copy_of_the_package_is_committed() -> None:
 
 def test_no_build_artifact_tree_is_committed() -> None:
     """Regenerable staging output must never be tracked, whatever it contains."""
-    offenders = [
-        path for path in _tracked_files() if any(path.startswith(root) for root in _ARTIFACT_ROOTS)
-    ]
+    offenders = [path for path in _tracked_files() if any(path.startswith(root) for root in _ARTIFACT_ROOTS)]
     assert not offenders, (
         f"{len(offenders)} build-artifact files are committed (e.g. {offenders[:3]}); "
         f"these regenerate from source and must stay out of the index"

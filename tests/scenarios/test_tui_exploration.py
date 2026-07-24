@@ -23,9 +23,7 @@ def test_semantic_tui_driver_initial_state(tmp_path):
     """
     payload = json.dumps({"app": "StratumApp", "steps": [], "ledger_path": str(tmp_path / "ledger.jsonl")})
     result = subprocess.run(
-        ["uv", "run", "python", "scripts/semantic_tui_driver.py", payload],
-        capture_output=True,
-        text=True
+        ["uv", "run", "python", "scripts/semantic_tui_driver.py", payload], capture_output=True, text=True
     )
 
     assert result.returncode == 0, f"Driver failed with stderr: {result.stderr}"
@@ -196,6 +194,7 @@ async def test_semantic_tui_driver_records_a_render_crash_instead_of_hiding_it()
     assert widgets["intact"]["text"] == "intact"
     assert "render_error" not in widgets["intact"]
 
+
 def test_semantic_tui_driver_records_hidden_widgets_instead_of_skipping_them(tmp_path):
     """A mounted-but-hidden widget must be recorded, marked hidden -- not omitted.
 
@@ -331,9 +330,17 @@ def test_concurrent_driver_runs_do_not_corrupt_each_others_chains(tmp_path):
     artifacts = tmp_path / ".builder" / "artifacts"
     procs = [
         subprocess.Popen(
-            ["uv", "run", "python", str(Path.cwd() / "scripts" / "semantic_tui_driver.py"),
-             json.dumps({"app": "StratumApp", "steps": []})],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, cwd=tmp_path,
+            [
+                "uv",
+                "run",
+                "python",
+                str(Path.cwd() / "scripts" / "semantic_tui_driver.py"),
+                json.dumps({"app": "StratumApp", "steps": []}),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=tmp_path,
         )
         for _ in range(2)
     ]
@@ -367,9 +374,7 @@ def test_semantic_tui_driver_invalid_app():
     """Verifies Semantic Rigor by gracefully failing on unknown targets."""
     payload = json.dumps({"app": "NonExistentApp", "steps": []})
     result = subprocess.run(
-        ["uv", "run", "python", "scripts/semantic_tui_driver.py", payload],
-        capture_output=True,
-        text=True
+        ["uv", "run", "python", "scripts/semantic_tui_driver.py", payload], capture_output=True, text=True
     )
 
     # Should exit 1 with a clean JSON error
@@ -425,8 +430,9 @@ def test_semantic_tui_driver_writes_a_valid_chain(tmp_path):
     from builder_ii.governance.ledger.tui_audit_ledger import validate_ledger
 
     ledger = tmp_path / "chain.jsonl"
-    payload = json.dumps({"app": "StratumApp", "steps": [{"action": "press", "target": "escape"}],
-                          "ledger_path": str(ledger)})
+    payload = json.dumps(
+        {"app": "StratumApp", "steps": [{"action": "press", "target": "escape"}], "ledger_path": str(ledger)}
+    )
     result = subprocess.run(
         ["uv", "run", "python", "scripts/semantic_tui_driver.py", payload],
         capture_output=True,

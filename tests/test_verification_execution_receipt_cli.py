@@ -24,6 +24,8 @@ runner = CliRunner()
 
 def _write_bound_artifacts(tmp_path: Path) -> tuple[Path, Path, Path]:
     plan = finalize_verification_execution_plan(
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -33,7 +35,7 @@ def _write_bound_artifacts(tmp_path: Path) -> tuple[Path, Path, Path]:
     plan_path = tmp_path / "verification-execution-plan.json"
     write_verification_execution_plan(plan, plan_path)
 
-    approval = finalize_verification_execution_approval(
+    approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
@@ -85,6 +87,8 @@ def test_validate_receipt_reports_valid_for_bound_artifacts(tmp_path: Path) -> N
 def test_validate_receipt_fails_with_wrong_plan(tmp_path: Path) -> None:
     plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)
     wrong_plan = finalize_verification_execution_plan(
+        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo="/tmp/other",
@@ -118,7 +122,7 @@ def test_validate_receipt_fails_with_wrong_approval(tmp_path: Path) -> None:
     # A valid-but-different approval (distinct approved_step_ids -> distinct digest) so the
     # receipt binding fails on approval_digest, not on the approval being independently invalid.
     # Uses a safe step so no execution-risk acknowledgment is required.
-    wrong_approval = finalize_verification_execution_approval(
+    wrong_approval = finalize_verification_execution_approval(expires_at="2030-01-01T00:00:00Z",
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
