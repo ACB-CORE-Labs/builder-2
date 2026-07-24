@@ -110,7 +110,7 @@ def create_deepagents_subagent_execution_receipt(
     subagent_profile: str,
     assignment_ref: dict[str, Any],
     result_ref: dict[str, Any],
-    receipt_state: str = "EXECUTED_ONLY",
+    receipt_state: str = "PROJECTED_ONLY",
 ) -> dict[str, Any]:
     content = {
         "kind": DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND,

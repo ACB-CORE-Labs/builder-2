@@ -4,6 +4,7 @@ import hashlib
 import json as json_lib
 import re
 from pathlib import Path
+from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any
 
 from builder_ii.lifecycle.setup.target_profiles import target_names
@@ -96,11 +97,6 @@ EXPECTED_AUTHORITY_BY_KIND: dict[str, str] = {
 ALLOWED_AUTHORITY_CLASSIFICATIONS = tuple(sorted(set(EXPECTED_AUTHORITY_BY_KIND.values())))
 FORBIDDEN_LIFECYCLE_STATES = {"EXECUTED", "AUTHORIZED", "PROMOTED", "ENABLED"}
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-
-
-def canonical_digest(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def _file_sha256(path: Path) -> str:

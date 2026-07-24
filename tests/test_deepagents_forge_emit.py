@@ -89,8 +89,8 @@ def test_emit_reports_optional_hook_failure_without_hiding_profile_write(tmp_pat
 
     monkeypatch.setattr(
         emit_mod,
-        "register_bridge_spec",
-        lambda spec: HookResult("deepagents_bridge.register_forge_spec", "failed", error="boom"),
+        "write_forge_handoff",
+        lambda spec: HookResult("handoff_notes.write_handoff_note", "failed", error="boom"),
     )
 
     result = emit_mod.emit_agent(_valid_spec(), dry_run=False)

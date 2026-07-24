@@ -18,7 +18,7 @@ from builder_ii.governance.hitl.hitl_patch_proposal import (
     write_hitl_patch_proposal,
 )
 from builder_ii.governance.hitl.hitl_rollback_approval import (
-    canonical_json_digest,
+    canonical_digest,
     create_hitl_rollback_approval,
     write_hitl_rollback_approval,
 )
@@ -208,7 +208,7 @@ def register_patch_commands(app: typer.Typer) -> None:
             raise typer.Exit(1)
 
         plan_data = json.loads(rollback_plan.read_text(encoding="utf-8"))
-        plan_digest = canonical_json_digest(plan_data)
+        plan_digest = canonical_digest(plan_data)
         patch_digest = str(plan_data.get("patch_digest", ""))
         target = plan_data.get("target", {})
         expected_prefix = plan_digest[:APPROVAL_CONFIRMATION_PREFIX_LENGTH]

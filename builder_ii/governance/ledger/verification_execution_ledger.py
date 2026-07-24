@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json as json_lib
 from pathlib import Path
+from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any
 
 from builder_ii.core.config_schema import attach_digest, digest_jsonable
@@ -200,11 +201,6 @@ def _ledger_record_sort_key(row: dict[str, Any]) -> tuple[str, str, str, str]:
     )
 
 
-def _canonical_sha256(value: dict[str, Any]) -> str:
-    raw = json_lib.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
-
-
 def _record_digest(record: dict[str, Any]) -> str:
     digest = record.get("verification_execution_ledger_record_digest")
     return digest if isinstance(digest, str) else ""
@@ -393,7 +389,7 @@ def _integrity_record_row(row: dict[str, Any]) -> dict[str, Any]:
         "path": row.get("path", ""),
         "ledger_record_id": record.get("ledger_record_id", ""),
         "verification_execution_ledger_record_digest": _record_digest(record),
-        "record_sha256": _canonical_sha256(record) if isinstance(record, dict) else "",
+        "record_sha256": canonical_digest(record) if isinstance(record, dict) else "",
         "recorded_at": record.get("recorded_at", ""),
         "chain_digest": record.get("chain_digest", ""),
         "receipt_digest": row.get("receipt_digest", ""),
@@ -410,7 +406,7 @@ def _ledger_record_evidence_ref(row: dict[str, Any]) -> dict[str, Any]:
         "role": "verification_execution_ledger_record",
         "kind": VERIFICATION_EXECUTION_LEDGER_RECORD_KIND,
         "path": row.get("path", ""),
-        "sha256": _canonical_sha256(record) if isinstance(record, dict) else "",
+        "sha256": canonical_digest(record) if isinstance(record, dict) else "",
         "artifact_digest": _record_digest(record),
         "required": True,
     }

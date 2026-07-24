@@ -37,7 +37,7 @@ from builder_ii.governance.hitl.hitl_patch_ledger import (
 )
 from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 from builder_ii.governance.hitl.hitl_rollback_approval import (
-    canonical_json_digest,
+    canonical_digest,
     create_hitl_rollback_approval,
     write_hitl_rollback_approval,
 )
@@ -93,7 +93,7 @@ def test_unmocked_apply_rollback_emits_and_chain_verifies_ledger(tmp_path: Path)
     plan_data = json.loads((out_dir / "rollback_plan.json").read_text())
     rollback_approval_path = tmp_path / "rollback_approval.json"
     write_hitl_rollback_approval(
-        create_hitl_rollback_approval(plan_data, confirmed_digest_prefix=canonical_json_digest(plan_data)[:4]),
+        create_hitl_rollback_approval(plan_data, confirmed_digest_prefix=canonical_digest(plan_data)[:4]),
         rollback_approval_path,
     )
 

@@ -52,6 +52,7 @@ import hashlib
 import json as json_lib
 import time
 from pathlib import Path
+from builder_ii.core.canonical_json import canonical_digest, canonical_json
 from typing import Any
 
 from builder_ii.governance.authority.governance_standard import build_standard_governance, validate_standard_governance
@@ -70,18 +71,6 @@ APPROVAL_CONFIRMATION_PREFIX_LENGTH = 4
 # Default validity window for an approval before it must be applied. Bounded so a stale
 # approval cannot authorize a mutation indefinitely; overridable at approve time.
 DEFAULT_APPROVAL_TTL_SECONDS = 86_400  # 24 hours
-
-
-def canonical_json_digest(data: Any) -> str:
-    """Canonical SHA-256 digest of a JSON-serializable value.
-
-    Uses sorted keys and compact separators so the same logical content always yields
-    the same digest regardless of formatting. This is the single source of truth for
-    the proposal-content binding: both ``create_hitl_patch_approval`` (when minting an
-    approval) and ``apply_hitl_patch`` (when verifying one) compute it identically.
-    """
-    raw = json_lib.dumps(data, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()
 
 
 def create_hitl_patch_approval(
@@ -116,7 +105,7 @@ def create_hitl_patch_approval(
         "schema_version": HITL_PATCH_APPROVAL_SCHEMA_VERSION,
         "target": dict(proposal.get("target", {})),
         "patch_digest": patch_digest,
-        "proposal_digest": canonical_json_digest(proposal),
+        "proposal_digest": canonical_digest(proposal),
         "approved_by": approved_by,
         "approved_at": approved_at,
         "expires_at": approved_at + int(ttl_seconds),
