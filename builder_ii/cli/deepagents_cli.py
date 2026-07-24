@@ -805,8 +805,9 @@ def approve_candidate(
 
 @deepagents_app.command("run-approved")
 def run_approved(
-    candidate: Path = typer.Option(..., "--candidate", help="Path to deepagents execution candidate JSON"),
-    approval: Path = typer.Option(..., "--approval", help="Path to deepagents execution approval JSON"),
+    candidate: Path | None = typer.Option(None, "--candidate", help="Path to deepagents execution candidate JSON"),
+    approval: Path | None = typer.Option(None, "--approval", help="Path to deepagents execution approval JSON"),
+    from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve latest candidate and approval"),
     output_dir: Path = typer.Option(
         ..., "--output-dir", help="Directory for run envelope, events, receipt, and replay"
     ),

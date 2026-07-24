@@ -41,6 +41,8 @@ def _dispatch(command_name: str, module_name: str, argv: list[str]) -> None:
     raise typer.Exit(main(argv))
 
 
+inspect_app = typer.Typer(name="inspect", help="Read-only inspection surface.", no_args_is_help=True)
+
 hitl_app = typer.Typer(help="Read-only HITL inspection surface.", no_args_is_help=True)
 profile_app = typer.Typer(help="Read-only profile-pack inspection surface.", no_args_is_help=True)
 model_app = typer.Typer(help="Read-only model routing inspection surface.", no_args_is_help=True)
@@ -418,3 +420,11 @@ def main_inspection(
     from builder_ii.core.config import load_settings
     render_platform_status(load_settings(), verbose=verbose)
 
+
+inspect_app.add_typer(hitl_app, name="hitl")
+inspect_app.add_typer(profile_app, name="profile")
+inspect_app.add_typer(model_app, name="model")
+inspect_app.add_typer(promote_app, name="promote")
+inspect_app.add_typer(postflight_app, name="postflight")
+inspect_app.add_typer(goose_app, name="goose")
+inspect_app.add_typer(code_vault_app, name="code-vault")
