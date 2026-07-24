@@ -74,9 +74,7 @@ def test_apply_requires_hitl_approval() -> None:
     store = create_experience_store()
     store, corrections = corrections_from_receipts(store, [_failed_receipt("a")])
     base = create_phi_policy()
-    plan = build_rstar_apply_plan(
-        base_policy=base, corrections=corrections, experience_store=store
-    )
+    plan = build_rstar_apply_plan(base_policy=base, corrections=corrections, experience_store=store)
     assert validate_rstar_apply_plan(plan) == []
     with pytest.raises(RStarApplyError, match="approval"):
         apply_approved(plan=plan, approval={"kind": "nope", "approved": True})
@@ -89,9 +87,7 @@ def test_apply_digest_bound_hitl_happy_path() -> None:
         [_failed_receipt("f1"), _failed_receipt("f2", difficulty=0.9)],
     )
     base = create_phi_policy(policy_id="default")
-    plan = build_rstar_apply_plan(
-        base_policy=base, corrections=corrections, experience_store=store, notes="p4"
-    )
+    plan = build_rstar_apply_plan(base_policy=base, corrections=corrections, experience_store=store, notes="p4")
     approval = build_rstar_apply_approval(plan=plan, approved_by="human-operator")
     assert validate_rstar_apply_approval(approval) == []
     new_policy, receipt = apply_approved(plan=plan, approval=approval)

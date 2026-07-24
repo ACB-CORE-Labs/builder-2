@@ -178,6 +178,8 @@ def test_index_recognizes_goal2_assignment_artifacts(tmp_path: Path) -> None:
 
 def test_index_recognizes_verification_execution_plan_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -197,6 +199,8 @@ def test_index_recognizes_verification_execution_plan_artifact(tmp_path: Path) -
 
 def test_index_rejects_malformed_verification_execution_plan_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -213,11 +217,15 @@ def test_index_rejects_malformed_verification_execution_plan_artifact(tmp_path: 
     assert record["counts"]["known"] == 1
     assert record["counts"]["invalid"] == 1
     assert record["artifacts"][0]["kind"] == "builder_ii.verification_execution_plan"
-    assert any("execution_enabled must be false or NOT_AUTHORIZED" in error for error in record["artifacts"][0]["errors"])
+    assert any(
+        "execution_enabled must be false or NOT_AUTHORIZED" in error for error in record["artifacts"][0]["errors"]
+    )
 
 
 def test_index_recognizes_verification_execution_approval_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -244,6 +252,8 @@ def test_index_recognizes_verification_execution_approval_artifact(tmp_path: Pat
 
 def test_index_rejects_malformed_verification_execution_approval_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -267,7 +277,9 @@ def test_index_rejects_malformed_verification_execution_approval_artifact(tmp_pa
     assert record["counts"]["known"] == 1
     assert record["counts"]["invalid"] == 1
     assert record["artifacts"][0]["kind"] == "builder_ii.verification_execution_approval"
-    assert any("execution_enabled must be false or NOT_AUTHORIZED" in error for error in record["artifacts"][0]["errors"])
+    assert any(
+        "execution_enabled must be false or NOT_AUTHORIZED" in error for error in record["artifacts"][0]["errors"]
+    )
 
 
 def test_index_marks_unknown_artifact_incomplete(tmp_path: Path) -> None:

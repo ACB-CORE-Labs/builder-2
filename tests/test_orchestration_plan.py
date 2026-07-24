@@ -271,7 +271,9 @@ def test_goal2_assignment_model_binding_escalation_fails_closed(tmp_path: Path) 
     # routing_grants_authority = True
     bad_grant = copy.deepcopy(assignment)
     bad_grant["bindings"]["model"]["routing_grants_authority"] = True
-    assert "bindings.model.routing_grants_authority must be false or NOT_AUTHORIZED" in validate_agent_assignment_plan(bad_grant)
+    assert "bindings.model.routing_grants_authority must be false or NOT_AUTHORIZED" in validate_agent_assignment_plan(
+        bad_grant
+    )
 
     # recommendation_state != RECOMMENDATION_ONLY
     bad_state = copy.deepcopy(assignment)
@@ -295,7 +297,9 @@ def test_goal2_assignment_context_binding_escalation_fails_closed(
     # context_is_proof = True
     bad_proof = copy.deepcopy(assignment)
     bad_proof["bindings"]["context"]["context_is_proof"] = True
-    assert "bindings.context.context_is_proof must be false or NOT_AUTHORIZED" in validate_agent_assignment_plan(bad_proof)
+    assert "bindings.context.context_is_proof must be false or NOT_AUTHORIZED" in validate_agent_assignment_plan(
+        bad_proof
+    )
 
     # source_ref_role != context_pack
     bad_role = copy.deepcopy(assignment)

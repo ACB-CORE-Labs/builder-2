@@ -178,9 +178,9 @@ def test_the_decision_record_is_the_only_place_a_decision_lives() -> None:
     }
     for decision in decisions():
         assert decision.question, f"`{decision.name}` has no question"
-        assert not any(
-            value in decision.question for value in decision.allowed()
-        ), f"`{decision.name}` transcribed a registry value into its question"
+        assert not any(value in decision.question for value in decision.allowed()), (
+            f"`{decision.name}` transcribed a registry value into its question"
+        )
 
 
 def test_a_target_dependent_default_is_read_after_the_target_is_chosen_not_before() -> None:
@@ -200,12 +200,15 @@ def test_a_target_dependent_default_is_read_after_the_target_is_chosen_not_befor
         expected_agent = default_agent_profile_for(target)
         expected_verification = default_profile_for_target(target).name
 
-        steps = {s.id: s for s in init_wizard_step_definitions(
-            defaults={d.name: "stale" for d in decisions()},
-            default_for_target=lambda name, t: (
-                default_agent_profile_for(t) if name == "agent_profile" else default_profile_for_target(t).name
-            ),
-        )}
+        steps = {
+            s.id: s
+            for s in init_wizard_step_definitions(
+                defaults={d.name: "stale" for d in decisions()},
+                default_for_target=lambda name, t: (
+                    default_agent_profile_for(t) if name == "agent_profile" else default_profile_for_target(t).name
+                ),
+            )
+        }
         answers = {"target_profile": target}
         assert steps["agent_profile"].resolved_default(answers) == expected_agent, target
         assert steps["verification_profile"].resolved_default(answers) == expected_verification, target
@@ -265,8 +268,20 @@ def test_non_interactive_records_the_target_it_was_given(tmp_path) -> None:
         root.mkdir()
         result = runner.invoke(
             app,
-            ["init", "--root", str(root), "--output-dir", str(root / "out"), "--non-interactive",
-             "--target-profile", target, "--model-backend", "mlx-lm", "--model-alias", "qwen-coder"],
+            [
+                "init",
+                "--root",
+                str(root),
+                "--output-dir",
+                str(root / "out"),
+                "--non-interactive",
+                "--target-profile",
+                target,
+                "--model-backend",
+                "mlx-lm",
+                "--model-alias",
+                "qwen-coder",
+            ],
         )
         assert result.exit_code == 0, result.output
         plan = json.loads((root / "out" / "setup-plan.json").read_text())

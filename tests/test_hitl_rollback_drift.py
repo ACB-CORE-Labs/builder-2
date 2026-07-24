@@ -62,9 +62,7 @@ def _apply(tmp_path: Path) -> tuple[Path, Path, Path]:
     write_hitl_patch_proposal(prop, prop_path)
 
     approval_path = tmp_path / "approval.json"
-    write_hitl_patch_approval(
-        create_hitl_patch_approval(prop, confirmed_digest_prefix=patch_digest[:4]), approval_path
-    )
+    write_hitl_patch_approval(create_hitl_patch_approval(prop, confirmed_digest_prefix=patch_digest[:4]), approval_path)
 
     vr_path = tmp_path / "vr.json"
     vr_path.write_text(
@@ -183,7 +181,9 @@ def test_rollback_refuses_plan_missing_drift_fingerprint(tmp_path: Path) -> None
 
     rollback_out = out_dir / "rollback_out"
     with pytest.raises(ValueError, match="missing post_apply_worktree_digest"):
-        rollback_hitl_patch(plan_path, out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, rollback_out, approval_path=approval_path)
+        rollback_hitl_patch(
+            plan_path, out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, rollback_out, approval_path=approval_path
+        )
     # Refused before any mutation: the applied change is still present, no success receipt.
     assert target_file.read_text() == "Line 1\nLine 2 modified\n"
     assert not (rollback_out / "rollback_receipt.json").exists()
@@ -199,7 +199,9 @@ def test_rollback_refuses_plan_missing_pre_head(tmp_path: Path) -> None:
 
     rollback_out = out_dir / "rollback_out"
     with pytest.raises(ValueError, match="missing pre_head"):
-        rollback_hitl_patch(plan_path, out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, rollback_out, approval_path=approval_path)
+        rollback_hitl_patch(
+            plan_path, out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME, rollback_out, approval_path=approval_path
+        )
     assert target_file.read_text() == "Line 1\nLine 2 modified\n"
 
 

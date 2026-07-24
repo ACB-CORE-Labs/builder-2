@@ -33,18 +33,14 @@ def _init_clean_repo(path: Path) -> Path:
 
 def _write_proposal(tmp_path: Path, repo: Path, *, unified_diff: str, patch_digest: str) -> Path:
     prop_path = tmp_path / "prop.json"
-    proposal = create_hitl_patch_proposal(
-        generic_repo=repo, patch_digest=patch_digest, unified_diff=unified_diff
-    )
+    proposal = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=unified_diff)
     write_hitl_patch_proposal(proposal, prop_path)
     return prop_path
 
 
 def _write_passing_vr(tmp_path: Path) -> Path:
     vr_path = tmp_path / "vr.json"
-    vr_path.write_text(
-        json.dumps({"kind": "builder_ii.verification_execution_receipt", "receipt_status": "EXECUTED"})
-    )
+    vr_path.write_text(json.dumps({"kind": "builder_ii.verification_execution_receipt", "receipt_status": "EXECUTED"}))
     return vr_path
 
 
@@ -65,9 +61,7 @@ def test_apply_hitl_patch_succeeds_unmocked_with_schema_valid_receipt(tmp_path: 
     each isolate one refusal; this one proves the lane works when everything is genuine."""
     repo = _init_clean_repo(tmp_path / "repo")
     (repo / "file.txt").write_text("b\n")
-    unified_diff = subprocess.run(
-        ["git", "diff"], cwd=repo, check=True, capture_output=True, text=True
-    ).stdout
+    unified_diff = subprocess.run(["git", "diff"], cwd=repo, check=True, capture_output=True, text=True).stdout
     subprocess.run(["git", "checkout", "--", "file.txt"], cwd=repo, check=True)
 
     patch_digest = hashlib.sha256(unified_diff.encode("utf-8")).hexdigest()
@@ -164,9 +158,7 @@ def test_apply_hitl_patch_happy_path_applies_diff(mock_validate, tmp_path: Path)
 
     # Produce a real unified diff, then restore the clean tree.
     (repo / "file.txt").write_text("b\n")
-    unified_diff = subprocess.run(
-        ["git", "diff"], cwd=repo, check=True, capture_output=True, text=True
-    ).stdout
+    unified_diff = subprocess.run(["git", "diff"], cwd=repo, check=True, capture_output=True, text=True).stdout
     subprocess.run(["git", "checkout", "--", "file.txt"], cwd=repo, check=True)
     assert (repo / "file.txt").read_text() == "a\n"
 
@@ -194,9 +186,7 @@ def test_apply_consults_command_authority_gate_before_io(mock_gate, tmp_path: Pa
     """The write lane fails closed at the gate — before reading or mutating anything —
     even for a direct (non-CLI) caller."""
     with pytest.raises(CommandAuthorityError):
-        apply_hitl_patch(
-            tmp_path / "p.json", tmp_path / "a.json", tmp_path / "vr.json", tmp_path / "out"
-        )
+        apply_hitl_patch(tmp_path / "p.json", tmp_path / "a.json", tmp_path / "vr.json", tmp_path / "out")
     mock_gate.assert_called_once()
     assert not (tmp_path / "out").exists()
 
@@ -255,4 +245,3 @@ def test_apply_hitl_patch_rejects_invalid_verification_receipt(tmp_path: Path):
     failure = json.loads((out_dir / "patch_apply_failure_receipt.json").read_text())
     assert failure["status"] == "failed"
     assert "Invalid verification receipt" in failure["error_summary"]
-

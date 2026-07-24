@@ -101,11 +101,16 @@ def test_mint_obligation_requires_exactly_one_parent(tmp_path: Path) -> None:
         orchestration_app,
         [
             "mint-obligation",
-            "--obligation-kind", "planning_step",
-            "--task", "t",
-            "--expected-kind", "k",
-            "--subagent-profile", "p",
-            "--lane-policy", str(policy),
+            "--obligation-kind",
+            "planning_step",
+            "--task",
+            "t",
+            "--expected-kind",
+            "k",
+            "--subagent-profile",
+            "p",
+            "--lane-policy",
+            str(policy),
         ],
     )
     assert neither.exit_code == 1

@@ -103,7 +103,9 @@ def test_delegation_tree_gate_is_deterministic(tmp_path: Path) -> None:
         now=now,
     )
 
-    assert evidence1.get("verification_promotion_evidence_digest") == evidence2.get("verification_promotion_evidence_digest")
+    assert evidence1.get("verification_promotion_evidence_digest") == evidence2.get(
+        "verification_promotion_evidence_digest"
+    )
 
 
 def test_delegation_tree_gate_fails_on_tampered_discharge(tmp_path: Path) -> None:

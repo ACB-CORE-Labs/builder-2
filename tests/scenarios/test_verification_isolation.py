@@ -101,6 +101,8 @@ def _write_bound_artifacts(
     """Create a plan → approval → receipt path triple, optionally with an isolation policy."""
     root = _artifact_root(tmp_path)
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=str(tmp_path),
@@ -167,8 +169,7 @@ def test_isolation_receipt_cross_field_validation() -> None:
     receipt = finalize_verification_execution_receipt(**kw)
     errors = validate_verification_execution_receipt_artifact(receipt)
     assert any(
-        "isolation_policy_digest must be a SHA-256 hex string when isolation_status is 'applied'" in e
-        for e in errors
+        "isolation_policy_digest must be a SHA-256 hex string when isolation_status is 'applied'" in e for e in errors
     )
 
 
@@ -187,6 +188,7 @@ def test_receipt_digest_drift() -> None:
 
 def test_isolation_backend_parity(monkeypatch: Any) -> None:
     """Validator-accepted backend names == constructible backend set."""
+
     def mock_run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args=args, returncode=0, stdout='["sha256:test"]')
 
@@ -249,7 +251,8 @@ def test_runner_fails_on_missing_policy_digest(monkeypatch: Any, tmp_path: Path)
     policy.pop("verification_isolation_policy_digest", None)
 
     plan_path, approval_path, receipt_path = _write_bound_artifacts(
-        tmp_path, isolation_policy=policy,
+        tmp_path,
+        isolation_policy=policy,
     )
 
     profile_argv_called = False
@@ -296,7 +299,8 @@ def test_runner_fails_on_short_policy_digest(monkeypatch: Any, tmp_path: Path) -
     policy["verification_isolation_policy_digest"] = "abc123"  # too short
 
     plan_path, approval_path, receipt_path = _write_bound_artifacts(
-        tmp_path, isolation_policy=policy,
+        tmp_path,
+        isolation_policy=policy,
     )
 
     def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -336,7 +340,8 @@ def test_runner_fails_on_non_hex_policy_digest(monkeypatch: Any, tmp_path: Path)
     policy["verification_isolation_policy_digest"] = "g" * 64  # not hex
 
     plan_path, approval_path, receipt_path = _write_bound_artifacts(
-        tmp_path, isolation_policy=policy,
+        tmp_path,
+        isolation_policy=policy,
     )
 
     def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -389,7 +394,8 @@ def test_explicit_none_policy_produces_valid_receipt(monkeypatch: Any, tmp_path:
     assert policy.get("verification_isolation_policy_digest") is not None, "policy carries a digest"
 
     plan_path, approval_path, receipt_path = _write_bound_artifacts(
-        tmp_path, isolation_policy=policy,
+        tmp_path,
+        isolation_policy=policy,
     )
 
     def fake_run(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
@@ -486,9 +492,7 @@ def test_docker_backend_keeps_the_target_off_the_import_path_for_a_safe_profile(
     assert "/workspace" not in container_pythonpath.split(os.pathsep)
 
 
-def test_docker_backend_mounts_nothing_extra_when_builder_ii_is_the_target(
-    monkeypatch: Any, tmp_path: Path
-) -> None:
+def test_docker_backend_mounts_nothing_extra_when_builder_ii_is_the_target(monkeypatch: Any, tmp_path: Path) -> None:
     """Self-verification: subject and verifier are one tree, so /workspace is the only root."""
     repo = tmp_path / "builder-ii"
     repo.mkdir()

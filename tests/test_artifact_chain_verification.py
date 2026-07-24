@@ -414,6 +414,8 @@ def test_goal2_assignment_chain_detects_source_ref_digest_mismatch(
 
 def test_chain_accepts_verification_execution_plan_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -432,6 +434,8 @@ def test_chain_accepts_verification_execution_plan_artifact(tmp_path: Path) -> N
 
 def test_chain_rejects_malformed_verification_execution_plan_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -452,6 +456,8 @@ def test_chain_rejects_malformed_verification_execution_plan_artifact(tmp_path: 
 
 def test_chain_accepts_verification_execution_approval_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -477,6 +483,8 @@ def test_chain_accepts_verification_execution_approval_artifact(tmp_path: Path) 
 
 def test_chain_rejects_malformed_verification_execution_approval_artifact(tmp_path: Path) -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -508,6 +516,8 @@ def test_chain_accepts_verification_execution_ledger_record(tmp_path: Path) -> N
     ledger_root = tmp_path / ".builder" / "ledger"
 
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=str(tmp_path),
@@ -602,6 +612,8 @@ def test_chain_accepts_verification_execution_ledger_integrity_report(tmp_path: 
     ledger_root = tmp_path / ".builder" / "ledger"
 
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=str(tmp_path),
@@ -698,6 +710,8 @@ def test_chain_accepts_verification_execution_ledger_reconstruction_report(tmp_p
     ledger_root = tmp_path / ".builder" / "ledger"
 
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=str(tmp_path),

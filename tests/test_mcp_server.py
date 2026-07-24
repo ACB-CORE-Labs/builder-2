@@ -30,9 +30,7 @@ def _mcp_dir(tmp_path: Path) -> Path:
 
 
 def test_initialize_advertises_tools_capability(tmp_path: Path) -> None:
-    resp = _server(tmp_path).handle_request(
-        {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}
-    )
+    resp = _server(tmp_path).handle_request({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
     assert resp is not None
     assert resp["id"] == 1
     assert "tools" in resp["result"]["capabilities"]
@@ -40,9 +38,7 @@ def test_initialize_advertises_tools_capability(tmp_path: Path) -> None:
 
 
 def test_tools_list_advertises_readonly_stubs_and_gated_mutating_tools(tmp_path: Path) -> None:
-    resp = _server(tmp_path).handle_request(
-        {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}
-    )
+    resp = _server(tmp_path).handle_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
     assert resp is not None
     names = {t["name"] for t in resp["result"]["tools"]}
     assert {"echo", "utc_static"} <= names  # read-only stubs (run the ceremony)
@@ -52,17 +48,13 @@ def test_tools_list_advertises_readonly_stubs_and_gated_mutating_tools(tmp_path:
 
 
 def test_unknown_method_is_method_not_found(tmp_path: Path) -> None:
-    resp = _server(tmp_path).handle_request(
-        {"jsonrpc": "2.0", "id": 3, "method": "does/not/exist", "params": {}}
-    )
+    resp = _server(tmp_path).handle_request({"jsonrpc": "2.0", "id": 3, "method": "does/not/exist", "params": {}})
     assert resp is not None
     assert resp["error"]["code"] == -32601
 
 
 def test_notification_without_id_returns_no_response(tmp_path: Path) -> None:
-    resp = _server(tmp_path).handle_request(
-        {"jsonrpc": "2.0", "method": "notifications/initialized"}
-    )
+    resp = _server(tmp_path).handle_request({"jsonrpc": "2.0", "method": "notifications/initialized"})
     assert resp is None
 
 
@@ -167,12 +159,15 @@ def test_gated_refusal_writes_no_execution_receipt(tmp_path: Path) -> None:
 def test_readonly_and_gated_events_share_one_valid_chain(tmp_path: Path) -> None:
     server = _server(tmp_path)
     server.handle_request(
-        {"jsonrpc": "2.0", "id": 40, "method": "tools/call",
-         "params": {"name": "echo", "arguments": {"text": "ok"}}}
+        {"jsonrpc": "2.0", "id": 40, "method": "tools/call", "params": {"name": "echo", "arguments": {"text": "ok"}}}
     )
     server.handle_request(
-        {"jsonrpc": "2.0", "id": 41, "method": "tools/call",
-         "params": {"name": "run_shell", "arguments": {"cmd": "rm -rf /"}}}
+        {
+            "jsonrpc": "2.0",
+            "id": 41,
+            "method": "tools/call",
+            "params": {"name": "run_shell", "arguments": {"cmd": "rm -rf /"}},
+        }
     )
     events = sorted(_events_dir(tmp_path).glob("*.json"))
     assert len(events) == 2
@@ -190,9 +185,12 @@ def test_serve_stdio_roundtrip_over_text_streams(tmp_path: Path) -> None:
     import io
 
     stdin = io.StringIO(
-        json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}) + "\n"
-        + json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n"
-        + json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}) + "\n"
+        json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+        + "\n"
+        + json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"})
+        + "\n"
+        + json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
+        + "\n"
     )
     stdout = io.StringIO()
     _server(tmp_path).serve_stdio(stdin=stdin, stdout=stdout)

@@ -37,7 +37,5 @@ def test_p6_maker_artifact_digests_match_file_bytes() -> None:
         path = REPO_ROOT / rel
         assert path.is_file(), f"digest path missing: {rel}"
         actual = hashlib.sha256(path.read_bytes()).hexdigest()
-        assert actual == claimed, (
-            f"false digest for {rel}: file={actual} claimed={claimed}"
-        )
+        assert actual == claimed, f"false digest for {rel}: file={actual} claimed={claimed}"
         assert isinstance(claimed, str) and len(claimed) == 64

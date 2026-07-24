@@ -60,9 +60,7 @@ def _gateway() -> ModelExecutionGateway:
             "recommended_candidates": [{"model_id": "gpt-4o-stub"}],
         }
     )
-    return ModelExecutionGateway(
-        _settings(), registry, policy, price_book=create_default_price_book()
-    )
+    return ModelExecutionGateway(_settings(), registry, policy, price_book=create_default_price_book())
 
 
 def test_receipt_digest_matches_on_disk_after_budget_debit(tmp_path: Path) -> None:

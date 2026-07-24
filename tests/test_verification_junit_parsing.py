@@ -16,8 +16,7 @@ from builder_ii.lifecycle.candidate.verification_execution_runner import _parse_
 def test_valid_junit_yields_structured_counts(tmp_path: Path) -> None:
     junit = tmp_path / "verification-junit.xml"
     junit.write_text(
-        '<?xml version="1.0"?>'
-        '<testsuites><testsuite tests="5" failures="1" errors="0" skipped="2"/></testsuites>',
+        '<?xml version="1.0"?><testsuites><testsuite tests="5" failures="1" errors="0" skipped="2"/></testsuites>',
         encoding="utf-8",
     )
     outcome = _parse_junit_structured_outcome(junit)
@@ -42,9 +41,7 @@ def test_malformed_junit_degrades_to_parse_error_record(tmp_path: Path) -> None:
 def test_forbidden_xml_construct_refused_without_raising(tmp_path: Path) -> None:
     junit = tmp_path / "verification-junit.xml"
     junit.write_text(
-        '<?xml version="1.0"?>'
-        '<!DOCTYPE testsuite [<!ENTITY x "y">]>'
-        '<testsuite tests="1">&x;</testsuite>',
+        '<?xml version="1.0"?><!DOCTYPE testsuite [<!ENTITY x "y">]><testsuite tests="1">&x;</testsuite>',
         encoding="utf-8",
     )
     outcome = _parse_junit_structured_outcome(junit)  # must not raise: this is the receipt path

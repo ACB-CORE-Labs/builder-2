@@ -448,9 +448,7 @@ def test_demo_validate_cli_catches_retargeted_approval(tmp_path: Path) -> None:
     approval["patch_digest"] = ("0" if digest[0] != "0" else "1") + digest[1:]
     approval_path.write_text(json.dumps(approval, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
-    tampered = CliRunner().invoke(
-        platform_app, ["validate-demo-loop", str(output_dir / "demo-loop-report.json")]
-    )
+    tampered = CliRunner().invoke(platform_app, ["validate-demo-loop", str(output_dir / "demo-loop-report.json")])
     assert tampered.exit_code == 1
     assert "does not match its recorded sha256" in tampered.output.replace("\n", "")
 

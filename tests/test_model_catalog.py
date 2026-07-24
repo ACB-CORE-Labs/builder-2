@@ -15,9 +15,11 @@ def test_registry_integrity():
     for alias in registry_aliases:
         assert alias in MODEL_ALIASES, f"Registry alias {alias} not found in MODEL_ALIASES."
 
+
 def test_normalize_fallback():
     assert normalize_model_alias(None, tier_fallback="fast") == "phi-reasoning"
     assert normalize_model_alias(None, tier_fallback="primary") == "qwen-coder"
+
 
 def test_normalize_normalization():
     for raw, expected in ALIAS_NORMALIZATION.items():

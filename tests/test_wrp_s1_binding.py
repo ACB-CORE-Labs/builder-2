@@ -26,7 +26,12 @@ def test_recommendation_without_require_has_no_required_binding() -> None:
     rec = create_model_routing_recommendation(
         policy=policy,
         registry=registry,
-        request={"task_intent": "coding", "task_text": "implement a CLI command", "max_risk_classification": "local_network", "requires_tool_use": True},
+        request={
+            "task_intent": "coding",
+            "task_text": "implement a CLI command",
+            "max_risk_classification": "local_network",
+            "requires_tool_use": True,
+        },
     )
     assert rec.get("require_wrp_binding") is False
     # Advisory binding may still be present when task_text is provided

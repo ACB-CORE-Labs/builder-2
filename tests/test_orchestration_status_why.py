@@ -51,24 +51,44 @@ def _build_four_state_run(tmp_path: Path) -> tuple[Path, dict[str, dict]]:
     seal = approval["approval_digest"]
 
     satisfied_path, satisfied_obl = _obligation(
-        tmp_path, 0, seal_digest=seal, lpd=lpd,
-        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[],
-        subagent="repo_mapper", budget=SMALL,
+        tmp_path,
+        0,
+        seal_digest=seal,
+        lpd=lpd,
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="repo_mapper",
+        budget=SMALL,
     )
     unverified_path, unverified_obl = _obligation(
-        tmp_path, 1, seal_digest=seal, lpd=lpd,
+        tmp_path,
+        1,
+        seal_digest=seal,
+        lpd=lpd,
         expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
-        evidence=["builder_ii.verification_execution_receipt"], subagent="code_reviewer", budget=SMALL,
+        evidence=["builder_ii.verification_execution_receipt"],
+        subagent="code_reviewer",
+        budget=SMALL,
     )
     violated_path, violated_obl = _obligation(
-        tmp_path, 2, seal_digest=seal, lpd=lpd,
-        expected_kind="builder_ii.some_other_kind", evidence=[],
-        subagent="repo_mapper", budget=SMALL,
+        tmp_path,
+        2,
+        seal_digest=seal,
+        lpd=lpd,
+        expected_kind="builder_ii.some_other_kind",
+        evidence=[],
+        subagent="repo_mapper",
+        budget=SMALL,
     )
     blocked_path, blocked_obl = _obligation(
-        tmp_path, 3, seal_digest=seal, lpd=lpd,
-        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[],
-        subagent="repo_mapper", budget=TOO_BIG,
+        tmp_path,
+        3,
+        seal_digest=seal,
+        lpd=lpd,
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="repo_mapper",
+        budget=TOO_BIG,
     )
 
     output_dir = tmp_path / "runs" / "obl"
@@ -182,7 +202,9 @@ def test_render_status_table_state_column_survives_narrow_width() -> None:
                 "board_state": state,
                 "obligation_kind": "builder_ii.a_deliberately_long_obligation_contract_kind_name",
                 "subagent_profile": "a-long-subagent-profile-identifier",
-                "budget_partition": {column: 1 for column in ("max_subagents", "max_events", "max_output_bytes", "max_human_gates")},
+                "budget_partition": {
+                    column: 1 for column in ("max_subagents", "max_events", "max_output_bytes", "max_human_gates")
+                },
             }
             for index, state in enumerate(BOARD_STATES)
         ],
@@ -291,9 +313,7 @@ def test_why_blocked_is_not_believed_and_exits_nonzero(tmp_path: Path) -> None:
 def test_why_rejects_non_event_artifact(tmp_path: Path) -> None:
     _output_dir, obligations = _build_four_state_run(tmp_path)
     not_an_event = tmp_path / "not-an-event.json"
-    not_an_event.write_text(
-        json_lib.dumps(obligations[BOARD_STATE_SATISFIED]), encoding="utf-8"
-    )
+    not_an_event.write_text(json_lib.dumps(obligations[BOARD_STATE_SATISFIED]), encoding="utf-8")
 
     result = runner.invoke(orchestration_app, ["why", str(not_an_event)])
     assert result.exit_code == 1

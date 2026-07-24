@@ -121,10 +121,14 @@ def test_apply_patch_cli_denied_by_command_authority_gate(_gate, tmp_path: Path)
         hitl_app,
         [
             "apply-patch",
-            "--proposal", str(tmp_path / "p.json"),
-            "--approval", str(tmp_path / "a.json"),
-            "--verification-receipt", str(tmp_path / "vr.json"),
-            "--output-dir", str(out),
+            "--proposal",
+            str(tmp_path / "p.json"),
+            "--approval",
+            str(tmp_path / "a.json"),
+            "--verification-receipt",
+            str(tmp_path / "vr.json"),
+            "--output-dir",
+            str(out),
         ],
     )
     assert result.exit_code != 0
@@ -138,10 +142,14 @@ def test_rollback_cli_denied_by_command_authority_gate(_gate, tmp_path: Path) ->
         hitl_app,
         [
             "rollback",
-            "--rollback-plan", str(tmp_path / "plan.json"),
-            "--reverse-patch", str(tmp_path / "rev.patch"),
-            "--approval", str(tmp_path / "a.json"),
-            "--output-dir", str(out),
+            "--rollback-plan",
+            str(tmp_path / "plan.json"),
+            "--reverse-patch",
+            str(tmp_path / "rev.patch"),
+            "--approval",
+            str(tmp_path / "a.json"),
+            "--output-dir",
+            str(out),
         ],
     )
     assert result.exit_code != 0
@@ -168,10 +176,14 @@ def test_apply_patch_cli_denies_forged_approval_without_mutation(tmp_path: Path)
         hitl_app,
         [
             "apply-patch",
-            "--proposal", str(prop_path),
-            "--approval", str(forged),
-            "--verification-receipt", str(vr_path),
-            "--output-dir", str(out),
+            "--proposal",
+            str(prop_path),
+            "--approval",
+            str(forged),
+            "--verification-receipt",
+            str(vr_path),
+            "--output-dir",
+            str(out),
         ],
     )
     assert result.exit_code == 1
@@ -211,10 +223,14 @@ def test_rollback_cli_denies_unbound_approval_without_reverting(tmp_path: Path) 
         hitl_app,
         [
             "rollback",
-            "--rollback-plan", str(out / "rollback_plan.json"),
-            "--reverse-patch", str(out / "rollback.patch"),
-            "--approval", str(unbound_approval),
-            "--output-dir", str(rollback_out),
+            "--rollback-plan",
+            str(out / "rollback_plan.json"),
+            "--reverse-patch",
+            str(out / "rollback.patch"),
+            "--approval",
+            str(unbound_approval),
+            "--output-dir",
+            str(rollback_out),
         ],
     )
     assert result.exit_code == 1

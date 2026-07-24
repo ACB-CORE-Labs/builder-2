@@ -116,8 +116,12 @@ async def test_stratum_palette_authority():
 
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test() as pilot:
-            with patch("builder_ii.tui.app.COMMAND_AUTHORITY_REGISTRY") as mock_registry, patch("builder_ii.tui.app.check_command_authority") as mock_check:
+            with (
+                patch("builder_ii.tui.app.COMMAND_AUTHORITY_REGISTRY") as mock_registry,
+                patch("builder_ii.tui.app.check_command_authority") as mock_check,
+            ):
                 from unittest.mock import MagicMock
+
                 mock_record = MagicMock()
                 mock_record.name = "test"
                 mock_record.tier = TIER_0
@@ -268,7 +272,9 @@ async def test_launch_goose_fails_closed_when_the_registry_forbids_the_governed_
         app = StratumApp(show_splash=False, skip_guide=True)
         async with app.run_test():
             with (
-                patch("builder_ii.command_authority.enforce_command_authority", side_effect=CommandAuthorityError("nope")),
+                patch(
+                    "builder_ii.command_authority.enforce_command_authority", side_effect=CommandAuthorityError("nope")
+                ),
                 patch("subprocess.run") as run,
                 patch.object(app, "notify") as notify,
             ):
@@ -425,7 +431,9 @@ def _rendered_string_literals(source: pathlib.Path) -> list[str]:
             if doc is not None:
                 docstrings.add(doc)
     return [
-        n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str) and n.value not in docstrings
+        n.value
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Constant) and isinstance(n.value, str) and n.value not in docstrings
     ]
 
 

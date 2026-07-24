@@ -257,7 +257,9 @@ def test_the_two_rows_that_describe_the_deepagents_trunk_agree_about_its_risk() 
     trunk = rows["deepagents runtime/subagents"]
     delegation = rows["governed obligation delegation"]
 
-    assert "builder_ii/adapters/deepagents/deepagents_execution.py" in set(trunk.evidence_files) & set(delegation.evidence_files)
+    assert "builder_ii/adapters/deepagents/deepagents_execution.py" in set(trunk.evidence_files) & set(
+        delegation.evidence_files
+    )
     assert assurance_state_for_row(trunk) == assurance_state_for_row(delegation)
 
 

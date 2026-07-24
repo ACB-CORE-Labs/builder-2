@@ -200,9 +200,24 @@ def test_conservation_no_refunds_unspent_child_grant_stays_committed() -> None:
 
 
 def test_human_gates_mint_time_ceiling_respects_root_default() -> None:
-    parent = {"max_subagents": 8, "max_events": 256, "max_output_bytes": 65_536, "max_human_gates": DEFAULT_ROOT_MAX_HUMAN_GATES}
-    within_budget = {"max_subagents": 1, "max_events": 1, "max_output_bytes": 1, "max_human_gates": DEFAULT_ROOT_MAX_HUMAN_GATES}
-    over_budget = {"max_subagents": 1, "max_events": 1, "max_output_bytes": 1, "max_human_gates": DEFAULT_ROOT_MAX_HUMAN_GATES + 1}
+    parent = {
+        "max_subagents": 8,
+        "max_events": 256,
+        "max_output_bytes": 65_536,
+        "max_human_gates": DEFAULT_ROOT_MAX_HUMAN_GATES,
+    }
+    within_budget = {
+        "max_subagents": 1,
+        "max_events": 1,
+        "max_output_bytes": 1,
+        "max_human_gates": DEFAULT_ROOT_MAX_HUMAN_GATES,
+    }
+    over_budget = {
+        "max_subagents": 1,
+        "max_events": 1,
+        "max_output_bytes": 1,
+        "max_human_gates": DEFAULT_ROOT_MAX_HUMAN_GATES + 1,
+    }
     assert fits_within(within_budget, parent) is True
     assert fits_within(over_budget, parent) is False
 
@@ -328,9 +343,7 @@ def test_rejects_wrong_kind_and_schema_version() -> None:
 
 
 def test_rejects_non_object_input() -> None:
-    assert validate_orchestration_obligation(["not", "a", "dict"]) == [
-        "orchestration obligation must be a JSON object"
-    ]
+    assert validate_orchestration_obligation(["not", "a", "dict"]) == ["orchestration obligation must be a JSON object"]
 
 
 def test_rejects_tampered_governance_block() -> None:

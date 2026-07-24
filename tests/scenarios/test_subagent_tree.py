@@ -65,22 +65,26 @@ def test_flat_run_projects_its_subagents(tmp_path: Path) -> None:
 def test_nested_run_projects_subagents_of_subagents(tmp_path: Path) -> None:
     art = tmp_path / "artifacts"
     # Child run with one leaf subagent.
-    child_receipt = create_deepagents_subagent_execution_receipt(
-        "leaf", _ref(art / "ca.json"), _ref(art / "cr.json")
-    )
+    child_receipt = create_deepagents_subagent_execution_receipt("leaf", _ref(art / "ca.json"), _ref(art / "cr.json"))
     crp = _write(art / "child-receipt.json", child_receipt)
     child_env = create_deepagents_runtime_envelope(
-        "child-run", _ref(art / "cplan.json"), [_ref(crp, kind=DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND, role="receipt")]
+        "child-run",
+        _ref(art / "cplan.json"),
+        [_ref(crp, kind=DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND, role="receipt")],
     )
     cep = _write(art / "child-envelope.json", child_env)
 
     # Parent run whose single subagent's result IS the child run envelope.
     parent_receipt = create_deepagents_subagent_execution_receipt(
-        "orchestrator", _ref(art / "pa.json"), _ref(cep)  # result_ref -> child envelope
+        "orchestrator",
+        _ref(art / "pa.json"),
+        _ref(cep),  # result_ref -> child envelope
     )
     prp = _write(art / "parent-receipt.json", parent_receipt)
     parent_env = create_deepagents_runtime_envelope(
-        "parent-run", _ref(art / "pplan.json"), [_ref(prp, kind=DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND, role="receipt")]
+        "parent-run",
+        _ref(art / "pplan.json"),
+        [_ref(prp, kind=DEEPAGENTS_SUBAGENT_EXECUTION_RECEIPT_KIND, role="receipt")],
     )
     _write(art / "parent-envelope.json", parent_env)
 

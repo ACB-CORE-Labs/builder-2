@@ -189,4 +189,7 @@ def test_validate_profile_artifact_additional_failures() -> None:
         },
     }
     errors = validate_profile_artifact(bad_gov)
-    assert any("governance.writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH" in err for err in errors)
+    assert any(
+        "governance.writes must be DISABLED or NOT_AUTHORIZED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH" in err
+        for err in errors
+    )

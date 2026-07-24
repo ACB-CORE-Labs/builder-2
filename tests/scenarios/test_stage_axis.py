@@ -30,9 +30,7 @@ def test_empty_tree_makes_prepare_active(tmp_path: Path) -> None:
 
 
 def test_session_artifact_advances_journey_to_plan(tmp_path: Path) -> None:
-    (tmp_path / "session.json").write_text(
-        json.dumps({"kind": "builder_ii.session_configuration"}), encoding="utf-8"
-    )
+    (tmp_path / "session.json").write_text(json.dumps({"kind": "builder_ii.session_configuration"}), encoding="utf-8")
     states = _states(tmp_path)
     assert states["PREPARE"] == "done"
     assert states["PLAN"] == "active"

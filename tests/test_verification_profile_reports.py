@@ -49,7 +49,8 @@ def test_validation_rejects_completed_claims() -> None:
     bad_completed = dict(report)
     bad_completed["completed_verification"] = True
     assert any(
-        "completed_verification must be false or NOT_AUTHORIZED" in error for error in validate_verification_profile_report(bad_completed)
+        "completed_verification must be false or NOT_AUTHORIZED" in error
+        for error in validate_verification_profile_report(bad_completed)
     )
 
     bad_check = dict(report)

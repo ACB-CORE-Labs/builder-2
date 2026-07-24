@@ -57,6 +57,8 @@ def real_verification_receipt(tmp_path: Path) -> Path:
     root = tmp_path / ".builder" / "verification"
     root.mkdir(parents=True, exist_ok=True)
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=str(tmp_path),

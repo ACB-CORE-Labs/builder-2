@@ -24,6 +24,8 @@ runner = CliRunner()
 
 def _write_bound_artifacts(tmp_path: Path) -> tuple[Path, Path, Path]:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -85,6 +87,8 @@ def test_validate_receipt_reports_valid_for_bound_artifacts(tmp_path: Path) -> N
 def test_validate_receipt_fails_with_wrong_plan(tmp_path: Path) -> None:
     plan_path, approval_path, receipt_path = _write_bound_artifacts(tmp_path)
     wrong_plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo="/tmp/other",

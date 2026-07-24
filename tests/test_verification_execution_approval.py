@@ -17,6 +17,8 @@ from builder_ii.lifecycle.candidate.verification_execution_plan import finalize_
 
 def _sample_plan() -> dict:
     return finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",

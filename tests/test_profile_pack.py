@@ -185,7 +185,9 @@ def test_render_plan_and_dry_run_reject_execution_claims(tmp_path: Path) -> None
     bad_plan = copy.deepcopy(plan)
     bad_plan["planned_outputs"][0]["executes_now"] = True
     bad_plan["render_boundary"]["starts_goose"] = True
-    assert "planned_outputs[0].executes_now must be false or NOT_AUTHORIZED" in validate_profile_pack_render_plan(bad_plan)
+    assert "planned_outputs[0].executes_now must be false or NOT_AUTHORIZED" in validate_profile_pack_render_plan(
+        bad_plan
+    )
     assert "render_boundary.starts_goose must be false or NOT_AUTHORIZED" in validate_profile_pack_render_plan(bad_plan)
 
     bad_dry_run = copy.deepcopy(dry_run)

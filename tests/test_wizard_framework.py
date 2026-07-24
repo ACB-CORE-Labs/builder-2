@@ -242,7 +242,10 @@ def test_prompt_loop_reports_whether_anything_was_actually_prompted() -> None:
 
     engine2 = WizardEngine(steps=_steps())
     answers2, prompted_any2 = run_typer_prompt_loop(
-        engine2, prompt_fn=lambda question, default=None: {"Question A": "x", "Question B (one, two)": "one", "Question C": "y"}[question]
+        engine2,
+        prompt_fn=lambda question, default=None: {"Question A": "x", "Question B (one, two)": "one", "Question C": "y"}[
+            question
+        ],
     )
     assert prompted_any2 is True
     assert answers2 == {"a": "x", "b": "one", "c": "y"}

@@ -110,6 +110,7 @@ def test_promotion_decision_file_validation(tmp_path: Path) -> None:
     path = tmp_path / "promotion-decision.json"
     readiness = _ready()
     import json
+
     (tmp_path / "promotion-readiness.json").write_text(json.dumps(readiness), encoding="utf-8")
     record = create_promotion_decision_record(
         readiness, readiness_path="promotion-readiness.json", decision="approved", decided_by="operator"

@@ -56,7 +56,6 @@ def test_create_governed_prepare_package_writes_expected_artifacts(tmp_path):
     assert validate_governed_prepare_package_file(output_dir / "prepare-package.json") == []
 
 
-
 def test_prepare_package_manifest_is_prepared_only_and_non_authoritative(tmp_path):
     repo = _make_repo(tmp_path)
     output_dir = tmp_path / "prepare"

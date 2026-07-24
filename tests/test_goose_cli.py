@@ -83,9 +83,7 @@ def test_start_readonly_refuses_non_read_only_manifest(tmp_path: Path) -> None:
 # --- Launch path (GooseRuntimeHarness replaced; no real Goose) ---
 
 
-def _install_subprocess_mocks(
-    monkeypatch: Any, tmp_path: Path, *, mutate_file: str | None = None
-) -> list[Any]:
+def _install_subprocess_mocks(monkeypatch: Any, tmp_path: Path, *, mutate_file: str | None = None) -> list[Any]:
     monkeypatch.setattr(goose_cli, "load_settings", lambda *a, **k: _settings_at(tmp_path))
     monkeypatch.setattr("builder_ii.goose_runtime_harness.find_goose_binary", lambda: "/fake/goose")
 
@@ -98,20 +96,27 @@ def _install_subprocess_mocks(
             self.env = env
             if mutate_file:
                 (Path(cwd) / mutate_file).write_text("mutated", encoding="utf-8")
+
         def poll(self) -> int | None:
             return 0
+
         def wait(self, timeout: float | None = None) -> int:
             return 0
+
         def terminate(self) -> None:
             pass
+
         def kill(self) -> None:
             pass
+
         def __enter__(self):
             return self
+
         def __exit__(self, exc_type, exc_val, exc_tb):
             pass
 
     import subprocess
+
     real_popen = subprocess.Popen
     captured_procs: list[Any] = []
 
@@ -237,9 +242,7 @@ def test_close_readonly_reports_existing_close_receipt_when_already_closed(monke
     assert "goose_4_close.json" in result.output
 
 
-def test_close_readonly_receipt_path_survives_a_path_longer_than_the_console(
-    monkeypatch: Any, tmp_path: Path
-) -> None:
+def test_close_readonly_receipt_path_survives_a_path_longer_than_the_console(monkeypatch: Any, tmp_path: Path) -> None:
     """The close-receipt path must render intact even when it exceeds the console width.
 
     Rich word-wraps at the console width (80 when stdout is not a terminal), and a filesystem

@@ -15,6 +15,8 @@ from builder_ii.lifecycle.candidate.verification_execution_plan import (
 
 def _sample_plan() -> dict:
     return finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -42,6 +44,8 @@ def test_valid_plan_validates() -> None:
 
 def test_builder_full_is_the_supported_b1_1_pair() -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
         target_repo=".",
@@ -61,6 +65,8 @@ def test_compatible_target_verification_pairs_validate() -> None:
     ]
     for target_profile, verification_profile in cases:
         plan = finalize_verification_execution_plan(
+            target_head_sha="0000000000000000000000000000000000000000",
+            tree_clean=True,
             target_profile=target_profile,
             verification_profile=verification_profile,
             target_repo=".",
@@ -73,6 +79,8 @@ def test_compatible_target_verification_pairs_validate() -> None:
 
 def test_generic_plan_defaults_to_pytest_full_only() -> None:
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="generic",
         verification_profile="generic_basic",
         target_repo=".",
@@ -81,7 +89,9 @@ def test_generic_plan_defaults_to_pytest_full_only() -> None:
     )
     # A non-builder target only runs its own suite; no builder-II self profiles are offered.
     assert [p["profile"] for p in plan["allowed_command_profiles"]] == ["pytest_full"]
-    assert plan["allowed_command_profiles"][0]["command_profile_ref"] == "verification_profiles.generic_basic.pytest_full"
+    assert (
+        plan["allowed_command_profiles"][0]["command_profile_ref"] == "verification_profiles.generic_basic.pytest_full"
+    )
     assert [s["step_id"] for s in plan["planned_steps"]] == ["pytest_full"]
 
 
@@ -92,6 +102,8 @@ def test_incompatible_target_verification_pair_fails() -> None:
         ("builder", "core_smoke"),
     ]:
         plan = finalize_verification_execution_plan(
+            target_head_sha="0000000000000000000000000000000000000000",
+            tree_clean=True,
             target_profile=target_profile,
             verification_profile=verification_profile,
             target_repo=".",
@@ -277,11 +289,8 @@ def test_isolation_policy_injection_is_rejected() -> None:
         "schema_version": 1,
         "backend": "docker",
         "image_ref": "python:3.12-slim",
-        "mounts": [
-            {"source": "/foo", "target": "/bar; sh -c 'echo pwn'"}
-        ]
+        "mounts": [{"source": "/foo", "target": "/bar; sh -c 'echo pwn'"}],
     }
     plan = _resign(plan)
     errors = validate_verification_execution_plan_artifact(plan)
     assert any("sh -c" in error for error in errors)
-

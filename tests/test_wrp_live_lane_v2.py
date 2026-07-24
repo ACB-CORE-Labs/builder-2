@@ -107,9 +107,7 @@ def test_v1_still_refuses_gateway_flags() -> None:
 
 
 def test_v2_msda_deny_blocks() -> None:
-    plan = _v2_plan(
-        msda_tools=[{"tool": "shell", "data_domain": "local_workspace", "risk": "local_offline"}]
-    )
+    plan = _v2_plan(msda_tools=[{"tool": "shell", "data_domain": "local_workspace", "risk": "local_offline"}])
     # plan builder may append gateway tools; force shell-only
     bad = dict(plan)
     bad["msda_tools"] = [{"tool": "shell", "data_domain": "local_workspace", "risk": "local_offline"}]

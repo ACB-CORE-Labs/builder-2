@@ -79,7 +79,9 @@ def test_config_to_goose_projection_flow_rejects_late_authority_escalation(tmp_p
 
     bad_config = copy.deepcopy(config)
     bad_config["governance"]["goose_runtime_start"] = "ENABLED"
-    assert "governance.goose_runtime_start must be DISABLED or NOT_AUTHORIZED" in validate_session_configuration(bad_config)
+    assert "governance.goose_runtime_start must be DISABLED or NOT_AUTHORIZED" in validate_session_configuration(
+        bad_config
+    )
 
     bad_projection = copy.deepcopy(projection)
     bad_projection["projection_state"] = "EXECUTED"

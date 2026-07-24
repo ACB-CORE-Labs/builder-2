@@ -125,11 +125,16 @@ def test_builder_verify_plan_docker_isolation_attaches_a_valid_policy(tmp_path: 
         verify_app,
         [
             "plan",
-            "--target-profile", "builder",
-            "--verification-profile", "builder_full",
-            "--output", str(output),
-            "--isolation", "docker",
-            "--isolation-image", "python:3.12-slim",
+            "--target-profile",
+            "builder",
+            "--verification-profile",
+            "builder_full",
+            "--output",
+            str(output),
+            "--isolation",
+            "docker",
+            "--isolation-image",
+            "python:3.12-slim",
         ],
     )
     assert result.exit_code == 0, result.output
@@ -152,12 +157,18 @@ def test_builder_verify_plan_docker_isolation_records_the_image_pin(tmp_path: Pa
         verify_app,
         [
             "plan",
-            "--target-profile", "builder",
-            "--verification-profile", "builder_full",
-            "--output", str(output),
-            "--isolation", "docker",
-            "--isolation-image", "python:3.12-slim",
-            "--isolation-image-digest", digest,
+            "--target-profile",
+            "builder",
+            "--verification-profile",
+            "builder_full",
+            "--output",
+            str(output),
+            "--isolation",
+            "docker",
+            "--isolation-image",
+            "python:3.12-slim",
+            "--isolation-image-digest",
+            digest,
         ],
     )
     assert result.exit_code == 0, result.output
@@ -175,10 +186,14 @@ def test_builder_verify_plan_docker_requires_an_image(tmp_path: Path) -> None:
         verify_app,
         [
             "plan",
-            "--target-profile", "builder",
-            "--verification-profile", "builder_full",
-            "--output", str(output),
-            "--isolation", "docker",
+            "--target-profile",
+            "builder",
+            "--verification-profile",
+            "builder_full",
+            "--output",
+            str(output),
+            "--isolation",
+            "docker",
         ],
     )
     assert result.exit_code != 0
@@ -194,10 +209,14 @@ def test_builder_verify_plan_rejects_an_unknown_isolation_backend(tmp_path: Path
         verify_app,
         [
             "plan",
-            "--target-profile", "builder",
-            "--verification-profile", "builder_full",
-            "--output", str(output),
-            "--isolation", "chroot",
+            "--target-profile",
+            "builder",
+            "--verification-profile",
+            "builder_full",
+            "--output",
+            str(output),
+            "--isolation",
+            "chroot",
         ],
     )
     assert result.exit_code != 0
@@ -214,10 +233,14 @@ def test_builder_verify_plan_image_flags_require_docker(tmp_path: Path) -> None:
         verify_app,
         [
             "plan",
-            "--target-profile", "builder",
-            "--verification-profile", "builder_full",
-            "--output", str(output),
-            "--isolation-image", "python:3.12-slim",
+            "--target-profile",
+            "builder",
+            "--verification-profile",
+            "builder_full",
+            "--output",
+            str(output),
+            "--isolation-image",
+            "python:3.12-slim",
         ],
     )
     assert result.exit_code != 0

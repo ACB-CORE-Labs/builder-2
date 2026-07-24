@@ -54,9 +54,7 @@ def test_promoted_never_greens_without_a_promotion_decision_kind() -> None:
     epi = epistemic_from_chain(_chain({"builder_ii.execution_postflight_record"}, chain_valid=True))
     assert epi["state_promoted"] != "completed"
 
-    promoted = epistemic_from_chain(
-        _chain({"builder_ii.promotion_decision_record"}, chain_valid=True)
-    )
+    promoted = epistemic_from_chain(_chain({"builder_ii.promotion_decision_record"}, chain_valid=True))
     assert promoted["state_promoted"] == "completed"
 
 

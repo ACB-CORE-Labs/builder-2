@@ -8,6 +8,7 @@ Covers:
   - CORE demo target spec presence, data-only enforcement, and string-duplication guard
   - target_profile_defaults delegation (no CORE strings in config_sources)
 """
+
 from __future__ import annotations
 
 import importlib
@@ -39,6 +40,7 @@ def _repo(tmp_path: Path, name: str = "target") -> Path:
 # ---------------------------------------------------------------------------
 # Original precedence / path / redaction tests
 # ---------------------------------------------------------------------------
+
 
 def test_generic_env_names_resolve_correctly(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
@@ -189,6 +191,7 @@ def test_artifact_root_inside_target_can_be_explicitly_allowed(tmp_path: Path) -
 # Digest-bound artifact schema
 # ---------------------------------------------------------------------------
 
+
 def test_artifact_schema_is_digest_bound(tmp_path: Path) -> None:
     repo = _repo(tmp_path)
     resolution = resolve_config_sources(
@@ -237,6 +240,7 @@ def test_dumps_config_resolution_is_valid_json(tmp_path: Path) -> None:
         builder_config_file=_missing_config(tmp_path),
     )
     import json
+
     text = dumps_config_resolution(resolution)
     data = json.loads(text)
     assert data["kind"] == "builder_ii.config_source_resolution"
@@ -245,6 +249,7 @@ def test_dumps_config_resolution_is_valid_json(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Public API types are importable with correct shapes
 # ---------------------------------------------------------------------------
+
 
 def test_source_ref_has_expected_fields() -> None:
     ref = SourceRef(kind="cli_override", key="target_repo", path="")
@@ -263,14 +268,16 @@ def test_config_resolution_type_is_importable() -> None:
 # config_sources module source text
 # ---------------------------------------------------------------------------
 
+
 def test_config_sources_does_not_hardcode_core_strings() -> None:
     import builder_ii.core.config_sources as cs_mod
+
     source = inspect.getsource(cs_mod)
     assert "core.patch_planner" not in source, (
         "core.patch_planner must live only in target_profile_defaults, not config_sources"
     )
     assert 'parent / "core"' not in source, (
-        'CORE sibling repo path must live only in target_profile_defaults, not config_sources'
+        "CORE sibling repo path must live only in target_profile_defaults, not config_sources"
     )
 
 
@@ -278,6 +285,7 @@ def test_config_sources_does_not_hardcode_core_strings() -> None:
 # Demo-loop CORE strings must live only in the CORE target spec (ported from the
 # hardening line's CoreDemoAdapter guard; this lineage's shape is DemoTargetSpec)
 # ---------------------------------------------------------------------------
+
 
 def test_demo_loop_core_strings_live_only_in_the_core_target_spec() -> None:
     """Sensitive module prefixes, the CORE remote hint, and CORE-only paths must not appear as
@@ -307,8 +315,17 @@ def test_demo_loop_core_strings_live_only_in_the_core_target_spec() -> None:
                 for lineno in range(first.lineno, (first.end_lineno or first.lineno) + 1):
                     allowed_lines.add(lineno)
 
-    forbidden = ["algebra/", "field/", "generate/", "core/cognition/", "vault/", "teaching/",
-                 "calibration/", "sensorium/", "AssetOverflow/core"]
+    forbidden = [
+        "algebra/",
+        "field/",
+        "generate/",
+        "core/cognition/",
+        "vault/",
+        "teaching/",
+        "calibration/",
+        "sensorium/",
+        "AssetOverflow/core",
+    ]
     violations: list[str] = []
     for node in ast_mod.walk(tree):
         if not isinstance(node, ast_mod.Constant) or not isinstance(node.value, str):
@@ -325,6 +342,7 @@ def test_demo_loop_core_strings_live_only_in_the_core_target_spec() -> None:
 # ---------------------------------------------------------------------------
 # Import compatibility guards
 # ---------------------------------------------------------------------------
+
 
 def test_import_config_cli() -> None:
     mod = importlib.import_module("builder_ii.cli.config_cli")
@@ -345,21 +363,27 @@ def test_import_setup_onboarding() -> None:
 # demo loop public surface (ported from the hardening line's core_demo_loop smokes)
 # ---------------------------------------------------------------------------
 
+
 def test_run_demo_loop_signature() -> None:
     from builder_ii.core.demo_loop import run_demo_loop
+
     sig = inspect.signature(run_demo_loop)
     params = set(sig.parameters.keys())
-    assert {"target_repo", "output_dir", "target_name", "phase", "approve", "force", "cleanup_worktree"}.issubset(params)
+    assert {"target_repo", "output_dir", "target_name", "phase", "approve", "force", "cleanup_worktree"}.issubset(
+        params
+    )
 
 
 def test_dumps_demo_report_is_importable() -> None:
     from builder_ii.core.demo_loop import dumps_demo_report, validate_demo_report
+
     assert callable(dumps_demo_report)
     assert callable(validate_demo_report)
 
 
 def test_core_demo_target_spec_is_present() -> None:
     from builder_ii.core.demo_loop import CORE_DEMO_TARGET_SPEC
+
     assert CORE_DEMO_TARGET_SPEC.name == "core"
     assert "AssetOverflow/core" in (CORE_DEMO_TARGET_SPEC.expected_remote_substring or "")
     assert len(CORE_DEMO_TARGET_SPEC.sensitive_path_prefixes) > 0
@@ -369,9 +393,11 @@ def test_demo_target_spec_does_not_drive_phase_logic() -> None:
     """DemoTargetSpec must be data, not a controller (the same rule the hardening line pinned
     for its CoreDemoAdapter)."""
     from builder_ii.core.demo_loop import DemoTargetSpec
+
     assert DemoTargetSpec.__dataclass_params__.frozen
     public_methods = [
-        name for name, val in inspect.getmembers(DemoTargetSpec)
+        name
+        for name, val in inspect.getmembers(DemoTargetSpec)
         if not name.startswith("_")
         and callable(val)
         and not isinstance(inspect.getattr_static(DemoTargetSpec, name), property)
@@ -383,4 +409,5 @@ def test_platform_status_cli_demo_loop_can_call_run_demo_loop() -> None:
     mod = importlib.import_module("builder_ii.cli.platform_status_cli")
     assert mod is not None
     from builder_ii.core.demo_loop import run_demo_loop
+
     assert callable(run_demo_loop)

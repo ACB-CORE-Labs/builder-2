@@ -32,8 +32,18 @@ def _envelope(**overrides: object) -> dict:
             "path": "/tmp/proposal.json",
         },
         criteria=[
-            {"name": "files changed outside marker", "acceptable_range": "exactly 0", "observed": "0", "within_range": True},
-            {"name": "patch digest matches approval", "acceptable_range": "exact match", "observed": "match", "within_range": True},
+            {
+                "name": "files changed outside marker",
+                "acceptable_range": "exactly 0",
+                "observed": "0",
+                "within_range": True,
+            },
+            {
+                "name": "patch digest matches approval",
+                "acceptable_range": "exact match",
+                "observed": "match",
+                "within_range": True,
+            },
         ],
         options={
             "approve": "the marker line is applied in the throwaway worktree; receipt + reverse patch written",
@@ -126,7 +136,12 @@ def test_flags_a_violation_when_a_criterion_is_out_of_range() -> None:
 
     breach = _envelope(
         criteria=[
-            {"name": "files changed outside marker", "acceptable_range": "exactly 0", "observed": "3", "within_range": False},
+            {
+                "name": "files changed outside marker",
+                "acceptable_range": "exactly 0",
+                "observed": "3",
+                "within_range": False,
+            },
         ]
     )
     assert decision_envelope_flags_a_violation(breach) is True

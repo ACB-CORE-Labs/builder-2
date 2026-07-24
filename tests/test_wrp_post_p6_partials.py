@@ -68,9 +68,7 @@ def test_fleet_binding_annotates_model_gateway_on_plan() -> None:
         fleet_binding=binding,
         wrp_binding={"tier": "primary", "classification_digest": "a" * 64},
     )
-    model_specs = [
-        s for s in plan["node_specs"].values() if s.get("node_type") == "model_gateway"
-    ]
+    model_specs = [s for s in plan["node_specs"].values() if s.get("node_type") == "model_gateway"]
     assert model_specs
     payload = model_specs[0]["payload"]
     assert payload.get("fleet_selected_alias") == alias

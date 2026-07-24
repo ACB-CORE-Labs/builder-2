@@ -79,9 +79,7 @@ def _mint_rollback_approval(tmp_path: Path, rollback_plan_path: Path) -> Path:
     plan_data = json.loads(rollback_plan_path.read_text())
     rollback_approval_path = tmp_path / "rollback_approval.json"
     write_hitl_rollback_approval(
-        create_hitl_rollback_approval(
-            plan_data, confirmed_digest_prefix=canonical_digest(plan_data)[:4]
-        ),
+        create_hitl_rollback_approval(plan_data, confirmed_digest_prefix=canonical_digest(plan_data)[:4]),
         rollback_approval_path,
     )
     return rollback_approval_path
@@ -209,9 +207,7 @@ def test_a_second_rollback_of_the_same_plan_is_refused(tmp_path: Path):
 
     repeat_out = out_dir / "rollback_repeat"
     with pytest.raises(RuntimeError, match="Rollback refused"):
-        rollback_hitl_patch(
-            rollback_plan_path, reverse_patch_file, repeat_out, approval_path=rollback_approval_path
-        )
+        rollback_hitl_patch(rollback_plan_path, reverse_patch_file, repeat_out, approval_path=rollback_approval_path)
     failure_receipt = json.loads((repeat_out / "rollback_failure_receipt.json").read_text())
     assert failure_receipt["rollback_outcome"] == "REFUSED_TREE_DRIFT"
     assert failure_receipt["rollback_state"] == "NOT_EXECUTED"

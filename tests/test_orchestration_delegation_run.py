@@ -92,8 +92,19 @@ def _seal(tmp_path: Path, candidate, *, native_ack=False):
     return approval, candidate_path, approval_path
 
 
-def _obligation(tmp_path, idx, *, seal_digest, lpd, expected_kind, evidence, subagent, budget,
-                kind="planning_step", lane="deepagents"):
+def _obligation(
+    tmp_path,
+    idx,
+    *,
+    seal_digest,
+    lpd,
+    expected_kind,
+    evidence,
+    subagent,
+    budget,
+    kind="planning_step",
+    lane="deepagents",
+):
     obl = create_orchestration_obligation(
         lane=lane,
         obligation_kind=kind,
@@ -208,8 +219,11 @@ def test_optional_candidate_requires_native_ack_to_seal(monkeypatch, tmp_path: P
         )
     # With the second key the seal is valid.
     approval = create_deepagents_execution_approval(
-        candidate=candidate, candidate_path=candidate_path,
-        approval_actor="Op", approval_reason="r", native_backend_acknowledged=True,
+        candidate=candidate,
+        candidate_path=candidate_path,
+        approval_actor="Op",
+        approval_reason="r",
+        native_backend_acknowledged=True,
     )
     assert approval["native_backend_acknowledged"] is True
     assert validate_deepagents_execution_approval_against_candidate(approval, candidate) == []
@@ -239,23 +253,53 @@ def test_obligation_run_classifies_all_four_states(tmp_path: Path) -> None:
     lpd = policy["lane_policy_digest"]
     seal = approval["approval_digest"]
     obligations = [
-        _obligation(tmp_path, 0, seal_digest=seal, lpd=lpd,
-                    expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[],
-                    subagent="repo_mapper", budget=SMALL)[0],
-        _obligation(tmp_path, 1, seal_digest=seal, lpd=lpd,
-                    expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
-                    evidence=["verification_execution_receipt"], subagent="code_reviewer", budget=SMALL)[0],
-        _obligation(tmp_path, 2, seal_digest=seal, lpd=lpd,
-                    expected_kind="builder_ii.some_other_kind", evidence=[],
-                    subagent="repo_mapper", budget=SMALL)[0],
-        _obligation(tmp_path, 3, seal_digest=seal, lpd=lpd,
-                    expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[],
-                    subagent="repo_mapper", budget=TOO_BIG)[0],
+        _obligation(
+            tmp_path,
+            0,
+            seal_digest=seal,
+            lpd=lpd,
+            expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+            evidence=[],
+            subagent="repo_mapper",
+            budget=SMALL,
+        )[0],
+        _obligation(
+            tmp_path,
+            1,
+            seal_digest=seal,
+            lpd=lpd,
+            expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+            evidence=["verification_execution_receipt"],
+            subagent="code_reviewer",
+            budget=SMALL,
+        )[0],
+        _obligation(
+            tmp_path,
+            2,
+            seal_digest=seal,
+            lpd=lpd,
+            expected_kind="builder_ii.some_other_kind",
+            evidence=[],
+            subagent="repo_mapper",
+            budget=SMALL,
+        )[0],
+        _obligation(
+            tmp_path,
+            3,
+            seal_digest=seal,
+            lpd=lpd,
+            expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+            evidence=[],
+            subagent="repo_mapper",
+            budget=TOO_BIG,
+        )[0],
     ]
     output_dir = tmp_path / "runs" / "obl"
     summary = run_deepagents_approved_candidate(
-        candidate_path=candidate_path, approval_path=approval_path,
-        output_dir=output_dir, obligation_paths=obligations,
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=output_dir,
+        obligation_paths=obligations,
     )
     assert summary["status"] == "COMPLETED"
     assert summary["discharge_tally"] == {
@@ -272,13 +316,21 @@ def test_every_obligation_event_is_stamped(tmp_path: Path) -> None:
     candidate, policy, _pp, _wp, _wpp = _ladder4_candidate(tmp_path)
     approval, candidate_path, approval_path = _seal(tmp_path, candidate)
     obl_path, obl = _obligation(
-        tmp_path, 0, seal_digest=approval["approval_digest"], lpd=policy["lane_policy_digest"],
-        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[], subagent="repo_mapper", budget=SMALL,
+        tmp_path,
+        0,
+        seal_digest=approval["approval_digest"],
+        lpd=policy["lane_policy_digest"],
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="repo_mapper",
+        budget=SMALL,
     )
     output_dir = tmp_path / "runs" / "obl"
     run_deepagents_approved_candidate(
-        candidate_path=candidate_path, approval_path=approval_path,
-        output_dir=output_dir, obligation_paths=[obl_path],
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=output_dir,
+        obligation_paths=[obl_path],
     )
     stamped = {"obligation_minted", "subagent_scheduled", "subagent_result_recorded", "obligation_consumed"}
     seen = set()
@@ -294,13 +346,21 @@ def test_subagent_runs_obligation_task_not_root_task(tmp_path: Path) -> None:
     candidate, policy, _pp, _wp, _wpp = _ladder4_candidate(tmp_path)
     approval, candidate_path, approval_path = _seal(tmp_path, candidate)
     obl_path, obl = _obligation(
-        tmp_path, 7, seal_digest=approval["approval_digest"], lpd=policy["lane_policy_digest"],
-        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[], subagent="repo_mapper", budget=SMALL,
+        tmp_path,
+        7,
+        seal_digest=approval["approval_digest"],
+        lpd=policy["lane_policy_digest"],
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="repo_mapper",
+        budget=SMALL,
     )
     output_dir = tmp_path / "runs" / "obl"
     run_deepagents_approved_candidate(
-        candidate_path=candidate_path, approval_path=approval_path,
-        output_dir=output_dir, obligation_paths=[obl_path],
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=output_dir,
+        obligation_paths=[obl_path],
     )
     results = [e for e in _events(output_dir) if e["event_type"] == "subagent_result_recorded"]
     assert results and "obligation number 7 unique task" in results[0]["payload"]["summary"]
@@ -310,7 +370,9 @@ def test_subagent_runs_obligation_task_not_root_task(tmp_path: Path) -> None:
 def test_legacy_approval_refuses_obligations(tmp_path: Path) -> None:
     work_plan, work_plan_path = _work_plan_fixture(tmp_path)
     candidate = create_deepagents_execution_candidate(
-        work_plan=work_plan, work_plan_path=work_plan_path, output_root=tmp_path / "runs",
+        work_plan=work_plan,
+        work_plan_path=work_plan_path,
+        output_root=tmp_path / "runs",
         allowed_subagents=["repo_mapper"],
     )
     candidate_path = _write(tmp_path / "c.json", candidate)
@@ -320,13 +382,21 @@ def test_legacy_approval_refuses_obligations(tmp_path: Path) -> None:
     approval_path = _write(tmp_path / "a.json", approval)
     policy = create_orchestration_lane_policy_artifact()
     obl_path, _obl = _obligation(
-        tmp_path, 0, seal_digest=approval["approval_digest"], lpd=policy["lane_policy_digest"],
-        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[], subagent="repo_mapper", budget=SMALL,
+        tmp_path,
+        0,
+        seal_digest=approval["approval_digest"],
+        lpd=policy["lane_policy_digest"],
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="repo_mapper",
+        budget=SMALL,
     )
     with pytest.raises(ValueError, match="requires a Ladder 4 approval"):
         run_deepagents_approved_candidate(
-            candidate_path=candidate_path, approval_path=approval_path,
-            output_dir=tmp_path / "runs" / "obl", obligation_paths=[obl_path],
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            output_dir=tmp_path / "runs" / "obl",
+            obligation_paths=[obl_path],
         )
 
 
@@ -341,26 +411,36 @@ def test_mint_refusals_carry_fixing_edit(tmp_path: Path, mutate, violated) -> No
     candidate, policy, _pp, _wp, _wpp = _ladder4_candidate(tmp_path)
     approval, candidate_path, approval_path = _seal(tmp_path, candidate)
     obl = create_orchestration_obligation(
-        lane="deepagents", obligation_kind="planning_step", task="t",
+        lane="deepagents",
+        obligation_kind="planning_step",
+        task="t",
         output_contract_expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
-        briefing_bytes=8, budget_partition=SMALL,
+        briefing_bytes=8,
+        budget_partition=SMALL,
         parent_ref={"seal_digest": approval["approval_digest"]},
-        lane_policy_digest=policy["lane_policy_digest"], subagent_profile="repo_mapper",
+        lane_policy_digest=policy["lane_policy_digest"],
+        subagent_profile="repo_mapper",
     )
     mutate(obl)
     # Re-mint through the factory so the digest stays valid after the mutation.
     obl2 = create_orchestration_obligation(
-        lane=obl["lane"], obligation_kind=obl["obligation_kind"], task=obl["task"],
+        lane=obl["lane"],
+        obligation_kind=obl["obligation_kind"],
+        task=obl["task"],
         output_contract_expected_kind=obl["output_contract"]["expected_kind"],
-        briefing_bytes=obl["briefing_bytes"], budget_partition=obl["budget_partition"],
-        parent_ref=obl["parent_ref"], lane_policy_digest=obl["lane_policy_digest"],
+        briefing_bytes=obl["briefing_bytes"],
+        budget_partition=obl["budget_partition"],
+        parent_ref=obl["parent_ref"],
+        lane_policy_digest=obl["lane_policy_digest"],
         subagent_profile=obl["subagent_profile"],
     )
     obl_path = _write(tmp_path / "bad-obl.json", obl2)
     output_dir = tmp_path / "runs" / "obl"
     summary = run_deepagents_approved_candidate(
-        candidate_path=candidate_path, approval_path=approval_path,
-        output_dir=output_dir, obligation_paths=[obl_path],
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=output_dir,
+        obligation_paths=[obl_path],
     )
     assert summary["discharge_tally"][DISCHARGE_BLOCKED] == 1
     refusals = [e for e in _events(output_dir) if e["event_type"] == "obligation_mint_refused"]
@@ -370,22 +450,36 @@ def test_mint_refusals_carry_fixing_edit(tmp_path: Path, mutate, violated) -> No
 
 def test_budget_conservation_refuses_second_child_over_root(tmp_path: Path) -> None:
     # Root grants max_subagents=8; two children of 5 each -> second exceeds remaining (grants-not-loans).
-    candidate, policy, _pp, _wp, _wpp = _ladder4_candidate(
-        tmp_path, kinds=[{"kind": "planning_step", "max_count": 3}]
-    )
+    candidate, policy, _pp, _wp, _wpp = _ladder4_candidate(tmp_path, kinds=[{"kind": "planning_step", "max_count": 3}])
     approval, candidate_path, approval_path = _seal(tmp_path, candidate)
     lpd = policy["lane_policy_digest"]
     seal = approval["approval_digest"]
     big = {"max_subagents": 5, "max_events": 10, "max_output_bytes": 1024, "max_human_gates": 0}
-    o0 = _obligation(tmp_path, 0, seal_digest=seal, lpd=lpd,
-                     expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[],
-                     subagent="repo_mapper", budget=big)[0]
-    o1 = _obligation(tmp_path, 1, seal_digest=seal, lpd=lpd,
-                     expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[],
-                     subagent="code_reviewer", budget=big)[0]
+    o0 = _obligation(
+        tmp_path,
+        0,
+        seal_digest=seal,
+        lpd=lpd,
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="repo_mapper",
+        budget=big,
+    )[0]
+    o1 = _obligation(
+        tmp_path,
+        1,
+        seal_digest=seal,
+        lpd=lpd,
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="code_reviewer",
+        budget=big,
+    )[0]
     summary = run_deepagents_approved_candidate(
-        candidate_path=candidate_path, approval_path=approval_path,
-        output_dir=tmp_path / "runs" / "obl", obligation_paths=[o0, o1],
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=tmp_path / "runs" / "obl",
+        obligation_paths=[o0, o1],
     )
     assert summary["discharge_tally"][DISCHARGE_BLOCKED] == 1
     refusals = [e for e in _events(tmp_path / "runs" / "obl") if e["event_type"] == "obligation_mint_refused"]
@@ -394,19 +488,26 @@ def test_budget_conservation_refuses_second_child_over_root(tmp_path: Path) -> N
 
 def test_unauthorized_obligation_kind_blocked(tmp_path: Path) -> None:
     # Seal authorizes only planning_step; a well-formed verification obligation is outside the envelope.
-    candidate, policy, _pp, _wp, _wpp = _ladder4_candidate(
-        tmp_path, kinds=[{"kind": "planning_step", "max_count": 2}]
-    )
+    candidate, policy, _pp, _wp, _wpp = _ladder4_candidate(tmp_path, kinds=[{"kind": "planning_step", "max_count": 2}])
     approval, candidate_path, approval_path = _seal(tmp_path, candidate)
     obl_path, _obl = _obligation(
-        tmp_path, 0, seal_digest=approval["approval_digest"], lpd=policy["lane_policy_digest"],
-        expected_kind="builder_ii.verification_execution_receipt", evidence=[],
-        subagent="repo_mapper", budget=SMALL, kind="verification", lane="verify",
+        tmp_path,
+        0,
+        seal_digest=approval["approval_digest"],
+        lpd=policy["lane_policy_digest"],
+        expected_kind="builder_ii.verification_execution_receipt",
+        evidence=[],
+        subagent="repo_mapper",
+        budget=SMALL,
+        kind="verification",
+        lane="verify",
     )
     output_dir = tmp_path / "runs" / "obl"
     summary = run_deepagents_approved_candidate(
-        candidate_path=candidate_path, approval_path=approval_path,
-        output_dir=output_dir, obligation_paths=[obl_path],
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=output_dir,
+        obligation_paths=[obl_path],
     )
     assert summary["discharge_tally"][DISCHARGE_BLOCKED] == 1
     refusals = [e for e in _events(output_dir) if e["event_type"] == "obligation_mint_refused"]
@@ -416,22 +517,36 @@ def test_unauthorized_obligation_kind_blocked(tmp_path: Path) -> None:
 
 def test_obligation_kind_count_exhausted(tmp_path: Path) -> None:
     # Seal authorizes planning_step exactly once; the second mint of that kind is refused.
-    candidate, policy, _pp, _wp, _wpp = _ladder4_candidate(
-        tmp_path, kinds=[{"kind": "planning_step", "max_count": 1}]
-    )
+    candidate, policy, _pp, _wp, _wpp = _ladder4_candidate(tmp_path, kinds=[{"kind": "planning_step", "max_count": 1}])
     approval, candidate_path, approval_path = _seal(tmp_path, candidate)
     lpd = policy["lane_policy_digest"]
     seal = approval["approval_digest"]
-    o0 = _obligation(tmp_path, 0, seal_digest=seal, lpd=lpd,
-                     expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[],
-                     subagent="repo_mapper", budget=SMALL)[0]
-    o1 = _obligation(tmp_path, 1, seal_digest=seal, lpd=lpd,
-                     expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[],
-                     subagent="code_reviewer", budget=SMALL)[0]
+    o0 = _obligation(
+        tmp_path,
+        0,
+        seal_digest=seal,
+        lpd=lpd,
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="repo_mapper",
+        budget=SMALL,
+    )[0]
+    o1 = _obligation(
+        tmp_path,
+        1,
+        seal_digest=seal,
+        lpd=lpd,
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="code_reviewer",
+        budget=SMALL,
+    )[0]
     output_dir = tmp_path / "runs" / "obl"
     summary = run_deepagents_approved_candidate(
-        candidate_path=candidate_path, approval_path=approval_path,
-        output_dir=output_dir, obligation_paths=[o0, o1],
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        output_dir=output_dir,
+        obligation_paths=[o0, o1],
     )
     assert summary["discharge_tally"][DISCHARGE_CONTRACT_SATISFIED] == 1
     assert summary["discharge_tally"][DISCHARGE_BLOCKED] == 1
@@ -471,8 +586,7 @@ def test_classify_discharge_unit() -> None:
     assert classify_discharge(ok, {}, produced_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND)["discharge_state"] == (
         DISCHARGE_CONTRACT_SATISFIED
     )
-    unv = {"output_contract": {"expected_kind": PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
-                               "required_evidence_kinds": ["x"]}}
+    unv = {"output_contract": {"expected_kind": PROPOSAL_ONLY_RESULT_CONTRACT_KIND, "required_evidence_kinds": ["x"]}}
     assert classify_discharge(unv, {}, produced_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND)["discharge_state"] == (
         DISCHARGE_UNVERIFIED
     )
@@ -494,32 +608,72 @@ def test_cli_ladder4_seal_and_obligation_run(tmp_path: Path) -> None:
     candidate_path = tmp_path / "candidate.json"
     approval_path = tmp_path / "approval.json"
 
-    r1 = runner.invoke(deepagents_app, [
-        "execution-candidate", "--work-plan", str(work_plan_path), "--output-root", str(tmp_path / "runs"),
-        "--allowed-subagents", "repo_mapper,code_reviewer",
-        "--lane-policy", str(policy_path), "--allowed-obligation-kind", "planning_step:3",
-        "--refused-lane", "goose", "--output", str(candidate_path),
-    ])
+    r1 = runner.invoke(
+        deepagents_app,
+        [
+            "execution-candidate",
+            "--work-plan",
+            str(work_plan_path),
+            "--output-root",
+            str(tmp_path / "runs"),
+            "--allowed-subagents",
+            "repo_mapper,code_reviewer",
+            "--lane-policy",
+            str(policy_path),
+            "--allowed-obligation-kind",
+            "planning_step:3",
+            "--refused-lane",
+            "goose",
+            "--output",
+            str(candidate_path),
+        ],
+    )
     assert r1.exit_code == 0, r1.output
     candidate = json_lib.loads(candidate_path.read_text())
     assert candidate["obligation_envelope"]["lane_policy_digest"] == policy["lane_policy_digest"]
 
-    r2 = runner.invoke(deepagents_app, [
-        "approve-candidate", "--candidate", str(candidate_path),
-        "--approval-actor", "Op", "--approval-reason", "seal", "--output", str(approval_path),
-    ])
+    r2 = runner.invoke(
+        deepagents_app,
+        [
+            "approve-candidate",
+            "--candidate",
+            str(candidate_path),
+            "--approval-actor",
+            "Op",
+            "--approval-reason",
+            "seal",
+            "--output",
+            str(approval_path),
+        ],
+    )
     assert r2.exit_code == 0, r2.output
     approval = json_lib.loads(approval_path.read_text())
     assert is_ladder4_seal(approval)
 
     obl_path, _obl = _obligation(
-        tmp_path, 0, seal_digest=approval["approval_digest"], lpd=policy["lane_policy_digest"],
-        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND, evidence=[], subagent="repo_mapper", budget=SMALL,
+        tmp_path,
+        0,
+        seal_digest=approval["approval_digest"],
+        lpd=policy["lane_policy_digest"],
+        expected_kind=PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
+        evidence=[],
+        subagent="repo_mapper",
+        budget=SMALL,
     )
-    r3 = runner.invoke(deepagents_app, [
-        "run-approved", "--candidate", str(candidate_path), "--approval", str(approval_path),
-        "--output-dir", str(tmp_path / "runs" / "cli-obl"), "--obligation", str(obl_path),
-    ])
+    r3 = runner.invoke(
+        deepagents_app,
+        [
+            "run-approved",
+            "--candidate",
+            str(candidate_path),
+            "--approval",
+            str(approval_path),
+            "--output-dir",
+            str(tmp_path / "runs" / "cli-obl"),
+            "--obligation",
+            str(obl_path),
+        ],
+    )
     assert r3.exit_code == 0, r3.output
     summary = json_lib.loads(r3.output)
     assert summary["discharge_tally"][DISCHARGE_CONTRACT_SATISFIED] == 1

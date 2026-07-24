@@ -39,9 +39,7 @@ def test_binding_holds_for_matching_plan() -> None:
     plan = _plan()
     approval = create_hitl_rollback_approval(plan, confirmed_digest_prefix=canonical_digest(plan)[:4])
     assert (
-        rollback_approval_binding_errors(
-            approval, rollback_plan_digest=canonical_digest(plan), patch_digest="a" * 64
-        )
+        rollback_approval_binding_errors(approval, rollback_plan_digest=canonical_digest(plan), patch_digest="a" * 64)
         == []
     )
 

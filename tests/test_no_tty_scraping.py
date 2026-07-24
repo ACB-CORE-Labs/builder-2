@@ -107,9 +107,7 @@ def test_source_discovery_survives_a_dot_claude_worktree_root(tmp_path: Path) ->
     (nested / "retired_driver.py").write_text("import pexpect\n", encoding="utf-8")
 
     names = {p.name for p in _python_sources(root)}
-    assert {"app.py", "test_x.py"} <= names, (
-        f"must scan a checkout under .claude/worktrees; found {sorted(names)}"
-    )
+    assert {"app.py", "test_x.py"} <= names, f"must scan a checkout under .claude/worktrees; found {sorted(names)}"
     assert "retired_driver.py" not in names, "must still skip a NESTED agent worktree inside the checkout"
 
 

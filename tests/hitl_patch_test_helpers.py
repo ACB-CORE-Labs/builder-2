@@ -38,6 +38,8 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
     plan_path = path.parent / "verification-plan.json"
     approval_path = path.parent / "verification-approval.json"
     plan = finalize_verification_execution_plan(
+        target_head_sha="0000000000000000000000000000000000000000",
+        tree_clean=True,
         target_profile="generic",
         verification_profile="builder_full",
         target_repo=str(repo.resolve()),

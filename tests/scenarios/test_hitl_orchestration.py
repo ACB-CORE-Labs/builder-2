@@ -44,9 +44,7 @@ from builder_ii.tui.widgets.stratum import StratumMode
 
 FORBIDDEN_COMMANDS = sorted(rec.name for rec in COMMAND_AUTHORITY_REGISTRY if rec.tier == TIER_4)
 PERMITTED_GATED_COMMANDS = sorted(
-    rec.name
-    for rec in COMMAND_AUTHORITY_REGISTRY
-    if rec.tier == TIER_3 and check_command_authority(rec.name).allowed
+    rec.name for rec in COMMAND_AUTHORITY_REGISTRY if rec.tier == TIER_3 and check_command_authority(rec.name).allowed
 )
 
 #: Measured: pressing `a` on a pending gate opens the composer prefilled with the approve command,
@@ -220,21 +218,15 @@ async def test_the_gate_keys_compose_a_command_and_never_touch_approval_state(
             assert flag in composed, f"{key!r} composed incomplete line (missing {flag}): {composed!r}"
         # Patch reject must never launder through promotion rejection-record.
         if key == "r":
-            assert PROMOTION_REJECT_MARKER not in composed, (
-                f"reject composed promotion ceremony: {composed!r}"
-            )
+            assert PROMOTION_REJECT_MARKER not in composed, f"reject composed promotion ceremony: {composed!r}"
         # Proposal path from the bound gate must appear in the compose line.
         proposal_path = artifacts_dir / "proposal.json"
         assert str(proposal_path) in composed or proposal_path.name in composed
-        assert _proposal_on_disk(artifacts_dir) == PENDING_PROPOSAL, (
-            f"{key!r} mutated approval state from the TUI"
-        )
+        assert _proposal_on_disk(artifacts_dir) == PENDING_PROPOSAL, f"{key!r} mutated approval state from the TUI"
 
 
 @pytest.mark.asyncio
-async def test_no_gate_keypress_reaches_a_subprocess(
-    stratum: StratumApp, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_no_gate_keypress_reaches_a_subprocess(stratum: StratumApp, monkeypatch: pytest.MonkeyPatch) -> None:
     """Sweep the authority-adjacent keys with execution trip-wired.
 
     STRATUM owns exactly one process launch -- `_hand_off_goose_readonly`, a fixed-argv `shell=False`
@@ -316,16 +308,13 @@ async def test_rejecting_the_composer_restores_the_screen_without_orphaning_node
             censuses.append(_census(stratum))
 
         assert censuses[0] == censuses[-1], (
-            f"the DOM grew across identical reject/escape cycles -- orphaned nodes: "
-            f"{censuses[-1] - censuses[0]}"
+            f"the DOM grew across identical reject/escape cycles -- orphaned nodes: {censuses[-1] - censuses[0]}"
         )
         assert _proposal_on_disk(artifacts_dir) == PENDING_PROPOSAL
 
 
 @pytest.mark.asyncio
-async def test_the_third_door_is_a_readout_not_a_blocker(
-    stratum: StratumApp, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_the_third_door_is_a_readout_not_a_blocker(stratum: StratumApp, monkeypatch: pytest.MonkeyPatch) -> None:
     """`ThirdDoorGate` displays authority constraints. It does not enforce them.
 
     Worth a lane precisely because the name invites the opposite reading. It is a `Static`: no
@@ -357,9 +346,7 @@ async def test_the_third_door_is_a_readout_not_a_blocker(
         assert "VAULT UNASSESSED" in rendered, (
             "no readiness artifact exists here, so the door has evaluated nothing and must say so"
         )
-        assert "VAULT LOCKED" not in rendered, (
-            "the door is reporting a refusal it never made -- see third_door_state()"
-        )
+        assert "VAULT LOCKED" not in rendered, "the door is reporting a refusal it never made -- see third_door_state()"
 
         # Shut, and the authority path is open anyway -- which is the whole point.
         await pilot.press("a")
