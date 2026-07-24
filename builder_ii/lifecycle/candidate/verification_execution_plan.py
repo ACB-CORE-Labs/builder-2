@@ -652,7 +652,8 @@ def validate_verification_execution_plan_artifact(data: Any) -> list[str]:
         errors.append("verification_profile must be a known verification profile")
     if not _is_non_empty_string(data.get("target_repo")):
         errors.append("target_repo must be a non-empty string")
-    if not isinstance(data.get("target_head_sha"), str) or not data.get("target_head_sha").strip():
+    target_head_sha = data.get("target_head_sha")
+    if not isinstance(target_head_sha, str) or not target_head_sha.strip():
         errors.append("target_head_sha must be a non-empty string")
     if not isinstance(data.get("tree_clean"), bool):
         errors.append("tree_clean must be a boolean")
