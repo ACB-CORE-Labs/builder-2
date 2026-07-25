@@ -576,9 +576,17 @@ class StratumApp(App[None]):
         """
         if cmd:
             from builder_ii.lifecycle.setup.stratum_guide import normalize_composed_command
+            import pyperclip
 
             display = normalize_composed_command(cmd)
-            self.notify(f"Composed: {display} — run it in your terminal; STRATUM executes nothing.")
+            
+            try:
+                pyperclip.copy(display)
+                copied_msg = " (copied to clipboard)"
+            except Exception:
+                copied_msg = ""
+                
+            self.notify(f"Composed: {display}{copied_msg}\nExit Stratum (ESC) and run in terminal to preserve governance boundaries.", timeout=8)
 
     def action_go_back(self) -> None:
         """Universal 'Back' / 'Clear' action to return to the default view."""
@@ -890,10 +898,10 @@ class StratumApp(App[None]):
             )
 
     def action_operator_next(self) -> None:
-        from builder_ii.lifecycle.setup.operator_next import create_operator_next_action_report
+        from builder_ii.lifecycle.setup.user_onboarding_next import create_user_next_action_report
 
         try:
-            report = create_operator_next_action_report()
+            report = create_user_next_action_report()
             actions = report.get("ordered_next_actions", [])
             if actions and actions[0].get("safe_commands"):
                 next_cmd = actions[0]["safe_commands"][0]
@@ -902,7 +910,7 @@ class StratumApp(App[None]):
                 # Pre-fill the composer with the recommendation. It composes; it does not run.
                 self.push_screen(CLIPassthroughScreen(prefix_context=f"{next_cmd}"), self._show_composed_command)
             else:
-                self.notify("No pending actions found in Operator Next report.")
+                self.notify("Project initialized. No pending actions found.")
         except Exception as e:
             self.notify(f"Error generating next action: {e}", severity="error")
 
