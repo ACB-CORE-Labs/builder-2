@@ -162,6 +162,19 @@ RATIFICATION_POINTS: tuple[RatificationPoint, ...] = (
         consequence_of_auto="Nothing: this point can never be granted, for the same reason approval cannot.",
     ),
     RatificationPoint(
+        id="hitl.approve_rollback.plan_digest",
+        command="builder-hitl approve-rollback",
+        kind=KIND_HUMAN_APPROVAL_MINT,
+        what_is_ratified=(
+            "That you, a human, approve rolling back to a machine-generated plan. The typed digest "
+            "prefix is the approval itself."
+        ),
+        consequence_of_auto=(
+            "Nothing: this point can never be granted. A rollback approved by no one is a change "
+            "nobody decided to make."
+        ),
+    ),
+    RatificationPoint(
         id="hitl.promotion_decision.candidate_digest",
         command="builder-hitl promotion-decision",
         kind=KIND_PROMOTION_DECISION,
