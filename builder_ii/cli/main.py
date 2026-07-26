@@ -822,6 +822,82 @@ def status() -> None:
             console.print(f"  → {m.resume_hint}")
 
 
+@app.command("next")
+def next_action() -> None:
+    """Print the recommended next action to continue platform setup/onboarding."""
+    from rich.panel import Panel
+    from rich.text import Text
+
+    from builder_ii.lifecycle.setup.user_onboarding_next import create_user_next_action_report
+
+    try:
+        report = create_user_next_action_report()
+    except Exception as exc:
+        console.print(f"[red]Error generating next action report:[/] {exc}")
+        raise typer.Exit(1)
+
+    actions = report.get("ordered_next_actions", [])
+    if not actions:
+        console.print(Panel("[bold green]Project is initialized and platform is operationally verified.[/]\nNo pending setup actions required.", title="Builder-II Status", border_style="green"))
+        raise typer.Exit(0)
+
+    next_action_item = actions[0]
+    cap = next_action_item.get("capability", "Unknown")
+    safe_commands = next_action_item.get("safe_commands", [])
+    desc = next_action_item.get("description", "")
+
+    content = Text()
+    content.append(f"{cap}\n", style="bold yellow")
+
+    if desc:
+        content.append(f"{desc}\n\n", style="dim")
+
+    if safe_commands:
+        content.append("To proceed, run the following command:\n", style="dim")
+        for cmd in safe_commands:
+            content.append(f"  $ {cmd}\n", style="bold cyan")
+    else:
+        content.append("To proceed, consult the documentation.", style="dim")
+
+    console.print(Panel(content, title="🚀 Next Recommended Action", border_style="cyan"))
+
+
+@app.command("course")
+def course() -> None:
+    """Guided terminal course mapping the onboarding Golden Path."""
+    from rich.panel import Panel
+    from rich.text import Text
+
+    from builder_ii.lifecycle.setup.user_onboarding_next import get_onboarding_state
+
+    state = get_onboarding_state()
+    current_state = state.get("state")
+
+    # Define the linear path
+    path = [
+        ("NO_ENV", "Initialize Configuration", "cp .env.example .env"),
+        ("NO_PLAN", "Create Initialization Plan", "builder init"),
+        ("NO_RECEIPT", "Apply Initialization Plan", "builder-setup apply"),
+        ("NO_SESSION", "Prepare First Session Package", "builder-session prepare-package generic ..."),
+        ("READY", "Open Stratum", "builder stratum"),
+    ]
+
+    content = Text()
+    content.append("Builder-II Setup & Onboarding Course\n\n", style="bold underline")
+    content.append("Follow these steps to initialize your local project.\n\n", style="dim")
+
+    found_current = False
+    for step_state, title, cmd in path:
+        if step_state == current_state:
+            found_current = True
+            content.append(f"👉 [PENDING] {title}\n", style="bold yellow")
+            content.append(f"       Run: {cmd}\n", style="dim")
+        elif not found_current:
+            content.append(f"✅ [DONE] {title}\n", style="green")
+        else:
+            content.append(f"⏳ [LATER] {title}\n", style="dim")
+
+    console.print(Panel(content, title="🚀 Onboarding Progress", border_style="cyan"))
 @app.command("config")
 def config_dump() -> None:
     """Print passive config and legacy setup reconciliation metadata as JSON."""

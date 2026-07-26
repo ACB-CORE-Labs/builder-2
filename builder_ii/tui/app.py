@@ -544,14 +544,17 @@ class StratumApp(App[None]):
         def on_selected(cmd_name: str | None) -> None:
             # Palette is a tier inspector. Selection composes for the operator; never executes.
             if cmd_name:
+                from builder_ii.tui.projections.authority import project_action_affordance
+
                 decision = check_command_authority(cmd_name)
                 verdict = "permitted" if decision.allowed else "refused"
                 reason = f" ({', '.join(decision.reasons)})" if decision.reasons else ""
                 self.notify(f"{cmd_name}: {verdict}{reason}.")
                 if decision.allowed:
+                    affordance = project_action_affordance(cmd_name)
                     self.push_screen(
                         CLIPassthroughScreen(prefix_context=cmd_name),
-                        self._show_composed_command,
+                        lambda c: self._show_composed_command(c, because=affordance.because),
                     )
 
         self.push_screen(CommandPaletteScreen(commands=cmds), on_selected)
@@ -564,7 +567,7 @@ class StratumApp(App[None]):
 
         self.push_screen(CLIPassthroughScreen(prefix_context=prefix), self._show_composed_command)
 
-    def _show_composed_command(self, cmd: str | None) -> None:
+    def _show_composed_command(self, cmd: str | None, *, because: str | None = None) -> None:
         """Surface the composed command for the operator to run. Never claim it ran.
 
         This said `Raw CLI Exec: builder <cmd>` and appended a `cli_passthrough` event to the signal
@@ -573,12 +576,32 @@ class StratumApp(App[None]):
         run". Running an arbitrary `builder` command from here would be the Goose problem again:
         `builder` reaches TIER_3 and TIER_4 surfaces, whose approval boundaries a keypress may not
         launder. So the screen composes, and the operator runs.
+
+        `because`, when the caller knows the composed command's exact registry name, is the derived
+        `ActionAffordance.because` from `builder_ii.tui.projections.authority` -- the registry's own
+        reason, not a hand-written one, so an operator can tell a designed compose-only boundary from
+        a command STRATUM simply never wired for direct invocation.
         """
         if cmd:
             from builder_ii.lifecycle.setup.stratum_guide import normalize_composed_command
 
             display = normalize_composed_command(cmd)
-            self.notify(f"Composed: {display} — run it in your terminal; STRATUM executes nothing.")
+
+            copied_msg = ""
+            try:
+                import pyperclip  # type: ignore[import-untyped]  # optional, not a declared dependency
+
+                pyperclip.copy(display)
+                copied_msg = " (copied to clipboard)"
+            except Exception:
+                pass
+
+            reason_line = f"\nRegistry: {because}" if because else ""
+            self.notify(
+                f"Composed: {display}{copied_msg} — STRATUM executes nothing.{reason_line}"
+                "\nExit Stratum (ESC) and run in terminal to preserve governance boundaries.",
+                timeout=8,
+            )
 
     def action_go_back(self) -> None:
         """Universal 'Back' / 'Clear' action to return to the default view."""
@@ -611,6 +634,7 @@ class StratumApp(App[None]):
     def action_toggle_agents(self) -> None:
         """Show agent roster; second press opens compose picker for assignment."""
         from builder_ii.tui.projections.agents import compose_assign_command
+        from builder_ii.tui.projections.authority import project_action_affordance
         from builder_ii.tui.widgets.teaming import DeepAgentTeamingScreen
 
         if self.stratum and self.stratum.mode != StratumMode.AGENT_PROFILES:
@@ -637,7 +661,11 @@ class StratumApp(App[None]):
                 "composed assign-subagent for your terminal.",
                 severity="warning",
             )
-            self.push_screen(CLIPassthroughScreen(prefix_context=prefill), self._show_composed_command)
+            because = project_action_affordance("builder-deepagents assign-subagent").because
+            self.push_screen(
+                CLIPassthroughScreen(prefix_context=prefill),
+                lambda c: self._show_composed_command(c, because=because),
+            )
 
         self.push_screen(DeepAgentTeamingScreen(), on_compose)
 
@@ -691,6 +719,7 @@ class StratumApp(App[None]):
     # ── Pipeline Actions ──────────────────────────────────────────────────
 
     def action_prepare_package(self) -> None:
+        from builder_ii.tui.projections.authority import project_action_affordance
         from builder_ii.tui.widgets.workspace_builder import SessionBuilderScreen
 
         # Enter the PREPARE renderer (was dead furniture) before the compose wizard.
@@ -708,7 +737,11 @@ class StratumApp(App[None]):
                 "in your terminal (Command Composer prefilled).",
                 severity="warning",
             )
-            self.push_screen(CLIPassthroughScreen(prefix_context=compose), self._show_composed_command)
+            because = project_action_affordance("builder-session prepare-package").because
+            self.push_screen(
+                CLIPassthroughScreen(prefix_context=compose),
+                lambda c: self._show_composed_command(c, because=because),
+            )
 
         self.push_screen(SessionBuilderScreen(), on_save)
 
@@ -741,14 +774,17 @@ class StratumApp(App[None]):
 
     async def action_validate_package(self) -> None:
         """Re-verify on-disk chain; also offer the governed validate-prepare-package compose line."""
+        from builder_ii.tui.projections.authority import project_action_affordance
+
         self.notify("Re-checking artifact chain on disk…")
         await self._verify_current_chain_async()
         # Compose the real package validator — operator runs it; STRATUM does not write.
+        because = project_action_affordance("builder-session validate-prepare-package").because
         self.push_screen(
             CLIPassthroughScreen(
                 prefix_context="uv run builder-session validate-prepare-package .builder/artifacts"
             ),
-            self._show_composed_command,
+            lambda c: self._show_composed_command(c, because=because),
         )
 
     # Fixed argv into builder-II's own governed CLI. Never `goose` directly, and never
@@ -815,15 +851,28 @@ class StratumApp(App[None]):
         self._offer_manual_goose_manifest_compose()
         return None
 
+    def _run_governed_subprocess(self, argv: tuple[str, ...]) -> int:
+        """Run a fixed argv under terminal suspend; return the exit code it actually reported.
+
+        The one reusable primitive behind every direct (non-compose) invocation in STRATUM: fixed
+        argv, `shell=False`, terminal handed over via `suspend()`, and the real return code passed
+        back rather than an assumed success. `action_launch_goose` is the only caller today; a
+        future direct-invoke site reuses this rather than re-deriving the subprocess incantation --
+        but must still add its own `command_authority` declaration first, the way this one already
+        has.
+        """
+        import subprocess
+
+        with self.suspend():
+            completed = subprocess.run(argv, check=False)  # noqa: S603 - fixed argv, shell=False
+        return completed.returncode
+
     def _hand_off_goose_readonly(self, manifest: Path) -> None:
         """Suspend and give the terminal to start-readonly for an existing manifest path."""
-        import subprocess
         import sys
 
         argv = (sys.executable, "-m", "builder_ii.cli.goose_cli", "start-readonly", str(manifest))
-        with self.suspend():
-            completed = subprocess.run(argv, check=False)  # noqa: S603 - fixed argv, shell=False
-        self._render_goose_session_outcome(completed.returncode)
+        self._render_goose_session_outcome(self._run_governed_subprocess(argv))
 
     def _on_goose_autoprep_confirm(self, confirmed: bool | None) -> None:
         """After operator answers the auto-prep prompt for G."""
@@ -890,10 +939,10 @@ class StratumApp(App[None]):
             )
 
     def action_operator_next(self) -> None:
-        from builder_ii.lifecycle.setup.operator_next import create_operator_next_action_report
+        from builder_ii.lifecycle.setup.user_onboarding_next import create_user_next_action_report
 
         try:
-            report = create_operator_next_action_report()
+            report = create_user_next_action_report()
             actions = report.get("ordered_next_actions", [])
             if actions and actions[0].get("safe_commands"):
                 next_cmd = actions[0]["safe_commands"][0]
@@ -902,7 +951,7 @@ class StratumApp(App[None]):
                 # Pre-fill the composer with the recommendation. It composes; it does not run.
                 self.push_screen(CLIPassthroughScreen(prefix_context=f"{next_cmd}"), self._show_composed_command)
             else:
-                self.notify("No pending actions found in Operator Next report.")
+                self.notify("Project initialized. No pending actions found.")
         except Exception as e:
             self.notify(f"Error generating next action: {e}", severity="error")
 

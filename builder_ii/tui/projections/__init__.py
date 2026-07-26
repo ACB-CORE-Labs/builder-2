@@ -7,6 +7,15 @@ Missing data is absence (None / "—" / unevaluated), never synthesis.
 from __future__ import annotations
 
 from builder_ii.tui.projections.agents import project_agent_roster
+from builder_ii.tui.projections.authority import (
+    COMPOSE_ONLY,
+    INVOKE_DIRECT,
+    INVOKE_WITH_CONFIRM,
+    REFUSE,
+    UNWIRED,
+    ActionAffordance,
+    project_action_affordance,
+)
 from builder_ii.tui.projections.chain import PIPELINE_STAGES, project_chain
 from builder_ii.tui.projections.codevault import project_code_vault
 from builder_ii.tui.projections.gates import (
@@ -31,12 +40,19 @@ from builder_ii.tui.projections.render import (
 from builder_ii.tui.projections.workflow import project_workflow
 
 __all__ = [
+    "COMPOSE_ONLY",
+    "INVOKE_DIRECT",
+    "INVOKE_WITH_CONFIRM",
     "PIPELINE_STAGES",
+    "REFUSE",
     "THIRD_DOOR_INCOMPLETE",
     "THIRD_DOOR_LOCKED",
     "THIRD_DOOR_UNASSESSED",
     "THIRD_DOOR_UNLOCKED",
+    "UNWIRED",
+    "ActionAffordance",
     "kv",
+    "project_action_affordance",
     "project_agent_roster",
     "project_chain",
     "project_code_vault",
