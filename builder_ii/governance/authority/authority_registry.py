@@ -1910,6 +1910,38 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         allows_external_tool_invocation=True,
     ),
     CommandAuthorityRecord(
+        name="builder next",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "Reads REQUIRED_CAPABILITY_ROWS and onboarding filesystem markers "
+            "(.env, .builder/artifacts, .builder/session) via os.path.exists / Path.exists checks only."
+        ),
+        write_boundary="No changes to workspace, runtime state, artifact store, or target repository.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints the single recommended next onboarding/setup command as a Rich panel.",
+        failure_mode="Exits non-zero if the next-action report cannot be generated.",
+        notes="Passive onboarding-state introspection only; recommends a command, never runs one.",
+    ),
+    CommandAuthorityRecord(
+        name="builder course",
+        entrypoint="builder_ii.cli:app",
+        tier=TIER_1,
+        promotion_state=STATE_VALIDATION_ONLY,
+        runtime_boundary=(
+            "Reads onboarding filesystem markers via get_onboarding_state "
+            "(.env, .builder/artifacts, .builder/session existence checks only)."
+        ),
+        write_boundary="No changes to workspace, runtime state, artifact store, or target repository.",
+        approval_mode=MODE_NONE,
+        approval_boundary="None.",
+        output_behavior="Prints the linear onboarding Golden Path with the current step highlighted.",
+        failure_mode="Exits non-zero if onboarding state cannot be read.",
+        notes="Passive onboarding-progress introspection only.",
+    ),
+    CommandAuthorityRecord(
         name="builder config",
         entrypoint="builder_ii.cli:app",
         tier=TIER_1,

@@ -32,7 +32,7 @@ it sets, so a row reading `—` claims none.
 is correct rather than an oversight: `PASSIVE_ARTIFACT_VERIFIED` already permits writing
 to the artifact store, so a command that writes only artifacts is passive by definition.
 
-## Declared records (360)
+## Declared records (362)
 
 Authority written down, command by command.
 
@@ -207,6 +207,8 @@ Authority written down, command by command.
 | `builder models` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Inspects local model cache directories with bounded read-only filesystem and size probes. | No changes to workspace, cache contents, or target repository. | `explicit_operator_invocation` | Explicit operator invocation only. | `readonly_subprocess` | `BOUNDED_EXECUTION_VERIFIED` | `allows_readonly_subprocess` is set |
 | `builder doctor` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Runs local readiness probes across repo path, Goose availability, backend health, recipes, compliance, and model cache state. | No changes to workspace, runtime state, or target repository. | `explicit_operator_invocation` | Explicit operator invocation only. | `readonly_subprocess`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
 | `builder status` | Tier 2 — operator-managed setup/runtime helper | `operator_managed` | Reads backend health, Goose status, recipe validation, compliance, and local model cache status. | No changes to workspace, runtime state, or target repository. | `explicit_operator_invocation` | Explicit operator invocation only. | `readonly_subprocess`, `external_tool_invocation` | `BOUNDED_EXECUTION_VERIFIED` | `allows_external_tool_invocation` is set |
+| `builder next` | Tier 1 — artifact-only planning/validation | `validation_only` | Reads REQUIRED_CAPABILITY_ROWS and onboarding filesystem markers (.env, .builder/artifacts, .builder/session) via os.path.exists / Path.exists checks only. | No changes to workspace, runtime state, artifact store, or target repository. | `none` | None. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
+| `builder course` | Tier 1 — artifact-only planning/validation | `validation_only` | Reads onboarding filesystem markers via get_onboarding_state (.env, .builder/artifacts, .builder/session existence checks only). | No changes to workspace, runtime state, artifact store, or target repository. | `none` | None. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder config` | Tier 1 — artifact-only planning/validation | `validation_only` | Renders passive configuration and legacy setup redirect metadata. | No changes to workspace, runtime state, or target repository. | `none` | None. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder init-prompt` | Tier 1 — artifact-only planning/validation | `validation_only` | Renders the governed initialization prompt text. | No changes to workspace, runtime state, or target repository. | `none` | None. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |
 | `builder-goose manifest` | Tier 1 — artifact-only planning/validation | `validation_only` | Inspects Goose configuration manifest templates. | No changes to workspace. | `none` | None. | — | `PASSIVE_ARTIFACT_VERIFIED` | no flag or state raises assurance above passive |

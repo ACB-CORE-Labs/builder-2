@@ -825,9 +825,10 @@ def status() -> None:
 @app.command("next")
 def next_action() -> None:
     """Print the recommended next action to continue platform setup/onboarding."""
-    from builder_ii.lifecycle.setup.user_onboarding_next import create_user_next_action_report
     from rich.panel import Panel
     from rich.text import Text
+
+    from builder_ii.lifecycle.setup.user_onboarding_next import create_user_next_action_report
 
     try:
         report = create_user_next_action_report()
@@ -842,13 +843,12 @@ def next_action() -> None:
 
     next_action_item = actions[0]
     cap = next_action_item.get("capability", "Unknown")
-    state = next_action_item.get("state", "Unknown")
     safe_commands = next_action_item.get("safe_commands", [])
     desc = next_action_item.get("description", "")
 
     content = Text()
     content.append(f"{cap}\n", style="bold yellow")
-    
+
     if desc:
         content.append(f"{desc}\n\n", style="dim")
 
@@ -865,13 +865,14 @@ def next_action() -> None:
 @app.command("course")
 def course() -> None:
     """Guided terminal course mapping the onboarding Golden Path."""
-    from builder_ii.lifecycle.setup.user_onboarding_next import get_onboarding_state
     from rich.panel import Panel
     from rich.text import Text
 
+    from builder_ii.lifecycle.setup.user_onboarding_next import get_onboarding_state
+
     state = get_onboarding_state()
     current_state = state.get("state")
-    
+
     # Define the linear path
     path = [
         ("NO_ENV", "Initialize Configuration", "cp .env.example .env"),
@@ -880,7 +881,7 @@ def course() -> None:
         ("NO_SESSION", "Prepare First Session Package", "builder-session prepare-package generic ..."),
         ("READY", "Open Stratum", "builder stratum"),
     ]
-    
+
     content = Text()
     content.append("Builder-II Setup & Onboarding Course\n\n", style="bold underline")
     content.append("Follow these steps to initialize your local project.\n\n", style="dim")

@@ -10,7 +10,7 @@ from builder_ii.lifecycle.setup.operator_next import create_operator_next_action
 
 def get_onboarding_state() -> dict[str, Any]:
     """Evaluate the user's project setup state and return the next recommended command."""
-    
+
     # 1. Check if .env exists
     if not os.path.exists(".env"):
         return {
@@ -19,7 +19,7 @@ def get_onboarding_state() -> dict[str, Any]:
             "safe_command": "cp .env.example .env",
             "state": "NO_ENV"
         }
-        
+
     # 2. Check if setup plan exists (builder init generates this)
     artifact_root = Path(".builder/artifacts")
     if not (artifact_root / "setup-plan.json").exists():
@@ -29,7 +29,7 @@ def get_onboarding_state() -> dict[str, Any]:
             "safe_command": "builder init",
             "state": "NO_PLAN"
         }
-        
+
     # 3. Check if setup receipt exists (builder-setup apply generates this)
     if not (artifact_root / "setup-receipt.json").exists():
         return {
@@ -38,7 +38,7 @@ def get_onboarding_state() -> dict[str, Any]:
             "safe_command": "builder-setup apply",
             "state": "NO_RECEIPT"
         }
-        
+
     # 4. Check if session exists
     session_root = Path(".builder/session")
     if not session_root.exists() or not list(session_root.iterdir()):
@@ -48,7 +48,7 @@ def get_onboarding_state() -> dict[str, Any]:
             "safe_command": 'builder-session prepare-package generic -o .builder/session --task "first governed session"',
             "state": "NO_SESSION"
         }
-        
+
     # 5. If everything is done, recommend normal platform operations
     return {
         "title": "Open Stratum",
@@ -61,7 +61,7 @@ def get_onboarding_state() -> dict[str, Any]:
 def create_user_next_action_report() -> dict[str, Any]:
     """Generates the next action report prioritizing user onboarding over platform matrix."""
     onboarding = get_onboarding_state()
-    
+
     if onboarding["state"] != "READY":
         return {
             "ordered_next_actions": [
@@ -73,7 +73,7 @@ def create_user_next_action_report() -> dict[str, Any]:
                 }
             ]
         }
-        
+
     # If the user is fully onboarded, we check if they are missing core platform development steps.
     try:
         report = create_operator_next_action_report()
@@ -86,5 +86,5 @@ def create_user_next_action_report() -> dict[str, Any]:
             return report
     except Exception:
         pass
-        
+
     return {"ordered_next_actions": []}
