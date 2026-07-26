@@ -158,6 +158,10 @@ It is metadata-only and does not activate artifact authority.
 - `builder_ii.tui_audit_ledger_event`
 - `builder_ii.tui_audit_ledger_index_entry`
 
+- `builder_ii.ratification_grant`
+- `builder_ii.ratification_grant_revocation`
+- `builder_ii.ratification_ledger_event`
+
 
 ## Governance and Authority Boundaries
 
@@ -265,6 +269,10 @@ The following artifact kinds are **governance, specification, and record artifac
 
 | `builder_ii.tui_audit_ledger_event` | Hash-chained TUI exploration event; one JSONL line per observed state | current |
 | `builder_ii.tui_audit_ledger_index_entry` | Chained master-index line anchoring one completed run's ledger by head digest and event count; makes a deleted run's file detectable. `RECORDED_ONLY` — same writer, no independent observer | current |
+
+| `builder_ii.ratification_grant` | An operator's recorded, revocable delegation of one named confirmation. Evidence that a confirmation was delegated; never authority to skip one, and never able to satisfy a HITL approval or a promotion decision | current |
+| `builder_ii.ratification_grant_revocation` | Digest-bound withdrawal of one grant. Additive: the revoked grant file is preserved so the history of what was delegated stays readable | current |
+| `builder_ii.ratification_ledger_event` | Hash-chained ratification decision: grant created/revoked, auto-accepted, or manually typed. `RECORDED_ONLY` — same writer, no independent observer | current |
 
 
 **Chain evidence status:** Most standalone governance records do not embed outbound references. However, the `builder_ii.hitl_verification_execution_candidate` embeds candidate-stage references to proposal, approval, preflight, and request artifacts while encoding future receipt/postflight/verification/chain requirements as requirements, not completed evidence. The `builder_ii.hitl_evidence_bundle` acts as a "manifest of manifests", specifying path references to all required stage artifacts, while `builder_ii.hitl_chain_binding` records passive chain metadata that binds the same evidence slots without granting execution authority. The Goal 2 assignment artifacts also embed source refs so target, agent, task/profile-pack, model-routing, context, verification, tool, HITL, output, and handoff bindings can be resolved and hash-checked without executing them. The chain verifier resolves these references and recursively validates each target record to ensure the governance trail is intact and valid. If any stage artifact has an unknown kind or fails native validation, the entire chain fails closed.
