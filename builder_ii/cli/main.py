@@ -868,19 +868,14 @@ def course() -> None:
     from rich.panel import Panel
     from rich.text import Text
 
-    from builder_ii.lifecycle.setup.user_onboarding_next import get_onboarding_state
+    from builder_ii.lifecycle.setup.user_onboarding_next import GOLDEN_PATH, READY_STAGE, get_onboarding_state
 
     state = get_onboarding_state()
     current_state = state.get("state")
 
-    # Define the linear path
-    path = [
-        ("NO_ENV", "Initialize Configuration", "cp .env.example .env"),
-        ("NO_PLAN", "Create Initialization Plan", "builder init"),
-        ("NO_RECEIPT", "Apply Initialization Plan", "builder-setup apply"),
-        ("NO_SESSION", "Prepare First Session Package", "builder-session prepare-package generic ..."),
-        ("READY", "Open Stratum", "builder stratum"),
-    ]
+    # Rendered from the shared stage table, never transcribed: the literal copy that used to live
+    # here had already drifted from the predicates that decide which stage you are actually on.
+    path = [(stage.state, stage.title, stage.safe_command) for stage in (*GOLDEN_PATH, READY_STAGE)]
 
     content = Text()
     content.append("Builder-II Setup & Onboarding Course\n\n", style="bold underline")
@@ -898,6 +893,110 @@ def course() -> None:
             content.append(f"⏳ [LATER] {title}\n", style="dim")
 
     console.print(Panel(content, title="🚀 Onboarding Progress", border_style="cyan"))
+
+
+@app.command("onboard")
+def onboard(
+    granted_by: Optional[str] = typer.Option(
+        None, "--granted-by", help="Who is delegating any confirmations you choose to delegate."
+    ),
+    no_prompt: bool = typer.Option(
+        False, "--no-prompt", help="Describe the path and every ratification point without prompting or writing."
+    ),
+) -> None:
+    """Walk the golden path and choose, per confirmation, which ones you want to keep being asked.
+
+    The walkthrough recommends commands; it never runs them. Its one side effect is writing the
+    standing grants you explicitly accept here, each of which is revocable and ledgered.
+    """
+    from builder_ii.governance.ledger.ratification_ledger import EVENT_GRANT_CREATED, append_ratification_event
+    from builder_ii.governance.ratification_grants import (
+        build_ratification_grant,
+        consult_ratification_grant,
+        resolve_ratification_root,
+        write_grant,
+    )
+    from builder_ii.governance.ratification_points import RATIFICATION_POINTS, grant_eligibility
+    from builder_ii.lifecycle.setup.user_onboarding_next import GOLDEN_PATH, READY_STAGE, current_stage
+
+    stage = current_stage()
+    lines = ["builder-II onboarding walkthrough", ""]
+    reached_current = False
+    for candidate in (*GOLDEN_PATH, READY_STAGE):
+        if candidate.state == stage.state:
+            reached_current = True
+            marker = "->"
+        elif not reached_current:
+            marker = "ok"
+        else:
+            marker = "  "
+        lines.append(f" {marker} {candidate.title}")
+    lines.extend(
+        [
+            "",
+            f"You are here: {stage.title}",
+            f"  {stage.description}",
+            f"  run: {stage.safe_command}",
+            "",
+            "Governance: which confirmations do you want to keep being asked?",
+            "",
+            "builder-II stops to confirm things. Some of those confirmations you have already made --",
+            "re-typing the digest of a plan you wrote and reviewed proves only that the same artifact is",
+            "being consumed. You can delegate those to a standing grant: recorded, attributed to you,",
+            "revocable, and named in every receipt and ledger line it later satisfies. Others can never",
+            "be delegated, because the prompt is the decision itself.",
+            "",
+        ]
+    )
+    echo_stdout("\n".join(lines) + "\n")
+
+    accepted: list[str] = []
+    for point in RATIFICATION_POINTS:
+        eligibility = grant_eligibility(point)
+        held = consult_ratification_grant(point.id).satisfied
+        echo_stdout(
+            f"{point.id}\n"
+            f"  command:    {point.command}\n"
+            f"  ratifies:   {point.what_is_ratified}\n"
+        )
+        if not eligibility.eligible:
+            echo_stdout(f"  delegable:  NO -- {eligibility.because}\n\n")
+            continue
+        if held:
+            echo_stdout("  delegable:  yes, and a standing grant is already in force\n\n")
+            continue
+        echo_stdout(f"  if granted: {point.consequence_of_auto}\n")
+        if no_prompt:
+            echo_stdout("  delegable:  yes (run without --no-prompt to choose)\n\n")
+            continue
+        if not typer.confirm(f"  Delegate {point.id} to a standing grant?", default=False):
+            echo_stdout("  kept: you will keep being asked.\n\n")
+            continue
+        who = granted_by or typer.prompt("  your name, recorded on the grant")
+        grant = build_ratification_grant(point, granted_by=who)
+        path = write_grant(grant)
+        append_ratification_event(
+            resolve_ratification_root(None),
+            event=EVENT_GRANT_CREATED,
+            point_id=point.id,
+            command=point.command,
+            actor=who,
+            because=eligibility.because,
+            grant_digest=str(grant["grant_digest"]),
+        )
+        accepted.append(point.id)
+        echo_stdout(f"  granted: {path}\n\n")
+
+    summary = [f"Delegated {len(accepted)} confirmation(s)." if accepted else "Delegated nothing."]
+    summary.extend(
+        [
+            "Review with:  builder-govern list-points",
+            "Audit with:   builder-govern trace <point-id>",
+            "Withdraw with: builder-govern revoke <grant-digest> --revoked-by <you> --reason <why>",
+            f"Next step:    {stage.safe_command}",
+        ]
+    )
+    echo_stdout("\n".join(summary) + "\n")
 @app.command("config")
 def config_dump() -> None:
     """Print passive config and legacy setup reconciliation metadata as JSON."""

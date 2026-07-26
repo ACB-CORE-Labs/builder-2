@@ -65,6 +65,7 @@ Governed setup subcommands:
 - `builder-state-index`
 - `builder-snapshot`
 - `builder-hitl`
+- `builder-govern`
 
 ## Promotion/Readiness/Decision
 - `builder-preflight`
@@ -230,3 +231,11 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `extractor_manifest_ref` binds to a **new** `build_structural_extractor_manifest()` declaration (`coverage="structure"`, distinct `extractor_id` from the v0 symbol extractor) — no schema bump; `build_extractor_manifest` (v0) stays byte-identical.
 - Facts are **structural correspondence candidates** (hypothesis, R+D vocabulary per the proof program) — never a claim of verified correspondence, and never utility (U) language. This is RECORDED_ONLY: it flips no completion-matrix row and grants no execution, shell, model, Goose, deepagents, or target-repo-write authority. Tier 1 `artifact_only`; `artifact_is_authority` remains false.
 - `builder-code-vault validate-structural-field` (landed G1 PR-2) is unchanged and validates this command's output.
+
+## Ratification grants command surface delta
+
+- `builder-govern` adds the standing-ratification-grant lane: `list-points`, `grant-auto`, `list-grants`, `revoke`, `validate-grant`, `ledger`, `validate-ledger`, `trace`, and `consult`. It mints, validates, revokes, and audits `builder_ii.ratification_grant`, `builder_ii.ratification_grant_revocation`, and `builder_ii.ratification_ledger_event` artifacts under the ratification store root, and executes nothing.
+- `builder onboard` adds an interactive walkthrough of the onboarding golden path that offers each delegable confirmation in context and writes only the grants the operator explicitly accepts. It recommends the next command and never runs one; `--no-prompt` describes every point and writes nothing.
+- A standing grant may satisfy only a `plan_digest_confirmation` ratification point whose owning command carries no capability outside `allows_source_writes`/`allows_artifact_writes`/`allows_state_writes` and does not require HITL artifacts. Points declared `human_approval_mint` (`builder-hitl approve-patch`, `refuse-patch`) or `promotion_decision` (`builder-hitl promotion-decision`) are registered and permanently refused: a grant relocates confirmation friction and never originates approval. Eligibility is recomputed from the command-authority registry at consult time and is never read from a grant artifact.
+- `builder-setup apply` and `builder-setup rollback` gain a third approval mode, `standing_ratification_grant`, recorded in their receipts and never conflated with `interactive_digest_prefix_confirmation`. Both append a ratification ledger line only where a ratification store already exists.
+- This delta adds no execution, shell, model, Goose, deepagents, MCP, or patch authority, and flips no completion-matrix row.

@@ -59,6 +59,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/OPERATOR_PLAYBOOK.md`](OPERATOR_PLAYBOOK.md) | builder-II Operator Playbook |
 | [`docs/manual.md`](manual.md) | Builder Platform Manual |
 | [`docs/CONFIG_ONBOARDING.md`](CONFIG_ONBOARDING.md) | Config + Onboarding Kernel |
+| [`docs/RATIFICATION_GRANTS.md`](RATIFICATION_GRANTS.md) | Which confirmations you may delegate to a standing grant, which ones can never be delegated, and the audit trail either way |
 | [`docs/CORE_DEMO_WALKTHROUGH.md`](CORE_DEMO_WALKTHROUGH.md) | CORE Demo Walkthrough |
 | [`docs/demos/FLAGSHIP_DEMO_SCRIPT.md`](demos/FLAGSHIP_DEMO_SCRIPT.md) | Flagship 15-minute demo script with live tamper-detection beat |
 | [`docs/recordings/README.md`](recordings/README.md) | Recorded asciinema casts of the governed loop, tamper beat, and builder init |

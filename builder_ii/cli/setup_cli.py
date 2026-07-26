@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json as json_lib
+import os
 from pathlib import Path
 
 import typer
@@ -10,6 +11,16 @@ from builder_ii.cli.config_cli import _override_map
 from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.core.config_sources import resolve_config_sources
 from builder_ii.governance.hitl.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH
+from builder_ii.governance.ledger.ratification_ledger import (
+    EVENT_AUTO_ACCEPTED,
+    EVENT_MANUAL_RATIFIED,
+    append_ratification_event,
+)
+from builder_ii.governance.ratification_grants import (
+    APPROVAL_MODE_STANDING_GRANT,
+    consult_ratification_grant,
+    resolve_ratification_root,
+)
 from builder_ii.lifecycle.setup.onboarding_intent import validate_onboarding_intent_report_file
 from builder_ii.lifecycle.setup.setup_apply import SetupApplyError, apply_setup_overlay
 from builder_ii.lifecycle.setup.setup_onboarding import run_onboarding_pipeline
@@ -164,6 +175,65 @@ def _interactive_digest_approval(digest: str, digest_label: str) -> str:
     return digest
 
 
+def _record_ratification(point_id: str, command: str, *, event: str, because: str, grant_digest: str | None) -> None:
+    """Append one ratification ledger event, but only into a store the operator already created.
+
+    Deliberately not `mkdir(parents=True)`: apply must not conjure a ratification store inside
+    every repository it touches. Where no store exists no grant can exist either, and the receipt
+    already records `interactive_digest_prefix_confirmation` -- so nothing is lost, and the ledger
+    remains what it claims to be, a cross-command view of a store the operator opted into.
+    """
+    root = resolve_ratification_root(None)
+    if not root.is_dir():
+        return
+    append_ratification_event(
+        root,
+        event=event,
+        point_id=point_id,
+        command=command,
+        actor=os.environ.get("USER", "unknown"),
+        because=because,
+        grant_digest=grant_digest,
+    )
+
+
+def _digest_approval(digest: str, digest_label: str, *, point_id: str, command: str) -> tuple[str, str]:
+    """Satisfy a digest confirmation by standing grant if one is in force, else by typed prefix.
+
+    Returns ``(approved_digest, approval_mode)``. The two modes are never conflated: a receipt
+    saying `interactive_digest_prefix_confirmation` means a human typed the prefix, and a receipt
+    saying `standing_ratification_grant` means one did not. Naming the grant in stdout is not
+    decoration -- a confirmation that silently stops appearing is indistinguishable from one that
+    was never required.
+    """
+    consultation = consult_ratification_grant(point_id)
+    if consultation.satisfied:
+        if not digest:
+            console.out(f"artifact has no {digest_label}; cannot approve\n", end="")
+            raise typer.Exit(1)
+        console.out(f"{digest_label}: {digest}\n", end="")
+        console.out(f"Auto-accepted under {consultation.because}.\n", end="")
+        console.out("Revoke with `builder-govern revoke`; audit with `builder-govern trace`.\n", end="")
+        _record_ratification(
+            point_id,
+            command,
+            event=EVENT_AUTO_ACCEPTED,
+            because=consultation.because,
+            grant_digest=consultation.grant_digest,
+        )
+        return digest, APPROVAL_MODE_STANDING_GRANT
+
+    approved = _interactive_digest_approval(digest, digest_label)
+    _record_ratification(
+        point_id,
+        command,
+        event=EVENT_MANUAL_RATIFIED,
+        because=f"operator typed the {digest_label} prefix",
+        grant_digest=None,
+    )
+    return approved, "interactive_digest_prefix_confirmation"
+
+
 @setup_app.command("plan")
 def plan(
     output: Path | None = typer.Option(None, "--output", "-o", help="Optional explicit setup plan artifact path."),
@@ -313,10 +383,12 @@ def apply(
     overlay = _load_json_file(setup_overlay_path)
     approval_mode = "explicit_digest_bound_cli_flag"
     if approve_digest is None:
-        approve_digest = _interactive_digest_approval(
-            str(overlay.get("overlay_plan_digest", "")), "overlay_plan_digest"
+        approve_digest, approval_mode = _digest_approval(
+            str(overlay.get("overlay_plan_digest", "")),
+            "overlay_plan_digest",
+            point_id="setup.apply.overlay_digest",
+            command="builder-setup apply",
         )
-        approval_mode = "interactive_digest_prefix_confirmation"
     try:
         receipt = apply_setup_overlay(
             overlay,
@@ -371,8 +443,12 @@ def rollback(
     setup_receipt = _load_json_file(setup_receipt_path)
     approval_mode = "explicit_digest_bound_cli_flag"
     if approve_digest is None:
-        approve_digest = _interactive_digest_approval(str(setup_receipt.get("receipt_digest", "")), "receipt_digest")
-        approval_mode = "interactive_digest_prefix_confirmation"
+        approve_digest, approval_mode = _digest_approval(
+            str(setup_receipt.get("receipt_digest", "")),
+            "receipt_digest",
+            point_id="setup.rollback.receipt_digest",
+            command="builder-setup rollback",
+        )
     try:
         receipt = execute_setup_rollback(
             setup_receipt,
