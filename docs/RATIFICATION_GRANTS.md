@@ -1,12 +1,20 @@
-# Ratification grants
+# Ratification grants and policy
 
-builder-II stops to confirm things. This document is about which of those confirmations you can
-choose to stop being asked, which ones you can never stop being asked, and why that split is
-enforced by two independent machine checks rather than by convention.
+builder-II stops to confirm things. This document is about moving that friction **in both
+directions**: relaxing the confirmations you have already decided, and demanding *more* than the
+default where you want it — plus which confirmations can never be relaxed at all, and why that
+split is enforced by machine checks rather than convention.
 
 The goal is not less governance. It is the same governance with the friction placed where the
 operator wants it: builder-II should feel like any other coding tool, while producing a stronger
 audit trail than one — determinism, traceability, and an attributable answer to "who allowed this".
+
+Two mechanisms, mirror images of each other:
+
+| | Direction | Artifact | Invariant |
+| --- | --- | --- | --- |
+| **Grant** | relax | `builder_ii.ratification_grant` | may relocate friction, never originate approval |
+| **Policy** | tighten | `builder_ii.ratification_policy` | may only tighten, never loosen |
 
 ## The distinction the whole feature rests on
 
@@ -32,6 +40,7 @@ confirmation it later satisfies names it — in the consuming receipt, in stdout
 | `setup.rollback.receipt_digest` | `builder-setup rollback` | yes |
 | `hitl.approve_patch.patch_digest` | `builder-hitl approve-patch` | **never** — `human_approval_mint` |
 | `hitl.refuse_patch.proposal_digest` | `builder-hitl refuse-patch` | **never** — `human_approval_mint` |
+| `hitl.approve_rollback.plan_digest` | `builder-hitl approve-rollback` | **never** — `human_approval_mint` |
 | `hitl.promotion_decision.candidate_digest` | `builder-hitl promotion-decision` | **never** — `promotion_decision` |
 
 Run `builder-govern list-points` for the live answer; the table above is a snapshot, and
@@ -71,6 +80,70 @@ deliberately not load-bearing. Two consequences follow:
   what gets read. `tests/test_ratification_grants.py` pins this with a re-digested forgery that is
   internally valid and still does not satisfy.
 
+## Demanding more: the policy ladder
+
+A grant is only one end of an axis. The other end is a **ratification policy**, which raises the
+level a point carries. The ladder is strictly ordered, and every level implies the ones below it:
+
+| Level | Meaning |
+| --- | --- |
+| 0 `delegable` | a standing grant may satisfy this confirmation |
+| 1 `always_prompt` | no grant satisfies it; a human types the digest every time |
+| 2 `require_approval_artifact` | typing is not enough; a digest-bound approval artifact must be supplied |
+
+```bash
+builder-govern policy-show
+builder-govern policy-set --set-by you@example --level setup.apply.overlay_digest=always_prompt
+builder-govern policy-set --set-by you@example --no-grants     # kill switch: every point to level 1
+builder-govern policy-validate
+```
+
+### A policy may only tighten
+
+> A policy can never make an ungrantable point grantable.
+
+This is the mirror of the grant invariant, and it is enforced by making the loosening case
+**unrepresentable** rather than merely rejected. The effective level is
+`max(baseline, declared)` over the ordered ladder, where the baseline is derived from the
+command-authority registry — `delegable` where a grant is allowed, `always_prompt` everywhere else.
+
+So a policy file hand-edited to declare `delegable` on a HITL confirmation is not rejected at read
+time; it is **ignored**, because `max` keeps the stricter baseline. `policy-set` *also* refuses to
+write such a policy, so the operator is told rather than silently overridden — but the safety does
+not depend on that validation having run. Both are pinned, and the sweep test checks every
+registered point against every level.
+
+### `--approve-digest` is refused above level 0
+
+`builder-setup apply` accepts `--approve-digest` for scripted flows. At level 1 and above that flag
+is refused, and the refusal is the point rather than an inconvenience: a script can compute a digest
+and pass it, so honouring the flag at `always_prompt` would let any automation satisfy a
+confirmation the operator explicitly reserved for a person. Only a human at a terminal can type a
+prefix back at a digest that was just rendered to them.
+
+## Level 2: ratification approvals
+
+At `require_approval_artifact`, the confirmation is satisfied only by a
+`builder_ii.ratification_approval` — minted separately, bound to one point and one exact subject
+digest, and re-verified against subject and clock at use time.
+
+```bash
+builder-govern approve setup.apply.overlay_digest \
+    --digest <overlay_plan_digest> --approved-by you@example -o approval.json
+builder-setup apply overlay.json --rollback-snapshot snap.json \
+    --approval-ref approval.json -o receipt.json
+```
+
+Minting one requires typing the subject digest prefix; there is deliberately no `--yes`, because
+this artifact is evidence a human decided. An approval never transfers to another point and never
+authorises a different subject — the subject digest is inside the approval's own digest.
+
+**Known limit, stated rather than papered over:** an approval is *replayable within its TTL*
+against the same subject digest. It binds exactly *what* was approved; it does not track how many
+times that approval was spent. For the setup lane this is benign — re-applying an identical overlay
+plan converges on the same declared paths — but a lane where repetition is not benign must add
+consumption tracking rather than reuse this artifact as-is.
+
 ## Using it
 
 The walkthrough offers each delegable confirmation in context, states what granting it costs, and
@@ -87,7 +160,8 @@ Or work with the points directly:
 builder-govern list-points
 builder-govern grant-auto setup.apply.overlay_digest --granted-by you@example
 builder-govern list-grants
-builder-govern trace setup.apply.overlay_digest
+builder-govern trace setup.apply.overlay_digest        # by point: policy view
+builder-govern trace .builder/artifacts/setup-receipt.json   # by artifact: audit view
 builder-govern revoke <grant-digest> --revoked-by you@example --reason "rotating delegations"
 builder-govern validate-ledger
 ```
@@ -107,10 +181,24 @@ Delegating a confirmation does not make the action quieter. When a grant satisfi
 - **the ledger records it**, chained, alongside grants, revocations, and manually typed
   confirmations — so "what was auto-accepted, under whose delegation, when" is answerable later.
 
+## Drill-down
+
+`builder-govern trace` takes **either** a point id or a path to a consuming artifact, because
+forensics starts from whichever one you are holding: an operator reviewing policy has a point id,
+an auditor reviewing a change has a receipt.
+
+Given a receipt, it resolves the whole chain — which point, the level in force now, which grant or
+approval satisfied it, whether that grant is still active or has since been revoked, and every
+ledger event for the point. That works because the receipt records `approval_point_id`,
+`approval_grant_digest` and `approval_ref_digest` alongside `approval_mode`. Recording the mode
+alone was not enough: a receipt could say `standing_ratification_grant` without saying *which*
+grant, which is true but useless to anyone reconstructing authority from the receipt.
+
 ## The audit ledger
 
 `ratification_ledger.jsonl` in the ratification store, kind `builder_ii.ratification_ledger_event`,
-one line per decision: `grant_created`, `grant_revoked`, `auto_accepted`, `manual_ratified`.
+one line per decision: `grant_created`, `grant_revoked`, `auto_accepted`, `manual_ratified`,
+`approval_minted`, `approval_accepted`, `policy_set`.
 
 Each `entry_digest` covers the whole entry **including** `prev_digest`, so the chain is a chain:
 digesting the payload alone would leave every digest verifying after a line was deleted and the
@@ -143,7 +231,10 @@ faithfully in that command's receipt.
 
 ```bash
 uv run pytest tests/test_ratification_points.py tests/test_ratification_grants.py \
+              tests/test_ratification_policy.py tests/test_ratification_approvals.py \
               tests/test_ratification_ledger.py tests/test_govern_cli.py \
-              tests/test_onboarding_golden_path.py \
-              tests/scenarios/test_governed_ratification_lane.py -q
+              tests/test_onboarding_golden_path.py tests/test_chain_cli.py \
+              tests/test_enforcement_names_resolve.py \
+              tests/scenarios/test_governed_ratification_lane.py \
+              tests/scenarios/test_ratification_escalation_lane.py -q
 ```

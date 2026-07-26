@@ -40,6 +40,7 @@ from builder_ii.governance.ratification_points import (
     get_ratification_point,
     grant_eligibility,
 )
+from builder_ii.governance.ratification_policy import LEVEL_DELEGABLE, effective_level
 
 RATIFICATION_GRANT_KIND = "builder_ii.ratification_grant"
 RATIFICATION_GRANT_SCHEMA_VERSION = 1
@@ -50,6 +51,10 @@ RATIFICATION_REVOCATION_SCHEMA_VERSION = 1
 #: Deliberately distinct from `interactive_digest_prefix_confirmation`: a receipt must never
 #: claim a human typed something a grant satisfied.
 APPROVAL_MODE_STANDING_GRANT = "standing_ratification_grant"
+
+#: The `approval_mode` a consuming receipt records when a digest-bound ratification approval
+#: artifact satisfied its confirmation, at policy level `require_approval_artifact`.
+APPROVAL_MODE_RATIFICATION_APPROVAL = "ratification_approval_artifact"
 
 #: Default store root, relative to the working directory, matching the `.builder/artifacts`
 #: convention the onboarding lane already uses. Overridable per call (tests, alternate roots)
@@ -319,6 +324,17 @@ def consult_ratification_grant(point_id: str, *, root: Path | None = None) -> Gr
             point_id=point_id,
             satisfied=False,
             because=f"point is not grant-eligible: {eligibility.because}",
+        )
+
+    # Policy is consulted *after* eligibility and can only raise the level, so this check can
+    # subtract a grant's effect but never add one. See `ratification_policy` for why the one-way
+    # property lives in `max()` rather than in a validation rule.
+    decision = effective_level(point_id, root=resolve_ratification_root(root))
+    if decision.level != LEVEL_DELEGABLE:
+        return GrantConsultation(
+            point_id=point_id,
+            satisfied=False,
+            because=f"policy requires `{decision.level}` for this point: {decision.because}",
         )
 
     revoked = revoked_grant_digests(root=root)

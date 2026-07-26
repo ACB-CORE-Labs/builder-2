@@ -153,3 +153,112 @@ def test_validate_grant_checks_a_file(store: Path, tmp_path: Path) -> None:
     missing = runner.invoke(govern_app, ["validate-grant", str(tmp_path / "absent.json")])
     assert missing.exit_code == 1
     assert "unreadable" in missing.output
+
+
+def test_policy_show_reports_baselines_before_any_policy_exists(store: Path) -> None:
+    result = runner.invoke(govern_app, ["policy-show"])
+    assert result.exit_code == 0, result.output
+    assert "registry baselines apply" in result.output
+    assert GRANTABLE in result.output
+
+
+def test_policy_set_tightens_and_policy_show_reflects_it(store: Path) -> None:
+    result = runner.invoke(
+        govern_app, ["policy-set", "--set-by", "op", "--level", f"{GRANTABLE}=always_prompt"]
+    )
+    assert result.exit_code == 0, result.output
+    shown = runner.invoke(govern_app, ["policy-show"]).output
+    assert "always_prompt" in shown
+
+
+def test_policy_set_refuses_to_loosen_and_writes_nothing(store: Path) -> None:
+    result = runner.invoke(
+        govern_app, ["policy-set", "--set-by", "op", "--level", f"{UNGRANTABLE}=delegable"]
+    )
+    assert result.exit_code == 1
+    assert "may only tighten" in result.output
+    assert not (store / "policy.json").exists()
+
+
+def test_policy_set_refuses_a_malformed_level_spec(store: Path) -> None:
+    result = runner.invoke(govern_app, ["policy-set", "--set-by", "op", "--level", "no-equals-sign"])
+    assert result.exit_code == 1
+    assert "malformed" in result.output
+    assert not (store / "policy.json").exists()
+
+
+def test_the_kill_switch_is_reachable_from_the_cli(store: Path) -> None:
+    assert runner.invoke(govern_app, ["policy-set", "--set-by", "op", "--no-grants"]).exit_code == 0
+    _grant(store)
+    consultation = json.loads(runner.invoke(govern_app, ["consult", GRANTABLE]).output)
+    assert consultation["satisfied"] is False
+
+
+def test_policy_validate_checks_the_stores_policy(store: Path) -> None:
+    runner.invoke(govern_app, ["policy-set", "--set-by", "op", "--level", f"{GRANTABLE}=always_prompt"])
+    assert runner.invoke(govern_app, ["policy-validate"]).exit_code == 0
+
+
+def test_approve_requires_the_digest_prefix_typed_back(store: Path, tmp_path: Path) -> None:
+    subject = "c" * 64
+    out = tmp_path / "approval.json"
+    wrong = runner.invoke(
+        govern_app,
+        ["approve", GRANTABLE, "--digest", subject, "--approved-by", "op", "-o", str(out)],
+        input="zzzz\n",
+    )
+    assert wrong.exit_code == 1
+    assert not out.exists()
+
+    right = runner.invoke(
+        govern_app,
+        ["approve", GRANTABLE, "--digest", subject, "--approved-by", "op", "-o", str(out)],
+        input=subject[:4] + "\n",
+    )
+    assert right.exit_code == 0, right.output
+    assert out.exists()
+    assert runner.invoke(govern_app, ["validate-approval", str(out)]).exit_code == 0
+
+
+def test_approve_refuses_an_unregistered_point(store: Path, tmp_path: Path) -> None:
+    out = tmp_path / "approval.json"
+    result = runner.invoke(
+        govern_app,
+        ["approve", "nope.not.a.point", "--digest", "d" * 64, "--approved-by", "op", "-o", str(out)],
+    )
+    assert result.exit_code == 1
+    assert not out.exists()
+
+
+def test_trace_accepts_an_artifact_path_and_walks_its_chain(store: Path, tmp_path: Path) -> None:
+    """The receipt-first form: an auditor holds a receipt, not a point id."""
+    digest = _grant(store)
+    receipt = tmp_path / "receipt.json"
+    receipt.write_text(
+        json.dumps(
+            {
+                "kind": "builder_ii.setup_receipt",
+                "approval_mode": "standing_ratification_grant",
+                "approval_point_id": GRANTABLE,
+                "approval_grant_digest": digest,
+                "approval_ref_digest": None,
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = runner.invoke(govern_app, ["trace", str(receipt)])
+    assert result.exit_code == 0, result.output
+    assert GRANTABLE in result.output
+    assert digest[:12] in result.output
+    assert "still active" in result.output
+
+    runner.invoke(govern_app, ["revoke", digest, "--revoked-by", "op", "--reason", "done"])
+    assert "REVOKED" in runner.invoke(govern_app, ["trace", str(receipt)]).output
+
+
+def test_trace_of_an_artifact_with_no_approval_says_so(store: Path, tmp_path: Path) -> None:
+    plain = tmp_path / "plain.json"
+    plain.write_text(json.dumps({"kind": "builder_ii.something_else"}), encoding="utf-8")
+    result = runner.invoke(govern_app, ["trace", str(plain)])
+    assert result.exit_code == 0
+    assert "no ratification chain to walk" in result.output

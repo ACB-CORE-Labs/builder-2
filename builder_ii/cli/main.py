@@ -990,13 +990,48 @@ def onboard(
     summary = [f"Delegated {len(accepted)} confirmation(s)." if accepted else "Delegated nothing."]
     summary.extend(
         [
-            "Review with:  builder-govern list-points",
-            "Audit with:   builder-govern trace <point-id>",
+            "Review with:   builder-govern list-points",
+            "Policy with:   builder-govern policy-show",
+            "Audit with:    builder-govern trace <point-id-or-artifact-path>",
             "Withdraw with: builder-govern revoke <grant-digest> --revoked-by <you> --reason <why>",
-            f"Next step:    {stage.safe_command}",
+            "",
         ]
     )
     echo_stdout("\n".join(summary) + "\n")
+
+    if no_prompt:
+        echo_stdout(f"Next step: {stage.safe_command}\n")
+        return
+
+    # Walk the remaining stages. The loop is what makes this a walkthrough rather than a report:
+    # it re-derives the stage from the filesystem each time round, so running the command in
+    # another terminal and coming back advances it. It still runs nothing itself.
+    while True:
+        stage = current_stage()
+        if stage.state == READY_STAGE.state:
+            echo_stdout(
+                f"\n{stage.title}\n  {stage.description}\n  run: {stage.safe_command}\n"
+                "\nEvery onboarding stage is complete.\n"
+            )
+            return
+        echo_stdout(
+            f"\nNext: {stage.title}\n"
+            f"  {stage.description}\n"
+            f"  run: {stage.safe_command}\n"
+        )
+        try:
+            keep_going = typer.confirm("  Run that in another terminal, then continue. Check again?", default=True)
+        except (typer.Abort, EOFError):
+            # Exhausted stdin is not a failure: the grants the operator chose are already written,
+            # and the walkthrough is the optional part. Exiting non-zero here would report a
+            # successful onboarding as a failed one every time it is run non-interactively.
+            echo_stdout(f"\nStopped at: {stage.title}. Re-run `builder onboard` to pick up here.\n")
+            return
+        if not keep_going:
+            echo_stdout(f"\nStopped at: {stage.title}. Re-run `builder onboard` to pick up here.\n")
+            return
+        if current_stage().state == stage.state:
+            echo_stdout("  Still at the same stage -- nothing has changed on disk yet.\n")
 @app.command("config")
 def config_dump() -> None:
     """Print passive config and legacy setup reconciliation metadata as JSON."""

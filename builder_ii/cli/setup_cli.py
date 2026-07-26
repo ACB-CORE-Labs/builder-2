@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json as json_lib
 import os
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
@@ -12,14 +13,22 @@ from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.core.config_sources import resolve_config_sources
 from builder_ii.governance.hitl.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH
 from builder_ii.governance.ledger.ratification_ledger import (
+    EVENT_APPROVAL_ACCEPTED,
     EVENT_AUTO_ACCEPTED,
     EVENT_MANUAL_RATIFIED,
     append_ratification_event,
 )
+from builder_ii.governance.ratification_approvals import check_ratification_approval
 from builder_ii.governance.ratification_grants import (
+    APPROVAL_MODE_RATIFICATION_APPROVAL,
     APPROVAL_MODE_STANDING_GRANT,
     consult_ratification_grant,
     resolve_ratification_root,
+)
+from builder_ii.governance.ratification_policy import (
+    LEVEL_DELEGABLE,
+    LEVEL_REQUIRE_APPROVAL_ARTIFACT,
+    effective_level,
 )
 from builder_ii.lifecycle.setup.onboarding_intent import validate_onboarding_intent_report_file
 from builder_ii.lifecycle.setup.setup_apply import SetupApplyError, apply_setup_overlay
@@ -197,31 +206,130 @@ def _record_ratification(point_id: str, command: str, *, event: str, because: st
     )
 
 
-def _digest_approval(digest: str, digest_label: str, *, point_id: str, command: str) -> tuple[str, str]:
-    """Satisfy a digest confirmation by standing grant if one is in force, else by typed prefix.
+@dataclass(frozen=True)
+class _Ratification:
+    """How one digest confirmation was satisfied, in enough detail for the receipt to be honest.
 
-    Returns ``(approved_digest, approval_mode)``. The two modes are never conflated: a receipt
-    saying `interactive_digest_prefix_confirmation` means a human typed the prefix, and a receipt
-    saying `standing_ratification_grant` means one did not. Naming the grant in stdout is not
-    decoration -- a confirmation that silently stops appearing is indistinguishable from one that
-    was never required.
+    The receipt records all of these, so a reader who has only the receipt can tell a typed
+    confirmation from a delegated one from an approval-artifact one, and can name the artifact
+    behind the last two. Before this carried `grant_digest`, a receipt could say a grant satisfied
+    it without saying *which* grant -- true, but useless to anyone doing forensics from the receipt.
     """
-    consultation = consult_ratification_grant(point_id)
-    if consultation.satisfied:
+
+    digest: str
+    approval_mode: str
+    point_id: str | None = None
+    grant_digest: str | None = None
+    approval_ref_digest: str | None = None
+
+
+def _digest_approval(
+    digest: str,
+    digest_label: str,
+    *,
+    point_id: str,
+    command: str,
+    approve_digest: str | None = None,
+    approval_ref: Path | None = None,
+) -> _Ratification:
+    """Satisfy a digest confirmation at whatever level policy currently demands.
+
+    Exactly one path applies, chosen by
+    :func:`~builder_ii.governance.ratification_policy.effective_level`, and the modes are never
+    conflated:
+
+    * ``require_approval_artifact`` -- a digest-bound approval must be supplied; typing is refused.
+    * ``always_prompt``             -- a human types the prefix; a standing grant cannot help.
+    * ``delegable``                 -- ``--approve-digest``, else a standing grant, else typing.
+
+    ``--approve-digest`` is refused above level 0, and that refusal is the whole point of the
+    levels rather than an inconvenience: a script can compute a digest and pass it, so allowing
+    the flag at ``always_prompt`` would let any automation satisfy a confirmation the operator
+    explicitly reserved for a human. Only a person at a terminal can type a prefix back at a
+    digest that was just rendered to them.
+
+    Naming the satisfying artifact in stdout is not decoration: a confirmation that silently stops
+    appearing is indistinguishable from one that was never required.
+    """
+    store_root = resolve_ratification_root(None)
+    decision = effective_level(point_id, root=store_root)
+
+    if approve_digest is not None and decision.level != LEVEL_DELEGABLE:
+        console.out(
+            f"Refused: --approve-digest is not accepted for `{point_id}` at policy level "
+            f"`{decision.level}` ({decision.because}).\n",
+            end="",
+        )
+        console.out(
+            "A supplied digest is something a script can compute; this level reserves the "
+            "decision for a person. Re-run without the flag to confirm interactively"
+            + (
+                ", or supply --approval-ref.\n"
+                if decision.level == LEVEL_REQUIRE_APPROVAL_ARTIFACT
+                else ".\n"
+            ),
+            end="",
+        )
+        raise typer.Exit(1)
+
+    if decision.level == LEVEL_REQUIRE_APPROVAL_ARTIFACT:
         if not digest:
             console.out(f"artifact has no {digest_label}; cannot approve\n", end="")
             raise typer.Exit(1)
+        check = check_ratification_approval(approval_ref, point_id=point_id, subject_digest=digest)
+        if not check.accepted:
+            console.out(f"{digest_label}: {digest}\n", end="")
+            console.out(f"Refused: {check.because}\n", end="")
+            console.out(
+                f"Policy requires an approval artifact here ({decision.because}). "
+                f"Mint one with `builder-govern approve {point_id} --digest {digest}`.\n",
+                end="",
+            )
+            raise typer.Exit(1)
         console.out(f"{digest_label}: {digest}\n", end="")
-        console.out(f"Auto-accepted under {consultation.because}.\n", end="")
-        console.out("Revoke with `builder-govern revoke`; audit with `builder-govern trace`.\n", end="")
+        console.out(f"Accepted {check.because} (policy: {decision.level}).\n", end="")
         _record_ratification(
             point_id,
             command,
-            event=EVENT_AUTO_ACCEPTED,
-            because=consultation.because,
-            grant_digest=consultation.grant_digest,
+            event=EVENT_APPROVAL_ACCEPTED,
+            because=check.because,
+            grant_digest=None,
         )
-        return digest, APPROVAL_MODE_STANDING_GRANT
+        return _Ratification(
+            digest=digest,
+            approval_mode=APPROVAL_MODE_RATIFICATION_APPROVAL,
+            point_id=point_id,
+            approval_ref_digest=check.approval_digest,
+        )
+
+    if decision.level == LEVEL_DELEGABLE:
+        if approve_digest is not None:
+            return _Ratification(
+                digest=approve_digest,
+                approval_mode="explicit_digest_bound_cli_flag",
+                point_id=point_id,
+            )
+        consultation = consult_ratification_grant(point_id, root=store_root)
+        if consultation.satisfied:
+            if not digest:
+                console.out(f"artifact has no {digest_label}; cannot approve\n", end="")
+                raise typer.Exit(1)
+            console.out(f"{digest_label}: {digest}\n", end="")
+            console.out(f"Auto-accepted under {consultation.because}.\n", end="")
+            console.out("Revoke with `builder-govern revoke`; audit with `builder-govern trace`.\n", end="")
+            _record_ratification(
+                point_id,
+                command,
+                event=EVENT_AUTO_ACCEPTED,
+                because=consultation.because,
+                grant_digest=consultation.grant_digest,
+            )
+            return _Ratification(
+                digest=digest,
+                approval_mode=APPROVAL_MODE_STANDING_GRANT,
+                point_id=point_id,
+                grant_digest=consultation.grant_digest,
+            )
 
     approved = _interactive_digest_approval(digest, digest_label)
     _record_ratification(
@@ -231,7 +339,11 @@ def _digest_approval(digest: str, digest_label: str, *, point_id: str, command: 
         because=f"operator typed the {digest_label} prefix",
         grant_digest=None,
     )
-    return approved, "interactive_digest_prefix_confirmation"
+    return _Ratification(
+        digest=approved,
+        approval_mode="interactive_digest_prefix_confirmation",
+        point_id=point_id,
+    )
 
 
 @setup_app.command("plan")
@@ -371,6 +483,14 @@ def apply(
             "When omitted, apply shows the digest and prompts for a typed digest prefix."
         ),
     ),
+    approval_ref: Path | None = typer.Option(
+        None,
+        "--approval-ref",
+        help=(
+            "Ratification approval artifact path. Required only where policy sets "
+            "`require_approval_artifact` for setup.apply.overlay_digest; ignored otherwise."
+        ),
+    ),
     output: Path = typer.Option(..., "--output", "-o", help="Required explicit setup receipt output path."),
 ) -> None:
     """Apply only digest-approved declared setup writes and emit a setup receipt."""
@@ -381,14 +501,21 @@ def apply(
         echo_stdout(_rollback_validation_report(rollback_errors))
         raise typer.Exit(1)
     overlay = _load_json_file(setup_overlay_path)
-    approval_mode = "explicit_digest_bound_cli_flag"
-    if approve_digest is None:
-        approve_digest, approval_mode = _digest_approval(
-            str(overlay.get("overlay_plan_digest", "")),
-            "overlay_plan_digest",
-            point_id="setup.apply.overlay_digest",
-            command="builder-setup apply",
-        )
+    # Always routed through the policy gate, including the scripted `--approve-digest` path:
+    # gating only the interactive path would let any script bypass every level above 0.
+    ratification = _digest_approval(
+        str(overlay.get("overlay_plan_digest", "")),
+        "overlay_plan_digest",
+        point_id="setup.apply.overlay_digest",
+        command="builder-setup apply",
+        approve_digest=approve_digest,
+        approval_ref=approval_ref,
+    )
+    approve_digest = ratification.digest
+    approval_mode = ratification.approval_mode
+    approval_grant_digest = ratification.grant_digest
+    approval_ref_digest = ratification.approval_ref_digest
+    approval_point_id = ratification.point_id
     try:
         receipt = apply_setup_overlay(
             overlay,
@@ -396,6 +523,9 @@ def apply(
             approve_digest=approve_digest,
             receipt_output=output,
             approval_mode=approval_mode,
+            approval_grant_digest=approval_grant_digest,
+            approval_ref_digest=approval_ref_digest,
+            approval_point_id=approval_point_id,
         )
     except SetupApplyError as exc:
         if exc.receipt is not None:
@@ -431,6 +561,14 @@ def rollback(
             "When omitted, rollback shows the digest and prompts for a typed digest prefix."
         ),
     ),
+    approval_ref: Path | None = typer.Option(
+        None,
+        "--approval-ref",
+        help=(
+            "Ratification approval artifact path. Required only where policy sets "
+            "`require_approval_artifact` for setup.rollback.receipt_digest; ignored otherwise."
+        ),
+    ),
     output: Path = typer.Option(..., "--output", "-o", help="Required explicit setup rollback receipt output path."),
 ) -> None:
     """Rollback digest-approved setup writes and emit a setup rollback receipt."""
@@ -441,14 +579,16 @@ def rollback(
         echo_stdout(_rollback_validation_report(rollback_errors))
         raise typer.Exit(1)
     setup_receipt = _load_json_file(setup_receipt_path)
-    approval_mode = "explicit_digest_bound_cli_flag"
-    if approve_digest is None:
-        approve_digest, approval_mode = _digest_approval(
-            str(setup_receipt.get("receipt_digest", "")),
-            "receipt_digest",
-            point_id="setup.rollback.receipt_digest",
-            command="builder-setup rollback",
-        )
+    ratification = _digest_approval(
+        str(setup_receipt.get("receipt_digest", "")),
+        "receipt_digest",
+        point_id="setup.rollback.receipt_digest",
+        command="builder-setup rollback",
+        approve_digest=approve_digest,
+        approval_ref=approval_ref,
+    )
+    approve_digest = ratification.digest
+    approval_mode = ratification.approval_mode
     try:
         receipt = execute_setup_rollback(
             setup_receipt,
