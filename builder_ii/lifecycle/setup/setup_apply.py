@@ -294,6 +294,9 @@ def _base_receipt(
     snapshot: dict[str, Any],
     approve_digest: str,
     approval_mode: str = "explicit_digest_bound_cli_flag",
+    approval_grant_digest: str | None = None,
+    approval_ref_digest: str | None = None,
+    approval_point_id: str | None = None,
 ) -> dict[str, Any]:
     basis = {
         "overlay": overlay.get("overlay_plan_digest"),
@@ -309,6 +312,14 @@ def _base_receipt(
         "rollback_snapshot_digest": snapshot["snapshot_digest"],
         "approval_digest": approve_digest,
         "approval_mode": approval_mode,
+        # Which artifact satisfied the confirmation, when one did. Without these a receipt could
+        # say `standing_ratification_grant` without naming *which* grant -- true, but useless to
+        # anyone reconstructing authority from the receipt alone. Null on a typed confirmation.
+        "approval_grant_digest": approval_grant_digest,
+        "approval_ref_digest": approval_ref_digest,
+        # Names the ratification point, so `builder-govern trace <receipt>` can resolve the
+        # authority chain from the receipt alone rather than requiring the reader to know it.
+        "approval_point_id": approval_point_id,
         "operation_attempted": "setup_apply",
         "operation_result": "pending",
         "changed_paths": [],
@@ -325,6 +336,9 @@ def apply_setup_overlay(
     approve_digest: str,
     receipt_output: Path | None = None,
     approval_mode: str = "explicit_digest_bound_cli_flag",
+    approval_grant_digest: str | None = None,
+    approval_ref_digest: str | None = None,
+    approval_point_id: str | None = None,
 ) -> dict[str, Any]:
     errors = validate_setup_overlay_plan_artifact(overlay) + validate_setup_rollback_snapshot_artifact(snapshot)
     if approve_digest != overlay.get("overlay_plan_digest"):
@@ -334,7 +348,15 @@ def apply_setup_overlay(
     if snapshot.get("setup_plan_digest") != overlay.get("setup_plan_ref", {}).get("digest"):
         errors.append("rollback snapshot setup plan digest does not match overlay setup plan digest")
     receipt = (
-        _base_receipt(overlay, snapshot, approve_digest if isinstance(approve_digest, str) else "", approval_mode)
+        _base_receipt(
+            overlay,
+            snapshot,
+            approve_digest if isinstance(approve_digest, str) else "",
+            approval_mode,
+            approval_grant_digest,
+            approval_ref_digest,
+            approval_point_id,
+        )
         if isinstance(overlay, dict) and isinstance(snapshot, dict) and overlay.get("setup_plan_ref")
         else None
     )
