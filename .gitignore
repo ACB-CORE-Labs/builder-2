@@ -19,6 +19,11 @@ target/
 
 .DS_Store
 
+# Scratch checkouts of third-party repos (e.g. a local Goose clone for reference). Never rely on
+# a directory merely not being staged yet -- `build/` above exists because that's exactly how a
+# full copy of builder_ii/ ended up committed once.
+.external/
+
 # Ops / one-off pollution (do not reintroduce at repo root)
 commit_msg.txt
 replace_script.py
