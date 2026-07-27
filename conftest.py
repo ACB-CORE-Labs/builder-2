@@ -32,6 +32,23 @@ for path in (ROOT, TESTS):
 os.environ.setdefault("BUILDER_SPLASH_NATIVE", "0")
 
 
+# No test's captured CLI output may depend on the invoking shell's color settings. Several CLI
+# modules build a module-level `Console()` at import time (e.g. `builder_ii/cli/goose_cli.py`),
+# and Rich resolves its color capability once, at construction -- a per-test fixture popping
+# these afterward is too late for any module already imported by then. Popping them here, as
+# top-level conftest.py code, runs before pytest imports any test module, so no Console anywhere
+# in the suite is ever built with them present. Rich still emits full ANSI styling into
+# `CliRunner`-captured, non-tty stdout when `FORCE_COLOR` is set, and its highlighter splits a
+# single token like a file path into separate color spans -- directory and filename get
+# different escape codes -- landing raw ANSI *inside* what a test expects to be one contiguous
+# substring. A shell exporting `FORCE_COLOR=3` (common in modern terminal apps) made seven CLI
+# tests fail on output that was correct but broken up mid-token; every one passed with it unset.
+# CI has no such export and never saw this. Same failure class this file already fights for
+# `.env` and `BUILDER_*` config leakage below, extended to the shell's color environment.
+for _color_env_var in ("FORCE_COLOR", "CLICOLOR_FORCE", "CLICOLOR", "NO_COLOR", "PY_COLORS"):
+    os.environ.pop(_color_env_var, None)
+
+
 def config_environment_keys() -> tuple[str, ...]:
     """Every environment variable the config layer reads, derived from the specs that name them.
 
