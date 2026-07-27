@@ -49,8 +49,9 @@ representing the project in public spaces.
 
 ## Enforcement
 
-`[host-specific — TBD]` A reporting contact will be published here once this project is made public
-(see [`docs/ROADMAP.md`](docs/ROADMAP.md)). Until then, report unacceptable behavior directly to a
+`[reporting contact — TBD]` A reporting contact must be published here before this project is made
+public (see [`docs/promotions/public_cut_over.md`](docs/promotions/public_cut_over.md) for the
+cut-over readiness checklist this blocks). Until then, report unacceptable behavior directly to a
 maintainer through whatever channel granted you access to this private repository.
 
 All complaints will be reviewed and investigated promptly and fairly. All maintainers are obligated
