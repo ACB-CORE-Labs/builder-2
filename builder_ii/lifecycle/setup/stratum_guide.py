@@ -85,7 +85,7 @@ WALKTHROUGH_STEPS: tuple[WalkthroughStep, ...] = (
         number=7,
         title="Launch STRATUM and inspect",
         why="Observe-only console: spine, instruments, compose — never authority origin.",
-        command="uv run builder stratum --experimental",
+        command="uv run builder stratum",
         stratum_after="j/k spine · SPC pin · O models · U agents · W workflow · H help · ~ compose.",
     ),
 )
@@ -198,9 +198,9 @@ def walkthrough_lines(*, include_opt_out_hint: bool = True) -> list[str]:
             [
                 "OPT OUT OF AUTO GUIDE",
                 "  · Press X while walkthrough is open (writes .builder/stratum_guide_dismissed)",
-                "  · Or: uv run builder stratum --experimental --no-guide",
+                "  · Or: uv run builder stratum --no-guide",
                 "  · Or: export STRATUM_SKIP_GUIDE=1",
-                "  · Show again: uv run builder stratum --experimental --guide",
+                "  · Show again: uv run builder stratum --guide",
             ]
         )
     return lines

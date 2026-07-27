@@ -692,6 +692,10 @@ def platform_tui(
     ),
 ) -> None:
     """Launch STRATUM: The Builder-II Operator TUI."""
+    from builder_ii.governance.authority import enforce_command_authority
+
+    enforce_command_authority("builder-platform tui")
+
     from builder_ii.tui.app import StratumApp, run_tui
     app = StratumApp(skip_guide=no_guide, show_splash=not no_splash)
     raise typer.Exit(run_tui(app))

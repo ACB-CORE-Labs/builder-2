@@ -153,7 +153,7 @@ uv run builder-stratum
 # first open: walkthrough auto-opens if artifacts empty
 # skip guide: --no-guide   force: --guide   skip splash: --no-splash
 # env: STRATUM_SKIP_GUIDE=1
-# equivalent: uv run builder stratum --experimental
+# equivalent: uv run builder stratum
 ```
 
 Then use the instrument map in §3.
@@ -324,7 +324,7 @@ ls recipes recipes/subrecipes
 
 # STRATUM: W shows recipe inventory; G asks before minting a read_only manifest
 # if none exists, then hands off to builder-goose start-readonly (authority-gated)
-uv run builder stratum --experimental
+uv run builder stratum
 # Optional: mint ahead of time so G skips the prompt
 # mkdir -p .builder/goose && uv run builder-goose manifest --target generic --mode read_only \
 #   --task "inspect only" --output .builder/goose/session.json
