@@ -8,18 +8,34 @@ This runbook outlines the critical decisions, readiness checks, and rollback pla
 - Blocked capability: Public / Open-Source Cut-over.
 - Status: **Pending Approval**
 - Tracker Reference: `BUILDER-II-TRK-B4`
+- License chosen: **MIT** (2026-07-27; see [`LICENSE`](../../LICENSE) and
+  [`NOTICE.md`](../../NOTICE.md)). This is the license decision itself, not the audit below — that
+  remains unchecked until actually performed. The copyright holder recorded in `LICENSE` is
+  provisional (an individual, pending formation of a formal entity) and may be reassigned without
+  changing the license terms.
 
 ### 2.2 Validation Checklist
 - [ ] **Secret Scanning**: Executed deep history rewrites (e.g., BFG Repo-Cleaner) and automated scans (TruffleHog, Gitleaks) to ensure 0 leaked internal secrets, API keys, or proprietary internal IP addresses.
-- [ ] **Licensing Audit**: Confirmed all headers, dependencies, and included assets comply with the chosen open-source license (e.g., Apache 2.0 or MIT).
+- [ ] **Licensing Audit**: Confirmed all headers, dependencies, and included assets comply with the chosen license (MIT, chosen — see 2.1). CodeVault (`builder-ii-code-vault`) is a separate, commercially licensed repository and is out of scope for this audit.
 - [ ] **Documentation**: Verified that `README.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, and architecture diagrams are scrubbed of internal jargon and are ready for community consumption.
 - [ ] **CI/CD Separation**: Ensured that the public repository has its own isolated GitHub Actions/CI pipelines that do NOT have access to internal deployment environments.
 - [ ] **Legal Approval**: Final sign-off received from Open Source Compliance and Legal teams.
 
 ## 3. Promotion Steps
-1. **Repository Mirroring**: Create a clean, squashed mirror of the internal repository targeting the public GitHub organization.
-2. **Final Automated Scan**: Run a final, synchronous security scan on the mirrored staging branch.
-3. **Visibility Toggle**: Change the repository visibility settings on GitHub from `Private` to `Public`.
+
+The intended end state is dual-hosted and public on both remotes: `core-labs/builder-II` on the
+private Forgejo instance (`core-gitquarters.acbcontent.org`) and the GitHub mirror
+(`AssetOverflow/builder-II`) — see [`docs/README.md`](../README.md) for which remote is
+authoritative for which repository class. Both need their own visibility toggle; toggling one does
+not toggle the other.
+
+1. **Repository Mirroring / History Prep**: Decide the git-history strategy (fresh-start vs. full
+   history) before either remote goes public — this is irreversible once public and forkable.
+2. **Final Automated Scan**: Run a final, synchronous security scan (secrets, PII in commit
+   history/authorship) on the branch/history that will actually be published.
+3. **Visibility Toggle**: Change repository visibility from `Private` to `Public` on **both**
+   `core-gitquarters.acbcontent.org` and GitHub. Operator-executed only; not something an agent has
+   authority to do (see [`docs/BETA_CHARTER.md`](../BETA_CHARTER.md)).
 4. **Announcement**: Publish the release notes, blog posts, and community announcements.
 5. **Community Onboarding**: Activate community issue templates and open the repository for external Pull Requests.
 

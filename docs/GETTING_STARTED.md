@@ -75,6 +75,15 @@ In STRATUM, **HITL / promotion instruments** surface this as the Third Door grid
 
 Do this on a machine you control. Prefer **one git checkout** and stay in it (STRATUM reads *that* tree’s `.builder/`).
 
+**Prefer to be walked through it?** After `uv sync` (below), `uv run builder onboard` interactively
+drives the same env → init → apply → first-session-package path Phase A and Phase C walk manually
+here, explaining each step and each optional confirmation as it goes. At each point where a
+confirmation can be delegated to a standing grant (so you stop being re-asked on later runs) it
+says so and lets you choose — see [`RATIFICATION_GRANTS.md`](RATIFICATION_GRANTS.md). It never runs
+a command without telling you first, and it recommends but does not perform Phase D (opening
+STRATUM). The rest of this section is the manual, explicit version of the same path — useful the
+first time, or if you'd rather type each command yourself.
+
 ### Phase A — Install and identity (10 minutes)
 
 ```bash
@@ -240,6 +249,9 @@ If a lane has no artifacts, STRATUM shows **absence** (empty spine, awaiting_gen
 - **Setup/onboarding** plans and validates; many apply paths stay unpromoted.  
 - Commands: `builder-config *`, `builder-setup *` — see [`CONFIG_ONBOARDING.md`](CONFIG_ONBOARDING.md).  
 - STRATUM does not replace setup; after setup artifacts exist, spine/inspect show them.
+- **Ratification grants**: `builder onboard` / `builder-govern *` let you delegate confirmations
+  you've already decided (never ones that *are* the decision) — see
+  [`RATIFICATION_GRANTS.md`](RATIFICATION_GRANTS.md).
 
 ### Artifact chain & verification
 

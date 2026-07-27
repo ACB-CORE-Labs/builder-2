@@ -229,7 +229,7 @@ Keep the public Goose docs close during design and implementation:
 - Goose docs: <https://goose-docs.ai/>
 - Agentic AI Foundation: <https://aaif.io/>
 
-The builder convention layer should track Goose's official docs as Goose evolves under AAIF and prefer Goose-native concepts over invented substitutes.
+The builder convention layer should track Goose's official docs as Goose evolves under AAIF and prefer Goose-native concepts over invented substitutes. Goose is Apache 2.0 licensed and is never bundled or redistributed by builder-II — it is installed separately by the operator; see [`NOTICE.md`](NOTICE.md) for the full third-party notice.
 
 ## Documentation map
 
@@ -295,6 +295,21 @@ This repository is currently private and not yet open for external contribution 
 ahead of open-sourcing. [`SECURITY.md`](SECURITY.md) covers vulnerability reporting and this project's
 threat-model boundaries. [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) applies to all project spaces.
 [`CHANGELOG.md`](CHANGELOG.md) tracks notable changes.
+
+## License
+
+builder-II is licensed under the [MIT License](LICENSE). [`NOTICE.md`](NOTICE.md) documents
+third-party software builder-II integrates with (notably Codename Goose, Apache 2.0) and what is
+and is not distributed as part of this repository. The commercial [CodeVault](#codevault-paid-commercial-plugin-upgrade)
+plugin is a separate repository under its own license and is not covered here.
+
+## Support this project
+
+builder-II is part of the broader CORE research program. If you'd like to support that work
+financially:
+
+- [Sponsor on GitHub Sponsors](https://github.com/sponsors/AssetOverflow)
+- [Support via Open Collective](https://opencollective.com/assetoverflow-core)
 
 ## Hardware target
 

@@ -242,6 +242,19 @@ The following architectural and design documents reside in the commercial plugin
 | --- | --- |
 | [`docs/BETA_CHARTER.md`](BETA_CHARTER.md) | Beta Charter |
 
+### Promotions (transition runbooks)
+
+Readiness checklists for capability promotions gated on operator approval. All five are currently
+**Pending Approval** — none of these transitions have happened.
+
+| Document | Purpose |
+| --- | --- |
+| [`docs/promotions/public_cut_over.md`](promotions/public_cut_over.md) | Public / open-source cut-over readiness checklist (`BUILDER-II-TRK-B4`) |
+| [`docs/promotions/deepagent_native.md`](promotions/deepagent_native.md) | DeepAgent native backends transition runbook (`BUILDER-II-TRK-B3`) |
+| [`docs/promotions/s3_multi_agent.md`](promotions/s3_multi_agent.md) | S3 dynamic multi-agent orchestration transition runbook (`BUILDER-II-TRK-B1`) |
+| [`docs/promotions/telemetry_monitoring.md`](promotions/telemetry_monitoring.md) | Telemetry & monitoring backend transition runbook (`BUILDER-II-TRK-B5`) |
+| [`docs/promotions/vllm_backend.md`](promotions/vllm_backend.md) | vLLM backend promotion transition runbook (`BUILDER-II-TRK-B2`) |
+
 ### Design notes, RFCs, and plans
 
 | Document | Purpose |
