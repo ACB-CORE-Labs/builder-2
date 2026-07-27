@@ -1,9 +1,7 @@
 # Contributing to builder-II
 
-> **Status:** this repository is currently private and not yet open for external contribution. This
-> document is a draft, prepared ahead of open-sourcing, so the contribution path is ready when the
-> project is made public. Sections that depend on the eventual public hosting destination are marked
-> `[host-specific — TBD]` below and will be finalized at that time.
+> **Status:** builder-II is now open source and accepting external contributions. See the sections
+> below for setup, quality gates, and the pull request process.
 
 Thank you for your interest in builder-II — a generic governed control plane for local
 agent-assisted software development. See [`README.md`](README.md) and
@@ -34,6 +32,11 @@ cp .env.example .env
 Requires Python 3.12 (pinned via `.python-version` / `uv.lock`) and [`uv`](https://docs.astral.sh/uv/).
 See the "Install" section of [`README.md`](README.md) for the full setup, including Goose and model
 downloads if you need to exercise runtime-adjacent code paths.
+
+The default model backend is **Ollama** — the recommended path for Linux, CI, and open-source
+contributors. Apple Silicon users can opt into the local MLX lane via `uv sync --extra mlx` and
+setting `BUILDER_MODEL_BACKEND=mlx-lm` in `.env`. See `.env.example` for the full backend menu
+and recommended defaults.
 
 ## Quality gates
 
@@ -81,21 +84,14 @@ imperative and under ~70 characters; use the body to explain *why*, not just *wh
 
 ## Opening a pull request
 
-`[host-specific — TBD]` The exact pull-request command and URL grammar depend on where this
-repository is eventually hosted publicly (undecided as of this writing). In general:
-
 1. Branch from `main`.
 2. Make your change, keeping it focused, and ensure the quality gates above pass.
-3. Push your branch and open a pull request against `main`, describing what changed and why, plus a
-   test plan.
+3. Push your branch and open a pull request against `main` on [GitHub](https://github.com/AssetOverflow/builder-2), describing what changed and why, plus a test plan.
 4. Address review feedback. CRITICAL/HIGH-severity findings must be resolved before merge.
 
 ## Reporting issues
 
-`[host-specific — TBD]` Issue tracking will be set up at the public hosting destination when this
-project is open-sourced (see [`docs/promotions/public_cut_over.md`](docs/promotions/public_cut_over.md)
-for the readiness checklist and current status). Until then, this repository is not accepting
-external issues or contributions.
+Open an issue on the [GitHub issue tracker](https://github.com/AssetOverflow/builder-2/issues).
 
 For security vulnerabilities specifically, see [`SECURITY.md`](SECURITY.md) — do not open a public
 issue for those.
