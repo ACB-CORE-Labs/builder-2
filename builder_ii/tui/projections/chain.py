@@ -114,6 +114,13 @@ def _stage_status(artifact: dict[str, Any] | None, *, upstream_ok: bool) -> Stag
     governance = artifact.get("governance") or {}
     if isinstance(governance, dict) and governance.get("hitl_required"):
         return "gate"
+    # An execution_postflight_record can be validly on disk with postflight_state
+    # NOT_RUN -- the run it describes has not happened yet. Presence alone must not
+    # green EXECUTE/VERIFY for it; that is exactly the planned != executed conflation
+    # this projection exists to prevent.
+    postflight_state = artifact.get("postflight_state")
+    if postflight_state is not None and postflight_state != "RUN_COMPLETE":
+        return "pending"
     # Presence without local errors — not cryptographic chain proof.
     # upstream_ok reserved for future blocked-downstream display.
     _ = upstream_ok

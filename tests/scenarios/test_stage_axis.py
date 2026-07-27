@@ -36,6 +36,32 @@ def test_session_artifact_advances_journey_to_plan(tmp_path: Path) -> None:
     assert states["PLAN"] == "active"
 
 
+def test_not_run_postflight_does_not_complete_execute(tmp_path: Path) -> None:
+    """A NOT_RUN postflight record is a legitimate on-disk artifact -- the run it describes
+    simply has not happened yet. EXECUTE must not show done from its mere presence."""
+    (tmp_path / "postflight.json").write_text(
+        json.dumps({"kind": "builder_ii.execution_postflight_record", "postflight_state": "NOT_RUN"}),
+        encoding="utf-8",
+    )
+    states = _states(tmp_path)
+    assert states["EXECUTE"] != "done", "NOT_RUN postflight record incorrectly completed EXECUTE"
+
+
+def test_run_complete_postflight_completes_execute(tmp_path: Path) -> None:
+    (tmp_path / "postflight.json").write_text(
+        json.dumps(
+            {
+                "kind": "builder_ii.execution_postflight_record",
+                "postflight_state": "RUN_COMPLETE",
+                "performed_actions": ["did a thing"],
+            }
+        ),
+        encoding="utf-8",
+    )
+    states = _states(tmp_path)
+    assert states["EXECUTE"] == "done"
+
+
 def test_none_artifacts_dir_is_prepare_active() -> None:
     view = project_operator_stages(None)
     assert view.active_verb == "PREPARE"

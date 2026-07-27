@@ -84,6 +84,31 @@ def test_project_chain_failed_on_errors(tmp_path: Path) -> None:
     assert repo.status == "failed"
 
 
+def test_project_chain_postflight_not_run_is_pending(tmp_path: Path) -> None:
+    """A postflight record can validly exist with postflight_state NOT_RUN -- the run it
+    describes has not happened yet. Presence on disk must not green EXECUTE/VERIFY for it."""
+    artifact = {"kind": "builder_ii.execution_postflight_record", "postflight_state": "NOT_RUN"}
+    (tmp_path / "postflight.json").write_text(json.dumps(artifact), encoding="utf-8")
+    view = project_chain(tmp_path)
+    postflight = next(s for s in view.stages if s.stage_id == "postflight")
+    assert postflight.status == "pending", (
+        f"NOT_RUN postflight record must not project as {postflight.status!r}; "
+        "presence on disk is not the same as the run having happened"
+    )
+
+
+def test_project_chain_postflight_run_complete_is_present(tmp_path: Path) -> None:
+    artifact = {
+        "kind": "builder_ii.execution_postflight_record",
+        "postflight_state": "RUN_COMPLETE",
+        "performed_actions": ["did a thing"],
+    }
+    (tmp_path / "postflight.json").write_text(json.dumps(artifact), encoding="utf-8")
+    view = project_chain(tmp_path)
+    postflight = next(s for s in view.stages if s.stage_id == "postflight")
+    assert postflight.status == "present"
+
+
 def test_epistemic_from_chain_never_invents_digests(tmp_path: Path) -> None:
     (tmp_path / "a.json").write_text(json.dumps({"kind": "builder_ii.repo_map"}), encoding="utf-8")
     chain = project_chain(tmp_path)
