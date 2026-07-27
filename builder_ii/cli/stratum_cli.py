@@ -1,6 +1,6 @@
 """Clean entrypoint: ``builder-stratum`` → experimental STRATUM operator console.
 
-Equivalent to ``builder stratum --experimental`` with the same guide flags.
+Equivalent to ``builder stratum`` with the same guide flags.
 """
 
 from __future__ import annotations

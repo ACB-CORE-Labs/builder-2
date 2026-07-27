@@ -8,7 +8,10 @@ STRATUM is builder-II's experimental **Textual** instrument panel: observe gover
 uv run builder-stratum
 ```
 
-Opens the hero splash (~3s, any key skips), then the operator console. Same authority gate as `builder stratum --experimental`.
+Opens the hero splash (~3s, any key skips), then the operator console. Gated by the
+command-authority registry's `builder stratum` record on every launch path (`builder stratum`,
+`builder-stratum`, `builder-platform tui`, `python -m builder_ii.tui`) — there is no flag that
+skips or is required for this; the registry is consulted unconditionally.
 
 ```bash
 uv run builder-stratum --no-guide    # skip first-session walkthrough auto-open
@@ -19,12 +22,12 @@ uv run builder-stratum --no-splash   # skip hero image
 Equivalent long form:
 
 ```bash
-uv run builder stratum --experimental
+uv run builder stratum
 ```
 
 | Flag | Effect |
 |------|--------|
-| `--experimental` | **Required** on `builder stratum` (already implied by `builder-stratum`) |
+| `--sandbox` | Accepted, but not yet wired to any behavior (reserved name for a future strict-confinement mode) |
 | `--no-guide` | Skip first-session walkthrough auto-open |
 | `--guide` | Force walkthrough open (even if dismissed before) |
 | `--no-splash` | `builder-stratum` only: skip opening hero |
@@ -126,7 +129,7 @@ uv run builder-goose manifest --target generic --mode read_only \
 ### 7. Launch STRATUM
 
 ```bash
-uv run builder stratum --experimental
+uv run builder stratum
 # skip guide:  --no-guide
 # force guide: --guide
 ```

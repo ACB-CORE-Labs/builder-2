@@ -102,7 +102,7 @@ Reporting them isn't harmful, but it won't surface anything the operator doesn't
 - CodeVault Tier-1 content-derived encoding (today it's layout-geometry only)
 - Container/VM isolation for the verification lane
 - A non-Mac local-model backend (MLX is Mac-first by design for this beta)
-- STRATUM TUI real wiring (gated behind `--experimental`, not a beta-facing surface)
+- STRATUM TUI real wiring (gated behind the command-authority registry, not a beta-facing surface)
 - Governed orchestration / deepagents delegation-lane promotion
 - The secrets-preserving Goose config `merge` operation (manual config wiring is the documented
   beta path — see [`docs/CONFIG_ONBOARDING.md`](CONFIG_ONBOARDING.md))
