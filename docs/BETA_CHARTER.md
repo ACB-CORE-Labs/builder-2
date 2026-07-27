@@ -14,8 +14,8 @@ where it lives.
 The builder-II repository is currently **private** and has no public issue tracker. This is a
 closed beta: participation means the operator gave you direct repository access, not that the
 project is publicly announced or open for drive-by contribution. Nothing here implies or schedules
-a publication date — see [`docs/ROADMAP.md`](ROADMAP.md) for the (deferred, operator-only)
-open-sourcing cut-over.
+a publication date — see [`docs/promotions/public_cut_over.md`](promotions/public_cut_over.md) for
+the (deferred, operator-only) open-sourcing cut-over readiness checklist and current status.
 
 Capability state is not restated in this document, because it changes as work lands and a stale
 copy here would itself become a doc-truth violation. Before reporting something as broken, check

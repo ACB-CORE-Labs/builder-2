@@ -93,17 +93,25 @@ repository is eventually hosted publicly (undecided as of this writing). In gene
 ## Reporting issues
 
 `[host-specific — TBD]` Issue tracking will be set up at the public hosting destination when this
-project is open-sourced (see [`docs/ROADMAP.md`](docs/ROADMAP.md)). Until then, this repository is
-not accepting external issues or contributions.
+project is open-sourced (see [`docs/promotions/public_cut_over.md`](docs/promotions/public_cut_over.md)
+for the readiness checklist and current status). Until then, this repository is not accepting
+external issues or contributions.
 
 For security vulnerabilities specifically, see [`SECURITY.md`](SECURITY.md) — do not open a public
 issue for those.
 
 ## License
 
-Not yet finalized (tracked as a deferred decision ahead of open-sourcing; see
-[`CHANGELOG.md`](CHANGELOG.md) once resolved). Do not assume any particular license applies to
-contributions made before this is finalized.
+builder-II is licensed under the [MIT License](LICENSE). The current copyright holder
+(`Joshua Shay`) is provisional — the intent is to reassign copyright to a formal entity (CORE (AI))
+once one exists; this does not change the license terms. Contributions made once the project
+accepts them will be under this same license (standard inbound = outbound).
+
+CodeVault (`builder-ii-code-vault`) is a separate, commercially licensed plugin repository and is
+not covered by this license — see [`README.md`](README.md#codevault-paid-commercial-plugin-upgrade)
+for the boundary. Third-party software builder-II integrates with (notably Codename Goose, Apache
+2.0, invoked as a separately installed binary rather than bundled) is documented in
+[`NOTICE.md`](NOTICE.md).
 
 ## Code of Conduct
 

@@ -11,7 +11,63 @@ require an explicit versioning policy.
 
 ## [Unreleased]
 
-Nothing yet.
+Over 100 merges landed on `main` between the `v0.1.0` tag (2026-07-08) and 2026-07-26 across
+several tracks. This is a curated summary, not a PR-by-PR list — see `git log v0.1.0..main` for
+full detail, per this changelog's pre-1.0 convention.
+
+### Added
+
+- **Standing ratification grants and policy**: `builder onboard` (interactive golden-path
+  walkthrough) and `builder-govern` (grant/revoke/policy/trace/audit) let an operator delegate
+  confirmations they've already decided to a revocable, ledgered standing grant — or demand *more*
+  than the default via a tighten-only policy ladder (`delegable` → `always_prompt` →
+  `require_approval_artifact`) — without ever being able to delegate a HITL approval or a
+  promotion decision. See [`RATIFICATION_GRANTS.md`](docs/RATIFICATION_GRANTS.md).
+- **Command-authority affordance projection**: STRATUM actions now derive a five-mode
+  `ActionAffordance` (invoke-direct / invoke-with-confirm / compose-only / refuse / **unwired**)
+  from the assurance lattice, distinguishing "the registry demands compose-only" from "nobody wired
+  a direct path" — closing the exact ambiguity that once led to a registry hand-edit based on a
+  misread unwired keybinding.
+- **Goose in-loop governed runtime** (ADR-0009): a governed stdio MCP server as Goose's sole
+  extension (read-only interposition seam), recipe interposition, an in-loop HITL gate that refuses
+  mutating tool classes and ledgers the refusal, and deny-by-default in-loop governed patch apply.
+- **STRATUM frontier cockpit**: live ledger transcript widget, run cockpit (roster + live
+  transcript), live subagent tree, HITL inline diff viewer, and an operator verb-stage journey axis
+  — all observe/compose-only.
+- **WRP (Workforce Reasoning Platform) orchestration control plane**: a passive-by-default lane
+  spanning plan/approve/run-approved, MSDA gateway nodes, agent-factory lifecycle, backend registry
+  + doctor, and a Class U measured-utility harness — enablement stayed gated at every stage (no S3
+  promotion flip landed in this window).
+- HITL decision envelope artifact (an enterprise-style audit envelope: criteria, range, observed,
+  assumptions, alternatives, consequences) — decision-support only, never an approval.
+- CodeVault's structural-field extraction lane (G1b/G2): five of six registered fact kinds
+  (signature, nesting, ownership, decorator, import) as structural-correspondence *candidates*,
+  never verified-correspondence claims.
+
+### Changed
+
+- **CodeVault separated into its own commercial repository** (`core-labs/builder-ii-code-vault`);
+  `builder_ii/code_vault/` is gone from this repo, replaced by a fail-closed CLI seam
+  (`builder-code-vault`) that refuses every invocation with an upgrade message and exit code 1.
+- Repaired `builder chain`: it previously enforced a command name no authority record declared, so
+  it could not run at all; when it *could* run (pre-registration), it swallowed every failure after
+  step 1 and reported success anyway. It is now a Tier 0 composing walkthrough that names each
+  stage's command, live authority, and ratification point, and runs nothing itself.
+- Reconciled the STRATUM Third Door ledger to anchor and tell the truth about its own state; gated
+  `app.py`'s mypy surface; removed a ghost artifact reference and ballooning docstring rot.
+- Retired the `pexpect`-based TUI driver and banned TTY scraping outright (`scripts/tui_driver.py`
+  exited 0 while capturing 306 characters of terminal preamble and no real output) in favor of the
+  in-process semantic TUI driver.
+
+### Fixed
+
+- Governance audit refactor (Stage 3 & 4 Synthesis): closed findings from four independent
+  red-team/architecture review passes.
+- Made the CodeVault upgrade seam truthful in both the installed and not-installed state, and made
+  it say *why* it refuses rather than refusing silently.
+- Closed the "semantic pilot"'s four blind spots, including an exit code that had been hiding one.
+- Numerous docs-truth reconciliations (`audit-docs` violations closed as they were introduced) —
+  see individual PR descriptions via `git log` for specifics.
 
 ## [0.1.0] - 2026-07-08
 
