@@ -38,9 +38,14 @@ _PARSE_ERROR = -32700
 class GovernedMcpServer:
     """A governed MCP server exposing only allowlisted read-only stub tools."""
 
-    def __init__(self, *, session_id: str, builder_root: Path) -> None:
+    def __init__(self, *, session_id: str, builder_root: Path, target_root: Path | None = None) -> None:
         self.session_id = session_id
         self.builder_root = Path(builder_root)
+        # The repo the read tools are jailed to. Captured once at construction rather than read
+        # per call, so a tool cannot be handed a different root than the one the session
+        # started under. Goose spawns this server with cwd=target_root, which is why the
+        # working directory is the right default and not a guess.
+        self.target_root = Path(target_root).resolve() if target_root is not None else Path.cwd().resolve()
 
     # -- protocol (framing-independent, unit-tested) --------------------------------------
 
@@ -132,6 +137,7 @@ class GovernedMcpServer:
             arguments=dict(arguments),
             session_id=self.session_id,
             builder_root=self.builder_root,
+            target_root=self.target_root,
         )
         return {
             "content": [{"type": "text", "text": outcome.output_text}],

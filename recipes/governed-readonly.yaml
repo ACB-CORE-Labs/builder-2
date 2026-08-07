@@ -4,13 +4,24 @@ description: >
   Governed interposition recipe (G2). Goose's only tool surface is the builder-II governed
   MCP server; there are no developer/shell builtins. Every tool call is mediated by
   `builder-mcp serve`, which runs the governed envelope -> receipt -> ledger ceremony and
-  exposes only read-only stub tools. This recipe grants no authority and enables no write,
+  exposes only read-only tools. This recipe grants no authority and enables no write,
   shell, or target mutation.
 instructions: |
   All tool calls are mediated by the builder-II governed MCP server (extension
   "builder_ii_governed"). Only read-only tools are available: there is no shell, no file
   editing, and no target-repo mutation. Every call is recorded as a governed receipt and a
   hash-chained event; nothing here grants execution or promotion authority.
+
+  Available tools:
+    - list_dir(path)            orient in the tree; directories are suffixed "/"
+    - grep(pattern, path)       find a literal substring, returned as "path:line:text"
+    - read_file(path)           read a UTF-8 text file
+    - echo(text), utc_static()  deterministic stubs
+
+  All paths are relative to the repository root and jailed to it: absolute paths, "..", and
+  the .git/.builder directories are refused. Results are bounded (files by bytes, listings and
+  searches by count), and a truncated result says so on its last line -- narrow with `path`
+  rather than assuming you have seen everything.
 
   If a task appears to require writing files, running shell, or mutating the target, stop and
   report that it is out of scope for a governed read-only session -- do not attempt to work
@@ -27,4 +38,4 @@ extensions:
     args:
       - serve
     timeout: 300
-    description: "builder-II governed MCP server (read-only stub tools; ledgered)"
+    description: "builder-II governed MCP server (read-only repo tools; path-jailed; ledgered)"

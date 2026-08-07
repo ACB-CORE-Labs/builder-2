@@ -655,12 +655,24 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         OPERATIONALLY_VERIFIED,
         (
             "builder_ii/core/tool_invocation_gateway.py",
+            "builder_ii/core/readonly_repo_tools.py",
             "builder_ii/core/mcp_policy.py",
             "docs/plan/MCP_POLICY_ARTIFACT_RFC.md",
         ),
         ("builder-tools invoke",),
-        ("tests/test_tool_invocation_gateway.py", "tests/test_mcp_policy.py"),
-        ("Low-risk tool invocation is implemented via in-process stubs and verified with receipt and event replay.",),
+        (
+            "tests/test_tool_invocation_gateway.py",
+            "tests/test_mcp_policy.py",
+            "tests/test_readonly_repo_tools.py",
+        ),
+        (
+            "Low-risk tool invocation is implemented via in-process stubs and verified with receipt and event replay.",
+            "The allowlist adds three bounded repo reads (read_file, list_dir, grep). All are pure "
+            "in-process Python, so the path spawns no subprocess and receipts keep declaring "
+            "executes_shell false; paths are jailed to the target root, refusing absolute paths, "
+            "'..', .git/.builder, and symlinks that resolve outside it. A refused read is a denied "
+            "receipt, not an exception, so it is ledgered like any other call.",
+        ),
         "B7",
     ),
     _row(
@@ -675,6 +687,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "MCP inventory, policy, call envelopes and receipts exist.",
             "Live MCP server execution remains unpromoted; deterministic stub invocation is handled by low-risk tool gateway.",
+            "The governed stdio server (builder-mcp serve) exposes the gateway's read-only allowlist "
+            "to a governed Goose session as a read_only_runtime_candidate; it adds no tool capability "
+            "beyond that allowlist and refuses mutating tool classes in-loop.",
         ),
         "B7",
     ),

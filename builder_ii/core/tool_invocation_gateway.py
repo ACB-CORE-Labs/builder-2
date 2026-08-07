@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from builder_ii.core import readonly_repo_tools
 from builder_ii.core.mcp_policy import (
     MCP_RECEIPT_KIND,
     RECEIPT_SCHEMA_VERSION,
@@ -15,11 +16,16 @@ from builder_ii.core.mcp_policy import (
 )
 from builder_ii.governance.ledger.workflow_records import artifact_ref, canonical_digest
 
-# This is the strict allowlist of deterministic, non-mutating "stub" tools that we allow
-# for proving the B7 capability before broader rollout.
+# The strict allowlist of deterministic, non-mutating tools this gateway will run. The first
+# two are the original B7 stubs; the read tools make a governed session able to do real work
+# without widening what it is allowed to do -- all four are pure in-process Python, so the
+# receipts below keep declaring `executes_shell: False` with nothing to qualify.
 ALLOWED_STUB_TOOLS = {
     "builtin.echo",
     "builtin.utc_static",
+    "builtin.read_file",
+    "builtin.list_dir",
+    "builtin.grep",
 }
 
 
@@ -31,8 +37,52 @@ def _get_utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def _run_builtin_tool(
+    tool_id: str, arguments: dict[str, Any], *, target_root: Path
+) -> tuple[str, str]:
+    """Run one allowlisted read-only builtin. Returns ``(status, output_text)``.
+
+    The dispatch used to be written twice -- once for the tool envelope, once for the MCP
+    envelope -- with the two copies already drifting apart in their denial strings. One
+    dispatch, two callers.
+
+    A jail refusal is a ``denied`` status with the reason as its output, not an exception: the
+    caller writes a receipt either way, so a refused read stays as auditable as a permitted one
+    instead of vanishing into a traceback.
+    """
+    if tool_id == "builtin.echo":
+        return "succeeded", str(arguments.get("text", ""))
+    if tool_id == "builtin.utc_static":
+        return "succeeded", "2026-07-01T10:00:00Z"
+
+    try:
+        if tool_id == "builtin.read_file":
+            return "succeeded", readonly_repo_tools.read_file(
+                target_root, str(arguments.get("path", ""))
+            )
+        if tool_id == "builtin.list_dir":
+            return "succeeded", readonly_repo_tools.list_dir(
+                target_root, str(arguments.get("path", "."))
+            )
+        if tool_id == "builtin.grep":
+            return "succeeded", readonly_repo_tools.grep(
+                target_root,
+                str(arguments.get("pattern", "")),
+                path=str(arguments.get("path", ".")),
+            )
+    except readonly_repo_tools.ToolRefusal as refusal:
+        return "denied", str(refusal)
+
+    return "denied", f"Tool '{tool_id}' is allowlisted but has no implementation."
+
+
 def execute_tool_envelope(
-    envelope: dict[str, Any], envelope_path: Path, policy: dict[str, Any], policy_path: Path
+    envelope: dict[str, Any],
+    envelope_path: Path,
+    policy: dict[str, Any],
+    policy_path: Path,
+    *,
+    target_root: Path | None = None,
 ) -> dict[str, Any]:
 
     env_errors = validate_mcp_envelope(envelope)
@@ -104,10 +154,11 @@ def execute_tool_envelope(
             raise ValueError(f"Risk classification '{risk_class}' requires an approval_ref")
         else:
             try:
-                import hashlib
+                # `hashlib` and `Path` are module-level imports; re-importing them here bound
+                # them as locals for the *whole* function, so any earlier use of the same name
+                # raised UnboundLocalError. Only `json`/`time` are genuinely local to this block.
                 import json
                 import time
-                from pathlib import Path
                 approval_path = Path(envelope["approval_ref"]["path"] if isinstance(envelope["approval_ref"], dict) else envelope["approval_ref"])
                 if not approval_path.exists():
                     raise ValueError("Approval file does not exist")
@@ -162,40 +213,30 @@ def execute_tool_envelope(
     timeout_hit = False
     no_mutation_proof = "no_mutation_because_read_only"
 
-    # 2. Execution Logic (Pure in-process deterministic stubs)
-    if is_tool:
-        tool_id = envelope.get("tool_id")
-        if tool_id in ALLOWED_STUB_TOOLS:
-            if op_name != "invoke":
-                status = "denied"
-                stdout = f"Operation {op_name} not supported for stub"
-            else:
-                status = "succeeded"
-                if tool_id == "builtin.echo":
-                    text = envelope.get("arguments", {}).get("text", "")
-                    stdout = str(text)
-                elif tool_id == "builtin.utc_static":
-                    stdout = "2026-07-01T10:00:00Z"
-        else:
-            status = "denied"
-            stdout = f"Tool '{tool_id}' not available or denied by B7 safe allowlist."
+    # 2. Execution Logic (Pure in-process deterministic tools; nothing here spawns a process)
+    resolved_root = Path(target_root) if target_root is not None else Path.cwd()
+    tool_id = envelope.get("tool_id")
+    server_id = envelope.get("server_id")
+    reachable = (
+        tool_id in ALLOWED_STUB_TOOLS
+        if is_tool
+        else (server_id == "builtin.mcp_server" and tool_id in ALLOWED_STUB_TOOLS)
+    )
+
+    if not reachable:
+        status = "denied"
+        stdout = (
+            f"Tool '{tool_id}' not available or denied by B7 safe allowlist."
+            if is_tool
+            else f"MCP server '{server_id}' or tool '{tool_id}' not available or denied by B7 safe allowlist."
+        )
+    elif op_name != "invoke":
+        status = "denied"
+        stdout = f"Operation {op_name} not supported for stub"
     else:
-        server_id = envelope.get("server_id")
-        tool_id = envelope.get("tool_id")
-        if server_id == "builtin.mcp_server" and tool_id in ALLOWED_STUB_TOOLS:
-            if op_name != "invoke":
-                status = "denied"
-                stdout = f"Operation {op_name} not supported for stub"
-            else:
-                status = "succeeded"
-                if tool_id == "builtin.echo":
-                    text = envelope.get("arguments", {}).get("text", "")
-                    stdout = str(text)
-                elif tool_id == "builtin.utc_static":
-                    stdout = "2026-07-01T10:00:00Z"
-        else:
-            status = "denied"
-            stdout = f"MCP server '{server_id}' or tool '{tool_id}' not available or denied by B7 safe allowlist."
+        status, stdout = _run_builtin_tool(
+            str(tool_id), envelope.get("arguments", {}) or {}, target_root=resolved_root
+        )
 
     if status == "succeeded":
         raw_bytes = stdout.encode("utf-8")

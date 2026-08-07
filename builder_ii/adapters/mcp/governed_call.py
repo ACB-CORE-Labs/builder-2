@@ -33,6 +33,15 @@ from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 _SERVER_ID = "builtin.mcp_server"
 
+#: Output ceiling for the repo-read tools. The original 1024 was sized for `echo`; a file read
+#: capped at a kilobyte would truncate almost every source file in this repo into uselessness.
+#: Matches `readonly_repo_tools.DEFAULT_MAX_READ_BYTES` so the tool's own bound and the
+#: envelope's agree rather than silently cutting each other.
+_READ_OUTPUT_CAP = 65536
+
+#: Retained for `echo`/`utc_static`, whose outputs are small by construction.
+_STUB_OUTPUT_CAP = 1024
+
 # MCP-facing tool name -> the executor's allowlisted tool_id + its MCP schema. The tool_ids
 # must already be in ``tool_invocation_gateway.ALLOWED_STUB_TOOLS``; nothing here widens it.
 TOOL_SPECS: dict[str, dict[str, Any]] = {
@@ -49,6 +58,49 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
         "tool_id": "builtin.utc_static",
         "description": "Return a fixed deterministic UTC timestamp (read-only stub).",
         "inputSchema": {"type": "object", "properties": {}},
+    },
+    "read_file": {
+        "tool_id": "builtin.read_file",
+        "description": (
+            "Read a UTF-8 text file relative to the repository root (read-only). Paths are "
+            "jailed to the repo: absolute paths, '..', and .git/.builder are refused."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {"path": {"type": "string", "description": "Repo-relative file path."}},
+            "required": ["path"],
+        },
+        "output_cap": _READ_OUTPUT_CAP,
+    },
+    "list_dir": {
+        "tool_id": "builtin.list_dir",
+        "description": (
+            "List a directory relative to the repository root (read-only). Directories are "
+            "suffixed '/'. Same path jail as read_file."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "Repo-relative directory; defaults to the root."}
+            },
+        },
+        "output_cap": _READ_OUTPUT_CAP,
+    },
+    "grep": {
+        "tool_id": "builtin.grep",
+        "description": (
+            "Search the repository for a literal substring (read-only), returning "
+            "'path:line:text'. Literal, not regex, and bounded in matches and files scanned."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pattern": {"type": "string", "description": "Literal substring to find."},
+                "path": {"type": "string", "description": "Repo-relative subtree to search; defaults to the root."},
+            },
+            "required": ["pattern"],
+        },
+        "output_cap": _READ_OUTPUT_CAP,
     },
 }
 
@@ -69,8 +121,13 @@ def _canonical_input_digest(arguments: dict[str, Any]) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def build_read_only_policy() -> dict[str, Any]:
-    """A deny-by-default MCP policy that permits only the low-risk read-only stub path."""
+def build_read_only_policy(*, max_output_bytes: int = _STUB_OUTPUT_CAP) -> dict[str, Any]:
+    """A deny-by-default MCP policy that permits only the low-risk read-only tool path.
+
+    ``max_output_bytes`` is per-call because the tools differ by orders of magnitude in what a
+    legitimate result looks like; the executor takes the ``min`` of policy and envelope, so a
+    tool cannot raise its own ceiling past what the policy minted for it.
+    """
     return {
         "kind": MCP_POLICY_KIND,
         "schema_version": POLICY_SCHEMA_VERSION,
@@ -80,7 +137,7 @@ def build_read_only_policy() -> dict[str, Any]:
         "denied_by_default": True,
         "allowed_risk_classes": ["low_risk"],
         "max_input_bytes": 1024,
-        "max_output_bytes": 1024,
+        "max_output_bytes": max_output_bytes,
         "timeout_seconds": 30,
         "network_allowed": False,
         "mutation_allowed": False,
@@ -96,7 +153,12 @@ def build_read_only_policy() -> dict[str, Any]:
 
 
 def build_call_envelope(
-    tool_id: str, arguments: dict[str, Any], policy: dict[str, Any], policy_path: Path
+    tool_id: str,
+    arguments: dict[str, Any],
+    policy: dict[str, Any],
+    policy_path: Path,
+    *,
+    output_cap: int = _STUB_OUTPUT_CAP,
 ) -> dict[str, Any]:
     """A low-risk read-only MCP call envelope whose policy_ref digest binds the policy."""
     return {
@@ -120,7 +182,7 @@ def build_call_envelope(
         "risk_classification": "low_risk",
         "rollback_requirement": "no_rollback_required_for_read_only",
         "timeout": 30,
-        "output_cap": 1024,
+        "output_cap": output_cap,
         "credential_redaction_declaration": True,
         "requires_human_promotion_for_execution": True,
         "executes_shell": False,
@@ -131,7 +193,12 @@ def build_call_envelope(
 
 
 def run_governed_tool_call(
-    *, tool_name: str, arguments: dict[str, Any], session_id: str, builder_root: Path
+    *,
+    tool_name: str,
+    arguments: dict[str, Any],
+    session_id: str,
+    builder_root: Path,
+    target_root: Path | None = None,
 ) -> GovernedCallOutcome:
     """Run one tool call through policy -> envelope -> executor -> receipt -> ledger.
 
@@ -144,15 +211,21 @@ def run_governed_tool_call(
         raise KeyError(f"unknown tool: {tool_name}")
     tool_id = str(spec["tool_id"])
 
+    output_cap = int(spec.get("output_cap", _STUB_OUTPUT_CAP))
+
     with session_event_append(Path(builder_root), session_id) as appender:
-        policy = build_read_only_policy()
+        policy = build_read_only_policy(max_output_bytes=output_cap)
         policy_path, policy_ref = appender.write_policy_snapshot(policy)
 
-        envelope = build_call_envelope(tool_id, arguments, policy, policy_path)
+        envelope = build_call_envelope(tool_id, arguments, policy, policy_path, output_cap=output_cap)
         envelope_path, envelope_ref = appender.write_sidecar(envelope, "envelope", "mcp_call_envelope")
 
         receipt = execute_tool_envelope(
-            envelope=envelope, envelope_path=envelope_path, policy=policy, policy_path=policy_path
+            envelope=envelope,
+            envelope_path=envelope_path,
+            policy=policy,
+            policy_path=policy_path,
+            target_root=target_root,
         )
         receipt_errors = validate_mcp_receipt(receipt)
         if receipt_errors:

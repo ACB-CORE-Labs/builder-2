@@ -112,6 +112,7 @@ are not equivalent just because they share the legacy completion label.
 - **MCP invocation** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - MCP inventory, policy, call envelopes and receipts exist.
   - Live MCP server execution remains unpromoted; deterministic stub invocation is handled by low-risk tool gateway.
+  - The governed stdio server (builder-mcp serve) exposes the gateway's read-only allowlist to a governed Goose session as a read_only_runtime_candidate; it adds no tool capability beyond that allowlist and refuses mutating tool classes in-loop.
 - **passive orchestration assignment** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - Assignment binds artifacts by digest and starts no agents.
   - Runtime assignment execution must wait for B1/B5.

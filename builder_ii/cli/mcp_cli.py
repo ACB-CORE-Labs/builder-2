@@ -292,6 +292,11 @@ def serve(
     builder_root: Path = typer.Option(
         Path(".builder"), "--builder-root", help="Root directory for session artifacts and events."
     ),
+    target_root: Path | None = typer.Option(
+        None,
+        "--target-root",
+        help="Repository the read-only tools are jailed to (default: the working directory).",
+    ),
 ) -> None:
     """Run the governed stdio MCP server so Goose can load builder-II as an extension.
 
@@ -311,4 +316,6 @@ def serve(
     )
     from builder_ii.adapters.mcp.server import GovernedMcpServer
 
-    GovernedMcpServer(session_id=resolved_session, builder_root=builder_root).serve_stdio()
+    GovernedMcpServer(
+        session_id=resolved_session, builder_root=builder_root, target_root=target_root
+    ).serve_stdio()
