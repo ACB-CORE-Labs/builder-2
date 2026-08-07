@@ -216,12 +216,46 @@ These are the next capability promotions. Each requires the full capability prom
 - Patch proposal artifact → operator review → approved patch application
 - Requires full verification evidence
 
-### Phase: Goose in-loop governed runtime (ADR-0009 Proposed — DESIGN_ONLY)
-- Interpose on Goose via a builder-II-owned governed MCP server loaded as its only extension (with `--with-builtin ""`); no Goose fork and no source patch
-- Read-only tools and a refusing in-flight HITL gate operate inside the current observe-and-compose contract; write and shell stay denied until a separate promotion
-- STRATUM streams the run by tailing the hash-chained event ledger the server writes; the TUI gains no dispatch authority
-- Write/shell: G4 is implemented as a deny-by-default candidate — the in-loop gate delegates a validated `propose_patch` to the governed apply lane behind the `BUILDER_MCP_GOVERNED_APPLY` flag + a digest-bound approval; it is not enabled by default, OV is unchanged, and the closure audit to `enabled` is an operator step
-- See `docs/plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md`, ADR-0009
+### Phase: Goose in-loop governed runtime (ADR-0009) — lanes G and T reachable
+
+The interposition design is unchanged: a builder-II-owned governed MCP server is Goose's only
+extension (`--with-builtin ""`), with no Goose fork and no source patch. What changed is that the
+lane is now reachable and the console can drive it.
+
+Landed:
+- **Reachable governed runtime.** `builder-goose start-governed` (interactive) and
+  `builder-goose run-governed` (headless, streamed) are the entry points `launch_governed` never
+  had. Both are Tier 3 `read_only_runtime_candidate`, fail closed before spawning, and run a
+  no-mutation postflight. One hash-chained session ledger per run, written through a single
+  flock-guarded append point shared by the harness and the MCP server.
+- **Real read-only tools.** `read_file`, `list_dir`, `grep` — pure in-process, path-jailed to the
+  repo (absolute paths, `..`, `.git`/`.builder` and symlinks that resolve outside are refused),
+  bounded, and receipted. A jail refusal is a denied receipt, not an exception. `git_status` was
+  considered and left out: it would be the first subprocess on a path whose receipts declare
+  `executes_shell: false`.
+- **STRATUM dispatches** (**Ctrl+G**): type a task, and the console mints a passive `read_only`
+  manifest and spawns the streamed run without suspending. The run appears in the cockpit that
+  already tailed the ledger. The TUI still originates no authority — every lane re-derives its own.
+- **HITL decidable in-console** (**A**/**R**): the gate keys hand the terminal to `builder-hitl`,
+  which prints the digest and asks for its prefix there. The console never harvests it.
+- **A refused write is now reviewable.** An in-loop `propose_patch` carrying a diff records a
+  schema-valid `hitl_patch_proposal` where the console's gate scanner looks, so the gate lights and
+  the diff renders. Deliberately not behind `BUILDER_MCP_GOVERNED_APPLY` — that flag gates writing
+  to the target, not recording a proposal.
+- **Where the pause goes is operator-configured.** Dispatch consults the ratification points
+  (`stratum.dispatch.*`) via the new `governed_dispatch_confirmation` kind: a standing grant
+  auto-ratifies and is named in the ledger, otherwise a ConfirmScreen. Patch approval is
+  permanently ungrantable (`human_approval_mint`), as is process control.
+
+Unchanged: write/shell stay denied. G4's apply path is still a deny-by-default candidate behind
+the flag plus a digest-bound approval; `run_shell` has no governed lane and is refused outright.
+No completion-matrix row flipped, OV is unchanged, and the closure audit to `enabled` remains an
+operator step.
+
+Not built: cockpit Start/Stop/Resume dispatch over deepagents runs
+(`docs/plan/STRATUM_ORCHESTRATION_COCKPIT.md` §4, Stage 2).
+
+- See `docs/plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md`, `docs/RATIFICATION_GRANTS.md`, ADR-0009
 
 ### Phase: artifact memory and context reconstruction
 - B8 adds explicit artifact-memory envelopes, indexes, deterministic search results, and replay-stable reconstructions via `builder-memory`
