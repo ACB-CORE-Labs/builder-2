@@ -15,7 +15,9 @@ from builder_ii.adapters.goose.goose_receipts import (
     create_goose_launch_receipt,
     create_no_mutation_postflight,
 )
+from builder_ii.adapters.mcp.governed_call import build_read_only_policy
 from builder_ii.core.config import Settings
+from builder_ii.governance.ledger.session_ledger import append_session_event
 from builder_ii.routing.model_router import SessionPlan
 
 _DIGEST_CHUNK_SIZE = 1024 * 1024
@@ -66,6 +68,69 @@ class GooseRuntimeHarness:
         self._async_proc: asyncio.subprocess.Process | None = None
         self._preflight_snapshot: dict[str, str] = {}
 
+    @property
+    def builder_root(self) -> Path:
+        """Where this run's hash-chained event ledger lives.
+
+        Must match what the governed MCP server resolves, or a governed run's lifecycle events
+        and its tool-call events would land in two different chains. ``builder-mcp serve``
+        defaults ``--builder-root`` to the relative path ``.builder`` and Goose is spawned with
+        ``cwd=target_root``, so both sides resolve to ``<target_root>/.builder``.
+        """
+        return self.target_root / ".builder"
+
+    def _export_transcript(self, transcript_path: str) -> None:
+        """Best-effort transcript export; absence of a transcript is not a failed close.
+
+        Resolves the binary through ``find_goose_binary`` rather than spawning the bare name
+        "goose". The literal was a launch/close asymmetry: launch refuses up front when the
+        binary is missing, while close spawned the name unconditionally and raised
+        FileNotFoundError from inside the close path -- turning "no goose on this host" into a
+        failed close for a session that had already ended, and making the harness unrunnable
+        anywhere the binary is absent (which is every CI environment here).
+        """
+        goose = find_goose_binary()
+        if not goose:
+            return
+        try:
+            subprocess.run(
+                [goose, "session", "export", "--name", self.session_id,
+                 "--format", "json", "--output", transcript_path],
+                check=False,
+            )
+        except OSError:
+            # The transcript is evidence-of-convenience; the receipts and the no-mutation
+            # postflight are the load-bearing close evidence and are computed independently.
+            return
+
+    def _append_lifecycle_event(
+        self, event_type: str, *, message: str, subject_refs: list[dict[str, Any]] | None = None,
+        decision_result: str = "recorded",
+    ) -> Path | None:
+        """Chain one run-lifecycle event, or return None if the ledger cannot be written.
+
+        Lifecycle events are appended only before the child is spawned and after it has exited,
+        so they never interleave with the MCP server's own appends. The shared appender holds
+        the session lock regardless, because "these two writers happen not to overlap" is an
+        argument that stops being true the moment someone adds a third.
+        """
+        try:
+            return append_session_event(
+                builder_root=self.builder_root,
+                session_id=self.session_id,
+                event_type=event_type,
+                command_surface="builder-goose",
+                policy=build_read_only_policy(),
+                subject_refs=subject_refs,
+                message=message,
+                decision_result=decision_result,
+                event_id_prefix="evt_goose",
+            )
+        except (OSError, ValueError):
+            # A ledger that cannot be written must not take the run down with it; the receipts
+            # and the no-mutation postflight remain the load-bearing evidence.
+            return None
+
     def launch_readonly(self) -> dict[str, Any]:
         """Launch Goose in a strict read-only mode, without shell access."""
         goose = find_goose_binary()
@@ -84,6 +149,14 @@ class GooseRuntimeHarness:
             argv.extend(["--recipe", str(recipe)])
 
         self._preflight_snapshot = _get_target_files(self.target_root)
+
+        # Both launch paths open the chain they will close: `close()` appends a
+        # `goose_readonly_closed` event unconditionally, and a close with no matching start is
+        # an incoherent chain that replays from a close at sequence 1.
+        self._append_lifecycle_event(
+            "goose_readonly_started",
+            message="read-only Goose session started with no builtins",
+        )
 
         start_time = _current_time_utc()
         self._proc = subprocess.Popen(
@@ -141,6 +214,13 @@ class GooseRuntimeHarness:
         argv = self._governed_argv(goose, recipe)
         self._preflight_snapshot = _get_target_files(self.target_root)
 
+        # Opens the chain the run cockpit tails, before the child exists: a governed run is
+        # visible from the moment it starts, not only once its first tool call lands.
+        self._append_lifecycle_event(
+            "goose_readonly_started",
+            message=f"governed Goose session started under {self.GOVERNED_RECIPE_NAME}",
+        )
+
         start_time = _current_time_utc()
         self._proc = subprocess.Popen(
             argv,
@@ -173,6 +253,11 @@ class GooseRuntimeHarness:
             argv.extend(["--recipe", str(recipe)])
 
         self._preflight_snapshot = await _get_target_files_async(self.target_root)
+
+        self._append_lifecycle_event(
+            "goose_readonly_started",
+            message="read-only Goose session started with no builtins",
+        )
 
         start_time = _current_time_utc()
         self._async_proc = await asyncio.create_subprocess_exec(
@@ -227,7 +312,7 @@ class GooseRuntimeHarness:
         transcript_path_obj = self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
         transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
         transcript_path = str(transcript_path_obj)
-        subprocess.run(["goose", "session", "export", "--name", self.session_id, "--format", "json", "--output", transcript_path], check=False)
+        self._export_transcript(transcript_path)
         transcript_digest = _file_sha256(transcript_path_obj) or ""
 
         close_receipt = create_goose_close_receipt(
@@ -240,21 +325,28 @@ class GooseRuntimeHarness:
             exit_code=exit_code,
         )
 
-        # Record goose_session_closed in the event ledger
-        from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
-        event = create_event_record(
-            event_id=self.session_id + "_close",
-            session_id=self.session_id,
-            sequence=0,
-            event_type="goose_session_closed",
-            stage="verification",
-            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
-            command_surface="builder_ii",
-            policy_snapshot_ref={"kind": "null"},
+        # Close the chain this run opened. The record this replaces was unwritable as an event:
+        # it declared `goose_session_closed` (not in EVENT_TYPES), sequence 0 (the validator
+        # requires >= 1) and a `{"kind": "null"}` policy snapshot (not a valid ref) -- and it was
+        # never passed to validate_event_record, so it failed silently into a directory nothing
+        # tails. It now goes through the shared appender, into the chain the cockpit reads.
+        self._append_lifecycle_event(
+            "goose_readonly_closed",
+            message=f"governed Goose session closed with exit code {exit_code}",
+            subject_refs=[
+                {
+                    "kind": "builder_ii.goose_transcript",
+                    "path": transcript_path,
+                    "sha256": transcript_digest,
+                    "role": "transcript",
+                    "name": "session transcript",
+                    "required": False,
+                }
+            ]
+            if transcript_digest
+            else [],
+            decision_result="recorded" if postflight["valid"] else "mutation_detected",
         )
-        ledger_dir = self.target_root / ".builder" / "artifacts" / "events"
-        ledger_dir.mkdir(parents=True, exist_ok=True)
-        write_event_record(event, ledger_dir / f"event_{event['sequence']:04d}_{event['event_id']}.json")
 
         return close_receipt, postflight
 
@@ -295,7 +387,7 @@ class GooseRuntimeHarness:
         transcript_path_obj = self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
         transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
         transcript_path = str(transcript_path_obj)
-        subprocess.run(["goose", "session", "export", "--name", self.session_id, "--format", "json", "--output", transcript_path], check=False)
+        self._export_transcript(transcript_path)
         transcript_digest = _file_sha256(transcript_path_obj) or ""
 
         close_receipt = create_goose_close_receipt(
@@ -308,20 +400,27 @@ class GooseRuntimeHarness:
             exit_code=exit_code,
         )
 
-        # Record goose_session_closed in the event ledger
-        from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
-        event = create_event_record(
-            event_id=self.session_id + "_close",
-            session_id=self.session_id,
-            sequence=0,
-            event_type="goose_session_closed",
-            stage="verification",
-            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
-            command_surface="builder_ii",
-            policy_snapshot_ref={"kind": "null"},
+        # Close the chain this run opened. The record this replaces was unwritable as an event:
+        # it declared `goose_session_closed` (not in EVENT_TYPES), sequence 0 (the validator
+        # requires >= 1) and a `{"kind": "null"}` policy snapshot (not a valid ref) -- and it was
+        # never passed to validate_event_record, so it failed silently into a directory nothing
+        # tails. It now goes through the shared appender, into the chain the cockpit reads.
+        self._append_lifecycle_event(
+            "goose_readonly_closed",
+            message=f"governed Goose session closed with exit code {exit_code}",
+            subject_refs=[
+                {
+                    "kind": "builder_ii.goose_transcript",
+                    "path": transcript_path,
+                    "sha256": transcript_digest,
+                    "role": "transcript",
+                    "name": "session transcript",
+                    "required": False,
+                }
+            ]
+            if transcript_digest
+            else [],
+            decision_result="recorded" if postflight["valid"] else "mutation_detected",
         )
-        ledger_dir = self.target_root / ".builder" / "artifacts" / "events"
-        ledger_dir.mkdir(parents=True, exist_ok=True)
-        write_event_record(event, ledger_dir / f"event_{event['sequence']:04d}_{event['event_id']}.json")
 
         return close_receipt, postflight

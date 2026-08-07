@@ -28,14 +28,7 @@ from builder_ii.core.mcp_policy import (
     validate_mcp_receipt,
 )
 from builder_ii.core.tool_invocation_gateway import execute_tool_envelope
-from builder_ii.governance.ledger.event_ledger import (
-    EVENT_RECORD_KIND,
-    create_event_record,
-    load_event_records,
-    replay_events,
-    validate_event_record,
-    write_event_record,
-)
+from builder_ii.governance.ledger.session_ledger import session_event_append
 from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 _SERVER_ID = "builtin.mcp_server"
@@ -137,96 +130,43 @@ def build_call_envelope(
     }
 
 
-def _artifact_ref(data: dict[str, Any], path: Path, role: str) -> dict[str, Any]:
-    return {
-        "kind": data.get("kind"),
-        "path": str(path),
-        "sha256": canonical_digest(data),
-        "role": role,
-        "name": role.replace("_", " "),
-        "required": True,
-    }
-
-
-def _previous_event_ref(existing: list[tuple[dict[str, Any], Path]]) -> dict[str, Any] | None:
-    if not existing:
-        return None
-    last_event, last_path = existing[-1]
-    return {
-        "role": "event",
-        "kind": EVENT_RECORD_KIND,
-        "path": str(last_path),
-        "sha256": canonical_digest(last_event),
-        "name": str(last_event.get("event_type", "")),
-        "required": True,
-    }
-
-
-def _write_json(path: Path, data: dict[str, Any]) -> None:
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-
-
 def run_governed_tool_call(
     *, tool_name: str, arguments: dict[str, Any], session_id: str, builder_root: Path
 ) -> GovernedCallOutcome:
-    """Run one tool call through policy -> envelope -> executor -> receipt -> ledger."""
+    """Run one tool call through policy -> envelope -> executor -> receipt -> ledger.
+
+    The whole span runs inside the session's append lock: the sidecar artifacts are named by the
+    sequence the event will carry, so deriving that sequence and writing the event cannot be
+    interleaved with another writer's (see :mod:`builder_ii.governance.ledger.session_ledger`).
+    """
     spec = TOOL_SPECS.get(tool_name)
     if spec is None:
         raise KeyError(f"unknown tool: {tool_name}")
     tool_id = str(spec["tool_id"])
 
-    session_dir = Path(builder_root) / "sessions" / session_id
-    mcp_dir = session_dir / "mcp"
-    events_dir = session_dir / "events"
-    mcp_dir.mkdir(parents=True, exist_ok=True)
-    events_dir.mkdir(parents=True, exist_ok=True)
+    with session_event_append(Path(builder_root), session_id) as appender:
+        policy = build_read_only_policy()
+        policy_path, policy_ref = appender.write_policy_snapshot(policy)
 
-    existing = load_event_records(events_dir)
-    sequence = len(existing) + 1
+        envelope = build_call_envelope(tool_id, arguments, policy, policy_path)
+        envelope_path, envelope_ref = appender.write_sidecar(envelope, "envelope", "mcp_call_envelope")
 
-    policy = build_read_only_policy()
-    policy_path = mcp_dir / f"{sequence:03d}_policy.json"
-    _write_json(policy_path, policy)
+        receipt = execute_tool_envelope(
+            envelope=envelope, envelope_path=envelope_path, policy=policy, policy_path=policy_path
+        )
+        receipt_errors = validate_mcp_receipt(receipt)
+        if receipt_errors:
+            raise ValueError(f"receipt validation failed: {receipt_errors}")
+        receipt_path, receipt_ref = appender.write_sidecar(receipt, "receipt", "mcp_call_receipt")
 
-    envelope = build_call_envelope(tool_id, arguments, policy, policy_path)
-    envelope_path = mcp_dir / f"{sequence:03d}_envelope.json"
-    _write_json(envelope_path, envelope)
-
-    receipt = execute_tool_envelope(
-        envelope=envelope, envelope_path=envelope_path, policy=policy, policy_path=policy_path
-    )
-    receipt_errors = validate_mcp_receipt(receipt)
-    if receipt_errors:
-        raise ValueError(f"receipt validation failed: {receipt_errors}")
-    receipt_path = mcp_dir / f"{sequence:03d}_receipt.json"
-    _write_json(receipt_path, receipt)
-
-    current_stage = "initialized"
-    if existing:
-        replay = replay_events(existing, session_id=session_id)
-        if replay.get("valid"):
-            current_stage = str(replay.get("current_stage") or "initialized")
-
-    event = create_event_record(
-        event_id=f"evt_mcp_serve_{session_id}_{sequence}",
-        session_id=session_id,
-        sequence=sequence,
-        event_type="mcp_call_executed",
-        stage=current_stage,
-        subject_refs=[
-            _artifact_ref(envelope, envelope_path, "mcp_call_envelope"),
-            _artifact_ref(receipt, receipt_path, "mcp_call_receipt"),
-        ],
-        command_surface="builder-mcp serve",
-        policy_snapshot_ref=_artifact_ref(policy, policy_path, "mcp_tool_policy"),
-        previous_event_ref=_previous_event_ref(existing),
-        message=f"governed MCP tool call: {tool_name}",
-    )
-    event_errors = validate_event_record(event)
-    if event_errors:
-        raise ValueError(f"event validation failed: {event_errors}")
-    event_path = events_dir / f"{sequence:03d}_mcp_call_executed.json"
-    write_event_record(event, event_path)
+        event_path = appender.append(
+            event_id=f"evt_mcp_serve_{session_id}_{appender.sequence}",
+            event_type="mcp_call_executed",
+            command_surface="builder-mcp serve",
+            policy_snapshot_ref=policy_ref,
+            subject_refs=[envelope_ref, receipt_ref],
+            message=f"governed MCP tool call: {tool_name}",
+        )
 
     return GovernedCallOutcome(
         status=str(receipt.get("status", "failed")),
@@ -276,20 +216,6 @@ def refuse_gated_tool_call(
     schema cannot represent a mutation) and writes no execution receipt; it appends one
     hash-chained ``hitl_gate_refused`` event and returns the composed governed HITL path.
     """
-    session_dir = Path(builder_root) / "sessions" / session_id
-    mcp_dir = session_dir / "mcp"
-    events_dir = session_dir / "events"
-    mcp_dir.mkdir(parents=True, exist_ok=True)
-    events_dir.mkdir(parents=True, exist_ok=True)
-
-    existing = load_event_records(events_dir)
-    sequence = len(existing) + 1
-
-    # A policy snapshot is referenced by the ledger event; it is deny-by-default read-only.
-    policy = build_read_only_policy()
-    policy_path = mcp_dir / f"{sequence:03d}_policy.json"
-    _write_json(policy_path, policy)
-
     reason = (
         f"Mutating tool '{tool_name}' is gated: this governed session refuses it in-loop. "
         "No envelope was built and nothing was executed or mutated."
@@ -299,29 +225,17 @@ def refuse_gated_tool_call(
         "governed HITL lane (builder-hitl); the in-loop unlock is a future promotion (ADR-0009 G4)."
     )
 
-    current_stage = "initialized"
-    if existing:
-        replay = replay_events(existing, session_id=session_id)
-        if replay.get("valid"):
-            current_stage = str(replay.get("current_stage") or "initialized")
-
-    event = create_event_record(
-        event_id=f"evt_mcp_gate_{session_id}_{sequence}",
-        session_id=session_id,
-        sequence=sequence,
-        event_type="mcp_call_denied",
-        stage=current_stage,
-        subject_refs=[],
-        command_surface="builder-mcp serve",
-        policy_snapshot_ref=_artifact_ref(policy, policy_path, "mcp_tool_policy"),
-        previous_event_ref=_previous_event_ref(existing),
-        message=reason,
-    )
-    event_errors = validate_event_record(event)
-    if event_errors:
-        raise ValueError(f"event validation failed: {event_errors}")
-    event_path = events_dir / f"{sequence:03d}_mcp_call_denied.json"
-    write_event_record(event, event_path)
+    with session_event_append(Path(builder_root), session_id) as appender:
+        # A policy snapshot is referenced by the ledger event; it is deny-by-default read-only.
+        _, policy_ref = appender.write_policy_snapshot(build_read_only_policy())
+        event_path = appender.append(
+            event_id=f"evt_mcp_gate_{session_id}_{appender.sequence}",
+            event_type="mcp_call_denied",
+            command_surface="builder-mcp serve",
+            policy_snapshot_ref=policy_ref,
+            subject_refs=[],
+            message=reason,
+        )
 
     return GatedRefusalOutcome(
         tool_name=tool_name, reason=reason, compose_hint=compose_hint, event_path=event_path

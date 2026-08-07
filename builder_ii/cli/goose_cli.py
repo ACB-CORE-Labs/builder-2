@@ -37,6 +37,7 @@ from builder_ii.adapters.goose.goose_session import (
 )
 from builder_ii.cli.plain_stdout import echo_stdout
 from builder_ii.core.config import load_settings
+from builder_ii.governance.authority.policy_evaluator import enforce_command_authority
 from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names
 from builder_ii.routing.agent_profiles import AgentProfileName, agent_profile_names
 
@@ -308,6 +309,83 @@ def start_readonly(
 
     except Exception as e:
         console.print(f"Failed to launch Goose: {e}")
+        raise typer.Exit(1)
+
+
+def _load_read_only_manifest(manifest_path: Path) -> dict:
+    """Read a manifest and refuse anything that is not an explicit read_only session."""
+    if not manifest_path.exists():
+        console.print(f"Manifest not found: {manifest_path}")
+        raise typer.Exit(1)
+    try:
+        manifest_data = json_lib.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        console.print(f"Invalid manifest JSON: {e}")
+        raise typer.Exit(1)
+    if manifest_data.get("requested_runtime_mode") != "read_only":
+        console.print("Manifest does not specify read_only mode.")
+        raise typer.Exit(1)
+    return manifest_data
+
+
+@goose_app.command("start-governed")
+def start_governed(
+    manifest_path: Path = typer.Argument(..., help="Goose session manifest path"),
+) -> None:
+    """Launch Goose with the builder-II governed MCP server as its only tool surface.
+
+    The reachable entry point for the governed interposition lane: Goose is pointed at
+    `recipes/governed-readonly.yaml`, whose sole extension is `builder-mcp serve`, and its own
+    builtins are stripped. Every tool call therefore travels the governed
+    envelope -> receipt -> ledger ceremony -- read-only tools execute and are receipted, mutating
+    tool classes are refused in-loop and ledgered as denied. This is a read-only runtime
+    candidate, not an enabled capability: the in-loop apply path stays deny-by-default, and the
+    no-mutation postflight fails the run if anything under the target moved.
+    """
+    manifest_data = _load_read_only_manifest(manifest_path)
+
+    # Fail closed before anything is spawned.
+    enforce_command_authority(
+        "builder-goose start-governed",
+        requested_effects=("runtime_start", "external_tool", "artifact_write"),
+    )
+
+    settings = load_settings()
+    plan = GooseReadonlyLaunchPlan(
+        target_name=manifest_data.get("target", {}).get("name", "builder"),
+        agent_profile=manifest_data.get("agent_profile", {}).get("name", "patch_planner"),
+        recipe_name=GooseRuntimeHarness.GOVERNED_RECIPE_NAME,
+    )
+    harness = GooseRuntimeHarness(settings, plan, settings.project_root)  # type: ignore[arg-type]
+
+    try:
+        receipt = harness.launch_governed()
+        console.print(f"Launched governed Goose session {receipt['session_id']}")
+
+        receipts_dir = settings.project_root / ".builder" / "receipts"
+        receipts_dir.mkdir(parents=True, exist_ok=True)
+        receipt_path = receipts_dir / f"{receipt['session_id']}_launch.json"
+        receipt_path.write_text(json_lib.dumps(receipt, indent=2), encoding="utf-8")
+        console.print(f"Launch receipt: {receipt_path}", soft_wrap=True)
+
+        if harness._proc:
+            harness._proc.wait()
+
+        close_receipt, postflight = harness.close(receipt["digest"])
+        close_path = receipts_dir / f"{receipt['session_id']}_close.json"
+        close_path.write_text(json_lib.dumps(close_receipt, indent=2), encoding="utf-8")
+        console.print(f"Close receipt: {close_path}", soft_wrap=True)
+
+        if not postflight["valid"]:
+            console.print("WARNING: Mutations detected during governed session!")
+            for m in postflight["mutations_detected"]:
+                console.print(f" - {m}")
+            raise typer.Exit(1)
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"Failed to launch governed Goose: {e}")
         raise typer.Exit(1)
 
 

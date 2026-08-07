@@ -23,21 +23,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from builder_ii.adapters.mcp.governed_call import (
-    _artifact_ref,
-    _previous_event_ref,
-    _write_json,
-    build_read_only_policy,
-)
+from builder_ii.adapters.mcp.governed_call import build_read_only_policy
 from builder_ii.governance.hitl.hitl_patch_apply import apply_hitl_patch
 from builder_ii.governance.hitl.hitl_patch_approval import validate_hitl_patch_approval_file
-from builder_ii.governance.ledger.event_ledger import (
-    create_event_record,
-    load_event_records,
-    replay_events,
-    validate_event_record,
-    write_event_record,
-)
+from builder_ii.governance.ledger.session_ledger import session_event_append
 
 _ENABLE_ENV = "BUILDER_MCP_GOVERNED_APPLY"
 
@@ -56,42 +45,16 @@ class GatedApplyOutcome:
 
 
 def _append_event(builder_root: Path, session_id: str, event_type: str, message: str) -> Path:
-    session_dir = Path(builder_root) / "sessions" / session_id
-    mcp_dir = session_dir / "mcp"
-    events_dir = session_dir / "events"
-    mcp_dir.mkdir(parents=True, exist_ok=True)
-    events_dir.mkdir(parents=True, exist_ok=True)
-
-    existing = load_event_records(events_dir)
-    sequence = len(existing) + 1
-    policy = build_read_only_policy()
-    policy_path = mcp_dir / f"{sequence:03d}_policy.json"
-    _write_json(policy_path, policy)
-
-    current_stage = "initialized"
-    if existing:
-        replay = replay_events(existing, session_id=session_id)
-        if replay.get("valid"):
-            current_stage = str(replay.get("current_stage") or "initialized")
-
-    event = create_event_record(
-        event_id=f"evt_mcp_apply_{session_id}_{sequence}",
-        session_id=session_id,
-        sequence=sequence,
-        event_type=event_type,
-        stage=current_stage,
-        subject_refs=[],
-        command_surface="builder-mcp serve",
-        policy_snapshot_ref=_artifact_ref(policy, policy_path, "mcp_tool_policy"),
-        previous_event_ref=_previous_event_ref(existing),
-        message=message,
-    )
-    errors = validate_event_record(event)
-    if errors:
-        raise ValueError(f"event validation failed: {errors}")
-    event_path = events_dir / f"{sequence:03d}_{event_type}.json"
-    write_event_record(event, event_path)
-    return event_path
+    with session_event_append(Path(builder_root), session_id) as appender:
+        _, policy_ref = appender.write_policy_snapshot(build_read_only_policy())
+        return appender.append(
+            event_id=f"evt_mcp_apply_{session_id}_{appender.sequence}",
+            event_type=event_type,
+            command_surface="builder-mcp serve",
+            policy_snapshot_ref=policy_ref,
+            subject_refs=[],
+            message=message,
+        )
 
 
 def _refuse(builder_root: Path, session_id: str, reason: str) -> GatedApplyOutcome:

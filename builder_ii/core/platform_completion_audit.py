@@ -926,10 +926,27 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "builder_ii/adapters/goose/goose_inspection.py",
             "builder_ii/cli/goose_cli.py",
             "builder_ii/adapters/goose/goose_runtime_harness.py",
+            "builder_ii/adapters/mcp/server.py",
+            "builder_ii/governance/ledger/session_ledger.py",
         ),
-        ("builder-goose", "builder-goose start-readonly", "builder-goose close-readonly"),
-        ("tests/test_goose_readonly.py", "tests/test_goose_inspection.py", "tests/test_goose_runtime_harness.py"),
-        ("Goose readonly runtime is operationally verified with receipts and no-mutation postflight.",),
+        (
+            "builder-goose",
+            "builder-goose start-readonly",
+            "builder-goose start-governed",
+            "builder-goose close-readonly",
+        ),
+        (
+            "tests/test_goose_readonly.py",
+            "tests/test_goose_inspection.py",
+            "tests/test_goose_runtime_harness.py",
+            "tests/test_goose_cli_start_governed.py",
+        ),
+        (
+            "Goose readonly runtime is operationally verified with receipts and no-mutation postflight.",
+            "start-governed is a read-only runtime candidate, not part of the verified claim: it points "
+            "Goose at the governed MCP server as its only tool surface and chains start/close lifecycle "
+            "events onto the session ledger the operator console tails.",
+        ),
         "B5",
     ),
     _row(

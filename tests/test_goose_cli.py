@@ -88,13 +88,16 @@ def _install_subprocess_mocks(monkeypatch: Any, tmp_path: Path, *, mutate_file: 
     monkeypatch.setattr("builder_ii.goose_runtime_harness.find_goose_binary", lambda: "/fake/goose")
 
     class FakeProc:
-        def __init__(self, args: Any, cwd: Any, env: Any):
+        def __init__(self, args: Any, cwd: Any, env: Any, *, is_launch: bool = True):
             self.pid = 9999
             self.returncode = 0
             self.args = args
             self.cwd = cwd
             self.env = env
-            if mutate_file:
+            # Only a launch stands in for the session under test. The harness also spawns the
+            # resolved binary on close to export the transcript; that one runs with no cwd and
+            # must not re-apply the simulated mutation (nor count as the session's process).
+            if mutate_file and is_launch:
                 (Path(cwd) / mutate_file).write_text("mutated", encoding="utf-8")
 
         def poll(self) -> int | None:
@@ -108,6 +111,12 @@ def _install_subprocess_mocks(monkeypatch: Any, tmp_path: Path, *, mutate_file: 
 
         def kill(self) -> None:
             pass
+
+        def communicate(self, input: Any = None, timeout: float | None = None) -> tuple[Any, Any]:
+            # `subprocess.run` drives a Popen through communicate(), and the harness reaches it
+            # on close when it exports the session transcript through the resolved binary. A
+            # double that stops at wait() is only a double for the launch half of the harness.
+            return (None, None)
 
         def __enter__(self):
             return self
@@ -124,8 +133,10 @@ def _install_subprocess_mocks(monkeypatch: Any, tmp_path: Path, *, mutate_file: 
         cmd_args = args[0] if args else kwargs.get("args")
         if isinstance(cmd_args, list) and len(cmd_args) > 0 and "/fake/goose" in str(cmd_args[0]):
             proc_cwd = kwargs.get("cwd")
-            proc = FakeProc(cmd_args, proc_cwd, kwargs.get("env"))
-            captured_procs.append(proc)
+            is_launch = "export" not in cmd_args
+            proc = FakeProc(cmd_args, proc_cwd, kwargs.get("env"), is_launch=is_launch)
+            if is_launch:
+                captured_procs.append(proc)
             return proc
         return real_popen(*args, **kwargs)
 
