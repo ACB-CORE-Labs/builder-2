@@ -7,7 +7,22 @@
 > Phase 3 (G4) design that [`ADR-0009`](../adrs/ADR-0009-goose-in-loop-governed-runtime.md)
 > defers until the read-only and refusal phases (G1–G3) land — which they now have.
 
-## 0. Implementation status (2026-07-23)
+## 0. Implementation status
+
+**Update: the refusal now produces a reviewable proposal.** A `propose_patch` call carrying a
+diff and no approval references is an agent *proposing*, not applying, and is recorded as a
+schema-valid `hitl_patch_proposal` under `.builder/artifacts` -- the directory the operator
+console's gate scanner already watches -- so the gate lights, `D` renders the diff, and `A`/`R`
+reach the governed decision. This is deliberately **not** behind `BUILDER_MCP_GOVERNED_APPLY`:
+that flag gates writing to the *target*, and a proposal writes only a passive artifact. The
+`mcp_call_denied` event is still appended; recording the proposal did not replace the denial.
+
+Nothing about the apply path changed, and nothing about this flips the matrix. `run_shell` still
+has no governed lane to delegate to and is refused outright. Evidence:
+`tests/scenarios/test_in_loop_hitl_gate_to_apply.py`, which asserts the target file is
+byte-identical on every lane.
+
+### Original status (2026-07-23)
 
 Reading the code refined the design, and it is now implemented at a **deny-by-default candidate
 state**. It is **not** enabled by default and does **not** flip the completion matrix (OV

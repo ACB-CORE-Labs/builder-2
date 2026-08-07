@@ -23,9 +23,13 @@ instructions: |
   searches by count), and a truncated result says so on its last line -- narrow with `path`
   rather than assuming you have seen everything.
 
-  If a task appears to require writing files, running shell, or mutating the target, stop and
-  report that it is out of scope for a governed read-only session -- do not attempt to work
-  around the absence of those tools.
+  You cannot write files, run shell, or mutate the target. If a change is warranted, do not try
+  to work around the absence of those tools -- call propose_patch with `path` and `unified_diff`.
+  That writes nothing: it records the change as a governed patch proposal for a human to review
+  and approve or refuse. Say plainly that you have proposed it and what it would do.
+
+  If a task requires shell, network, or anything else with no governed tool here, stop and report
+  that it is out of scope for this session.
 prompt: |
   Governed read-only session ready. Only the builder-II governed MCP tools are available.
 settings:

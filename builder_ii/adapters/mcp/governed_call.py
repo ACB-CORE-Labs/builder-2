@@ -257,10 +257,20 @@ def run_governed_tool_call(
 # (ADR-0009), which relaxes those pins only behind a validated approval — never here.
 GATED_TOOL_SPECS: dict[str, dict[str, Any]] = {
     "propose_patch": {
-        "description": "Propose a file edit (MUTATING — gated; refused in this governed session).",
+        "description": (
+            "Propose a file edit for human review. Nothing is written: the change is recorded as "
+            "a governed patch proposal that an operator reviews and approves or refuses. Pass "
+            "`path` and `unified_diff` to propose. (Applying an already-approved patch is a "
+            "separate call carrying proposal_path, approval_path and verification_receipt_path.)"
+        ),
         "inputSchema": {
             "type": "object",
-            "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
+            "properties": {
+                "path": {"type": "string", "description": "Repo-relative file the diff applies to."},
+                "unified_diff": {"type": "string", "description": "The proposed change, as a unified diff."},
+                "reason": {"type": "string", "description": "Why this change is being proposed."},
+            },
+            "required": ["unified_diff"],
         },
     },
     "run_shell": {
