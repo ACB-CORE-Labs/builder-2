@@ -15,6 +15,7 @@ from typer.testing import CliRunner
 
 from builder_ii.cli.main import app
 from builder_ii.governance.ratification_grants import RATIFICATION_ROOT_ENV
+from builder_ii.governance.ratification_points import grantable_point_ids
 from builder_ii.lifecycle.setup.user_onboarding_next import (
     GOLDEN_PATH,
     READY_STAGE,
@@ -85,6 +86,20 @@ def test_onboard_describes_every_point_and_writes_nothing_with_no_prompt(project
     assert not (project / "ratification").exists(), "--no-prompt must not write"
 
 
+def _answers(*, accept_first: bool = False) -> str:
+    """One answer per delegable point, sized from the live registry.
+
+    Hardcoding the count made these tests a tripwire on the number of grantable points rather
+    than on the behaviour they describe: registering a new one exhausted the supplied stdin and
+    aborted the walkthrough mid-prompt. The set of points is exactly what `builder onboard`
+    iterates, so deriving the answers from it keeps the assertions about grants, not arithmetic.
+    """
+    count = len(grantable_point_ids())
+    assert count, "the walkthrough is inert unless something is delegable"
+    first = "y" if accept_first else "n"
+    return "\n".join([first] + ["n"] * (count - 1)) + "\n"
+
+
 def test_onboard_names_which_confirmations_can_never_be_delegated(project: Path) -> None:
     """The trust-building half: the walkthrough has to say what it will not let you turn off."""
     result = runner.invoke(app, ["onboard", "--no-prompt"])
@@ -93,8 +108,8 @@ def test_onboard_names_which_confirmations_can_never_be_delegated(project: Path)
 
 
 def test_onboard_writes_a_grant_only_for_an_accepted_prompt(project: Path) -> None:
-    """Two delegable points are offered; accepting the first and declining the second yields one."""
-    result = runner.invoke(app, ["onboard", "--granted-by", "op"], input="y\nn\n")
+    """Every delegable point is offered; accepting only the first yields exactly one grant."""
+    result = runner.invoke(app, ["onboard", "--granted-by", "op"], input=_answers(accept_first=True))
     assert result.exit_code == 0, result.output
 
     grants = list((project / "ratification" / "grants").glob("*.json"))
@@ -106,14 +121,14 @@ def test_onboard_writes_a_grant_only_for_an_accepted_prompt(project: Path) -> No
 
 
 def test_onboard_declining_everything_writes_no_grants(project: Path) -> None:
-    result = runner.invoke(app, ["onboard", "--granted-by", "op"], input="n\nn\n")
+    result = runner.invoke(app, ["onboard", "--granted-by", "op"], input=_answers())
     assert result.exit_code == 0, result.output
     assert "Delegated nothing." in result.output
     assert not list((project / "ratification").glob("grants/*.json"))
 
 
 def test_onboard_reports_a_grant_already_in_force(project: Path) -> None:
-    runner.invoke(app, ["onboard", "--granted-by", "op"], input="y\nn\n")
+    runner.invoke(app, ["onboard", "--granted-by", "op"], input=_answers(accept_first=True))
     again = runner.invoke(app, ["onboard", "--no-prompt"])
     assert "already in force" in again.output
 

@@ -62,28 +62,66 @@ KIND_HUMAN_APPROVAL_MINT = "human_approval_mint"
 #: the eight gates and an evidence-backed matrix flip, which no standing grant can supply.
 KIND_PROMOTION_DECISION = "promotion_decision"
 
+#: The operator confirms that an already-approved unit of work should start *now*, from a
+#: console. The lane it starts is itself fail-closed, receipted, and re-validates its own
+#: approvals at its own boundary -- so this prompt schedules governed work, it does not authorize
+#: it. Relocatable to a standing grant; see the allowlist below for what that grant may cover.
+KIND_GOVERNED_DISPATCH_CONFIRMATION = "governed_dispatch_confirmation"
+
 RATIFICATION_KINDS: tuple[str, ...] = (
     KIND_PLAN_DIGEST_CONFIRMATION,
     KIND_HUMAN_APPROVAL_MINT,
     KIND_PROMOTION_DECISION,
+    KIND_GOVERNED_DISPATCH_CONFIRMATION,
 )
 
-#: The only kinds a grant may satisfy. Deliberately a one-member tuple rather than a bool on the
-#: point: adding a fourth kind forces an explicit decision here instead of defaulting to grantable.
-GRANTABLE_KINDS: tuple[str, ...] = (KIND_PLAN_DIGEST_CONFIRMATION,)
-
-#: Capability flags a grantable point's owning command may carry. Writes are permitted -- the
-#: point of `builder-setup apply` is that it writes -- because the write itself was authorized
-#: when the operator authored and reviewed the plan. Everything absent from this set (shell,
-#: model, runtime start, process control, git mutation, memory mutation, subprocess, external
-#: tools) makes a point ineligible no matter what kind it declares.
-GRANTABLE_CAPABILITY_ALLOWLIST: frozenset[str] = frozenset(
-    {
-        "allows_source_writes",
-        "allows_artifact_writes",
-        "allows_state_writes",
-    }
+#: The only kinds a grant may satisfy. Deliberately enumerated rather than a bool on the point:
+#: adding a kind forces an explicit decision here instead of defaulting to grantable. Dispatch
+#: was added by that route -- the decision, and its cost, are recorded in
+#: docs/RATIFICATION_GRANTS.md rather than inferred from a flag someone set.
+GRANTABLE_KINDS: tuple[str, ...] = (
+    KIND_PLAN_DIGEST_CONFIRMATION,
+    KIND_GOVERNED_DISPATCH_CONFIRMATION,
 )
+
+#: Capability flags a grantable point's owning command may carry, **per kind**. A single shared
+#: allowlist would have meant widening it for dispatch also widened it for plan-digest
+#: confirmations, which is exactly the silent scope creep this table exists to prevent.
+#:
+#: `plan_digest_confirmation`: writes are permitted -- the point of `builder-setup apply` is that
+#: it writes -- because the write itself was authorized when the operator authored and reviewed
+#: the plan.
+#:
+#: `governed_dispatch_confirmation`: runtime start and external tool invocation are permitted,
+#: because starting a governed run is what the point *is*. `allows_process_control` is
+#: deliberately excluded: stopping a live run is not a scheduling decision, and a standing grant
+#: must never be able to halt work an operator is watching. Shell, model, source writes, git and
+#: memory mutation are excluded for the same reason they always were.
+#:
+#: Anything absent from a kind's set makes a point ineligible no matter what kind it declares.
+GRANTABLE_CAPABILITY_ALLOWLIST_BY_KIND: dict[str, frozenset[str]] = {
+    KIND_PLAN_DIGEST_CONFIRMATION: frozenset(
+        {
+            "allows_source_writes",
+            "allows_artifact_writes",
+            "allows_state_writes",
+        }
+    ),
+    KIND_GOVERNED_DISPATCH_CONFIRMATION: frozenset(
+        {
+            "allows_runtime_start",
+            "allows_external_tool_invocation",
+            "allows_readonly_subprocess",
+            "allows_artifact_writes",
+            "allows_state_writes",
+        }
+    ),
+}
+
+#: Retained for callers that predate the per-kind split; it is the plan-digest set, unchanged.
+GRANTABLE_CAPABILITY_ALLOWLIST: frozenset[str] = GRANTABLE_CAPABILITY_ALLOWLIST_BY_KIND[
+    KIND_PLAN_DIGEST_CONFIRMATION
+]
 
 #: Approval modes that can never be satisfied by a standing grant.
 UNGRANTABLE_APPROVAL_MODES: frozenset[str] = frozenset(
@@ -137,6 +175,52 @@ RATIFICATION_POINTS: tuple[RatificationPoint, ...] = (
         consequence_of_auto=(
             "Rollback of paths recorded in an applied setup receipt proceeds without the typed digest. "
             "It still touches only changed_paths covered by the supplied snapshot."
+        ),
+    ),
+    # Governed dispatch: the operator says "start now" for work whose governance already
+    # happened elsewhere. Each of these fronts a lane that fails closed on its own boundary --
+    # the manifest must validate, the candidate approval must be digest-bound and unexhausted,
+    # the postflight must find no mutation -- so a grant here moves *when* the operator is asked,
+    # never *whether* the lane will check.
+    RatificationPoint(
+        id="stratum.dispatch.goose_run",
+        command="builder-goose run-governed",
+        kind=KIND_GOVERNED_DISPATCH_CONFIRMATION,
+        what_is_ratified=(
+            "That this governed Goose run should start now, against the manifest and task shown. "
+            "The console prints the manifest digest, the task, and the exact argv."
+        ),
+        consequence_of_auto=(
+            "Governed runs start from the console without the confirmation step. They remain "
+            "read-only: builtins stay stripped, tools stay jailed to the repo, the no-mutation "
+            "postflight still fails the run on any file that moved, and the launch receipt records "
+            "that a grant satisfied this -- not that you confirmed anything."
+        ),
+    ),
+    RatificationPoint(
+        id="stratum.dispatch.prepare_package",
+        command="builder-session prepare-package",
+        kind=KIND_GOVERNED_DISPATCH_CONFIRMATION,
+        what_is_ratified=(
+            "That the session preparation package described in the console should be built now."
+        ),
+        consequence_of_auto=(
+            "Preparation packages are assembled from the console without confirmation. This reads "
+            "the repository and writes one governed artifact; it starts no runtime and approves "
+            "nothing."
+        ),
+    ),
+    RatificationPoint(
+        id="stratum.dispatch.assign_subagent",
+        command="builder-deepagents assign-subagent",
+        kind=KIND_GOVERNED_DISPATCH_CONFIRMATION,
+        what_is_ratified=(
+            "That the selected agent profiles should be assigned to the work plan shown."
+        ),
+        consequence_of_auto=(
+            "Subagent assignments are written from the console without confirmation. Assignment is a "
+            "passive artifact: it dispatches no agent and starts no runtime, and running the work "
+            "still requires its own digest-bound candidate approval."
         ),
     ),
     # Registered to be refused, not omitted. See the module docstring: omission refuses by
@@ -254,13 +338,17 @@ def grant_eligibility(point: RatificationPoint) -> EligibilityDecision:
             because=f"approval mode is `{record.approval_mode}`",
         )
 
+    allowlist = GRANTABLE_CAPABILITY_ALLOWLIST_BY_KIND.get(point.kind, frozenset())
     carried = tuple(flag for flag in CAPABILITY_FLAGS if getattr(record, flag, False))
-    disallowed = tuple(flag for flag in carried if flag not in GRANTABLE_CAPABILITY_ALLOWLIST)
+    disallowed = tuple(flag for flag in carried if flag not in allowlist)
     if disallowed:
         return EligibilityDecision(
             point_id=point.id,
             eligible=False,
-            because=f"`{point.command}` carries `{disallowed[0]}`, which is outside the grantable capability set",
+            because=(
+                f"`{point.command}` carries `{disallowed[0]}`, which is outside the grantable "
+                f"capability set for kind `{point.kind}`"
+            ),
         )
 
     decision = check_command_authority(point.command)
@@ -269,6 +357,16 @@ def grant_eligibility(point: RatificationPoint) -> EligibilityDecision:
             point_id=point.id,
             eligible=False,
             because=f"command authority denies `{point.command}`",
+        )
+
+    if point.kind == KIND_GOVERNED_DISPATCH_CONFIRMATION:
+        return EligibilityDecision(
+            point_id=point.id,
+            eligible=True,
+            because=(
+                "scheduling confirmation for a governed lane that re-validates its own approvals at "
+                "its own boundary; the grant relocates when work starts, never whether it is allowed"
+            ),
         )
 
     return EligibilityDecision(

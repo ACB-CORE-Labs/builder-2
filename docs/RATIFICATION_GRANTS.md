@@ -38,6 +38,9 @@ confirmation it later satisfies names it — in the consuming receipt, in stdout
 | --- | --- | --- |
 | `setup.apply.overlay_digest` | `builder-setup apply` | yes |
 | `setup.rollback.receipt_digest` | `builder-setup rollback` | yes |
+| `stratum.dispatch.goose_run` | `builder-goose run-governed` | yes — `governed_dispatch_confirmation` |
+| `stratum.dispatch.prepare_package` | `builder-session prepare-package` | yes — `governed_dispatch_confirmation` |
+| `stratum.dispatch.assign_subagent` | `builder-deepagents assign-subagent` | yes — `governed_dispatch_confirmation` |
 | `hitl.approve_patch.patch_digest` | `builder-hitl approve-patch` | **never** — `human_approval_mint` |
 | `hitl.refuse_patch.proposal_digest` | `builder-hitl refuse-patch` | **never** — `human_approval_mint` |
 | `hitl.approve_rollback.plan_digest` | `builder-hitl approve-rollback` | **never** — `human_approval_mint` |
@@ -55,18 +58,67 @@ and cannot be pinned; a registered `human_approval_mint` point refuses on the re
 Eligibility is never a field an author sets to `True`. `grant_eligibility()` recomputes it, and a
 point must clear **both** of these independently:
 
-1. **Declared kind.** Only `plan_digest_confirmation` is ever grantable. `human_approval_mint` and
-   `promotion_decision` never are.
+1. **Declared kind.** Only `plan_digest_confirmation` and `governed_dispatch_confirmation` are ever
+   grantable. `human_approval_mint` and `promotion_decision` never are.
 2. **Live authority record.** The owning command may not require HITL artifacts, may not be
    forbidden/unpromoted, must pass `check_command_authority`, and may not carry any capability flag
-   outside `allows_source_writes`, `allows_artifact_writes`, `allows_state_writes`. Anything with
-   shell, model, runtime-start, process-control, git-mutation, memory-mutation, subprocess, or
-   external-tool capability is ineligible regardless of what kind it declares.
+   outside the allowlist **for its own kind** (below). Anything carrying a flag outside its kind's
+   set is ineligible regardless of what kind it declares.
+
+| Kind | Capability flags the owning command may carry |
+| --- | --- |
+| `plan_digest_confirmation` | `allows_source_writes`, `allows_artifact_writes`, `allows_state_writes` |
+| `governed_dispatch_confirmation` | `allows_runtime_start`, `allows_external_tool_invocation`, `allows_readonly_subprocess`, `allows_artifact_writes`, `allows_state_writes` |
+
+The allowlist is **per kind** rather than shared, and that is load-bearing: a single set would have
+meant admitting `allows_runtime_start` for dispatch also admitted it for every plan-digest
+confirmation. Widening one kind must not silently widen another.
+
+`governed_dispatch_confirmation` deliberately excludes `allows_process_control`. Starting governed
+work is a scheduling decision and can be delegated; **stopping a live run is an intervention and
+cannot be**. A standing grant must never be able to halt work an operator is watching.
 
 The second guard exists because the first alone was not enough, and the near-miss is worth
 recording: `builder-hitl approve-patch` carries `approval_mode = none`. It needs no approval *to
 run*, because running it is how an approval gets made. Deriving eligibility from the approval mode
 alone would have made patch approval auto-grantable.
+
+## Governed dispatch confirmations
+
+The second grantable kind, added deliberately rather than by default (`GRANTABLE_KINDS` is a closed
+enum precisely so that adding a member is an edit a reviewer reads).
+
+A dispatch confirmation asks *"should this already-governed work start now?"* — not *"is this
+allowed?"*. The lane behind each one fails closed on its own boundary regardless of how the
+question was answered:
+
+- `stratum.dispatch.goose_run` → the manifest must validate as `read_only`, Goose builtins stay
+  stripped, tools stay jailed to the repo, and the no-mutation postflight still fails the run on
+  any file whose content digest moved.
+- `stratum.dispatch.prepare_package` → reads the repo and writes one governed artifact; starts no
+  runtime.
+- `stratum.dispatch.assign_subagent` → writes a passive assignment; dispatches no agent. Running
+  the assigned work still requires its own digest-bound candidate approval.
+
+That is why these are delegable and patch approval is not. Granting one relocates **when the
+operator is asked**; it never relocates **whether the lane will check**.
+
+### The contract: same steps, same artifacts, either way
+
+A grant moves the human pause. It removes no governance step:
+
+| | Prompted | Auto-ratified |
+| --- | --- | --- |
+| Artifacts, receipts, hash-chained events | identical | identical |
+| Lane's own validation and fail-closed checks | run | run |
+| Ratification ledger entry | `manual_ratified` | `auto_accepted` |
+| Grant digest recorded | — | yes |
+| Traceable via `builder-govern trace` | yes | yes, **and** back to the grant |
+
+An auto-ratified action is therefore strictly *more* traceable than a prompted one, never less:
+it carries the digest of the grant that scheduled it. `tests/test_ratification_dispatch.py` pins
+this — both branches emit one ledger line with the same shape, differing only in the event name
+and that extra digest.
 
 ### Why eligibility is recomputed every time
 

@@ -19,6 +19,7 @@ from builder_ii.governance.authority import (
 from builder_ii.governance.ratification_points import (
     GRANTABLE_CAPABILITY_ALLOWLIST,
     GRANTABLE_KINDS,
+    KIND_GOVERNED_DISPATCH_CONFIRMATION,
     KIND_HUMAN_APPROVAL_MINT,
     KIND_PLAN_DIGEST_CONFIRMATION,
     KIND_PROMOTION_DECISION,
@@ -36,10 +37,21 @@ def test_the_point_registry_is_structurally_valid() -> None:
     assert validate_ratification_point_registry() == []
 
 
-def test_only_plan_digest_confirmation_is_ever_grantable() -> None:
-    """The closed enum is the first of the two guards; widening it must be a deliberate edit here."""
-    assert GRANTABLE_KINDS == (KIND_PLAN_DIGEST_CONFIRMATION,)
+def test_the_grantable_kinds_are_exactly_the_two_deliberately_admitted() -> None:
+    """The closed enum is the first of the two guards; widening it must be a deliberate edit here.
+
+    Two kinds are admitted, and they are admitted for the same reason: the decision they front
+    was already made elsewhere. `plan_digest_confirmation` re-confirms an artifact the operator
+    authored and reviewed; `governed_dispatch_confirmation` schedules a lane that re-validates its
+    own approvals at its own boundary. Neither relocates *whether* something is allowed.
+
+    The kinds that stay out are the ones where the prompt IS the decision -- minting human
+    approval, and crossing a promotion boundary. No grant can supply either.
+    """
+    assert GRANTABLE_KINDS == (KIND_PLAN_DIGEST_CONFIRMATION, KIND_GOVERNED_DISPATCH_CONFIRMATION)
     assert set(GRANTABLE_KINDS) <= set(RATIFICATION_KINDS)
+    assert KIND_HUMAN_APPROVAL_MINT not in GRANTABLE_KINDS
+    assert KIND_PROMOTION_DECISION not in GRANTABLE_KINDS
 
 
 def test_no_hitl_confirmation_is_grantable() -> None:
@@ -69,12 +81,50 @@ def test_approve_patch_is_registered_and_refused_rather_than_merely_absent() -> 
     assert not grant_eligibility(point).eligible
 
 
-def test_the_two_setup_digest_confirmations_are_grantable_today() -> None:
-    """The feature is inert unless something is actually delegable; these are the two that are."""
+def test_exactly_the_expected_points_are_grantable_today() -> None:
+    """The feature is inert unless something is actually delegable; this is the full set.
+
+    Pinned as an exact set rather than a subset, so a newly registered point cannot become
+    grantable without this list being edited and the addition read by a reviewer.
+    """
     assert set(grantable_point_ids()) == {
         "setup.apply.overlay_digest",
         "setup.rollback.receipt_digest",
+        "stratum.dispatch.goose_run",
+        "stratum.dispatch.prepare_package",
+        "stratum.dispatch.assign_subagent",
     }
+
+
+def test_a_dispatch_point_may_never_cover_process_control() -> None:
+    """Stopping a live run is not a scheduling decision.
+
+    `governed_dispatch_confirmation` admits runtime start, because starting governed work is what
+    the point is for. It must not admit `allows_process_control`: a standing grant that could halt
+    a run an operator is watching would be delegating an intervention, not a schedule.
+    """
+    from builder_ii.governance.ratification_points import GRANTABLE_CAPABILITY_ALLOWLIST_BY_KIND
+
+    dispatch_allowlist = GRANTABLE_CAPABILITY_ALLOWLIST_BY_KIND[KIND_GOVERNED_DISPATCH_CONFIRMATION]
+    assert "allows_process_control" not in dispatch_allowlist
+    assert "allows_shell_execution" not in dispatch_allowlist
+    assert "allows_source_writes" not in dispatch_allowlist
+
+
+def test_widening_dispatch_did_not_widen_plan_digest_confirmations() -> None:
+    """The per-kind split exists so one kind's needs cannot silently become another's.
+
+    A single shared allowlist would have meant admitting `allows_runtime_start` for dispatch also
+    admitted it for every plan-digest confirmation -- the exact scope creep the table prevents.
+    """
+    from builder_ii.governance.ratification_points import GRANTABLE_CAPABILITY_ALLOWLIST_BY_KIND
+
+    plan_allowlist = GRANTABLE_CAPABILITY_ALLOWLIST_BY_KIND[KIND_PLAN_DIGEST_CONFIRMATION]
+    assert plan_allowlist == frozenset(
+        {"allows_source_writes", "allows_artifact_writes", "allows_state_writes"}
+    )
+    assert "allows_runtime_start" not in plan_allowlist
+    assert "allows_external_tool_invocation" not in plan_allowlist
 
 
 def _flags_outside_the_allowlist_with_a_live_carrier() -> list[tuple[str, str]]:
