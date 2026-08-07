@@ -205,7 +205,9 @@ Modern Goose environment variables and compatibility mappings are resolved deter
 - Legacy Compatibility Aliases: Preserves variables like `OPENAI_API_KEY`, `OPENAI_HOST`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `GROQ_API_KEY`, `XAI_API_KEY` for backwards compatibility.
 
 ### Launch Readiness & STRATUM Integration
-Both `builder start` and STRATUM TUI Goose launch use the exact same canonical Goose launcher (`launch_goose_session`).
+`builder start` is retired: it is a fail-closed redirect that starts nothing (see its command-authority record for why repairing it was the wrong move). The governed launch lanes are `builder-goose start-governed` (interactive, in your terminal), `builder-goose run-governed` (headless, streamed onto the session ledger), and STRATUM's **Ctrl+G**, which dispatches the latter. All three point Goose at `recipes/governed-readonly.yaml`, whose only extension is the builder-II governed MCP server, and all three run a no-mutation postflight.
+
+`launch_goose_session` -- the full-builtin launcher this section used to describe -- is reachable from no command surface.
 
 1. Before launching, a redacted configuration preview is shown.
 2. If keys or endpoints cannot be derived, builder-II blocks launch and displays a controlled diagnostic:

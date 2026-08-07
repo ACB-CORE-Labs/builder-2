@@ -48,7 +48,8 @@ The rule is: use the smallest validated lane that can answer the question, keep 
 builder ask --model phi-reasoning --prompt "Summarize this failure."
 builder ask --model qwen-coder --prompt "Draft a small patch plan."
 builder-runtime reset
-builder start --model qwen-coder --task "review a targeted CLI patch"
+builder-goose run-governed --manifest .builder/goose/session.json \
+  --task "review a targeted CLI patch"
 ```
 
 ## Cloud Egress Lanes

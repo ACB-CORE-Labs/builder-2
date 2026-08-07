@@ -109,13 +109,20 @@ class MechanicalSympathyHud(Static):
 
     memory_mb = reactive(0.0)
     memory_total_mb = reactive(16384.0)
-    token_rate = reactive(0.0)
-    model_loaded = reactive(False)
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(id="mechanical-sympathy", **kwargs)
 
     def on_mount(self) -> None:
+        self.refresh_memory()
+
+    def refresh_memory(self) -> None:
+        """Re-read unified memory pressure.
+
+        Previously sampled once at mount and never again, so a "pressure" gauge showed the
+        pressure at startup for the rest of the session -- worse than no gauge, because it looks
+        live. The console's periodic refresh calls this.
+        """
         try:
             import psutil
 
@@ -137,17 +144,13 @@ class MechanicalSympathyHud(Static):
         mem_gb = self.memory_mb / 1024
         total_gb = self.memory_total_mb / 1024
 
-        if self.model_loaded and self.token_rate > 0:
-            tok_display = bold_themed("pass", f"{self.token_rate:.1f} t/s")
-        elif self.model_loaded:
-            tok_display = themed("hint", "IDLE")
-        else:
-            tok_display = themed("dim", "NO MODEL")
-
+        # The MLX segment that used to sit here rendered `token_rate` and `model_loaded`, two
+        # reactives nothing ever assigned -- so it read "MLX NO MODEL" permanently, whether or not
+        # a model was loaded. A readout that cannot be right is not a readout. Nothing measures
+        # local token throughput today; when something does, it can earn its place back.
         return (
             f" {themed('dim', '⚙')}  "
-            f"RAM {themed(mem_token, f'{mem_gb:.1f}/{total_gb:.0f}GB')}  "
-            f"{themed('dim', '│')}  MLX {tok_display}"
+            f"RAM {themed(mem_token, f'{mem_gb:.1f}/{total_gb:.0f}GB')}"
         )
 
 

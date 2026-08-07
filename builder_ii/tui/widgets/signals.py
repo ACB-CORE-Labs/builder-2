@@ -261,23 +261,20 @@ class SignalRail(Vertical):
             self._cap_items[cap_name].state = state
 
     def refresh_capabilities(self) -> None:
-        """Scan artifacts for granted capabilities and update HUD."""
-        if not self.artifacts_dir:
-            return
+        """Render what this surface grants, which is nothing.
 
-        cap_file = self.artifacts_dir / "capabilities.json"
-        if not cap_file.exists():
-            self._apply_default_capabilities()
-            return
+        This used to read `.builder/artifacts/capabilities.json` and fall back to the honest
+        defaults when it was absent. Nothing in the repository has ever written that file -- the
+        only reference to it was the reader -- so the fallback was the sole live path and the
+        lookup was decoration. It is gone; the defaults it always reached are stated directly.
 
-        try:
-            data = json.loads(cap_file.read_text(encoding="utf-8"))
-            caps = data.get("capabilities", {})
-            for cap in CAPABILITIES:
-                state = caps.get(cap, "DISABLED")
-                self.update_capability(cap, state)
-        except (json.JSONDecodeError, OSError):
-            self._apply_default_capabilities()
+        The rail reads DISABLED across the board and that is the true answer, not a placeholder.
+        It is also the distinction worth showing now that STRATUM can dispatch governed work:
+        dispatching a command is not the same as holding its capability. The console starts runs
+        that execute; it is granted no execution, no shell, no writes, and mints no authority for
+        the lanes it reaches. Each of those re-derives its own permission at its own boundary.
+        """
+        self._apply_default_capabilities()
 
     def append_event(self, ts: str, event_type: str, summary: str) -> None:
         self._write_ledger_line(ts, event_type, summary)
@@ -286,3 +283,12 @@ class SignalRail(Vertical):
         self._load_initial_ledger()
         self._refresh_hitl_gate()
         self._refresh_last_mile()
+        self._refresh_memory()
+
+    def _refresh_memory(self) -> None:
+        """Re-sample memory pressure on the console's poll, so the gauge is actually live."""
+        try:
+            self.query_one(MechanicalSympathyHud).refresh_memory()
+        except Exception:
+            # The rail can be polled before its children mount; a missing gauge is not an error.
+            return

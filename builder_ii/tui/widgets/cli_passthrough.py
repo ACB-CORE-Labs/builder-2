@@ -1,6 +1,6 @@
 """Command Composer Modal — governed context injection. It composes; it never executes.
 
-Press `~` to open. Pre-fills current chain context (target, session ID) as flags so the operator
+Press `C` to open. Pre-fills current chain context (target, session ID) as flags so the operator
 can carry location context into their terminal. STRATUM runs no command: `builder` reaches TIER_3
 and TIER_4 surfaces whose approval boundaries a keypress may not launder.
 """
@@ -31,7 +31,7 @@ class CLIPassthroughScreen(ModalScreen[str | None]):
     def compose(self) -> ComposeResult:
         with Vertical(id="cli-container"):
             yield Static(
-                " [bold #3fb950]~ COMMAND COMPOSER[/]  [#6e7681]context injection · STRATUM runs nothing[/]",
+                " [bold #3fb950]C · COMMAND COMPOSER[/]  [#6e7681]context injection · STRATUM runs nothing[/]",
                 id="palette-title",
             )
             if self.prefix_context:

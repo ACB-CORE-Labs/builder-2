@@ -19,11 +19,6 @@ stratum_app = typer.Typer(
 
 @stratum_app.callback()
 def main(
-    sandbox: bool = typer.Option(
-        False,
-        "--sandbox",
-        help="Launch STRATUM with strict execution confinement (read-only composition).",
-    ),
     no_guide: bool = typer.Option(
         False,
         "--no-guide",

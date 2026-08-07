@@ -39,8 +39,12 @@ ROOT = Path(__file__).resolve().parents[2]
 #: entry point an operator types, not an in-process construction of the app.
 CONSOLE_SCRIPT = Path(sys.executable).parent / "builder-platform"
 
-#: ctrl+q -- STRATUM's quit binding (`app.py`: `Binding("ctrl+q", "quit_app", ...)`).
-#: Also byte 0x11 == XON, which is why it must be delivered *after* Textual takes the terminal out
+#: ctrl+q -- Textual's own built-in quit, not a STRATUM binding. The comment here used to cite
+#: `Binding("ctrl+q", "quit_app", ...)` in `app.py`; STRATUM binds plain `q` for that action and
+#: never bound ctrl+q at all. The lane passes on Textual's default, which is fine -- what it
+#: asserts is that the shipped entry point boots and exits cleanly under a real terminal, not
+#: which key ended it -- but the citation pointed at a line that does not exist.
+#: Byte 0x11 is also XON, which is why it must be delivered *after* Textual takes the terminal out
 #: of canonical mode; before that the tty driver eats it as flow control. Hence the retry below.
 CTRL_Q = b"\x11"
 

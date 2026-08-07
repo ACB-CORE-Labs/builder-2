@@ -1,7 +1,4 @@
-"""`builder stratum` launches the STRATUM operator console.
-
-It now uses the `--sandbox` flag instead of `--experimental`.
-"""
+"""`builder stratum` launches the STRATUM operator console."""
 
 from __future__ import annotations
 
@@ -44,8 +41,13 @@ def test_stratum_launches(monkeypatch):
     assert result_no_guide.exit_code == 0, result_no_guide.output
     assert built[-1].launched_kwargs.get("skip_guide") is True
 
+    # `--sandbox` was accepted and wired to nothing while promising "strict execution
+    # confinement". Harmless when the console composed and executed nothing; actively misleading
+    # once it could dispatch governed runs, so it was removed rather than left as a reassuring
+    # no-op. It must now be rejected, not silently ignored.
     result_sandbox = runner.invoke(app, ["stratum", "--sandbox"])
-    assert result_sandbox.exit_code == 0, result_sandbox.output
+    assert result_sandbox.exit_code != 0
+    assert "no such option" in result_sandbox.output.lower()
 
 
 def test_stratum_reports_a_failed_tui_instead_of_exiting_zero(monkeypatch):

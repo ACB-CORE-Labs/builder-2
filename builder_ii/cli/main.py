@@ -143,11 +143,6 @@ def setup() -> None:
 
 @app.command("stratum")
 def stratum(
-    sandbox: bool = typer.Option(
-        False,
-        "--sandbox",
-        help="Launch STRATUM with strict execution confinement (read-only composition).",
-    ),
     no_guide: bool = typer.Option(
         False,
         "--no-guide",
@@ -433,95 +428,53 @@ def pull(
 
 @app.command("start")
 def start(
-    mode: str = typer.Option("orchestrator", "--mode", "-m", help="orchestrator|quick|deep|coding"),
-    task_hint: Optional[str] = typer.Option(
-        None, "--task", "--task-hint", help="Free-text task used to choose the M1-safe model alias for this session"
-    ),
-    model_alias: Optional[str] = typer.Option(
-        None, "--model", help="Explicit model alias override; see `builder models`"
-    ),
-    resume: bool = typer.Option(False, "--resume", "-r"),
-    no_backend: bool = typer.Option(False, "--no-backend"),
-    name: Optional[str] = typer.Option(None, "--name", "-n", help="Goose session name"),
-    wrapper_plan: Optional[Path] = typer.Option(None, "--wrapper-plan", help="Path to governed Goose wrapper plan artifact"),
-    from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve wrapper-plan from the last generated artifact"),
+    mode: str = typer.Option("orchestrator", "--mode", "-m", help="(accepted, unused) session mode"),
+    task_hint: Optional[str] = typer.Option(None, "--task", "--task-hint", help="(accepted, unused)"),
+    model_alias: Optional[str] = typer.Option(None, "--model", help="(accepted, unused)"),
+    resume: bool = typer.Option(False, "--resume", "-r", help="(accepted, unused)"),
+    no_backend: bool = typer.Option(False, "--no-backend", help="(accepted, unused)"),
+    name: Optional[str] = typer.Option(None, "--name", "-n", help="(accepted, unused)"),
+    wrapper_plan: Optional[Path] = typer.Option(None, "--wrapper-plan", help="(accepted, unused)"),
+    from_last: bool = typer.Option(False, "--from-last", help="(accepted, unused)"),
 ) -> None:
-    """Start MLX backend + Goose session with governed CORE recipes."""
-    from builder_ii.adapters.goose.goose_launcher import goose_status, launch_goose_session
-    from builder_ii.core.config import load_settings, normalize_model_alias
-    from builder_ii.routing.model_router import SESSION_MODES, explain_plan, plan_session
+    """Refuse, and name the governed lanes that work. This launch path cannot complete.
 
-    if mode not in SESSION_MODES:
-        console.print(f"mode must be one of {SESSION_MODES}")
-        raise typer.Exit(1)
+    `builder start` advertised the full-capability interactive lane -- resume, slash commands,
+    skills, `--with-builtin developer,skills,summon` -- and has been unable to complete a launch
+    for as long as the drift check in `launch_goose_session` has existed. That check compares
+    `artifact["argv"]` against the composed argv, but `create_goose_wrapper_plan` writes argv under
+    `operator_launch.argv`, so the top-level lookup is always `None` and the comparison always
+    raises. A second failure sits behind it: the wrapper-plan path is passed as
+    `cloud_approval_path`, which rejects any kind that is not a cloud egress record or lane
+    approval -- and a wrapper plan is neither.
 
-    session = plan_session(mode, task_hint or "")
-    selected_alias = normalize_model_alias(model_alias or session.model_alias, tier_fallback=session.model_tier)
+    Nothing consumed a wrapper plan into a real launch, and no test drove this to a successful
+    spawn; only its failure paths were covered. It is documented as live in
+    `docs/GOOSE_CONVENTION_LAYER.md` and `docs/model_role_matrix.md`, which is the worse half of
+    the problem: an operator following those docs meets an opaque drift error rather than a lane.
 
-    os.environ["CORE_AGENT_MODEL_TIER"] = session.model_tier
-    os.environ["CORE_AGENT_MODEL_ALIAS"] = selected_alias
-    settings = load_settings()
-
-    console.print("[bold]Builder routing[/]")
-    console.print(explain_plan(session))
-    if selected_alias != session.model_alias:
-        console.print(f"Model override : {selected_alias}")
+    Repairing it would mean reviving an ungoverned full-builtin launch -- file editing and shell,
+    no read-only policy, no launch receipt, no postflight -- which is exactly what
+    `builder-goose start-readonly` exists at TIER_3 to replace. So this refuses on the record and
+    names the governed lanes instead. The flags stay accepted so an operator's existing muscle
+    memory reaches this message rather than an unknown-option error.
+    """
+    console.print("[bold yellow]`builder start` is retired and starts nothing.[/]")
     console.print(
-        f"[bold]Builder[/] mode={session.mode} alias={settings.model_alias} tier={session.model_tier} backend={settings.backend} model={settings.active_model_id}"
+        "It advertised an ungoverned full-capability Goose launch (file editing and shell, no "
+        "read-only policy, no receipts, no postflight) and has been unable to complete one for a "
+        "long time -- the wrapper-plan drift check reads a key the artifact never had.\n"
     )
-    console.print(goose_status())
-
-    _ensure_backend(settings, no_backend)
-
-    console.print(f"CORE repo: {settings.target_repo}")
-    console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")
-    console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep")
-    session_name = name or f"builder_{int(time.time())}"
-
-    approval_artifact = None
-    if wrapper_plan or from_last:
-        from builder_ii.cli._chain_resolve import resolve_path_or_last
-        resolved = resolve_path_or_last(wrapper_plan, from_last, "builder_ii.goose_wrapper_plan", "wrapper-plan")
-        approval_artifact = str(resolved)
-
-    proc = launch_goose_session(
-        settings,
-        resume=resume,
-        session=session,
-        name=session_name,
-        wrapper_plan_path=approval_artifact
-    )
-    proc.wait()
-
-    try:
-        transcript_path_obj = settings.target_repo / ".builder" / "artifacts" / f"{session_name}.jsonl"
-        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
-        transcript_path = str(transcript_path_obj)
-        import subprocess
-        subprocess.run(["goose", "session", "export", "--name", session_name, "--format", "json", "--output", transcript_path], check=False)
-
-        hasher = hashlib.sha256()
-        with open(transcript_path_obj, "rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                hasher.update(chunk)
-        transcript_digest = hasher.hexdigest()
-
-        from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
-        event = create_event_record(
-            event_id=session_name + "_close",
-            session_id=session_name,
-            sequence=0,
-            event_type="goose_session_closed",
-            stage="orchestration",
-            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
-            command_surface="builder_ii",
-            policy_snapshot_ref={"kind": "null"},
-        )
-        ledger_path = settings.target_repo / ".builder" / "artifacts" / "event_ledger.jsonl"
-        ledger_path.parent.mkdir(parents=True, exist_ok=True)
-        write_event_record(event, ledger_path / f"{event['event_id']}.json")
-    except Exception as exc:
-        console.print(f"[yellow]Could not export session transcript or record ledger event:[/] {exc}")
+    console.print("Use a governed lane instead:\n")
+    console.print("  Interactive, in your terminal:")
+    console.print("    uv run builder-goose manifest --target builder --mode read_only \\")
+    console.print("      --task '<what you want>' --output .builder/goose/session.json")
+    console.print("    uv run builder-goose start-governed .builder/goose/session.json\n")
+    console.print("  Headless, streamed onto the run ledger:")
+    console.print("    uv run builder-goose run-governed --manifest .builder/goose/session.json \\")
+    console.print("      --task '<what you want>'\n")
+    console.print("  From the console: launch `uv run builder-stratum` and press Ctrl+G.")
+    raise typer.Exit(1)
 
 
 @app.command("ask")

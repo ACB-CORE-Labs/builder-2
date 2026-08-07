@@ -27,7 +27,6 @@ uv run builder stratum
 
 | Flag | Effect |
 |------|--------|
-| `--sandbox` | Accepted, but not yet wired to any behavior (reserved name for a future strict-confinement mode) |
 | `--no-guide` | Skip first-session walkthrough auto-open |
 | `--guide` | Force walkthrough open (even if dismissed before) |
 | `--no-splash` | `builder-stratum` only: skip opening hero |
@@ -189,10 +188,11 @@ uv run builder stratum
 | **TAB** | Cycle Spine · Center · Signals |
 | **j/k** | Spine move · **SPC** pin/inspect |
 | **O** **U** **W** **Z** **E** **T** **M** | Instruments |
-| **?** | Palette · **~** composer |
-| **P** **V** **G** **N** | Prepare compose · validate · goose · next |
+| **?** | Palette · **C** composer |
+| **P** **V** **G** **N** | Prepare compose · validate · goose (interactive, suspends) · next |
+| **Ctrl+G** | Run a governed task: type it, dispatch, stream in the cockpit (no suspend) |
 | **L** | Run cockpit: runs roster + live ledger transcript ( **, .** select run ) |
-| **A/R** | Compose HITL approve/reject (no mutation) · **D** diff (read-only) |
+| **A/R** | HITL approve/refuse — suspends and hands the terminal to `builder-hitl`, which asks for the digest prefix · **D** diff (read-only) |
 
 ---
 

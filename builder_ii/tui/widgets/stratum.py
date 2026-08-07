@@ -291,8 +291,10 @@ class ActiveStratum(Vertical):
                 f"{bold_themed('active', 'V')}alidate  "
                 f"{bold_themed('active', 'G')}oose  "
                 f"{bold_themed('active', 'N')}ext",
+                f"  {bold_themed('active', 'Ctrl+G')} run task  "
+                f"{bold_themed('active', 'L')} runs",
                 f"  {bold_themed('active', '?')}palette "
-                f"{bold_themed('active', '~')}compose  "
+                f"{bold_themed('active', 'C')}ompose  "
                 f"{bold_themed('active', 'O')}models "
                 f"{bold_themed('active', 'U')}agents",
                 f"  {themed('hint', 'planned ≠ executed ≠ verified ≠ promoted')}",
@@ -315,7 +317,7 @@ class ActiveStratum(Vertical):
                     f"  {bold_themed('active', 'W')} recipes/goose  "
                     f"{bold_themed('active', 'Y')} orch  "
                     f"{bold_themed('active', 'B')} vault  "
-                    f"{bold_themed('active', 'C')} audit",
+                    f"{bold_themed('active', 'Z')} audit",
                     f"  {themed('dim', 'cmd: uv run builder-session prepare-package generic -o .builder/artifacts')}",
                     f"  {themed('dim', 'STRATUM reads the project you launched from — not another clone.')}",
                 ]
