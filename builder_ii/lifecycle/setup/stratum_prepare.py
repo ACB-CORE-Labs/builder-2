@@ -16,6 +16,10 @@ from typing import Any
 # Stable path so re-runs refresh one auto file instead of littering.
 AUTO_GOOSE_MANIFEST_NAME = "stratum-auto-readonly.json"
 
+# Task-bound manifest for a governed run dispatched from the console. Separate from the
+# auto-readonly file because these carry the operator's actual task and are minted per dispatch.
+GOVERNED_GOOSE_MANIFEST_NAME = "stratum-governed-run.json"
+
 _BUILDER_SUBDIRS = ("artifacts", "goose", "receipts")
 
 
@@ -131,3 +135,71 @@ def ensure_readonly_goose_manifest(
         return out, f"auto-prepared read-only manifest → {out.name}"
     except Exception as exc:
         return None, f"auto-prepare failed: {exc}"
+
+
+def ensure_governed_goose_manifest(
+    *,
+    settings: Any,
+    builder_root: Path,
+    task: str,
+) -> tuple[Path | None, str]:
+    """Mint a task-bound ``read_only`` manifest for one governed run. Returns ``(path, note)``.
+
+    Unlike :func:`ensure_readonly_goose_manifest`, this never reuses an existing manifest: the
+    task the operator just typed is *part of* what the run is, and handing their new task to a
+    manifest describing an older one would make the receipts describe work nobody asked for.
+
+    Lives here rather than in the TUI because `builder_ii/tui/` may not write files at all
+    (`tests/test_stratum_tui.py::test_tui_sources_never_write_a_file`). That ban is what keeps a
+    render surface from quietly becoming an actor; delegating the write is how a console
+    participates without crossing it.
+
+    Passive artifact only: this starts nothing and grants nothing. The governed run command
+    re-validates the manifest at its own boundary and refuses anything not ``read_only``.
+    """
+    from builder_ii.adapters.goose.goose_session import (
+        create_goose_session_manifest,
+        validate_goose_session_manifest,
+        validate_goose_session_manifest_file,
+        write_goose_session_manifest,
+    )
+
+    cleaned = task.strip()
+    if not cleaned:
+        return None, "a governed run needs a task"
+
+    ensure_builder_scaffold(builder_root)
+    target = _resolve_target_name(settings)
+    project_root = getattr(settings, "project_root", None)
+    generic_repo = project_root if isinstance(project_root, Path) else None
+
+    try:
+        manifest = create_goose_session_manifest(
+            settings,
+            target_name=target,  # type: ignore[arg-type]
+            agent_profile=_default_agent_profile(),  # type: ignore[arg-type]
+            runtime_mode="read_only",
+            task=cleaned,
+            generic_repo=generic_repo if target == "generic" else None,
+        )
+        base_gov = manifest.get("governance") if isinstance(manifest.get("governance"), dict) else {}
+        manifest = {
+            **manifest,
+            "governance": {
+                **base_gov,
+                "stratum_auto_prepared": True,
+                "artifact_is_authority": False,
+            },
+        }
+        errors = validate_goose_session_manifest(manifest)
+        if errors:
+            return None, f"could not build governed manifest: {errors[0]}"
+
+        out = builder_root / "goose" / GOVERNED_GOOSE_MANIFEST_NAME
+        write_goose_session_manifest(manifest, out)
+        disk_errors = validate_goose_session_manifest_file(out)
+        if disk_errors:
+            return None, f"governed manifest failed validation: {disk_errors[0]}"
+        return out, f"governed manifest → {out.name}"
+    except Exception as exc:
+        return None, f"could not build governed manifest: {exc}"

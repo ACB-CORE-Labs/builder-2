@@ -13,6 +13,12 @@ from builder_ii.tui.app import StratumApp
 from builder_ii.tui.widgets.signals import HITLGateIndicator
 
 #: the curated always-visible core: navigate, palette, CLI, pin, help, guide, pipeline.
+#:
+#: `ctrl+g` (run a governed task) was added here deliberately, which is what this pin exists to
+#: force. It earns a permanent chip because it *is* the core loop now -- state a task, watch the
+#: governed run stream in the cockpit -- and a capability that exists but is invisible is the
+#: exact failure the streamed-run lane was built to fix. It sits beside `g`, which remains the
+#: interactive session that suspends the terminal; the two are different enough to both be named.
 _EXPECTED_SHOWN = {
     "escape",
     "q",
@@ -24,6 +30,7 @@ _EXPECTED_SHOWN = {
     "p",
     "v",
     "g",
+    "ctrl+g",
     "n",
 }
 

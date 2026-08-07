@@ -26,6 +26,7 @@ from builder_ii.tui.widgets.palette import CommandPaletteScreen
 from builder_ii.tui.widgets.signals import SignalRail
 from builder_ii.tui.widgets.spine import ArtifactSpine
 from builder_ii.tui.widgets.stratum import ActiveStratum, StratumMode
+from builder_ii.tui.widgets.task_entry import TaskEntryScreen
 
 # Rendered wherever a chain digest would go. `verify_artifact_chain` exposes no digest, so there
 # is nothing truthful to bind here; STRATUM shows that absence rather than a value shaped like a
@@ -114,6 +115,10 @@ class StratumApp(App[None]):
         Binding("p", "prepare_package", "Prepare", show=True),
         Binding("v", "validate_package", "Validate", show=True),
         Binding("g", "launch_goose", "Goose", show=True),
+        # Governed run dispatch: type a task, watch it stream in the cockpit. Deliberately a
+        # different key from `g` -- that one suspends the terminal for an interactive session and
+        # its behaviour is pinned; this one never suspends.
+        Binding("ctrl+g", "run_governed_task", "Run task", show=True),
         Binding("n", "operator_next", "Next", show=True),
         # Dead modes re-wired: real entry into existing renderers (not silent furniture).
         Binding("f", "show_postflight", "Postflight", show=False),
@@ -150,6 +155,10 @@ class StratumApp(App[None]):
         self.banner: HeaderBanner | None = None
 
         self._refresh_task: asyncio.Task[None] | None = None
+        # Runs this console dispatched and has a live handle on. Disk is the source of truth for
+        # what ran; this only tracks what is still ours to signal.
+        self._live_runs: dict[str, Any] = {}
+        self._pending_governed_dispatch: tuple[Any, ...] | None = None
 
         self._current_session_id = "idle"
         self._hitl_active = False
@@ -919,6 +928,187 @@ class StratumApp(App[None]):
             ),
             self._on_goose_autoprep_confirm,
         )
+
+    # --- Governed run dispatch (task -> manifest -> streamed run in the cockpit) ------------
+
+    GOVERNED_RUN_COMMAND = "builder-goose run-governed"
+    GOVERNED_RUN_POINT = "stratum.dispatch.goose_run"
+
+    def action_run_governed_task(self) -> None:
+        """Ask what to do, then dispatch a governed run that streams into the cockpit.
+
+        The console's own contribution is scheduling: it collects the task, mints a passive
+        `read_only` manifest through a non-TUI module, and spawns a fixed argv in the background.
+        Everything that decides whether the work is permissible happens elsewhere and again --
+        command authority here, then the governed CLI's own manifest validation, the MCP server's
+        per-call deny-by-default policy, and the no-mutation postflight.
+        """
+        from builder_ii.governance.authority import CommandAuthorityError, enforce_command_authority
+
+        try:
+            enforce_command_authority(
+                self.GOVERNED_RUN_COMMAND, requested_effects=("runtime_start", "external_tool")
+            )
+        except CommandAuthorityError as exc:
+            self.notify(f"{self.GOVERNED_RUN_COMMAND} is not permitted: {exc}", severity="error")
+            return
+
+        self.push_screen(TaskEntryScreen(), self._on_governed_task_entered)
+
+    def _on_governed_task_entered(self, task: str | None) -> None:
+        if not task:
+            return
+
+        manifest = self._mint_governed_goose_manifest(task)
+        if manifest is None:
+            return
+
+        resolution = self._resolve_dispatch(self.GOVERNED_RUN_POINT)
+        if resolution is not None and resolution.status == "APPROVAL_ARTIFACT_REQUIRED":
+            # Fail closed and hand over the remedy rather than silently doing nothing.
+            self.notify(resolution.because, severity="error")
+            self.push_screen(
+                CLIPassthroughScreen(prefix_context=f"uv run builder-govern approve {self.GOVERNED_RUN_POINT}"),
+                self._show_composed_command,
+            )
+            return
+
+        argv = self._governed_run_argv(manifest, task)
+        if resolution is not None and resolution.status == "AUTO":
+            # A standing grant covers this dispatch: proceed, and say which grant did it so the
+            # operator can see -- and revoke -- what is answering for them.
+            digest = (resolution.grant_digest or "")[:12]
+            self.notify(f"Auto-ratified by standing grant {digest} — {self.GOVERNED_RUN_POINT}")
+            self._record_dispatch_ratification(resolution)
+            self._dispatch_governed_run(argv, manifest, task)
+            return
+
+        because = resolution.because if resolution is not None else "ratification state unavailable"
+        self._pending_governed_dispatch = (argv, manifest, task, because)
+        self.push_screen(
+            ConfirmScreen(
+                "START GOVERNED RUN?",
+                f"Task: {task}\n\n"
+                f"Manifest: {manifest}\n"
+                f"Digest:   {self._manifest_digest(manifest)}\n\n"
+                f"Command:  {' '.join(argv)}\n\n"
+                "Read-only: Goose gets builder-II's governed tools (read, list, grep), path-jailed "
+                "to this repo. No shell, no edits. Every call is receipted and chained, and a "
+                "no-mutation postflight fails the run if anything moved.\n\n"
+                f"Asked because: {because}",
+            ),
+            self._on_governed_dispatch_confirm,
+        )
+
+    def _on_governed_dispatch_confirm(self, confirmed: bool | None) -> None:
+        pending = getattr(self, "_pending_governed_dispatch", None)
+        self._pending_governed_dispatch = None
+        if not confirmed or pending is None:
+            return
+        argv, manifest, task, because = pending
+        self._record_manual_dispatch_ratification(self.GOVERNED_RUN_POINT, because)
+        self._dispatch_governed_run(argv, manifest, task)
+
+    def _governed_run_argv(self, manifest: Path, task: str) -> tuple[str, ...]:
+        """Fixed argv for the governed run. Module entry point, never a shell string."""
+        import sys
+
+        return (
+            sys.executable,
+            "-m",
+            "builder_ii.cli.goose_cli",
+            "run-governed",
+            "--manifest",
+            str(manifest),
+            "--task",
+            task,
+        )
+
+    def _manifest_digest(self, manifest: Path) -> str:
+        """Short content digest of what is about to be dispatched, for the confirmation."""
+        import hashlib
+
+        try:
+            return hashlib.sha256(manifest.read_bytes()).hexdigest()[:16]
+        except OSError:
+            return "unreadable"
+
+    def _mint_governed_goose_manifest(self, task: str) -> Path | None:
+        """Delegate the manifest write; `builder_ii/tui/` may not write files itself."""
+        from builder_ii.lifecycle.setup.stratum_prepare import ensure_governed_goose_manifest
+
+        path, note = ensure_governed_goose_manifest(
+            settings=self.settings,
+            builder_root=self.artifacts_dir.parent,
+            task=task,
+        )
+        if path is None:
+            self.notify(note, severity="error")
+            return None
+        return path
+
+    def _resolve_dispatch(self, point_id: str) -> Any:
+        """Where the human pause goes for this dispatch, or None if unresolvable.
+
+        A failure to resolve is never treated as a grant: the caller falls through to the
+        confirmation path, because "we could not tell" and "you already said yes" are different
+        answers and only one of them may skip a prompt.
+        """
+        try:
+            from builder_ii.governance.ratification_dispatch import resolve_dispatch_ratification
+
+            return resolve_dispatch_ratification(point_id)
+        except Exception as exc:  # pragma: no cover - defensive; console must not crash on this
+            self.notify(f"could not resolve ratification: {exc}", severity="warning")
+            return None
+
+    def _record_dispatch_ratification(self, resolution: Any) -> None:
+        """Ledger an auto-ratified dispatch. Delegated: the TUI writes no files itself."""
+        try:
+            from builder_ii.governance.ratification_dispatch import record_auto_ratified
+
+            record_auto_ratified(resolution, actor="stratum")
+        except Exception as exc:  # pragma: no cover - a ledger failure must not eat the run
+            self.notify(f"ratification not recorded: {exc}", severity="warning")
+
+    def _record_manual_dispatch_ratification(self, point_id: str, because: str) -> None:
+        try:
+            from builder_ii.governance.ratification_dispatch import record_manual_ratified
+
+            record_manual_ratified(point_id, actor="stratum", because=because)
+        except Exception as exc:  # pragma: no cover
+            self.notify(f"ratification not recorded: {exc}", severity="warning")
+
+    def _dispatch_governed_run(self, argv: tuple[str, ...], manifest: Path, task: str) -> None:
+        """Spawn the governed run without suspending, and switch to the cockpit to watch it.
+
+        Nothing is suspended and nothing is captured here: the child writes its own run log,
+        receipts and chained events, and the cockpit's existing 2s poll picks the run up from the
+        ledger. That is the whole point of the streamed lane -- watching a run costs the operator
+        nothing, and the console never becomes the thing that holds the evidence.
+        """
+        import subprocess
+
+        try:
+            proc = subprocess.Popen(  # noqa: S603 - fixed argv, shell=False
+                argv,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError as exc:
+            self.notify(f"could not start governed run: {exc}", severity="error")
+            return
+
+        self._live_runs[str(manifest)] = proc
+        self.notify(f"Governed run dispatched (pid {proc.pid}) — streaming in the run cockpit.")
+        if self.signals:
+            self.signals.append_event(
+                datetime.now().strftime("%H:%M:%S"),
+                "governed_run",
+                f"dispatched: {task[:60]}",
+            )
+        if self.stratum:
+            self.stratum.mode = StratumMode.RUN_COCKPIT
 
     def _render_goose_session_outcome(self, returncode: int) -> None:
         """Report what the governed command did. Never assert an outcome it did not record."""

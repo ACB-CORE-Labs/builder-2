@@ -52,9 +52,36 @@ Smoked CLI loop: [`FIRST_SESSION.md`](../FIRST_SESSION.md). Golden path / demos:
 | Is | Is not |
 |----|--------|
 | Read-only view of registries + `.builder/artifacts` | Writer of session/HITL/assignment artifacts |
-| Command Composer (`~`) | Executor of composed commands |
-| Suspend + fixed argv to `builder-goose start-readonly` | Spawner of raw `goose` or builtin chooser |
+| Command Composer (`C`) | Executor of composed or arbitrary commands |
+| Suspend + fixed argv to `builder-goose start-readonly` (**G**) | Spawner of raw `goose` or builtin chooser |
+| Governed run dispatcher (**Ctrl+G**): fixed argv to `builder-goose run-governed`, behind grant-or-confirm | Originator of authority for the run it starts |
 | Honest absence for chain digest (`—`) | Synthesizer of digests or fake tier grants |
+
+### On dispatch (Ctrl+G)
+
+STRATUM can now start governed work: type a task, and it mints a passive `read_only` session
+manifest (delegated to a non-TUI module — `builder_ii/tui/` still writes no files) and spawns
+`builder-goose run-governed` with a fixed argv, `shell=False`, **without suspending**. The run
+streams onto the hash-chained session ledger the run cockpit already tails, so it is watchable
+while it happens.
+
+Starting work is not authorizing it. Everything that decides permissibility happens elsewhere and
+again: `enforce_command_authority` before anything is minted, the governed CLI's own manifest
+validation (anything not `read_only` is refused before a process exists), the MCP server's
+per-call deny-by-default policy with its path-jailed read-only tool set, and the no-mutation
+postflight that fails the run on any content digest that moved.
+
+**Where the pause goes is the operator's choice, not the console's.** The dispatch consults the
+ratification point `stratum.dispatch.goose_run`:
+
+- a standing grant covers it → the run proceeds, and the toast names the grant so the operator can
+  see (and `builder-govern revoke`) what is answering for them;
+- no grant → a `ConfirmScreen` naming the task, the manifest path and digest, and the exact argv;
+- policy demands an approval artifact → refused, with `builder-govern approve` composed.
+
+Both branches emit the same artifacts, receipts and chained events. The auto-ratified branch
+additionally records the grant digest on the ratification ledger, so it is *more* traceable than
+the prompted one, never less. See [`RATIFICATION_GRANTS.md`](RATIFICATION_GRANTS.md).
 
 **Artifact root:** `<project_root>/.builder/artifacts` for the process you launched. Another clone = another empty or different spine.
 
