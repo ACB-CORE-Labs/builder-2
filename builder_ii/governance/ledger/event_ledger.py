@@ -34,6 +34,12 @@ EVENT_TYPES = {
     "goose_readonly_started",
     "goose_readonly_closed",
     "goose_mutation_prevented",
+    # Headless governed run lifecycle (ADR-0009 lane B). Distinct from the interactive
+    # goose_readonly_* pair because a streamed run has an outcome the interactive one does not:
+    # it completes on its own, with an exit code, or is stopped by an operator signal.
+    "goose_run_started",
+    "goose_run_completed",
+    "run_stop_requested",
     "deepagents_runtime_executed",
     "deepagents_runtime_failed",
     "model_call_executed",

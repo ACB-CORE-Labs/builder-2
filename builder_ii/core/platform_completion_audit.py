@@ -948,6 +948,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "builder-goose",
             "builder-goose start-readonly",
             "builder-goose start-governed",
+            "builder-goose run-governed",
             "builder-goose close-readonly",
         ),
         (
@@ -955,12 +956,18 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/test_goose_inspection.py",
             "tests/test_goose_runtime_harness.py",
             "tests/test_goose_cli_start_governed.py",
+            "tests/test_goose_run_governed.py",
         ),
         (
             "Goose readonly runtime is operationally verified with receipts and no-mutation postflight.",
             "start-governed is a read-only runtime candidate, not part of the verified claim: it points "
             "Goose at the governed MCP server as its only tool surface and chains start/close lifecycle "
             "events onto the session ledger the operator console tails.",
+            "run-governed is the headless, non-suspending candidate: it streams the child's output to a "
+            "byte-capped run log and brackets it with goose_run_started/goose_run_completed on the same "
+            "chain. Raw model output is never hashed into the chain. Headless support is detected from "
+            "`goose run --help`, never assumed, and the command fails closed naming start-governed when "
+            "the installed Goose cannot be handed a task.",
         ),
         "B5",
     ),

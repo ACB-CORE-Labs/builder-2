@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json as json_lib
+import os
+import signal
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -387,6 +389,96 @@ def start_governed(
     except Exception as e:
         console.print(f"Failed to launch governed Goose: {e}")
         raise typer.Exit(1)
+
+
+@goose_app.command("run-governed")
+def run_governed(
+    manifest_path: Path = typer.Option(..., "--manifest", help="Goose session manifest path"),
+    task: str = typer.Option(..., "--task", help="The task to hand the governed run"),
+    enable_governed_apply: bool = typer.Option(
+        False,
+        "--enable-governed-apply",
+        help="Set BUILDER_MCP_GOVERNED_APPLY for the child only; still requires a digest-bound approval.",
+    ),
+) -> None:
+    """Run a governed Goose task headlessly, streaming its lifecycle onto the session ledger.
+
+    The non-suspending counterpart to `start-governed`: instead of handing Goose the operator's
+    terminal and blocking, this streams output to a run log and brackets the child with
+    `goose_run_started` / `goose_run_completed` events on the chain the operator console tails.
+    A run is therefore legible while it happens rather than only after it ends.
+
+    Same governed boundary as `start-governed`: read-only tools through the MCP server, builtins
+    stripped, no-mutation postflight on close. `--enable-governed-apply` sets the deny-by-default
+    flag for the child process only and does not by itself permit a write -- the apply lane still
+    re-validates a digest-bound approval at its own boundary and fails closed without one.
+    """
+    manifest_data = _load_read_only_manifest(manifest_path)
+
+    enforce_command_authority(
+        "builder-goose run-governed",
+        requested_effects=("runtime_start", "external_tool", "artifact_write"),
+    )
+
+    settings = load_settings()
+    plan = GooseReadonlyLaunchPlan(
+        target_name=manifest_data.get("target", {}).get("name", "builder"),
+        agent_profile=manifest_data.get("agent_profile", {}).get("name", "patch_planner"),
+        recipe_name=GooseRuntimeHarness.GOVERNED_RECIPE_NAME,
+    )
+    harness = GooseRuntimeHarness(settings, plan, settings.project_root)  # type: ignore[arg-type]
+
+    if enable_governed_apply:
+        # Child-scoped only: this process sets it so the spawned MCP server inherits it, and
+        # never exports it further. The flag unlocks the *lane*, not any particular write.
+        os.environ["BUILDER_MCP_GOVERNED_APPLY"] = "1"
+
+    session_dir = settings.project_root / ".builder" / "sessions" / harness.session_id
+    log_path = session_dir / "goose_run.log"
+
+    def _handle_stop(signum: int, _frame: object) -> None:
+        # Stopping is always "signal the governed wrapper", never "kill Goose from elsewhere":
+        # the wrapper checkpoints the request onto the chain, escalates TERM -> KILL only if
+        # the child ignores it, and still runs the postflight below.
+        harness.request_stop()
+
+    previous_handler = signal.signal(signal.SIGTERM, _handle_stop)
+    try:
+        receipt, exit_code = harness.run_governed_streaming(task, log_path=log_path)
+        console.print(f"Governed run {receipt['session_id']} exited with code {exit_code}")
+        console.print(f"Run log: {log_path}", soft_wrap=True)
+
+        receipts_dir = settings.project_root / ".builder" / "receipts"
+        receipts_dir.mkdir(parents=True, exist_ok=True)
+        (receipts_dir / f"{receipt['session_id']}_launch.json").write_text(
+            json_lib.dumps(receipt, indent=2), encoding="utf-8"
+        )
+
+        close_receipt, postflight = harness.close(receipt["digest"])
+        (receipts_dir / f"{receipt['session_id']}_close.json").write_text(
+            json_lib.dumps(close_receipt, indent=2), encoding="utf-8"
+        )
+
+        if not postflight["valid"]:
+            console.print("WARNING: Mutations detected during governed run!")
+            for m in postflight["mutations_detected"]:
+                console.print(f" - {m}")
+            raise typer.Exit(1)
+        if exit_code != 0:
+            raise typer.Exit(exit_code)
+
+    except typer.Exit:
+        raise
+    except (RuntimeError, FileNotFoundError) as e:
+        # Fail closed and name the fallback rather than degrading into a run that silently
+        # dropped the operator's task.
+        console.print(f"Cannot start a governed run: {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"Governed run failed: {e}")
+        raise typer.Exit(1)
+    finally:
+        signal.signal(signal.SIGTERM, previous_handler)
 
 
 @goose_app.command("close-readonly")

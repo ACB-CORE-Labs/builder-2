@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import subprocess
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -237,6 +238,150 @@ class GooseRuntimeHarness:
             pid=self._proc.pid,
             start_time=start_time,
         )
+
+    # --- Headless streamed governed run (lane B) -------------------------------------------
+    #
+    # `launch_governed` hands Goose the operator's terminal and blocks: the run is governed but
+    # invisible, which is the "masterful governance, an invisible run" problem ADR-0009 names.
+    # A streamed run instead writes its lifecycle onto the same chain the operator console
+    # tails, so the run is legible while it happens and nothing has to suspend to watch it.
+
+    #: Output ceiling for the raw run log. Model output is not evidence and is never hashed
+    #: into the chain; it is a convenience transcript, and an unbounded one would let a looping
+    #: agent fill the disk that the actual evidence has to be written to.
+    RUN_LOG_MAX_BYTES = 2 * 1024 * 1024
+
+    @staticmethod
+    def _goose_run_help(goose: str) -> str:
+        """Help text for `goose run`, or empty when the subcommand is unavailable."""
+        try:
+            proc = subprocess.run(
+                [goose, "run", "--help"], capture_output=True, text=True, timeout=10
+            )
+        except (OSError, subprocess.SubprocessError):
+            return ""
+        return (proc.stdout or "") + "\n" + (proc.stderr or "")
+
+    def _governed_run_argv(self, goose: str, recipe: Path, task: str, help_text: str) -> list[str]:
+        """Build the headless argv from what this Goose build actually advertises.
+
+        The repo has already been burned once by assuming a CLI shape -- `goose session
+        --recipe` was accepted, then rejected by 1.38 -- so every flag here is used only if the
+        help text names it, and there is no version pin to reason from.
+        """
+        argv = [goose, "run"]
+        if "--recipe" in help_text:
+            argv.extend(["--recipe", str(recipe)])
+        if "--name" in help_text:
+            argv.extend(["--name", self.session_id])
+        if "--with-builtin" in help_text:
+            argv.extend(["--with-builtin", ""])
+        if task and "--text" in help_text:
+            argv.extend(["--text", task])
+        return argv
+
+    def supports_headless_run(self, goose: str) -> bool:
+        """Whether this Goose build can run headlessly at all.
+
+        Fail closed rather than degrade silently: without `--text` there is no way to hand the
+        run its task, and a "streamed run" that silently dropped the task would be worse than a
+        refusal that names the interactive fallback.
+        """
+        help_text = self._goose_run_help(goose)
+        return bool(help_text) and "--text" in help_text
+
+    def run_governed_streaming(
+        self, task: str, *, log_path: Path, on_line: Callable[[str], None] | None = None
+    ) -> tuple[dict[str, Any], int]:
+        """Run a governed Goose task headlessly, streaming output to a log. Returns (receipt, exit).
+
+        Lifecycle events bracket the child: `goose_run_started` before it is spawned and
+        `goose_run_completed` after it exits. They are therefore temporally disjoint from the
+        MCP server's own appends, and they take the shared session lock anyway -- disjointness
+        is a property of today's call order, not a guarantee anyone should have to preserve.
+        """
+        goose = find_goose_binary()
+        if not goose:
+            raise FileNotFoundError("Goose CLI not found.")
+        if not self.supports_headless_run(goose):
+            raise RuntimeError(
+                "This Goose build does not advertise `goose run --text`, so a headless governed "
+                "run cannot hand it the task. Use `builder-goose start-governed` for an "
+                "interactive governed session instead."
+            )
+
+        recipe = self._governed_recipe_path()
+        env = goose_env(self.settings, session=self.session_plan)
+        env["GOOSE_MODE"] = "auto"
+        env["BUILDER_MCP_SESSION_ID"] = self.session_id
+
+        argv = self._governed_run_argv(goose, recipe, task, self._goose_run_help(goose))
+        self._preflight_snapshot = _get_target_files(self.target_root)
+
+        self._append_lifecycle_event(
+            "goose_run_started",
+            message=f"headless governed run started: {task[:200]}",
+        )
+
+        start_time = _current_time_utc()
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._proc = subprocess.Popen(
+            argv,
+            cwd=self.target_root,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+
+        written = 0
+        with log_path.open("w", encoding="utf-8") as log:
+            if self._proc.stdout is not None:
+                for line in self._proc.stdout:
+                    if written < self.RUN_LOG_MAX_BYTES:
+                        log.write(line)
+                        log.flush()
+                        written += len(line.encode("utf-8"))
+                    if on_line is not None:
+                        on_line(line.rstrip("\n"))
+        exit_code = self._proc.wait()
+
+        receipt = create_goose_launch_receipt(
+            session_id=self.session_id,
+            target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
+            agent_profile=self.session_plan.agent_profile
+            if hasattr(self.session_plan, "agent_profile")
+            else "patch_planner",
+            pid=self._proc.pid,
+            start_time=start_time,
+        )
+        self._append_lifecycle_event(
+            "goose_run_completed",
+            message=f"headless governed run exited with code {exit_code}",
+            decision_result="recorded" if exit_code == 0 else "failed",
+        )
+        return receipt, exit_code
+
+    def request_stop(self) -> bool:
+        """Ask the running child to stop, escalating only if it will not.
+
+        Records the request on the chain first, so an operator's intent to stop is evidence
+        even when the process is already gone. Never kills mid-write without asking: TERM,
+        five seconds, then KILL -- the same escalation `close()` uses.
+        """
+        self._append_lifecycle_event(
+            "run_stop_requested", message="operator requested stop", decision_result="stopped"
+        )
+        if self._proc is None or self._proc.poll() is not None:
+            return False
+        self._proc.terminate()
+        try:
+            self._proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            self._proc.kill()
+            self._proc.wait()
+        return True
 
     async def launch_readonly_async(self) -> dict[str, Any]:
         """Launch Goose asynchronously in strict read-only mode, avoiding loop blockage."""
