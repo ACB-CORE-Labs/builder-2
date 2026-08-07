@@ -28,6 +28,16 @@ class HitlComposeResult:
     reason: str
     """Operator-facing explanation (shown via notify)."""
 
+    argv: tuple[str, ...] | None = None
+    """The same invocation as a fixed argv, or None when compose is refused.
+
+    Derived here rather than by parsing ``command``, so the composed line and the invoked
+    process cannot drift into describing different things -- the whole value of showing an
+    operator a command is that it is the one that runs. Uses the module entry point
+    (``python -m builder_ii.cli.hitl_execution_cli``) rather than the console script, so a caller
+    needs nothing on PATH; `shell=False` throughout, so no quoting is load-bearing.
+    """
+
 
 def _quote(path: str | Path) -> str:
     return shlex.quote(str(path))
@@ -77,6 +87,14 @@ def default_refuse_output_path(proposal_path: str, artifacts_dir: Path | None) -
     return Path(".builder/artifacts/hitl-patch-refusal.json")
 
 
+
+def _hitl_argv(subcommand: str, *flags: str) -> tuple[str, ...]:
+    """Fixed argv for a `builder-hitl` subcommand through its module entry point."""
+    import sys
+
+    return (sys.executable, "-m", "builder_ii.cli.hitl_execution_cli", subcommand, *flags)
+
+
 def compose_hitl_approve(
     proposal: dict[str, Any] | None,
     *,
@@ -103,8 +121,9 @@ def compose_hitl_approve(
         refused=False,
         reason=(
             "TUI cannot harvest confirmation for a digest it renders; "
-            "composing bound `builder-hitl approve-patch` for your terminal."
+            "the governed CLI takes the terminal and asks for the digest itself."
         ),
+        argv=_hitl_argv("approve-patch", "--proposal", str(path), "--output", str(out)),
     )
 
 
@@ -163,7 +182,10 @@ def compose_hitl_reject(
         command=cmd,
         refused=False,
         reason=(
-            "STRATUM is display-only and cannot mutate approval state; "
-            "composing bound `builder-hitl refuse-patch` (not promotion rejection-record)."
+            "STRATUM does not mutate approval state itself; the governed "
+            "`builder-hitl refuse-patch` records the refusal."
+        ),
+        argv=_hitl_argv(
+            "refuse-patch", "--proposal", str(path), "--output", str(out), "--rationale", rationale
         ),
     )

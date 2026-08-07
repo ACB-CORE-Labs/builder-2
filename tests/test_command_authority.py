@@ -1102,16 +1102,26 @@ def test_stratum_record_claims_no_capability_the_code_does_not_have() -> None:
         assert stale not in boundary, f"runtime_boundary names a mockup that no longer exists: {stale!r}"
 
 
-def test_stratum_record_files_hitl_refusal_as_design_not_as_a_pending_feature() -> None:
-    """The refusal is constitutive, not unfinished.
+def test_stratum_record_keeps_the_digest_out_of_the_render_surface() -> None:
+    """The boundary is constitutive, not unfinished -- and it survived the keys becoming live.
 
-    A surface that renders a digest must not harvest its confirmation -- the same principle
-    `init_decisions` states for `builder init`. Filing that refusal under "pending post-beta
-    wiring", as this record once did, mistakes a designed boundary for a missing feature.
+    A surface that renders a digest must not harvest its confirmation. That principle was once
+    expressed as "the HITL keys refuse", which read as an unfinished feature and was filed under
+    "pending post-beta wiring". The keys now reach `builder-hitl` directly, and the principle is
+    *stronger* rather than relaxed: STRATUM suspends and lets the governed CLI print the digest
+    and ask for its prefix in the operator's own terminal, because that typed prefix is the
+    approval evidence itself.
+
+    Pinning "never harvest" rather than "never invoke" is the point. Refusing to invoke was one
+    way to honour the boundary; it was never the boundary.
     """
     boundary = _stratum_record().runtime_boundary.lower()
-    assert "never mutate approval state" in boundary
-    assert "not pending features" in boundary
+    assert "never harvest the digest they render" in boundary
+    assert "in the operator's own terminal" in boundary
+    approval = _stratum_record().approval_boundary.lower()
+    # And no standing grant may stand in for the human either: patch approval is registered
+    # `human_approval_mint` precisely so a grant cannot manufacture a decision nobody made.
+    assert "human_approval_mint" in approval
 
 
 def test_doc_parity_pin_catches_a_hand_edit_a_substring_check_would_miss() -> None:
@@ -1157,8 +1167,13 @@ def test_stratum_record_names_every_action_that_would_originate_authority() -> N
     assert "executes nothing else and claims no execution" in surface
     assert "tier-permission inspector" in surface
     assert "composer" in surface
-    # It starts exactly one runtime, and the governed command starts it -- not the render surface.
-    assert "starts exactly one runtime, and never itself" in surface
+    # STRATUM now reaches several runtimes, not one, so pinning the count would pin the wrong
+    # thing. What must stay true is the invariant the count was standing in for: a governed
+    # command starts the runtime, with a fixed argv, and the render surface never acts itself.
+    assert "never by acting itself" in surface
+    assert "fixed argv" in surface
+    for governed_command in ("builder-goose run-governed", "builder-hitl approve-patch"):
+        assert governed_command in surface, f"the record does not name {governed_command!r}"
     assert "never spawns goose directly and never selects goose builtins" in surface
     assert "fails closed twice before anything spawns" in surface
 

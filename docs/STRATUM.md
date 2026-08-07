@@ -57,6 +57,22 @@ Smoked CLI loop: [`FIRST_SESSION.md`](../FIRST_SESSION.md). Golden path / demos:
 | Governed run dispatcher (**Ctrl+G**): fixed argv to `builder-goose run-governed`, behind grant-or-confirm | Originator of authority for the run it starts |
 | Honest absence for chain digest (`—`) | Synthesizer of digests or fake tier grants |
 
+### On HITL decisions (A / R)
+
+The gate keys reach `builder-hitl` directly now instead of composing a line to paste. They do it by
+**suspending and handing over the terminal**, which is deliberate: `approve-patch` prints the patch
+digest and asks the operator to type its prefix, and that typed prefix *is* the approval evidence.
+A console that collected it would be manufacturing the very thing the artifact claims a human
+supplied — so STRATUM gets the operator to the decision and never makes it for them.
+
+This is also why patch approval can **never** be covered by a standing ratification grant: the
+point is registered `human_approval_mint`, and the registry structurally refuses a grantable kind
+for anything under `builder-hitl`. Dispatch is delegable; deciding is not.
+
+The keys are gated on the affordance projection (`tui/projections/authority.py`). A command the
+registry does not derive `invoke_direct` for falls back to composing, exactly as before, and an
+unbound gate still refuses without offering anything.
+
 ### On dispatch (Ctrl+G)
 
 STRATUM can now start governed work: type a task, and it mints a passive `read_only` session

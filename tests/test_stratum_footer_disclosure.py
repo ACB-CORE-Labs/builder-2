@@ -63,9 +63,12 @@ def test_open_hitl_gate_names_its_keys() -> None:
     indicator.gate_open = True
     indicator.gate_label = "pending approval on disk"
     text = str(indicator.render())
-    for token in ("A approve", "R reject", "I inspect", "D diff"):
+    for token in ("A approve", "R refuse", "I inspect", "D diff"):
         assert token in text, f"open gate must name {token!r} (keys are footer-hidden)"
-    assert "compose only" in text, "gate hint must not imply the keys grant authority"
+    # The keys reach `builder-hitl` now, so "compose only" would be false. What the hint must
+    # still do is name where the decision is actually made, so the operator does not read the
+    # keys as STRATUM deciding.
+    assert "builder-hitl" in text, "gate hint must name the governed command the keys hand off to"
 
     indicator.gate_open = False
     closed = str(indicator.render())

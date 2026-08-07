@@ -144,6 +144,20 @@ async def test_stratum_palette_authority():
                 assert cmd["reason"] == "mock reason"
 
 
+def _offered_command(screen) -> str:
+    """The command text a pushed screen puts in front of the operator.
+
+    STRATUM offers a bound HITL command two ways now: prefilled into the Command Composer, or
+    named in the ConfirmScreen body of a direct hand-off. Tests care that the command is complete
+    and correct, not which of the two surfaces carried it.
+    """
+    parts = [
+        str(getattr(screen, attr, "") or "")
+        for attr in ("prefix_context", "title_text", "body_text")
+    ]
+    return " ".join(parts)
+
+
 @pytest.mark.asyncio
 async def test_stratum_hitl_informative_refusal():
     with patch("builder_ii.tui.app.load_settings") as mock_settings:
@@ -172,24 +186,25 @@ async def test_stratum_hitl_informative_refusal():
                     "artifact": {"kind": "builder_ii.hitl_patch_proposal"},
                 }
                 app.action_approve_hitl()
-                approve_msg = mock_notify.call_args[0][0]
-                assert "builder-hitl approve-patch" in approve_msg
                 mock_push.assert_called()
-                approve_screen = mock_push.call_args[0][0]
-                assert "--proposal" in approve_screen.prefix_context
-                assert "--output" in approve_screen.prefix_context
+                # A bound gate now raises a ConfirmScreen for the direct hand-off rather than the
+                # composer, so the assertion is on the command the operator is shown -- wherever
+                # it is shown. What must never change is that it is fully bound: a surface that
+                # offers a bare `approve-patch` prefix is asking for a decision about nothing.
+                approve_text = _offered_command(mock_push.call_args[0][0])
+                assert "approve-patch" in approve_text
+                assert "--proposal" in approve_text
+                assert "--output" in approve_text
 
                 mock_push.reset_mock()
                 app.action_reject_hitl()
-                reject_msg = mock_notify.call_args[0][0]
-                assert "cannot mutate approval state" in reject_msg or "refuse-patch" in reject_msg
-                assert mock_push.called, "bound reject must open the composer"
-                reject_screen = mock_push.call_args[0][0]
-                assert "refuse-patch" in reject_screen.prefix_context
-                # Composed CLI must not be the promotion ceremony (notify text may name it to contrast).
-                assert "rejection-record" not in reject_screen.prefix_context
-                assert "--proposal" in reject_screen.prefix_context
-                assert "--output" in reject_screen.prefix_context
+                assert mock_push.called, "a bound reject must offer the governed refusal"
+                reject_text = _offered_command(mock_push.call_args[0][0])
+                assert "refuse-patch" in reject_text
+                # Never the promotion ceremony for a patch proposal -- wrong kind, wrong artifact.
+                assert "rejection-record" not in reject_text
+                assert "--proposal" in reject_text
+                assert "--output" in reject_text
 
 
 # --- STRATUM originates neither writes nor runtimes ---------------------------------------------

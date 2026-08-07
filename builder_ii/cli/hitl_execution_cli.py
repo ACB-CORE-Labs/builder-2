@@ -199,3 +199,12 @@ def validate_decision_envelope(
         "flags_a_violation": decision_envelope_flags_a_violation(data),
     }
     typer.echo(json_lib.dumps(report, indent=2, sort_keys=True))
+
+
+if __name__ == "__main__":  # pragma: no cover - exercised as a subprocess, not imported
+    # Module entry point so a caller can invoke this governed CLI with a fixed argv
+    # `(sys.executable, "-m", "builder_ii.cli.hitl_execution_cli", ...)` rather than relying on
+    # the `builder-hitl` console script being on PATH. Mirrors `goose_cli`. Adds no command
+    # surface -- the same registered commands, reached a different way -- so it needs no
+    # `command_authority.py` record of its own.
+    hitl_app()

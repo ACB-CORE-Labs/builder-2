@@ -1,15 +1,18 @@
 """Audit STRATUM's HITL boundary by driving it, not by reading it.
 
 What these lanes actually pin, and why it is not what an audit brief tends to assume: STRATUM has
-**no execution authority to gate**. It is not an engine with guards in front of it. The palette is a
-tier inspector, `approve`/`reject` are constitutive refusals that compose a CLI command for the
-operator's own terminal, and the compose modal says so in its own header ("STRATUM runs nothing").
+**no approval authority to gate**. It is not an engine with guards in front of it. The palette is a
+tier inspector, and `approve`/`reject` reach `builder-hitl` by handing the operator their own
+terminal -- the governed CLI prints the digest and asks for its prefix there, because that typed
+prefix *is* the approval evidence and a surface that rendered the digest must not also collect the
+confirmation for it.
 
-That distinction decides what is worth asserting. A gate that can be satisfied has a bypass worth
-testing; an absent capability has none. So these lanes do not try to sneak past a check -- they pin
-that no key sequence reaches execution or mutates approval state at all, which is the stronger and
-simpler property, and the one that would actually regress if someone wired a keypress to a
-subprocess "for convenience".
+That distinction decides what is worth asserting. The interesting property is not "no subprocess
+ever runs" -- one does now, deliberately and behind a confirmation -- but that **no key sequence
+mutates approval state**. The artifact on disk is the approval state, and every lane below leaves
+it byte-identical no matter what is pressed. That is the property that would actually regress if
+someone wired a keypress to mint an approval "for convenience", and it is strictly stronger than
+counting screens.
 
 `ThirdDoorGate` is likewise not a blocker. It is a `Static` that renders eight constraints and a
 verdict; nothing in the codebase consults it for a decision. `test_the_third_door_is_a_readout_not
@@ -178,6 +181,21 @@ async def test_selecting_a_permitted_command_composes_it_but_still_executes_noth
         assert stratum.screen.prefix_context == command
 
 
+def _offered_command(screen) -> str:
+    """The command a pushed screen puts in front of the operator, whichever surface carried it.
+
+    A bound gate now raises a ConfirmScreen for the direct hand-off to `builder-hitl`; the palette
+    and any non-`invoke_direct` command still prefill the Command Composer. These lanes are about
+    the command being complete and correct and about nothing being decided, not about which modal
+    carried it.
+    """
+    parts = [
+        str(getattr(screen, attr, "") or "")
+        for attr in ("prefix_context", "title_text", "body_text")
+    ]
+    return " ".join(parts)
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("key", "marker", "required_flags"),
@@ -198,10 +216,11 @@ async def test_the_gate_keys_compose_a_command_and_never_touch_approval_state(
     """`a` and `r` on a real pending Tier-4 gate must not decide anything.
 
     This is the governance claim in its load-bearing form: the artifact on disk is the approval
-    state, and a keypress must leave it byte-identical. STRATUM composes a *bound*
-    `builder-hitl approve-patch` / `refuse-patch` line for the operator's terminal precisely
+    state, and a keypress must leave it byte-identical. That is unchanged now that `a`/`r` reach
+    `builder-hitl` directly -- a single press offers a *bound* command and stops. It is still the
+    governed CLI, in the operator's own terminal, that prints the digest and asks for its prefix,
     because a TUI cannot harvest a confirmation for a digest it merely rendered. Bare prefixes
-    without path flags are incomplete compose theater and are not success.
+    without path flags are incomplete either way and are not success.
     """
     _no_execution_allowed(monkeypatch)
 
@@ -211,17 +230,16 @@ async def test_the_gate_keys_compose_a_command_and_never_touch_approval_state(
         await pilot.pause()
 
         assert stratum.stratum.mode == StratumMode.HITL_GATE, "the pending gate was not bound"
-        assert stratum.screen.__class__.__name__ == "CLIPassthroughScreen"
-        composed = stratum.screen.prefix_context
-        assert marker in composed, f"{key!r} composed {composed!r}, missing {marker!r}"
+        offered = _offered_command(stratum.screen)
+        assert marker in offered, f"{key!r} offered {offered!r}, missing {marker!r}"
         for flag in required_flags:
-            assert flag in composed, f"{key!r} composed incomplete line (missing {flag}): {composed!r}"
+            assert flag in offered, f"{key!r} offered an incomplete line (missing {flag}): {offered!r}"
         # Patch reject must never launder through promotion rejection-record.
         if key == "r":
-            assert PROMOTION_REJECT_MARKER not in composed, f"reject composed promotion ceremony: {composed!r}"
-        # Proposal path from the bound gate must appear in the compose line.
+            assert PROMOTION_REJECT_MARKER not in offered, f"reject offered promotion ceremony: {offered!r}"
+        # Proposal path from the bound gate must appear in the offered command.
         proposal_path = artifacts_dir / "proposal.json"
-        assert str(proposal_path) in composed or proposal_path.name in composed
+        assert str(proposal_path) in offered or proposal_path.name in offered
         assert _proposal_on_disk(artifacts_dir) == PENDING_PROPOSAL, f"{key!r} mutated approval state from the TUI"
 
 
@@ -249,31 +267,39 @@ async def test_friction_two_presses_compose_an_approval_and_that_is_the_terminus
 ) -> None:
     """The Friction Score, as a lane rather than a paragraph.
 
-    Intent to composed approval is `a`, `enter` -- two presses, nothing redundant. What the number
-    must not be read as is "two presses to approve": there is no third press that approves, and no
-    number of presses that would. The flow terminates at a command the operator runs elsewhere, and
-    the artifact below proves it did not settle anything on the way out.
+    Intent to the approval ceremony is `a`, `enter` -- two presses, nothing redundant. What the
+    number must not be read as is "two presses to approve": there is no third press that approves,
+    and no number of presses that would. The two presses now reach *further* than they used to --
+    the governed CLI is launched rather than a line composed -- and the terminus is still not an
+    approval: `builder-hitl approve-patch` prints the digest and waits for the operator to type its
+    prefix, in their own terminal, and nothing in STRATUM can supply that. The artifact below
+    proves the flow settled nothing on the way out.
     """
     _no_execution_allowed(monkeypatch)
     presses = ["a", "enter"]
     assert len(presses) == FRICTION_APPROVE_PRESSES
+    handed_off: list[tuple[str, ...]] = []
 
     async with stratum.run_test(headless=True) as pilot:
         monkeypatch.setattr(stratum, "notify", lambda msg, **kw: None)
+        # `suspend()` is unavailable headless, so the hand-off itself is recorded rather than run.
+        # What it would have run is the assertion; that it runs *nothing else* is `_no_execution_allowed`.
+        monkeypatch.setattr(stratum, "_run_governed_subprocess", lambda argv: handed_off.append(argv) or 0)
 
         await pilot.press("a")
         await pilot.pause()
-        composer = stratum.screen
-        assert composer.__class__.__name__ == "CLIPassthroughScreen"
-        # Prefilled with a bound approve line, so the second press is a confirmation and not typing.
-        prefilled = composer.query_one("#cli-input").value
-        assert APPROVE_COMPOSE_MARKER in prefilled
-        assert "--proposal" in prefilled and "--output" in prefilled
+        offered = _offered_command(stratum.screen)
+        # Bound, so the second press is a confirmation and not typing.
+        assert APPROVE_COMPOSE_MARKER in offered
+        assert "--proposal" in offered and "--output" in offered
 
         await pilot.press("enter")
         await pilot.pause()
 
-        assert stratum.screen.__class__.__name__ != "CLIPassthroughScreen", "the composer never closed"
+        assert len(handed_off) == 1, "the second press did not reach the governed CLI"
+        assert "approve-patch" in handed_off[0]
+        # Nothing STRATUM passes could answer the digest prompt on the operator's behalf.
+        assert not any(str(arg).startswith("--yes") for arg in handed_off[0])
         assert _proposal_on_disk(artifacts_dir) == PENDING_PROPOSAL, "the flow approved something"
 
 
@@ -299,11 +325,12 @@ async def test_rejecting_the_composer_restores_the_screen_without_orphaning_node
         for _ in range(3):
             await pilot.press("r")
             await pilot.pause()
-            assert stratum.screen.__class__.__name__ == "CLIPassthroughScreen"
+            opened = stratum.screen.__class__.__name__
+            assert opened in ("ConfirmScreen", "CLIPassthroughScreen"), opened
 
             await pilot.press("escape")
             await pilot.pause()
-            assert stratum.screen.__class__.__name__ != "CLIPassthroughScreen", "escape did not close"
+            assert stratum.screen.__class__.__name__ != opened, "escape did not close"
             assert len(stratum.screen_stack) == base_stack, "the screen stack did not unwind"
             censuses.append(_census(stratum))
 
@@ -351,9 +378,9 @@ async def test_the_third_door_is_a_readout_not_a_blocker(stratum: StratumApp, mo
         # Shut, and the authority path is open anyway -- which is the whole point.
         await pilot.press("a")
         await pilot.pause()
-        assert stratum.screen.__class__.__name__ == "CLIPassthroughScreen", (
-            "the composer became unreachable -- if the Third Door now gates it, this lane is the "
-            "record that it did not before, and the change needs saying out loud"
+        assert stratum.screen.__class__.__name__ in ("ConfirmScreen", "CLIPassthroughScreen"), (
+            "the approval path became unreachable -- if the Third Door now gates it, this lane is "
+            "the record that it did not before, and the change needs saying out loud"
         )
 
 

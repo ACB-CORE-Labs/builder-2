@@ -45,7 +45,7 @@ class HITLGateIndicator(Static):
             return (
                 f"\n {bold_themed('warn', '● HITL GATE OPEN')}\n"
                 f"   {themed('hint', self.gate_label)}\n"
-                f"   {themed('dim', 'A approve · R reject · I inspect · D diff (compose only)')}"
+                f"   {themed('dim', 'A approve · R refuse · I inspect · D diff (hands off to builder-hitl)')}"
             )
         # Honest: absence of pending HITL JSON ≠ cleared governance / all gates proven.
         return (

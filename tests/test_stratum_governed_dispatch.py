@@ -303,3 +303,125 @@ class _FakeProc:
 
     def poll(self) -> int | None:
         return None
+
+
+# --- HITL decisions reach the governed CLI (C3) -------------------------------------------
+
+
+def _bound_gate() -> dict[str, Any]:
+    return {"path": "/tmp/proposal.json", "artifact": {"kind": "builder_ii.hitl_patch_proposal"}}
+
+
+@pytest.mark.asyncio
+async def test_approving_hands_the_terminal_to_the_governed_cli(
+    tmp_path: Path, settings_patch: Any, grant_root: Path
+) -> None:
+    """The direct path runs `builder-hitl approve-patch`; it never records an approval itself."""
+    import sys
+
+    app = _app(tmp_path)
+    ran: list[tuple[str, ...]] = []
+
+    async with app.run_test() as pilot:
+        app.stratum.mode = StratumMode.HITL_GATE
+        app.stratum._hitl_proposal = _bound_gate()
+        with patch.object(app, "_run_governed_subprocess", lambda argv: ran.append(argv) or 0):
+            app.action_approve_hitl()
+            await pilot.pause()
+            assert isinstance(app.screen, ConfirmScreen)
+            app._on_hitl_decision_confirm(True)
+            await pilot.pause()
+
+    assert len(ran) == 1
+    argv = ran[0]
+    assert argv[:4] == (sys.executable, "-m", "builder_ii.cli.hitl_execution_cli", "approve-patch")
+    assert "--proposal" in argv and "--output" in argv
+    # No `--yes`, no digest, nothing that would let the console answer the CLI's prompt for the
+    # operator: the typed prefix is the approval evidence and must come from a human.
+    assert not any(a.startswith("--yes") for a in argv)
+
+
+@pytest.mark.asyncio
+async def test_declining_the_hitl_confirmation_runs_nothing(
+    tmp_path: Path, settings_patch: Any, grant_root: Path
+) -> None:
+    app = _app(tmp_path)
+    ran: list[tuple[str, ...]] = []
+
+    async with app.run_test() as pilot:
+        app.stratum.mode = StratumMode.HITL_GATE
+        app.stratum._hitl_proposal = _bound_gate()
+        with patch.object(app, "_run_governed_subprocess", lambda argv: ran.append(argv) or 0):
+            app.action_approve_hitl()
+            await pilot.pause()
+            app._on_hitl_decision_confirm(False)
+            await pilot.pause()
+
+    assert ran == []
+
+
+@pytest.mark.asyncio
+async def test_rejecting_uses_refuse_patch_never_the_promotion_ceremony(
+    tmp_path: Path, settings_patch: Any, grant_root: Path
+) -> None:
+    app = _app(tmp_path)
+    ran: list[tuple[str, ...]] = []
+
+    async with app.run_test() as pilot:
+        app.stratum.mode = StratumMode.HITL_GATE
+        app.stratum._hitl_proposal = _bound_gate()
+        with patch.object(app, "_run_governed_subprocess", lambda argv: ran.append(argv) or 0):
+            app.action_reject_hitl()
+            await pilot.pause()
+            app._on_hitl_decision_confirm(True)
+            await pilot.pause()
+
+    assert len(ran) == 1
+    assert "refuse-patch" in ran[0]
+    assert "rejection-record" not in ran[0], "a patch proposal is not a promotion request"
+
+
+@pytest.mark.asyncio
+async def test_an_unbound_gate_still_refuses_and_runs_nothing(
+    tmp_path: Path, settings_patch: Any, grant_root: Path
+) -> None:
+    """Gaining a direct path must not weaken the refusal that protected an unbound gate."""
+    app = _app(tmp_path)
+    ran: list[tuple[str, ...]] = []
+
+    async with app.run_test() as pilot:
+        app.stratum.mode = StratumMode.HITL_GATE
+        app.stratum._hitl_proposal = {}
+        with patch.object(app, "_run_governed_subprocess", lambda argv: ran.append(argv) or 0):
+            app.action_approve_hitl()
+            await pilot.pause()
+
+    assert ran == []
+    # Nothing was pushed at all -- an unbound gate does not even reach a confirmation.
+    assert len(app.screen_stack) <= 1
+
+
+@pytest.mark.asyncio
+async def test_a_non_direct_affordance_falls_back_to_composing(
+    tmp_path: Path, settings_patch: Any, grant_root: Path
+) -> None:
+    """The affordance is necessary, never sufficient: below INVOKE_DIRECT it composes as before."""
+    from builder_ii.tui.projections.authority import ActionAffordance
+
+    app = _app(tmp_path)
+    ran: list[tuple[str, ...]] = []
+
+    async with app.run_test() as pilot:
+        app.stratum.mode = StratumMode.HITL_GATE
+        app.stratum._hitl_proposal = _bound_gate()
+        with patch(
+            "builder_ii.tui.projections.authority.project_action_affordance",
+            lambda command: ActionAffordance(
+                command=command, mode="compose_only", because="pinned compose-only for this test"
+            ),
+        ):
+            with patch.object(app, "_run_governed_subprocess", lambda argv: ran.append(argv) or 0):
+                app.action_approve_hitl()
+                await pilot.pause()
+
+    assert ran == [], "a compose_only affordance must not invoke"

@@ -128,11 +128,12 @@ class StratumApp(App[None]):
         Binding("l", "toggle_run_cockpit", "Runs", show=False),
         Binding("comma", "cockpit_prev_run", "Prev run", show=False),
         Binding("full_stop", "cockpit_next_run", "Next run", show=False),
-        # HITL actions — compose-only (footer labels must not imply harvest/authority).
-        # Hidden from the always-on footer; the HITL gate indicator names them when a
-        # gate is actually open, which is the only moment they mean anything.
-        Binding("a", "approve_hitl", "Compose Approve", show=False),
-        Binding("r", "reject_hitl", "Compose Reject", show=False),
+        # HITL actions — these now reach `builder-hitl` directly, but the label must still not
+        # imply STRATUM decides: it hands the terminal to the governed CLI, which prints the digest
+        # and asks the operator for its prefix. Hidden from the always-on footer; the HITL gate
+        # indicator names them when a gate is open, the only moment they mean anything.
+        Binding("a", "approve_hitl", "Approve (governed)", show=False),
+        Binding("r", "reject_hitl", "Refuse (governed)", show=False),
         Binding("i", "inspect_hitl", "Inspect", show=False),
         Binding("d", "diff_hitl", "Diff", show=False),
     ]
@@ -159,6 +160,7 @@ class StratumApp(App[None]):
         # what ran; this only tracks what is still ours to signal.
         self._live_runs: dict[str, Any] = {}
         self._pending_governed_dispatch: tuple[Any, ...] | None = None
+        self._pending_hitl_argv: tuple[str, ...] | None = None
 
         self._current_session_id = "idle"
         self._hitl_active = False
@@ -1159,13 +1161,69 @@ class StratumApp(App[None]):
             self.stratum._hitl_proposal,
             artifacts_dir=self.artifacts_dir if isinstance(self.artifacts_dir, Path) else None,
         )
-        self.notify(result.reason, severity="warning")
         if result.refused or not result.command:
+            self.notify(result.reason, severity="warning")
             return
+        self._decide_hitl("builder-hitl approve-patch", "APPROVE PATCH", result)
+
+    def _decide_hitl(self, command: str, title: str, result: Any) -> None:
+        """Invoke a bound HITL decision directly when the registry allows; else compose.
+
+        The direct path suspends and hands the operator's terminal to the governed CLI, which
+        prints the digest and asks for its prefix itself. That is deliberate and is not a
+        limitation to route around: the typed prefix *is* the approval evidence, so a console
+        that collected it would be manufacturing the very thing the artifact claims a human
+        supplied. STRATUM gets the operator to the decision; it never makes it for them, and this
+        point is registered `human_approval_mint` so no standing grant can either.
+
+        The affordance is necessary, not sufficient: `builder stratum`'s own authority record
+        declares these invocations, and a mode below INVOKE_DIRECT falls back to composing.
+        """
+        from builder_ii.tui.projections.authority import INVOKE_DIRECT, project_action_affordance
+
+        affordance = project_action_affordance(command)
+        if affordance.mode != INVOKE_DIRECT or not result.argv:
+            self.notify(
+                f"{command}: {affordance.because}; composing for your terminal.", severity="warning"
+            )
+            self.push_screen(
+                CLIPassthroughScreen(prefix_context=result.command), self._show_composed_command
+            )
+            return
+
+        self._pending_hitl_argv = tuple(result.argv)
         self.push_screen(
-            CLIPassthroughScreen(prefix_context=result.command),
-            self._show_composed_command,
+            ConfirmScreen(
+                f"{title}?",
+                # Both spellings, because neither alone is honest. The first is the command the
+                # operator knows and could run themselves; the second is literally what will be
+                # spawned, via the module entry point so nothing has to be on PATH. Showing only
+                # the readable one would describe a different process than the one that runs.
+                f"{result.command}\n\n"
+                f"Runs as: {' '.join(result.argv)}\n\n"
+                "STRATUM will hand your terminal to the governed CLI. It prints the digest and "
+                "asks you to type its prefix — that typed prefix is the approval itself, which is "
+                "why this console does not collect it and no standing grant can satisfy it.\n\n"
+                "Press C instead to compose the line without running it.",
+            ),
+            self._on_hitl_decision_confirm,
         )
+
+    def _on_hitl_decision_confirm(self, confirmed: bool | None) -> None:
+        argv = self._pending_hitl_argv
+        self._pending_hitl_argv = None
+        if not confirmed or not argv:
+            return
+        returncode = self._run_governed_subprocess(argv)
+        if returncode == 0:
+            self.notify("Governed HITL decision recorded; artifact written.")
+        else:
+            self.notify(f"Governed HITL command exited {returncode}; nothing was assumed.", severity="error")
+        if self.signals:
+            self.signals.append_event(
+                datetime.now().strftime("%H:%M:%S"), "hitl_decision", f"exit {returncode}"
+            )
+        self._maybe_surface_hitl()
 
     def action_reject_hitl(self) -> None:
         from builder_ii.tui.projections.hitl_compose import compose_hitl_reject
@@ -1179,13 +1237,10 @@ class StratumApp(App[None]):
             self.stratum._hitl_proposal,
             artifacts_dir=self.artifacts_dir if isinstance(self.artifacts_dir, Path) else None,
         )
-        self.notify(result.reason, severity="warning")
         if result.refused or not result.command:
+            self.notify(result.reason, severity="warning")
             return
-        self.push_screen(
-            CLIPassthroughScreen(prefix_context=result.command),
-            self._show_composed_command,
-        )
+        self._decide_hitl("builder-hitl refuse-patch", "REFUSE PATCH", result)
 
     def action_inspect_hitl(self) -> None:
         if not self.stratum:
