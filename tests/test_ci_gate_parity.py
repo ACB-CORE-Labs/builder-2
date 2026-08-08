@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 CI_SCRIPT = REPO_ROOT / "scripts" / "ci.sh"
 SECRET_SCAN = REPO_ROOT / "scripts" / "secret_scan.py"
+STRATUM_CLOSURE_SCRIPT = REPO_ROOT / "scripts" / "verify_stratum_control_plane.sh"
 # gate()/skip() -- the functions the no-pager and strict-flag pins below exist to protect --
 # live here, not in CI_SCRIPT. Both files are covered by both pins for exactly that reason.
 GATE_BATTERY_LIB = REPO_ROOT / "scripts" / "lib" / "gate_battery_receipt.sh"
@@ -35,6 +36,7 @@ REQUIRED_GATES: tuple[str, ...] = (
     # substring match on "uv run mypy" alone would keep passing if it were deleted.
     "uv run mypy builder_ii/tui/app.py --follow-imports=silent",
     "bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607",
+    "bash scripts/verify_stratum_control_plane.sh",
     "uv run pytest",
 )
 
@@ -75,6 +77,9 @@ def _workflow_run_lines() -> list[str]:
 def test_ci_script_and_secret_scan_exist() -> None:
     assert CI_SCRIPT.is_file(), "scripts/ci.sh is the single source of truth for the gate battery"
     assert SECRET_SCAN.is_file(), "the secret scan must be a file, not an inline workflow heredoc"
+    assert STRATUM_CLOSURE_SCRIPT.is_file(), (
+        "the STRATUM control-plane closure lane must remain a repository script, not an inline CI fragment"
+    )
 
 
 def test_gate_battery_lib_exists_and_is_sourced_by_the_script() -> None:
@@ -156,6 +161,37 @@ def test_gate_battery_contains_every_blocking_gate() -> None:
         assert gate in script, f"scripts/ci.sh is missing the blocking gate: {gate!r}"
 
 
+def test_stratum_closure_lane_is_strict_reproducible_and_non_selective() -> None:
+    """The focused lane may improve diagnosis, never weaken closure evidence.
+
+    It is deliberately duplicated inside the later full-suite gate. A developer can run it alone
+    for a fast reproduction, but CI treats it as a normal blocking command and then still runs the
+    entire suite. Fixed ordering here is for reproducibility; randomized repository-wide ordering
+    remains the separate full-suite obligation.
+    """
+    script = STRATUM_CLOSURE_SCRIPT.read_text(encoding="utf-8")
+    for flag in ("set -o errexit", "set -o nounset", "set -o pipefail"):
+        assert flag in script, f"focused STRATUM closure lane must {flag}"
+
+    assert "uv run pytest -q" not in script, "pyproject already supplies -q; do not double-quiet the focused lane"
+    assert "--randomly-seed=0" in script, "focused closure order must be reproducible"
+    for weakening in ("|| true", " -x ", "--lf", "--failed-first", "continue-on-error"):
+        assert weakening not in script, f"focused closure lane contains a selective/advisory escape: {weakening!r}"
+
+    required_surfaces = (
+        "tests/test_goose_cli_start_governed.py",
+        "tests/test_goose_run_governed.py",
+        "tests/test_mcp_governed_apply.py",
+        "tests/test_readonly_repo_tools.py",
+        "tests/test_ratification_dispatch.py",
+        "tests/test_stratum_governed_dispatch.py",
+        "tests/scenarios/test_governed_mcp_readonly_session.py",
+        "tests/scenarios/test_in_loop_hitl_gate_to_apply.py",
+    )
+    for surface in required_surfaces:
+        assert surface in script, f"STRATUM focused lane lost the load-bearing surface {surface!r}"
+
+
 def test_gate_battery_never_pipes_a_gate_into_a_pager() -> None:
     """Piping a gate into head/tail reports the PAGER's exit status, so a red gate reads green.
 
@@ -202,10 +238,11 @@ def test_gate_battery_sets_strict_shell_flags() -> None:
 # --- The battery is unconditional: caching may make CI cheap, never selective -----------------
 #
 # The measured shape of a CI run here is that the GATES ARE FREE and the PROVISIONING IS NOT:
-# the whole 9-gate battery is ~23s (and a cold build of all 37 Rust crates ~6s) against a ~30min
-# run on the shared VM runner. So the honest optimisation is caching the environment -- and the
-# dishonest one, which looks equally attractive and is the natural next idea, is to stop running
-# some gates on some commits ("full suite only after a wave").
+# the complete blocking battery is cheap relative to the shared-runner provisioning cost, and a
+# cold build of the Rust validator is similarly small compared with assembling the environment.
+# So the honest optimisation is caching/provisioning efficiency -- and the dishonest one, which
+# looks equally attractive and is the natural next idea, is to stop running some gates on some
+# commits ("full suite only after a wave").
 #
 # That would buy back seconds and cost the property the battery exists for. These pins make the
 # selective version impossible to introduce QUIETLY: the battery step must be unconditional, and
