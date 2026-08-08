@@ -1,7 +1,7 @@
 """Headless governed Goose runtime tests (ADR-0009 lane B).
 
 The fake Goose is a real executable so streaming, byte bounds, child environment, exit
-codes, and signal behavior are exercised rather than mocked away.  No host Goose binary
+codes, and signal behavior are exercised rather than mocked away. No host Goose binary
 is required.
 """
 
@@ -68,6 +68,13 @@ def _settings_at(tmp_path: Path) -> MagicMock:
     settings = MagicMock()
     settings.project_root = tmp_path
     return settings
+
+
+def _session_plan() -> MagicMock:
+    plan = MagicMock()
+    plan.target_name = "builder"
+    plan.agent_profile = "patch_planner"
+    return plan
 
 
 def _write_recipe(tmp_path: Path) -> Path:
@@ -179,7 +186,8 @@ def test_each_authority_bearing_flag_is_required_before_spawn(
     )
 
     assert result.exit_code == 1
-    assert missing in result.output
+    # Rich may soft-wrap long option names; line wrapping is presentation, not semantics.
+    assert missing in result.output.replace("\n", "")
 
 
 def test_missing_governed_recipe_refuses_before_child_execution(
@@ -261,7 +269,6 @@ def test_run_governed_streams_output_to_a_log_and_chains_its_lifecycle(
     assert "goose_run_completed" in types
     assert types[-1] == "goose_readonly_closed"
     assert replay_events(records, session_id="goose_777")["valid"]
-    # Raw task prose is intentionally not copied into the evidence-chain message.
     assert "read the repo" not in records[0][0].get("message", "")
     assert "task_sha256=" in records[0][0].get("message", "")
 
@@ -298,7 +305,7 @@ def test_child_environment_overrides_are_child_scoped(
     )
     _install(monkeypatch, tmp_path, goose)
     monkeypatch.delenv("BUILDER_MCP_GOVERNED_APPLY", raising=False)
-    harness = GooseRuntimeHarness(_settings_at(tmp_path), MagicMock(), tmp_path)  # type: ignore[arg-type]
+    harness = GooseRuntimeHarness(_settings_at(tmp_path), _session_plan(), tmp_path)  # type: ignore[arg-type]
     harness.session_id = "goose_child_env"
     log_path = tmp_path / "child-env.log"
 
