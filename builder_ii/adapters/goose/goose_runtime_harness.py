@@ -10,16 +10,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from builder_ii.adapters.goose.governed_invocation import (
-    GooseCliCapabilities,
-    GovernedInvocationError,
-    plan_governed_headless_invocation,
-)
 from builder_ii.adapters.goose.goose_launcher import find_goose_binary, goose_env, recipe_path
 from builder_ii.adapters.goose.goose_receipts import (
     create_goose_close_receipt,
     create_goose_launch_receipt,
     create_no_mutation_postflight,
+)
+from builder_ii.adapters.goose.governed_invocation import (
+    GooseCliCapabilities,
+    GovernedInvocationError,
+    plan_governed_headless_invocation,
 )
 from builder_ii.adapters.mcp.governed_call import build_read_only_policy
 from builder_ii.core.config import Settings
