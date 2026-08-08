@@ -18,6 +18,7 @@ set -o pipefail
 cd "$(dirname "$0")/.."
 
 TESTS=(
+  tests/test_ci_gate_parity.py
   tests/test_goose_cli.py
   tests/test_goose_cli_start_governed.py
   tests/test_goose_run_governed.py
