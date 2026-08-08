@@ -4,12 +4,17 @@ import asyncio
 import hashlib
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from builder_ii.adapters.goose.governed_invocation import (
+    GooseCliCapabilities,
+    GovernedInvocationError,
+    plan_governed_headless_invocation,
+)
 from builder_ii.adapters.goose.goose_launcher import find_goose_binary, goose_env, recipe_path
 from builder_ii.adapters.goose.goose_receipts import (
     create_goose_close_receipt,
@@ -42,218 +47,194 @@ def _file_sha256(path: Path) -> str | None:
 
 
 def _get_target_files(target_root: Path) -> dict[str, str]:
-    """Snapshot target files by content digest, not timestamp granularity."""
+    """Snapshot target files by content digest, excluding governance/history state."""
     snapshot: dict[str, str] = {}
-    for p in target_root.rglob("*"):
-        if not p.is_file() or ".git" in p.parts or ".builder" in p.parts:
+    for path in target_root.rglob("*"):
+        if not path.is_file() or ".git" in path.parts or ".builder" in path.parts:
             continue
-        digest = _file_sha256(p)
+        digest = _file_sha256(path)
         if digest is not None:
-            snapshot[str(p)] = digest
+            snapshot[str(path)] = digest
     return snapshot
 
 
 async def _get_target_files_async(target_root: Path) -> dict[str, str]:
-    """Asynchronously snapshot target files using threadpool executor to avoid GIL blocks."""
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_executor, _get_target_files, target_root)
 
 
+def _bounded_utf8_prefix(text: str, max_bytes: int) -> bytes:
+    """Return the longest UTF-8 prefix no larger than ``max_bytes``.
+
+    Raw model output is convenience data, not evidence, but its disk bound is still a
+    mechanical invariant.  Avoid cutting a multibyte code point so the resulting log remains
+    valid UTF-8 for ordinary inspection.
+    """
+    if max_bytes <= 0:
+        return b""
+    encoded = text.encode("utf-8", errors="replace")
+    if len(encoded) <= max_bytes:
+        return encoded
+    candidate = encoded[:max_bytes]
+    while candidate:
+        try:
+            candidate.decode("utf-8")
+            return candidate
+        except UnicodeDecodeError as exc:
+            candidate = candidate[: exc.start]
+    return b""
+
+
 class GooseRuntimeHarness:
+    """Governed Goose process wrapper.
+
+    The harness is deliberately not an authority source.  It assumes the CLI boundary has
+    already performed command-authority/ratification checks, then enforces runtime mechanics:
+    exact tool-surface shape, pre/post snapshots, mandatory lifecycle evidence, bounded raw
+    output, wrapper-owned stop semantics, and close receipts.
+    """
+
+    GOVERNED_RECIPE_NAME = "governed-readonly.yaml"
+    RUN_LOG_MAX_BYTES = 2 * 1024 * 1024
+
     def __init__(self, settings: Settings, session_plan: SessionPlan, target_root: Path):
         self.settings = settings
         self.session_plan = session_plan
-        self.target_root = target_root
+        self.target_root = Path(target_root)
+        # Kept stable in this hardening slice for compatibility; Phase identity hardening
+        # replaces timestamp-only identity with a collision-resistant run context.
         self.session_id = f"goose_{int(time.time())}"
         self._proc: subprocess.Popen[str] | None = None
         self._async_proc: asyncio.subprocess.Process | None = None
         self._preflight_snapshot: dict[str, str] = {}
+        self._last_invocation_capabilities: GooseCliCapabilities | None = None
+        self._last_governed_recipe_sha256: str | None = None
+        self._last_task_sha256: str | None = None
 
     @property
     def builder_root(self) -> Path:
-        """Where this run's hash-chained event ledger lives.
-
-        Must match what the governed MCP server resolves, or a governed run's lifecycle events
-        and its tool-call events would land in two different chains. ``builder-mcp serve``
-        defaults ``--builder-root`` to the relative path ``.builder`` and Goose is spawned with
-        ``cwd=target_root``, so both sides resolve to ``<target_root>/.builder``.
-        """
+        """The event/evidence root shared by harness and governed MCP server."""
         return self.target_root / ".builder"
 
     def _export_transcript(self, transcript_path: str) -> None:
-        """Best-effort transcript export; absence of a transcript is not a failed close.
-
-        Resolves the binary through ``find_goose_binary`` rather than spawning the bare name
-        "goose". The literal was a launch/close asymmetry: launch refuses up front when the
-        binary is missing, while close spawned the name unconditionally and raised
-        FileNotFoundError from inside the close path -- turning "no goose on this host" into a
-        failed close for a session that had already ended, and making the harness unrunnable
-        anywhere the binary is absent (which is every CI environment here).
-        """
+        """Best-effort convenience export; never substitutes for receipts/postflight."""
         goose = find_goose_binary()
         if not goose:
             return
         try:
             subprocess.run(
-                [goose, "session", "export", "--name", self.session_id,
-                 "--format", "json", "--output", transcript_path],
+                [
+                    goose,
+                    "session",
+                    "export",
+                    "--name",
+                    self.session_id,
+                    "--format",
+                    "json",
+                    "--output",
+                    transcript_path,
+                ],
                 check=False,
             )
         except OSError:
-            # The transcript is evidence-of-convenience; the receipts and the no-mutation
-            # postflight are the load-bearing close evidence and are computed independently.
             return
 
     def _append_lifecycle_event(
-        self, event_type: str, *, message: str, subject_refs: list[dict[str, Any]] | None = None,
+        self,
+        event_type: str,
+        *,
+        message: str,
+        subject_refs: list[dict[str, Any]] | None = None,
         decision_result: str = "recorded",
-    ) -> Path | None:
-        """Chain one run-lifecycle event, or return None if the ledger cannot be written.
+    ) -> Path:
+        """Persist one mandatory lifecycle event.
 
-        Lifecycle events are appended only before the child is spawned and after it has exited,
-        so they never interleave with the MCP server's own appends. The shared appender holds
-        the session lock regardless, because "these two writers happen not to overlap" is an
-        argument that stops being true the moment someone adds a third.
+        Lifecycle evidence is constitutive of a governed run.  A start event that cannot be
+        persisted means no child may start; a completion/close event that cannot be persisted
+        means the wrapper must surface failure rather than silently claiming a governed close.
         """
-        try:
-            return append_session_event(
-                builder_root=self.builder_root,
-                session_id=self.session_id,
-                event_type=event_type,
-                command_surface="builder-goose",
-                policy=build_read_only_policy(),
-                subject_refs=subject_refs,
-                message=message,
-                decision_result=decision_result,
-                event_id_prefix="evt_goose",
-            )
-        except (OSError, ValueError):
-            # A ledger that cannot be written must not take the run down with it; the receipts
-            # and the no-mutation postflight remain the load-bearing evidence.
-            return None
+        return append_session_event(
+            builder_root=self.builder_root,
+            session_id=self.session_id,
+            event_type=event_type,
+            command_surface="builder-goose",
+            policy=build_read_only_policy(),
+            subject_refs=subject_refs,
+            message=message,
+            decision_result=decision_result,
+            event_id_prefix="evt_goose",
+        )
 
     def launch_readonly(self) -> dict[str, Any]:
-        """Launch Goose in a strict read-only mode, without shell access."""
+        """Launch the legacy strict read-only Goose session (no governed MCP tools)."""
         goose = find_goose_binary()
         if not goose:
             raise FileNotFoundError("Goose CLI not found.")
 
         recipe = recipe_path(self.settings, self.session_plan)
-        env = goose_env(self.settings, session=self.session_plan)
-
-        # Enforce read-only bounds in the environment.
+        env = dict(goose_env(self.settings, session=self.session_plan))
         env["GOOSE_MODE"] = "auto"
 
-        # We restrict the capabilities by not supplying `developer` builtin.
         argv = [goose, "session", "--with-builtin", "", "--name", self.session_id]
         if recipe.exists():
             argv.extend(["--recipe", str(recipe)])
 
         self._preflight_snapshot = _get_target_files(self.target_root)
-
-        # Both launch paths open the chain they will close: `close()` appends a
-        # `goose_readonly_closed` event unconditionally, and a close with no matching start is
-        # an incoherent chain that replays from a close at sequence 1.
         self._append_lifecycle_event(
             "goose_readonly_started",
             message="read-only Goose session started with no builtins",
         )
 
         start_time = _current_time_utc()
-        self._proc = subprocess.Popen(
-            argv,
-            cwd=self.target_root,
-            env=env,
-        )
-
-        return create_goose_launch_receipt(
-            session_id=self.session_id,
-            target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
-            agent_profile=self.session_plan.agent_profile
-            if hasattr(self.session_plan, "agent_profile")
-            else "patch_planner",
-            pid=self._proc.pid,
-            start_time=start_time,
-        )
-
-    # Recipe whose sole extension is the builder-II governed MCP server (G2). Unlike
-    # launch_readonly (which strips builtins so Goose has *no* tools), this gives Goose one
-    # tool surface -- our server -- so its tool calls flow through the governed ceremony.
-    GOVERNED_RECIPE_NAME = "governed-readonly.yaml"
+        self._proc = subprocess.Popen(argv, cwd=self.target_root, env=env)
+        return self._launch_receipt(start_time)
 
     def _governed_recipe_path(self) -> Path:
-        return self.settings.project_root / "recipes" / self.GOVERNED_RECIPE_NAME
+        return Path(self.settings.project_root) / "recipes" / self.GOVERNED_RECIPE_NAME
 
     def _governed_argv(self, goose: str, recipe: Path) -> list[str]:
-        """Goose argv for a governed session: no builtins, our recipe as the tool surface."""
-        argv = [goose, "session", "--with-builtin", "", "--name", self.session_id]
-        if recipe.exists():
-            argv.extend(["--recipe", str(recipe)])
-        return argv
+        """Interactive governed argv; recipe interposition is mandatory, never optional."""
+        if not recipe.is_file():
+            raise GovernedInvocationError(
+                f"governed recipe not found: {recipe}; refusing to start without MCP interposition"
+            )
+        return [
+            goose,
+            "session",
+            "--with-builtin",
+            "",
+            "--name",
+            self.session_id,
+            "--recipe",
+            str(recipe),
+        ]
 
     def launch_governed(self) -> dict[str, Any]:
-        """Launch Goose with the builder-II governed MCP server as its only tool surface.
-
-        Points Goose at ``recipes/governed-readonly.yaml``, whose sole extension is
-        ``builder-mcp serve`` -- so every Goose tool call flows through the governed
-        envelope -> receipt -> ledger ceremony instead of a native builtin. Still no
-        developer/shell builtins (``--with-builtin ""``), still preflight-snapshotted and
-        no-mutation-postflighted on close. The in-loop refusal gate for mutating tool
-        classes arrives in G3; G2's exposed tools are read-only, so ``GOOSE_MODE`` stays
-        ``auto`` and the governance boundary lives in the MCP tool, not in Goose's prompt.
-        """
+        """Launch interactive Goose with builder-II MCP as its only tool surface."""
         goose = find_goose_binary()
         if not goose:
             raise FileNotFoundError("Goose CLI not found.")
 
         recipe = self._governed_recipe_path()
-        env = goose_env(self.settings, session=self.session_plan)
+        argv = self._governed_argv(goose, recipe)
+        env = dict(goose_env(self.settings, session=self.session_plan))
         env["GOOSE_MODE"] = "auto"
-        # Scope the MCP server's ledger to this run so its events land under this session.
         env["BUILDER_MCP_SESSION_ID"] = self.session_id
 
-        argv = self._governed_argv(goose, recipe)
         self._preflight_snapshot = _get_target_files(self.target_root)
-
-        # Opens the chain the run cockpit tails, before the child exists: a governed run is
-        # visible from the moment it starts, not only once its first tool call lands.
+        # Mandatory evidence is written before the process exists.
         self._append_lifecycle_event(
             "goose_readonly_started",
             message=f"governed Goose session started under {self.GOVERNED_RECIPE_NAME}",
         )
 
         start_time = _current_time_utc()
-        self._proc = subprocess.Popen(
-            argv,
-            cwd=self.target_root,
-            env=env,
-        )
-
-        return create_goose_launch_receipt(
-            session_id=self.session_id,
-            target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
-            agent_profile=self.session_plan.agent_profile
-            if hasattr(self.session_plan, "agent_profile")
-            else "patch_planner",
-            pid=self._proc.pid,
-            start_time=start_time,
-        )
-
-    # --- Headless streamed governed run (lane B) -------------------------------------------
-    #
-    # `launch_governed` hands Goose the operator's terminal and blocks: the run is governed but
-    # invisible, which is the "masterful governance, an invisible run" problem ADR-0009 names.
-    # A streamed run instead writes its lifecycle onto the same chain the operator console
-    # tails, so the run is legible while it happens and nothing has to suspend to watch it.
-
-    #: Output ceiling for the raw run log. Model output is not evidence and is never hashed
-    #: into the chain; it is a convenience transcript, and an unbounded one would let a looping
-    #: agent fill the disk that the actual evidence has to be written to.
-    RUN_LOG_MAX_BYTES = 2 * 1024 * 1024
+        self._proc = subprocess.Popen(argv, cwd=self.target_root, env=env)
+        return self._launch_receipt(start_time)
 
     @staticmethod
     def _goose_run_help(goose: str) -> str:
-        """Help text for `goose run`, or empty when the subcommand is unavailable."""
+        """Observed ``goose run --help`` text, or empty when it cannot be inspected."""
         try:
             proc = subprocess.run(
                 [goose, "run", "--help"], capture_output=True, text=True, timeout=10
@@ -262,12 +243,13 @@ class GooseRuntimeHarness:
             return ""
         return (proc.stdout or "") + "\n" + (proc.stderr or "")
 
-    def _governed_run_argv(self, goose: str, recipe: Path, task: str, help_text: str) -> list[str]:
-        """Build the headless argv from what this Goose build actually advertises.
+    def _governed_run_argv(
+        self, goose: str, recipe: Path, task: str, help_text: str
+    ) -> list[str]:
+        """Compatibility projection of advertised flags.
 
-        The repo has already been burned once by assuming a CLI shape -- `goose session
-        --recipe` was accepted, then rejected by 1.38 -- so every flag here is used only if the
-        help text names it, and there is no version pin to reason from.
+        Kept for existing diagnostics/tests.  The executing path does **not** use this
+        best-effort projection; :meth:`run_governed_streaming` uses the strict planner below.
         """
         argv = [goose, "run"]
         if "--recipe" in help_text:
@@ -281,52 +263,56 @@ class GooseRuntimeHarness:
         return argv
 
     def supports_headless_run(self, goose: str) -> bool:
-        """Whether this Goose build can run headlessly at all.
-
-        Fail closed rather than degrade silently: without `--text` there is no way to hand the
-        run its task, and a "streamed run" that silently dropped the task would be worse than a
-        refusal that names the interactive fallback.
-        """
+        """True only when the installed CLI can satisfy the *whole* governed contract."""
         help_text = self._goose_run_help(goose)
-        return bool(help_text) and "--text" in help_text
+        return bool(help_text) and GooseCliCapabilities.from_run_help(
+            help_text
+        ).supports_governed_headless
 
     def run_governed_streaming(
-        self, task: str, *, log_path: Path, on_line: Callable[[str], None] | None = None
+        self,
+        task: str,
+        *,
+        log_path: Path,
+        on_line: Callable[[str], None] | None = None,
+        child_env_overrides: Mapping[str, str] | None = None,
     ) -> tuple[dict[str, Any], int]:
-        """Run a governed Goose task headlessly, streaming output to a log. Returns (receipt, exit).
-
-        Lifecycle events bracket the child: `goose_run_started` before it is spawned and
-        `goose_run_completed` after it exits. They are therefore temporally disjoint from the
-        MCP server's own appends, and they take the shared session lock anyway -- disjointness
-        is a property of today's call order, not a guarantee anyone should have to preserve.
-        """
+        """Run a governed task headlessly under a complete, observed CLI contract."""
         goose = find_goose_binary()
         if not goose:
             raise FileNotFoundError("Goose CLI not found.")
-        if not self.supports_headless_run(goose):
-            raise RuntimeError(
-                "This Goose build does not advertise `goose run --text`, so a headless governed "
-                "run cannot hand it the task. Use `builder-goose start-governed` for an "
-                "interactive governed session instead."
-            )
 
+        help_text = self._goose_run_help(goose)
         recipe = self._governed_recipe_path()
-        env = goose_env(self.settings, session=self.session_plan)
+        invocation = plan_governed_headless_invocation(
+            goose_binary=goose,
+            recipe_path=recipe,
+            task=task,
+            session_id=self.session_id,
+            help_text=help_text,
+        )
+        self._last_invocation_capabilities = invocation.capabilities
+        self._last_governed_recipe_sha256 = invocation.recipe_sha256
+        self._last_task_sha256 = invocation.task_sha256
+
+        env = dict(goose_env(self.settings, session=self.session_plan))
         env["GOOSE_MODE"] = "auto"
         env["BUILDER_MCP_SESSION_ID"] = self.session_id
+        if child_env_overrides:
+            env.update({str(key): str(value) for key, value in child_env_overrides.items()})
 
-        argv = self._governed_run_argv(goose, recipe, task, self._goose_run_help(goose))
         self._preflight_snapshot = _get_target_files(self.target_root)
-
+        # Do not put raw task text in the evidence chain.  The task digest is sufficient to
+        # identify this invocation until Phase identity introduces a dedicated task artifact.
         self._append_lifecycle_event(
             "goose_run_started",
-            message=f"headless governed run started: {task[:200]}",
+            message=f"headless governed run started; task_sha256={invocation.task_sha256}",
         )
 
         start_time = _current_time_utc()
         log_path.parent.mkdir(parents=True, exist_ok=True)
         self._proc = subprocess.Popen(
-            argv,
+            list(invocation.argv),
             cwd=self.target_root,
             env=env,
             stdout=subprocess.PIPE,
@@ -336,26 +322,21 @@ class GooseRuntimeHarness:
         )
 
         written = 0
-        with log_path.open("w", encoding="utf-8") as log:
+        with log_path.open("wb") as log:
             if self._proc.stdout is not None:
                 for line in self._proc.stdout:
-                    if written < self.RUN_LOG_MAX_BYTES:
-                        log.write(line)
-                        log.flush()
-                        written += len(line.encode("utf-8"))
+                    remaining = self.RUN_LOG_MAX_BYTES - written
+                    if remaining > 0:
+                        chunk = _bounded_utf8_prefix(line, remaining)
+                        if chunk:
+                            log.write(chunk)
+                            log.flush()
+                            written += len(chunk)
                     if on_line is not None:
                         on_line(line.rstrip("\n"))
         exit_code = self._proc.wait()
 
-        receipt = create_goose_launch_receipt(
-            session_id=self.session_id,
-            target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
-            agent_profile=self.session_plan.agent_profile
-            if hasattr(self.session_plan, "agent_profile")
-            else "patch_planner",
-            pid=self._proc.pid,
-            start_time=start_time,
-        )
+        receipt = self._launch_receipt(start_time)
         self._append_lifecycle_event(
             "goose_run_completed",
             message=f"headless governed run exited with code {exit_code}",
@@ -364,12 +345,7 @@ class GooseRuntimeHarness:
         return receipt, exit_code
 
     def request_stop(self) -> bool:
-        """Ask the running child to stop, escalating only if it will not.
-
-        Records the request on the chain first, so an operator's intent to stop is evidence
-        even when the process is already gone. Never kills mid-write without asking: TERM,
-        five seconds, then KILL -- the same escalation `close()` uses.
-        """
+        """Record stop intent first, then TERM -> bounded wait -> KILL the child if needed."""
         self._append_lifecycle_event(
             "run_stop_requested", message="operator requested stop", decision_result="stopped"
         )
@@ -384,21 +360,19 @@ class GooseRuntimeHarness:
         return True
 
     async def launch_readonly_async(self) -> dict[str, Any]:
-        """Launch Goose asynchronously in strict read-only mode, avoiding loop blockage."""
+        """Launch the legacy read-only session asynchronously."""
         goose = find_goose_binary()
         if not goose:
             raise FileNotFoundError("Goose CLI not found.")
 
         recipe = recipe_path(self.settings, self.session_plan)
-        env = goose_env(self.settings, session=self.session_plan)
+        env = dict(goose_env(self.settings, session=self.session_plan))
         env["GOOSE_MODE"] = "auto"
-
         argv = [goose, "session", "--with-builtin", "", "--name", self.session_id]
         if recipe.exists():
             argv.extend(["--recipe", str(recipe)])
 
         self._preflight_snapshot = await _get_target_files_async(self.target_root)
-
         self._append_lifecycle_event(
             "goose_readonly_started",
             message="read-only Goose session started with no builtins",
@@ -406,23 +380,110 @@ class GooseRuntimeHarness:
 
         start_time = _current_time_utc()
         self._async_proc = await asyncio.create_subprocess_exec(
-            *argv,
-            cwd=self.target_root,
-            env=env,
+            *argv, cwd=self.target_root, env=env
         )
-
         return create_goose_launch_receipt(
             session_id=self.session_id,
-            target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
-            agent_profile=self.session_plan.agent_profile
-            if hasattr(self.session_plan, "agent_profile")
-            else "patch_planner",
+            target_profile=self._target_profile(),
+            agent_profile=self._agent_profile(),
             pid=self._async_proc.pid,
             start_time=start_time,
         )
 
+    def _target_profile(self) -> str:
+        return (
+            self.session_plan.target_name
+            if hasattr(self.session_plan, "target_name")
+            else "builder"
+        )
+
+    def _agent_profile(self) -> str:
+        return (
+            self.session_plan.agent_profile
+            if hasattr(self.session_plan, "agent_profile")
+            else "patch_planner"
+        )
+
+    def _launch_receipt(self, start_time: str) -> dict[str, Any]:
+        if self._proc is None:
+            raise RuntimeError("cannot create launch receipt before a child process exists")
+        return create_goose_launch_receipt(
+            session_id=self.session_id,
+            target_profile=self._target_profile(),
+            agent_profile=self._agent_profile(),
+            pid=self._proc.pid,
+            start_time=start_time,
+        )
+
+    def _postflight(self, *, end_time: str, post_snapshot: dict[str, str]) -> dict[str, Any]:
+        mutations: list[str] = []
+        for file_path, digest in post_snapshot.items():
+            if (
+                file_path not in self._preflight_snapshot
+                or self._preflight_snapshot[file_path] != digest
+            ):
+                mutations.append(file_path)
+        for file_path in self._preflight_snapshot:
+            if file_path not in post_snapshot:
+                mutations.append(f"{file_path} (deleted)")
+        return create_no_mutation_postflight(
+            session_id=self.session_id,
+            target_root=str(self.target_root),
+            start_time=end_time,
+            end_time=end_time,
+            files_checked=len(post_snapshot),
+            mutations_detected=mutations,
+        )
+
+    def _close_receipt_and_event(
+        self,
+        *,
+        launch_receipt_digest: str,
+        postflight: dict[str, Any],
+        exit_code: int,
+        end_time: str,
+    ) -> dict[str, Any]:
+        transcript_path_obj = (
+            self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
+        )
+        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        transcript_path = str(transcript_path_obj)
+        self._export_transcript(transcript_path)
+        transcript_digest = _file_sha256(transcript_path_obj) or ""
+
+        close_receipt = create_goose_close_receipt(
+            session_id=self.session_id,
+            launch_receipt_digest=launch_receipt_digest,
+            postflight_digest=postflight["digest"],
+            transcript_path=transcript_path,
+            transcript_digest=transcript_digest,
+            end_time=end_time,
+            exit_code=exit_code,
+        )
+        refs = (
+            [
+                {
+                    "kind": "builder_ii.goose_transcript",
+                    "path": transcript_path,
+                    "sha256": transcript_digest,
+                    "role": "transcript",
+                    "name": "session transcript",
+                    "required": False,
+                }
+            ]
+            if transcript_digest
+            else []
+        )
+        self._append_lifecycle_event(
+            "goose_readonly_closed",
+            message=f"governed Goose session closed with exit code {exit_code}",
+            subject_refs=refs,
+            decision_result="recorded" if postflight["valid"] else "mutation_detected",
+        )
+        return close_receipt
+
     def close(self, launch_receipt_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Terminate Goose and verify no mutations occurred."""
+        """Terminate the synchronous child, verify target state, and close the evidence chain."""
         end_time = _current_time_utc()
         exit_code = 0
         if self._proc:
@@ -433,70 +494,23 @@ class GooseRuntimeHarness:
                 except subprocess.TimeoutExpired:
                     self._proc.kill()
                     self._proc.wait()
-            exit_code = self._proc.returncode
+            exit_code = int(self._proc.returncode or 0)
 
-        post_snapshot = _get_target_files(self.target_root)
-        mutations: list[str] = []
-        for file_path, digest in post_snapshot.items():
-            if file_path not in self._preflight_snapshot or self._preflight_snapshot[file_path] != digest:
-                mutations.append(file_path)
-        for file_path in self._preflight_snapshot:
-            if file_path not in post_snapshot:
-                mutations.append(f"{file_path} (deleted)")
-
-        postflight = create_no_mutation_postflight(
-            session_id=self.session_id,
-            target_root=str(self.target_root),
-            start_time=end_time,  # approximate for schema
-            end_time=end_time,
-            files_checked=len(post_snapshot),
-            mutations_detected=mutations,
+        postflight = self._postflight(
+            end_time=end_time, post_snapshot=_get_target_files(self.target_root)
         )
-
-        # Export the actual transcript to a JSON log instead of timestamp guessing
-        transcript_path_obj = self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
-        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
-        transcript_path = str(transcript_path_obj)
-        self._export_transcript(transcript_path)
-        transcript_digest = _file_sha256(transcript_path_obj) or ""
-
-        close_receipt = create_goose_close_receipt(
-            session_id=self.session_id,
+        close_receipt = self._close_receipt_and_event(
             launch_receipt_digest=launch_receipt_digest,
-            postflight_digest=postflight["digest"],
-            transcript_path=transcript_path,
-            transcript_digest=transcript_digest,
-            end_time=end_time,
+            postflight=postflight,
             exit_code=exit_code,
+            end_time=end_time,
         )
-
-        # Close the chain this run opened. The record this replaces was unwritable as an event:
-        # it declared `goose_session_closed` (not in EVENT_TYPES), sequence 0 (the validator
-        # requires >= 1) and a `{"kind": "null"}` policy snapshot (not a valid ref) -- and it was
-        # never passed to validate_event_record, so it failed silently into a directory nothing
-        # tails. It now goes through the shared appender, into the chain the cockpit reads.
-        self._append_lifecycle_event(
-            "goose_readonly_closed",
-            message=f"governed Goose session closed with exit code {exit_code}",
-            subject_refs=[
-                {
-                    "kind": "builder_ii.goose_transcript",
-                    "path": transcript_path,
-                    "sha256": transcript_digest,
-                    "role": "transcript",
-                    "name": "session transcript",
-                    "required": False,
-                }
-            ]
-            if transcript_digest
-            else [],
-            decision_result="recorded" if postflight["valid"] else "mutation_detected",
-        )
-
         return close_receipt, postflight
 
-    async def close_async(self, launch_receipt_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Asynchronously terminate Goose and check filesystem changes."""
+    async def close_async(
+        self, launch_receipt_digest: str
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Terminate the async child, verify target state, and close the evidence chain."""
         end_time = _current_time_utc()
         exit_code = 0
         if self._async_proc:
@@ -507,34 +521,21 @@ class GooseRuntimeHarness:
                 except asyncio.TimeoutError:
                     self._async_proc.kill()
                     await self._async_proc.wait()
-            exit_code = self._async_proc.returncode
+            exit_code = int(self._async_proc.returncode or 0)
 
-        post_snapshot = await _get_target_files_async(self.target_root)
-
-        mutations: list[str] = []
-        for file_path, digest in post_snapshot.items():
-            if file_path not in self._preflight_snapshot or self._preflight_snapshot[file_path] != digest:
-                mutations.append(file_path)
-        for file_path in self._preflight_snapshot:
-            if file_path not in post_snapshot:
-                mutations.append(f"{file_path} (deleted)")
-
-        postflight = create_no_mutation_postflight(
-            session_id=self.session_id,
-            target_root=str(self.target_root),
-            start_time=end_time,
-            end_time=end_time,
-            files_checked=len(post_snapshot),
-            mutations_detected=mutations,
+        postflight = self._postflight(
+            end_time=end_time, post_snapshot=await _get_target_files_async(self.target_root)
         )
 
-        # Export the actual transcript to a JSON log instead of timestamp guessing
-        transcript_path_obj = self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
+        # Async launch receipts use the same schema; close receipt/event creation is sync I/O
+        # over local evidence files and is intentionally shared with the sync path.
+        transcript_path_obj = (
+            self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
+        )
         transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
         transcript_path = str(transcript_path_obj)
         self._export_transcript(transcript_path)
         transcript_digest = _file_sha256(transcript_path_obj) or ""
-
         close_receipt = create_goose_close_receipt(
             session_id=self.session_id,
             launch_receipt_digest=launch_receipt_digest,
@@ -544,16 +545,8 @@ class GooseRuntimeHarness:
             end_time=end_time,
             exit_code=exit_code,
         )
-
-        # Close the chain this run opened. The record this replaces was unwritable as an event:
-        # it declared `goose_session_closed` (not in EVENT_TYPES), sequence 0 (the validator
-        # requires >= 1) and a `{"kind": "null"}` policy snapshot (not a valid ref) -- and it was
-        # never passed to validate_event_record, so it failed silently into a directory nothing
-        # tails. It now goes through the shared appender, into the chain the cockpit reads.
-        self._append_lifecycle_event(
-            "goose_readonly_closed",
-            message=f"governed Goose session closed with exit code {exit_code}",
-            subject_refs=[
+        refs = (
+            [
                 {
                     "kind": "builder_ii.goose_transcript",
                     "path": transcript_path,
@@ -564,8 +557,12 @@ class GooseRuntimeHarness:
                 }
             ]
             if transcript_digest
-            else [],
+            else []
+        )
+        self._append_lifecycle_event(
+            "goose_readonly_closed",
+            message=f"governed Goose session closed with exit code {exit_code}",
+            subject_refs=refs,
             decision_result="recorded" if postflight["valid"] else "mutation_detected",
         )
-
         return close_receipt, postflight
