@@ -1,14 +1,8 @@
-"""The headless streamed governed run (`builder-goose run-governed`, ADR-0009 lane B).
+"""Headless governed Goose runtime tests (ADR-0009 lane B).
 
-`start-governed` hands Goose the operator's terminal and blocks -- governed, but invisible,
-which is the "masterful governance, an invisible run" problem ADR-0009 names. A streamed run
-writes its lifecycle onto the chain the operator console tails instead, so it is legible while
-it happens.
-
-Goose is stood in for by a real executable script rather than a monkeypatched Popen: the thing
-under test is the streaming loop, the log cap, the exit-code path and the signal handling, and
-a fake that never actually runs would exercise none of them. Every test here works on a host
-with no Goose installed.
+The fake Goose is a real executable so streaming, byte bounds, child environment, exit
+codes, and signal behavior are exercised rather than mocked away.  No host Goose binary
+is required.
 """
 
 from __future__ import annotations
@@ -29,29 +23,24 @@ from builder_ii.cli.goose_cli import goose_app
 from builder_ii.governance.ledger.event_ledger import load_event_records, replay_events
 
 runner = CliRunner()
-
-#: The repository these tests run inside. Nothing here may write into it.
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture(autouse=True)
 def _no_repo_pollution() -> Any:
-    """Fail loudly if a run escapes its tmp_path and writes into the real repository.
-
-    A governed run creates `.builder/sessions/<id>/` wherever it thinks the project root is, so
-    a missed patch does not fail the test -- it silently writes real session ledgers into the
-    working tree. This asserts the blast radius rather than trusting the patching.
-    """
     sessions = _REPO_ROOT / ".builder" / "sessions"
-    before = {p.name for p in sessions.iterdir()} if sessions.exists() else set()
+    before = {path.name for path in sessions.iterdir()} if sessions.exists() else set()
     yield
-    after = {p.name for p in sessions.iterdir()} if sessions.exists() else set()
+    after = {path.name for path in sessions.iterdir()} if sessions.exists() else set()
     assert after == before, f"a test wrote session dirs into the real repo: {sorted(after - before)}"
 
-#: Help text advertising the flags a headless run needs.
-HEADLESS_HELP = "Usage: goose run [OPTIONS]\n  --recipe <PATH>\n  --name <NAME>\n  --with-builtin <B>\n  --text <TEXT>\n"
 
-#: A build that cannot be handed a task headlessly.
+HEADLESS_HELP = """Usage: goose run [OPTIONS]
+  --recipe <PATH>
+  --name <NAME>
+  --with-builtin <B>
+  --text <TEXT>
+"""
 NO_HEADLESS_HELP = "Usage: goose run [OPTIONS]\n  --recipe <PATH>\n"
 
 
@@ -62,7 +51,11 @@ def _write_manifest(path: Path, *, mode: str = "read_only") -> None:
                 "kind": "builder_ii.goose_session_manifest",
                 "schema_version": 1,
                 "target": {"name": "builder", "repo": ".", "description": "test"},
-                "agent_profile": {"name": "patch_planner", "description": "test", "authority": "user"},
+                "agent_profile": {
+                    "name": "patch_planner",
+                    "description": "test",
+                    "authority": "user",
+                },
                 "task": "governed run",
                 "requested_runtime_mode": mode,
             }
@@ -77,8 +70,15 @@ def _settings_at(tmp_path: Path) -> MagicMock:
     return settings
 
 
+def _write_recipe(tmp_path: Path) -> Path:
+    directory = tmp_path / "recipes"
+    directory.mkdir(exist_ok=True)
+    path = directory / GooseRuntimeHarness.GOVERNED_RECIPE_NAME
+    path.write_text("version: '1.0.0'\nextensions: []\n", encoding="utf-8")
+    return path
+
+
 def _fake_goose(tmp_path: Path, *, body: str, help_text: str = HEADLESS_HELP) -> str:
-    """A real executable standing in for Goose, so the streaming loop actually streams."""
     script = tmp_path / "fake_goose"
     script.write_text(
         "#!/usr/bin/env python3\n"
@@ -94,17 +94,9 @@ def _fake_goose(tmp_path: Path, *, body: str, help_text: str = HEADLESS_HELP) ->
     return str(script)
 
 
-def _patch_every_instance(monkeypatch: Any, module_basename: str, attr: str, value: Any) -> None:
-    """Patch an attribute on every loaded copy of a module.
-
-    The legacy alias shim (`builder_ii.goose_*` -> `builder_ii.adapters.goose.goose_*`) executes
-    these modules a *second* time, so `sys.modules` can hold two distinct objects for one source
-    file -- distinct enough that their `goose_app` Typer instances are different objects. A test
-    that patches only the copy it happens to have imported leaves the other one live, and the
-    command under test then runs against real settings. That is not hypothetical: it is how an
-    earlier version of this file wrote a governed run into the actual repository under
-    `.builder/sessions/`, passing in isolation and polluting the tree in a full-suite run.
-    """
+def _patch_every_instance(
+    monkeypatch: Any, module_basename: str, attr: str, value: Any
+) -> None:
     patched = False
     for name, module in list(sys.modules.items()):
         if module is None or not name.endswith(module_basename):
@@ -115,13 +107,22 @@ def _patch_every_instance(monkeypatch: Any, module_basename: str, attr: str, val
     assert patched, f"no loaded module named *{module_basename} exposes {attr!r} to patch"
 
 
-def _install(monkeypatch: Any, tmp_path: Path, goose_path: str) -> None:
-    # Import both spellings first so every copy that could serve the CLI is present and patched.
+def _install(
+    monkeypatch: Any,
+    tmp_path: Path,
+    goose_path: str,
+    *,
+    create_recipe: bool = True,
+) -> None:
     import builder_ii.adapters.goose.goose_runtime_harness  # noqa: F401
     import builder_ii.cli.goose_cli  # noqa: F401
 
-    _patch_every_instance(monkeypatch, "goose_cli", "load_settings", lambda *a, **k: _settings_at(tmp_path))
-    _patch_every_instance(monkeypatch, "goose_runtime_harness", "find_goose_binary", lambda: goose_path)
+    _patch_every_instance(
+        monkeypatch, "goose_cli", "load_settings", lambda *a, **k: _settings_at(tmp_path)
+    )
+    _patch_every_instance(
+        monkeypatch, "goose_runtime_harness", "find_goose_binary", lambda: goose_path
+    )
     _patch_every_instance(
         monkeypatch,
         "goose_runtime_harness",
@@ -129,6 +130,8 @@ def _install(monkeypatch: Any, tmp_path: Path, goose_path: str) -> None:
         lambda *a, **k: {**os.environ, "PATH": os.environ.get("PATH", "")},
     )
     monkeypatch.setattr("builder_ii.goose_runtime_harness.time.time", lambda: 777.0)
+    if create_recipe:
+        _write_recipe(tmp_path)
 
 
 # --- fail-closed gates ------------------------------------------------------------------
@@ -137,7 +140,9 @@ def _install(monkeypatch: Any, tmp_path: Path, goose_path: str) -> None:
 def test_run_governed_refuses_a_non_read_only_manifest(tmp_path: Path) -> None:
     manifest = tmp_path / "m.json"
     _write_manifest(manifest, mode="autonomous")
-    result = runner.invoke(goose_app, ["run-governed", "--manifest", str(manifest), "--task", "x"])
+    result = runner.invoke(
+        goose_app, ["run-governed", "--manifest", str(manifest), "--task", "x"]
+    )
     assert result.exit_code == 1
     assert "read_only" in result.output.lower()
 
@@ -145,18 +150,84 @@ def test_run_governed_refuses_a_non_read_only_manifest(tmp_path: Path) -> None:
 def test_run_governed_fails_closed_when_the_build_cannot_run_headlessly(
     monkeypatch: Any, tmp_path: Path
 ) -> None:
-    """A build with no `--text` cannot be handed the task; silently dropping it would be worse."""
     goose = _fake_goose(tmp_path, body="sys.exit(0)", help_text=NO_HEADLESS_HELP)
     _install(monkeypatch, tmp_path, goose)
     manifest = tmp_path / "m.json"
     _write_manifest(manifest)
 
-    result = runner.invoke(goose_app, ["run-governed", "--manifest", str(manifest), "--task", "x"])
+    result = runner.invoke(
+        goose_app, ["run-governed", "--manifest", str(manifest), "--task", "x"]
+    )
 
     assert result.exit_code == 1
-    assert "headless" in result.output.lower()
-    # It names the interactive fallback rather than leaving the operator stuck.
+    assert "governed headless contract" in result.output.lower()
     assert "start-governed" in result.output
+
+
+@pytest.mark.parametrize("missing", ["--recipe", "--with-builtin", "--text"])
+def test_each_authority_bearing_flag_is_required_before_spawn(
+    monkeypatch: Any, tmp_path: Path, missing: str
+) -> None:
+    lines = [line for line in HEADLESS_HELP.splitlines() if missing not in line]
+    goose = _fake_goose(tmp_path, body="sys.exit(0)", help_text="\n".join(lines) + "\n")
+    _install(monkeypatch, tmp_path, goose)
+    manifest = tmp_path / "m.json"
+    _write_manifest(manifest)
+
+    result = runner.invoke(
+        goose_app, ["run-governed", "--manifest", str(manifest), "--task", "x"]
+    )
+
+    assert result.exit_code == 1
+    assert missing in result.output
+
+
+def test_missing_governed_recipe_refuses_before_child_execution(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    marker = tmp_path / "child-ran"
+    goose = _fake_goose(
+        tmp_path,
+        body=f"import pathlib; pathlib.Path({str(marker)!r}).write_text('bad'); sys.exit(0)",
+    )
+    _install(monkeypatch, tmp_path, goose, create_recipe=False)
+    manifest = tmp_path / "m.json"
+    _write_manifest(manifest)
+
+    result = runner.invoke(
+        goose_app, ["run-governed", "--manifest", str(manifest), "--task", "x"]
+    )
+
+    assert result.exit_code == 1
+    assert "recipe not found" in result.output.lower()
+    assert not marker.exists()
+
+
+def test_lifecycle_evidence_failure_prevents_spawn(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    marker = tmp_path / "child-ran"
+    goose = _fake_goose(
+        tmp_path,
+        body=f"import pathlib; pathlib.Path({str(marker)!r}).write_text('bad'); sys.exit(0)",
+    )
+    _install(monkeypatch, tmp_path, goose)
+    _patch_every_instance(
+        monkeypatch,
+        "goose_runtime_harness",
+        "append_session_event",
+        lambda **_kwargs: (_ for _ in ()).throw(OSError("ledger unavailable")),
+    )
+    manifest = tmp_path / "m.json"
+    _write_manifest(manifest)
+
+    result = runner.invoke(
+        goose_app, ["run-governed", "--manifest", str(manifest), "--task", "x"]
+    )
+
+    assert result.exit_code == 1
+    assert "ledger unavailable" in result.output.lower()
+    assert not marker.exists()
 
 
 # --- the streamed run -------------------------------------------------------------------
@@ -174,25 +245,28 @@ def test_run_governed_streams_output_to_a_log_and_chains_its_lifecycle(
     _write_manifest(manifest)
 
     result = runner.invoke(
-        goose_app, ["run-governed", "--manifest", str(manifest), "--task", "read the repo"]
+        goose_app,
+        ["run-governed", "--manifest", str(manifest), "--task", "read the repo"],
     )
 
     assert result.exit_code == 0, result.output
-
-    log = (tmp_path / ".builder" / "sessions" / "goose_777" / "goose_run.log").read_text(encoding="utf-8")
+    log = (
+        tmp_path / ".builder" / "sessions" / "goose_777" / "goose_run.log"
+    ).read_text(encoding="utf-8")
     assert "line 0" in log and "line 4" in log
 
     records = load_event_records(tmp_path / ".builder" / "sessions" / "goose_777" / "events")
     types = [event["event_type"] for event, _ in records]
-    # Started brackets the child before it exists; completed and closed after it exits.
     assert types[0] == "goose_run_started"
     assert "goose_run_completed" in types
     assert types[-1] == "goose_readonly_closed"
     assert replay_events(records, session_id="goose_777")["valid"]
+    # Raw task prose is intentionally not copied into the evidence-chain message.
+    assert "read the repo" not in records[0][0].get("message", "")
+    assert "task_sha256=" in records[0][0].get("message", "")
 
 
-def test_the_run_log_is_bounded(monkeypatch: Any, tmp_path: Path) -> None:
-    """An unbounded log lets a looping agent fill the disk the evidence must be written to."""
+def test_the_run_log_is_strictly_byte_bounded(monkeypatch: Any, tmp_path: Path) -> None:
     goose = _fake_goose(
         tmp_path,
         body="for i in range(2000):\n    print('x' * 200, flush=True)\nsys.exit(0)",
@@ -202,12 +276,41 @@ def test_the_run_log_is_bounded(monkeypatch: Any, tmp_path: Path) -> None:
     manifest = tmp_path / "m.json"
     _write_manifest(manifest)
 
-    result = runner.invoke(goose_app, ["run-governed", "--manifest", str(manifest), "--task", "t"])
+    result = runner.invoke(
+        goose_app, ["run-governed", "--manifest", str(manifest), "--task", "t"]
+    )
 
     assert result.exit_code == 0, result.output
     log_path = tmp_path / ".builder" / "sessions" / "goose_777" / "goose_run.log"
-    # Bounded, but the run still completed: the cap truncates the transcript, never the run.
-    assert log_path.stat().st_size <= 4096 + 512
+    assert log_path.stat().st_size <= 4096
+
+
+def test_child_environment_overrides_are_child_scoped(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
+    goose = _fake_goose(
+        tmp_path,
+        body=(
+            "import os\n"
+            "print(os.environ.get('BUILDER_MCP_GOVERNED_APPLY', '<missing>'), flush=True)\n"
+            "sys.exit(0)"
+        ),
+    )
+    _install(monkeypatch, tmp_path, goose)
+    monkeypatch.delenv("BUILDER_MCP_GOVERNED_APPLY", raising=False)
+    harness = GooseRuntimeHarness(_settings_at(tmp_path), MagicMock(), tmp_path)  # type: ignore[arg-type]
+    harness.session_id = "goose_child_env"
+    log_path = tmp_path / "child-env.log"
+
+    _receipt, exit_code = harness.run_governed_streaming(
+        "inspect",
+        log_path=log_path,
+        child_env_overrides={"BUILDER_MCP_GOVERNED_APPLY": "1"},
+    )
+
+    assert exit_code == 0
+    assert log_path.read_text(encoding="utf-8").strip() == "1"
+    assert "BUILDER_MCP_GOVERNED_APPLY" not in os.environ
 
 
 def test_a_failing_run_propagates_its_exit_code(monkeypatch: Any, tmp_path: Path) -> None:
@@ -216,14 +319,15 @@ def test_a_failing_run_propagates_its_exit_code(monkeypatch: Any, tmp_path: Path
     manifest = tmp_path / "m.json"
     _write_manifest(manifest)
 
-    result = runner.invoke(goose_app, ["run-governed", "--manifest", str(manifest), "--task", "t"])
-
-    # Reported as the child's own failure, never flattened into success.
+    result = runner.invoke(
+        goose_app, ["run-governed", "--manifest", str(manifest), "--task", "t"]
+    )
     assert result.exit_code == 3
 
 
-def test_a_run_that_mutates_the_target_fails_the_postflight(monkeypatch: Any, tmp_path: Path) -> None:
-    """Read-only is proven by content digest after the fact, not asserted by configuration."""
+def test_a_run_that_mutates_the_target_fails_the_postflight(
+    monkeypatch: Any, tmp_path: Path
+) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "app.py").write_text("original\n", encoding="utf-8")
     goose = _fake_goose(
@@ -238,54 +342,40 @@ def test_a_run_that_mutates_the_target_fails_the_postflight(monkeypatch: Any, tm
     manifest = tmp_path / "m.json"
     _write_manifest(manifest)
 
-    result = runner.invoke(goose_app, ["run-governed", "--manifest", str(manifest), "--task", "t"])
+    result = runner.invoke(
+        goose_app, ["run-governed", "--manifest", str(manifest), "--task", "t"]
+    )
 
     assert result.exit_code == 1
     assert "mutations detected" in result.output.lower()
     assert "src/app.py" in "".join(result.output.split())
 
 
-def test_argv_is_built_from_advertised_flags_only(tmp_path: Path) -> None:
-    """The repo has been burned once by assuming a CLI shape; nothing here is assumed."""
-    settings = _settings_at(tmp_path)
-    harness = GooseRuntimeHarness(settings, MagicMock(), tmp_path)  # type: ignore[arg-type]
+def test_compatibility_argv_projection_uses_only_advertised_flags(tmp_path: Path) -> None:
+    harness = GooseRuntimeHarness(_settings_at(tmp_path), MagicMock(), tmp_path)  # type: ignore[arg-type]
     recipe = tmp_path / "recipes" / "governed-readonly.yaml"
 
     full = harness._governed_run_argv("goose", recipe, "do it", HEADLESS_HELP)
     assert full[:2] == ["goose", "run"]
-    assert "--recipe" in full and "--text" in full and full[full.index("--text") + 1] == "do it"
+    assert "--recipe" in full and "--text" in full
     assert full[full.index("--with-builtin") + 1] == ""
-
-    # A build advertising none of them yields a bare argv rather than flags it would reject.
     bare = harness._governed_run_argv("goose", recipe, "do it", "Usage: goose run\n")
     assert bare == ["goose", "run"]
 
 
 def test_request_stop_records_the_intent_even_when_nothing_is_running(tmp_path: Path) -> None:
-    """An operator's intent to stop is evidence even if the process already exited."""
-    settings = _settings_at(tmp_path)
-    harness = GooseRuntimeHarness(settings, MagicMock(), tmp_path)  # type: ignore[arg-type]
+    harness = GooseRuntimeHarness(_settings_at(tmp_path), MagicMock(), tmp_path)  # type: ignore[arg-type]
     harness.session_id = "goose_stop"
 
-    assert harness.request_stop() is False  # nothing live to signal
-
+    assert harness.request_stop() is False
     records = load_event_records(tmp_path / ".builder" / "sessions" / "goose_stop" / "events")
     assert [event["event_type"] for event, _ in records] == ["run_stop_requested"]
     assert records[0][0]["decision_result"] == "stopped"
 
 
 def test_request_stop_terminates_a_live_child(monkeypatch: Any, tmp_path: Path) -> None:
-    """TERM first, and only escalate if the child ignores it -- never kill mid-write unasked."""
-    goose = _fake_goose(
-        tmp_path,
-        body="import time\nprint('working', flush=True)\ntime.sleep(60)\n",
-    )
-    settings = _settings_at(tmp_path)
-    monkeypatch.setattr("builder_ii.goose_runtime_harness.find_goose_binary", lambda: goose)
-    monkeypatch.setattr(
-        "builder_ii.goose_runtime_harness.goose_env", lambda *a, **k: {**os.environ}
-    )
-    harness = GooseRuntimeHarness(settings, MagicMock(), tmp_path)  # type: ignore[arg-type]
+    _write_recipe(tmp_path)
+    harness = GooseRuntimeHarness(_settings_at(tmp_path), MagicMock(), tmp_path)  # type: ignore[arg-type]
     harness.session_id = "goose_live"
 
     import subprocess
