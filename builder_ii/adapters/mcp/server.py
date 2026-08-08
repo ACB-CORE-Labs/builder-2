@@ -6,9 +6,10 @@ Goose needs from a tool extension: ``initialize``, ``tools/list``, ``tools/call`
 which is deny-by-default, read-only, and ledgered. The server itself holds no authority and
 adds no tool capability; it is the interposition surface, not a new power.
 
-Framing is deliberately the simplest interoperable shape (one JSON object per line). The
-exact framing Goose expects for a custom stdio extension is pinned against a real launch in
-G2; :meth:`GovernedMcpServer.handle_request` is framing-independent and unit-tested directly.
+The target root is captured once when the server is constructed and is threaded into every
+repository-read and in-loop patch-proposal path.  A proposal therefore binds the same target
+root the read jail exposed to Goose; it cannot infer a different repository from an artifact
+location or ambient cwd.
 """
 
 from __future__ import annotations
@@ -36,35 +37,35 @@ _PARSE_ERROR = -32700
 
 
 class GovernedMcpServer:
-    """A governed MCP server exposing only allowlisted read-only stub tools."""
+    """Governed MCP server exposing the bounded tool allowlist for one run."""
 
-    def __init__(self, *, session_id: str, builder_root: Path, target_root: Path | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        session_id: str,
+        builder_root: Path,
+        target_root: Path | None = None,
+    ) -> None:
         self.session_id = session_id
-        self.builder_root = Path(builder_root)
-        # The repo the read tools are jailed to. Captured once at construction rather than read
-        # per call, so a tool cannot be handed a different root than the one the session
-        # started under. Goose spawns this server with cwd=target_root, which is why the
-        # working directory is the right default and not a guess.
-        self.target_root = Path(target_root).resolve() if target_root is not None else Path.cwd().resolve()
-
-    # -- protocol (framing-independent, unit-tested) --------------------------------------
+        self.builder_root = Path(builder_root).expanduser().resolve()
+        self.target_root = (
+            Path(target_root).expanduser().resolve()
+            if target_root is not None
+            else Path.cwd().resolve()
+        )
 
     def handle_request(self, request: dict[str, Any]) -> dict[str, Any] | None:
-        """Handle one JSON-RPC request object; return the response, or None for notifications."""
         method = request.get("method")
         req_id = request.get("id")
 
-        # Notifications carry no id and expect no response.
         if req_id is None and isinstance(method, str) and method.startswith("notifications/"):
             return None
-
         if method == "initialize":
             return self._result(req_id, self._initialize())
         if method == "tools/list":
             return self._result(req_id, {"tools": self._tool_list()})
         if method == "tools/call":
             return self._result(req_id, self._tools_call(request.get("params") or {}))
-
         if req_id is None:
             return None
         return self._error(req_id, _METHOD_NOT_FOUND, f"method not found: {method}")
@@ -78,11 +79,13 @@ class GovernedMcpServer:
 
     @staticmethod
     def _tool_list() -> list[dict[str, Any]]:
-        # Read-only stubs run the governed ceremony; gated mutating classes are advertised
-        # but refused in-loop (G3) until the G4 promotion.
         specs = {**TOOL_SPECS, **GATED_TOOL_SPECS}
         return [
-            {"name": name, "description": spec["description"], "inputSchema": spec["inputSchema"]}
+            {
+                "name": name,
+                "description": spec["description"],
+                "inputSchema": spec["inputSchema"],
+            }
             for name, spec in specs.items()
         ]
 
@@ -90,14 +93,12 @@ class GovernedMcpServer:
         name = params.get("name")
         arguments = params.get("arguments") or {}
 
-        # G4: the write path routes to the governed apply lane behind a validated approval and
-        # the deny-by-default enablement flag. run_shell has no governed bounded lane to
-        # delegate to, so it stays refused (G3).
         if name == "propose_patch":
             outcome = run_gated_patch_apply(
                 arguments=dict(arguments),
                 session_id=self.session_id,
                 builder_root=self.builder_root,
+                target_root=self.target_root,
             )
             return {
                 "content": [{"type": "text", "text": outcome.reason}],
@@ -119,7 +120,9 @@ class GovernedMcpServer:
                 builder_root=self.builder_root,
             )
             return {
-                "content": [{"type": "text", "text": f"{refusal.reason} {refusal.compose_hint}"}],
+                "content": [
+                    {"type": "text", "text": f"{refusal.reason} {refusal.compose_hint}"}
+                ],
                 "isError": True,
                 "_meta": {
                     "governed": True,
@@ -130,7 +133,10 @@ class GovernedMcpServer:
             }
 
         if name not in TOOL_SPECS:
-            return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
+            return {
+                "content": [{"type": "text", "text": f"unknown tool: {name}"}],
+                "isError": True,
+            }
 
         outcome = run_governed_tool_call(
             tool_name=str(name),
@@ -156,12 +162,15 @@ class GovernedMcpServer:
 
     @staticmethod
     def _error(req_id: Any, code: int, message: str) -> dict[str, Any]:
-        return {"jsonrpc": "2.0", "id": req_id, "error": {"code": code, "message": message}}
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": code, "message": message},
+        }
 
-    # -- stdio loop -----------------------------------------------------------------------
-
-    def serve_stdio(self, *, stdin: TextIO | None = None, stdout: TextIO | None = None) -> None:
-        """Read newline-delimited JSON-RPC requests and write responses until EOF."""
+    def serve_stdio(
+        self, *, stdin: TextIO | None = None, stdout: TextIO | None = None
+    ) -> None:
         source = stdin if stdin is not None else sys.stdin
         sink = stdout if stdout is not None else sys.stdout
 
