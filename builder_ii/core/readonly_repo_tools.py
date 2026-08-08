@@ -1,46 +1,33 @@
-"""Bounded, path-jailed repo reads for the governed tool path.
+"""Bounded, path-jailed repository reads for the governed tool path.
 
-The governed MCP server advertised exactly two tools -- ``echo`` and ``utc_static`` -- which
-made the interposition seam real but left a governed Goose session unable to do anything at
-all: it could not read a file, list a directory, or search the tree. The seam was honest and
-useless. These are the read primitives that make a governed session worth starting, and they
-are deliberately the *only* ones: no write, no shell, no network, no git.
+This module is the read boundary of a governed Goose session.  It therefore treats the
+filesystem as hostile input rather than assuming that a syntactically relative path is
+safe.  The V1 rule is deliberately simple and mechanically auditable: **no symlink is
+ever followed**.  Absolute paths, ``..``, ``.git``/``.builder``, symlink components,
+and non-regular files are refused before content I/O.
 
-Every function here is pure in-process Python. Nothing in this module spawns a subprocess --
-which is why the receipts the gateway writes can keep declaring ``executes_shell: False`` and
-``shell_execution: DISABLED`` without qualification. A ``git_status`` tool was considered and
-left out for exactly that reason: it would have been the first subprocess on a path whose whole
-contract is that it has none, and `builder-git-state` already covers that need outside the
-low-risk lane.
+All tools are pure in-process Python: no shell, subprocess, network, git invocation, or
+mutation.  Bounds constrain actual I/O, not only the returned string.  ``read_file``
+reads at most ``max_bytes + 1``; ``grep`` bounds files visited, bytes per file, total
+bytes examined, matches, and output rows.  Traversal is deterministic.
 
-The jail is the same one `goose_inspection.py` uses, for the same reason: a relative path that
-resolves outside the target root, walks through ``..``, or enters ``.git``/``.builder`` is
-refused before any I/O. Refusal is a value, not an exception -- the caller turns it into a
-denied receipt, so a rejected read is as ledgered as a permitted one.
-
-Bounds are per-call and total, because "read the repo" must not mean "read all of it into one
-tool response": files are capped by bytes, listings and searches by entry/match/file count, and
-every traversal is deterministically ordered so the same call yields the same output.
+A refusal is a value surfaced by the governed gateway as a denied receipt/event.  The
+jail itself grants no authority.
 """
 
 from __future__ import annotations
 
+import os
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 
-#: Per-file read ceiling. Matches `goose_inspection.DEFAULT_MAX_READ_BYTES`.
-DEFAULT_MAX_READ_BYTES = 65536
-
-#: Directory-listing ceiling, so one call on a large tree cannot flood the transcript.
+DEFAULT_MAX_READ_BYTES = 65_536
 DEFAULT_MAX_ENTRIES = 500
-
-#: Search ceilings: matches returned, and files opened while looking for them.
 DEFAULT_MAX_MATCHES = 200
-DEFAULT_MAX_SCANNED_FILES = 2000
+DEFAULT_MAX_SCANNED_FILES = 2_000
+DEFAULT_MAX_SCANNED_BYTES = 16 * 1024 * 1024
 
-#: Directories never traversed or read. `.git` is history and `.builder` is the governance
-#: evidence itself -- a tool that could read the ledger it is being recorded in invites exactly
-#: the confusion between acting and being audited that this codebase exists to keep apart.
 _RESERVED_DIRECTORY_NAMES = (".git", ".builder")
 
 
@@ -58,84 +45,178 @@ def _reserved(path: Path) -> bool:
     return any(part in _RESERVED_DIRECTORY_NAMES for part in path.parts)
 
 
-def resolve_in_jail(target_root: Path, raw_path: str, *, allow_root: bool = False) -> Path:
-    """Resolve a caller-supplied relative path inside the target root, or refuse.
-
-    Refuses absolute paths, ``..`` traversal, and reserved directories before touching the
-    filesystem, then confirms the *resolved* path is still inside the root -- which is the check
-    that catches a symlink pointing out of the tree, the one the string checks alone would miss.
-    """
-    candidate_rel = Path(raw_path.strip() or ".")
-    if candidate_rel.is_absolute():
+def _validate_relative(raw_path: str, *, allow_root: bool) -> Path:
+    cleaned = raw_path.strip() or "."
+    relative = Path(cleaned)
+    if relative.is_absolute():
         raise ToolRefusal(f"path must be relative to the target root: {raw_path}")
-    if ".." in candidate_rel.parts:
+    if ".." in relative.parts:
         raise ToolRefusal(f"path must not contain '..': {raw_path}")
-    if _reserved(candidate_rel):
-        raise ToolRefusal(f"path must not enter {' or '.join(_RESERVED_DIRECTORY_NAMES)}: {raw_path}")
-    if not allow_root and str(candidate_rel) == ".":
+    if _reserved(relative):
+        raise ToolRefusal(
+            f"path must not enter {' or '.join(_RESERVED_DIRECTORY_NAMES)}: {raw_path}"
+        )
+    if not allow_root and str(relative) == ".":
         raise ToolRefusal("path must name a file")
+    return relative
+
+
+def _reject_symlink_components(root: Path, relative: Path, raw_path: str) -> None:
+    """Refuse any existing symlink component without dereferencing it.
+
+    ``Path.resolve`` is intentionally not used for the candidate: resolving first follows
+    the very link we are trying to treat as untrusted.  The target root itself is trusted
+    configuration and is resolved once; every user-controlled component is then inspected
+    with ``lstat`` from that root outward.
+    """
+
+    current = root
+    for part in relative.parts:
+        if part in ("", "."):
+            continue
+        current = current / part
+        try:
+            mode = current.lstat().st_mode
+        except FileNotFoundError:
+            # Missing paths are diagnosed by the concrete operation after the lexical jail
+            # has already been proven.  There can be no later existing component beneath a
+            # missing parent.
+            return
+        except OSError as exc:
+            raise ToolRefusal(f"failed to inspect path {raw_path}: {exc}") from None
+        if stat.S_ISLNK(mode):
+            raise ToolRefusal(f"symlinks are not traversable in the governed read jail: {raw_path}")
+
+
+def resolve_in_jail(target_root: Path, raw_path: str, *, allow_root: bool = False) -> Path:
+    """Return a lexical path inside ``target_root`` after a no-symlink component check."""
+
+    relative = _validate_relative(raw_path, allow_root=allow_root)
+    try:
+        root = Path(target_root).expanduser().resolve(strict=True)
+    except OSError as exc:
+        raise ToolRefusal(f"failed to resolve target root: {exc}") from None
+    if not root.is_dir():
+        raise ToolRefusal(f"target root is not a directory: {root}")
+
+    candidate = root / relative
+    # No '..' survived validation, so this lexical containment check does not dereference
+    # user-controlled links.  It is a belt-and-suspenders guard against future normalization
+    # changes to _validate_relative.
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        raise ToolRefusal(f"path escapes the target root: {raw_path}") from None
+
+    _reject_symlink_components(root, relative, raw_path)
+    return candidate
+
+
+def _read_bounded_bytes(path: Path, *, max_bytes: int, raw_path: str) -> tuple[bytes, bool]:
+    if max_bytes <= 0:
+        raise ToolRefusal("max_bytes must be positive")
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        raise ToolRefusal(f"path not found: {raw_path}") from None
+    except OSError as exc:
+        raise ToolRefusal(f"failed to inspect {raw_path}: {exc}") from None
+    if stat.S_ISLNK(mode):
+        raise ToolRefusal(f"symlinks are not traversable in the governed read jail: {raw_path}")
+    if not stat.S_ISREG(mode):
+        raise ToolRefusal(f"path is not a regular file: {raw_path}")
 
     try:
-        root = Path(target_root).expanduser().resolve()
-        resolved = (root / candidate_rel).resolve()
-        resolved.relative_to(root)
-    except ValueError:
-        # Covers the symlink-out-of-tree case: the string was clean, the resolution was not.
-        raise ToolRefusal(f"path escapes the target root: {raw_path}") from None
+        with path.open("rb") as handle:
+            data = handle.read(max_bytes + 1)
     except OSError as exc:
-        raise ToolRefusal(f"failed to resolve path {raw_path}: {exc}") from None
-
-    # A symlink whose *resolved* target is inside the root is fine; one that left is refused
-    # above. Re-checking the reserved names on the resolved path closes the link-into-.git case.
-    if _reserved(resolved.relative_to(Path(target_root).expanduser().resolve())):
-        raise ToolRefusal(f"path resolves into a reserved directory: {raw_path}")
-    return resolved
+        raise ToolRefusal(f"failed to read {raw_path}: {exc}") from None
+    return data[:max_bytes], len(data) > max_bytes
 
 
 def read_file(target_root: Path, raw_path: str, *, max_bytes: int = DEFAULT_MAX_READ_BYTES) -> str:
-    """Return a file's text, bounded by ``max_bytes``, or refuse."""
-    resolved = resolve_in_jail(target_root, raw_path)
-    if not resolved.exists():
-        raise ToolRefusal(f"path not found: {raw_path}")
-    if not resolved.is_file():
-        raise ToolRefusal(f"path is not a file: {raw_path}")
-    try:
-        data = resolved.read_bytes()
-    except OSError as exc:
-        raise ToolRefusal(f"failed to read {raw_path}: {exc}") from None
+    """Return at most ``max_bytes`` of file text without performing unbounded file I/O."""
 
-    if len(data) > max_bytes:
-        # Truncate rather than refuse: a large file the agent asked for by name should return
-        # its head, and the gateway's own output cap plus `output_truncated` record the cut.
-        data = data[:max_bytes]
+    path = resolve_in_jail(target_root, raw_path)
+    data, _truncated = _read_bounded_bytes(path, max_bytes=max_bytes, raw_path=raw_path)
     return data.decode("utf-8", errors="replace")
 
 
-def list_dir(target_root: Path, raw_path: str = ".", *, max_entries: int = DEFAULT_MAX_ENTRIES) -> str:
-    """Return a deterministic, bounded directory listing, or refuse.
+def list_dir(
+    target_root: Path, raw_path: str = ".", *, max_entries: int = DEFAULT_MAX_ENTRIES
+) -> str:
+    """Return a deterministic bounded listing without following directory symlinks."""
 
-    Directories are suffixed ``/`` so the caller can tell them apart without a second call.
-    """
-    resolved = resolve_in_jail(target_root, raw_path, allow_root=True)
-    if not resolved.exists():
-        raise ToolRefusal(f"path not found: {raw_path}")
-    if not resolved.is_dir():
+    if max_entries <= 0:
+        raise ToolRefusal("max_entries must be positive")
+    directory = resolve_in_jail(target_root, raw_path, allow_root=True)
+    try:
+        mode = directory.lstat().st_mode
+    except FileNotFoundError:
+        raise ToolRefusal(f"path not found: {raw_path}") from None
+    except OSError as exc:
+        raise ToolRefusal(f"failed to inspect {raw_path}: {exc}") from None
+    if not stat.S_ISDIR(mode):
         raise ToolRefusal(f"path is not a directory: {raw_path}")
 
     try:
-        entries = sorted(resolved.iterdir(), key=lambda p: p.name)
+        with os.scandir(directory) as iterator:
+            entries = sorted(iterator, key=lambda entry: entry.name)
     except OSError as exc:
         raise ToolRefusal(f"failed to list {raw_path}: {exc}") from None
 
     lines: list[str] = []
-    for entry in entries:
-        if entry.name in _RESERVED_DIRECTORY_NAMES:
-            continue
-        if len(lines) >= max_entries:
-            lines.append(f"... listing truncated at {max_entries} entries")
-            break
-        lines.append(f"{entry.name}/" if entry.is_dir() else entry.name)
+    visible = [entry for entry in entries if entry.name not in _RESERVED_DIRECTORY_NAMES]
+    for entry in visible[:max_entries]:
+        try:
+            if entry.is_symlink():
+                lines.append(f"{entry.name}@")
+            elif entry.is_dir(follow_symlinks=False):
+                lines.append(f"{entry.name}/")
+            else:
+                lines.append(entry.name)
+        except OSError:
+            # A racing entry is represented as a plain name rather than dereferenced.
+            lines.append(entry.name)
+    if len(visible) > max_entries:
+        lines.append(f"... listing truncated at {max_entries} entries")
     return "\n".join(lines) if lines else "(empty directory)"
+
+
+def _iter_regular_files(root: Path, *, jail_root: Path):
+    """Yield regular files under ``root`` deterministically, never following symlinks."""
+
+    stack: list[Path] = [root]
+    while stack:
+        current = stack.pop()
+        try:
+            mode = current.lstat().st_mode
+        except OSError:
+            continue
+        if stat.S_ISLNK(mode):
+            continue
+        if stat.S_ISREG(mode):
+            yield current
+            continue
+        if not stat.S_ISDIR(mode):
+            continue
+        try:
+            with os.scandir(current) as iterator:
+                entries = sorted(iterator, key=lambda entry: entry.name, reverse=True)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.name in _RESERVED_DIRECTORY_NAMES:
+                continue
+            child = Path(entry.path)
+            try:
+                child.relative_to(jail_root)
+            except ValueError:
+                continue
+            if entry.is_symlink():
+                continue
+            # reverse-sorted insertion makes the LIFO traversal lexically ascending.
+            stack.append(child)
 
 
 def grep(
@@ -145,55 +226,70 @@ def grep(
     path: str = ".",
     max_matches: int = DEFAULT_MAX_MATCHES,
     max_scanned_files: int = DEFAULT_MAX_SCANNED_FILES,
+    max_scanned_bytes: int = DEFAULT_MAX_SCANNED_BYTES,
+    max_bytes_per_file: int = DEFAULT_MAX_READ_BYTES,
 ) -> str:
-    """Return ``path:line:text`` for a literal substring match, bounded and deterministic.
+    """Search for a literal substring under deterministic file/byte/match bounds."""
 
-    A literal substring, not a regex: a caller-supplied regex on an unbounded tree is a CPU
-    denial-of-service the governed lane has no way to interrupt, and the agent can narrow with
-    ``path`` instead. Traversal order is sorted so repeated calls agree.
-    """
     if not pattern:
         raise ToolRefusal("grep needs a non-empty pattern")
-    root_dir = resolve_in_jail(target_root, path, allow_root=True)
-    if not root_dir.exists():
+    if min(max_matches, max_scanned_files, max_scanned_bytes, max_bytes_per_file) <= 0:
+        raise ToolRefusal("grep bounds must be positive")
+
+    root = Path(target_root).expanduser().resolve(strict=True)
+    search_root = resolve_in_jail(root, path, allow_root=True)
+    if not search_root.exists():
         raise ToolRefusal(f"path not found: {path}")
 
-    jail_root = Path(target_root).expanduser().resolve()
-    candidates = [root_dir] if root_dir.is_file() else sorted(
-        (p for p in root_dir.rglob("*") if p.is_file()), key=lambda p: str(p)
-    )
-
     matches: list[str] = []
-    scanned = 0
+    scanned_files = 0
+    scanned_bytes = 0
     truncated = False
-    for file_path in candidates:
-        try:
-            relative = file_path.relative_to(jail_root)
-        except ValueError:
-            continue
-        if _reserved(relative):
-            continue
-        if scanned >= max_scanned_files:
+
+    for file_path in _iter_regular_files(search_root, jail_root=root):
+        if scanned_files >= max_scanned_files or scanned_bytes >= max_scanned_bytes:
             truncated = True
             break
-        scanned += 1
+
+        relative = file_path.relative_to(root)
+        remaining_total = max_scanned_bytes - scanned_bytes
+        read_cap = min(max_bytes_per_file, remaining_total)
+        if read_cap <= 0:
+            truncated = True
+            break
+
         try:
-            if file_path.stat().st_size > DEFAULT_MAX_READ_BYTES:
-                continue
-            text = file_path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
+            data, file_truncated = _read_bounded_bytes(
+                file_path, max_bytes=read_cap, raw_path=str(relative)
+            )
+        except ToolRefusal:
             continue
+        scanned_files += 1
+        scanned_bytes += len(data)
+        if file_truncated:
+            truncated = True
+
+        text = data.decode("utf-8", errors="replace")
         for line_number, line in enumerate(text.splitlines(), start=1):
-            if pattern in line:
-                if len(matches) >= max_matches:
-                    truncated = True
-                    break
-                matches.append(f"{relative}:{line_number}:{line.strip()[:400]}")
-        if truncated:
+            if pattern not in line:
+                continue
+            if len(matches) >= max_matches:
+                truncated = True
+                break
+            matches.append(f"{relative}:{line_number}:{line.strip()[:400]}")
+        if len(matches) >= max_matches:
             break
 
     if not matches:
-        return f"no matches for {pattern!r} under {path}"
+        suffix = (
+            f"; scan truncated after {scanned_files} files / {scanned_bytes} bytes"
+            if truncated
+            else ""
+        )
+        return f"no matches for {pattern!r} under {path}{suffix}"
     if truncated:
-        matches.append(f"... results truncated (scanned {scanned} files)")
+        matches.append(
+            "... results truncated "
+            f"(scanned {scanned_files} files / {scanned_bytes} bytes)"
+        )
     return "\n".join(matches)
