@@ -5,15 +5,15 @@ This module is the shared non-UI application boundary:
 
 ``dispatch plan -> ratification decision -> dispatch authorization -> consume``
 
-A dispatch authorization permits exactly one attempt to start exactly one already-governed
-unit of work. It does **not** authorize any effect inside that work: tool policy, HITL patch
-approval, candidate approval, process-control, and postflight checks remain independent at
-their own boundaries.
+A dispatch authorization is required evidence for exactly one attempt to start exactly one
+already-governed unit of work. It does **not** itself become ambient authority and it does
+not authorize any effect inside the run: command authority, tool policy, HITL approvals,
+candidate approvals, process control, and postflight checks remain independent.
 
 Auto-ratification only relocates the pause. Both manual and standing-grant paths append the
 ratification ledger before the authorization artifact exists, and both produce the same
-subject-bound authorization schema. If evidence cannot be written, no authorization exists
-and the executing CLI has nothing it can lawfully consume.
+subject-bound evidence schema. If evidence cannot be written, the executing CLI has nothing
+it can lawfully consume.
 """
 
 from __future__ import annotations
@@ -35,7 +35,6 @@ from builder_ii.governance.ratification_dispatch import (
     DispatchRatification,
     STATUS_APPROVAL_ARTIFACT_REQUIRED,
     STATUS_AUTO,
-    STATUS_PROMPT,
     record_auto_ratified,
     record_manual_ratified,
     resolve_dispatch_ratification,
@@ -55,7 +54,7 @@ DecisionMode = Literal[
 
 
 class DispatchAuthorizationError(RuntimeError):
-    """The requested dispatch has no valid subject-bound authorization."""
+    """The requested dispatch has no valid subject-bound authorization evidence."""
 
 
 def _sha256_file(path: Path) -> str:
@@ -65,11 +64,15 @@ def _sha256_file(path: Path) -> str:
             for chunk in iter(lambda: handle.read(1024 * 1024), b""):
                 hasher.update(chunk)
     except OSError as exc:
-        raise DispatchAuthorizationError(f"dispatch subject is unreadable: {path}: {exc}") from exc
+        raise DispatchAuthorizationError(
+            f"dispatch subject is unreadable: {path}: {exc}"
+        ) from exc
     return hasher.hexdigest()
 
 
-def _content_addressed_write(directory: Path, artifact: dict[str, Any]) -> tuple[Path, str]:
+def _content_addressed_write(
+    directory: Path, artifact: dict[str, Any]
+) -> tuple[Path, str]:
     digest = canonical_digest(artifact)
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{digest}.json"
@@ -77,7 +80,9 @@ def _content_addressed_write(directory: Path, artifact: dict[str, Any]) -> tuple
         try:
             existing = json.loads(path.read_text(encoding="utf-8"))
         except Exception as exc:
-            raise DispatchAuthorizationError(f"existing content-addressed artifact is unreadable: {path}: {exc}") from exc
+            raise DispatchAuthorizationError(
+                f"existing content-addressed artifact is unreadable: {path}: {exc}"
+            ) from exc
         if not isinstance(existing, dict) or canonical_digest(existing) != digest:
             raise DispatchAuthorizationError(
                 f"content-addressed artifact path contains unexpected bytes: {path}"
@@ -101,11 +106,7 @@ def build_dispatch_plan(
     requested_effects: tuple[str, ...],
     governed_apply_enabled: bool = False,
 ) -> tuple[dict[str, Any], Path]:
-    """Persist the immutable subject the operator/grant will ratify.
-
-    The raw task text is deliberately absent. The executing CLI receives the task separately
-    and must prove its digest equals this plan before consuming authorization.
-    """
+    """Persist the immutable subject the operator or standing grant will ratify."""
     cleaned_task = task.strip()
     if not cleaned_task:
         raise DispatchAuthorizationError("dispatch plan requires a non-empty task")
@@ -113,13 +114,15 @@ def build_dispatch_plan(
     if not manifest.is_file():
         raise DispatchAuthorizationError(f"dispatch manifest not found: {manifest}")
     target = Path(target_root).expanduser().resolve()
+    evidence_root = Path(builder_root).expanduser().resolve()
 
     record = get_command_record(command)
     if record is None:
         raise DispatchAuthorizationError(f"command has no authority record: {command}")
     if record.authority_is_inherited:
         raise DispatchAuthorizationError(
-            f"dispatch command authority is inherited from {record.inherited_from!r}; refusing it as evidence"
+            "dispatch command authority is inherited from "
+            f"{record.inherited_from!r}; refusing it as evidence"
         )
     authority_snapshot = asdict(record)
 
@@ -133,6 +136,7 @@ def build_dispatch_plan(
         "manifest_sha256": _sha256_file(manifest),
         "task_sha256": hashlib.sha256(cleaned_task.encode("utf-8")).hexdigest(),
         "target_root": str(target),
+        "builder_root": str(evidence_root),
         "requested_effects": list(requested_effects),
         "governed_apply_enabled": bool(governed_apply_enabled),
         "authority_record_sha256": canonical_digest(authority_snapshot),
@@ -142,31 +146,45 @@ def build_dispatch_plan(
             "human_approval_mint": False,
         },
     }
-    path, _ = _content_addressed_write(Path(builder_root) / "dispatch" / "plans", plan)
+    path, _ = _content_addressed_write(evidence_root / "dispatch" / "plans", plan)
     return plan, path
 
 
 def load_dispatch_plan(path: Path) -> dict[str, Any]:
-    candidate = Path(path)
+    candidate = Path(path).expanduser().resolve()
     try:
         plan = json.loads(candidate.read_text(encoding="utf-8"))
     except Exception as exc:
-        raise DispatchAuthorizationError(f"dispatch plan is unreadable: {candidate}: {exc}") from exc
+        raise DispatchAuthorizationError(
+            f"dispatch plan is unreadable: {candidate}: {exc}"
+        ) from exc
     if not isinstance(plan, dict) or plan.get("kind") != DISPATCH_PLAN_KIND:
         raise DispatchAuthorizationError("dispatch plan has the wrong kind")
     if plan.get("schema_version") != SCHEMA_VERSION:
         raise DispatchAuthorizationError("dispatch plan schema version is unsupported")
     digest = canonical_digest(plan)
     if candidate.stem != digest:
-        raise DispatchAuthorizationError("dispatch plan path is not content-addressed to its bytes")
+        raise DispatchAuthorizationError(
+            "dispatch plan path is not content-addressed to its bytes"
+        )
+    builder_root = builder_root_from_plan(plan)
+    expected_parent = builder_root / "dispatch" / "plans"
+    if candidate.parent != expected_parent:
+        raise DispatchAuthorizationError(
+            "dispatch plan is not stored under its declared builder_root"
+        )
     manifest = Path(str(plan.get("manifest_path", "")))
     if _sha256_file(manifest) != plan.get("manifest_sha256"):
-        raise DispatchAuthorizationError("dispatch manifest bytes changed after the plan was minted")
+        raise DispatchAuthorizationError(
+            "dispatch manifest bytes changed after the plan was minted"
+        )
     record = get_command_record(str(plan.get("command", "")))
     if record is None or record.authority_is_inherited:
         raise DispatchAuthorizationError("dispatch command no longer has declared authority")
     if canonical_digest(asdict(record)) != plan.get("authority_record_sha256"):
-        raise DispatchAuthorizationError("command authority changed after the dispatch plan was minted")
+        raise DispatchAuthorizationError(
+            "command authority changed after the dispatch plan was minted"
+        )
     return plan
 
 
@@ -187,7 +205,7 @@ def authorize_dispatch(
     because: str = "operator confirmed the exact dispatch plan",
     ttl_seconds: int = DEFAULT_AUTHORIZATION_TTL_SECONDS,
 ) -> tuple[dict[str, Any], Path]:
-    """Record the ratification first, then mint a one-shot subject authorization."""
+    """Record ratification first, then mint one-shot subject-bound evidence."""
     if ttl_seconds <= 0:
         raise DispatchAuthorizationError("dispatch authorization TTL must be positive")
     plan = load_dispatch_plan(plan_path)
@@ -198,7 +216,8 @@ def authorize_dispatch(
         resolved = resolution or resolve_dispatch_ratification(point_id, root=root)
         if resolved.status != STATUS_AUTO:
             raise DispatchAuthorizationError(
-                f"standing-grant authorization requires AUTO resolution, got {resolved.status}"
+                "standing-grant authorization requires AUTO resolution, "
+                f"got {resolved.status}"
             )
         ratification_entry = record_auto_ratified(resolved, actor=actor, root=root)
         grant_digest = resolved.grant_digest
@@ -206,8 +225,6 @@ def authorize_dispatch(
         current = resolution or resolve_dispatch_ratification(point_id, root=root)
         if current.status == STATUS_APPROVAL_ARTIFACT_REQUIRED:
             raise DispatchAuthorizationError(current.because)
-        # A manual answer remains acceptable if a grant also exists: the human chose to pause
-        # anyway. It never turns an approval-artifact-required point into a prompt.
         ratification_entry = record_manual_ratified(
             point_id,
             actor=actor,
@@ -221,7 +238,8 @@ def authorize_dispatch(
     ledger_errors = validate_ratification_ledger(root)
     if ledger_errors:
         raise DispatchAuthorizationError(
-            f"ratification ledger failed validation after recording dispatch: {ledger_errors}"
+            "ratification ledger failed validation after recording dispatch: "
+            f"{ledger_errors}"
         )
 
     now = datetime.now(timezone.utc)
@@ -243,26 +261,25 @@ def authorize_dispatch(
         "expires_at": (now + timedelta(seconds=ttl_seconds)).isoformat(),
         "nonce": uuid.uuid4().hex,
         "governance": {
-            "artifact_is_authority": True,
-            "authority_scope": "dispatch_this_plan_once",
+            "artifact_is_authority": False,
+            "required_as_execution_evidence": True,
+            "evidence_scope": "dispatch_this_plan_once",
             "grants_internal_effect_authority": False,
             "human_approval_mint": False,
         },
     }
     path, _ = _content_addressed_write(
-        Path(builder_root_from_plan(plan)) / "dispatch" / "authorizations",
+        builder_root_from_plan(plan) / "dispatch" / "authorizations",
         authorization,
     )
     return authorization, path
 
 
 def builder_root_from_plan(plan: dict[str, Any]) -> Path:
-    """Derive the default builder root from the subject target.
-
-    External artifact roots will be represented explicitly when RunContext is wired through the
-    dispatch service. Until then this matches the currently supported runtime topology.
-    """
-    return Path(str(plan["target_root"])) / ".builder"
+    value = plan.get("builder_root")
+    if not isinstance(value, str) or not value:
+        raise DispatchAuthorizationError("dispatch plan is missing builder_root")
+    return Path(value).expanduser().resolve()
 
 
 def validate_dispatch_authorization(
@@ -274,39 +291,67 @@ def validate_dispatch_authorization(
     now: datetime | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     plan = load_dispatch_plan(plan_path)
-    candidate = Path(authorization_path)
+    candidate = Path(authorization_path).expanduser().resolve()
     try:
         authorization = json.loads(candidate.read_text(encoding="utf-8"))
     except Exception as exc:
-        raise DispatchAuthorizationError(f"dispatch authorization is unreadable: {candidate}: {exc}") from exc
-    if not isinstance(authorization, dict) or authorization.get("kind") != DISPATCH_AUTHORIZATION_KIND:
+        raise DispatchAuthorizationError(
+            f"dispatch authorization is unreadable: {candidate}: {exc}"
+        ) from exc
+    if (
+        not isinstance(authorization, dict)
+        or authorization.get("kind") != DISPATCH_AUTHORIZATION_KIND
+    ):
         raise DispatchAuthorizationError("dispatch authorization has the wrong kind")
     if authorization.get("schema_version") != SCHEMA_VERSION:
-        raise DispatchAuthorizationError("dispatch authorization schema version is unsupported")
+        raise DispatchAuthorizationError(
+            "dispatch authorization schema version is unsupported"
+        )
     if candidate.stem != canonical_digest(authorization):
-        raise DispatchAuthorizationError("dispatch authorization path is not content-addressed to its bytes")
+        raise DispatchAuthorizationError(
+            "dispatch authorization path is not content-addressed to its bytes"
+        )
+    expected_parent = builder_root_from_plan(plan) / "dispatch" / "authorizations"
+    if candidate.parent != expected_parent:
+        raise DispatchAuthorizationError(
+            "dispatch authorization is not stored under the plan builder_root"
+        )
     plan_ref = authorization.get("plan_ref")
     if not isinstance(plan_ref, dict) or plan_ref.get("sha256") != canonical_digest(plan):
-        raise DispatchAuthorizationError("dispatch authorization is bound to a different plan")
+        raise DispatchAuthorizationError(
+            "dispatch authorization is bound to a different plan"
+        )
     if Path(str(plan_ref.get("path", ""))).resolve() != Path(plan_path).resolve():
         raise DispatchAuthorizationError("dispatch authorization plan path does not match")
-    if hashlib.sha256(task.strip().encode("utf-8")).hexdigest() != plan.get("task_sha256"):
-        raise DispatchAuthorizationError("task text does not match the authorized task digest")
+    if hashlib.sha256(task.strip().encode("utf-8")).hexdigest() != plan.get(
+        "task_sha256"
+    ):
+        raise DispatchAuthorizationError(
+            "task text does not match the authorized task digest"
+        )
     manifest = Path(manifest_path).resolve()
     if manifest != Path(str(plan.get("manifest_path"))).resolve():
-        raise DispatchAuthorizationError("manifest path does not match the authorized plan")
+        raise DispatchAuthorizationError(
+            "manifest path does not match the authorized plan"
+        )
     if _sha256_file(manifest) != plan.get("manifest_sha256"):
-        raise DispatchAuthorizationError("manifest bytes do not match the authorized plan")
+        raise DispatchAuthorizationError(
+            "manifest bytes do not match the authorized plan"
+        )
 
     clock = now or datetime.now(timezone.utc)
     try:
         expiry = datetime.fromisoformat(str(authorization["expires_at"]))
     except (KeyError, ValueError) as exc:
-        raise DispatchAuthorizationError("dispatch authorization has an invalid expiry") from exc
+        raise DispatchAuthorizationError(
+            "dispatch authorization has an invalid expiry"
+        ) from exc
     if expiry.tzinfo is None:
         expiry = expiry.replace(tzinfo=timezone.utc)
     if clock >= expiry:
-        raise DispatchAuthorizationError("dispatch authorization expired before execution")
+        raise DispatchAuthorizationError(
+            "dispatch authorization expired before execution"
+        )
     return plan, authorization
 
 
@@ -341,7 +386,9 @@ def consume_dispatch_authorization(
     try:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError as exc:
-        raise DispatchAuthorizationError("dispatch authorization has already been consumed") from exc
+        raise DispatchAuthorizationError(
+            "dispatch authorization has already been consumed"
+        ) from exc
     try:
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
