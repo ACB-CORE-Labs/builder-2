@@ -18,6 +18,7 @@ asserted is the argv that *would* have run.
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -43,6 +44,18 @@ def _app(tmp_path: Path) -> StratumApp:
     app.artifacts_dir = tmp_path / ".builder" / "artifacts"
     app.artifacts_dir.mkdir(parents=True, exist_ok=True)
     return app
+
+
+def _governed_manifests(tmp_path: Path) -> list[Path]:
+    return sorted((tmp_path / ".builder" / "goose" / "governed-manifests").glob("*.json"))
+
+
+def _one_governed_manifest(tmp_path: Path) -> Path:
+    manifests = _governed_manifests(tmp_path)
+    assert len(manifests) == 1, manifests
+    manifest = manifests[0]
+    assert manifest.stem == hashlib.sha256(manifest.read_bytes()).hexdigest()
+    return manifest
 
 
 @pytest.fixture
@@ -99,18 +112,14 @@ async def test_without_a_grant_the_operator_is_asked_and_told_what_will_run(
             app._on_governed_task_entered("map the hitl lane")
             await pilot.pause()
 
-            # A confirmation, not a dispatch.
             assert isinstance(app.screen, ConfirmScreen), f"expected ConfirmScreen, got {type(app.screen)}"
             assert spawned == []
 
             body = " ".join(str(node.render()) for node in app.screen.query("Static"))
             assert "map the hitl lane" in body
-            # The exact command, not a description of it: an operator confirming a dispatch is
-            # entitled to see the argv, and a digest that binds which manifest it will read.
             assert "run-governed" in body
             assert "--manifest" in body
-            manifest = tmp_path / ".builder" / "goose" / "stratum-governed-run.json"
-            assert manifest.exists()
+            manifest = _one_governed_manifest(tmp_path)
             assert app._manifest_digest(manifest) in body
 
 
@@ -145,12 +154,12 @@ async def test_confirming_dispatches_the_exact_fixed_argv(
         with patch.object(app, "_dispatch_governed_run", lambda *a, **k: spawned.append(a)):
             app._on_governed_task_entered("map the hitl lane")
             await pilot.pause()
+            manifest = _one_governed_manifest(tmp_path)
             app._on_governed_dispatch_confirm(True)
             await pilot.pause()
 
         assert len(spawned) == 1
         argv = spawned[0][0]
-        manifest = tmp_path / ".builder" / "goose" / "stratum-governed-run.json"
         assert argv == (
             sys.executable,
             "-m",
@@ -161,6 +170,28 @@ async def test_confirming_dispatches_the_exact_fixed_argv(
             "--task",
             "map the hitl lane",
         )
+
+
+@pytest.mark.asyncio
+async def test_different_tasks_create_distinct_non_overwriting_manifests(
+    tmp_path: Path, settings_patch: Any, grant_root: Path
+) -> None:
+    app = _app(tmp_path)
+
+    async with app.run_test() as pilot:
+        with patch.object(app, "_dispatch_governed_run", lambda *a, **k: None):
+            app._on_governed_task_entered("first task")
+            await pilot.pause()
+            app._on_governed_dispatch_confirm(False)
+            await pilot.pause()
+            app._on_governed_task_entered("second task")
+            await pilot.pause()
+
+    manifests = _governed_manifests(tmp_path)
+    assert len(manifests) == 2
+    assert len({path.name for path in manifests}) == 2
+    for manifest in manifests:
+        assert manifest.stem == hashlib.sha256(manifest.read_bytes()).hexdigest()
 
 
 @pytest.mark.asyncio
@@ -183,11 +214,8 @@ async def test_a_standing_grant_dispatches_without_asking_and_names_the_grant(
                 app._on_governed_task_entered("map the hitl lane")
                 await pilot.pause()
 
-        # No confirmation was raised, and the run went out.
         assert not isinstance(app.screen, ConfirmScreen)
         assert len(spawned) == 1
-        # The operator is told which grant answered for them -- an auto-ratified action that
-        # cannot be traced back to what allowed it would be the feature doing less governance.
         assert any(grant["grant_digest"][:12] in note for note in notices), notices
 
 
@@ -271,8 +299,6 @@ async def test_dispatch_switches_to_the_cockpit_so_the_run_is_watchable(
 
         assert app.stratum is not None
         assert app.stratum.mode == StratumMode.RUN_COCKPIT
-        # The handle is kept so a later Stop verb has something to signal; disk stays the
-        # source of truth for what ran.
         assert str(manifest) in app._live_runs
 
 
@@ -336,8 +362,6 @@ async def test_approving_hands_the_terminal_to_the_governed_cli(
     argv = ran[0]
     assert argv[:4] == (sys.executable, "-m", "builder_ii.cli.hitl_execution_cli", "approve-patch")
     assert "--proposal" in argv and "--output" in argv
-    # No `--yes`, no digest, nothing that would let the console answer the CLI's prompt for the
-    # operator: the typed prefix is the approval evidence and must come from a human.
     assert not any(a.startswith("--yes") for a in argv)
 
 
@@ -397,7 +421,6 @@ async def test_an_unbound_gate_still_refuses_and_runs_nothing(
             await pilot.pause()
 
     assert ran == []
-    # Nothing was pushed at all -- an unbound gate does not even reach a confirmation.
     assert len(app.screen_stack) <= 1
 
 
