@@ -35,6 +35,41 @@ def create_goose_launch_receipt(
     return content
 
 
+def bind_goose_launch_receipt_dispatch(
+    receipt: dict[str, Any],
+    *,
+    plan_path: str,
+    plan_sha256: str,
+    authorization_path: str,
+    authorization_sha256: str,
+    consumption_path: str,
+    decision_mode: str,
+    grant_digest: str | None,
+) -> dict[str, Any]:
+    """Return the same launch receipt rebound to the dispatch evidence that preceded spawn.
+
+    The original digest is discarded and recomputed over the expanded receipt.  This keeps
+    ``builder-govern trace``-style consumers from having to correlate a launch to a grant by
+    filename convention or timing.
+    """
+    content = {key: value for key, value in receipt.items() if key != "digest"}
+    content["dispatch_evidence"] = {
+        "plan_ref": {
+            "path": plan_path,
+            "sha256": plan_sha256,
+        },
+        "authorization_ref": {
+            "path": authorization_path,
+            "sha256": authorization_sha256,
+        },
+        "consumption_path": consumption_path,
+        "decision_mode": decision_mode,
+        "grant_digest": grant_digest,
+    }
+    content["digest"] = _digest(content)
+    return content
+
+
 def create_no_mutation_postflight(
     session_id: str,
     target_root: str,
