@@ -7,9 +7,9 @@
 # invokes the full suite as the repository-wide authority.
 #
 # Do not add `-q`: pyproject already supplies pytest quietness and a second -q suppresses useful
-# pass/fail output. Do not add -x/--lf/--failed-first: a closure run must report the whole focused
-# surface, not only the first or previously-known failure. The fixed random seed makes this lane
-# replayable while the full battery continues to exercise randomized order separately.
+# pass/fail output. Do not add selective early-exit or last-failure shortcuts: a closure run must
+# report the whole focused surface. The fixed random seed makes this lane replayable while the
+# full battery continues to exercise randomized order separately.
 
 set -o errexit
 set -o nounset
