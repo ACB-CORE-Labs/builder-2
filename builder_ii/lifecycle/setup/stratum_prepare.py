@@ -1,48 +1,42 @@
-"""STRATUM local convenience prep — non-authority, non-target-specific setup.
+"""STRATUM local convenience preparation — passive artifacts only.
 
-Creates only passive/local scaffolding under ``.builder/`` so operator keys
-(e.g. G) can fail-closed for *real* reasons rather than missing folders or a
-missing default read-only Goose manifest.
+This module may write local ``.builder`` scaffolding on behalf of the TUI, whose own
+source tree is intentionally file-write-free.  It never starts a runtime or grants
+authority.
 
-Does not start Goose, does not grant authority, does not touch target source.
+The legacy auto-readonly manifest keeps its stable convenience path because it represents
+one reusable default.  Task-bound governed-run manifests are different: each requested task
+is immutable run input, so those manifests are content-addressed and never overwrite one
+another.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
-# Stable path so re-runs refresh one auto file instead of littering.
 AUTO_GOOSE_MANIFEST_NAME = "stratum-auto-readonly.json"
-
-# Task-bound manifest for a governed run dispatched from the console. Separate from the
-# auto-readonly file because these carry the operator's actual task and are minted per dispatch.
-GOVERNED_GOOSE_MANIFEST_NAME = "stratum-governed-run.json"
+GOVERNED_GOOSE_MANIFEST_DIR = "governed-manifests"
 
 _BUILDER_SUBDIRS = ("artifacts", "goose", "receipts")
 
 
 def ensure_builder_scaffold(builder_root: Path) -> None:
-    """Ensure standard ``.builder`` subdirs exist (idempotent)."""
     for name in _BUILDER_SUBDIRS:
         (builder_root / name).mkdir(parents=True, exist_ok=True)
 
 
 def _resolve_target_name(settings: Any) -> str:
-    """Pick a safe default target for auto-prep without requiring operator choice.
-
-    Prefer an explicit profile on settings when present and valid. Otherwise
-    use ``builder`` when this tree looks like builder-II, else ``generic``.
-    """
     from builder_ii.lifecycle.setup.target_profiles import target_names
 
     valid = set(target_names())
     for attr in ("target_profile", "default_target", "target"):
-        val = getattr(settings, attr, None)
-        if val is None:
+        value = getattr(settings, attr, None)
+        if value is None:
             continue
-        name = getattr(val, "name", None) if not isinstance(val, str) else val
+        name = getattr(value, "name", None) if not isinstance(value, str) else value
         if isinstance(name, str) and name in valid:
             return name
 
@@ -53,7 +47,6 @@ def _resolve_target_name(settings: Any) -> str:
 
 
 def _default_agent_profile() -> str:
-    """Read-oriented default for a read_only session."""
     try:
         from builder_ii.routing.agent_profiles import agent_profile_names
 
@@ -71,12 +64,7 @@ def ensure_readonly_goose_manifest(
     builder_root: Path,
     task: str = "stratum read-only session",
 ) -> tuple[Path | None, str]:
-    """Return ``(path, note)``. Creates a default ``read_only`` manifest if none is usable.
-
-    ``note`` is a short operator-facing explanation of what happened.
-    Prefer any existing valid ``read_only`` manifest; only mint
-    ``stratum-auto-readonly.json`` when none exists.
-    """
+    """Return an existing valid read-only manifest or mint the stable local default."""
     from builder_ii.adapters.goose.goose_session import (
         create_goose_session_manifest,
         validate_goose_session_manifest,
@@ -87,7 +75,9 @@ def ensure_readonly_goose_manifest(
     ensure_builder_scaffold(builder_root)
     goose_dir = builder_root / "goose"
 
-    candidates = sorted(goose_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    candidates = sorted(
+        goose_dir.glob("*.json"), key=lambda path: path.stat().st_mtime, reverse=True
+    )
     for candidate in candidates:
         if validate_goose_session_manifest_file(candidate):
             continue
@@ -112,8 +102,11 @@ def ensure_readonly_goose_manifest(
             task=task,
             generic_repo=generic_repo if target == "generic" else None,
         )
-        # Mark auto-prep without inventing authority (immutable-style new dict).
-        base_gov = manifest.get("governance") if isinstance(manifest.get("governance"), dict) else {}
+        base_gov = (
+            manifest.get("governance")
+            if isinstance(manifest.get("governance"), dict)
+            else {}
+        )
         manifest = {
             **manifest,
             "governance": {
@@ -127,7 +120,6 @@ def ensure_readonly_goose_manifest(
             return None, f"could not auto-build manifest: {errors[0]}"
 
         out = goose_dir / AUTO_GOOSE_MANIFEST_NAME
-        # write_goose_session_manifest uses parents=True, exist_ok=True
         write_goose_session_manifest(manifest, out)
         disk_errors = validate_goose_session_manifest_file(out)
         if disk_errors:
@@ -137,28 +129,28 @@ def ensure_readonly_goose_manifest(
         return None, f"auto-prepare failed: {exc}"
 
 
+def _manifest_digest(manifest: dict[str, Any]) -> str:
+    """Digest the canonical serialized manifest bytes used for the content-addressed path."""
+    from builder_ii.adapters.goose.goose_session import dumps_goose_session_manifest
+
+    return hashlib.sha256(dumps_goose_session_manifest(manifest).encode("utf-8")).hexdigest()
+
+
 def ensure_governed_goose_manifest(
     *,
     settings: Any,
     builder_root: Path,
     task: str,
 ) -> tuple[Path | None, str]:
-    """Mint a task-bound ``read_only`` manifest for one governed run. Returns ``(path, note)``.
+    """Mint an immutable content-addressed ``read_only`` manifest for one task.
 
-    Unlike :func:`ensure_readonly_goose_manifest`, this never reuses an existing manifest: the
-    task the operator just typed is *part of* what the run is, and handing their new task to a
-    manifest describing an older one would make the receipts describe work nobody asked for.
-
-    Lives here rather than in the TUI because `builder_ii/tui/` may not write files at all
-    (`tests/test_stratum_tui.py::test_tui_sources_never_write_a_file`). That ban is what keeps a
-    render surface from quietly becoming an actor; delegating the write is how a console
-    participates without crossing it.
-
-    Passive artifact only: this starts nothing and grants nothing. The governed run command
-    re-validates the manifest at its own boundary and refuses anything not ``read_only``.
+    Exact duplicate content is idempotently reused only after validating the bytes already
+    on disk.  Different tasks or settings cannot collide by pathname, and a stale/mutated
+    file at the expected digest path is a refusal rather than an overwrite.
     """
     from builder_ii.adapters.goose.goose_session import (
         create_goose_session_manifest,
+        dumps_goose_session_manifest,
         validate_goose_session_manifest,
         validate_goose_session_manifest_file,
         write_goose_session_manifest,
@@ -182,7 +174,11 @@ def ensure_governed_goose_manifest(
             task=cleaned,
             generic_repo=generic_repo if target == "generic" else None,
         )
-        base_gov = manifest.get("governance") if isinstance(manifest.get("governance"), dict) else {}
+        base_gov = (
+            manifest.get("governance")
+            if isinstance(manifest.get("governance"), dict)
+            else {}
+        )
         manifest = {
             **manifest,
             "governance": {
@@ -195,11 +191,31 @@ def ensure_governed_goose_manifest(
         if errors:
             return None, f"could not build governed manifest: {errors[0]}"
 
-        out = builder_root / "goose" / GOVERNED_GOOSE_MANIFEST_NAME
-        write_goose_session_manifest(manifest, out)
+        digest = _manifest_digest(manifest)
+        directory = builder_root / "goose" / GOVERNED_GOOSE_MANIFEST_DIR
+        directory.mkdir(parents=True, exist_ok=True)
+        out = directory / f"{digest}.json"
+        expected_text = dumps_goose_session_manifest(manifest)
+
+        if out.exists():
+            try:
+                existing_text = out.read_text(encoding="utf-8")
+            except OSError as exc:
+                return None, f"existing governed manifest is unreadable: {exc}"
+            if existing_text != expected_text:
+                return None, (
+                    "content-addressed governed manifest path contains unexpected bytes; "
+                    "refusing to overwrite evidence"
+                )
+        else:
+            write_goose_session_manifest(manifest, out)
+
         disk_errors = validate_goose_session_manifest_file(out)
         if disk_errors:
             return None, f"governed manifest failed validation: {disk_errors[0]}"
+        observed = hashlib.sha256(out.read_bytes()).hexdigest()
+        if observed != digest:
+            return None, "governed manifest content digest does not match its filename"
         return out, f"governed manifest → {out.name}"
     except Exception as exc:
         return None, f"could not build governed manifest: {exc}"
