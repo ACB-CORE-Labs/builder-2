@@ -9,7 +9,14 @@
 #
 # Everything below the checkout is PROVISIONING and caching. It exists to make the
 # environment cheap to assemble; it must never decide what is checked. Every gate runs
-# on every commit -- the battery is ~23s of real work, so there is nothing to tier away.
+# on every commit.
+#
+# Action references use GitHub's native `owner/repository@ref` grammar. A prior Forgejo-era
+# version used full `https://github.com/...` action URLs; GitHub Actions rejects that spelling
+# while preparing the job, before checkout or any repository gate can run. The canonical GitHub
+# workflow must be valid on the host that is evaluating this PR. Mirrors that need a different
+# artifact backend are a hosting-adapter concern, never a reason for canonical CI to fail before
+# it can examine the commit.
 
 name: CI
 
@@ -27,34 +34,22 @@ jobs:
       BUILDER_MODEL_BACKEND: ollama
     steps:
       # Shallow on purpose. No gate reads git history -- the gate-battery receipt records only
-      # HEAD and the working-tree state -- so a full-history clone was paying for nothing.
-      - uses: https://github.com/actions/checkout@v4
+      # HEAD and the working-tree state -- so a full-history clone would pay for data no gate uses.
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - uses: https://github.com/dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      # The real cost of a CI run here is PROVISIONING, not the gates. Measured on an M1: the
-      # whole 9-gate battery is ~23s and a COLD build of all 37 Rust crates is ~6s, while a run
-      # on the shared VM runner took ~30 minutes. The difference was re-downloading and
-      # rebuilding the world every time, with no cache anywhere in this file.
+      # Provisioning dominates a cold hosted run, so caches may be re-enabled when the hosting
+      # backend is reliable. They may change only how cheaply the environment is assembled; the
+      # gate set remains unconditionally defined by scripts/ci.sh.
       #
-      # Each cache below is keyed on the LOCKFILE that determines its contents, so it is reused
-      # until dependencies actually change, and a dependency change invalidates it automatically.
-      # A cache miss is never fatal: it degrades to exactly the old behaviour (build from
-      # scratch), so a runner without a cache backend still passes.
-      #
-      # NOTE ON PINS: actions/cache@v3 (not v4) for the same reason the artifact upload below is
-      # v3 -- v4 requires GitHub's newer proprietary backend, and v3 is the line the Forgejo
-      # runner implements against its own cache server.
-      #
-      # This adds NO gate and removes NO gate. `scripts/ci.sh` remains the single source of
-      # truth for the battery (pinned by tests/test_ci_gate_parity.py); caching only changes how
-      # fast the environment those gates need is assembled.
-      #
-      # Cache action disabled temporarily due to Forgejo runner cache timeout issues.
+      # Cache action remains disabled at this baseline because the prior Forgejo runner had cache
+      # timeout issues. The commented reference stays documentation only; no cache result may ever
+      # decide whether a gate runs (pinned by tests/test_ci_gate_parity.py).
       # - name: Cache cargo registry + the Rust validator build
-      #   uses: https://github.com/actions/cache@v3
+      #   uses: actions/cache@v3
       #   with:
       #     path: |
       #       ~/.cargo/registry
@@ -64,21 +59,13 @@ jobs:
       #     restore-keys: |
       #       cargo-${{ runner.os }}-
 
-      # `enable-cache` caches uv's download/build cache (wheels AND the CPython interpreter it
-      # provisions below), keyed on uv.lock. This is what makes `uv python install` and
-      # `uv sync` near-instant on a warm runner instead of a full re-download.
       - name: Install uv
-        uses: https://github.com/astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v5
         with:
           enable-cache: false
 
-      # Deliberately NO actions/setup-python: it resolves prebuilt CPython archives against
-      # GitHub's hosted-runner images, so on the Forgejo runner (whose `ubuntu-latest` label
-      # maps to a node:20-bookworm container) it fails with "The version '3.12' with
-      # architecture 'x64' was not found for this operating system" -- the step every CI run
-      # died on before 2026-07-10. uv provisions the interpreter pinned in .python-version
-      # itself, the same way on any glibc host, so this works on GitHub-hosted and Forgejo
-      # runners alike.
+      # Deliberately no actions/setup-python: uv provisions the interpreter pinned in
+      # .python-version, matching local project resolution and avoiding a second Python selector.
       - name: Install pinned Python (.python-version, via uv)
         run: uv python install
 
@@ -88,23 +75,18 @@ jobs:
       # The receipt path sits under .builder/ (gitignored) deliberately, and
       # tests/test_ci_gate_parity.py pins it: `git status --porcelain` sees an untracked
       # receipt left by a PREVIOUS run, so a repo-root path would make the very next run
-      # report `working_tree_clean: false` -- the field that exists to prove "these gates
-      # ran against exactly this commit" poisoned by the mechanism recording it.
-      # Exit-code discipline: scripts/ci.sh exits 3 when a receipt was requested but could
-      # not be written on an otherwise-green battery; no `continue-on-error` here, so any
-      # non-zero exit -- a gate's own code or that 3 -- fails this step and the job.
+      # report `working_tree_clean: false`. Exit-code discipline: scripts/ci.sh exits 3
+      # when a requested receipt cannot be written on an otherwise-green battery; no
+      # continue-on-error exists here, so any non-zero code fails the job.
       - name: Blocking gate battery
         run: bash scripts/ci.sh --receipt .builder/artifacts/gate-battery-receipt.json
 
-      # The receipt that matters most is the one from a RED run, and a default upload step
-      # is skipped when a prior step fails -- hence `if: always()` (documented Actions
-      # semantics: an always() step runs regardless of earlier step failure/cancellation).
-      # actions/upload-artifact@v4 requires GitHub's proprietary artifact backend and is
-      # documented as unsupported on Gitea/Forgejo Actions; v3 is the line the Forgejo
-      # runner implements.
+      # The receipt that matters most is the one from a RED run. `if: always()` makes the upload
+      # execute even when the battery fails. GitHub-hosted Actions uses upload-artifact v4; the
+      # receipt remains RECORDED_ONLY evidence of the run, not independent proof of correctness.
       - name: Upload gate battery receipt (even when the battery is red)
         if: always()
-        uses: https://github.com/actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gate-battery-receipt
           path: .builder/artifacts/gate-battery-receipt.json
