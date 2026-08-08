@@ -1,15 +1,15 @@
-"""The path jail and bounds behind the governed read tools.
+"""Adversarial tests for the governed repository read jail.
 
-These are the tools that make a governed Goose session able to do real work, so the jail is the
-security boundary of the whole lane: everything a governed session can see, it sees through
-here. The tests are written adversarially -- absolute paths, `..` traversal, symlinks that
-resolve out of the tree, links into `.git` -- because a jail that only stops the honest caller
-is not a jail.
+The jail is a security boundary, not caller etiquette.  V1 follows no symlink at all and
+bounds actual bytes examined, so a clean-looking relative path cannot use filesystem
+indirection to escape and a huge file cannot turn a 64 KiB response cap into unbounded I/O.
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -43,38 +43,42 @@ def test_parent_traversal_is_refused(repo: Path) -> None:
 
 
 def test_git_directory_is_refused(repo: Path) -> None:
-    with pytest.raises(ToolRefusal, match="reserved|must not enter"):
+    with pytest.raises(ToolRefusal, match="must not enter"):
         tools.read_file(repo, ".git/config")
 
 
 def test_builder_evidence_directory_is_refused(repo: Path) -> None:
-    # A tool that can read the ledger it is being recorded in confuses acting with being
-    # audited; the governance evidence is off-limits to the governed session.
-    with pytest.raises(ToolRefusal, match="reserved|must not enter"):
+    with pytest.raises(ToolRefusal, match="must not enter"):
         tools.read_file(repo, ".builder/ledger.json")
 
 
-def test_a_symlink_pointing_outside_the_root_is_refused(repo: Path, tmp_path_factory) -> None:
-    """The string is clean; only resolution reveals the escape."""
+def test_a_symlink_pointing_outside_the_root_is_refused(repo: Path, tmp_path_factory: Any) -> None:
     outside_dir = tmp_path_factory.mktemp("outside")
     secret = outside_dir / "secret.txt"
     secret.write_text("exfiltrated", encoding="utf-8")
     (repo / "innocent.txt").symlink_to(secret)
 
-    with pytest.raises(ToolRefusal, match="escapes the target root"):
+    with pytest.raises(ToolRefusal, match="symlinks are not traversable"):
         tools.read_file(repo, "innocent.txt")
 
 
 def test_a_symlink_into_git_is_refused(repo: Path) -> None:
     (repo / "peek").symlink_to(repo / ".git" / "config")
-    with pytest.raises(ToolRefusal, match="reserved|escapes"):
+    with pytest.raises(ToolRefusal, match="symlinks are not traversable"):
         tools.read_file(repo, "peek")
 
 
-def test_a_symlink_that_stays_inside_the_root_is_allowed(repo: Path) -> None:
-    # The jail bounds where reads may land, not how the caller spells the path.
+def test_a_symlink_that_stays_inside_the_root_is_still_refused(repo: Path) -> None:
+    """V1 chooses the mechanically simple rule: no symlink traversal, even internal links."""
     (repo / "alias.py").symlink_to(repo / "src" / "app.py")
-    assert "def main()" in tools.read_file(repo, "alias.py")
+    with pytest.raises(ToolRefusal, match="symlinks are not traversable"):
+        tools.read_file(repo, "alias.py")
+
+
+def test_a_symlinked_parent_directory_is_refused(repo: Path) -> None:
+    (repo / "src-link").symlink_to(repo / "src", target_is_directory=True)
+    with pytest.raises(ToolRefusal, match="symlinks are not traversable"):
+        tools.read_file(repo, "src-link/app.py")
 
 
 # --- read_file --------------------------------------------------------------------------
@@ -90,7 +94,7 @@ def test_read_file_refuses_a_missing_path(repo: Path) -> None:
 
 
 def test_read_file_refuses_a_directory(repo: Path) -> None:
-    with pytest.raises(ToolRefusal, match="not a file"):
+    with pytest.raises(ToolRefusal, match="regular file"):
         tools.read_file(repo, "src")
 
 
@@ -99,10 +103,50 @@ def test_read_file_truncates_at_the_byte_cap(repo: Path) -> None:
     assert len(tools.read_file(repo, "big.txt", max_bytes=100)) == 100
 
 
+def test_read_file_bounds_actual_io_not_only_returned_output(
+    repo: Path, monkeypatch: Any
+) -> None:
+    big = repo / "huge.txt"
+    big.write_bytes(b"x" * (2 * 1024 * 1024))
+    original_open = Path.open
+    requested: list[int] = []
+
+    class _TrackedHandle:
+        def __init__(self, handle: Any):
+            self._handle = handle
+
+        def __enter__(self) -> "_TrackedHandle":
+            self._handle.__enter__()
+            return self
+
+        def __exit__(self, *args: Any) -> Any:
+            return self._handle.__exit__(*args)
+
+        def read(self, size: int = -1) -> bytes:
+            requested.append(size)
+            return self._handle.read(size)
+
+    def tracked_open(path: Path, *args: Any, **kwargs: Any):
+        handle = original_open(path, *args, **kwargs)
+        return _TrackedHandle(handle) if path == big else handle
+
+    monkeypatch.setattr(Path, "open", tracked_open)
+    assert len(tools.read_file(repo, "huge.txt", max_bytes=4096)) == 4096
+    assert requested == [4097]
+
+
 def test_read_file_survives_undecodable_bytes(repo: Path) -> None:
-    # Binary content must not raise out of the governed path; it degrades to replacement chars.
     (repo / "blob.bin").write_bytes(b"\xff\xfe\x00binary")
     assert isinstance(tools.read_file(repo, "blob.bin"), str)
+
+
+def test_read_file_refuses_non_regular_files(repo: Path) -> None:
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("mkfifo unavailable on this platform")
+    fifo = repo / "pipe"
+    os.mkfifo(fifo)
+    with pytest.raises(ToolRefusal, match="regular file"):
+        tools.read_file(repo, "pipe")
 
 
 # --- list_dir ---------------------------------------------------------------------------
@@ -113,6 +157,13 @@ def test_list_dir_marks_directories_and_hides_reserved_ones(repo: Path) -> None:
     assert "src/" in listing
     assert "README.md" in listing
     assert ".git/" not in listing and ".builder/" not in listing
+
+
+def test_list_dir_marks_but_never_follows_symlinks(repo: Path) -> None:
+    (repo / "alias").symlink_to(repo / "src", target_is_directory=True)
+    listing = tools.list_dir(repo).splitlines()
+    assert "alias@" in listing
+    assert "alias/" not in listing
 
 
 def test_list_dir_is_deterministic(repo: Path) -> None:
@@ -126,7 +177,7 @@ def test_list_dir_bounds_large_directories(repo: Path) -> None:
         (crowded / f"f{i:03d}.txt").write_text("x", encoding="utf-8")
 
     listing = tools.list_dir(repo, "many", max_entries=10).splitlines()
-    assert len(listing) == 11  # 10 entries plus the truncation notice
+    assert len(listing) == 11
     assert "truncated" in listing[-1]
 
 
@@ -154,12 +205,23 @@ def test_grep_refuses_an_empty_pattern(repo: Path) -> None:
 
 
 def test_grep_never_searches_reserved_directories(repo: Path) -> None:
-    # The string lives only in .git/config, so a repo-wide search must find nothing. Asserting
-    # on the absence of the word alone would pass trivially: the "no matches" line echoes the
-    # pattern back, so the real claim is that no *result row* cites a reserved path.
     out = tools.grep(repo, "secret")
     assert out.startswith("no matches")
     assert ".git" not in out and ".builder" not in out
+
+
+def test_grep_never_follows_a_symlinked_file(repo: Path, tmp_path_factory: Any) -> None:
+    outside = tmp_path_factory.mktemp("grep-outside") / "secret.txt"
+    outside.write_text("needle-outside\n", encoding="utf-8")
+    (repo / "looks-local.txt").symlink_to(outside)
+    assert tools.grep(repo, "needle-outside").startswith("no matches")
+
+
+def test_grep_never_follows_a_symlinked_directory(repo: Path, tmp_path_factory: Any) -> None:
+    outside = tmp_path_factory.mktemp("grep-dir")
+    (outside / "secret.txt").write_text("needle-outside\n", encoding="utf-8")
+    (repo / "vendor").symlink_to(outside, target_is_directory=True)
+    assert tools.grep(repo, "needle-outside").startswith("no matches")
 
 
 def test_grep_bounds_its_match_count(repo: Path) -> None:
@@ -167,8 +229,20 @@ def test_grep_bounds_its_match_count(repo: Path) -> None:
     noisy.write_text("\n".join("needle" for _ in range(100)), encoding="utf-8")
 
     out = tools.grep(repo, "needle", max_matches=5)
-    assert len([ln for ln in out.splitlines() if "noisy.txt" in ln]) == 5
+    assert len([line for line in out.splitlines() if "noisy.txt" in line]) == 5
     assert "truncated" in out
+
+
+def test_grep_bounds_total_bytes_scanned(repo: Path) -> None:
+    for index in range(3):
+        (repo / f"large-{index}.txt").write_text("x" * 1000, encoding="utf-8")
+    out = tools.grep(
+        repo,
+        "not-present",
+        max_scanned_bytes=1200,
+        max_bytes_per_file=1000,
+    )
+    assert "scan truncated" in out
 
 
 def test_grep_can_be_scoped_to_a_subtree(repo: Path) -> None:
