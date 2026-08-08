@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +78,7 @@ def test_manual_confirmation_records_ratification_before_authorization_exists(tm
     assert authorization["plan_ref"]["sha256"] == governed_dispatch.canonical_digest(plan)
     assert authorization["decision_mode"] == "manual_operator_confirmation"
     assert authorization["grant_digest"] is None
+    assert authorization["governance"]["artifact_is_authority"] is False
     ledger = ratification_root / "ratification_ledger.jsonl"
     assert ledger.exists()
     assert authorization["ratification_entry_digest"] in ledger.read_text(encoding="utf-8")
