@@ -28,17 +28,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 from builder_ii.core.atomic_artifacts import atomic_write_json
+from builder_ii.governance import ratification_dispatch
 from builder_ii.governance.authority import get_command_record
 from builder_ii.governance.ledger.ratification_ledger import validate_ratification_ledger
 from builder_ii.governance.ledger.workflow_records import canonical_digest
-from builder_ii.governance.ratification_dispatch import (
-    DispatchRatification,
-    record_auto_ratified,
-    record_manual_ratified,
-    resolve_dispatch_ratification,
-    STATUS_APPROVAL_ARTIFACT_REQUIRED,
-    STATUS_AUTO,
-)
 from builder_ii.governance.ratification_grants import resolve_ratification_root
 
 DISPATCH_PLAN_KIND = "builder_ii.governed_dispatch_plan"
@@ -190,9 +183,9 @@ def load_dispatch_plan(path: Path) -> dict[str, Any]:
 
 def resolve_plan_ratification(
     plan: dict[str, Any], *, ratification_root: Path | None = None
-) -> DispatchRatification:
+) -> ratification_dispatch.DispatchRatification:
     point_id = str(plan.get("ratification_point_id", ""))
-    return resolve_dispatch_ratification(point_id, root=ratification_root)
+    return ratification_dispatch.resolve_dispatch_ratification(point_id, root=ratification_root)
 
 
 def authorize_dispatch(
@@ -201,7 +194,7 @@ def authorize_dispatch(
     actor: str,
     decision_mode: DecisionMode,
     ratification_root: Path | None = None,
-    resolution: DispatchRatification | None = None,
+    resolution: ratification_dispatch.DispatchRatification | None = None,
     because: str = "operator confirmed the exact dispatch plan",
     ttl_seconds: int = DEFAULT_AUTHORIZATION_TTL_SECONDS,
 ) -> tuple[dict[str, Any], Path]:
@@ -213,19 +206,25 @@ def authorize_dispatch(
     root = resolve_ratification_root(ratification_root)
 
     if decision_mode == "standing_ratification_grant":
-        resolved = resolution or resolve_dispatch_ratification(point_id, root=root)
-        if resolved.status != STATUS_AUTO:
+        resolved = resolution or ratification_dispatch.resolve_dispatch_ratification(
+            point_id, root=root
+        )
+        if resolved.status != ratification_dispatch.STATUS_AUTO:
             raise DispatchAuthorizationError(
                 "standing-grant authorization requires AUTO resolution, "
                 f"got {resolved.status}"
             )
-        ratification_entry = record_auto_ratified(resolved, actor=actor, root=root)
+        ratification_entry = ratification_dispatch.record_auto_ratified(
+            resolved, actor=actor, root=root
+        )
         grant_digest = resolved.grant_digest
     elif decision_mode == "manual_operator_confirmation":
-        current = resolution or resolve_dispatch_ratification(point_id, root=root)
-        if current.status == STATUS_APPROVAL_ARTIFACT_REQUIRED:
+        current = resolution or ratification_dispatch.resolve_dispatch_ratification(
+            point_id, root=root
+        )
+        if current.status == ratification_dispatch.STATUS_APPROVAL_ARTIFACT_REQUIRED:
             raise DispatchAuthorizationError(current.because)
-        ratification_entry = record_manual_ratified(
+        ratification_entry = ratification_dispatch.record_manual_ratified(
             point_id,
             actor=actor,
             because=because or current.because,
