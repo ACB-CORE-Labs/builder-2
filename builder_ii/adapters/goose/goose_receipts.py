@@ -48,7 +48,7 @@ def bind_goose_launch_receipt_dispatch(
 ) -> dict[str, Any]:
     """Return the same launch receipt rebound to the dispatch evidence that preceded spawn.
 
-    The original digest is discarded and recomputed over the expanded receipt.  This keeps
+    The original digest is discarded and recomputed over the expanded receipt. This keeps
     ``builder-govern trace``-style consumers from having to correlate a launch to a grant by
     filename convention or timing.
     """
