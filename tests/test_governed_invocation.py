@@ -5,11 +5,10 @@ from pathlib import Path
 import pytest
 
 from builder_ii.adapters.goose.governed_invocation import (
-    GovernedInvocationError,
     GooseCliCapabilities,
+    GovernedInvocationError,
     plan_governed_headless_invocation,
 )
-
 
 FULL_HELP = """Usage: goose run [OPTIONS]
   --recipe <PATH>
