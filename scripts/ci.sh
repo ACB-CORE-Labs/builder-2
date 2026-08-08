@@ -55,7 +55,7 @@ if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${FORGEJO_ACTIONS:-
 fi
 
 # gate()/skip()/the --receipt machinery live in lib/ so they're testable without running the
-# real (slow) nine-gate battery -- see scripts/lib/gate_battery_receipt.sh's header comment.
+# real (slow) battery -- see scripts/lib/gate_battery_receipt.sh's header comment.
 source scripts/lib/gate_battery_receipt.sh
 _gbr_parse_args "$@"
 _gbr_init
@@ -110,7 +110,15 @@ gate "tui app mypy" uv run mypy builder_ii/tui/app.py --follow-imports=silent
 
 gate "targeted bandit" uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
 
-# 6. Full suite. `addopts` in pyproject already carries `-q`; adding another `-q`
+# 6. High-signal STRATUM governed-control-plane closure lane.
+#
+# Deliberate duplication: these tests also appear in the full suite below. The focused gate exists
+# so a regression in the runtime / MCP / ratification / HITL / STRATUM seam is named immediately,
+# with a fixed random seed that is easy to reproduce. It NEVER substitutes for the randomized full
+# suite and is itself blocking. `tests/test_ci_gate_parity.py` pins both facts.
+gate "STRATUM governed control-plane closure lane" bash scripts/verify_stratum_control_plane.sh
+
+# 7. Full suite. `addopts` in pyproject already carries `-q`; adding another `-q`
 # turns it into `-qq` and suppresses the pass/fail summary line. Do not add one.
 # -n auto: parallelize across CPU-detected worker processes (pytest-xdist).
 # -p randomly: force-load pytest-randomly (it auto-activates once installed via a
