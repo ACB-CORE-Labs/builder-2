@@ -33,11 +33,11 @@ from builder_ii.governance.ledger.ratification_ledger import validate_ratificati
 from builder_ii.governance.ledger.workflow_records import canonical_digest
 from builder_ii.governance.ratification_dispatch import (
     DispatchRatification,
-    STATUS_APPROVAL_ARTIFACT_REQUIRED,
-    STATUS_AUTO,
     record_auto_ratified,
     record_manual_ratified,
     resolve_dispatch_ratification,
+    STATUS_APPROVAL_ARTIFACT_REQUIRED,
+    STATUS_AUTO,
 )
 from builder_ii.governance.ratification_grants import resolve_ratification_root
 
