@@ -25,7 +25,6 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
-
 _REQUIRED_HEADLESS_FLAGS: tuple[str, ...] = ("--text", "--recipe", "--with-builtin")
 
 
