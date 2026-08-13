@@ -105,5 +105,5 @@ Concretely:
 - Implementation must clear all eight promotion gates (docs, tests, command surface,
   failure mode, human approval boundary, output artifact, rollback path, verification
   path) with an evidence-backed matrix flip. See
-  [`docs/plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md`](../plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md)
+  [`docs/DEEPAGENTS_RUNTIME.md`](../plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md)
   for the full lane design, failure-mode taxonomy, test plan, and rollout ladder.

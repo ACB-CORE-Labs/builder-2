@@ -5,7 +5,7 @@ for, what feedback is explicitly out of scope (because it's already known and tr
 and how to send it. It exists so beta participants and the operator share the same expectations
 before anyone starts poking at the platform — see
 [`docs/MANIFESTO.md`](MANIFESTO.md) for why the project is built the way it is, and
-[`docs/ROADMAP.md`](ROADMAP.md) / [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) for
+[`docs/PLATFORM_COMPLETION_AUDIT.md`](ROADMAP.md) / [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) for
 what's currently promoted vs. speculative — this charter doesn't restate that state, it points to
 where it lives.
 

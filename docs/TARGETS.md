@@ -10,7 +10,7 @@ Initial targets:
 
 CORE is a target profile, not builder-II's platform identity. CORE Workbench/UI remains separate from builder-II.
 
-**V.5 boundary (design hygiene):** builder-II may help build/verify Workbench *source* as target work; it is **not** Workbench and does not drive Workbench UX. See [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](plan/CORE_WORKBENCH_BOUNDARY.md).
+**V.5 boundary (design hygiene):** builder-II may help build/verify Workbench *source* as target work; it is **not** Workbench and does not drive Workbench UX. See [`docs/architecture/CORE_WORKBENCH_BOUNDARY.md`](architecture/CORE_WORKBENCH_BOUNDARY.md).
 
 ## Commands
 

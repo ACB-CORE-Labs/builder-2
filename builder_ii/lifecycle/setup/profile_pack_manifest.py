@@ -365,7 +365,7 @@ def create_profile_pack_manifest(
                     profile_kind="mcp_inventory_stub",
                     title="MCP inventory stub",
                     description="MCP inventory is a passive policy precursor and never calls tools.",
-                    source_refs=source("docs/plan/MCP_TOOL_INVENTORY_RFC.md", kind="doc"),
+                    source_refs=source("docs/architecture/MCP_TOOL_INVENTORY_CONTRACT.md", kind="doc"),
                     payload={
                         "stub_only": True,
                         "connects_to_mcp": False,
@@ -381,7 +381,7 @@ def create_profile_pack_manifest(
                     profile_kind="mcp_policy_stub",
                     title="MCP policy stub",
                     description="MCP policy remains deny-by-default metadata without invocation authority.",
-                    source_refs=source("docs/plan/MCP_POLICY_ARTIFACT_RFC.md", kind="doc"),
+                    source_refs=source("docs/architecture/MCP_POLICY_CONTRACT.md", kind="doc"),
                     payload={
                         "stub_only": True,
                         "connects_to_mcp": False,

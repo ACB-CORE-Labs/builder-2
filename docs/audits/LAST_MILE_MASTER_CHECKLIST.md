@@ -26,7 +26,7 @@ Last updated: 2026-07-19 (remainder wave)
 | --- | --- | --- | --- |
 | W0.1 | Real token accounting + price book | DONE | `price_book.py`, `token_accounting.py`, gateway cost_report |
 | W0.2 | Unified runtime event ledger spine | DONE | `runtime_event_append.py`, chain integrity |
-| W0.3 | Server-side green gate (in-repo) | DONE | `scripts/ci.sh` + `.github/workflows/ci.yml` + gate battery receipt; local-first authority (Forgejo runner enable is ops applying *existing* workflow — not missing code) |
+| W0.3 | Local merge gate (in-repo) | DONE | `scripts/ci.sh` + gate battery receipt; no hosted workflow or paid status-check dependency |
 
 ---
 

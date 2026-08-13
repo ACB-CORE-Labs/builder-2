@@ -104,12 +104,12 @@ def build_s4_readiness_record(backend_id: str) -> dict[str, Any]:
         target="builder",
         docs_refs=(
             "docs/WRP_CONTROL_PLANE.md",
-            "docs/WRP_MASTERY_GAP_MATRIX.md",
-            "docs/WRP_MASTERY_PROGRESS.md",
+            "docs/WRP_CONTROL_PLANE.md",
+            "docs/PLATFORM_COMPLETION_AUDIT.md",
             "docs/WRP_ACCEPTANCE.md",
             "docs/CAPABILITY_PROMOTION.md",
             "docs/adrs/ADR-0007-orchestration-router-control-plane.md",
-            "docs/plan/WRP_VLLM_RESEARCH_PROFILE.md" if bid == "vllm_research" else "docs/WRP_CONTROL_PLANE.md",
+            "docs/WRP_CONTROL_PLANE.md" if bid == "vllm_research" else "docs/WRP_CONTROL_PLANE.md",
         ),
         tests_refs=(
             "tests/test_wrp_backend_registry.py",

@@ -11,9 +11,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-`builder-II` is a generic **governed control plane** for local agent-assisted software development (Python 3.12, Typer/Rich/Textual CLI + TUI, optional PyO3/Rust validation accelerator). It is CORE-born but generic-first: CORE is one supported *target profile*, not builder-II's identity. Goose, deepagents, MCP, and model providers are not parallel authorities — they are wrapped as governed adapters underneath builder-II's policy/artifact/HITL boundary. See `README.md` and `docs/MANIFESTO.md` for the full philosophy; `docs/ROADMAP.md` tracks what is currently promoted vs. speculative.
+`builder-II` is a generic **governed control plane** for local agent-assisted software development (Python 3.12, Typer/Rich/Textual CLI + TUI, optional PyO3/Rust validation accelerator). It is CORE-born but generic-first: CORE is one supported *target profile*, not builder-II's identity. Goose, deepagents, MCP, and model providers are not parallel authorities — they are wrapped as governed adapters underneath builder-II's policy/artifact/HITL boundary. See `README.md` and `docs/MANIFESTO.md` for the full philosophy; `docs/PLATFORM_COMPLETION_AUDIT.md` tracks what is currently promoted vs. speculative.
 
-The load-bearing distinctions the whole codebase enforces: **planned ≠ executed ≠ verified ≠ promoted**, **artifact ≠ authority**, **model output ≠ approval**, **subagent output ≠ truth**. Almost every subsystem exists to produce a reviewable JSON artifact (with a `kind` field) and a matching validator — not to take an autonomous action. Most write/execute/shell capabilities in this codebase are intentionally **not promoted**; check `docs/ROADMAP.md`'s "non-authority boundaries" and `docs/CAPABILITY_PROMOTION.md` before assuming a capability is live rather than a governed stub.
+The load-bearing distinctions the whole codebase enforces: **planned ≠ executed ≠ verified ≠ promoted**, **artifact ≠ authority**, **model output ≠ approval**, **subagent output ≠ truth**. Almost every subsystem exists to produce a reviewable JSON artifact (with a `kind` field) and a matching validator — not to take an autonomous action. Most write/execute/shell capabilities in this codebase are intentionally **not promoted**; check `docs/PLATFORM_COMPLETION_AUDIT.md`'s "non-authority boundaries" and `docs/CAPABILITY_PROMOTION.md` before assuming a capability is live rather than a governed stub.
 
 Primary hardware target is an Apple Silicon M1 with 16GB unified memory — keep local model footprints in the ~2–7GB range (see `docs/model_role_matrix.md`); heavier lanes are explicit opt-in candidates, not defaults.
 
@@ -83,7 +83,7 @@ The CodeVault software geometry engine (Cl(4,1) layout coordinates, polyglot CPy
 
 ### Rust validation accelerator (`builder_ii_validation_rs/`)
 
-A small PyO3 extension (`validate_artifact`) plus a standalone `--kind`/stdin CLI binary that re-implements artifact validation in Rust for speed. It is a measurement-gated performance track (`docs/plan/RUST_VALIDATION_SPIKE.md`) — the Python validators remain the reference implementation; only add/change Rust validation logic when it's proven to match Python parity.
+A small PyO3 extension (`validate_artifact`) plus a standalone `--kind`/stdin CLI binary that re-implements artifact validation in Rust for speed. It is a measurement-gated performance track (`docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md`) — the Python validators remain the reference implementation; only add/change Rust validation logic when it's proven to match Python parity.
 
 ### Tests
 

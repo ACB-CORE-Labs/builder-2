@@ -527,7 +527,7 @@ def test_an_applied_isolation_receipt_records_the_approved_argv_not_the_executed
     names a command that did not execute, and `isolation_status: "applied"` is the runner's own
     assertion about itself, corroborated by nothing else in the receipt.
 
-    `docs/plan/VERIFICATION_ISOLATION_RFC.md` is why that is tolerable rather than alarming:
+    `docs/architecture/VERIFICATION_ISOLATION.md` is why that is tolerable rather than alarming:
     "local isolation is containment, not attestation." A receipt was never going to attest it.
     `docs/audits/LADDER9_ASSURANCE_CLOSURE_AUDIT.md` records it; this pin makes sure the sentence
     stays true, or fails when someone changes the behaviour without changing the record.

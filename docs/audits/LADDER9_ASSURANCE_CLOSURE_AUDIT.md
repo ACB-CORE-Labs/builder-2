@@ -105,7 +105,7 @@ and grants neither action nor runtime authority.
 ## Isolation is containment, not attestation
 
 The flip **does not depend on isolation**, and nothing here should be read as saying it does.
-`docs/plan/VERIFICATION_ISOLATION_RFC.md`:
+`docs/architecture/VERIFICATION_ISOLATION.md`:
 
 > "There is nothing an isolated run can evidence that an unisolated run could not forge…
 > Local isolation is containment, not attestation."

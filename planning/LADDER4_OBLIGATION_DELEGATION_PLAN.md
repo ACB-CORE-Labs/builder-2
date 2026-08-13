@@ -307,7 +307,7 @@ targeted mypy per CLAUDE.md · `uv run bandit -q -r builder_ii -s B101,B105,B106
 regenerate COMMAND_AUTHORITY.md when the registry changed. PR body must include the battery
 results.
 
-### PR-0 — RFC (Opus 4.8) — `docs/plan/ORCHESTRATION_OBLIGATIONS_RFC.md`
+### PR-0 — RFC (Opus 4.8) — `docs/architecture/ORCHESTRATION_OBLIGATIONS_CONTRACT.md`
 Design-only. Contents: the constitution above verbatim; trunk = candidate→seal→run-approved
 (quote the `run-plan`/`:519` vs `run-approved`/`:695` distinction and the `runtime.py:219`
 finding); the object model verbatim; R1–R5 nuance maps summarized; phase-2 deferrals; non-goals.

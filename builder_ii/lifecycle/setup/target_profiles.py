@@ -62,7 +62,7 @@ _GENERIC_CONTEXT_DEFAULTS = (
 
 _BUILDER_CONTEXT_DEFAULTS = (
     "README.md",
-    "docs/ROADMAP.md",
+    "docs/PLATFORM_COMPLETION_AUDIT.md",
     "docs/TOOLING.md",
     "builder_ii",
     "recipes",

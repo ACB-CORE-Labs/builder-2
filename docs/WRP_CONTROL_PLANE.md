@@ -4,7 +4,7 @@ Geometry-first Workload–Router–Pool (WRP) orchestration & routing control pl
 
 **ADR:** [`docs/adrs/ADR-0007-orchestration-router-control-plane.md`](adrs/ADR-0007-orchestration-router-control-plane.md)  
 **Acceptance:** [`docs/WRP_ACCEPTANCE.md`](WRP_ACCEPTANCE.md)  
-**Gap ledger:** [`docs/WRP_MASTERY_GAP_MATRIX.md`](WRP_MASTERY_GAP_MATRIX.md)
+**Current control surface:** this document and the generated platform audit.
 
 ## Current truth (do not inflate)
 
@@ -13,7 +13,7 @@ Geometry-first Workload–Router–Pool (WRP) orchestration & routing control pl
 | Capability promotion | `artifact_only` / `validation_only` / `recommendation_only` + HITL candidates for S2 live/v2 gateways + P4 φ apply |
 | Command surface | `builder-wrp` Tier 1 (incl. `benchmark --class u`) + Tier 3 `run-approved` / `apply-rstar-approved` |
 | Live multi-agent execution | **Not S3-enabled** — S2 HITL graph (+ v2 record/stub gateways); P4/P5 do not enable multi-agent |
-| Absolute mastery | **In progress** — P0–P7 substrate + post-P6 PARTIAL harden; S3 HUMAN **blocked**; S4 + cloud invoke OPEN ([`WRP_MASTERY_PROGRESS.md`](WRP_MASTERY_PROGRESS.md)) |
+| Absolute mastery | **In progress** — P0–P7 substrate + post-P6 PARTIAL harden; S3 HUMAN **blocked**; S4 + cloud invoke OPEN |
 
 This document states both **what exists** and the **mastery target**. Target language is not a grant of power.
 
@@ -37,7 +37,7 @@ Eight promotion gates are the **mechanism** of enablement, not a permanent stop.
 | S1 | Recommendations **bound** into routing / assignment dry-run | **Decided approved** on main (`planning/evidence/wrp_s1_decision.json`); flags still required for bind |
 | S2 | HITL live lane (`builder-wrp run-approved`) | **Decided approved** (v1 + v2 gateway nodes on main); forced MSDA; default gateway `record`; not S3 |
 | S3 | Scoped `enabled` for declared profiles | **HUMAN blocked** (`planning/evidence/wrp_s3_decision.json`) after readiness G-LEAD PASS — Class U micro-only (H7); no enablement runtime |
-| S4 | Backend promotions (embed / OPA / LangGraph / vLLM research) | Partial — HUMAN decided: opa+modernbert_embed **approved** (future opt-in impl PR only); langgraph+vllm_research **blocked**; runtime `s4_promoted=false`. Synthesis: `docs/WRP_ABSOLUTE_MASTERY_SYNTHESIS.md` |
+| S4 | Backend promotions (embed / OPA / LangGraph / vLLM research) | Partial — HUMAN decided: opa+modernbert_embed **approved** (future opt-in impl PR only); langgraph+vllm_research **blocked**; runtime `s4_promoted=false`. |
 
 ## Live lane contract (S2 v1 — code present; decision may still be pending)
 

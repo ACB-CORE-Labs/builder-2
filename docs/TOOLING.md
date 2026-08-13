@@ -15,7 +15,12 @@ uv run builder-tools check --tier tier1
 uv run builder-tools check --tier tier2
 uv run builder-tools check --tier notes
 uv run builder-tools missing
+uv run builder-git-state identity
 ```
+
+`builder-git-state identity` is a read-only delivery preflight. It compares the configured
+`origin` URL with `https://github.com/ACB-CORE-Labs/builder-2` and exits non-zero on mismatch;
+the report grants no repository, runtime, or source-write authority.
 
 ## Tool installation
 
@@ -34,7 +39,7 @@ Modes:
 
 | Mode | Installs |
 | --- | --- |
-| `required` | Required tools only: `repomix`, `semgrep`, `ruff`, `ripgrep`, `tea`. |
+| `required` | Required tools only: `repomix`, `semgrep`, `ruff`, `ripgrep`, `gh`. |
 | `tier1` | Required tools plus `fd`, `pyright`, `pre-commit`. Serena remains `uvx` on demand. |
 | `tier2` | Optional tools: `ast-grep`, `aider-chat`, `promptfoo`. |
 | `notes` | Optional open-source note UIs: Logseq and Zettlr. |
@@ -57,7 +62,7 @@ These are the highest-leverage tools for the local agent/developer platform.
 | `pre-commit` | Git hook orchestration. | Install lint/type/scan/test hooks. |
 | `rg` | Fast text search. | Repo map and task-scoped context selection. |
 | `fd` | Fast file discovery. | Repo map and context selection. |
-| `tea` | Forgejo/Gitea CLI. | PR, issue, and release workflows against this repo's private Forgejo host. |
+| `gh` | GitHub CLI. | Repository, pull-request, issue, and release workflows against the canonical GitHub upstream. |
 
 ## Tier 2 tools
 
@@ -107,7 +112,7 @@ For builder-II, the important integration boundary is the Markdown folder, not t
 ## Install hints
 
 ```bash
-brew install repomix semgrep ruff ripgrep fd tea ast-grep
+brew install repomix semgrep ruff ripgrep fd gh ast-grep
 uv tool install pre-commit
 npm install -g pyright promptfoo
 uv tool install aider-chat

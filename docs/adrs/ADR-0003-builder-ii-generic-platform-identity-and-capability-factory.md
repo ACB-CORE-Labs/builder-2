@@ -53,7 +53,7 @@ CORE product identity for builder-II
 CORE-only platform identity
 ```
 
-**V.5 (2026-07-13) cross-ref:** The full Workbench separation (what builder-II may do for Workbench *source* as target work vs what Workbench owns as product UI, plus design-only requirements for any future authorized adapter) lives in [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](../plan/CORE_WORKBENCH_BOUNDARY.md). That document is hygiene/spec only; it does not authorize coupling or promote a Workbench adapter.
+**V.5 (2026-07-13) cross-ref:** The full Workbench separation (what builder-II may do for Workbench *source* as target work vs what Workbench owns as product UI, plus design-only requirements for any future authorized adapter) lives in [`docs/architecture/CORE_WORKBENCH_BOUNDARY.md`](../plan/CORE_WORKBENCH_BOUNDARY.md). That document is hygiene/spec only; it does not authorize coupling or promote a Workbench adapter.
 
 ## Source-of-truth hierarchy
 
@@ -64,7 +64,7 @@ The source-of-truth order is:
 1. accepted ADRs and later ADR refinements;
 2. `README.md` identity and architecture summary;
 3. `docs/MANIFESTO.md` product doctrine;
-4. `docs/ROADMAP.md` current status and promotion plan;
+4. `docs/PLATFORM_COMPLETION_AUDIT.md` current status and promotion plan;
 5. implementation docs, command registries, schemas, tests, and source code;
 6. Notion planning artifacts and external notes as supportive planning material only.
 
@@ -170,7 +170,7 @@ This ADR does not authorize:
 
 - Docs should use `CORE-born` for lineage and reserve `CORE` behavior for the `core` target profile.
 - Existing ADRs remain historically valid, but this ADR refines their identity language.
-- `docs/MANIFESTO.md`, `docs/ROADMAP.md`, and ADR indexes should align with the refined identity vocabulary.
+- `docs/MANIFESTO.md`, `docs/PLATFORM_COMPLETION_AUDIT.md`, and ADR indexes should align with the refined identity vocabulary.
 - Notion planning pages should explicitly remain supportive planning artifacts.
 - New implementation work should begin with the profile-pack/capability-factory substrate before live runtime expansion where that substrate changes downstream architecture.
 

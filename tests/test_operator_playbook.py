@@ -34,18 +34,13 @@ def test_script_registration_drift():
 
 
 def test_docs_alignment_drift():
-    """Verify docs/OPERATOR_PLAYBOOK.md and docs/ROADMAP.md mention the same operating-loop commands."""
+    """Verify that the operator playbook documents operating-loop commands."""
     playbook_path = pathlib.Path("docs/OPERATOR_PLAYBOOK.md")
-    roadmap_path = pathlib.Path("docs/ROADMAP.md")
 
     assert playbook_path.exists(), "docs/OPERATOR_PLAYBOOK.md must exist"
-    assert roadmap_path.exists(), "docs/ROADMAP.md must exist"
 
     with open(playbook_path, "r", encoding="utf-8") as f:
         playbook_content = f.read()
-
-    with open(roadmap_path, "r", encoding="utf-8") as f:
-        roadmap_content = f.read()
 
     # Command families to look for
     commands = [
@@ -81,7 +76,6 @@ def test_docs_alignment_drift():
 
     for cmd in commands:
         assert cmd in playbook_content, f"Command '{cmd}' must be documented in docs/OPERATOR_PLAYBOOK.md"
-        assert cmd in roadmap_content, f"Command '{cmd}' must be documented in docs/ROADMAP.md"
 
 
 def test_no_runtime_language_guard():

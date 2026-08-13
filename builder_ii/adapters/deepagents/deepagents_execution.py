@@ -48,7 +48,7 @@ EVENT_TYPES = (
     "run_completed",
     "run_failed",
     "action_denied",
-    # Ladder 4 obligation-delegation events (see docs/plan/ORCHESTRATION_OBLIGATIONS_RFC.md).
+    # Ladder 4 obligation-delegation events (see docs/architecture/ORCHESTRATION_OBLIGATIONS_CONTRACT.md).
     "obligation_minted",
     "obligation_mint_refused",
     "obligation_consumed",

@@ -21,7 +21,7 @@ builder-II documentation is organized as three tiers, each narrower and deeper t
      [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) and
      [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) for promotion state.
    - **[`docs/STRATUM.md`](STRATUM.md)** — STRATUM console reference (keys, flags, walkthrough opt-out).
-   - **[`docs/MAXIMIZING_PROFICIENCY.md`](MAXIMIZING_PROFICIENCY.md)** — walkthroughs for advanced setup, STRATUM console navigation, local model setup, and deepagents orchestration.
+   - **[`docs/GETTING_STARTED.md`](MAXIMIZING_PROFICIENCY.md)** — walkthroughs for advanced setup, STRATUM console navigation, local model setup, and deepagents orchestration.
    - **[`docs/GLOSSARY.md`](GLOSSARY.md)** — centralized definitions for core terminology.
 3. **This file** — the reference tier: every document in `docs/`, grouped by subsystem, for anyone
    going deeper than the curated map.
@@ -40,7 +40,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/GLOSSARY.md`](GLOSSARY.md) | builder-II Centralized Glossary |
 | [`docs/MANIFESTO.md`](MANIFESTO.md) | builder-II Manifesto |
 | [`docs/PROJECT_OVERVIEW.md`](PROJECT_OVERVIEW.md) | builder-II project overview |
-| [`docs/ROADMAP.md`](ROADMAP.md) | builder-II roadmap |
+| [`docs/PLATFORM_COMPLETION_AUDIT.md`](ROADMAP.md) | builder-II roadmap |
 | [`docs/adrs/README.md`](adrs/README.md) | builder-II Architecture Decision Records |
 | [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) | ADR-0001: builder-II as a Governed Engineering Extension |
 | [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) | ADR-0002: Builder Convention Layer over Codename Goose |
@@ -53,7 +53,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | Document | Purpose |
 | --- | --- |
 | [`docs/GETTING_STARTED.md`](GETTING_STARTED.md) | **New builder start here** — setup order, governance mental model, STRATUM × full platform |
-| [`docs/MAXIMIZING_PROFICIENCY.md`](MAXIMIZING_PROFICIENCY.md) | Walks through advanced setup, STRATUM console navigation, local model setups, and deepagent execution |
+| [`docs/GETTING_STARTED.md`](MAXIMIZING_PROFICIENCY.md) | Walks through advanced setup, STRATUM console navigation, local model setups, and deepagent execution |
 | [`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md) | Operator Quickstart |
 | [`docs/OPERATOR_GUIDE.md`](OPERATOR_GUIDE.md) | builder-II operator guide |
 | [`docs/OPERATOR_PLAYBOOK.md`](OPERATOR_PLAYBOOK.md) | builder-II Operator Playbook |
@@ -195,11 +195,7 @@ The following architectural and design documents reside in the commercial plugin
 * `docs/CODE_VAULT_ROADMAP.md` — Gate-ordered roadmap (no chronos)
 * `docs/CODE_VAULT_GATE_STATE.md` — Gate-state ledger: which roadmap bullets hold, and which gates are therefore closed
 * `docs/CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md` — Three-clock truth delta
-* `docs/plan/CODE_VAULT_MASTER_PLAN.md` — Consolidated master plan to fruition
-* `docs/plan/CODE_VAULT_EXECUTION_MAP.md` — Per-PR execution map for the first slice (G1 → G1b → G2)
-* `docs/plan/CODE_VAULT_G1_WAVE_BRIEFS.md` — Wave-1 work orders (PR-1/2/3, landed)
-* `docs/plan/CODE_VAULT_G1B_WAVE_BRIEFS.md` — Wave-2 work orders (PR-4/5/6, G1b completion)
-* `docs/plan/CODE_VAULT_TIER1_ENCODER_RFC.md` — F1 encoder RFC and measurement history
+* `docs/architecture/CODE_VAULT_TIER1_ENCODER.md` — F1 encoder RFC and measurement history
 * `docs/adrs/ADR-0005-codevault-boundary-and-authority.md` — CodeVault boundary and authority ADR
 
 
@@ -259,31 +255,17 @@ Readiness checklists for capability promotions gated on operator approval. All f
 
 | Document | Purpose |
 | --- | --- |
-| [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](plan/CORE_WORKBENCH_BOUNDARY.md) | V.5 CORE Workbench boundary (builder-II helps code, is not Workbench) |
-| [`docs/WRP_ABSOLUTE_MASTERY_SYNTHESIS.md`](WRP_ABSOLUTE_MASTERY_SYNTHESIS.md) | WRP/Vision absolute mastery synthesis (planning+evidence+smoke; not S3/S4 flip) |
-| [`docs/plan/ARTIFACT_MEMORY_RFC.md`](plan/ARTIFACT_MEMORY_RFC.md) | Artifact memory RFC |
-| [`docs/plan/B1_4A_VALIDATION_NOTE.md`](plan/B1_4A_VALIDATION_NOTE.md) | B1.4A Validation Note |
-| [`docs/plan/B8_B9_GOVERNED_EXECUTION_PLAN.md`](plan/B8_B9_GOVERNED_EXECUTION_PLAN.md) | B8/B9 governed execution plan |
-| [`docs/plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md`](plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md) | Governed deepagents model-invocation lane full design (DESIGN_ONLY companion to ADR-0008) |
-| [`docs/plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md`](plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md) | deepagents work artifacts RFC |
-| [`docs/plan/STRATUM_ORCHESTRATION_COCKPIT.md`](plan/STRATUM_ORCHESTRATION_COCKPIT.md) | STRATUM orchestration cockpit staged design (DESIGN_ONLY; stage 2 crosses the STRATUM executor boundary) |
-| [`docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md`](plan/GOOSE_DEEPAGENTS_MCP_SEAM.md) | Goose × deepagents × MCP seam |
-| [`docs/plan/MASTERPIECE_PLAN.md`](plan/MASTERPIECE_PLAN.md) | builder-II full mastery implementation plan |
-| [`docs/plan/MCP_POLICY_ARTIFACT_RFC.md`](plan/MCP_POLICY_ARTIFACT_RFC.md) | MCP policy artifact RFC |
-| [`docs/plan/MCP_TOOL_INVENTORY_RFC.md`](plan/MCP_TOOL_INVENTORY_RFC.md) | MCP tool inventory RFC |
-| [`docs/plan/PASSIVE_EXECUTION_CANDIDATE_MANIFEST_RFC.md`](plan/PASSIVE_EXECUTION_CANDIDATE_MANIFEST_RFC.md) | Passive Execution Candidate Manifest RFC (Goal 5 Design & Authorization) |
-| [`docs/plan/PASSIVE_HITL_PROMOTION_BRIDGE_RFC.md`](plan/PASSIVE_HITL_PROMOTION_BRIDGE_RFC.md) | Passive HITL Promotion Bridge RFC (Goal 4 Design & Authorization) |
-| [`docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md`](plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md) | Performance and integration amendment |
-| [`docs/plan/PR_203_DEEPAGENTS_FORGE_EXECUTION_PLAN.md`](plan/PR_203_DEEPAGENTS_FORGE_EXECUTION_PLAN.md) | PR 203 deepagents Forge execution plan |
-| [`docs/plan/RECONCILIATION_NOTE.md`](plan/RECONCILIATION_NOTE.md) | Reconciliation note: repository truth and planning artifacts |
-| [`docs/plan/RUST_VALIDATION_SPIKE.md`](plan/RUST_VALIDATION_SPIKE.md) | Rust validation spike plan |
+| [`docs/architecture/CORE_WORKBENCH_BOUNDARY.md`](architecture/CORE_WORKBENCH_BOUNDARY.md) | V.5 CORE Workbench boundary (builder-II helps code, is not Workbench) |
+| [`docs/WRP_CONTROL_PLANE.md`](WRP_ABSOLUTE_MASTERY_SYNTHESIS.md) | WRP/Vision absolute mastery synthesis (planning+evidence+smoke; not S3/S4 flip) |
+| [`docs/architecture/MCP_POLICY_CONTRACT.md`](architecture/MCP_POLICY_CONTRACT.md) | MCP policy artifact contract |
+| [`docs/architecture/MCP_TOOL_INVENTORY_CONTRACT.md`](architecture/MCP_TOOL_INVENTORY_CONTRACT.md) | MCP tool inventory contract |
 
 ### Process and tooling
 
 | Document | Purpose |
 | --- | --- |
 | [`docs/TOOLING.md`](TOOLING.md) | External tooling |
-| [`docs/BRANCH_PROTECTION_REQUIRED.md`](BRANCH_PROTECTION_REQUIRED.md) | GitHub Branch Protection Requirements |
+| [`docs/BRANCH_PROTECTION_REQUIRED.md`](BRANCH_PROTECTION_REQUIRED.md) | Local Merge Verification Policy |
 | [`docs/BRIEF_ALPHA.md`](BRIEF_ALPHA.md) | BRIEF ALPHA: GEMINI-3.1-PRO (High Compute) |
 | [`docs/BRIEF_BETA.md`](BRIEF_BETA.md) | BRIEF BETA: GEMINI-3.5-FLASH (High Context) |
 

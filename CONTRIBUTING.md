@@ -13,7 +13,8 @@ than ordinary bug fixes.
 ## Before you start
 
 - Read [`docs/README.md`](docs/README.md) for the full documentation index, and
-  [`docs/ROADMAP.md`](docs/ROADMAP.md) / [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md)
+  [`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) /
+  [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md)
   for what's currently promoted vs. speculative. A capability that isn't promoted yet is usually that
   way on purpose — check before assuming it's just unfinished.
 - For anything non-trivial, open an issue or discussion first (see "Reporting issues" below) to
@@ -91,7 +92,7 @@ imperative and under ~70 characters; use the body to explain *why*, not just *wh
 
 ## Reporting issues
 
-Open an issue on the [GitHub issue tracker](https://github.com/AssetOverflow/builder-2/issues).
+Open an issue on the [GitHub issue tracker](https://github.com/ACB-CORE-Labs/builder-2/issues).
 
 For security vulnerabilities specifically, see [`SECURITY.md`](SECURITY.md) — do not open a public
 issue for those.

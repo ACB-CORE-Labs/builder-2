@@ -122,7 +122,7 @@ uv run pytest tests/test_wrp_spaces.py tests/test_wrp_classifier.py \
   tests/scenarios/test_wrp_full_lane.py -q
 ```
 
-Acceptance: `docs/WRP_ACCEPTANCE.md`. Gap ledger: `docs/WRP_MASTERY_GAP_MATRIX.md`.  
+Acceptance: `docs/WRP_ACCEPTANCE.md`. Gap ledger: `docs/WRP_CONTROL_PLANE.md`.
 Control plane: `docs/WRP_CONTROL_PLANE.md`.
 
 ## Relations

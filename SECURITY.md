@@ -12,7 +12,7 @@ matrix yet; that will be established around the first tagged release (see
 `[host-specific — TBD]` This repository is currently private and not yet open for public
 contribution or disclosure. A dedicated security-contact channel (private advisory, security email
 alias, or equivalent) will be established when the project is made public — see
-[`docs/ROADMAP.md`](docs/ROADMAP.md) for open-sourcing status.
+[`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) for open-sourcing status.
 
 Until that channel exists:
 
