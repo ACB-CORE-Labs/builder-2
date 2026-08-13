@@ -94,7 +94,7 @@ jobs:
       # semantics: an always() step runs regardless of earlier step failure/cancellation).
       - name: Upload gate battery receipt (even when the battery is red)
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: gate-battery-receipt
           path: .builder/artifacts/gate-battery-receipt.json
