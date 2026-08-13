@@ -67,9 +67,9 @@ def test_governed_argv_omits_recipe_when_missing(mock_settings, tmp_path: Path) 
     assert "--recipe" not in argv
 
 
-@patch("builder_ii.goose_runtime_harness.goose_env", return_value={})
-@patch("builder_ii.goose_runtime_harness.find_goose_binary")
-@patch("builder_ii.goose_runtime_harness.subprocess.Popen")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.goose_env", return_value={})
+@patch("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.subprocess.Popen")
 def test_launch_governed_points_goose_at_the_governed_recipe(
     mock_popen: MagicMock,
     mock_find_goose: MagicMock,

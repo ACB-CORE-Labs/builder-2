@@ -85,7 +85,9 @@ def test_start_readonly_refuses_non_read_only_manifest(tmp_path: Path) -> None:
 
 def _install_subprocess_mocks(monkeypatch: Any, tmp_path: Path, *, mutate_file: str | None = None) -> list[Any]:
     monkeypatch.setattr(goose_cli, "load_settings", lambda *a, **k: _settings_at(tmp_path))
-    monkeypatch.setattr("builder_ii.goose_runtime_harness.find_goose_binary", lambda: "/fake/goose")
+    monkeypatch.setattr(
+        "builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary", lambda: "/fake/goose"
+    )
 
     class FakeProc:
         def __init__(self, args: Any, cwd: Any, env: Any):
@@ -129,7 +131,7 @@ def _install_subprocess_mocks(monkeypatch: Any, tmp_path: Path, *, mutate_file: 
             return proc
         return real_popen(*args, **kwargs)
 
-    monkeypatch.setattr("builder_ii.goose_runtime_harness.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.Popen", fake_popen)
     return captured_procs
 
 
@@ -139,7 +141,7 @@ def test_start_readonly_launches_and_writes_receipts_when_no_mutation(monkeypatc
     _write_manifest(manifest)
 
     # Monkeypatch time.time to have a predictable session ID
-    monkeypatch.setattr("builder_ii.goose_runtime_harness.time.time", lambda: 12345.0)
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.time.time", lambda: 12345.0)
 
     result = runner.invoke(goose_app, ["start-readonly", str(manifest)])
 

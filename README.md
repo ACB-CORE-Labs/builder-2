@@ -1,8 +1,6 @@
 # builder-II
 
-[![CI](https://github.com/AssetOverflow/builder-II/actions/workflows/ci.yml/badge.svg)](https://github.com/AssetOverflow/builder-II/actions/workflows/ci.yml)
-
-> **Trust signals:** `tests/scenarios/test_wrp_full_lane.py` and `tests/scenarios/test_hitl_orchestration.py` exercise WRP exchange and full HITL orchestration. Local truth: `bash scripts/ci.sh` (do not treat this badge as a substitute for the gate battery).
+> **Verification:** `bash scripts/ci.sh` is the authoritative local merge gate. This repository does not use GitHub-hosted workflows or status checks.
 
 
 <p align="center">

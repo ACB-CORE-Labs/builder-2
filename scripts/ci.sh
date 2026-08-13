@@ -1,22 +1,14 @@
 #!/usr/bin/env bash
-# The blocking CI gate battery -- one definition, run identically by humans and CI.
+# The blocking local gate battery -- the one merge-verification definition, run by humans.
 #
-# Why this file exists: `.github/workflows/ci.yml` used to inline every gate, so the
-# only way to check a change locally was to transcribe the whole sequence out of the
-# workflow (or out of CLAUDE.md) by hand. Two hand-transcriptions of a ten-command
-# sequence is a lot of trust placed in copying. This script is now the single source
-# of truth: the workflow provisions an environment and then calls this, and a
-# developer runs the same thing. (Counts are deliberately not restated elsewhere: a
-# number in prose rots the first time a gate is added, and this comment already had.)
+# This script is intentionally independent of hosted CI. It is the single source of
+# truth for the checks developers must run before push, PR creation, and merge.
 #
 # Scope -- what this is and is not:
 # * These are the BLOCKING gates. If this script exits 0, every blocking CI gate
 #   passed on this host.
-# * There is no advisory (non-blocking) step anywhere: every gate in CI is in this
-#   script, and every gate in this script blocks. A `gitleaks` Action step used to sit
-#   in ci.yml as `continue-on-error: true`; it required an org license it never had, so
-#   it failed instantly on every run without scanning anything -- a permanent red mark
-#   that taught readers to ignore red. Secret scanning is a real BLOCKING gate below.
+# * There is no advisory (non-blocking) step: every gate in this script blocks. Secret
+#   scanning is a real blocking gate below.
 # * Environment provisioning (`uv sync`, toolchain installs) is NOT a gate and is
 #   NOT done here. Run `uv sync --all-groups` first.
 #
@@ -25,8 +17,8 @@
 # how a red gate can look green. Do not add `| tail` to any line below.
 #
 # Skips are announced, never silent: a gate that cannot run on this host prints
-# [SKIP] and is listed again in the final summary. CI provisions every toolchain, so
-# CI never skips -- a local green with skips is weaker than a CI green, and says so.
+# [SKIP] and is listed again in the final summary. A local green with skips is weaker
+# than a fully green local run, and says so.
 #
 # --receipt -- opt-in, additive. When given, emits a `builder_ii.gate_battery_receipt`
 # artifact to naming exactly which gates ran, their argv/exit codes/durations, the git
@@ -34,13 +26,9 @@
 # independent proof -- see builder_ii/governance/ledger/gate_battery_receipt.py's module docstring for the honest
 # limit. With no --receipt, this script's behavior is unchanged from before this flag existed.
 #
-# Resource discipline (shared Forgejo runner):
-#   The shared runner is budgeted ~1.5 cpu / 1.2 GB. Full `cargo build` of 37 crates and
-#   `pytest -n auto` thrash or OOM there even when the battery itself is only ~23s of real
-#   work. Under any CI indicator we therefore cap both at 2. Local M1 (and any host with
-#   real cores) keeps full parallelism. The gates, the set of checks, and the exit-code
-#   discipline are identical; only the degree of parallelism changes. This is not tiering
-#   of *what* runs -- every gate still runs on every commit.
+# Resource discipline: CI environment variables, when present, still cap parallelism
+# for constrained environments. This does not create a hosted verification dependency;
+# the authoritative result is always the local receipt from this script.
 
 set -o errexit
 set -o nounset

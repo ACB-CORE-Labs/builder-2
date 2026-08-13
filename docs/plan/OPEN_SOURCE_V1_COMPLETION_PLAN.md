@@ -438,8 +438,9 @@ candidate source and executable evidence, not a passing development snapshot.
 1. Keep Apple Silicon as the primary performance target. Add reproducible Linux
    install, unit, integration, and CLI smoke coverage. State that Windows is
    unsupported for v1.
-2. Run `bash scripts/ci.sh` on the exact release commit. GitHub Actions provides
-   contributor feedback and Linux coverage but does not replace local verification.
+2. Run `bash scripts/ci.sh` on the exact release commit. GitHub is used only for
+   source hosting and PR mutation; no hosted workflow or status-check evidence is
+   required.
 3. Build installable wheels and document the recommended `uv tool install` path,
    including the Deep Agents extra.
 4. Ship concise docs for the five-minute start, CLI and STRATUM, Goose and Deep

@@ -265,7 +265,7 @@ Readiness checklists for capability promotions gated on operator approval. All f
 | Document | Purpose |
 | --- | --- |
 | [`docs/TOOLING.md`](TOOLING.md) | External tooling |
-| [`docs/BRANCH_PROTECTION_REQUIRED.md`](BRANCH_PROTECTION_REQUIRED.md) | GitHub Branch Protection Requirements |
+| [`docs/BRANCH_PROTECTION_REQUIRED.md`](BRANCH_PROTECTION_REQUIRED.md) | Local Merge Verification Policy |
 | [`docs/BRIEF_ALPHA.md`](BRIEF_ALPHA.md) | BRIEF ALPHA: GEMINI-3.1-PRO (High Compute) |
 | [`docs/BRIEF_BETA.md`](BRIEF_BETA.md) | BRIEF BETA: GEMINI-3.5-FLASH (High Context) |
 

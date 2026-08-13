@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """High-confidence secret scan (blocking CI gate).
 
-Extracted verbatim from the inline heredoc that previously lived in
-`.github/workflows/ci.yml`, so that the gate has exactly one definition and can
-be run locally by `scripts/ci.sh` rather than reproduced by hand.
+The gate is kept as a checked-in script so it has exactly one definition and can be
+run locally by `scripts/ci.sh` rather than reproduced by hand.
 
 Scope note: this is a *high-confidence* scan -- four vendor-prefixed key shapes
 with low false-positive rates. It is deliberately not a general entropy scanner;
-broad coverage is gitleaks' job (advisory, workflow-only). A pass here means
+broad entropy-oriented coverage is outside this gate. A pass here means
 "no obviously-live vendor key is committed", never "no secrets are committed".
 
 The four patterns do not match their own source text, so this file needs no
