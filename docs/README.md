@@ -259,6 +259,7 @@ Readiness checklists for capability promotions gated on operator approval. All f
 | [`docs/WRP_CONTROL_PLANE.md`](WRP_ABSOLUTE_MASTERY_SYNTHESIS.md) | WRP/Vision absolute mastery synthesis (planning+evidence+smoke; not S3/S4 flip) |
 | [`docs/architecture/MCP_POLICY_CONTRACT.md`](architecture/MCP_POLICY_CONTRACT.md) | MCP policy artifact contract |
 | [`docs/architecture/MCP_TOOL_INVENTORY_CONTRACT.md`](architecture/MCP_TOOL_INVENTORY_CONTRACT.md) | MCP tool inventory contract |
+| [`docs/architecture/GOVERNED_RUN_LIFECYCLE.md`](architecture/GOVERNED_RUN_LIFECYCLE.md) | Plan Set 1 governed-run lifecycle and runtime-adapter seam |
 
 ### Process and tooling
 
