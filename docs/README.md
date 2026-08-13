@@ -195,11 +195,7 @@ The following architectural and design documents reside in the commercial plugin
 * `docs/CODE_VAULT_ROADMAP.md` — Gate-ordered roadmap (no chronos)
 * `docs/CODE_VAULT_GATE_STATE.md` — Gate-state ledger: which roadmap bullets hold, and which gates are therefore closed
 * `docs/CODE_VAULT_CURRENT_STATE_AND_GAP_MAP.md` — Three-clock truth delta
-* `docs/plan/CODE_VAULT_MASTER_PLAN.md` — Consolidated master plan to fruition
-* `docs/plan/CODE_VAULT_EXECUTION_MAP.md` — Per-PR execution map for the first slice (G1 → G1b → G2)
-* `docs/plan/CODE_VAULT_G1_WAVE_BRIEFS.md` — Wave-1 work orders (PR-1/2/3, landed)
-* `docs/plan/CODE_VAULT_G1B_WAVE_BRIEFS.md` — Wave-2 work orders (PR-4/5/6, G1b completion)
-* `docs/plan/CODE_VAULT_TIER1_ENCODER_RFC.md` — F1 encoder RFC and measurement history
+* `docs/architecture/CODE_VAULT_TIER1_ENCODER.md` — F1 encoder RFC and measurement history
 * `docs/adrs/ADR-0005-codevault-boundary-and-authority.md` — CodeVault boundary and authority ADR
 
 
@@ -259,24 +255,10 @@ Readiness checklists for capability promotions gated on operator approval. All f
 
 | Document | Purpose |
 | --- | --- |
-| [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](plan/CORE_WORKBENCH_BOUNDARY.md) | V.5 CORE Workbench boundary (builder-II helps code, is not Workbench) |
+| [`docs/architecture/CORE_WORKBENCH_BOUNDARY.md`](architecture/CORE_WORKBENCH_BOUNDARY.md) | V.5 CORE Workbench boundary (builder-II helps code, is not Workbench) |
 | [`docs/WRP_ABSOLUTE_MASTERY_SYNTHESIS.md`](WRP_ABSOLUTE_MASTERY_SYNTHESIS.md) | WRP/Vision absolute mastery synthesis (planning+evidence+smoke; not S3/S4 flip) |
-| [`docs/plan/ARTIFACT_MEMORY_RFC.md`](plan/ARTIFACT_MEMORY_RFC.md) | Artifact memory RFC |
-| [`docs/plan/B1_4A_VALIDATION_NOTE.md`](plan/B1_4A_VALIDATION_NOTE.md) | B1.4A Validation Note |
-| [`docs/plan/B8_B9_GOVERNED_EXECUTION_PLAN.md`](plan/B8_B9_GOVERNED_EXECUTION_PLAN.md) | B8/B9 governed execution plan |
-| [`docs/plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md`](plan/DEEPAGENTS_MODEL_INVOCATION_LANE.md) | Governed deepagents model-invocation lane full design (DESIGN_ONLY companion to ADR-0008) |
-| [`docs/plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md`](plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md) | deepagents work artifacts RFC |
-| [`docs/plan/STRATUM_ORCHESTRATION_COCKPIT.md`](plan/STRATUM_ORCHESTRATION_COCKPIT.md) | STRATUM orchestration cockpit staged design (DESIGN_ONLY; stage 2 crosses the STRATUM executor boundary) |
-| [`docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md`](plan/GOOSE_DEEPAGENTS_MCP_SEAM.md) | Goose × deepagents × MCP seam |
-| [`docs/plan/MASTERPIECE_PLAN.md`](plan/MASTERPIECE_PLAN.md) | builder-II full mastery implementation plan |
-| [`docs/plan/MCP_POLICY_ARTIFACT_RFC.md`](plan/MCP_POLICY_ARTIFACT_RFC.md) | MCP policy artifact RFC |
-| [`docs/plan/MCP_TOOL_INVENTORY_RFC.md`](plan/MCP_TOOL_INVENTORY_RFC.md) | MCP tool inventory RFC |
-| [`docs/plan/PASSIVE_EXECUTION_CANDIDATE_MANIFEST_RFC.md`](plan/PASSIVE_EXECUTION_CANDIDATE_MANIFEST_RFC.md) | Passive Execution Candidate Manifest RFC (Goal 5 Design & Authorization) |
-| [`docs/plan/PASSIVE_HITL_PROMOTION_BRIDGE_RFC.md`](plan/PASSIVE_HITL_PROMOTION_BRIDGE_RFC.md) | Passive HITL Promotion Bridge RFC (Goal 4 Design & Authorization) |
-| [`docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md`](plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md) | Performance and integration amendment |
-| [`docs/plan/PR_203_DEEPAGENTS_FORGE_EXECUTION_PLAN.md`](plan/PR_203_DEEPAGENTS_FORGE_EXECUTION_PLAN.md) | PR 203 deepagents Forge execution plan |
-| [`docs/plan/RECONCILIATION_NOTE.md`](plan/RECONCILIATION_NOTE.md) | Reconciliation note: repository truth and planning artifacts |
-| [`docs/plan/RUST_VALIDATION_SPIKE.md`](plan/RUST_VALIDATION_SPIKE.md) | Rust validation spike plan |
+| [`docs/architecture/MCP_POLICY_CONTRACT.md`](architecture/MCP_POLICY_CONTRACT.md) | MCP policy artifact contract |
+| [`docs/architecture/MCP_TOOL_INVENTORY_CONTRACT.md`](architecture/MCP_TOOL_INVENTORY_CONTRACT.md) | MCP tool inventory contract |
 
 ### Process and tooling
 

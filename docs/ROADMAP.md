@@ -221,7 +221,7 @@ These are the next capability promotions. Each requires the full capability prom
 - Read-only tools and a refusing in-flight HITL gate operate inside the current observe-and-compose contract; write and shell stay denied until a separate promotion
 - STRATUM streams the run by tailing the hash-chained event ledger the server writes; the TUI gains no dispatch authority
 - Write/shell: G4 is implemented as a deny-by-default candidate — the in-loop gate delegates a validated `propose_patch` to the governed apply lane behind the `BUILDER_MCP_GOVERNED_APPLY` flag + a digest-bound approval; it is not enabled by default, OV is unchanged, and the closure audit to `enabled` is an operator step
-- See `docs/plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md`, ADR-0009
+- See `docs/GOOSE_RUNTIME.md`, ADR-0009
 
 ### Phase: artifact memory and context reconstruction
 - B8 adds explicit artifact-memory envelopes, indexes, deterministic search results, and replay-stable reconstructions via `builder-memory`
@@ -242,7 +242,7 @@ These are the next capability promotions. Each requires the full capability prom
 ### Phase: performance tracks (measurement-gated)
 - Rust-backed artifact validation — only if measurement proves value
 - MLX + UMA context compression — provenance-preserving only
-- See `docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md`
+- See `docs/PERFORMANCE_MEASUREMENTS.md`
 
 ### Phase: CI quality gate enforcement
 - Enforce full test suite in CI on every PR
@@ -259,22 +259,22 @@ During implementation halts, builder-II may advance through design-only RFCs tha
 
 Current RFCs:
 
-- `docs/plan/ARTIFACT_MEMORY_RFC.md` — artifact graph memory, memory atom envelope, reconstruction posture, and summary boundaries.
-- `docs/plan/DEEPAGENTS_WORK_ARTIFACTS_RFC.md` — deepagents plan/assignment/result/review/gate artifacts before any deepagents runtime construction.
-- `docs/plan/PASSIVE_HITL_PROMOTION_BRIDGE_RFC.md` — passive HITL promotion bridge artifacts connecting Goal 2 and Goal 3 proposals to traceable human boundaries.
-- `docs/plan/PASSIVE_EXECUTION_CANDIDATE_MANIFEST_RFC.md` — Goal 5 passive execution candidate manifest design that consumes a verified `builder_ii.hitl_approval_boundary` and authorizes only bounded candidate/validation artifacts, not runtime activation.
-- `docs/plan/RUST_VALIDATION_SPIKE.md` — measurement-first Rust validation spike plan with Python reference parity.
-- `docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md` — Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated integration seam.
-- `docs/plan/MCP_POLICY_ARTIFACT_RFC.md` — deny-by-default MCP policy artifact for tools, resources, prompts, roots, sampling, elicitation, auth, limits, and result handling.
-- `docs/plan/MCP_TOOL_INVENTORY_RFC.md` — MCP inventory artifact, tool/resource/prompt hashes, risk classification, and change detection before policy or invocation.
-- `docs/plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md` — Goose in-loop governed runtime via MCP interposition (read-only tools and a refusing gate now; write/shell design-gated behind the promotion gates); companion to ADR-0009.
-- `docs/plan/GOOSE_G4_WRITE_SHELL_PROMOTION.md` — the Phase 3 (G4) write/shell unlock promotion design: relaxes the read-only envelope pins only behind a validated approval, behind the eight gates and a matrix flip; DESIGN_ONLY, enables nothing.
+- `docs/ARTIFACT_MEMORY.md` — artifact graph memory, memory atom envelope, reconstruction posture, and summary boundaries.
+- `docs/DEEPAGENTS_WORK_ARTIFACTS.md` — deepagents plan/assignment/result/review/gate artifacts before any deepagents runtime construction.
+- `docs/HITL_PROMOTION_ARTIFACTS.md` — passive HITL promotion bridge artifacts connecting Goal 2 and Goal 3 proposals to traceable human boundaries.
+- `docs/HITL_VERIFICATION_CANDIDATE.md` — Goal 5 passive execution candidate manifest design that consumes a verified `builder_ii.hitl_approval_boundary` and authorizes only bounded candidate/validation artifacts, not runtime activation.
+- `docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md` — measurement-first Rust validation spike plan with Python reference parity.
+- `docs/GOOSE_RUNTIME.md` — Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated integration seam.
+- `docs/architecture/MCP_POLICY_CONTRACT.md` — deny-by-default MCP policy artifact for tools, resources, prompts, roots, sampling, elicitation, auth, limits, and result handling.
+- `docs/architecture/MCP_TOOL_INVENTORY_CONTRACT.md` — MCP inventory artifact, tool/resource/prompt hashes, risk classification, and change detection before policy or invocation.
+- `docs/GOOSE_RUNTIME.md` — Goose in-loop governed runtime via MCP interposition (read-only tools and a refusing gate now; write/shell design-gated behind the promotion gates); companion to ADR-0009.
+- `docs/CAPABILITY_PROMOTION.md` — the Phase 3 (G4) write/shell unlock promotion design: relaxes the read-only envelope pins only behind a validated approval, behind the eight gates and a matrix flip; DESIGN_ONLY, enables nothing.
 
 These RFCs are not implementation authority. They do not enable memory mutation, deepagents construction, Rust dependencies, shell execution, model calls, source mutation, MCP connection, MCP tool execution, target repo mutation, execution candidate activation, or Goose runtime activation.
 
 ## Performance and integration priorities
 
-See `docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md` for the detailed amendment.
+See `docs/PERFORMANCE_MEASUREMENTS.md` for the detailed amendment.
 
 The amendment adds three first-class candidate tracks without promoting runtime behavior:
 

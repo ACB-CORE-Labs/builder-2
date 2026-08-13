@@ -656,7 +656,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "builder_ii/core/tool_invocation_gateway.py",
             "builder_ii/core/mcp_policy.py",
-            "docs/plan/MCP_POLICY_ARTIFACT_RFC.md",
+            "docs/architecture/MCP_POLICY_CONTRACT.md",
         ),
         ("builder-tools invoke",),
         ("tests/test_tool_invocation_gateway.py", "tests/test_mcp_policy.py"),
@@ -668,7 +668,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         PASSIVE_FOUNDATION,
         (
             "builder_ii/core/mcp_policy.py",
-            "docs/plan/MCP_POLICY_ARTIFACT_RFC.md",
+            "docs/architecture/MCP_POLICY_CONTRACT.md",
         ),
         ("builder-mcp call", "builder-mcp inventory", "builder-mcp policy"),
         ("tests/test_mcp_cli.py",),
@@ -815,7 +815,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "Receipt state may be NOT_EXECUTED, BLOCKED_BEFORE_EXECUTION, EXECUTED, or FAILED depending on runner outcome.",
             "The approved verification lane is operationally verified only for fixed platform_status and docs_audit profiles; arbitrary argv, broad shell, live read authority, patching, model/MCP/Goose/deepagents runtime, and B2 write authority remain disabled.",
             "Assurance BOUNDED_EXECUTION_VERIFIED (Ladder 9) describes the envelope of the invocation -- fixed argv, shell=False, two-key approval, an import path the target repo cannot supply, a digest-bound receipt -- and never the behaviour of the code that ran inside it (risk-register D7).",
-            "Under an applied isolation policy the receipt records the approved fixed profile argv, not the container-wrapped argv that executed, so isolation_status is the runner's own assertion about itself; local isolation is containment, never attestation (docs/plan/VERIFICATION_ISOLATION_RFC.md).",
+            "Under an applied isolation policy the receipt records the approved fixed profile argv, not the container-wrapped argv that executed, so isolation_status is the runner's own assertion about itself; local isolation is containment, never attestation (docs/architecture/VERIFICATION_ISOLATION.md).",
             "builder-verify plan exposes no isolation flag: isolation_policy exists in the plan schema, the runner and the receipt, but no governed CLI surface can request it.",
         ),
         "B2.0",
@@ -1057,7 +1057,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "builder_ii/core/artifact_memory.py",
             "builder_ii/cli/memory_cli.py",
             "docs/ARTIFACT_MEMORY.md",
-            "docs/plan/ARTIFACT_MEMORY_RFC.md",
+            "docs/ARTIFACT_MEMORY.md",
         ),
         (
             "builder-memory",

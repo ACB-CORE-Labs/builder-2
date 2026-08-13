@@ -77,7 +77,7 @@ dependency is added.
   boundary; the write/shell lane has a concrete, evidence-backed promotion path rather than
   an all-or-nothing amputation.
 - Sequencing and file-level detail live in
-  [`docs/plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md`](../plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md).
+  [`docs/GOOSE_RUNTIME.md`](../plan/GOOSE_IN_LOOP_GOVERNED_RUNTIME.md).
   The write/shell phase (G4) is designed only after the read-only and refusal phases (G1–G3)
   are battery-green and producing refusal receipts.
 

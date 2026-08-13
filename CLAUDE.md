@@ -83,7 +83,7 @@ The CodeVault software geometry engine (Cl(4,1) layout coordinates, polyglot CPy
 
 ### Rust validation accelerator (`builder_ii_validation_rs/`)
 
-A small PyO3 extension (`validate_artifact`) plus a standalone `--kind`/stdin CLI binary that re-implements artifact validation in Rust for speed. It is a measurement-gated performance track (`docs/plan/RUST_VALIDATION_SPIKE.md`) — the Python validators remain the reference implementation; only add/change Rust validation logic when it's proven to match Python parity.
+A small PyO3 extension (`validate_artifact`) plus a standalone `--kind`/stdin CLI binary that re-implements artifact validation in Rust for speed. It is a measurement-gated performance track (`docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md`) — the Python validators remain the reference implementation; only add/change Rust validation logic when it's proven to match Python parity.
 
 ### Tests
 

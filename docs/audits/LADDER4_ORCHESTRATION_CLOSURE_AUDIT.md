@@ -78,7 +78,7 @@ The full suite passes on the edited tree (battery results in the PR body). Per g
 
 | # | Gate | Covering evidence |
 |---|---|---|
-| 1 | Docs | `docs/plan/ORCHESTRATION_OBLIGATIONS_RFC.md` (doctrine, PR-0), `docs/ORCHESTRATION_OBLIGATIONS.md` (operator surface), registry boundary text for every lane command in the generated `docs/COMMAND_AUTHORITY.md` |
+| 1 | Docs | `docs/architecture/ORCHESTRATION_OBLIGATIONS_CONTRACT.md` (doctrine, PR-0), `docs/ORCHESTRATION_OBLIGATIONS.md` (operator surface), registry boundary text for every lane command in the generated `docs/COMMAND_AUTHORITY.md` |
 | 2 | Tests | Unit/integration: `tests/test_orchestration_obligation.py` (anti-dump, ⊆, conservation, XOR, digest stability), `tests/test_orchestration_lane_policy.py` (totality, collision refusal, registry linkage), `tests/test_orchestration_delegation_run.py` (seal, N/N−1 legacy refusal, mint rules, discharge classification, two-key), `tests/test_orchestration_obligation_cli.py`, `tests/test_orchestration_status_why.py`; unmocked E2E: `tests/scenarios/test_full_obligation_delegation_lane.py` |
 | 3 | Command surface | `builder-orchestration lane-policy / validate-lane-policy / mint-obligation / validate-obligation / status / why` and `builder-deepagents execution-candidate / approve-candidate / run-approved` all registered in `COMMAND_AUTHORITY_REGISTRY` (`validate_command_surfaces` covers the row's surfaces); table regenerated in this PR; operator-status parity auto-covered by `tests/test_operator_status.py` |
 | 4 | Failure mode | Refused widening mint carries `violated_rule="budget_partition_exceeds_remaining"` + `fixing_edit` and a `BLOCKED` discharge (E2E); count-exhaustion refusal (`tests/test_orchestration_delegation_run.py`); anti-dump and invalid-mint rejections (`tests/test_orchestration_obligation.py`, CLI validate lanes) — every refusal is named and fix-carrying |
@@ -144,7 +144,7 @@ honesty items are reconciled here:
   `tests/test_ladder4_closure_evidence.py` (its CI pin).
 - `builder_ii/cli/deepagents_cli.py` (docstring), `builder_ii/adapters/deepagents/deepagents_execution.py` (comment),
   `docs/ORCHESTRATION_OBLIGATIONS.md` (status + seal wording + registration note),
-  `docs/plan/ORCHESTRATION_OBLIGATIONS_RFC.md` (as-built note) — honesty reconcile set.
+  `docs/architecture/ORCHESTRATION_OBLIGATIONS_CONTRACT.md` (as-built note) — honesty reconcile set.
 - `docs/KNOWN_LIMITATIONS.md` — regenerated from the post-flip matrix via
   `uv run builder-platform known-limitations --output docs/KNOWN_LIMITATIONS.md` (never
   hand-edited).

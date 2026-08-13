@@ -310,7 +310,7 @@ Every Maker or Governor status report that maps **what is next / what is left** 
 | `docs/WRP_ACCEPTANCE.md` + Master-Plan W0–W5 | Acceptance criteria still red |
 | CORE R&D Blueprint (spaces, \(R/R^*\), modules, Class R/D/U) | Module fidelity gaps |
 | This file (§3 Antigravity triggers, §4 parallelism, §8 prompts) | **Who to brief, when, parallel vs serial** |
-| `docs/plan/WRP_S1_BINDING_DESIGN.md`, `WRP_P2_REMAINDER_WIRES.md`, … | Active slice contracts |
+| `docs/WRP_CONTROL_PLANE.md`, `WRP_P2_REMAINDER_WIRES.md`, … | Active slice contracts |
 
 ### Agent briefing mini-table (required in §6)
 

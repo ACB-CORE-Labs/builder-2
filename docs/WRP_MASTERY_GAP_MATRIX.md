@@ -50,7 +50,7 @@
 | Orchestration patterns runtime | `LANDED` | P2.6 / W.4 | `patterns-prove` |
 | HITL verify fixed-argv expansion (V.3) | `LANDED` | V.3 | RO profiles not TARGET_CODE |
 | CORE target profile isolation | `LANDED` | V.4 | `builder_ii/targets/core.py` |
-| CORE Workbench boundary doc | `LANDED` | V.5 | `docs/plan/CORE_WORKBENCH_BOUNDARY.md` |
+| CORE Workbench boundary doc | `LANDED` | V.5 | `docs/architecture/CORE_WORKBENCH_BOUNDARY.md` |
 | Final operating loop smoke | `LANDED` | V.6 | `builder-platform final-loop-smoke` |
 | Class U measured + adaptivity axis | `LANDED` | P5/H11 | `axes.adaptivity` |
 | Perf dashboards full | `PARTIAL` | P5 | axes filled; no product dashboard UI |

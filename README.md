@@ -252,7 +252,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/CORE_DEMO_WALKTHROUGH.md`](docs/CORE_DEMO_WALKTHROUGH.md) | Demo recording flow (CORE profile + generic targets) with evidence artifacts, approval boundary, verification, and rollback. |
 | [`docs/OPERATOR_COMMAND_SURFACE.md`](docs/OPERATOR_COMMAND_SURFACE.md) | Canonical index of all operator-facing commands, authority tiers, and output artifacts. |
 | [`docs/TARGETS.md`](docs/TARGETS.md) | Explicit target profiles: generic, builder, and core. |
-| [`docs/plan/CORE_WORKBENCH_BOUNDARY.md`](docs/plan/CORE_WORKBENCH_BOUNDARY.md) | V.5: builder-II helps Workbench *code* as target work; is not Workbench (design-only). |
+| [`docs/architecture/CORE_WORKBENCH_BOUNDARY.md`](docs/architecture/CORE_WORKBENCH_BOUNDARY.md) | V.5: builder-II helps Workbench *code* as target work; is not Workbench (design-only). |
 | [`docs/RATIFICATION_GRANTS.md`](docs/RATIFICATION_GRANTS.md) | Standing ratification grants: delegate the confirmations you already decided, never the ones that *are* the decision. `builder onboard` / `builder-govern`. |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | Generic agent profiles and authority contracts. |
 | [`docs/REPO_MAPS.md`](docs/REPO_MAPS.md) | Repo map artifact creation and validation. |
@@ -271,7 +271,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/DEEPAGENTS_POLICY.md`](docs/DEEPAGENTS_POLICY.md) | Governed deepagents policy artifacts; no agent construction. |
 | [`docs/DEEPAGENTS_READINESS.md`](docs/DEEPAGENTS_READINESS.md) | Optional deepagents bridge readiness reports; no runtime authority. |
 | [`docs/DEEPAGENTS_FORGE.md`](docs/DEEPAGENTS_FORGE.md) | Interactive deepagents Forge wizard: creation flow, governance model, CLI usage, and design boundaries. |
-| [`docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md`](docs/plan/GOOSE_DEEPAGENTS_MCP_SEAM.md) | Design-only seam for Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated external capability surface. |
+| [`docs/GOOSE_RUNTIME.md`](docs/GOOSE_RUNTIME.md) | Design-only seam for Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated external capability surface. |
 | [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) | Capability promotion states and non-authority rule. |
 | [`docs/RUNTIME_PROMOTION.md`](docs/RUNTIME_PROMOTION.md) | Runtime-specific promotion gates for Goose, deepagents, commands, and patches. |
 | [`docs/ARTIFACT_INDEX.md`](docs/ARTIFACT_INDEX.md) | Index of all registered artifact kinds and non-authority boundaries. |
@@ -280,8 +280,8 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/BETA_CHARTER.md`](docs/BETA_CHARTER.md) | What the beta is for, what feedback is wanted, what's out of scope, and how to send it. |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Scope, non-goals, and near-term platform direction. |
-| [`docs/plan/MASTERPIECE_PLAN.md`](docs/plan/MASTERPIECE_PLAN.md) | End-to-end implementation vision. |
-| [`docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md`](docs/plan/PERFORMANCE_AND_EFFICIENCY_AMENDMENT.md) | Performance, model routing, and integration amendment. |
+| [`docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md`](docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md) | End-to-end implementation vision. |
+| [`docs/PERFORMANCE_MEASUREMENTS.md`](docs/PERFORMANCE_MEASUREMENTS.md) | Performance, model routing, and integration amendment. |
 | [`docs/model_role_matrix.md`](docs/model_role_matrix.md) | Model aliases, runtime lanes, recommended use, and avoid boundaries. |
 | [`docs/lane_guides.md`](docs/lane_guides.md) | Reusable prompt lanes for direct ask and planning/review work. |
 | [`docs/personas.md`](docs/personas.md) | Read-only persona definitions. |
