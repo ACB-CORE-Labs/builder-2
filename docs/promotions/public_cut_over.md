@@ -32,7 +32,7 @@ This runbook outlines the critical decisions, readiness checks, and rollback pla
   personal emails, or local paths found (`grep` swept for `acbcontent.org` account addresses,
   `@icloud.com`/`@gmail.com`, and `/Users/` paths across all public-facing docs; none present).
   **Not yet ready**: `CODE_OF_CONDUCT.md`'s Enforcement section still has no real reporting
-  contact — its broken pointer to a nonexistent `docs/ROADMAP.md` section is fixed, but the actual
+  contact — its broken pointer to a nonexistent `docs/PLATFORM_COMPLETION_AUDIT.md` section is fixed, but the actual
   contact (an email or form) is a decision only the operator can make, not something to invent.
 - [x] **CI/CD Separation**: Read `.github/workflows/ci.yml` directly, 2026-07-27 — zero `secrets.*`
   references, zero deploy/publish steps; the job does exactly checkout → provision (rust/uv/python)
@@ -47,11 +47,9 @@ This runbook outlines the critical decisions, readiness checks, and rollback pla
 
 ## 3. Promotion Steps
 
-The intended end state is dual-hosted and public on both remotes: `core-labs/builder-II` on the
-private Forgejo instance (`core-gitquarters.acbcontent.org`) and the GitHub mirror
-(`AssetOverflow/builder-II`) — see [`docs/README.md`](../README.md) for which remote is
-authoritative for which repository class. Both need their own visibility toggle; toggling one does
-not toggle the other.
+The intended end state is the canonical GitHub repository `ACB-CORE-Labs/builder-2`. Remote
+identity and visibility are governed by the repository preflight; no secondary Forgejo remote is
+part of the v1 delivery path.
 
 1. **Repository Mirroring / History Prep**: Decide the git-history strategy (fresh-start vs. full
    history) before either remote goes public — this is irreversible once public and forkable.

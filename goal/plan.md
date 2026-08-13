@@ -2,7 +2,7 @@
 
 **Status:** RECORDED_ONLY checklist mirror (not a promotion grant).  
 **Authority:** Prefer code + `planning/evidence/*` + `docs/WRP_*` when conflict.  
-**Synthesis:** [`docs/WRP_ABSOLUTE_MASTERY_SYNTHESIS.md`](../docs/WRP_ABSOLUTE_MASTERY_SYNTHESIS.md)
+**Synthesis:** [`docs/WRP_CONTROL_PLANE.md`](../docs/WRP_CONTROL_PLANE.md)
 
 ## Meaning of “done” here
 

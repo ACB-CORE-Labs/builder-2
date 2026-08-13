@@ -111,7 +111,7 @@ def select_context_files(repo: Path, selection: ContextPackSelection) -> tuple[s
     if not files:
         defaults = (
             "README.md",
-            "docs/ROADMAP.md",
+            "docs/PLATFORM_COMPLETION_AUDIT.md",
             "docs/TOOLING.md",
             "builder_ii/core/context.py",
             "builder_ii/adapters/goose/goose_setup.py",

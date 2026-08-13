@@ -4922,6 +4922,7 @@ _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
     "builder-context validate",
     "builder-context summarize",
     "builder-git-state artifact",
+    "builder-git-state identity",
     "builder-git-state validate",
     "builder-session plan",
     "builder-session validate",

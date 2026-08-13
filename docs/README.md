@@ -21,7 +21,7 @@ builder-II documentation is organized as three tiers, each narrower and deeper t
      [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) and
      [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) for promotion state.
    - **[`docs/STRATUM.md`](STRATUM.md)** — STRATUM console reference (keys, flags, walkthrough opt-out).
-   - **[`docs/MAXIMIZING_PROFICIENCY.md`](MAXIMIZING_PROFICIENCY.md)** — walkthroughs for advanced setup, STRATUM console navigation, local model setup, and deepagents orchestration.
+   - **[`docs/GETTING_STARTED.md`](MAXIMIZING_PROFICIENCY.md)** — walkthroughs for advanced setup, STRATUM console navigation, local model setup, and deepagents orchestration.
    - **[`docs/GLOSSARY.md`](GLOSSARY.md)** — centralized definitions for core terminology.
 3. **This file** — the reference tier: every document in `docs/`, grouped by subsystem, for anyone
    going deeper than the curated map.
@@ -40,7 +40,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/GLOSSARY.md`](GLOSSARY.md) | builder-II Centralized Glossary |
 | [`docs/MANIFESTO.md`](MANIFESTO.md) | builder-II Manifesto |
 | [`docs/PROJECT_OVERVIEW.md`](PROJECT_OVERVIEW.md) | builder-II project overview |
-| [`docs/ROADMAP.md`](ROADMAP.md) | builder-II roadmap |
+| [`docs/PLATFORM_COMPLETION_AUDIT.md`](ROADMAP.md) | builder-II roadmap |
 | [`docs/adrs/README.md`](adrs/README.md) | builder-II Architecture Decision Records |
 | [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) | ADR-0001: builder-II as a Governed Engineering Extension |
 | [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) | ADR-0002: Builder Convention Layer over Codename Goose |
@@ -53,7 +53,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | Document | Purpose |
 | --- | --- |
 | [`docs/GETTING_STARTED.md`](GETTING_STARTED.md) | **New builder start here** — setup order, governance mental model, STRATUM × full platform |
-| [`docs/MAXIMIZING_PROFICIENCY.md`](MAXIMIZING_PROFICIENCY.md) | Walks through advanced setup, STRATUM console navigation, local model setups, and deepagent execution |
+| [`docs/GETTING_STARTED.md`](MAXIMIZING_PROFICIENCY.md) | Walks through advanced setup, STRATUM console navigation, local model setups, and deepagent execution |
 | [`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md) | Operator Quickstart |
 | [`docs/OPERATOR_GUIDE.md`](OPERATOR_GUIDE.md) | builder-II operator guide |
 | [`docs/OPERATOR_PLAYBOOK.md`](OPERATOR_PLAYBOOK.md) | builder-II Operator Playbook |
@@ -256,7 +256,7 @@ Readiness checklists for capability promotions gated on operator approval. All f
 | Document | Purpose |
 | --- | --- |
 | [`docs/architecture/CORE_WORKBENCH_BOUNDARY.md`](architecture/CORE_WORKBENCH_BOUNDARY.md) | V.5 CORE Workbench boundary (builder-II helps code, is not Workbench) |
-| [`docs/WRP_ABSOLUTE_MASTERY_SYNTHESIS.md`](WRP_ABSOLUTE_MASTERY_SYNTHESIS.md) | WRP/Vision absolute mastery synthesis (planning+evidence+smoke; not S3/S4 flip) |
+| [`docs/WRP_CONTROL_PLANE.md`](WRP_ABSOLUTE_MASTERY_SYNTHESIS.md) | WRP/Vision absolute mastery synthesis (planning+evidence+smoke; not S3/S4 flip) |
 | [`docs/architecture/MCP_POLICY_CONTRACT.md`](architecture/MCP_POLICY_CONTRACT.md) | MCP policy artifact contract |
 | [`docs/architecture/MCP_TOOL_INVENTORY_CONTRACT.md`](architecture/MCP_TOOL_INVENTORY_CONTRACT.md) | MCP tool inventory contract |
 

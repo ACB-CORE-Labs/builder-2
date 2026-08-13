@@ -247,7 +247,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the CORE-born, generic-first governed platform and its components. |
 | [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
 | [`docs/OPERATOR_QUICKSTART.md`](docs/OPERATOR_QUICKSTART.md) | Governed operator golden path and governed demo loop entrypoint. |
-| [`docs/MAXIMIZING_PROFICIENCY.md`](docs/MAXIMIZING_PROFICIENCY.md) | Step-by-step walkthroughs of advanced setup, STRATUM navigation, model configurations, and deepagent orchestration. |
+| [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) | Step-by-step walkthroughs of advanced setup, STRATUM navigation, model configurations, and deepagent orchestration. |
 | [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | Centralized definitions for core terminology, harnesses, and operational modes. |
 | [`docs/CORE_DEMO_WALKTHROUGH.md`](docs/CORE_DEMO_WALKTHROUGH.md) | Demo recording flow (CORE profile + generic targets) with evidence artifacts, approval boundary, verification, and rollback. |
 | [`docs/OPERATOR_COMMAND_SURFACE.md`](docs/OPERATOR_COMMAND_SURFACE.md) | Canonical index of all operator-facing commands, authority tiers, and output artifacts. |
@@ -279,7 +279,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/RELEASE_PROOF.md`](docs/RELEASE_PROOF.md) | v0 release proof harness documentation and operator run instructions. |
 | [`docs/BETA_CHARTER.md`](docs/BETA_CHARTER.md) | What the beta is for, what feedback is wanted, what's out of scope, and how to send it. |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Scope, non-goals, and near-term platform direction. |
+| [`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) | Scope, non-goals, and near-term platform direction. |
 | [`docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md`](docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md) | End-to-end implementation vision. |
 | [`docs/PERFORMANCE_MEASUREMENTS.md`](docs/PERFORMANCE_MEASUREMENTS.md) | Performance, model routing, and integration amendment. |
 | [`docs/model_role_matrix.md`](docs/model_role_matrix.md) | Model aliases, runtime lanes, recommended use, and avoid boundaries. |

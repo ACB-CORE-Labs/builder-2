@@ -35,7 +35,7 @@ The source-of-truth order is:
 1. accepted ADRs and later ADR refinements;
 2. `README.md` identity and architecture summary;
 3. this manifesto;
-4. `docs/ROADMAP.md` current status and promotion plan;
+4. `docs/PLATFORM_COMPLETION_AUDIT.md` current status and promotion plan;
 5. implementation docs, command registries, schemas, tests, and source code;
 6. Notion planning artifacts and external notes as supportive planning material only.
 

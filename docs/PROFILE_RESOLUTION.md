@@ -25,7 +25,7 @@ When default parameters are not specified, the target resolves to the following 
 | Target | Agent Profile | Prompt Profile | Verification Profile | Default Context Folders |
 | --- | --- | --- | --- | --- |
 | `generic` | `repo_mapper` | `generic_default` | `generic_basic` | `README.md`, `pyproject.toml`, `package.json`, `src`, `tests`, `docs` |
-| `builder` | `context_planner` | `builder_default` | `builder_fast` | `README.md`, `docs/ROADMAP.md`, `docs/TOOLING.md`, `builder_ii`, `recipes`, `tests` |
+| `builder` | `context_planner` | `builder_default` | `builder_fast` | `README.md`, `docs/PLATFORM_COMPLETION_AUDIT.md`, `docs/TOOLING.md`, `builder_ii`, `recipes`, `tests` |
 | `core` | `code_reviewer` | `core_default` | `core_smoke` | `README.md`, `AGENTS.md`, `GROK.md`, `CLAUDE.md`, `docs`, `tests` |
 
 ## Design Constraints

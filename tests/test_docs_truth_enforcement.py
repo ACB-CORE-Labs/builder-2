@@ -89,7 +89,6 @@ def test_docs_state_corrected_sequence() -> None:
     for path in (
         Path("docs/PLATFORM_COMPLETION_AUDIT.md"),
         Path("docs/FOUNDATION_STATUS.md"),
-        Path("docs/ROADMAP.md"),
     ):
         text = path.read_text(encoding="utf-8")
         assert "R0 -> R1 -> B1" in text

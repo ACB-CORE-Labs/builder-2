@@ -301,7 +301,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         PASSIVE_FOUNDATION,
         (
             "README.md",
-            "docs/ROADMAP.md",
+            "docs/PLATFORM_COMPLETION_AUDIT.md",
             "docs/adrs/ADR-0003-builder-ii-generic-platform-identity-and-capability-factory.md",
         ),
         (),

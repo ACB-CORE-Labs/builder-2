@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import typer
@@ -12,6 +13,10 @@ from builder_ii.core.git_state import (
     validate_git_state_record,
     validate_git_state_record_file,
     write_git_state_record,
+)
+from builder_ii.core.repository_identity import (
+    DEFAULT_CANONICAL_REPOSITORY,
+    check_repository_identity,
 )
 
 git_state_app = typer.Typer(help="Manage governed git state artifacts.")
@@ -72,3 +77,20 @@ def validate(path: Path = typer.Argument(..., help="Path to git state record JSO
             console.print(f"[red]Validation error: {error}[/]")
         raise typer.Exit(1)
     console.print(f"Git state record {path} is valid.", soft_wrap=True)
+
+
+@git_state_app.command("identity")
+def identity(
+    canonical_repository: str = typer.Option(
+        DEFAULT_CANONICAL_REPOSITORY,
+        "--canonical-repository",
+        help="Expected canonical repository URL.",
+    ),
+    remote_name: str = typer.Option("origin", "--remote", help="Git remote name to inspect."),
+) -> None:
+    """Fail closed when the configured remote is not the canonical repository."""
+    report = check_repository_identity(canonical_repository=canonical_repository, remote_name=remote_name)
+    if not report.matches:
+        echo_stdout(json.dumps(report.as_dict(), indent=2, sort_keys=True))
+        raise typer.Exit(1)
+    echo_stdout(json.dumps(report.as_dict(), indent=2, sort_keys=True))

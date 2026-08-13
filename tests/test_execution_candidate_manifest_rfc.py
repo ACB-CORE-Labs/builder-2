@@ -19,5 +19,5 @@ def test_current_candidate_surface_remains_non_authoritative() -> None:
 
 def test_roadmap_lists_current_candidate_surface_without_activation() -> None:
     text = (ROOT / "docs/ROADMAP.md").read_text(encoding="utf-8")
-    assert "docs/HITL_VERIFICATION_CANDIDATE.md" in text
-    assert "not runtime activation" in text.lower()
+    assert "OPEN_SOURCE_V1_COMPLETION_PLAN.md" in text
+    assert "No capability is promoted" in text

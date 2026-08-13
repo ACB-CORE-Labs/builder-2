@@ -64,7 +64,7 @@ The source-of-truth order is:
 1. accepted ADRs and later ADR refinements;
 2. `README.md` identity and architecture summary;
 3. `docs/MANIFESTO.md` product doctrine;
-4. `docs/ROADMAP.md` current status and promotion plan;
+4. `docs/PLATFORM_COMPLETION_AUDIT.md` current status and promotion plan;
 5. implementation docs, command registries, schemas, tests, and source code;
 6. Notion planning artifacts and external notes as supportive planning material only.
 
@@ -170,7 +170,7 @@ This ADR does not authorize:
 
 - Docs should use `CORE-born` for lineage and reserve `CORE` behavior for the `core` target profile.
 - Existing ADRs remain historically valid, but this ADR refines their identity language.
-- `docs/MANIFESTO.md`, `docs/ROADMAP.md`, and ADR indexes should align with the refined identity vocabulary.
+- `docs/MANIFESTO.md`, `docs/PLATFORM_COMPLETION_AUDIT.md`, and ADR indexes should align with the refined identity vocabulary.
 - Notion planning pages should explicitly remain supportive planning artifacts.
 - New implementation work should begin with the profile-pack/capability-factory substrate before live runtime expansion where that substrate changes downstream architecture.
 

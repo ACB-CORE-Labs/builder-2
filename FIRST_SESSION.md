@@ -226,7 +226,7 @@ now report a clean tree: the scratch repo is back to its pre-apply state.
 - Goose, deepagents, MCP, and remote model providers are governed adapters with their own,
   independent promotion state — see
   [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) and
-  [`docs/ROADMAP.md`](docs/ROADMAP.md) before assuming any of them are live.
+  [`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) before assuming any of them are live.
 
 ## Next
 
