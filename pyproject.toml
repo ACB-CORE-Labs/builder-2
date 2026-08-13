@@ -108,6 +108,14 @@ dev = [
     "types-PyYAML",
 ]
 
+[tool.uv]
+# Security floors for transitive dependencies. Keep MCP on its current major until
+# rapid-mlx declares compatibility with the MCP 2.x transport/API surface.
+constraint-dependencies = [
+    "cryptography>=50.0.0",
+    "mcp>=1.28.1,<2.0.0",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["builder_ii*"]
