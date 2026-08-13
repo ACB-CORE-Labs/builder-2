@@ -118,11 +118,11 @@ deepagents, apply patches, mutate git, or change source/target repositories.
 ## Runtime Policy & Architectural Invariants
 
 - no shell execution is enabled
-- no model execution is enabled
+- no ambient model execution is enabled; native Deep Agents model calls require the approved candidate and `ModelExecutionGateway`
 - no patch application is enabled
 - no autonomous writes are enabled
 - no Goose runtime activation is enabled
-- no deepagents runtime is enabled
+- native deepagents runtime is enabled only inside an approved bounded envelope; readiness and policy artifacts remain passive
 - setup apply is enabled only for digest-bound explicit approval through `builder-setup apply`
 - setup rollback execution is enabled only for digest-bound explicit approval through `builder-setup rollback`; generic/B2 rollback remains disabled
 - legacy `builder setup` performs no writes and only redirects to the governed R1 path
@@ -249,4 +249,3 @@ These command surfaces are registered in `pyproject.toml` and remain governed by
 - `builder-govern trace` accepts either a ratification point id or a path to a consuming artifact, and in the latter form walks that artifact's authority chain: point, level in force, satisfying grant or approval, whether the grant is still active, and the point's recorded history.
 - `builder chain` is **repaired, and narrowed**. It previously enforced `builder chain` while no record declared that name, so every invocation ended in an unhandled traceback; it also swallowed every failure after step 1 and then printed "completed successfully", and passed argv (`builder-hitl propose-patch --from-last`) that command does not accept. It is now a Tier 0 composing walkthrough with a real authority record: it names each stage's command, that command's live tier and promotion state, and the ratification point where one is registered. The `subprocess` path that reached `builder-hitl apply-patch` is gone, so this delta **removes** execution authority rather than adding any.
 - This delta adds no execution, shell, model, Goose, deepagents, MCP, or patch authority, and flips no completion-matrix row.
-

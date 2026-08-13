@@ -26,12 +26,12 @@ def test_create_deepagents_policy_artifact_shape() -> None:
     assert artifact["policy_mode"] == "artifact_only"
     assert artifact["current_runtime_state"] == "DISABLED"
     assert artifact["policy_constructs_deepagents"] is False
-    assert artifact["governed_factory"]["factory"] == "create_governed_deep_agent"
+    assert artifact["governed_factory"]["factory"] == "create_deep_agent"
     assert artifact["governed_factory"]["root_binding"] == "target.repo"
     assert artifact["governed_factory"]["memory_mode"] == "proposal_only"
     assert artifact["governed_factory"]["subagent_result_mode"] == "proposal_only"
     assert "construct_deepagents_agent" in artifact["denied_actions"]
-    assert "call_create_governed_deep_agent" in artifact["denied_actions"]
+    assert "call_create_deep_agent_without_builder_runtime" in artifact["denied_actions"]
     assert artifact["governance"]["deepagents_runtime_start"] == "DISABLED"
     assert artifact["governance"]["agent_construction"] == "DISABLED"
     assert artifact["governance"]["artifact_is_authority"] is False
@@ -65,7 +65,7 @@ def test_validate_rejects_runtime_authority() -> None:
     artifact["policy_mode"] = "runtime"
     artifact["current_runtime_state"] = "RUNNING"
     artifact["policy_constructs_deepagents"] = True
-    artifact["governed_factory"]["factory"] = "create_deep_agent"
+    artifact["governed_factory"]["factory"] = "custom_factory"
     artifact["governed_factory"]["allow_tools"] = []
     artifact["governed_factory"]["memory_mode"] = "write"
     artifact["governed_factory"]["subagent_result_mode"] = "trusted_runtime"
@@ -80,7 +80,7 @@ def test_validate_rejects_runtime_authority() -> None:
     assert "policy_mode must be artifact_only" in errors
     assert "current_runtime_state must be DISABLED or NOT_AUTHORIZED" in errors
     assert "policy_constructs_deepagents must be false or NOT_AUTHORIZED" in errors
-    assert "governed_factory.factory must be create_governed_deep_agent" in errors
+    assert "governed_factory.factory must be create_deep_agent" in errors
     assert "governed_factory.allow_tools must be a non-empty list" in errors
     assert "governed_factory.memory_mode must be disabled, proposal_only, or approved" in errors
     assert "governed_factory.subagent_result_mode must be trusted or proposal_only" in errors

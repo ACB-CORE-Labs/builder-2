@@ -1,16 +1,16 @@
 # Deepagents dependency-readiness artifacts
 
-Status: readiness artifact only.
+Status: passive readiness artifact for the separately approved native runtime lane.
 
 builder-II can record whether the optional `deepagents` dependency appears available in the local environment without constructing an agent or granting runtime authority.
 
-This sits between the policy artifact and any future runtime adapter:
+This sits between the policy artifact and the native runtime adapter:
 
 ```text
 builder-II governed policy artifact
   -> dependency-readiness artifact
-  -> future human approval boundary
-  -> future runtime adapter
+  -> digest-bound candidate and human approval
+  -> Builder-II native runtime adapter
 ```
 
 ## Modes
@@ -27,7 +27,7 @@ builder-deepagents readiness \
 
 ### `import_check`
 
-Checks Python import metadata for the `deepagents` package/module and expected exported names. It does not construct an agent, call `create_governed_deep_agent`, invoke tools, call models, or start runtime behavior.
+Checks Python import metadata for the `deepagents` package/module and official `create_deep_agent` export. It does not construct an agent, invoke tools, call models, or start runtime behavior.
 
 ```bash
 builder-deepagents readiness \
@@ -45,7 +45,7 @@ builder-deepagents validate-readiness .builder/artifacts/deepagents-readiness.js
 
 - expected package name;
 - expected module name;
-- expected governed factory name;
+- expected official factory name;
 - expected exports;
 - observed dependency state;
 - observed module availability;
@@ -59,7 +59,7 @@ builder-deepagents validate-readiness .builder/artifacts/deepagents-readiness.js
 The artifact denies:
 
 - agent construction;
-- governed factory calls;
+- official factory calls;
 - runtime start;
 - subagent invocation;
 - model calls;
@@ -89,12 +89,12 @@ This artifact does not:
 
 ## Promotion path
 
-A future runtime adapter still requires:
+The native runtime caller still requires:
 
-- optional dependency policy;
-- explicit command surface;
-- human approval boundary;
-- failure-mode handling;
-- output audit artifact;
-- rollback path;
-- verification path.
+- a passing backend-readiness gate for `deepagents>=0.6.12,<0.7.0`;
+- a candidate bound to model registry/policy and a sealed WRP obligation envelope;
+- digest-bound approval plus `--native-backend-acknowledged`;
+- `builder-deepagents run-approved` with at least two obligation paths; and
+- exact-checkpoint approval for `resume-approved`.
+
+See [`architecture/NATIVE_DEEPAGENTS_RUNTIME.md`](architecture/NATIVE_DEEPAGENTS_RUNTIME.md). The readiness artifact remains non-authoritative even though the separately approved caller is implemented.

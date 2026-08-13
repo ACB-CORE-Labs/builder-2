@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import importlib.metadata as metadata
+import inspect
 import json as json_lib
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -28,10 +29,8 @@ DEEPAGENTS_BACKEND_READINESS_GATE_KIND = "builder_ii.deepagents_backend_readines
 
 DEEPAGENTS_EXECUTION_SCHEMA_VERSION = 1
 DEEPAGENTS_APPROVAL_MODE = "hitl_deepagents_candidate_digest_approval"
-OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION = "builder-ii.deepagents.backend.v1"
-OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION_EXPORT = "BUILDER_II_DEEPAGENTS_PROTOCOL_VERSION"
-OPTIONAL_DEEPAGENTS_RUNNER_EXPORT = "builder_ii_run_protocol_subagent"
-OPTIONAL_DEEPAGENTS_FACTORY_EXPORT = "create_governed_deep_agent"
+OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION = ">=0.6.12,<0.7.0"
+OPTIONAL_DEEPAGENTS_FACTORY_EXPORT = "create_deep_agent"
 
 PROTOCOL_FAKE_BACKEND = "protocol_fake"
 OPTIONAL_DEEPAGENTS_BACKEND = "optional_deepagents"
@@ -66,10 +65,10 @@ DISCHARGE_STATES = (
     DISCHARGE_BLOCKED,
 )
 # The canonical "produced kind" of the deepagents lane: a proposal-only subagent result. The
-# lane never writes source, calls models/tools, or attaches downstream evidence (see
-# DENIED_CAPABILITIES) — evidence for mutation/verification obligations comes from the hitl_patch
-# and verify lanes, not here. So an obligation whose output_contract requires evidence can never
-# reach CONTRACT_SATISFIED in this lane; it discharges UNVERIFIED. Structural truth, never belief.
+# protocol_fake lane never writes source, calls models/tools, or attaches downstream evidence.
+# Evidence for mutation/verification obligations comes from the hitl_patch and verify lanes, not
+# here. So an obligation whose output_contract requires evidence can never reach CONTRACT_SATISFIED
+# in that structural test double; it discharges UNVERIFIED. Structural truth, never belief.
 PROPOSAL_ONLY_RESULT_CONTRACT_KIND = "builder_ii.deepagents_proposal_only_result"
 # Provenance stamped on every protocol_fake discharge so a SATISFIED classification is never
 # read as verified execution (R3 honesty rule; mirrors D5's STRATUM fabricated-success ban).
@@ -82,14 +81,14 @@ DENIED_CAPABILITIES = (
     "mcp calls",
     "goose activation",
     "persistent memory mutation",
-    "native deepagents model invocation",
+    "direct model provider bypass",
     "direct tool execution",
     "core workbench coupling",
 )
 
 OPTIONAL_DENIAL_PROBE_CAPABILITIES = (
-    "tool calls",
-    "model calls",
+    "direct tool bypass",
+    "direct model provider bypass",
     "shell execution",
     "mcp calls",
     "memory mutation",
@@ -188,6 +187,7 @@ class OptionalDeepAgentsBackend:
     module_name: str = "deepagents"
 
     def run_subagent(self, *, subagent_profile: str, task: str) -> dict[str, Any]:
+        del subagent_profile, task
         if self.readiness_gate is None:
             raise DeepAgentsBackendDenied("optional_deepagents requires a passing backend readiness gate")
         gate_errors = validate_deepagents_backend_readiness_gate(self.readiness_gate)
@@ -200,23 +200,13 @@ class OptionalDeepAgentsBackend:
             module = importlib.import_module(self.module_name)
         except ModuleNotFoundError as exc:
             raise DeepAgentsBackendDenied("optional_deepagents dependency is unavailable at runtime") from exc
-        runner = getattr(module, OPTIONAL_DEEPAGENTS_RUNNER_EXPORT, None)
-        if not callable(runner):
-            raise DeepAgentsBackendDenied(f"optional_deepagents is missing {OPTIONAL_DEEPAGENTS_RUNNER_EXPORT}")
-        try:
-            payload = runner(subagent_profile=subagent_profile, task=task)
-        except TimeoutError as exc:
-            raise DeepAgentsBackendDenied("optional_deepagents protocol runner timed out") from exc
-        if not isinstance(payload, dict):
-            raise ValueError("optional_deepagents protocol runner must return a JSON object")
-        result = dict(payload)
-        result_errors = _validate_backend_result_payload(
-            result,
-            expected_subagent_profile=subagent_profile,
+        factory = getattr(module, OPTIONAL_DEEPAGENTS_FACTORY_EXPORT, None)
+        if not callable(factory):
+            raise DeepAgentsBackendDenied(f"optional_deepagents is missing {OPTIONAL_DEEPAGENTS_FACTORY_EXPORT}")
+        raise DeepAgentsBackendDenied(
+            "optional_deepagents native execution requires an obligation-bearing candidate and the "
+            "NativeDeepAgentsRuntime batch caller; the legacy per-subagent protocol path is disabled"
         )
-        if result_errors:
-            raise ValueError("malformed optional_deepagents result: " + "; ".join(result_errors))
-        return result
 
 
 def backend_for(mode: str, *, readiness_gate: dict[str, Any] | None = None) -> DeepAgentsBackend:
@@ -419,28 +409,46 @@ def _capability_gate_records(*, passed: bool) -> list[dict[str, Any]]:
     ]
 
 
-def _denial_probe_records(module: Any | None) -> list[dict[str, Any]]:
-    raw = getattr(module, "BUILDER_II_DENIAL_PROBES", {}) if module is not None else {}
-    probes = raw if isinstance(raw, dict) else {}
+def _denial_probe_records(_module: Any | None) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     for capability in OPTIONAL_DENIAL_PROBE_CAPABILITIES:
-        state = probes.get(capability, "UNKNOWN")
+        state = "DENIED"
         records.append(
             {
                 "capability": capability,
                 "state": state,
-                "event_type": "action_denied",
-                "records_runtime_event": state == "DENIED",
+                "evidence_mode": "static_adapter_contract",
+                "probe_executed": False,
+                "event_type": "tool_denied" if capability == "direct tool bypass" else "admission_denied",
+                "records_runtime_event": True,
             }
         )
     return records
+
+
+def _version_in_native_range(version: str) -> bool:
+    try:
+        core = version.split("+", 1)[0].split("-", 1)[0]
+        parts = tuple(int(part) for part in core.split(".")[:3])
+    except (TypeError, ValueError):
+        return False
+    return (0, 6, 12) <= parts < (0, 7, 0)
+
+
+def _official_factory_signature_compatible(factory: Any) -> bool:
+    if not callable(factory):
+        return False
+    try:
+        parameters = inspect.signature(factory).parameters
+    except (TypeError, ValueError):
+        return False
+    return all(name in parameters for name in ("model", "tools", "middleware", "subagents", "checkpointer"))
 
 
 def _readiness_gate_errors(gate: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     protocol = gate.get("protocol_compatibility", {})
     contract = gate.get("contract_tests", {})
-    schema = gate.get("schema_drift_detection", {})
     partial = gate.get("partial_failure_fixtures", {})
     model = gate.get("model_gateway_routing", {})
     replay = gate.get("replay_proof", {})
@@ -448,19 +456,25 @@ def _readiness_gate_errors(gate: dict[str, Any]) -> list[str]:
         errors.append("protocol version is not compatible")
     if protocol.get("factory_export_present") is not True:
         errors.append(f"{OPTIONAL_DEEPAGENTS_FACTORY_EXPORT} export is missing")
-    if protocol.get("protocol_runner_export_present") is not True:
-        errors.append(f"{OPTIONAL_DEEPAGENTS_RUNNER_EXPORT} export is missing")
-    for key in ("backend_protocol_bound", "deterministic_shape", "proposal_only_payload"):
+    for key in (
+        "factory_signature_compatible",
+        "gateway_model_adapter_present",
+        "governed_tool_adapter_present",
+        "wrp_subagent_adapter_present",
+        "digest_bound_checkpointer_present",
+        "governance_middleware_present",
+    ):
         if contract.get(key) is not True:
             errors.append(f"contract_tests.{key} must be true")
-    if schema.get("stable") is not True:
-        errors.append("schema drift detector is not stable")
     for probe in gate.get("denial_probes", []):
         if not isinstance(probe, dict) or probe.get("state") != "DENIED":
             errors.append("all denial probes must be DENIED")
             break
-        if probe.get("event_type") != "action_denied" or probe.get("records_runtime_event") is not True:
-            errors.append("all denial probes must record action_denied runtime events")
+        if probe.get("evidence_mode") != "static_adapter_contract" or probe.get("probe_executed") is not False:
+            errors.append("readiness denials must be static adapter contracts, not claimed runtime probes")
+            break
+        if probe.get("records_runtime_event") is not True:
+            errors.append("all denied runtime attempts must record events")
             break
     for key in (
         "interrupted_run_failed_receipt",
@@ -471,10 +485,10 @@ def _readiness_gate_errors(gate: dict[str, Any]) -> list[str]:
             errors.append(f"partial_failure_fixtures.{key} must be true")
     if model.get("builder_ii_model_gateway_required") is not True:
         errors.append("model gateway routing must require builder-II model gateway")
-    if model.get("native_deepagents_model_invocation") != "DENIED":
-        errors.append("native deepagents model invocation must be DENIED")
-    if model.get("model_work_expected") is True and not model.get("model_call_receipt_refs"):
-        errors.append("model_call_receipt_refs must be populated when backend performs model work")
+    if model.get("native_deepagents_model_invocation") != "ROUTED_THROUGH_BUILDER_II":
+        errors.append("native deepagents model invocation must route through Builder-II")
+    if model.get("model_work_expected") is not True:
+        errors.append("native backend must declare model work expected")
     if replay.get("replay_run_required") is not True or replay.get("replay_executes_runtime") is not False:
         errors.append("replay proof must reconstruct without runtime execution")
     for record in gate.get("capability_promotion_gates", []):
@@ -489,7 +503,6 @@ def create_deepagents_backend_readiness_gate(
     module_name: str = "deepagents",
     package_name: str = "deepagents",
     capability_gates_passed: bool = False,
-    model_call_receipt_refs: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     module: Any | None = None
     import_error = ""
@@ -499,64 +512,11 @@ def create_deepagents_backend_readiness_gate(
         import_error = f"{type(exc).__name__}: {exc}"
 
     observed_version = _package_version(package_name, module)
-    observed_protocol_version = (
-        getattr(module, OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION_EXPORT, "") if module is not None else ""
-    )
     factory = getattr(module, OPTIONAL_DEEPAGENTS_FACTORY_EXPORT, None) if module is not None else None
-    runner = getattr(module, OPTIONAL_DEEPAGENTS_RUNNER_EXPORT, None) if module is not None else None
-    backend = backend_for(OPTIONAL_DEEPAGENTS_BACKEND)
-    backend_protocol_bound = isinstance(backend, DeepAgentsBackend)
-
-    first_result: dict[str, Any] | None = None
-    second_result: dict[str, Any] | None = None
-    contract_errors: list[str] = []
-    if callable(runner):
-        try:
-            first_raw = runner(
-                subagent_profile="readiness_probe",
-                task="builder-II optional_deepagents readiness probe",
-            )
-            second_raw = runner(
-                subagent_profile="readiness_probe",
-                task="builder-II optional_deepagents readiness probe",
-            )
-            if isinstance(first_raw, dict):
-                first_result = dict(first_raw)
-            if isinstance(second_raw, dict):
-                second_result = dict(second_raw)
-            contract_errors.extend(
-                _validate_backend_result_payload(
-                    first_result,
-                    expected_subagent_profile="readiness_probe",
-                )
-                if first_result is not None
-                else ["first contract probe did not return a JSON object"]
-            )
-            contract_errors.extend(
-                _validate_backend_result_payload(
-                    second_result,
-                    expected_subagent_profile="readiness_probe",
-                )
-                if second_result is not None
-                else ["second contract probe did not return a JSON object"]
-            )
-        except Exception as exc:
-            contract_errors.append(f"contract probe failed: {type(exc).__name__}: {exc}")
-    else:
-        contract_errors.append(f"{OPTIONAL_DEEPAGENTS_RUNNER_EXPORT} is not callable")
-    contract_errors = list(dict.fromkeys(contract_errors))
-
-    first_schema = _result_schema_digest(first_result) if first_result is not None else ""
-    second_schema = _result_schema_digest(second_result) if second_result is not None else ""
-    expected_schema = _expected_optional_result_schema_digest()
-    deterministic_shape = bool(first_schema and first_schema == second_schema)
-    proposal_only = first_result is not None and not _validate_backend_result_payload(
-        first_result,
-        expected_subagent_profile="readiness_probe",
-    )
-    model_work_expected = (
-        bool(getattr(module, "BUILDER_II_MODEL_WORK_EXPECTED", False)) if module is not None else False
-    )
+    try:
+        native_runtime = importlib.import_module("builder_ii.adapters.deepagents.native_runtime")
+    except Exception:
+        native_runtime = None
 
     content = {
         "kind": DEEPAGENTS_BACKEND_READINESS_GATE_KIND,
@@ -572,27 +532,23 @@ def create_deepagents_backend_readiness_gate(
         },
         "protocol_compatibility": {
             "required_version": OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION,
-            "version_export": OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION_EXPORT,
-            "observed_version": observed_protocol_version,
-            "version_compatible": observed_protocol_version == OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION,
+            "observed_version": observed_version,
+            "version_compatible": _version_in_native_range(observed_version),
             "factory_export": OPTIONAL_DEEPAGENTS_FACTORY_EXPORT,
             "factory_export_present": callable(factory),
             "factory_constructed": False,
-            "protocol_runner_export": OPTIONAL_DEEPAGENTS_RUNNER_EXPORT,
-            "protocol_runner_export_present": callable(runner),
         },
         "contract_tests": {
-            "backend_protocol_bound": backend_protocol_bound,
-            "deterministic_shape": deterministic_shape,
-            "proposal_only_payload": proposal_only,
-            "result_schema_fields": list(OPTIONAL_BACKEND_RESULT_SCHEMA_FIELDS),
-            "contract_errors": contract_errors,
-        },
-        "schema_drift_detection": {
-            "expected_schema_digest": expected_schema,
-            "observed_schema_digest": first_schema,
-            "repeat_observed_schema_digest": second_schema,
-            "stable": bool(first_schema and first_schema == second_schema == expected_schema),
+            "factory_signature_compatible": _official_factory_signature_compatible(factory),
+            "gateway_model_adapter_present": callable(getattr(native_runtime, "GatewayBackedChatModel", None)),
+            "governed_tool_adapter_present": callable(getattr(native_runtime, "GovernedEchoTool", None)),
+            "wrp_subagent_adapter_present": callable(getattr(native_runtime, "wrp_subagents_from_obligations", None)),
+            "digest_bound_checkpointer_present": callable(
+                getattr(native_runtime, "DigestBoundCheckpointSaver", None)
+            ),
+            "governance_middleware_present": callable(
+                getattr(native_runtime, "BuilderGovernanceMiddleware", None)
+            ),
         },
         "denial_probes": _denial_probe_records(module),
         "partial_failure_fixtures": {
@@ -602,9 +558,11 @@ def create_deepagents_backend_readiness_gate(
         },
         "model_gateway_routing": {
             "builder_ii_model_gateway_required": True,
-            "native_deepagents_model_invocation": "DENIED",
-            "model_work_expected": model_work_expected,
-            "model_call_receipt_refs": list(model_call_receipt_refs or []),
+            "native_deepagents_model_invocation": "ROUTED_THROUGH_BUILDER_II",
+            "model_work_expected": True,
+            # Runtime receipts are evidence from the exact approved run, never an input to
+            # dependency readiness. Keep the empty field for schema compatibility.
+            "model_call_receipt_refs": [],
         },
         "replay_proof": {
             "replay_run_required": True,
@@ -898,6 +856,16 @@ def create_deepagents_execution_candidate(
     root_budget: dict[str, int] | None = None,
     allowed_obligation_kinds: list[dict[str, Any]] | None = None,
     refused_lanes: list[str] | None = None,
+    model_registry: dict[str, Any] | None = None,
+    model_registry_path: Path | None = None,
+    model_execution_policy: dict[str, Any] | None = None,
+    model_execution_policy_path: Path | None = None,
+    model_id: str = "",
+    model_approval: dict[str, Any] | None = None,
+    model_approval_path: Path | None = None,
+    active_workers: int = 2,
+    max_model_calls: int = 32,
+    max_tool_calls: int = 32,
 ) -> dict[str, Any]:
     errors = validate_deepagents_work_plan(work_plan)
     if errors:
@@ -936,12 +904,70 @@ def create_deepagents_execution_candidate(
         model_call_receipt_refs = list(routing.get("model_call_receipt_refs", [])) if isinstance(routing, dict) else []
         backend_readiness_summary = {
             "gate_state": backend_readiness_gate.get("gate_state"),
-            "protocol_version": backend_readiness_gate.get("protocol_compatibility", {}).get("observed_version"),
+            "protocol_version": backend_readiness_gate.get("protocol_compatibility", {}).get("required_version"),
+            "package_version": backend_readiness_gate.get("protocol_compatibility", {}).get("observed_version"),
+            # Schema-compatible name; each record says probe_executed=false and names its static
+            # adapter-contract evidence mode.
             "denial_probe_count": len(backend_readiness_gate.get("denial_probes", [])),
             "model_work_expected": routing.get("model_work_expected") if isinstance(routing, dict) else False,
         }
     elif backend_readiness_gate is not None:
         raise ValueError("backend_readiness_gate is only valid for optional_deepagents")
+
+    native_runtime: dict[str, Any] | None = None
+    if backend_mode == OPTIONAL_DEEPAGENTS_BACKEND:
+        from builder_ii.routing.model_client_registry import validate_model_client_registry
+        from builder_ii.routing.model_routing_policy import validate_model_execution_policy
+
+        if model_registry is None or model_execution_policy is None or not model_id.strip():
+            raise ValueError(
+                "optional_deepagents requires model_registry, model_execution_policy, and model_id"
+            )
+        registry_errors = validate_model_client_registry(model_registry)
+        if registry_errors:
+            raise ValueError("invalid native model registry: " + "; ".join(registry_errors))
+        policy_errors = validate_model_execution_policy(model_execution_policy)
+        if policy_errors:
+            raise ValueError("invalid native model execution policy: " + "; ".join(policy_errors))
+        if not 1 <= active_workers <= 4:
+            raise ValueError("active_workers must be between 1 and 4")
+        if max_model_calls <= 0 or max_tool_calls <= 0:
+            raise ValueError("max_model_calls and max_tool_calls must be positive")
+        native_runtime = {
+            "model_id": model_id.strip(),
+            "model_registry_ref": _artifact_ref(
+                model_registry,
+                role="model_registry",
+                path=model_registry_path,
+                name="native Deep Agents model registry",
+            ),
+            "model_execution_policy_ref": _artifact_ref(
+                model_execution_policy,
+                role="model_execution_policy",
+                path=model_execution_policy_path,
+                name="native Deep Agents model execution policy",
+            ),
+            "model_approval_ref": (
+                _artifact_ref(
+                    model_approval,
+                    role="model_approval",
+                    path=model_approval_path,
+                    name="native Deep Agents model approval",
+                )
+                if model_approval is not None
+                else None
+            ),
+            "active_workers": active_workers,
+            "worker_cap": 4,
+            "max_model_calls": max_model_calls,
+            "max_tool_calls": max_tool_calls,
+            "single_model_instance": True,
+        }
+    elif any(
+        value is not None
+        for value in (model_registry, model_execution_policy, model_approval)
+    ) or model_id:
+        raise ValueError("native model configuration is only valid for optional_deepagents")
 
     lane_policy_ref: dict[str, Any] | None = None
     obligation_envelope_view: dict[str, Any] | None = None
@@ -986,9 +1012,14 @@ def create_deepagents_execution_candidate(
         },
         "model_boundary": {
             "builder_ii_model_gateway_required": True,
-            "native_deepagents_model_invocation": "DENIED",
+            "native_deepagents_model_invocation": (
+                "ROUTED_THROUGH_BUILDER_II"
+                if backend_mode == OPTIONAL_DEEPAGENTS_BACKEND
+                else "DENIED"
+            ),
             "model_call_receipt_refs": model_call_receipt_refs,
         },
+        "native_runtime": native_runtime,
         "denied_capabilities": list(DENIED_CAPABILITIES),
         **_common_authority_fields(protocol_execution=False),
         "authority_boundary": _authority_boundary("deepagents_execution_candidate"),
@@ -1522,19 +1553,67 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
     else:
         if model_boundary.get("builder_ii_model_gateway_required") is not True:
             errors.append("model_boundary.builder_ii_model_gateway_required must be true")
-        if model_boundary.get("native_deepagents_model_invocation") != "DENIED":
-            errors.append("model_boundary.native_deepagents_model_invocation must be DENIED")
+        expected_model_route = (
+            "ROUTED_THROUGH_BUILDER_II"
+            if data.get("backend_mode") == OPTIONAL_DEEPAGENTS_BACKEND
+            else "DENIED"
+        )
+        if model_boundary.get("native_deepagents_model_invocation") != expected_model_route:
+            errors.append(
+                "model_boundary.native_deepagents_model_invocation must be " + expected_model_route
+            )
         if not isinstance(model_boundary.get("model_call_receipt_refs"), list):
             errors.append("model_boundary.model_call_receipt_refs must be a list")
         else:
             for index, ref in enumerate(model_boundary["model_call_receipt_refs"]):
                 errors.extend(_ref_errors(ref, field=f"model_boundary.model_call_receipt_refs[{index}]"))
-        summary = data.get("backend_readiness_summary")
-        if isinstance(summary, dict) and summary.get("model_work_expected") is True:
-            if not model_boundary.get("model_call_receipt_refs"):
-                errors.append(
-                    "model_boundary.model_call_receipt_refs must be populated when optional backend performs model work"
+    native_runtime = data.get("native_runtime")
+    if data.get("backend_mode") == OPTIONAL_DEEPAGENTS_BACKEND:
+        from builder_ii.routing.model_client_registry import MODEL_CLIENT_REGISTRY_KIND
+        from builder_ii.routing.model_routing_policy import MODEL_EXECUTION_POLICY_KIND
+
+        if not isinstance(native_runtime, dict):
+            errors.append("native_runtime must be an object for optional_deepagents")
+        else:
+            if not isinstance(native_runtime.get("model_id"), str) or not native_runtime["model_id"]:
+                errors.append("native_runtime.model_id must be a non-empty string")
+            errors.extend(
+                _ref_errors(
+                    native_runtime.get("model_registry_ref"),
+                    field="native_runtime.model_registry_ref",
+                    kind=MODEL_CLIENT_REGISTRY_KIND,
+                    role="model_registry",
                 )
+            )
+            errors.extend(
+                _ref_errors(
+                    native_runtime.get("model_execution_policy_ref"),
+                    field="native_runtime.model_execution_policy_ref",
+                    kind=MODEL_EXECUTION_POLICY_KIND,
+                    role="model_execution_policy",
+                )
+            )
+            if native_runtime.get("model_approval_ref") is not None:
+                errors.extend(
+                    _ref_errors(
+                        native_runtime.get("model_approval_ref"),
+                        field="native_runtime.model_approval_ref",
+                        role="model_approval",
+                    )
+                )
+            workers = native_runtime.get("active_workers")
+            if not isinstance(workers, int) or isinstance(workers, bool) or not 1 <= workers <= 4:
+                errors.append("native_runtime.active_workers must be an integer between 1 and 4")
+            if native_runtime.get("worker_cap") != 4:
+                errors.append("native_runtime.worker_cap must be 4")
+            for field in ("max_model_calls", "max_tool_calls"):
+                value = native_runtime.get(field)
+                if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                    errors.append(f"native_runtime.{field} must be a positive integer")
+            if native_runtime.get("single_model_instance") is not True:
+                errors.append("native_runtime.single_model_instance must be true")
+    elif native_runtime is not None:
+        errors.append("native_runtime must be null unless backend_mode is optional_deepagents")
     denied = data.get("denied_capabilities")
     if not isinstance(denied, list):
         errors.append("denied_capabilities must be a list")
@@ -2114,9 +2193,7 @@ def validate_deepagents_backend_readiness_gate(data: Any) -> list[str]:
     else:
         expected_strings = {
             "required_version": OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION,
-            "version_export": OPTIONAL_DEEPAGENTS_PROTOCOL_VERSION_EXPORT,
             "factory_export": OPTIONAL_DEEPAGENTS_FACTORY_EXPORT,
-            "protocol_runner_export": OPTIONAL_DEEPAGENTS_RUNNER_EXPORT,
         }
         for field, expected in expected_strings.items():
             if protocol.get(field) != expected:
@@ -2127,7 +2204,6 @@ def validate_deepagents_backend_readiness_gate(data: Any) -> list[str]:
             "version_compatible",
             "factory_export_present",
             "factory_constructed",
-            "protocol_runner_export_present",
         ):
             if not isinstance(protocol.get(field), bool):
                 errors.append(f"protocol_compatibility.{field} must be a boolean")
@@ -2138,27 +2214,16 @@ def validate_deepagents_backend_readiness_gate(data: Any) -> list[str]:
     if not isinstance(contract, dict):
         errors.append("contract_tests must be an object")
     else:
-        for field in ("backend_protocol_bound", "deterministic_shape", "proposal_only_payload"):
+        for field in (
+            "factory_signature_compatible",
+            "gateway_model_adapter_present",
+            "governed_tool_adapter_present",
+            "wrp_subagent_adapter_present",
+            "digest_bound_checkpointer_present",
+            "governance_middleware_present",
+        ):
             if not isinstance(contract.get(field), bool):
                 errors.append(f"contract_tests.{field} must be a boolean")
-        if contract.get("result_schema_fields") != list(OPTIONAL_BACKEND_RESULT_SCHEMA_FIELDS):
-            errors.append("contract_tests.result_schema_fields must match optional backend schema")
-        errors.extend(_string_list(contract.get("contract_errors"), field="contract_tests.contract_errors"))
-
-    schema = data.get("schema_drift_detection")
-    if not isinstance(schema, dict):
-        errors.append("schema_drift_detection must be an object")
-    else:
-        for field in ("expected_schema_digest", "observed_schema_digest", "repeat_observed_schema_digest"):
-            value = schema.get(field)
-            if value and not _is_sha256(value):
-                errors.append(f"schema_drift_detection.{field} must be a SHA-256 hex digest or empty string")
-            if not isinstance(value, str):
-                errors.append(f"schema_drift_detection.{field} must be a string")
-        if schema.get("expected_schema_digest") != _expected_optional_result_schema_digest():
-            errors.append("schema_drift_detection.expected_schema_digest must match builder-II expected schema")
-        if not isinstance(schema.get("stable"), bool):
-            errors.append("schema_drift_detection.stable must be a boolean")
 
     probes = data.get("denial_probes")
     if not isinstance(probes, list) or len(probes) != len(OPTIONAL_DENIAL_PROBE_CAPABILITIES):
@@ -2177,8 +2242,12 @@ def validate_deepagents_backend_readiness_gate(data: Any) -> list[str]:
             seen.add(capability)
             if probe.get("state") not in ("DENIED", "UNKNOWN", "ALLOWED"):
                 errors.append(f"denial_probes[{index}].state must be DENIED, UNKNOWN, or ALLOWED")
-            if probe.get("event_type") != "action_denied":
-                errors.append(f"denial_probes[{index}].event_type must be action_denied")
+            if probe.get("evidence_mode") != "static_adapter_contract":
+                errors.append(f"denial_probes[{index}].evidence_mode must be static_adapter_contract")
+            if probe.get("probe_executed") is not False:
+                errors.append(f"denial_probes[{index}].probe_executed must be false")
+            if probe.get("event_type") not in ("tool_denied", "admission_denied"):
+                errors.append(f"denial_probes[{index}].event_type must name a denial event")
             if not isinstance(probe.get("records_runtime_event"), bool):
                 errors.append(f"denial_probes[{index}].records_runtime_event must be a boolean")
 
@@ -2200,8 +2269,10 @@ def validate_deepagents_backend_readiness_gate(data: Any) -> list[str]:
     else:
         if model.get("builder_ii_model_gateway_required") is not True:
             errors.append("model_gateway_routing.builder_ii_model_gateway_required must be true")
-        if model.get("native_deepagents_model_invocation") != "DENIED":
-            errors.append("model_gateway_routing.native_deepagents_model_invocation must be DENIED")
+        if model.get("native_deepagents_model_invocation") != "ROUTED_THROUGH_BUILDER_II":
+            errors.append(
+                "model_gateway_routing.native_deepagents_model_invocation must be ROUTED_THROUGH_BUILDER_II"
+            )
         if not isinstance(model.get("model_work_expected"), bool):
             errors.append("model_gateway_routing.model_work_expected must be a boolean")
         refs = model.get("model_call_receipt_refs")
@@ -2722,6 +2793,186 @@ def _enforce_obligation_mint(
     return None
 
 
+def _load_bound_native_ref(candidate: dict[str, Any], field: str, *, label: str) -> tuple[dict[str, Any], Path]:
+    runtime = candidate.get("native_runtime")
+    ref = runtime.get(field) if isinstance(runtime, dict) else None
+    if not isinstance(ref, dict):
+        raise ValueError(f"native_runtime.{field} must be a bound artifact reference")
+    path_text = ref.get("path")
+    if not isinstance(path_text, str) or not path_text:
+        raise ValueError(f"native_runtime.{field}.path must be a non-empty string")
+    path = Path(path_text)
+    if not path.is_absolute():
+        path = (Path.cwd() / path).resolve()
+    artifact = _load_json_object(path, label=label)
+    if ref.get("sha256") != _digest_jsonable(artifact):
+        raise ValueError(f"native_runtime.{field} digest drifted after candidate approval")
+    return artifact, path
+
+
+def _validated_native_obligations(
+    *,
+    candidate: dict[str, Any],
+    approval: dict[str, Any],
+    obligation_paths: list[Path],
+) -> list[dict[str, Any]]:
+    from builder_ii.core.orchestration_lane_policy import create_orchestration_lane_policy_artifact
+    from builder_ii.core.orchestration_obligation import validate_orchestration_obligation
+
+    if not is_ladder4_seal(approval):
+        raise ValueError("native Deep Agents execution requires a Ladder 4 sealed obligation envelope")
+    if approval.get("native_backend_acknowledged") is not True:
+        raise ValueError("native_backend_acknowledged must be true before native Deep Agents construction")
+    if len(obligation_paths) < 2:
+        raise ValueError("native Deep Agents execution requires at least two obligation paths")
+    if int(approval["root_budget"].get("max_human_gates", 0)) < 1:
+        raise ValueError("native Deep Agents execution requires one sealed human-gate budget")
+    sealed_lpd = str(approval["lane_policy_digest"])
+    if create_orchestration_lane_policy_artifact().get("lane_policy_digest") != sealed_lpd:
+        raise ValueError("sealed lane_policy_digest does not match the current derived lane policy")
+
+    obligations: list[dict[str, Any]] = []
+    approved_subagents = list(approval.get("approved_subagents", []))
+    kind_counts = {str(entry["kind"]): int(entry["max_count"]) for entry in approval["allowed_obligation_kinds"]}
+    minted_by_parent: dict[str, list[dict[str, int]]] = {}
+    accepted_by_digest: dict[str, dict[str, Any]] = {}
+    for path in obligation_paths:
+        obligation = _load_json_object(path, label="orchestration obligation")
+        errors = validate_orchestration_obligation(obligation)
+        if errors:
+            raise ValueError(f"invalid obligation {path}: " + "; ".join(errors))
+        refusal = _enforce_obligation_mint(
+            obligation,
+            approval=approval,
+            sealed_lane_policy_digest=sealed_lpd,
+            approved_subagents=approved_subagents,
+            kind_counts=kind_counts,
+            minted_by_parent=minted_by_parent,
+            accepted_by_digest=accepted_by_digest,
+        )
+        if refusal is not None:
+            raise ValueError(
+                f"native obligation mint refused ({refusal['violated_rule']}): {refusal['fixing_edit']}"
+            )
+        kind_counts[str(obligation["obligation_kind"])] -= 1
+        parent_ref = obligation.get("parent_ref") or {}
+        parent_key = "seal" if "seal_digest" in parent_ref else str(parent_ref.get("obligation_digest", ""))
+        minted_by_parent.setdefault(parent_key, []).append(dict(obligation.get("budget_partition") or {}))
+        accepted_by_digest[str(obligation["obligation_id"])] = obligation
+        obligations.append(obligation)
+    return obligations
+
+
+def _native_runtime_for_candidate(
+    *,
+    candidate: dict[str, Any],
+    approval: dict[str, Any],
+    candidate_path: Path,
+    approval_path: Path,
+    obligations: list[dict[str, Any]],
+    output_dir: Path,
+    session_id: str,
+) -> Any:
+    from builder_ii.adapters.deepagents.native_runtime import NativeDeepAgentsRuntime, NativeRuntimeLimits
+    from builder_ii.core.config import load_settings
+    from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+
+    registry, _registry_path = _load_bound_native_ref(
+        candidate, "model_registry_ref", label="native model registry"
+    )
+    policy, _policy_path = _load_bound_native_ref(
+        candidate, "model_execution_policy_ref", label="native model execution policy"
+    )
+    runtime_config = candidate["native_runtime"]
+    approval_ref = runtime_config.get("model_approval_ref")
+    model_approval_path: Path | None = None
+    if isinstance(approval_ref, dict):
+        _model_approval, model_approval_path = _load_bound_native_ref(
+            candidate, "model_approval_ref", label="native model approval"
+        )
+    gateway = ModelExecutionGateway(load_settings(), registry, policy)
+    return NativeDeepAgentsRuntime(
+        gateway=gateway,
+        model_id=str(runtime_config["model_id"]),
+        obligations=obligations,
+        output_dir=output_dir,
+        session_id=session_id,
+        authority_refs=[
+            _artifact_ref(candidate, role="candidate", path=candidate_path, name="deepagents execution candidate"),
+            _artifact_ref(approval, role="approval", path=approval_path, name="deepagents execution approval"),
+        ],
+        limits=NativeRuntimeLimits(
+            active_workers=int(runtime_config["active_workers"]),
+            max_model_calls=int(runtime_config["max_model_calls"]),
+            max_tool_calls=int(runtime_config["max_tool_calls"]),
+        ),
+        model_approval_path=model_approval_path,
+    )
+
+
+def run_native_deepagents_approved_candidate(
+    *,
+    candidate: dict[str, Any],
+    approval: dict[str, Any],
+    candidate_path: Path,
+    approval_path: Path,
+    obligation_paths: list[Path],
+    output_dir: Path,
+) -> dict[str, Any]:
+    obligations = _validated_native_obligations(
+        candidate=candidate,
+        approval=approval,
+        obligation_paths=obligation_paths,
+    )
+    runtime = _native_runtime_for_candidate(
+        candidate=candidate,
+        approval=approval,
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        obligations=obligations,
+        output_dir=output_dir,
+        session_id=_new_session_id(candidate),
+    )
+    return runtime.start(str(candidate["task"]))
+
+
+def resume_native_deepagents_approved_candidate(
+    *,
+    candidate: dict[str, Any],
+    approval: dict[str, Any],
+    candidate_path: Path,
+    approval_path: Path,
+    obligation_paths: list[Path],
+    checkpoint_path: Path,
+    approved_checkpoint_digest: str,
+    output_dir: Path,
+) -> dict[str, Any]:
+    expected_checkpoint = (output_dir / "native-checkpoint-store.json").resolve()
+    if checkpoint_path.resolve() != expected_checkpoint:
+        raise ValueError("native checkpoint path must be the output directory's native-checkpoint-store.json")
+    prior_evidence = _load_json_object(
+        output_dir / "native-deepagents-evidence.json",
+        label="interrupted native Deep Agents evidence",
+    )
+    if prior_evidence.get("status") != "INTERRUPTED":
+        raise ValueError("native Deep Agents resume requires INTERRUPTED evidence")
+    obligations = _validated_native_obligations(
+        candidate=candidate,
+        approval=approval,
+        obligation_paths=obligation_paths,
+    )
+    runtime = _native_runtime_for_candidate(
+        candidate=candidate,
+        approval=approval,
+        candidate_path=candidate_path,
+        approval_path=approval_path,
+        obligations=obligations,
+        output_dir=output_dir,
+        session_id=str(prior_evidence["session_id"]),
+    )
+    return runtime.resume(approved_checkpoint_digest=approved_checkpoint_digest)
+
+
 def run_deepagents_approved_candidate(
     *,
     candidate_path: Path,
@@ -2735,6 +2986,19 @@ def run_deepagents_approved_candidate(
     _approval_guard(candidate, approval)
     _assert_output_dir_allowed(candidate, output_dir)
     readiness_gate = _load_candidate_backend_readiness_gate(candidate)
+    if candidate.get("backend_mode") == OPTIONAL_DEEPAGENTS_BACKEND:
+        if stop_after is not None:
+            raise ValueError("stop_after is not valid for the native Deep Agents runtime")
+        if not obligation_paths:
+            raise ValueError("optional_deepagents requires at least two --obligation paths")
+        return run_native_deepagents_approved_candidate(
+            candidate=candidate,
+            approval=approval,
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            obligation_paths=list(obligation_paths),
+            output_dir=output_dir,
+        )
     denial_probe_payloads = _denial_probe_payloads(readiness_gate)
     if stop_after is not None and stop_after <= 0:
         raise ValueError("stop_after must be positive when supplied")
@@ -3225,12 +3489,32 @@ def resume_deepagents_approved_candidate(
     approval_path: Path,
     checkpoint_path: Path,
     output_dir: Path,
+    obligation_paths: list[Path] | None = None,
+    approved_checkpoint_digest: str = "",
 ) -> dict[str, Any]:
     candidate = _load_json_object(candidate_path, label="deepagents execution candidate")
     approval = _load_json_object(approval_path, label="deepagents execution approval")
-    checkpoint = _load_json_object(checkpoint_path, label="deepagents checkpoint")
     _approval_guard(candidate, approval)
     readiness_gate = _load_candidate_backend_readiness_gate(candidate)
+    if candidate.get("backend_mode") == OPTIONAL_DEEPAGENTS_BACKEND:
+        _assert_output_dir_allowed(candidate, output_dir)
+        if not obligation_paths:
+            raise ValueError("native Deep Agents resume requires the original --obligation paths")
+        if not approved_checkpoint_digest:
+            raise ValueError("native Deep Agents resume requires --approve-checkpoint-digest")
+        return resume_native_deepagents_approved_candidate(
+            candidate=candidate,
+            approval=approval,
+            candidate_path=candidate_path,
+            approval_path=approval_path,
+            obligation_paths=list(obligation_paths),
+            checkpoint_path=checkpoint_path,
+            approved_checkpoint_digest=approved_checkpoint_digest,
+            output_dir=output_dir,
+        )
+    if obligation_paths or approved_checkpoint_digest:
+        raise ValueError("native resume options are only valid for optional_deepagents")
+    checkpoint = _load_json_object(checkpoint_path, label="deepagents checkpoint")
     checkpoint_errors = validate_deepagents_checkpoint(checkpoint)
     if checkpoint_errors:
         raise ValueError("invalid checkpoint: " + "; ".join(checkpoint_errors))

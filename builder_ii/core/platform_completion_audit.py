@@ -187,15 +187,12 @@ _OPERATIONALLY_VERIFIED_ASSURANCE: dict[str, AssuranceState] = {
     # the invocation. It says nothing about the behaviour of the code that ran inside it.
     # docs/audits/LADDER9_ASSURANCE_CLOSURE_AUDIT.md
     "HITL-approved verification execution": BOUNDED_EXECUTION_VERIFIED,
-    # Same lane, same module (`deepagents_execution.py`), same envelope as the row above: the
-    # verified trunk is `execution-candidate -> approve-candidate -> run-approved` over the
-    # protocol_fake backend, emitting execution receipts and a tamper-evident event chain. Ladder 4
-    # filed that trunk as BOUNDED_EXECUTION_VERIFIED under the delegation row while this row --
-    # whose surfaces are `run-approved`, `replay-run`, `collect-results` -- was left to the old
-    # default and read PASSIVE. Two rows describing one lane must not disagree about its risk, and
-    # when they do the higher-risk label is the honest one. protocol_fake denies shell, source
-    # writes, git, MCP, Goose, memory and model invocation; `bounded` describes that envelope, and
-    # says nothing about the quality of anything an agent produces inside it.
+    # The trunk is `execution-candidate -> approve-candidate -> run-approved`. protocol_fake is the
+    # deterministic structural double; optional_deepagents is a separately gated sealed backend
+    # whose model calls cross the model-execution capability and whose tools cross the tool gateway.
+    # This row classifies the digest-bound runtime envelope, not provider reach (classified under
+    # `model/provider execution`) or agent-output quality. Both backends deny target writes, shell,
+    # Git, Goose, hidden memory, and direct provider bypass.
     "deepagents runtime/subagents": BOUNDED_EXECUTION_VERIFIED,
     # Verified only against a synthetic target, inside the demo loop.
     "governed demo loop": DEMO_ONLY_VERIFIED,
@@ -976,6 +973,9 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "docs/DEEPAGENTS_POLICY.md",
             "builder_ii/adapters/deepagents/deepagents_runtime.py",
             "builder_ii/adapters/deepagents/deepagents_execution.py",
+            "builder_ii/adapters/deepagents/native_runtime.py",
+            "builder_ii/adapters/deepagents/native_artifacts.py",
+            "docs/architecture/NATIVE_DEEPAGENTS_RUNTIME.md",
         ),
         (
             "builder-deepagents",
@@ -990,11 +990,12 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "tests/test_deepagents_work_artifacts.py",
             "tests/test_deepagents_runtime.py",
             "tests/test_deepagents_execution.py",
+            "tests/test_native_deepagents_runtime.py",
         ),
         (
-            "The verified runtime trunk is execution-candidate -> approve-candidate (flag-driven, digest-bound seal) -> run-approved over the protocol_fake backend, with execution receipts, a tamper-evident event chain, replay, and proposal-only results.",
+            "The verified runtime trunk is execution-candidate -> approve-candidate (flag-driven, digest-bound seal) -> run-approved. protocol_fake remains the deterministic structural test double; optional_deepagents uses the official create_deep_agent factory under a passing readiness gate and two-key native acknowledgement.",
             "builder-deepagents run-plan is a legacy structural projection, not the trunk: it runs no backend and verifies nothing (its summaries say so); run-plan outputs are not execution evidence.",
-            "The native optional_deepagents backend remains unpromoted behind the backend readiness gate and the two-key acknowledgement.",
+            "The native claim is bounded to WRP obligations, ModelExecutionGateway calls, Builder-governed tools, digest-bound persistence, mandatory HITL interrupt/resume, and no target-repository, shell, Git, native-filesystem, or direct-provider authority; it is not agent-output-quality evidence.",
         ),
         "B6",
     ),
@@ -1028,8 +1029,8 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         ),
         (
             "Verified over the protocol_fake backend as CI truth: one flag-driven digest-bound seal opens the obligation envelope; every mint is enforced fail-closed against it (named refusals carrying fixing edits); discharges classify CONTRACT_SATISFIED / DISCHARGED_UNVERIFIED / CONTRACT_VIOLATED / BLOCKED; the event chain is digest-stamped, tamper-evident, and replayable (Ladder 4 PR-8; docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md).",
-            "The native optional_deepagents backend is NOT covered by this row: it remains a separate readiness-gated, two-key-acknowledged claim with no promoted execution, and this row never implies agent-output quality.",
-            "No autonomous dispatch, model execution, tool/shell/Goose/MCP invocation, source writes, or hidden memory; mutation obligations discharge only through the already-promoted HITL patch lane, verification obligations only through the approved verification lane.",
+            "The native optional_deepagents backend is covered only for the Plan Set 2 two-obligation scenario: readiness-gated, two-key-acknowledged, budgeted, checkpoint-bound, and receipt-backed. This row never implies agent-output quality or mutation authority.",
+            "No ambient dispatch, direct model/tool bypass, shell/Goose/MCP invocation, source writes, or hidden memory; native model/tool calls stay inside their governed gateways, mutation obligations discharge only through the HITL patch lane, and verification obligations only through the approved verification lane.",
         ),
         "Ladder 4 complete (PR-8)",
     ),

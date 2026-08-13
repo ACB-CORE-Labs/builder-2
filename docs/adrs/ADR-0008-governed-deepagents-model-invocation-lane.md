@@ -2,10 +2,12 @@
 
 ## Status
 
-**Proposed — DESIGN_ONLY.** Nothing in this document promotes, enables, or implements any
-capability. Acceptance of this ADR authorizes *implementation behind the eight promotion
-gates*, not activation. The matrix row this ADR introduces starts at `DESIGN_ONLY` and may
-only move on evidence (a closure audit), never on this document alone.
+**Superseded by the Plan Set 2 native runtime contract.** This ADR records the earlier design
+problem and remains historical context. The implemented contract is
+[`../architecture/NATIVE_DEEPAGENTS_RUNTIME.md`](../architecture/NATIVE_DEEPAGENTS_RUNTIME.md):
+official `create_deep_agent`, candidate-bound model registry/policy, WRP obligations, gateway
+receipts, digest-bound checkpointing, and exact-digest HITL resume. Where the proposed grant
+artifact or custom optional-backend payload below differs, the implemented contract governs.
 
 ## Context
 

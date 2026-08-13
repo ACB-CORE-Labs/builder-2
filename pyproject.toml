@@ -39,6 +39,9 @@ apple = [
     "mlx-lm>=0.31.3",
     "rapid-mlx>=0.8.12",
 ]
+deepagents = [
+    "deepagents>=0.6.12,<0.7.0",
+]
 
 [project.scripts]
 builder = "builder_ii.cli:app"

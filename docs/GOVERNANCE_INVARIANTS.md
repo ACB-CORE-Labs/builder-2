@@ -84,10 +84,10 @@ The governed deepagents policy artifact and dependency-readiness artifact must a
 
 ```text
 package/module = deepagents
-factory/export = create_governed_deep_agent
+factory/export = create_deep_agent
 ```
 
-This remains a readiness/policy contract only. It does not import, construct, or run deepagents unless an explicit future promotion path authorizes that behavior.
+Construction is allowed only in `NativeDeepAgentsRuntime` after the readiness gate, exact candidate approval, sealed WRP obligations, and two-key native acknowledgement validate. Policy and readiness artifacts themselves remain passive and cannot construct or authorize the runtime.
 
 ## Verification
 

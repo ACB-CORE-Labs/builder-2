@@ -111,8 +111,8 @@ def test_deepagents_policy_and_readiness_factory_contract_agree(tmp_path: Path) 
 
     assert policy_factory["package"] == readiness_package["name"] == "deepagents"
     assert readiness_package["module"] == "deepagents"
-    assert policy_factory["factory"] == readiness_package["expected_factory"] == "create_governed_deep_agent"
-    assert "create_governed_deep_agent" in readiness_package["expected_exports"]
+    assert policy_factory["factory"] == readiness_package["expected_factory"] == "create_deep_agent"
+    assert "create_deep_agent" in readiness_package["expected_exports"]
 
 
 def test_only_bounded_inspection_records_repository_read_metadata(tmp_path: Path) -> None:

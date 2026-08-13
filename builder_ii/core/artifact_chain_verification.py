@@ -57,6 +57,14 @@ from builder_ii.adapters.deepagents.deepagents_work_artifacts import (
     validate_deepagents_work_plan,
     validate_deepagents_work_validation_report,
 )
+from builder_ii.adapters.deepagents.native_artifacts import (
+    NATIVE_CHECKPOINT_STORE_KIND,
+    NATIVE_EVENT_KIND,
+    NATIVE_EVIDENCE_KIND,
+    validate_native_checkpoint_store,
+    validate_native_event,
+    validate_native_evidence_bundle,
+)
 from builder_ii.adapters.goose.goose_command_proposal import (
     GOOSE_COMMAND_PROPOSAL_KIND,
     validate_goose_command_proposal,
@@ -110,6 +118,17 @@ from builder_ii.core.handoff_artifacts import HANDOFF_KIND, validate_handoff_art
 from builder_ii.core.handoff_notes import (
     HANDOFF_NOTE_KIND,
     validate_handoff_note,
+)
+from builder_ii.core.mcp_policy import (
+    MCP_ENVELOPE_KIND,
+    MCP_POLICY_KIND,
+    MCP_RECEIPT_KIND,
+    TOOL_ENVELOPE_KIND,
+    TOOL_POLICY_KIND,
+    TOOL_RECEIPT_KIND,
+    validate_mcp_envelope,
+    validate_mcp_policy,
+    validate_mcp_receipt,
 )
 from builder_ii.core.orchestration_assignment import (
     AGENT_ASSIGNMENT_PLAN_KIND,
@@ -372,6 +391,12 @@ from builder_ii.routing.model_client_registry import (
     MODEL_CLIENT_REGISTRY_KIND,
     validate_model_client_registry,
 )
+from builder_ii.routing.model_execution_gateway import (
+    MODEL_CALL_ENVELOPE_KIND,
+    MODEL_CALL_RECEIPT_KIND,
+    validate_model_call_envelope,
+    validate_model_call_receipt,
+)
 from builder_ii.routing.model_routing_policy import (
     MODEL_ROUTING_POLICY_KIND,
     MODEL_ROUTING_RECOMMENDATION_KIND,
@@ -530,6 +555,17 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     DEEPAGENTS_EXECUTION_RECEIPT_KIND: validate_deepagents_execution_receipt,
     DEEPAGENTS_EVIDENCE_BUNDLE_KIND: validate_deepagents_evidence_bundle,
     DEEPAGENTS_BACKEND_READINESS_GATE_KIND: validate_deepagents_backend_readiness_gate,
+    NATIVE_CHECKPOINT_STORE_KIND: validate_native_checkpoint_store,
+    NATIVE_EVENT_KIND: validate_native_event,
+    NATIVE_EVIDENCE_KIND: validate_native_evidence_bundle,
+    MODEL_CALL_ENVELOPE_KIND: validate_model_call_envelope,
+    MODEL_CALL_RECEIPT_KIND: validate_model_call_receipt,
+    TOOL_POLICY_KIND: validate_mcp_policy,
+    MCP_POLICY_KIND: validate_mcp_policy,
+    TOOL_ENVELOPE_KIND: validate_mcp_envelope,
+    MCP_ENVELOPE_KIND: validate_mcp_envelope,
+    TOOL_RECEIPT_KIND: validate_mcp_receipt,
+    MCP_RECEIPT_KIND: validate_mcp_receipt,
     HITL_PROMOTION_REQUEST_KIND: validate_hitl_promotion_request,
     HITL_PROMOTION_REVIEW_KIND: validate_hitl_promotion_review,
     HITL_PROMOTION_DECISION_KIND: validate_hitl_promotion_decision,

@@ -25,7 +25,7 @@ _ALLOWED_ACTIONS = (
 
 _DENIED_ACTIONS = (
     "construct_deepagents_agent",
-    "call_create_governed_deep_agent",
+    "call_create_deep_agent_without_builder_runtime",
     "start_deepagents_runtime",
     "invoke_subagents",
     "read_repository_files_as_runtime",
@@ -80,7 +80,8 @@ def create_deepagents_policy_artifact(
         "policy_constructs_deepagents": False,
         "governed_factory": {
             "package": "deepagents",
-            "factory": "create_governed_deep_agent",
+            "factory": "create_deep_agent",
+            "builder_runtime_adapter": "builder_ii.adapters.deepagents.native_runtime.NativeDeepAgentsRuntime",
             "root_binding": root_binding,
             "allow_tools": _clean_tools(allow_tools, _DEFAULT_ALLOW_TOOLS),
             "deny_tools": _clean_tools(deny_tools, _DEFAULT_DENY_TOOLS),
@@ -150,8 +151,12 @@ def validate_deepagents_policy_artifact(artifact: Any) -> list[str]:
     if not isinstance(factory, dict):
         errors.append("governed_factory must be an object")
     else:
-        if factory.get("factory") != "create_governed_deep_agent":
-            errors.append("governed_factory.factory must be create_governed_deep_agent")
+        if factory.get("factory") != "create_deep_agent":
+            errors.append("governed_factory.factory must be create_deep_agent")
+        if factory.get("builder_runtime_adapter") != (
+            "builder_ii.adapters.deepagents.native_runtime.NativeDeepAgentsRuntime"
+        ):
+            errors.append("governed_factory.builder_runtime_adapter must name NativeDeepAgentsRuntime")
         if factory.get("root_binding") not in ("target.repo", "explicit_root_ref"):
             errors.append("governed_factory.root_binding must be target.repo or explicit_root_ref")
         if not isinstance(factory.get("allow_tools"), list) or not factory.get("allow_tools"):

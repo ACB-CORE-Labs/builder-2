@@ -20,13 +20,13 @@ def test_create_metadata_only_readiness_artifact_shape() -> None:
     assert artifact["schema_version"] == 1
     assert artifact["mode"] == "metadata_only"
     assert artifact["package"]["name"] == "deepagents"
-    assert artifact["package"]["expected_factory"] == "create_governed_deep_agent"
+    assert artifact["package"]["expected_factory"] == "create_deep_agent"
     assert artifact["observed"]["dependency_state"] == "unknown"
     assert artifact["observed"]["module_available"] is False
     assert artifact["readiness_constructs_deepagents"] is False
     assert artifact["readiness_imports_deepagents"] is False
     assert "construct_deepagents_agent" in artifact["denied_actions"]
-    assert "call_create_governed_deep_agent" in artifact["denied_actions"]
+    assert "call_create_deep_agent_without_builder_runtime" in artifact["denied_actions"]
     assert artifact["governance"]["deepagents_runtime_start"] == "DISABLED"
     assert artifact["governance"]["agent_construction"] == "DISABLED"
     assert artifact["governance"]["artifact_is_authority"] is False
@@ -37,7 +37,7 @@ def test_import_check_readiness_artifact_available(monkeypatch) -> None:
     monkeypatch.setattr(readiness_mod, "_module_available", lambda module_name: True)
     monkeypatch.setattr(readiness_mod, "_package_version", lambda package_name: "0.1.0")
     monkeypatch.setattr(
-        readiness_mod, "_export_available", lambda module_name, export_name: export_name == "create_governed_deep_agent"
+        readiness_mod, "_export_available", lambda module_name, export_name: export_name == "create_deep_agent"
     )
 
     artifact = create_deepagents_readiness_artifact(mode="import_check")
@@ -45,8 +45,7 @@ def test_import_check_readiness_artifact_available(monkeypatch) -> None:
     assert artifact["observed"]["dependency_state"] == "available"
     assert artifact["observed"]["module_available"] is True
     assert artifact["observed"]["version"] == "0.1.0"
-    assert artifact["observed"]["exports"]["create_governed_deep_agent"] is True
-    assert artifact["observed"]["exports"]["DEFAULT_GOVERNED_ALLOW_TOOLS"] is False
+    assert artifact["observed"]["exports"]["create_deep_agent"] is True
     assert artifact["readiness_imports_deepagents"] is True
     assert validate_deepagents_readiness_artifact(artifact) == []
 
@@ -78,7 +77,7 @@ def test_validate_rejects_runtime_authority() -> None:
     artifact = create_deepagents_readiness_artifact(mode="metadata_only")
     artifact["mode"] = "runtime"
     artifact["package"]["name"] = "other"
-    artifact["package"]["expected_factory"] = "create_deep_agent"
+    artifact["package"]["expected_factory"] = "custom_factory"
     artifact["observed"]["dependency_state"] = "running"
     artifact["current_runtime_state"] = "RUNNING"
     artifact["readiness_constructs_deepagents"] = True
@@ -92,7 +91,7 @@ def test_validate_rejects_runtime_authority() -> None:
 
     assert "mode must be metadata_only or import_check" in errors
     assert "package.name must be deepagents" in errors
-    assert "package.expected_factory must be create_governed_deep_agent" in errors
+    assert "package.expected_factory must be create_deep_agent" in errors
     assert "observed.dependency_state must be unknown, available, or unavailable" in errors
     assert "current_runtime_state must be DISABLED or NOT_AUTHORIZED" in errors
     assert "readiness_constructs_deepagents must be false or NOT_AUTHORIZED" in errors

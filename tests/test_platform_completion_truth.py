@@ -263,19 +263,18 @@ def test_the_two_rows_that_describe_the_deepagents_trunk_agree_about_its_risk() 
     assert assurance_state_for_row(trunk) == assurance_state_for_row(delegation)
 
 
-def test_ladder4_obligation_delegation_flip_is_scoped_to_protocol_fake() -> None:
-    # Ladder 4 PR-8 closure flip (docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md): the row is
-    # OPERATIONALLY_VERIFIED for the two laws enforced fail-closed over the protocol_fake backend
-    # as CI truth. The row text must keep saying exactly that: scope sentence present, the native
-    # backend explicitly not covered, and the legacy run-plan path named as non-evidence on the
-    # reworded deepagents runtime/subagents row.
+def test_obligation_delegation_truth_separates_structural_and_native_evidence() -> None:
+    # Ladder 4 keeps protocol_fake as deterministic structural truth. Plan Set 2 adds a separately
+    # bounded native scenario, so the row must name both without treating either as output-quality
+    # evidence. The legacy run-plan projection remains non-evidence.
     by_capability = {row.capability: row for row in REQUIRED_CAPABILITY_ROWS}
 
     row = by_capability["governed obligation delegation"]
     assert row.state == OPERATIONALLY_VERIFIED
     assert row.next_pr == "Ladder 4 complete (PR-8)"
     assert any("protocol_fake" in blocker for blocker in row.blockers)
-    assert any("NOT covered" in blocker for blocker in row.blockers)
+    assert any("Plan Set 2 two-obligation scenario" in blocker for blocker in row.blockers)
+    assert any("never implies agent-output quality" in blocker for blocker in row.blockers)
     assert "docs/audits/LADDER4_ORCHESTRATION_CLOSURE_AUDIT.md" in row.evidence_files
 
     runtime_row = by_capability["deepagents runtime/subagents"]

@@ -28,11 +28,11 @@ def test_command_surface_audit_invariants():
 
     invariants = [
         "no shell execution is enabled",
-        "no model execution is enabled",
+        "no ambient model execution is enabled",
         "no patch application is enabled",
         "no autonomous writes are enabled",
         "no Goose runtime activation is enabled",
-        "no deepagents runtime is enabled",
+        "native deepagents runtime is enabled only inside an approved bounded envelope",
         "builder-II is not CORE Workbench/UI",
         "CORE is only a target profile",
     ]

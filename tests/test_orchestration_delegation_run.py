@@ -17,7 +17,7 @@ from unittest.mock import patch
 import pytest
 from builder_ii.deepagents_cli import deepagents_app
 from test_deepagents_execution import _work_plan_fixture
-from test_optional_deepagents_readiness import _install_fake_deepagents
+from test_optional_deepagents_readiness import _install_fake_deepagents, _native_model_config
 from typer.testing import CliRunner
 
 from builder_ii.adapters.deepagents.deepagents_bridge import DeepAgentsAvailability
@@ -193,6 +193,9 @@ def _optional_ladder4_candidate(monkeypatch, tmp_path: Path):
     policy_path = _write(tmp_path / "lane-policy.json", policy)
     gate = create_deepagents_backend_readiness_gate(capability_gates_passed=True)
     gate_path = _write(tmp_path / "gate.json", gate)
+    registry, model_policy = _native_model_config()
+    registry_path = _write(tmp_path / "model-registry.json", registry)
+    model_policy_path = _write(tmp_path / "model-policy.json", model_policy)
     candidate = create_deepagents_execution_candidate(
         work_plan=work_plan,
         work_plan_path=work_plan_path,
@@ -205,6 +208,11 @@ def _optional_ladder4_candidate(monkeypatch, tmp_path: Path):
         lane_policy_path=policy_path,
         root_budget=ROOT_BUDGET,
         allowed_obligation_kinds=[{"kind": "planning_step", "max_count": 2}],
+        model_registry=registry,
+        model_registry_path=registry_path,
+        model_execution_policy=model_policy,
+        model_execution_policy_path=model_policy_path,
+        model_id="gpt-4o-stub",
     )
     return candidate
 

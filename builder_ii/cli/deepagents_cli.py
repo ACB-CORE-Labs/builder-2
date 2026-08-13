@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json as json_lib
 from pathlib import Path
 from typing import Any
@@ -639,6 +638,25 @@ def execution_candidate(
     max_subagents: int = typer.Option(8, "--max-subagents", help="Maximum subagents"),
     max_events: int = typer.Option(256, "--max-events", help="Maximum event records"),
     max_output_bytes: int = typer.Option(65536, "--max-output-bytes", help="Maximum bounded output bytes"),
+    model_registry: Path | None = typer.Option(
+        None,
+        "--model-registry",
+        help="Required model client registry for optional_deepagents",
+    ),
+    model_execution_policy: Path | None = typer.Option(
+        None,
+        "--model-execution-policy",
+        help="Required model execution policy for optional_deepagents",
+    ),
+    model_id: str = typer.Option("", "--model-id", help="Single model ID for parent and all native subagents"),
+    model_approval: Path | None = typer.Option(
+        None,
+        "--model-approval",
+        help="Optional model-call approval artifact for a governed external model",
+    ),
+    active_workers: int = typer.Option(2, "--active-workers", min=1, max=4, help="Native worker cap (1-4)"),
+    max_model_calls: int = typer.Option(32, "--max-model-calls", min=1, help="Native model-call budget"),
+    max_tool_calls: int = typer.Option(32, "--max-tool-calls", min=1, help="Native tool-call budget"),
     lane_policy: Path | None = typer.Option(
         None,
         "--lane-policy",
@@ -665,6 +683,9 @@ def execution_candidate(
     work_plan_data = _load_json(work_plan)
     readiness_gate_data = _load_json(backend_readiness_gate) if backend_readiness_gate is not None else None
     lane_policy_data = _load_json(lane_policy) if lane_policy is not None else None
+    model_registry_data = _load_json(model_registry) if model_registry is not None else None
+    model_policy_data = _load_json(model_execution_policy) if model_execution_policy is not None else None
+    model_approval_data = _load_json(model_approval) if model_approval is not None else None
     obligation_kwargs: dict[str, Any] = {}
     if lane_policy_data is not None:
         obligation_kwargs = {
@@ -691,6 +712,16 @@ def execution_candidate(
             max_subagents=max_subagents,
             max_events=max_events,
             max_output_bytes=max_output_bytes,
+            model_registry=model_registry_data,
+            model_registry_path=model_registry,
+            model_execution_policy=model_policy_data,
+            model_execution_policy_path=model_execution_policy,
+            model_id=model_id,
+            model_approval=model_approval_data,
+            model_approval_path=model_approval,
+            active_workers=active_workers,
+            max_model_calls=max_model_calls,
+            max_tool_calls=max_tool_calls,
             **obligation_kwargs,
         )
     except ValueError as exc:
@@ -715,40 +746,14 @@ def backend_readiness(
         "--capability-gates-passed",
         help="Operator assertion that all AGENTS.md promotion gates are covered",
     ),
-    model_receipt_ref: list[Path] | None = typer.Option(
-        None,
-        "--model-receipt-ref",
-        help="Repeatable model receipt artifact path when backend performs model work",
-    ),
     output: Path | None = typer.Option(None, "--output", help="Write backend readiness gate JSON to path"),
 ) -> None:
     """Create an optional_deepagents promotion gate without constructing an agent."""
-    refs: list[dict[str, Any]] = []
-    for path in model_receipt_ref or []:
-        artifact = _load_json(path)
-        refs.append(
-            {
-                "role": "model_call_receipt",
-                "kind": str(artifact.get("kind", "")),
-                "path": str(path),
-                "sha256": hashlib.sha256(
-                    json_lib.dumps(
-                        artifact,
-                        sort_keys=True,
-                        separators=(",", ":"),
-                        ensure_ascii=True,
-                    ).encode("utf-8")
-                ).hexdigest(),
-                "name": "builder-II model call receipt",
-                "required": True,
-            }
-        )
     try:
         artifact = create_deepagents_backend_readiness_gate(
             module_name=module_name,
             package_name=package_name,
             capability_gates_passed=capability_gates_passed,
-            model_call_receipt_refs=refs,
         )
     except ValueError as exc:
         console.print(f"ValueError: {exc}")
@@ -845,6 +850,16 @@ def resume_approved(
     approval: Path = typer.Option(..., "--approval", help="Path to deepagents execution approval JSON"),
     checkpoint: Path = typer.Option(..., "--checkpoint", help="Path to deepagents checkpoint JSON"),
     output_dir: Path = typer.Option(..., "--output-dir", help="Directory for resumed run artifacts"),
+    obligation: list[Path] | None = typer.Option(
+        None,
+        "--obligation",
+        help="Repeat the original obligation paths for native Deep Agents resume",
+    ),
+    approve_checkpoint_digest: str = typer.Option(
+        "",
+        "--approve-checkpoint-digest",
+        help="Exact persisted checkpoint digest approved by the operator for native resume",
+    ),
 ) -> None:
     """Resume a checkpoint only when candidate and approval still bind exactly."""
     try:
@@ -853,6 +868,8 @@ def resume_approved(
             approval_path=approval,
             checkpoint_path=checkpoint,
             output_dir=output_dir,
+            obligation_paths=list(obligation) if obligation else None,
+            approved_checkpoint_digest=approve_checkpoint_digest,
         )
     except Exception as exc:
         console.print(f"Error: {exc}")

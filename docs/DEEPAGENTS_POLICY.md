@@ -20,7 +20,7 @@ planning outputs are **artifact-only**. They:
 - Do not promote capabilities beyond read-only planning.
 - Are always safe to emit; they carry no execution authority.
 
-### 2. Bounded approved protocol lane
+### 2. Bounded approved execution lane
 
 The approved protocol lane exposes a governed execution path with the
 following operations:
@@ -34,17 +34,23 @@ following operations:
 | `replay-run` | Replay a completed run from its event ledger |
 | `evidence-bundle` | Collect and seal the evidence bundle for a completed run |
 
-**This lane is NOT native deepagents runtime promotion.** It is a
-deterministic, governed protocol backend (`protocol_fake`) that:
+The lane has two explicit backends:
+
+- `protocol_fake`, retained only as a deterministic structural test double; and
+- `optional_deepagents`, the official `create_deep_agent` integration.
+
+Both require explicit operator approval before execution. The native backend additionally requires a passing readiness gate, sealed WRP obligations, model registry/policy bindings, and `--native-backend-acknowledged`. It:
 
 - Requires explicit operator approval before any execution step.
 - Binds every approval to a content digest of the candidate artifact.
 - Emits a full event ledger for every run.
 - Supports denial probes and replay from ledger.
 - Produces a sealed evidence bundle on completion.
-- Does **not** invoke native deepagents construction.
-- Does **not** invoke native model execution.
-- Does **not** grant direct tool, MCP, shell, or source-write authority.
+- constructs only through `deepagents.create_deep_agent`;
+- routes every model call through `ModelExecutionGateway` and records receipts;
+- admits only Builder-governed tools and records their policy/envelope/receipt chain;
+- denies native filesystem, shell, Git, direct-provider, and target-repository write authority; and
+- requires digest-bound persisted state for HITL resume.
 
 ---
 
@@ -54,9 +60,7 @@ deterministic, governed protocol backend (`protocol_fake`) that:
 approved lane. It is **not** a native deepagents runtime and does **not**
 promote native deepagents construction or model invocation.
 
-It is called `protocol_fake` to clearly signal that it is a **governed
-proof lane** — a bounded simulation of what a future native deepagents
-backend would do — not the real thing.
+It is called `protocol_fake` to clearly signal that it is a governed structural proof lane, not native-runtime evidence. Its results may not be cited as proof that `create_deep_agent` ran.
 
 ---
 
@@ -71,9 +75,7 @@ backend would do — not the real thing.
 5. Replay confirming the ledger is sufficient for re-execution.
 6. Evidence bundle confirming all artifacts are sealed.
 
-Until all gates pass, `optional_deepagents` remains in artifact-only
-mode. Promotion to a live backend requires an explicit capability
-promotion record per the builder-II Capability Promotion Rule.
+`optional_deepagents` runs only after all gates pass for the exact candidate. A passing readiness artifact alone constructs nothing and grants no authority.
 
 ---
 
@@ -82,8 +84,8 @@ promotion record per the builder-II Capability Promotion Rule.
 The following capabilities are **disabled** and require explicit
 capability promotion before they can be enabled:
 
-- Native deepagents construction.
-- Native model invocation.
+- Ambient or unapproved native deepagents construction.
+- Direct model-provider invocation outside `ModelExecutionGateway`.
 - Direct tool/MCP execution authority.
 - Shell execution as agent authority.
 - Autonomous source writes.
@@ -96,6 +98,6 @@ capability promotion before they can be enabled:
 |---|---|---|---|---|
 | Artifact-only policy | ❌ None | ❌ None | ❌ None | ❌ None |
 | Approved protocol lane (`protocol_fake`) | ✅ Governed, digest-bound | ❌ None | ❌ None | ❌ None |
-| Native deepagents (disabled) | — | — | — | — |
+| Native Deep Agents (`optional_deepagents`) | ✅ Digest-bound and two-key gated | ✅ Through `ModelExecutionGateway` only | ❌ None | ❌ None |
 
 Governance is not weakened by this clarification — it is made explicit.

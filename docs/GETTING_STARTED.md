@@ -88,7 +88,7 @@ first time, or if you'd rather type each command yourself.
 
 ```bash
 git clone <builder-II> && cd builder-II
-uv sync                          # Apple Silicon local models later: uv sync --extra mlx
+uv sync --extra deepagents       # Recommended native orchestration; add --extra mlx on Apple Silicon
 cp .env.example .env             # defaults are self-target "builder" profile
 ```
 

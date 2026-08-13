@@ -75,7 +75,7 @@ flowchart TD
 
 - **builder-II is the system.** It owns governance, authority boundaries, artifacts, promotion, verification, rollback, and handoff continuity.
 - **Goose is the operator runtime adapter.** Goose supplies local session/runtime mechanics inside a builder-II-defined envelope. Goose must not invent authority.
-- **deepagents is the planning/delegation adapter.** deepagents may eventually provide graph planning, subagent decomposition, interrupt/resume, and planning middleware. It must not bypass builder-II policy or treat subagent output as authority.
+- **deepagents is the planning/delegation adapter.** The bounded native lane provides graph planning, WRP-derived subagent decomposition, interrupt/resume, and governance middleware through the official factory. It must not bypass builder-II policy or treat subagent output as authority.
 - **MCP is the external capability adapter.** MCP can expose tools, resources, prompts, roots, elicitation, and sampling surfaces. builder-II must inventory, classify, gate, wrap, audit, and revoke those capabilities.
 - **Model clients are reasoning/proposal adapters.** Models may review, plan, summarize, propose, and explain. A model output is not approval, verification, promotion, or truth by itself.
 
@@ -139,7 +139,7 @@ Goose is valuable because it is already built for local operator-facing agent se
 
 builder-II admits deepagents as an optional governed inner orchestration harness.
 
-deepagents is a strong fit for planning graphs, subagent decomposition, TODO planning, interrupt/resume behavior, and structured delegation. Inside builder-II, those features must flow through builder-II work artifacts, assignment artifacts, policy records, and result-review boundaries.
+The bounded native lane uses the official `deepagents.create_deep_agent` factory. Every model call passes through `ModelExecutionGateway`; executable tools pass through Builder-II policy; subagents come from sealed WRP obligations; and HITL resume binds to a digest-verified persisted checkpoint. The default is two active workers, the hard cap is four, and the parent and subagents share one model adapter so multiple large local models are never loaded concurrently.
 
 Subagent output remains proposal/evidence unless a separate builder-II review and promotion path says otherwise.
 
@@ -268,6 +268,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/GOOSE_INSPECTION.md`](docs/GOOSE_INSPECTION.md) | Bounded read-only inspection artifacts for explicit operator-requested files. |
 | [`docs/DEEPAGENTS_POLICY.md`](docs/DEEPAGENTS_POLICY.md) | Governed deepagents policy artifacts; no agent construction. |
 | [`docs/DEEPAGENTS_READINESS.md`](docs/DEEPAGENTS_READINESS.md) | Optional deepagents bridge readiness reports; no runtime authority. |
+| [`docs/architecture/NATIVE_DEEPAGENTS_RUNTIME.md`](docs/architecture/NATIVE_DEEPAGENTS_RUNTIME.md) | Official native Deep Agents adapter, WRP/model/tool/checkpoint boundaries, and executable evidence contract. |
 | [`docs/DEEPAGENTS_FORGE.md`](docs/DEEPAGENTS_FORGE.md) | Interactive deepagents Forge wizard: creation flow, governance model, CLI usage, and design boundaries. |
 | [`docs/GOOSE_RUNTIME.md`](docs/GOOSE_RUNTIME.md) | Design-only seam for Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated external capability surface. |
 | [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) | Capability promotion states and non-authority rule. |
@@ -413,6 +414,8 @@ Validated on the M1 `mlx-lm` lane:
 - B1.3A passive verification execution plan, approval, and receipt artifacts (`builder_ii.verification_execution_plan`, `builder_ii.verification_execution_approval`, `builder_ii.verification_execution_receipt`) with execution disabled
 - Handoff note lifecycle artifacts
 - deepagents bridge readiness reports
+- bounded native Deep Agents delegation through `create_deep_agent`, with two WRP obligations, governed model/tool calls, digest-bound persistence, and HITL interrupt/resume evidence
+- Model/provider execution gateway with registry, policy, budget, envelope, and receipt enforcement
 - Artifact index and chain verification (all v0 kinds)
 - v0 release proof harness (`uv run python scripts/verify_v0_release.py`)
 
@@ -425,8 +428,8 @@ Not yet promoted (requires capability promotion gate):
 - HITL command proposal → approved execution (candidate exists, execution not crossed)
 - Actual B1 verification execution; `builder-verify` only plans and validates passive artifacts
 - HITL patch proposal → approved application
-- deepagents runtime orchestration
-- Model/provider execution gateway; passive model registry and routing artifacts exist through `builder-model-policy`
+- ambient or unapproved deepagents runtime orchestration
+- direct provider execution outside `ModelExecutionGateway`
 - MCP inventory/policy/enforcement runtime
 - Production-quality multimodal sidecar support
 
@@ -437,14 +440,16 @@ Until a dedicated promotion path proves otherwise, treat local MLX sessions as r
 ```bash
 brew install block-goose-cli
 cd builder-II
-uv sync --extra mlx
+uv sync --extra mlx --extra deepagents
 cp .env.example .env
 ```
 
 `mlx-lm` and `rapid-mlx` (the local Apple Silicon model backend) live in the `mlx` optional-dependency
 group, not the base install — MLX requires macOS on arm64. On Apple Silicon, install with
-`uv sync --extra mlx` to get the local-model lane. On any other platform, plain `uv sync` installs the
-governed CLI/TUI and artifact/HITL/verification spine without attempting to resolve MLX; the
+`uv sync --extra mlx --extra deepagents` to get the recommended local-model and bounded native
+orchestration lanes. The `deepagents` extra is version-bounded and optional so the governance-only
+base stays lightweight. On any other platform, use `uv sync --extra deepagents`, or plain `uv sync` for the
+governed CLI/TUI and artifact/HITL/verification spine without native orchestration or MLX; the
 `mlx-lm`/local-model backend paths remain a Mac-first boundary until a non-Mac model backend is
 promoted (see "Hardware target" below).
 

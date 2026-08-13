@@ -567,10 +567,10 @@ The operator command surface is organized by phase. Every command operates stric
 
 #### `builder-deepagents run-approved`
 - **Command name**: `builder-deepagents run-approved`
-- **Purpose**: Run the approved protocol backend lane after validating candidate digest, approval digest, backend mode, budgets, and output-root containment.
-- **Output artifact, if any**: Run envelope, hash-chained event records, replay report, event ledger, execution receipt, and optional checkpoint.
-- **Execution authority**: HITL-gated protocol backend candidate only.
-- **Writes**: Writes only deepagents evidence artifacts under the approved output root; no target-repo mutation, shell, model, Goose, MCP, git, source write, hidden memory, or native deepagents construction authority.
+- **Purpose**: Run the approved `protocol_fake` test double or official `optional_deepagents` backend after validating candidate/approval digests, readiness, model policy, WRP envelope, budgets, and output-root containment.
+- **Output artifact, if any**: Protocol evidence, or native hash-chained events, model/tool receipts, digest-bound checkpoint state, and native parent/child evidence.
+- **Execution authority**: HITL-gated bounded backend candidate. Native construction additionally requires the two-key acknowledgement and at least two minted WRP obligations.
+- **Writes**: Writes only evidence below the approved output root. The native lane may call models through `ModelExecutionGateway` and low-risk tools through Builder-II policy; target-repo mutation, shell, Git, native filesystem, direct-provider, hidden-memory, and Goose authority remain denied.
 
 #### `builder-deepagents replay-run`
 - **Command name**: `builder-deepagents replay-run`
@@ -588,10 +588,10 @@ The operator command surface is organized by phase. Every command operates stric
 
 #### `builder-deepagents resume-approved`
 - **Command name**: `builder-deepagents resume-approved`
-- **Purpose**: Resume a checkpointed approved protocol run only when the same candidate and approval still bind exactly.
-- **Output artifact, if any**: Appended event records plus updated run envelope, replay report, ledger, and execution receipt.
-- **Execution authority**: HITL-gated protocol backend candidate only, bounded by the original approval.
-- **Writes**: Writes only deepagents evidence artifacts under the approved output root.
+- **Purpose**: Resume an approved protocol or native run only when the candidate, approval, original obligations, and persisted checkpoint still bind exactly.
+- **Output artifact, if any**: Appended governed events/receipts and updated protocol or native evidence.
+- **Execution authority**: HITL-gated execution bounded by the original approval; native resume also requires `--approve-checkpoint-digest` equal to the current store digest.
+- **Writes**: Writes only deepagents evidence artifacts under the approved output root; cumulative model/tool budgets and cancellation survive reconstruction.
 
 #### `builder-bridge status`
 - **Command name**: `builder-bridge status`

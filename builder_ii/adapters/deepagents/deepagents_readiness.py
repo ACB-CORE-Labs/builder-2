@@ -20,7 +20,7 @@ _ALLOWED_ACTIONS = (
 
 _DENIED_ACTIONS = (
     "construct_deepagents_agent",
-    "call_create_governed_deep_agent",
+    "call_create_deep_agent_without_builder_runtime",
     "start_deepagents_runtime",
     "invoke_subagents",
     "call_models",
@@ -34,8 +34,7 @@ _DENIED_ACTIONS = (
 )
 
 _EXPECTED_EXPORTS = (
-    "create_governed_deep_agent",
-    "DEFAULT_GOVERNED_ALLOW_TOOLS",
+    "create_deep_agent",
 )
 
 
@@ -68,7 +67,7 @@ def create_deepagents_readiness_artifact(
     mode: DeepAgentsReadinessMode = "metadata_only",
     package_name: str = "deepagents",
     module_name: str = "deepagents",
-    expected_factory: str = "create_governed_deep_agent",
+    expected_factory: str = "create_deep_agent",
     expected_exports: tuple[str, ...] | list[str] = _EXPECTED_EXPORTS,
     package_source: str = "local_or_environment",
 ) -> dict[str, Any]:
@@ -157,12 +156,12 @@ def validate_deepagents_readiness_artifact(artifact: Any) -> list[str]:
             errors.append("package.name must be deepagents")
         if package.get("module") != "deepagents":
             errors.append("package.module must be deepagents")
-        if package.get("expected_factory") != "create_governed_deep_agent":
-            errors.append("package.expected_factory must be create_governed_deep_agent")
-        if not isinstance(package.get("expected_exports"), list) or "create_governed_deep_agent" not in package.get(
+        if package.get("expected_factory") != "create_deep_agent":
+            errors.append("package.expected_factory must be create_deep_agent")
+        if not isinstance(package.get("expected_exports"), list) or "create_deep_agent" not in package.get(
             "expected_exports", []
         ):
-            errors.append("package.expected_exports must include create_governed_deep_agent")
+            errors.append("package.expected_exports must include create_deep_agent")
     observed = artifact.get("observed")
     if not isinstance(observed, dict):
         errors.append("observed must be an object")

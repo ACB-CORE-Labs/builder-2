@@ -157,12 +157,13 @@ Validated:
 - passive Goose config overlay planning;
 - recipe path existence checks;
 - artifact creation and validation for target bundles, verification profiles, quality gates, handoffs, research plans, and Goose session manifests.
+- bounded native Deep Agents delegation with WRP obligations, governed model/tool calls, and persisted HITL interrupt/resume.
 
 Not yet validated/promoted:
 
 - fully autonomous Goose tool execution through local MLX;
 - unattended file modification by a local model;
-- deepagents runtime orchestration;
+- ambient or unapproved deepagents runtime orchestration;
 - approved command execution artifacts;
 - approved patch application artifacts;
 - production-quality multimodal sidecar integration;
