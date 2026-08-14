@@ -1,0 +1,157 @@
+{
+  "allowed_actions": [
+    "evaluate_promotion_gates",
+    "validate_promotion_evidence"
+  ],
+  "capability_name": "governed obligation delegation",
+  "evidence_state": "RECORDED_ONLY",
+  "failed_gates": [],
+  "flips_matrix": false,
+  "gate_profile": "delegation_tree",
+  "gates": [
+    {
+      "detail": "seal validates",
+      "evidence": "approval_digest=6e822bf7317b743cdde63d24ca1b4d3b93a85a380fda7de07d2044d219b52f18",
+      "gate": "seal_valid",
+      "state": "PASS"
+    },
+    {
+      "detail": "exactly one root seal binds candidate",
+      "evidence": "candidate_digest=6e5be9f10676c445fbca8e470d6ef13c69ccefa669c9eff29e80d557ea1d53b2",
+      "gate": "candidate_bound_to_seal",
+      "state": "PASS"
+    },
+    {
+      "detail": "backend is protocol_fake",
+      "evidence": "backend_mode=protocol_fake",
+      "gate": "backend_is_ci_truth",
+      "state": "PASS"
+    },
+    {
+      "detail": "chain intact and COMPLETED",
+      "evidence": "rederived_status=COMPLETED;valid=True",
+      "gate": "event_chain_intact",
+      "state": "PASS"
+    },
+    {
+      "detail": "mints attenuate authority",
+      "evidence": "mints_checked=3",
+      "gate": "mints_attenuate_authority",
+      "state": "PASS"
+    },
+    {
+      "detail": "refusals are named and fixable",
+      "evidence": "refusals_checked",
+      "gate": "refusals_named_and_fixable",
+      "state": "PASS"
+    },
+    {
+      "detail": "discharges matched re-derivation",
+      "evidence": "discharges_checked=3",
+      "gate": "discharges_rederive",
+      "state": "PASS"
+    },
+    {
+      "detail": "bundle artifacts validated",
+      "evidence": "artifacts_validated",
+      "gate": "bundle_artifacts_valid",
+      "state": "PASS"
+    },
+    {
+      "detail": "ledger binds replay report",
+      "evidence": "ledger_digest=e69771f7e0a0a5699a8af53ec2ae4725a34a27a851ccca173b5775e56276336d",
+      "gate": "ledger_binds_replay",
+      "state": "PASS"
+    }
+  ],
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "artifacts_are_authority": false,
+    "autonomous_agent_authority": "DISABLED",
+    "benchmark_execution": "DISABLED",
+    "capability_state": "verification_promotion_evidence",
+    "claims_verification_passed": "DISABLED",
+    "command_execution": "DISABLED",
+    "commit_push": "DISABLED",
+    "core_workbench_coupling": "NONE",
+    "deepagents_construction": "DISABLED",
+    "deepagents_delegation": "DISABLED",
+    "deepagents_runtime": "DISABLED",
+    "deepagents_runtime_start": "DISABLED",
+    "deephaven_touch": "DISABLED",
+    "executes_commands": false,
+    "file_mutation": "DISABLED",
+    "git_mutation": "DISABLED",
+    "git_status_inspection": "DISABLED",
+    "goose_runtime_activation": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "hardware_probe": "DISABLED",
+    "mcp_execution": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "model_execution_loops": "DISABLED",
+    "network_access": "DISABLED",
+    "network_mcp_execution": "DISABLED",
+    "notes_vault_mutation": "DISABLED",
+    "patch_application": "DISABLED",
+    "proof_of_capability_only": true,
+    "pull_request_creation": "DISABLED",
+    "quality_gate_executes_commands": "DISABLED",
+    "report_is_completed_evidence": "DISABLED",
+    "repository_file_reads": "DISABLED",
+    "repository_writes": "DISABLED",
+    "runtime_activation": "DISABLED",
+    "runtime_authority": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "runtime_executor": false,
+    "search_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_collection": "DISABLED",
+    "source_patches_applied": "DISABLED",
+    "source_writes": "DISABLED",
+    "subagent_construction": "DISABLED",
+    "subprocess_backed_authority": "DISABLED",
+    "subprocess_execution": "DISABLED",
+    "target_artifact_reads": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "ticket_creation": "DISABLED",
+    "web_search": "DISABLED"
+  },
+  "grants_action_authority": false,
+  "grants_runtime_authority": false,
+  "kind": "builder_ii.verification_promotion_evidence",
+  "overall_state": "PASS",
+  "performed_actions": [
+    "evaluate_promotion_gates"
+  ],
+  "ready_for_operator_promotion_review": true,
+  "receipt_status": "COMPLETED",
+  "runner_mode": null,
+  "schema_version": 1,
+  "subject_refs": {
+    "approval_path": "ladder4-closure-evidence-run/approval.json",
+    "candidate_digest": "6e5be9f10676c445fbca8e470d6ef13c69ccefa669c9eff29e80d557ea1d53b2",
+    "candidate_path": "ladder4-closure-evidence-run/candidate.json",
+    "envelope_digest": "adaac89c6d6c409ce70dac6abcb7ee7f5355c4a54122b1ee980d7f80500a51cc",
+    "envelope_path": "ladder4-closure-evidence-run/runs/output/deepagents-run-envelope.json",
+    "event_ledger_digest": "e69771f7e0a0a5699a8af53ec2ae4725a34a27a851ccca173b5775e56276336d",
+    "event_ledger_path": "ladder4-closure-evidence-run/runs/output/deepagents-event-ledger.json",
+    "events_dir": "ladder4-closure-evidence-run/runs/output/events",
+    "lane_policy_digest": "0a1989e334a0716944ccf648419aac8c966341af2fc0be4c6e03d54e909c5bd2",
+    "obligation_digests": [
+      "4f28a708228636de0b353882097586b1736c7501f0998d48257beb81d9785e9a",
+      "d01aeb54b2ea5187d8b34f721adc21855f9f95a724f27413286dedb6a8ce08db",
+      "748105c7b1b76495b8c77ac30bb82c405c20dd5578ffae64399c8a4186f5e92e",
+      "3a027a46cd69217d699f67f27c5f8e8088bf3a6dbafac2c89ca8f4c320c74cdb"
+    ],
+    "receipt_digest": "624c6c99a37160055526e62f5d0972894ff8a115d2ea121771ab2a820060bd61",
+    "receipt_path": "ladder4-closure-evidence-run/runs/output/deepagents-execution-receipt.json",
+    "replay_report_digest": "31e6d13cbaeb4d2678c5ce01e26bfedc85ac50ea9e58fd8418df8e7f76357732",
+    "replay_report_path": "ladder4-closure-evidence-run/runs/output/deepagents-replay-report.json",
+    "seal_digest": "6e822bf7317b743cdde63d24ca1b4d3b93a85a380fda7de07d2044d219b52f18"
+  },
+  "target_branch": null,
+  "target_commit": null,
+  "verification_promotion_evidence_digest": "66d09d5842718bd0c3330e22417f55bc1d50b541afcd1354a453e363fb09827d"
+}

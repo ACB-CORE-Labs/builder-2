@@ -1,0 +1,128 @@
+{
+ "summary": "R1 onboarding today is a complete but expert-only artifact chain: builder-setup plan/overlay-plan/rollback-snapshot/apply/rollback with digest-bound receipts all exist and run (verified: `uv run builder-setup plan` exits 0), and `builder-setup init`/`wizard` wrap them into a 4-artifact onboarding pipeline with an onboarding-intent report. But the \"wizard\" is only four unvalidated typer.prompt() questions, the truth matrix itself still scores \"interactive setup wizard\" NOT_STARTED, all four profile wizards (target/agent/verification/deepagents) are NOT_STARTED, and the README \"First run\" path is ~40 commands (plus install/env/model steps, ~46 total) with a duplicated 6-command block. Meanwhile builder_ii/deepagents_forge_wizard.py + deepagents_forge_tui.py is a shipped, tested, well-factored 9-step Textual wizard (step engine with branching, validators, back navigation, governance preview, dry-run, headless mode) that is the obvious template for every missing wizard \u2014 its only coupling is that ForgeWizard hardcodes DeepAgentSpec. The critical beta gaps are: no single clone-to-session orchestrator, no wizard-to-apply HITL bridge (users must copy-paste a 64-char digest command), setup apply cannot perform the copy/merge operations that skill install and Goose config overlay plans require, and `builder-goose start-readonly` uses a hardcoded MockPlan disconnected from onboarding/session artifacts. A unified first-run experience needs roughly: a shared wizard framework extracted from Forge, a real setup wizard with digest-confirmed apply, a `builder init` orchestrator chaining env\u2192setup\u2192session package\u2192Goose readonly manifest, copy/merge apply support, and a rewritten quickstart doc. Profile wizards (target/agent/verification/deepagents-setup) and the recipe generator are deferrable because built-in profiles and shipped recipes cover the beta path.",
+ "current_state": [
+  "Non-interactive setup chain is fully implemented and runs: builder-setup plan/validate-plan/overlay-plan/validate-overlay-plan/rollback-snapshot/validate-rollback-snapshot/apply/validate-receipt/rollback/validate-rollback-receipt/validate-onboarding-intent/init/wizard in <user_home>/Projects/builder-II/builder_ii/cli/setup_cli.py; verified operational via `uv run builder-setup plan --output /tmp/audit-setup-plan.json` (exit 0, valid digest-bound artifact).",
+  "run_onboarding_pipeline (<user_home>/Projects/builder-II/builder_ii/setup_onboarding.py) emits 4 artifacts (setup-plan.json, setup-overlay.json, setup-rollback-snapshot.json, onboarding-intent.json) and computes exact next apply/validate/rollback commands; the intent report (<user_home>/Projects/builder-II/builder_ii/onboarding_intent.py) enforces DISABLED_AUTHORITY, planned_only=true, and validates that next-commands reference only builder-setup (FORBIDDEN_RUNTIME_WORDS includes 'goose', 'python', pipes).",
+  "`builder-setup wizard` (<user_home>/Projects/builder-II/builder_ii/cli/setup_cli.py:405-446) is 4 free-text typer.prompt() calls (output dir, target profile, model backend, model alias) with no choice validation, no preview, no back navigation, no agent/verification-profile, target-repo, artifact-root, skills, or recipe decisions; it prints the digest-bound apply command for manual copy-paste. `builder onboarding` (<user_home>/Projects/builder-II/builder_ii/cli/main.py:150-167) is a thin delegate to it. Test tests/test_setup_onboarding_wizard_cli.py passes (verified via pytest).",
+  "The truth matrix (<user_home>/Projects/builder-II/builder_ii/platform_completion_audit.py:286-296) still scores 'interactive setup wizard' NOT_STARTED despite the shipped 4-prompt wizard, because the R1 definition requires planning 'target repo, artifact root, profiles, model/backend, Goose writes, recipes, skills, and capability state before apply'; tests/test_platform_completion_truth.py:65 asserts this NOT_STARTED state.",
+  "setup apply (<user_home>/Projects/builder-II/builder_ii/setup_apply.py) is digest-gated with scope/symlink/traversal preflight, atomic writes, redacted previews, and changed/skipped/denied receipts; SUPPORTED_OPERATIONS (line 16) is only {create, replace, mkdir, no-op} while the overlay plan vocabulary (<user_home>/Projects/builder-II/builder_ii/setup_overlay.py:41) also declares 'merge' and 'copy'.",
+  "builder setup (legacy) fails closed: <user_home>/Projects/builder-II/builder_ii/cli/main.py:117-125 prints the governed 10-command redirect from <user_home>/Projects/builder-II/builder_ii/goose_setup.py:162-176; goose_setup.py is passive metadata only (Goose config overlay candidate, slash commands, skills source) with no writes \u2014 truth row 'Goose setup' is MERGED_BUT_NOT_OPERATIONAL (platform_completion_audit.py:719-730).",
+  "The deepagents Forge is a SHIPPED interactive wizard: <user_home>/Projects/builder-II/builder_ii/deepagents_forge_wizard.py defines ForgeStep (field targeting, validators, options, multi_select, optional, auto_required_if, governance notes) and ForgeWizard (cursor/history engine with branching skip of hitl_gates, back navigation, is_complete) over 9 canonical steps; <user_home>/Projects/builder-II/builder_ii/deepagents_forge_tui.py (369 lines) is a Textual App with progress bar, always-visible spec pane, and governance/YAML/diff preview widget; <user_home>/Projects/builder-II/builder_ii/deepagents_forge_emit.py writes slug-sanitized YAML only to profiles/deepagents/{slug}.yaml; <user_home>/Projects/builder-II/builder_ii/cli/deepagents_forge_cli.py provides `builder-deepagents forge` with a --non-interactive headless mode and command-authority enforcement; tests exist at tests/test_deepagents_forge_cli.py and docs at <user_home>/Projects/builder-II/docs/DEEPAGENTS_FORGE.md.",
+  "Forge framework reusability: the step-engine/TUI/preview/emit pattern is generic (steps are declarative dataclasses; TUI renders any step), but ForgeWizard.__init__ hardcodes DeepAgentSpec and ForgeStep.apply_to uses setattr on that spec (<user_home>/Projects/builder-II/builder_ii/deepagents_forge_wizard.py:262-269, 95-105), so reuse for setup/profile wizards requires generalizing the spec type (protocol/generic) and parameterizing the ForgeScreen \u2014 a refactor, not a rewrite.",
+  "README 'First run' (<user_home>/Projects/builder-II/README.md:419-479) lists ~40 commands; with Install (README.md:380-398: brew, uv sync, cp .env.example, edit .env) and model download (README.md:400-417) a stranger faces roughly 46 manual steps; the 6-command builder-setup plan\u2192validate chain appears verbatim twice (lines 422-427 and 450-455).",
+  "docs/OPERATOR_QUICKSTART.md covers only the B9 golden-path report lane (builder-platform status/operator-status/next/golden-path/validate-golden-path) and the CORE demo loop \u2014 it is a truth-reporting lane, not onboarding; operator_golden_path.py and operator_next.py (<user_home>/Projects/builder-II/builder_ii/operator_golden_path.py, operator_next.py) derive reports from REQUIRED_CAPABILITY_ROWS with anti-truth-inflation validators, and emit ordered next actions but no executable onboarding flow.",
+  "Goose readonly session path exists and is truth-matrix OPERATIONALLY_VERIFIED (platform_completion_audit.py:741-744): `builder-goose manifest --mode read_only --output m.json` then `builder-goose start-readonly m.json` (<user_home>/Projects/builder-II/builder_ii/cli/goose_cli.py:69-118, 242-303) launches GooseRuntimeHarness with launch/close receipts and mutation postflight; however start-readonly constructs a hardcoded `class MockPlan` (recipe core-platform.yaml, model_tier 3, agent from manifest defaults) at goose_cli.py:264-270 and `close-readonly` (goose_cli.py:306-323) is a message-only stub.",
+  "Governed session package exists: builder-session prepare-package/validate-prepare-package/summarize-prepare-package (<user_home>/Projects/builder-II/builder_ii/cli/session_cli.py:456,502) plus plan/goose-readonly-plan/context-pack/repo-map; docs/GOVERNED_SESSION_BOOTSTRAP.md documents the required operator decisions (target repo, target/agent/prompt/verification profiles, output dir) that the current wizard never asks.",
+  "Profile surfaces are read-only: builder-targets (list/show/validate/artifact/demo), builder-agent (profiles/show/render/validate/artifact), builder-verification (list/show/artifact/validate) in <user_home>/Projects/builder-II/builder_ii/cli/{targets_cli.py,agent_cli.py,verification_cli.py}; profiles themselves are frozen dataclasses in Python source (<user_home>/Projects/builder-II/builder_ii/agent_profiles.py), with no create/edit/persist path \u2014 truth rows 'target profile wizard', 'agent profile wizard', 'verification profile wizard', 'deepagents/researcher setup wizard' all NOT_STARTED (platform_completion_audit.py:368-414).",
+  "Recipe generator/wizard is ARTIFACT_ONLY (platform_completion_audit.py:343-354): static assets recipes/core-platform.yaml, recipes/core-coding.yaml, recipes/subrecipes/{explore,implement,plan,review,verify}.yaml plus goose_recipe_context_projection.py exist; generator, preview, apply receipt, and compatibility checks are missing.",
+  "Skill generator/installer/validator is MERGED_BUT_NOT_OPERATIONAL (platform_completion_audit.py:355-367): .agents/skills/ contains 3 skills; setup_overlay.py plans skill_install_plan_candidate entries with source/destination digests (setup_overlay.py:526,633) but no operational install/copy exists (and apply lacks the 'copy' operation).",
+  "`builder-platform r1-closure` (<user_home>/Projects/builder-II/builder_ii/cli/platform_status_cli.py:380-470) already composes config resolution + the full onboarding pipeline + command authority + docs-truth into a validated r1-closure report, so a machine-checkable definition of 'onboarding artifacts are healthy' exists today."
+ ],
+ "gaps": [
+  "No unified first-run entry point: nothing chains clone \u2192 .env bootstrap \u2192 doctor \u2192 onboarding artifacts \u2192 digest-approved apply \u2192 session package \u2192 Goose readonly manifest/launch. The only guidance is README.md:419-479 (~40 commands, 6 duplicated) plus three separate docs (OPERATOR_QUICKSTART.md, GOVERNED_SESSION_BOOTSTRAP.md, CONFIG_ONBOARDING.md).",
+  "`builder-setup wizard` collects 4 of the ~9 operator decisions that docs/GOVERNED_SESSION_BOOTSTRAP.md lists as required (missing: target repo path, artifact root, agent profile, verification profile, skills destination policy) and validates none of its free-text answers against the known registries in target_profiles.py/agent_profiles.py/models.py (setup_cli.py:405-446).",
+  "No wizard\u2192apply HITL bridge: after the wizard, the user must manually copy-paste a command containing a 64-char overlay digest (setup_onboarding.py:161-171). setup_apply.apply_setup_overlay exists and is digest-gated, but no interactive 'review overlay, type/confirm digest, apply now' step calls it.",
+  "setup apply cannot execute two planned change kinds the overlay emits: 'merge' (Goose config overlay preserving user secrets) and 'copy' (skill install) are in the overlay vocabulary (setup_overlay.py:41) but absent from SUPPORTED_OPERATIONS (setup_apply.py:16), so an onboarding run can plan Goose config and skill installs it can never apply \u2014 confirmed as intentional-but-open by truth rows 'Goose config overlay/rollback' (PASSIVE_FOUNDATION, platform_completion_audit.py:325-342) and 'skill generator/installer/validator' (355-367).",
+  "Five wizard rows in the truth matrix have zero implementation: interactive setup wizard, target profile wizard, agent profile wizard, verification profile wizard, deepagents/researcher setup wizard (platform_completion_audit.py:286-296, 368-414). The three profile wizards are additionally blocked because profiles are frozen dataclasses in Python source with no file-backed persistence or create/edit CLI (agent_profiles.py; targets_cli.py/agent_cli.py/verification_cli.py have no create commands).",
+  "Recipe generator/wizard is ARTIFACT_ONLY: only static YAML under recipes/ exists; no generator, preview, apply receipt, or compatibility check (platform_completion_audit.py:343-354).",
+  "The onboarding output does not connect to the first session: onboarding-intent's command validator forbids any next-command mentioning 'goose' or pipes (onboarding_intent.py:42-64), and builder-goose start-readonly ignores onboarding/session artifacts entirely, hardcoding MockPlan (goose_cli.py:264-270); close-readonly is a stub (goose_cli.py:306-323). There is no artifact linking a validated session prepare-package to a readonly launch.",
+  "No shared wizard framework module: the Forge step engine is coupled to DeepAgentSpec (deepagents_forge_wizard.py:262-269), so each new wizard would currently have to fork the pattern rather than import it.",
+  "README 'First run' has drifted: the builder-setup 6-command chain is duplicated (README.md:422-427 vs 450-455), v0/R0/R1/B1 concerns are interleaved, and no time-bounded quickstart ('30 minutes') exists anywhere in docs/ (docs/OPERATOR_QUICKSTART.md is a report lane, not onboarding).",
+  "Local .env leakage onto strangers: with the developer's .env, `builder-setup plan` resolves target_repo to <user_home>/Projects/core (observed in live run output); a fresh clone without a curated .env gets either resolution errors or CORE-flavored defaults \u2014 .env bootstrap is not part of any wizard or init command (README.md:386-389 says 'Edit .env' manually)."
+ ],
+ "work_items": [
+  {
+   "title": "Extract a reusable wizard framework from the deepagents Forge",
+   "scope": "Generalize ForgeWizard/ForgeStep in builder_ii/deepagents_forge_wizard.py over a spec protocol (any dataclass with settable fields + validate hook) instead of hardcoded DeepAgentSpec, and extract the ForgeScreen/progress-bar/spec-pane/preview-widget pattern from builder_ii/deepagents_forge_tui.py into a shared module (e.g. builder_ii/wizard_framework.py + builder_ii/wizard_tui.py). Keep the guarded-textual-import headless fallback from deepagents_forge_cli.py so every wizard has a --non-interactive path. Forge itself becomes the first consumer to prove no regression (tests/test_deepagents_forge_cli.py must keep passing).",
+   "complexity": "medium",
+   "dependencies": []
+  },
+  {
+   "title": "Interactive setup wizard v2 (beta-critical; replaces the 4-prompt stub)",
+   "scope": "Rebuild `builder-setup wizard` (builder_ii/cli/setup_cli.py:405-446) on the shared framework with steps for target repo path, artifact root, target/agent/verification profiles (options sourced from target_profiles.py/agent_profiles.py/verification_profiles.py), model backend+alias (validated against models.py/backends), skills destination policy, and Goose config/recipe paths; live preview of the resulting setup plan and planned writes; then run run_onboarding_pipeline (builder_ii/setup_onboarding.py) and validate. This is the row 'interactive setup wizard' (platform_completion_audit.py:286) and must satisfy its stated definition. Score: beta-critical \u2014 it is the named centerpiece of the 30-minute path.",
+   "complexity": "high",
+   "dependencies": [
+    "Extract a reusable wizard framework from the deepagents Forge"
+   ]
+  },
+  {
+   "title": "Wizard-to-apply HITL bridge with explicit digest confirmation (beta-critical)",
+   "scope": "Add a final wizard/CLI step that shows the overlay diff and denied/planned paths, requires the operator to explicitly confirm (retype or affirm) the overlay_plan_digest, then calls apply_setup_overlay (builder_ii/setup_apply.py) and validate_setup_receipt, preserving the planned\u2260executed invariant (approval stays digest-bound, never implicit). Also surface rollback instructions from the intent report. Update onboarding_intent schema/tests (builder_ii/onboarding_intent.py, tests/test_onboarding_authority.py) so setup_apply_executed can be true in a follow-up intent record.",
+   "complexity": "medium",
+   "dependencies": [
+    "Interactive setup wizard v2 (beta-critical; replaces the 4-prompt stub)"
+   ]
+  },
+  {
+   "title": "Implement 'copy' and secrets-preserving 'merge' apply operations (beta-critical for Goose config + skills)",
+   "scope": "Extend SUPPORTED_OPERATIONS in builder_ii/setup_apply.py:16 to cover the 'copy' (skill install from .agents/skills to target .agents/skills) and 'merge' (Goose config.yaml overlay preserving existing user keys/secrets) change kinds already planned by builder_ii/setup_overlay.py:41,526,633, with rollback snapshot coverage in setup_rollback.py/setup_rollback_execute.py and receipt operations. This closes 'Goose config overlay/rollback' (PASSIVE_FOUNDATION) and the operational half of 'skill generator/installer/validator' (platform_completion_audit.py:325-367). Without it, onboarding cannot actually configure Goose or install skills.",
+   "complexity": "high",
+   "dependencies": []
+  },
+  {
+   "title": "`builder init` unified first-run orchestrator (beta-critical)",
+   "scope": "New top-level command in builder_ii/cli/main.py that chains: .env bootstrap from .env.example with prompted BUILDER_* values (fixes the manual 'Edit .env' step at README.md:386-389), `builder doctor`-style checks, the setup wizard or `builder-setup init` in non-interactive mode, the HITL apply bridge, `builder-session prepare-package` + validate (builder_ii/cli/session_cli.py:456,502), and `builder-goose manifest --mode read_only` emission, ending with the exact `builder-goose start-readonly` command (or launching it on confirm). Emits a single first-run report artifact reusing the r1-closure composition pattern (builder_ii/cli/platform_status_cli.py:380-470).",
+   "complexity": "high",
+   "dependencies": [
+    "Interactive setup wizard v2 (beta-critical; replaces the 4-prompt stub)",
+    "Wizard-to-apply HITL bridge with explicit digest confirmation (beta-critical)"
+   ]
+  },
+  {
+   "title": "Wire onboarding/session artifacts into Goose readonly launch and fix MockPlan/close-readonly (beta-critical)",
+   "scope": "Replace the hardcoded MockPlan in `builder-goose start-readonly` (builder_ii/cli/goose_cli.py:264-270) with a plan derived from the manifest and/or a validated session prepare-package (recipe, agent profile, model tier from onboarding-selected config), and make close-readonly (goose_cli.py:306-323) actually reconstruct/verify postflight for detached sessions instead of printing a stub message. Optionally add a session-intent artifact kind so onboarding output can legally reference the goose launch command (onboarding_intent.py forbids 'goose' in its own commands by design).",
+   "complexity": "medium",
+   "dependencies": []
+  },
+  {
+   "title": "Rewrite README 'First run' + new FIRST_SESSION quickstart doc (beta-critical)",
+   "scope": "Collapse README.md:380-479 into a short install section plus a 5-10 step quickstart that points at `builder init` (or, pre-orchestrator, a deduplicated minimal sequence \u2014 the builder-setup chain currently appears twice at lines 422-427 and 450-455). Add docs/FIRST_SESSION.md covering clone \u2192 validated session package \u2192 first Goose readonly session, and update docs/OPERATOR_QUICKSTART.md cross-references. Must pass `builder-platform audit-docs` truth enforcement.",
+   "complexity": "low",
+   "dependencies": [
+    "`builder init` unified first-run orchestrator (beta-critical)"
+   ]
+  },
+  {
+   "title": "Truth matrix and truth-test promotion updates for shipped wizards",
+   "scope": "Update the capability rows in builder_ii/platform_completion_audit.py (interactive setup wizard, non-interactive setup/apply/validate, Goose setup, skill installer, recipe generator as each lands) and the pinned assertions in tests/test_platform_completion_truth.py:65 so states advance only with evidence files/tests, avoiding truth inflation. This is a required companion change for every wizard work item \u2014 golden-path/next reports (operator_golden_path.py, operator_next.py) derive from these rows.",
+   "complexity": "low",
+   "dependencies": [
+    "Interactive setup wizard v2 (beta-critical; replaces the 4-prompt stub)"
+   ]
+  },
+  {
+   "title": "Target/agent/verification profile wizards (deferrable post-beta)",
+   "scope": "Three wizards on the shared framework for guided profile creation/editing with dry-run preview and setup receipts (truth rows at platform_completion_audit.py:368-398). Prerequisite: introduce file-backed profile persistence (e.g. profiles/*.yaml consumed alongside the frozen dataclass registries in builder_ii/target_profiles.py, agent_profiles.py, verification_profiles.py) plus create/edit commands in targets_cli.py/agent_cli.py/verification_cli.py. Score: deferrable \u2014 built-in generic/builder/core targets, patch_planner-class agents, and builder_full verification cover the beta clone-to-session path; a stranger never needs a custom profile in the first 30 minutes.",
+   "complexity": "high",
+   "dependencies": [
+    "Extract a reusable wizard framework from the deepagents Forge"
+   ]
+  },
+  {
+   "title": "Recipe generator/wizard (deferrable post-beta)",
+   "scope": "Wizard/generator producing Goose recipe YAML with preview, compatibility checks against goose_recipe_validation.py/goose_recipe_context_projection.py, and apply receipt (truth row ARTIFACT_ONLY at platform_completion_audit.py:343-354). Score: deferrable \u2014 the shipped recipes/core-platform.yaml, core-coding.yaml, and 5 subrecipes are sufficient for the first readonly session; the wizard adds authoring convenience, not first-run capability.",
+   "complexity": "medium",
+   "dependencies": [
+    "Extract a reusable wizard framework from the deepagents Forge"
+   ]
+  },
+  {
+   "title": "deepagents/researcher setup wizard (deferrable post-beta)",
+   "scope": "Wizard for deepagents optional-dependency readiness, capability selection with denied defaults, receipts, and no-runtime proof (truth row NOT_STARTED at platform_completion_audit.py:399-414; evidence modules deepagents_policy.py/deepagents_readiness.py exist). Score: deferrable \u2014 deepagents runtime itself is not operational, and the shipped `builder-deepagents forge` wizard already covers governed agent-spec creation; a setup wizard for a disabled runtime does not gate the beta path.",
+   "complexity": "medium",
+   "dependencies": [
+    "Extract a reusable wizard framework from the deepagents Forge"
+   ]
+  }
+ ],
+ "risks": [
+  "Governance invariant erosion: a wizard that auto-chains plan\u2192apply would collapse the planned\u2260executed boundary. The apply bridge must keep explicit digest-bound human approval (setup_apply.py already denies on digest mismatch); design reviews should treat 'one-click apply' as a hard non-goal.",
+  "Truth-inflation trap: tests/test_platform_completion_truth.py:65 pins 'interactive setup wizard' to NOT_STARTED and operator_golden_path.py validators reject exercised capabilities that are not OPERATIONALLY_VERIFIED \u2014 every wizard landing without coordinated truth-matrix/test/evidence updates either breaks CI or, worse, tempts someone to inflate a row without evidence.",
+  "onboarding_intent.py's command validator intentionally forbids 'goose', 'python', pipes, and non-builder-setup binaries in next-commands (FORBIDDEN_RUNTIME_WORDS/FORBIDDEN_COMMAND_PATTERNS); extending the first-run flow to hand off a Goose launch command requires a new artifact kind or schema version, not a loosening of this validator \u2014 loosening it would weaken the injection guard.",
+  "The merge/copy apply extension touches the user's real ~/.config/goose/config.yaml and target-repo .agents/skills; a buggy merge could clobber user secrets despite the SECRET_MARKERS redaction (redaction protects previews, not the write path). Rollback snapshot coverage for merged files must capture pre-merge content or rollback is lossy.",
+  "Developer-machine coupling: live `builder-setup plan` resolved target_repo to <user_home>/Projects/core via local .env, and OPERATOR_QUICKSTART.md hardcodes <user_home>/Projects/core paths \u2014 first-run work must be tested from a clean clone/home-dir sandbox or the 30-minute claim will only hold on the author's machine.",
+  "Textual is an optional import (guarded in deepagents_forge_cli.py:83-92 and builder stratum in main.py:135-144); making every onboarding surface TUI-first without preserving headless/typer-prompt fallbacks would break CI and SSH-only environments.",
+  "`builder-goose start-readonly` blocks waiting on the Goose process and close-readonly is a stub; if the first-run orchestrator launches it, detached/crashed sessions leave launch receipts without close receipts, producing confusing postflight states for the very first user session.",
+  "Scope creep: five NOT_STARTED wizard rows invite building all of them for beta; only the setup wizard + init orchestrator + readonly wiring are on the clone-to-session critical path \u2014 profile/recipe/deepagents-setup wizards are authoring conveniences that should be explicitly deferred."
+ ]
+}

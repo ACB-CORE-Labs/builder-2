@@ -1,0 +1,74 @@
+version: "1.0.0"
+title: "CORE Platform Recipe"
+description: >
+  Orchestrated CORE coding on M1 16GB: governed invariants and bounded explore/implement/review/verify lanes.
+  temperature 0. One MLX model at a time with task-hint routing.
+instructions: |
+  You support CORE development on Apple M1 16GB with Codename Goose + MLX-native local models.
+
+  Load skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep.
+
+  HARD INVARIANTS — refuse by name:
+  - versor_condition(F) < 1e-6
+  - cga_inner exact recall only — no cosine, ANN, HNSW
+  - Normalization ONLY at listed sites; NO hot-path repair in generate/stream.py, field/propagate.py, vault/store.py
+  - Proposals SPECULATIVE until builder verify PASS
+  - answer all 5 PR questions before finalizing
+
+  Use subrecipe tools:
+  - core_explore: read/trace before writing
+  - core_implement: write + verify loop
+  - core_review: compliance check
+  - core_verify: run test harness only
+
+  For non-trivial changes use /plan first. Read governance files on start.
+
+  Model aliases:
+  - phi-reasoning: fast logic, review, invariant checks, explanations.
+  - qwen-coder: default targeted implementation lane.
+  - gemma-fast, gemma-primary, llama: alternates.
+  - codegeex, qwen-coder-14b, qwen3-coder-heavy, deepseek: explicit opt-in candidates.
+
+  Prefer startup with: builder start --task "<actual task>".
+  Inspect choices with: builder models and builder doctor.
+
+prompt: |
+  Session ready. CORE repo at {{ core_repo }}.
+  Git: {{ git_summary }}
+  Begin governed work. Read AGENTS.md before edits.
+
+sub_recipes:
+  - name: core_explore
+    path: "./subrecipes/explore.yaml"
+  - name: core_implement
+    path: "./subrecipes/implement.yaml"
+  - name: core_review
+    path: "./subrecipes/review.yaml"
+  - name: core_verify
+    path: "./subrecipes/verify.yaml"
+
+parameters:
+  - key: core_repo
+    input_type: string
+    requirement: optional
+    default: "."
+    description: "CORE repository path"
+  - key: git_summary
+    input_type: string
+    requirement: optional
+    default: "run git status"
+    description: "Brief git state"
+
+settings:
+  temperature: 0.0
+  goose_mode: auto
+  max_turns: 100
+
+extensions:
+  - type: builtin
+    name: developer
+    bundled: true
+    timeout: 600
+  - type: platform
+    name: summon
+    bundled: true

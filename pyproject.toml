@@ -1,0 +1,156 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "builder-ii"
+version = "0.1.0"
+description = "Generic governed local agent/developer platform with Goose and MLX support"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12.13,<3.13"
+dependencies = [
+    "numpy>=2.0.0",
+    "httpx>=0.28.0",
+    "pillow>=12.3.0",
+    "psutil>=7.2.2",
+    "python-dotenv>=1.2.2",
+    "pyyaml>=6.0",
+    "rich>=15.0.0",
+    "rich-pixels>=3.0.1",
+    "textual>=8.2.8",
+    "typer>=0.25.1",
+    "pydantic>=2.0.0",
+    "defusedxml>=0.7.1",
+]
+
+# mlx-lm and rapid-mlx are Apple Silicon-only (MLX requires macOS on arm64) and are never imported
+# in-process — builder_ii invokes them as subprocess binaries (see backends.py). Gating them behind
+# this extra unblocks `uv sync` on non-Mac platforms; the local-model backend is a Mac-first beta
+# boundary (see README "Hardware target" / "Install").
+[project.optional-dependencies]
+mlx = [
+    "mlx-lm>=0.31.3",
+    "rapid-mlx>=0.8.12",
+]
+# Docs alias: pip install 'builder-ii[apple]'
+apple = [
+    "mlx-lm>=0.31.3",
+    "rapid-mlx>=0.8.12",
+]
+deepagents = [
+    "deepagents>=0.6.12,<0.7.0",
+]
+
+[project.scripts]
+builder = "builder_ii.cli:app"
+builder-runtime = "builder_ii.lifecycle.candidate.runtime_control:runtime_app"
+builder-lanes = "builder_ii.lifecycle.setup.lane_guides:lane_app"
+builder-tools = "builder_ii.cli.tools_cli:tools_app"
+builder-mcp = "builder_ii.cli.mcp_cli:mcp_app"
+builder-context = "builder_ii.cli.context_cli:context_app"
+builder-git-state = "builder_ii.cli.git_state_cli:git_state_app"
+builder-targets = "builder_ii.cli.targets_cli:targets_app"
+builder-session = "builder_ii.cli.session_cli:session_app"
+builder-agent = "builder_ii.cli.agent_cli:agent_app"
+builder-bridge = "builder_ii.cli.bridge_cli:bridge_app"
+builder-bundle = "builder_ii.cli.bundle_cli:bundle_app"
+builder-goose = "builder_ii.cli.goose_cli:goose_app"
+builder-records = "builder_ii.cli.approval_records_cli:approval_app"
+builder-preflight = "builder_ii.cli.preflight_cli:preflight_app"
+builder-receipt = "builder_ii.cli.receipt_records_cli:receipt_app"
+builder-chain = "builder_ii.cli.chain_summary_cli:chain_app"
+builder-handoff = "builder_ii.cli.handoff_bundle_cli:handoff_app"
+builder-intake = "builder_ii.cli.intake_cli:intake_app"
+builder-index = "builder_ii.cli.artifact_index_cli:index_app"
+builder-promotion = "builder_ii.cli.promotion_readiness_cli:promotion_app"
+builder-promotion-decision = "builder_ii.cli.promotion_decision_cli:promotion_decision_app"
+builder-state-index = "builder_ii.cli.state_index_cli:state_index_app"
+builder-snapshot = "builder_ii.cli.snap_cli:snap_app"
+builder-deepagents = "builder_ii.cli.deepagents_cli:deepagents_app"
+builder-notes = "builder_ii.cli.notes_cli:notes_app"
+builder-quality = "builder_ii.cli.quality_cli:quality_app"
+builder-research = "builder_ii.cli.research_cli:research_app"
+builder-performance = "builder_ii.cli.performance_cli:performance_app"
+builder-readonly = "builder_ii.cli.readonly_inspection_cli:readonly_app"
+builder-code-vault = "builder_ii.cli.code_vault_cli:code_vault_app"
+builder-verification = "builder_ii.cli.verification_cli:verification_app"
+builder-verify = "builder_ii.cli.verification_execution_plan_cli:verify_app"
+builder-hitl = "builder_ii.cli.hitl_execution_cli:hitl_app"
+builder-govern = "builder_ii.cli.govern_cli:govern_app"
+builder-orchestration = "builder_ii.cli.orchestration_cli:orchestration_app"
+builder-profile-pack = "builder_ii.cli.profile_pack_cli:profile_pack_app"
+builder-model-policy = "builder_ii.cli.model_policy_cli:model_policy_app"
+builder-wrp = "builder_ii.cli.wrp_cli:wrp_app"
+builder-semantic = "builder_ii.cli.semantic_cli:semantic_app"
+builder-model = "builder_ii.cli.model_cli:model_app"
+builder-workflow = "builder_ii.cli.workflow_cli:workflow_app"
+builder-ledger = "builder_ii.cli.ledger_cli:ledger_app"
+builder-platform = "builder_ii.cli.platform_status_cli:platform_app"
+builder-memory = "builder_ii.cli.memory_cli:memory_app"
+builder-config = "builder_ii.cli.config_cli:config_app"
+builder-stratum = "builder_ii.cli.stratum_cli:stratum_app"
+builder-setup = "builder_ii.cli.setup_cli:setup_app"
+builder-tui-inspection = "builder_ii.cli.tui_inspection_cli:tui_inspection_app"
+
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0",
+    "pytest-cov>=6.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-randomly>=3.15.0",
+    "pytest-xdist>=3.6.0",
+    "ruff>=0.9.0",
+    "mypy>=1.14.0",
+    "bandit>=1.8.0",
+    "types-PyYAML",
+]
+
+[tool.uv]
+# Security floors for transitive dependencies. Keep MCP on its current major until
+# rapid-mlx declares compatibility with the MCP 2.x transport/API surface.
+constraint-dependencies = [
+    "cryptography>=50.0.0",
+    "mcp>=1.28.1,<2.0.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["builder_ii*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+
+[tool.mypy]
+files = [
+    "builder_ii/governance/authority/authority_registry.py",
+    "builder_ii/governance/authority/policy_evaluator.py",
+    "builder_ii/governance/authority/signet_verifier.py",
+    "builder_ii/governance/authority/tier_definitions.py",
+    "builder_ii/governance/authority/compliance.py",
+    "builder_ii/governance/hitl/hitl_patch_apply.py",
+    "builder_ii/routing/model_execution_gateway.py",
+    "builder_ii/governance/authority/readonly_authority.py",
+    "builder_ii/governance/hitl/hitl_command_execution.py",
+    "builder_ii/governance/hitl/hitl_patch_proposal.py",
+    "builder_ii/lifecycle/candidate/verification_execution_plan.py",
+    "builder_ii/core/tool_invocation_gateway.py",
+    "builder_ii/core/readonly_inspection_promotion.py",
+    "builder_ii/adapters/goose/goose_command_proposal.py",
+    # WRP authority-adjacent surfaces (S1 bind path + S2 live lane)
+    "builder_ii/routing/model_routing_policy.py",
+    "builder_ii/wrp/live_lane.py",
+    "builder_ii/wrp/msda_preflight.py",
+]
+
+[tool.ruff]
+line-length = 120
+lint.select = ["E", "F", "W", "I"]
+lint.ignore = [
+    "E501", # line-too-long (handled by formatter or ignored)
+    "E402", # module-level-import-not-at-top-of-file (needed for sys.path hacks in tests)
+    "E702", # multiple-statements-on-one-line (commonly used in tests)
+]

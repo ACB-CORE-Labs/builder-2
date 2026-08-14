@@ -1,0 +1,215 @@
+{
+  "artifact_is_authority": false,
+  "authority_boundary": {
+    "artifact_is_authority": false,
+    "capability_state": "orchestration_assignment_dry_run",
+    "constructs_deepagents": false,
+    "executes_model": false,
+    "executes_shell": false,
+    "executes_tools": false,
+    "grants_authority": false,
+    "invokes_goose": false,
+    "invokes_mcp": false,
+    "mutates_target_repo": false,
+    "performs_network_calls": false,
+    "requires_human_promotion_for_execution": true
+  },
+  "constructs_deepagents": false,
+  "denied_capabilities": [
+    "model execution",
+    "tool execution",
+    "shell execution",
+    "Goose invocation",
+    "deepagents construction",
+    "MCP invocation",
+    "network calls",
+    "target repository mutation",
+    "runtime authority grant"
+  ],
+  "dry_run_state": "DRY_RUN_ONLY",
+  "executes_model": false,
+  "executes_shell": false,
+  "executes_tools": false,
+  "execution_summary": {
+    "authority_granted": false,
+    "deepagents_constructed": 0,
+    "goose_invocations": 0,
+    "mcp_calls": 0,
+    "models_called": 0,
+    "network_calls": 0,
+    "shell_commands_run": 0,
+    "target_repo_mutations": 0,
+    "tools_called": 0,
+    "verification_status": "NOT_RUN"
+  },
+  "expected_evidence": [
+    "project config inspected",
+    "selected command rationale recorded",
+    "pass/fail output captured by the operator"
+  ],
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "capability_state": "orchestration_assignment_dry_run",
+    "core_workbench_coupling": "NONE",
+    "deepagents_runtime_start": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "grants_authority": false,
+    "mcp_tool_calls": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "network_calls": "DISABLED",
+    "requires_human_promotion_for_execution": true,
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
+    "subagent_construction": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "tool_execution": "DISABLED",
+    "verification_execution": "DISABLED"
+  },
+  "grants_authority": false,
+  "handoff_expectations": [
+    "preserve target, task, bindings, denied capabilities, required promotions, and verification status",
+    "do not claim verification evidence without separate execution receipts"
+  ],
+  "invokes_goose": false,
+  "invokes_mcp": false,
+  "kind": "builder_ii.orchestration_assignment_dry_run",
+  "mutates_target_repo": false,
+  "performs_network_calls": false,
+  "planned_bindings": {
+    "agent": {
+      "authority": "proposal_only",
+      "name": "patch_planner",
+      "source_ref_role": "agent_profile"
+    },
+    "context": {
+      "context_is_proof": false,
+      "selected_file_count": 2,
+      "source_ref_role": "context_pack",
+      "target_name": "generic"
+    },
+    "handoff": {
+      "claims_verification_evidence": false,
+      "expectations": [
+        "preserve target, task, bindings, denied capabilities, required promotions, and verification status",
+        "do not claim verification evidence without separate execution receipts"
+      ],
+      "source_ref_role": "handoff_profile"
+    },
+    "hitl": {
+      "approval_state": "NOT_GRANTED",
+      "grants_authority": false,
+      "requires_human_promotion_for_execution": true,
+      "source_ref_role": "hitl_policy"
+    },
+    "model": {
+      "executes_model": false,
+      "recommendation_state": "RECOMMENDATION_ONLY",
+      "routing_grants_authority": false,
+      "selected_candidate": {
+        "client_id": "mlx_lm_client",
+        "constraints": [
+          "Endpoint kind: local_mlx",
+          "Cost class: free_local",
+          "Passive recommendation only; requires human promotion before execution"
+        ],
+        "model_alias": "qwen-coder",
+        "model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+        "provider_id": "mlx_provider",
+        "rank": 1,
+        "reasons": [
+          "Risk level 'local_network' satisfies requirement 'local_network'",
+          "Supports required tool use",
+          "Exact match for policy preferred model id"
+        ],
+        "risk_classification": "local_network"
+      },
+      "source_ref_roles": [
+        "model_registry",
+        "model_policy",
+        "model_recommendation"
+      ]
+    },
+    "outputs": {
+      "expected_artifacts": [
+        "builder_ii.agent_assignment_plan",
+        "builder_ii.orchestration_assignment_plan",
+        "builder_ii.orchestration_assignment_dry_run"
+      ],
+      "mutates_target_repo": false,
+      "source_ref_role": "output_profile"
+    },
+    "target": {
+      "name": "generic",
+      "repo": "tests/fixtures/generic-repo",
+      "source_ref_role": "target_profile"
+    },
+    "task": {
+      "description": "test passive assignment",
+      "profile_entry_id": "task-profile-planning-contract",
+      "source_ref_role": "task_profile",
+      "task_state": "PLANNED_ONLY"
+    },
+    "tools": {
+      "allowed_tools": [],
+      "default_policy": "denied",
+      "executes_tools": false,
+      "source_ref_role": "tool_policy"
+    },
+    "verification": {
+      "executes_commands": false,
+      "name": "generic_basic",
+      "proposed_commands": [
+        "inspect project config for test command",
+        "run the smallest relevant test command after human approval",
+        "run formatting/static checks only if the repo defines them"
+      ],
+      "required_evidence": [
+        "project config inspected",
+        "selected command rationale recorded",
+        "pass/fail output captured by the operator"
+      ],
+      "source_ref_role": "verification_profile",
+      "verification_status": "NOT_RUN"
+    }
+  },
+  "required_promotions": [
+    "HITL approval artifact before execution",
+    "separate capability promotion before model/tool/shell/runtime authority",
+    "execution receipts before any verification claim"
+  ],
+  "requires_human_promotion_for_execution": true,
+  "schema_version": 1,
+  "source_orchestration_assignment_plan_ref": {
+    "kind": "builder_ii.orchestration_assignment_plan",
+    "name": "generic",
+    "path": "tests/fixtures/artifacts/orchestration-assignment-plan.json",
+    "required": true,
+    "role": "orchestration_assignment_plan",
+    "sha256": "93c345472e7c8677664fa0f4a7257bc56b667e447248a5112f2de52c039d824f"
+  },
+  "source_refs": [
+    {
+      "kind": "builder_ii.orchestration_assignment_plan",
+      "name": "generic",
+      "path": "tests/fixtures/artifacts/orchestration-assignment-plan.json",
+      "required": true,
+      "role": "orchestration_assignment_plan",
+      "sha256": "93c345472e7c8677664fa0f4a7257bc56b667e447248a5112f2de52c039d824f"
+    }
+  ],
+  "target": "generic",
+  "task": "test passive assignment",
+  "why": [
+    "assignment planning is artifact-only",
+    "model routing is advisory and not authorization",
+    "dry-run is explanatory and cannot execute or mutate"
+  ],
+  "would_happen": [
+    "bind source artifacts by kind, role, and SHA-256 digest",
+    "present agent, model, context, verification, tool, HITL, output, and handoff surfaces for review",
+    "require human promotion before any runtime or execution authority exists"
+  ]
+}

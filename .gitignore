@@ -1,0 +1,33 @@
+.env
+.venv/
+*.egg-info/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+scratch/
+.builder/
+
+# Python build artifacts. `dist/` was ignored and `build/` was not, so setuptools'
+# staging tree got committed: a second copy of builder_ii/ that no gate scans.
+dist/
+build/
+
+# Rust build artifacts
+target/
+**/target/
+
+.DS_Store
+
+# Scratch checkouts of third-party repos (e.g. a local Goose clone for reference). Never rely on
+# a directory merely not being staged yet -- `build/` above exists because that's exactly how a
+# full copy of builder_ii/ ended up committed once.
+.external/
+
+# Ops / one-off pollution (do not reintroduce at repo root)
+commit_msg.txt
+replace_script.py
+patch_conflicts.sh
+/run_all_tests.py
+*.orig
+*.rej

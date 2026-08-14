@@ -1,0 +1,185 @@
+{
+  "allowed_actions": [
+    "validate_readiness_record",
+    "render_promotion_decision",
+    "validate_promotion_decision"
+  ],
+  "approved": false,
+  "blockers": [],
+  "capability_state": "promotion_decision_record",
+  "checks": [
+    {
+      "missing": [],
+      "name": "docs",
+      "ready": true,
+      "refs": [
+        "docs/WRP_CONTROL_PLANE.md",
+        "docs/WRP_MASTERY_GAP_MATRIX.md",
+        "docs/WRP_MASTERY_PROGRESS.md",
+        "docs/WRP_ACCEPTANCE.md",
+        "docs/CAPABILITY_PROMOTION.md",
+        "docs/adrs/ADR-0007-orchestration-router-control-plane.md",
+        "docs/plan/WRP_VLLM_RESEARCH_PROFILE.md"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "tests",
+      "ready": true,
+      "refs": [
+        "tests/test_wrp_backend_registry.py",
+        "tests/test_wrp_s4_readiness_drafts.py",
+        "backend inventory id=vllm_research"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "cli_surface",
+      "ready": true,
+      "refs": [
+        "builder-wrp backends",
+        "builder-wrp doctor-backends",
+        "builder-wrp s4-readiness draft",
+        "builder-wrp vllm-profile"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "failure_mode",
+      "ready": true,
+      "refs": [
+        "s4_promoted must remain false until HUMAN decision approved",
+        "doctor_backends never starts engines",
+        "opt-in backends fail closed when env/provider missing",
+        "backend=vllm_research remains non-default M1-safe"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "approval_boundary",
+      "ready": true,
+      "refs": [
+        "docs/CAPABILITY_PROMOTION.md eight-gate HUMAN decision",
+        "docs/WRP_ACCEPTANCE.md Promotion acceptance",
+        "HUMAN decides each backend independently (no bulk S4 flip)",
+        "PENDING_HUMAN \u2014 this draft is not an approval"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "output_artifact",
+      "ready": true,
+      "refs": [
+        "builder_ii.promotion_readiness_record planning/evidence/wrp_s4_vllm_research_readiness.json",
+        "builder_ii.promotion_decision_record planning/evidence/wrp_s4_vllm_research_decision.json",
+        "builder_ii.wrp.s4_promotion_gate_audit planning/evidence/wrp_s4_promotion_gate_audit.json"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "rollback_path",
+      "ready": true,
+      "refs": [
+        "keep s4_promoted=false on doctor/inventory reports",
+        "delete or supersede planning/evidence/wrp_s4_vllm_research_readiness.json + planning/evidence/wrp_s4_vllm_research_decision.json",
+        "do not merge enablement code without HUMAN approved decision"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "verification_path",
+      "ready": true,
+      "refs": [
+        "uv run pytest tests/test_wrp_s4_readiness_drafts.py tests/test_wrp_backend_registry.py -q",
+        "uv run builder-wrp doctor-backends",
+        "uv run builder-wrp s4-readiness draft --backend vllm_research",
+        "uv run builder-promotion validate <readiness path>",
+        "uv run builder-platform audit-docs"
+      ]
+    }
+  ],
+  "cloud_invoke": false,
+  "current_state": "DISABLED",
+  "decided_by": "HUMAN",
+  "decision": "blocked",
+  "engine_start": false,
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "artifacts_are_authority": false,
+    "autonomous_agent_authority": "DISABLED",
+    "benchmark_execution": "DISABLED",
+    "capability_state": "promotion_decision_record",
+    "claims_verification_passed": "DISABLED",
+    "command_execution": "DISABLED",
+    "commit_push": "DISABLED",
+    "core_workbench_coupling": "NONE",
+    "deepagents_construction": "DISABLED",
+    "deepagents_delegation": "DISABLED",
+    "deepagents_runtime": "DISABLED",
+    "deepagents_runtime_start": "DISABLED",
+    "deephaven_touch": "DISABLED",
+    "executes_commands": false,
+    "file_mutation": "DISABLED",
+    "git_mutation": "DISABLED",
+    "git_status_inspection": "DISABLED",
+    "goose_runtime_activation": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "hardware_probe": "DISABLED",
+    "mcp_execution": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "model_execution_loops": "DISABLED",
+    "network_access": "DISABLED",
+    "network_mcp_execution": "DISABLED",
+    "notes_vault_mutation": "DISABLED",
+    "patch_application": "DISABLED",
+    "proof_of_capability_only": true,
+    "pull_request_creation": "DISABLED",
+    "quality_gate_executes_commands": "DISABLED",
+    "report_is_completed_evidence": "DISABLED",
+    "repository_file_reads": "DISABLED",
+    "repository_writes": "DISABLED",
+    "runtime_activation": "DISABLED",
+    "runtime_authority": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "runtime_executor": false,
+    "search_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_collection": "DISABLED",
+    "source_patches_applied": "DISABLED",
+    "source_writes": "DISABLED",
+    "subagent_construction": "DISABLED",
+    "subprocess_backed_authority": "DISABLED",
+    "subprocess_execution": "DISABLED",
+    "target_artifact_reads": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "ticket_creation": "DISABLED",
+    "web_search": "DISABLED"
+  },
+  "grants_action_authority": false,
+  "grants_runtime_authority": false,
+  "implementation_pr_required": false,
+  "kind": "builder_ii.promotion_decision_record",
+  "performed_actions": [],
+  "readiness": {
+    "capability_name": "WRP S4 backend promotion: vllm_research",
+    "expected_kind": "builder_ii.promotion_readiness_record",
+    "kind": "builder_ii.promotion_readiness_record",
+    "path": "planning/evidence/wrp_s4_vllm_research_readiness.json",
+    "ready": true,
+    "sha256": "5f045624fcf9d3533cc9dd6882d38717834b884fd329d2db638e5f3b21dfd7d6",
+    "status": "ready",
+    "support_artifact_count": 0,
+    "support_artifact_kinds": [],
+    "target": "builder",
+    "target_state": "promoted_opt_in"
+  },
+  "reason": "HUMAN S4 decision (2026-07-14): blocked. Research stub only; heavy footprint; needs stronger U numbers + measured research-profile evidence in a separate wave. No engine start; no s4_promoted.",
+  "record_state": "RECORDED_ONLY",
+  "runtime_enablement": false,
+  "s3_enabled": false,
+  "s4_backend_id": "vllm_research",
+  "s4_promoted": false,
+  "schema_version": 1
+}

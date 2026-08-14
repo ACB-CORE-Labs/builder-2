@@ -1,0 +1,36 @@
+{
+  "kind": "builder_ii.wrp.maker_scorecard",
+  "wave": "mastery/S2-v2",
+  "pr": 143,
+  "role": "maker_self",
+  "blocking": false,
+  "note": "Not dual-correction authority; G-LEAD cert required for merge ceremony.",
+  "checks": [
+    {
+      "id": "tests_wrp_gateway",
+      "pass": true,
+      "cmd": "pytest tests/test_wrp_gateway_nodes.py tests/test_wrp_live_lane_v2.py tests/scenarios/test_wrp_s2_v2_gateway_e2e.py"
+    },
+    {
+      "id": "v1_preserved",
+      "pass": true
+    },
+    {
+      "id": "no_cloud_provider_default",
+      "pass": true
+    },
+    {
+      "id": "msda_forced_on_gateway",
+      "pass": true
+    },
+    {
+      "id": "shell_denied",
+      "pass": true
+    },
+    {
+      "id": "docs_aligned",
+      "pass": true
+    }
+  ],
+  "conflicts_note": "May conflict with #142 (P4) on shared docs/command_authority/wrp_cli \u2014 merge one then rebase the other."
+}

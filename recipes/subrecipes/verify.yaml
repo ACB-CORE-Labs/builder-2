@@ -1,0 +1,21 @@
+version: "1.0.0"
+title: "CORE Verify"
+description: "Run builder verify harness and return exact PASS/FAIL output."
+instructions: |
+  Run verification only — no code edits unless fixing failures upstream.
+  Command: builder verify <module> or builder verify --suite <suite>
+prompt: |
+  Run verification for module {{ module }} and report exact output.
+parameters:
+  - key: module
+    input_type: string
+    requirement: required
+    description: "Module path e.g. algebra/versor.py"
+settings:
+  temperature: 0.0
+  max_turns: 10
+extensions:
+  - type: builtin
+    name: developer
+    bundled: true
+    timeout: 600

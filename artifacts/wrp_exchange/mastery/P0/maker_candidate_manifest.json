@@ -1,0 +1,24 @@
+{
+  "kind": "builder_ii.wrp.maker_candidate_manifest",
+  "schema_version": 1,
+  "wave": "mastery-P0",
+  "branch": "feat/wrp-absolute-mastery-p0",
+  "summary": "P0 constitutional re-baseline: absolute mastery charter in docs; current power remains recommendation_only",
+  "files": [
+    "docs/WRP_MASTERY_GAP_MATRIX.md",
+    "docs/WRP_CONTROL_PLANE.md",
+    "docs/WRP_ACCEPTANCE.md",
+    "docs/adrs/ADR-0007-orchestration-router-control-plane.md",
+    "docs/adrs/README.md",
+    "docs/ROADMAP.md",
+    "docs/CAPABILITY_PROMOTION.md"
+  ],
+  "claims": {
+    "live_execution_enabled": false,
+    "absolute_mastery_complete": false,
+    "substrate_landed": true,
+    "promotion_decision_shipped": false
+  },
+  "governor_required": true,
+  "notes": "Maker does not self-certify. Governor must dual-review authority language vs CAPABILITY_PROMOTION honesty."
+}

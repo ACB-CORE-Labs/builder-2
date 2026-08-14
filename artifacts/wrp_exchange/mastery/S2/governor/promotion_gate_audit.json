@@ -1,0 +1,94 @@
+{
+  "kind": "builder_ii.wrp.governor_promotion_gate_audit",
+  "wave": "mastery-S2",
+  "pr": 140,
+  "branch": "feat/wrp-mastery-s2-live-lane",
+  "certifier": "gemini-3.1-pro",
+  "role": "G-LEAD",
+  "target_state": "hitl_runtime_candidate",
+  "target_power": "hitl_live_lane_v1",
+  "status": "PASS",
+  "authority_language_ok": true,
+  "s3_enabled_claimed": false,
+  "model_tool_gateway_nodes_authorized": false,
+  "shell_authorized": false,
+  "decision_correctly_blocked_pending_human": true,
+  "gates": {
+    "docs": {
+      "status": "PASS",
+      "evidence": [
+        "docs/CAPABILITY_PROMOTION.md",
+        "docs/COMMAND_AUTHORITY.md",
+        "artifacts/wrp_exchange/mastery/S2/README.md",
+        "docs/adrs/ADR-0007-orchestration-router-control-plane.md"
+      ],
+      "note": "Docs describe HITL live lane v1 without claiming S3 or gateway nodes."
+    },
+    "tests": {
+      "status": "PASS",
+      "evidence": [
+        "tests/test_wrp_live_lane.py",
+        "tests/scenarios/test_wrp_s2_live_lane_e2e.py"
+      ],
+      "note": "Fail-closed approval, digest, MSDA, node type coverage present."
+    },
+    "cli_surface": {
+      "status": "PASS",
+      "evidence": [
+        "builder_ii/cli/wrp_cli.py",
+        "builder-wrp plan-live",
+        "builder-wrp approve-live",
+        "builder-wrp run-approved"
+      ],
+      "note": "CLI surfaces registered and documented."
+    },
+    "failure_mode": {
+      "status": "PASS",
+      "evidence": [
+        "builder_ii/wrp/live_lane.py LiveLaneError"
+      ],
+      "note": "Missing approval, digest mismatch, MSDA deny, forbidden nodes fail closed."
+    },
+    "approval_boundary": {
+      "status": "PASS",
+      "evidence": [
+        "builder_ii.wrp.live_run_approval plan_digest binding"
+      ],
+      "note": "Execution restricted to approved plan digest."
+    },
+    "output_artifact": {
+      "status": "PASS",
+      "evidence": [
+        "builder_ii.wrp.live_run_receipt"
+      ],
+      "note": "Receipt records MSDA digests and non-gateway flags."
+    },
+    "rollback_path": {
+      "status": "PASS",
+      "evidence": [
+        "refuse run; delete receipts; no live policy apply"
+      ],
+      "note": "No partial authority; refuse before mutate."
+    },
+    "verification_path": {
+      "status": "PASS",
+      "evidence": [
+        "uv run pytest tests/test_wrp_live_lane.py tests/scenarios/test_wrp_s2_live_lane_e2e.py -q"
+      ],
+      "note": "Named pytest selection verifies fail-closed and happy path."
+    }
+  },
+  "findings": [
+    "Approval plan_digest binding restricts execution to the approved plan.",
+    "MSDA probes forced with enabled=True for declared tools.",
+    "Graph node types limited to noop|record; shell hard-refused.",
+    "Gateway nodes blocked in S2 v1; receipts enforce model/tool gateway flags false.",
+    "Decision artifact correctly blocked pending HUMAN before this approve step."
+  ],
+  "human_next_steps": [
+    "HUMAN may approve planning/evidence/wrp_s2_decision.json (blocked\u2192approved)",
+    "S3 scoped enablement is NOT authorized by this audit",
+    "S2 v1 does not authorize model/tool gateway nodes or shell"
+  ],
+  "notes": "G-LEAD PASS for hitl_runtime_candidate S2 v1 only."
+}

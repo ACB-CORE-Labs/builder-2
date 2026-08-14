@@ -1,0 +1,43 @@
+{
+  "approval_ref": {
+    "kind": "builder_ii.execution_plan_approval",
+    "name": "b8 execution approval",
+    "path": "tests/fixtures/b8/b8-execution-approval.json",
+    "required": true,
+    "role": "approval",
+    "sha256": "5facfe36ceaca7cc5655604e54b8734e2fc47a6add5fe5d8669dcc547b409b3a"
+  },
+  "artifact_is_authority": false,
+  "checked_at": "2026-07-01T17:38:31Z",
+  "checks": [
+    "exact plan path bound",
+    "exact plan digest bound",
+    "approved scope present",
+    "denied boundaries present",
+    "approval actor and timestamp present",
+    "artifact and governance authority flags remain false"
+  ],
+  "errors": [],
+  "governance": {
+    "artifact_is_authority": false,
+    "capability_state": "execution_plan_approval_receipt",
+    "core_workbench_coupling": "NONE",
+    "deepagents_runtime": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "grants_action_authority": false,
+    "grants_runtime_authority": false,
+    "mcp_execution": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED",
+    "target_repo_writes": "DISABLED"
+  },
+  "grants_authority": false,
+  "kind": "builder_ii.execution_plan_approval_receipt",
+  "receipt_state": "VALIDATED_ONLY",
+  "schema_version": 1,
+  "valid": true,
+  "validator": "codex_local_shape_check"
+}

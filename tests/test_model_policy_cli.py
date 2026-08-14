@@ -1,0 +1,91 @@
+import json
+from pathlib import Path
+
+from builder_ii.model_policy_cli import model_policy_app
+from typer.testing import CliRunner
+
+from builder_ii.routing.model_client_registry import create_model_client_registry, write_model_client_registry
+
+runner = CliRunner()
+
+
+def test_model_policy_validate_success(tmp_path: Path):
+    reg = create_model_client_registry()
+    path = tmp_path / "registry.json"
+    write_model_client_registry(reg, path)
+
+    result = runner.invoke(model_policy_app, ["validate", str(path)])
+    assert result.exit_code == 0
+    assert "is valid" in result.output
+
+
+def test_model_policy_validate_failure(tmp_path: Path):
+    path = tmp_path / "bad.json"
+    path.write_text('{"kind": "builder_ii.model_client_registry", "schema_version": "1.0.0"}', encoding="utf-8")
+
+    result = runner.invoke(model_policy_app, ["validate", str(path)])
+    assert result.exit_code != 0
+    assert "Validation error" in result.output
+
+
+def test_model_policy_render(tmp_path: Path):
+    out_path = tmp_path / "rec.json"
+    result = runner.invoke(
+        model_policy_app,
+        [
+            "render",
+            "--task-intent",
+            "coding",
+            "--max-risk",
+            "local_network",
+            "--output",
+            str(out_path),
+        ],
+    )
+    assert result.exit_code == 0
+    assert out_path.exists()
+    data = json.loads(out_path.read_text(encoding="utf-8"))
+    assert data["kind"] == "builder_ii.model_routing_recommendation"
+    assert data["recommended_candidates"][0]["model_alias"] == "qwen-coder"
+
+
+def test_model_policy_dry_run(tmp_path: Path):
+    out_path = tmp_path / "dry_run.json"
+    result = runner.invoke(
+        model_policy_app,
+        ["dry-run", "--output", str(out_path)],
+    )
+    assert result.exit_code == 0
+    assert out_path.exists()
+    data = json.loads(out_path.read_text(encoding="utf-8"))
+    assert data["kind"] == "builder_ii.model_routing_recommendation"
+
+
+def test_model_policy_render_sibling_artifacts_and_verification(tmp_path: Path):
+    from builder_ii.core.artifact_chain_verification import verify_artifact_chain
+
+    out_path = tmp_path / "rec.json"
+    result = runner.invoke(
+        model_policy_app,
+        [
+            "render",
+            "--task-intent",
+            "coding",
+            "--max-risk",
+            "local_network",
+            "--output",
+            str(out_path),
+        ],
+    )
+    assert result.exit_code == 0
+    assert out_path.exists()
+
+    # Check sibling files
+    policy_path = tmp_path / "rec.json.model-routing-policy.json"
+    registry_path = tmp_path / "rec.json.model-client-registry.json"
+    assert policy_path.exists()
+    assert registry_path.exists()
+
+    # Verify artifact chain closure
+    report = verify_artifact_chain([policy_path, registry_path, out_path])
+    assert report["valid"] is True

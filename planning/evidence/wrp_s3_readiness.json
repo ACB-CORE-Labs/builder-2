@@ -1,0 +1,175 @@
+{
+  "allowed_actions": [
+    "record_promotion_readiness",
+    "validate_promotion_readiness"
+  ],
+  "capability_name": "WRP S3 scoped enabled multi-agent",
+  "capability_state": "promotion_readiness_record",
+  "checks": [
+    {
+      "missing": [],
+      "name": "docs",
+      "ready": true,
+      "refs": [
+        "docs/CAPABILITY_PROMOTION.md",
+        "docs/WRP_CONTROL_PLANE.md",
+        "docs/WRP_MASTERY_GAP_MATRIX.md",
+        "docs/WRP_MASTERY_PROGRESS.md",
+        "docs/WRP_ACCEPTANCE.md",
+        "docs/adrs/ADR-0007-orchestration-router-control-plane.md",
+        "artifacts/wrp_exchange/mastery/P5/governor/sample_class_u_report.json",
+        "artifacts/wrp_exchange/mastery/P5/governor/wave_mastery_P5_cert.json",
+        "artifacts/wrp_exchange/mastery/P5/governor/promotion_gate_audit.json"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "tests",
+      "ready": true,
+      "refs": [
+        "tests/test_wrp_class_u_harness.py",
+        "tests/test_wrp_live_lane.py",
+        "tests/test_wrp_live_lane_v2.py",
+        "tests/test_wrp_gateway_nodes.py",
+        "tests/scenarios/test_wrp_s2_live_lane_e2e.py",
+        "tests/scenarios/test_wrp_s2_v2_gateway_e2e.py"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "cli_surface",
+      "ready": true,
+      "refs": [
+        "builder-wrp plan-live",
+        "builder-wrp approve-live",
+        "builder-wrp run-approved",
+        "builder-wrp benchmark --class u"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "failure_mode",
+      "ready": true,
+      "refs": [
+        "builder_ii/wrp/class_u_harness.py s3_enabled must remain false",
+        "builder_ii/wrp/live_lane.py LiveLaneError / forced MSDA",
+        "builder_ii/wrp/gateway_nodes.py refuse cloud/shell; v1 refuses gateway flags",
+        "docs/WRP_MASTERY_PROGRESS.md H6 H7 H9"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "approval_boundary",
+      "ready": true,
+      "refs": [
+        "docs/CAPABILITY_PROMOTION.md",
+        "docs/WRP_ACCEPTANCE.md Promotion acceptance",
+        "planning/evidence/wrp_s2_decision.json (HITL only; not S3)",
+        "HUMAN eight-gate + G-LEAD promotion_gate_audit required before any enablement"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "output_artifact",
+      "ready": true,
+      "refs": [
+        "builder_ii.promotion_readiness_record planning/evidence/wrp_s3_readiness.json",
+        "builder_ii.promotion_decision_record planning/evidence/wrp_s3_decision.json",
+        "builder_ii.wrp.class_u_report (validation_only)",
+        "builder_ii.wrp.proof_record class U",
+        "future: governor.promotion_gate_audit for S3 (not yet)"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "rollback_path",
+      "ready": true,
+      "refs": [
+        "keep s3_enabled=false on all class_u reports",
+        "do not merge enablement code without HUMAN approved decision",
+        "delete this readiness/decision pair if superseded",
+        "live path remains hitl_runtime_candidate only"
+      ]
+    },
+    {
+      "missing": [],
+      "name": "verification_path",
+      "ready": true,
+      "refs": [
+        "uv run pytest tests/test_wrp_class_u_harness.py tests/test_wrp_live_lane_v2.py -q",
+        "uv run builder-wrp benchmark --class u --target builder",
+        "uv run builder-platform audit-docs",
+        "uv run builder-promotion validate planning/evidence/wrp_s3_readiness.json",
+        "uv run builder-promotion-decision validate planning/evidence/wrp_s3_decision.json"
+      ]
+    }
+  ],
+  "current_state": "DISABLED",
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "artifacts_are_authority": false,
+    "autonomous_agent_authority": "DISABLED",
+    "benchmark_execution": "DISABLED",
+    "capability_state": "promotion_readiness_record",
+    "claims_verification_passed": "DISABLED",
+    "command_execution": "DISABLED",
+    "commit_push": "DISABLED",
+    "core_workbench_coupling": "NONE",
+    "deepagents_construction": "DISABLED",
+    "deepagents_delegation": "DISABLED",
+    "deepagents_runtime": "DISABLED",
+    "deepagents_runtime_start": "DISABLED",
+    "deephaven_touch": "DISABLED",
+    "executes_commands": false,
+    "file_mutation": "DISABLED",
+    "git_mutation": "DISABLED",
+    "git_status_inspection": "DISABLED",
+    "goose_runtime_activation": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "hardware_probe": "DISABLED",
+    "mcp_execution": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "model_execution_loops": "DISABLED",
+    "network_access": "DISABLED",
+    "network_mcp_execution": "DISABLED",
+    "notes_vault_mutation": "DISABLED",
+    "patch_application": "DISABLED",
+    "proof_of_capability_only": true,
+    "pull_request_creation": "DISABLED",
+    "quality_gate_executes_commands": "DISABLED",
+    "report_is_completed_evidence": "DISABLED",
+    "repository_file_reads": "DISABLED",
+    "repository_writes": "DISABLED",
+    "runtime_activation": "DISABLED",
+    "runtime_authority": "DISABLED",
+    "runtime_execution": "DISABLED",
+    "runtime_executor": false,
+    "search_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_collection": "DISABLED",
+    "source_patches_applied": "DISABLED",
+    "source_writes": "DISABLED",
+    "subagent_construction": "DISABLED",
+    "subprocess_backed_authority": "DISABLED",
+    "subprocess_execution": "DISABLED",
+    "target_artifact_reads": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "ticket_creation": "DISABLED",
+    "web_search": "DISABLED"
+  },
+  "grants_action_authority": false,
+  "grants_runtime_authority": false,
+  "kind": "builder_ii.promotion_readiness_record",
+  "missing": [],
+  "notes": "S3 readiness package for HUMAN/G-LEAD review only. Does NOT enable scoped multi-agent; does NOT flip s3_enabled; does NOT change command_authority. Class U evidence (#144): exchange sample artifacts/wrp_exchange/mastery/P5/governor/sample_class_u_report.json (pass_ratio=1.0, proof_u_held=true, utility_ok=true, s3_enabled=false, cloud_provider_invoke=false, record_ms\u22480.97/stub_ms\u22480.49, peak_rss_mb\u224849; host reconfirm ~/Projects/builder-II @ff0e5df: record_ms\u22480.76/stub_ms\u22480.46, peak_rss_mb\u224842). H7: numbers are local micro on record/stub path only \u2014 not production multi-agent utility; adaptivity axis null; no cloud provider invoke measured. H6: S2 v2 default gateway_mode=record is synthetic digests + MSDA, not live cloud. Open blockers for any future enablement (not closed by this record): (1) HUMAN+G-LEAD eight-gate ceremony not complete for target_state=enabled; (2) Class U suite insufficient alone to justify default multi-agent enablement; (3) no scoped-profile enablement runtime beyond HITL hitl_runtime_candidate; (4) MSDA preflight default-off outside live lane (H9); (5) fleet_binding does not alone drive session/model authority (H10). Prerequisite decisions: S1+S2 approved (planning/evidence/wrp_s{1,2}_decision.json). status=ready means eight-gate *evidence refs* are present for review \u2014 not that S3 should be approved. Factory coverage note (W.5, non-enablement): AgentFactory now emits spawn/retire *lifecycle records* and agent_lifecycle_proof via builder-wrp agent-factory (validation_only; spawn_executed=false; runtime_binding=UNBOUND; ExperienceStore digest bind only). This does NOT close multi-agent process spawn, S3 enablement, or cloud invoke — it is language/record substrate only.",
+  "performed_actions": [],
+  "ready": true,
+  "record_state": "RECORDED_ONLY",
+  "schema_version": 1,
+  "status": "ready",
+  "support_artifacts": [],
+  "target": "builder",
+  "target_state": "enabled"
+}

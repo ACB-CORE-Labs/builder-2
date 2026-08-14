@@ -1,0 +1,76 @@
+{
+  "backends": [
+    {
+      "approved": true,
+      "decided_by": "HUMAN",
+      "decision": "planning/evidence/wrp_s4_modernbert_embed_decision.json",
+      "decision_state": "approved",
+      "id": "modernbert_embed",
+      "readiness": "planning/evidence/wrp_s4_modernbert_embed_readiness.json"
+    },
+    {
+      "approved": true,
+      "decided_by": "HUMAN",
+      "decision": "planning/evidence/wrp_s4_opa_decision.json",
+      "decision_state": "approved",
+      "id": "opa",
+      "readiness": "planning/evidence/wrp_s4_opa_readiness.json"
+    },
+    {
+      "approved": false,
+      "decided_by": "HUMAN",
+      "decision": "planning/evidence/wrp_s4_langgraph_decision.json",
+      "decision_state": "blocked",
+      "id": "langgraph",
+      "readiness": "planning/evidence/wrp_s4_langgraph_readiness.json"
+    },
+    {
+      "approved": false,
+      "decided_by": "HUMAN",
+      "decision": "planning/evidence/wrp_s4_vllm_research_decision.json",
+      "decision_state": "blocked",
+      "id": "vllm_research",
+      "readiness": "planning/evidence/wrp_s4_vllm_research_readiness.json"
+    }
+  ],
+  "bulk_approve_forbidden": true,
+  "cloud_invoke": false,
+  "decided_by": "HUMAN",
+  "decision_approved": false,
+  "engine_started": false,
+  "exchange_package": "artifacts/wrp_exchange/mastery/S4-readiness/",
+  "gate_audit": "planning/evidence/wrp_s4_promotion_gate_audit.json",
+  "governor_prompt": "artifacts/wrp_exchange/mastery/S4-readiness/GOVERNOR_PROMPT.md",
+  "grants_authority": false,
+  "honesty_locks": {
+    "bulk_s4_flip": "forbidden",
+    "cloud_invoke": "none",
+    "decision.approved": false,
+    "decision.decided_by": "PENDING_HUMAN",
+    "enablement": "none",
+    "engine_start": "none",
+    "readiness.ready": "evidence refs present for review",
+    "s3_enabled": false,
+    "s4_promoted": false
+  },
+  "human_decision_required": true,
+  "kind": "builder_ii.wrp.s4_human_review_handoff",
+  "notes": "HUMAN per-backend decisions recorded 2026-07-14. Approved backends authorize future separate opt-in implementation PRs only \u2014 not runtime enablement, not s4_promoted flip, not bulk S4. langgraph and vllm_research remain blocked.",
+  "per_backend_summary": {
+    "langgraph": "blocked pending V.6 + re-review",
+    "modernbert_embed": "approved (implementation PR later; s4_promoted=false)",
+    "opa": "approved (implementation PR later; s4_promoted=false)",
+    "vllm_research": "blocked pending research wave"
+  },
+  "prerequisite_main": {
+    "v5_workbench_boundary": "#156",
+    "w6_s4_drafts": "#155"
+  },
+  "record_state": "RECORDED_ONLY",
+  "s3_enabled": false,
+  "s4_promoted": false,
+  "schema_version": 1,
+  "status": "HUMAN_DECISIONS_RECORDED",
+  "summary": "planning/evidence/s4_review_summary.md",
+  "wave": "S4 readiness HUMAN review packages"
+}

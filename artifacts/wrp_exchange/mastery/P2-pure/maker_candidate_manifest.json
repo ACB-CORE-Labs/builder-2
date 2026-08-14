@@ -1,0 +1,26 @@
+{
+  "kind": "builder_ii.wrp.maker_candidate_manifest",
+  "schema_version": 1,
+  "wave": "mastery-P2-pure",
+  "branch": "feat/wrp-mastery-p2-pure-modules",
+  "summary": "P2 pure modules: embedding_backend, graph_runtime, opa_adapter, receipt_ingest + tests. No gateway wire, no S1 bind, no live lane.",
+  "files": [
+    "builder_ii/wrp/embedding_backend.py",
+    "builder_ii/wrp/graph_runtime.py",
+    "builder_ii/wrp/opa_adapter.py",
+    "builder_ii/wrp/receipt_ingest.py",
+    "tests/test_wrp_embedding_backend.py",
+    "tests/test_wrp_graph_runtime.py",
+    "tests/test_wrp_opa_adapter.py",
+    "tests/test_wrp_receipt_ingest.py",
+    "docs/WRP_MASTERY_GAP_MATRIX.md"
+  ],
+  "claims": {
+    "live_execution_enabled": false,
+    "gateway_preflight_wired": false,
+    "s1_bound": false,
+    "absolute_mastery_complete": false
+  },
+  "pytest": "uv run pytest tests/test_wrp_embedding_backend.py tests/test_wrp_graph_runtime.py tests/test_wrp_opa_adapter.py tests/test_wrp_receipt_ingest.py -q",
+  "governor_required": true
+}

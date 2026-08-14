@@ -1,0 +1,46 @@
+{
+  "kind": "builder_ii.wrp.governor_scorecard",
+  "wave": "mastery-P0",
+  "scorer": "gemini-3.5-flash",
+  "gap_counts": {
+    "LANDED": 8,
+    "PARTIAL": 7,
+    "OPEN": 15
+  },
+  "acceptance_substrate": {
+    "G0": "PASS",
+    "W0": "PASS",
+    "W1": "PASS",
+    "W2": "PASS",
+    "W3": "PASS",
+    "W4": "PASS",
+    "W5": "PASS"
+  },
+  "acceptance_mastery": {
+    "G0": "PASS",
+    "W0": "OPEN",
+    "W1": "OPEN",
+    "W2": "OPEN",
+    "W3": "OPEN",
+    "W4": "OPEN",
+    "W5": "OPEN"
+  },
+  "authority_language": {
+    "current_power_recommendation_only": true,
+    "live_enabled_claimed": false,
+    "mastery_complete_claimed": false,
+    "inflation_flags": []
+  },
+  "open_blockers_priority": [
+    "Fleet binding drives session/model plan (blocks S1)",
+    "Promotion decision S1–S3 (blocks S1)",
+    "Live lane run-approved (blocks S2)",
+    "MSDA preflight before tool/model/MCP invoke (blocks S2)",
+    "Orchestration patterns at runtime (blocks S2)",
+    "R* from real receipts + apply via promotion (blocks S3)",
+    "Scoped enabled live path (blocks S3)",
+    "Class U measured latency/cost (blocks S3)",
+    "Perf axes (accuracy, cost, latency, safety, adaptivity) (blocks S3)"
+  ],
+  "notes": "P0 re-baseline confirms recommendation_only status. Substrate tests all pass locally. Mastery remains in progress."
+}

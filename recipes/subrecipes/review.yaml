@@ -1,0 +1,23 @@
+version: "1.0.0"
+title: "CORE Compliance Review"
+description: "Review proposal for CORE invariant violations; refuse forbidden patterns by name."
+instructions: |
+  Review code or proposals for CORE invariant compliance.
+  REFUSE cosine similarity in vault, ANN/HNSW, hot-path normalization, stochastic core paths.
+  Name versor_condition(F) < 1e-6 when refusing. Answer all 5 PR questions.
+prompt: |
+  Review {{ subject }} for CORE invariant compliance. Refuse forbidden patterns by name.
+parameters:
+  - key: subject
+    input_type: string
+    requirement: optional
+    default: "the current proposed change"
+    description: "What to review"
+settings:
+  temperature: 0.0
+  max_turns: 20
+extensions:
+  - type: builtin
+    name: developer
+    bundled: true
+    timeout: 300

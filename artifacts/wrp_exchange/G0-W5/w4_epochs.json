@@ -1,0 +1,13 @@
+{
+  "epoch_error_rates": [
+    0.6,
+    0.55,
+    0.43333333333333335,
+    0.375,
+    0.32
+  ],
+  "kind": "builder_ii.wrp.epoch_report_inline",
+  "meets_w4_threshold": true,
+  "relative_reduction": 0.4666666666666666,
+  "store_digest": "27c0e94525622867ba5a4f3dffe2c2f20969a17d73658d5881a62bbe4ffb30db"
+}

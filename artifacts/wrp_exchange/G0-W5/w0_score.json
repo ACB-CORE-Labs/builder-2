@@ -1,0 +1,131 @@
+{
+  "kind": "builder_ii.wrp.acceptance_score_inline",
+  "report": {
+    "accuracy": 0.95,
+    "correct": 19,
+    "meets_w0_threshold": true,
+    "rows": [
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "explain what this module does"
+      },
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "list the files in the package"
+      },
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "summarize the README"
+      },
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "show current status of the build"
+      },
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "describe the config schema"
+      },
+      {
+        "expected": "primary",
+        "got": "primary",
+        "ok": true,
+        "text": "implement a new CLI command for sessions"
+      },
+      {
+        "expected": "primary",
+        "got": "primary",
+        "ok": true,
+        "text": "fix the failing unit test in routing"
+      },
+      {
+        "expected": "primary",
+        "got": "primary",
+        "ok": true,
+        "text": "refactor the orchestration plan validator"
+      },
+      {
+        "expected": "primary",
+        "got": "primary",
+        "ok": true,
+        "text": "write integration tests for the gateway"
+      },
+      {
+        "expected": "primary",
+        "got": "primary",
+        "ok": true,
+        "text": "debug the digest mismatch in validation"
+      },
+      {
+        "expected": "primary",
+        "got": "primary",
+        "ok": true,
+        "text": "build a passive artifact emitter"
+      },
+      {
+        "expected": "primary",
+        "got": "fast",
+        "ok": false,
+        "text": "add schema validation for the new kind"
+      },
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "audit the security boundaries of the tool gateway"
+      },
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "review governance invariants in the ADR"
+      },
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "verify the policy gate denies unauthorized tools"
+      },
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "validate artifact digests against the chain"
+      },
+      {
+        "expected": "fast",
+        "got": "fast",
+        "ok": true,
+        "text": "prove the invariant holds for fail-closed routing"
+      },
+      {
+        "expected": "primary_constrained",
+        "got": "primary_constrained",
+        "ok": true,
+        "text": "whole repo deep refactor across modules"
+      },
+      {
+        "expected": "primary_constrained",
+        "got": "primary_constrained",
+        "ok": true,
+        "text": "architecture-wide multi-file migration plan"
+      },
+      {
+        "expected": "primary_constrained",
+        "got": "primary_constrained",
+        "ok": true,
+        "text": "cross-module call graph global migration"
+      }
+    ],
+    "total": 20
+  }
+}

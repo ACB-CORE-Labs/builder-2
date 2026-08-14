@@ -1,0 +1,99 @@
+import json as json_lib
+from pathlib import Path
+from typing import Any
+
+from builder_ii.handoff_bundle_cli import handoff_app
+from typer.testing import CliRunner
+
+from builder_ii.adapters.goose.goose_command_proposal import create_goose_command_proposal
+from builder_ii.governance.ledger.chain_summary_records import create_chain_summary_record
+from builder_ii.governance.ledger.receipt_records import create_receipt_record
+from builder_ii.lifecycle.candidate.approval_records import create_approval_record
+from builder_ii.lifecycle.candidate.preflight_records import create_preflight_record
+
+_MANIFEST: dict[str, Any] = {
+    "kind": "builder_ii.goose_session_manifest",
+    "schema_version": 1,
+    "target": {"name": "test-target", "repo": "/tmp/repo", "description": "test"},
+    "agent_profile": {"name": "test-agent", "description": "test", "authority": "user"},
+    "task": "handoff bundle test",
+    "requested_runtime_mode": "disabled",
+}
+
+
+def _summary(tmp_path: Path) -> Path:
+    p = create_goose_command_proposal(_MANIFEST, manifest_path="manifest.json", command="echo 1", risk_level="low")
+    p_path = tmp_path / "proposal.json"
+    p_path.write_text(json_lib.dumps(p))
+
+    a = create_approval_record(p, proposal_path="proposal.json", decision="approved", decided_by="operator")
+    a_path = tmp_path / "approval.json"
+    a_path.write_text(json_lib.dumps(a))
+
+    pf = create_preflight_record(
+        p, a, proposal_path="proposal.json", approval_path="approval.json", verification_refs=["ref"]
+    )
+    pf_path = tmp_path / "preflight.json"
+    pf_path.write_text(json_lib.dumps(pf))
+
+    r = create_receipt_record(
+        pf, preflight_path="preflight.json", status="passed", recorded_by="operator", evidence_refs=["evidence"]
+    )
+    r_path = tmp_path / "receipt.json"
+    r_path.write_text(json_lib.dumps(r))
+
+    s = create_chain_summary_record(
+        p,
+        a,
+        pf,
+        r,
+        proposal_path="proposal.json",
+        approval_path="approval.json",
+        preflight_path="preflight.json",
+        receipt_path="receipt.json",
+    )
+    s_path = tmp_path / "summary.json"
+    s_path.write_text(json_lib.dumps(s))
+    return s_path
+
+
+def test_handoff_bundle_app_help() -> None:
+    result = CliRunner().invoke(handoff_app, ["--help"])
+    assert result.exit_code == 0
+    assert "record" in result.stdout
+    assert "validate" in result.stdout
+
+
+def test_handoff_bundle_cli_record_and_validate(tmp_path: Path) -> None:
+    s_path = _summary(tmp_path)
+    output = tmp_path / "bundle.json"
+    runner = CliRunner()
+
+    # 1. Record command
+    record_result = runner.invoke(
+        handoff_app, ["record", str(s_path), "--bundle-name", "my-bundle", "--output", str(output)]
+    )
+    assert record_result.exit_code == 0
+    assert "Handoff bundle record written to" in record_result.stdout
+    assert output.exists()
+
+    # Verify content
+    data = json_lib.loads(output.read_text(encoding="utf-8"))
+    assert data["kind"] == "builder_ii.handoff_bundle_record"
+    assert data["bundle_name"] == "my-bundle"
+    assert data["complete"] is True
+
+    # 2. Validate command
+    validate_result = runner.invoke(handoff_app, ["validate", str(output)])
+    assert validate_result.exit_code == 0
+    assert "Handoff bundle record is valid" in validate_result.stdout
+
+
+def test_handoff_bundle_cli_validate_failure(tmp_path: Path) -> None:
+    bad_file = tmp_path / "bad.json"
+    bad_file.write_text(json_lib.dumps({"kind": "wrong_kind"}))
+
+    runner = CliRunner()
+    validate_result = runner.invoke(handoff_app, ["validate", str(bad_file)])
+    assert validate_result.exit_code == 1
+    assert "Validation error" in validate_result.stdout

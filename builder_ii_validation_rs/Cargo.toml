@@ -1,0 +1,14 @@
+[package]
+name = "builder_ii_validation_rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "builder_ii_validation_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+pyo3 = { version = "0.29.2", features = ["extension-module"] }
+pythonize = "0.29.0"

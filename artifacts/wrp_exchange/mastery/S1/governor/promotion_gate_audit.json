@@ -1,0 +1,87 @@
+{
+  "kind": "builder_ii.wrp.governor_promotion_gate_audit",
+  "wave": "mastery-S1",
+  "pr": 138,
+  "branch": "feat/wrp-mastery-s1-bind",
+  "certifier": "gemini-3.1-pro",
+  "role": "G-LEAD",
+  "target_state": "recommendation_only",
+  "target_power": "bound_when_flagged",
+  "status": "PASS",
+  "authority_language_ok": true,
+  "defaults_remain_unbound": true,
+  "live_execution_claimed": false,
+  "decision_correctly_blocked_pending_human": true,
+  "gates": {
+    "docs": {
+      "status": "PASS",
+      "evidence": [
+        "docs/plan/WRP_S1_BINDING_DESIGN.md",
+        "docs/WRP_CONTROL_PLANE.md"
+      ],
+      "note": "Docs accurately reflect S1 bound recommendation_only state without claiming live enablement."
+    },
+    "tests": {
+      "status": "PASS",
+      "evidence": [
+        "tests/test_wrp_s1_binding.py"
+      ],
+      "note": "Tests enforce fail-closed logic for missing digest when require flag is true, and verify backward-compatible default."
+    },
+    "cli_surface": {
+      "status": "PASS",
+      "evidence": [
+        "builder_ii/model_router.py",
+        "builder_ii/model_routing_policy.py"
+      ],
+      "note": "CLI surface exposed via existing model-policy and router code paths when flags are set."
+    },
+    "failure_mode": {
+      "status": "PASS",
+      "evidence": [
+        "builder_ii/model_routing_policy.py",
+        "builder_ii/orchestration_assignment.py"
+      ],
+      "note": "Fails closed when required binding is missing or classification fails."
+    },
+    "approval_boundary": {
+      "status": "PASS",
+      "evidence": [
+        "planning/evidence/wrp_s1_decision.json",
+        "docs/CAPABILITY_PROMOTION.md"
+      ],
+      "note": "S1 decision record is correctly explicitly blocked pending HUMAN approval and G-LEAD audit."
+    },
+    "output_artifact": {
+      "status": "PASS",
+      "evidence": [
+        "builder_ii/model_routing_policy.py",
+        "builder_ii/orchestration_assignment.py"
+      ],
+      "note": "Both routing recommendation and dry-run artifacts successfully bind required fields when flagged."
+    },
+    "rollback_path": {
+      "status": "PASS",
+      "evidence": [
+        "docs/plan/WRP_S1_BINDING_DESIGN.md",
+        "docs/CAPABILITY_PROMOTION.md"
+      ],
+      "note": "Rollback achievable by unsetting BUILDER_II_WRP_BIND env var and setting require_wrp_binding=false."
+    },
+    "verification_path": {
+      "status": "PASS",
+      "evidence": [
+        "planning/evidence/wrp_s1_readiness.json",
+        "tests/test_wrp_s1_binding.py"
+      ],
+      "note": "pytest tests/test_wrp_s1_binding.py provides a clear verification path."
+    }
+  },
+  "findings": [],
+  "human_next_steps": [
+    "If PASS: HUMAN may approve wrp_s1_decision (blocked→approved) after CI green",
+    "Merge PR #138 after CI green + this audit PASS",
+    "Do not start S2 live lane until S1 decision approved and #138 merged"
+  ],
+  "notes": "Status PASS -> What's left: Human approval -> Recommendation: Merge after CI green -> Concerns: None -> Optimal path: Human sign-off on wrp_s1_decision.json, merge PR #138, then proceed to S2 design."
+}

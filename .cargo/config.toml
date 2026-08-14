@@ -1,0 +1,20 @@
+# PyO3 `extension-module` builds deliberately do NOT link libpython: the `_Py*` symbols
+# are resolved by the host interpreter when the extension is imported. Linux linkers
+# tolerate the resulting undefined symbols by default; macOS's does not, and fails with
+# "Undefined symbols for architecture arm64: __Py_Dealloc, __Py_NoneStruct, ...".
+#
+# Without this, `cargo build --manifest-path builder_ii_validation_rs/Cargo.toml` cannot
+# succeed on Apple Silicon -- the repo's primary hardware target -- even though CLAUDE.md
+# instructs developers to run it. CI is ubuntu-only, so the gate was always green there
+# and the breakage stayed invisible.
+#
+# This file must live at the REPO ROOT, not beside the crate: cargo resolves config from
+# the current directory's ancestors, not from the directory of `--manifest-path`.
+#
+# Target-scoped, so Linux/CI builds are entirely unaffected.
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-undefined", "-C", "link-arg=dynamic_lookup"]

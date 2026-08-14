@@ -1,0 +1,68 @@
+{
+  "dry_run_ref": {
+    "kind": "builder_ii.profile_pack_dry_run",
+    "path": "tests/fixtures/artifacts/profile-pack-dry-run.json",
+    "sha256": "308602350919a9a2551fb502668d1c9a232df8bafb38d11780163b6a71bc9851"
+  },
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "authorized": false,
+    "capability_state": "profile_pack",
+    "core_workbench_coupling": "NONE",
+    "deepagents_runtime_start": "DISABLED",
+    "executed": false,
+    "goose_runtime_start": "DISABLED",
+    "mcp_tool_calls": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "promoted": false,
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
+    "subagent_construction": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "verification_execution": "DISABLED"
+  },
+  "kind": "builder_ii.profile_pack",
+  "lifecycle": {
+    "authorized": false,
+    "dry_run": true,
+    "executed": false,
+    "planned": true,
+    "promoted": false,
+    "rendered": true,
+    "validated": true
+  },
+  "lifecycle_bindings": {
+    "dry_run_manifest_sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12",
+    "dry_run_render_plan_sha256": "a4d593361953464de6b0a707c5d417e0cb316f83847c1b785ba876a1a0cabd02",
+    "dry_run_sha256": "308602350919a9a2551fb502668d1c9a232df8bafb38d11780163b6a71bc9851",
+    "manifest_sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12",
+    "render_plan_manifest_sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12",
+    "render_plan_sha256": "a4d593361953464de6b0a707c5d417e0cb316f83847c1b785ba876a1a0cabd02",
+    "validation_report_sha256": "2242a6f3e9018005ce635d0c8145ab4ee073773d6b5f58b497737f369b04923e",
+    "validation_report_subject_kind": "builder_ii.profile_pack_manifest",
+    "validation_report_subject_sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+  },
+  "manifest_ref": {
+    "kind": "builder_ii.profile_pack_manifest",
+    "path": "tests/fixtures/artifacts/profile-pack-manifest.json",
+    "sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+  },
+  "pack_id": "goal2-test-profile-pack",
+  "pack_state": "PACKED_ONLY",
+  "render_plan_ref": {
+    "kind": "builder_ii.profile_pack_render_plan",
+    "path": "tests/fixtures/artifacts/profile-pack-render-plan.json",
+    "sha256": "a4d593361953464de6b0a707c5d417e0cb316f83847c1b785ba876a1a0cabd02"
+  },
+  "schema_version": 1,
+  "target_profile": "generic",
+  "task": "test passive assignment",
+  "validation_report_ref": {
+    "kind": "builder_ii.profile_pack_validation_report",
+    "path": "tests/fixtures/artifacts/profile-pack-validation-report.json",
+    "sha256": "2242a6f3e9018005ce635d0c8145ab4ee073773d6b5f58b497737f369b04923e"
+  }
+}

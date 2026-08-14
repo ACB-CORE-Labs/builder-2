@@ -1,0 +1,25 @@
+{
+  "artifact_state": "EXCHANGE_ONLY",
+  "branch": "docs/wrp-s3-readiness-draft",
+  "tip": "10a8fe0",
+  "pr": 146,
+  "wave": "mastery/S3-readiness",
+  "scope": "planning_evidence_only",
+  "s3_enabled": false,
+  "decision_approved": false,
+  "decided_by": "PENDING_HUMAN",
+  "runtime_code_changed": false,
+  "artifacts": [
+    "planning/evidence/wrp_s3_readiness.json",
+    "planning/evidence/wrp_s3_decision.json",
+    "docs/WRP_MASTERY_PROGRESS.md",
+    "docs/WRP_MASTERY_GAP_MATRIX.md",
+    "docs/WRP_CONTROL_PLANE.md",
+    "docs/ROADMAP.md"
+  ],
+  "class_u_refs": [
+    "artifacts/wrp_exchange/mastery/P5/governor/sample_class_u_report.json",
+    "artifacts/wrp_exchange/mastery/P5/governor/wave_mastery_P5_cert.json"
+  ],
+  "notes": "Maker exchange for G-LEAD only. No G-LEAD cert committed by Maker. No enablement."
+}

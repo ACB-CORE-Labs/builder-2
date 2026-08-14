@@ -1,0 +1,30 @@
+version: "1.0.0"
+title: "CORE Implement"
+description: "Write [SPECULATIVE] changes, run builder verify, fix upstream until PASS."
+instructions: |
+  Implement the requested change on CORE platform paths only unless explicitly scoped otherwise.
+  HARD: versor_condition(F) < 1e-6; no ANN/HNSW/cosine; no hot-path repair.
+  Use core-verify-loop skill. Run: builder verify <module>
+  Never modify forbidden trees without explicit approval.
+prompt: |
+  Implement: {{ task }}
+  Module focus: {{ module }}
+  After edits run builder verify and report PASS/FAIL with exact pytest summary.
+parameters:
+  - key: task
+    input_type: string
+    requirement: required
+    description: "What to implement"
+  - key: module
+    input_type: string
+    requirement: optional
+    default: "platform"
+    description: "Module path for verify routing"
+settings:
+  temperature: 0.0
+  max_turns: 50
+extensions:
+  - type: builtin
+    name: developer
+    bundled: true
+    timeout: 600

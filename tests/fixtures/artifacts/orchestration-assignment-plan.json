@@ -1,0 +1,354 @@
+{
+  "artifact_is_authority": false,
+  "assignment_plan_ref": {
+    "kind": "builder_ii.agent_assignment_plan",
+    "name": "generic",
+    "path": "tests/fixtures/artifacts/agent-assignment-plan.json",
+    "required": true,
+    "role": "assignment_plan",
+    "sha256": "bc9a2ebb2f03bb1781ab480e42fdba9c6997b294ec05f3d6d4c2dda0eddcca3a"
+  },
+  "authority_boundary": {
+    "artifact_is_authority": false,
+    "capability_state": "orchestration_assignment_plan",
+    "constructs_deepagents": false,
+    "executes_model": false,
+    "executes_shell": false,
+    "executes_tools": false,
+    "grants_authority": false,
+    "invokes_goose": false,
+    "invokes_mcp": false,
+    "mutates_target_repo": false,
+    "performs_network_calls": false,
+    "requires_human_promotion_for_execution": true
+  },
+  "binding_order": [
+    "target",
+    "task",
+    "agent",
+    "model",
+    "context",
+    "verification",
+    "tools",
+    "hitl",
+    "outputs",
+    "handoff"
+  ],
+  "bound_source_refs": [
+    {
+      "kind": "builder_ii.target_profile",
+      "name": "generic",
+      "path": "tests/fixtures/artifacts/target-profile.json",
+      "required": true,
+      "role": "target_profile",
+      "sha256": "1189ef6b00c1f3a84da0de4c6d8413bda5efa75c8234a72105688be0ef685118"
+    },
+    {
+      "kind": "builder_ii.agent_profile_record",
+      "name": "patch_planner",
+      "path": "tests/fixtures/artifacts/agent-profile.json",
+      "required": true,
+      "role": "agent_profile",
+      "sha256": "0ec8d6f51886e13653f16acafdddf24daa333c642de1298690c6fc684ac64c05"
+    },
+    {
+      "entry_id": "task-profile-planning-contract",
+      "kind": "builder_ii.profile_pack_manifest",
+      "name": "task-profile-planning-contract",
+      "path": "tests/fixtures/artifacts/profile-pack-manifest.json",
+      "profile_kind": "task_profile",
+      "required": true,
+      "role": "task_profile",
+      "sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+    },
+    {
+      "kind": "builder_ii.context_pack",
+      "name": "generic",
+      "path": "tests/fixtures/artifacts/context-pack.json",
+      "required": true,
+      "role": "context_pack",
+      "sha256": "b8f29b695e01cfe62b9e0c8aea392f684aeab2435b2f3088574a405a683b4fba"
+    },
+    {
+      "kind": "builder_ii.verification_profile",
+      "name": "generic_basic",
+      "path": "tests/fixtures/artifacts/verification-profile.json",
+      "required": true,
+      "role": "verification_profile",
+      "sha256": "bc1ac14440cc2c883dacd85de30ec5d9864f38eb533769836b082e700058f0e6"
+    },
+    {
+      "entry_id": "deny-by-default-tool-profile",
+      "kind": "builder_ii.profile_pack_manifest",
+      "name": "deny-by-default-tool-profile",
+      "path": "tests/fixtures/artifacts/profile-pack-manifest.json",
+      "profile_kind": "tool_profile",
+      "required": true,
+      "role": "tool_policy",
+      "sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+    },
+    {
+      "entry_id": "approval-policy-contract",
+      "kind": "builder_ii.profile_pack_manifest",
+      "name": "approval-policy-contract",
+      "path": "tests/fixtures/artifacts/profile-pack-manifest.json",
+      "profile_kind": "approval_policy",
+      "required": true,
+      "role": "hitl_policy",
+      "sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+    },
+    {
+      "entry_id": "profile-pack-lifecycle",
+      "kind": "builder_ii.profile_pack_manifest",
+      "name": "profile-pack-lifecycle",
+      "path": "tests/fixtures/artifacts/profile-pack-manifest.json",
+      "profile_kind": "pack",
+      "required": true,
+      "role": "output_profile",
+      "sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+    },
+    {
+      "entry_id": "handoff-profile-contract",
+      "kind": "builder_ii.profile_pack_manifest",
+      "name": "handoff-profile-contract",
+      "path": "tests/fixtures/artifacts/profile-pack-manifest.json",
+      "profile_kind": "handoff_profile",
+      "required": true,
+      "role": "handoff_profile",
+      "sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+    },
+    {
+      "kind": "builder_ii.model_client_registry",
+      "name": "passive_model_client_registry",
+      "path": "tests/fixtures/artifacts/model-registry.json",
+      "required": true,
+      "role": "model_registry",
+      "sha256": "e2ac12d3b084828250080dd580b73fbf024b057968eba958a59e353fb81e66ee"
+    },
+    {
+      "kind": "builder_ii.model_routing_policy",
+      "name": "passive_model_routing_policy",
+      "path": "tests/fixtures/artifacts/model-policy.json",
+      "required": true,
+      "role": "model_policy",
+      "sha256": "754de8261f1f4bf5c10482f07330d222d18b8925a42a09bc2e78fbc075ecbe5b"
+    },
+    {
+      "kind": "builder_ii.model_routing_recommendation",
+      "name": "model routing recommendation",
+      "path": "tests/fixtures/artifacts/model-recommendation.json",
+      "required": true,
+      "role": "model_recommendation",
+      "sha256": "c5125bd58632b985a3c0da97a552fc3e34d44ce50bc35d029bb3237a267baec6"
+    },
+    {
+      "kind": "builder_ii.profile_pack_manifest",
+      "name": "goal2-test-profile-pack",
+      "path": "tests/fixtures/artifacts/profile-pack-manifest.json",
+      "required": true,
+      "role": "profile_pack_manifest",
+      "sha256": "b144cf155a8e887cbc34e329d625e78fc1edbdfd09860f8ee82316970dcf1b12"
+    },
+    {
+      "kind": "builder_ii.profile_pack_render_plan",
+      "name": "goal2-test-profile-pack",
+      "path": "tests/fixtures/artifacts/profile-pack-render-plan.json",
+      "required": true,
+      "role": "profile_pack_render_plan",
+      "sha256": "a4d593361953464de6b0a707c5d417e0cb316f83847c1b785ba876a1a0cabd02"
+    },
+    {
+      "kind": "builder_ii.profile_pack_dry_run",
+      "name": "goal2-test-profile-pack",
+      "path": "tests/fixtures/artifacts/profile-pack-dry-run.json",
+      "required": true,
+      "role": "profile_pack_dry_run",
+      "sha256": "308602350919a9a2551fb502668d1c9a232df8bafb38d11780163b6a71bc9851"
+    },
+    {
+      "kind": "builder_ii.profile_pack_validation_report",
+      "name": "builder_ii.profile_pack_manifest",
+      "path": "tests/fixtures/artifacts/profile-pack-validation-report.json",
+      "required": true,
+      "role": "profile_pack_validation_report",
+      "sha256": "2242a6f3e9018005ce635d0c8145ab4ee073773d6b5f58b497737f369b04923e"
+    },
+    {
+      "kind": "builder_ii.profile_pack",
+      "name": "goal2-test-profile-pack",
+      "path": "tests/fixtures/artifacts/profile-pack.json",
+      "required": true,
+      "role": "profile_pack",
+      "sha256": "83db98eef8a8e19c1db53be9a2edf00add63ca59c8393c45720649a2d360dc77"
+    }
+  ],
+  "constructs_deepagents": false,
+  "denied_capabilities": [
+    "model execution",
+    "tool execution",
+    "shell execution",
+    "Goose invocation",
+    "deepagents construction",
+    "MCP invocation",
+    "network calls",
+    "target repository mutation",
+    "runtime authority grant"
+  ],
+  "executes_model": false,
+  "executes_shell": false,
+  "executes_tools": false,
+  "expected_evidence": [
+    "project config inspected",
+    "selected command rationale recorded",
+    "pass/fail output captured by the operator"
+  ],
+  "governance": {
+    "agent_construction": "DISABLED",
+    "artifact_is_authority": false,
+    "capability_state": "orchestration_assignment_plan",
+    "core_workbench_coupling": "NONE",
+    "deepagents_runtime_start": "DISABLED",
+    "goose_runtime_start": "DISABLED",
+    "grants_authority": false,
+    "mcp_tool_calls": "DISABLED",
+    "memory_mutation": "DISABLED",
+    "model_execution": "DISABLED",
+    "network_calls": "DISABLED",
+    "requires_human_promotion_for_execution": true,
+    "runtime_execution": "DISABLED",
+    "shell_execution": "DISABLED",
+    "source_writes": "DISABLED EXCEPT EXPLICIT ARTIFACT OUTPUT PATH",
+    "subagent_construction": "DISABLED",
+    "target_repo_writes": "DISABLED",
+    "tool_execution": "DISABLED",
+    "verification_execution": "DISABLED"
+  },
+  "grants_authority": false,
+  "handoff_expectations": [
+    "preserve target, task, bindings, denied capabilities, required promotions, and verification status",
+    "do not claim verification evidence without separate execution receipts"
+  ],
+  "invokes_goose": false,
+  "invokes_mcp": false,
+  "kind": "builder_ii.orchestration_assignment_plan",
+  "mutates_target_repo": false,
+  "orchestration_mode": "passive_assignment_v2",
+  "performs_network_calls": false,
+  "plan_state": "BOUND_ONLY",
+  "planned_bindings": {
+    "agent": {
+      "authority": "proposal_only",
+      "name": "patch_planner",
+      "source_ref_role": "agent_profile"
+    },
+    "context": {
+      "context_is_proof": false,
+      "selected_file_count": 2,
+      "source_ref_role": "context_pack",
+      "target_name": "generic"
+    },
+    "handoff": {
+      "claims_verification_evidence": false,
+      "expectations": [
+        "preserve target, task, bindings, denied capabilities, required promotions, and verification status",
+        "do not claim verification evidence without separate execution receipts"
+      ],
+      "source_ref_role": "handoff_profile"
+    },
+    "hitl": {
+      "approval_state": "NOT_GRANTED",
+      "grants_authority": false,
+      "requires_human_promotion_for_execution": true,
+      "source_ref_role": "hitl_policy"
+    },
+    "model": {
+      "executes_model": false,
+      "recommendation_state": "RECOMMENDATION_ONLY",
+      "routing_grants_authority": false,
+      "selected_candidate": {
+        "client_id": "mlx_lm_client",
+        "constraints": [
+          "Endpoint kind: local_mlx",
+          "Cost class: free_local",
+          "Passive recommendation only; requires human promotion before execution"
+        ],
+        "model_alias": "qwen-coder",
+        "model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+        "provider_id": "mlx_provider",
+        "rank": 1,
+        "reasons": [
+          "Risk level 'local_network' satisfies requirement 'local_network'",
+          "Supports required tool use",
+          "Exact match for policy preferred model id"
+        ],
+        "risk_classification": "local_network"
+      },
+      "source_ref_roles": [
+        "model_registry",
+        "model_policy",
+        "model_recommendation"
+      ]
+    },
+    "outputs": {
+      "expected_artifacts": [
+        "builder_ii.agent_assignment_plan",
+        "builder_ii.orchestration_assignment_plan",
+        "builder_ii.orchestration_assignment_dry_run"
+      ],
+      "mutates_target_repo": false,
+      "source_ref_role": "output_profile"
+    },
+    "target": {
+      "name": "generic",
+      "repo": "tests/fixtures/generic-repo",
+      "source_ref_role": "target_profile"
+    },
+    "task": {
+      "description": "test passive assignment",
+      "profile_entry_id": "task-profile-planning-contract",
+      "source_ref_role": "task_profile",
+      "task_state": "PLANNED_ONLY"
+    },
+    "tools": {
+      "allowed_tools": [],
+      "default_policy": "denied",
+      "executes_tools": false,
+      "source_ref_role": "tool_policy"
+    },
+    "verification": {
+      "executes_commands": false,
+      "name": "generic_basic",
+      "proposed_commands": [
+        "inspect project config for test command",
+        "run the smallest relevant test command after human approval",
+        "run formatting/static checks only if the repo defines them"
+      ],
+      "required_evidence": [
+        "project config inspected",
+        "selected command rationale recorded",
+        "pass/fail output captured by the operator"
+      ],
+      "source_ref_role": "verification_profile",
+      "verification_status": "NOT_RUN"
+    }
+  },
+  "required_promotions": [
+    "HITL approval artifact before execution",
+    "separate capability promotion before model/tool/shell/runtime authority",
+    "execution receipts before any verification claim"
+  ],
+  "requires_human_promotion_for_execution": true,
+  "schema_version": 1,
+  "source_refs": [
+    {
+      "kind": "builder_ii.agent_assignment_plan",
+      "name": "generic",
+      "path": "tests/fixtures/artifacts/agent-assignment-plan.json",
+      "required": true,
+      "role": "assignment_plan",
+      "sha256": "bc9a2ebb2f03bb1781ab480e42fdba9c6997b294ec05f3d6d4c2dda0eddcca3a"
+    }
+  ],
+  "target": "generic",
+  "task": "test passive assignment"
+}
