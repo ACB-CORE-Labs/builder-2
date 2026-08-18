@@ -94,17 +94,24 @@ def test_b8_passive_foundation_requires_no_implied_mutation() -> None:
 
 
 def test_next_sequence_matches_incomplete_rows() -> None:
-    # NEXT_SEQUENCE must match actual incomplete capability rows.
+    # Open-source-v1 sequencing is separate from the capability matrix rows.
     from builder_ii.core.platform_completion_audit import NEXT_SEQUENCE
 
-    assert NEXT_SEQUENCE == "B8 deferred; B9 complete"
+    assert NEXT_SEQUENCE == "Plan Set 3 admitted; implementation pending"
 
 
 def test_live_truth_machinery_and_open_source_v1_sequencing_are_distinct() -> None:
     from builder_ii.core.platform_completion_audit import SOURCE_REPORT
 
-    assert SOURCE_REPORT == "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
+    assert SOURCE_REPORT == "docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md"
     assert Path(SOURCE_REPORT).exists()
-    assert Path("docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md").exists()
+    assert "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md" not in SOURCE_REPORT
     assert Path("docs/audits/OPEN_SOURCE_V1_PLAN_SETS_0_2_RECONCILIATION.md").exists()
     assert Path("docs/audits/OPEN_SOURCE_V1_PLAN_SET_1_EVIDENCE.md").exists()
+
+
+def test_live_truth_machine_does_not_retain_retired_completion_sequence() -> None:
+    from builder_ii.core.platform_completion_audit import NEXT_SEQUENCE, SOURCE_REPORT
+
+    assert SOURCE_REPORT != "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
+    assert not NEXT_SEQUENCE.startswith("B8")

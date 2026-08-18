@@ -10,7 +10,9 @@
 # * There is no advisory (non-blocking) step: every gate in this script blocks. Secret
 #   scanning is a real blocking gate below.
 # * Environment provisioning (`uv sync`, toolchain installs) is NOT a gate and is
-#   NOT done here. Run `uv sync --all-groups` first.
+#   NOT done here. For the full native-orchestration lane, run
+#   `uv sync --all-groups --extra deepagents` first. A lightweight
+#   governance-only install may use plain `uv sync`.
 #
 # Exit-code discipline: `set -o pipefail` plus never piping a gate into `head`/`tail`.
 # Piping a command into a pager silently reports the *pager's* exit status, which is
@@ -109,7 +111,7 @@ import sys
 
 if importlib.util.find_spec("deepagents") is None:
     print("deepagents is unavailable in the active environment.", file=sys.stderr)
-    print("Remediation: run `uv sync --extra deepagents`, then rerun `bash scripts/ci.sh`.", file=sys.stderr)
+    print("Remediation: run `uv sync --all-groups --extra deepagents`, then rerun `bash scripts/ci.sh`.", file=sys.stderr)
     raise SystemExit(1)
 print("deepagents import surface available")
 '

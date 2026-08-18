@@ -41,7 +41,7 @@ For any non-trivial task — anything touching a load-bearing module (`command_a
 The environment is managed with `uv` (Python 3.12, locked via `uv.lock`).
 
 ```bash
-uv sync --all-groups                # install deps (Python + dev group)
+uv sync --all-groups --extra deepagents  # full development/native orchestration lane
 bash scripts/ci.sh                  # the full blocking gate battery — exactly what CI runs
 uv run pytest -q                    # full test suite (testpaths = tests/)
 uv run ruff check builder_ii tests  # lint (line-length 120)

@@ -25,7 +25,7 @@ than ordinary bug fixes.
 ## Development setup
 
 ```bash
-uv sync --all-groups                # install Python deps + dev group
+uv sync --all-groups --extra deepagents  # full development/native orchestration lane
 uv sync --extra mlx                 # add the local Apple Silicon model backend (optional, Mac-first)
 cp .env.example .env
 ```
