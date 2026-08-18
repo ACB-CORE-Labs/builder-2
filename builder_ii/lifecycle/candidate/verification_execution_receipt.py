@@ -478,6 +478,9 @@ def validate_verification_execution_receipt_against_plan_and_approval(
         errors.append("target_repo does not match referenced plan")
     if receipt.get("artifact_root") != plan.get("artifact_root"):
         errors.append("artifact_root does not match referenced plan")
+    if receipt.get("receipt_status") == "EXECUTED" or receipt.get("runner_mode") == RUNNER_MODE_BOUNDED_APPROVED:
+        if receipt.get("target_commit") != plan.get("target_head_sha"):
+            errors.append("target_commit does not match referenced plan target_head_sha")
     approved_profiles = set(_string_list(approval.get("approved_command_profiles")))
     receipt_profiles = set(_string_list(receipt.get("approved_command_profiles")))
     if not receipt_profiles.issubset(approved_profiles):

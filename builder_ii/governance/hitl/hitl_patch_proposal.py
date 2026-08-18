@@ -136,7 +136,9 @@ def validate_hitl_patch_proposal(artifact: Any) -> list[str]:
         errors.append(f"schema_version must be {HITL_PATCH_PROPOSAL_SCHEMA_VERSION} or legacy {HITL_PATCH_PROPOSAL_LEGACY_SCHEMA_VERSION}")
 
     if artifact.get("schema_version") == HITL_PATCH_PROPOSAL_LEGACY_SCHEMA_VERSION:
-        errors.append("schema v1 is legacy and cannot be applied; regenerate the proposal under schema v2 and obtain a fresh approval")
+        # v1 remains valid for passive/historical recognition. The authority boundary
+        # in apply_hitl_patch refuses it and requires regeneration plus fresh approval.
+        pass
     else:
         target_head_sha = artifact.get("target_head_sha")
         if not isinstance(target_head_sha, str) or len(target_head_sha) != 40:

@@ -236,3 +236,12 @@ def test_dumps_produces_valid_json() -> None:
     text = dumps_hitl_patch_proposal(spec)
     parsed = json.loads(text)
     assert parsed["kind"] == HITL_PATCH_PROPOSAL_KIND
+
+
+def test_schema_v1_remains_valid_for_passive_historical_inspection() -> None:
+    spec = create_hitl_patch_proposal(
+        target_head_sha="a" * 40,
+        verification_receipt_file_sha256="b" * 64,
+    )
+    spec["schema_version"] = 1
+    assert validate_hitl_patch_proposal(spec) == []

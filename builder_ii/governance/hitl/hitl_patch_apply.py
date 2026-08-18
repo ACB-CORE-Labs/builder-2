@@ -264,14 +264,38 @@ def _verification_receipt_errors(path: Path, *, target_repo: Path | None = None)
             errors.append("verification receipt workspace_mutation_detected must be false")
         if not receipt.get("executed_steps") or not receipt.get("process_results"):
             errors.append("verification receipt must contain executed steps and process results")
+        if any(item.get("status") != "success" for item in receipt.get("executed_steps", []) if isinstance(item, dict)):
+            errors.append("verification receipt executed steps must all be successful")
         if any(item.get("status") != "success" for item in receipt.get("process_results", []) if isinstance(item, dict)):
             errors.append("verification receipt process results must all be successful")
+        authority = receipt.get("command_authority_decision")
+        if not isinstance(authority, dict):
+            errors.append("verification receipt must contain command authority decision evidence")
+        else:
+            if authority.get("kind") != "builder_ii.command_authority_decision":
+                errors.append("command authority decision kind is invalid")
+            if authority.get("command") != "builder-verify run-approved":
+                errors.append("command authority decision command is invalid")
+            if authority.get("allowed") is not True:
+                errors.append("command authority decision must be allowed")
+            if authority.get("denied_effects") != []:
+                errors.append("command authority decision denied_effects must be empty")
+            if authority.get("capability_ref") != "HITL-approved verification execution":
+                errors.append("command authority decision capability_ref is invalid")
+            if authority.get("fail_closed") is not False:
+                errors.append("command authority decision fail_closed must be false")
         preflight = receipt.get("preflight_git_state")
         postflight = receipt.get("postflight_git_state")
         if not isinstance(preflight, dict) or preflight.get("captured") is not True:
             errors.append("verification receipt preflight Git state must be captured")
+        elif preflight.get("clean") is not True or preflight.get("porcelain_lines") != []:
+            errors.append("verification receipt preflight Git state must be clean with no porcelain lines")
+        elif receipt.get("target_commit") != preflight.get("head_sha"):
+            errors.append("verification receipt target_commit must match preflight Git HEAD")
         if not isinstance(postflight, dict) or postflight.get("captured") is not True:
             errors.append("verification receipt postflight Git state must be captured")
+        elif receipt.get("target_commit") != postflight.get("head_sha"):
+            errors.append("verification receipt target_commit must match postflight Git HEAD")
         if target_repo is not None:
             try:
                 if Path(str(receipt.get("target_repo"))).expanduser().resolve() != target_repo.expanduser().resolve():

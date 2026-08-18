@@ -41,7 +41,7 @@ def _write_chain(
     root = tmp_path / ".builder" / "verification"
     root.mkdir(parents=True, exist_ok=True)
     plan = finalize_verification_execution_plan(
-        target_head_sha="0000000000000000000000000000000000000000",
+        target_head_sha=target_commit or "0000000000000000000000000000000000000000",
         tree_clean=True,
         target_profile="builder",
         verification_profile="builder_full",
@@ -98,6 +98,7 @@ def _write_chain(
             "returncode": 0,
             "porcelain_sha256": "3" * 64,
             "porcelain_lines": [],
+            "clean": True,
             "stderr_sha256": "4" * 64,
             "head_sha": target_commit,
             "branch": "main",
@@ -108,6 +109,7 @@ def _write_chain(
             "returncode": 0,
             "porcelain_sha256": "3" * 64,
             "porcelain_lines": [],
+            "clean": True,
             "stderr_sha256": "4" * 64,
             "head_sha": target_commit,
             "branch": "main",

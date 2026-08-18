@@ -6,17 +6,25 @@ from unittest.mock import patch
 
 import pytest
 
+from builder_ii.core.config_schema import attach_digest
 from builder_ii.governance.authority import CommandAuthorityError
 from builder_ii.governance.hitl.hitl_patch_apply import (
     FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
     PATCH_APPLY_RECEIPT_KIND,
+    _verification_receipt_errors,
     apply_hitl_patch,
     create_patch_apply_receipt,
     rollback_hitl_patch,
     validate_patch_apply_receipt,
 )
-from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
-from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.governance.hitl.hitl_patch_approval import (
+    create_hitl_patch_approval,
+    write_hitl_patch_approval,
+)
+from builder_ii.governance.hitl.hitl_patch_proposal import (
+    create_hitl_patch_proposal,
+    write_hitl_patch_proposal,
+)
 from tests.hitl_patch_test_helpers import write_executed_verification_receipt
 
 
@@ -106,6 +114,56 @@ def test_apply_hitl_patch_succeeds_unmocked_with_schema_valid_receipt(tmp_path: 
     assert (out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME).exists()
     receipt = json.loads((out_dir / "patch_apply_receipt.json").read_text())
     assert receipt["status"] == "succeeded"
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected"),
+    [
+        (lambda r: r["executed_steps"][0].update(status="failed"), "executed steps must all be successful"),
+        (lambda r: r["process_results"][0].update(status="non_zero_exit"), "process results must all be successful"),
+        (lambda r: r.pop("command_authority_decision"), "must contain command authority decision"),
+        (lambda r: r["command_authority_decision"].update(allowed=False), "decision must be allowed"),
+    ],
+)
+def test_apply_admission_rejects_unproven_bounded_execution(tmp_path: Path, mutation, expected: str):
+    repo = _init_clean_repo(tmp_path / "repo")
+    receipt_path = tmp_path / "vr.json"
+    write_executed_verification_receipt(receipt_path, repo)
+    receipt = json.loads(receipt_path.read_text())
+    mutation(receipt)
+    receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
+    receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+    errors = _verification_receipt_errors(receipt_path, target_repo=repo)
+    assert any(expected in error for error in errors), errors
+
+
+def test_apply_admission_rejects_dirty_preflight_without_head_change(tmp_path: Path):
+    repo = _init_clean_repo(tmp_path / "repo")
+    receipt_path = tmp_path / "vr.json"
+    write_executed_verification_receipt(receipt_path, repo)
+    receipt = json.loads(receipt_path.read_text())
+    receipt["preflight_git_state"]["clean"] = False
+    receipt["preflight_git_state"]["porcelain_lines"] = [" M file.txt"]
+    receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
+    receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
+    errors = _verification_receipt_errors(receipt_path, target_repo=repo)
+    assert any("preflight" in error and "clean" in error for error in errors), errors
+
+
+def test_apply_refuses_schema_v1_with_regeneration_recovery(tmp_path: Path) -> None:
+    proposal = create_hitl_patch_proposal(
+        generic_repo=tmp_path,
+        patch_digest="a" * 64,
+        unified_diff="",
+        target_head_sha="b" * 40,
+        verification_receipt_file_sha256="c" * 64,
+    )
+    proposal["schema_version"] = 1
+    proposal_path = tmp_path / "proposal.json"
+    write_hitl_patch_proposal(proposal, proposal_path)
+    with patch("builder_ii.governance.authority.enforce_command_authority"):
+        with pytest.raises(ValueError, match="schema v1 proposals cannot be applied.*regenerate.*fresh approval"):
+            apply_hitl_patch(proposal_path, tmp_path / "approval.json", tmp_path / "receipt.json", tmp_path / "out")
 
 
 @patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[])

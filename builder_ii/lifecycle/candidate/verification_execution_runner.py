@@ -357,6 +357,7 @@ def _git_state(target_repo: Path, label: str) -> dict[str, Any]:
         "returncode": result.returncode,
         "porcelain_sha256": _sha256_text(result.stdout),
         "porcelain_lines": result.stdout.splitlines(),
+        "clean": result.returncode == 0 and not result.stdout.splitlines(),
         "stderr_sha256": _sha256_text(result.stderr),
         "head_sha": head_sha,
         "branch": branch,

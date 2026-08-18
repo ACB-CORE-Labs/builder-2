@@ -77,6 +77,14 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
         execution_risk_acknowledged=True,
         acknowledged_risk="The approved builder_full profile executes target repository code.",
     )
+    receipt["command_authority_decision"] = {
+        "kind": "builder_ii.command_authority_decision",
+        "command": "builder-verify run-approved",
+        "allowed": True,
+        "denied_effects": [],
+        "capability_ref": "HITL-approved verification execution",
+        "fail_closed": False,
+    }
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     errors = validate_verification_execution_receipt_file(path)
