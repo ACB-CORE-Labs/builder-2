@@ -67,7 +67,7 @@ uv run pytest -q \
   tests/test_deepagents_policy.py
 ```
 
-Result: `71 passed`.
+Result: `69 passed`.
 
 The Plan Set 1 closure is additionally bound by
 `docs/audits/OPEN_SOURCE_V1_PLAN_SET_1_EVIDENCE.md`; the historical Plan Set 2
