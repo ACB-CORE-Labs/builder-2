@@ -357,6 +357,7 @@ def _git_state(target_repo: Path, label: str) -> dict[str, Any]:
         "returncode": result.returncode,
         "porcelain_sha256": _sha256_text(result.stdout),
         "porcelain_lines": result.stdout.splitlines(),
+        "clean": result.returncode == 0 and not result.stdout.splitlines(),
         "stderr_sha256": _sha256_text(result.stderr),
         "head_sha": head_sha,
         "branch": branch,
@@ -847,6 +848,52 @@ def run_approved_verification(
             authority_decision=authority_decision,
         )
 
+    # The approval subject is the exact source state named by the plan.  Check this
+    # before isolation/backend construction and, critically, before spawning target
+    # code.  Postflight drift remains a second defence; it cannot repair execution
+    # that already happened against the wrong commit.
+    plan_head_sha = plan.get("target_head_sha")
+    if preflight.get("head_sha") != plan_head_sha:
+        return _receipt_for_block(
+            plan=plan,
+            approval=approval,
+            plan_path=plan_path,
+            approval_path=approval_path,
+            output=output,
+            target_repo=target_repo,
+            artifact_root=artifact_root,
+            requested_profile=requested_profile,
+            errors=["preflight HEAD SHA does not match approved plan target_head_sha"],
+            authority_decision=authority_decision,
+        )
+    if profile.profile in TARGET_CODE_EXECUTING_PROFILES:
+        if plan.get("tree_clean") is not True:
+            return _receipt_for_block(
+                plan=plan,
+                approval=approval,
+                plan_path=plan_path,
+                approval_path=approval_path,
+                output=output,
+                target_repo=target_repo,
+                artifact_root=artifact_root,
+                requested_profile=requested_profile,
+                errors=["target-code verification requires plan.tree_clean=true"],
+                authority_decision=authority_decision,
+            )
+        if preflight.get("porcelain_lines"):
+            return _receipt_for_block(
+                plan=plan,
+                approval=approval,
+                plan_path=plan_path,
+                approval_path=approval_path,
+                output=output,
+                target_repo=target_repo,
+                artifact_root=artifact_root,
+                requested_profile=requested_profile,
+                errors=["target-code verification requires a clean preflight working tree"],
+                authority_decision=authority_decision,
+            )
+
     try:
         isolation_policy = plan.get("isolation_policy")
         isolation_backend = get_backend(str(target_repo), isolation_policy)
@@ -917,7 +964,6 @@ def run_approved_verification(
     observed_byproducts, mutation_paths, head_changed = _partition_workspace_changes(
         preflight, postflight, profile.byproduct_ignore_globs
     )
-    plan_head_sha = plan.get("target_head_sha")
     head_sha_mismatch = bool(plan_head_sha) and (postflight.get("head_sha") != plan_head_sha)
     workspace_mutation_detected = bool(mutation_paths) or head_changed or postflight_capture_failed or head_sha_mismatch
     receipt_status = "EXECUTED" if process_result["status"] == "success" else "FAILED"

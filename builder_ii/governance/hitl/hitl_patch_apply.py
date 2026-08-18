@@ -39,7 +39,16 @@ from builder_ii.lifecycle.candidate.rollback_artifacts import (
     write_rollback_plan,
     write_rollback_receipt,
 )
-from builder_ii.lifecycle.candidate.verification_execution_receipt import validate_verification_execution_receipt_file
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
+    validate_verification_execution_approval_against_plan,
+    validate_verification_execution_approval_artifact,
+)
+from builder_ii.lifecycle.candidate.verification_execution_plan import validate_verification_execution_plan_artifact
+from builder_ii.lifecycle.candidate.verification_execution_receipt import (
+    RUNNER_MODE_BOUNDED_APPROVED,
+    validate_verification_execution_receipt_against_plan_and_approval,
+    validate_verification_execution_receipt_file,
+)
 from builder_ii.lifecycle.setup.target_profiles import TargetName, target_profile
 
 # Constants
@@ -237,7 +246,77 @@ def _validate_demo_verification_receipt(data: Any, *, target_repo: Path | None) 
 def _verification_receipt_errors(path: Path, *, target_repo: Path | None = None) -> list[str]:
     errors = validate_verification_execution_receipt_file(path)
     if not errors:
-        return []
+        try:
+            receipt = json_lib.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            return [f"verification receipt could not be loaded: {exc}"]
+        if not isinstance(receipt, dict):
+            return ["verification receipt must be an object"]
+        if receipt.get("valid") is not True:
+            errors.append("verification receipt valid must be true")
+        if receipt.get("receipt_status") != "EXECUTED":
+            errors.append("verification receipt receipt_status must be EXECUTED")
+        if receipt.get("runner_mode") != RUNNER_MODE_BOUNDED_APPROVED:
+            errors.append("verification receipt runner_mode must be bounded_approved_verification")
+        if receipt.get("execution_enabled") is not True:
+            errors.append("verification receipt execution_enabled must be true")
+        if receipt.get("workspace_mutation_detected") is not False:
+            errors.append("verification receipt workspace_mutation_detected must be false")
+        if not receipt.get("executed_steps") or not receipt.get("process_results"):
+            errors.append("verification receipt must contain executed steps and process results")
+        if any(item.get("status") != "success" for item in receipt.get("executed_steps", []) if isinstance(item, dict)):
+            errors.append("verification receipt executed steps must all be successful")
+        if any(item.get("status") != "success" for item in receipt.get("process_results", []) if isinstance(item, dict)):
+            errors.append("verification receipt process results must all be successful")
+        authority = receipt.get("command_authority_decision")
+        if not isinstance(authority, dict):
+            errors.append("verification receipt must contain command authority decision evidence")
+        else:
+            if authority.get("kind") != "builder_ii.command_authority_decision":
+                errors.append("command authority decision kind is invalid")
+            if authority.get("command") != "builder-verify run-approved":
+                errors.append("command authority decision command is invalid")
+            if authority.get("allowed") is not True:
+                errors.append("command authority decision must be allowed")
+            if authority.get("denied_effects") != []:
+                errors.append("command authority decision denied_effects must be empty")
+            if authority.get("capability_ref") != "HITL-approved verification execution":
+                errors.append("command authority decision capability_ref is invalid")
+            if authority.get("fail_closed") is not False:
+                errors.append("command authority decision fail_closed must be false")
+        preflight = receipt.get("preflight_git_state")
+        postflight = receipt.get("postflight_git_state")
+        if not isinstance(preflight, dict) or preflight.get("captured") is not True:
+            errors.append("verification receipt preflight Git state must be captured")
+        elif preflight.get("clean") is not True or preflight.get("porcelain_lines") != []:
+            errors.append("verification receipt preflight Git state must be clean with no porcelain lines")
+        elif receipt.get("target_commit") != preflight.get("head_sha"):
+            errors.append("verification receipt target_commit must match preflight Git HEAD")
+        if not isinstance(postflight, dict) or postflight.get("captured") is not True:
+            errors.append("verification receipt postflight Git state must be captured")
+        elif receipt.get("target_commit") != postflight.get("head_sha"):
+            errors.append("verification receipt target_commit must match postflight Git HEAD")
+        if target_repo is not None:
+            try:
+                if Path(str(receipt.get("target_repo"))).expanduser().resolve() != target_repo.expanduser().resolve():
+                    errors.append("verification receipt target_repo must match proposal target repo")
+            except OSError as exc:
+                errors.append(f"verification receipt target_repo could not be resolved: {exc}")
+        plan_path = Path(str(receipt.get("plan_path", "")))
+        approval_path = Path(str(receipt.get("approval_path", "")))
+        if not plan_path.exists() or not approval_path.exists():
+            errors.append("verification receipt referenced plan and approval must exist")
+        else:
+            try:
+                plan = json_lib.loads(plan_path.read_text(encoding="utf-8"))
+                approval = json_lib.loads(approval_path.read_text(encoding="utf-8"))
+                errors.extend(validate_verification_execution_plan_artifact(plan))
+                errors.extend(validate_verification_execution_approval_artifact(approval))
+                errors.extend(validate_verification_execution_approval_against_plan(approval, plan))
+                errors.extend(validate_verification_execution_receipt_against_plan_and_approval(receipt, plan, approval))
+            except Exception as exc:
+                errors.append(f"verification receipt chain could not be reconstructed: {exc}")
+        return list(dict.fromkeys(errors))
     try:
         data = json_lib.loads(path.read_text(encoding="utf-8"))
     except Exception:
@@ -386,6 +465,12 @@ def apply_hitl_patch(
     target_repo = Path(proposal["target"]["repo"])
     patch_digest = proposal["patch_digest"]
     unified_diff = proposal["unified_diff"]
+    if proposal.get("schema_version") != 2:
+        raise ValueError(
+            "schema v1 proposals cannot be applied; regenerate the proposal under schema v2 and obtain a fresh approval"
+        )
+    proposal_head = proposal.get("target_head_sha")
+    proposal_receipt_digest = proposal.get("verification_receipt_file_sha256")
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -402,6 +487,8 @@ def apply_hitl_patch(
         )
         raise ValueError("Target repository working tree is not clean")
     pre_head = get_git_head_sha(target_repo)
+    if proposal_head != pre_head:
+        raise ValueError("proposal target_head_sha does not match current target HEAD")
     pre_apply_status = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=target_repo,
@@ -424,6 +511,14 @@ def apply_hitl_patch(
             patch_digest=patch_digest,
         )
         raise ValueError(f"Invalid verification receipt: {v_errors}")
+    if _file_digest(verification_receipt_path) != proposal_receipt_digest:
+        raise ValueError("proposal verification_receipt_file_sha256 does not match the supplied receipt")
+    verification_receipt = json_lib.loads(verification_receipt_path.read_text(encoding="utf-8"))
+    if verification_receipt.get("kind") == "builder_ii.verification_execution_receipt":
+        if verification_receipt.get("target_commit") != pre_head:
+            raise ValueError("verification receipt target_commit does not match current target HEAD")
+        if verification_receipt.get("preflight_git_state", {}).get("head_sha") != pre_head:
+            raise ValueError("verification receipt preflight HEAD does not match current target HEAD")
 
     # 4. Validate the approval as a governed artifact — NOT merely any JSON that happens
     #    to echo a matching patch_digest. This closes the weak-approval gap: an approval
@@ -458,9 +553,13 @@ def apply_hitl_patch(
         raise ValueError(f"Approval is not bound to this proposal: {binding_errors}")
     if approval_is_expired(approval, now=int(time.time())):
         raise ValueError("Patch approval has expired")
-    verification_receipt = json_lib.loads(verification_receipt_path.read_text(encoding="utf-8"))
     if compute_digest(unified_diff) != patch_digest:
         raise ValueError("Proposal patch digest does not match unified diff content")
+
+    # Final TOCTOU guard: all artifact checks above are advisory until this last
+    # read immediately precedes git apply.
+    if not is_git_clean(target_repo) or get_git_head_sha(target_repo) != pre_head:
+        raise ValueError("target repository changed during patch admission; regenerate the proposal and receipt")
 
     # 5. Forward patch stored for git apply -R rollback
     reverse_diff_path = output_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME

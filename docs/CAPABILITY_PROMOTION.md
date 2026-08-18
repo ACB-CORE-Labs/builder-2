@@ -28,6 +28,14 @@ Every capability across the platform operates under one of the following explici
 
 ## 2. Promotion gate requirements
 
+### Post-v0.1.0 schema evolution
+
+After `v0.1.0`, a security- or authority-relevant artifact change requires an explicit
+schema version. A validator may recognize a legacy version for historical inspection, but
+an authority-bearing consumer must refuse the legacy artifact and state the recovery path.
+Approved artifacts are never silently upgraded because their canonical digest is part of the
+human decision boundary.
+
 A capability can move from disabled or candidate state to `enabled` only when it provides verified evidence across all eight promotion gates:
 
 1. **Docs**: Complete architectural and operator documentation describing boundaries and intent.

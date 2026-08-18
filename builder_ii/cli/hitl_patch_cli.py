@@ -34,6 +34,9 @@ def register_patch_commands(app: typer.Typer) -> None:
         output: Path = typer.Option(..., "--output", help="Output path for proposal JSON"),
         description: str = typer.Option(..., "--description", help="Description of patch"),
         reason: str = typer.Option(..., "--reason", help="Reason for patch"),
+        target_head_sha: str = typer.Option(..., "--target-head-sha", help="Exact target HEAD verified before apply"),
+        verification_receipt: Path = typer.Option(..., "--verification-receipt", help="Exact pre-apply verification receipt"),
+        target_repo: Path = typer.Option(Path.cwd(), "--target-repo", help="Exact target repository for the proposal"),
     ) -> None:
         """Create a patch proposal."""
         from builder_ii.governance.authority import enforce_command_authority
@@ -50,6 +53,10 @@ def register_patch_commands(app: typer.Typer) -> None:
             reason=reason,
             patch_digest=digest,
             unified_diff=diff_content,
+            target_name="generic",
+            generic_repo=target_repo,
+            target_head_sha=target_head_sha,
+            verification_receipt_file_sha256=hashlib.sha256(verification_receipt.read_bytes()).hexdigest(),
         )
         write_hitl_patch_proposal(proposal, output)
         console.print(f"Proposal written to {output}")

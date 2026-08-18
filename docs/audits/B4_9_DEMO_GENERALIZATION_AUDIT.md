@@ -62,8 +62,11 @@ The plan item required deciding whether the demo-receipt fallback in
 - The fallback is **narrower than the general path**, not looser: the demo receipt must be bound to
   the exact proposal target repo (`target.repo` match), labeled `before_apply`, fully `EXECUTED`
   with every check `PASS`, and it self-describes demo scope in its kind and governance block.
-- The known gap that a general verification receipt is not target-bound remains the recorded 2.x
-  follow-up from the 1.3 review; this fallback does not widen it.
+- Historical note: the audit-era gap that a general verification receipt was not target-bound was
+  recorded as a 2.x follow-up. P0 verification-binding hardening supersedes that finding for the
+  later implementation: standard receipts are now validated against their loaded plan/approval,
+  exact target repository, clean preflight, and exact HEAD. This audit is not rewritten as though
+  that later hardening existed at the time; the demo fallback remains separately narrow.
 
 ## Containment (unchanged)
 

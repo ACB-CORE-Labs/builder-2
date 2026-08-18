@@ -334,6 +334,8 @@ def _hitl_patch_proposal() -> dict[str, Any]:
         target_name="generic",
         patch_description="test patch",
         reason="test fixture",
+        target_head_sha="0" * 40,
+        verification_receipt_file_sha256="0" * 64,
     )
 
 

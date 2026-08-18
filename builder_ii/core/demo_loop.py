@@ -460,7 +460,8 @@ def _write_planner(paths: DemoPaths, worktree: Path, patch_digest: str, spec: De
 
 
 def _write_patch_proposal(
-    paths: DemoPaths, worktree: Path, patch_text: str, patch_digest: str, spec: DemoTargetSpec
+    paths: DemoPaths, worktree: Path, patch_text: str, patch_digest: str, spec: DemoTargetSpec,
+    *, target_head_sha: str, verification_receipt_file_sha256: str
 ) -> dict[str, Any]:
     paths.patch_file.write_text(patch_text, encoding="utf-8")
     paths.reverse_patch_file.write_text(_reverse_diff_for_marker(spec), encoding="utf-8")
@@ -474,6 +475,8 @@ def _write_patch_proposal(
         ),
         patch_digest=patch_digest,
         unified_diff=patch_text,
+        target_head_sha=target_head_sha,
+        verification_receipt_file_sha256=verification_receipt_file_sha256,
     )
     proposal["target"]["name"] = spec.profile_name
     proposal["target"]["description"] = spec.description
@@ -999,7 +1002,23 @@ def run_demo_loop(
         patch_text = _unified_diff_for_marker(spec)
         patch_digest = _sha256_text(patch_text)
         _write_planner(paths, paths.worktree, patch_digest, spec)
-        _write_patch_proposal(paths, paths.worktree, patch_text, patch_digest, spec)
+        # The v2 proposal seals the exact pre-apply demo receipt before approval.  It is
+        # intentionally the demo-scoped fallback: arbitrary demo targets cannot be required
+        # to run the builder/pytest verification profiles.
+        _write_verification_receipt(
+            paths, paths.worktree, label="before_apply", spec=spec
+        )
+        target_head_sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=paths.worktree, check=True,
+            capture_output=True, text=True,
+        ).stdout.strip()
+        _write_patch_proposal(
+            paths, paths.worktree, patch_text, patch_digest, spec,
+            target_head_sha=target_head_sha,
+            verification_receipt_file_sha256=hashlib.sha256(
+                paths.pre_apply_verification_receipt.read_bytes()
+            ).hexdigest(),
+        )
         completed.extend(
             [
                 "temporary demo worktree created",
@@ -1073,7 +1092,7 @@ def run_demo_loop(
         if not paths.patch_approval.is_file():
             raise ValueError("approval phase must run before apply (no hitl_patch_approval found)")
         if not paths.pre_apply_verification_receipt.is_file():
-            _write_verification_receipt(paths, paths.worktree, label="before_apply", spec=spec)
+            raise ValueError("prepare phase must emit the bound before_apply verification receipt; rerun prepare")
         apply_hitl_patch(
             proposal_path=paths.proposal,
             approval_path=paths.patch_approval,

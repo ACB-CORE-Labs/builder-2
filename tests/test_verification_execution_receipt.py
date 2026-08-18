@@ -72,6 +72,15 @@ def test_valid_passive_receipt_validates_against_plan_and_approval() -> None:
     assert validate_verification_execution_receipt_against_plan_and_approval(receipt, plan, approval) == []
 
 
+def test_executed_receipt_rejects_stale_plan_head() -> None:
+    plan, approval, receipt = _sample_receipt()
+    receipt["receipt_status"] = "EXECUTED"
+    receipt["runner_mode"] = "bounded_approved_verification"
+    receipt["target_commit"] = "b" * 40
+    errors = validate_verification_execution_receipt_against_plan_and_approval(receipt, plan, approval)
+    assert any("target_commit does not match" in error for error in errors)
+
+
 def test_digest_drift_fails() -> None:
     _plan, _approval, receipt = _sample_receipt()
     receipt["target_repo"] = "/tmp/other"

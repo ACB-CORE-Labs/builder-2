@@ -90,6 +90,7 @@ def _write_valid_chain(
         plan_path=str(plan_path),
         approval_path=str(approval_path),
         runner_mode=RUNNER_MODE_BOUNDED_APPROVED,
+        target_commit=plan["target_head_sha"],
         generated_at=generated_at,
         receipt_status=receipt_status,
         executed_steps=[{"step_id": "platform_status", "status": "success", "profile": "platform_status"}],
@@ -115,6 +116,7 @@ def _write_valid_chain(
         preflight_git_state={
             "state_label": "preflight",
             "captured": True,
+            "clean": True,
             "returncode": 0,
             "porcelain_sha256": "3" * 64,
             "porcelain_lines": [],
@@ -123,6 +125,7 @@ def _write_valid_chain(
         postflight_git_state={
             "state_label": "postflight",
             "captured": True,
+            "clean": True,
             "returncode": 0,
             "porcelain_sha256": "3" * 64,
             "porcelain_lines": [],

@@ -4,7 +4,7 @@
 
 builder-II is a generic governed local agent/developer platform. It is not CORE, not CORE Workbench/UI/UX, and not a second CORE runtime. CORE is only a target profile.
 
-This document specifies the Human-In-The-Loop (HITL) patch proposal and application path. The proposal, approval, application, and rollback mechanics described below are implemented and execute for real against a target repository (`builder-hitl propose-patch` / `approve-patch` / `apply-patch` / `rollback`), gated at every step by an explicit digest-bound approval artifact, a clean target working tree, and command-authority enforcement (`enforce_command_authority`) checked before any I/O. Code executing under strict HITL gates is not the same as the platform declaring the capability promoted: the completion-plan matrix still tracks this capability as `MERGED_BUT_NOT_OPERATIONAL` (candidate tier `hitl_runtime_candidate`, Tier 3 — see `docs/CAPABILITY_PROMOTION.md`) pending an evidence-gated closure review. This document uses candidate/not-enabled phrasing throughout; it does not assert promotion.
+This document specifies the Human-In-The-Loop (HITL) patch proposal and application path. The proposal, approval, application, and rollback mechanics execute against a target repository (`builder-hitl propose-patch` / `approve-patch` / `apply-patch` / `rollback`), gated by an exact digest-bound approval artifact, a clean target working tree, exact target HEAD and verification-receipt binding, and command-authority enforcement before any I/O. The operator-invoked lane is `OPERATIONALLY_VERIFIED` with assurance `MUTATION_WITH_ROLLBACK_VERIFIED`; it remains Tier 3 (`hitl_runtime_candidate`) and is not an unattended or autonomous write capability.
 
 ## Spec Artifact Definition
 
@@ -18,7 +18,7 @@ builder_ii.hitl_patch_proposal
 
 | Field | Value |
 |---|---|
-| `capability_state` (platform matrix) | `MERGED_BUT_NOT_OPERATIONAL` |
+| `capability_state` (platform matrix) | `OPERATIONALLY_VERIFIED` |
 | `promotion_tier` | `hitl_runtime_candidate` (Tier 3) |
 | `runtime` | Executes only via explicit, separately-invoked, human-gated commands; not autonomous, not platform-promoted |
 | `artifact_is_authority` | `false` |
@@ -40,7 +40,19 @@ The pipeline below reflects what is implemented today, distinguished from work s
 7. **verification record** — *Partial*. The pre-apply verification receipt is bound into the apply receipt as verification evidence; the rollback-side working-tree drift preflight is implemented (see item 6), while a dedicated post-apply verification record remains open completion-plan work.
 8. **handoff/postflight** — *Implemented* for postflight recording; the full proposal → approval → apply → rollback chain is indexed for `builder-chain verify` / `verify_artifact_chain`.
 
-None of the above changes this pipeline's platform promotion state. The capability remains `MERGED_BUT_NOT_OPERATIONAL` / `hitl_runtime_candidate` until the evidence-gated matrix flip described in the completion plan.
+The promoted scope is only the operator-invoked, approval-gated lane. Autonomous or unattended application remains disabled and is not implied by this state.
+
+## Proposal schema v2 and verification binding
+
+New proposals use `builder_ii.hitl_patch_proposal` schema v2. They bind `target_head_sha`
+to the exact clean source state and `verification_receipt_file_sha256` to the exact successful,
+mutation-free pre-apply verification receipt. The receipt reconstructs and validates its
+referenced plan and approval; the patch approval canonical digest then seals the complete
+proposal, including the diff, target, HEAD, and receipt digest.
+
+Schema v1 is retained only for passive historical recognition. `apply-patch` refuses v1
+proposals with recovery instructions to regenerate under v2 and obtain a fresh interactive
+approval. No approved v1 artifact is auto-upgraded.
 
 ---
 
@@ -80,7 +92,7 @@ A capability existing, executing under HITL gates, and passing some of these gat
 
 | Field | Value |
 |---|---|
-| `capability_state` | `MERGED_BUT_NOT_OPERATIONAL` |
+| `capability_state` | `OPERATIONALLY_VERIFIED` |
 | `runtime_execution` | `DISABLED` |
 | `patch_application` | `DISABLED` |
 | `source_writes` | `DISABLED` |
