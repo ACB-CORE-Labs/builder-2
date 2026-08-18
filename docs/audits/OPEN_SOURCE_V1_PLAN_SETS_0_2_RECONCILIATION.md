@@ -8,7 +8,7 @@ runtime authority, capability promotion, or authorization to implement Plan Set 
 - Base commit: `4fd6e72cfcfb57d1b31b9c2da5c95dd427140f11`
 - Canonical plan: `docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md`
 - Current canonical-plan SHA-256:
-  `7f5ad0aacf31f2707f4de71b83dc2665a3abfbe7e45b6b5ff4ee9ceda18f1f5b`
+  `b0df24c980b01b37b9908777e5f5e67952db7b333533d9701f70464c6f40a605`
 - Scope: reconcile Plan Sets 0–2 and determine Plan Set 3 entry only.
 
 The earlier Plan Set 2 evidence record contains a historical plan digest that
