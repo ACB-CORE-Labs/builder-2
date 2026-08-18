@@ -182,8 +182,8 @@ echo "[ci-in-container] uv: $(uv --version)"
 echo "[ci-in-container] uv python install"
 uv python install
 
-echo "[ci-in-container] uv sync --all-groups"
-uv sync --all-groups
+echo "[ci-in-container] uv sync --all-groups --extra deepagents"
+uv sync --all-groups --extra deepagents
 
 echo "[ci-in-container] bash scripts/ci.sh"
 mkdir -p .builder/artifacts

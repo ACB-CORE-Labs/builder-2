@@ -34,7 +34,7 @@ For non-trivial design/R&D work — anything touching a load-bearing module (`co
 Environment is managed with `uv` (Python 3.12.13, locked via `uv.lock`).
 
 ```bash
-uv sync --all-groups                # install deps (Python + dev group)
+uv sync --all-groups --extra deepagents  # full development/native orchestration lane
 bash scripts/ci.sh                  # the full blocking gate battery — exactly what CI runs
 bash scripts/ci-in-container.sh     # OPTIONAL, heavier: same battery inside a node:20-bookworm root container matching the Forgejo runner (catches root/console-width/host-dependent bugs)
 uv run pytest -q                    # full test suite (testpaths = tests/)

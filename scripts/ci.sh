@@ -10,7 +10,9 @@
 # * There is no advisory (non-blocking) step: every gate in this script blocks. Secret
 #   scanning is a real blocking gate below.
 # * Environment provisioning (`uv sync`, toolchain installs) is NOT a gate and is
-#   NOT done here. Run `uv sync --all-groups` first.
+#   NOT done here. For the full native-orchestration lane, run
+#   `uv sync --all-groups --extra deepagents` first. A lightweight
+#   governance-only install may use plain `uv sync`.
 #
 # Exit-code discipline: `set -o pipefail` plus never piping a gate into `head`/`tail`.
 # Piping a command into a pager silently reports the *pager's* exit status, which is
@@ -98,7 +100,23 @@ gate "tui app mypy" uv run mypy builder_ii/tui/app.py --follow-imports=silent
 
 gate "targeted bandit" uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
 
-# 6. Full suite. `addopts` in pyproject already carries `-q`; adding another `-q`
+# 6. Native orchestration prerequisite. The full suite includes the native
+# Deep Agents lane, so fail early with exact remediation instead of spending
+# the full test duration before collection fails. This is check-only: CI never
+# installs dependencies. Plain `uv sync` remains the lightweight governance-only
+# path; the declared extra is required for this full lane.
+gate "deepagents readiness" uv run python -c '
+import importlib.util
+import sys
+
+if importlib.util.find_spec("deepagents") is None:
+    print("deepagents is unavailable in the active environment.", file=sys.stderr)
+    print("Remediation: run `uv sync --all-groups --extra deepagents`, then rerun `bash scripts/ci.sh`.", file=sys.stderr)
+    raise SystemExit(1)
+print("deepagents import surface available")
+'
+
+# 7. Full suite. `addopts` in pyproject already carries `-q`; adding another `-q`
 # turns it into `-qq` and suppresses the pass/fail summary line. Do not add one.
 # -n auto: parallelize across CPU-detected worker processes (pytest-xdist).
 # -p randomly: force-load pytest-randomly (it auto-activates once installed via a

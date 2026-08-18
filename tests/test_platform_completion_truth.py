@@ -287,7 +287,7 @@ def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()
     assert "passive-foundation-complete" in summary
     assert "operationally incomplete" in summary
-    assert "B8 deferred; B9 complete" in summary
+    assert "Plan Set 3 admitted; implementation pending" in summary
     assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in summary
 
 
@@ -304,7 +304,7 @@ def test_builder_platform_status_cli_is_honest() -> None:
     assert result.exit_code == 0, result.output
     assert "passive-foundation-complete" in result.output
     assert "operationally incomplete" in result.output
-    assert "B8 deferred; B9 complete" in result.output
+    assert "Plan Set 3 admitted; implementation pending" in result.output
 
 
 def test_next_sequence_rejects_r0_b5() -> None:

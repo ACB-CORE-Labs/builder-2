@@ -21,8 +21,11 @@ from builder_ii.governance.authority.assurance import (
 PLATFORM_COMPLETION_MATRIX_KIND = "builder_ii.platform_completion_matrix"
 PLATFORM_TRUTH_AUDIT_REPORT_KIND = "builder_ii.platform_truth_audit_report"
 SCHEMA_VERSION = "1.0.0"
-SOURCE_REPORT = "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
-NEXT_SEQUENCE = "B8 deferred; B9 complete"
+# The matrix remains capability truth.  Open-source-v1 sequencing is governed by
+# the canonical plan and its per-plan-set evidence records, not by the historical
+# platform completion report or its retired B8/B9 sequence labels.
+SOURCE_REPORT = "docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md"
+NEXT_SEQUENCE = "Plan Set 3 admitted; implementation pending"
 
 STALE_TRUTH_PHRASES: tuple[str, ...] = (
     "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing",
@@ -1431,6 +1434,8 @@ _SAFE_CONTEXT_PATTERN = re.compile(
 
 _DOC_AUDIT_EXCLUDED = {
     SOURCE_REPORT,
+    # Retired report: retained for historical context, not live sequencing truth.
+    "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md",
 }
 
 

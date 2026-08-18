@@ -170,6 +170,11 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 | [`docs/ORCHESTRATION_OBLIGATIONS.md`](ORCHESTRATION_OBLIGATIONS.md) | Governed obligation delegation (Ladder 4) |
 | [`docs/BRIDGE.md`](BRIDGE.md) | deepagents bridge |
 
+### Open-source v1 reconciliation
+
+| [`docs/audits/OPEN_SOURCE_V1_PLAN_SETS_0_2_RECONCILIATION.md`](audits/OPEN_SOURCE_V1_PLAN_SETS_0_2_RECONCILIATION.md) | Current bounded reconciliation and Plan Set 3 entry determination |
+| [`docs/audits/OPEN_SOURCE_V1_PLAN_SET_1_EVIDENCE.md`](audits/OPEN_SOURCE_V1_PLAN_SET_1_EVIDENCE.md) | Plan Set 1 lifecycle implementation and exit-gate evidence |
+
 ### CodeVault (Commercial Extension)
 
 CodeVault is a separate, privately licensed plugin. Open core retains only an opaque optional-import

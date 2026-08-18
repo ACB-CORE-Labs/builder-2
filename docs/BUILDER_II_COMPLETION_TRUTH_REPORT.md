@@ -14,7 +14,13 @@ Verification evidence gathered:
 
 ## 1. Executive truth state
 
-builder-II is passive-foundation-complete and operationally incomplete as a whole platform: 17 capabilities are `OPERATIONALLY_VERIFIED` including bounded HITL verification execution (`builder-verify run-approved`), HITL patch apply/rollback (`builder-hitl apply-patch`/`rollback`), governed read/content-read, model execution gateway (`builder-model call`), low-risk tool stubs, operator golden path/operator-lane, and CORE demo loop. Remaining gaps include ambient runtime authority, Goose runtime promotion beyond readonly harness, live MCP server execution, interactive setup wizard, artifact memory promotion, and full ledger replay for all runtime event kinds. `builder-hitl run-command` is fail-closed; bounded execution uses `builder-verify run-approved` only. Setup apply/rollback exist as digest-bound `builder-setup` lanes. CORE remains a target profile only.
+The completion matrix in this report is the capability-truth source. Open-source
+v1 implementation sequencing is governed separately by
+`docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md` and its bounded evidence records
+under `docs/audits/OPEN_SOURCE_V1_PLAN_SET_*_EVIDENCE.md`; those records do not
+flip matrix states or grant promotion authority.
+
+Historical report retained for context; it is not live sequencing truth. The current capability matrix reports 19 `OPERATIONALLY_VERIFIED` capabilities. Open-source-v1 sequencing is governed by `docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md` and its per-plan-set evidence records.
 
 ## 2. Capability state matrix
 

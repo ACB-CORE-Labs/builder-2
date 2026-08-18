@@ -1,6 +1,7 @@
 # builder-II Quickstart
 
-Pure mechanics. Works on **Linux**, **macOS (non-Apple Silicon path)**, and **Windows WSL2**.
+Pure mechanics. v1 supports **Linux** and **macOS Apple Silicon**. Windows and WSL2
+are not v1 release-parity targets.
 
 ## Prerequisites
 
@@ -16,6 +17,8 @@ git clone <this-repo-url> builder-II
 cd builder-II
 export BUILDER_MODEL_BACKEND=ollama   # recommended open-source / non-Apple path
 uv sync --all-groups
+# Full native-orchestration development lane:
+uv sync --all-groups --extra deepagents
 # Apple Silicon MLX (optional): uv sync --extra mlx   # or: pip install -e '.[apple]'
 cp .env.example .env
 ```
