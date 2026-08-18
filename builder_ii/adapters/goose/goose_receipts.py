@@ -21,6 +21,7 @@ def create_goose_launch_receipt(
     agent_profile: str,
     pid: int,
     start_time: str,
+    evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     content = {
         "kind": GOOSE_LAUNCH_RECEIPT_KIND,
@@ -31,6 +32,8 @@ def create_goose_launch_receipt(
         "pid": pid,
         "start_time": start_time,
     }
+    if evidence:
+        content["evidence"] = evidence
     content["digest"] = _digest(content)
     return content
 

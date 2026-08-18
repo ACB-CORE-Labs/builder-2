@@ -69,15 +69,21 @@ def test_governed_argv_omits_recipe_when_missing(mock_settings, tmp_path: Path) 
 
 @patch("builder_ii.adapters.goose.goose_runtime_harness.goose_env", return_value={})
 @patch("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.probe_goose")
+@patch("builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe")
 @patch("builder_ii.adapters.goose.goose_runtime_harness.subprocess.Popen")
 def test_launch_governed_points_goose_at_the_governed_recipe(
     mock_popen: MagicMock,
+    mock_validate_recipe: MagicMock,
+    mock_probe: MagicMock,
     mock_find_goose: MagicMock,
     mock_goose_env: MagicMock,
     mock_settings: MagicMock,
     tmp_path: Path,
 ) -> None:
     mock_find_goose.return_value = "/mock/bin/goose"
+    mock_probe.return_value = MagicMock(binary="/mock/bin/goose", version="1.46.0", policy=">=1.45.0,<1.47.0")
+    mock_validate_recipe.return_value = "a" * 64
     proc = MagicMock()
     proc.pid = 999
     proc.poll.return_value = 0

@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from builder_ii.adapters.goose.goose_compatibility import probe_goose, validate_governed_recipe
 from builder_ii.adapters.goose.goose_launcher import find_goose_binary, goose_env, recipe_path
 from builder_ii.adapters.goose.goose_receipts import (
     create_goose_close_receipt,
@@ -130,9 +131,11 @@ class GooseRuntimeHarness:
         """
         goose = find_goose_binary()
         if not goose:
-            raise FileNotFoundError("Goose CLI not found.")
+            raise FileNotFoundError("Goose CLI not found. Install a tested Goose release manually; no automatic update is performed.")
 
         recipe = self._governed_recipe_path()
+        compatibility = probe_goose(goose, self.target_root / ".builder" / "goose-compatibility")
+        recipe_digest = validate_governed_recipe(recipe)
         env = goose_env(self.settings, session=self.session_plan)
         env["GOOSE_MODE"] = "auto"
         # Scope the MCP server's ledger to this run so its events land under this session.
@@ -148,7 +151,7 @@ class GooseRuntimeHarness:
             env=env,
         )
 
-        return create_goose_launch_receipt(
+        receipt = create_goose_launch_receipt(
             session_id=self.session_id,
             target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
             agent_profile=self.session_plan.agent_profile
@@ -156,7 +159,16 @@ class GooseRuntimeHarness:
             else "patch_planner",
             pid=self._proc.pid,
             start_time=start_time,
+            evidence={
+                "goose_compatibility": {
+                    "binary": compatibility.binary,
+                    "version": compatibility.version,
+                    "policy": compatibility.policy,
+                },
+                "recipe_sha256": recipe_digest,
+            },
         )
+        return receipt
 
     async def launch_readonly_async(self) -> dict[str, Any]:
         """Launch Goose asynchronously in strict read-only mode, avoiding loop blockage."""

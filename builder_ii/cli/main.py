@@ -447,7 +447,8 @@ def start(
     from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve wrapper-plan from the last generated artifact"),
 ) -> None:
     """Start MLX backend + Goose session with governed CORE recipes."""
-    from builder_ii.adapters.goose.goose_launcher import goose_status, launch_goose_session
+    from builder_ii.adapters.goose.goose_launcher import goose_status
+    from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
     from builder_ii.core.config import load_settings, normalize_model_alias
     from builder_ii.routing.model_router import SESSION_MODES, explain_plan, plan_session
 
@@ -484,13 +485,14 @@ def start(
         resolved = resolve_path_or_last(wrapper_plan, from_last, "builder_ii.goose_wrapper_plan", "wrapper-plan")
         approval_artifact = str(resolved)
 
-    proc = launch_goose_session(
-        settings,
-        resume=resume,
-        session=session,
-        name=session_name,
-        wrapper_plan_path=approval_artifact
-    )
+    if approval_artifact is not None:
+        raise ValueError("--wrapper-plan is not accepted by the canonical governed launch; use the approved governed recipe.")
+    harness = GooseRuntimeHarness(settings, session, settings.target_repo)
+    harness.session_id = session_name
+    harness.launch_governed()
+    proc = harness._proc
+    if proc is None:
+        raise RuntimeError("Canonical governed Goose launch did not produce a process.")
     proc.wait()
 
     try:
