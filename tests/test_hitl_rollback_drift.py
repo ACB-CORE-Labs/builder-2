@@ -11,7 +11,6 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
@@ -28,6 +27,7 @@ from builder_ii.governance.hitl.hitl_rollback_approval import (
     create_hitl_rollback_approval,
     write_hitl_rollback_approval,
 )
+from tests.hitl_patch_test_helpers import write_executed_verification_receipt
 
 _DIFF = (
     "diff --git a/file.txt b/file.txt\n"
@@ -58,28 +58,21 @@ def _apply(tmp_path: Path) -> tuple[Path, Path, Path]:
     subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True)
 
     patch_digest = hashlib.sha256(_DIFF.encode("utf-8")).hexdigest()
-    prop = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=_DIFF)
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+    prop = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=_DIFF,
+                                      target_head_sha=head, verification_receipt_file_sha256="0" * 64)
     prop_path = tmp_path / "prop.json"
     write_hitl_patch_proposal(prop, prop_path)
 
+    vr_path = tmp_path / "vr.json"
+    write_executed_verification_receipt(vr_path, repo)
+    prop["verification_receipt_file_sha256"] = hashlib.sha256(vr_path.read_bytes()).hexdigest()
+    write_hitl_patch_proposal(prop, prop_path)
     approval_path = tmp_path / "approval.json"
     write_hitl_patch_approval(create_hitl_patch_approval(prop, confirmed_digest_prefix=patch_digest[:4]), approval_path)
 
-    vr_path = tmp_path / "vr.json"
-    vr_path.write_text(
-        json.dumps(
-            {
-                "kind": "builder_ii.verification_execution_receipt",
-                "schema_version": "v1",
-                "receipt_status": "EXECUTED",
-                "valid": True,
-            }
-        )
-    )
-
     out_dir = tmp_path / "out"
-    with patch("builder_ii.hitl_patch_apply.validate_verification_execution_receipt_file", return_value=[]):
-        apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)
+    apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)
     assert target_file.read_text() == "Line 1\nLine 2 modified\n"
     return repo, out_dir, target_file
 

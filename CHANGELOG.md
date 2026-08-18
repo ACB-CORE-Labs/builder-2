@@ -57,6 +57,12 @@ full detail, per this changelog's pre-1.0 convention.
 
 ### Fixed
 
+- **HITL verification binding hardening**: target-code verification now refuses stale or
+  dirty plan subjects before spawning, and patch application requires a successful bounded
+  receipt reconstructed from its exact plan and approval, bound to the exact target HEAD and
+  repository. HITL patch proposals are schema v2; legacy v1 proposals are refused rather than
+  auto-upgraded.
+
 - Governance audit refactor (Stage 3 & 4 Synthesis): closed findings from four independent
   red-team/architecture review passes.
 - Made the CodeVault upgrade seam truthful in both the installed and not-installed state, and made

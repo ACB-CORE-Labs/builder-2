@@ -60,7 +60,16 @@ def _setup_repo_with_patch(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path
     )
     patch_digest = hashlib.sha256(diff.encode("utf-8")).hexdigest()
     prop_path = tmp_path / "prop.json"
-    prop = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=diff)
+    vr_path = tmp_path / "vr.json"
+    write_executed_verification_receipt(vr_path, repo)
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+    prop = create_hitl_patch_proposal(
+        generic_repo=repo,
+        patch_digest=patch_digest,
+        unified_diff=diff,
+        target_head_sha=head,
+        verification_receipt_file_sha256=hashlib.sha256(vr_path.read_bytes()).hexdigest(),
+    )
     write_hitl_patch_proposal(prop, prop_path)
 
     approval_path = tmp_path / "approval.json"
@@ -68,9 +77,6 @@ def _setup_repo_with_patch(tmp_path: Path) -> tuple[Path, Path, Path, Path, Path
         create_hitl_patch_approval(prop, confirmed_digest_prefix=patch_digest[:4]),
         approval_path,
     )
-
-    vr_path = tmp_path / "vr.json"
-    write_executed_verification_receipt(vr_path, repo)
     return repo, test_file, prop_path, approval_path, vr_path, patch_digest
 
 

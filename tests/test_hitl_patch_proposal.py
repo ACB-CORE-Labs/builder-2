@@ -30,6 +30,8 @@ def test_valid_spec_validates() -> None:
     spec = create_hitl_patch_proposal(
         patch_description="test patch design spec",
         reason="unit test",
+        target_head_sha="a" * 40,
+        verification_receipt_file_sha256="b" * 64,
     )
     assert spec["kind"] == HITL_PATCH_PROPOSAL_KIND
     errors = validate_hitl_patch_proposal(spec)
@@ -41,7 +43,7 @@ def test_valid_spec_validates() -> None:
 # ---------------------------------------------------------------------------
 def test_invalid_enabled_runtime_fails() -> None:
     """Setting current_state.runtime to anything other than DISABLED must fail."""
-    spec = create_hitl_patch_proposal()
+    spec = create_hitl_patch_proposal(target_head_sha="a" * 40, verification_receipt_file_sha256="b" * 64)
     spec["current_state"]["runtime"] = "ENABLED"
     errors = validate_hitl_patch_proposal(spec)
     assert any("current_state.runtime must be DISABLED or NOT_AUTHORIZED" in e for e in errors)
@@ -70,7 +72,7 @@ def test_artifact_is_authority_true_fails() -> None:
     assert any("governance.artifact_is_authority must be false or NOT_AUTHORIZED" in e for e in errors)
 
     # current_state block
-    spec2 = create_hitl_patch_proposal()
+    spec2 = create_hitl_patch_proposal(target_head_sha="a" * 40, verification_receipt_file_sha256="b" * 64)
     spec2["current_state"]["artifact_is_authority"] = True
     errors2 = validate_hitl_patch_proposal(spec2)
     assert any("current_state.artifact_is_authority must be false or NOT_AUTHORIZED" in e for e in errors2)
@@ -82,7 +84,7 @@ def test_artifact_is_authority_true_fails() -> None:
 def test_core_workbench_coupling_non_none_fails() -> None:
     """Any core_workbench_coupling value other than NONE must fail."""
     for bad_value in ("TIGHT", "LOOSE", "PARTIAL", "TRUE"):
-        spec = create_hitl_patch_proposal()
+        spec = create_hitl_patch_proposal(target_head_sha="a" * 40, verification_receipt_file_sha256="b" * 64)
         spec["governance"]["core_workbench_coupling"] = bad_value
         errors = validate_hitl_patch_proposal(spec)
         assert any("governance.core_workbench_coupling must be NONE or NOT_AUTHORIZED" in e for e in errors), (
@@ -211,7 +213,7 @@ def test_governance_defaults_fully_disabled() -> None:
 # 11. File I/O round-trip
 # ---------------------------------------------------------------------------
 def test_file_io_round_trip(tmp_path: Path) -> None:
-    spec = create_hitl_patch_proposal(patch_description="round-trip test", reason="ci")
+    spec = create_hitl_patch_proposal(patch_description="round-trip test", reason="ci", target_head_sha="a" * 40, verification_receipt_file_sha256="b" * 64)
     out = tmp_path / "hitl_patch_proposal.json"
     hitl_mod.write_hitl_patch_proposal(spec, out)
     assert out.exists()
@@ -230,7 +232,7 @@ def test_file_io_round_trip(tmp_path: Path) -> None:
 def test_dumps_produces_valid_json() -> None:
     import json
 
-    spec = create_hitl_patch_proposal()
+    spec = create_hitl_patch_proposal(target_head_sha="a" * 40, verification_receipt_file_sha256="b" * 64)
     text = dumps_hitl_patch_proposal(spec)
     parsed = json.loads(text)
     assert parsed["kind"] == HITL_PATCH_PROPOSAL_KIND

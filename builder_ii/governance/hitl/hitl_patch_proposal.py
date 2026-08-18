@@ -9,7 +9,8 @@ from builder_ii.governance.authority.governance_standard import build_standard_g
 from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names, target_profile
 
 HITL_PATCH_PROPOSAL_KIND = "builder_ii.hitl_patch_proposal"
-HITL_PATCH_PROPOSAL_SCHEMA_VERSION = 1
+HITL_PATCH_PROPOSAL_SCHEMA_VERSION = 2
+HITL_PATCH_PROPOSAL_LEGACY_SCHEMA_VERSION = 1
 
 # ---------------------------------------------------------------------------
 # Governed future path — ordered state machine (design record only)
@@ -67,6 +68,8 @@ def create_hitl_patch_proposal(
     patch_digest: str = "",
     unified_diff: str = "",
     generic_repo: Path | None = None,
+    target_head_sha: str = "",
+    verification_receipt_file_sha256: str = "",
 ) -> dict[str, Any]:
     """Create a design/spec artifact for the future HITL patch application path.
 
@@ -82,6 +85,8 @@ def create_hitl_patch_proposal(
     return {
         "kind": HITL_PATCH_PROPOSAL_KIND,
         "schema_version": HITL_PATCH_PROPOSAL_SCHEMA_VERSION,
+        "target_head_sha": target_head_sha,
+        "verification_receipt_file_sha256": verification_receipt_file_sha256,
         "patch_description": patch_description,
         "reason": reason,
         "patch_digest": patch_digest,
@@ -124,8 +129,21 @@ def validate_hitl_patch_proposal(artifact: Any) -> list[str]:
 
     if artifact.get("kind") != HITL_PATCH_PROPOSAL_KIND:
         errors.append(f"kind must be {HITL_PATCH_PROPOSAL_KIND}")
-    if artifact.get("schema_version") != HITL_PATCH_PROPOSAL_SCHEMA_VERSION:
-        errors.append(f"schema_version must be {HITL_PATCH_PROPOSAL_SCHEMA_VERSION}")
+    if artifact.get("schema_version") not in {
+        HITL_PATCH_PROPOSAL_SCHEMA_VERSION,
+        HITL_PATCH_PROPOSAL_LEGACY_SCHEMA_VERSION,
+    }:
+        errors.append(f"schema_version must be {HITL_PATCH_PROPOSAL_SCHEMA_VERSION} or legacy {HITL_PATCH_PROPOSAL_LEGACY_SCHEMA_VERSION}")
+
+    if artifact.get("schema_version") == HITL_PATCH_PROPOSAL_LEGACY_SCHEMA_VERSION:
+        errors.append("schema v1 is legacy and cannot be applied; regenerate the proposal under schema v2 and obtain a fresh approval")
+    else:
+        target_head_sha = artifact.get("target_head_sha")
+        if not isinstance(target_head_sha, str) or len(target_head_sha) != 40:
+            errors.append("target_head_sha must be a 40-character commit SHA")
+        receipt_digest = artifact.get("verification_receipt_file_sha256")
+        if not isinstance(receipt_digest, str) or len(receipt_digest) != 64:
+            errors.append("verification_receipt_file_sha256 must be a SHA-256 hex digest")
 
     if not isinstance(artifact.get("patch_digest"), str):
         errors.append("patch_digest must be a string")

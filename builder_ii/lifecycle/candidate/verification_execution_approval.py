@@ -358,6 +358,9 @@ def _validate_execution_risk_acknowledgment(data: dict[str, Any]) -> list[str]:
     approved_profiles = [p for p in (data.get("approved_command_profiles") or []) if isinstance(p, str)]
     approved_steps = [s for s in (data.get("approved_step_ids") or []) if isinstance(s, str)]
     if _approves_target_code(approved_profiles, approved_steps):
+        plan = data.get("plan")
+        if isinstance(plan, dict) and plan.get("tree_clean") is not True:
+            errors.append("target-code approval requires referenced plan.tree_clean=true")
         if ack is not True:
             errors.append(
                 "execution_risk_acknowledged must be true when a target-code-executing profile "
@@ -499,6 +502,14 @@ def validate_verification_execution_approval_against_plan(
         errors.append("target_repo does not match referenced plan")
     if approval.get("artifact_root") != plan.get("artifact_root"):
         errors.append("artifact_root does not match referenced plan")
+
+    approved_profiles = approval.get("approved_command_profiles")
+    approved_steps = approval.get("approved_step_ids")
+    if _approves_target_code(
+        [p for p in approved_profiles or [] if isinstance(p, str)],
+        [s for s in approved_steps or [] if isinstance(s, str)],
+    ) and plan.get("tree_clean") is not True:
+        errors.append("target-code approval requires referenced plan.tree_clean=true")
 
     allowed_profiles = set(_plan_allowed_command_profiles(plan))
     approved_profiles = approval.get("approved_command_profiles")

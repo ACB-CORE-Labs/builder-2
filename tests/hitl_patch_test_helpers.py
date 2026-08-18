@@ -1,4 +1,5 @@
 import json
+import subprocess
 from pathlib import Path
 
 from builder_ii.core.config_schema import attach_digest
@@ -37,11 +38,12 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
     """Write a schema-valid builder_ii.verification_execution_receipt with EXECUTED status."""
     plan_path = path.parent / "verification-plan.json"
     approval_path = path.parent / "verification-approval.json"
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
     plan = finalize_verification_execution_plan(
-        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        target_head_sha=head,
         tree_clean=True,
         target_profile="generic",
-        verification_profile="builder_full",
+        verification_profile="generic_basic",
         target_repo=str(repo.resolve()),
         artifact_root=str((repo / ".builder").resolve()),
     )
@@ -52,6 +54,10 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
         plan_path=str(plan_path),
         approval_actor="patch-test",
         approval_reason="HITL patch apply test verification binding",
+        approved_command_profiles=["pytest_full"],
+        approved_step_ids=["pytest_full"],
+        execution_risk_acknowledged=True,
+        acknowledged_risk="The approved builder_full profile executes target repository code.",
     )
     approval_path.write_text(json.dumps(approval, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     receipt = finalize_verification_execution_receipt(
@@ -61,8 +67,15 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
         approval_path=str(approval_path),
         receipt_status="EXECUTED",
         runner_mode=RUNNER_MODE_BOUNDED_APPROVED,
-        preflight_git_state={"clean": True},
-        postflight_git_state={"clean": True},
+        executed_steps=[{"step_id": "pytest_full", "status": "success", "profile": "pytest_full"}],
+        process_results=[{"step_id": "pytest_full", "status": "success", "shell": False}],
+        preflight_git_state={"state_label": "preflight", "captured": True, "clean": True, "head_sha": head, "porcelain_lines": [], "branch": "main"},
+        postflight_git_state={"state_label": "postflight", "captured": True, "clean": True, "head_sha": head, "porcelain_lines": [], "branch": "main"},
+        target_commit=head,
+        target_branch="main",
+        execution_enabled=True,
+        execution_risk_acknowledged=True,
+        acknowledged_risk="The approved builder_full profile executes target repository code.",
     )
     receipt = attach_digest(receipt, digest_key="verification_execution_receipt_digest")
     path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")

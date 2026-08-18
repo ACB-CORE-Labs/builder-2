@@ -1,5 +1,6 @@
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -31,7 +32,8 @@ def _proposal_file(tmp_path: Path) -> tuple[Path, str]:
     digest = hashlib.sha256(diff.encode("utf-8")).hexdigest()
     prop_path = tmp_path / "prop.json"
     write_hitl_patch_proposal(
-        create_hitl_patch_proposal(generic_repo=tmp_path, patch_digest=digest, unified_diff=diff),
+        create_hitl_patch_proposal(generic_repo=tmp_path, patch_digest=digest, unified_diff=diff,
+                                   target_head_sha="0" * 40, verification_receipt_file_sha256="0" * 64),
         prop_path,
     )
     return prop_path, digest
@@ -166,7 +168,7 @@ def test_apply_patch_cli_denies_forged_approval_without_mutation(tmp_path: Path)
         create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=PATCH_DIFF),
         prop_path,
     )
-    vr_path = real_verification_receipt(tmp_path)
+    vr_path = real_verification_receipt(tmp_path, repo)
 
     forged = tmp_path / "forged_approval.json"
     forged.write_text(json.dumps({"patch_digest": patch_digest}))  # not a governed approval
@@ -196,14 +198,16 @@ def test_rollback_cli_denies_unbound_approval_without_reverting(tmp_path: Path) 
     authorize the reverse — exit 1, and the applied change stays in place."""
     repo = init_target_repo(tmp_path)
     patch_digest = hashlib.sha256(PATCH_DIFF.encode("utf-8")).hexdigest()
-    proposal = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=PATCH_DIFF)
+    vr_path = real_verification_receipt(tmp_path, repo)
+    proposal = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=PATCH_DIFF,
+        target_head_sha=subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip(),
+        verification_receipt_file_sha256=hashlib.sha256(vr_path.read_bytes()).hexdigest())
     prop_path = tmp_path / "prop.json"
     write_hitl_patch_proposal(proposal, prop_path)
     approval_path = tmp_path / "approval.json"
     write_hitl_patch_approval(
         create_hitl_patch_approval(proposal, confirmed_digest_prefix=patch_digest[:4]), approval_path
     )
-    vr_path = real_verification_receipt(tmp_path)
     out = tmp_path / "out"
     apply_hitl_patch(prop_path, approval_path, vr_path, out)
     assert (repo / "file.txt").read_text() == "Line 1\nLine 2 modified\n"

@@ -19,12 +19,7 @@ from builder_ii.lifecycle.candidate.verification_execution_plan import (
     finalize_verification_execution_plan,
     write_verification_execution_plan,
 )
-from builder_ii.lifecycle.candidate.verification_execution_receipt import (
-    RUNNER_MODE_BOUNDED_APPROVED,
-    SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
-    finalize_verification_execution_receipt,
-    write_verification_execution_receipt,
-)
+from builder_ii.lifecycle.candidate.verification_execution_runner import run_approved_verification
 
 PATCH_DIFF = (
     "diff --git a/file.txt b/file.txt\n"
@@ -46,22 +41,25 @@ def init_target_repo(root: Path) -> Path:
     subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, check=True)
     subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, check=True)
     (repo / "file.txt").write_text("Line 1\nLine 2\n")
-    subprocess.run(["git", "add", "file.txt"], cwd=repo, check=True, capture_output=True)
+    (repo / "test_smoke.py").write_text("def test_smoke():\n    assert True\n")
+    subprocess.run(["git", "add", "file.txt", "test_smoke.py"], cwd=repo, check=True, capture_output=True)
     subprocess.run(["git", "commit", "-m", "initial"], cwd=repo, check=True, capture_output=True)
+    (repo / ".git" / "info" / "exclude").write_text(".builder/\n", encoding="utf-8")
     return repo
 
 
-def real_verification_receipt(tmp_path: Path) -> Path:
-    """A genuine, schema-valid verification_execution receipt built from a real plan and
-    approval — it passes ``validate_verification_execution_receipt_file`` with no mock."""
-    root = tmp_path / ".builder" / "verification"
+def real_verification_receipt(tmp_path: Path, target_repo: Path | None = None) -> Path:
+    """Obtain a runner-backed receipt for the actual target repository and HEAD."""
+    target_repo = target_repo or tmp_path
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=target_repo, check=True, capture_output=True, text=True).stdout.strip()
+    root = target_repo / ".builder" / "verification"
     root.mkdir(parents=True, exist_ok=True)
     plan = finalize_verification_execution_plan(
-        target_head_sha="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        target_head_sha=head,
         tree_clean=True,
-        target_profile="builder",
-        verification_profile="builder_full",
-        target_repo=str(tmp_path),
+        target_profile="generic",
+        verification_profile="generic_basic",
+        target_repo=str(target_repo),
         artifact_root=".builder/verification",
         generated_at="2026-06-30T00:00:00+00:00",
     )
@@ -72,62 +70,17 @@ def real_verification_receipt(tmp_path: Path) -> Path:
         plan=plan,
         plan_path=str(plan_path),
         approval_actor="Jane Operator",
-        approval_reason="Approve bounded platform_status verification runner proof.",
-        approved_command_profiles=["platform_status"],
-        approved_step_ids=["platform_status"],
+        approval_reason="Approve bounded target-code verification runner proof.",
+        approved_command_profiles=["pytest_full"],
+        approved_step_ids=["pytest_full"],
+        execution_risk_acknowledged=True,
+        acknowledged_risk="The approved pytest_full profile executes target repository code.",
         generated_at="2026-06-30T00:01:00+00:00",
     )
     approval_path = root / "verification-execution-approval.json"
     write_verification_execution_approval(approval, approval_path)
 
-    receipt = finalize_verification_execution_receipt(
-        plan=plan,
-        approval=approval,
-        plan_path=str(plan_path),
-        approval_path=str(approval_path),
-        runner_mode=RUNNER_MODE_BOUNDED_APPROVED,
-        generated_at="2026-06-30T00:02:00+00:00",
-        receipt_status="EXECUTED",
-        executed_steps=[{"step_id": "platform_status", "status": "success", "profile": "platform_status"}],
-        skipped_steps=[],
-        process_results=[
-            {
-                "step_id": "platform_status",
-                "profile": "platform_status",
-                "command_profile_ref": "verification_profiles.builder_full.platform_status",
-                "status": "success",
-                "returncode": 0,
-                "timeout_seconds": 30,
-                "shell": False,
-                "argv_digest": "0" * 64,
-                "stdout_sha256": "1" * 64,
-                "stderr_sha256": "2" * 64,
-                "stdout_excerpt": "builder-II platform status\n",
-                "stderr_excerpt": "",
-                "stdout_truncated": False,
-                "stderr_truncated": False,
-            }
-        ],
-        preflight_git_state={
-            "state_label": "preflight",
-            "captured": True,
-            "returncode": 0,
-            "porcelain_sha256": "3" * 64,
-            "porcelain_lines": [],
-            "stderr_sha256": "4" * 64,
-        },
-        postflight_git_state={
-            "state_label": "postflight",
-            "captured": True,
-            "returncode": 0,
-            "porcelain_sha256": "3" * 64,
-            "porcelain_lines": [],
-            "stderr_sha256": "4" * 64,
-        },
-        workspace_mutation_detected=False,
-        execution_enabled=True,
-        subprocess_mode=SUBPROCESS_MODE_SHELL_FALSE_BOUNDED,
-    )
     receipt_path = root / "verification-execution-receipt.json"
-    write_verification_execution_receipt(receipt, receipt_path)
+    run_approved_verification(plan_path=plan_path, approval_path=approval_path,
+        output=receipt_path, requested_profile="pytest_full")
     return receipt_path

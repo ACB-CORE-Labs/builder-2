@@ -33,7 +33,11 @@ def _init_clean_repo(path: Path) -> Path:
 
 def _write_proposal(tmp_path: Path, repo: Path, *, unified_diff: str, patch_digest: str) -> Path:
     prop_path = tmp_path / "prop.json"
-    proposal = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=unified_diff)
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+    proposal = create_hitl_patch_proposal(
+        generic_repo=repo, patch_digest=patch_digest, unified_diff=unified_diff,
+        target_head_sha=head, verification_receipt_file_sha256="0" * 64,
+    )
     write_hitl_patch_proposal(proposal, prop_path)
     return prop_path
 
@@ -41,6 +45,15 @@ def _write_proposal(tmp_path: Path, repo: Path, *, unified_diff: str, patch_dige
 def _write_passing_vr(tmp_path: Path) -> Path:
     vr_path = tmp_path / "vr.json"
     vr_path.write_text(json.dumps({"kind": "builder_ii.verification_execution_receipt", "receipt_status": "EXECUTED"}))
+    return vr_path
+
+
+def _bind_receipt(prop_path: Path, repo: Path, tmp_path: Path) -> Path:
+    vr_path = tmp_path / "vr.json"
+    write_executed_verification_receipt(vr_path, repo)
+    proposal = json.loads(prop_path.read_text())
+    proposal["verification_receipt_file_sha256"] = hashlib.sha256(vr_path.read_bytes()).hexdigest()
+    write_hitl_patch_proposal(proposal, prop_path)
     return vr_path
 
 
@@ -70,6 +83,7 @@ def test_apply_hitl_patch_succeeds_unmocked_with_schema_valid_receipt(tmp_path: 
     patch_digest = hashlib.sha256(unified_diff.encode("utf-8")).hexdigest()
     prop_path = _write_proposal(tmp_path, repo, unified_diff=unified_diff, patch_digest=patch_digest)
     proposal_data = json.loads(prop_path.read_text())
+    vr_path = _bind_receipt(prop_path, repo, tmp_path)
 
     approval_path = tmp_path / "approval.json"
     write_hitl_patch_approval(
@@ -78,6 +92,12 @@ def test_apply_hitl_patch_succeeds_unmocked_with_schema_valid_receipt(tmp_path: 
     )
     vr_path = tmp_path / "vr.json"
     write_executed_verification_receipt(vr_path, repo)
+    proposal_data["verification_receipt_file_sha256"] = hashlib.sha256(vr_path.read_bytes()).hexdigest()
+    write_hitl_patch_proposal(proposal_data, prop_path)
+    write_hitl_patch_approval(
+        create_hitl_patch_approval(proposal_data, confirmed_digest_prefix=patch_digest[:4]),
+        approval_path,
+    )
 
     out_dir = tmp_path / "out"
     apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)
@@ -97,7 +117,7 @@ def test_apply_hitl_patch_rejects_dirty_repo(mock_validate, tmp_path: Path):
     prop_path = _write_proposal(tmp_path, repo, unified_diff="patch", patch_digest="abc")
     approval_path = tmp_path / "approval.json"
     approval_path.write_text(json.dumps({"kind": "builder_ii.hitl_patch_approval", "patch_digest": "abc", "proposal_digest": "abc"}))
-    vr_path = _write_passing_vr(tmp_path)
+    vr_path = _bind_receipt(prop_path, repo, tmp_path)
 
     out_dir = tmp_path / "out"
     with pytest.raises(ValueError, match="Target repository working tree is not clean"):
@@ -115,7 +135,7 @@ def test_apply_rejects_forged_bare_digest_approval(mock_validate, tmp_path: Path
 
     approval_path = tmp_path / "approval.json"
     approval_path.write_text(json.dumps({"kind": "builder_ii.hitl_patch_approval", "patch_digest": "abc", "proposal_digest": "abc"}))  # forged: not a governed approval
-    vr_path = _write_passing_vr(tmp_path)
+    vr_path = _bind_receipt(prop_path, repo, tmp_path)
 
     with pytest.raises(ValueError, match="Invalid patch approval"):
         apply_hitl_patch(prop_path, approval_path, vr_path, tmp_path / "out")
@@ -125,14 +145,13 @@ def test_apply_rejects_forged_bare_digest_approval(mock_validate, tmp_path: Path
 def test_apply_rejects_approval_bound_to_other_proposal(mock_validate, tmp_path: Path):
     repo = _init_clean_repo(tmp_path / "repo")
     prop_path = _write_proposal(tmp_path, repo, unified_diff="patch", patch_digest="abc")
+    vr_path = _bind_receipt(prop_path, repo, tmp_path)
     proposal_data = json.loads(prop_path.read_text())
 
     approval = create_hitl_patch_approval(proposal_data, confirmed_digest_prefix="abc")
     approval["proposal_digest"] = "0" * 64  # simulate binding to a different proposal
     approval_path = tmp_path / "approval.json"
     write_hitl_patch_approval(approval, approval_path)
-    vr_path = _write_passing_vr(tmp_path)
-
     with pytest.raises(ValueError, match="not bound to this proposal"):
         apply_hitl_patch(prop_path, approval_path, vr_path, tmp_path / "out")
 
@@ -141,6 +160,7 @@ def test_apply_rejects_approval_bound_to_other_proposal(mock_validate, tmp_path:
 def test_apply_rejects_expired_approval(mock_validate, tmp_path: Path):
     repo = _init_clean_repo(tmp_path / "repo")
     prop_path = _write_proposal(tmp_path, repo, unified_diff="patch", patch_digest="abc")
+    vr_path = _bind_receipt(prop_path, repo, tmp_path)
     proposal_data = json.loads(prop_path.read_text())
 
     approval = create_hitl_patch_approval(
@@ -170,10 +190,13 @@ def test_apply_hitl_patch_happy_path_applies_diff(mock_validate, tmp_path: Path)
     prop_path = _write_proposal(tmp_path, repo, unified_diff=unified_diff, patch_digest=patch_digest)
     proposal_data = json.loads(prop_path.read_text())
 
+    vr_path = tmp_path / "vr.json"
+    write_executed_verification_receipt(vr_path, repo)
+    proposal_data["verification_receipt_file_sha256"] = hashlib.sha256(vr_path.read_bytes()).hexdigest()
+    write_hitl_patch_proposal(proposal_data, prop_path)
     approval = create_hitl_patch_approval(proposal_data, confirmed_digest_prefix=patch_digest[:4])
     approval_path = tmp_path / "approval.json"
     write_hitl_patch_approval(approval, approval_path)
-    vr_path = _write_passing_vr(tmp_path)
 
     out_dir = tmp_path / "out"
     apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)
@@ -217,15 +240,13 @@ def test_apply_binding_failure_leaves_a_failure_receipt(tmp_path: Path):
     lineage's stronger binding guard)."""
     repo = _init_clean_repo(tmp_path / "repo")
     prop_path = _write_proposal(tmp_path, repo, unified_diff="patch", patch_digest="abc")
+    vr_path = _bind_receipt(prop_path, repo, tmp_path)
     proposal_data = json.loads(prop_path.read_text())
 
     approval = create_hitl_patch_approval(proposal_data, confirmed_digest_prefix="abc")
     approval["proposal_digest"] = "0" * 64  # bound to a different proposal
     approval_path = tmp_path / "approval.json"
     write_hitl_patch_approval(approval, approval_path)
-    vr_path = tmp_path / "vr.json"
-    write_executed_verification_receipt(vr_path, repo)
-
     out_dir = tmp_path / "out"
     with pytest.raises(ValueError, match="not bound to this proposal"):
         apply_hitl_patch(prop_path, approval_path, vr_path, out_dir)

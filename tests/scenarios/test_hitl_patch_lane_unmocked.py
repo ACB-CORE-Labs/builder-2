@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -49,9 +50,12 @@ def test_unmocked_apply_rollback_emits_and_chain_verifies_ledger(tmp_path: Path)
     repo = init_target_repo(tmp_path)
     target_file = repo / "file.txt"
 
-    # Real proposal bound to a real diff digest.
+    # Real proposal bound to a real diff digest and the actual pre-apply receipt.
     patch_digest = hashlib.sha256(PATCH_DIFF.encode("utf-8")).hexdigest()
-    proposal = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=PATCH_DIFF)
+    vr_path = real_verification_receipt(tmp_path, repo)
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+    proposal = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=PATCH_DIFF,
+        target_head_sha=head, verification_receipt_file_sha256=hashlib.sha256(vr_path.read_bytes()).hexdigest())
     prop_path = tmp_path / "prop.json"
     write_hitl_patch_proposal(proposal, prop_path)
 
@@ -62,7 +66,6 @@ def test_unmocked_apply_rollback_emits_and_chain_verifies_ledger(tmp_path: Path)
     )
 
     # Real, unmocked verification receipt — proves the gate on a genuine artifact.
-    vr_path = real_verification_receipt(tmp_path)
     assert validate_verification_execution_receipt_file(vr_path) == []
 
     out_dir = tmp_path / "out"
@@ -141,14 +144,16 @@ def test_ledger_emission_failure_does_not_strand_a_successful_apply(tmp_path: Pa
     Instead the apply completes and a durable emission-error note is left beside the receipt."""
     repo = init_target_repo(tmp_path)
     patch_digest = hashlib.sha256(PATCH_DIFF.encode("utf-8")).hexdigest()
-    proposal = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=PATCH_DIFF)
+    vr_path = real_verification_receipt(tmp_path, repo)
+    head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+    proposal = create_hitl_patch_proposal(generic_repo=repo, patch_digest=patch_digest, unified_diff=PATCH_DIFF,
+        target_head_sha=head, verification_receipt_file_sha256=hashlib.sha256(vr_path.read_bytes()).hexdigest())
     prop_path = tmp_path / "prop.json"
     write_hitl_patch_proposal(proposal, prop_path)
     approval_path = tmp_path / "approval.json"
     write_hitl_patch_approval(
         create_hitl_patch_approval(proposal, confirmed_digest_prefix=patch_digest[:4]), approval_path
     )
-    vr_path = real_verification_receipt(tmp_path)
     out_dir = tmp_path / "out"
 
     with patch(
