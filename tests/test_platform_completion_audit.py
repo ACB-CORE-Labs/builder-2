@@ -98,3 +98,13 @@ def test_next_sequence_matches_incomplete_rows() -> None:
     from builder_ii.core.platform_completion_audit import NEXT_SEQUENCE
 
     assert NEXT_SEQUENCE == "B8 deferred; B9 complete"
+
+
+def test_live_truth_machinery_and_open_source_v1_sequencing_are_distinct() -> None:
+    from builder_ii.core.platform_completion_audit import SOURCE_REPORT
+
+    assert SOURCE_REPORT == "docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md"
+    assert Path(SOURCE_REPORT).exists()
+    assert Path("docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md").exists()
+    assert Path("docs/audits/OPEN_SOURCE_V1_PLAN_SETS_0_2_RECONCILIATION.md").exists()
+    assert Path("docs/audits/OPEN_SOURCE_V1_PLAN_SET_1_EVIDENCE.md").exists()

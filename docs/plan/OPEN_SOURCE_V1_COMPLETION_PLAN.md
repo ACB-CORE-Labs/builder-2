@@ -428,8 +428,9 @@ Governance distinction strengthened: release and promotion claims bind to the ex
 candidate source and executable evidence, not a passing development snapshot.
 
 1. Keep Apple Silicon as the primary performance target. Add reproducible Linux
-   install, unit, integration, and CLI smoke coverage. State that Windows is
-   unsupported for v1.
+   install, unit, integration, and CLI smoke coverage. State that the supported
+   v1 environments are macOS Apple Silicon and Linux; Windows and WSL2 are
+   unsupported for v1 and are not release-parity targets.
 2. Run `bash scripts/ci.sh` on the exact release commit. GitHub is used only for
    source hosting and PR mutation; no hosted workflow or status-check evidence is
    required.

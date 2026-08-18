@@ -1,7 +1,7 @@
 # Open-source v1 Plan Sets 0–2 reconciliation
 
 Status: bounded reconciliation record only. This document is not approval,
-runtime authority, capability promotion, or authorization for Plan Set 3.
+runtime authority, capability promotion, or authorization to implement Plan Set 3.
 
 ## Binding
 
@@ -41,11 +41,16 @@ tested governed scenario; it does not claim model quality or mutation authority.
 
 ### PLAN_SET_3_ENTRY
 
-`NOT ADMITTED.` The Plan Set 3 entry gate is not met: Goose operator-runtime
-implementation and its full governed launch/discovery/invocation/transcript/
-interrupt/close evidence are not present. No Plan Set 3 implementation,
-Goose/MCP/STRATUM runtime expansion, dependency-version change, or matrix
-promotion is included in this reconciliation.
+`ADMITTED.` Plan Sets 0–2 remain fully closed after this reconciliation, so the
+Plan Set 3 entry gate is admitted for a separately scoped implementation effort.
+This is an entry disposition only: Plan Set 3 itself is not implemented, and
+its exit gate remains unmet. No Plan Set 3 implementation, Goose/MCP/STRATUM
+runtime expansion, dependency-version change, or matrix promotion is included
+in this reconciliation.
+
+The completion matrix remains the capability-truth source. The canonical
+open-source-v1 plan and its per-plan-set evidence records are the implementation
+sequencing source; they do not replace or promote matrix rows.
 
 ## Qualification evidence
 
@@ -64,6 +69,10 @@ uv run pytest -q \
 
 Result: `71 passed`.
 
+The Plan Set 1 closure is additionally bound by
+`docs/audits/OPEN_SOURCE_V1_PLAN_SET_1_EVIDENCE.md`; the historical Plan Set 2
+record remains immutable and is referenced by its sealed historical digest.
+
 The repository dependency environment was provisioned with
 `uv sync --all-groups` and `uv sync --extra deepagents`; no dependency file was
 changed.
@@ -71,6 +80,8 @@ changed.
 ## Non-claims
 
 - No Plan Set 3–7 implementation or authority.
+- Plan Set 3 entry is admitted, but Plan Set 3 implementation and its exit gate
+  remain outstanding.
 - No capability promotion from this record or from documentation alone.
 - No Goose runtime activation, MCP execution, model execution, source
   mutation authority, or Git delivery automation.

@@ -173,6 +173,7 @@ knowing about alongside the quickstart's golden path, since it isn't otherwise l
 ### Open-source v1 reconciliation
 
 | [`docs/audits/OPEN_SOURCE_V1_PLAN_SETS_0_2_RECONCILIATION.md`](audits/OPEN_SOURCE_V1_PLAN_SETS_0_2_RECONCILIATION.md) | Current bounded reconciliation and Plan Set 3 entry determination |
+| [`docs/audits/OPEN_SOURCE_V1_PLAN_SET_1_EVIDENCE.md`](audits/OPEN_SOURCE_V1_PLAN_SET_1_EVIDENCE.md) | Plan Set 1 lifecycle implementation and exit-gate evidence |
 
 ### CodeVault (Commercial Extension)
 
