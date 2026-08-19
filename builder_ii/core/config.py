@@ -94,7 +94,6 @@ EXTENDED_ROSTER: tuple[tuple[str, str, str, str, str], ...] = (
 )
 
 
-
 @dataclass(frozen=True)
 class Settings:
     target_repo: Path
@@ -222,9 +221,11 @@ def _env(primary: str, legacy: str | tuple[str, ...], default: str) -> str:
     return default
 
 
-def load_settings(project_root: Path | None = None) -> Settings:
+def load_settings(project_root: Path | None = None, *, load_env_file: bool = True) -> Settings:
+    """Load settings, optionally suppressing fresh dotenv ingestion for isolated service lanes."""
     root = (project_root or Path.cwd()).resolve()
-    load_dotenv(root / ".env", override=False)
+    if load_env_file:
+        load_dotenv(root / ".env", override=False)
 
     backend = _env("BUILDER_MODEL_BACKEND", "CORE_AGENT_BACKEND", "ollama").strip().lower()
     if backend not in BACKENDS:
