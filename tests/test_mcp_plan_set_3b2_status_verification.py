@@ -163,6 +163,11 @@ def test_verification_plan_is_target_bound_passive_and_persisted(
     assert plan["artifact_is_authority"] is False
     assert plan["disabled_authority"]["subprocess_execution"] == "disabled"
     assert plan["disabled_authority"]["mcp_tool_invocation"] == "disabled"
+    assert plan["plan_scope"]["scope_id"] == "plan_set_3b2_mcp_passive_verification_plan"
+    assert "caller-supplied target_head_sha and tree_clean metadata" in plan["plan_scope"]["includes"]
+    assert "independent Git-state observation" in plan["plan_scope"]["excludes"]
+    assert "verification approval minting" in plan["plan_scope"]["excludes"]
+    assert "verification execution" in plan["plan_scope"]["excludes"]
 
     plan_path = Path(plan["artifact_root"]) / "verification-execution-plan.json"
     assert plan_path.is_file()
@@ -173,6 +178,7 @@ def test_verification_plan_is_target_bound_passive_and_persisted(
     receipt = _last_receipt(builder_root)
     assert receipt["service"] == "verification_plan"
     assert receipt["status"] == "succeeded"
+    assert receipt["arguments"] == args
     assert validate_mcp_service_receipt(receipt) == []
     assert validate_event_chain_integrity(_events_dir(builder_root))["valid"]
 
@@ -240,6 +246,32 @@ def test_verification_plan_service_does_not_invoke_subprocess_or_network(tmp_pat
         result = _call(server, "verification_plan", args)
 
     assert result["isError"] is False, result
+
+
+def test_corrupt_mcp_ledger_refuses_plan_before_plan_artifact_write(tmp_path: Path) -> None:
+    server, _, builder_root = _server(tmp_path)
+    assert _call(server, "repo_map")["isError"] is False
+    events_dir = _events_dir(builder_root)
+    wal = events_dir / "events.wal"
+    if wal.exists():
+        wal.unlink()
+    event_path = sorted(events_dir.glob("*.json"))[0]
+    event = json.loads(event_path.read_text(encoding="utf-8"))
+    event["sequence"] = 9
+    event_path.write_text(json.dumps(event, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    result = _call(
+        server,
+        "verification_plan",
+        {"verification_profile": "generic_basic", "target_head_sha": "e" * 40, "tree_clean": True},
+        req_id=2,
+    )
+
+    assert result["isError"] is True
+    assert result["_meta"]["status"] == "failed"
+    assert result["_meta"]["typed_error"] == "CorruptLedgerError"
+    assert result["_meta"]["evidence_appended"] is False
+    assert not list(_mcp_dir(builder_root).glob("verification-plan/*/verification-execution-plan.json"))
 
 
 def test_delegation_status_reads_exact_governed_run_and_matches_direct_service(tmp_path: Path) -> None:
