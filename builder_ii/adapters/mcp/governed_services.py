@@ -36,8 +36,9 @@ MAX_MAP_FILES = 500
 MAX_MAP_FILE_BYTES = 1_000_000
 MAX_SEARCH_RESULTS = 100
 MAX_READ_BYTES = 256 * 1024
-MAX_READ_FILES = 1
 MAX_TASK_BYTES = 4096
+MAX_SERVICE_INPUT_BYTES = 8 * 1024
+MAX_SERVICE_OUTPUT_BYTES = 4 * 1024 * 1024
 SERVICE_TOOLS = {"repo_map", "repo_search", "content_read", "prepare_package", "validate_prepare_package"}
 TARGET_PROFILES = {"generic", "builder", "core"}
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -59,6 +60,19 @@ class CorruptLedgerError(RuntimeError):
 def _json(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _canonical_size(value: Any) -> int:
+    raw = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return len(raw)
+
+
+def _service_policy() -> dict[str, Any]:
+    """Reuse the canonical deny-by-default policy with truthful 3B1 byte ceilings."""
+    policy = build_read_only_policy()
+    policy["max_input_bytes"] = MAX_SERVICE_INPUT_BYTES
+    policy["max_output_bytes"] = MAX_SERVICE_OUTPUT_BYTES
+    return policy
 
 
 def _within(path: Path, root: Path) -> bool:
@@ -214,12 +228,17 @@ def _service_receipt(
         current_stage = str(replay.get("current_stage") or "initialized")
     sequence = len(existing) + 1
 
-    mcp_dir.mkdir(parents=True, exist_ok=True)
-    events_dir.mkdir(parents=True, exist_ok=True)
-    policy = build_read_only_policy()
+    policy = _service_policy()
     policy_errors = validate_mcp_policy(policy)
     if policy_errors:
         raise RuntimeError("generated MCP policy is invalid: " + "; ".join(policy_errors))
+    if _canonical_size(arguments) > int(policy["max_input_bytes"]):
+        raise ValueError("service arguments exceed the persisted MCP policy input bound")
+    if _canonical_size(result) > int(policy["max_output_bytes"]):
+        raise ValueError("service result exceeds the persisted MCP policy output bound")
+
+    mcp_dir.mkdir(parents=True, exist_ok=True)
+    events_dir.mkdir(parents=True, exist_ok=True)
     policy_path = (mcp_dir / f"{sequence:03d}_mcp_policy.json").resolve()
     _json(policy_path, policy)
     policy_ref = {
@@ -326,6 +345,8 @@ def run_service(
     _validate_identity(session_id=session_id, target_name=target_name, tool_name=tool_name)
     if not isinstance(arguments, dict):
         raise ServiceDenied("arguments must be an object")
+    if _canonical_size(arguments) > MAX_SERVICE_INPUT_BYTES:
+        raise ServiceDenied("service arguments exceed the 8192-byte input limit")
     target_root = target_root.resolve()
     if not target_root.is_dir():
         raise ServiceDenied("target root must be an existing directory")
@@ -415,6 +436,8 @@ def run_service(
     else:  # pragma: no cover - identity validation makes this unreachable
         raise ServiceDenied("service is not admitted")
 
+    if _canonical_size(result) > MAX_SERVICE_OUTPUT_BYTES:
+        raise RuntimeError("service result exceeds the 4194304-byte output limit")
     status = (
         "succeeded"
         if not (isinstance(result, dict) and result.get("kind") == "builder_ii.denied_read")
