@@ -22,6 +22,7 @@ from typing import Any, TextIO
 from builder_ii.adapters.mcp.governed_apply import run_gated_patch_apply
 from builder_ii.adapters.mcp.governed_call import GATED_TOOL_SPECS, TOOL_SPECS, refuse_gated_tool_call
 from builder_ii.adapters.mcp.governed_services import (
+    MAX_SERVICE_INPUT_BYTES,
     CorruptLedgerError,
     SERVICE_TOOLS,
     TARGET_PROFILES,
@@ -29,6 +30,7 @@ from builder_ii.adapters.mcp.governed_services import (
     _service_receipt,
     run_service,
 )
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 _PROTOCOL_VERSION = "2024-11-05"
 _SERVER_NAME = "builder-ii-governed-mcp"
@@ -38,6 +40,20 @@ _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 _METHOD_NOT_FOUND = -32601
 _INVALID_REQUEST = -32600
 _PARSE_ERROR = -32700
+
+
+def _bounded_evidence_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Capture admissible arguments, or only digest/size provenance for oversized input."""
+    raw = json.dumps(arguments, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    if len(raw) <= MAX_SERVICE_INPUT_BYTES:
+        return arguments
+    return {
+        "rejected_input": {
+            "canonical_sha256": canonical_digest(arguments),
+            "canonical_bytes": len(raw),
+            "content_captured": False,
+        }
+    }
 
 
 class GovernedMcpServer:
@@ -114,13 +130,14 @@ class GovernedMcpServer:
             "error_type": type(exc).__name__,
             "reason": str(exc),
         }
+        evidence_arguments = _bounded_evidence_arguments(arguments)
         try:
             _, receipt_path, event_path = _service_receipt(
                 builder_root=self.builder_root,
                 session_id=self.session_id,
                 target_name=self.target_name,
                 tool_name=name,
-                arguments=arguments,
+                arguments=evidence_arguments,
                 result=evidence_result,
                 status=status,
             )
