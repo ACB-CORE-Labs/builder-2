@@ -17,6 +17,7 @@ from rich.table import Table
 from typer.core import TyperGroup
 
 from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.governance.authority import enforce_command_authority
 
 
 class LazyGroup(TyperGroup):
@@ -458,6 +459,11 @@ def start(
         raise ValueError("--resume is deferred for the canonical governed launch; start a new admitted session explicitly.")
     if wrapper_plan or from_last:
         raise ValueError("--wrapper-plan/--from-last are deferred for the canonical governed launch; use the approved governed recipe.")
+
+    enforce_command_authority(
+        "builder start",
+        requested_effects=("runtime_start", "state_write", "external_tool"),
+    )
 
     session = plan_session(mode, task_hint or "")
     selected_alias = normalize_model_alias(model_alias or session.model_alias, tier_fallback=session.model_tier)
