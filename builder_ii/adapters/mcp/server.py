@@ -2,9 +2,9 @@
 
 Speaks newline-delimited JSON-RPC 2.0 on stdin/stdout and handles the minimal MCP method set
 Goose needs from a tool extension: ``initialize``, ``tools/list``, ``tools/call``. Every
-``tools/call`` runs the governed ceremony in :mod:`builder_ii.adapters.mcp.governed_call`,
-which is deny-by-default, read-only, and ledgered. The server itself holds no authority and
-adds no tool capability; it is the interposition surface, not a new power.
+admitted service call is routed to Builder-II's governed service layer. The server itself
+holds no authority and adds no tool capability; it is the interposition surface, not a new
+power.
 
 Framing is deliberately the simplest interoperable shape (one JSON object per line). The
 exact framing Goose expects for a custom stdio extension is pinned against a real launch in
@@ -20,12 +20,7 @@ from pathlib import Path
 from typing import Any, TextIO
 
 from builder_ii.adapters.mcp.governed_apply import run_gated_patch_apply
-from builder_ii.adapters.mcp.governed_call import (
-    GATED_TOOL_SPECS,
-    TOOL_SPECS,
-    refuse_gated_tool_call,
-    run_governed_tool_call,
-)
+from builder_ii.adapters.mcp.governed_call import GATED_TOOL_SPECS, TOOL_SPECS, refuse_gated_tool_call
 from builder_ii.adapters.mcp.governed_services import (
     CorruptLedgerError,
     SERVICE_TOOLS,
@@ -168,14 +163,17 @@ class GovernedMcpServer:
 
     def _tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         name = params.get("name")
-        arguments = params.get("arguments") or {}
+        raw_arguments = params.get("arguments")
+        # Preserve historical gated-tool behavior for omitted/null arguments only. The 3B1
+        # service lane validates its raw argument type below and never coerces malformed input.
+        gated_arguments = raw_arguments if isinstance(raw_arguments, dict) else {}
 
         # G4: the write path routes to the governed apply lane behind a validated approval and
         # the deny-by-default enablement flag. run_shell has no governed bounded lane to
         # delegate to, so it stays refused (G3).
         if name == "propose_patch":
             outcome = run_gated_patch_apply(
-                arguments=dict(arguments),
+                arguments=dict(gated_arguments),
                 session_id=self.session_id,
                 builder_root=self.builder_root,
             )
@@ -194,7 +192,7 @@ class GovernedMcpServer:
         if name in GATED_TOOL_SPECS:
             refusal = refuse_gated_tool_call(
                 tool_name=str(name),
-                arguments=dict(arguments),
+                arguments=dict(gated_arguments),
                 session_id=self.session_id,
                 builder_root=self.builder_root,
             )
@@ -218,7 +216,8 @@ class GovernedMcpServer:
                 "_meta": {"governed": True, "status": "denied", "inventory_admitted": False},
             }
 
-        if not isinstance(arguments, dict):
+        service_arguments: Any = {} if raw_arguments is None else raw_arguments
+        if not isinstance(service_arguments, dict):
             return self._service_error_response(
                 name=str(name),
                 arguments={},
@@ -229,7 +228,7 @@ class GovernedMcpServer:
         try:
             result, receipt_path, event_path = run_service(
                 tool_name=str(name),
-                arguments=dict(arguments),
+                arguments=dict(service_arguments),
                 session_id=self.session_id,
                 builder_root=self.builder_root,
                 target_root=self.target_root,
@@ -250,7 +249,7 @@ class GovernedMcpServer:
         except ServiceDenied as exc:
             return self._service_error_response(
                 name=str(name),
-                arguments=dict(arguments),
+                arguments=dict(service_arguments),
                 exc=exc,
                 status="denied",
             )
@@ -269,29 +268,10 @@ class GovernedMcpServer:
         except (KeyError, TypeError, ValueError, OSError, RuntimeError) as exc:
             return self._service_error_response(
                 name=str(name),
-                arguments=dict(arguments),
+                arguments=dict(service_arguments),
                 exc=exc,
                 status="failed",
             )
-
-        # Kept for the pre-existing low-risk stub implementation, but unreachable through
-        # the 3B1 inventory. This preserves the implementation without making it callable.
-        outcome = run_governed_tool_call(
-            tool_name=str(name),
-            arguments=dict(arguments),
-            session_id=self.session_id,
-            builder_root=self.builder_root,
-        )
-        return {
-            "content": [{"type": "text", "text": outcome.output_text}],
-            "isError": outcome.status != "succeeded",
-            "_meta": {
-                "governed": True,
-                "status": outcome.status,
-                "receipt_path": str(outcome.receipt_path),
-                "event_path": str(outcome.event_path),
-            },
-        }
 
     @staticmethod
     def _result(req_id: Any, result: dict[str, Any]) -> dict[str, Any]:
