@@ -151,6 +151,19 @@ def _validate_identity(*, session_id: str, target_name: str, tool_name: str) -> 
         raise ServiceDenied("service is not admitted by the governed MCP inventory")
 
 
+def _assert_mcp_ledger_extendable(*, builder_root: Path, session_id: str) -> tuple[list[tuple[dict[str, Any], Path]], str]:
+    """Replay the current MCP session before any new service artifact write."""
+    events_dir = builder_root.resolve() / "sessions" / session_id / "events"
+    existing = load_event_records(events_dir)
+    if not existing:
+        return existing, "initialized"
+    replay = replay_events(existing, session_id=session_id)
+    if not replay.get("valid"):
+        detail = "; ".join(str(error) for error in replay.get("errors", [])) or "unknown replay error"
+        raise CorruptLedgerError(f"existing MCP session ledger is invalid: {detail}")
+    return existing, str(replay.get("current_stage") or "initialized")
+
+
 def _validate_policy_ref(policy_ref: Any) -> list[str]:
     if not isinstance(policy_ref, dict):
         return ["policy_ref must be an object"]
@@ -272,15 +285,7 @@ def _service_receipt(
     session_dir = builder_root / "sessions" / session_id
     mcp_dir = session_dir / "mcp"
     events_dir = session_dir / "events"
-
-    existing = load_event_records(events_dir)
-    current_stage = "initialized"
-    if existing:
-        replay = replay_events(existing, session_id=session_id)
-        if not replay.get("valid"):
-            detail = "; ".join(str(error) for error in replay.get("errors", [])) or "unknown replay error"
-            raise CorruptLedgerError(f"existing MCP session ledger is invalid: {detail}")
-        current_stage = str(replay.get("current_stage") or "initialized")
+    existing, current_stage = _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
     sequence = len(existing) + 1
 
     policy = _service_policy()
@@ -416,6 +421,9 @@ def _verification_plan(
     if not isinstance(tree_clean, bool):
         raise ServiceDenied("tree_clean must be an explicit boolean")
 
+    # A passive plan still writes an artifact. Refuse before that write when the current MCP
+    # session evidence cannot replay; never leave a plan artifact that has no valid service receipt.
+    _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
     output_dir = (
         builder_root.resolve()
         / "sessions"
@@ -424,6 +432,29 @@ def _verification_plan(
         / "verification-plan"
         / uuid.uuid4().hex
     )
+    plan_scope = {
+        "scope_id": "plan_set_3b2_mcp_passive_verification_plan",
+        "description": (
+            "Passive verification planning over explicit caller-supplied Git-state metadata. "
+            "The MCP service does not query Git, approve the plan, or execute verification."
+        ),
+        "includes": [
+            "structured command profile references",
+            "planned verification lane descriptions",
+            "caller-supplied target_head_sha and tree_clean metadata",
+            "disabled authority declarations",
+        ],
+        "excludes": [
+            "independent Git-state observation",
+            "Git or subprocess execution",
+            "verification approval minting",
+            "verification execution",
+            "source writes",
+            "patch authority",
+            "model or tool execution",
+            "Goose or Deep Agents runtime startup",
+        ],
+    }
     plan = finalize_verification_execution_plan(
         target_profile=target_name,
         verification_profile=verification_profile.strip(),
@@ -431,6 +462,7 @@ def _verification_plan(
         target_head_sha=head_sha.lower(),
         tree_clean=tree_clean,
         artifact_root=str(output_dir),
+        plan_scope=plan_scope,
         requested_by_command="builder-mcp verification_plan",
     )
     errors = validate_verification_execution_plan_artifact(plan)
