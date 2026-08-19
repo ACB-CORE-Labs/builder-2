@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import subprocess
 import time
+import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,6 +22,7 @@ from builder_ii.routing.model_router import SessionPlan
 
 _DIGEST_CHUNK_SIZE = 1024 * 1024
 _executor = ThreadPoolExecutor(max_workers=4)
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
 def _current_time_utc() -> str:
@@ -66,6 +68,21 @@ class GooseRuntimeHarness:
         self._proc: subprocess.Popen[str] | None = None
         self._async_proc: asyncio.subprocess.Process | None = None
         self._preflight_snapshot: dict[str, str] = {}
+        self._governed_admission: tuple[Any, str] | None = None
+
+    def admit_governed(self) -> tuple[Any, str]:
+        """Perform governed admission before any backend or Goose spawn."""
+        if not self.session_id or not _SESSION_ID_RE.fullmatch(self.session_id):
+            raise ValueError("Invalid Goose session identity; use 1-128 path-safe letters, digits, '.', '_' or '-'.")
+        if not self.target_root.is_dir():
+            raise ValueError(f"Invalid Goose target identity; target directory does not exist: {self.target_root}")
+        goose = find_goose_binary()
+        if not goose:
+            raise FileNotFoundError("Goose CLI not found. Install a tested Goose release manually; no automatic update is performed.")
+        recipe_digest = validate_governed_recipe(self._governed_recipe_path())
+        compatibility = probe_goose(goose, self.target_root / ".builder" / "goose-compatibility")
+        self._governed_admission = (compatibility, recipe_digest)
+        return self._governed_admission
 
     def launch_readonly(self) -> dict[str, Any]:
         """Launch Goose in a strict read-only mode, without shell access."""
@@ -129,13 +146,11 @@ class GooseRuntimeHarness:
         classes arrives in G3; G2's exposed tools are read-only, so ``GOOSE_MODE`` stays
         ``auto`` and the governance boundary lives in the MCP tool, not in Goose's prompt.
         """
-        goose = find_goose_binary()
-        if not goose:
-            raise FileNotFoundError("Goose CLI not found. Install a tested Goose release manually; no automatic update is performed.")
-
         recipe = self._governed_recipe_path()
-        compatibility = probe_goose(goose, self.target_root / ".builder" / "goose-compatibility")
-        recipe_digest = validate_governed_recipe(recipe)
+        if self._governed_admission is None:
+            self.admit_governed()
+        compatibility, recipe_digest = self._governed_admission
+        goose = compatibility.binary
         env = goose_env(self.settings, session=self.session_plan)
         env["GOOSE_MODE"] = "auto"
         # Scope the MCP server's ledger to this run so its events land under this session.

@@ -14,6 +14,8 @@ def test_parse_goose_version_requires_semver() -> None:
     assert parse_goose_version("goose 1.46.0") == (1, 46, 0)
     with pytest.raises(ValueError, match="Could not parse"):
         parse_goose_version("goose development build")
+    with pytest.raises(ValueError, match="Could not parse"):
+        parse_goose_version("goose version 1.46.0-dev")
 
 
 def test_probe_accepts_tested_range_with_isolated_state(tmp_path: Path) -> None:
@@ -32,6 +34,17 @@ def test_probe_rejects_unsupported_version(tmp_path: Path) -> None:
             probe_goose("/mock/goose", tmp_path / "goose-state")
 
 
+def test_probe_times_out_closed(tmp_path: Path) -> None:
+    import subprocess
+
+    with patch(
+        "builder_ii.adapters.goose.goose_compatibility.subprocess.run",
+        side_effect=subprocess.TimeoutExpired(["goose", "--version"], 10),
+    ):
+        with pytest.raises(RuntimeError, match="timed out"):
+            probe_goose("/mock/goose", tmp_path / "goose-state")
+
+
 def test_recipe_admission_rejects_extra_extension(tmp_path: Path) -> None:
     recipe = tmp_path / "governed-readonly.yaml"
     recipe.write_text(
@@ -41,6 +54,17 @@ def test_recipe_admission_rejects_extra_extension(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     with pytest.raises(ValueError, match="exactly one extension"):
+        validate_governed_recipe(recipe)
+
+
+def test_recipe_admission_rejects_unreviewed_extension_key(tmp_path: Path) -> None:
+    recipe = tmp_path / "governed-readonly.yaml"
+    recipe.write_text(
+        "extensions:\n"
+        "  - {type: stdio, name: builder_ii_governed, cmd: builder-mcp, args: [serve], env: {X: y}}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="unreviewed keys"):
         validate_governed_recipe(recipe)
 
 

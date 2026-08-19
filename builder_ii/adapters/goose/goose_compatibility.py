@@ -12,7 +12,9 @@ import yaml
 
 GOOSE_MIN_VERSION = (1, 45, 0)
 GOOSE_MAX_VERSION = (1, 46, 99)
-_VERSION_RE = re.compile(r"\b(\d+)\.(\d+)\.(\d+)\b")
+_VERSION_RE = re.compile(r"^\s*(?:(?:goose\s+)?version\s+|goose\s+)?v?(\d+)\.(\d+)\.(\d+)\s*$", re.IGNORECASE)
+_PROBE_TIMEOUT_SECONDS = 10.0
+_REVIEWED_EXTENSION_KEYS = frozenset({"type", "name", "cmd", "args"})
 
 
 @dataclass(frozen=True)
@@ -23,7 +25,7 @@ class GooseCompatibility:
 
 
 def parse_goose_version(output: str) -> tuple[int, int, int]:
-    match = _VERSION_RE.search(output)
+    match = _VERSION_RE.fullmatch(output.strip())
     if not match:
         raise ValueError(f"Could not parse a semantic Goose version from: {output.strip()!r}")
     return tuple(int(part) for part in match.groups())  # type: ignore[return-value]
@@ -40,7 +42,10 @@ def probe_goose(binary: str | None = None, state_root: Path | None = None) -> Go
     import os
     probe_env = os.environ.copy()
     probe_env.update(env)
-    result = subprocess.run([resolved, "--version"], capture_output=True, text=True, env=probe_env, check=False)
+    try:
+        result = subprocess.run([resolved, "--version"], capture_output=True, text=True, env=probe_env, check=False, timeout=_PROBE_TIMEOUT_SECONDS)
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"Goose version probe timed out after {_PROBE_TIMEOUT_SECONDS:g}s for {resolved}.") from exc
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()
         raise RuntimeError(f"Goose version probe failed for {resolved}: {detail}")
@@ -69,7 +74,13 @@ def validate_governed_recipe(recipe: Path) -> str:
     expected = [{"type": "stdio", "name": "builder_ii_governed", "cmd": "builder-mcp", "args": ["serve"]}]
     if not isinstance(extensions, list) or len(extensions) != 1:
         raise ValueError("Governed recipe must expose exactly one extension: builder-mcp serve")
-    actual = {key: extensions[0].get(key) for key in expected[0]}
+    extension = extensions[0]
+    if not isinstance(extension, dict):
+        raise ValueError("Governed recipe extension must be a mapping")
+    unexpected = set(extension) - _REVIEWED_EXTENSION_KEYS
+    if unexpected:
+        raise ValueError(f"Governed recipe extension has unreviewed keys: {sorted(unexpected)!r}")
+    actual = {key: extension.get(key) for key in expected[0]}
     if actual != expected[0]:
         raise ValueError(f"Governed recipe tool inventory drift: {actual!r}")
     if shutil.which("builder-mcp") is None:
