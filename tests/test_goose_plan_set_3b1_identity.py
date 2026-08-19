@@ -153,6 +153,6 @@ def test_primary_builder_start_propagates_resolved_profile_to_real_governed_laun
     assert kwargs["env"]["BUILDER_MCP_TARGET_PROFILE"] == "core"
     assert kwargs["env"]["BUILDER_MCP_PROJECT_ROOT"] == str(project_root.resolve())
     persisted = json.loads(
-        (project_root / ".builder" / "receipts" / "primary-identity_launch.json").read_text(encoding="utf-8")
+        (target_root / ".builder" / "receipts" / "primary-identity_launch.json").read_text(encoding="utf-8")
     )
     assert persisted["target_profile"] == "core"
