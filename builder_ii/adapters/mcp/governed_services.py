@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from builder_ii.adapters.mcp.governed_call import TOOL_SPECS, build_read_only_policy
+from builder_ii.adapters.mcp.governed_call import build_read_only_policy
 from builder_ii.core.config import load_settings
 from builder_ii.core.governed_prepare_package import (
     create_governed_prepare_package,
@@ -62,36 +62,6 @@ _EVENT_TYPE_BY_STATUS = {
     "denied": "mcp_call_denied",
     "failed": "mcp_call_failed",
 }
-
-# The MCP server imports TOOL_SPECS before this module. Mutating the shared inventory object here
-# keeps service discovery and service admission synchronized without introducing a second registry.
-# These entries are discovery metadata only; runtime validation below remains authoritative.
-TOOL_SPECS.update(
-    {
-        "delegation_status": {
-            "tool_id": "service.delegation_status",
-            "description": "Read a deterministic, tamper-sensitive obligation/run status board from the server-controlled Builder-II artifact root.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {"run_output_dir": {"type": "string", "minLength": 1}},
-                "required": ["run_output_dir"],
-            },
-        },
-        "verification_plan": {
-            "tool_id": "service.verification_plan",
-            "description": "Create a passive verification execution plan artifact only; never approves or executes verification.",
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "verification_profile": {"type": "string", "minLength": 1},
-                    "target_head_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{40}$"},
-                    "tree_clean": {"type": "boolean"},
-                },
-                "required": ["verification_profile", "target_head_sha", "tree_clean"],
-            },
-        },
-    }
-)
 
 
 class ServiceDenied(ValueError):
@@ -151,7 +121,9 @@ def _validate_identity(*, session_id: str, target_name: str, tool_name: str) -> 
         raise ServiceDenied("service is not admitted by the governed MCP inventory")
 
 
-def _assert_mcp_ledger_extendable(*, builder_root: Path, session_id: str) -> tuple[list[tuple[dict[str, Any], Path]], str]:
+def _assert_mcp_ledger_extendable(
+    *, builder_root: Path, session_id: str
+) -> tuple[list[tuple[dict[str, Any], Path]], str]:
     """Replay the current MCP session before any new service artifact write."""
     events_dir = builder_root.resolve() / "sessions" / session_id / "events"
     existing = load_event_records(events_dir)
@@ -392,9 +364,7 @@ def _bounded_int(arguments: dict[str, Any], key: str, default: int, maximum: int
 
 
 def _delegation_status(arguments: dict[str, Any], *, builder_root: Path) -> dict[str, Any]:
-    run_output_dir = _controlled_path(
-        arguments.get("run_output_dir"), root=builder_root, field="run_output_dir"
-    )
+    run_output_dir = _controlled_path(arguments.get("run_output_dir"), root=builder_root, field="run_output_dir")
     if not run_output_dir.is_dir():
         raise ServiceDenied("run_output_dir must name an existing run directory")
     try:
@@ -424,14 +394,7 @@ def _verification_plan(
     # A passive plan still writes an artifact. Refuse before that write when the current MCP
     # session evidence cannot replay; never leave a plan artifact that has no valid service receipt.
     _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
-    output_dir = (
-        builder_root.resolve()
-        / "sessions"
-        / session_id
-        / "mcp"
-        / "verification-plan"
-        / uuid.uuid4().hex
-    )
+    output_dir = builder_root.resolve() / "sessions" / session_id / "mcp" / "verification-plan" / uuid.uuid4().hex
     plan_scope = {
         "scope_id": "plan_set_3b2_mcp_passive_verification_plan",
         "description": (
