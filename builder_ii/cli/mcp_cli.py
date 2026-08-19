@@ -311,4 +311,5 @@ def serve(
     )
     from builder_ii.adapters.mcp.server import GovernedMcpServer
 
-    GovernedMcpServer(session_id=resolved_session, builder_root=builder_root).serve_stdio()
+    target_name = os.environ.get("BUILDER_MCP_TARGET_PROFILE", "generic")
+    GovernedMcpServer(session_id=resolved_session, builder_root=builder_root, target_root=Path.cwd(), target_name=target_name).serve_stdio()
