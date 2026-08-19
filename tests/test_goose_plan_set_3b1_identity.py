@@ -39,6 +39,10 @@ def _session() -> SessionPlan:
 
 
 def _patch_goose_boundary(monkeypatch: pytest.MonkeyPatch, process: MagicMock) -> MagicMock:
+    # Environment overrides outrank project config. Remove operator-machine target-profile
+    # state so these tests exercise the intended project-config and drift paths deterministically.
+    monkeypatch.delenv("BUILDER_TARGET_PROFILE", raising=False)
+    monkeypatch.delenv("CORE_TARGET_PROFILE", raising=False)
     monkeypatch.setattr(
         "builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary",
         lambda: "/mock/goose",
