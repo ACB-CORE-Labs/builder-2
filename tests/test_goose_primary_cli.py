@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from types import SimpleNamespace
+
 from typer.testing import CliRunner
 
 import builder_ii.cli.main as main_cli

@@ -15,8 +15,8 @@ import pytest
 import yaml
 
 from builder_ii.adapters.goose.goose_compatibility import validate_governed_recipe
-from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
 from builder_ii.adapters.goose.goose_receipts import validate_goose_launch_receipt
+from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
 from builder_ii.core.config import Settings
 
 _RECIPE_PATH = Path(__file__).resolve().parents[1] / "recipes" / "governed-readonly.yaml"
