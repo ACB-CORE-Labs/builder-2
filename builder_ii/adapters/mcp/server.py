@@ -25,6 +25,7 @@ from builder_ii.adapters.mcp.governed_call import (
     refuse_gated_tool_call,
     run_governed_tool_call,
 )
+from builder_ii.adapters.mcp.governed_services import run_service
 
 _PROTOCOL_VERSION = "2024-11-05"
 _SERVER_NAME = "builder-ii-governed-mcp"
@@ -38,9 +39,10 @@ _PARSE_ERROR = -32700
 class GovernedMcpServer:
     """A governed MCP server exposing only allowlisted read-only stub tools."""
 
-    def __init__(self, *, session_id: str, builder_root: Path) -> None:
+    def __init__(self, *, session_id: str, builder_root: Path, target_root: Path | None = None) -> None:
         self.session_id = session_id
         self.builder_root = Path(builder_root)
+        self.target_root = Path(target_root) if target_root is not None else self.builder_root.parent
 
     # -- protocol (framing-independent, unit-tested) --------------------------------------
 
@@ -73,9 +75,10 @@ class GovernedMcpServer:
 
     @staticmethod
     def _tool_list() -> list[dict[str, Any]]:
-        # Read-only stubs run the governed ceremony; gated mutating classes are advertised
-        # but refused in-loop (G3) until the G4 promotion.
-        specs = {**TOOL_SPECS, **GATED_TOOL_SPECS}
+        # Legacy stubs remain callable for compatibility but are no longer advertised;
+        # 3B1 inventory is the governed service family plus deliberately gated tools.
+        specs = {name: spec for name, spec in TOOL_SPECS.items() if name not in {"echo", "utc_static"}}
+        specs.update(GATED_TOOL_SPECS)
         return [
             {"name": name, "description": spec["description"], "inputSchema": spec["inputSchema"]}
             for name, spec in specs.items()
@@ -126,6 +129,17 @@ class GovernedMcpServer:
 
         if name not in TOOL_SPECS:
             return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
+
+        if str(name) in {"repo_map", "repo_search", "content_read", "prepare_package", "validate_prepare_package"}:
+            try:
+                result, receipt_path, event_path = run_service(
+                    tool_name=str(name), arguments=dict(arguments), session_id=self.session_id,
+                    builder_root=self.builder_root, target_root=self.target_root,
+                )
+                status = str(result.get("status", "succeeded"))
+                return {"content": [{"type": "text", "text": json.dumps(result.get("result", result), sort_keys=True)}], "isError": status != "succeeded", "_meta": {"governed": True, "status": status, "receipt_path": str(receipt_path), "event_path": str(event_path)}}
+            except (KeyError, TypeError, ValueError, OSError) as exc:
+                return {"content": [{"type": "text", "text": f"denied: {type(exc).__name__}"}], "isError": True, "_meta": {"governed": True, "status": "denied", "typed_error": type(exc).__name__}}
 
         outcome = run_governed_tool_call(
             tool_name=str(name),

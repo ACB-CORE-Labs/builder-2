@@ -37,11 +37,12 @@ def test_initialize_advertises_tools_capability(tmp_path: Path) -> None:
     assert resp["result"]["serverInfo"]["name"]
 
 
-def test_tools_list_advertises_readonly_stubs_and_gated_mutating_tools(tmp_path: Path) -> None:
+def test_tools_list_advertises_3b1_services_and_gated_mutating_tools(tmp_path: Path) -> None:
     resp = _server(tmp_path).handle_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
     assert resp is not None
     names = {t["name"] for t in resp["result"]["tools"]}
-    assert {"echo", "utc_static"} <= names  # read-only stubs (run the ceremony)
+    assert {"repo_map", "repo_search", "content_read", "prepare_package", "validate_prepare_package"} <= names
+    assert not ({"echo", "utc_static"} & names)  # legacy stubs are compatibility-only, not admitted inventory
     assert {"propose_patch", "run_shell"} <= names  # gated mutating classes (refused in-loop)
     for tool in resp["result"]["tools"]:
         assert tool["inputSchema"]["type"] == "object"

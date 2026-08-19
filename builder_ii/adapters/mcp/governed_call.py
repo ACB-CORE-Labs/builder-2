@@ -57,6 +57,11 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
         "description": "Return a fixed deterministic UTC timestamp (read-only stub).",
         "inputSchema": {"type": "object", "properties": {}},
     },
+    "repo_map": {"tool_id": "service.repo_map", "description": "Return a bounded governed repository map.", "inputSchema": {"type": "object", "properties": {"max_files": {"type": "integer"}, "max_file_bytes": {"type": "integer"}}}},
+    "repo_search": {"tool_id": "service.repo_search", "description": "Search bounded repository-map metadata.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
+    "content_read": {"tool_id": "service.content_read", "description": "Read bounded content through the governed read policy.", "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
+    "prepare_package": {"tool_id": "service.prepare_package", "description": "Create a passive governed preparation package under the session artifact root.", "inputSchema": {"type": "object", "properties": {"task": {"type": "string"}}}},
+    "validate_prepare_package": {"tool_id": "service.validate_prepare_package", "description": "Validate a governed preparation package without execution.", "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
 }
 
 
