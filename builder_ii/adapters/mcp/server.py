@@ -23,9 +23,9 @@ from builder_ii.adapters.mcp.governed_apply import run_gated_patch_apply
 from builder_ii.adapters.mcp.governed_call import GATED_TOOL_SPECS, TOOL_SPECS, refuse_gated_tool_call
 from builder_ii.adapters.mcp.governed_services import (
     MAX_SERVICE_INPUT_BYTES,
-    CorruptLedgerError,
     SERVICE_TOOLS,
     TARGET_PROFILES,
+    CorruptLedgerError,
     ServiceDenied,
     _service_receipt,
     run_service,
