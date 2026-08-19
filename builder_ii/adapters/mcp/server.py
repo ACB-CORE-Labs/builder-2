@@ -2,9 +2,9 @@
 
 Speaks newline-delimited JSON-RPC 2.0 on stdin/stdout and handles the minimal MCP method set
 Goose needs from a tool extension: ``initialize``, ``tools/list``, ``tools/call``. Every
-``tools/call`` runs the governed ceremony in :mod:`builder_ii.adapters.mcp.governed_call`,
-which is deny-by-default, read-only, and ledgered. The server itself holds no authority and
-adds no tool capability; it is the interposition surface, not a new power.
+admitted service call is routed to Builder-II's governed service layer. The server itself
+holds no authority and adds no tool capability; it is the interposition surface, not a new
+power.
 
 Framing is deliberately the simplest interoperable shape (one JSON object per line). The
 exact framing Goose expects for a custom stdio extension is pinned against a real launch in
@@ -14,33 +14,69 @@ G2; :meth:`GovernedMcpServer.handle_request` is framing-independent and unit-tes
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, TextIO
 
 from builder_ii.adapters.mcp.governed_apply import run_gated_patch_apply
-from builder_ii.adapters.mcp.governed_call import (
-    GATED_TOOL_SPECS,
-    TOOL_SPECS,
-    refuse_gated_tool_call,
-    run_governed_tool_call,
+from builder_ii.adapters.mcp.governed_call import GATED_TOOL_SPECS, TOOL_SPECS, refuse_gated_tool_call
+from builder_ii.adapters.mcp.governed_services import (
+    MAX_SERVICE_INPUT_BYTES,
+    SERVICE_TOOLS,
+    TARGET_PROFILES,
+    CorruptLedgerError,
+    ServiceDenied,
+    _service_receipt,
+    run_service,
 )
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 _PROTOCOL_VERSION = "2024-11-05"
 _SERVER_NAME = "builder-ii-governed-mcp"
 _SERVER_VERSION = "0.1.0"
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 _METHOD_NOT_FOUND = -32601
 _INVALID_REQUEST = -32600
 _PARSE_ERROR = -32700
 
 
-class GovernedMcpServer:
-    """A governed MCP server exposing only allowlisted read-only stub tools."""
+def _bounded_evidence_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
+    """Capture admissible arguments, or only digest/size provenance for oversized input."""
+    raw = json.dumps(arguments, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    if len(raw) <= MAX_SERVICE_INPUT_BYTES:
+        return arguments
+    return {
+        "rejected_input": {
+            "canonical_sha256": canonical_digest(arguments),
+            "canonical_bytes": len(raw),
+            "content_captured": False,
+        }
+    }
 
-    def __init__(self, *, session_id: str, builder_root: Path) -> None:
+
+class GovernedMcpServer:
+    """A governed MCP server exposing only admitted services and gated mutation classes."""
+
+    def __init__(
+        self,
+        *,
+        session_id: str,
+        builder_root: Path,
+        target_root: Path | None = None,
+        target_name: str = "generic",
+        config_root: Path | None = None,
+    ) -> None:
+        if not isinstance(session_id, str) or not _SESSION_ID_RE.fullmatch(session_id):
+            raise ValueError("session_id must be a 1-128 character path-safe identifier")
+        if target_name not in TARGET_PROFILES:
+            raise ValueError("target_name must be one of generic, builder, core")
         self.session_id = session_id
         self.builder_root = Path(builder_root)
+        self.target_root = Path(target_root) if target_root is not None else Path.cwd()
+        self.target_name = target_name
+        self.config_root = Path(config_root) if config_root is not None else None
 
     # -- protocol (framing-independent, unit-tested) --------------------------------------
 
@@ -73,24 +109,88 @@ class GovernedMcpServer:
 
     @staticmethod
     def _tool_list() -> list[dict[str, Any]]:
-        # Read-only stubs run the governed ceremony; gated mutating classes are advertised
-        # but refused in-loop (G3) until the G4 promotion.
-        specs = {**TOOL_SPECS, **GATED_TOOL_SPECS}
+        specs = {name: spec for name, spec in TOOL_SPECS.items() if name in SERVICE_TOOLS}
+        specs.update(GATED_TOOL_SPECS)
         return [
             {"name": name, "description": spec["description"], "inputSchema": spec["inputSchema"]}
             for name, spec in specs.items()
         ]
 
+    def _service_error_response(
+        self,
+        *,
+        name: str,
+        arguments: dict[str, Any],
+        exc: Exception,
+        status: str,
+    ) -> dict[str, Any]:
+        result_kind = "builder_ii.denied_service" if status == "denied" else "builder_ii.failed_service"
+        evidence_result = {
+            "kind": result_kind,
+            "error_type": type(exc).__name__,
+            "reason": str(exc),
+        }
+        evidence_arguments = _bounded_evidence_arguments(arguments)
+        try:
+            _, receipt_path, event_path = _service_receipt(
+                builder_root=self.builder_root,
+                session_id=self.session_id,
+                target_name=self.target_name,
+                tool_name=name,
+                arguments=evidence_arguments,
+                result=evidence_result,
+                status=status,
+            )
+        except CorruptLedgerError as ledger_exc:
+            return {
+                "content": [{"type": "text", "text": f"failed: {type(ledger_exc).__name__}"}],
+                "isError": True,
+                "_meta": {
+                    "governed": True,
+                    "status": "failed",
+                    "typed_error": type(ledger_exc).__name__,
+                    "evidence_appended": False,
+                    "reason": str(ledger_exc),
+                },
+            }
+        except Exception as evidence_exc:
+            return {
+                "content": [{"type": "text", "text": f"failed: {type(exc).__name__}"}],
+                "isError": True,
+                "_meta": {
+                    "governed": True,
+                    "status": "failed",
+                    "typed_error": type(exc).__name__,
+                    "evidence_appended": False,
+                    "evidence_error": f"{type(evidence_exc).__name__}: {evidence_exc}",
+                },
+            }
+        return {
+            "content": [{"type": "text", "text": f"{status}: {type(exc).__name__}"}],
+            "isError": True,
+            "_meta": {
+                "governed": True,
+                "status": status,
+                "typed_error": type(exc).__name__,
+                "receipt_path": str(receipt_path),
+                "event_path": str(event_path),
+                "evidence_appended": True,
+            },
+        }
+
     def _tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         name = params.get("name")
-        arguments = params.get("arguments") or {}
+        raw_arguments = params.get("arguments")
+        # Preserve historical gated-tool behavior for omitted/null arguments only. The 3B1
+        # service lane validates its raw argument type below and never coerces malformed input.
+        gated_arguments = raw_arguments if isinstance(raw_arguments, dict) else {}
 
         # G4: the write path routes to the governed apply lane behind a validated approval and
         # the deny-by-default enablement flag. run_shell has no governed bounded lane to
         # delegate to, so it stays refused (G3).
         if name == "propose_patch":
             outcome = run_gated_patch_apply(
-                arguments=dict(arguments),
+                arguments=dict(gated_arguments),
                 session_id=self.session_id,
                 builder_root=self.builder_root,
             )
@@ -109,7 +209,7 @@ class GovernedMcpServer:
         if name in GATED_TOOL_SPECS:
             refusal = refuse_gated_tool_call(
                 tool_name=str(name),
-                arguments=dict(arguments),
+                arguments=dict(gated_arguments),
                 session_id=self.session_id,
                 builder_root=self.builder_root,
             )
@@ -124,25 +224,71 @@ class GovernedMcpServer:
                 },
             }
 
-        if name not in TOOL_SPECS:
-            return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
+        # Inventory-first: legacy echo/utc_static and all unknown names are retired at the
+        # transport boundary, not merely hidden from tools/list.
+        if name not in SERVICE_TOOLS:
+            return {
+                "content": [{"type": "text", "text": f"unknown or unadvertised tool: {name}"}],
+                "isError": True,
+                "_meta": {"governed": True, "status": "denied", "inventory_admitted": False},
+            }
 
-        outcome = run_governed_tool_call(
-            tool_name=str(name),
-            arguments=dict(arguments),
-            session_id=self.session_id,
-            builder_root=self.builder_root,
-        )
-        return {
-            "content": [{"type": "text", "text": outcome.output_text}],
-            "isError": outcome.status != "succeeded",
-            "_meta": {
-                "governed": True,
-                "status": outcome.status,
-                "receipt_path": str(outcome.receipt_path),
-                "event_path": str(outcome.event_path),
-            },
-        }
+        service_arguments: Any = {} if raw_arguments is None else raw_arguments
+        if not isinstance(service_arguments, dict):
+            return self._service_error_response(
+                name=str(name),
+                arguments={},
+                exc=ServiceDenied("arguments must be an object"),
+                status="denied",
+            )
+
+        try:
+            result, receipt_path, event_path = run_service(
+                tool_name=str(name),
+                arguments=dict(service_arguments),
+                session_id=self.session_id,
+                builder_root=self.builder_root,
+                target_root=self.target_root,
+                target_name=self.target_name,
+                config_root=self.config_root,
+            )
+            status = str(result.get("status", "succeeded"))
+            return {
+                "content": [{"type": "text", "text": json.dumps(result.get("result", result), sort_keys=True)}],
+                "isError": status != "succeeded",
+                "_meta": {
+                    "governed": True,
+                    "status": status,
+                    "receipt_path": str(receipt_path),
+                    "event_path": str(event_path),
+                },
+            }
+        except ServiceDenied as exc:
+            return self._service_error_response(
+                name=str(name),
+                arguments=dict(service_arguments),
+                exc=exc,
+                status="denied",
+            )
+        except CorruptLedgerError as exc:
+            return {
+                "content": [{"type": "text", "text": f"failed: {type(exc).__name__}"}],
+                "isError": True,
+                "_meta": {
+                    "governed": True,
+                    "status": "failed",
+                    "typed_error": type(exc).__name__,
+                    "evidence_appended": False,
+                    "reason": str(exc),
+                },
+            }
+        except (KeyError, TypeError, ValueError, OSError, RuntimeError) as exc:
+            return self._service_error_response(
+                name=str(name),
+                arguments=dict(service_arguments),
+                exc=exc,
+                status="failed",
+            )
 
     @staticmethod
     def _result(req_id: Any, result: dict[str, Any]) -> dict[str, Any]:

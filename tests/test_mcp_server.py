@@ -12,13 +12,15 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
 from builder_ii.adapters.mcp.server import GovernedMcpServer
-from builder_ii.core.mcp_policy import validate_mcp_receipt
 from builder_ii.governance.ledger.event_ledger import validate_event_chain_integrity
 
 
 def _server(tmp_path: Path) -> GovernedMcpServer:
-    return GovernedMcpServer(session_id="test_session", builder_root=tmp_path / ".builder")
+    return GovernedMcpServer(
+        session_id="test_session", builder_root=tmp_path / ".builder", target_root=tmp_path, target_name="generic"
+    )
 
 
 def _events_dir(tmp_path: Path) -> Path:
@@ -37,11 +39,12 @@ def test_initialize_advertises_tools_capability(tmp_path: Path) -> None:
     assert resp["result"]["serverInfo"]["name"]
 
 
-def test_tools_list_advertises_readonly_stubs_and_gated_mutating_tools(tmp_path: Path) -> None:
+def test_tools_list_advertises_3b1_services_and_gated_mutating_tools(tmp_path: Path) -> None:
     resp = _server(tmp_path).handle_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
     assert resp is not None
     names = {t["name"] for t in resp["result"]["tools"]}
-    assert {"echo", "utc_static"} <= names  # read-only stubs (run the ceremony)
+    assert {"repo_map", "repo_search", "content_read", "prepare_package", "validate_prepare_package"} <= names
+    assert not ({"echo", "utc_static"} & names)  # legacy stubs are compatibility-only, not admitted inventory
     assert {"propose_patch", "run_shell"} <= names  # gated mutating classes (refused in-loop)
     for tool in resp["result"]["tools"]:
         assert tool["inputSchema"]["type"] == "object"
@@ -64,17 +67,17 @@ def test_tools_call_runs_governed_ceremony_and_ledgers(tmp_path: Path) -> None:
             "jsonrpc": "2.0",
             "id": 4,
             "method": "tools/call",
-            "params": {"name": "echo", "arguments": {"text": "hello governed"}},
+            "params": {"name": "repo_map", "arguments": {}},
         }
     )
     assert resp is not None
     assert resp["result"]["isError"] is False
-    assert resp["result"]["content"][0]["text"] == "hello governed"
+    assert '"kind": "builder_ii.repo_map"' in resp["result"]["content"][0]["text"]
 
     receipts = list(_mcp_dir(tmp_path).glob("*_receipt.json"))
     assert receipts, "no receipt written"
     receipt = json.loads(receipts[0].read_text(encoding="utf-8"))
-    assert validate_mcp_receipt(receipt) == []
+    assert validate_mcp_service_receipt(receipt) == []
     assert receipt["status"] == "succeeded"
     # Read-only invariants hold on the receipt governance block.
     assert receipt["governance"]["target_repo_writes"] == "DISABLED"
@@ -92,7 +95,7 @@ def test_two_calls_produce_a_linked_event_chain(tmp_path: Path) -> None:
                 "jsonrpc": "2.0",
                 "id": 10 + i,
                 "method": "tools/call",
-                "params": {"name": "echo", "arguments": {"text": f"call {i}"}},
+                "params": {"name": "repo_map", "arguments": {}},
             }
         )
     events = sorted(_events_dir(tmp_path).glob("*.json"))
@@ -111,7 +114,7 @@ def test_no_target_mutation_from_a_tool_call(tmp_path: Path) -> None:
             "jsonrpc": "2.0",
             "id": 20,
             "method": "tools/call",
-            "params": {"name": "utc_static", "arguments": {}},
+            "params": {"name": "repo_map", "arguments": {}},
         }
     )
     assert target.read_text(encoding="utf-8") == "original"
@@ -159,7 +162,7 @@ def test_gated_refusal_writes_no_execution_receipt(tmp_path: Path) -> None:
 def test_readonly_and_gated_events_share_one_valid_chain(tmp_path: Path) -> None:
     server = _server(tmp_path)
     server.handle_request(
-        {"jsonrpc": "2.0", "id": 40, "method": "tools/call", "params": {"name": "echo", "arguments": {"text": "ok"}}}
+        {"jsonrpc": "2.0", "id": 40, "method": "tools/call", "params": {"name": "repo_map", "arguments": {}}}
     )
     server.handle_request(
         {
