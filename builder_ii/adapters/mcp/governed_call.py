@@ -1,15 +1,13 @@
-"""The governed ceremony behind one MCP ``tools/call``.
+"""Governed MCP tool inventory plus the legacy low-risk stub ceremony.
 
-Given a tool name and arguments, this builds a deny-by-default read-only policy and a
-matching call envelope, runs the existing governed executor
-(:func:`builder_ii.core.tool_invocation_gateway.execute_tool_envelope`), validates the
-receipt, and appends one hash-chained event record to the session ledger. It never mutates
-the target repo, never enables shell, and grants no authority — the executor's low-risk path
-invariants and the receipt validator both enforce that.
+The legacy ``echo``/``utc_static`` path builds a deny-by-default policy and call envelope,
+runs the existing governed executor, validates the receipt, and appends one hash-chained
+event record. Plan Set 3B1 adds discovery schemas for governed repository/read/preparation
+services; those service names are routed by ``governed_services`` and do not widen
+``tool_invocation_gateway.ALLOWED_STUB_TOOLS``.
 
-Only tools already present in the executor's allowlist
-(:data:`builder_ii.core.tool_invocation_gateway.ALLOWED_STUB_TOOLS`) are exposed. G1 adds no
-new tool capability; it adds the interposition seam and the ledger entry.
+No inventory entry grants authority. Mutation/shell classes remain separately gated and
+read/prepare runtime validation remains authoritative even when a client ignores JSON Schema.
 """
 
 from __future__ import annotations
@@ -40,8 +38,8 @@ from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 _SERVER_ID = "builtin.mcp_server"
 
-# MCP-facing tool name -> the executor's allowlisted tool_id + its MCP schema. The tool_ids
-# must already be in ``tool_invocation_gateway.ALLOWED_STUB_TOOLS``; nothing here widens it.
+# MCP-facing inventory. Legacy stub tool_ids stay bound to the existing executor allowlist;
+# service.* ids are discovery metadata only and are dispatched by governed_services.py.
 TOOL_SPECS: dict[str, dict[str, Any]] = {
     "echo": {
         "tool_id": "builtin.echo",
@@ -57,11 +55,53 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
         "description": "Return a fixed deterministic UTC timestamp (read-only stub).",
         "inputSchema": {"type": "object", "properties": {}},
     },
-    "repo_map": {"tool_id": "service.repo_map", "description": "Return a bounded governed repository map.", "inputSchema": {"type": "object", "properties": {"max_files": {"type": "integer"}, "max_file_bytes": {"type": "integer"}}}},
-    "repo_search": {"tool_id": "service.repo_search", "description": "Search bounded repository-map metadata.", "inputSchema": {"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]}},
-    "content_read": {"tool_id": "service.content_read", "description": "Read bounded content through the governed read policy.", "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
-    "prepare_package": {"tool_id": "service.prepare_package", "description": "Create a passive governed preparation package under the session artifact root.", "inputSchema": {"type": "object", "properties": {"task": {"type": "string"}}}},
-    "validate_prepare_package": {"tool_id": "service.validate_prepare_package", "description": "Validate a governed preparation package without execution.", "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]}},
+    "repo_map": {
+        "tool_id": "service.repo_map",
+        "description": "Return a bounded governed repository map.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "max_files": {"type": "integer", "minimum": 1, "maximum": 500},
+                "max_file_bytes": {"type": "integer", "minimum": 1, "maximum": 1_000_000},
+            },
+        },
+    },
+    "repo_search": {
+        "tool_id": "service.repo_search",
+        "description": "Search bounded repository-map metadata; runtime input is capped by policy.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"query": {"type": "string", "minLength": 1}},
+            "required": ["query"],
+        },
+    },
+    "content_read": {
+        "tool_id": "service.content_read",
+        "description": "Read bounded content through the governed read policy.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"path": {"type": "string", "minLength": 1}},
+            "required": ["path"],
+        },
+    },
+    "prepare_package": {
+        "tool_id": "service.prepare_package",
+        "description": "Create a passive governed preparation package; task runtime cap is 4096 UTF-8 bytes.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"task": {"type": "string", "minLength": 1}},
+            "required": ["task"],
+        },
+    },
+    "validate_prepare_package": {
+        "tool_id": "service.validate_prepare_package",
+        "description": "Validate a governed preparation package without execution.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"path": {"type": "string", "minLength": 1}},
+            "required": ["path"],
+        },
+    },
 }
 
 
@@ -174,7 +214,7 @@ def _write_json(path: Path, data: dict[str, Any]) -> None:
 def run_governed_tool_call(
     *, tool_name: str, arguments: dict[str, Any], session_id: str, builder_root: Path
 ) -> GovernedCallOutcome:
-    """Run one tool call through policy -> envelope -> executor -> receipt -> ledger."""
+    """Run one legacy stub call through policy -> envelope -> executor -> receipt -> ledger."""
     spec = TOOL_SPECS.get(tool_name)
     if spec is None:
         raise KeyError(f"unknown tool: {tool_name}")
