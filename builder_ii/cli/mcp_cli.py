@@ -295,13 +295,10 @@ def serve(
 ) -> None:
     """Run the governed stdio MCP server so Goose can load builder-II as an extension.
 
-    Speaks newline-delimited JSON-RPC on stdin/stdout and exposes only the executor's
-    allowlisted read-only stub tools. Each ``tools/call`` runs the governed
-    envelope -> receipt -> ledger ceremony (deny-by-default, no target mutation, no shell);
-    the server grants no authority and adds no new tool capability.
-
-    ``--session-id`` is optional so a static recipe can invoke ``builder-mcp serve`` with no
-    args; ``launch_governed`` scopes the ledger by exporting ``BUILDER_MCP_SESSION_ID``.
+    The static Goose recipe supplies no target-specific arguments. The canonical governed
+    launcher therefore binds the session, target profile, and trusted Builder-II project root
+    into the child environment. Target repository identity remains the MCP process cwd and is
+    deliberately independent from the Builder-II configuration root.
     """
     import os
 
@@ -312,4 +309,20 @@ def serve(
     from builder_ii.adapters.mcp.server import GovernedMcpServer
 
     target_name = os.environ.get("BUILDER_MCP_TARGET_PROFILE", "generic")
-    GovernedMcpServer(session_id=resolved_session, builder_root=builder_root, target_root=Path.cwd(), target_name=target_name).serve_stdio()
+    if target_name not in {"generic", "builder", "core"}:
+        typer.echo("Invalid BUILDER_MCP_TARGET_PROFILE; expected generic, builder, or core.", err=True)
+        raise typer.Exit(1)
+
+    project_root_value = os.environ.get("BUILDER_MCP_PROJECT_ROOT")
+    config_root = Path(project_root_value).resolve() if project_root_value else None
+    if config_root is not None and not config_root.is_dir():
+        typer.echo("BUILDER_MCP_PROJECT_ROOT does not name an existing directory.", err=True)
+        raise typer.Exit(1)
+
+    GovernedMcpServer(
+        session_id=resolved_session,
+        builder_root=builder_root,
+        target_root=Path.cwd(),
+        target_name=target_name,
+        config_root=config_root,
+    ).serve_stdio()
