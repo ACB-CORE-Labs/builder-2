@@ -14,6 +14,7 @@ G2; :meth:`GovernedMcpServer.handle_request` is framing-independent and unit-tes
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, TextIO
@@ -25,11 +26,19 @@ from builder_ii.adapters.mcp.governed_call import (
     refuse_gated_tool_call,
     run_governed_tool_call,
 )
-from builder_ii.adapters.mcp.governed_services import _service_receipt, run_service
+from builder_ii.adapters.mcp.governed_services import (
+    CorruptLedgerError,
+    SERVICE_TOOLS,
+    TARGET_PROFILES,
+    ServiceDenied,
+    _service_receipt,
+    run_service,
+)
 
 _PROTOCOL_VERSION = "2024-11-05"
 _SERVER_NAME = "builder-ii-governed-mcp"
 _SERVER_VERSION = "0.1.0"
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 _METHOD_NOT_FOUND = -32601
 _INVALID_REQUEST = -32600
@@ -37,15 +46,26 @@ _PARSE_ERROR = -32700
 
 
 class GovernedMcpServer:
-    """A governed MCP server exposing only allowlisted read-only stub tools."""
+    """A governed MCP server exposing only admitted services and gated mutation classes."""
 
     def __init__(
-        self, *, session_id: str, builder_root: Path, target_root: Path | None = None, target_name: str = "generic"
+        self,
+        *,
+        session_id: str,
+        builder_root: Path,
+        target_root: Path | None = None,
+        target_name: str = "generic",
+        config_root: Path | None = None,
     ) -> None:
+        if not isinstance(session_id, str) or not _SESSION_ID_RE.fullmatch(session_id):
+            raise ValueError("session_id must be a 1-128 character path-safe identifier")
+        if target_name not in TARGET_PROFILES:
+            raise ValueError("target_name must be one of generic, builder, core")
         self.session_id = session_id
         self.builder_root = Path(builder_root)
         self.target_root = Path(target_root) if target_root is not None else Path.cwd()
         self.target_name = target_name
+        self.config_root = Path(config_root) if config_root is not None else None
 
     # -- protocol (framing-independent, unit-tested) --------------------------------------
 
@@ -78,18 +98,73 @@ class GovernedMcpServer:
 
     @staticmethod
     def _tool_list() -> list[dict[str, Any]]:
-        # Legacy stubs remain callable for compatibility but are no longer advertised;
-        # 3B1 inventory is the governed service family plus deliberately gated tools.
-        specs = {
-            name: spec
-            for name, spec in TOOL_SPECS.items()
-            if name in {"repo_map", "repo_search", "content_read", "prepare_package", "validate_prepare_package"}
-        }
+        specs = {name: spec for name, spec in TOOL_SPECS.items() if name in SERVICE_TOOLS}
         specs.update(GATED_TOOL_SPECS)
         return [
             {"name": name, "description": spec["description"], "inputSchema": spec["inputSchema"]}
             for name, spec in specs.items()
         ]
+
+    def _service_error_response(
+        self,
+        *,
+        name: str,
+        arguments: dict[str, Any],
+        exc: Exception,
+        status: str,
+    ) -> dict[str, Any]:
+        result_kind = "builder_ii.denied_service" if status == "denied" else "builder_ii.failed_service"
+        evidence_result = {
+            "kind": result_kind,
+            "error_type": type(exc).__name__,
+            "reason": str(exc),
+        }
+        try:
+            _, receipt_path, event_path = _service_receipt(
+                builder_root=self.builder_root,
+                session_id=self.session_id,
+                target_name=self.target_name,
+                tool_name=name,
+                arguments=arguments,
+                result=evidence_result,
+                status=status,
+            )
+        except CorruptLedgerError as ledger_exc:
+            return {
+                "content": [{"type": "text", "text": f"failed: {type(ledger_exc).__name__}"}],
+                "isError": True,
+                "_meta": {
+                    "governed": True,
+                    "status": "failed",
+                    "typed_error": type(ledger_exc).__name__,
+                    "evidence_appended": False,
+                    "reason": str(ledger_exc),
+                },
+            }
+        except Exception as evidence_exc:
+            return {
+                "content": [{"type": "text", "text": f"failed: {type(exc).__name__}"}],
+                "isError": True,
+                "_meta": {
+                    "governed": True,
+                    "status": "failed",
+                    "typed_error": type(exc).__name__,
+                    "evidence_appended": False,
+                    "evidence_error": f"{type(evidence_exc).__name__}: {evidence_exc}",
+                },
+            }
+        return {
+            "content": [{"type": "text", "text": f"{status}: {type(exc).__name__}"}],
+            "isError": True,
+            "_meta": {
+                "governed": True,
+                "status": status,
+                "typed_error": type(exc).__name__,
+                "receipt_path": str(receipt_path),
+                "event_path": str(event_path),
+                "evidence_appended": True,
+            },
+        }
 
     def _tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         name = params.get("name")
@@ -134,52 +209,73 @@ class GovernedMcpServer:
                 },
             }
 
-        if name not in {"repo_map", "repo_search", "content_read", "prepare_package", "validate_prepare_package"}:
-            return {"content": [{"type": "text", "text": f"unknown tool: {name}"}], "isError": True}
+        # Inventory-first: legacy echo/utc_static and all unknown names are retired at the
+        # transport boundary, not merely hidden from tools/list.
+        if name not in SERVICE_TOOLS:
+            return {
+                "content": [{"type": "text", "text": f"unknown or unadvertised tool: {name}"}],
+                "isError": True,
+                "_meta": {"governed": True, "status": "denied", "inventory_admitted": False},
+            }
 
-        if str(name) in {"repo_map", "repo_search", "content_read", "prepare_package", "validate_prepare_package"}:
-            try:
-                result, receipt_path, event_path = run_service(
-                    tool_name=str(name),
-                    arguments=dict(arguments),
-                    session_id=self.session_id,
-                    builder_root=self.builder_root,
-                    target_root=self.target_root,
-                    target_name=self.target_name,
-                )
-                status = str(result.get("status", "succeeded"))
-                return {
-                    "content": [{"type": "text", "text": json.dumps(result.get("result", result), sort_keys=True)}],
-                    "isError": status != "succeeded",
-                    "_meta": {
-                        "governed": True,
-                        "status": status,
-                        "receipt_path": str(receipt_path),
-                        "event_path": str(event_path),
-                    },
-                }
-            except (KeyError, TypeError, ValueError, OSError) as exc:
-                _, receipt_path, event_path = _service_receipt(
-                    builder_root=self.builder_root,
-                    session_id=self.session_id,
-                    target_name=self.target_name,
-                    tool_name=str(name),
-                    arguments=dict(arguments),
-                    result={"kind": "builder_ii.denied_service", "error_type": type(exc).__name__, "reason": str(exc)},
-                    status="denied",
-                )
-                return {
-                    "content": [{"type": "text", "text": f"denied: {type(exc).__name__}"}],
-                    "isError": True,
-                    "_meta": {
-                        "governed": True,
-                        "status": "denied",
-                        "typed_error": type(exc).__name__,
-                        "receipt_path": str(receipt_path),
-                        "event_path": str(event_path),
-                    },
-                }
+        if not isinstance(arguments, dict):
+            return self._service_error_response(
+                name=str(name),
+                arguments={},
+                exc=ServiceDenied("arguments must be an object"),
+                status="denied",
+            )
 
+        try:
+            result, receipt_path, event_path = run_service(
+                tool_name=str(name),
+                arguments=dict(arguments),
+                session_id=self.session_id,
+                builder_root=self.builder_root,
+                target_root=self.target_root,
+                target_name=self.target_name,
+                config_root=self.config_root,
+            )
+            status = str(result.get("status", "succeeded"))
+            return {
+                "content": [{"type": "text", "text": json.dumps(result.get("result", result), sort_keys=True)}],
+                "isError": status != "succeeded",
+                "_meta": {
+                    "governed": True,
+                    "status": status,
+                    "receipt_path": str(receipt_path),
+                    "event_path": str(event_path),
+                },
+            }
+        except ServiceDenied as exc:
+            return self._service_error_response(
+                name=str(name),
+                arguments=dict(arguments),
+                exc=exc,
+                status="denied",
+            )
+        except CorruptLedgerError as exc:
+            return {
+                "content": [{"type": "text", "text": f"failed: {type(exc).__name__}"}],
+                "isError": True,
+                "_meta": {
+                    "governed": True,
+                    "status": "failed",
+                    "typed_error": type(exc).__name__,
+                    "evidence_appended": False,
+                    "reason": str(exc),
+                },
+            }
+        except (KeyError, TypeError, ValueError, OSError, RuntimeError) as exc:
+            return self._service_error_response(
+                name=str(name),
+                arguments=dict(arguments),
+                exc=exc,
+                status="failed",
+            )
+
+        # Kept for the pre-existing low-risk stub implementation, but unreachable through
+        # the 3B1 inventory. This preserves the implementation without making it callable.
         outcome = run_governed_tool_call(
             tool_name=str(name),
             arguments=dict(arguments),
