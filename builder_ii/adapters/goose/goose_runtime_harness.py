@@ -23,6 +23,7 @@ from builder_ii.routing.model_router import SessionPlan
 _DIGEST_CHUNK_SIZE = 1024 * 1024
 _executor = ThreadPoolExecutor(max_workers=4)
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+_TARGET_PROFILES = {"generic", "builder", "core"}
 
 
 def _current_time_utc() -> str:
@@ -69,6 +70,8 @@ class GooseRuntimeHarness:
         self._async_proc: asyncio.subprocess.Process | None = None
         self._preflight_snapshot: dict[str, str] = {}
         self._governed_admission: tuple[Any, str] | None = None
+        self._admitted_target_profile: str | None = None
+        self._admitted_project_root: Path | None = None
 
     def admit_governed(self) -> tuple[Any, str]:
         """Perform governed admission before any backend or Goose spawn."""
@@ -76,12 +79,20 @@ class GooseRuntimeHarness:
             raise ValueError("Invalid Goose session identity; use 1-128 path-safe letters, digits, '.', '_' or '-'.")
         if not self.target_root.is_dir():
             raise ValueError(f"Invalid Goose target identity; target directory does not exist: {self.target_root}")
+        target_profile = getattr(self.session_plan, "target_name", None)
+        if target_profile not in _TARGET_PROFILES:
+            raise ValueError("Invalid governed target profile; expected generic, builder, or core.")
+        project_root = Path(self.settings.project_root).resolve()
+        if not project_root.is_dir():
+            raise ValueError(f"Invalid Builder-II project root for governed MCP configuration: {project_root}")
         goose = find_goose_binary()
         if not goose:
             raise FileNotFoundError("Goose CLI not found. Install a tested Goose release manually; no automatic update is performed.")
         recipe_digest = validate_governed_recipe(self._governed_recipe_path())
         compatibility = probe_goose(goose, self.target_root / ".builder" / "goose-compatibility")
         self._governed_admission = (compatibility, recipe_digest)
+        self._admitted_target_profile = str(target_profile)
+        self._admitted_project_root = project_root
         return self._governed_admission
 
     def launch_readonly(self) -> dict[str, Any]:
@@ -151,11 +162,23 @@ class GooseRuntimeHarness:
         if self._governed_admission is None:
             self.admit_governed()
         compatibility, recipe_digest = self._governed_admission
+        target_profile = self._admitted_target_profile
+        project_root = self._admitted_project_root
+        if target_profile is None or project_root is None:
+            raise RuntimeError("Governed Goose admission did not bind MCP target/config identity.")
+        if getattr(self.session_plan, "target_name", None) != target_profile:
+            raise ValueError("Governed target profile changed after admission; refusing to spawn Goose.")
+        if Path(self.settings.project_root).resolve() != project_root:
+            raise ValueError("Builder-II project root changed after admission; refusing to spawn Goose.")
+
         goose = compatibility.binary
         env = goose_env(self.settings, session=self.session_plan)
         env["GOOSE_MODE"] = "auto"
-        # Scope the MCP server's ledger to this run so its events land under this session.
+        # Scope the MCP server's ledger and bind its target/config identities to this exact
+        # admitted launch. The target repository itself remains Popen.cwd below.
         env["BUILDER_MCP_SESSION_ID"] = self.session_id
+        env["BUILDER_MCP_TARGET_PROFILE"] = target_profile
+        env["BUILDER_MCP_PROJECT_ROOT"] = str(project_root)
 
         argv = self._governed_argv(goose, recipe)
         self._preflight_snapshot = _get_target_files(self.target_root)
@@ -177,7 +200,7 @@ class GooseRuntimeHarness:
 
         receipt = create_goose_launch_receipt(
             session_id=self.session_id,
-            target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
+            target_profile=target_profile,
             agent_profile=self.session_plan.agent_profile
             if hasattr(self.session_plan, "agent_profile")
             else "patch_planner",
@@ -270,7 +293,20 @@ class GooseRuntimeHarness:
         transcript_path_obj = self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
         transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
         transcript_path = str(transcript_path_obj)
-        subprocess.run(["goose", "session", "export", "--name", self.session_id, "--format", "json", "--output", transcript_path], check=False)
+        subprocess.run(
+            [
+                "goose",
+                "session",
+                "export",
+                "--name",
+                self.session_id,
+                "--format",
+                "json",
+                "--output",
+                transcript_path,
+            ],
+            check=False,
+        )
         transcript_digest = _file_sha256(transcript_path_obj) or ""
 
         close_receipt = create_goose_close_receipt(
@@ -285,13 +321,21 @@ class GooseRuntimeHarness:
 
         # Record goose_session_closed in the event ledger
         from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
+
         event = create_event_record(
             event_id=self.session_id + "_close",
             session_id=self.session_id,
             sequence=0,
             event_type="goose_session_closed",
             stage="verification",
-            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
+            subject_refs=[
+                {
+                    "kind": "builder_ii.goose_transcript",
+                    "path": transcript_path,
+                    "sha256": transcript_digest,
+                    "role": "transcript",
+                }
+            ],
             command_surface="builder_ii",
             policy_snapshot_ref={"kind": "null"},
         )
@@ -338,7 +382,20 @@ class GooseRuntimeHarness:
         transcript_path_obj = self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
         transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
         transcript_path = str(transcript_path_obj)
-        subprocess.run(["goose", "session", "export", "--name", self.session_id, "--format", "json", "--output", transcript_path], check=False)
+        subprocess.run(
+            [
+                "goose",
+                "session",
+                "export",
+                "--name",
+                self.session_id,
+                "--format",
+                "json",
+                "--output",
+                transcript_path,
+            ],
+            check=False,
+        )
         transcript_digest = _file_sha256(transcript_path_obj) or ""
 
         close_receipt = create_goose_close_receipt(
@@ -353,13 +410,21 @@ class GooseRuntimeHarness:
 
         # Record goose_session_closed in the event ledger
         from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
+
         event = create_event_record(
             event_id=self.session_id + "_close",
             session_id=self.session_id,
             sequence=0,
             event_type="goose_session_closed",
             stage="verification",
-            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
+            subject_refs=[
+                {
+                    "kind": "builder_ii.goose_transcript",
+                    "path": transcript_path,
+                    "sha256": transcript_digest,
+                    "role": "transcript",
+                }
+            ],
             command_surface="builder_ii",
             policy_snapshot_ref={"kind": "null"},
         )
