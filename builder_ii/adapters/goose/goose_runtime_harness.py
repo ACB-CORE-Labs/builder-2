@@ -118,6 +118,7 @@ class GooseRuntimeHarness:
             else "patch_planner",
             pid=self._proc.pid,
             start_time=start_time,
+            evidence={"runtime": "goose_readonly"},
         )
 
     # Recipe whose sole extension is the builder-II governed MCP server (G2). Unlike
@@ -150,12 +151,6 @@ class GooseRuntimeHarness:
         if self._governed_admission is None:
             self.admit_governed()
         compatibility, recipe_digest = self._governed_admission
-        current_recipe_digest = validate_governed_recipe(recipe)
-        if current_recipe_digest != recipe_digest:
-            raise ValueError(
-                "Governed Goose recipe changed after admission; refusing to spawn Goose. "
-                "Re-admit the unchanged recipe and retry."
-            )
         goose = compatibility.binary
         env = goose_env(self.settings, session=self.session_plan)
         env["GOOSE_MODE"] = "auto"
@@ -166,6 +161,14 @@ class GooseRuntimeHarness:
         self._preflight_snapshot = _get_target_files(self.target_root)
 
         start_time = _current_time_utc()
+        # Keep the final inventory check adjacent to the process boundary: no
+        # further recipe-dependent work occurs between this check and Popen.
+        current_recipe_digest = validate_governed_recipe(recipe)
+        if current_recipe_digest != recipe_digest:
+            raise ValueError(
+                "Governed Goose recipe changed after admission; refusing to spawn Goose. "
+                "Re-admit the unchanged recipe and retry."
+            )
         self._proc = subprocess.Popen(
             argv,
             cwd=self.target_root,
@@ -228,6 +231,7 @@ class GooseRuntimeHarness:
             else "patch_planner",
             pid=self._async_proc.pid,
             start_time=start_time,
+            evidence={"runtime": "goose_readonly_async"},
         )
 
     def close(self, launch_receipt_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:

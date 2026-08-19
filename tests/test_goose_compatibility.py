@@ -8,6 +8,7 @@ from builder_ii.adapters.goose.goose_compatibility import (
     probe_goose,
     validate_governed_recipe,
 )
+from builder_ii.adapters.goose.goose_receipts import create_goose_launch_receipt, validate_goose_launch_receipt
 
 
 def test_parse_goose_version_requires_semver() -> None:
@@ -92,3 +93,13 @@ def test_recipe_admission_rejects_missing_builder_mcp(tmp_path: Path) -> None:
     with patch("builder_ii.adapters.goose.goose_compatibility.shutil.which", return_value=None):
         with pytest.raises(FileNotFoundError, match="builder-mcp"):
             validate_governed_recipe(recipe)
+
+
+def test_launch_receipt_requires_versioned_explicit_evidence() -> None:
+    receipt = create_goose_launch_receipt(
+        "goose_test", "builder", "patch_planner", 123, "2026-01-01T00:00:00+00:00", {"runtime": "goose_readonly"}
+    )
+    assert receipt["schema_version"] == 2
+    assert validate_goose_launch_receipt(receipt) == []
+    legacy = dict(receipt, schema_version=1)
+    assert any("schema_version must be 2" in error for error in validate_goose_launch_receipt(legacy))

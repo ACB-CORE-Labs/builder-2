@@ -7,6 +7,7 @@ from typing import Any
 GOOSE_LAUNCH_RECEIPT_KIND = "builder_ii.goose_launch_receipt"
 GOOSE_CLOSE_RECEIPT_KIND = "builder_ii.goose_close_receipt"
 NO_MUTATION_POSTFLIGHT_KIND = "builder_ii.no_mutation_postflight"
+GOOSE_LAUNCH_RECEIPT_SCHEMA_VERSION = 2
 SCHEMA_VERSION = 1
 
 
@@ -25,17 +26,45 @@ def create_goose_launch_receipt(
 ) -> dict[str, Any]:
     content = {
         "kind": GOOSE_LAUNCH_RECEIPT_KIND,
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": GOOSE_LAUNCH_RECEIPT_SCHEMA_VERSION,
         "session_id": session_id,
         "target_profile": target_profile,
         "agent_profile": agent_profile,
         "pid": pid,
         "start_time": start_time,
     }
-    if evidence:
-        content["evidence"] = evidence
+    if not isinstance(evidence, dict) or not evidence:
+        raise ValueError("Goose launch receipt v2 requires explicit runtime evidence")
+    content["evidence"] = evidence
     content["digest"] = _digest(content)
     return content
+
+
+def validate_goose_launch_receipt(receipt: Any) -> list[str]:
+    """Validate the versioned, digest-bound Goose launch contract."""
+    if not isinstance(receipt, dict):
+        return ["Goose launch receipt must be a JSON object"]
+    errors: list[str] = []
+    if receipt.get("kind") != GOOSE_LAUNCH_RECEIPT_KIND:
+        errors.append(f"kind must be {GOOSE_LAUNCH_RECEIPT_KIND}")
+    if receipt.get("schema_version") != GOOSE_LAUNCH_RECEIPT_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {GOOSE_LAUNCH_RECEIPT_SCHEMA_VERSION}")
+    required = ("session_id", "target_profile", "agent_profile", "pid", "start_time", "evidence", "digest")
+    for key in required:
+        if key not in receipt:
+            errors.append(f"missing required field: {key}")
+    evidence = receipt.get("evidence")
+    if not isinstance(evidence, dict) or not evidence:
+        errors.append("evidence must be a non-empty object")
+    elif "runtime" not in evidence and "goose_compatibility" not in evidence:
+        errors.append("evidence must identify the admitted runtime")
+    supplied_digest = receipt.get("digest")
+    if isinstance(supplied_digest, str):
+        content = dict(receipt)
+        content.pop("digest", None)
+        if _digest(content) != supplied_digest:
+            errors.append("digest does not match receipt content")
+    return errors
 
 
 def create_no_mutation_postflight(
