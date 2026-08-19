@@ -414,7 +414,7 @@ def run_service(
         if len(task.encode("utf-8")) > MAX_TASK_BYTES:
             raise ServiceDenied("task exceeds the 4096-byte limit")
         result = create_governed_prepare_package(
-            load_settings(trusted_root),
+            load_settings(trusted_root, load_env_file=False),
             target_name,
             output_dir=output,
             repo_path=str(target_root),
