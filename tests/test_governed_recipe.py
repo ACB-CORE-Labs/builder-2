@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import yaml
 
+from builder_ii.adapters.goose.goose_compatibility import validate_governed_recipe
 from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
 from builder_ii.core.config import Settings
 
@@ -51,6 +52,12 @@ def test_governed_recipe_declares_only_the_governed_mcp_server() -> None:
     assert all(e.get("name") != "developer" for e in extensions)
     assert all(e.get("type") != "builtin" for e in extensions)
     assert recipe["settings"]["goose_mode"] == "auto"
+
+
+def test_real_canonical_recipe_passes_admission(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_compatibility.shutil.which", lambda name: "/mock/builder-mcp")
+    digest = validate_governed_recipe(_RECIPE_PATH)
+    assert len(digest) == 64
 
 
 def test_governed_argv_disables_builtins_and_adds_recipe(mock_settings, tmp_path: Path) -> None:
@@ -97,6 +104,14 @@ def test_launch_governed_points_goose_at_the_governed_recipe(
     receipt = harness.launch_governed()
     assert receipt["kind"] == "builder_ii.goose_launch_receipt"
     assert receipt["pid"] == 999
+    assert receipt["evidence"] == {
+        "goose_compatibility": {
+            "binary": "/mock/bin/goose",
+            "version": "1.46.0",
+            "policy": ">=1.45.0,<1.47.0",
+        },
+        "recipe_sha256": "a" * 64,
+    }
 
     mock_popen.assert_called_once()
     args, kwargs = mock_popen.call_args

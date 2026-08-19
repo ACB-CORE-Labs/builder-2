@@ -447,7 +447,6 @@ def start(
     from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve wrapper-plan from the last generated artifact"),
 ) -> None:
     """Start MLX backend + Goose session with governed CORE recipes."""
-    from builder_ii.adapters.goose.goose_launcher import goose_status
     from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
     from builder_ii.core.config import load_settings, normalize_model_alias
     from builder_ii.routing.model_router import SESSION_MODES, explain_plan, plan_session
@@ -474,12 +473,12 @@ def start(
     console.print(
         f"[bold]Builder[/] mode={session.mode} alias={settings.model_alias} tier={session.model_tier} backend={settings.backend} model={settings.active_model_id}"
     )
-    console.print(goose_status())
-
     session_name = name or f"builder_{int(time.time())}"
     harness = GooseRuntimeHarness(settings, session, settings.target_repo)
     harness.session_id = session_name
-    harness.admit_governed()
+    compatibility, recipe_digest = harness.admit_governed()
+    console.print(f"Goose admitted: {compatibility.binary} {compatibility.version} ({compatibility.policy})")
+    console.print(f"Governed recipe admitted: {recipe_digest}")
     _ensure_backend(settings, no_backend)
 
     console.print(f"CORE repo: {settings.target_repo}")
@@ -489,13 +488,16 @@ def start(
     receipts_dir = settings.target_repo / ".builder" / "receipts"
     receipts_dir.mkdir(parents=True, exist_ok=True)
     (receipts_dir / f"{session_name}_launch.json").write_text(json.dumps(launch_receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    proc = harness._proc
-    if proc is None:
-        raise RuntimeError("Canonical governed Goose launch did not produce a process.")
-    proc.wait()
+    exit_code = harness.wait_for_exit()
     close_receipt, postflight = harness.close(launch_receipt["digest"])
     (receipts_dir / f"{session_name}_close.json").write_text(json.dumps(close_receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     (receipts_dir / f"{session_name}_postflight.json").write_text(json.dumps(postflight, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if not postflight["valid"]:
+        console.print("[red]Governed Goose postflight detected target mutation; session refused.[/red]")
+        raise typer.Exit(1)
+    if exit_code != 0:
+        console.print(f"[red]Governed Goose exited with status {exit_code}.[/red]")
+        raise typer.Exit(exit_code if exit_code > 0 else 1)
 
 
 @app.command("ask")

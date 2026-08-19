@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
 import subprocess
 import time
-import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
@@ -150,6 +150,12 @@ class GooseRuntimeHarness:
         if self._governed_admission is None:
             self.admit_governed()
         compatibility, recipe_digest = self._governed_admission
+        current_recipe_digest = validate_governed_recipe(recipe)
+        if current_recipe_digest != recipe_digest:
+            raise ValueError(
+                "Governed Goose recipe changed after admission; refusing to spawn Goose. "
+                "Re-admit the unchanged recipe and retry."
+            )
         goose = compatibility.binary
         env = goose_env(self.settings, session=self.session_plan)
         env["GOOSE_MODE"] = "auto"
@@ -184,6 +190,12 @@ class GooseRuntimeHarness:
             },
         )
         return receipt
+
+    def wait_for_exit(self) -> int:
+        """Wait for the canonical governed Goose process without exposing process state."""
+        if self._proc is None:
+            raise RuntimeError("Canonical governed Goose launch did not produce a process.")
+        return self._proc.wait()
 
     async def launch_readonly_async(self) -> dict[str, Any]:
         """Launch Goose asynchronously in strict read-only mode, avoiding loop blockage."""

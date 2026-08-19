@@ -14,7 +14,7 @@ GOOSE_MIN_VERSION = (1, 45, 0)
 GOOSE_MAX_VERSION = (1, 46, 99)
 _VERSION_RE = re.compile(r"^\s*(?:(?:goose\s+)?version\s+|goose\s+)?v?(\d+)\.(\d+)\.(\d+)\s*$", re.IGNORECASE)
 _PROBE_TIMEOUT_SECONDS = 10.0
-_REVIEWED_EXTENSION_KEYS = frozenset({"type", "name", "cmd", "args"})
+_REVIEWED_EXTENSION_KEYS = frozenset({"type", "name", "cmd", "args", "timeout", "description"})
 
 
 @dataclass(frozen=True)

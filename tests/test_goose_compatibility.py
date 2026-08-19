@@ -34,6 +34,20 @@ def test_probe_rejects_unsupported_version(tmp_path: Path) -> None:
             probe_goose("/mock/goose", tmp_path / "goose-state")
 
 
+@pytest.mark.parametrize(
+    ("output", "accepted"),
+    [("goose version 1.45.0\n", True), ("goose version 1.46.99\n", True), ("goose version 1.44.99\n", False), ("goose version 1.47.0\n", False)],
+)
+def test_probe_pins_policy_boundaries(tmp_path: Path, output: str, accepted: bool) -> None:
+    result = MagicMock(returncode=0, stdout=output, stderr="")
+    with patch("builder_ii.adapters.goose.goose_compatibility.subprocess.run", return_value=result):
+        if accepted:
+            assert probe_goose("/mock/goose", tmp_path / output.strip().replace(" ", "-"))
+        else:
+            with pytest.raises(RuntimeError, match="Unsupported Goose version"):
+                probe_goose("/mock/goose", tmp_path / output.strip().replace(" ", "-"))
+
+
 def test_probe_times_out_closed(tmp_path: Path) -> None:
     import subprocess
 
