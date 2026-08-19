@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import re
 import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -9,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from builder_ii.adapters.goose.goose_compatibility import probe_goose, validate_governed_recipe
 from builder_ii.adapters.goose.goose_launcher import find_goose_binary, goose_env, recipe_path
 from builder_ii.adapters.goose.goose_receipts import (
     create_goose_close_receipt,
@@ -20,6 +22,7 @@ from builder_ii.routing.model_router import SessionPlan
 
 _DIGEST_CHUNK_SIZE = 1024 * 1024
 _executor = ThreadPoolExecutor(max_workers=4)
+_SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
 def _current_time_utc() -> str:
@@ -65,6 +68,21 @@ class GooseRuntimeHarness:
         self._proc: subprocess.Popen[str] | None = None
         self._async_proc: asyncio.subprocess.Process | None = None
         self._preflight_snapshot: dict[str, str] = {}
+        self._governed_admission: tuple[Any, str] | None = None
+
+    def admit_governed(self) -> tuple[Any, str]:
+        """Perform governed admission before any backend or Goose spawn."""
+        if not self.session_id or not _SESSION_ID_RE.fullmatch(self.session_id):
+            raise ValueError("Invalid Goose session identity; use 1-128 path-safe letters, digits, '.', '_' or '-'.")
+        if not self.target_root.is_dir():
+            raise ValueError(f"Invalid Goose target identity; target directory does not exist: {self.target_root}")
+        goose = find_goose_binary()
+        if not goose:
+            raise FileNotFoundError("Goose CLI not found. Install a tested Goose release manually; no automatic update is performed.")
+        recipe_digest = validate_governed_recipe(self._governed_recipe_path())
+        compatibility = probe_goose(goose, self.target_root / ".builder" / "goose-compatibility")
+        self._governed_admission = (compatibility, recipe_digest)
+        return self._governed_admission
 
     def launch_readonly(self) -> dict[str, Any]:
         """Launch Goose in a strict read-only mode, without shell access."""
@@ -100,6 +118,7 @@ class GooseRuntimeHarness:
             else "patch_planner",
             pid=self._proc.pid,
             start_time=start_time,
+            evidence={"runtime": "goose_readonly"},
         )
 
     # Recipe whose sole extension is the builder-II governed MCP server (G2). Unlike
@@ -128,11 +147,11 @@ class GooseRuntimeHarness:
         classes arrives in G3; G2's exposed tools are read-only, so ``GOOSE_MODE`` stays
         ``auto`` and the governance boundary lives in the MCP tool, not in Goose's prompt.
         """
-        goose = find_goose_binary()
-        if not goose:
-            raise FileNotFoundError("Goose CLI not found.")
-
         recipe = self._governed_recipe_path()
+        if self._governed_admission is None:
+            self.admit_governed()
+        compatibility, recipe_digest = self._governed_admission
+        goose = compatibility.binary
         env = goose_env(self.settings, session=self.session_plan)
         env["GOOSE_MODE"] = "auto"
         # Scope the MCP server's ledger to this run so its events land under this session.
@@ -142,13 +161,21 @@ class GooseRuntimeHarness:
         self._preflight_snapshot = _get_target_files(self.target_root)
 
         start_time = _current_time_utc()
+        # Keep the final inventory check adjacent to the process boundary: no
+        # further recipe-dependent work occurs between this check and Popen.
+        current_recipe_digest = validate_governed_recipe(recipe)
+        if current_recipe_digest != recipe_digest:
+            raise ValueError(
+                "Governed Goose recipe changed after admission; refusing to spawn Goose. "
+                "Re-admit the unchanged recipe and retry."
+            )
         self._proc = subprocess.Popen(
             argv,
             cwd=self.target_root,
             env=env,
         )
 
-        return create_goose_launch_receipt(
+        receipt = create_goose_launch_receipt(
             session_id=self.session_id,
             target_profile=self.session_plan.target_name if hasattr(self.session_plan, "target_name") else "builder",
             agent_profile=self.session_plan.agent_profile
@@ -156,7 +183,22 @@ class GooseRuntimeHarness:
             else "patch_planner",
             pid=self._proc.pid,
             start_time=start_time,
+            evidence={
+                "goose_compatibility": {
+                    "binary": compatibility.binary,
+                    "version": compatibility.version,
+                    "policy": compatibility.policy,
+                },
+                "recipe_sha256": recipe_digest,
+            },
         )
+        return receipt
+
+    def wait_for_exit(self) -> int:
+        """Wait for the canonical governed Goose process without exposing process state."""
+        if self._proc is None:
+            raise RuntimeError("Canonical governed Goose launch did not produce a process.")
+        return self._proc.wait()
 
     async def launch_readonly_async(self) -> dict[str, Any]:
         """Launch Goose asynchronously in strict read-only mode, avoiding loop blockage."""
@@ -189,6 +231,7 @@ class GooseRuntimeHarness:
             else "patch_planner",
             pid=self._async_proc.pid,
             start_time=start_time,
+            evidence={"runtime": "goose_readonly_async"},
         )
 
     def close(self, launch_receipt_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:

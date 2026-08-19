@@ -17,6 +17,7 @@ from rich.table import Table
 from typer.core import TyperGroup
 
 from builder_ii.cli.plain_stdout import echo_stdout
+from builder_ii.governance.authority import enforce_command_authority
 
 
 class LazyGroup(TyperGroup):
@@ -447,13 +448,22 @@ def start(
     from_last: bool = typer.Option(False, "--from-last", help="Auto-resolve wrapper-plan from the last generated artifact"),
 ) -> None:
     """Start MLX backend + Goose session with governed CORE recipes."""
-    from builder_ii.adapters.goose.goose_launcher import goose_status, launch_goose_session
+    from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
     from builder_ii.core.config import load_settings, normalize_model_alias
     from builder_ii.routing.model_router import SESSION_MODES, explain_plan, plan_session
 
     if mode not in SESSION_MODES:
         console.print(f"mode must be one of {SESSION_MODES}")
         raise typer.Exit(1)
+    if resume:
+        raise ValueError("--resume is deferred for the canonical governed launch; start a new admitted session explicitly.")
+    if wrapper_plan or from_last:
+        raise ValueError("--wrapper-plan/--from-last are deferred for the canonical governed launch; use the approved governed recipe.")
+
+    enforce_command_authority(
+        "builder start",
+        requested_effects=("runtime_start", "state_write", "external_tool"),
+    )
 
     session = plan_session(mode, task_hint or "")
     selected_alias = normalize_model_alias(model_alias or session.model_alias, tier_fallback=session.model_tier)
@@ -469,59 +479,31 @@ def start(
     console.print(
         f"[bold]Builder[/] mode={session.mode} alias={settings.model_alias} tier={session.model_tier} backend={settings.backend} model={settings.active_model_id}"
     )
-    console.print(goose_status())
-
+    session_name = name or f"builder_{int(time.time())}"
+    harness = GooseRuntimeHarness(settings, session, settings.target_repo)
+    harness.session_id = session_name
+    compatibility, recipe_digest = harness.admit_governed()
+    console.print(f"Goose admitted: {compatibility.binary} {compatibility.version} ({compatibility.policy})")
+    console.print(f"Governed recipe admitted: {recipe_digest}")
     _ensure_backend(settings, no_backend)
 
     console.print(f"CORE repo: {settings.target_repo}")
     console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")
     console.print("Skills: core-governed-coding, core-verify-loop, core-pre-edit-sweep")
-    session_name = name or f"builder_{int(time.time())}"
-
-    approval_artifact = None
-    if wrapper_plan or from_last:
-        from builder_ii.cli._chain_resolve import resolve_path_or_last
-        resolved = resolve_path_or_last(wrapper_plan, from_last, "builder_ii.goose_wrapper_plan", "wrapper-plan")
-        approval_artifact = str(resolved)
-
-    proc = launch_goose_session(
-        settings,
-        resume=resume,
-        session=session,
-        name=session_name,
-        wrapper_plan_path=approval_artifact
-    )
-    proc.wait()
-
-    try:
-        transcript_path_obj = settings.target_repo / ".builder" / "artifacts" / f"{session_name}.jsonl"
-        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
-        transcript_path = str(transcript_path_obj)
-        import subprocess
-        subprocess.run(["goose", "session", "export", "--name", session_name, "--format", "json", "--output", transcript_path], check=False)
-
-        hasher = hashlib.sha256()
-        with open(transcript_path_obj, "rb") as handle:
-            for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                hasher.update(chunk)
-        transcript_digest = hasher.hexdigest()
-
-        from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
-        event = create_event_record(
-            event_id=session_name + "_close",
-            session_id=session_name,
-            sequence=0,
-            event_type="goose_session_closed",
-            stage="orchestration",
-            subject_refs=[{"kind": "builder_ii.goose_transcript", "path": transcript_path, "sha256": transcript_digest, "role": "transcript"}],
-            command_surface="builder_ii",
-            policy_snapshot_ref={"kind": "null"},
-        )
-        ledger_path = settings.target_repo / ".builder" / "artifacts" / "event_ledger.jsonl"
-        ledger_path.parent.mkdir(parents=True, exist_ok=True)
-        write_event_record(event, ledger_path / f"{event['event_id']}.json")
-    except Exception as exc:
-        console.print(f"[yellow]Could not export session transcript or record ledger event:[/] {exc}")
+    launch_receipt = harness.launch_governed()
+    receipts_dir = settings.target_repo / ".builder" / "receipts"
+    receipts_dir.mkdir(parents=True, exist_ok=True)
+    (receipts_dir / f"{session_name}_launch.json").write_text(json.dumps(launch_receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    exit_code = harness.wait_for_exit()
+    close_receipt, postflight = harness.close(launch_receipt["digest"])
+    (receipts_dir / f"{session_name}_close.json").write_text(json.dumps(close_receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    (receipts_dir / f"{session_name}_postflight.json").write_text(json.dumps(postflight, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if not postflight["valid"]:
+        console.print("[red]Governed Goose postflight detected target mutation; session refused.[/red]")
+        raise typer.Exit(1)
+    if exit_code != 0:
+        console.print(f"[red]Governed Goose exited with status {exit_code}.[/red]")
+        raise typer.Exit(exit_code if exit_code > 0 else 1)
 
 
 @app.command("ask")

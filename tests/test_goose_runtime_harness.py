@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from builder_ii.adapters.goose.goose_compatibility import GooseCompatibility
 from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
 from builder_ii.core.config import Settings
 
@@ -122,3 +123,38 @@ def test_goose_launch_fails_without_goose_binary(mock_settings: Settings, tmp_pa
         harness = GooseRuntimeHarness(mock_settings, plan, tmp_path)
         with pytest.raises(FileNotFoundError):
             harness.launch_readonly()
+
+
+@pytest.mark.parametrize("failure", ["missing", "probe", "unsupported", "recipe", "tool", "target", "session"])
+def test_governed_admission_failures_never_spawn_goose(
+    mock_settings: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: str
+) -> None:
+    harness = GooseRuntimeHarness(mock_settings, MockSessionPlan(), tmp_path)
+    recipe = tmp_path / "recipes" / "governed-readonly.yaml"
+    recipe.parent.mkdir()
+    recipe.write_text("extensions: []\n", encoding="utf-8")
+    popen = MagicMock()
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.Popen", popen)
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary", lambda: "/mock/goose")
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe", lambda _: "a" * 64)
+    monkeypatch.setattr(
+        "builder_ii.adapters.goose.goose_runtime_harness.probe_goose",
+        lambda *_: GooseCompatibility("/mock/goose", "1.46.0", ">=1.45.0,<1.47.0"),
+    )
+    if failure == "missing":
+        monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary", lambda: None)
+    elif failure == "probe":
+        monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.probe_goose", lambda *_: (_ for _ in ()).throw(RuntimeError("probe failed")))
+    elif failure == "unsupported":
+        monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.probe_goose", lambda *_: (_ for _ in ()).throw(RuntimeError("unsupported")))
+    elif failure == "recipe":
+        monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe", lambda _: (_ for _ in ()).throw(ValueError("recipe")))
+    elif failure == "tool":
+        monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe", lambda _: (_ for _ in ()).throw(FileNotFoundError("builder-mcp")))
+    elif failure == "target":
+        harness.target_root = tmp_path / "missing-target"
+    elif failure == "session":
+        harness.session_id = "../unsafe"
+    with pytest.raises((FileNotFoundError, RuntimeError, ValueError)):
+        harness.admit_governed()
+    popen.assert_not_called()
