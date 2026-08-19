@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from test_orchestration_delegation_run import SMALL, _ladder4_candidate, _obligation, _seal
 
 from builder_ii.adapters.deepagents.deepagents_execution import (
     PROPOSAL_ONLY_RESULT_CONTRACT_KIND,
@@ -25,7 +26,6 @@ from builder_ii.governance.ledger.event_ledger import validate_event_chain_integ
 from builder_ii.lifecycle.candidate.verification_execution_plan import (
     validate_verification_execution_plan_artifact,
 )
-from test_orchestration_delegation_run import SMALL, _ladder4_candidate, _obligation, _seal
 
 SESSION = "plan3b2"
 
