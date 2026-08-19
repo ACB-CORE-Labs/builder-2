@@ -73,25 +73,43 @@ class GooseRuntimeHarness:
         self._admitted_target_profile: str | None = None
         self._admitted_project_root: Path | None = None
 
+    def _resolve_governed_target_profile(self) -> str:
+        """Resolve target identity through the canonical governed config precedence."""
+        from builder_ii.core.config_sources import resolve_config_sources
+
+        project_root = Path(self.settings.project_root).resolve()
+        # The target repository is already resolved by the primary builder-start path. Override
+        # only that path while letting canonical config precedence resolve active_target_profile.
+        resolution = resolve_config_sources(
+            project_root=project_root,
+            cli_overrides={"target_repo": str(self.target_root.resolve())},
+        )
+        if resolution.errors:
+            raise ValueError("Invalid governed target configuration: " + "; ".join(resolution.errors))
+        target_profile = resolution.value("active_target_profile")
+        if target_profile not in _TARGET_PROFILES:
+            raise ValueError("Invalid governed target profile; expected generic, builder, or core.")
+        return target_profile
+
     def admit_governed(self) -> tuple[Any, str]:
         """Perform governed admission before any backend or Goose spawn."""
         if not self.session_id or not _SESSION_ID_RE.fullmatch(self.session_id):
             raise ValueError("Invalid Goose session identity; use 1-128 path-safe letters, digits, '.', '_' or '-'.")
         if not self.target_root.is_dir():
             raise ValueError(f"Invalid Goose target identity; target directory does not exist: {self.target_root}")
-        target_profile = getattr(self.session_plan, "target_name", None)
-        if target_profile not in _TARGET_PROFILES:
-            raise ValueError("Invalid governed target profile; expected generic, builder, or core.")
         project_root = Path(self.settings.project_root).resolve()
         if not project_root.is_dir():
             raise ValueError(f"Invalid Builder-II project root for governed MCP configuration: {project_root}")
+        target_profile = self._resolve_governed_target_profile()
         goose = find_goose_binary()
         if not goose:
-            raise FileNotFoundError("Goose CLI not found. Install a tested Goose release manually; no automatic update is performed.")
+            raise FileNotFoundError(
+                "Goose CLI not found. Install a tested Goose release manually; no automatic update is performed."
+            )
         recipe_digest = validate_governed_recipe(self._governed_recipe_path())
         compatibility = probe_goose(goose, self.target_root / ".builder" / "goose-compatibility")
         self._governed_admission = (compatibility, recipe_digest)
-        self._admitted_target_profile = str(target_profile)
+        self._admitted_target_profile = target_profile
         self._admitted_project_root = project_root
         return self._governed_admission
 
@@ -166,7 +184,7 @@ class GooseRuntimeHarness:
         project_root = self._admitted_project_root
         if target_profile is None or project_root is None:
             raise RuntimeError("Governed Goose admission did not bind MCP target/config identity.")
-        if getattr(self.session_plan, "target_name", None) != target_profile:
+        if self._resolve_governed_target_profile() != target_profile:
             raise ValueError("Governed target profile changed after admission; refusing to spawn Goose.")
         if Path(self.settings.project_root).resolve() != project_root:
             raise ValueError("Builder-II project root changed after admission; refusing to spawn Goose.")
