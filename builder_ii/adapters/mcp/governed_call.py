@@ -124,6 +124,19 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
             "required": ["verification_profile", "target_head_sha", "tree_clean"],
         },
     },
+    "verification_execute": {
+        "tool_id": "service.verification_execute",
+        "description": "Execute exactly one pre-approved structured verification lane through the canonical runner.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "plan_path": {"type": "string", "minLength": 1},
+                "approval_path": {"type": "string", "minLength": 1},
+            },
+            "required": ["plan_path", "approval_path"],
+            "additionalProperties": False,
+        },
+    },
 }
 
 

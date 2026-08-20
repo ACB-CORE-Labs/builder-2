@@ -10,6 +10,7 @@ from typing import Any
 
 from builder_ii.adapters.mcp.governed_call import build_read_only_policy
 from builder_ii.core.config import load_settings
+from builder_ii.core.config_schema import digest_jsonable
 from builder_ii.core.governed_prepare_package import (
     create_governed_prepare_package,
     validate_governed_prepare_package_directory,
@@ -32,11 +33,23 @@ from builder_ii.governance.ledger.event_ledger import (
     write_event_record,
 )
 from builder_ii.governance.ledger.workflow_records import canonical_digest
+from builder_ii.lifecycle.candidate.execution_postflight_records import (
+    validate_execution_postflight_record,
+)
+from builder_ii.lifecycle.candidate.verification_execution_approval import (
+    validate_verification_execution_approval_against_plan,
+    validate_verification_execution_approval_artifact,
+)
 from builder_ii.lifecycle.candidate.verification_execution_plan import (
     finalize_verification_execution_plan,
     validate_verification_execution_plan_artifact,
     write_verification_execution_plan,
 )
+from builder_ii.lifecycle.candidate.verification_execution_receipt import (
+    validate_verification_execution_receipt_against_plan_and_approval,
+    validate_verification_execution_receipt_artifact,
+)
+from builder_ii.lifecycle.candidate.verification_execution_runner import run_approved_verification
 
 MAX_MAP_FILES = 500
 MAX_MAP_FILE_BYTES = 1_000_000
@@ -53,6 +66,7 @@ SERVICE_TOOLS = {
     "validate_prepare_package",
     "delegation_status",
     "verification_plan",
+    "verification_execute",
 }
 TARGET_PROFILES = {"generic", "builder", "core"}
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -82,11 +96,17 @@ def _canonical_size(value: Any) -> int:
     return len(raw)
 
 
-def _service_policy() -> dict[str, Any]:
+def _service_policy(tool_name: str) -> dict[str, Any]:
     """Reuse the canonical deny-by-default policy with truthful bounded service ceilings."""
     policy = build_read_only_policy()
     policy["max_input_bytes"] = MAX_SERVICE_INPUT_BYTES
     policy["max_output_bytes"] = MAX_SERVICE_OUTPUT_BYTES
+    if tool_name == "verification_execute":
+        policy["allowed_risk_classes"] = ["medium_risk"]
+        policy["timeout_seconds"] = 1800
+        policy["governance"]["bounded_subprocess_execution"] = "HITL_APPROVAL_GATED"
+    else:
+        policy["governance"]["bounded_subprocess_execution"] = "DISABLED"
     return policy
 
 
@@ -229,6 +249,9 @@ def validate_mcp_service_receipt(record: Any) -> list[str]:
             "network_access": "DISABLED",
             "credential_access": "DISABLED",
             "model_execution": "DISABLED",
+            "bounded_subprocess_execution": (
+                "HITL_APPROVAL_GATED" if record.get("service") == "verification_execute" else "DISABLED"
+            ),
         }
         for key, value in expected_governance.items():
             if governance.get(key) != value:
@@ -260,7 +283,7 @@ def _service_receipt(
     existing, current_stage = _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
     sequence = len(existing) + 1
 
-    policy = _service_policy()
+    policy = _service_policy(tool_name)
     policy_errors = validate_mcp_policy(policy)
     if policy_errors:
         raise RuntimeError("generated MCP policy is invalid: " + "; ".join(policy_errors))
@@ -278,7 +301,7 @@ def _service_receipt(
         "kind": policy["kind"],
         "path": str(policy_path),
         "sha256": canonical_digest(policy),
-        "name": "Plan Set 3B deny-by-default read/plan service policy",
+        "name": "Plan Set 3B deny-by-default governed service policy",
         "required": True,
     }
     receipt = {
@@ -300,6 +323,9 @@ def _service_receipt(
             "network_access": "DISABLED",
             "credential_access": "DISABLED",
             "model_execution": "DISABLED",
+            "bounded_subprocess_execution": (
+                "HITL_APPROVAL_GATED" if tool_name == "verification_execute" else "DISABLED"
+            ),
         },
     }
     receipt["digest"] = canonical_digest({key: value for key, value in receipt.items() if key != "digest"})
@@ -442,6 +468,185 @@ def _verification_plan(
     return plan
 
 
+def _load_controlled_json(path: Path, *, field: str) -> dict[str, Any]:
+    if not path.is_file() or path.is_symlink():
+        raise ServiceDenied(f"{field} must name an existing non-symlink JSON file")
+    if path.suffix.lower() != ".json":
+        raise ServiceDenied(f"{field} must name a JSON artifact")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ServiceDenied(f"{field} is not a readable JSON artifact: {exc}") from exc
+    if not isinstance(value, dict):
+        raise ServiceDenied(f"{field} must contain a JSON object")
+    return value
+
+
+def _load_runner_json(path: Path, *, label: str) -> dict[str, Any]:
+    if not path.is_file() or path.is_symlink():
+        raise RuntimeError(f"canonical verification {label} is missing or is not a regular file")
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"canonical verification {label} is unreadable: {exc}") from exc
+    if not isinstance(value, dict):
+        raise RuntimeError(f"canonical verification {label} must contain a JSON object")
+    return value
+
+
+def _validate_runner_receipt_binding(
+    receipt: dict[str, Any], *, plan: dict[str, Any], approval: dict[str, Any]
+) -> list[str]:
+    expected = {
+        "plan_digest": plan.get("verification_execution_plan_digest"),
+        "approval_digest": approval.get("verification_execution_approval_digest"),
+        "target_profile": plan.get("target_profile"),
+        "verification_profile": plan.get("verification_profile"),
+        "target_repo": plan.get("target_repo"),
+        "artifact_root": plan.get("artifact_root"),
+    }
+    return [f"{field} does not match the caller-validated artifacts" for field, value in expected.items() if receipt.get(field) != value]
+
+
+def _validate_runner_postflight_binding(
+    postflight: dict[str, Any],
+    *,
+    receipt: dict[str, Any],
+    plan: dict[str, Any],
+    plan_path: Path,
+    approval_path: Path,
+    receipt_path: Path,
+) -> list[str]:
+    errors: list[str] = []
+    target = postflight.get("target")
+    if not isinstance(target, dict):
+        errors.append("target must bind the verified plan")
+    else:
+        if target.get("name") != plan.get("target_profile"):
+            errors.append("target.name does not match the verified plan")
+        if target.get("repo") != plan.get("target_repo"):
+            errors.append("target.repo does not match the verified plan")
+    expected_refs = {
+        "request_ref": str(plan_path),
+        "approval_ref": str(approval_path),
+        "receipt_ref": str(receipt_path),
+        "receipt_digest": receipt.get("verification_execution_receipt_digest"),
+    }
+    errors.extend(
+        f"{field} does not match the canonical verification chain"
+        for field, value in expected_refs.items()
+        if postflight.get(field) != value
+    )
+    digest = postflight.get("postflight_digest")
+    if digest != digest_jsonable(postflight, digest_key="postflight_digest"):
+        errors.append("postflight_digest drift detected")
+    return errors
+
+
+def _verification_execute(
+    arguments: dict[str, Any],
+    *,
+    builder_root: Path,
+    session_id: str,
+    target_root: Path,
+    target_name: str,
+) -> dict[str, Any]:
+    if set(arguments) != {"plan_path", "approval_path"}:
+        raise ServiceDenied("verification_execute accepts exactly plan_path and approval_path")
+    plan_path = _controlled_path(arguments.get("plan_path"), root=builder_root, field="plan_path")
+    approval_path = _controlled_path(arguments.get("approval_path"), root=builder_root, field="approval_path")
+    plan = _load_controlled_json(plan_path, field="plan_path")
+    approval = _load_controlled_json(approval_path, field="approval_path")
+
+    errors = validate_verification_execution_plan_artifact(plan)
+    errors.extend(validate_verification_execution_approval_artifact(approval))
+    if not errors:
+        errors.extend(validate_verification_execution_approval_against_plan(approval, plan))
+    if errors or plan.get("valid") is not True or approval.get("valid") is not True:
+        detail = errors or ["plan and approval must both have valid=true"]
+        raise ServiceDenied("verification execution artifacts are invalid: " + "; ".join(detail))
+    if Path(str(plan.get("target_repo", ""))).expanduser().resolve() != target_root:
+        raise ServiceDenied("approved plan target_repo does not match the server target root")
+    if plan.get("target_profile") != target_name:
+        raise ServiceDenied("approved plan target_profile does not match the server target profile")
+
+    artifact_value = Path(str(plan.get("artifact_root", ""))).expanduser()
+    artifact_root = artifact_value.resolve() if artifact_value.is_absolute() else (target_root / artifact_value).resolve()
+    if not _within(artifact_root, builder_root):
+        raise ServiceDenied("approved plan artifact_root is outside the controlled Builder-II artifact root")
+    approved_profiles = approval.get("approved_command_profiles")
+    approved_steps = approval.get("approved_step_ids")
+    executable = sorted(
+        set(approved_profiles if isinstance(approved_profiles, list) else [])
+        & set(approved_steps if isinstance(approved_steps, list) else [])
+    )
+    if len(executable) != 1:
+        raise ServiceDenied("approval must bind exactly one executable command profile and matching step")
+
+    _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
+    output = artifact_root / "mcp-executions" / uuid.uuid4().hex / "verification-execution-receipt.json"
+    receipt = run_approved_verification(
+        plan_path=plan_path,
+        approval_path=approval_path,
+        output=output,
+        requested_profile=executable[0],
+        expected_plan_digest=str(plan["verification_execution_plan_digest"]),
+        expected_approval_digest=str(approval["verification_execution_approval_digest"]),
+    )
+    stored_receipt = _load_runner_json(output, label="execution receipt")
+    if stored_receipt != receipt:
+        raise RuntimeError("canonical verification execution receipt bytes do not match the runner result")
+    receipt = stored_receipt
+    receipt_errors = validate_verification_execution_receipt_artifact(receipt)
+    receipt_errors.extend(_validate_runner_receipt_binding(receipt, plan=plan, approval=approval))
+    if receipt.get("receipt_status") != "BLOCKED_BEFORE_EXECUTION":
+        receipt_errors.extend(
+            validate_verification_execution_receipt_against_plan_and_approval(receipt, plan, approval)
+        )
+    if receipt_errors:
+        raise RuntimeError("canonical verification receipt is invalid: " + "; ".join(receipt_errors))
+    postflight_path = output.with_name(output.stem + "-postflight.json")
+    postflight: dict[str, Any] | None = None
+    if receipt.get("receipt_status") != "BLOCKED_BEFORE_EXECUTION":
+        if not postflight_path.is_file():
+            raise RuntimeError("canonical verification postflight evidence is missing")
+        postflight = _load_runner_json(postflight_path, label="postflight evidence")
+        postflight_errors = validate_execution_postflight_record(postflight)
+        postflight_errors.extend(
+            _validate_runner_postflight_binding(
+                postflight,
+                receipt=receipt,
+                plan=plan,
+                plan_path=plan_path,
+                approval_path=approval_path,
+                receipt_path=output,
+            )
+        )
+        if postflight_errors:
+            raise RuntimeError("canonical verification postflight evidence is invalid: " + "; ".join(postflight_errors))
+    result = {
+        "kind": "builder_ii.mcp_verification_execution_result",
+        "valid": receipt.get("valid") is True,
+        "receipt_status": receipt.get("receipt_status"),
+        "requested_profile": executable[0],
+        "verification_execution_receipt_ref": {
+            "path": str(output),
+            "sha256": receipt.get("verification_execution_receipt_digest"),
+        },
+        "postflight_ref": {
+            "path": str(postflight_path) if postflight is not None else None,
+            "sha256": canonical_digest(postflight) if postflight is not None else None,
+        },
+        "executed_steps": receipt.get("executed_steps", []),
+        "skipped_steps": receipt.get("skipped_steps", []),
+        "preflight_git_state": receipt.get("preflight_git_state"),
+        "postflight_git_state": receipt.get("postflight_git_state"),
+        "workspace_mutation_detected": receipt.get("workspace_mutation_detected"),
+        "errors": receipt.get("errors", []),
+    }
+    return result
+
+
 def run_service(
     *,
     tool_name: str,
@@ -555,12 +760,22 @@ def run_service(
             target_root=target_root,
             target_name=target_name,
         )
+    elif tool_name == "verification_execute":
+        result = _verification_execute(
+            arguments,
+            builder_root=builder_root,
+            session_id=session_id,
+            target_root=target_root,
+            target_name=target_name,
+        )
     else:  # pragma: no cover - identity validation makes this unreachable
         raise ServiceDenied("service is not admitted")
 
     if _canonical_size(result) > MAX_SERVICE_OUTPUT_BYTES:
         raise RuntimeError("service result exceeds the 4194304-byte output limit")
-    if tool_name == "delegation_status" and isinstance(result, dict) and result.get("chain_valid") is False:
+    if tool_name == "verification_execute" and isinstance(result, dict):
+        status = "succeeded" if result.get("receipt_status") == "EXECUTED" and result.get("valid") is True else "denied"
+    elif tool_name == "delegation_status" and isinstance(result, dict) and result.get("chain_valid") is False:
         status = "failed"
     else:
         status = (

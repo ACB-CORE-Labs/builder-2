@@ -127,11 +127,10 @@ def test_tools_list_adds_only_status_and_passive_planning_surfaces(tmp_path: Pat
     response = server.handle_request({"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})
     assert response is not None
     names = {item["name"] for item in response["result"]["tools"]}
-    assert {"delegation_status", "verification_plan"} <= names
+    assert {"delegation_status", "verification_plan", "verification_execute"} <= names
     assert not {
         "verification_approve",
         "approve_verification",
-        "verification_execute",
         "run_verification",
         "verification_run",
     } & names

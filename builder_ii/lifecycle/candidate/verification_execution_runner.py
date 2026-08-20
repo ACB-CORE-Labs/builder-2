@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import fnmatch
 import hashlib
 import json as json_lib
@@ -17,11 +18,17 @@ from builder_ii.governance.authority import (
     check_command_authority,
     enforce_command_authority,
 )
+from builder_ii.governance.ledger.verification_approval_consumption import (
+    ApprovalConsumptionError,
+    assert_consumption_chain_valid,
+    consume_approval,
+)
 from builder_ii.lifecycle.candidate.execution_postflight_records import (
     validate_execution_postflight_record,
     write_execution_postflight_record,
 )
 from builder_ii.lifecycle.candidate.verification_execution_approval import (
+    validate_approval_time_window,
     validate_verification_execution_approval_against_plan,
     validate_verification_execution_approval_artifact,
 )
@@ -732,7 +739,11 @@ def run_approved_verification(
     approval_path: Path,
     output: Path,
     requested_profile: str = "platform_status",
+    now_utc: datetime.datetime | None = None,
+    expected_plan_digest: str | None = None,
+    expected_approval_digest: str | None = None,
 ) -> dict[str, Any]:
+    execution_now = now_utc or datetime.datetime.now(datetime.timezone.utc)
     plan_data = _read_json_object(plan_path)
     approval_data = _read_json_object(approval_path)
     plan = plan_data if isinstance(plan_data, dict) else {}
@@ -748,6 +759,17 @@ def run_approved_verification(
 
     errors.extend(validate_verification_execution_plan_artifact(plan_data))
     errors.extend(validate_verification_execution_approval_artifact(approval_data))
+    errors.extend(validate_approval_time_window(approval_data, now=execution_now))
+    if (
+        expected_plan_digest is not None
+        and plan.get("verification_execution_plan_digest") != expected_plan_digest
+    ):
+        errors.append("verification execution plan changed after caller validation")
+    if (
+        expected_approval_digest is not None
+        and approval.get("verification_execution_approval_digest") != expected_approval_digest
+    ):
+        errors.append("verification execution approval changed after caller validation")
     if isinstance(plan_data, dict) and plan_data.get("valid") is not True:
         errors.append("referenced verification execution plan must be valid (valid=true)")
     if isinstance(approval_data, dict) and approval_data.get("valid") is not True:
@@ -787,12 +809,17 @@ def run_approved_verification(
         if artifact_root_path.is_absolute()
         else (target_repo / artifact_root_path).resolve()
     )
+    consumption_root = artifact_root / "approval-consumption"
 
     if not target_repo.exists() or not target_repo.is_dir():
         errors.append("target_repo must exist and be a directory")
     if not _path_is_relative_to(artifact_root, target_repo):
         errors.append("artifact_root must resolve inside target_repo")
     errors.extend(_validate_output_path(output=output, target_repo=target_repo, artifact_root=artifact_root))
+    try:
+        assert_consumption_chain_valid(consumption_root)
+    except ApprovalConsumptionError as exc:
+        errors.append(str(exc))
 
     approved_profiles = approval.get("approved_command_profiles", [])
     approved_steps = approval.get("approved_step_ids", [])
@@ -894,6 +921,26 @@ def run_approved_verification(
                 authority_decision=authority_decision,
             )
 
+    try:
+        consume_approval(
+            root=consumption_root,
+            approval=approval,
+            plan=plan,
+            now=execution_now,
+        )
+    except ApprovalConsumptionError as exc:
+        return _receipt_for_block(
+            plan=plan,
+            approval=approval,
+            plan_path=plan_path,
+            approval_path=approval_path,
+            output=output,
+            target_repo=target_repo,
+            artifact_root=artifact_root,
+            requested_profile=requested_profile,
+            errors=[str(exc)],
+            authority_decision=authority_decision,
+        )
     try:
         isolation_policy = plan.get("isolation_policy")
         isolation_backend = get_backend(str(target_repo), isolation_policy)

@@ -58,7 +58,20 @@ The canonical governed session lane binds together the platform preparation tool
 
 `builder-verify run-approved` is the current approved verification execution lane. It is not arbitrary shell. The operator must first create a passive plan with `builder-verify plan`, bind human approval with `builder-verify approve-plan`, then run one fixed profile with `builder-verify run-approved --profile platform_status` or `--profile docs_audit`. The runner validates command authority, uses `shell=False`, forwards only an environment allowlist, captures bounded output, compares git preflight/postflight state, writes an honest receipt for success, failure, timeout, or pre-execution denial, and emits a generated postflight sidecar.
 
-Still gated: arbitrary argv, broad shell execution, patch authority, model/MCP/Goose/deepagents runtime, commit/push automation, and model-driven file mutation.
+The governed MCP server exposes the same runner through exactly
+`verification_execute(plan_path, approval_path)`. Both paths validate the canonical plan and
+separately created approval, enforce a timezone-aware expiry, independently observe the target Git
+state, and consume the approval once immediately before execution. A consumed approval cannot be
+retried, including after timeout, command failure, or detected mutation; a new run requires a new
+human approval. Consumption claims are serialized across processes and durably recorded before the
+verification subprocess. The runner pins the exact artifact digests MCP validated, and MCP reloads
+the stored receipt and postflight evidence before returning their bound references. MCP cannot
+approve, select arbitrary commands, supply environment or timeout overrides, choose output paths,
+or widen the approved profile/step. Plan and approval paths must resolve beneath the
+server-controlled Builder-II artifact root.
+
+Still gated: approval minting through MCP, arbitrary argv, broad shell execution, patch authority,
+model/Goose/deepagents runtime, commit/push automation, and model-driven file mutation.
 
 ## Governed Demo Loop
 
