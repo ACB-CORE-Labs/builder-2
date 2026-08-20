@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import stat
@@ -26,6 +27,15 @@ from builder_ii.governance.authority.readonly_authority import (
     create_read_policy,
     execute_content_read,
     validate_content_read_receipt,
+)
+from builder_ii.governance.hitl.hitl_patch_apply import (
+    apply_hitl_patch,
+    validate_patch_apply_receipt_file,
+)
+from builder_ii.governance.hitl.hitl_patch_approval import (
+    approval_binding_errors,
+    approval_is_expired,
+    validate_hitl_patch_approval_file,
 )
 from builder_ii.governance.hitl.hitl_patch_proposal import (
     MAX_UNIFIED_DIFF_BYTES,
@@ -78,6 +88,7 @@ SERVICE_TOOLS = {
     "verification_plan",
     "verification_execute",
     "patch_proposal",
+    "patch_apply",
 }
 TARGET_PROFILES = {"generic", "builder", "core"}
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -107,6 +118,10 @@ def _canonical_size(value: Any) -> int:
     return len(raw)
 
 
+def _file_digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def _service_policy(tool_name: str) -> dict[str, Any]:
     """Reuse the canonical deny-by-default policy with truthful bounded service ceilings."""
     policy = build_read_only_policy()
@@ -118,6 +133,17 @@ def _service_policy(tool_name: str) -> dict[str, Any]:
         policy["allowed_risk_classes"] = ["medium_risk"]
         policy["timeout_seconds"] = 1800
         policy["governance"]["bounded_subprocess_execution"] = "HITL_APPROVAL_GATED"
+    elif tool_name == "patch_apply":
+        policy["allowed_risk_classes"] = ["mutation"]
+        policy["mutation_allowed"] = True
+        policy["timeout_seconds"] = 1800
+        policy["governance"].update({
+            "effect_classification": "mutation",
+            "risk_classification": "mutation",
+            "target_repo_writes": "HITL_APPROVAL_GATED",
+            "shell_execution": "DISABLED",
+            "bounded_subprocess_execution": "HITL_APPROVAL_GATED",
+        })
     else:
         policy["governance"]["bounded_subprocess_execution"] = "DISABLED"
     return policy
@@ -294,14 +320,16 @@ def validate_mcp_service_receipt(record: Any) -> list[str]:
     else:
         expected_governance = {
             "artifact_is_authority": False,
-            "target_repo_writes": "DISABLED",
+            "effect_classification": "mutation" if record.get("service") == "patch_apply" else "read_only",
+            "risk_classification": "mutation" if record.get("service") == "patch_apply" else ("medium_risk" if record.get("service") == "verification_execute" else "low_risk"),
+            "mutation_allowed": record.get("service") == "patch_apply",
+            "requires_approval_for_mutation": True,
+            "target_repo_writes": "HITL_APPROVAL_GATED" if record.get("service") == "patch_apply" else "DISABLED",
             "shell_execution": "DISABLED",
             "network_access": "DISABLED",
             "credential_access": "DISABLED",
             "model_execution": "DISABLED",
-            "bounded_subprocess_execution": (
-                "HITL_APPROVAL_GATED" if record.get("service") == "verification_execute" else "DISABLED"
-            ),
+            "bounded_subprocess_execution": "HITL_APPROVAL_GATED" if record.get("service") in {"verification_execute", "patch_apply"} else "DISABLED",
         }
         for key, value in expected_governance.items():
             if governance.get(key) != value:
@@ -376,14 +404,16 @@ def _service_receipt(
         "finalized_by": "builder_ii.adapters.mcp.governed_services",
         "governance": {
             "artifact_is_authority": False,
-            "target_repo_writes": "DISABLED",
+            "effect_classification": "mutation" if tool_name == "patch_apply" else "read_only",
+            "risk_classification": "mutation" if tool_name == "patch_apply" else ("medium_risk" if tool_name == "verification_execute" else "low_risk"),
+            "mutation_allowed": tool_name == "patch_apply",
+            "requires_approval_for_mutation": True,
+            "target_repo_writes": "HITL_APPROVAL_GATED" if tool_name == "patch_apply" else "DISABLED",
             "shell_execution": "DISABLED",
             "network_access": "DISABLED",
             "credential_access": "DISABLED",
             "model_execution": "DISABLED",
-            "bounded_subprocess_execution": (
-                "HITL_APPROVAL_GATED" if tool_name == "verification_execute" else "DISABLED"
-            ),
+            "bounded_subprocess_execution": "HITL_APPROVAL_GATED" if tool_name in {"verification_execute", "patch_apply"} else "DISABLED",
         },
     }
     receipt["digest"] = canonical_digest({key: value for key, value in receipt.items() if key != "digest"})
@@ -828,6 +858,120 @@ def _verification_execute(
     return result
 
 
+def _patch_apply(
+    arguments: dict[str, Any],
+    *,
+    builder_root: Path,
+    session_id: str,
+    target_root: Path,
+    target_name: str,
+) -> dict[str, Any]:
+    if set(arguments) != {"proposal_path", "approval_path", "verification_receipt_path"}:
+        raise ServiceDenied("patch_apply accepts exactly proposal_path, approval_path, and verification_receipt_path")
+    proposal_path = _controlled_path(arguments["proposal_path"], root=builder_root, field="proposal_path")
+    approval_path = _controlled_path(arguments["approval_path"], root=builder_root, field="approval_path")
+    verification_path = _controlled_path(
+        arguments["verification_receipt_path"], root=builder_root, field="verification_receipt_path"
+    )
+    proposal = _load_controlled_json(proposal_path, field="proposal_path")
+    approval = _load_controlled_json(approval_path, field="approval_path")
+    if proposal.get("kind") != "builder_ii.hitl_patch_proposal":
+        raise ServiceDenied("proposal_path must contain a HITL patch proposal")
+    proposal_errors = validate_hitl_patch_proposal(proposal)
+    approval_errors = validate_hitl_patch_approval_file(approval_path)
+    approval_errors.extend(
+        approval_binding_errors(
+            approval,
+            proposal_digest=canonical_digest(proposal),
+            patch_digest=str(proposal.get("patch_digest", "")),
+        )
+    )
+    if approval_is_expired(approval):
+        approval_errors.append("patch approval has expired")
+    if proposal_errors or approval_errors:
+        raise ServiceDenied("patch apply artifacts are invalid: " + "; ".join(proposal_errors + approval_errors))
+    if Path(str(proposal.get("target", {}).get("repo", ""))).resolve() != target_root:
+        raise ServiceDenied("proposal target repo does not match the server target root")
+    if proposal.get("target", {}).get("name") != target_name:
+        raise ServiceDenied("proposal target profile does not match the server target profile")
+
+    receipt = _load_controlled_json(verification_path, field="verification_receipt_path")
+    if receipt.get("kind") != VERIFICATION_EXECUTION_RECEIPT_KIND:
+        raise ServiceDenied("patch_apply requires builder_ii.verification_execution_receipt; demo receipts are not admitted")
+    receipt_errors = validate_verification_execution_receipt_artifact(receipt)
+    if receipt_errors or receipt.get("receipt_status") != "EXECUTED" or receipt.get("valid") is not True:
+        raise ServiceDenied("verification execution receipt is invalid: " + "; ".join(receipt_errors or ["receipt must be executed and valid"]))
+    if receipt.get("target_repo") != str(target_root):
+        raise ServiceDenied("verification receipt target_repo does not match the server target root")
+
+    output_dir = builder_root.resolve() / "sessions" / session_id / "mcp" / "patch-apply" / uuid.uuid4().hex
+    _refuse_symlink_components(output_dir, root=builder_root, field="patch apply output")
+    receipt_path = output_dir / "patch_apply_receipt.json"
+    postflight_path = output_dir / "postflight_record.json"
+    rollback_plan_path = output_dir / "rollback_plan.json"
+    rollback_bundle_path = output_dir / "rollback_bundle.json"
+
+    def evidence_refs() -> dict[str, dict[str, str]]:
+        refs: dict[str, dict[str, str]] = {}
+        for key, path in (
+            ("patch_apply_receipt_ref", receipt_path),
+            ("patch_apply_failure_receipt_ref", output_dir / "patch_apply_failure_receipt.json"),
+            ("postflight_ref", postflight_path),
+            ("rollback_plan_ref", rollback_plan_path),
+            ("rollback_bundle_ref", rollback_bundle_path),
+            ("rollback_failure_receipt_ref", output_dir / "rollback_failure_receipt.json"),
+        ):
+            if path.is_file() and not path.is_symlink():
+                refs[key] = {"path": str(path), "sha256": _file_digest(path)}
+        return refs
+
+    try:
+        apply_hitl_patch(proposal_path, approval_path, verification_path, output_dir)
+    except Exception as exc:
+        refs = evidence_refs()
+        if refs:
+            return {
+                "kind": "builder_ii.mcp_patch_apply_result",
+                "status": "mutation_uncertain",
+                "mutation_state": "APPLIED_OR_MAY_HAVE_BEEN_APPLIED",
+                "error": str(exc)[:500],
+                "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch",
+                "rollback_executed": False,
+                **refs,
+            }
+        raise
+
+    for path, label in (
+        (receipt_path, "patch apply receipt"),
+        (postflight_path, "postflight evidence"),
+        (rollback_plan_path, "rollback plan"),
+        (rollback_bundle_path, "rollback bundle"),
+    ):
+        if not path.is_file() or path.is_symlink():
+            raise RuntimeError(f"canonical {label} is missing after patch apply")
+    canonical_receipt_errors = validate_patch_apply_receipt_file(receipt_path)
+    if canonical_receipt_errors:
+        return {
+            "kind": "builder_ii.mcp_patch_apply_result",
+            "status": "mutation_uncertain",
+            "mutation_state": "APPLIED_OR_MAY_HAVE_BEEN_APPLIED",
+            "error": "canonical patch apply receipt is invalid: " + "; ".join(canonical_receipt_errors),
+            "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch",
+            "rollback_executed": False,
+            **evidence_refs(),
+        }
+    return {
+        "kind": "builder_ii.mcp_patch_apply_result",
+        "status": "succeeded",
+        "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch",
+        "patch_apply_receipt_ref": {"path": str(receipt_path), "sha256": _file_digest(receipt_path)},
+        "postflight_ref": {"path": str(postflight_path), "sha256": _file_digest(postflight_path)},
+        "rollback_plan_ref": {"path": str(rollback_plan_path), "sha256": _file_digest(rollback_plan_path)},
+        "rollback_bundle_ref": {"path": str(rollback_bundle_path), "sha256": _file_digest(rollback_bundle_path)},
+        "rollback_executed": False,
+    }
+
+
 def run_service(
     *,
     tool_name: str,
@@ -963,12 +1107,22 @@ def run_service(
             target_root=target_root,
             target_name=target_name,
         )
+    elif tool_name == "patch_apply":
+        result = _patch_apply(
+            arguments,
+            builder_root=builder_root,
+            session_id=session_id,
+            target_root=target_root,
+            target_name=target_name,
+        )
     else:  # pragma: no cover - identity validation makes this unreachable
         raise ServiceDenied("service is not admitted")
 
     if _canonical_size(result) > MAX_SERVICE_OUTPUT_BYTES:
         raise RuntimeError("service result exceeds the 4194304-byte output limit")
-    if tool_name == "verification_execute" and isinstance(result, dict):
+    if tool_name == "patch_apply" and isinstance(result, dict) and result.get("status") != "succeeded":
+        status = "failed"
+    elif tool_name == "verification_execute" and isinstance(result, dict):
         status = "succeeded" if result.get("receipt_status") == "EXECUTED" and result.get("valid") is True else "denied"
     elif tool_name == "delegation_status" and isinstance(result, dict) and result.get("chain_valid") is False:
         status = "failed"
