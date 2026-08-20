@@ -15,6 +15,7 @@ from builder_ii.core.governed_prepare_package import (
     validate_governed_prepare_package_directory,
 )
 from builder_ii.core.mcp_policy import MCP_POLICY_KIND, validate_mcp_policy
+from builder_ii.core.orchestration_status import build_obligation_board
 from builder_ii.core.repo_map import create_repo_map
 from builder_ii.core.repo_search import search_repo_map
 from builder_ii.governance.authority.readonly_authority import (
@@ -31,6 +32,11 @@ from builder_ii.governance.ledger.event_ledger import (
     write_event_record,
 )
 from builder_ii.governance.ledger.workflow_records import canonical_digest
+from builder_ii.lifecycle.candidate.verification_execution_plan import (
+    finalize_verification_execution_plan,
+    validate_verification_execution_plan_artifact,
+    write_verification_execution_plan,
+)
 
 MAX_MAP_FILES = 500
 MAX_MAP_FILE_BYTES = 1_000_000
@@ -39,9 +45,18 @@ MAX_READ_BYTES = 256 * 1024
 MAX_TASK_BYTES = 4096
 MAX_SERVICE_INPUT_BYTES = 8 * 1024
 MAX_SERVICE_OUTPUT_BYTES = 4 * 1024 * 1024
-SERVICE_TOOLS = {"repo_map", "repo_search", "content_read", "prepare_package", "validate_prepare_package"}
+SERVICE_TOOLS = {
+    "repo_map",
+    "repo_search",
+    "content_read",
+    "prepare_package",
+    "validate_prepare_package",
+    "delegation_status",
+    "verification_plan",
+}
 TARGET_PROFILES = {"generic", "builder", "core"}
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+_HEAD_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 _EVENT_TYPE_BY_STATUS = {
     "succeeded": "mcp_call_executed",
     "denied": "mcp_call_denied",
@@ -68,7 +83,7 @@ def _canonical_size(value: Any) -> int:
 
 
 def _service_policy() -> dict[str, Any]:
-    """Reuse the canonical deny-by-default policy with truthful 3B1 byte ceilings."""
+    """Reuse the canonical deny-by-default policy with truthful bounded service ceilings."""
     policy = build_read_only_policy()
     policy["max_input_bytes"] = MAX_SERVICE_INPUT_BYTES
     policy["max_output_bytes"] = MAX_SERVICE_OUTPUT_BYTES
@@ -83,6 +98,16 @@ def _within(path: Path, root: Path) -> bool:
         return False
 
 
+def _controlled_path(raw_value: Any, *, root: Path, field: str) -> Path:
+    if not isinstance(raw_value, str) or not raw_value.strip():
+        raise ServiceDenied(f"{field} must be a non-empty string")
+    supplied = Path(raw_value.strip())
+    candidate = supplied if supplied.is_absolute() else root.resolve() / supplied
+    if not _within(candidate, root):
+        raise ServiceDenied(f"{field} must remain inside the server-controlled Builder-II artifact root")
+    return candidate.resolve()
+
+
 def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value.lower())
 
@@ -93,7 +118,22 @@ def _validate_identity(*, session_id: str, target_name: str, tool_name: str) -> 
     if target_name not in TARGET_PROFILES:
         raise ServiceDenied("target profile must be one of generic, builder, core")
     if tool_name not in SERVICE_TOOLS:
-        raise ServiceDenied("service is not admitted by the 3B1 inventory")
+        raise ServiceDenied("service is not admitted by the governed MCP inventory")
+
+
+def _assert_mcp_ledger_extendable(
+    *, builder_root: Path, session_id: str
+) -> tuple[list[tuple[dict[str, Any], Path]], str]:
+    """Replay the current MCP session before any new service artifact write."""
+    events_dir = builder_root.resolve() / "sessions" / session_id / "events"
+    existing = load_event_records(events_dir)
+    if not existing:
+        return existing, "initialized"
+    replay = replay_events(existing, session_id=session_id)
+    if not replay.get("valid"):
+        detail = "; ".join(str(error) for error in replay.get("errors", [])) or "unknown replay error"
+        raise CorruptLedgerError(f"existing MCP session ledger is invalid: {detail}")
+    return existing, str(replay.get("current_stage") or "initialized")
 
 
 def _validate_policy_ref(policy_ref: Any) -> list[str]:
@@ -217,15 +257,7 @@ def _service_receipt(
     session_dir = builder_root / "sessions" / session_id
     mcp_dir = session_dir / "mcp"
     events_dir = session_dir / "events"
-
-    existing = load_event_records(events_dir)
-    current_stage = "initialized"
-    if existing:
-        replay = replay_events(existing, session_id=session_id)
-        if not replay.get("valid"):
-            detail = "; ".join(str(error) for error in replay.get("errors", [])) or "unknown replay error"
-            raise CorruptLedgerError(f"existing MCP session ledger is invalid: {detail}")
-        current_stage = str(replay.get("current_stage") or "initialized")
+    existing, current_stage = _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
     sequence = len(existing) + 1
 
     policy = _service_policy()
@@ -246,7 +278,7 @@ def _service_receipt(
         "kind": policy["kind"],
         "path": str(policy_path),
         "sha256": canonical_digest(policy),
-        "name": "3B1 deny-by-default service policy",
+        "name": "Plan Set 3B deny-by-default read/plan service policy",
         "required": True,
     }
     receipt = {
@@ -331,6 +363,85 @@ def _bounded_int(arguments: dict[str, Any], key: str, default: int, maximum: int
     return value
 
 
+def _delegation_status(arguments: dict[str, Any], *, builder_root: Path) -> dict[str, Any]:
+    run_output_dir = _controlled_path(arguments.get("run_output_dir"), root=builder_root, field="run_output_dir")
+    if not run_output_dir.is_dir():
+        raise ServiceDenied("run_output_dir must name an existing run directory")
+    try:
+        return build_obligation_board(run_output_dir)
+    except ValueError as exc:
+        raise ServiceDenied(str(exc)) from exc
+
+
+def _verification_plan(
+    arguments: dict[str, Any],
+    *,
+    builder_root: Path,
+    session_id: str,
+    target_root: Path,
+    target_name: str,
+) -> dict[str, Any]:
+    verification_profile = arguments.get("verification_profile")
+    if not isinstance(verification_profile, str) or not verification_profile.strip():
+        raise ServiceDenied("verification_profile must be a non-empty string")
+    head_sha = arguments.get("target_head_sha")
+    if not isinstance(head_sha, str) or not _HEAD_SHA_RE.fullmatch(head_sha):
+        raise ServiceDenied("target_head_sha must be an explicit 40-character Git SHA")
+    tree_clean = arguments.get("tree_clean")
+    if not isinstance(tree_clean, bool):
+        raise ServiceDenied("tree_clean must be an explicit boolean")
+
+    # A passive plan still writes an artifact. Refuse before that write when the current MCP
+    # session evidence cannot replay; never leave a plan artifact that has no valid service receipt.
+    _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
+    output_dir = builder_root.resolve() / "sessions" / session_id / "mcp" / "verification-plan" / uuid.uuid4().hex
+    plan_scope = {
+        "scope_id": "plan_set_3b2_mcp_passive_verification_plan",
+        "description": (
+            "Passive verification planning over explicit caller-supplied Git-state metadata. "
+            "The MCP service does not query Git, approve the plan, or execute verification."
+        ),
+        "includes": [
+            "structured command profile references",
+            "planned verification lane descriptions",
+            "caller-supplied target_head_sha and tree_clean metadata",
+            "disabled authority declarations",
+        ],
+        "excludes": [
+            "independent Git-state observation",
+            "Git or subprocess execution",
+            "verification approval minting",
+            "verification execution",
+            "source writes",
+            "patch authority",
+            "model or tool execution",
+            "Goose or Deep Agents runtime startup",
+        ],
+    }
+    plan = finalize_verification_execution_plan(
+        target_profile=target_name,
+        verification_profile=verification_profile.strip(),
+        target_repo=str(target_root.resolve()),
+        target_head_sha=head_sha.lower(),
+        tree_clean=tree_clean,
+        artifact_root=str(output_dir),
+        plan_scope=plan_scope,
+        requested_by_command="builder-mcp verification_plan",
+    )
+    errors = validate_verification_execution_plan_artifact(plan)
+    if errors or plan.get("valid") is not True:
+        detail = "; ".join(errors or [str(error) for error in plan.get("errors", [])])
+        raise ServiceDenied("verification plan request is invalid: " + (detail or "unknown validation error"))
+    if plan.get("plan_mode") != "planned_only" or plan.get("approval_required") is not True:
+        raise RuntimeError("verification plan escaped the passive planned-only authority boundary")
+    if plan.get("execution_enabled") is not False or plan.get("artifact_is_authority") is not False:
+        raise RuntimeError("verification plan unexpectedly grants execution authority")
+
+    plan_path = output_dir / "verification-execution-plan.json"
+    write_verification_execution_plan(plan, plan_path)
+    return plan
+
+
 def run_service(
     *,
     tool_name: str,
@@ -341,12 +452,13 @@ def run_service(
     target_name: str,
     config_root: Path | None = None,
 ) -> tuple[dict[str, Any], Path, Path]:
-    """Dispatch only to existing governed services; no CLI or subprocess boundary."""
+    """Dispatch only to existing governed services; no CLI, shell, or subprocess boundary."""
     _validate_identity(session_id=session_id, target_name=target_name, tool_name=tool_name)
     if not isinstance(arguments, dict):
         raise ServiceDenied("arguments must be an object")
     if _canonical_size(arguments) > MAX_SERVICE_INPUT_BYTES:
         raise ServiceDenied("service arguments exceed the 8192-byte input limit")
+    builder_root = builder_root.resolve()
     target_root = target_root.resolve()
     if not target_root.is_dir():
         raise ServiceDenied("target root must be an existing directory")
@@ -406,7 +518,7 @@ def run_service(
         if not trusted_root.is_dir():
             raise ServiceDenied("trusted Builder-II config root must be an existing directory")
         call_id = uuid.uuid4().hex
-        output = builder_root.resolve() / "sessions" / session_id / "mcp" / "prepare-package" / call_id
+        output = builder_root / "sessions" / session_id / "mcp" / "prepare-package" / call_id
         task_value = arguments.get("task")
         if not isinstance(task_value, str) or not task_value.strip():
             raise ServiceDenied("task must be non-empty")
@@ -425,7 +537,7 @@ def run_service(
         supplied_value = arguments.get("path")
         if not isinstance(supplied_value, str) or not supplied_value.strip():
             raise ServiceDenied("package path must be non-empty")
-        package_root = (builder_root.resolve() / "sessions" / session_id / "mcp" / "prepare-package").resolve()
+        package_root = (builder_root / "sessions" / session_id / "mcp" / "prepare-package").resolve()
         supplied = Path(supplied_value.strip())
         raw = supplied if supplied.is_absolute() else package_root / supplied
         if not _within(raw, package_root):
@@ -433,17 +545,30 @@ def run_service(
         else:
             errors = validate_governed_prepare_package_directory(raw)
             result = {"valid": not errors, "errors": errors}
+    elif tool_name == "delegation_status":
+        result = _delegation_status(arguments, builder_root=builder_root)
+    elif tool_name == "verification_plan":
+        result = _verification_plan(
+            arguments,
+            builder_root=builder_root,
+            session_id=session_id,
+            target_root=target_root,
+            target_name=target_name,
+        )
     else:  # pragma: no cover - identity validation makes this unreachable
         raise ServiceDenied("service is not admitted")
 
     if _canonical_size(result) > MAX_SERVICE_OUTPUT_BYTES:
         raise RuntimeError("service result exceeds the 4194304-byte output limit")
-    status = (
-        "succeeded"
-        if not (isinstance(result, dict) and result.get("kind") == "builder_ii.denied_read")
-        and not (isinstance(result, dict) and result.get("valid") is False)
-        else "denied"
-    )
+    if tool_name == "delegation_status" and isinstance(result, dict) and result.get("chain_valid") is False:
+        status = "failed"
+    else:
+        status = (
+            "succeeded"
+            if not (isinstance(result, dict) and result.get("kind") == "builder_ii.denied_read")
+            and not (isinstance(result, dict) and result.get("valid") is False)
+            else "denied"
+        )
     return _service_receipt(
         builder_root=builder_root,
         session_id=session_id,

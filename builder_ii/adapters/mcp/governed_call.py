@@ -2,12 +2,12 @@
 
 The legacy ``echo``/``utc_static`` path builds a deny-by-default policy and call envelope,
 runs the existing governed executor, validates the receipt, and appends one hash-chained
-event record. Plan Set 3B1 adds discovery schemas for governed repository/read/preparation
-services; those service names are routed by ``governed_services`` and do not widen
-``tool_invocation_gateway.ALLOWED_STUB_TOOLS``.
+event record. Plan Set 3B adds discovery schemas for governed repository/read/preparation,
+status, and passive-planning services; those service names are routed by
+``governed_services`` and do not widen ``tool_invocation_gateway.ALLOWED_STUB_TOOLS``.
 
 No inventory entry grants authority. Mutation/shell classes remain separately gated and
-read/prepare runtime validation remains authoritative even when a client ignores JSON Schema.
+service runtime validation remains authoritative even when a client ignores JSON Schema.
 """
 
 from __future__ import annotations
@@ -100,6 +100,28 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
             "type": "object",
             "properties": {"path": {"type": "string", "minLength": 1}},
             "required": ["path"],
+        },
+    },
+    "delegation_status": {
+        "tool_id": "service.delegation_status",
+        "description": "Read a deterministic, tamper-sensitive obligation/run status board from the server-controlled Builder-II artifact root.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"run_output_dir": {"type": "string", "minLength": 1}},
+            "required": ["run_output_dir"],
+        },
+    },
+    "verification_plan": {
+        "tool_id": "service.verification_plan",
+        "description": "Create a passive verification execution plan artifact only; never approves or executes verification.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "verification_profile": {"type": "string", "minLength": 1},
+                "target_head_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{40}$"},
+                "tree_clean": {"type": "boolean"},
+            },
+            "required": ["verification_profile", "target_head_sha", "tree_clean"],
         },
     },
 }
