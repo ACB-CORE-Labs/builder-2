@@ -42,6 +42,22 @@ The pipeline below reflects what is implemented today, distinguished from work s
 
 The promoted scope is only the operator-invoked, approval-gated lane. Autonomous or unattended application remains disabled and is not implied by this state.
 
+### Passive MCP proposal boundary
+
+The MCP `patch_proposal` service shares the canonical proposal binder with
+`builder-hitl propose-patch`. The caller supplies patch material, but never the authoritative
+patch digest: Builder-II hashes the exact UTF-8 diff bytes, parses a conservative exact file scope,
+hashes the exact bytes of a verification receipt resolved beneath the server-controlled artifact
+root, binds the server-configured target, and chooses the proposal output location. Only after the
+persisted proposal reloads and validates does MCP return `HUMAN_APPROVAL_REQUIRED` with the bound
+proposal reference, digests, target, and exact scope.
+
+That decision is state evidence, not approval. MCP does not expose `approve_patch`, `apply_patch`,
+rollback, generic shell, or generic write tools. The former environment-flagged MCP
+`propose_patch` apply bridge and advertised `run_shell` surface are retired and cannot be restored
+by setting `BUILDER_MCP_GOVERNED_APPLY`. Human approval and explicit apply remain out-of-band
+operator steps; Plan Set 3C2 is separate and not authorized by this passive service.
+
 ## Proposal schema v2 and verification binding
 
 New proposals use `builder_ii.hitl_patch_proposal` schema v2. They bind `target_head_sha`

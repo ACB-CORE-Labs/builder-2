@@ -73,6 +73,14 @@ server-controlled Builder-II artifact root.
 Still gated: approval minting through MCP, arbitrary argv, broad shell execution, patch authority,
 model/Goose/deepagents runtime, commit/push automation, and model-driven file mutation.
 
+`patch_proposal(unified_diff, description, reason, target_head_sha,
+verification_receipt_path)` is the separate passive MCP patch surface. Builder-II computes the
+patch digest and exact verification-receipt byte digest internally, binds the configured server
+target, chooses the artifact path, and returns `HUMAN_APPROVAL_REQUIRED`. That result is not an
+approval artifact. The call stops there: MCP inventory contains no patch approval, application,
+rollback, generic shell, or generic write tool. Operator-side `builder-hitl approve-patch` and
+`builder-hitl apply-patch` remain separate commands and are not made callable by MCP.
+
 ## Governed Demo Loop
 
 The real-world recording lane is separate from the passive session lane. It runs against a temporary detached worktree of any operator-designated target repo (`--target-repo`/`--target-name`; `core` selects the CORE profile with its identity check and sensitive-module policy):

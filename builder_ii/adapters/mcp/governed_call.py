@@ -1,13 +1,12 @@
 """Governed MCP tool inventory plus the legacy low-risk stub ceremony.
-
 The legacy ``echo``/``utc_static`` path builds a deny-by-default policy and call envelope,
 runs the existing governed executor, validates the receipt, and appends one hash-chained
 event record. Plan Set 3B adds discovery schemas for governed repository/read/preparation,
 status, and passive-planning services; those service names are routed by
 ``governed_services`` and do not widen ``tool_invocation_gateway.ALLOWED_STUB_TOOLS``.
 
-No inventory entry grants authority. Mutation/shell classes remain separately gated and
-service runtime validation remains authoritative even when a client ignores JSON Schema.
+No inventory entry grants authority. Service runtime validation remains authoritative even
+when a client ignores JSON Schema.
 """
 
 from __future__ import annotations
@@ -134,6 +133,22 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
                 "approval_path": {"type": "string", "minLength": 1},
             },
             "required": ["plan_path", "approval_path"],
+            "additionalProperties": False,
+        },
+    },
+    "patch_proposal": {
+        "tool_id": "service.patch_proposal",
+        "description": "Persist an exact passive patch proposal and stop for separate human approval; never approves or applies.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "unified_diff": {"type": "string", "minLength": 1, "maxLength": 65536},
+                "description": {"type": "string", "minLength": 1},
+                "reason": {"type": "string", "minLength": 1},
+                "target_head_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{40}$"},
+                "verification_receipt_path": {"type": "string", "minLength": 1},
+            },
+            "required": ["unified_diff", "description", "reason", "target_head_sha", "verification_receipt_path"],
             "additionalProperties": False,
         },
     },
@@ -314,95 +329,4 @@ def run_governed_tool_call(
         receipt=receipt,
         receipt_path=receipt_path,
         event_path=event_path,
-    )
-
-
-# Mutating tool classes (G3). The server advertises these so the interposition seam is real,
-# but a tools/call on them is REFUSED in-loop, deny-by-default: no envelope is built (the
-# mcp_call_envelope schema pins mutates_target_repo/executes_shell false), nothing executes
-# or mutates, and a hitl_gate_refused event is ledgered. Unlocking them is the G4 promotion
-# (ADR-0009), which relaxes those pins only behind a validated approval — never here.
-GATED_TOOL_SPECS: dict[str, dict[str, Any]] = {
-    "propose_patch": {
-        "description": "Propose a file edit (MUTATING — gated; refused in this governed session).",
-        "inputSchema": {
-            "type": "object",
-            "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
-        },
-    },
-    "run_shell": {
-        "description": "Run a shell command (MUTATING — gated; refused in this governed session).",
-        "inputSchema": {"type": "object", "properties": {"cmd": {"type": "string"}}},
-    },
-}
-
-
-@dataclass(frozen=True)
-class GatedRefusalOutcome:
-    """The result of refusing a mutating tool call in-loop."""
-
-    tool_name: str
-    reason: str
-    compose_hint: str
-    event_path: Path
-
-
-def refuse_gated_tool_call(
-    *, tool_name: str, arguments: dict[str, Any], session_id: str, builder_root: Path
-) -> GatedRefusalOutcome:
-    """Refuse a mutating tool call in-loop: ledger the refusal, execute and mutate nothing.
-
-    This is the in-loop gate proving it refuses. It runs no envelope (the read-only envelope
-    schema cannot represent a mutation) and writes no execution receipt; it appends one
-    hash-chained ``hitl_gate_refused`` event and returns the composed governed HITL path.
-    """
-    session_dir = Path(builder_root) / "sessions" / session_id
-    mcp_dir = session_dir / "mcp"
-    events_dir = session_dir / "events"
-    mcp_dir.mkdir(parents=True, exist_ok=True)
-    events_dir.mkdir(parents=True, exist_ok=True)
-
-    existing = load_event_records(events_dir)
-    sequence = len(existing) + 1
-
-    # A policy snapshot is referenced by the ledger event; it is deny-by-default read-only.
-    policy = build_read_only_policy()
-    policy_path = mcp_dir / f"{sequence:03d}_policy.json"
-    _write_json(policy_path, policy)
-
-    reason = (
-        f"Mutating tool '{tool_name}' is gated: this governed session refuses it in-loop. "
-        "No envelope was built and nothing was executed or mutated."
-    )
-    compose_hint = (
-        "To perform a mutating action, open an approved execution candidate through the "
-        "governed HITL lane (builder-hitl); the in-loop unlock is a future promotion (ADR-0009 G4)."
-    )
-
-    current_stage = "initialized"
-    if existing:
-        replay = replay_events(existing, session_id=session_id)
-        if replay.get("valid"):
-            current_stage = str(replay.get("current_stage") or "initialized")
-
-    event = create_event_record(
-        event_id=f"evt_mcp_gate_{session_id}_{sequence}",
-        session_id=session_id,
-        sequence=sequence,
-        event_type="mcp_call_denied",
-        stage=current_stage,
-        subject_refs=[],
-        command_surface="builder-mcp serve",
-        policy_snapshot_ref=_artifact_ref(policy, policy_path, "mcp_tool_policy"),
-        previous_event_ref=_previous_event_ref(existing),
-        message=reason,
-    )
-    event_errors = validate_event_record(event)
-    if event_errors:
-        raise ValueError(f"event validation failed: {event_errors}")
-    event_path = events_dir / f"{sequence:03d}_mcp_call_denied.json"
-    write_event_record(event, event_path)
-
-    return GatedRefusalOutcome(
-        tool_name=tool_name, reason=reason, compose_hint=compose_hint, event_path=event_path
     )

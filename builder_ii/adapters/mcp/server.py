@@ -19,8 +19,7 @@ import sys
 from pathlib import Path
 from typing import Any, TextIO
 
-from builder_ii.adapters.mcp.governed_apply import run_gated_patch_apply
-from builder_ii.adapters.mcp.governed_call import GATED_TOOL_SPECS, TOOL_SPECS, refuse_gated_tool_call
+from builder_ii.adapters.mcp.governed_call import TOOL_SPECS
 from builder_ii.adapters.mcp.governed_services import (
     MAX_SERVICE_INPUT_BYTES,
     SERVICE_TOOLS,
@@ -57,7 +56,7 @@ def _bounded_evidence_arguments(arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 class GovernedMcpServer:
-    """A governed MCP server exposing only admitted services and gated mutation classes."""
+    """A governed MCP server exposing only inventory-admitted services."""
 
     def __init__(
         self,
@@ -110,7 +109,6 @@ class GovernedMcpServer:
     @staticmethod
     def _tool_list() -> list[dict[str, Any]]:
         specs = {name: spec for name, spec in TOOL_SPECS.items() if name in SERVICE_TOOLS}
-        specs.update(GATED_TOOL_SPECS)
         return [
             {"name": name, "description": spec["description"], "inputSchema": spec["inputSchema"]}
             for name, spec in specs.items()
@@ -181,49 +179,6 @@ class GovernedMcpServer:
     def _tools_call(self, params: dict[str, Any]) -> dict[str, Any]:
         name = params.get("name")
         raw_arguments = params.get("arguments")
-        # Preserve historical gated-tool behavior for omitted/null arguments only. The 3B1
-        # service lane validates its raw argument type below and never coerces malformed input.
-        gated_arguments = raw_arguments if isinstance(raw_arguments, dict) else {}
-
-        # G4: the write path routes to the governed apply lane behind a validated approval and
-        # the deny-by-default enablement flag. run_shell has no governed bounded lane to
-        # delegate to, so it stays refused (G3).
-        if name == "propose_patch":
-            outcome = run_gated_patch_apply(
-                arguments=dict(gated_arguments),
-                session_id=self.session_id,
-                builder_root=self.builder_root,
-            )
-            return {
-                "content": [{"type": "text", "text": outcome.reason}],
-                "isError": outcome.status != "applied",
-                "_meta": {
-                    "governed": True,
-                    "gated": True,
-                    "applied": outcome.status == "applied",
-                    "event_path": str(outcome.event_path),
-                    "receipt_dir": outcome.receipt_dir,
-                },
-            }
-
-        if name in GATED_TOOL_SPECS:
-            refusal = refuse_gated_tool_call(
-                tool_name=str(name),
-                arguments=dict(gated_arguments),
-                session_id=self.session_id,
-                builder_root=self.builder_root,
-            )
-            return {
-                "content": [{"type": "text", "text": f"{refusal.reason} {refusal.compose_hint}"}],
-                "isError": True,
-                "_meta": {
-                    "governed": True,
-                    "gated": True,
-                    "refused": True,
-                    "event_path": str(refusal.event_path),
-                },
-            }
-
         # Inventory-first: legacy echo/utc_static and all unknown names are retired at the
         # transport boundary, not merely hidden from tools/list.
         if name not in SERVICE_TOOLS:

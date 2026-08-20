@@ -11,6 +11,7 @@ from typing import Any
 from builder_ii.adapters.mcp.governed_call import build_read_only_policy
 from builder_ii.core.config import load_settings
 from builder_ii.core.config_schema import digest_jsonable
+from builder_ii.core.demo_loop import DEMO_VERIFICATION_RECEIPT_KIND, validate_demo_verification_receipt
 from builder_ii.core.governed_prepare_package import (
     create_governed_prepare_package,
     validate_governed_prepare_package_directory,
@@ -23,6 +24,12 @@ from builder_ii.governance.authority.readonly_authority import (
     create_read_policy,
     execute_content_read,
     validate_content_read_receipt,
+)
+from builder_ii.governance.hitl.hitl_patch_proposal import (
+    MAX_UNIFIED_DIFF_BYTES,
+    create_bound_hitl_patch_proposal,
+    validate_hitl_patch_proposal,
+    write_hitl_patch_proposal,
 )
 from builder_ii.governance.ledger.event_ledger import (
     EVENT_RECORD_KIND,
@@ -46,6 +53,7 @@ from builder_ii.lifecycle.candidate.verification_execution_plan import (
     write_verification_execution_plan,
 )
 from builder_ii.lifecycle.candidate.verification_execution_receipt import (
+    VERIFICATION_EXECUTION_RECEIPT_KIND,
     validate_verification_execution_receipt_against_plan_and_approval,
     validate_verification_execution_receipt_artifact,
 )
@@ -67,6 +75,7 @@ SERVICE_TOOLS = {
     "delegation_status",
     "verification_plan",
     "verification_execute",
+    "patch_proposal",
 }
 TARGET_PROFILES = {"generic", "builder", "core"}
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -99,7 +108,9 @@ def _canonical_size(value: Any) -> int:
 def _service_policy(tool_name: str) -> dict[str, Any]:
     """Reuse the canonical deny-by-default policy with truthful bounded service ceilings."""
     policy = build_read_only_policy()
-    policy["max_input_bytes"] = MAX_SERVICE_INPUT_BYTES
+    policy["max_input_bytes"] = (
+        MAX_UNIFIED_DIFF_BYTES + MAX_SERVICE_INPUT_BYTES if tool_name == "patch_proposal" else MAX_SERVICE_INPUT_BYTES
+    )
     policy["max_output_bytes"] = MAX_SERVICE_OUTPUT_BYTES
     if tool_name == "verification_execute":
         policy["allowed_risk_classes"] = ["medium_risk"]
@@ -468,6 +479,111 @@ def _verification_plan(
     return plan
 
 
+def _controlled_receipt_bytes(raw_value: Any, *, builder_root: Path) -> bytes:
+    if not isinstance(raw_value, str) or not raw_value.strip():
+        raise ServiceDenied("verification_receipt_path must be a non-empty string")
+    supplied = Path(raw_value.strip())
+    if ".." in supplied.parts:
+        raise ServiceDenied("verification_receipt_path must not contain traversal segments")
+    unresolved = supplied if supplied.is_absolute() else builder_root.resolve() / supplied
+    if unresolved.is_symlink():
+        raise ServiceDenied("verification_receipt_path must name a non-symlink artifact")
+    path = _controlled_path(raw_value, root=builder_root, field="verification_receipt_path")
+    if not path.is_file() or path.is_symlink():
+        raise ServiceDenied("verification_receipt_path must name an existing non-symlink artifact file")
+    try:
+        receipt_bytes = path.read_bytes()
+        receipt = json.loads(receipt_bytes.decode("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ServiceDenied(f"verification_receipt_path is not a readable UTF-8 JSON artifact: {exc}") from exc
+    if not isinstance(receipt, dict):
+        raise ServiceDenied("verification_receipt_path must contain a JSON object")
+    kind = receipt.get("kind")
+    if kind == VERIFICATION_EXECUTION_RECEIPT_KIND:
+        errors = validate_verification_execution_receipt_artifact(receipt)
+    elif kind == DEMO_VERIFICATION_RECEIPT_KIND:
+        errors = validate_demo_verification_receipt(receipt)
+    else:
+        errors = ["receipt kind is not admitted for HITL patch proposal binding"]
+    if errors:
+        raise ServiceDenied("verification receipt is invalid: " + "; ".join(errors))
+    return receipt_bytes
+
+
+def _patch_proposal(
+    arguments: dict[str, Any],
+    *,
+    builder_root: Path,
+    session_id: str,
+    target_root: Path,
+    target_name: str,
+) -> dict[str, Any]:
+    required = {
+        "unified_diff",
+        "description",
+        "reason",
+        "target_head_sha",
+        "verification_receipt_path",
+    }
+    if set(arguments) != required:
+        raise ServiceDenied("patch_proposal accepts exactly unified_diff, description, reason, target_head_sha, and verification_receipt_path")
+    unified_diff = arguments.get("unified_diff")
+    if not isinstance(unified_diff, str):
+        raise ServiceDenied("unified_diff must be a string")
+    try:
+        unified_diff_bytes = unified_diff.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ServiceDenied("unified_diff must be valid UTF-8 text") from exc
+    if len(unified_diff_bytes) > MAX_UNIFIED_DIFF_BYTES:
+        raise ServiceDenied(f"unified_diff exceeds the {MAX_UNIFIED_DIFF_BYTES}-byte limit")
+
+    if _within(builder_root, target_root):
+        raise ServiceDenied("patch_proposal artifact root must be outside the target repository")
+
+    _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
+    receipt_bytes = _controlled_receipt_bytes(arguments.get("verification_receipt_path"), builder_root=builder_root)
+    try:
+        proposal = create_bound_hitl_patch_proposal(
+            target_name=target_name,
+            generic_repo=target_root if target_name == "generic" else None,
+            bound_target_repo=target_root,
+            patch_description=arguments.get("description"),
+            reason=arguments.get("reason"),
+            unified_diff=unified_diff,
+            target_head_sha=arguments.get("target_head_sha"),
+            verification_receipt_bytes=receipt_bytes,
+        )
+    except (TypeError, ValueError) as exc:
+        raise ServiceDenied(str(exc)) from exc
+
+    output_dir = builder_root.resolve() / "sessions" / session_id / "mcp" / "patch-proposal" / uuid.uuid4().hex
+    proposal_path = output_dir / "hitl-patch-proposal.json"
+    write_hitl_patch_proposal(proposal, proposal_path)
+    try:
+        stored = json.loads(proposal_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"persisted patch proposal could not be reloaded: {exc}") from exc
+    errors = validate_hitl_patch_proposal(stored)
+    if errors:
+        raise RuntimeError("persisted patch proposal is invalid: " + "; ".join(errors))
+    if stored != proposal:
+        raise RuntimeError("persisted patch proposal does not match the canonical proposal")
+    proposal_digest = canonical_digest(stored)
+    return {
+        "proposal_ref": {
+            "kind": stored["kind"],
+            "path": str(proposal_path.resolve()),
+            "sha256": proposal_digest,
+            "required": True,
+        },
+        "proposal_digest": proposal_digest,
+        "patch_digest": stored["patch_digest"],
+        "target": stored["target"],
+        "exact_scope": stored["exact_scope"],
+        "decision": "HUMAN_APPROVAL_REQUIRED",
+    }
+
+
 def _load_controlled_json(path: Path, *, field: str) -> dict[str, Any]:
     if not path.is_file() or path.is_symlink():
         raise ServiceDenied(f"{field} must name an existing non-symlink JSON file")
@@ -661,8 +777,9 @@ def run_service(
     _validate_identity(session_id=session_id, target_name=target_name, tool_name=tool_name)
     if not isinstance(arguments, dict):
         raise ServiceDenied("arguments must be an object")
-    if _canonical_size(arguments) > MAX_SERVICE_INPUT_BYTES:
-        raise ServiceDenied("service arguments exceed the 8192-byte input limit")
+    input_limit = MAX_UNIFIED_DIFF_BYTES + MAX_SERVICE_INPUT_BYTES if tool_name == "patch_proposal" else MAX_SERVICE_INPUT_BYTES
+    if _canonical_size(arguments) > input_limit:
+        raise ServiceDenied(f"service arguments exceed the {input_limit}-byte input limit")
     builder_root = builder_root.resolve()
     target_root = target_root.resolve()
     if not target_root.is_dir():
@@ -762,6 +879,14 @@ def run_service(
         )
     elif tool_name == "verification_execute":
         result = _verification_execute(
+            arguments,
+            builder_root=builder_root,
+            session_id=session_id,
+            target_root=target_root,
+            target_name=target_name,
+        )
+    elif tool_name == "patch_proposal":
+        result = _patch_proposal(
             arguments,
             builder_root=builder_root,
             session_id=session_id,

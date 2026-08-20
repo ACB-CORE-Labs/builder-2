@@ -332,7 +332,7 @@ def test_delegation_status_reports_tampered_chain_as_failed_evidence(tmp_path: P
     assert _last_event(builder_root)["event_type"] == "mcp_call_failed"
 
 
-def test_3b2_calls_do_not_change_existing_gated_mutation_behavior(tmp_path: Path) -> None:
+def test_3b2_calls_preserve_retired_shell_inventory_lesion(tmp_path: Path) -> None:
     server, target, _ = _server(tmp_path)
     original = target / "original.txt"
     original.write_text("unchanged", encoding="utf-8")
@@ -346,6 +346,5 @@ def test_3b2_calls_do_not_change_existing_gated_mutation_behavior(tmp_path: Path
 
     assert verification["isError"] is False
     assert shell["isError"] is True
-    assert shell["_meta"]["gated"] is True
-    assert shell["_meta"]["refused"] is True
+    assert shell["_meta"]["inventory_admitted"] is False
     assert original.read_text(encoding="utf-8") == "unchanged"

@@ -51,6 +51,12 @@ Two things worth knowing before reporting or relying on a given surface:
   runs remain consumed. The runner also pins the exact plan and approval digests validated by MCP,
   then MCP reloads and binds the stored receipt/postflight bytes before advertising their refs. The
   surface accepts no argv, shell text, environment, timeout, output path, patch, or Git operation.
+- **MCP patch proposal is passive evidence, not mutation authority.** `patch_proposal` accepts exact
+  UTF-8 unified-diff material plus a controlled verification-receipt path, derives both digests in
+  canonical Builder-II code, binds the server-configured target, persists the proposal beneath the
+  controlled artifact root, and returns `HUMAN_APPROVAL_REQUIRED`. MCP exposes no patch approval,
+  application, rollback, generic shell, or arbitrary-write tool. The retired
+  `BUILDER_MCP_GOVERNED_APPLY` side lane cannot reactivate those capabilities.
 
 If you find a case where either of those boundaries is *violated* relative to what the docs claim
 (e.g. a mutation lane that bypasses the command-authority gate, or a verification runner that
