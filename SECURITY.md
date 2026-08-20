@@ -43,6 +43,14 @@ Two things worth knowing before reporting or relying on a given surface:
   command-authority tier registry and the human-in-the-loop approval gates that consult it, not by
   the mere existence of an artifact file. See
   [`docs/COMMAND_AUTHORITY.md`](docs/COMMAND_AUTHORITY.md).
+- **MCP transports verification authority; it does not create it.** The sole MCP execution surface,
+  `verification_execute(plan_path, approval_path)`, accepts only controlled Builder-II artifact
+  paths and delegates to the canonical approved runner. Approval creation remains an out-of-band
+  human operation. Canonical approvals use timezone-aware expiry and are consumed once before the
+  subprocess boundary through a serialized, durable append; failed, timed-out, or mutation-detecting
+  runs remain consumed. The runner also pins the exact plan and approval digests validated by MCP,
+  then MCP reloads and binds the stored receipt/postflight bytes before advertising their refs. The
+  surface accepts no argv, shell text, environment, timeout, output path, patch, or Git operation.
 
 If you find a case where either of those boundaries is *violated* relative to what the docs claim
 (e.g. a mutation lane that bypasses the command-authority gate, or a verification runner that

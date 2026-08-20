@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 from pathlib import Path
 
 from builder_ii.core.config_schema import attach_digest
@@ -7,6 +8,7 @@ from builder_ii.lifecycle.candidate.verification_execution_approval import (
     REQUIRED_DISABLED_AUTHORITY,
     VERIFICATION_EXECUTION_APPROVAL_KIND,
     finalize_verification_execution_approval,
+    validate_approval_time_window,
     validate_verification_execution_approval_against_plan,
     validate_verification_execution_approval_artifact,
     validate_verification_execution_approval_file,
@@ -229,3 +231,29 @@ def test_file_validation_directory_path_returns_clean_read_error(tmp_path: Path)
     errors = validate_verification_execution_approval_file(tmp_path)
     assert len(errors) == 1
     assert errors[0].startswith("verification execution approval file could not be read:")
+
+
+def test_approval_timestamps_must_be_timezone_aware_and_forward() -> None:
+    approval = _sample_approval()
+    approval["generated_at"] = "2026-06-30T00:00:01"
+    approval = _resign(approval)
+    assert any("generated_at must be timezone-aware" in error for error in validate_verification_execution_approval_artifact(approval))
+
+    approval = _sample_approval()
+    approval["expires_at"] = approval["generated_at"]
+    approval = _resign(approval)
+    assert any("expires_at must be after generated_at" in error for error in validate_verification_execution_approval_artifact(approval))
+
+
+def test_approval_expiry_is_enforced_against_execution_time() -> None:
+    approval = _sample_approval()
+    now = datetime.datetime(2030, 1, 1, tzinfo=datetime.timezone.utc)
+    assert validate_approval_time_window(approval, now=now) == ["verification execution approval is expired"]
+
+
+def test_future_generated_approval_is_not_yet_effective() -> None:
+    approval = _sample_approval()
+    now = datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc)
+    assert validate_approval_time_window(approval, now=now) == [
+        "verification execution approval is not yet effective"
+    ]

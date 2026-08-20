@@ -91,6 +91,43 @@ def _is_sha256_hex(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value.lower())
 
 
+def parse_approval_timestamp(value: Any, *, field: str) -> tuple[datetime.datetime | None, list[str]]:
+    """Parse one approval timestamp without accepting local/ambiguous time."""
+    if not _is_non_empty_string(value):
+        return None, [f"{field} must be a non-empty timezone-aware timestamp"]
+    raw = value.strip()
+    try:
+        parsed = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return None, [f"{field} must be a valid ISO-8601 timestamp"]
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None, [f"{field} must be timezone-aware"]
+    return parsed.astimezone(datetime.timezone.utc), []
+
+
+def validate_approval_time_window(
+    approval: Any, *, now: datetime.datetime | None = None
+) -> list[str]:
+    """Validate the signed approval interval and, when requested, current expiry."""
+    if not isinstance(approval, dict):
+        return ["verification execution approval artifact must be a JSON object"]
+    generated, errors = parse_approval_timestamp(approval.get("generated_at"), field="generated_at")
+    expires, expiry_errors = parse_approval_timestamp(approval.get("expires_at"), field="expires_at")
+    errors.extend(expiry_errors)
+    if generated is not None and expires is not None and expires <= generated:
+        errors.append("expires_at must be after generated_at")
+    if now is not None:
+        if now.tzinfo is None or now.utcoffset() is None:
+            errors.append("execution-time now must be timezone-aware")
+        else:
+            observed = now.astimezone(datetime.timezone.utc)
+            if generated is not None and observed < generated:
+                errors.append("verification execution approval is not yet effective")
+            if expires is not None and observed >= expires:
+                errors.append("verification execution approval is expired")
+    return _dedupe_errors(errors)
+
+
 def _dedupe_errors(errors: list[str]) -> list[str]:
     return list(dict.fromkeys(errors))
 
@@ -400,8 +437,7 @@ def validate_verification_execution_approval_artifact(data: Any) -> list[str]:
         errors.append(f"kind must be {VERIFICATION_EXECUTION_APPROVAL_KIND}")
     if data.get("schema_version") != VERIFICATION_EXECUTION_APPROVAL_SCHEMA_VERSION:
         errors.append(f"schema_version must be {VERIFICATION_EXECUTION_APPROVAL_SCHEMA_VERSION}")
-    if not _is_non_empty_string(data.get("generated_at")):
-        errors.append("generated_at must be a non-empty string")
+    errors.extend(validate_approval_time_window(data))
     if not _is_sha256_hex(data.get("approval_id")):
         errors.append("approval_id must be a SHA-256 hex string")
     if data.get("approval_mode") != APPROVAL_MODE:
@@ -436,9 +472,6 @@ def validate_verification_execution_approval_artifact(data: Any) -> list[str]:
         errors.append("approval_reason must be a non-empty string")
     errors.extend(_validate_approval_scope(data.get("approval_scope")))
 
-    expires_at = data.get("expires_at")
-    if not _is_non_empty_string(expires_at):
-        errors.append("expires_at must be a non-empty string")
     if data.get("execution_enabled") is not False:
         errors.append("execution_enabled must be false or NOT_AUTHORIZED")
     if data.get("approval_enables_execution") is not False:
