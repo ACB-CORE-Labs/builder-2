@@ -144,17 +144,23 @@ Denied:
 
 ### patch_proposal
 
-Future candidate mode. It may produce patch proposals but may not apply them.
+The governed MCP surface admits passive `patch_proposal` planning. Through the canonical
+governed Goose recipe it may persist Builder-II-owned proposal, policy, service-receipt, and
+event evidence beneath the configured `platform_artifact_root`; it may not edit target source,
+mint approval, or apply a patch.
 
-Allowed only after promotion:
+Allowed:
 
 - produce a proposed diff artifact
 - explain changed files and risk
-- bind the proposal to verification and rollback plans
+- bind exact diff and verification-receipt bytes to the configured target
+- stop at `HUMAN_APPROVAL_REQUIRED`
 
 Denied:
 
 - applying patches
+- minting or inferring approval
+- shell, generic file writes, rollback, or Git mutation
 - committing patches
 - pushing patches
 

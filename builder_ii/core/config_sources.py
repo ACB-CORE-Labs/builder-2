@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json as json_lib
 import os
+import stat
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -48,6 +49,54 @@ _ALLOWED_SKILLS_POLICIES = {
     "plan_only_existing_destination",
 }
 _ALLOWED_DEEPAGENTS_MODES = {"disabled", "metadata_only", "policy_only"}
+
+
+class ArtifactRootPolicyError(ValueError):
+    """The configured artifact namespace cannot be safely admitted for a target."""
+
+
+def _path_is_within(path: Path, root: Path) -> bool:
+    try:
+        path.resolve(strict=False).relative_to(root.resolve(strict=False))
+        return True
+    except ValueError:
+        return False
+
+
+def _refuse_artifact_root_symlink_ancestors(path: Path, *, field: str) -> None:
+    current = path.absolute()
+    for candidate in (current, *current.parents):
+        try:
+            if stat.S_ISLNK(candidate.lstat().st_mode):
+                raise ArtifactRootPolicyError(f"{field} must not use a symlinked path component")
+        except FileNotFoundError:
+            continue
+
+
+def admit_platform_artifact_root(
+    artifact_root: Path,
+    target_root: Path,
+    *,
+    allow_inside_target: bool = False,
+) -> Path:
+    """Apply canonical overlap and symlink policy to a platform artifact root."""
+    raw_artifact = Path(artifact_root).expanduser()
+    raw_target = Path(target_root).expanduser()
+    _refuse_artifact_root_symlink_ancestors(raw_artifact, field="platform_artifact_root")
+    _refuse_artifact_root_symlink_ancestors(raw_target, field="target_root")
+    artifact = raw_artifact.resolve(strict=False)
+    target = raw_target.resolve(strict=False)
+    if artifact == target:
+        raise ArtifactRootPolicyError("platform_artifact_root must not equal the target repository")
+    if _path_is_within(target, artifact):
+        raise ArtifactRootPolicyError("target repository must not be inside platform_artifact_root")
+    if _path_is_within(artifact, target):
+        canonical_inside = target / ".builder" / "artifacts"
+        if not _path_is_within(artifact, canonical_inside) and not allow_inside_target:
+            raise ArtifactRootPolicyError(
+                "platform_artifact_root inside target repository must remain under .builder/artifacts"
+            )
+    return artifact
 
 
 @dataclass(frozen=True)

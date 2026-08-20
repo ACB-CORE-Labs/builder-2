@@ -43,6 +43,8 @@ def _patch_goose_boundary(monkeypatch: pytest.MonkeyPatch, process: MagicMock) -
     # state so these tests exercise the intended project-config and drift paths deterministically.
     monkeypatch.delenv("BUILDER_TARGET_PROFILE", raising=False)
     monkeypatch.delenv("CORE_TARGET_PROFILE", raising=False)
+    monkeypatch.delenv("BUILDER_ARTIFACT_ROOT", raising=False)
+    monkeypatch.delenv("CORE_ARTIFACT_ROOT", raising=False)
     monkeypatch.setattr(
         "builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary",
         lambda: "/mock/goose",
@@ -88,6 +90,8 @@ def test_governed_goose_launch_uses_one_admitted_target_profile_for_receipt_and_
     assert kwargs["env"]["BUILDER_MCP_SESSION_ID"] == "identity-test"
     assert kwargs["env"]["BUILDER_MCP_TARGET_PROFILE"] == receipt["target_profile"]
     assert kwargs["env"]["BUILDER_MCP_PROJECT_ROOT"] == str(project_root.resolve())
+    assert kwargs["env"]["BUILDER_ARTIFACT_ROOT"] == str((target_root / ".builder" / "artifacts").resolve())
+    assert kwargs["env"]["BUILDER_ALLOW_ARTIFACT_ROOT_INSIDE_TARGET"] == "false"
 
 
 def test_governed_goose_launch_refuses_target_profile_drift_after_admission(
@@ -152,6 +156,7 @@ def test_primary_builder_start_propagates_resolved_profile_to_real_governed_laun
     assert kwargs["cwd"] == target_root
     assert kwargs["env"]["BUILDER_MCP_TARGET_PROFILE"] == "core"
     assert kwargs["env"]["BUILDER_MCP_PROJECT_ROOT"] == str(project_root.resolve())
+    assert kwargs["env"]["BUILDER_ARTIFACT_ROOT"] == str((target_root / ".builder" / "artifacts").resolve())
     persisted = json.loads(
         (target_root / ".builder" / "receipts" / "primary-identity_launch.json").read_text(encoding="utf-8")
     )

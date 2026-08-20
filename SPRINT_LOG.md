@@ -2,6 +2,30 @@
 
 Governance proof sprint (reapply of broader DDD work + skeptic fixes + reapply defect fixes).
 
+## 2026-08-20 — Open-Source V1 Plan Set 3C1
+
+- Added passive MCP `patch_proposal`, sharing one canonical exact-digest and exact-scope proposal
+  binder with `builder-hitl propose-patch`; MCP binds only its configured target and controlled
+  verification-receipt bytes, chooses Builder-II artifact output, returns
+  `HUMAN_APPROVAL_REQUIRED`, and stops.
+- Retired the legacy MCP `propose_patch -> run_gated_patch_apply` mutation bridge, advertised
+  `run_shell`, `BUILDER_MCP_GOVERNED_APPLY` reactivation path, adapter, and obsolete G4 tests.
+  Canonical operator-side HITL approval/apply/rollback remains separate and unchanged.
+- Adversarial qualification pins digest changes, traversal/symlink/oversize/corrupt evidence
+  refusal, controlled output, exact target identity, target fingerprint invariance, zero calls to
+  approval/apply/rollback/subprocess boundaries, and inventory-first denial of retired tools.
+- Local qualification: focused MCP/HITL/authority suite passed; Ruff passed; documentation truth
+  audit passed; platform matrix passed without promotion; `bash scripts/ci.sh` passed with 2,820
+  tests passed, 1 skipped, and all blocking gates passed.
+- At pre-commit qualification time the implementation remained working-tree only. It was later
+  frozen as candidate `88453160be3c1ab07eecf8c42b24f03480aa7adc`, exact-tip qualified, and
+  pushed for independent hosted diff review. No PR, merge, capability promotion, approval
+  minting, MCP patch application, or Plan Set 3C2 authority followed from that publication.
+- Independent review preserved the passive binder and executor-removal result but found the
+  candidate's outside-target artifact-root assumption incompatible with the canonical
+  `.builder/artifacts` product path. Plan Set 3C1-R1 records the separately digest-bound
+  correction; its implementation and qualification do not authorize PR, merge, or 3C2.
+
 ## Phase 0 — Territory verification
 - Wrote `VERIFICATION_REPORT.md` (claimed vs confirmed vs discrepancy).
 - Key territory wins: CI already exists; no `requirements.txt`; `deepagents_forge_cli` under `cli/`; partial packages already present; default backend was `mlx-lm`.

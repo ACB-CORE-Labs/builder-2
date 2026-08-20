@@ -1,4 +1,3 @@
-import hashlib
 import json
 from pathlib import Path
 
@@ -13,7 +12,7 @@ from builder_ii.governance.hitl.hitl_patch_approval import (
     write_hitl_patch_approval,
 )
 from builder_ii.governance.hitl.hitl_patch_proposal import (
-    create_hitl_patch_proposal,
+    create_bound_hitl_patch_proposal,
     validate_hitl_patch_proposal_file,
     write_hitl_patch_proposal,
 )
@@ -46,18 +45,21 @@ def register_patch_commands(app: typer.Typer) -> None:
             console.print(f"File not found: {diff_file}")
             raise typer.Exit(1)
 
-        diff_content = diff_file.read_text(encoding="utf-8")
-        digest = hashlib.sha256(diff_content.encode("utf-8")).hexdigest()
-        proposal = create_hitl_patch_proposal(
-            patch_description=description,
-            reason=reason,
-            patch_digest=digest,
-            unified_diff=diff_content,
-            target_name="generic",
-            generic_repo=target_repo,
-            target_head_sha=target_head_sha,
-            verification_receipt_file_sha256=hashlib.sha256(verification_receipt.read_bytes()).hexdigest(),
-        )
+        try:
+            diff_content = diff_file.read_text(encoding="utf-8")
+            receipt_bytes = verification_receipt.read_bytes()
+            proposal = create_bound_hitl_patch_proposal(
+                patch_description=description,
+                reason=reason,
+                unified_diff=diff_content,
+                target_name="generic",
+                generic_repo=target_repo,
+                target_head_sha=target_head_sha,
+                verification_receipt_bytes=receipt_bytes,
+            )
+        except (OSError, UnicodeError, ValueError) as exc:
+            console.print(f"Invalid patch proposal input: {exc}")
+            raise typer.Exit(1) from exc
         write_hitl_patch_proposal(proposal, output)
         console.print(f"Proposal written to {output}")
         console.print(f"Next: builder-hitl approve-patch --proposal {output} --output <approval.json>")

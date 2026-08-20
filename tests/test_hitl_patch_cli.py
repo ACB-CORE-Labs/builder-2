@@ -27,6 +27,43 @@ from builder_ii.lifecycle.candidate.rollback_artifacts import create_rollback_pl
 runner = CliRunner()
 
 
+def test_propose_patch_cli_uses_canonical_exact_binding(tmp_path: Path) -> None:
+    diff_file = tmp_path / "change.diff"
+    diff_file.write_text("--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n", encoding="utf-8")
+    verification_receipt = tmp_path / "verification.json"
+    verification_receipt.write_bytes(b'{"exact":"bytes"}\r\n')
+    output = tmp_path / "proposal.json"
+
+    result = runner.invoke(
+        hitl_app,
+        [
+            "propose-patch",
+            "--diff-file",
+            str(diff_file),
+            "--output",
+            str(output),
+            "--description",
+            "change one line",
+            "--reason",
+            "qualification",
+            "--target-head-sha",
+            "a" * 40,
+            "--verification-receipt",
+            str(verification_receipt),
+            "--target-repo",
+            str(tmp_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    proposal = json.loads(output.read_text(encoding="utf-8"))
+    assert proposal["patch_digest"] == hashlib.sha256(diff_file.read_bytes()).hexdigest()
+    assert proposal["verification_receipt_file_sha256"] == hashlib.sha256(
+        verification_receipt.read_bytes()
+    ).hexdigest()
+    assert proposal["exact_scope"]["files"] == [{"old_path": "file.txt", "new_path": "file.txt"}]
+
+
 def _proposal_file(tmp_path: Path) -> tuple[Path, str]:
     diff = "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-a\n+b\n"
     digest = hashlib.sha256(diff.encode("utf-8")).hexdigest()

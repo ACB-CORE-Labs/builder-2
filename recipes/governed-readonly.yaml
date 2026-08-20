@@ -4,17 +4,21 @@ description: >
   Governed interposition recipe (G2). Goose's only tool surface is the builder-II governed
   MCP server; there are no developer/shell builtins. Every tool call is mediated by
   `builder-mcp serve`, which runs the governed envelope -> receipt -> ledger ceremony and
-  exposes only read-only stub tools. This recipe grants no authority and enables no write,
-  shell, or target mutation.
+  exposes inventory-admitted passive/read services, including exact patch proposal evidence.
+  This recipe grants no approval or execution authority and enables no shell, target source
+  mutation, patch application, or generic write.
 instructions: |
   All tool calls are mediated by the builder-II governed MCP server (extension
-  "builder_ii_governed"). Only read-only tools are available: there is no shell, no file
-  editing, and no target-repo mutation. Every call is recorded as a governed receipt and a
-  hash-chained event; nothing here grants execution or promotion authority.
+  "builder_ii_governed"). Read services and passive patch proposal planning are available.
+  patch_proposal may persist only Builder-II control-plane evidence beneath the canonical
+  governed artifact namespace and must stop at HUMAN_APPROVAL_REQUIRED. There is no shell,
+  source-file editing, patch application, approval minting, rollback, or Git mutation. Every
+  call is recorded as a governed receipt and a hash-chained event; nothing here grants
+  execution or promotion authority.
 
-  If a task appears to require writing files, running shell, or mutating the target, stop and
-  report that it is out of scope for a governed read-only session -- do not attempt to work
-  around the absence of those tools.
+  If a task requires applying a proposal, writing target source, running shell, or otherwise
+  mutating the target, stop and report that it is out of scope -- do not attempt to work around
+  the absence of those tools. Creating passive governed proposal evidence is allowed.
 prompt: |
   Governed read-only session ready. Only the builder-II governed MCP tools are available.
 settings:
@@ -27,4 +31,4 @@ extensions:
     args:
       - serve
     timeout: 300
-    description: "builder-II governed MCP server (read-only stub tools; ledgered)"
+    description: "builder-II governed MCP server (passive/read services; ledgered)"

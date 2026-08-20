@@ -33,7 +33,7 @@ def _artifacts(tmp_path: Path, *, expires_at: str = "2099-01-01T00:00:00Z") -> t
     target = tmp_path / "target"
     target.mkdir(parents=True)
     (target / ".git").mkdir()
-    builder_root = target / ".builder"
+    builder_root = target / ".builder" / "artifacts"
     artifact_root = builder_root / "verification"
     artifact_root.mkdir(parents=True)
     plan = finalize_verification_execution_plan(

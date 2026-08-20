@@ -4854,21 +4854,19 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         tier=TIER_3,
         promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
         runtime_boundary=(
-            "Runs a stdio JSON-RPC MCP server for Goose. Read-only stub tools run the governed "
-            "envelope->receipt->ledger ceremony. Mutating tool classes are advertised but refused "
-            "in-loop, deny-by-default (an mcp_call_denied event); the sole exception is propose_patch, "
-            "which routes to the governed builder-hitl apply-patch lane ONLY when the operator has set "
-            "BUILDER_MCP_GOVERNED_APPLY and supplies a schema-valid digest-bound approval, and even then "
-            "apply_hitl_patch re-validates authority, binding, expiry, clean tree, and verification and "
-            "fails closed. run_shell has no governed lane and always refuses. The server mints no write "
-            "primitive and does not relax the read-only envelope schema."
+            "Runs a stdio JSON-RPC MCP server for Goose. Inventory-admitted services delegate to "
+            "canonical governed implementations and emit policy, receipt, and event evidence. The "
+            "patch_proposal service computes the exact patch and verification-receipt bindings, persists "
+            "a passive proposal under the controlled Builder-II artifact root, returns "
+            "HUMAN_APPROVAL_REQUIRED, and stops. Legacy propose_patch/run_shell discovery and dispatch are "
+            "retired; MCP cannot mint patch approval or reach patch application or rollback."
         ),
-        write_boundary="Writes envelopes, receipts, and chained event records under .builder/sessions; the actual source write, if any, is performed by the delegated builder-hitl apply-patch lane under its own authority.",
+        write_boundary="Writes governed service artifacts, policies, receipts, and chained event records under the controlled Builder-II artifact root; writes no target-repository content.",
         approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
-        approval_boundary="Explicit operator invocation; read tool calls are envelope-bound; propose_patch additionally requires the BUILDER_MCP_GOVERNED_APPLY flag and a digest-bound hitl_patch_approval, verified inside apply_hitl_patch.",
+        approval_boundary="Explicit operator invocation; patch_proposal stops at HUMAN_APPROVAL_REQUIRED and any patch approval remains a separate out-of-band human operation.",
         output_behavior="Speaks newline-delimited JSON-RPC on stdout.",
         failure_mode="Denied/refused calls return an isError result and ledger a denial; the process exits non-zero on fatal error.",
-        notes="Governed MCP interposition seam for Goose (ADR-0009 G1-G4). Read-only ceremony + in-loop refusing gate; G4 delegates propose_patch to the governed apply lane, deny-by-default (flag + approval), hitl_runtime_candidate not enabled-by-default.",
+        notes="Governed MCP interposition seam for Goose. Plan Set 3C1 is passive-only: MCP patch application, approval minting, rollback, generic shell, and arbitrary writes are unreachable; 3C2 is not authorized.",
         allows_artifact_writes=True,
         allows_external_tool_invocation=True,
         allows_state_writes=True,

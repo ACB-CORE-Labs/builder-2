@@ -72,24 +72,48 @@ class GooseRuntimeHarness:
         self._governed_admission: tuple[Any, str] | None = None
         self._admitted_target_profile: str | None = None
         self._admitted_project_root: Path | None = None
+        self._admitted_artifact_root: Path | None = None
+        self._admitted_allow_artifact_root_inside_target = False
 
-    def _resolve_governed_target_profile(self) -> str:
-        """Resolve target identity through the canonical governed config precedence."""
+    def _resolve_governed_identity(self) -> tuple[str, Path, bool]:
+        """Resolve target and artifact identities through canonical config precedence."""
         from builder_ii.core.config_sources import resolve_config_sources
 
         project_root = Path(self.settings.project_root).resolve()
         # The target repository is already resolved by the primary builder-start path. Override
         # only that path while letting canonical config precedence resolve active_target_profile.
-        resolution = resolve_config_sources(
+        platform_resolution = resolve_config_sources(
             project_root=project_root,
             cli_overrides={"target_repo": str(self.target_root.resolve())},
         )
-        if resolution.errors:
-            raise ValueError("Invalid governed target configuration: " + "; ".join(resolution.errors))
-        target_profile = resolution.value("active_target_profile")
+        if platform_resolution.errors:
+            raise ValueError("Invalid governed target configuration: " + "; ".join(platform_resolution.errors))
+        target_profile = platform_resolution.value("active_target_profile")
         if target_profile not in _TARGET_PROFILES:
             raise ValueError("Invalid governed target profile; expected generic, builder, or core.")
-        return target_profile
+        target_resolution = resolve_config_sources(
+            project_root=self.target_root.resolve(),
+            cli_overrides={"target_repo": str(self.target_root.resolve())},
+            builder_config_file=platform_resolution.builder_config_path,
+        )
+        if target_resolution.errors:
+            raise ValueError("Invalid governed artifact configuration: " + "; ".join(target_resolution.errors))
+        if target_resolution.value("active_target_profile") != target_profile:
+            raise ValueError("Governed target profile differs between platform and target configuration contexts.")
+        artifact_root = Path(target_resolution.value("platform_artifact_root")).resolve(strict=False)
+        allow_inside = target_resolution.raw_value("allow_artifact_root_inside_target") is True
+        from builder_ii.core.config_sources import admit_platform_artifact_root
+
+        admitted_root = admit_platform_artifact_root(
+            artifact_root,
+            self.target_root,
+            allow_inside_target=allow_inside,
+        )
+        return target_profile, admitted_root, allow_inside
+
+    def _resolve_governed_target_profile(self) -> str:
+        """Compatibility projection for callers that need only the admitted profile."""
+        return self._resolve_governed_identity()[0]
 
     def admit_governed(self) -> tuple[Any, str]:
         """Perform governed admission before any backend or Goose spawn."""
@@ -100,7 +124,7 @@ class GooseRuntimeHarness:
         project_root = Path(self.settings.project_root).resolve()
         if not project_root.is_dir():
             raise ValueError(f"Invalid Builder-II project root for governed MCP configuration: {project_root}")
-        target_profile = self._resolve_governed_target_profile()
+        target_profile, artifact_root, allow_inside = self._resolve_governed_identity()
         goose = find_goose_binary()
         if not goose:
             raise FileNotFoundError(
@@ -111,6 +135,8 @@ class GooseRuntimeHarness:
         self._governed_admission = (compatibility, recipe_digest)
         self._admitted_target_profile = target_profile
         self._admitted_project_root = project_root
+        self._admitted_artifact_root = artifact_root
+        self._admitted_allow_artifact_root_inside_target = allow_inside
         return self._governed_admission
 
     def launch_readonly(self) -> dict[str, Any]:
@@ -182,10 +208,14 @@ class GooseRuntimeHarness:
         compatibility, recipe_digest = self._governed_admission
         target_profile = self._admitted_target_profile
         project_root = self._admitted_project_root
-        if target_profile is None or project_root is None:
+        artifact_root = self._admitted_artifact_root
+        if target_profile is None or project_root is None or artifact_root is None:
             raise RuntimeError("Governed Goose admission did not bind MCP target/config identity.")
-        if self._resolve_governed_target_profile() != target_profile:
+        current_profile, current_artifact_root, current_allow_inside = self._resolve_governed_identity()
+        if current_profile != target_profile:
             raise ValueError("Governed target profile changed after admission; refusing to spawn Goose.")
+        if current_artifact_root != artifact_root or current_allow_inside != self._admitted_allow_artifact_root_inside_target:
+            raise ValueError("Governed artifact root changed after admission; refusing to spawn Goose.")
         if Path(self.settings.project_root).resolve() != project_root:
             raise ValueError("Builder-II project root changed after admission; refusing to spawn Goose.")
 
@@ -197,6 +227,10 @@ class GooseRuntimeHarness:
         env["BUILDER_MCP_SESSION_ID"] = self.session_id
         env["BUILDER_MCP_TARGET_PROFILE"] = target_profile
         env["BUILDER_MCP_PROJECT_ROOT"] = str(project_root)
+        env["BUILDER_ARTIFACT_ROOT"] = str(artifact_root)
+        env["BUILDER_ALLOW_ARTIFACT_ROOT_INSIDE_TARGET"] = (
+            "true" if self._admitted_allow_artifact_root_inside_target else "false"
+        )
 
         argv = self._governed_argv(goose, recipe)
         self._preflight_snapshot = _get_target_files(self.target_root)
