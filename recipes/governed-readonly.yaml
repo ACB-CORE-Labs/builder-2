@@ -1,26 +1,34 @@
 version: "1.0.0"
-title: "builder-II governed read-only session"
+title: "builder-II governed HITL session"
 description: >
   Governed interposition recipe (G2). Goose's only tool surface is the builder-II governed
   MCP server; there are no developer/shell builtins. Every tool call is mediated by
   `builder-mcp serve`, which runs the governed envelope -> receipt -> ledger ceremony and
-  exposes inventory-admitted passive/read services, including exact patch proposal evidence.
-  This recipe grants no approval or execution authority and enables no shell, target source
-  mutation, patch application, or generic write.
+  exposes inventory-admitted passive/read services and the separately approval-gated
+  `patch_apply` transport. This recipe grants no approval-minting, rollback, shell, generic
+  write, Git, or alternate patch-execution authority.
 instructions: |
   All tool calls are mediated by the builder-II governed MCP server (extension
   "builder_ii_governed"). Read services and passive patch proposal planning are available.
   patch_proposal may persist only Builder-II control-plane evidence beneath the canonical
-  governed artifact namespace and must stop at HUMAN_APPROVAL_REQUIRED. There is no shell,
-  source-file editing, patch application, approval minting, rollback, or Git mutation. Every
-  call is recorded as a governed receipt and a hash-chained event; nothing here grants
-  execution or promotion authority.
+  governed artifact namespace and must stop at HUMAN_APPROVAL_REQUIRED. patch_apply may
+  consume only an already-created human approval and production verification-execution
+  receipt, and delegates exactly once to the canonical HITL executor. It never mints approval,
+  selects a target/output, invokes rollback, executes shell/Git, or uses a second executor.
+  After an approved apply, reload the canonical apply receipt, postflight, rollback plan/bundle,
+  and patch-ledger evidence before closing the session. Close accepts only exact,
+  session-bound approved patch evidence; every unexplained target change remains invalid.
+  Every call is recorded as a governed receipt and a hash-chained event; nothing here grants
+  promotion authority.
 
-  If a task requires applying a proposal, writing target source, running shell, or otherwise
-  mutating the target, stop and report that it is out of scope -- do not attempt to work around
-  the absence of those tools. Creating passive governed proposal evidence is allowed.
+  If a task requires mutation without an already-created independent approval and production
+  verification-execution receipt, stop and report that it is out of scope. Creating passive
+  governed proposal evidence is allowed; approval minting, rollback, shell, generic writes,
+  and Git mutation remain unavailable.
 prompt: |
-  Governed read-only session ready. Only the builder-II governed MCP tools are available.
+  Governed HITL session ready. Only the builder-II governed MCP tools are available. Passive
+  planning is available; mutation requires an existing independent approval and production
+  verification receipt, followed by canonical evidence validation and governed close.
 settings:
   temperature: 0.0
   goose_mode: auto
@@ -31,4 +39,4 @@ extensions:
     args:
       - serve
     timeout: 300
-    description: "builder-II governed MCP server (passive/read services; ledgered)"
+    description: "builder-II governed MCP server (passive/read plus approval-gated patch apply; ledgered)"

@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import stat
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -31,12 +32,14 @@ from builder_ii.governance.authority.readonly_authority import (
 from builder_ii.governance.hitl.hitl_patch_apply import (
     apply_hitl_patch,
     validate_patch_apply_receipt_file,
+    validate_rollback_bundle_file,
 )
 from builder_ii.governance.hitl.hitl_patch_approval import (
     approval_binding_errors,
     approval_is_expired,
     validate_hitl_patch_approval_file,
 )
+from builder_ii.governance.hitl.hitl_patch_ledger import validate_hitl_patch_ledger_record_file
 from builder_ii.governance.hitl.hitl_patch_proposal import (
     MAX_UNIFIED_DIFF_BYTES,
     create_bound_hitl_patch_proposal,
@@ -54,6 +57,10 @@ from builder_ii.governance.ledger.event_ledger import (
 from builder_ii.governance.ledger.workflow_records import canonical_digest
 from builder_ii.lifecycle.candidate.execution_postflight_records import (
     validate_execution_postflight_record,
+    validate_execution_postflight_record_file,
+)
+from builder_ii.lifecycle.candidate.rollback_artifacts import (
+    validate_rollback_plan_file,
 )
 from builder_ii.lifecycle.candidate.verification_execution_approval import (
     validate_verification_execution_approval_against_plan,
@@ -858,6 +865,102 @@ def _verification_execute(
     return result
 
 
+def _patch_evidence_errors(
+    *,
+    paths: dict[str, Path],
+    target_root: Path,
+    target_name: str,
+) -> list[str]:
+    """Validate and cross-bind every canonical artifact emitted by apply_hitl_patch."""
+    validators = {
+        "patch_apply_receipt": validate_patch_apply_receipt_file,
+        "postflight": validate_execution_postflight_record_file,
+        "rollback_plan": validate_rollback_plan_file,
+        "rollback_bundle": validate_rollback_bundle_file,
+        "patch_ledger": validate_hitl_patch_ledger_record_file,
+    }
+    errors: list[str] = []
+    loaded: dict[str, Any] = {}
+    for name, path in paths.items():
+        if not path.is_file() or path.is_symlink():
+            errors.append(f"canonical {name} is missing or is a symlink")
+            continue
+        errors.extend(f"{name}: {error}" for error in validators[name](path))
+        try:
+            loaded[name] = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            errors.append(f"{name}: unable to reload JSON: {exc}")
+
+    expected_target = {"name": target_name, "repo": str(target_root.resolve())}
+    for name in ("patch_apply_receipt", "postflight", "rollback_plan", "rollback_bundle", "patch_ledger"):
+        artifact = loaded.get(name)
+        if isinstance(artifact, dict) and isinstance(artifact.get("target"), dict):
+            target = artifact["target"]
+            if target.get("name") != expected_target["name"] or Path(str(target.get("repo", ""))).resolve() != target_root.resolve():
+                errors.append(f"{name}: target does not match the server target identity")
+
+    receipt = loaded.get("patch_apply_receipt")
+    plan = loaded.get("rollback_plan")
+    bundle = loaded.get("rollback_bundle")
+    ledger = loaded.get("patch_ledger")
+    if isinstance(receipt, dict):
+        if paths["postflight"].is_file() and receipt.get("postflight_digest") != _file_digest(paths["postflight"]):
+            errors.append("patch_apply_receipt: postflight_digest does not match postflight evidence")
+        if receipt.get("rollback_plan_ref") != str(paths["rollback_plan"]):
+            errors.append("patch_apply_receipt: rollback_plan_ref is not bound to the canonical rollback plan")
+        if receipt.get("postflight_ref") != str(paths["postflight"]):
+            errors.append("patch_apply_receipt: postflight_ref is not bound to the canonical postflight")
+    if isinstance(plan, dict):
+        if not isinstance(receipt, dict) or plan.get("patch_digest") != receipt.get("patch_digest"):
+            errors.append("rollback_plan: patch_digest is not bound to the apply receipt")
+    if isinstance(bundle, dict):
+        if not isinstance(receipt, dict) or bundle.get("patch_digest") != receipt.get("patch_digest"):
+            errors.append("rollback_bundle: patch_digest is not bound to the apply receipt")
+        for field, path in (
+            ("rollback_plan_ref", paths["rollback_plan"]),
+            ("postflight_ref", paths["postflight"]),
+            ("patch_apply_receipt_ref", paths["patch_apply_receipt"]),
+        ):
+            ref = bundle.get(field)
+            if (
+                not isinstance(ref, dict)
+                or ref.get("path") != str(path)
+                or not path.is_file()
+                or ref.get("sha256") != _file_digest(path)
+            ):
+                errors.append(f"rollback_bundle: {field} is not bound to canonical evidence")
+    if isinstance(ledger, dict):
+        if ledger.get("event_type") != "patch_applied":
+            errors.append("patch_ledger: event_type must be patch_applied")
+        if isinstance(receipt, dict) and ledger.get("patch_digest") != receipt.get("patch_digest"):
+            errors.append("patch_ledger: patch_digest is not bound to the apply receipt")
+        refs = ledger.get("subject_refs")
+        if isinstance(refs, list):
+            expected_refs = {
+                "patch_apply_receipt": paths["patch_apply_receipt"],
+                "rollback_plan": paths["rollback_plan"],
+            }
+            for ref in refs:
+                if not isinstance(ref, dict) or ref.get("role") not in expected_refs:
+                    continue
+                path = expected_refs[ref["role"]]
+                if ref.get("path") != str(path) or ref.get("sha256") != _file_digest(path):
+                    errors.append(f"patch_ledger: {ref['role']} is not bound to canonical evidence")
+    return list(dict.fromkeys(errors))
+
+
+def _mutation_uncertain_result(*, error: str, evidence: dict[str, dict[str, str]]) -> dict[str, Any]:
+    return {
+        "kind": "builder_ii.mcp_patch_apply_result",
+        "status": "mutation_uncertain",
+        "mutation_state": "APPLIED_OR_MAY_HAVE_BEEN_APPLIED",
+        "error": error[:500],
+        "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch",
+        "rollback_executed": False,
+        **evidence,
+    }
+
+
 def _patch_apply(
     arguments: dict[str, Any],
     *,
@@ -886,7 +989,7 @@ def _patch_apply(
             patch_digest=str(proposal.get("patch_digest", "")),
         )
     )
-    if approval_is_expired(approval):
+    if approval_is_expired(approval, now=int(time.time())):
         approval_errors.append("patch approval has expired")
     if proposal_errors or approval_errors:
         raise ServiceDenied("patch apply artifacts are invalid: " + "; ".join(proposal_errors + approval_errors))
@@ -910,6 +1013,7 @@ def _patch_apply(
     postflight_path = output_dir / "postflight_record.json"
     rollback_plan_path = output_dir / "rollback_plan.json"
     rollback_bundle_path = output_dir / "rollback_bundle.json"
+    patch_ledger_path = output_dir / "patch_ledger_record.json"
 
     def evidence_refs() -> dict[str, dict[str, str]]:
         refs: dict[str, dict[str, str]] = {}
@@ -919,6 +1023,7 @@ def _patch_apply(
             ("postflight_ref", postflight_path),
             ("rollback_plan_ref", rollback_plan_path),
             ("rollback_bundle_ref", rollback_bundle_path),
+            ("patch_ledger_ref", patch_ledger_path),
             ("rollback_failure_receipt_ref", output_dir / "rollback_failure_receipt.json"),
         ):
             if path.is_file() and not path.is_symlink():
@@ -930,36 +1035,26 @@ def _patch_apply(
     except Exception as exc:
         refs = evidence_refs()
         if refs:
-            return {
-                "kind": "builder_ii.mcp_patch_apply_result",
-                "status": "mutation_uncertain",
-                "mutation_state": "APPLIED_OR_MAY_HAVE_BEEN_APPLIED",
-                "error": str(exc)[:500],
-                "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch",
-                "rollback_executed": False,
-                **refs,
-            }
+            return _mutation_uncertain_result(error=str(exc), evidence=refs)
         raise
 
-    for path, label in (
-        (receipt_path, "patch apply receipt"),
-        (postflight_path, "postflight evidence"),
-        (rollback_plan_path, "rollback plan"),
-        (rollback_bundle_path, "rollback bundle"),
-    ):
-        if not path.is_file() or path.is_symlink():
-            raise RuntimeError(f"canonical {label} is missing after patch apply")
-    canonical_receipt_errors = validate_patch_apply_receipt_file(receipt_path)
-    if canonical_receipt_errors:
-        return {
-            "kind": "builder_ii.mcp_patch_apply_result",
-            "status": "mutation_uncertain",
-            "mutation_state": "APPLIED_OR_MAY_HAVE_BEEN_APPLIED",
-            "error": "canonical patch apply receipt is invalid: " + "; ".join(canonical_receipt_errors),
-            "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch",
-            "rollback_executed": False,
-            **evidence_refs(),
-        }
+    canonical_paths = {
+        "patch_apply_receipt": receipt_path,
+        "postflight": postflight_path,
+        "rollback_plan": rollback_plan_path,
+        "rollback_bundle": rollback_bundle_path,
+        "patch_ledger": patch_ledger_path,
+    }
+    canonical_errors = _patch_evidence_errors(
+        paths=canonical_paths,
+        target_root=target_root,
+        target_name=target_name,
+    )
+    if canonical_errors:
+        return _mutation_uncertain_result(
+            error="canonical patch evidence is invalid: " + "; ".join(canonical_errors),
+            evidence=evidence_refs(),
+        )
     return {
         "kind": "builder_ii.mcp_patch_apply_result",
         "status": "succeeded",
@@ -968,6 +1063,7 @@ def _patch_apply(
         "postflight_ref": {"path": str(postflight_path), "sha256": _file_digest(postflight_path)},
         "rollback_plan_ref": {"path": str(rollback_plan_path), "sha256": _file_digest(rollback_plan_path)},
         "rollback_bundle_ref": {"path": str(rollback_bundle_path), "sha256": _file_digest(rollback_bundle_path)},
+        "patch_ledger_ref": {"path": str(patch_ledger_path), "sha256": _file_digest(patch_ledger_path)},
         "rollback_executed": False,
     }
 
@@ -1143,7 +1239,39 @@ def run_service(
             result=result,
             status=status,
         )
-    except Exception:
+    except Exception as exc:
+        if tool_name == "patch_apply" and isinstance(result, dict):
+            evidence = {
+                key: value
+                for key, value in result.items()
+                if key.endswith("_ref") and isinstance(value, dict) and {"path", "sha256"} <= set(value)
+            }
+            recovery_result = _mutation_uncertain_result(
+                error=f"MCP outer evidence persistence failed after canonical apply: {exc}",
+                evidence=evidence,
+            )
+            recovery_receipt = {
+                "kind": "builder_ii.mcp_service_receipt",
+                "schema_version": 2,
+                "target_profile": target_name,
+                "session_id": session_id,
+                "service": tool_name,
+                "status": "failed",
+                "arguments": arguments,
+                "result": recovery_result,
+                "governance": {
+                    "artifact_is_authority": False,
+                    "effect_classification": "mutation",
+                    "risk_classification": "mutation",
+                    "mutation_allowed": True,
+                    "requires_approval_for_mutation": True,
+                    "target_repo_writes": "HITL_APPROVAL_GATED",
+                    "shell_execution": "DISABLED",
+                },
+                "persistence_failure": True,
+                "persistence_error": str(exc)[:500],
+            }
+            return recovery_receipt, Path(""), Path("")
         if tool_name == "patch_proposal" and isinstance(result, dict):
             proposal_ref = result.get("proposal_ref")
             proposal_path_value = proposal_ref.get("path") if isinstance(proposal_ref, dict) else None

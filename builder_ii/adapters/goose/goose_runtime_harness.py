@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import re
 import subprocess
 import time
@@ -18,6 +19,13 @@ from builder_ii.adapters.goose.goose_receipts import (
     create_no_mutation_postflight,
 )
 from builder_ii.core.config import Settings
+from builder_ii.governance.hitl.hitl_patch_apply import (
+    validate_patch_apply_receipt_file,
+    validate_rollback_bundle_file,
+)
+from builder_ii.governance.hitl.hitl_patch_ledger import validate_hitl_patch_ledger_record_file
+from builder_ii.lifecycle.candidate.execution_postflight_records import validate_execution_postflight_record_file
+from builder_ii.lifecycle.candidate.rollback_artifacts import validate_rollback_plan_file
 from builder_ii.routing.model_router import SessionPlan
 
 _DIGEST_CHUNK_SIZE = 1024 * 1024
@@ -52,6 +60,91 @@ def _get_target_files(target_root: Path) -> dict[str, str]:
         if digest is not None:
             snapshot[str(p)] = digest
     return snapshot
+
+
+def _approved_patch_close_evidence(
+    evidence: dict[str, Any] | None,
+    *,
+    session_id: str,
+    target_root: Path,
+    target_name: str,
+    artifact_root: Path | None,
+) -> tuple[set[str], dict[str, Any] | None, list[str]]:
+    """Validate the exact MCP apply evidence that may authorize target changes at close."""
+    if evidence is None:
+        return set(), None, []
+    if not isinstance(evidence, dict) or evidence.get("status") != "succeeded":
+        return set(), None, ["approved patch evidence must be a succeeded MCP result"]
+    required = ("patch_apply_receipt_ref", "postflight_ref", "rollback_plan_ref", "rollback_bundle_ref", "patch_ledger_ref")
+    errors: list[str] = []
+    refs: dict[str, dict[str, str]] = {}
+    for key in required:
+        ref = evidence.get(key)
+        if not isinstance(ref, dict) or not isinstance(ref.get("path"), str) or not isinstance(ref.get("sha256"), str):
+            errors.append(f"missing or invalid {key}")
+        else:
+            refs[key] = {"path": ref["path"], "sha256": ref["sha256"]}
+    if artifact_root is None:
+        errors.append("Goose session has no admitted Builder-II artifact root")
+    else:
+        expected_root = (artifact_root / "sessions" / session_id / "mcp" / "patch-apply").resolve()
+        for key, ref in refs.items():
+            path = Path(ref["path"])
+            try:
+                path.resolve().relative_to(expected_root)
+            except ValueError:
+                errors.append(f"{key} is not bound to this Goose session artifact namespace")
+            if not path.is_file() or path.is_symlink():
+                errors.append(f"{key} is missing or is a symlink")
+            elif _file_sha256(path) != ref["sha256"]:
+                errors.append(f"{key} digest does not match persisted bytes")
+    paths = {key: Path(ref["path"]) for key, ref in refs.items()}
+    validators = {
+        "patch_apply_receipt_ref": validate_patch_apply_receipt_file,
+        "postflight_ref": validate_execution_postflight_record_file,
+        "rollback_plan_ref": validate_rollback_plan_file,
+        "rollback_bundle_ref": validate_rollback_bundle_file,
+        "patch_ledger_ref": validate_hitl_patch_ledger_record_file,
+    }
+    for key, path in paths.items():
+        if path.is_file() and not path.is_symlink():
+            errors.extend(f"{key}: {error}" for error in validators[key](path))
+    receipt_path = paths.get("patch_apply_receipt_ref")
+    receipt: dict[str, Any] = {}
+    if receipt_path and receipt_path.is_file():
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            errors.append(f"patch apply receipt cannot be reloaded: {exc}")
+    target = receipt.get("target") if isinstance(receipt, dict) else None
+    if (
+        not isinstance(target, dict)
+        or target.get("repo") != str(target_root.resolve())
+        or target.get("name") != target_name
+    ):
+        errors.append("patch apply evidence target does not match the Goose target")
+    patch_path = receipt_path.parent / "apply.patch" if receipt_path else None
+    approved_paths: set[str] = set()
+    if patch_path and patch_path.is_file() and not patch_path.is_symlink():
+        for line in patch_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("+++ b/"):
+                approved_paths.add(str((target_root / line[6:]).resolve()))
+            elif line.startswith("--- a/") and not line.endswith("/dev/null"):
+                approved_paths.add(str((target_root / line[6:]).resolve()))
+    else:
+        errors.append("canonical apply.patch is missing from the approved evidence directory")
+    if errors:
+        return set(), None, list(dict.fromkeys(errors))
+    summary = {
+        "session_id": session_id,
+        "target_root": str(target_root.resolve()),
+        "patch_apply_receipt_ref": evidence["patch_apply_receipt_ref"],
+        "postflight_ref": evidence["postflight_ref"],
+        "rollback_plan_ref": evidence["rollback_plan_ref"],
+        "rollback_bundle_ref": evidence["rollback_bundle_ref"],
+        "patch_ledger_ref": evidence["patch_ledger_ref"],
+    }
+    return approved_paths, summary, []
 
 
 async def _get_target_files_async(target_root: Path) -> dict[str, str]:
@@ -309,8 +402,13 @@ class GooseRuntimeHarness:
             evidence={"runtime": "goose_readonly_async"},
         )
 
-    def close(self, launch_receipt_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Terminate Goose and verify no mutations occurred."""
+    def close(
+        self,
+        launch_receipt_digest: str,
+        *,
+        approved_patch_evidence: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Terminate Goose and verify no mutations except an exact approved patch."""
         end_time = _current_time_utc()
         exit_code = 0
         if self._proc:
@@ -332,6 +430,20 @@ class GooseRuntimeHarness:
             if file_path not in post_snapshot:
                 mutations.append(f"{file_path} (deleted)")
 
+        approved_paths, evidence_summary, evidence_errors = _approved_patch_close_evidence(
+            approved_patch_evidence,
+            session_id=self.session_id,
+            target_root=self.target_root,
+            target_name=getattr(self.session_plan, "target_name", "builder"),
+            artifact_root=self._admitted_artifact_root,
+        )
+        approved_mutations = [mutation for mutation in mutations if mutation.removesuffix(" (deleted)") in approved_paths]
+        unexplained_mutations = [mutation for mutation in mutations if mutation not in approved_mutations]
+        if evidence_errors:
+            unexplained_mutations = list(mutations) + [
+                "approved patch evidence invalid: " + "; ".join(evidence_errors)
+            ]
+
         postflight = create_no_mutation_postflight(
             session_id=self.session_id,
             target_root=str(self.target_root),
@@ -339,6 +451,9 @@ class GooseRuntimeHarness:
             end_time=end_time,
             files_checked=len(post_snapshot),
             mutations_detected=mutations,
+            approved_mutations=approved_mutations,
+            unexplained_mutations=unexplained_mutations,
+            approved_patch_evidence=evidence_summary,
         )
 
         # Export the actual transcript to a JSON log instead of timestamp guessing
@@ -397,7 +512,12 @@ class GooseRuntimeHarness:
 
         return close_receipt, postflight
 
-    async def close_async(self, launch_receipt_digest: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    async def close_async(
+        self,
+        launch_receipt_digest: str,
+        *,
+        approved_patch_evidence: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
         """Asynchronously terminate Goose and check filesystem changes."""
         end_time = _current_time_utc()
         exit_code = 0
@@ -421,6 +541,20 @@ class GooseRuntimeHarness:
             if file_path not in post_snapshot:
                 mutations.append(f"{file_path} (deleted)")
 
+        approved_paths, evidence_summary, evidence_errors = _approved_patch_close_evidence(
+            approved_patch_evidence,
+            session_id=self.session_id,
+            target_root=self.target_root,
+            target_name=getattr(self.session_plan, "target_name", "builder"),
+            artifact_root=self._admitted_artifact_root,
+        )
+        approved_mutations = [mutation for mutation in mutations if mutation.removesuffix(" (deleted)") in approved_paths]
+        unexplained_mutations = [mutation for mutation in mutations if mutation not in approved_mutations]
+        if evidence_errors:
+            unexplained_mutations = list(mutations) + [
+                "approved patch evidence invalid: " + "; ".join(evidence_errors)
+            ]
+
         postflight = create_no_mutation_postflight(
             session_id=self.session_id,
             target_root=str(self.target_root),
@@ -428,6 +562,9 @@ class GooseRuntimeHarness:
             end_time=end_time,
             files_checked=len(post_snapshot),
             mutations_detected=mutations,
+            approved_mutations=approved_mutations,
+            unexplained_mutations=unexplained_mutations,
+            approved_patch_evidence=evidence_summary,
         )
 
         # Export the actual transcript to a JSON log instead of timestamp guessing

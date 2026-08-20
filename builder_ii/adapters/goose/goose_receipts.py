@@ -74,6 +74,9 @@ def create_no_mutation_postflight(
     end_time: str,
     files_checked: int,
     mutations_detected: list[str],
+    approved_mutations: list[str] | None = None,
+    unexplained_mutations: list[str] | None = None,
+    approved_patch_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     content = {
         "kind": NO_MUTATION_POSTFLIGHT_KIND,
@@ -84,7 +87,11 @@ def create_no_mutation_postflight(
         "end_time": end_time,
         "files_checked": files_checked,
         "mutations_detected": mutations_detected,
-        "valid": len(mutations_detected) == 0,
+        "approved_mutations": list(approved_mutations or []),
+        "unexplained_mutations": list(unexplained_mutations if unexplained_mutations is not None else mutations_detected),
+        "approved_patch_evidence": approved_patch_evidence,
+        "mutation_mode": "approved_hitl_patch" if approved_patch_evidence else "no_mutation",
+        "valid": len(unexplained_mutations if unexplained_mutations is not None else mutations_detected) == 0,
     }
     content["digest"] = _digest(content)
     return content

@@ -1,11 +1,18 @@
+import hashlib
+import shutil
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from hitl_patch_lane_helpers import PATCH_DIFF, init_target_repo, real_verification_receipt
 
 from builder_ii.adapters.goose.goose_compatibility import GooseCompatibility
 from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
+from builder_ii.adapters.mcp import governed_services as mcp_services
 from builder_ii.core.config import Settings
+from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
+from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 
 
 class MockSessionPlan:
@@ -115,6 +122,79 @@ def test_goose_mutation_detected_fails_postflight(
     close_receipt, postflight = harness.close(launch_receipt["digest"])
     assert postflight["valid"] is False
     assert len(postflight["mutations_detected"]) == 1
+
+
+def _approved_goose_patch(tmp_path: Path) -> tuple[GooseRuntimeHarness, dict[str, object], Path]:
+    target = init_target_repo(tmp_path)
+    builder_root = tmp_path / "builder"
+    builder_root.mkdir()
+    verification_source = real_verification_receipt(tmp_path, target)
+    verification = builder_root / "verification.json"
+    shutil.copyfile(verification_source, verification)
+    patch_digest = hashlib.sha256(PATCH_DIFF.encode("utf-8")).hexdigest()
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=target, check=True, capture_output=True, text=True
+    ).stdout.strip()
+    proposal = create_hitl_patch_proposal(
+        generic_repo=target,
+        patch_digest=patch_digest,
+        unified_diff=PATCH_DIFF,
+        target_head_sha=head,
+        verification_receipt_file_sha256=hashlib.sha256(verification.read_bytes()).hexdigest(),
+    )
+    proposal_path = builder_root / "proposal.json"
+    write_hitl_patch_proposal(proposal, proposal_path)
+    approval_path = builder_root / "approval.json"
+    write_hitl_patch_approval(
+        create_hitl_patch_approval(proposal, confirmed_digest_prefix=patch_digest[:4]), approval_path
+    )
+    service_receipt, _, _ = mcp_services.run_service(
+        tool_name="patch_apply",
+        arguments={
+            "proposal_path": str(proposal_path),
+            "approval_path": str(approval_path),
+            "verification_receipt_path": str(verification),
+        },
+        session_id="goose_close_session",
+        builder_root=builder_root,
+        target_root=target,
+        target_name="generic",
+    )
+    assert service_receipt["status"] == "succeeded"
+    settings = MagicMock(spec=Settings)
+    settings.project_root = tmp_path
+    harness = GooseRuntimeHarness(settings, MockSessionPlan(), target)
+    harness.session_plan.target_name = "generic"
+    harness.session_id = "goose_close_session"
+    harness._admitted_artifact_root = builder_root
+    harness._preflight_snapshot = {
+        str(target / "file.txt"): hashlib.sha256(b"Line 1\nLine 2\n").hexdigest(),
+        str(target / "test_smoke.py"): hashlib.sha256(b"def test_smoke():\n    assert True\n").hexdigest(),
+    }
+    return harness, service_receipt["result"], target
+
+
+def test_governed_close_accepts_exact_approved_patch_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    harness, evidence, _ = _approved_goose_patch(tmp_path)
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", MagicMock())
+    _, postflight = harness.close("launch-digest", approved_patch_evidence=evidence)
+    assert postflight["valid"] is True
+    assert postflight["mutation_mode"] == "approved_hitl_patch"
+    assert postflight["approved_mutations"]
+    assert postflight["unexplained_mutations"] == []
+
+
+def test_governed_close_rejects_unexplained_drift_even_with_approved_patch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    harness, evidence, target = _approved_goose_patch(tmp_path)
+    (target / "unexplained.txt").write_text("drift\n", encoding="utf-8")
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", MagicMock())
+    _, postflight = harness.close("launch-digest", approved_patch_evidence=evidence)
+    assert postflight["valid"] is False
+    assert any("unexplained.txt" in item for item in postflight["unexplained_mutations"])
 
 
 def test_goose_launch_fails_without_goose_binary(mock_settings: Settings, tmp_path: Path) -> None:
