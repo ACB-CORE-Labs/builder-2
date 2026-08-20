@@ -27,6 +27,7 @@ from builder_ii.adapters.mcp.governed_services import (
     CorruptLedgerError,
     ServiceDenied,
     _service_receipt,
+    admit_mcp_artifact_root,
     run_service,
 )
 from builder_ii.governance.ledger.workflow_records import canonical_digest
@@ -66,16 +67,22 @@ class GovernedMcpServer:
         target_root: Path | None = None,
         target_name: str = "generic",
         config_root: Path | None = None,
+        allow_artifact_root_inside_target: bool = False,
     ) -> None:
         if not isinstance(session_id, str) or not _SESSION_ID_RE.fullmatch(session_id):
             raise ValueError("session_id must be a 1-128 character path-safe identifier")
         if target_name not in TARGET_PROFILES:
             raise ValueError("target_name must be one of generic, builder, core")
         self.session_id = session_id
-        self.builder_root = Path(builder_root)
         self.target_root = Path(target_root) if target_root is not None else Path.cwd()
+        self.builder_root = admit_mcp_artifact_root(
+            Path(builder_root),
+            self.target_root,
+            allow_inside_target=allow_artifact_root_inside_target,
+        )
         self.target_name = target_name
         self.config_root = Path(config_root) if config_root is not None else None
+        self.allow_artifact_root_inside_target = allow_artifact_root_inside_target
 
     # -- protocol (framing-independent, unit-tested) --------------------------------------
 
@@ -206,6 +213,7 @@ class GovernedMcpServer:
                 target_root=self.target_root,
                 target_name=self.target_name,
                 config_root=self.config_root,
+                allow_artifact_root_inside_target=self.allow_artifact_root_inside_target,
             )
             status = str(result.get("status", "succeeded"))
             return {

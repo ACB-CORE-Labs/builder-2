@@ -19,16 +19,19 @@ from builder_ii.governance.ledger.event_ledger import validate_event_chain_integ
 
 def _server(tmp_path: Path) -> GovernedMcpServer:
     return GovernedMcpServer(
-        session_id="test_session", builder_root=tmp_path / ".builder", target_root=tmp_path, target_name="generic"
+        session_id="test_session",
+        builder_root=tmp_path / ".builder" / "artifacts",
+        target_root=tmp_path,
+        target_name="generic",
     )
 
 
 def _events_dir(tmp_path: Path) -> Path:
-    return tmp_path / ".builder" / "sessions" / "test_session" / "events"
+    return tmp_path / ".builder" / "artifacts" / "sessions" / "test_session" / "events"
 
 
 def _mcp_dir(tmp_path: Path) -> Path:
-    return tmp_path / ".builder" / "sessions" / "test_session" / "mcp"
+    return tmp_path / ".builder" / "artifacts" / "sessions" / "test_session" / "mcp"
 
 
 def test_initialize_advertises_tools_capability(tmp_path: Path) -> None:

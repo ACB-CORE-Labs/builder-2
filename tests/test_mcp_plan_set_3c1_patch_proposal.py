@@ -3,14 +3,18 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner
 
+import builder_ii.cli.mcp_cli as mcp_cli
 from builder_ii.adapters.mcp.governed_services import ServiceDenied, run_service, validate_mcp_service_receipt
 from builder_ii.adapters.mcp.server import GovernedMcpServer
+from builder_ii.cli.mcp_cli import mcp_app
 from builder_ii.governance.hitl.hitl_patch_proposal import (
     MAX_UNIFIED_DIFF_BYTES,
     create_bound_hitl_patch_proposal,
@@ -66,6 +70,50 @@ def _target_fingerprint(target: Path) -> tuple[tuple[str, str], ...]:
             if path.is_file()
         )
     )
+
+
+def _git(target: Path, *args: str) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=target,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout
+
+
+def _strong_target_snapshot(target: Path, artifact_root: Path) -> dict[str, object]:
+    head = _git(target, "rev-parse", "HEAD").strip()
+    head_tree = _git(target, "rev-parse", "HEAD^{tree}").strip()
+    index = _git(target, "ls-files", "--stage", "-z")
+    status = _git(target, "status", "--porcelain=v2", "--untracked-files=all", "-z")
+    paths: list[tuple[str, str, int, str]] = []
+    git_state: list[tuple[str, str, int, str]] = []
+    for path in sorted(target.rglob("*")):
+        if path == artifact_root or artifact_root in path.parents:
+            continue
+        relative = str(path.relative_to(target))
+        mode = path.lstat().st_mode
+        if path.is_symlink():
+            entry = (relative, "symlink", stat.S_IMODE(mode), os.readlink(path))
+        elif path.is_file():
+            entry = (relative, "file", stat.S_IMODE(mode), hashlib.sha256(path.read_bytes()).hexdigest())
+        elif path.is_dir():
+            entry = (relative, "dir", stat.S_IMODE(mode), "")
+        else:
+            entry = (relative, "other", stat.S_IMODE(mode), "")
+        paths.append(entry)
+        if relative == ".git" or relative.startswith(".git/"):
+            git_state.append(entry)
+    return {
+        "head": head,
+        "head_tree": head_tree,
+        "index": index,
+        "status": status,
+        "paths": tuple(paths),
+        "git_state": tuple(git_state),
+    }
 
 
 def test_canonical_binding_derives_exact_digests_and_scope(tmp_path: Path) -> None:
@@ -155,6 +203,94 @@ def test_mcp_success_is_passive_bound_and_evidence_complete(tmp_path: Path) -> N
     assert receipt_artifact.is_file() and event.is_file()
 
 
+def test_canonical_inside_target_artifact_namespace_preserves_full_git_state(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    artifact_root = target / ".builder" / "artifacts"
+    artifact_root.mkdir(parents=True)
+    receipt_path = artifact_root / "verification.json"
+    receipt_path.write_text(json.dumps(_receipt(), sort_keys=True) + "\n", encoding="utf-8")
+    (target / ".gitignore").write_text(".builder/artifacts/\n", encoding="utf-8")
+    (target / "file.txt").write_text("old\n", encoding="utf-8")
+    executable = target / "tool.sh"
+    executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    executable.chmod(0o755)
+    (target / "link.txt").symlink_to("file.txt")
+    _git(target, "init", "-q")
+    _git(target, "config", "user.email", "builder-ii@example.invalid")
+    _git(target, "config", "user.name", "Builder II Qualification")
+    _git(target, "add", ".gitignore", "file.txt", "tool.sh", "link.txt")
+    _git(target, "commit", "-qm", "fixture")
+    (target / "file.txt").write_text("old\nunstaged\n", encoding="utf-8")
+    (target / "staged.txt").write_text("staged\n", encoding="utf-8")
+    _git(target, "add", "staged.txt")
+    (target / "untracked.txt").write_text("untracked\n", encoding="utf-8")
+    before = _strong_target_snapshot(target, artifact_root)
+
+    with (
+        patch("builder_ii.governance.hitl.hitl_patch_approval.create_hitl_patch_approval") as approve,
+        patch("builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch") as apply,
+        patch("builder_ii.governance.hitl.hitl_patch_apply.rollback_hitl_patch") as rollback,
+        patch.object(subprocess, "run") as run,
+        patch.object(subprocess, "Popen") as popen,
+        patch.object(os, "system") as system,
+    ):
+        receipt, receipt_artifact, event = run_service(
+            tool_name="patch_proposal",
+            arguments=_arguments(receipt_path, target_head_sha=str(before["head"])),
+            session_id="canonical-product-path",
+            builder_root=artifact_root,
+            target_root=target,
+            target_name="generic",
+        )
+
+    assert approve.call_count == apply.call_count == rollback.call_count == 0
+    assert run.call_count == popen.call_count == system.call_count == 0
+    assert receipt["status"] == "succeeded"
+    assert receipt["result"]["decision"] == "HUMAN_APPROVAL_REQUIRED"
+    assert receipt_artifact.is_relative_to(artifact_root)
+    assert event.is_relative_to(artifact_root)
+    assert _strong_target_snapshot(target, artifact_root) == before
+    artifact_paths = {str(path.relative_to(artifact_root)) for path in artifact_root.rglob("*") if path.is_file()}
+    assert "verification.json" in artifact_paths
+    assert any(path.endswith("hitl-patch-proposal.json") for path in artifact_paths)
+    assert any(path.endswith("patch_proposal_receipt.json") for path in artifact_paths)
+    assert any(path.endswith("mcp_service.json") for path in artifact_paths)
+
+
+def test_builder_mcp_serve_default_product_path_creates_passive_proposal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "target"
+    artifact_root = target / ".builder" / "artifacts"
+    artifact_root.mkdir(parents=True)
+    receipt_path = artifact_root / "verification.json"
+    receipt_path.write_text(json.dumps(_receipt(), sort_keys=True) + "\n", encoding="utf-8")
+    monkeypatch.chdir(target)
+    monkeypatch.delenv("BUILDER_ARTIFACT_ROOT", raising=False)
+    monkeypatch.delenv("CORE_ARTIFACT_ROOT", raising=False)
+    monkeypatch.setenv("BUILDER_MCP_SESSION_ID", "cli-product-path")
+    monkeypatch.setenv("BUILDER_MCP_TARGET_PROFILE", "generic")
+    monkeypatch.setattr(mcp_cli, "enforce_command_authority", lambda *_args, **_kwargs: None)
+    request = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": "patch_proposal", "arguments": _arguments(receipt_path)},
+    }
+
+    result = CliRunner().invoke(mcp_app, ["serve"], input=json.dumps(request) + "\n")
+
+    assert result.exit_code == 0, result.output
+    response = json.loads(result.output.strip())
+    assert response["result"]["isError"] is False
+    domain = json.loads(response["result"]["content"][0]["text"])
+    assert domain["decision"] == "HUMAN_APPROVAL_REQUIRED"
+    proposal_path = Path(domain["proposal_ref"]["path"])
+    assert proposal_path.is_relative_to(artifact_root.resolve())
+    assert proposal_path.is_file()
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
@@ -221,14 +357,14 @@ def test_receipt_path_and_size_fail_closed(tmp_path: Path) -> None:
         )
 
 
-def test_patch_proposal_refuses_artifact_root_beneath_target(tmp_path: Path) -> None:
+def test_patch_proposal_refuses_noncanonical_artifact_root_beneath_target(tmp_path: Path) -> None:
     target = tmp_path / "target"
-    builder_root = target / ".builder"
+    builder_root = target / "src" / "artifacts"
     builder_root.mkdir(parents=True)
     receipt_path = builder_root / "verification.json"
     receipt_path.write_text(json.dumps(_receipt()), encoding="utf-8")
     before = _target_fingerprint(target)
-    with pytest.raises(ServiceDenied, match="outside the target repository"):
+    with pytest.raises(ServiceDenied, match="must remain under .builder/artifacts"):
         run_service(
             tool_name="patch_proposal",
             arguments=_arguments(receipt_path),
@@ -263,6 +399,110 @@ def test_corrupt_ledger_and_proposal_write_failure_never_advertise_ready(tmp_pat
         )
     assert response is not None and response["result"]["isError"] is True
     assert "HUMAN_APPROVAL_REQUIRED" not in json.dumps(response)
+
+
+@pytest.mark.parametrize("failure_boundary", ["service_receipt", "event"])
+def test_post_proposal_evidence_failure_removes_approval_ready_artifacts(
+    tmp_path: Path, failure_boundary: str
+) -> None:
+    import builder_ii.adapters.mcp.governed_services as services
+
+    target, builder_root, receipt_path = _setup(tmp_path)
+    server = GovernedMcpServer(
+        session_id=f"post-persist-{failure_boundary}",
+        builder_root=builder_root,
+        target_root=target,
+        target_name="generic",
+    )
+    if failure_boundary == "service_receipt":
+        original_json = services._json
+
+        def fail_receipt(path: Path, value: dict[str, object]) -> None:
+            if path.name.endswith("patch_proposal_receipt.json"):
+                raise OSError("receipt storage unavailable")
+            original_json(path, value)
+
+        context = patch.object(services, "_json", side_effect=fail_receipt)
+    else:
+        context = patch.object(services, "write_event_record", side_effect=OSError("event storage unavailable"))
+
+    with context:
+        response = server.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": failure_boundary,
+                "method": "tools/call",
+                "params": {"name": "patch_proposal", "arguments": _arguments(receipt_path)},
+            }
+        )
+
+    assert response is not None and response["result"]["isError"] is True
+    assert "HUMAN_APPROVAL_REQUIRED" not in json.dumps(response)
+    assert not list(builder_root.rglob("hitl-patch-proposal.json"))
+    assert not list(builder_root.rglob("*patch_proposal_receipt.json"))
+    assert not list(builder_root.rglob("*_mcp_service.json"))
+
+
+def test_overlap_and_symlinked_artifact_namespaces_fail_before_write(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    with pytest.raises(ServiceDenied, match="must not equal"):
+        GovernedMcpServer(session_id="equal", builder_root=target, target_root=target)
+
+    outer_artifact = tmp_path / "outer-artifacts"
+    nested_target = outer_artifact / "target"
+    nested_target.mkdir(parents=True)
+    with pytest.raises(ServiceDenied, match="must not be inside"):
+        GovernedMcpServer(session_id="reverse", builder_root=outer_artifact, target_root=nested_target)
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    symlinked_root = target / ".builder" / "artifacts"
+    symlinked_root.parent.mkdir()
+    symlinked_root.symlink_to(outside, target_is_directory=True)
+    with pytest.raises(ServiceDenied, match="symlinked path component"):
+        GovernedMcpServer(session_id="symlink-root", builder_root=symlinked_root, target_root=target)
+    assert not list(outside.iterdir())
+
+
+@pytest.mark.parametrize("symlink_component", ["sessions", "mcp", "events"])
+def test_symlinked_session_output_components_cannot_redirect_evidence(
+    tmp_path: Path, symlink_component: str
+) -> None:
+    target = tmp_path / "target"
+    artifact_root = target / ".builder" / "artifacts"
+    artifact_root.mkdir(parents=True)
+    receipt_path = artifact_root / "verification.json"
+    receipt_path.write_text(json.dumps(_receipt()) + "\n", encoding="utf-8")
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    session_id = f"symlink-{symlink_component}"
+    if symlink_component == "sessions":
+        link = artifact_root / "sessions"
+    else:
+        session_root = artifact_root / "sessions" / session_id
+        session_root.mkdir(parents=True)
+        link = session_root / symlink_component
+    link.symlink_to(outside, target_is_directory=True)
+
+    server = GovernedMcpServer(
+        session_id=session_id,
+        builder_root=artifact_root,
+        target_root=target,
+        target_name="generic",
+    )
+    response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": symlink_component,
+            "method": "tools/call",
+            "params": {"name": "patch_proposal", "arguments": _arguments(receipt_path)},
+        }
+    )
+
+    assert response is not None and response["result"]["isError"] is True
+    assert "HUMAN_APPROVAL_REQUIRED" not in json.dumps(response)
+    assert not list(outside.iterdir())
 
 
 def test_inventory_has_only_passive_patch_surface_and_env_cannot_reactivate_legacy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

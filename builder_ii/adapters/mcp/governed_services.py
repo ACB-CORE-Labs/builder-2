@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import stat
 import uuid
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,7 @@ from typing import Any
 from builder_ii.adapters.mcp.governed_call import build_read_only_policy
 from builder_ii.core.config import load_settings
 from builder_ii.core.config_schema import digest_jsonable
+from builder_ii.core.config_sources import ArtifactRootPolicyError, admit_platform_artifact_root
 from builder_ii.core.demo_loop import DEMO_VERIFICATION_RECEIPT_KIND, validate_demo_verification_receipt
 from builder_ii.core.governed_prepare_package import (
     create_governed_prepare_package,
@@ -136,7 +138,44 @@ def _controlled_path(raw_value: Any, *, root: Path, field: str) -> Path:
     candidate = supplied if supplied.is_absolute() else root.resolve() / supplied
     if not _within(candidate, root):
         raise ServiceDenied(f"{field} must remain inside the server-controlled Builder-II artifact root")
+    _refuse_symlink_components(candidate, root=root, field=field)
     return candidate.resolve()
+
+
+def _refuse_symlink_components(path: Path, *, root: Path, field: str) -> None:
+    resolved_root = root.resolve(strict=False)
+    unresolved = path.expanduser()
+    if not unresolved.is_absolute():
+        unresolved = resolved_root / unresolved
+    try:
+        relative = unresolved.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ServiceDenied(f"{field} must remain inside the server-controlled Builder-II artifact root") from exc
+    current = resolved_root
+    for part in relative.parts:
+        current = current / part
+        try:
+            if stat.S_ISLNK(current.lstat().st_mode):
+                raise ServiceDenied(f"{field} must not traverse a symlink")
+        except FileNotFoundError:
+            continue
+
+
+def admit_mcp_artifact_root(
+    builder_root: Path,
+    target_root: Path,
+    *,
+    allow_inside_target: bool = False,
+) -> Path:
+    """Admit the canonical namespace for governed MCP control-plane evidence."""
+    try:
+        return admit_platform_artifact_root(
+            builder_root,
+            target_root,
+            allow_inside_target=allow_inside_target,
+        )
+    except ArtifactRootPolicyError as exc:
+        raise ServiceDenied(str(exc)) from exc
 
 
 def _is_sha256(value: Any) -> bool:
@@ -303,10 +342,18 @@ def _service_receipt(
     if _canonical_size(result) > int(policy["max_output_bytes"]):
         raise ValueError("service result exceeds the persisted MCP policy output bound")
 
+    _refuse_symlink_components(session_dir, root=builder_root, field="MCP session output")
+    _refuse_symlink_components(mcp_dir, root=builder_root, field="MCP service output")
+    _refuse_symlink_components(events_dir, root=builder_root, field="MCP event output")
     mcp_dir.mkdir(parents=True, exist_ok=True)
     events_dir.mkdir(parents=True, exist_ok=True)
     policy_path = (mcp_dir / f"{sequence:03d}_mcp_policy.json").resolve()
-    _json(policy_path, policy)
+    _refuse_symlink_components(policy_path, root=builder_root, field="MCP policy output")
+    try:
+        _json(policy_path, policy)
+    except Exception:
+        policy_path.unlink(missing_ok=True)
+        raise
     policy_ref = {
         "role": "mcp_tool_policy",
         "kind": policy["kind"],
@@ -344,7 +391,13 @@ def _service_receipt(
     if errors:
         raise RuntimeError("MCP service receipt validation failed: " + "; ".join(errors))
     receipt_path = (mcp_dir / f"{sequence:03d}_{tool_name}_receipt.json").resolve()
-    _json(receipt_path, receipt)
+    _refuse_symlink_components(receipt_path, root=builder_root, field="MCP service receipt output")
+    try:
+        _json(receipt_path, receipt)
+    except Exception:
+        receipt_path.unlink(missing_ok=True)
+        policy_path.unlink(missing_ok=True)
+        raise
 
     previous = None
     if existing:
@@ -383,7 +436,14 @@ def _service_receipt(
     if errors:
         raise RuntimeError("event validation failed: " + "; ".join(errors))
     event_path = (events_dir / f"{sequence:03d}_mcp_service.json").resolve()
-    write_event_record(event, event_path)
+    _refuse_symlink_components(event_path, root=builder_root, field="MCP event output")
+    try:
+        write_event_record(event, event_path)
+    except Exception:
+        event_path.unlink(missing_ok=True)
+        receipt_path.unlink(missing_ok=True)
+        policy_path.unlink(missing_ok=True)
+        raise
     return receipt, receipt_path, event_path
 
 
@@ -537,9 +597,6 @@ def _patch_proposal(
     if len(unified_diff_bytes) > MAX_UNIFIED_DIFF_BYTES:
         raise ServiceDenied(f"unified_diff exceeds the {MAX_UNIFIED_DIFF_BYTES}-byte limit")
 
-    if _within(builder_root, target_root):
-        raise ServiceDenied("patch_proposal artifact root must be outside the target repository")
-
     _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
     receipt_bytes = _controlled_receipt_bytes(arguments.get("verification_receipt_path"), builder_root=builder_root)
     try:
@@ -558,15 +615,23 @@ def _patch_proposal(
 
     output_dir = builder_root.resolve() / "sessions" / session_id / "mcp" / "patch-proposal" / uuid.uuid4().hex
     proposal_path = output_dir / "hitl-patch-proposal.json"
-    write_hitl_patch_proposal(proposal, proposal_path)
+    _refuse_symlink_components(proposal_path, root=builder_root, field="patch proposal output")
+    try:
+        write_hitl_patch_proposal(proposal, proposal_path)
+    except Exception:
+        proposal_path.unlink(missing_ok=True)
+        raise
     try:
         stored = json.loads(proposal_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
+        proposal_path.unlink(missing_ok=True)
         raise RuntimeError(f"persisted patch proposal could not be reloaded: {exc}") from exc
     errors = validate_hitl_patch_proposal(stored)
     if errors:
+        proposal_path.unlink(missing_ok=True)
         raise RuntimeError("persisted patch proposal is invalid: " + "; ".join(errors))
     if stored != proposal:
+        proposal_path.unlink(missing_ok=True)
         raise RuntimeError("persisted patch proposal does not match the canonical proposal")
     proposal_digest = canonical_digest(stored)
     return {
@@ -772,6 +837,7 @@ def run_service(
     target_root: Path,
     target_name: str,
     config_root: Path | None = None,
+    allow_artifact_root_inside_target: bool = False,
 ) -> tuple[dict[str, Any], Path, Path]:
     """Dispatch only to existing governed services; no CLI, shell, or subprocess boundary."""
     _validate_identity(session_id=session_id, target_name=target_name, tool_name=tool_name)
@@ -780,7 +846,11 @@ def run_service(
     input_limit = MAX_UNIFIED_DIFF_BYTES + MAX_SERVICE_INPUT_BYTES if tool_name == "patch_proposal" else MAX_SERVICE_INPUT_BYTES
     if _canonical_size(arguments) > input_limit:
         raise ServiceDenied(f"service arguments exceed the {input_limit}-byte input limit")
-    builder_root = builder_root.resolve()
+    builder_root = admit_mcp_artifact_root(
+        builder_root,
+        target_root,
+        allow_inside_target=allow_artifact_root_inside_target,
+    )
     target_root = target_root.resolve()
     if not target_root.is_dir():
         raise ServiceDenied("target root must be an existing directory")
@@ -909,12 +979,22 @@ def run_service(
             and not (isinstance(result, dict) and result.get("valid") is False)
             else "denied"
         )
-    return _service_receipt(
-        builder_root=builder_root,
-        session_id=session_id,
-        target_name=target_name,
-        tool_name=tool_name,
-        arguments=arguments,
-        result=result,
-        status=status,
-    )
+    try:
+        return _service_receipt(
+            builder_root=builder_root,
+            session_id=session_id,
+            target_name=target_name,
+            tool_name=tool_name,
+            arguments=arguments,
+            result=result,
+            status=status,
+        )
+    except Exception:
+        if tool_name == "patch_proposal" and isinstance(result, dict):
+            proposal_ref = result.get("proposal_ref")
+            proposal_path_value = proposal_ref.get("path") if isinstance(proposal_ref, dict) else None
+            if isinstance(proposal_path_value, str):
+                proposal_path = Path(proposal_path_value)
+                if _within(proposal_path, builder_root):
+                    proposal_path.unlink(missing_ok=True)
+        raise

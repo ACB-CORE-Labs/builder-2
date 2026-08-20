@@ -17,8 +17,14 @@ Governance proof sprint (reapply of broader DDD work + skeptic fixes + reapply d
 - Local qualification: focused MCP/HITL/authority suite passed; Ruff passed; documentation truth
   audit passed; platform matrix passed without promotion; `bash scripts/ci.sh` passed with 2,820
   tests passed, 1 skipped, and all blocking gates passed.
-- State remains implementation working tree only: no commit, push, PR, merge, capability
-  promotion, approval minting, MCP patch application, or Plan Set 3C2 authority.
+- At pre-commit qualification time the implementation remained working-tree only. It was later
+  frozen as candidate `88453160be3c1ab07eecf8c42b24f03480aa7adc`, exact-tip qualified, and
+  pushed for independent hosted diff review. No PR, merge, capability promotion, approval
+  minting, MCP patch application, or Plan Set 3C2 authority followed from that publication.
+- Independent review preserved the passive binder and executor-removal result but found the
+  candidate's outside-target artifact-root assumption incompatible with the canonical
+  `.builder/artifacts` product path. Plan Set 3C1-R1 records the separately digest-bound
+  correction; its implementation and qualification do not authorize PR, merge, or 3C2.
 
 ## Phase 0 — Territory verification
 - Wrote `VERIFICATION_REPORT.md` (claimed vs confirmed vs discrepancy).

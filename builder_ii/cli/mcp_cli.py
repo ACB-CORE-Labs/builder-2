@@ -289,8 +289,10 @@ def serve(
         "--session-id",
         help="Session id for the operational ledger (default: $BUILDER_MCP_SESSION_ID or 'governed-session').",
     ),
-    builder_root: Path = typer.Option(
-        Path(".builder"), "--builder-root", help="Root directory for session artifacts and events."
+    builder_root: Path | None = typer.Option(
+        None,
+        "--builder-root",
+        help="Explicit platform artifact root (default: canonical resolved platform_artifact_root).",
     ),
 ) -> None:
     """Run the governed stdio MCP server so Goose can load builder-II as an extension.
@@ -319,10 +321,24 @@ def serve(
         typer.echo("BUILDER_MCP_PROJECT_ROOT does not name an existing directory.", err=True)
         raise typer.Exit(1)
 
+    from builder_ii.core.config_sources import resolve_config_sources
+
+    target_root = Path.cwd().resolve()
+    overrides: dict[str, str] = {"target_repo": str(target_root)}
+    if builder_root is not None:
+        overrides["platform_artifact_root"] = str(builder_root)
+    resolution = resolve_config_sources(project_root=target_root, cli_overrides=overrides)
+    if resolution.errors:
+        typer.echo("Invalid governed MCP configuration: " + "; ".join(resolution.errors), err=True)
+        raise typer.Exit(1)
+    resolved_artifact_root = Path(resolution.value("platform_artifact_root"))
+    allow_inside_target = resolution.raw_value("allow_artifact_root_inside_target") is True
+
     GovernedMcpServer(
         session_id=resolved_session,
-        builder_root=builder_root,
-        target_root=Path.cwd(),
+        builder_root=resolved_artifact_root,
+        target_root=target_root,
         target_name=target_name,
         config_root=config_root,
+        allow_artifact_root_inside_target=allow_inside_target,
     ).serve_stdio()
