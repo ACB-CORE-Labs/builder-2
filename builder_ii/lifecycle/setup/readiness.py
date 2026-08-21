@@ -115,10 +115,21 @@ def check_model_backend(*, model_backend: str, model_alias: str) -> Readiness:
     )
 
 
-def check_repository(*, repository_path: Path) -> Readiness:
+def check_repository(*, repository_path: Path, canonical_repository: str | None = None) -> Readiness:
     from builder_ii.core.repository_identity import check_repository_identity
 
-    report = check_repository_identity(repository_path=repository_path, timeout=3.0)
+    if not canonical_repository:
+        return Readiness(
+            "repository-identity",
+            "unavailable",
+            "no target-scoped canonical upstream is declared",
+            "Declare a canonical upstream for this target before relying on repository identity; builder init never infers one from the platform repository.",
+        )
+    report = check_repository_identity(
+        repository_path=repository_path,
+        canonical_repository=canonical_repository,
+        timeout=3.0,
+    )
     if report.matches:
         return Readiness("repository-identity", "ready", f"origin={report.configured_url}", "No remediation required.")
     status = "unavailable" if report.configured_url is None else "failed"
@@ -136,6 +147,8 @@ def passive_readiness(
     state_root: Path | None = None,
     model_backend: str,
     model_alias: str,
+    target_repo: Path | None = None,
+    canonical_repository: str | None = None,
 ) -> tuple[Readiness, ...]:
     isolated_state = (state_root or root / ".builder" / "artifacts" / "onboarding-readiness") / "goose"
     return (
@@ -143,7 +156,10 @@ def passive_readiness(
         check_deepagents(),
         check_model_backend(model_backend=model_backend, model_alias=model_alias),
         check_gh(),
-        check_repository(repository_path=root),
+        check_repository(
+            repository_path=(target_repo or root).resolve(),
+            canonical_repository=canonical_repository,
+        ),
     )
 
 

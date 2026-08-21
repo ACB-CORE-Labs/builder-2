@@ -375,9 +375,9 @@ class ActiveStratum(Vertical):
             [
                 "",
                 rule(),
-                f"  {bold_themed('pass', 'A')} compose approve   {bold_themed('fail', 'R')} compose reject",
+                f"  {bold_themed('pass', 'A')} handoff approve   {bold_themed('fail', 'R')} handoff refuse",
                 f"  {bold_themed('active', 'I')} inspect payload   {bold_themed('accent', 'D')} diff",
-                f"  {themed('hint', 'STRATUM does not harvest confirmation — run the composed CLI')}",
+                f"  {themed('hint', 'STRATUM hands off to builder-hitl and reloads the canonical result')}",
             ]
         )
         self._write("\n".join(lines))

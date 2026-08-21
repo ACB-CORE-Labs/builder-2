@@ -393,6 +393,10 @@ def init(
 
     readiness_results = passive_readiness(
         root=root,
+        target_repo=(target_repo or root).resolve(),
+        canonical_repository=(
+            "https://github.com/ACB-CORE-Labs/builder-2" if chosen["target_profile"] == "builder" else None
+        ),
         state_root=Path(chosen["output_dir"]) / "readiness-state",
         model_backend=chosen["model_backend"],
         model_alias=chosen["model_alias"],

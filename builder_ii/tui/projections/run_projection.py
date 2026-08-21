@@ -7,11 +7,13 @@ and derives the operator grammar from validated evidence only.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
 from builder_ii.core.artifact_chain_verification import VALIDATORS
 from builder_ii.core.canonical_json import canonical_digest
 from builder_ii.core.governed_prepare_package import (
@@ -56,6 +58,7 @@ _DELIVERY_KINDS = {
     "builder_ii.handoff_note",
     "builder_ii.handoff_bundle_record",
 }
+_MCP_RECEIPT = "builder_ii.mcp_service_receipt"
 _MODEL_KINDS = {"builder_ii.run_manifest", "builder_ii.model_call_receipt"}
 _TOOL_KINDS = {"builder_ii.tool_call_receipt", "builder_ii.mcp_call_receipt"}
 _OBSERVATION = "builder_ii.stratum_invocation_observation"
@@ -112,6 +115,22 @@ def _observation_errors(value: dict[str, Any]) -> list[str]:
     expected = canonical_digest({key: item for key, item in value.items() if key != "observation_digest"})
     if digest != expected:
         errors.append("observation_digest does not match canonical content")
+    output = value.get("output_path")
+    if isinstance(output, str) and output:
+        output_path = Path(output)
+        if not output_path.is_file():
+            errors.append("observation output_path is missing")
+        else:
+            if value.get("artifact_sha256") and hashlib.sha256(output_path.read_bytes()).hexdigest() != value.get("artifact_sha256"):
+                errors.append("observation output bytes do not match artifact_sha256")
+            try:
+                output_value = json.loads(output_path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                output_value = None
+            if isinstance(output_value, dict) and value.get("canonical_digest") and canonical_digest(output_value) != value.get("canonical_digest"):
+                errors.append("observation output does not match canonical_digest")
+    if value.get("successful") is False or value.get("cancelled") is True or value.get("returncode") not in (0, None):
+        errors.append("observation records a failed or cancelled invocation")
     return errors
 
 
@@ -226,6 +245,8 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         validator = VALIDATORS.get(kind)
         if kind == _OBSERVATION:
             native_errors = _observation_errors(value)
+        elif kind == _MCP_RECEIPT:
+            native_errors = validate_mcp_service_receipt(value)
         elif kind == _REFUSAL:
             native_errors = validate_hitl_patch_refusal(value)
         elif validator is not None:
@@ -261,7 +282,7 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         evidence.append(Evidence(kind, path, state, canonical_digest(value)))
 
     for label, values in identities.items():
-        if len(values) > 1 and label in {"session", "target"}:
+        if len(values) > 1 and label in {"session", "target", "task"}:
             errors.append(f"foreign {label} evidence is mixed: {sorted(values)}")
     if target and identities["target"] and target not in identities["target"]:
         errors.append(f"canonical target evidence does not match selected target {target!r}")
@@ -317,6 +338,27 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         else:
             errors.extend(validate_verification_execution_receipt_against_plan_and_approval(receipt, bound[0], bound[1]))
 
+    # A patch proposal records the exact bytes of the verification receipt it
+    # was allowed to bind.  Never advance on a merely valid, unrelated receipt.
+    for proposal_path, proposal in proposals:
+        expected_file_sha = proposal.get("verification_receipt_file_sha256")
+        if not isinstance(expected_file_sha, str):
+            errors.append(f"{proposal_path}: proposal verification receipt digest is missing")
+            continue
+        matching_receipts = [
+            receipt_path
+            for receipt_path, receipt in by_kind.get("builder_ii.verification_execution_receipt", [])
+            if receipt.get("receipt_status") == "EXECUTED"
+            and hashlib.sha256(receipt_path.read_bytes()).hexdigest() == expected_file_sha
+        ]
+        if not by_kind.get("builder_ii.verification_execution_receipt"):
+            # A proposal may legitimately be pending before verification is
+            # executed. Once receipts exist, ambiguity or a digest mismatch
+            # is corruption, never an implicit binding.
+            continue
+        if len(matching_receipts) != 1:
+            errors.append(f"{proposal_path}: proposal is not bound to exactly one persisted verification receipt")
+
     event_records = [(value, path) for path, value in by_kind.get("builder_ii.event_record", [])]
     replay = replay_events(event_records, session_id=session_id) if event_records else None
     if replay is not None and not replay.get("valid"):
@@ -329,12 +371,29 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
     has_refusal = bool(refusals)
     has_execution = any(str(value.get("kind", "")) in _EXECUTED_KINDS and _executed(value) for _, value in records)
     has_verification = any(str(value.get("kind", "")) in _VERIFIED_KINDS and _verified(value) for _, value in records)
-    has_execution = has_execution or has_verification
-    has_delivery = bool(_DELIVERY_KINDS & set(by_kind))
-    promoted = bool(replay and replay.get("valid")) and any(
-        value.get("kind") == "builder_ii.event_record" and value.get("event_type") == "workflow_promoted"
+    # Verification is not execution.  Patch execution requires the canonical
+    # apply receipt (and its postflight chain), not any successful verification.
+    has_apply_execution = any(
+        str(value.get("kind", "")) == "builder_ii.hitl_patch_apply_receipt" and _executed(value)
         for _, value in records
     )
+    has_execution = has_execution or has_apply_execution
+    delivery_receipts = [
+        value for _, value in by_kind.get(_MCP_RECEIPT, [])
+        if value.get("service") in {"delivery_prepare", "delivery"}
+        and value.get("status") in {"succeeded", "denied"}
+        and isinstance(value.get("result"), dict)
+    ]
+    has_delivery = bool(delivery_receipts) and any(
+        value.get("service") == "delivery_prepare"
+        and value.get("result", {}).get("status") == "HANDOFF_PREPARED"
+        for value in delivery_receipts
+    ) and any(
+        value.get("service") == "delivery"
+        and value.get("result", {}).get("status") == "HUMAN_APPROVAL_REQUIRED"
+        for value in delivery_receipts
+    )
+    promoted = False
     failed = any(_failed(value) for _, value in records)
 
     if corrupt:

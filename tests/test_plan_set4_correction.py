@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from dataclasses import replace
@@ -23,8 +24,6 @@ from builder_ii.core.config import load_settings
 from builder_ii.core.handoff_artifacts import create_handoff_artifact
 from builder_ii.governance.hitl.hitl_patch_apply import create_patch_apply_receipt
 from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
-from builder_ii.governance.ledger.event_ledger import create_event_record
-from builder_ii.governance.ledger.workflow_records import artifact_ref
 from builder_ii.lifecycle.setup.presets import PRESETS, preset_artifact, validate_preset_artifact
 from builder_ii.lifecycle.setup.readiness import (
     Readiness,
@@ -272,19 +271,6 @@ def test_primary_surface_reaches_plan_set_6_boundary_from_canonical_evidence(mon
     assert assigned.exit_code == 0, assigned.output
     assert assignment.validator(assignment.output).errors == ()
 
-    proposal_path = session_root / "proposal.json"
-    source_proposal = _proposal(tmp_path)
-    proposal_path.write_bytes(source_proposal.read_bytes())
-    proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
-    pending = project_run(root, session_id=SESSION, target="generic")
-    assert pending.approvals == "PENDING" and pending.stage == "APPROVE"
-    approval = build_command("builder-hitl approve-patch", HitlPatchInputs(proposal_path, root, SESSION))
-    approved = runner.invoke(hitl_app, list(approval.argv), input=proposal["patch_digest"][:4] + "\n")
-    assert approved.exit_code == 0, approved.output
-    assert approval.validator(approval.output).errors == ()
-    projected = project_run(root, session_id=SESSION, target="generic")
-    assert projected.stage == "EXECUTE", projected.errors
-
     repo = tmp_path / "repo"
     repo.mkdir()
     subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True)
@@ -295,9 +281,25 @@ def test_primary_surface_reaches_plan_set_6_boundary_from_canonical_evidence(mon
     subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True, capture_output=True)
     verification = session_root / "verification-receipt.json"
     write_executed_verification_receipt(verification, repo, target_profile="generic")
+
+    proposal_path = session_root / "proposal.json"
+    source_proposal = _proposal(tmp_path)
+    proposal_data = json.loads(source_proposal.read_text(encoding="utf-8"))
+    proposal_data["verification_receipt_file_sha256"] = hashlib.sha256(verification.read_bytes()).hexdigest()
+    _write(proposal_path, proposal_data)
+    proposal = json.loads(proposal_path.read_text(encoding="utf-8"))
+    pending = project_run(root, session_id=SESSION, target="generic")
+    assert pending.approvals == "PENDING" and pending.stage == "APPROVE"
+    approval = build_command("builder-hitl approve-patch", HitlPatchInputs(proposal_path, root, SESSION))
+    approved = runner.invoke(hitl_app, list(approval.argv), input=proposal["patch_digest"][:4] + "\n")
+    assert approved.exit_code == 0, approved.output
+    assert approval.validator(approval.output).errors == ()
     projected = project_run(root, session_id=SESSION, target="generic")
-    assert projected.stage == "DELIVER/PROMOTE", projected.errors
-    assert projected.next_action == "PLAN_SET_6_DELIVERY_AUTHORITY_REQUIRED"
+    assert projected.stage == "EXECUTE", projected.errors
+
+    projected = project_run(root, session_id=SESSION, target="generic")
+    assert projected.stage == "EXECUTE", projected.errors
+    assert projected.next_action == "execute only through existing governed authority"
 
     handoff = create_handoff_artifact(
         target="generic",
@@ -307,32 +309,12 @@ def test_primary_surface_reaches_plan_set_6_boundary_from_canonical_evidence(mon
     )
     _write(session_root / "handoff.json", handoff)
     projected = project_run(root, session_id=SESSION, target="generic")
-    assert projected.delivery == "EXECUTED"
+    assert projected.delivery == "PENDING"
     assert any(item.path == prepared.output / "prepare-package.json" for item in projected.evidence)
 
-    policy = json.loads((prepared.output / "prepare-package.json").read_text(encoding="utf-8"))
-    policy_ref = artifact_ref(policy, path=prepared.output / "prepare-package.json", role="policy")
-    previous = None
-    for sequence, (event_type, stage) in enumerate(
-        (("workflow_initialized", "initialized"), ("workflow_planned", "planned"), ("workflow_promoted", "promoted")),
-        start=1,
-    ):
-        event_path = session_root / f"event-{sequence}.json"
-        event = create_event_record(
-            event_id=f"{SESSION}:{sequence}",
-            session_id=SESSION,
-            sequence=sequence,
-            event_type=event_type,
-            stage=stage,
-            subject_refs=[],
-            command_surface="test-primary-path",
-            policy_snapshot_ref=policy_ref,
-            previous_event_ref=previous,
-        )
-        _write(event_path, event)
-        previous = artifact_ref(event, path=event_path, role="event")
-    projected = project_run(root, session_id=SESSION, target="generic")
-    assert projected.delivery == "PROMOTED", projected.errors
+    # A generic handoff and synthetic promotion event are deliberately not
+    # delivery evidence. Plan Set 3D's MCP delivery services own that boundary.
+    assert project_run(root, session_id=SESSION, target="generic").delivery == "PENDING"
 
 
 def test_canonical_refusal_projects_denied_without_authority(tmp_path: Path) -> None:
@@ -446,7 +428,7 @@ def test_each_readiness_detector_reports_independent_truth(monkeypatch, tmp_path
             error="mismatch",
         ),
     )
-    assert check_repository(repository_path=tmp_path).status == "failed"
+    assert check_repository(repository_path=tmp_path).status == "unavailable"
 
 
 def test_builder_init_persists_preset_and_five_readiness_results(monkeypatch, tmp_path: Path) -> None:
