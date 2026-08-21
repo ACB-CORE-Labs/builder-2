@@ -228,6 +228,18 @@ def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value.lower())
 
 
+def _controlled_existing_path(value: Any, *, root: Path, label: str, errors: list[str]) -> Path | None:
+    """Resolve a persisted chain reference without admitting filesystem aliases."""
+    if not isinstance(value, (str, Path)) or not value:
+        errors.append(f"{label} reference is missing")
+        return None
+    candidate = Path(value).resolve()
+    if not _within(candidate, root) or candidate.is_symlink() or not candidate.is_file():
+        errors.append(f"{label} reference is missing, outside the controlled namespace, or is a symlink")
+        return None
+    return candidate
+
+
 def _git_status(arguments: dict[str, Any], *, target_root: Path, target_name: str) -> dict[str, Any]:
     if arguments:
         raise ServiceDenied("git_status accepts no arguments")
@@ -245,6 +257,11 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
     expected = arguments.get("target_head_sha")
     actual = status["git_state"]["commit_sha"]
     errors: list[str] = []
+    root = (builder_root / "sessions" / session_id / "mcp").resolve()
+    verification_data: dict[str, Any] | None = None
+    patch_data: dict[str, Any] | None = None
+    verification_path: Path | None = None
+    patch_path: Path | None = None
     if not isinstance(expected, str) or expected != actual:
         errors.append("target_head_sha is missing or does not match current HEAD")
     evidence: dict[str, Any] = {}
@@ -258,7 +275,6 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
             errors.append(f"{field} must be a typed artifact reference")
             continue
         raw = Path(path_value)
-        root = (builder_root / "sessions" / session_id / "mcp").resolve()
         path = (root / raw).resolve() if not raw.is_absolute() else raw.resolve()
         if not _within(path, root) or path.is_symlink() or not path.is_file():
             errors.append(f"{field} is outside the controlled MCP artifact namespace")
@@ -271,6 +287,10 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
         except (OSError, json.JSONDecodeError):
             errors.append(f"{field} is not a readable JSON artifact")
             continue
+        if field == "verification_evidence":
+            verification_path, verification_data = path, data
+        else:
+            patch_path, patch_data = path, data
         if field == "verification_evidence":
             errors.extend(validate_verification_execution_receipt_artifact(data))
             if data.get("valid") is not True or data.get("receipt_status") != "EXECUTED":
@@ -294,26 +314,76 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
                 errors.append("patch evidence is not bound to the server target profile and repository")
             errors.extend(validate_post_apply_target_state(target_root, data))
             verification_ref = data.get("verification_receipt_digest")
-            verification_data = None
-            verification_value = arguments.get("verification_evidence")
-            if isinstance(verification_value, dict):
-                verification_path_value = verification_value.get("path")
-                if isinstance(verification_path_value, str):
-                    verification_raw = Path(verification_path_value)
-                    verification_path = (root / verification_raw).resolve() if not verification_raw.is_absolute() else verification_raw.resolve()
-                    if _within(verification_path, root) and verification_path.is_file() and not verification_path.is_symlink():
-                        try:
-                            verification_data = json.loads(verification_path.read_text(encoding="utf-8"))
-                        except (OSError, json.JSONDecodeError):
-                            verification_data = None
-            if verification_data is None or verification_ref != canonical_digest(verification_data):
+            supplied_verification_data = verification_data
+            if supplied_verification_data is None or verification_ref != canonical_digest(supplied_verification_data):
                 errors.append("patch evidence is not cross-bound to the supplied verification evidence")
         if not errors:
             evidence[field] = {"kind": data.get("kind"), "path": str(path), "sha256": value["sha256"]}
     identity = status["repository_identity"]
     if not identity["matches"]:
         errors.append("repository identity does not match the canonical repository")
-    return {"kind": "builder_ii.delivery_readiness_handoff", "status": "BLOCKED" if errors else "HANDOFF_PREPARED", "git_status": status, "evidence": evidence, "errors": errors, "delivery_execution": "NOT_ADMITTED"}
+    if verification_path is not None and verification_data is not None and patch_path is not None and patch_data is not None:
+        verification_plan_path = _controlled_existing_path(verification_data.get("plan_path"), root=root, label="verification plan", errors=errors)
+        verification_approval_path = _controlled_existing_path(verification_data.get("approval_path"), root=root, label="verification approval", errors=errors)
+        patch_dir = patch_path.parent
+        postflight_path = _controlled_existing_path(patch_data.get("postflight_ref"), root=root, label="patch postflight", errors=errors)
+        rollback_plan_path = _controlled_existing_path(patch_data.get("rollback_plan_ref"), root=root, label="rollback plan", errors=errors)
+        bundle_path = _controlled_existing_path(patch_dir / "rollback_bundle.json", root=root, label="rollback bundle", errors=errors)
+        ledger_path = _controlled_existing_path(patch_dir / "patch_ledger_record.json", root=root, label="patch ledger", errors=errors)
+        proposal_path = _controlled_existing_path(patch_data.get("proposal_ref"), root=root, label="patch proposal", errors=errors)
+        approval_path = _controlled_existing_path(patch_dir / "approval.json", root=root, label="patch approval", errors=errors)
+        rollback_patch_path = None
+        if rollback_plan_path is not None:
+            try:
+                rollback_plan_data = json.loads(rollback_plan_path.read_text(encoding="utf-8"))
+                rollback_patch_ref = rollback_plan_data.get("rollback_patch_ref")
+                rollback_patch_path = _controlled_existing_path(
+                    rollback_patch_ref.get("path") if isinstance(rollback_patch_ref, dict) else None,
+                    root=root,
+                    label="rollback patch",
+                    errors=errors,
+                )
+            except (OSError, json.JSONDecodeError):
+                errors.append("rollback plan cannot be reloaded")
+        if all(path is not None for path in (verification_plan_path, verification_approval_path)):
+            try:
+                plan = json.loads(verification_plan_path.read_text(encoding="utf-8"))
+                approval = json.loads(verification_approval_path.read_text(encoding="utf-8"))
+                errors.extend(validate_verification_execution_plan_artifact(plan))
+                errors.extend(validate_verification_execution_approval_artifact(approval))
+                errors.extend(validate_verification_execution_approval_against_plan(approval, plan))
+                errors.extend(validate_verification_execution_receipt_against_plan_and_approval(verification_data, plan, approval))
+            except (OSError, json.JSONDecodeError) as exc:
+                errors.append(f"verification chain cannot be reloaded: {exc}")
+        if all(path is not None for path in (postflight_path, rollback_plan_path, bundle_path, ledger_path, proposal_path, approval_path, rollback_patch_path)):
+            errors.extend(_patch_evidence_errors(
+                paths={
+                    "patch_apply_receipt": patch_path,
+                    "postflight": postflight_path,
+                    "rollback_plan": rollback_plan_path,
+                    "rollback_bundle": bundle_path,
+                    "patch_ledger": ledger_path,
+                },
+                target_root=target_root,
+                target_name=target_name,
+                invocation_paths={
+                    "proposal": proposal_path,
+                    "approval": approval_path,
+                    "verification_receipt": verification_path,
+                    "rollback_patch": rollback_patch_path,
+                },
+            ))
+    handoff_status = "BLOCKED" if errors else "HANDOFF_PREPARED"
+    return {
+        "kind": "builder_ii.delivery_readiness_handoff",
+        "status": handoff_status,
+        "git_status": status,
+        "evidence": evidence,
+        "errors": errors,
+        "delivery_execution": "NOT_ADMITTED",
+        "missing_authority": ["PLAN_SET_6_GIT_MUTATION"],
+        "next_admissible_action": "PLAN_SET_6_DELIVERY_AUTHORITY_REQUIRED",
+    }
 
 
 def _delivery(arguments: dict[str, Any]) -> dict[str, Any]:

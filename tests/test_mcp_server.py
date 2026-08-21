@@ -109,10 +109,6 @@ def _applied_delivery_server(tmp_path: Path, *, target_name: str = "builder") ->
         approval_path,
     )
     apply_hitl_patch(proposal_path, approval_path, verification_path, mcp_dir)
-    plan_path = mcp_dir / "verification-plan.json"
-    approval_receipt_path = mcp_dir / "verification-approval.json"
-    plan_path.unlink()
-    approval_receipt_path.unlink()
     server = GovernedMcpServer(
         session_id="delivery_session",
         builder_root=builder_root,
@@ -234,6 +230,29 @@ def test_delivery_prepare_blocks_evidence_from_different_target_profile(tmp_path
     result = json.loads(prepared["result"]["content"][0]["text"])
     assert result["status"] == "BLOCKED"
     assert any("target profile" in error for error in result["errors"])
+
+
+def test_delivery_prepare_blocks_missing_verification_chain(tmp_path: Path) -> None:
+    server, _, verification_path, patch_path, head = _applied_delivery_server(tmp_path)
+    (patch_path.parent / "verification-plan.json").unlink()
+    prepared = _delivery_prepare_call(server, verification_path, patch_path, head, request_id=58)
+    assert prepared["result"]["isError"] is True
+    result = json.loads(prepared["result"]["content"][0]["text"])
+    assert result["status"] == "BLOCKED"
+    assert any("verification plan" in error for error in result["errors"])
+
+
+def test_delivery_prepare_blocks_substituted_verification_approval(tmp_path: Path) -> None:
+    server, _, verification_path, patch_path, head = _applied_delivery_server(tmp_path)
+    approval_path = patch_path.parent / "verification-approval.json"
+    approval = json.loads(approval_path.read_text(encoding="utf-8"))
+    approval["approved_step_ids"] = ["substituted"]
+    approval_path.write_text(json.dumps(approval), encoding="utf-8")
+    prepared = _delivery_prepare_call(server, verification_path, patch_path, head, request_id=59)
+    assert prepared["result"]["isError"] is True
+    result = json.loads(prepared["result"]["content"][0]["text"])
+    assert result["status"] == "BLOCKED"
+    assert result["errors"]
 
 
 def test_delivery_prepare_blocks_historical_apply_evidence_after_rollback(tmp_path: Path) -> None:
