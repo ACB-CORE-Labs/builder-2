@@ -472,6 +472,8 @@ def prepare_package_cmd(
     ),
 ) -> None:
     """Create a governed preparation package without executing target-repo work."""
+    from builder_ii.governance.authority import enforce_command_authority
+    enforce_command_authority("builder-session prepare-package", requested_effects=("artifact_write",))
     settings = load_settings()
     target_norm = _normalize_target(target)
 
@@ -501,6 +503,8 @@ def validate_prepare_package_cmd(
     path: Path = typer.Argument(..., help="Path to a prepare package directory or prepare-package.json manifest"),
 ) -> None:
     """Validate a governed prepare package manifest and referenced artifacts."""
+    from builder_ii.governance.authority import enforce_command_authority
+    enforce_command_authority("builder-session validate-prepare-package")
     errors = validate_governed_prepare_package_directory(path)
     if errors:
         for error in errors:

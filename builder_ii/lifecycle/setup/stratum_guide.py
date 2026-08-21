@@ -238,7 +238,7 @@ def help_keymap_lines() -> list[str]:
         "  V         Re-verify artifact chain on disk",
         "  G         Hand terminal to builder-goose start-readonly (fail-closed)",
         "  N         Operator-next → compose top safe command",
-        "  A / R     HITL: compose approve-patch / refuse-patch when bound (no mutation)",
+        "  A / R     HITL: hand off approve-patch / refuse-patch to the canonical CLI; reload the result",
         "  I         HITL: bind pending proposal or inspect payload",
         "  D         HITL diff: render bound proposal's unified diff (read-only)",
         "",

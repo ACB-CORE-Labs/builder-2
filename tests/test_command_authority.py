@@ -1090,15 +1090,10 @@ def test_stratum_record_claims_no_capability_the_code_does_not_have() -> None:
 
 
 def test_stratum_record_files_hitl_refusal_as_design_not_as_a_pending_feature() -> None:
-    """The refusal is constitutive, not unfinished.
-
-    A surface that renders a digest must not harvest its confirmation -- the same principle
-    `init_decisions` states for `builder init`. Filing that refusal under "pending post-beta
-    wiring", as this record once did, mistakes a designed boundary for a missing feature.
-    """
+    """STRATUM hands off; the real CLI alone records the human decision."""
     boundary = _stratum_record().runtime_boundary.lower()
-    assert "never mutate approval state" in boundary
-    assert "not pending features" in boundary
+    assert "never mutates approval state" in boundary
+    assert "owning builder-hitl cli writes and validates" in boundary
 
 
 def test_doc_parity_pin_catches_a_hand_edit_a_substring_check_would_miss() -> None:
@@ -1121,33 +1116,22 @@ def test_doc_parity_pin_catches_a_hand_edit_a_substring_check_would_miss() -> No
 
 
 def test_stratum_record_names_every_action_that_would_originate_authority() -> None:
-    """STRATUM had three keybindings that originated authority the record denied it had.
-
-    `g` spawned a Goose session with the developer builtin -- file editing and shell -- with no
-    read-only policy, no launch receipt and no approval, while `builder-goose start-readonly` gates
-    exactly that runtime at TIER_3 behind HITL approval. `p` wrote an artifact under an unregistered
-    kind. `u` announced a dispatch that never happened and wrote another unregistered kind.
-
-    All three are now constitutive refusals. The record must say so, and must name the governed
-    command each one defers to, so that a reader of the registry can tell a designed boundary from
-    an unfinished feature.
-    """
+    """The record names the closed handoffs and keeps authority in each owning CLI."""
     record = _stratum_record()
     surface = f"{record.runtime_boundary} {record.write_boundary} {record.approval_boundary}".lower()
     for governed_command in (
         "builder-goose start-readonly",
         "builder-session prepare-package",
+        "builder-session validate-prepare-package",
         "builder-deepagents assign-subagent",
+        "builder-hitl approve-patch",
+        "builder-hitl refuse-patch",
     ):
         assert governed_command in surface, f"the record does not name {governed_command!r}"
     assert "no keybinding originates authority" in surface
-    assert "executes nothing else and claims no execution" in surface
-    assert "tier-permission inspector" in surface
-    assert "composer" in surface
-    # It starts exactly one runtime, and the governed command starts it -- not the render surface.
-    assert "starts exactly one runtime, and never itself" in surface
-    assert "never spawns goose directly and never selects goose builtins" in surface
-    assert "fails closed twice before anything spawns" in surface
+    assert "no arbitrary executable" in surface
+    assert "canonical decision artifacts are reloaded and bound" in surface
+    assert "observation artifacts never grant authority" in surface
 
 
 def test_stratum_declares_the_runtime_it_starts_and_derives_the_matching_assurance() -> None:

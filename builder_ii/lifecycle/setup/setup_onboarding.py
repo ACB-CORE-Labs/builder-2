@@ -90,6 +90,8 @@ def run_onboarding_pipeline(
     model_alias: str | None = None,
     runtime_mode: str | None = None,
     allow_artifact_root_inside_target: bool | None = None,
+    preset_configuration: dict[str, Any] | None = None,
+    readiness_evidence: list[dict[str, str]] | None = None,
     resolution: ConfigResolution | None = None,
 ) -> OnboardingResult:
     if root is None:
@@ -203,7 +205,13 @@ def run_onboarding_pipeline(
             "model_backend": selected_model.get("backend"),
             "model_alias": selected_model.get("alias"),
             "model_tier": selected_model.get("tier"),
+            "worker_concurrency": (preset_configuration or {}).get("worker_concurrency"),
+            "routing_preference": (preset_configuration or {}).get("routing_preference"),
+            "confirmation_policy": (preset_configuration or {}).get("confirmation_policy"),
+            "budget_usd": (preset_configuration or {}).get("budget_usd"),
         },
+        preset_configuration=preset_configuration,
+        readiness_evidence=readiness_evidence,
     )
     intent_errors = validate_onboarding_intent_report_artifact(intent_report)
     if intent_errors:

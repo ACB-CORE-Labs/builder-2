@@ -134,7 +134,7 @@ def register_patch_commands(app: typer.Typer) -> None:
     def refuse_patch(
         proposal: Path = typer.Option(..., "--proposal", help="Proposal JSON path"),
         output: Path = typer.Option(..., "--output", help="Output path for refusal JSON"),
-        rationale: str = typer.Option(..., "--rationale", help="Why the proposal is refused"),
+        rationale: str | None = typer.Option(None, "--rationale", help="Why the proposal is refused (prompted when omitted)"),
         refused_by: str = typer.Option("operator", "--refused-by", help="Identity recorded as the refuser"),
     ) -> None:
         """Record a passive refusal of a patch proposal (no approval, no apply, no source mutation).
@@ -153,6 +153,7 @@ def register_patch_commands(app: typer.Typer) -> None:
             raise typer.Exit(1)
 
         proposal_data = json.loads(proposal.read_text(encoding="utf-8"))
+        rationale = rationale if rationale is not None else typer.prompt("refusal rationale")
         if not str(rationale).strip():
             console.print("rationale must be non-empty; nothing written.")
             raise typer.Exit(1)

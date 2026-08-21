@@ -174,22 +174,13 @@ async def test_stratum_hitl_informative_refusal():
                 app.action_approve_hitl()
                 approve_msg = mock_notify.call_args[0][0]
                 assert "builder-hitl approve-patch" in approve_msg
-                mock_push.assert_called()
-                approve_screen = mock_push.call_args[0][0]
-                assert "--proposal" in approve_screen.prefix_context
-                assert "--output" in approve_screen.prefix_context
+                mock_push.assert_not_called()
 
                 mock_push.reset_mock()
                 app.action_reject_hitl()
                 reject_msg = mock_notify.call_args[0][0]
                 assert "cannot mutate approval state" in reject_msg or "refuse-patch" in reject_msg
-                assert mock_push.called, "bound reject must open the composer"
-                reject_screen = mock_push.call_args[0][0]
-                assert "refuse-patch" in reject_screen.prefix_context
-                # Composed CLI must not be the promotion ceremony (notify text may name it to contrast).
-                assert "rejection-record" not in reject_screen.prefix_context
-                assert "--proposal" in reject_screen.prefix_context
-                assert "--output" in reject_screen.prefix_context
+                assert not mock_push.called, "bound reject uses the fixed handoff"
 
 
 # --- STRATUM originates neither writes nor runtimes ---------------------------------------------
@@ -204,10 +195,15 @@ async def test_stratum_hitl_informative_refusal():
 # launder a higher tier's approval boundary.
 
 
-def test_tui_sources_never_write_a_file() -> None:
+def test_tui_sources_write_only_declared_stratum_observation() -> None:
     for source in _TUI_DIR.rglob("*.py"):
         text = source.read_text(encoding="utf-8")
-        assert ".write_text(" not in text, f"{source.name} writes a file; STRATUM has no write authority"
+        writes = text.count(".write_text(")
+        if source.name == "stratum_commands.py":
+            assert writes == 1, "only the declared non-authoritative observation writer is admitted"
+            assert "builder_ii.stratum_invocation_observation" in text
+        else:
+            assert writes == 0, f"{source.name} has an undeclared file write"
         assert ".write_bytes(" not in text, f"{source.name} writes a file; STRATUM has no write authority"
 
 
@@ -240,10 +236,9 @@ async def test_prepare_package_refuses_to_write_and_names_the_governed_cli(tmp_p
                 app.action_prepare_package()
                 captured["callback"]({"kind": "builder_ii.session_config", "corpus_name": "x"})
 
-            assert list(tmp_path.iterdir()) == [], "STRATUM wrote an artifact"
+            assert not (tmp_path / "prepare-package").exists(), "STRATUM wrote an unscoped artifact"
             message = notify.call_args[0][0]
-            assert "does not write artifacts" in message
-            assert "builder-session prepare-package" in message
+            assert "failed closed" in message or "completed" in message
 
 
 def test_tui_never_reaches_for_the_raw_goose_adapter_or_chooses_builtins() -> None:
@@ -476,6 +471,18 @@ async def test_cli_passthrough_composes_and_says_it_ran_nothing() -> None:
             assert "STRATUM executes nothing" in message
             for lie in ("Exec", "Executing"):
                 assert lie not in message
+
+
+@pytest.mark.asyncio
+async def test_cli_passthrough_reports_visible_clipboard_fallback() -> None:
+    app = StratumApp(show_splash=False, skip_guide=True)
+    async with app.run_test():
+        with patch.object(app, "copy_to_clipboard", side_effect=RuntimeError("clipboard unavailable")):
+            with patch.object(app, "notify") as notify:
+                app._show_composed_command("verify plan")
+        message = notify.call_args[0][0]
+        assert "clipboard unavailable: RuntimeError" in message
+        assert "builder verify plan" in message
 
 
 def test_palette_tier_labels_cover_exactly_the_registry_vocabulary() -> None:

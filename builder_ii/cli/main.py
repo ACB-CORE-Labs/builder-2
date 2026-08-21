@@ -180,7 +180,7 @@ def stratum(
         "[bold cyan]STRATUM[/] — builder-II operator console\n"
         "[yellow]GOVERNANCE NOTICE: planned ≠ executed ≠ verified ≠ promoted[/]\n"
         "[dim]Tip: [bold]uv run builder-stratum[/] is the short form (same gate).[/]\n"
-        "[dim]observe + compose only · docs/STRATUM.md · H help · 0 walkthrough[/]"
+        "[dim]observe + five governed terminal handoffs · docs/STRATUM.md · H help · 0 walkthrough[/]"
     )
     if guide and no_guide:
         console.print("[red]--guide and --no-guide are mutually exclusive.[/]")
@@ -248,6 +248,13 @@ def init(
         "--non-interactive",
         help="Never prompt; missing decisions take their resolved documented defaults.",
     ),
+    preset: str = typer.Option("solo-strict", "--preset", help="Non-authoritative onboarding preset."),
+    budget_usd: Optional[float] = typer.Option(
+        None,
+        "--budget-usd",
+        min=0.01,
+        help="Explicit onboarding budget in USD; required by the team preset.",
+    ),
 ) -> None:
     """Unified governed onboarding orchestrator: emits plan/overlay/snapshot/intent artifacts, never applies.
 
@@ -265,8 +272,16 @@ def init(
         init_wizard_step_definitions,
         validate_decision_value,
     )
+    from builder_ii.lifecycle.setup.presets import get_preset, preset_artifact
+    from builder_ii.lifecycle.setup.readiness import passive_readiness
     from builder_ii.lifecycle.setup.setup_onboarding import run_onboarding_pipeline
     from builder_ii.lifecycle.setup.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
+
+    try:
+        get_preset(preset)
+    except ValueError as exc:
+        console.print(f"[red]invalid preset:[/] {exc}")
+        raise typer.Exit(2) from exc
 
     resolution = resolve_config_sources(project_root=root, builder_config_file=config_file)
     if resolution.errors:
@@ -364,6 +379,49 @@ def init(
             console.print("[red]no valid answer after 3 attempts; aborting without writing artifacts[/]")
             raise typer.Exit(2) from None
 
+    try:
+        selected_preset = preset_artifact(
+            preset,
+            root=root,
+            model_backend=model_backend if preset == "team" else chosen["model_backend"],
+            model_alias=model_alias if preset == "team" else chosen["model_alias"],
+            budget_usd=budget_usd,
+        )
+    except ValueError as exc:
+        console.print(f"[red]invalid preset configuration:[/] {exc}")
+        raise typer.Exit(2) from exc
+
+    # Use one final ConfigResolution for both passive readiness and the setup
+    # plan; readiness must not reconstruct the target from root.
+    final_overrides = {
+        field: chosen[decision_name]
+        for decision_name, field in _field_by_decision.items()
+        if field is not None and chosen.get(decision_name) is not None
+    }
+    if target_repo is not None:
+        final_overrides["target_repo"] = str(target_repo)
+    final_resolution = resolve_config_sources(
+        project_root=root,
+        builder_config_file=config_file,
+        cli_overrides=final_overrides,
+    )
+    if final_resolution.errors:
+        for error in final_resolution.errors:
+            console.print(f"[red]config resolution error:[/] {error}")
+        raise typer.Exit(1)
+    effective_target_repo = Path(final_resolution.value("target_repo")).resolve()
+
+    readiness_results = passive_readiness(
+        root=root,
+        target_repo=effective_target_repo,
+        canonical_repository=(
+            "https://github.com/ACB-CORE-Labs/builder-2" if chosen["target_profile"] == "builder" else None
+        ),
+        state_root=Path(chosen["output_dir"]) / "readiness-state",
+        model_backend=chosen["model_backend"],
+        model_alias=chosen["model_alias"],
+    )
+    readiness_evidence = [item.as_dict() for item in readiness_results]
     chosen_artifact_root = chosen.get("artifact_root")
     result = run_onboarding_pipeline(
         output_dir=Path(chosen["output_dir"]),
@@ -379,6 +437,9 @@ def init(
         model_alias=chosen["model_alias"],
         runtime_mode=chosen["runtime_mode"],
         allow_artifact_root_inside_target=_as_bool(chosen["allow_artifact_root_inside_target"]),
+        preset_configuration=selected_preset,
+        readiness_evidence=readiness_evidence,
+        resolution=final_resolution,
     )
     if not result.valid:
         console.out(json.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
@@ -393,6 +454,14 @@ def init(
     console.out(f"  overlay plan:      {result.setup_overlay_path}\n", end="")
     console.out(f"  rollback snapshot: {result.rollback_snapshot_path}\n", end="")
     console.out(f"  intent report:     {result.onboarding_intent_path}\n", end="")
+    console.out(
+        f"  preset:            {preset} (configuration only; {selected_preset['routing_preference']})\n", end=""
+    )
+    console.out("\nPassive readiness (no install/login/start/mutation):\n", end="")
+    for check in readiness_results:
+        console.out(f"  {check.name}: {check.status} — {check.detail}\n", end="")
+        if check.status != "ready":
+            console.out(f"    remediation: {check.remediation}\n", end="")
     console.out("\nDigests:\n", end="")
     console.out(f"  setup plan digest:   {result.setup_plan['plan_digest']}\n", end="")
     console.out(f"  overlay plan digest: {result.overlay_plan['overlay_plan_digest']}\n", end="")

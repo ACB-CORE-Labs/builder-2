@@ -46,6 +46,7 @@ def check_repository_identity(
     canonical_repository: str = DEFAULT_CANONICAL_REPOSITORY,
     remote_name: str = "origin",
     repository_path: Path | None = None,
+    timeout: float = 3.0,
 ) -> RepositoryIdentityReport:
     """Compare a configured Git remote with the declared canonical repository."""
     try:
@@ -55,8 +56,9 @@ def check_repository_identity(
             capture_output=True,
             text=True,
             cwd=str(repository_path) if repository_path is not None else None,
+            timeout=timeout,
         )
-    except OSError as exc:
+    except (OSError, subprocess.TimeoutExpired) as exc:
         return RepositoryIdentityReport(remote_name, None, canonical_repository, False, str(exc))
 
     configured_url = result.stdout.strip() or None

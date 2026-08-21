@@ -320,8 +320,7 @@ def run_readonly(
     else:
         echo_stdout(text)
     console.print(
-        f"[green]deepagents run-readonly ok profile={receipt.get('profile_name')} "
-        f"(no construction/delegate)[/]"
+        f"[green]deepagents run-readonly ok profile={receipt.get('profile_name')} (no construction/delegate)[/]"
     )
 
 
@@ -385,6 +384,19 @@ def assign_subagent(
     output: Path | None = typer.Option(None, "--output", help="Write subagent assignment JSON to path"),
 ) -> None:
     """Create a passive deepagents subagent assignment artifact."""
+    from builder_ii.governance.authority import enforce_command_authority
+
+    enforce_command_authority("builder-deepagents assign-subagent", requested_effects=("artifact_write",))
+    from builder_ii.routing.agent_profiles import get_agent_profile
+
+    try:
+        selected_profile = get_agent_profile(subagent_profile)  # type: ignore[arg-type]
+    except ValueError as exc:
+        console.print(f"Invalid canonical subagent profile: {exc}")
+        raise typer.Exit(1) from exc
+    if target not in selected_profile.compatible_targets:
+        console.print(f"Subagent profile {subagent_profile} is not compatible with target {target}")
+        raise typer.Exit(1)
     plan_data = _load_json(work_plan_path)
 
     artifact = create_deepagents_subagent_assignment(
