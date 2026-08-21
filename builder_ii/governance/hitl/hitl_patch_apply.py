@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json as json_lib
+import os
+import stat
 import subprocess
 import time
 from pathlib import Path
@@ -83,6 +85,32 @@ def get_git_head_sha(repo_path: Path) -> str:
         text=True,
     )
     return result.stdout.strip()
+
+
+def git_state_fingerprint(repo_path: Path) -> str | None:
+    """Capture tracked and untracked Git state for canonical refusal classification."""
+    try:
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_path, check=True, capture_output=True).stdout
+        tracked = subprocess.run(["git", "diff", "--binary", "HEAD"], cwd=repo_path, check=True, capture_output=True).stdout
+        untracked = subprocess.run(["git", "ls-files", "--others", "--exclude-standard", "-z"], cwd=repo_path, check=True, capture_output=True).stdout
+        hasher = hashlib.sha256()
+        for label, value in ((b"head", head), (b"tracked", tracked)):
+            hasher.update(label + b"\0" + len(value).to_bytes(8, "big") + value)
+        for raw_path in untracked.split(b"\0"):
+            if not raw_path:
+                continue
+            path = repo_path / os.fsdecode(raw_path)
+            info = path.lstat()
+            hasher.update(b"untracked\0" + raw_path + b"\0" + str(info.st_mode).encode() + b"\0")
+            if stat.S_ISLNK(info.st_mode):
+                hasher.update(os.fsencode(os.readlink(path)))
+            elif stat.S_ISREG(info.st_mode):
+                hasher.update(path.read_bytes())
+            else:
+                hasher.update(b"special")
+        return hasher.hexdigest()
+    except (OSError, subprocess.SubprocessError):
+        return None
 
 
 def _worktree_delta_digest(repo_path: Path) -> str:

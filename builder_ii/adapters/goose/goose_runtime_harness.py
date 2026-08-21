@@ -23,15 +23,20 @@ from builder_ii.core.config import Settings
 from builder_ii.governance.hitl.hitl_patch_apply import (
     DELETED_PATH_DIGEST,
     _worktree_delta_digest,
+    compute_digest,
     get_git_head_sha,
     validate_patch_apply_receipt_file,
     validate_rollback_bundle_file,
 )
 from builder_ii.governance.hitl.hitl_patch_ledger import validate_hitl_patch_ledger_record_file
+from builder_ii.governance.hitl.hitl_rollback_approval import validate_hitl_rollback_approval_file
 from builder_ii.governance.ledger.event_ledger import validate_event_record
 from builder_ii.governance.ledger.workflow_records import canonical_digest
 from builder_ii.lifecycle.candidate.execution_postflight_records import validate_execution_postflight_record_file
-from builder_ii.lifecycle.candidate.rollback_artifacts import validate_rollback_plan_file
+from builder_ii.lifecycle.candidate.rollback_artifacts import (
+    validate_rollback_plan_file,
+    validate_rollback_receipt_file,
+)
 from builder_ii.routing.model_router import SessionPlan
 
 _DIGEST_CHUNK_SIZE = 1024 * 1024
@@ -54,6 +59,14 @@ def _file_sha256(path: Path) -> str | None:
         return hasher.hexdigest()
     except OSError:
         return None
+
+
+def _is_beneath(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
 
 
 def _get_target_files(target_root: Path) -> dict[str, str]:
@@ -301,6 +314,174 @@ def _discover_session_patch_evidence(
     if len(candidates) > 1:
         return None, errors + ["session patch evidence is duplicate or ambiguous"]
     return (candidates[0] if candidates else None), errors
+
+
+def _discover_session_rollback_evidence(*, artifact_root: Path | None, session_id: str, target_name: str) -> tuple[dict[str, Any] | None, list[str]]:
+    """Discover one durable successful terminal rollback result for this session."""
+    if artifact_root is None:
+        return None, []
+    root = artifact_root.resolve() / "sessions" / session_id
+    candidates: list[dict[str, Any]] = []
+    errors: list[str] = []
+    outer_root = root / "mcp"
+    events_root = root / "events"
+    for path in sorted(outer_root.glob("*_rollback_receipt.json")):
+        try:
+            if path.is_symlink() or not path.is_file() or path.parent != outer_root:
+                errors.append("rollback outer receipt is missing, a symlink, or outside the session MCP namespace")
+                continue
+            record = json.loads(path.read_text(encoding="utf-8"))
+            errors_here = validate_mcp_service_receipt(record)
+            if errors_here:
+                errors.extend(errors_here); continue
+            if record.get("session_id") != session_id or record.get("target_profile") != target_name:
+                errors.append("rollback receipt identity does not match session"); continue
+            prefix = path.name.split("_", 1)[0]
+            event_path = events_root / f"{prefix}_mcp_service.json"
+            if event_path.is_symlink() or not event_path.is_file() or event_path.parent != events_root:
+                errors.append("rollback outer event is missing, a symlink, or outside the session event namespace")
+                continue
+            event = json.loads(event_path.read_text(encoding="utf-8"))
+            event_errors = validate_event_record(event)
+            if not isinstance(event, dict):
+                errors.append("rollback event must be a JSON object")
+                continue
+            bound = any(
+                isinstance(ref, dict)
+                and ref.get("path") == str(path.resolve())
+                and ref.get("sha256") == canonical_digest(record)
+                for ref in event.get("subject_refs", [])
+            )
+            if not bound:
+                event_errors.append("rollback event does not bind the exact outer MCP receipt")
+            if event_errors:
+                errors.extend(event_errors); continue
+            result = record.get("result")
+            if record.get("status") == "succeeded" and isinstance(result, dict) and result.get("status") == "succeeded":
+                candidates.append(result)
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"rollback evidence is not durable: {exc}")
+    if len(candidates) > 1:
+        errors.append("rollback evidence is duplicate or ambiguous")
+    return (candidates[0] if candidates else None), errors
+
+
+def _validated_rollback_close_evidence(
+    result: dict[str, Any], *, artifact_root: Path | None, session_id: str, target_root: Path, target_name: str
+) -> tuple[set[str], dict[str, Any] | None, list[str]]:
+    """Revalidate rollback bytes and derive close scope solely from its bound reverse patch."""
+    errors: list[str] = []
+    if artifact_root is None:
+        errors.append("Goose session has no admitted Builder-II artifact root")
+    rollback_root = (artifact_root / "sessions" / session_id / "mcp" / "rollback").resolve() if artifact_root else None
+    session_root = (artifact_root / "sessions" / session_id).resolve() if artifact_root else None
+    refs: dict[str, Path] = {}
+    for key in ("rollback_receipt_ref", "rollback_ledger_ref", "rollback_plan_ref", "rollback_approval_ref", "rollback_reverse_patch_ref"):
+        ref = result.get(key)
+        if not isinstance(ref, dict) or not isinstance(ref.get("path"), str) or not isinstance(ref.get("sha256"), str):
+            errors.append(f"rollback result has invalid {key}")
+        else:
+            path = Path(ref["path"])
+            refs[key] = path
+            if key in {"rollback_receipt_ref", "rollback_ledger_ref"} and (
+                rollback_root is None or not _is_beneath(path, rollback_root)
+            ):
+                errors.append(f"rollback {key} is outside the session rollback namespace")
+            if key in {"rollback_plan_ref", "rollback_approval_ref", "rollback_reverse_patch_ref"} and (
+                session_root is None or not _is_beneath(path, artifact_root.resolve())
+            ):
+                errors.append(f"rollback {key} is outside the admitted Builder-II artifact root")
+            if path.is_symlink() or not path.is_file():
+                errors.append(f"rollback {key} is missing or a symlink")
+            elif _file_sha256(path) != ref["sha256"]:
+                errors.append(f"rollback {key} digest changed")
+    validators = {
+        "rollback_receipt_ref": validate_rollback_receipt_file,
+        "rollback_ledger_ref": validate_hitl_patch_ledger_record_file,
+        "rollback_plan_ref": validate_rollback_plan_file,
+        "rollback_approval_ref": validate_hitl_rollback_approval_file,
+    }
+    for key, validator in validators.items():
+        path = refs.get(key)
+        if path and path.is_file() and not path.is_symlink():
+            errors.extend(f"{key}: {error}" for error in validator(path))
+    loaded: dict[str, Any] = {}
+    for key in validators:
+        path = refs.get(key)
+        if path and path.is_file():
+            try:
+                loaded[key] = json.loads(path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                errors.append(f"{key} cannot be reloaded: {exc}")
+    plan = loaded.get("rollback_plan_ref")
+    receipt = loaded.get("rollback_receipt_ref")
+    ledger = loaded.get("rollback_ledger_ref")
+    approval = loaded.get("rollback_approval_ref")
+    target = {"name": target_name, "repo": str(target_root.resolve())}
+    for label, artifact in (("receipt", receipt), ("ledger", ledger), ("plan", plan), ("approval", approval)):
+        artifact_target = artifact.get("target") if isinstance(artifact, dict) else None
+        if not isinstance(artifact_target, dict) or artifact_target.get("name") != target["name"] or Path(str(artifact_target.get("repo", ""))).resolve() != target_root.resolve():
+            errors.append(f"rollback {label} target is not bound to Goose target")
+    reverse = refs.get("rollback_reverse_patch_ref")
+    plan_ref = plan.get("rollback_patch_ref") if isinstance(plan, dict) else None
+    result_reverse_ref = result.get("rollback_reverse_patch_ref")
+    result_reverse_digest = result_reverse_ref.get("sha256") if isinstance(result_reverse_ref, dict) else None
+    if not isinstance(result_reverse_ref, dict):
+        errors.append("rollback result reverse-patch reference must be an object")
+    if not isinstance(plan_ref, dict) or not reverse or plan_ref.get("path") != str(reverse) or plan_ref.get("sha256") != result_reverse_digest:
+        errors.append("rollback plan does not bind the exact supplied reverse patch")
+    if isinstance(receipt, dict):
+        if receipt.get("rollback_plan_ref") != str(refs.get("rollback_plan_ref")):
+            errors.append("rollback receipt plan reference changed")
+        if receipt.get("rollback_approval_digest") != canonical_digest(approval):
+            errors.append("rollback receipt approval digest changed")
+        if receipt.get("rollback_patch_ref") != plan_ref:
+            errors.append("rollback receipt reverse-patch reference changed")
+        if receipt.get("rollback_state") != "EXECUTED" or receipt.get("current_state") != "OPERATIONALLY_VERIFIED" or receipt.get("rollback_equivalence_verified") is not True:
+            errors.append("rollback receipt does not prove restored state")
+        try:
+            if get_git_head_sha(target_root) != plan.get("pre_head"):
+                errors.append("restored target HEAD does not match rollback pre-HEAD")
+            status = subprocess.run(["git", "status", "--porcelain"], cwd=target_root, check=True, capture_output=True, text=True).stdout.splitlines()
+            if compute_digest("\n".join(status)) != receipt.get("post_rollback_status_digest"):
+                errors.append("restored target status does not match rollback receipt")
+        except (OSError, subprocess.SubprocessError) as exc:
+            errors.append(f"restored target state cannot be verified: {exc}")
+    if isinstance(ledger, dict):
+        ledger_target = ledger.get("target") if isinstance(ledger, dict) else None
+        plan_target = plan.get("target") if isinstance(plan, dict) else None
+        expected_ledger_target = (
+            {"name": plan_target.get("name"), "repo": plan_target.get("repo")}
+            if isinstance(plan_target, dict)
+            else None
+        )
+        if ledger_target != expected_ledger_target or not isinstance(plan, dict) or ledger.get("patch_digest") != plan.get("patch_digest") or ledger.get("pre_head") != plan.get("pre_head"):
+            errors.append("rollback ledger target, patch digest, or pre-HEAD changed")
+        expected_roles = {"rollback_plan": refs.get("rollback_plan_ref"), "rollback_approval": refs.get("rollback_approval_ref"), "rollback_reverse_patch": reverse, "rollback_receipt": refs.get("rollback_receipt_ref")}
+        observed = {r.get("role"): r for r in ledger.get("subject_refs", []) if isinstance(r, dict)}
+        for role, path in expected_roles.items():
+            ref = observed.get(role)
+            expected_digest = _file_sha256(path) if path else None
+            if not isinstance(ref, dict) or ref.get("path") != str(path) or ref.get("sha256") != expected_digest or ref.get("required") is not True:
+                errors.append(f"rollback ledger subject {role} is not exact")
+    approved_paths: set[str] = set()
+    if reverse and reverse.is_file():
+        try:
+            for line in reverse.read_text(encoding="utf-8").splitlines():
+                if line.startswith(("--- ", "+++ ")):
+                    value = line[4:].split("\t", 1)[0]
+                    if value != "/dev/null" and value.startswith(("a/", "b/")):
+                        rel = Path(value[2:])
+                        if rel.is_absolute() or ".." in rel.parts or "." in rel.parts:
+                            raise ValueError("reverse patch path is not normalized")
+                        approved_paths.add(str((target_root / rel).resolve()))
+            if not approved_paths:
+                errors.append("rollback reverse patch has no canonical paths")
+        except (OSError, UnicodeError, ValueError) as exc:
+            errors.append(f"rollback reverse patch is invalid: {exc}")
+    if errors:
+        return set(), None, list(dict.fromkeys(errors))
+    return approved_paths, {"session_id": session_id, **{key: result[key] for key in result if key.endswith("_ref")}}, []
 
 
 async def _get_target_files_async(target_root: Path) -> dict[str, str]:
@@ -598,6 +779,11 @@ class GooseRuntimeHarness:
             if approved_patch_evidence is None
             else (approved_patch_evidence, [])
         )
+        rollback_discovered, rollback_errors = _discover_session_rollback_evidence(
+            artifact_root=self._admitted_artifact_root,
+            session_id=self.session_id,
+            target_name=getattr(self.session_plan, "target_name", "builder"),
+        )
         approved_paths, evidence_summary, evidence_errors = _approved_patch_close_evidence(
             discovered,
             session_id=self.session_id,
@@ -605,6 +791,18 @@ class GooseRuntimeHarness:
             target_name=getattr(self.session_plan, "target_name", "builder"),
             artifact_root=self._admitted_artifact_root,
         )
+        if rollback_discovered is not None:
+            # Rollback is terminal, but its reverse patch is the only authority for the
+            # changed-path scope. Revalidate the restored target before classifying deltas.
+            approved_paths, evidence_summary, evidence_errors = _validated_rollback_close_evidence(
+                rollback_discovered,
+                artifact_root=self._admitted_artifact_root,
+                session_id=self.session_id,
+                target_root=self.target_root,
+                target_name=getattr(self.session_plan, "target_name", "builder"),
+            )
+            evidence_errors = rollback_errors + evidence_errors
+            discovery_errors = []
         if mutations:
             evidence_errors = discovery_errors + evidence_errors
         approved_mutations = [
@@ -623,7 +821,10 @@ class GooseRuntimeHarness:
             mutations_detected=mutations,
             approved_mutations=approved_mutations,
             unexplained_mutations=unexplained_mutations,
-            approved_patch_evidence=evidence_summary,
+            mutation_mode="approved_hitl_rollback" if rollback_discovered is not None else (
+                "approved_hitl_patch" if evidence_summary else "no_mutation"
+            ),
+            approved_mutation_evidence=evidence_summary,
         )
 
         # Export the actual transcript to a JSON log instead of timestamp guessing
@@ -727,6 +928,21 @@ class GooseRuntimeHarness:
             target_name=getattr(self.session_plan, "target_name", "builder"),
             artifact_root=self._admitted_artifact_root,
         )
+        rollback_discovered, rollback_errors = _discover_session_rollback_evidence(
+            artifact_root=self._admitted_artifact_root,
+            session_id=self.session_id,
+            target_name=getattr(self.session_plan, "target_name", "builder"),
+        )
+        if rollback_discovered is not None:
+            approved_paths, evidence_summary, evidence_errors = _validated_rollback_close_evidence(
+                rollback_discovered,
+                artifact_root=self._admitted_artifact_root,
+                session_id=self.session_id,
+                target_root=self.target_root,
+                target_name=getattr(self.session_plan, "target_name", "builder"),
+            )
+            evidence_errors = rollback_errors + evidence_errors
+            discovery_errors = []
         if mutations:
             evidence_errors = discovery_errors + evidence_errors
         approved_mutations = [
@@ -745,7 +961,10 @@ class GooseRuntimeHarness:
             mutations_detected=mutations,
             approved_mutations=approved_mutations,
             unexplained_mutations=unexplained_mutations,
-            approved_patch_evidence=evidence_summary,
+            mutation_mode="approved_hitl_rollback" if rollback_discovered is not None else (
+                "approved_hitl_patch" if evidence_summary else "no_mutation"
+            ),
+            approved_mutation_evidence=evidence_summary,
         )
 
         # Export the actual transcript to a JSON log instead of timestamp guessing

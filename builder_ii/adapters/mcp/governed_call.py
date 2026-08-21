@@ -166,6 +166,20 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
             "additionalProperties": False,
         },
     },
+    "rollback": {
+        "tool_id": "service.rollback",
+        "description": "Rollback one applied patch through the canonical HITL rollback lane; approval is supplied separately and never minted by MCP.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "rollback_plan_path": {"type": "string", "minLength": 1},
+                "rollback_reverse_patch_path": {"type": "string", "minLength": 1},
+                "rollback_approval_path": {"type": "string", "minLength": 1},
+            },
+            "required": ["rollback_plan_path", "rollback_reverse_patch_path", "rollback_approval_path"],
+            "additionalProperties": False,
+        },
+    },
 }
 
 

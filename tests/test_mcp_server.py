@@ -49,7 +49,8 @@ def test_tools_list_advertises_services_without_legacy_mutation_tools(tmp_path: 
     assert {"repo_map", "repo_search", "content_read", "prepare_package", "validate_prepare_package"} <= names
     assert not ({"echo", "utc_static"} & names)  # legacy stubs are compatibility-only, not admitted inventory
     assert "patch_proposal" in names
-    assert not ({"propose_patch", "run_shell", "approve_patch", "apply_patch", "rollback"} & names)
+    assert "rollback" in names
+    assert not ({"propose_patch", "run_shell", "approve_patch", "apply_patch"} & names)
     for tool in resp["result"]["tools"]:
         assert tool["inputSchema"]["type"] == "object"
 

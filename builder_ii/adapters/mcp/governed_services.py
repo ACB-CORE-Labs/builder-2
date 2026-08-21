@@ -32,6 +32,8 @@ from builder_ii.governance.authority.readonly_authority import (
 from builder_ii.governance.hitl.hitl_patch_apply import (
     FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
     apply_hitl_patch,
+    git_state_fingerprint,
+    rollback_hitl_patch,
     validate_patch_apply_receipt_file,
     validate_rollback_bundle_file,
 )
@@ -62,6 +64,7 @@ from builder_ii.lifecycle.candidate.execution_postflight_records import (
 )
 from builder_ii.lifecycle.candidate.rollback_artifacts import (
     validate_rollback_plan_file,
+    validate_rollback_receipt_file,
 )
 from builder_ii.lifecycle.candidate.verification_execution_approval import (
     validate_verification_execution_approval_against_plan,
@@ -97,6 +100,7 @@ SERVICE_TOOLS = {
     "verification_execute",
     "patch_proposal",
     "patch_apply",
+    "rollback",
 }
 TARGET_PROFILES = {"generic", "builder", "core"}
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -141,7 +145,7 @@ def _service_policy(tool_name: str) -> dict[str, Any]:
         policy["allowed_risk_classes"] = ["medium_risk"]
         policy["timeout_seconds"] = 1800
         policy["governance"]["bounded_subprocess_execution"] = "HITL_APPROVAL_GATED"
-    elif tool_name == "patch_apply":
+    elif tool_name in {"patch_apply", "rollback"}:
         policy["allowed_risk_classes"] = ["mutation"]
         policy["mutation_allowed"] = True
         policy["timeout_seconds"] = 1800
@@ -330,19 +334,19 @@ def validate_mcp_service_receipt(record: Any) -> list[str]:
     else:
         expected_governance = {
             "artifact_is_authority": False,
-            "effect_classification": "mutation" if record.get("service") == "patch_apply" else "read_only",
+            "effect_classification": "mutation" if record.get("service") in {"patch_apply", "rollback"} else "read_only",
             "risk_classification": "mutation"
-            if record.get("service") == "patch_apply"
+            if record.get("service") in {"patch_apply", "rollback"}
             else ("medium_risk" if record.get("service") == "verification_execute" else "low_risk"),
-            "mutation_allowed": record.get("service") == "patch_apply",
+            "mutation_allowed": record.get("service") in {"patch_apply", "rollback"},
             "requires_approval_for_mutation": True,
-            "target_repo_writes": "HITL_APPROVAL_GATED" if record.get("service") == "patch_apply" else "DISABLED",
+            "target_repo_writes": "HITL_APPROVAL_GATED" if record.get("service") in {"patch_apply", "rollback"} else "DISABLED",
             "shell_execution": "DISABLED",
             "network_access": "DISABLED",
             "credential_access": "DISABLED",
             "model_execution": "DISABLED",
             "bounded_subprocess_execution": "HITL_APPROVAL_GATED"
-            if record.get("service") in {"verification_execute", "patch_apply"}
+            if record.get("service") in {"verification_execute", "patch_apply", "rollback"}
             else "DISABLED",
         }
         for key, value in expected_governance.items():
@@ -418,19 +422,19 @@ def _service_receipt(
         "finalized_by": "builder_ii.adapters.mcp.governed_services",
         "governance": {
             "artifact_is_authority": False,
-            "effect_classification": "mutation" if tool_name == "patch_apply" else "read_only",
+            "effect_classification": "mutation" if tool_name in {"patch_apply", "rollback"} else "read_only",
             "risk_classification": "mutation"
-            if tool_name == "patch_apply"
+            if tool_name in {"patch_apply", "rollback"}
             else ("medium_risk" if tool_name == "verification_execute" else "low_risk"),
-            "mutation_allowed": tool_name == "patch_apply",
+            "mutation_allowed": tool_name in {"patch_apply", "rollback"},
             "requires_approval_for_mutation": True,
-            "target_repo_writes": "HITL_APPROVAL_GATED" if tool_name == "patch_apply" else "DISABLED",
+            "target_repo_writes": "HITL_APPROVAL_GATED" if tool_name in {"patch_apply", "rollback"} else "DISABLED",
             "shell_execution": "DISABLED",
             "network_access": "DISABLED",
             "credential_access": "DISABLED",
             "model_execution": "DISABLED",
             "bounded_subprocess_execution": "HITL_APPROVAL_GATED"
-            if tool_name in {"verification_execute", "patch_apply"}
+            if tool_name in {"verification_execute", "patch_apply", "rollback"}
             else "DISABLED",
         },
     }
@@ -1011,16 +1015,176 @@ def _patch_evidence_errors(
     return list(dict.fromkeys(errors))
 
 
-def _mutation_uncertain_result(*, error: str, evidence: dict[str, dict[str, str]]) -> dict[str, Any]:
+def _rollback(
+    arguments: dict[str, Any],
+    *,
+    builder_root: Path,
+    session_id: str,
+    target_root: Path,
+    target_name: str,
+) -> dict[str, Any]:
+    """Transport one separately approved rollback through the canonical executor."""
+    expected = {"rollback_plan_path", "rollback_reverse_patch_path", "rollback_approval_path"}
+    if set(arguments) != expected:
+        raise ServiceDenied("rollback accepts exactly rollback_plan_path, rollback_reverse_patch_path, and rollback_approval_path")
+    plan_path = _controlled_path(arguments["rollback_plan_path"], root=builder_root, field="rollback_plan_path")
+    reverse_patch_path = _controlled_path(
+        arguments["rollback_reverse_patch_path"], root=builder_root, field="rollback_reverse_patch_path"
+    )
+    approval_path = _controlled_path(arguments["rollback_approval_path"], root=builder_root, field="rollback_approval_path")
+    plan = _load_controlled_json(plan_path, field="rollback_plan_path")
+    plan_errors = validate_rollback_plan_file(plan_path)
+    if plan_errors:
+        raise ServiceDenied("rollback plan is invalid: " + "; ".join(plan_errors))
+    target = plan.get("target")
+    if not isinstance(target, dict) or target.get("name") != target_name:
+        raise ServiceDenied("rollback plan target profile does not match the server target profile")
+    if Path(str(target.get("repo", ""))).resolve() != target_root.resolve():
+        raise ServiceDenied("rollback plan target repo does not match the server target root")
+
+    rollback_ref = plan.get("rollback_patch_ref")
+    if not isinstance(rollback_ref, dict):
+        raise ServiceDenied("rollback plan must bind rollback_patch_ref")
+    if rollback_ref.get("path") != str(reverse_patch_path):
+        raise ServiceDenied("supplied reverse patch is not the plan-bound rollback_patch_ref path")
+    expected_patch_digest = rollback_ref.get("sha256")
+    supplied_patch_digest = _file_digest(reverse_patch_path)
+    if not isinstance(expected_patch_digest, str) or supplied_patch_digest != expected_patch_digest:
+        raise ServiceDenied("supplied reverse patch does not match rollback_patch_ref digest")
+
+    output_dir = builder_root.resolve() / "sessions" / session_id / "mcp" / "rollback" / uuid.uuid4().hex
+    _refuse_symlink_components(output_dir, root=builder_root, field="rollback output")
+    def evidence_refs() -> dict[str, dict[str, str]]:
+        refs: dict[str, dict[str, str]] = {}
+        for name in ("rollback_receipt.json", "rollback_failure_receipt.json", "rollback_ledger_record.json"):
+            path = output_dir / name
+            if path.is_file() and not path.is_symlink():
+                refs[name.removesuffix(".json") + "_ref"] = {"path": str(path), "sha256": _file_digest(path)}
+        return refs
+
+    try:
+        pre_call_state = git_state_fingerprint(target_root)
+        rollback_hitl_patch(plan_path, reverse_patch_path, output_dir, approval_path=approval_path)
+        receipt_path = output_dir / "rollback_receipt.json"
+        ledger_path = output_dir / "rollback_ledger_record.json"
+        errors: list[str] = []
+        errors.extend("rollback_receipt: " + error for error in validate_rollback_receipt_file(receipt_path))
+        errors.extend("rollback_ledger: " + error for error in validate_hitl_patch_ledger_record_file(ledger_path))
+        receipt = _load_controlled_json(receipt_path, field="rollback_receipt")
+        ledger = _load_controlled_json(ledger_path, field="rollback_ledger")
+        approval = _load_controlled_json(approval_path, field="rollback_approval_path")
+        if receipt.get("target") != target:
+            errors.append("rollback receipt target is not bound to the rollback plan")
+        if receipt.get("rollback_approval_digest") != canonical_digest(approval):
+            errors.append("rollback receipt approval digest is not bound to the supplied approval")
+        if ledger.get("event_type") != "patch_rolled_back":
+            errors.append("rollback ledger event type is invalid")
+        if ledger.get("target") != {"name": target.get("name"), "repo": target.get("repo")}:
+            errors.append("rollback ledger target is not bound to the rollback plan")
+        if ledger.get("patch_digest") != plan.get("patch_digest"):
+            errors.append("rollback ledger patch digest is not bound to the rollback plan")
+        if ledger.get("pre_head") != plan.get("pre_head"):
+            errors.append("rollback ledger pre_head is not bound to the rollback plan")
+        if receipt.get("rollback_state") != "EXECUTED" or receipt.get("current_state") != "OPERATIONALLY_VERIFIED":
+            errors.append("rollback receipt does not prove executed and operationally verified state")
+        if receipt.get("rollback_equivalence_verified") is not True:
+            errors.append("rollback receipt does not prove equivalence")
+        if receipt.get("rollback_plan_ref") != str(plan_path):
+            errors.append("rollback receipt plan binding is invalid")
+        receipt_patch_ref = receipt.get("rollback_patch_ref")
+        if not isinstance(receipt_patch_ref, dict) or receipt_patch_ref.get("path") != str(reverse_patch_path) or receipt_patch_ref.get("sha256") != expected_patch_digest:
+            errors.append("rollback receipt reverse-patch binding is invalid")
+        if receipt.get("pre_apply_status_digest") != receipt.get("post_rollback_status_digest"):
+            errors.append("rollback receipt status digest binding is invalid")
+        subjects = ledger.get("subject_refs", [])
+        expected_subjects = {
+            "rollback_plan": (plan_path, _file_digest(plan_path)),
+            "rollback_approval": (approval_path, _file_digest(approval_path)),
+            "rollback_reverse_patch": (reverse_patch_path, expected_patch_digest),
+            "rollback_receipt": (receipt_path, _file_digest(receipt_path)),
+        }
+        observed_roles = {ref.get("role"): ref for ref in subjects if isinstance(ref, dict)}
+        for role, (path, digest) in expected_subjects.items():
+            ref = observed_roles.get(role)
+            if not isinstance(ref, dict) or ref.get("path") != str(path) or ref.get("sha256") != digest or ref.get("required") is not True:
+                errors.append(f"rollback ledger subject {role} is not exactly bound")
+        if errors:
+            raise RuntimeError("canonical rollback evidence is invalid: " + "; ".join(errors))
+    except Exception as exc:
+        # The canonical executor may have mutated before a receipt/ledger failure. Preserve
+        # the canonical failure evidence and never relabel rollback as patch application.
+        refs = evidence_refs()
+        failure_path = output_dir / "rollback_failure_receipt.json"
+        if not (output_dir / "rollback_receipt.json").is_file() and failure_path.is_file():
+            try:
+                failure = json.loads(failure_path.read_text(encoding="utf-8"))
+            except Exception:
+                failure = {}
+            if str(failure.get("rollback_outcome", "")).startswith(("NOT_EXECUTED", "REFUSED")):
+                return {
+                    "kind": "builder_ii.mcp_rollback_result",
+                    "status": "denied",
+                    "mutation_state": "NO_MUTATION",
+                    "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.rollback_hitl_patch",
+                    "error": str(exc)[:500],
+                    "rollback_plan_ref": {"path": str(plan_path), "sha256": _file_digest(plan_path)},
+                    "rollback_approval_ref": {"path": str(approval_path), "sha256": _file_digest(approval_path)},
+                    "rollback_reverse_patch_ref": {"path": str(reverse_patch_path), "sha256": _file_digest(reverse_patch_path)},
+                    **refs,
+                }
+        post_call_state = git_state_fingerprint(target_root)
+        if pre_call_state is not None and post_call_state == pre_call_state:
+            return {
+                "kind": "builder_ii.mcp_rollback_result",
+                "status": "denied",
+                "mutation_state": "NO_MUTATION",
+                "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.rollback_hitl_patch",
+                "error": str(exc)[:500],
+                "rollback_plan_ref": {"path": str(plan_path), "sha256": _file_digest(plan_path)},
+                "rollback_approval_ref": {"path": str(approval_path), "sha256": _file_digest(approval_path)},
+                "rollback_reverse_patch_ref": {"path": str(reverse_patch_path), "sha256": _file_digest(reverse_patch_path)},
+                **refs,
+            }
+        return {
+            "kind": "builder_ii.mcp_rollback_result",
+            "status": "rollback_uncertain",
+            "mutation_state": "ROLLED_BACK_OR_MAY_HAVE_BEEN_ROLLED_BACK",
+            "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.rollback_hitl_patch",
+            "error": str(exc)[:500],
+            "rollback_plan_ref": {"path": str(plan_path), "sha256": _file_digest(plan_path)},
+            "rollback_approval_ref": {"path": str(approval_path), "sha256": _file_digest(approval_path)},
+            "rollback_reverse_patch_ref": {"path": str(reverse_patch_path), "sha256": _file_digest(reverse_patch_path)},
+            "additional_rollback_executed": False,
+            **refs,
+        }
     return {
-        "kind": "builder_ii.mcp_patch_apply_result",
-        "status": "mutation_uncertain",
-        "mutation_state": "APPLIED_OR_MAY_HAVE_BEEN_APPLIED",
+        "kind": "builder_ii.mcp_rollback_result",
+        "status": "succeeded",
+        "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.rollback_hitl_patch",
+        "rollback_receipt_ref": {"path": str(receipt_path), "sha256": _file_digest(receipt_path)},
+        "rollback_ledger_ref": {"path": str(ledger_path), "sha256": _file_digest(ledger_path)},
+        "rollback_plan_ref": {"path": str(plan_path), "sha256": _file_digest(plan_path)},
+        "rollback_approval_ref": {"path": str(approval_path), "sha256": _file_digest(approval_path)},
+        "rollback_reverse_patch_ref": {"path": str(reverse_patch_path), "sha256": _file_digest(reverse_patch_path)},
+        "rollback_state": receipt.get("rollback_state"),
+        "current_state": receipt.get("current_state"),
+        "rollback_equivalence_verified": receipt.get("rollback_equivalence_verified"),
+    }
+
+
+def _mutation_uncertain_result(*, error: str, evidence: dict[str, dict[str, str]], rollback: bool = False) -> dict[str, Any]:
+    result = {
+        "kind": "builder_ii.mcp_rollback_result" if rollback else "builder_ii.mcp_patch_apply_result",
+        "status": "rollback_uncertain" if rollback else "mutation_uncertain",
+        "mutation_state": "ROLLED_BACK_OR_MAY_HAVE_BEEN_ROLLED_BACK" if rollback else "APPLIED_OR_MAY_HAVE_BEEN_APPLIED",
         "error": error[:500],
-        "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch",
-        "rollback_executed": False,
+        "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.rollback_hitl_patch" if rollback else "builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch",
+        "additional_rollback_executed": False,
         **evidence,
     }
+    if not rollback:
+        result["rollback_executed"] = False
+    return result
 
 
 def _patch_apply(
@@ -1298,12 +1462,22 @@ def run_service(
             target_root=target_root,
             target_name=target_name,
         )
+    elif tool_name == "rollback":
+        result = _rollback(
+            arguments,
+            builder_root=builder_root,
+            session_id=session_id,
+            target_root=target_root,
+            target_name=target_name,
+        )
     else:  # pragma: no cover - identity validation makes this unreachable
         raise ServiceDenied("service is not admitted")
 
     if _canonical_size(result) > MAX_SERVICE_OUTPUT_BYTES:
         raise RuntimeError("service result exceeds the 4194304-byte output limit")
-    if tool_name == "patch_apply" and isinstance(result, dict) and result.get("status") != "succeeded":
+    if tool_name == "rollback" and isinstance(result, dict) and result.get("status") == "denied":
+        status = "denied"
+    elif tool_name in {"patch_apply", "rollback"} and isinstance(result, dict) and result.get("status") != "succeeded":
         status = "failed"
     elif tool_name == "verification_execute" and isinstance(result, dict):
         status = "succeeded" if result.get("receipt_status") == "EXECUTED" and result.get("valid") is True else "denied"
@@ -1318,7 +1492,7 @@ def run_service(
         )
     session_mcp_dir = builder_root / "sessions" / session_id / "mcp"
     session_events_dir = builder_root / "sessions" / session_id / "events"
-    prior_receipts = set(session_mcp_dir.glob("*_patch_apply_receipt.json"))
+    prior_receipts = set(session_mcp_dir.glob(f"*_{tool_name}_receipt.json"))
     prior_events = set(session_events_dir.glob("*_mcp_service.json"))
     try:
         return _service_receipt(
@@ -1331,28 +1505,40 @@ def run_service(
             status=status,
         )
     except Exception as exc:
-        if tool_name == "patch_apply" and isinstance(result, dict):
+        if tool_name in {"patch_apply", "rollback"} and isinstance(result, dict):
             evidence = {
                 key: value
                 for key, value in result.items()
                 if key.endswith("_ref") and isinstance(value, dict) and {"path", "sha256"} <= set(value)
             }
-            recovery_result = _mutation_uncertain_result(
-                error=f"MCP outer evidence persistence failed after canonical apply: {exc}",
-                evidence=evidence,
-            )
+            if tool_name == "rollback" and result.get("status") == "denied":
+                recovery_result = {
+                    "kind": "builder_ii.mcp_rollback_result",
+                    "status": "denied",
+                    "mutation_state": "NO_MUTATION",
+                    "error": f"MCP outer evidence persistence failed after canonical rollback: {exc}"[:500],
+                    "canonical_executor": result.get("canonical_executor"),
+                    "additional_rollback_executed": False,
+                    **evidence,
+                }
+            else:
+                recovery_result = _mutation_uncertain_result(
+                    error=f"MCP outer evidence persistence failed after canonical {tool_name}: {exc}",
+                    evidence=evidence,
+                    rollback=tool_name == "rollback",
+                )
             recovery_receipt = {
                 "kind": "builder_ii.mcp_service_receipt",
                 "schema_version": 2,
                 "target_profile": target_name,
                 "session_id": session_id,
                 "service": tool_name,
-                "status": "failed",
+                "status": "denied" if recovery_result.get("status") == "denied" else "failed",
                 "arguments": arguments,
                 "result": recovery_result,
                 "governance": {
                     "artifact_is_authority": False,
-                    "effect_classification": "mutation",
+                "effect_classification": "mutation",
                     "risk_classification": "mutation",
                     "mutation_allowed": True,
                     "requires_approval_for_mutation": True,
@@ -1366,7 +1552,7 @@ def run_service(
             # that outer evidence exists at the current directory.
             new_receipts = [
                 path
-                for path in session_mcp_dir.glob("*_patch_apply_receipt.json")
+                for path in session_mcp_dir.glob(f"*_{tool_name}_receipt.json")
                 if path not in prior_receipts and path.is_file()
             ]
             new_events = [

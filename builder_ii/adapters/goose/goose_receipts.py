@@ -77,7 +77,16 @@ def create_no_mutation_postflight(
     approved_mutations: list[str] | None = None,
     unexplained_mutations: list[str] | None = None,
     approved_patch_evidence: dict[str, Any] | None = None,
+    *,
+    mutation_mode: str | None = None,
+    approved_mutation_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    if mutation_mode is None:
+        mutation_mode = "approved_hitl_patch" if approved_patch_evidence else "no_mutation"
+    if mutation_mode not in {"no_mutation", "approved_hitl_patch", "approved_hitl_rollback"}:
+        raise ValueError("mutation_mode must be no_mutation, approved_hitl_patch, or approved_hitl_rollback")
+    if approved_mutation_evidence is None:
+        approved_mutation_evidence = approved_patch_evidence
     content = {
         "kind": NO_MUTATION_POSTFLIGHT_KIND,
         "schema_version": SCHEMA_VERSION,
@@ -89,8 +98,11 @@ def create_no_mutation_postflight(
         "mutations_detected": mutations_detected,
         "approved_mutations": list(approved_mutations or []),
         "unexplained_mutations": list(unexplained_mutations if unexplained_mutations is not None else mutations_detected),
-        "approved_patch_evidence": approved_patch_evidence,
-        "mutation_mode": "approved_hitl_patch" if approved_patch_evidence else "no_mutation",
+        "approved_mutation_evidence": approved_mutation_evidence,
+        "approved_patch_evidence": (
+            approved_mutation_evidence if mutation_mode == "approved_hitl_patch" else None
+        ),
+        "mutation_mode": mutation_mode,
         "valid": len(unexplained_mutations if unexplained_mutations is not None else mutations_detected) == 0,
     }
     content["digest"] = _digest(content)
