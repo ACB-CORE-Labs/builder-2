@@ -343,6 +343,9 @@ def _discover_session_rollback_evidence(*, artifact_root: Path | None, session_i
                 continue
             event = json.loads(event_path.read_text(encoding="utf-8"))
             event_errors = validate_event_record(event)
+            if not isinstance(event, dict):
+                errors.append("rollback event must be a JSON object")
+                continue
             bound = any(
                 isinstance(ref, dict)
                 and ref.get("path") == str(path.resolve())
@@ -421,7 +424,11 @@ def _validated_rollback_close_evidence(
             errors.append(f"rollback {label} target is not bound to Goose target")
     reverse = refs.get("rollback_reverse_patch_ref")
     plan_ref = plan.get("rollback_patch_ref") if isinstance(plan, dict) else None
-    if not isinstance(plan_ref, dict) or not reverse or plan_ref.get("path") != str(reverse) or plan_ref.get("sha256") != result.get("rollback_reverse_patch_ref", {}).get("sha256"):
+    result_reverse_ref = result.get("rollback_reverse_patch_ref")
+    result_reverse_digest = result_reverse_ref.get("sha256") if isinstance(result_reverse_ref, dict) else None
+    if not isinstance(result_reverse_ref, dict):
+        errors.append("rollback result reverse-patch reference must be an object")
+    if not isinstance(plan_ref, dict) or not reverse or plan_ref.get("path") != str(reverse) or plan_ref.get("sha256") != result_reverse_digest:
         errors.append("rollback plan does not bind the exact supplied reverse patch")
     if isinstance(receipt, dict):
         if receipt.get("rollback_plan_ref") != str(refs.get("rollback_plan_ref")):
@@ -443,7 +450,12 @@ def _validated_rollback_close_evidence(
     if isinstance(ledger, dict):
         ledger_target = ledger.get("target") if isinstance(ledger, dict) else None
         plan_target = plan.get("target") if isinstance(plan, dict) else None
-        if ledger_target != {"name": plan_target.get("name"), "repo": plan_target.get("repo")} or ledger.get("patch_digest") != plan.get("patch_digest") or ledger.get("pre_head") != plan.get("pre_head"):
+        expected_ledger_target = (
+            {"name": plan_target.get("name"), "repo": plan_target.get("repo")}
+            if isinstance(plan_target, dict)
+            else None
+        )
+        if ledger_target != expected_ledger_target or not isinstance(plan, dict) or ledger.get("patch_digest") != plan.get("patch_digest") or ledger.get("pre_head") != plan.get("pre_head"):
             errors.append("rollback ledger target, patch digest, or pre-HEAD changed")
         expected_roles = {"rollback_plan": refs.get("rollback_plan_ref"), "rollback_approval": refs.get("rollback_approval_ref"), "rollback_reverse_patch": reverse, "rollback_receipt": refs.get("rollback_receipt_ref")}
         observed = {r.get("role"): r for r in ledger.get("subject_refs", []) if isinstance(r, dict)}

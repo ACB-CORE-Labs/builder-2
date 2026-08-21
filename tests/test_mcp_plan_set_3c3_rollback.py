@@ -207,3 +207,41 @@ def test_malformed_rollback_target_is_invalid_close_not_attribute_error(tmp_path
     assert paths == set()
     assert summary is None
     assert errors
+
+
+def test_changed_bytes_on_an_already_dirty_path_are_uncertain(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    builder, target, args = _real_rollback_server_inputs(tmp_path)
+    path = target / "file.txt"
+    path.write_text("already dirty\n", encoding="utf-8")
+    monkeypatch.setattr(
+        services,
+        "rollback_hitl_patch",
+        lambda *a, **k: (path.write_text("changed again\n", encoding="utf-8"), (_ for _ in ()).throw(RuntimeError("after mutation")))[1],
+    )
+    response = GovernedMcpServer(
+        session_id="rollback-server", builder_root=builder, target_root=target, target_name="generic"
+    ).handle_request({"id": 3, "method": "tools/call", "params": {"name": "rollback", "arguments": args}})
+    assert response is not None
+    result = json.loads(response["result"]["content"][0]["text"])
+    assert result["status"] == "rollback_uncertain"
+    assert result["mutation_state"] == "ROLLED_BACK_OR_MAY_HAVE_BEEN_ROLLED_BACK"
+
+
+@pytest.mark.parametrize("malformed", [[], "event", 1])
+def test_malformed_rollback_result_shapes_are_invalid_close(tmp_path: Path, malformed: object) -> None:
+    from builder_ii.adapters.goose.goose_runtime_harness import _validated_rollback_close_evidence
+
+    result = {
+        key: {"path": str(tmp_path / f"{key}.json"), "sha256": "0" * 64}
+        for key in (
+            "rollback_receipt_ref", "rollback_ledger_ref", "rollback_plan_ref",
+            "rollback_approval_ref", "rollback_reverse_patch_ref",
+        )
+    }
+    result["rollback_reverse_patch_ref"] = malformed
+    paths, summary, errors = _validated_rollback_close_evidence(
+        result, artifact_root=tmp_path, session_id="s", target_root=tmp_path, target_name="generic"
+    )
+    assert paths == set()
+    assert summary is None
+    assert errors

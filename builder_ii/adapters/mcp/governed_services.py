@@ -6,7 +6,6 @@ import hashlib
 import json
 import re
 import stat
-import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -33,6 +32,7 @@ from builder_ii.governance.authority.readonly_authority import (
 from builder_ii.governance.hitl.hitl_patch_apply import (
     FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
     apply_hitl_patch,
+    git_state_fingerprint,
     rollback_hitl_patch,
     validate_patch_apply_receipt_file,
     validate_rollback_bundle_file,
@@ -132,23 +132,6 @@ def _canonical_size(value: Any) -> int:
 
 def _file_digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def _target_state_fingerprint(target_root: Path) -> tuple[str, str] | None:
-    try:
-        head = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=target_root, check=True, capture_output=True, text=True
-        ).stdout.strip()
-        status = subprocess.run(
-            ["git", "status", "--porcelain=v1", "--untracked-files=all"],
-            cwd=target_root,
-            check=True,
-            capture_output=True,
-            text=True,
-        ).stdout
-        return head, hashlib.sha256(status.encode("utf-8")).hexdigest()
-    except (OSError, subprocess.SubprocessError):
-        return None
 
 
 def _service_policy(tool_name: str) -> dict[str, Any]:
@@ -1080,7 +1063,7 @@ def _rollback(
         return refs
 
     try:
-        pre_call_state = _target_state_fingerprint(target_root)
+        pre_call_state = git_state_fingerprint(target_root)
         rollback_hitl_patch(plan_path, reverse_patch_path, output_dir, approval_path=approval_path)
         receipt_path = output_dir / "rollback_receipt.json"
         ledger_path = output_dir / "rollback_ledger_record.json"
@@ -1149,7 +1132,7 @@ def _rollback(
                     "rollback_reverse_patch_ref": {"path": str(reverse_patch_path), "sha256": _file_digest(reverse_patch_path)},
                     **refs,
                 }
-        post_call_state = _target_state_fingerprint(target_root)
+        post_call_state = git_state_fingerprint(target_root)
         if pre_call_state is not None and post_call_state == pre_call_state:
             return {
                 "kind": "builder_ii.mcp_rollback_result",
