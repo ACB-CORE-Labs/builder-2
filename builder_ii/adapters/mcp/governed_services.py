@@ -274,13 +274,31 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
             continue
         if field == "verification_evidence":
             errors.extend(validate_verification_execution_receipt_artifact(data))
+            if data.get("valid") is not True or data.get("receipt_status") != "EXECUTED":
+                errors.append("verification evidence must be a successful EXECUTED receipt")
             if data.get("target_commit") != actual or data.get("target_repo") != str(target_root):
                 errors.append("verification evidence is not bound to the current target")
         else:
             errors.extend(validate_patch_apply_receipt_file(path))
-            preflight = data.get("preflight_git_state", {})
-            if data.get("target_repo") != str(target_root) or preflight.get("head_sha") != actual:
+            if data.get("status") != "succeeded":
+                errors.append("patch evidence must be a successful patch-apply receipt")
+            if data.get("target_repo") != str(target_root) or data.get("pre_apply_head") != actual:
                 errors.append("patch evidence is not bound to the current target HEAD")
+            verification_ref = data.get("verification_receipt_digest")
+            verification_data = None
+            verification_value = arguments.get("verification_evidence")
+            if isinstance(verification_value, dict):
+                verification_path_value = verification_value.get("path")
+                if isinstance(verification_path_value, str):
+                    verification_raw = Path(verification_path_value)
+                    verification_path = (root / verification_raw).resolve() if not verification_raw.is_absolute() else verification_raw.resolve()
+                    if _within(verification_path, root) and verification_path.is_file() and not verification_path.is_symlink():
+                        try:
+                            verification_data = json.loads(verification_path.read_text(encoding="utf-8"))
+                        except (OSError, json.JSONDecodeError):
+                            verification_data = None
+            if verification_data is None or verification_ref != canonical_digest(verification_data):
+                errors.append("patch evidence is not cross-bound to the supplied verification evidence")
         if not errors:
             evidence[field] = {"kind": data.get("kind"), "path": str(path), "sha256": value["sha256"]}
     identity = status["repository_identity"]
