@@ -57,6 +57,7 @@ PATCH_APPLY_RECEIPT_SCHEMA_VERSION = 1
 ROLLBACK_BUNDLE_KIND = "builder_ii.rollback_bundle"
 ROLLBACK_BUNDLE_SCHEMA_VERSION = 1
 FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME = "forward_patch_for_reverse_apply.patch"
+DELETED_PATH_DIGEST = "deleted"
 
 
 def is_git_clean(repo_path: Path) -> bool:
@@ -122,6 +123,52 @@ def compute_digest(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
+def _post_apply_path_digests(repo_path: Path, unified_diff: str) -> dict[str, str]:
+    """Bind the exact post-apply state of every path in the approved patch."""
+    lines = unified_diff.splitlines()
+    scope: list[tuple[str | None, str | None]] = []
+    for index, line in enumerate(lines):
+        if not line.startswith("--- "):
+            continue
+        if index + 1 >= len(lines) or not lines[index + 1].startswith("+++ "):
+            raise ValueError("approved patch has an unpaired file header")
+
+        def relative_path(value: str, prefix: str) -> str | None:
+            value = value.split("\t", 1)[0]
+            if value == "/dev/null":
+                return None
+            if not value.startswith(prefix):
+                raise ValueError("approved patch path lacks its canonical prefix")
+            relative = value[2:]
+            path = Path(relative)
+            if not relative or path.is_absolute() or ".." in path.parts or "." in path.parts:
+                raise ValueError("approved patch path is escaping or non-normalized")
+            return relative
+
+        old_path = relative_path(line[4:], "a/")
+        new_path = relative_path(lines[index + 1][4:], "b/")
+        if old_path is None and new_path is None:
+            raise ValueError("approved patch section has no target path")
+        scope.append((old_path, new_path))
+    if not scope:
+        raise ValueError("approved patch contains no canonical file headers")
+    digests: dict[str, str] = {}
+    for old_path, new_path in scope:
+        relative = new_path or old_path
+        if not isinstance(relative, str):  # guarded by the paired-header parser above
+            raise ValueError("approved patch contains no target path")
+        path = repo_path / relative
+        if new_path is None:
+            if path.exists() or path.is_symlink():
+                raise ValueError(f"deleted approved path still exists after apply: {relative}")
+            digests[relative] = DELETED_PATH_DIGEST
+            continue
+        if not path.is_file() or path.is_symlink():
+            raise ValueError(f"approved path is not a regular file after apply: {relative}")
+        digests[relative] = _file_digest(path)
+    return dict(sorted(digests.items()))
+
+
 def _json_digest(data: Any) -> str:
     # Delegate to the approval module so the proposal-content binding is computed with
     # one identical algorithm on both the mint (approve) and verify (apply) sides.
@@ -173,8 +220,7 @@ def _emit_patch_ledger_record(
             patch_digest=patch_digest,
             pre_head=pre_head,
             subject_refs=[
-                hitl_patch_ledger_subject_ref(role=role, kind=kind, path=path)
-                for role, kind, path in ref_specs
+                hitl_patch_ledger_subject_ref(role=role, kind=kind, path=path) for role, kind, path in ref_specs
             ],
         )
         write_hitl_patch_ledger_record(record, output_dir / filename)
@@ -266,7 +312,9 @@ def _verification_receipt_errors(path: Path, *, target_repo: Path | None = None)
             errors.append("verification receipt must contain executed steps and process results")
         if any(item.get("status") != "success" for item in receipt.get("executed_steps", []) if isinstance(item, dict)):
             errors.append("verification receipt executed steps must all be successful")
-        if any(item.get("status") != "success" for item in receipt.get("process_results", []) if isinstance(item, dict)):
+        if any(
+            item.get("status") != "success" for item in receipt.get("process_results", []) if isinstance(item, dict)
+        ):
             errors.append("verification receipt process results must all be successful")
         authority = receipt.get("command_authority_decision")
         if not isinstance(authority, dict):
@@ -313,7 +361,9 @@ def _verification_receipt_errors(path: Path, *, target_repo: Path | None = None)
                 errors.extend(validate_verification_execution_plan_artifact(plan))
                 errors.extend(validate_verification_execution_approval_artifact(approval))
                 errors.extend(validate_verification_execution_approval_against_plan(approval, plan))
-                errors.extend(validate_verification_execution_receipt_against_plan_and_approval(receipt, plan, approval))
+                errors.extend(
+                    validate_verification_execution_receipt_against_plan_and_approval(receipt, plan, approval)
+                )
             except Exception as exc:
                 errors.append(f"verification receipt chain could not be reconstructed: {exc}")
         return list(dict.fromkeys(errors))
@@ -391,7 +441,7 @@ def _write_validation_failure_receipt(
     rollback_plan_path = output_dir / "rollback_plan.json"
     rollback_plan = create_rollback_plan(
         settings=settings,
-        target_name=target_name, # type: ignore[arg-type]
+        target_name=target_name,  # type: ignore[arg-type]
         related_artifact_refs=[str(proposal_path)],
         rollback_strategy="git_apply_reverse",
         operator_note="Validation failed before apply",
@@ -446,6 +496,7 @@ def apply_hitl_patch(
     #    orchestrator, a test) would bypass the gate. Fail closed here, first — before
     #    settings resolution or any other IO.
     from builder_ii.governance.authority import enforce_command_authority
+
     enforce_command_authority(
         "builder-hitl apply-patch",
         requested_effects=("patch_application", "artifact_write"),
@@ -635,7 +686,8 @@ def apply_hitl_patch(
     # receipt carrying pre_head for recovery, mirroring the git-apply except above.
     try:
         post_apply_worktree_digest = _worktree_delta_digest(target_repo)
-    except (subprocess.SubprocessError, OSError) as exc:
+        post_apply_path_digests = _post_apply_path_digests(target_repo, unified_diff)
+    except (subprocess.SubprocessError, OSError, ValueError) as exc:
         write_rollback_plan(rollback_plan, rollback_plan_path)
         failure_receipt = create_patch_apply_receipt(
             settings=settings,
@@ -719,6 +771,7 @@ def apply_hitl_patch(
     receipt["postflight_digest"] = postflight_digest
     receipt["rollback_patch_ref"] = rollback_plan["rollback_patch_ref"]
     receipt["post_apply_worktree_digest"] = post_apply_worktree_digest
+    receipt["post_apply_path_digests"] = post_apply_path_digests
     receipt_path = output_dir / "patch_apply_receipt.json"
     write_patch_apply_receipt(receipt, receipt_path)
 
@@ -827,15 +880,39 @@ def validate_patch_apply_receipt(artifact: Any) -> list[str]:
             errors.append("pre_apply_head must be a non-empty string")
         if not isinstance(artifact.get("proposal_digest"), str) or len(artifact["proposal_digest"]) != 64:
             errors.append("proposal_digest must be a SHA-256 hex digest")
+        path_digests = artifact.get("post_apply_path_digests")
+        if path_digests is not None and (not isinstance(path_digests, dict) or not path_digests):
+            errors.append("post_apply_path_digests must be a non-empty mapping when present")
+        elif isinstance(path_digests, dict):
+            for path, digest in path_digests.items():
+                relative = Path(path) if isinstance(path, str) else None
+                if (
+                    relative is None
+                    or not path
+                    or relative.is_absolute()
+                    or ".." in relative.parts
+                    or "." in relative.parts
+                ):
+                    errors.append("post_apply_path_digests keys must be normalized repository-relative paths")
+                    break
+                if digest != DELETED_PATH_DIGEST and (
+                    not isinstance(digest, str)
+                    or len(digest) != 64
+                    or any(character not in "0123456789abcdef" for character in digest)
+                ):
+                    errors.append("post_apply_path_digests values must be SHA-256 digests or deleted")
+                    break
     else:
         if "pre_apply_head" in artifact and artifact["pre_apply_head"] == "":
-            pass # allow empty on failure
+            pass  # allow empty on failure
         elif not isinstance(artifact.get("pre_apply_head"), str):
             errors.append("pre_apply_head must be a string")
 
         if "proposal_digest" in artifact and artifact["proposal_digest"] == "":
-            pass # allow empty on failure
-        elif "proposal_digest" in artifact and (not isinstance(artifact["proposal_digest"], str) or len(artifact["proposal_digest"]) != 64):
+            pass  # allow empty on failure
+        elif "proposal_digest" in artifact and (
+            not isinstance(artifact["proposal_digest"], str) or len(artifact["proposal_digest"]) != 64
+        ):
             errors.append("proposal_digest must be a SHA-256 hex digest")
     return errors
 

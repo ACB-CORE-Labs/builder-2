@@ -21,6 +21,9 @@ from builder_ii.adapters.goose.goose_receipts import (
 from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
 from builder_ii.core.config import Settings
 from builder_ii.governance.hitl.hitl_patch_apply import (
+    DELETED_PATH_DIGEST,
+    _worktree_delta_digest,
+    get_git_head_sha,
     validate_patch_apply_receipt_file,
     validate_rollback_bundle_file,
 )
@@ -181,6 +184,7 @@ def _approved_patch_close_evidence(
         errors.append("rollback plan does not bind the persisted forward patch")
     patch_path = paths.get("rollback_patch_ref")
     approved_paths: set[str] = set()
+    approved_relative_paths: set[str] = set()
     if patch_path and patch_path.is_file() and not patch_path.is_symlink():
         try:
             patch_text = patch_path.read_text(encoding="utf-8")
@@ -201,12 +205,33 @@ def _approved_patch_close_evidence(
                 if not rel or rel_path.is_absolute() or ".." in rel_path.parts or "." in rel_path.parts:
                     raise ValueError("patch path is escaping or non-normalized")
                 approved_paths.add(str((target_root / rel_path).resolve()))
+                approved_relative_paths.add(rel)
             if not approved_paths:
                 raise ValueError("patch contains no canonical file headers")
         except (OSError, UnicodeError, ValueError) as exc:
             errors.append(f"bound forward patch is invalid: {exc}")
     else:
         errors.append("digest-bound forward patch is missing from the approved evidence directory")
+    expected_path_digests = receipt.get("post_apply_path_digests")
+    if not isinstance(expected_path_digests, dict) or set(expected_path_digests) != approved_relative_paths:
+        errors.append("apply receipt post-apply path digests do not match approved patch scope")
+    else:
+        for relative, expected_digest in expected_path_digests.items():
+            current_path = target_root / relative
+            if expected_digest == DELETED_PATH_DIGEST:
+                if current_path.exists() or current_path.is_symlink():
+                    errors.append(f"approved deleted path drifted after apply: {relative}")
+            elif not current_path.is_file() or current_path.is_symlink():
+                errors.append(f"approved path is missing or is not a regular file: {relative}")
+            elif _file_sha256(current_path) != expected_digest:
+                errors.append(f"approved path content drifted after apply: {relative}")
+    try:
+        if get_git_head_sha(target_root) != receipt.get("pre_apply_head"):
+            errors.append("target HEAD drifted after approved patch apply")
+        if _worktree_delta_digest(target_root) != receipt.get("post_apply_worktree_digest"):
+            errors.append("target index or worktree drifted after approved patch apply")
+    except (subprocess.SubprocessError, OSError) as exc:
+        errors.append(f"target Git state cannot be verified at close: {exc}")
     if errors:
         return set(), None, list(dict.fromkeys(errors))
     summary = {

@@ -14,6 +14,16 @@ from builder_ii.core.config import Settings
 from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
 from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 
+_REAL_SUBPROCESS_RUN = subprocess.run
+_CREATE_FILE_PATCH = (
+    "diff --git a/created.txt b/created.txt\n"
+    "new file mode 100644\n"
+    "--- /dev/null\n"
+    "+++ b/created.txt\n"
+    "@@ -0,0 +1 @@\n"
+    "+approved content\n"
+)
+
 
 class MockSessionPlan:
     def __init__(self):
@@ -124,21 +134,32 @@ def test_goose_mutation_detected_fails_postflight(
     assert len(postflight["mutations_detected"]) == 1
 
 
-def _approved_goose_patch(tmp_path: Path) -> tuple[GooseRuntimeHarness, dict[str, object], Path]:
+def _stub_goose_export(monkeypatch: pytest.MonkeyPatch) -> None:
+    def bounded_run(args, *run_args, **run_kwargs):
+        if isinstance(args, list) and args[:3] == ["goose", "session", "export"]:
+            return MagicMock(returncode=0)
+        return _REAL_SUBPROCESS_RUN(args, *run_args, **run_kwargs)
+
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", bounded_run)
+
+
+def _approved_goose_patch(
+    tmp_path: Path, *, patch_diff: str = PATCH_DIFF
+) -> tuple[GooseRuntimeHarness, dict[str, object], Path]:
     target = init_target_repo(tmp_path)
     builder_root = tmp_path / "builder"
     builder_root.mkdir()
     verification_source = real_verification_receipt(tmp_path, target)
     verification = builder_root / "verification.json"
     shutil.copyfile(verification_source, verification)
-    patch_digest = hashlib.sha256(PATCH_DIFF.encode("utf-8")).hexdigest()
+    patch_digest = hashlib.sha256(patch_diff.encode("utf-8")).hexdigest()
     head = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=target, check=True, capture_output=True, text=True
     ).stdout.strip()
     proposal = create_hitl_patch_proposal(
         generic_repo=target,
         patch_digest=patch_digest,
-        unified_diff=PATCH_DIFF,
+        unified_diff=patch_diff,
         target_head_sha=head,
         verification_receipt_file_sha256=hashlib.sha256(verification.read_bytes()).hexdigest(),
     )
@@ -160,7 +181,7 @@ def _approved_goose_patch(tmp_path: Path) -> tuple[GooseRuntimeHarness, dict[str
         target_root=target,
         target_name="generic",
     )
-    assert service_receipt["status"] == "succeeded"
+    assert service_receipt["status"] == "succeeded", service_receipt.get("result")
     settings = MagicMock(spec=Settings)
     settings.project_root = tmp_path
     harness = GooseRuntimeHarness(settings, MockSessionPlan(), target)
@@ -176,7 +197,7 @@ def _approved_goose_patch(tmp_path: Path) -> tuple[GooseRuntimeHarness, dict[str
 
 def test_governed_close_accepts_exact_approved_patch_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     harness, evidence, _ = _approved_goose_patch(tmp_path)
-    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", MagicMock())
+    _stub_goose_export(monkeypatch)
     _, postflight = harness.close("launch-digest")
     assert postflight["valid"] is True
     assert postflight["mutation_mode"] == "approved_hitl_patch"
@@ -189,22 +210,20 @@ def test_governed_close_rejects_unexplained_drift_even_with_approved_patch(
 ) -> None:
     harness, evidence, target = _approved_goose_patch(tmp_path)
     (target / "unexplained.txt").write_text("drift\n", encoding="utf-8")
-    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", MagicMock())
+    _stub_goose_export(monkeypatch)
     _, postflight = harness.close("launch-digest", approved_patch_evidence=evidence)
     assert postflight["valid"] is False
     assert any("unexplained.txt" in item for item in postflight["unexplained_mutations"])
 
 
-def test_governed_close_ignores_unbound_temporary_apply_patch(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_governed_close_ignores_unbound_temporary_apply_patch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     harness, evidence, _ = _approved_goose_patch(tmp_path)
     receipt_path = Path(evidence["patch_apply_receipt_ref"]["path"])
     (receipt_path.parent / "apply.patch").write_text(
         "--- a/unapproved.txt\n+++ b/unapproved.txt\n@@ -0,0 +1 @@\n+not authority\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", MagicMock())
+    _stub_goose_export(monkeypatch)
     _, postflight = harness.close("launch-digest")
     assert postflight["valid"] is True
     assert all("unapproved.txt" not in path for path in postflight["approved_mutations"])
@@ -217,10 +236,61 @@ def test_governed_close_rejects_bound_invocation_substitution(
     harness, evidence, _ = _approved_goose_patch(tmp_path)
     path = Path(evidence[ref_name]["path"])
     path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
-    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", MagicMock())
+    _stub_goose_export(monkeypatch)
     _, postflight = harness.close("launch-digest")
     assert postflight["valid"] is False
     assert any("evidence invalid" in item for item in postflight["unexplained_mutations"])
+
+
+def test_governed_close_rejects_second_edit_to_approved_tracked_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    harness, _, target = _approved_goose_patch(tmp_path)
+    (target / "file.txt").write_text("different final state\n", encoding="utf-8")
+    _stub_goose_export(monkeypatch)
+
+    _, postflight = harness.close("launch-digest")
+
+    assert postflight["valid"] is False
+    assert any("content drifted" in item for item in postflight["unexplained_mutations"])
+
+
+def test_governed_close_rejects_staged_approved_patch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    harness, _, target = _approved_goose_patch(tmp_path)
+    subprocess.run(["git", "add", "file.txt"], cwd=target, check=True)
+    _stub_goose_export(monkeypatch)
+
+    _, postflight = harness.close("launch-digest")
+
+    assert postflight["valid"] is False
+    assert any("index or worktree drifted" in item for item in postflight["unexplained_mutations"])
+
+
+def test_governed_close_rejects_head_movement_after_approved_patch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    harness, _, target = _approved_goose_patch(tmp_path)
+    subprocess.run(["git", "add", "file.txt"], cwd=target, check=True)
+    subprocess.run(["git", "commit", "-m", "unauthorized commit"], cwd=target, check=True, capture_output=True)
+    _stub_goose_export(monkeypatch)
+
+    _, postflight = harness.close("launch-digest")
+
+    assert postflight["valid"] is False
+    assert any("HEAD drifted" in item for item in postflight["unexplained_mutations"])
+
+
+def test_governed_close_rejects_second_edit_to_approved_new_untracked_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    harness, _, target = _approved_goose_patch(tmp_path, patch_diff=_CREATE_FILE_PATCH)
+    (target / "created.txt").write_text("different final state\n", encoding="utf-8")
+    _stub_goose_export(monkeypatch)
+
+    _, postflight = harness.close("launch-digest")
+
+    assert postflight["valid"] is False
+    assert any("content drifted" in item for item in postflight["unexplained_mutations"])
 
 
 def test_goose_launch_fails_without_goose_binary(mock_settings: Settings, tmp_path: Path) -> None:

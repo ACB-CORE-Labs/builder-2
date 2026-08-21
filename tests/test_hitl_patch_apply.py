@@ -113,6 +113,9 @@ def test_apply_hitl_patch_succeeds_unmocked_with_schema_valid_receipt(tmp_path: 
     assert (repo / "file.txt").read_text() == "b\n"
     assert (out_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME).exists()
     receipt = json.loads((out_dir / "patch_apply_receipt.json").read_text())
+    assert receipt["post_apply_path_digests"] == {
+        "file.txt": hashlib.sha256((repo / "file.txt").read_bytes()).hexdigest()
+    }
     assert receipt["status"] == "succeeded"
 
 
