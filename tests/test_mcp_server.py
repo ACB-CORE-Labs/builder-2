@@ -74,13 +74,17 @@ def test_git_status_and_delivery_boundary_are_read_only_and_receipted(tmp_path: 
     assert status and status["result"]["isError"] is False
     payload = json.loads(status["result"]["content"][0]["text"])
     assert payload["git_state"]["state"] == "clean"
-    assert payload["repository_identity"]["matches"] is True
+    assert payload["repository_identity"]["matches"] is False
     before = subprocess.check_output(["git", "-C", str(tmp_path), "rev-parse", "HEAD"], text=True).strip()
     prepared = server.handle_request({"jsonrpc": "2.0", "id": 51, "method": "tools/call", "params": {"name": "delivery_prepare", "arguments": {"target_head_sha": before}}})
-    assert prepared and prepared["result"]["isError"] is False
-    assert json.loads(prepared["result"]["content"][0]["text"])["delivery_execution"] == "NOT_ADMITTED"
+    assert prepared and prepared["result"]["isError"] is True
+    prepared_result = json.loads(prepared["result"]["content"][0]["text"])
+    assert prepared_result["status"] == "blocked"
+    assert any("missing required verification_evidence" in error for error in prepared_result["errors"])
+    assert any("missing required patch_evidence" in error for error in prepared_result["errors"])
     boundary = server.handle_request({"jsonrpc": "2.0", "id": 52, "method": "tools/call", "params": {"name": "delivery", "arguments": {}}})
-    assert boundary and boundary["result"]["isError"] is False
+    assert boundary and boundary["result"]["isError"] is True
+    assert boundary["result"]["_meta"]["status"] == "denied"
     result = json.loads(boundary["result"]["content"][0]["text"])
     assert result["status"] == "HUMAN_APPROVAL_REQUIRED"
     assert result["performed_actions"] == []

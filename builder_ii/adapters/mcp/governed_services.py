@@ -6,7 +6,6 @@ import hashlib
 import json
 import re
 import stat
-import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -17,7 +16,7 @@ from builder_ii.core.config import load_settings
 from builder_ii.core.config_schema import digest_jsonable
 from builder_ii.core.config_sources import ArtifactRootPolicyError, admit_platform_artifact_root
 from builder_ii.core.demo_loop import DEMO_VERIFICATION_RECEIPT_KIND, validate_demo_verification_receipt
-from builder_ii.core.git_state import create_git_state_record, validate_git_state_record
+from builder_ii.core.git_state import capture_git_state
 from builder_ii.core.governed_prepare_package import (
     create_governed_prepare_package,
     validate_governed_prepare_package_directory,
@@ -26,7 +25,7 @@ from builder_ii.core.mcp_policy import MCP_POLICY_KIND, validate_mcp_policy
 from builder_ii.core.orchestration_status import build_obligation_board
 from builder_ii.core.repo_map import create_repo_map
 from builder_ii.core.repo_search import search_repo_map
-from builder_ii.core.repository_identity import check_repository_identity
+from builder_ii.core.repository_identity import DEFAULT_CANONICAL_REPOSITORY, check_repository_identity
 from builder_ii.governance.authority.readonly_authority import (
     create_read_policy,
     execute_content_read,
@@ -228,33 +227,16 @@ def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value.lower())
 
 
-def _git_read(target_root: Path, *args: str) -> str:
-    try:
-        result = subprocess.run(["git", *args], cwd=target_root, check=False, capture_output=True, text=True)
-    except OSError as exc:
-        raise ServiceDenied(f"read-only git inspection unavailable: {exc}") from exc
-    if result.returncode != 0:
-        raise ServiceDenied(f"read-only git inspection failed: {result.stderr.strip() or 'unknown error'}")
-    return result.stdout.strip()
-
-
 def _git_status(arguments: dict[str, Any], *, target_root: Path, target_name: str) -> dict[str, Any]:
     if arguments:
         raise ServiceDenied("git_status accepts no arguments")
-    branch = _git_read(target_root, "symbolic-ref", "--short", "-q", "HEAD") or "(detached HEAD)"
-    commit_sha = _git_read(target_root, "rev-parse", "HEAD")
-    lines = _git_read(target_root, "status", "--porcelain=v1", "--untracked-files=all").splitlines()
-    modified = sorted(line[3:] for line in lines if len(line) >= 4 and line[:2] != "??")
-    untracked = sorted(line[3:] for line in lines if line.startswith("?? "))
-    record = create_git_state_record(target_name, branch, commit_sha, "dirty" if lines else "clean", modified, untracked)
-    errors = validate_git_state_record(record)
-    if errors:
-        raise RuntimeError("git state record validation failed: " + "; ".join(errors))
-    identity = check_repository_identity(repository_path=target_root)
+    record = capture_git_state(target_root, target_name)
+    canonical = DEFAULT_CANONICAL_REPOSITORY if target_name == "builder" else None
+    identity = check_repository_identity(repository_path=target_root, canonical_repository=canonical) if canonical else check_repository_identity(repository_path=target_root, canonical_repository="")
     return {"kind": "builder_ii.mcp_git_status", "status": "succeeded", "git_state": record, "repository_identity": identity.as_dict(), "read_only": True}
 
 
-def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_name: str) -> dict[str, Any]:
+def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_name: str, builder_root: Path, session_id: str) -> dict[str, Any]:
     allowed = {"verification_evidence", "patch_evidence", "target_head_sha"}
     if set(arguments) - allowed:
         raise ServiceDenied("delivery_prepare received unsupported arguments")
@@ -262,22 +244,45 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
     expected = arguments.get("target_head_sha")
     actual = status["git_state"]["commit_sha"]
     errors: list[str] = []
-    if expected is not None and expected != actual:
-        errors.append("target_head_sha does not match current HEAD")
+    if not isinstance(expected, str) or expected != actual:
+        errors.append("target_head_sha is missing or does not match current HEAD")
+    if status["git_state"]["state"] != "clean":
+        errors.append("target working tree is dirty")
     evidence: dict[str, Any] = {}
     for field in ("verification_evidence", "patch_evidence"):
         value = arguments.get(field)
-        if value is not None:
-            if not isinstance(value, dict) or not isinstance(value.get("path"), str) or not _is_sha256(value.get("sha256")):
-                errors.append(f"{field} must be a path and SHA-256 reference")
-            else:
-                path = Path(value["path"])
-                if not path.is_file() or path.is_symlink():
-                    errors.append(f"{field} is missing or a symlink")
-                elif _file_digest(path) != value["sha256"]:
-                    errors.append(f"{field} digest does not match persisted bytes")
-                else:
-                    evidence[field] = value
+        if not isinstance(value, dict):
+            errors.append(f"missing required {field}")
+            continue
+        path_value = value.get("path")
+        if not isinstance(path_value, str) or not isinstance(value.get("sha256"), str) or not _is_sha256(value["sha256"]):
+            errors.append(f"{field} must be a typed artifact reference")
+            continue
+        raw = Path(path_value)
+        root = (builder_root / "sessions" / session_id / "mcp").resolve()
+        path = (root / raw).resolve() if not raw.is_absolute() else raw.resolve()
+        if not _within(path, root) or path.is_symlink() or not path.is_file():
+            errors.append(f"{field} is outside the controlled MCP artifact namespace")
+            continue
+        if _file_digest(path) != value["sha256"]:
+            errors.append(f"{field} digest does not match persisted bytes")
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            errors.append(f"{field} is not a readable JSON artifact")
+            continue
+        if field == "verification_evidence":
+            errors.extend(validate_verification_execution_receipt_artifact(data))
+            if data.get("target_commit") != actual or data.get("target_repo") != str(target_root):
+                errors.append("verification evidence is not bound to the current target")
+        else:
+            errors.extend(validate_patch_apply_receipt_file(path))
+            preflight = data.get("preflight_git_state", {})
+            if data.get("target_repo") != str(target_root) or preflight.get("head_sha") != actual:
+                errors.append("patch evidence is not bound to the current target HEAD")
+        if not errors:
+            evidence[field] = {"kind": data.get("kind"), "path": str(path), "sha256": value["sha256"]}
     identity = status["repository_identity"]
     if not identity["matches"]:
         errors.append("repository identity does not match the canonical repository")
@@ -1421,7 +1426,7 @@ def run_service(
     elif tool_name == "git_status":
         result = _git_status(arguments, target_root=target_root, target_name=target_name)
     elif tool_name == "delivery_prepare":
-        result = _delivery_prepare(arguments, target_root=target_root, target_name=target_name)
+        result = _delivery_prepare(arguments, target_root=target_root, target_name=target_name, builder_root=builder_root, session_id=session_id)
     elif tool_name == "delivery":
         result = _delivery(arguments)
     elif tool_name == "repo_search":
@@ -1549,7 +1554,9 @@ def run_service(
 
     if _canonical_size(result) > MAX_SERVICE_OUTPUT_BYTES:
         raise RuntimeError("service result exceeds the 4194304-byte output limit")
-    if tool_name == "rollback" and isinstance(result, dict) and result.get("status") == "denied":
+    if tool_name in {"delivery", "delivery_prepare"} and isinstance(result, dict) and result.get("status") in {"blocked", "HUMAN_APPROVAL_REQUIRED"}:
+        status = "denied"
+    elif tool_name == "rollback" and isinstance(result, dict) and result.get("status") == "denied":
         status = "denied"
     elif tool_name in {"patch_apply", "rollback"} and isinstance(result, dict) and result.get("status") != "succeeded":
         status = "failed"
