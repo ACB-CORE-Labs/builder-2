@@ -37,6 +37,7 @@ from builder_ii.governance.hitl.hitl_patch_apply import (
     git_state_fingerprint,
     rollback_hitl_patch,
     validate_patch_apply_receipt_file,
+    validate_post_apply_target_state,
     validate_rollback_bundle_file,
 )
 from builder_ii.governance.hitl.hitl_patch_approval import (
@@ -246,8 +247,6 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
     errors: list[str] = []
     if not isinstance(expected, str) or expected != actual:
         errors.append("target_head_sha is missing or does not match current HEAD")
-    if status["git_state"]["state"] != "clean":
-        errors.append("target working tree is dirty")
     evidence: dict[str, Any] = {}
     for field in ("verification_evidence", "patch_evidence"):
         value = arguments.get(field)
@@ -284,6 +283,7 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
                 errors.append("patch evidence must be a successful patch-apply receipt")
             if data.get("target_repo") != str(target_root) or data.get("pre_apply_head") != actual:
                 errors.append("patch evidence is not bound to the current target HEAD")
+            errors.extend(validate_post_apply_target_state(target_root, data))
             verification_ref = data.get("verification_receipt_digest")
             verification_data = None
             verification_value = arguments.get("verification_evidence")
@@ -304,7 +304,7 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
     identity = status["repository_identity"]
     if not identity["matches"]:
         errors.append("repository identity does not match the canonical repository")
-    return {"kind": "builder_ii.delivery_readiness_handoff", "status": "blocked" if errors else "ready_for_separate_plan_set_6_authority", "git_status": status, "evidence": evidence, "errors": errors, "delivery_execution": "NOT_ADMITTED"}
+    return {"kind": "builder_ii.delivery_readiness_handoff", "status": "BLOCKED" if errors else "HANDOFF_PREPARED", "git_status": status, "evidence": evidence, "errors": errors, "delivery_execution": "NOT_ADMITTED"}
 
 
 def _delivery(arguments: dict[str, Any]) -> dict[str, Any]:
@@ -1572,7 +1572,7 @@ def run_service(
 
     if _canonical_size(result) > MAX_SERVICE_OUTPUT_BYTES:
         raise RuntimeError("service result exceeds the 4194304-byte output limit")
-    if tool_name in {"delivery", "delivery_prepare"} and isinstance(result, dict) and result.get("status") in {"blocked", "HUMAN_APPROVAL_REQUIRED"}:
+    if tool_name in {"delivery", "delivery_prepare"} and isinstance(result, dict) and result.get("status") in {"BLOCKED", "HUMAN_APPROVAL_REQUIRED"}:
         status = "denied"
     elif tool_name == "rollback" and isinstance(result, dict) and result.get("status") == "denied":
         status = "denied"

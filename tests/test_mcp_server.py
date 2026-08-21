@@ -9,13 +9,27 @@ receipt and event under ``.builder``, and never mutates the target or enables sh
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from pathlib import Path
 
 from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
 from builder_ii.adapters.mcp.server import GovernedMcpServer
+from builder_ii.governance.hitl.hitl_patch_apply import (
+    FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
+    apply_hitl_patch,
+    rollback_hitl_patch,
+)
+from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
+from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.governance.hitl.hitl_rollback_approval import (
+    canonical_digest,
+    create_hitl_rollback_approval,
+    write_hitl_rollback_approval,
+)
 from builder_ii.governance.ledger.event_ledger import validate_event_chain_integrity
+from tests.hitl_patch_test_helpers import write_executed_verification_receipt
 
 
 def _server(tmp_path: Path) -> GovernedMcpServer:
@@ -44,6 +58,92 @@ def _git_server(tmp_path: Path) -> GovernedMcpServer:
     subprocess.run(["git", "-C", str(tmp_path), "commit", "-qm", "initial"], check=True)
     subprocess.run(["git", "-C", str(tmp_path), "remote", "add", "origin", "https://github.com/ACB-CORE-Labs/builder-2"], check=True)
     return _server(tmp_path)
+
+
+def _applied_delivery_server(tmp_path: Path) -> tuple[GovernedMcpServer, Path, Path, Path, str]:
+    repo = tmp_path / "target"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "test@example.com"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "Test"], check=True)
+    (repo / "tracked.txt").write_text("before\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "tracked.txt"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "initial"], check=True)
+    subprocess.run(
+        ["git", "-C", str(repo), "remote", "add", "origin", "https://github.com/ACB-CORE-Labs/builder-2"],
+        check=True,
+    )
+    head = subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip()
+    builder_root = tmp_path / "artifacts"
+    mcp_dir = builder_root / "sessions" / "delivery_session" / "mcp"
+    mcp_dir.mkdir(parents=True)
+    verification_path = mcp_dir / "verification_receipt.json"
+    write_executed_verification_receipt(verification_path, repo)
+    diff = (
+        "diff --git a/tracked.txt b/tracked.txt\n"
+        "index 90be912..3bd1f0e 100644\n"
+        "--- a/tracked.txt\n"
+        "+++ b/tracked.txt\n"
+        "@@ -1 +1 @@\n"
+        "-before\n"
+        "+after\n"
+    )
+    patch_digest = hashlib.sha256(diff.encode("utf-8")).hexdigest()
+    proposal = create_hitl_patch_proposal(
+        generic_repo=repo,
+        patch_digest=patch_digest,
+        unified_diff=diff,
+        target_head_sha=head,
+        verification_receipt_file_sha256=hashlib.sha256(verification_path.read_bytes()).hexdigest(),
+    )
+    proposal_path = mcp_dir / "proposal.json"
+    write_hitl_patch_proposal(proposal, proposal_path)
+    approval_path = mcp_dir / "approval.json"
+    write_hitl_patch_approval(
+        create_hitl_patch_approval(proposal, confirmed_digest_prefix=patch_digest[:4]),
+        approval_path,
+    )
+    apply_hitl_patch(proposal_path, approval_path, verification_path, mcp_dir)
+    server = GovernedMcpServer(
+        session_id="delivery_session",
+        builder_root=builder_root,
+        target_root=repo,
+        target_name="builder",
+    )
+    return server, repo, verification_path, mcp_dir / "patch_apply_receipt.json", head
+
+
+def _delivery_prepare_call(
+    server: GovernedMcpServer,
+    verification_path: Path,
+    patch_path: Path,
+    head: str,
+    *,
+    request_id: int,
+) -> dict:
+    response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "method": "tools/call",
+            "params": {
+                "name": "delivery_prepare",
+                "arguments": {
+                    "target_head_sha": head,
+                    "verification_evidence": {
+                        "path": verification_path.name,
+                        "sha256": hashlib.sha256(verification_path.read_bytes()).hexdigest(),
+                    },
+                    "patch_evidence": {
+                        "path": patch_path.name,
+                        "sha256": hashlib.sha256(patch_path.read_bytes()).hexdigest(),
+                    },
+                },
+            },
+        }
+    )
+    assert response is not None
+    return response
 
 
 def test_initialize_advertises_tools_capability(tmp_path: Path) -> None:
@@ -79,7 +179,7 @@ def test_git_status_and_delivery_boundary_are_read_only_and_receipted(tmp_path: 
     prepared = server.handle_request({"jsonrpc": "2.0", "id": 51, "method": "tools/call", "params": {"name": "delivery_prepare", "arguments": {"target_head_sha": before}}})
     assert prepared and prepared["result"]["isError"] is True
     prepared_result = json.loads(prepared["result"]["content"][0]["text"])
-    assert prepared_result["status"] == "blocked"
+    assert prepared_result["status"] == "BLOCKED"
     assert any("missing required verification_evidence" in error for error in prepared_result["errors"])
     assert any("missing required patch_evidence" in error for error in prepared_result["errors"])
     boundary = server.handle_request({"jsonrpc": "2.0", "id": 52, "method": "tools/call", "params": {"name": "delivery", "arguments": {}}})
@@ -90,6 +190,53 @@ def test_git_status_and_delivery_boundary_are_read_only_and_receipted(tmp_path: 
     assert result["performed_actions"] == []
     assert subprocess.check_output(["git", "-C", str(tmp_path), "rev-parse", "HEAD"], text=True).strip() == before
     assert validate_event_chain_integrity(_events_dir(tmp_path))["valid"]
+
+
+def test_delivery_prepare_handoff_requires_canonical_patch_to_remain_applied(tmp_path: Path) -> None:
+    server, repo, verification_path, patch_path, head = _applied_delivery_server(tmp_path)
+
+    prepared = _delivery_prepare_call(server, verification_path, patch_path, head, request_id=54)
+    assert prepared["result"]["isError"] is False
+    result = json.loads(prepared["result"]["content"][0]["text"])
+    assert result["status"] == "HANDOFF_PREPARED"
+    assert result["delivery_execution"] == "NOT_ADMITTED"
+    assert result["git_status"]["git_state"]["state"] == "dirty"
+    assert (repo / "tracked.txt").read_text(encoding="utf-8") == "after\n"
+    boundary = server.handle_request(
+        {"jsonrpc": "2.0", "id": 56, "method": "tools/call", "params": {"name": "delivery", "arguments": {}}}
+    )
+    assert boundary and boundary["result"]["isError"] is True
+    boundary_result = json.loads(boundary["result"]["content"][0]["text"])
+    assert boundary_result["status"] == "HUMAN_APPROVAL_REQUIRED"
+    assert boundary_result["performed_actions"] == []
+
+
+def test_delivery_prepare_blocks_historical_apply_evidence_after_rollback(tmp_path: Path) -> None:
+    server, repo, verification_path, patch_path, head = _applied_delivery_server(tmp_path)
+    mcp_dir = patch_path.parent
+    rollback_plan_path = mcp_dir / "rollback_plan.json"
+    rollback_plan = json.loads(rollback_plan_path.read_text(encoding="utf-8"))
+    rollback_approval_path = mcp_dir / "rollback_approval.json"
+    write_hitl_rollback_approval(
+        create_hitl_rollback_approval(
+            rollback_plan,
+            confirmed_digest_prefix=canonical_digest(rollback_plan)[:4],
+        ),
+        rollback_approval_path,
+    )
+    rollback_hitl_patch(
+        rollback_plan_path,
+        mcp_dir / FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
+        mcp_dir / "rollback_out",
+        approval_path=rollback_approval_path,
+    )
+
+    prepared = _delivery_prepare_call(server, verification_path, patch_path, head, request_id=55)
+    assert prepared["result"]["isError"] is True
+    result = json.loads(prepared["result"]["content"][0]["text"])
+    assert result["status"] == "BLOCKED"
+    assert any("drifted after apply" in error for error in result["errors"])
+    assert (repo / "tracked.txt").read_text(encoding="utf-8") == "before\n"
 
 
 def test_delivery_services_reject_extra_execution_arguments(tmp_path: Path) -> None:
