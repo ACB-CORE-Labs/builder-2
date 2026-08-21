@@ -180,7 +180,7 @@ def stratum(
         "[bold cyan]STRATUM[/] — builder-II operator console\n"
         "[yellow]GOVERNANCE NOTICE: planned ≠ executed ≠ verified ≠ promoted[/]\n"
         "[dim]Tip: [bold]uv run builder-stratum[/] is the short form (same gate).[/]\n"
-        "[dim]observe + compose only · docs/STRATUM.md · H help · 0 walkthrough[/]"
+        "[dim]observe + five governed terminal handoffs · docs/STRATUM.md · H help · 0 walkthrough[/]"
     )
     if guide and no_guide:
         console.print("[red]--guide and --no-guide are mutually exclusive.[/]")
@@ -249,6 +249,12 @@ def init(
         help="Never prompt; missing decisions take their resolved documented defaults.",
     ),
     preset: str = typer.Option("solo-strict", "--preset", help="Non-authoritative onboarding preset."),
+    budget_usd: Optional[float] = typer.Option(
+        None,
+        "--budget-usd",
+        min=0.01,
+        help="Explicit onboarding budget in USD; required by the team preset.",
+    ),
 ) -> None:
     """Unified governed onboarding orchestrator: emits plan/overlay/snapshot/intent artifacts, never applies.
 
@@ -266,13 +272,13 @@ def init(
         init_wizard_step_definitions,
         validate_decision_value,
     )
-    from builder_ii.lifecycle.setup.presets import preset_artifact
+    from builder_ii.lifecycle.setup.presets import get_preset, preset_artifact
     from builder_ii.lifecycle.setup.readiness import passive_readiness
     from builder_ii.lifecycle.setup.setup_onboarding import run_onboarding_pipeline
     from builder_ii.lifecycle.setup.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
 
     try:
-        selected_preset = preset_artifact(preset)
+        get_preset(preset)
     except ValueError as exc:
         console.print(f"[red]invalid preset:[/] {exc}")
         raise typer.Exit(2) from exc
@@ -373,6 +379,25 @@ def init(
             console.print("[red]no valid answer after 3 attempts; aborting without writing artifacts[/]")
             raise typer.Exit(2) from None
 
+    try:
+        selected_preset = preset_artifact(
+            preset,
+            root=root,
+            model_backend=model_backend if preset == "team" else chosen["model_backend"],
+            model_alias=model_alias if preset == "team" else chosen["model_alias"],
+            budget_usd=budget_usd,
+        )
+    except ValueError as exc:
+        console.print(f"[red]invalid preset configuration:[/] {exc}")
+        raise typer.Exit(2) from exc
+
+    readiness_results = passive_readiness(
+        root=root,
+        state_root=Path(chosen["output_dir"]) / "readiness-state",
+        model_backend=chosen["model_backend"],
+        model_alias=chosen["model_alias"],
+    )
+    readiness_evidence = [item.as_dict() for item in readiness_results]
     chosen_artifact_root = chosen.get("artifact_root")
     result = run_onboarding_pipeline(
         output_dir=Path(chosen["output_dir"]),
@@ -388,6 +413,8 @@ def init(
         model_alias=chosen["model_alias"],
         runtime_mode=chosen["runtime_mode"],
         allow_artifact_root_inside_target=_as_bool(chosen["allow_artifact_root_inside_target"]),
+        preset_configuration=selected_preset,
+        readiness_evidence=readiness_evidence,
     )
     if not result.valid:
         console.out(json.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")
@@ -402,9 +429,11 @@ def init(
     console.out(f"  overlay plan:      {result.setup_overlay_path}\n", end="")
     console.out(f"  rollback snapshot: {result.rollback_snapshot_path}\n", end="")
     console.out(f"  intent report:     {result.onboarding_intent_path}\n", end="")
-    console.out(f"  preset:            {preset} (configuration only; {selected_preset['routing']})\n", end="")
+    console.out(
+        f"  preset:            {preset} (configuration only; {selected_preset['routing_preference']})\n", end=""
+    )
     console.out("\nPassive readiness (no install/login/start/mutation):\n", end="")
-    for check in passive_readiness():
+    for check in readiness_results:
         console.out(f"  {check.name}: {check.status} — {check.detail}\n", end="")
         if check.status != "ready":
             console.out(f"    remediation: {check.remediation}\n", end="")

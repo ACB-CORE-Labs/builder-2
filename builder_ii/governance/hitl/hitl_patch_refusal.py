@@ -40,6 +40,7 @@ def create_hitl_patch_refusal(
         "record_state": "REFUSED_ONLY",
         "proposal_path": str(proposal_path),
         "proposal_kind": str(proposal.get("kind") or ""),
+        "proposal_digest": _digest(proposal),
         "patch_digest": patch_digest,
         "rationale": rationale,
         "refused_by": refused_by,
@@ -69,6 +70,12 @@ def validate_hitl_patch_refusal(data: Any) -> list[str]:
         errors.append("record_state must be REFUSED_ONLY")
     if not isinstance(data.get("proposal_path"), str) or not data.get("proposal_path"):
         errors.append("proposal_path must be a non-empty string")
+    if not isinstance(data.get("proposal_kind"), str) or not data.get("proposal_kind"):
+        errors.append("proposal_kind must be a non-empty string")
+    if not isinstance(data.get("proposal_digest"), str) or len(data.get("proposal_digest", "")) != 64:
+        errors.append("proposal_digest must be a SHA-256 hex digest")
+    if not isinstance(data.get("patch_digest"), str) or not data.get("patch_digest"):
+        errors.append("patch_digest must be a non-empty string")
     if not isinstance(data.get("rationale"), str) or not str(data.get("rationale")).strip():
         errors.append("rationale must be a non-empty string")
     if data.get("grants_authority") is not False:
@@ -79,6 +86,10 @@ def validate_hitl_patch_refusal(data: Any) -> list[str]:
         errors.append("executes_patch must be false")
     if data.get("mutates_source") is not False:
         errors.append("mutates_source must be false")
+    digest = data.get("digest")
+    expected_digest = _digest({key: value for key, value in data.items() if key != "digest"})
+    if not isinstance(digest, str) or digest != expected_digest:
+        errors.append("digest does not match canonical refusal content")
     return errors
 
 

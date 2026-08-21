@@ -23,8 +23,8 @@ from builder_ii.tui.projections.models import project_model_matrix
 from builder_ii.tui.projections.operator import chain_validity_display, project_operator_dashboard
 from builder_ii.tui.projections.orchestration import project_orchestration
 from builder_ii.tui.projections.render import bold_themed, kv, rule, section_title, status_glyph, themed
+from builder_ii.tui.projections.run_projection import LIFECYCLE, RunProjection
 from builder_ii.tui.projections.runs import project_run_roster
-from builder_ii.tui.projections.stages import project_operator_stages
 from builder_ii.tui.projections.subagent_tree import SubagentNode, project_subagent_tree
 from builder_ii.tui.projections.workflow import project_workflow
 from builder_ii.tui.widgets.masterpiece import EpistemicMatrix, ThirdDoorGate
@@ -214,27 +214,38 @@ class ActiveStratum(Vertical):
 
     # ── Renderers ────────────────────────────────────────────────────
 
-    def _stage_axis_lines(self) -> list[str]:
-        """The PREPARE->PLAN->APPROVE->EXECUTE->VERIFY->PROMOTE journey, state from the chain."""
-        view = project_operator_stages(self.artifacts_dir)
+    def _stage_axis_lines(self, run: RunProjection) -> list[str]:
+        """Render the one lifecycle grammar from the canonical run projection."""
+        active_index = LIFECYCLE.index(run.stage)
+        keys = ("P", "Y", "A", "L", "E", "S")
         parts: list[str] = []
-        for cell in view.cells:
-            if cell.state == "done":
-                parts.append(bold_themed("pass", f"✓{cell.verb}"))
-            elif cell.state == "active":
-                parts.append(bold_themed("active", f"▶{cell.verb}"))
+        for index, stage in enumerate(LIFECYCLE):
+            if index < active_index:
+                parts.append(bold_themed("pass", f"✓{stage}"))
+            elif index == active_index:
+                parts.append(bold_themed("active", f"▶{stage}"))
             else:
-                parts.append(themed("dim", f"○{cell.verb}"))
+                parts.append(themed("dim", f"○{stage}"))
         axis = themed("dim", " ─ ").join(parts)
-        keys = "  ".join(f"{bold_themed('active', cell.key)} {themed('hint', cell.verb.lower())}" for cell in view.cells)
+        key_line = "  ".join(
+            f"{bold_themed('active', key)} {themed('hint', stage.lower())}"
+            for key, stage in zip(keys, LIFECYCLE, strict=True)
+        )
         return [
             section_title("OPERATOR JOURNEY", "accent"),
             f"  {axis}",
-            f"  {keys}",
+            f"  {key_line}",
         ]
 
     def _render_idle(self) -> None:
         info = self._platform_info
+        from builder_ii.tui.projections.run_projection import project_run
+
+        run = project_run(
+            self.artifacts_dir or Path("."),
+            session_id=info.get("session") or None,
+            target=info.get("target") or self._target,
+        )
         dash = project_operator_dashboard(
             artifacts_dir=self.artifacts_dir,
             target=info.get("target") or self._target,
@@ -250,7 +261,20 @@ class ActiveStratum(Vertical):
         ledger = themed("pass", "ACTIVE") if dash.ledger_active else themed("warn", "INACTIVE")
 
         lines = [
-            *self._stage_axis_lines(),
+            *self._stage_axis_lines(run),
+            "",
+            section_title("CANONICAL RUN"),
+            kv("Lifecycle", run.stage, value_role="active"),
+            kv("Next admissible", run.next_action, value_role="hint"),
+            kv("Evidence", run.evidence_health, value_role="fail" if run.evidence_health == "CORRUPT" else "pass"),
+            kv("Approval", run.approvals),
+            kv("Verification", run.verification),
+            kv("Delivery", run.delivery),
+            kv("Agents", ", ".join(run.agents) or "—"),
+            kv("Obligations", str(len(run.obligations))),
+            kv("Models", ", ".join(run.models) or "—"),
+            kv("Tools", ", ".join(run.tools) or "—"),
+            kv("Budgets", str(run.budgets) if run.budgets else "—"),
             "",
             section_title("SYSTEM"),
             kv("Platform", dash.platform),
@@ -351,10 +375,8 @@ class ActiveStratum(Vertical):
             [
                 "",
                 rule(),
-                f"  {bold_themed('pass', 'A')} compose approve   "
-                f"{bold_themed('fail', 'R')} compose reject",
-                f"  {bold_themed('active', 'I')} inspect payload   "
-                f"{bold_themed('accent', 'D')} diff",
+                f"  {bold_themed('pass', 'A')} compose approve   {bold_themed('fail', 'R')} compose reject",
+                f"  {bold_themed('active', 'I')} inspect payload   {bold_themed('accent', 'D')} diff",
                 f"  {themed('hint', 'STRATUM does not harvest confirmation — run the composed CLI')}",
             ]
         )
@@ -504,9 +526,7 @@ class ActiveStratum(Vertical):
         ]
         if view.is_empty:
             lines.append(themed("dim", "  No runs with an event ledger under .builder/sessions yet."))
-            lines.append(
-                themed("hint", "  Start a governed run (builder-goose / builder-mcp serve) to populate this.")
-            )
+            lines.append(themed("hint", "  Start a governed run (builder-goose / builder-mcp serve) to populate this."))
             self._write("\n".join(lines))
             if self._run_transcript is not None:
                 self._run_transcript.display = False
@@ -663,8 +683,7 @@ class ActiveStratum(Vertical):
                 fb = ", ".join(rule_v.fallback[:2]) if rule_v.fallback else "—"
                 lines.append(f"  {themed('active', rule_v.rule_id)}  {themed('bold', rule_v.task_intent)}")
                 lines.append(
-                    f"    {themed('pass', '→')} {themed('hint', pref)}  "
-                    f"{themed('dim', 'fb:')} {themed('hint', fb)}"
+                    f"    {themed('pass', '→')} {themed('hint', pref)}  {themed('dim', 'fb:')} {themed('hint', fb)}"
                 )
                 if rule_v.rationale:
                     lines.append(f"    {themed('dim', rule_v.rationale[:72])}")
@@ -704,10 +723,7 @@ class ActiveStratum(Vertical):
         for i, p in enumerate(view.profiles):
             branch = "└─" if i == n - 1 else "├─"
             cont = "  " if i == n - 1 else "│ "
-            lines.append(
-                f"  {themed('dim', branch)} {bold_themed('accent', p.name)}  "
-                f"{themed('warn', p.authority)}"
-            )
+            lines.append(f"  {themed('dim', branch)} {bold_themed('accent', p.name)}  {themed('warn', p.authority)}")
             lines.append(f"  {themed('dim', cont)} {themed('hint', p.description[:70])}")
             tools = ", ".join(p.allowed_tools[:6])
             lines.append(f"  {themed('dim', cont)} {themed('pass', 'tools')} {themed('hint', tools)}")
@@ -752,8 +768,7 @@ class ActiveStratum(Vertical):
                 else:
                     token, glyph = "warn", "▶"
                 lines.append(
-                    f"  {themed(token, glyph)} {themed('active', f'{row.name:<32}')} "
-                    f"{themed(token, state_name)}"
+                    f"  {themed(token, glyph)} {themed('active', f'{row.name:<32}')} {themed(token, state_name)}"
                 )
         except Exception as e:
             lines.append(themed("fail", f"  Error: {e}"))

@@ -123,11 +123,11 @@ class StratumApp(App[None]):
         Binding("l", "toggle_run_cockpit", "Runs", show=False),
         Binding("comma", "cockpit_prev_run", "Prev run", show=False),
         Binding("full_stop", "cockpit_next_run", "Next run", show=False),
-        # HITL actions — compose-only (footer labels must not imply harvest/authority).
+        # HITL actions — real terminal handoffs to the canonical interactive CLI.
         # Hidden from the always-on footer; the HITL gate indicator names them when a
         # gate is actually open, which is the only moment they mean anything.
-        Binding("a", "approve_hitl", "Compose Approve", show=False),
-        Binding("r", "reject_hitl", "Compose Reject", show=False),
+        Binding("a", "approve_hitl", "Approve in CLI", show=False),
+        Binding("r", "reject_hitl", "Refuse in CLI", show=False),
         Binding("i", "inspect_hitl", "Inspect", show=False),
         Binding("d", "diff_hitl", "Diff", show=False),
     ]
@@ -151,7 +151,14 @@ class StratumApp(App[None]):
 
         self._refresh_task: asyncio.Task[None] | None = None
 
-        self._current_session_id = "idle"
+        from uuid import uuid4
+
+        from builder_ii.core.config_sources import resolve_config_sources
+
+        self._current_session_id = f"stratum-{uuid4().hex}"
+        resolution = resolve_config_sources(project_root=self.settings.project_root)
+        self._target_profile = resolution.value("active_target_profile") if not resolution.errors else "generic"
+        self._prepared_package: Path | None = None
         self._hitl_active = False
         # show_guide=True forces walkthrough; skip_guide/--no-guide opts out
         self._force_show_guide = bool(show_guide)
@@ -261,7 +268,7 @@ class StratumApp(App[None]):
 
     async def on_mount(self) -> None:
         """Run on startup."""
-        self.notify("STRATUM operator console active — observe & compose only.")
+        self.notify("STRATUM operator console active — read-only projection plus five fixed CLI handoffs.")
 
         # Opening splash: hero image ~3s (or any key), then instruments
         if self._show_splash:
@@ -313,9 +320,7 @@ class StratumApp(App[None]):
 
     def action_open_guide(self) -> None:
         if self.stratum:
-            self.stratum.mode = (
-                StratumMode.IDLE if self.stratum.mode == StratumMode.GUIDE else StratumMode.GUIDE
-            )
+            self.stratum.mode = StratumMode.IDLE if self.stratum.mode == StratumMode.GUIDE else StratumMode.GUIDE
 
     def action_dismiss_guide(self) -> None:
         from builder_ii.lifecycle.setup.stratum_guide import dismiss_guide
@@ -358,10 +363,7 @@ class StratumApp(App[None]):
                 {
                     "status": "awaiting_generation",
                     "kind": kind,
-                    "message": (
-                        f"The '{stage.get('label')}' artifact has not been generated "
-                        "for this session yet."
-                    ),
+                    "message": (f"The '{stage.get('label')}' artifact has not been generated for this session yet."),
                 }
             )
 
@@ -455,7 +457,7 @@ class StratumApp(App[None]):
         self.stratum.set_platform_info(
             {
                 "platform": "builder-II",
-                "target": self.settings.target_repo.name,
+                "target": self._target_profile,
                 "model": self.settings.model_alias,
                 "backend": self.settings.backend,
                 "session": self._current_session_id,
@@ -500,7 +502,6 @@ class StratumApp(App[None]):
     def action_quit_app(self) -> None:
         """Quit the application, prompting if a gate is open."""
         if self._hitl_active:
-
             # `bool | None`, not `bool`: `ModalScreen[bool]` is dismissed with no argument on
             # escape, and Textual passes that `None` straight to this callback. The annotation
             # claimed a value that cannot be relied on. The body already treated it as falsy.
@@ -591,9 +592,8 @@ class StratumApp(App[None]):
             try:
                 self.copy_to_clipboard(display)
                 copied_msg = " (copied to clipboard)"
-            except Exception:
-                pass
-
+            except Exception as exc:
+                copied_msg = f" (clipboard unavailable: {type(exc).__name__}; command remains visible)"
 
             reason_line = f"\nRegistry: {because}" if because else ""
             self.notify(
@@ -631,7 +631,7 @@ class StratumApp(App[None]):
                 self.stratum.mode = StratumMode.MODEL_MATRIX
 
     def action_toggle_agents(self) -> None:
-        """Show agent roster; second press opens compose picker for assignment."""
+        """Show agent roster; second press selects a canonical passive assignment."""
         from builder_ii.tui.widgets.teaming import DeepAgentTeamingScreen
 
         if self.stratum and self.stratum.mode != StratumMode.AGENT_PROFILES:
@@ -645,12 +645,56 @@ class StratumApp(App[None]):
                 if self.stratum and self.stratum.mode == StratumMode.AGENT_PROFILES:
                     self.stratum.mode = StratumMode.IDLE
                 return
-            target = self.settings.target_repo.name if self.settings else "generic"
             profile = selected_agents[0]
-            observation = self.invoke_stratum_command("builder-deepagents assign-subagent", target=target, task="STRATUM assignment", profile=profile)
+            work_plan = self._single_valid_work_plan()
+            if work_plan is None:
+                return
+            import json
+
+            plan = json.loads(work_plan.read_text(encoding="utf-8"))
+            from builder_ii.tui.stratum_commands import AssignSubagentInputs, build_command
+
+            inputs = AssignSubagentInputs(
+                target=str(plan.get("target", self._target_profile)),
+                task=str(plan.get("task", "")),
+                profile=profile,
+                work_plan=work_plan,
+                output_root=self.artifacts_dir,
+                session_id=self._current_session_id,
+            )
+            observation = self.invoke_stratum_command(build_command("builder-deepagents assign-subagent", inputs))
             self._report_stratum_observation(observation)
 
         self.push_screen(DeepAgentTeamingScreen(), on_compose)
+
+    def _single_valid_work_plan(self) -> Path | None:
+        """Return the one canonical deepagents work plan, refusing ambiguity."""
+        import json
+
+        from builder_ii.adapters.deepagents.deepagents_work_artifacts import (
+            DEEPAGENTS_WORK_PLAN_KIND,
+            validate_deepagents_work_plan,
+        )
+
+        matches: list[Path] = []
+        for path in self.artifacts_dir.rglob("*.json") if self.artifacts_dir.exists() else ():
+            try:
+                value = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                continue
+            if (
+                isinstance(value, dict)
+                and value.get("kind") == DEEPAGENTS_WORK_PLAN_KIND
+                and not validate_deepagents_work_plan(value)
+            ):
+                matches.append(path.resolve())
+        if len(matches) != 1:
+            self.notify(
+                f"Subagent assignment requires exactly one validated work plan; found {len(matches)}.",
+                severity="warning",
+            )
+            return None
+        return matches[0]
 
     def action_toggle_platform_audit(self) -> None:
         if self.stratum:
@@ -704,7 +748,7 @@ class StratumApp(App[None]):
     def action_prepare_package(self) -> None:
         from builder_ii.tui.widgets.workspace_builder import SessionBuilderScreen
 
-        # Enter the PREPARE renderer (was dead furniture) before the compose wizard.
+        # Enter the PREPARE renderer before collecting the typed package inputs.
         if self.stratum:
             self.stratum.mode = StratumMode.PREPARE
 
@@ -712,7 +756,17 @@ class StratumApp(App[None]):
         def on_save(config: dict[str, Any] | None) -> None:
             if not config:
                 return
-            observation = self.invoke_stratum_command("builder-session prepare-package", target=str(config.get("target", "builder")), task=str(config.get("task", "STRATUM package")))
+            from builder_ii.tui.stratum_commands import PreparePackageInputs, build_command
+
+            inputs = PreparePackageInputs(
+                target=str(config.get("target", self._target_profile)),
+                task=str(config.get("task", "STRATUM package")),
+                output_root=self.artifacts_dir,
+                session_id=self._current_session_id,
+            )
+            observation = self.invoke_stratum_command(build_command("builder-session prepare-package", inputs))
+            if observation.successful:
+                self._prepared_package = observation.output
             self._report_stratum_observation(observation)
 
         self.push_screen(SessionBuilderScreen(), on_save)
@@ -745,10 +799,20 @@ class StratumApp(App[None]):
             self.stratum.cockpit_select(1)
 
     async def action_validate_package(self) -> None:
-        """Re-verify on-disk chain; also offer the governed validate-prepare-package compose line."""
+        """Re-verify the chain and the exact package retained from preparation."""
         self.notify("Re-checking artifact chain on disk…")
         await self._verify_current_chain_async()
-        observation = self.invoke_stratum_command("builder-session validate-prepare-package", target="builder", task="")
+        if self._prepared_package is None:
+            self.notify("No package is bound to this STRATUM session; prepare first.", severity="warning")
+            return
+        from builder_ii.tui.stratum_commands import ValidatePackageInputs, build_command
+
+        inputs = ValidatePackageInputs(
+            package=self._prepared_package,
+            output_root=self.artifacts_dir,
+            session_id=self._current_session_id,
+        )
+        observation = self.invoke_stratum_command(build_command("builder-session validate-prepare-package", inputs))
         self._report_stratum_observation(observation)
 
     # Fixed argv into builder-II's own governed CLI. Never `goose` directly, and never
@@ -818,12 +882,10 @@ class StratumApp(App[None]):
     def _run_governed_subprocess(self, argv: tuple[str, ...]) -> int:
         """Run a fixed argv under terminal suspend; return the exit code it actually reported.
 
-        The one reusable primitive behind every direct (non-compose) invocation in STRATUM: fixed
+        The reusable primitive behind the separately governed Goose handoff: fixed
         argv, `shell=False`, terminal handed over via `suspend()`, and the real return code passed
-        back rather than an assumed success. `action_launch_goose` is the only caller today; a
-        future direct-invoke site reuses this rather than re-deriving the subprocess incantation --
-        but must still add its own `command_authority` declaration first, the way this one already
-        has.
+        back rather than an assumed success. The five Plan Set 4 commands use the observed sibling
+        below so their bounded stderr and canonical output evidence can be projected as well.
         """
         import subprocess
 
@@ -839,8 +901,26 @@ class StratumApp(App[None]):
             return 125
         return completed.returncode
 
-    def invoke_stratum_command(self, command_name: str, *, target: str, task: str, profile: str | None = None,
-                               proposal: Path | None = None) -> Any:
+    def _run_governed_subprocess_observed(self, argv: tuple[str, ...]) -> tuple[int, str]:
+        """Run fixed argv with the terminal attached and retain bounded stderr truth."""
+        import subprocess
+
+        try:
+            terminal = self.suspend()
+            with terminal:
+                completed = subprocess.run(  # noqa: S603 - closed registry argv, shell=False
+                    argv,
+                    check=False,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+        except Exception as exc:
+            if type(exc).__name__ != "SuspendNotSupported" and "suspend" not in str(exc).lower():
+                raise
+            return 125, f"terminal handoff unavailable: {type(exc).__name__}"
+        return completed.returncode, completed.stderr or ""
+
+    def invoke_stratum_command(self, command: Any) -> Any:
         """Invoke one admitted last-mile command and validate its canonical output.
 
         This is intentionally a single seam. Callers select an identity and typed
@@ -849,26 +929,86 @@ class StratumApp(App[None]):
         """
         import sys
 
-        from builder_ii.tui.stratum_commands import InvocationObservation, admit, build_command
+        from builder_ii.tui.projections.run_projection import project_run
+        from builder_ii.tui.stratum_commands import InvocationObservation, admit, bounded_stderr, write_observation
 
-        command = build_command(command_name, target=target, task=task, profile=profile, proposal=proposal, output_root=self.artifacts_dir)
-        admit(command)
+        try:
+            admit(command)
+        except PermissionError as exc:
+            return InvocationObservation(
+                command.identity,
+                self._current_session_id,
+                None,
+                False,
+                command.output,
+                (str(exc),),
+                input_paths=command.input_paths,
+            )
+        if command.creates_output and command.output.exists():
+            return InvocationObservation(
+                command.identity,
+                self._current_session_id,
+                None,
+                False,
+                command.output,
+                ("invocation output already exists; stale output substitution refused",),
+                input_paths=command.input_paths,
+            )
         argv = (sys.executable, "-m", command.entrypoint, *command.argv)
         try:
-            returncode = self._run_governed_subprocess(argv)
+            returncode, stderr = self._run_governed_subprocess_observed(argv)
         except (KeyboardInterrupt, EOFError):
-            return InvocationObservation(command_name, None, True, command.output, ())
-        errors = tuple(command.validator(command.output)) if returncode == 0 else (f"command exited {returncode}",)
-        return InvocationObservation(command_name, returncode, False, command.output, errors)
+            return InvocationObservation(
+                command.identity,
+                self._current_session_id,
+                None,
+                True,
+                command.output,
+                (),
+                input_paths=command.input_paths,
+            )
+        validation = command.validator(command.output) if returncode == 0 else None
+        errors = validation.errors if validation is not None else (f"command exited {returncode}",)
+        projection = project_run(
+            self.artifacts_dir,
+            session_id=self._current_session_id,
+            target=self._target_profile,
+        )
+        observation = InvocationObservation(
+            command.identity,
+            self._current_session_id,
+            returncode,
+            False,
+            command.output,
+            errors,
+            artifact_kind=validation.artifact_kind if validation is not None else "",
+            artifact_sha256=validation.artifact_sha256 if validation is not None else "",
+            canonical_digest=validation.canonical_digest if validation is not None else "",
+            stderr=bounded_stderr(stderr),
+            projection_stage=projection.stage,
+            next_action=projection.next_action,
+            input_paths=command.input_paths,
+        )
+        observation_path = write_observation(observation, command.invocation_dir / "observation.json")
+        return InvocationObservation(**{**observation.__dict__, "observation_path": observation_path})
 
     def _report_stratum_observation(self, observation: Any) -> None:
         if observation.cancelled:
             self.notify(f"{observation.command} cancelled; no lifecycle claim made.", severity="warning")
         elif observation.successful:
-            self.notify(f"{observation.command} completed and canonical output validated: {observation.output}")
+            self.notify(
+                f"{observation.command} completed; {observation.artifact_kind} "
+                f"sha256={observation.artifact_sha256[:12]}…; stage={observation.projection_stage}; "
+                f"next={observation.next_action}"
+            )
         else:
-            detail = "; ".join(observation.validation_errors) or "canonical command failed"
+            parts = [*observation.validation_errors]
+            if observation.stderr:
+                parts.append(f"stderr: {observation.stderr}")
+            detail = "; ".join(parts) or "canonical command failed"
             self.notify(f"{observation.command} failed closed: {detail}", severity="error")
+        if self.stratum:
+            self.stratum._render_current_mode()
 
     def _hand_off_goose_readonly(self, manifest: Path) -> None:
         """Suspend and give the terminal to start-readonly for an existing manifest path."""
@@ -961,40 +1101,42 @@ class StratumApp(App[None]):
     # ── HITL Actions ──────────────────────────────────────────────────────
 
     def action_approve_hitl(self) -> None:
-        from builder_ii.tui.projections.hitl_compose import compose_hitl_approve
-
         if not self.stratum:
             return
         if self.stratum.mode != StratumMode.HITL_GATE and not self.stratum.try_bind_pending_hitl():
             self.notify("No HITL gate open to approve.", severity="warning")
             return
-        result = compose_hitl_approve(
-            self.stratum._hitl_proposal,
-            artifacts_dir=self.artifacts_dir if isinstance(self.artifacts_dir, Path) else None,
-        )
-        self.notify(result.reason, severity="warning")
-        if result.refused or not result.command:
+        raw_path = self.stratum._hitl_proposal.get("path")
+        if not isinstance(raw_path, (str, Path)) or not str(raw_path):
+            self.notify("HITL approval refused: no canonical proposal path is bound.", severity="warning")
             return
-        proposal = Path(str(self.stratum._hitl_proposal.get("path", self.artifacts_dir / "proposal.json")))
-        self._report_stratum_observation(self.invoke_stratum_command("builder-hitl approve-patch", target="builder", task="", proposal=proposal))
+        proposal = Path(raw_path)
+        from builder_ii.tui.stratum_commands import HitlPatchInputs, build_command
+
+        self.notify("Handing the terminal to builder-hitl for its digest-prefix confirmation.")
+        inputs = HitlPatchInputs(proposal, self.artifacts_dir, self._current_session_id)
+        self._report_stratum_observation(
+            self.invoke_stratum_command(build_command("builder-hitl approve-patch", inputs))
+        )
 
     def action_reject_hitl(self) -> None:
-        from builder_ii.tui.projections.hitl_compose import compose_hitl_reject
-
         if not self.stratum:
             return
         if self.stratum.mode != StratumMode.HITL_GATE and not self.stratum.try_bind_pending_hitl():
             self.notify("No HITL gate open to reject.", severity="warning")
             return
-        result = compose_hitl_reject(
-            self.stratum._hitl_proposal,
-            artifacts_dir=self.artifacts_dir if isinstance(self.artifacts_dir, Path) else None,
-        )
-        self.notify(result.reason, severity="warning")
-        if result.refused or not result.command:
+        raw_path = self.stratum._hitl_proposal.get("path")
+        if not isinstance(raw_path, (str, Path)) or not str(raw_path):
+            self.notify("HITL refusal refused: no canonical proposal path is bound.", severity="warning")
             return
-        proposal = Path(str(self.stratum._hitl_proposal.get("path", self.artifacts_dir / "proposal.json")))
-        self._report_stratum_observation(self.invoke_stratum_command("builder-hitl refuse-patch", target="builder", task="", proposal=proposal))
+        proposal = Path(raw_path)
+        from builder_ii.tui.stratum_commands import HitlPatchInputs, build_command
+
+        self.notify("Handing the terminal to builder-hitl to collect the refusal rationale.")
+        inputs = HitlPatchInputs(proposal, self.artifacts_dir, self._current_session_id)
+        self._report_stratum_observation(
+            self.invoke_stratum_command(build_command("builder-hitl refuse-patch", inputs))
+        )
 
     def action_inspect_hitl(self) -> None:
         if not self.stratum:
@@ -1013,7 +1155,10 @@ class StratumApp(App[None]):
         """Render the bound HITL patch proposal's unified diff, read-only. Applies nothing."""
         if not self.stratum:
             return
-        if self.stratum.mode not in (StratumMode.HITL_GATE, StratumMode.HITL_DIFF) and not self.stratum.try_bind_pending_hitl():
+        if (
+            self.stratum.mode not in (StratumMode.HITL_GATE, StratumMode.HITL_DIFF)
+            and not self.stratum.try_bind_pending_hitl()
+        ):
             self.notify("No pending HITL proposal to diff.", severity="warning")
             return
         self.stratum.show_hitl_diff()

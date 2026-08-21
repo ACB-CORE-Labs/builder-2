@@ -195,10 +195,15 @@ async def test_stratum_hitl_informative_refusal():
 # launder a higher tier's approval boundary.
 
 
-def test_tui_sources_never_write_a_file() -> None:
+def test_tui_sources_write_only_declared_stratum_observation() -> None:
     for source in _TUI_DIR.rglob("*.py"):
         text = source.read_text(encoding="utf-8")
-        assert ".write_text(" not in text, f"{source.name} writes a file; STRATUM has no write authority"
+        writes = text.count(".write_text(")
+        if source.name == "stratum_commands.py":
+            assert writes == 1, "only the declared non-authoritative observation writer is admitted"
+            assert "builder_ii.stratum_invocation_observation" in text
+        else:
+            assert writes == 0, f"{source.name} has an undeclared file write"
         assert ".write_bytes(" not in text, f"{source.name} writes a file; STRATUM has no write authority"
 
 
@@ -466,6 +471,18 @@ async def test_cli_passthrough_composes_and_says_it_ran_nothing() -> None:
             assert "STRATUM executes nothing" in message
             for lie in ("Exec", "Executing"):
                 assert lie not in message
+
+
+@pytest.mark.asyncio
+async def test_cli_passthrough_reports_visible_clipboard_fallback() -> None:
+    app = StratumApp(show_splash=False, skip_guide=True)
+    async with app.run_test():
+        with patch.object(app, "copy_to_clipboard", side_effect=RuntimeError("clipboard unavailable")):
+            with patch.object(app, "notify") as notify:
+                app._show_composed_command("verify plan")
+        message = notify.call_args[0][0]
+        assert "clipboard unavailable: RuntimeError" in message
+        assert "builder verify plan" in message
 
 
 def test_palette_tier_labels_cover_exactly_the_registry_vocabulary() -> None:

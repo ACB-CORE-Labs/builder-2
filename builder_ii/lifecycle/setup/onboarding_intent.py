@@ -78,6 +78,8 @@ def finalize_onboarding_intent_report(
     rollback_command: str,
     validate_rollback_receipt_command: str,
     selected_summary: dict[str, Any] | None = None,
+    preset_configuration: dict[str, Any] | None = None,
+    readiness_evidence: list[dict[str, str]] | None = None,
     setup_apply_executed: bool = False,
     rollback_executed: bool = False,
     generated_at: str | None = None,
@@ -105,6 +107,15 @@ def finalize_onboarding_intent_report(
         "rollback_command": rollback_command,
         "validate_rollback_receipt_command": validate_rollback_receipt_command,
         "selected_summary": selected_summary or {},
+        "preset_configuration": preset_configuration or {},
+        "readiness_evidence": readiness_evidence or [],
+        "readiness_probe_policy": {
+            "fixed_argv_only": True,
+            "shell": False,
+            "bounded_timeout_output": True,
+            "installs_or_logs_in": False,
+            "starts_or_mutates_external_systems": False,
+        },
         "disabled_authority": dict(DISABLED_AUTHORITY),
     }
     return attach_digest(report, digest_key="onboarding_intent_digest")
@@ -199,6 +210,26 @@ def validate_onboarding_intent_report_artifact(data: Any) -> list[str]:
         for k, expected_val in DISABLED_AUTHORITY.items():
             if disabled_auth.get(k) != expected_val:
                 errors.append(f"disabled_authority.{k} must remain disabled")
+
+    from builder_ii.lifecycle.setup.presets import validate_preset_artifact
+    from builder_ii.lifecycle.setup.readiness import validate_readiness_evidence
+
+    preset = data.get("preset_configuration")
+    if preset:
+        errors.extend(validate_preset_artifact(preset))
+    readiness = data.get("readiness_evidence")
+    if readiness:
+        errors.extend(validate_readiness_evidence(readiness))
+    probe_policy = data.get("readiness_probe_policy")
+    if not isinstance(probe_policy, dict):
+        errors.append("readiness_probe_policy must be an object")
+    else:
+        for field in ("fixed_argv_only", "bounded_timeout_output"):
+            if probe_policy.get(field) is not True:
+                errors.append(f"readiness_probe_policy.{field} must be true")
+        for field in ("shell", "installs_or_logs_in", "starts_or_mutates_external_systems"):
+            if probe_policy.get(field) is not False:
+                errors.append(f"readiness_probe_policy.{field} must be false")
 
     for cmd_field in (
         "apply_command",

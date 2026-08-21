@@ -1,6 +1,6 @@
 # STRATUM operator console
 
-STRATUM is builder-II's experimental **Textual** instrument panel: observe governed state, compose exact CLI, hand off one Goose runtime. It is **not** an authority origin.
+STRATUM is builder-II's experimental **Textual** instrument panel: project canonical governed state, compose general CLI, and hand the terminal to five fixed Builder-II commands plus the existing read-only Goose runtime. It is **not** an authority origin.
 
 ### Start command (preferred)
 
@@ -51,10 +51,11 @@ Smoked CLI loop: [`FIRST_SESSION.md`](../FIRST_SESSION.md). Golden path / demos:
 
 | Is | Is not |
 |----|--------|
-| Read-only view of registries + `.builder/artifacts` | Writer of session/HITL/assignment artifacts |
+| Read-only canonical run projection over `.builder/artifacts` | Origin of approval, execution, delivery, or promotion authority |
 | Command Composer (`~`) | Executor of composed commands |
+| Fixed terminal handoff for prepare, validate, assign, approve, and refuse | Arbitrary executable, argv, environment, cwd, timeout, or output-path seam |
 | Suspend + fixed argv to `builder-goose start-readonly` | Spawner of raw `goose` or builtin chooser |
-| Honest absence for chain digest (`—`) | Synthesizer of digests or fake tier grants |
+| Canonical artifact reload, validation, and per-artifact digest observation | Synthesizer of chain digests, approvals, or fake tier grants |
 
 **Artifact root:** `<project_root>/.builder/artifacts` for the process you launched. Another clone = another empty or different spine.
 
@@ -92,7 +93,7 @@ In STRATUM: **N** composes the top safe command (does not run it).
 uv run builder-session prepare-package generic -o .builder/session --task "first stratum session"
 ```
 
-STRATUM **P** only collects choices and composes this family of command — it does not write the package.
+STRATUM **P** collects typed choices, checks command authority, and hands the terminal to this canonical CLI. Builder-II selects an invocation-scoped output directory; STRATUM reloads and validates the complete package afterward.
 
 ### 5. Validate prepare package
 
@@ -100,7 +101,7 @@ STRATUM **P** only collects choices and composes this family of command — it d
 uv run builder-session validate-prepare-package .builder/session
 ```
 
-In STRATUM: **V** re-checks on-disk chain validity and composes the validate command.
+In STRATUM: **V** re-checks on-disk chain validity and invokes validation against the exact package retained from the successful **P** handoff. It does not use a mutable latest/current alias.
 
 ### 6. Read-only Goose (G)
 
@@ -147,9 +148,9 @@ uv run builder stratum
 | **j/k** | Spine move · **SPC** pin/inspect |
 | **O** **U** **W** **Z** **E** **T** **M** | Instruments |
 | **?** | Palette · **~** composer |
-| **P** **V** **G** **N** | Prepare compose · validate · goose · next |
+| **P** **V** **G** **N** | Prepare handoff · exact-package validate · goose · next |
 | **L** | Run cockpit: runs roster + live ledger transcript ( **, .** select run ) |
-| **A/R** | Compose HITL approve/reject (no mutation) · **D** diff (read-only) |
+| **A/R** | Hand terminal to canonical approve/refuse CLI; the CLI collects confirmation/rationale · **D** diff (read-only) |
 
 ---
 
@@ -169,11 +170,11 @@ STRATUM does not install recipes or providers. Use CLI + files, then inspect:
 | Topic | Outside STRATUM | Inside STRATUM |
 |-------|-----------------|----------------|
 | Goose recipes + manifest | Edit `recipes/**/*.yaml`; `builder-goose manifest` | **W** recipes + manifest status + compose; **G** hand-off |
-| Deepagents | `forge`, `readiness`, `work-plan`, `assign-subagent` | **U** roster/readiness + compose catalog; again for assign picker |
+| Deepagents | `forge`, `readiness`, `work-plan`, `assign-subagent` | **U** roster/readiness; again selects a target-compatible canonical profile and hands off assignment |
 | Orchestration | `plan` → validate → dry-run → obligations | **Y** plans/obligations + compose |
 | Models / providers | `.env` `BUILDER_MODEL_*`; `builder-model-policy`; `builder models` | **O** local config + registry + routing + compose |
 | CodeVault | optional commercial plugin | **B** availability + help command |
-| HITL | `builder-hitl *` | Rail gate light; **I** bind pending; **A/R** compose only |
+| HITL | `builder-hitl *` | Rail gate light; **I** bind pending; **A/R** fixed terminal handoff; owning CLI writes the decision |
 
 Full how-to: [`GETTING_STARTED.md` §5](GETTING_STARTED.md#5-how-builder-ii-configures-work).
 
