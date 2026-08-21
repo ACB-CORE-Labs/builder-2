@@ -1041,18 +1041,95 @@ def _rollback(
     if Path(str(target.get("repo", ""))).resolve() != target_root.resolve():
         raise ServiceDenied("rollback plan target repo does not match the server target root")
 
+    rollback_ref = plan.get("rollback_patch_ref")
+    if not isinstance(rollback_ref, dict):
+        raise ServiceDenied("rollback plan must bind rollback_patch_ref")
+    if rollback_ref.get("path") != str(reverse_patch_path):
+        raise ServiceDenied("supplied reverse patch is not the plan-bound rollback_patch_ref path")
+    expected_patch_digest = rollback_ref.get("sha256")
+    supplied_patch_digest = _file_digest(reverse_patch_path)
+    if not isinstance(expected_patch_digest, str) or supplied_patch_digest != expected_patch_digest:
+        raise ServiceDenied("supplied reverse patch does not match rollback_patch_ref digest")
+
     output_dir = builder_root.resolve() / "sessions" / session_id / "mcp" / "rollback" / uuid.uuid4().hex
     _refuse_symlink_components(output_dir, root=builder_root, field="rollback output")
+    def evidence_refs() -> dict[str, dict[str, str]]:
+        refs: dict[str, dict[str, str]] = {}
+        for name in ("rollback_receipt.json", "rollback_failure_receipt.json", "rollback_ledger_record.json"):
+            path = output_dir / name
+            if path.is_file() and not path.is_symlink():
+                refs[name.removesuffix(".json") + "_ref"] = {"path": str(path), "sha256": _file_digest(path)}
+        return refs
+
     try:
         rollback_hitl_patch(plan_path, reverse_patch_path, output_dir, approval_path=approval_path)
+        receipt_path = output_dir / "rollback_receipt.json"
+        ledger_path = output_dir / "rollback_ledger_record.json"
+        errors: list[str] = []
+        errors.extend("rollback_receipt: " + error for error in validate_rollback_receipt_file(receipt_path))
+        errors.extend("rollback_ledger: " + error for error in validate_hitl_patch_ledger_record_file(ledger_path))
+        receipt = _load_controlled_json(receipt_path, field="rollback_receipt")
+        ledger = _load_controlled_json(ledger_path, field="rollback_ledger")
+        approval = _load_controlled_json(approval_path, field="rollback_approval_path")
+        if receipt.get("target") != target:
+            errors.append("rollback receipt target is not bound to the rollback plan")
+        if receipt.get("rollback_approval_digest") != canonical_digest(approval):
+            errors.append("rollback receipt approval digest is not bound to the supplied approval")
+        if ledger.get("event_type") != "patch_rolled_back":
+            errors.append("rollback ledger event type is invalid")
+        if ledger.get("target") != {"name": target.get("name"), "repo": target.get("repo")}:
+            errors.append("rollback ledger target is not bound to the rollback plan")
+        if ledger.get("patch_digest") != plan.get("patch_digest"):
+            errors.append("rollback ledger patch digest is not bound to the rollback plan")
+        if ledger.get("pre_head") != plan.get("pre_head"):
+            errors.append("rollback ledger pre_head is not bound to the rollback plan")
+        if receipt.get("rollback_state") != "EXECUTED" or receipt.get("current_state") != "OPERATIONALLY_VERIFIED":
+            errors.append("rollback receipt does not prove executed and operationally verified state")
+        if receipt.get("rollback_equivalence_verified") is not True:
+            errors.append("rollback receipt does not prove equivalence")
+        if receipt.get("rollback_plan_ref") != str(plan_path):
+            errors.append("rollback receipt plan binding is invalid")
+        receipt_patch_ref = receipt.get("rollback_patch_ref")
+        if not isinstance(receipt_patch_ref, dict) or receipt_patch_ref.get("path") != str(reverse_patch_path) or receipt_patch_ref.get("sha256") != expected_patch_digest:
+            errors.append("rollback receipt reverse-patch binding is invalid")
+        if receipt.get("pre_apply_status_digest") != receipt.get("post_rollback_status_digest"):
+            errors.append("rollback receipt status digest binding is invalid")
+        subjects = ledger.get("subject_refs", [])
+        expected_subjects = {
+            "rollback_plan": (plan_path, _file_digest(plan_path)),
+            "rollback_approval": (approval_path, _file_digest(approval_path)),
+            "rollback_reverse_patch": (reverse_patch_path, expected_patch_digest),
+            "rollback_receipt": (receipt_path, _file_digest(receipt_path)),
+        }
+        observed_roles = {ref.get("role"): ref for ref in subjects if isinstance(ref, dict)}
+        for role, (path, digest) in expected_subjects.items():
+            ref = observed_roles.get(role)
+            if not isinstance(ref, dict) or ref.get("path") != str(path) or ref.get("sha256") != digest or ref.get("required") is not True:
+                errors.append(f"rollback ledger subject {role} is not exactly bound")
+        if errors:
+            raise RuntimeError("canonical rollback evidence is invalid: " + "; ".join(errors))
     except Exception as exc:
         # The canonical executor may have mutated before a receipt/ledger failure. Preserve
         # the canonical failure evidence and never relabel rollback as patch application.
-        refs = {}
-        for name in ("rollback_receipt.json", "rollback_failure_receipt.json", "rollback_ledger_record.json"):
-            path = output_dir / name
-            if path.is_file():
-                refs[name.removesuffix(".json") + "_ref"] = {"path": str(path), "sha256": _file_digest(path)}
+        refs = evidence_refs()
+        failure_path = output_dir / "rollback_failure_receipt.json"
+        if not (output_dir / "rollback_receipt.json").is_file() and failure_path.is_file():
+            try:
+                failure = json.loads(failure_path.read_text(encoding="utf-8"))
+            except Exception:
+                failure = {}
+            if str(failure.get("rollback_outcome", "")).startswith(("NOT_EXECUTED", "REFUSED")):
+                return {
+                    "kind": "builder_ii.mcp_rollback_result",
+                    "status": "denied",
+                    "mutation_state": "NO_MUTATION",
+                    "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.rollback_hitl_patch",
+                    "error": str(exc)[:500],
+                    "rollback_plan_ref": {"path": str(plan_path), "sha256": _file_digest(plan_path)},
+                    "rollback_approval_ref": {"path": str(approval_path), "sha256": _file_digest(approval_path)},
+                    "rollback_reverse_patch_ref": {"path": str(reverse_patch_path), "sha256": _file_digest(reverse_patch_path)},
+                    **refs,
+                }
         return {
             "kind": "builder_ii.mcp_rollback_result",
             "status": "rollback_uncertain",
@@ -1065,37 +1142,6 @@ def _rollback(
             "additional_rollback_executed": False,
             **refs,
         }
-
-    receipt_path = output_dir / "rollback_receipt.json"
-    ledger_path = output_dir / "rollback_ledger_record.json"
-    errors: list[str] = []
-    errors.extend("rollback_receipt: " + error for error in validate_rollback_receipt_file(receipt_path))
-    errors.extend("rollback_ledger: " + error for error in validate_hitl_patch_ledger_record_file(ledger_path))
-    if errors:
-        raise RuntimeError("canonical rollback evidence is invalid: " + "; ".join(errors))
-    receipt = _load_controlled_json(receipt_path, field="rollback_receipt")
-    ledger = _load_controlled_json(ledger_path, field="rollback_ledger")
-    if receipt.get("target") != target:
-        raise RuntimeError("rollback receipt target is not bound to the rollback plan")
-    if receipt.get("rollback_approval_digest") != canonical_digest(_load_controlled_json(approval_path, field="rollback_approval_path")):
-        raise RuntimeError("rollback receipt approval digest is not bound to the supplied approval")
-    if ledger.get("event_type") != "patch_rolled_back":
-        raise RuntimeError("rollback ledger event type is invalid")
-    if receipt.get("rollback_state") != "EXECUTED" or receipt.get("current_state") != "OPERATIONALLY_VERIFIED":
-        raise RuntimeError("rollback receipt does not prove executed and operationally verified state")
-    if receipt.get("rollback_equivalence_verified") is not True:
-        raise RuntimeError("rollback receipt does not prove equivalence")
-    if receipt.get("rollback_plan_ref") != str(plan_path):
-        raise RuntimeError("rollback receipt plan binding is invalid")
-    if receipt.get("rollback_patch_ref", {}).get("path") != str(reverse_patch_path):
-        raise RuntimeError("rollback receipt reverse-patch binding is invalid")
-    if receipt.get("pre_apply_status_digest") != receipt.get("post_rollback_status_digest"):
-        raise RuntimeError("rollback receipt status digest binding is invalid")
-    subjects = ledger.get("subject_refs", [])
-    subject_paths = {ref.get("path") for ref in subjects if isinstance(ref, dict)}
-    for path in (str(plan_path), str(approval_path), str(reverse_patch_path), str(receipt_path)):
-        if path not in subject_paths:
-            raise RuntimeError("rollback ledger subject_refs do not bind the complete invocation chain")
     return {
         "kind": "builder_ii.mcp_rollback_result",
         "status": "succeeded",
@@ -1112,16 +1158,18 @@ def _rollback(
 
 
 def _mutation_uncertain_result(*, error: str, evidence: dict[str, dict[str, str]], rollback: bool = False) -> dict[str, Any]:
-    return {
+    result = {
         "kind": "builder_ii.mcp_rollback_result" if rollback else "builder_ii.mcp_patch_apply_result",
         "status": "rollback_uncertain" if rollback else "mutation_uncertain",
         "mutation_state": "ROLLED_BACK_OR_MAY_HAVE_BEEN_ROLLED_BACK" if rollback else "APPLIED_OR_MAY_HAVE_BEEN_APPLIED",
         "error": error[:500],
         "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.rollback_hitl_patch" if rollback else "builder_ii.governance.hitl.hitl_patch_apply.apply_hitl_patch",
-        "rollback_executed": False,
         "additional_rollback_executed": False,
         **evidence,
     }
+    if not rollback:
+        result["rollback_executed"] = False
+    return result
 
 
 def _patch_apply(

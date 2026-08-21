@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import builder_ii.adapters.mcp.governed_services as services
+from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
+from builder_ii.governance.hitl.hitl_rollback_approval import (
+    create_hitl_rollback_approval,
+    write_hitl_rollback_approval,
+)
 
 
 def _write(path: Path, value: object) -> Path:
@@ -18,9 +26,9 @@ def _inputs(tmp_path: Path, *, target: Path | None = None) -> tuple[Path, dict[s
     builder.mkdir()
     target = target or (tmp_path / "target")
     target.mkdir(exist_ok=True)
-    plan = _write(builder / "plan.json", {"kind": "builder_ii.rollback_plan", "target": {"name": "generic", "repo": str(target)}})
     reverse = builder / "reverse.patch"
     reverse.write_text("diff --git a/a b/a\n", encoding="utf-8")
+    plan = _write(builder / "plan.json", {"kind": "builder_ii.rollback_plan", "target": {"name": "generic", "repo": str(target)}, "patch_digest": "p", "pre_head": "h", "rollback_patch_ref": {"path": str(reverse), "sha256": hashlib.sha256(reverse.read_bytes()).hexdigest()}})
     approval = _write(builder / "approval.json", {"kind": "builder_ii.hitl_rollback_approval"})
     return builder, {"rollback_plan_path": str(plan), "rollback_reverse_patch_path": str(reverse), "rollback_approval_path": str(approval)}
 
@@ -58,9 +66,10 @@ def test_rollback_delegates_exactly_once_and_projects_canonical_evidence(tmp_pat
         output = Path(call_args[2])
         output.mkdir(parents=True)
         approval = json.loads(Path(args["rollback_approval_path"]).read_text())
-        receipt = {"target": json.loads(Path(args["rollback_plan_path"]).read_text())["target"], "rollback_approval_digest": services.canonical_digest(approval), "rollback_state": "EXECUTED", "current_state": "OPERATIONALLY_VERIFIED", "rollback_equivalence_verified": True, "rollback_plan_ref": args["rollback_plan_path"], "rollback_patch_ref": {"path": args["rollback_reverse_patch_path"]}, "pre_apply_status_digest": "same", "post_rollback_status_digest": "same"}
+        plan = json.loads(Path(args["rollback_plan_path"]).read_text())
+        receipt = {"target": plan["target"], "rollback_approval_digest": services.canonical_digest(approval), "rollback_state": "EXECUTED", "current_state": "OPERATIONALLY_VERIFIED", "rollback_equivalence_verified": True, "rollback_plan_ref": args["rollback_plan_path"], "rollback_patch_ref": {"path": args["rollback_reverse_patch_path"], "sha256": plan["rollback_patch_ref"]["sha256"]}, "pre_apply_status_digest": "same", "post_rollback_status_digest": "same"}
         _write(output / "rollback_receipt.json", receipt)
-        _write(output / "rollback_ledger_record.json", {"event_type": "patch_rolled_back", "subject_refs": [{"path": value} for value in (args["rollback_plan_path"], args["rollback_approval_path"], args["rollback_reverse_patch_path"], str(output / "rollback_receipt.json"))]})
+        _write(output / "rollback_ledger_record.json", {"event_type": "patch_rolled_back", "target": plan["target"], "patch_digest": plan["patch_digest"], "pre_head": plan["pre_head"], "subject_refs": [{"role": role, "path": value, "sha256": services._file_digest(Path(value)), "required": True} for role, value in (("rollback_plan", args["rollback_plan_path"]), ("rollback_approval", args["rollback_approval_path"]), ("rollback_reverse_patch", args["rollback_reverse_patch_path"]), ("rollback_receipt", str(output / "rollback_receipt.json")))]})
 
     monkeypatch.setattr(services, "rollback_hitl_patch", executor)
     result = services.run_service(tool_name="rollback", arguments=args, session_id="s", builder_root=builder, target_root=tmp_path / "target", target_name="generic")[0]
@@ -68,3 +77,52 @@ def test_rollback_delegates_exactly_once_and_projects_canonical_evidence(tmp_pat
     assert result["status"] == "succeeded"
     assert result["result"]["canonical_executor"].endswith("rollback_hitl_patch")
     assert result["result"]["rollback_equivalence_verified"] is True
+
+
+def test_real_apply_then_rollback_and_rollback_only_goose_close(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The transport writes real evidence and a later Goose close consumes that evidence."""
+    from test_mcp_plan_set_3c2_patch_apply import _real_mcp_inputs
+
+    builder, target, apply_args, _ = _real_mcp_inputs(tmp_path)
+    applied, _, _ = services.run_service(
+        tool_name="patch_apply", arguments=apply_args, session_id="apply-session", builder_root=builder,
+        target_root=target, target_name="generic",
+    )
+    assert applied["status"] == "succeeded"
+    apply_result = applied["result"]
+    from builder_ii.adapters.goose.goose_runtime_harness import _get_target_files
+    applied_snapshot = _get_target_files(target)
+    plan_path = Path(apply_result["rollback_plan_ref"]["path"])
+    reverse_path = Path(apply_result["rollback_patch_ref"]["path"])
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    approval_path = builder / "rollback-approval.json"
+    write_hitl_rollback_approval(
+        create_hitl_rollback_approval(plan, confirmed_digest_prefix=services.canonical_digest(plan)[:4]), approval_path
+    )
+    rollback_args = {
+        "rollback_plan_path": str(plan_path),
+        "rollback_reverse_patch_path": str(reverse_path),
+        "rollback_approval_path": str(approval_path),
+    }
+    rolled, _, _ = services.run_service(
+        tool_name="rollback", arguments=rollback_args, session_id="rollback-session", builder_root=builder,
+        target_root=target, target_name="generic",
+    )
+    assert rolled["status"] == "succeeded"
+    assert (target / "file.txt").read_text(encoding="utf-8") == "Line 1\nLine 2\n"
+
+    harness = GooseRuntimeHarness.__new__(GooseRuntimeHarness)
+    harness.session_id = "rollback-session"
+    harness.target_root = target
+    harness.session_plan = SimpleNamespace(target_name="generic")
+    harness._proc = None
+    harness._preflight_snapshot = applied_snapshot
+    harness._admitted_artifact_root = builder
+    real_run = subprocess.run
+    monkeypatch.setattr(
+        "builder_ii.adapters.goose.goose_runtime_harness.subprocess.run",
+        lambda *a, **k: None if a and a[0] and a[0][0] == "goose" else real_run(*a, **k),
+    )
+    _, postflight = harness.close("launch-digest")
+    assert postflight["unexplained_mutations"] == []
+    assert str(target / "file.txt") in postflight["approved_mutations"]
