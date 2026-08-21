@@ -294,8 +294,28 @@ def test_primary_surface_reaches_plan_set_6_boundary_from_canonical_evidence(mon
     approved = runner.invoke(hitl_app, list(approval.argv), input=proposal["patch_digest"][:4] + "\n")
     assert approved.exit_code == 0, approved.output
     assert approval.validator(approval.output).errors == ()
+    _write(
+        session_root / "unrelated-execution.json",
+        {
+            "kind": "builder_ii.governed_run_receipt",
+            "status": "succeeded",
+            "successful": True,
+            "session_id": SESSION,
+            "task": "unrelated governed run",
+        },
+    )
+    bare_apply = create_patch_apply_receipt(
+        target_name="generic",
+        generic_repo=tmp_path,
+        proposal_digest="a" * 64,
+        pre_apply_head="b" * 40,
+    )
+    bare_apply["status"] = "succeeded"
+    bare_apply["successful"] = True
+    _write(session_root / "bare-apply-receipt.json", bare_apply)
     projected = project_run(root, session_id=SESSION, target="generic")
     assert projected.stage == "EXECUTE", projected.errors
+    assert projected.next_action == "execute only through existing governed authority"
 
     projected = project_run(root, session_id=SESSION, target="generic")
     assert projected.stage == "EXECUTE", projected.errors

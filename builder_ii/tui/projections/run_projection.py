@@ -456,15 +456,11 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
     has_plan = bool(_PLAN_KINDS & set(by_kind))
     has_approval = bool(approvals)
     has_refusal = bool(refusals)
-    has_execution = any(str(value.get("kind", "")) in _EXECUTED_KINDS and _executed(value) for _, value in records)
+    generic_execution = any(str(value.get("kind", "")) in _EXECUTED_KINDS and _executed(value) for _, value in records)
     has_verification = any(str(value.get("kind", "")) in _VERIFIED_KINDS and _verified(value) for _, value in records)
     # Verification is not execution.  Patch execution requires the canonical
     # apply receipt (and its postflight chain), not any successful verification.
-    has_apply_execution = any(
-        str(value.get("kind", "")) == "builder_ii.hitl_patch_apply_receipt" and _executed(value)
-        for _, value in records
-    )
-    has_apply_execution = has_apply_execution or any(
+    mcp_patch_execution = any(
         value.get("service") == "patch_apply"
         and value.get("status") == "succeeded"
         and isinstance(value.get("result"), dict)
@@ -472,7 +468,10 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         and all(value["result"].get(field) for field in ("patch_apply_receipt_ref", "postflight_ref", "rollback_plan_ref", "rollback_bundle_ref", "patch_ledger_ref", "rollback_patch_ref"))
         for _, value in by_kind.get(_MCP_RECEIPT, [])
     )
-    has_execution = has_execution or has_apply_execution
+    # An active patch path can only be discharged by the validated, event-bound
+    # Plan Set 3 MCP apply chain.  Generic execution receipts and standalone
+    # hitl_patch_apply_receipts are evidence, not patch authority.
+    has_execution = mcp_patch_execution if proposals else generic_execution
     delivery_receipts = [
         value for _, value in by_kind.get(_MCP_RECEIPT, [])
         if value.get("service") in {"delivery_prepare", "delivery"}
