@@ -12,10 +12,12 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
 from builder_ii.adapters.mcp.server import GovernedMcpServer
+from builder_ii.core.config import load_settings
 from builder_ii.governance.hitl.hitl_patch_apply import (
     FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
     apply_hitl_patch,
@@ -60,7 +62,7 @@ def _git_server(tmp_path: Path) -> GovernedMcpServer:
     return _server(tmp_path)
 
 
-def _applied_delivery_server(tmp_path: Path) -> tuple[GovernedMcpServer, Path, Path, Path, str]:
+def _applied_delivery_server(tmp_path: Path, *, target_name: str = "builder") -> tuple[GovernedMcpServer, Path, Path, Path, str]:
     repo = tmp_path / "target"
     repo.mkdir()
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
@@ -78,7 +80,7 @@ def _applied_delivery_server(tmp_path: Path) -> tuple[GovernedMcpServer, Path, P
     mcp_dir = builder_root / "sessions" / "delivery_session" / "mcp"
     mcp_dir.mkdir(parents=True)
     verification_path = mcp_dir / "verification_receipt.json"
-    write_executed_verification_receipt(verification_path, repo)
+    write_executed_verification_receipt(verification_path, repo, target_profile=target_name)
     diff = (
         "diff --git a/tracked.txt b/tracked.txt\n"
         "index 90be912..3bd1f0e 100644\n"
@@ -89,12 +91,15 @@ def _applied_delivery_server(tmp_path: Path) -> tuple[GovernedMcpServer, Path, P
         "+after\n"
     )
     patch_digest = hashlib.sha256(diff.encode("utf-8")).hexdigest()
+    proposal_settings = replace(load_settings(), project_root=repo)
     proposal = create_hitl_patch_proposal(
+        settings=proposal_settings,
         generic_repo=repo,
         patch_digest=patch_digest,
         unified_diff=diff,
         target_head_sha=head,
         verification_receipt_file_sha256=hashlib.sha256(verification_path.read_bytes()).hexdigest(),
+        target_name=target_name,
     )
     proposal_path = mcp_dir / "proposal.json"
     write_hitl_patch_proposal(proposal, proposal_path)
@@ -104,11 +109,15 @@ def _applied_delivery_server(tmp_path: Path) -> tuple[GovernedMcpServer, Path, P
         approval_path,
     )
     apply_hitl_patch(proposal_path, approval_path, verification_path, mcp_dir)
+    plan_path = mcp_dir / "verification-plan.json"
+    approval_receipt_path = mcp_dir / "verification-approval.json"
+    plan_path.unlink()
+    approval_receipt_path.unlink()
     server = GovernedMcpServer(
         session_id="delivery_session",
         builder_root=builder_root,
         target_root=repo,
-        target_name="builder",
+        target_name=target_name,
     )
     return server, repo, verification_path, mcp_dir / "patch_apply_receipt.json", head
 
@@ -209,6 +218,22 @@ def test_delivery_prepare_handoff_requires_canonical_patch_to_remain_applied(tmp
     boundary_result = json.loads(boundary["result"]["content"][0]["text"])
     assert boundary_result["status"] == "HUMAN_APPROVAL_REQUIRED"
     assert boundary_result["performed_actions"] == []
+
+
+def test_delivery_prepare_blocks_evidence_from_different_target_profile(tmp_path: Path) -> None:
+    _, repo, verification_path, patch_path, head = _applied_delivery_server(tmp_path, target_name="generic")
+    server = GovernedMcpServer(
+        session_id="delivery_session",
+        builder_root=tmp_path / "artifacts",
+        target_root=repo,
+        target_name="builder",
+    )
+
+    prepared = _delivery_prepare_call(server, verification_path, patch_path, head, request_id=57)
+    assert prepared["result"]["isError"] is True
+    result = json.loads(prepared["result"]["content"][0]["text"])
+    assert result["status"] == "BLOCKED"
+    assert any("target profile" in error for error in result["errors"])
 
 
 def test_delivery_prepare_blocks_historical_apply_evidence_after_rollback(tmp_path: Path) -> None:

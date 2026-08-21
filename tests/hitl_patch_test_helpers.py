@@ -34,7 +34,7 @@ def write_core_demo_verification_receipt(path: Path, repo: Path) -> None:
     )
 
 
-def write_executed_verification_receipt(path: Path, repo: Path) -> None:
+def write_executed_verification_receipt(path: Path, repo: Path, *, target_profile: str = "generic") -> None:
     """Write a schema-valid builder_ii.verification_execution_receipt with EXECUTED status."""
     plan_path = path.parent / "verification-plan.json"
     approval_path = path.parent / "verification-approval.json"
@@ -42,8 +42,8 @@ def write_executed_verification_receipt(path: Path, repo: Path) -> None:
     plan = finalize_verification_execution_plan(
         target_head_sha=head,
         tree_clean=True,
-        target_profile="generic",
-        verification_profile="generic_basic",
+        target_profile=target_profile,
+        verification_profile="builder_full" if target_profile == "builder" else "generic_basic",
         target_repo=str(repo.resolve()),
         artifact_root=str((repo / ".builder").resolve()),
     )

@@ -277,12 +277,21 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
                 errors.append("verification evidence must be a successful EXECUTED receipt")
             if data.get("target_commit") != actual or data.get("target_repo") != str(target_root):
                 errors.append("verification evidence is not bound to the current target")
+            if data.get("target_profile") != target_name:
+                errors.append("verification evidence is not bound to the server target profile")
         else:
             errors.extend(validate_patch_apply_receipt_file(path))
             if data.get("status") != "succeeded":
                 errors.append("patch evidence must be a successful patch-apply receipt")
-            if data.get("target_repo") != str(target_root) or data.get("pre_apply_head") != actual:
+            if data.get("pre_apply_head") != actual:
                 errors.append("patch evidence is not bound to the current target HEAD")
+            patch_target = data.get("target")
+            if (
+                not isinstance(patch_target, dict)
+                or patch_target.get("name") != target_name
+                or patch_target.get("repo") != str(target_root)
+            ):
+                errors.append("patch evidence is not bound to the server target profile and repository")
             errors.extend(validate_post_apply_target_state(target_root, data))
             verification_ref = data.get("verification_receipt_digest")
             verification_data = None
