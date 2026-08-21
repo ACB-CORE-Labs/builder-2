@@ -20,7 +20,6 @@ from builder_ii.adapters.mcp.server import GovernedMcpServer
 from builder_ii.core.config import load_settings
 from builder_ii.governance.hitl.hitl_patch_apply import (
     FORWARD_PATCH_FOR_REVERSE_APPLY_FILENAME,
-    apply_hitl_patch,
     rollback_hitl_patch,
 )
 from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
@@ -108,14 +107,31 @@ def _applied_delivery_server(tmp_path: Path, *, target_name: str = "builder") ->
         create_hitl_patch_approval(proposal, confirmed_digest_prefix=patch_digest[:4]),
         approval_path,
     )
-    apply_hitl_patch(proposal_path, approval_path, verification_path, mcp_dir)
     server = GovernedMcpServer(
         session_id="delivery_session",
         builder_root=builder_root,
         target_root=repo,
         target_name=target_name,
     )
-    return server, repo, verification_path, mcp_dir / "patch_apply_receipt.json", head
+    applied = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 42,
+            "method": "tools/call",
+            "params": {
+                "name": "patch_apply",
+                "arguments": {
+                    "proposal_path": str(proposal_path),
+                    "approval_path": str(approval_path),
+                    "verification_receipt_path": str(verification_path),
+                },
+            },
+        }
+    )
+    assert applied and applied["result"]["isError"] is False
+    applied_result = json.loads(applied["result"]["content"][0]["text"])
+    patch_path = Path(applied_result["patch_apply_receipt_ref"]["path"])
+    return server, repo, verification_path, patch_path, head
 
 
 def _delivery_prepare_call(
@@ -140,7 +156,7 @@ def _delivery_prepare_call(
                         "sha256": hashlib.sha256(verification_path.read_bytes()).hexdigest(),
                     },
                     "patch_evidence": {
-                        "path": patch_path.name,
+                        "path": str(patch_path.relative_to(patch_path.parents[2])),
                         "sha256": hashlib.sha256(patch_path.read_bytes()).hexdigest(),
                     },
                 },
@@ -234,7 +250,7 @@ def test_delivery_prepare_blocks_evidence_from_different_target_profile(tmp_path
 
 def test_delivery_prepare_blocks_missing_verification_chain(tmp_path: Path) -> None:
     server, _, verification_path, patch_path, head = _applied_delivery_server(tmp_path)
-    (patch_path.parent / "verification-plan.json").unlink()
+    verification_path.parent.joinpath("verification-plan.json").unlink()
     prepared = _delivery_prepare_call(server, verification_path, patch_path, head, request_id=58)
     assert prepared["result"]["isError"] is True
     result = json.loads(prepared["result"]["content"][0]["text"])
@@ -244,7 +260,7 @@ def test_delivery_prepare_blocks_missing_verification_chain(tmp_path: Path) -> N
 
 def test_delivery_prepare_blocks_substituted_verification_approval(tmp_path: Path) -> None:
     server, _, verification_path, patch_path, head = _applied_delivery_server(tmp_path)
-    approval_path = patch_path.parent / "verification-approval.json"
+    approval_path = verification_path.parent / "verification-approval.json"
     approval = json.loads(approval_path.read_text(encoding="utf-8"))
     approval["approved_step_ids"] = ["substituted"]
     approval_path.write_text(json.dumps(approval), encoding="utf-8")

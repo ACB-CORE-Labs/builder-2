@@ -330,8 +330,40 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
         rollback_plan_path = _controlled_existing_path(patch_data.get("rollback_plan_ref"), root=root, label="rollback plan", errors=errors)
         bundle_path = _controlled_existing_path(patch_dir / "rollback_bundle.json", root=root, label="rollback bundle", errors=errors)
         ledger_path = _controlled_existing_path(patch_dir / "patch_ledger_record.json", root=root, label="patch ledger", errors=errors)
-        proposal_path = _controlled_existing_path(patch_data.get("proposal_ref"), root=root, label="patch proposal", errors=errors)
-        approval_path = _controlled_existing_path(patch_dir / "approval.json", root=root, label="patch approval", errors=errors)
+        proposal_path: Path | None = None
+        approval_path: Path | None = None
+        verification_invocation_path: Path | None = None
+        # The apply lane's ledger is the canonical record of the caller-supplied
+        # invocation artifacts.  In particular, approval_path is not required to
+        # live beside the generated apply outputs.
+        if ledger_path is not None:
+            try:
+                ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+                subject_paths = {
+                    ref.get("role"): ref.get("path")
+                    for ref in ledger.get("subject_refs", [])
+                    if isinstance(ref, dict) and isinstance(ref.get("role"), str)
+                }
+                for role, label in (
+                    ("patch_proposal", "patch proposal"),
+                    ("patch_approval", "patch approval"),
+                    ("pre_apply_verification_receipt", "patch verification receipt"),
+                ):
+                    if role not in subject_paths:
+                        errors.append(f"patch ledger is missing {role} subject reference")
+                        continue
+                    resolved = _controlled_existing_path(subject_paths[role], root=root, label=label, errors=errors)
+                    if role == "patch_proposal":
+                        proposal_path = resolved
+                    elif role == "patch_approval":
+                        approval_path = resolved
+                    else:
+                        verification_invocation_path = resolved
+            except (OSError, json.JSONDecodeError, AttributeError):
+                errors.append("patch ledger cannot be reloaded for invocation references")
+        if verification_invocation_path is not None and verification_path is not None:
+            if verification_invocation_path != verification_path:
+                errors.append("patch ledger verification receipt reference does not match supplied evidence")
         rollback_patch_path = None
         if rollback_plan_path is not None:
             try:
@@ -369,7 +401,7 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
                 invocation_paths={
                     "proposal": proposal_path,
                     "approval": approval_path,
-                    "verification_receipt": verification_path,
+                    "verification_receipt": verification_invocation_path or verification_path,
                     "rollback_patch": rollback_patch_path,
                 },
             ))
