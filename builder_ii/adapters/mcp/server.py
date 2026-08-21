@@ -216,14 +216,19 @@ class GovernedMcpServer:
                 allow_artifact_root_inside_target=self.allow_artifact_root_inside_target,
             )
             status = str(result.get("status", "succeeded"))
+            receipt_present = receipt_path is not None
+            event_present = event_path is not None
             return {
                 "content": [{"type": "text", "text": json.dumps(result.get("result", result), sort_keys=True)}],
                 "isError": status != "succeeded",
                 "_meta": {
                     "governed": True,
                     "status": status,
-                    "receipt_path": str(receipt_path),
-                    "event_path": str(event_path),
+                    "receipt_path": str(receipt_path) if receipt_present else None,
+                    "event_path": str(event_path) if event_present else None,
+                    "receipt_appended": receipt_present,
+                    "event_appended": event_present,
+                    "evidence_appended": receipt_present and event_present,
                 },
             }
         except ServiceDenied as exc:

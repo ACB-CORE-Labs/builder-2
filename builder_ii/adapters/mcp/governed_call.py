@@ -152,6 +152,20 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
             "additionalProperties": False,
         },
     },
+    "patch_apply": {
+        "tool_id": "service.patch_apply",
+        "description": "Apply one already-approved, production verification-bound HITL patch through the canonical governed apply lane.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "proposal_path": {"type": "string", "minLength": 1},
+                "approval_path": {"type": "string", "minLength": 1},
+                "verification_receipt_path": {"type": "string", "minLength": 1},
+            },
+            "required": ["proposal_path", "approval_path", "verification_receipt_path"],
+            "additionalProperties": False,
+        },
+    },
 }
 
 
