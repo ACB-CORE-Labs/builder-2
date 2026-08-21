@@ -632,8 +632,6 @@ class StratumApp(App[None]):
 
     def action_toggle_agents(self) -> None:
         """Show agent roster; second press opens compose picker for assignment."""
-        from builder_ii.tui.projections.agents import compose_assign_command
-        from builder_ii.tui.projections.authority import project_action_affordance
         from builder_ii.tui.widgets.teaming import DeepAgentTeamingScreen
 
         if self.stratum and self.stratum.mode != StratumMode.AGENT_PROFILES:
@@ -643,28 +641,14 @@ class StratumApp(App[None]):
         # `list[str] | None`: escaping the picker dismisses with no value. The `not selected_agents`
         # guard below already covered it; only the annotation disagreed.
         def on_compose(selected_agents: list[str] | None) -> None:
-            # Constitutive refusal to dispatch — compose the governed CLI only.
             if not selected_agents:
                 if self.stratum and self.stratum.mode == StratumMode.AGENT_PROFILES:
                     self.stratum.mode = StratumMode.IDLE
                 return
             target = self.settings.target_repo.name if self.settings else "generic"
             profile = selected_agents[0]
-            cmd = compose_assign_command(profile, target=target)
-            # compose_assign_command returns full binary name; strip for composer prefix style
-            prefill = cmd.removeprefix("builder-deepagents ").removeprefix("builder ")
-            if cmd.startswith("builder-deepagents"):
-                prefill = cmd
-            self.notify(
-                "STRATUM cannot dispatch subagents or write assignment artifacts; "
-                "composed assign-subagent for your terminal.",
-                severity="warning",
-            )
-            because = project_action_affordance("builder-deepagents assign-subagent").because
-            self.push_screen(
-                CLIPassthroughScreen(prefix_context=prefill),
-                lambda c: self._show_composed_command(c, because=because),
-            )
+            observation = self.invoke_stratum_command("builder-deepagents assign-subagent", target=target, task="STRATUM assignment", profile=profile)
+            self._report_stratum_observation(observation)
 
         self.push_screen(DeepAgentTeamingScreen(), on_compose)
 
@@ -718,7 +702,6 @@ class StratumApp(App[None]):
     # ── Pipeline Actions ──────────────────────────────────────────────────
 
     def action_prepare_package(self) -> None:
-        from builder_ii.tui.projections.authority import project_action_affordance
         from builder_ii.tui.widgets.workspace_builder import SessionBuilderScreen
 
         # Enter the PREPARE renderer (was dead furniture) before the compose wizard.
@@ -727,20 +710,10 @@ class StratumApp(App[None]):
 
         # `dict[str, Any] | None`: escaping the builder dismisses with no value, same as above.
         def on_save(config: dict[str, Any] | None) -> None:
-            # Collect choices only; emit is the governed CLI's job.
             if not config:
                 return
-            compose = str(config.get("compose_command") or "builder-session prepare-package")
-            self.notify(
-                "STRATUM does not write artifacts; run `builder-session prepare-package` "
-                "in your terminal (Command Composer prefilled).",
-                severity="warning",
-            )
-            because = project_action_affordance("builder-session prepare-package").because
-            self.push_screen(
-                CLIPassthroughScreen(prefix_context=compose),
-                lambda c: self._show_composed_command(c, because=because),
-            )
+            observation = self.invoke_stratum_command("builder-session prepare-package", target=str(config.get("target", "builder")), task=str(config.get("task", "STRATUM package")))
+            self._report_stratum_observation(observation)
 
         self.push_screen(SessionBuilderScreen(), on_save)
 
@@ -773,18 +746,10 @@ class StratumApp(App[None]):
 
     async def action_validate_package(self) -> None:
         """Re-verify on-disk chain; also offer the governed validate-prepare-package compose line."""
-        from builder_ii.tui.projections.authority import project_action_affordance
-
         self.notify("Re-checking artifact chain on disk…")
         await self._verify_current_chain_async()
-        # Compose the real package validator — operator runs it; STRATUM does not write.
-        because = project_action_affordance("builder-session validate-prepare-package").because
-        self.push_screen(
-            CLIPassthroughScreen(
-                prefix_context="uv run builder-session validate-prepare-package .builder/artifacts"
-            ),
-            lambda c: self._show_composed_command(c, because=because),
-        )
+        observation = self.invoke_stratum_command("builder-session validate-prepare-package", target="builder", task="")
+        self._report_stratum_observation(observation)
 
     # Fixed argv into builder-II's own governed CLI. Never `goose` directly, and never
     # `goose_launcher.launch_goose_session` -- that spawns `goose session --with-builtin
@@ -862,11 +827,20 @@ class StratumApp(App[None]):
         """
         import subprocess
 
-        with self.suspend():
-            completed = subprocess.run(argv, check=False)  # noqa: S603 - fixed argv, shell=False
+        try:
+            terminal = self.suspend()
+            with terminal:
+                completed = subprocess.run(argv, check=False)  # noqa: S603 - fixed argv, shell=False
+        except Exception as exc:
+            # Textual test/headless contexts cannot suspend. Preserve truthful failure
+            # without falling back to a different executor or claiming a handoff ran.
+            if type(exc).__name__ != "SuspendNotSupported" and "suspend" not in str(exc).lower():
+                raise
+            return 125
         return completed.returncode
 
-    def invoke_stratum_command(self, command_name: str, *, target: str, task: str) -> Any:
+    def invoke_stratum_command(self, command_name: str, *, target: str, task: str, profile: str | None = None,
+                               proposal: Path | None = None) -> Any:
         """Invoke one admitted last-mile command and validate its canonical output.
 
         This is intentionally a single seam. Callers select an identity and typed
@@ -877,15 +851,24 @@ class StratumApp(App[None]):
 
         from builder_ii.tui.stratum_commands import InvocationObservation, admit, build_command
 
-        command = build_command(command_name, target=target, task=task, output_root=self.artifacts_dir)
+        command = build_command(command_name, target=target, task=task, profile=profile, proposal=proposal, output_root=self.artifacts_dir)
         admit(command)
-        argv = (sys.executable, "-m", "builder_ii.cli.main", *command.argv)
+        argv = (sys.executable, "-m", command.entrypoint, *command.argv)
         try:
             returncode = self._run_governed_subprocess(argv)
         except (KeyboardInterrupt, EOFError):
             return InvocationObservation(command_name, None, True, command.output, ())
-        errors = tuple(command.validator(command.output)) if returncode == 0 else ()
+        errors = tuple(command.validator(command.output)) if returncode == 0 else (f"command exited {returncode}",)
         return InvocationObservation(command_name, returncode, False, command.output, errors)
+
+    def _report_stratum_observation(self, observation: Any) -> None:
+        if observation.cancelled:
+            self.notify(f"{observation.command} cancelled; no lifecycle claim made.", severity="warning")
+        elif observation.successful:
+            self.notify(f"{observation.command} completed and canonical output validated: {observation.output}")
+        else:
+            detail = "; ".join(observation.validation_errors) or "canonical command failed"
+            self.notify(f"{observation.command} failed closed: {detail}", severity="error")
 
     def _hand_off_goose_readonly(self, manifest: Path) -> None:
         """Suspend and give the terminal to start-readonly for an existing manifest path."""
@@ -992,10 +975,8 @@ class StratumApp(App[None]):
         self.notify(result.reason, severity="warning")
         if result.refused or not result.command:
             return
-        self.push_screen(
-            CLIPassthroughScreen(prefix_context=result.command),
-            self._show_composed_command,
-        )
+        proposal = Path(str(self.stratum._hitl_proposal.get("path", self.artifacts_dir / "proposal.json")))
+        self._report_stratum_observation(self.invoke_stratum_command("builder-hitl approve-patch", target="builder", task="", proposal=proposal))
 
     def action_reject_hitl(self) -> None:
         from builder_ii.tui.projections.hitl_compose import compose_hitl_reject
@@ -1012,10 +993,8 @@ class StratumApp(App[None]):
         self.notify(result.reason, severity="warning")
         if result.refused or not result.command:
             return
-        self.push_screen(
-            CLIPassthroughScreen(prefix_context=result.command),
-            self._show_composed_command,
-        )
+        proposal = Path(str(self.stratum._hitl_proposal.get("path", self.artifacts_dir / "proposal.json")))
+        self._report_stratum_observation(self.invoke_stratum_command("builder-hitl refuse-patch", target="builder", task="", proposal=proposal))
 
     def action_inspect_hitl(self) -> None:
         if not self.stratum:
