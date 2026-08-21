@@ -515,8 +515,9 @@ def test_inventory_has_only_passive_patch_surface_and_env_cannot_reactivate_lega
     assert listed is not None
     names = {tool["name"] for tool in listed["result"]["tools"]}
     assert "patch_proposal" in names
-    assert not ({"propose_patch", "run_shell", "approve_patch", "apply_patch", "rollback"} & names)
-    for retired in ("propose_patch", "run_shell", "approve_patch", "apply_patch", "rollback"):
+    assert "rollback" in names
+    assert not ({"propose_patch", "run_shell", "approve_patch", "apply_patch"} & names)
+    for retired in ("propose_patch", "run_shell", "approve_patch", "apply_patch"):
         response = server.handle_request(
             {"jsonrpc": "2.0", "id": retired, "method": "tools/call", "params": {"name": retired, "arguments": {}}}
         )
