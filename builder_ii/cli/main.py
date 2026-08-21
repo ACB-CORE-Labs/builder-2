@@ -391,9 +391,29 @@ def init(
         console.print(f"[red]invalid preset configuration:[/] {exc}")
         raise typer.Exit(2) from exc
 
+    # Use one final ConfigResolution for both passive readiness and the setup
+    # plan; readiness must not reconstruct the target from root.
+    final_overrides = {
+        field: chosen[decision_name]
+        for decision_name, field in _field_by_decision.items()
+        if field is not None and chosen.get(decision_name) is not None
+    }
+    if target_repo is not None:
+        final_overrides["target_repo"] = str(target_repo)
+    final_resolution = resolve_config_sources(
+        project_root=root,
+        builder_config_file=config_file,
+        cli_overrides=final_overrides,
+    )
+    if final_resolution.errors:
+        for error in final_resolution.errors:
+            console.print(f"[red]config resolution error:[/] {error}")
+        raise typer.Exit(1)
+    effective_target_repo = Path(final_resolution.value("target_repo")).resolve()
+
     readiness_results = passive_readiness(
         root=root,
-        target_repo=(target_repo or root).resolve(),
+        target_repo=effective_target_repo,
         canonical_repository=(
             "https://github.com/ACB-CORE-Labs/builder-2" if chosen["target_profile"] == "builder" else None
         ),
@@ -419,6 +439,7 @@ def init(
         allow_artifact_root_inside_target=_as_bool(chosen["allow_artifact_root_inside_target"]),
         preset_configuration=selected_preset,
         readiness_evidence=readiness_evidence,
+        resolution=final_resolution,
     )
     if not result.valid:
         console.out(json.dumps(result.summary_dict(), indent=2, sort_keys=True) + "\n", end="")

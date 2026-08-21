@@ -62,6 +62,17 @@ _MCP_RECEIPT = "builder_ii.mcp_service_receipt"
 _MODEL_KINDS = {"builder_ii.run_manifest", "builder_ii.model_call_receipt"}
 _TOOL_KINDS = {"builder_ii.tool_call_receipt", "builder_ii.mcp_call_receipt"}
 _OBSERVATION = "builder_ii.stratum_invocation_observation"
+_MCP_RESULT_REF_FIELDS = (
+    "patch_apply_receipt_ref",
+    "postflight_ref",
+    "rollback_plan_ref",
+    "rollback_bundle_ref",
+    "patch_ledger_ref",
+    "proposal_ref",
+    "approval_ref",
+    "verification_receipt_ref",
+    "rollback_patch_ref",
+)
 
 
 @dataclass(frozen=True)
@@ -129,17 +140,24 @@ def _observation_errors(value: dict[str, Any]) -> list[str]:
                 output_value = None
             if isinstance(output_value, dict) and value.get("canonical_digest") and canonical_digest(output_value) != value.get("canonical_digest"):
                 errors.append("observation output does not match canonical_digest")
-    if value.get("successful") is False or value.get("cancelled") is True or value.get("returncode") not in (0, None):
-        errors.append("observation records a failed or cancelled invocation")
     return errors
 
 
 def _candidate_paths(root: Path, session_id: str | None) -> tuple[Path, ...]:
     candidates: set[Path] = set()
-    session_root = root / "stratum" / "sessions" / session_id if session_id else None
-    search_roots = (
-        [session_root] if session_root is not None and session_root.exists() else ([] if session_id else [root])
-    )
+    if session_id:
+        # The two namespaces are canonical and intentionally explicit.  A
+        # selected session never falls back to global or latest evidence.
+        search_roots = [
+            candidate
+            for candidate in (
+                root / "stratum" / "sessions" / session_id,
+                root / "sessions" / session_id,
+            )
+            if candidate.exists()
+        ]
+    else:
+        search_roots = [root]
     for search_root in search_roots:
         for path in search_root.rglob("*.json"):
             if path.is_file():
@@ -165,6 +183,11 @@ def _candidate_paths(root: Path, session_id: str | None) -> tuple[Path, ...]:
             inputs = value.get("input_paths")
             if isinstance(inputs, list):
                 referenced.extend(str(item) for item in inputs if isinstance(item, str))
+        if value.get("kind") == _MCP_RECEIPT and isinstance(value.get("result"), dict):
+            for field in _MCP_RESULT_REF_FIELDS:
+                ref = value["result"].get(field)
+                if isinstance(ref, dict) and isinstance(ref.get("path"), str):
+                    referenced.append(str(ref["path"]))
         for key, item in value.items():
             if key.endswith("_ref") and isinstance(item, dict) and isinstance(item.get("path"), str):
                 referenced.append(str(item["path"]))
@@ -186,7 +209,7 @@ def _candidate_paths(root: Path, session_id: str | None) -> tuple[Path, ...]:
             if not candidate.is_absolute():
                 candidate = path.parent / candidate
             manifest = candidate / "prepare-package.json" if candidate.is_dir() else candidate
-            if manifest.is_file() and manifest.resolve() not in candidates:
+            if manifest.is_file() and manifest.suffix == ".json" and manifest.resolve() not in candidates:
                 candidates.add(manifest.resolve())
                 pending.append(manifest.resolve())
     return tuple(sorted(candidates))
@@ -208,7 +231,65 @@ def _failed(value: dict[str, Any]) -> bool:
         str(value.get(name, "")).upper()
         for name in ("status", "state", "result", "decision_result", "execution_state", "receipt_state")
     }
-    return bool(tokens & {"FAILED", "FAIL", "ERROR", "DENIED", "REFUSED"})
+    return bool(tokens & {"FAILED", "FAIL", "ERROR", "DENIED", "REFUSED"}) or (
+        value.get("successful") is False
+        or value.get("cancelled") is True
+        or value.get("returncode") not in (0, None)
+    )
+
+
+def _mcp_result_ref_errors(receipt: dict[str, Any], receipt_path: Path, by_path: dict[Path, dict[str, Any]]) -> list[str]:
+    """Validate the bounded, canonical result refs emitted by MCP services."""
+    result = receipt.get("result")
+    if not isinstance(result, dict):
+        return []
+    errors: list[str] = []
+    for field in _MCP_RESULT_REF_FIELDS:
+        ref = result.get(field)
+        if ref is None:
+            continue
+        if not isinstance(ref, dict) or not isinstance(ref.get("path"), str) or not isinstance(ref.get("sha256"), str):
+            errors.append(f"{field} is malformed")
+            continue
+        candidate = Path(ref["path"])
+        if not candidate.is_absolute():
+            candidate = receipt_path.parent / candidate
+        candidate = candidate.resolve()
+        artifact = by_path.get(candidate)
+        if artifact is None:
+            if candidate.is_file() and hashlib.sha256(candidate.read_bytes()).hexdigest() == ref["sha256"]:
+                continue
+            errors.append(f"{field} is missing from the selected session")
+            continue
+        if hashlib.sha256(candidate.read_bytes()).hexdigest() != ref["sha256"]:
+            errors.append(f"{field} digest does not bind persisted artifact")
+        if ref.get("kind") and artifact.get("kind") != ref["kind"]:
+            errors.append(f"{field} kind does not bind persisted artifact")
+    return errors
+
+
+def _mcp_event_binding_errors(
+    receipts: list[tuple[Path, dict[str, Any]]], events: list[tuple[Path, dict[str, Any]]], session_id: str | None
+) -> list[str]:
+    """Require one exact canonical event binding for each consumed MCP receipt."""
+    bindings: dict[Path, list[dict[str, Any]]] = {}
+    for _, event in events:
+        for ref in event.get("subject_refs", []) if isinstance(event.get("subject_refs"), list) else []:
+            if isinstance(ref, dict) and ref.get("role") == "mcp_service_receipt" and isinstance(ref.get("path"), str):
+                bindings.setdefault(Path(ref["path"]).resolve(), []).append(event)
+    errors: list[str] = []
+    for path, receipt in receipts:
+        matches = bindings.get(path.resolve(), [])
+        if len(matches) != 1:
+            errors.append(f"{path}: MCP receipt must have exactly one canonical event binding")
+            continue
+        event = matches[0]
+        ref = next(ref for ref in event["subject_refs"] if isinstance(ref, dict) and ref.get("role") == "mcp_service_receipt" and Path(str(ref.get("path"))).resolve() == path.resolve())
+        if event.get("session_id") != receipt.get("session_id") or ref.get("kind") != receipt.get("kind") or ref.get("sha256") != canonical_digest(receipt):
+            errors.append(f"{path}: MCP event binding does not match receipt custody")
+        if event.get("command_surface") != "builder-mcp serve":
+            errors.append(f"{path}: MCP event command surface is not canonical")
+    return errors
 
 
 def _executed(value: dict[str, Any]) -> bool:
@@ -292,6 +373,13 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         by_kind.setdefault(str(value.get("kind", "")), []).append((path, value))
     by_path = {path.resolve(): value for path, value in records}
 
+    for receipt_path, receipt in by_kind.get(_MCP_RECEIPT, []):
+        errors.extend(_mcp_result_ref_errors(receipt, receipt_path, by_path))
+    mcp_receipts = by_kind.get(_MCP_RECEIPT, [])
+    mcp_events = by_kind.get("builder_ii.event_record", [])
+    if mcp_receipts:
+        errors.extend(_mcp_event_binding_errors(mcp_receipts, mcp_events, session_id))
+
     proposals = by_kind.get(_PROPOSAL, [])
     approvals = by_kind.get(_APPROVAL, [])
     refusals = by_kind.get(_REFUSAL, [])
@@ -364,7 +452,6 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
     if replay is not None and not replay.get("valid"):
         errors.extend(f"event replay: {error}" for error in replay.get("errors", []))
 
-    corrupt = bool(errors)
     has_prepare = _PREPARE in by_kind
     has_plan = bool(_PLAN_KINDS & set(by_kind))
     has_approval = bool(approvals)
@@ -377,6 +464,14 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         str(value.get("kind", "")) == "builder_ii.hitl_patch_apply_receipt" and _executed(value)
         for _, value in records
     )
+    has_apply_execution = has_apply_execution or any(
+        value.get("service") == "patch_apply"
+        and value.get("status") == "succeeded"
+        and isinstance(value.get("result"), dict)
+        and value["result"].get("status") == "succeeded"
+        and all(value["result"].get(field) for field in ("patch_apply_receipt_ref", "postflight_ref", "rollback_plan_ref", "rollback_bundle_ref", "patch_ledger_ref", "rollback_patch_ref"))
+        for _, value in by_kind.get(_MCP_RECEIPT, [])
+    )
     has_execution = has_execution or has_apply_execution
     delivery_receipts = [
         value for _, value in by_kind.get(_MCP_RECEIPT, [])
@@ -384,15 +479,34 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         and value.get("status") in {"succeeded", "denied"}
         and isinstance(value.get("result"), dict)
     ]
-    has_delivery = bool(delivery_receipts) and any(
+    has_delivery_prepare = any(
         value.get("service") == "delivery_prepare"
         and value.get("result", {}).get("status") == "HANDOFF_PREPARED"
         for value in delivery_receipts
-    ) and any(
+    )
+    has_delivery_call = any(
         value.get("service") == "delivery"
         and value.get("result", {}).get("status") == "HUMAN_APPROVAL_REQUIRED"
         for value in delivery_receipts
     )
+    for _, value in delivery_receipts:
+        result = value.get("result", {})
+        if value.get("service") == "delivery" and result.get("status") == "HUMAN_APPROVAL_REQUIRED":
+            if result.get("performed_actions") != []:
+                errors.append("delivery boundary performed_actions must be empty")
+    has_delivery = has_delivery_prepare and has_delivery_call
+    event_sequence = {
+        Path(str(ref.get("path"))).resolve(): int(event.get("sequence", 0))
+        for _, event in mcp_events
+        for ref in event.get("subject_refs", []) if isinstance(event.get("subject_refs"), list)
+        if isinstance(ref, dict) and ref.get("role") == "mcp_service_receipt" and isinstance(ref.get("path"), str)
+    }
+    prepare_sequences = [event_sequence.get(path.resolve(), 0) for path, value in mcp_receipts if value.get("service") == "delivery_prepare" and value.get("result", {}).get("status") == "HANDOFF_PREPARED"]
+    delivery_sequences = [event_sequence.get(path.resolve(), 0) for path, value in mcp_receipts if value.get("service") == "delivery" and value.get("result", {}).get("status") == "HUMAN_APPROVAL_REQUIRED"]
+    if has_delivery and (not prepare_sequences or not delivery_sequences or min(prepare_sequences) >= min(delivery_sequences)):
+        errors.append("delivery MCP event ordering is invalid")
+        has_delivery = False
+    corrupt = bool(errors)
     promoted = False
     failed = any(_failed(value) for _, value in records)
 
@@ -410,6 +524,10 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         stage, next_action = "EXECUTE", "execute only through existing governed authority"
     elif not has_verification:
         stage, next_action = "VERIFY", "run approved verification and record its receipt"
+    elif has_verification and not has_delivery_prepare:
+        stage, next_action = "DELIVER/PROMOTE", "PLAN_SET_3_DELIVERY_PREPARE_REQUIRED"
+    elif has_verification and has_delivery_prepare and not has_delivery_call:
+        stage, next_action = "DELIVER/PROMOTE", "PLAN_SET_3_DELIVERY_BOUNDARY_REQUIRED"
     else:
         stage, next_action = "DELIVER/PROMOTE", "PLAN_SET_6_DELIVERY_AUTHORITY_REQUIRED"
 
