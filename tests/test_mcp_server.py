@@ -10,6 +10,7 @@ receipt and event under ``.builder``, and never mutates the target or enables sh
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
@@ -34,6 +35,17 @@ def _mcp_dir(tmp_path: Path) -> Path:
     return tmp_path / ".builder" / "artifacts" / "sessions" / "test_session" / "mcp"
 
 
+def _git_server(tmp_path: Path) -> GovernedMcpServer:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.email", "test@example.com"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "config", "user.name", "Test"], check=True)
+    (tmp_path / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "tracked.txt"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "commit", "-qm", "initial"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "remote", "add", "origin", "https://github.com/ACB-CORE-Labs/builder-2"], check=True)
+    return _server(tmp_path)
+
+
 def test_initialize_advertises_tools_capability(tmp_path: Path) -> None:
     resp = _server(tmp_path).handle_request({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
     assert resp is not None
@@ -50,9 +62,37 @@ def test_tools_list_advertises_services_without_legacy_mutation_tools(tmp_path: 
     assert not ({"echo", "utc_static"} & names)  # legacy stubs are compatibility-only, not admitted inventory
     assert "patch_proposal" in names
     assert "rollback" in names
+    assert {"git_status", "delivery_prepare", "delivery"} <= names
     assert not ({"propose_patch", "run_shell", "approve_patch", "apply_patch"} & names)
     for tool in resp["result"]["tools"]:
         assert tool["inputSchema"]["type"] == "object"
+
+
+def test_git_status_and_delivery_boundary_are_read_only_and_receipted(tmp_path: Path) -> None:
+    server = _git_server(tmp_path)
+    status = server.handle_request({"jsonrpc": "2.0", "id": 50, "method": "tools/call", "params": {"name": "git_status", "arguments": {}}})
+    assert status and status["result"]["isError"] is False
+    payload = json.loads(status["result"]["content"][0]["text"])
+    assert payload["git_state"]["state"] == "clean"
+    assert payload["repository_identity"]["matches"] is True
+    before = subprocess.check_output(["git", "-C", str(tmp_path), "rev-parse", "HEAD"], text=True).strip()
+    prepared = server.handle_request({"jsonrpc": "2.0", "id": 51, "method": "tools/call", "params": {"name": "delivery_prepare", "arguments": {"target_head_sha": before}}})
+    assert prepared and prepared["result"]["isError"] is False
+    assert json.loads(prepared["result"]["content"][0]["text"])["delivery_execution"] == "NOT_ADMITTED"
+    boundary = server.handle_request({"jsonrpc": "2.0", "id": 52, "method": "tools/call", "params": {"name": "delivery", "arguments": {}}})
+    assert boundary and boundary["result"]["isError"] is False
+    result = json.loads(boundary["result"]["content"][0]["text"])
+    assert result["status"] == "HUMAN_APPROVAL_REQUIRED"
+    assert result["performed_actions"] == []
+    assert subprocess.check_output(["git", "-C", str(tmp_path), "rev-parse", "HEAD"], text=True).strip() == before
+    assert validate_event_chain_integrity(_events_dir(tmp_path))["valid"]
+
+
+def test_delivery_services_reject_extra_execution_arguments(tmp_path: Path) -> None:
+    server = _git_server(tmp_path)
+    response = server.handle_request({"jsonrpc": "2.0", "id": 53, "method": "tools/call", "params": {"name": "delivery", "arguments": {"command": "git push"}}})
+    assert response and response["result"]["isError"] is True
+    assert response["result"]["_meta"]["status"] == "denied"
 
 
 def test_unknown_method_is_method_not_found(tmp_path: Path) -> None:

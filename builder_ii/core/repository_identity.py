@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 REPOSITORY_IDENTITY_KIND = "builder_ii.repository_identity_preflight"
 DEFAULT_CANONICAL_REPOSITORY = "https://github.com/ACB-CORE-Labs/builder-2"
@@ -44,6 +45,7 @@ def check_repository_identity(
     *,
     canonical_repository: str = DEFAULT_CANONICAL_REPOSITORY,
     remote_name: str = "origin",
+    repository_path: Path | None = None,
 ) -> RepositoryIdentityReport:
     """Compare a configured Git remote with the declared canonical repository."""
     try:
@@ -52,6 +54,7 @@ def check_repository_identity(
             check=False,
             capture_output=True,
             text=True,
+            cwd=str(repository_path) if repository_path is not None else None,
         )
     except OSError as exc:
         return RepositoryIdentityReport(remote_name, None, canonical_repository, False, str(exc))

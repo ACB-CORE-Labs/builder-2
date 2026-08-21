@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import stat
+import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -16,6 +17,7 @@ from builder_ii.core.config import load_settings
 from builder_ii.core.config_schema import digest_jsonable
 from builder_ii.core.config_sources import ArtifactRootPolicyError, admit_platform_artifact_root
 from builder_ii.core.demo_loop import DEMO_VERIFICATION_RECEIPT_KIND, validate_demo_verification_receipt
+from builder_ii.core.git_state import create_git_state_record, validate_git_state_record
 from builder_ii.core.governed_prepare_package import (
     create_governed_prepare_package,
     validate_governed_prepare_package_directory,
@@ -24,6 +26,7 @@ from builder_ii.core.mcp_policy import MCP_POLICY_KIND, validate_mcp_policy
 from builder_ii.core.orchestration_status import build_obligation_board
 from builder_ii.core.repo_map import create_repo_map
 from builder_ii.core.repo_search import search_repo_map
+from builder_ii.core.repository_identity import check_repository_identity
 from builder_ii.governance.authority.readonly_authority import (
     create_read_policy,
     execute_content_read,
@@ -101,6 +104,9 @@ SERVICE_TOOLS = {
     "patch_proposal",
     "patch_apply",
     "rollback",
+    "git_status",
+    "delivery_prepare",
+    "delivery",
 }
 TARGET_PROFILES = {"generic", "builder", "core"}
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -220,6 +226,68 @@ def admit_mcp_artifact_root(
 
 def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value.lower())
+
+
+def _git_read(target_root: Path, *args: str) -> str:
+    try:
+        result = subprocess.run(["git", *args], cwd=target_root, check=False, capture_output=True, text=True)
+    except OSError as exc:
+        raise ServiceDenied(f"read-only git inspection unavailable: {exc}") from exc
+    if result.returncode != 0:
+        raise ServiceDenied(f"read-only git inspection failed: {result.stderr.strip() or 'unknown error'}")
+    return result.stdout.strip()
+
+
+def _git_status(arguments: dict[str, Any], *, target_root: Path, target_name: str) -> dict[str, Any]:
+    if arguments:
+        raise ServiceDenied("git_status accepts no arguments")
+    branch = _git_read(target_root, "symbolic-ref", "--short", "-q", "HEAD") or "(detached HEAD)"
+    commit_sha = _git_read(target_root, "rev-parse", "HEAD")
+    lines = _git_read(target_root, "status", "--porcelain=v1", "--untracked-files=all").splitlines()
+    modified = sorted(line[3:] for line in lines if len(line) >= 4 and line[:2] != "??")
+    untracked = sorted(line[3:] for line in lines if line.startswith("?? "))
+    record = create_git_state_record(target_name, branch, commit_sha, "dirty" if lines else "clean", modified, untracked)
+    errors = validate_git_state_record(record)
+    if errors:
+        raise RuntimeError("git state record validation failed: " + "; ".join(errors))
+    identity = check_repository_identity(repository_path=target_root)
+    return {"kind": "builder_ii.mcp_git_status", "status": "succeeded", "git_state": record, "repository_identity": identity.as_dict(), "read_only": True}
+
+
+def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_name: str) -> dict[str, Any]:
+    allowed = {"verification_evidence", "patch_evidence", "target_head_sha"}
+    if set(arguments) - allowed:
+        raise ServiceDenied("delivery_prepare received unsupported arguments")
+    status = _git_status({}, target_root=target_root, target_name=target_name)
+    expected = arguments.get("target_head_sha")
+    actual = status["git_state"]["commit_sha"]
+    errors: list[str] = []
+    if expected is not None and expected != actual:
+        errors.append("target_head_sha does not match current HEAD")
+    evidence: dict[str, Any] = {}
+    for field in ("verification_evidence", "patch_evidence"):
+        value = arguments.get(field)
+        if value is not None:
+            if not isinstance(value, dict) or not isinstance(value.get("path"), str) or not _is_sha256(value.get("sha256")):
+                errors.append(f"{field} must be a path and SHA-256 reference")
+            else:
+                path = Path(value["path"])
+                if not path.is_file() or path.is_symlink():
+                    errors.append(f"{field} is missing or a symlink")
+                elif _file_digest(path) != value["sha256"]:
+                    errors.append(f"{field} digest does not match persisted bytes")
+                else:
+                    evidence[field] = value
+    identity = status["repository_identity"]
+    if not identity["matches"]:
+        errors.append("repository identity does not match the canonical repository")
+    return {"kind": "builder_ii.delivery_readiness_handoff", "status": "blocked" if errors else "ready_for_separate_plan_set_6_authority", "git_status": status, "evidence": evidence, "errors": errors, "delivery_execution": "NOT_ADMITTED"}
+
+
+def _delivery(arguments: dict[str, Any]) -> dict[str, Any]:
+    if arguments:
+        raise ServiceDenied("delivery accepts no execution arguments in Plan Set 3D")
+    return {"kind": "builder_ii.delivery_boundary", "status": "HUMAN_APPROVAL_REQUIRED", "reason": "DELIVERY_EXECUTION_NOT_ADMITTED until Plan Set 6 exists", "performed_actions": [], "unreachable": ["git commit", "git push", "gh", "PR create/update", "force-push", "history rewrite", "generic shell", "approval minting"]}
 
 
 def _validate_identity(*, session_id: str, target_name: str, tool_name: str) -> None:
@@ -1350,6 +1418,12 @@ def run_service(
         max_files = _bounded_int(arguments, "max_files", MAX_MAP_FILES, MAX_MAP_FILES)
         max_bytes = _bounded_int(arguments, "max_file_bytes", MAX_MAP_FILE_BYTES, MAX_MAP_FILE_BYTES)
         result = create_repo_map(target_root, target_name=target_name, max_files=max_files, max_file_bytes=max_bytes)
+    elif tool_name == "git_status":
+        result = _git_status(arguments, target_root=target_root, target_name=target_name)
+    elif tool_name == "delivery_prepare":
+        result = _delivery_prepare(arguments, target_root=target_root, target_name=target_name)
+    elif tool_name == "delivery":
+        result = _delivery(arguments)
     elif tool_name == "repo_search":
         repo_map = create_repo_map(
             target_root,
