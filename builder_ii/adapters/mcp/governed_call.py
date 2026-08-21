@@ -180,6 +180,29 @@ TOOL_SPECS: dict[str, dict[str, Any]] = {
             "additionalProperties": False,
         },
     },
+    "git_status": {
+        "tool_id": "service.git_status",
+        "description": "Inspect exact read-only Git state and canonical repository identity.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    "delivery_prepare": {
+        "tool_id": "service.delivery_prepare",
+        "description": "Assemble a passive digest-bound delivery-readiness handoff; never commits or publishes.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "target_head_sha": {"type": "string", "pattern": "^[0-9a-fA-F]{40}$"},
+                "verification_evidence": {"type": "object"},
+                "patch_evidence": {"type": "object"},
+            },
+            "additionalProperties": False,
+        },
+    },
+    "delivery": {
+        "tool_id": "service.delivery",
+        "description": "Return the Plan Set 3D delivery boundary; execution remains unavailable until Plan Set 6.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
 }
 
 

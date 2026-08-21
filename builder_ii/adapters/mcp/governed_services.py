@@ -16,6 +16,7 @@ from builder_ii.core.config import load_settings
 from builder_ii.core.config_schema import digest_jsonable
 from builder_ii.core.config_sources import ArtifactRootPolicyError, admit_platform_artifact_root
 from builder_ii.core.demo_loop import DEMO_VERIFICATION_RECEIPT_KIND, validate_demo_verification_receipt
+from builder_ii.core.git_state import capture_git_state
 from builder_ii.core.governed_prepare_package import (
     create_governed_prepare_package,
     validate_governed_prepare_package_directory,
@@ -24,6 +25,7 @@ from builder_ii.core.mcp_policy import MCP_POLICY_KIND, validate_mcp_policy
 from builder_ii.core.orchestration_status import build_obligation_board
 from builder_ii.core.repo_map import create_repo_map
 from builder_ii.core.repo_search import search_repo_map
+from builder_ii.core.repository_identity import DEFAULT_CANONICAL_REPOSITORY, check_repository_identity
 from builder_ii.governance.authority.readonly_authority import (
     create_read_policy,
     execute_content_read,
@@ -35,6 +37,7 @@ from builder_ii.governance.hitl.hitl_patch_apply import (
     git_state_fingerprint,
     rollback_hitl_patch,
     validate_patch_apply_receipt_file,
+    validate_post_apply_target_state,
     validate_rollback_bundle_file,
 )
 from builder_ii.governance.hitl.hitl_patch_approval import (
@@ -101,6 +104,9 @@ SERVICE_TOOLS = {
     "patch_proposal",
     "patch_apply",
     "rollback",
+    "git_status",
+    "delivery_prepare",
+    "delivery",
 }
 TARGET_PROFILES = {"generic", "builder", "core"}
 _SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
@@ -220,6 +226,202 @@ def admit_mcp_artifact_root(
 
 def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value.lower())
+
+
+def _controlled_existing_path(value: Any, *, root: Path, label: str, errors: list[str]) -> Path | None:
+    """Resolve a persisted chain reference without admitting filesystem aliases."""
+    if not isinstance(value, (str, Path)) or not value:
+        errors.append(f"{label} reference is missing")
+        return None
+    candidate = Path(value).resolve()
+    if not _within(candidate, root) or candidate.is_symlink() or not candidate.is_file():
+        errors.append(f"{label} reference is missing, outside the controlled namespace, or is a symlink")
+        return None
+    return candidate
+
+
+def _git_status(arguments: dict[str, Any], *, target_root: Path, target_name: str) -> dict[str, Any]:
+    if arguments:
+        raise ServiceDenied("git_status accepts no arguments")
+    record = capture_git_state(target_root, target_name)
+    canonical = DEFAULT_CANONICAL_REPOSITORY if target_name == "builder" else None
+    identity = check_repository_identity(repository_path=target_root, canonical_repository=canonical) if canonical else check_repository_identity(repository_path=target_root, canonical_repository="")
+    return {"kind": "builder_ii.mcp_git_status", "status": "succeeded", "git_state": record, "repository_identity": identity.as_dict(), "read_only": True}
+
+
+def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_name: str, builder_root: Path, session_id: str) -> dict[str, Any]:
+    allowed = {"verification_evidence", "patch_evidence", "target_head_sha"}
+    if set(arguments) - allowed:
+        raise ServiceDenied("delivery_prepare received unsupported arguments")
+    status = _git_status({}, target_root=target_root, target_name=target_name)
+    expected = arguments.get("target_head_sha")
+    actual = status["git_state"]["commit_sha"]
+    errors: list[str] = []
+    root = (builder_root / "sessions" / session_id / "mcp").resolve()
+    verification_data: dict[str, Any] | None = None
+    patch_data: dict[str, Any] | None = None
+    verification_path: Path | None = None
+    patch_path: Path | None = None
+    if not isinstance(expected, str) or expected != actual:
+        errors.append("target_head_sha is missing or does not match current HEAD")
+    evidence: dict[str, Any] = {}
+    for field in ("verification_evidence", "patch_evidence"):
+        value = arguments.get(field)
+        if not isinstance(value, dict):
+            errors.append(f"missing required {field}")
+            continue
+        path_value = value.get("path")
+        if not isinstance(path_value, str) or not isinstance(value.get("sha256"), str) or not _is_sha256(value["sha256"]):
+            errors.append(f"{field} must be a typed artifact reference")
+            continue
+        raw = Path(path_value)
+        path = (root / raw).resolve() if not raw.is_absolute() else raw.resolve()
+        if not _within(path, root) or path.is_symlink() or not path.is_file():
+            errors.append(f"{field} is outside the controlled MCP artifact namespace")
+            continue
+        if _file_digest(path) != value["sha256"]:
+            errors.append(f"{field} digest does not match persisted bytes")
+            continue
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            errors.append(f"{field} is not a readable JSON artifact")
+            continue
+        if field == "verification_evidence":
+            verification_path, verification_data = path, data
+        else:
+            patch_path, patch_data = path, data
+        if field == "verification_evidence":
+            errors.extend(validate_verification_execution_receipt_artifact(data))
+            if data.get("valid") is not True or data.get("receipt_status") != "EXECUTED":
+                errors.append("verification evidence must be a successful EXECUTED receipt")
+            if data.get("target_commit") != actual or data.get("target_repo") != str(target_root):
+                errors.append("verification evidence is not bound to the current target")
+            if data.get("target_profile") != target_name:
+                errors.append("verification evidence is not bound to the server target profile")
+        else:
+            errors.extend(validate_patch_apply_receipt_file(path))
+            if data.get("status") != "succeeded":
+                errors.append("patch evidence must be a successful patch-apply receipt")
+            if data.get("pre_apply_head") != actual:
+                errors.append("patch evidence is not bound to the current target HEAD")
+            patch_target = data.get("target")
+            if (
+                not isinstance(patch_target, dict)
+                or patch_target.get("name") != target_name
+                or patch_target.get("repo") != str(target_root)
+            ):
+                errors.append("patch evidence is not bound to the server target profile and repository")
+            errors.extend(validate_post_apply_target_state(target_root, data))
+            verification_ref = data.get("verification_receipt_digest")
+            supplied_verification_data = verification_data
+            if supplied_verification_data is None or verification_ref != canonical_digest(supplied_verification_data):
+                errors.append("patch evidence is not cross-bound to the supplied verification evidence")
+        if not errors:
+            evidence[field] = {"kind": data.get("kind"), "path": str(path), "sha256": value["sha256"]}
+    identity = status["repository_identity"]
+    if not identity["matches"]:
+        errors.append("repository identity does not match the canonical repository")
+    if verification_path is not None and verification_data is not None and patch_path is not None and patch_data is not None:
+        verification_plan_path = _controlled_existing_path(verification_data.get("plan_path"), root=root, label="verification plan", errors=errors)
+        verification_approval_path = _controlled_existing_path(verification_data.get("approval_path"), root=root, label="verification approval", errors=errors)
+        patch_dir = patch_path.parent
+        postflight_path = _controlled_existing_path(patch_data.get("postflight_ref"), root=root, label="patch postflight", errors=errors)
+        rollback_plan_path = _controlled_existing_path(patch_data.get("rollback_plan_ref"), root=root, label="rollback plan", errors=errors)
+        bundle_path = _controlled_existing_path(patch_dir / "rollback_bundle.json", root=root, label="rollback bundle", errors=errors)
+        ledger_path = _controlled_existing_path(patch_dir / "patch_ledger_record.json", root=root, label="patch ledger", errors=errors)
+        proposal_path: Path | None = None
+        approval_path: Path | None = None
+        verification_invocation_path: Path | None = None
+        # The apply lane's ledger is the canonical record of the caller-supplied
+        # invocation artifacts.  In particular, approval_path is not required to
+        # live beside the generated apply outputs.
+        if ledger_path is not None:
+            try:
+                ledger = json.loads(ledger_path.read_text(encoding="utf-8"))
+                subject_paths = {
+                    ref.get("role"): ref.get("path")
+                    for ref in ledger.get("subject_refs", [])
+                    if isinstance(ref, dict) and isinstance(ref.get("role"), str)
+                }
+                for role, label in (
+                    ("patch_proposal", "patch proposal"),
+                    ("patch_approval", "patch approval"),
+                    ("pre_apply_verification_receipt", "patch verification receipt"),
+                ):
+                    if role not in subject_paths:
+                        errors.append(f"patch ledger is missing {role} subject reference")
+                        continue
+                    resolved = _controlled_existing_path(subject_paths[role], root=root, label=label, errors=errors)
+                    if role == "patch_proposal":
+                        proposal_path = resolved
+                    elif role == "patch_approval":
+                        approval_path = resolved
+                    else:
+                        verification_invocation_path = resolved
+            except (OSError, json.JSONDecodeError, AttributeError):
+                errors.append("patch ledger cannot be reloaded for invocation references")
+        if verification_invocation_path is not None and verification_path is not None:
+            if verification_invocation_path != verification_path:
+                errors.append("patch ledger verification receipt reference does not match supplied evidence")
+        rollback_patch_path = None
+        if rollback_plan_path is not None:
+            try:
+                rollback_plan_data = json.loads(rollback_plan_path.read_text(encoding="utf-8"))
+                rollback_patch_ref = rollback_plan_data.get("rollback_patch_ref")
+                rollback_patch_path = _controlled_existing_path(
+                    rollback_patch_ref.get("path") if isinstance(rollback_patch_ref, dict) else None,
+                    root=root,
+                    label="rollback patch",
+                    errors=errors,
+                )
+            except (OSError, json.JSONDecodeError):
+                errors.append("rollback plan cannot be reloaded")
+        if all(path is not None for path in (verification_plan_path, verification_approval_path)):
+            try:
+                plan = json.loads(verification_plan_path.read_text(encoding="utf-8"))
+                approval = json.loads(verification_approval_path.read_text(encoding="utf-8"))
+                errors.extend(validate_verification_execution_plan_artifact(plan))
+                errors.extend(validate_verification_execution_approval_artifact(approval))
+                errors.extend(validate_verification_execution_approval_against_plan(approval, plan))
+                errors.extend(validate_verification_execution_receipt_against_plan_and_approval(verification_data, plan, approval))
+            except (OSError, json.JSONDecodeError) as exc:
+                errors.append(f"verification chain cannot be reloaded: {exc}")
+        if all(path is not None for path in (postflight_path, rollback_plan_path, bundle_path, ledger_path, proposal_path, approval_path, rollback_patch_path)):
+            errors.extend(_patch_evidence_errors(
+                paths={
+                    "patch_apply_receipt": patch_path,
+                    "postflight": postflight_path,
+                    "rollback_plan": rollback_plan_path,
+                    "rollback_bundle": bundle_path,
+                    "patch_ledger": ledger_path,
+                },
+                target_root=target_root,
+                target_name=target_name,
+                invocation_paths={
+                    "proposal": proposal_path,
+                    "approval": approval_path,
+                    "verification_receipt": verification_invocation_path or verification_path,
+                    "rollback_patch": rollback_patch_path,
+                },
+            ))
+    handoff_status = "BLOCKED" if errors else "HANDOFF_PREPARED"
+    return {
+        "kind": "builder_ii.delivery_readiness_handoff",
+        "status": handoff_status,
+        "git_status": status,
+        "evidence": evidence,
+        "errors": errors,
+        "delivery_execution": "NOT_ADMITTED",
+        "missing_authority": ["PLAN_SET_6_GIT_MUTATION"],
+        "next_admissible_action": "PLAN_SET_6_DELIVERY_AUTHORITY_REQUIRED",
+    }
+
+
+def _delivery(arguments: dict[str, Any]) -> dict[str, Any]:
+    if arguments:
+        raise ServiceDenied("delivery accepts no execution arguments in Plan Set 3D")
+    return {"kind": "builder_ii.delivery_boundary", "status": "HUMAN_APPROVAL_REQUIRED", "reason": "DELIVERY_EXECUTION_NOT_ADMITTED until Plan Set 6 exists", "performed_actions": [], "unreachable": ["git commit", "git push", "gh", "PR create/update", "force-push", "history rewrite", "generic shell", "approval minting"]}
 
 
 def _validate_identity(*, session_id: str, target_name: str, tool_name: str) -> None:
@@ -1350,6 +1552,12 @@ def run_service(
         max_files = _bounded_int(arguments, "max_files", MAX_MAP_FILES, MAX_MAP_FILES)
         max_bytes = _bounded_int(arguments, "max_file_bytes", MAX_MAP_FILE_BYTES, MAX_MAP_FILE_BYTES)
         result = create_repo_map(target_root, target_name=target_name, max_files=max_files, max_file_bytes=max_bytes)
+    elif tool_name == "git_status":
+        result = _git_status(arguments, target_root=target_root, target_name=target_name)
+    elif tool_name == "delivery_prepare":
+        result = _delivery_prepare(arguments, target_root=target_root, target_name=target_name, builder_root=builder_root, session_id=session_id)
+    elif tool_name == "delivery":
+        result = _delivery(arguments)
     elif tool_name == "repo_search":
         repo_map = create_repo_map(
             target_root,
@@ -1475,7 +1683,9 @@ def run_service(
 
     if _canonical_size(result) > MAX_SERVICE_OUTPUT_BYTES:
         raise RuntimeError("service result exceeds the 4194304-byte output limit")
-    if tool_name == "rollback" and isinstance(result, dict) and result.get("status") == "denied":
+    if tool_name in {"delivery", "delivery_prepare"} and isinstance(result, dict) and result.get("status") in {"BLOCKED", "HUMAN_APPROVAL_REQUIRED"}:
+        status = "denied"
+    elif tool_name == "rollback" and isinstance(result, dict) and result.get("status") == "denied":
         status = "denied"
     elif tool_name in {"patch_apply", "rollback"} and isinstance(result, dict) and result.get("status") != "succeeded":
         status = "failed"

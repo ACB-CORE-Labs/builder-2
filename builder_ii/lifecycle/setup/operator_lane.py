@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import json as json_lib
-import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -15,7 +14,7 @@ from builder_ii.core.config_sources import (
     write_config_resolution_artifact,
 )
 from builder_ii.core.context_packs import create_context_pack, dumps_context_pack
-from builder_ii.core.git_state import create_git_state_record, write_git_state_record
+from builder_ii.core.git_state import capture_git_state, create_git_state_record, write_git_state_record
 from builder_ii.core.handoff_artifacts import create_handoff_artifact, write_handoff_artifact
 from builder_ii.core.platform_completion_audit import DEFAULT_OPERATOR_LANE_READ_PATHS
 from builder_ii.core.readonly_inspection_reports import (
@@ -76,46 +75,7 @@ def _capture_git_state(target_repo: Path, target_name: TargetName) -> dict[str, 
             modified_files=["non_git_target"],
             untracked_files=[],
         )
-    branch = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        cwd=target_repo,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    commit_sha = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=target_repo,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    status = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=target_repo,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.splitlines()
-    modified: list[str] = []
-    untracked: list[str] = []
-    for line in status:
-        if len(line) < 4:
-            continue
-        path_part = line[3:].strip()
-        if line.startswith("??"):
-            untracked.append(path_part)
-        else:
-            modified.append(path_part)
-    state = "clean" if not status else "dirty"
-    return create_git_state_record(
-        target=target_name,
-        branch=branch,
-        commit_sha=commit_sha,
-        state=state,  # type: ignore[arg-type]
-        modified_files=modified,
-        untracked_files=untracked,
-    )
+    return capture_git_state(target_repo, target_name)
 
 
 def run_operator_lane(

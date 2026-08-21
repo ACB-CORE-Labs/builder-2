@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json as json_lib
 import re
+import subprocess
 from pathlib import Path
 from typing import Any, Literal
 
@@ -41,6 +42,32 @@ def create_git_state_record(
             "core_workbench_coupling": "NONE",
         },
     }
+
+
+def capture_git_state(target_repo: Path, target: RepoTarget) -> dict[str, Any]:
+    """Capture the canonical read-only Git projection used by all operator lanes."""
+    try:
+        branch = subprocess.run(
+            ["git", "symbolic-ref", "--short", "-q", "HEAD"], cwd=target_repo,
+            check=True, capture_output=True, text=True,
+        ).stdout.strip() or "(detached HEAD)"
+        commit_sha = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=target_repo,
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        lines = subprocess.run(
+            ["git", "status", "--porcelain=v1", "--untracked-files=all"], cwd=target_repo,
+            check=True, capture_output=True, text=True,
+        ).stdout.splitlines()
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ValueError(f"read-only Git state capture failed: {exc}") from exc
+    modified = sorted(line[3:] for line in lines if len(line) >= 4 and line[:2] != "??")
+    untracked = sorted(line[3:] for line in lines if line.startswith("?? "))
+    record = create_git_state_record(target, branch, commit_sha, "dirty" if lines else "clean", modified, untracked)
+    errors = validate_git_state_record(record)
+    if errors:
+        raise ValueError("canonical Git state record validation failed: " + "; ".join(errors))
+    return record
 
 
 def dumps_git_state_record(record: dict[str, Any]) -> str:

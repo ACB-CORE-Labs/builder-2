@@ -21,11 +21,10 @@ from builder_ii.adapters.goose.goose_receipts import (
 from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
 from builder_ii.core.config import Settings
 from builder_ii.governance.hitl.hitl_patch_apply import (
-    DELETED_PATH_DIGEST,
-    _worktree_delta_digest,
     compute_digest,
     get_git_head_sha,
     validate_patch_apply_receipt_file,
+    validate_post_apply_target_state,
     validate_rollback_bundle_file,
 )
 from builder_ii.governance.hitl.hitl_patch_ledger import validate_hitl_patch_ledger_record_file
@@ -228,23 +227,7 @@ def _approved_patch_close_evidence(
     expected_path_digests = receipt.get("post_apply_path_digests")
     if not isinstance(expected_path_digests, dict) or set(expected_path_digests) != approved_relative_paths:
         errors.append("apply receipt post-apply path digests do not match approved patch scope")
-    else:
-        for relative, expected_digest in expected_path_digests.items():
-            current_path = target_root / relative
-            if expected_digest == DELETED_PATH_DIGEST:
-                if current_path.exists() or current_path.is_symlink():
-                    errors.append(f"approved deleted path drifted after apply: {relative}")
-            elif not current_path.is_file() or current_path.is_symlink():
-                errors.append(f"approved path is missing or is not a regular file: {relative}")
-            elif _file_sha256(current_path) != expected_digest:
-                errors.append(f"approved path content drifted after apply: {relative}")
-    try:
-        if get_git_head_sha(target_root) != receipt.get("pre_apply_head"):
-            errors.append("target HEAD drifted after approved patch apply")
-        if _worktree_delta_digest(target_root) != receipt.get("post_apply_worktree_digest"):
-            errors.append("target index or worktree drifted after approved patch apply")
-    except (subprocess.SubprocessError, OSError) as exc:
-        errors.append(f"target Git state cannot be verified at close: {exc}")
+    errors.extend(validate_post_apply_target_state(target_root, receipt))
     if errors:
         return set(), None, list(dict.fromkeys(errors))
     summary = {

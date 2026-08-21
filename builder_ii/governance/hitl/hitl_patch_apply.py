@@ -197,6 +197,34 @@ def _post_apply_path_digests(repo_path: Path, unified_diff: str) -> dict[str, st
     return dict(sorted(digests.items()))
 
 
+def validate_post_apply_target_state(repo_path: Path, receipt: Any) -> list[str]:
+    """Prove that the target still equals a successful apply receipt's live state."""
+    if not isinstance(receipt, dict):
+        return ["patch apply receipt must be an object"]
+    errors: list[str] = []
+    expected_path_digests = receipt.get("post_apply_path_digests")
+    if not isinstance(expected_path_digests, dict) or not expected_path_digests:
+        errors.append("patch apply receipt is missing post_apply_path_digests")
+    else:
+        for relative, expected_digest in expected_path_digests.items():
+            current_path = repo_path / relative
+            if expected_digest == DELETED_PATH_DIGEST:
+                if current_path.exists() or current_path.is_symlink():
+                    errors.append(f"approved deleted path drifted after apply: {relative}")
+            elif not current_path.is_file() or current_path.is_symlink():
+                errors.append(f"approved path is missing or is not a regular file: {relative}")
+            elif _file_digest(current_path) != expected_digest:
+                errors.append(f"approved path content drifted after apply: {relative}")
+    try:
+        if get_git_head_sha(repo_path) != receipt.get("pre_apply_head"):
+            errors.append("target HEAD drifted after approved patch apply")
+        if _worktree_delta_digest(repo_path) != receipt.get("post_apply_worktree_digest"):
+            errors.append("target index or worktree drifted after approved patch apply")
+    except (subprocess.SubprocessError, OSError) as exc:
+        errors.append(f"target Git state cannot be verified after apply: {exc}")
+    return list(dict.fromkeys(errors))
+
+
 def _json_digest(data: Any) -> str:
     # Delegate to the approval module so the proposal-content binding is computed with
     # one identical algorithm on both the mint (approve) and verify (apply) sides.
