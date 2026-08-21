@@ -10,6 +10,7 @@ import pytest
 from hitl_patch_lane_helpers import PATCH_DIFF, init_target_repo, real_verification_receipt
 
 import builder_ii.adapters.mcp.governed_services as services
+from builder_ii.adapters.mcp.server import GovernedMcpServer
 from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
 from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
 
@@ -19,7 +20,9 @@ def _artifact(path: Path, value: dict[str, object]) -> Path:
     return path
 
 
-def _inputs(tmp_path: Path, *, target: Path | None = None, receipt_kind: str = "builder_ii.verification_execution_receipt") -> tuple[Path, dict[str, object]]:
+def _inputs(
+    tmp_path: Path, *, target: Path | None = None, receipt_kind: str = "builder_ii.verification_execution_receipt"
+) -> tuple[Path, dict[str, object]]:
     builder_root = tmp_path / "builder"
     builder_root.mkdir()
     target = target or (tmp_path / "target")
@@ -62,8 +65,12 @@ def test_target_mismatch_is_denied_before_canonical_executor(tmp_path: Path, mon
     monkeypatch.setattr(services, "apply_hitl_patch", apply)
     with pytest.raises(services.ServiceDenied, match="proposal target repo"):
         services.run_service(
-            tool_name="patch_apply", arguments=arguments, session_id="s", builder_root=builder_root,
-            target_root=different_target, target_name="generic",
+            tool_name="patch_apply",
+            arguments=arguments,
+            session_id="s",
+            builder_root=builder_root,
+            target_root=different_target,
+            target_name="generic",
         )
     assert executor == 0
 
@@ -75,26 +82,41 @@ def test_demo_receipt_is_denied_before_canonical_executor(tmp_path: Path, monkey
     monkeypatch.setattr(services, "apply_hitl_patch", lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError()))
     with pytest.raises(services.ServiceDenied, match="demo receipts are not admitted"):
         services.run_service(
-            tool_name="patch_apply", arguments=arguments, session_id="s", builder_root=builder_root,
-            target_root=tmp_path / "target", target_name="generic",
+            tool_name="patch_apply",
+            arguments=arguments,
+            session_id="s",
+            builder_root=builder_root,
+            target_root=tmp_path / "target",
+            target_name="generic",
         )
     assert executor == 0
 
 
-def test_post_apply_projection_failure_returns_mutation_uncertain_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_post_apply_projection_failure_returns_mutation_uncertain_evidence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     builder_root, arguments = _inputs(tmp_path)
     _patch_validation(monkeypatch)
 
     def apply(proposal: Path, approval: Path, verification: Path, output_dir: Path) -> None:
         output_dir.mkdir(parents=True)
-        for name in ("patch_apply_receipt.json", "postflight_record.json", "rollback_plan.json", "rollback_bundle.json"):
+        for name in (
+            "patch_apply_receipt.json",
+            "postflight_record.json",
+            "rollback_plan.json",
+            "rollback_bundle.json",
+        ):
             (output_dir / name).write_text("{}\n", encoding="utf-8")
 
     monkeypatch.setattr(services, "apply_hitl_patch", apply)
     monkeypatch.setattr(services, "validate_patch_apply_receipt_file", lambda path: ["forced projection failure"])
     receipt, _, _ = services.run_service(
-        tool_name="patch_apply", arguments=arguments, session_id="s", builder_root=builder_root,
-        target_root=tmp_path / "target", target_name="generic",
+        tool_name="patch_apply",
+        arguments=arguments,
+        session_id="s",
+        builder_root=builder_root,
+        target_root=tmp_path / "target",
+        target_name="generic",
     )
     payload = receipt
     assert payload["status"] == "failed"
@@ -169,7 +191,9 @@ def test_outer_receipt_persistence_failure_preserves_mutation_uncertainty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     builder_root, target, arguments, _ = _real_mcp_inputs(tmp_path)
-    monkeypatch.setattr(services, "_service_receipt", lambda **_: (_ for _ in ()).throw(OSError("receipt disk failure")))
+    monkeypatch.setattr(
+        services, "_service_receipt", lambda **_: (_ for _ in ()).throw(OSError("receipt disk failure"))
+    )
     receipt, receipt_path, event_path = services.run_service(
         tool_name="patch_apply",
         arguments=arguments,
@@ -182,8 +206,48 @@ def test_outer_receipt_persistence_failure_preserves_mutation_uncertainty(
     assert receipt["result"]["status"] == "mutation_uncertain"
     assert receipt["result"]["mutation_state"] == "APPLIED_OR_MAY_HAVE_BEEN_APPLIED"
     assert receipt["result"]["rollback_executed"] is False
-    assert receipt_path == Path("")
-    assert event_path == Path("")
+    assert receipt_path is None
+    assert event_path is None
+    assert (target / "file.txt").read_text(encoding="utf-8") == "Line 1\nLine 2 modified\n"
+
+
+def test_server_reports_absent_outer_evidence_truthfully_after_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    builder_root, target, arguments, _ = _real_mcp_inputs(tmp_path)
+    monkeypatch.setattr(
+        services, "_service_receipt", lambda **_: (_ for _ in ()).throw(OSError("receipt disk failure"))
+    )
+    server = GovernedMcpServer(
+        session_id="goose_server_persist_failure",
+        builder_root=builder_root,
+        target_root=target,
+        target_name="generic",
+    )
+    response = server.handle_request(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "patch_apply", "arguments": arguments},
+        }
+    )
+    assert response is not None
+    result = response["result"]
+    meta = result["_meta"]
+    payload = json.loads(result["content"][0]["text"])
+    assert result["isError"] is True
+    assert payload["mutation_state"] == "APPLIED_OR_MAY_HAVE_BEEN_APPLIED"
+    assert payload["rollback_executed"] is False
+    assert meta == {
+        "governed": True,
+        "status": "failed",
+        "receipt_path": None,
+        "event_path": None,
+        "receipt_appended": False,
+        "event_appended": False,
+        "evidence_appended": False,
+    }
     assert (target / "file.txt").read_text(encoding="utf-8") == "Line 1\nLine 2 modified\n"
 
 

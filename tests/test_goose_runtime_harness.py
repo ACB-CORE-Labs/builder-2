@@ -174,12 +174,10 @@ def _approved_goose_patch(tmp_path: Path) -> tuple[GooseRuntimeHarness, dict[str
     return harness, service_receipt["result"], target
 
 
-def test_governed_close_accepts_exact_approved_patch_evidence(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_governed_close_accepts_exact_approved_patch_evidence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     harness, evidence, _ = _approved_goose_patch(tmp_path)
     monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", MagicMock())
-    _, postflight = harness.close("launch-digest", approved_patch_evidence=evidence)
+    _, postflight = harness.close("launch-digest")
     assert postflight["valid"] is True
     assert postflight["mutation_mode"] == "approved_hitl_patch"
     assert postflight["approved_mutations"]
@@ -195,6 +193,34 @@ def test_governed_close_rejects_unexplained_drift_even_with_approved_patch(
     _, postflight = harness.close("launch-digest", approved_patch_evidence=evidence)
     assert postflight["valid"] is False
     assert any("unexplained.txt" in item for item in postflight["unexplained_mutations"])
+
+
+def test_governed_close_ignores_unbound_temporary_apply_patch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    harness, evidence, _ = _approved_goose_patch(tmp_path)
+    receipt_path = Path(evidence["patch_apply_receipt_ref"]["path"])
+    (receipt_path.parent / "apply.patch").write_text(
+        "--- a/unapproved.txt\n+++ b/unapproved.txt\n@@ -0,0 +1 @@\n+not authority\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", MagicMock())
+    _, postflight = harness.close("launch-digest")
+    assert postflight["valid"] is True
+    assert all("unapproved.txt" not in path for path in postflight["approved_mutations"])
+
+
+@pytest.mark.parametrize("ref_name", ["rollback_patch_ref", "proposal_ref"])
+def test_governed_close_rejects_bound_invocation_substitution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ref_name: str
+) -> None:
+    harness, evidence, _ = _approved_goose_patch(tmp_path)
+    path = Path(evidence[ref_name]["path"])
+    path.write_text(path.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", MagicMock())
+    _, postflight = harness.close("launch-digest")
+    assert postflight["valid"] is False
+    assert any("evidence invalid" in item for item in postflight["unexplained_mutations"])
 
 
 def test_goose_launch_fails_without_goose_binary(mock_settings: Settings, tmp_path: Path) -> None:
@@ -224,13 +250,25 @@ def test_governed_admission_failures_never_spawn_goose(
     if failure == "missing":
         monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary", lambda: None)
     elif failure == "probe":
-        monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.probe_goose", lambda *_: (_ for _ in ()).throw(RuntimeError("probe failed")))
+        monkeypatch.setattr(
+            "builder_ii.adapters.goose.goose_runtime_harness.probe_goose",
+            lambda *_: (_ for _ in ()).throw(RuntimeError("probe failed")),
+        )
     elif failure == "unsupported":
-        monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.probe_goose", lambda *_: (_ for _ in ()).throw(RuntimeError("unsupported")))
+        monkeypatch.setattr(
+            "builder_ii.adapters.goose.goose_runtime_harness.probe_goose",
+            lambda *_: (_ for _ in ()).throw(RuntimeError("unsupported")),
+        )
     elif failure == "recipe":
-        monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe", lambda _: (_ for _ in ()).throw(ValueError("recipe")))
+        monkeypatch.setattr(
+            "builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe",
+            lambda _: (_ for _ in ()).throw(ValueError("recipe")),
+        )
     elif failure == "tool":
-        monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe", lambda _: (_ for _ in ()).throw(FileNotFoundError("builder-mcp")))
+        monkeypatch.setattr(
+            "builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe",
+            lambda _: (_ for _ in ()).throw(FileNotFoundError("builder-mcp")),
+        )
     elif failure == "target":
         harness.target_root = tmp_path / "missing-target"
     elif failure == "session":
