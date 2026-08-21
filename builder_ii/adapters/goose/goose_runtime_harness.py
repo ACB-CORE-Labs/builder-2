@@ -303,6 +303,36 @@ def _discover_session_patch_evidence(
     return (candidates[0] if candidates else None), errors
 
 
+def _discover_session_rollback_evidence(*, artifact_root: Path | None, session_id: str, target_name: str) -> tuple[dict[str, Any] | None, list[str]]:
+    """Discover one durable successful terminal rollback result for this session."""
+    if artifact_root is None:
+        return None, []
+    root = artifact_root.resolve() / "sessions" / session_id
+    candidates: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for path in sorted((root / "mcp").glob("*_rollback_receipt.json")):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+            errors_here = validate_mcp_service_receipt(record)
+            if errors_here:
+                errors.extend(errors_here); continue
+            if record.get("session_id") != session_id or record.get("target_profile") != target_name:
+                errors.append("rollback receipt identity does not match session"); continue
+            prefix = path.name.split("_", 1)[0]
+            event = json.loads((root / "events" / f"{prefix}_mcp_service.json").read_text(encoding="utf-8"))
+            event_errors = validate_event_record(event)
+            if event_errors:
+                errors.extend(event_errors); continue
+            result = record.get("result")
+            if record.get("status") == "succeeded" and isinstance(result, dict) and result.get("status") == "succeeded":
+                candidates.append(result)
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"rollback evidence is not durable: {exc}")
+    if len(candidates) > 1:
+        errors.append("rollback evidence is duplicate or ambiguous")
+    return (candidates[0] if candidates else None), errors
+
+
 async def _get_target_files_async(target_root: Path) -> dict[str, str]:
     """Asynchronously snapshot target files using threadpool executor to avoid GIL blocks."""
     loop = asyncio.get_running_loop()
@@ -598,6 +628,11 @@ class GooseRuntimeHarness:
             if approved_patch_evidence is None
             else (approved_patch_evidence, [])
         )
+        rollback_discovered, rollback_errors = _discover_session_rollback_evidence(
+            artifact_root=self._admitted_artifact_root,
+            session_id=self.session_id,
+            target_name=getattr(self.session_plan, "target_name", "builder"),
+        )
         approved_paths, evidence_summary, evidence_errors = _approved_patch_close_evidence(
             discovered,
             session_id=self.session_id,
@@ -605,6 +640,13 @@ class GooseRuntimeHarness:
             target_name=getattr(self.session_plan, "target_name", "builder"),
             artifact_root=self._admitted_artifact_root,
         )
+        if rollback_discovered is not None:
+            # Rollback is terminal for the session: its canonical evidence supersedes the
+            # intermediate apply result and the restored tree requires no approved paths.
+            approved_paths = set()
+            evidence_summary = rollback_discovered
+            evidence_errors = rollback_errors
+            discovery_errors = []
         if mutations:
             evidence_errors = discovery_errors + evidence_errors
         approved_mutations = [

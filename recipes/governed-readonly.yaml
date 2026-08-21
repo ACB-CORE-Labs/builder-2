@@ -5,7 +5,7 @@ description: >
   MCP server; there are no developer/shell builtins. Every tool call is mediated by
   `builder-mcp serve`, which runs the governed envelope -> receipt -> ledger ceremony and
   exposes inventory-admitted passive/read services and the separately approval-gated
-  `patch_apply` transport. This recipe grants no approval-minting, rollback, shell, generic
+  `patch_apply` and separately approved `rollback` transports. This recipe grants no approval-minting, automatic rollback, shell, generic
   write, Git, or alternate patch-execution authority.
 instructions: |
   All tool calls are mediated by the builder-II governed MCP server (extension
@@ -14,16 +14,20 @@ instructions: |
   governed artifact namespace and must stop at HUMAN_APPROVAL_REQUIRED. patch_apply may
   consume only an already-created human approval and production verification-execution
   receipt, and delegates exactly once to the canonical HITL executor. It never mints approval,
-  selects a target/output, invokes rollback, executes shell/Git, or uses a second executor.
+  selects a target/output, executes shell/Git, or uses a second executor. rollback may consume
+  only a separately human-approved rollback plan and reverse patch and delegates exactly once
+  to the canonical rollback executor.
   After an approved apply, reload the canonical apply receipt, postflight, rollback plan/bundle,
   and patch-ledger evidence before closing the session. Close accepts only exact,
   session-bound approved patch evidence; every unexplained target change remains invalid.
+  A successful terminal rollback is discovered from its session-bound durable receipt and event,
+  and close validates the restored state from that canonical rollback evidence.
   Every call is recorded as a governed receipt and a hash-chained event; nothing here grants
   promotion authority.
 
   If a task requires mutation without an already-created independent approval and production
   verification-execution receipt, stop and report that it is out of scope. Creating passive
-  governed proposal evidence is allowed; approval minting, rollback, shell, generic writes,
+  governed proposal evidence is allowed; approval minting, automatic rollback, shell, generic writes,
   and Git mutation remain unavailable.
 prompt: |
   Governed HITL session ready. Only the builder-II governed MCP tools are available. Passive

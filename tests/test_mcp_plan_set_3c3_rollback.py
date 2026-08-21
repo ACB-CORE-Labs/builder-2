@@ -58,8 +58,9 @@ def test_rollback_delegates_exactly_once_and_projects_canonical_evidence(tmp_pat
         output = Path(call_args[2])
         output.mkdir(parents=True)
         approval = json.loads(Path(args["rollback_approval_path"]).read_text())
-        _write(output / "rollback_receipt.json", {"target": json.loads(Path(args["rollback_plan_path"]).read_text())["target"], "rollback_approval_digest": services.canonical_digest(approval), "rollback_state": "EXECUTED", "current_state": "OPERATIONALLY_VERIFIED", "rollback_equivalence_verified": True})
-        _write(output / "rollback_ledger_record.json", {"event_type": "patch_rolled_back"})
+        receipt = {"target": json.loads(Path(args["rollback_plan_path"]).read_text())["target"], "rollback_approval_digest": services.canonical_digest(approval), "rollback_state": "EXECUTED", "current_state": "OPERATIONALLY_VERIFIED", "rollback_equivalence_verified": True, "rollback_plan_ref": args["rollback_plan_path"], "rollback_patch_ref": {"path": args["rollback_reverse_patch_path"]}, "pre_apply_status_digest": "same", "post_rollback_status_digest": "same"}
+        _write(output / "rollback_receipt.json", receipt)
+        _write(output / "rollback_ledger_record.json", {"event_type": "patch_rolled_back", "subject_refs": [{"path": value} for value in (args["rollback_plan_path"], args["rollback_approval_path"], args["rollback_reverse_patch_path"], str(output / "rollback_receipt.json"))]})
 
     monkeypatch.setattr(services, "rollback_hitl_patch", executor)
     result = services.run_service(tool_name="rollback", arguments=args, session_id="s", builder_root=builder, target_root=tmp_path / "target", target_name="generic")[0]
