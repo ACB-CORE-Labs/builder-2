@@ -1840,7 +1840,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         approval_boundary="None.",
         output_behavior="Writes packaged bundle files.",
         failure_mode="Exits non-zero if inputs malformed.",
-        notes="Governed package preparation lane. Artifact-only.",
+        notes="Governed package preparation lane; STRATUM may hand off only through its fixed command seam.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
@@ -1854,7 +1854,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         approval_boundary="None.",
         output_behavior="Prints verification results.",
         failure_mode="Exits non-zero on validation error.",
-        notes="Governed package validator.",
+        notes="Governed package validator; STRATUM may hand off only through its fixed command seam.",
     ),
     CommandAuthorityRecord(
         name="builder-session summarize-prepare-package",
@@ -2416,7 +2416,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         approval_boundary="None.",
         output_behavior="Writes JSON files.",
         failure_mode="Exits non-zero on format mismatch.",
-        notes="Subagent assignment rendering only.",
+        notes="Subagent assignment rendering only; STRATUM may hand off only through its fixed command seam.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
@@ -2659,7 +2659,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         approval_boundary="The operator must transcribe the patch-digest prefix at an interactive prompt; there is no non-interactive approval mode.",
         output_behavior="Saves the approval JSON bound to the proposal content and patch digests, with an expiry.",
         failure_mode="Exits non-zero (writing nothing) if the proposal is invalid, has no digest, or the typed prefix does not match.",
-        notes="Governed approval-minting step: the approval it produces is evidence of a human decision, not authority in itself.",
+        notes="Governed terminal handoff: the canonical CLI mints the human decision; STRATUM remains a projection, not authority.",
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
@@ -2670,7 +2670,7 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         runtime_boundary="Records a passive refusal of a schema-valid patch proposal. No approval is minted, no patch is applied, and no source is written. Distinct from promotion rejection-record (wrong ceremony for patch proposals).",
         write_boundary="Writes a refusal JSON file to the specified output path only.",
         approval_mode=MODE_NONE,
-        approval_boundary="None — refusal is an operator-recorded non-approval, not an authority grant.",
+        approval_boundary="Canonical CLI collects the operator rationale when omitted; refusal is a non-approval, not an authority grant.",
         output_behavior="Saves the refusal JSON bound to the proposal path and patch digest when present.",
         failure_mode="Exits non-zero (writing nothing) if the proposal is invalid or rationale is empty.",
         notes="Patch-reject ceremony complementary to approve-patch. RECORDED_ONLY; not promotion-bridge.",

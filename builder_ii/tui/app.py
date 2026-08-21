@@ -589,12 +589,11 @@ class StratumApp(App[None]):
 
             copied_msg = ""
             try:
-                import pyperclip  # type: ignore[import-untyped]  # optional, not a declared dependency
-
-                pyperclip.copy(display)
+                self.copy_to_clipboard(display)
                 copied_msg = " (copied to clipboard)"
             except Exception:
                 pass
+
 
             reason_line = f"\nRegistry: {because}" if because else ""
             self.notify(
@@ -866,6 +865,27 @@ class StratumApp(App[None]):
         with self.suspend():
             completed = subprocess.run(argv, check=False)  # noqa: S603 - fixed argv, shell=False
         return completed.returncode
+
+    def invoke_stratum_command(self, command_name: str, *, target: str, task: str) -> Any:
+        """Invoke one admitted last-mile command and validate its canonical output.
+
+        This is intentionally a single seam. Callers select an identity and typed
+        values; they cannot provide an executable, shell, environment, cwd, timeout,
+        or extra flags. The returned observation is not an execution receipt.
+        """
+        import sys
+
+        from builder_ii.tui.stratum_commands import InvocationObservation, admit, build_command
+
+        command = build_command(command_name, target=target, task=task, output_root=self.artifacts_dir)
+        admit(command)
+        argv = (sys.executable, "-m", "builder_ii.cli.main", *command.argv)
+        try:
+            returncode = self._run_governed_subprocess(argv)
+        except (KeyboardInterrupt, EOFError):
+            return InvocationObservation(command_name, None, True, command.output, ())
+        errors = tuple(command.validator(command.output)) if returncode == 0 else ()
+        return InvocationObservation(command_name, returncode, False, command.output, errors)
 
     def _hand_off_goose_readonly(self, manifest: Path) -> None:
         """Suspend and give the terminal to start-readonly for an existing manifest path."""

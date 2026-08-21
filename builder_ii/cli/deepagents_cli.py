@@ -385,6 +385,8 @@ def assign_subagent(
     output: Path | None = typer.Option(None, "--output", help="Write subagent assignment JSON to path"),
 ) -> None:
     """Create a passive deepagents subagent assignment artifact."""
+    from builder_ii.governance.authority import enforce_command_authority
+    enforce_command_authority("builder-deepagents assign-subagent", requested_effects=("artifact_write",))
     plan_data = _load_json(work_plan_path)
 
     artifact = create_deepagents_subagent_assignment(

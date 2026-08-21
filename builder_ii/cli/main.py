@@ -248,6 +248,7 @@ def init(
         "--non-interactive",
         help="Never prompt; missing decisions take their resolved documented defaults.",
     ),
+    preset: str = typer.Option("solo-strict", "--preset", help="Non-authoritative onboarding preset."),
 ) -> None:
     """Unified governed onboarding orchestrator: emits plan/overlay/snapshot/intent artifacts, never applies.
 
@@ -265,8 +266,16 @@ def init(
         init_wizard_step_definitions,
         validate_decision_value,
     )
+    from builder_ii.lifecycle.setup.presets import preset_artifact
+    from builder_ii.lifecycle.setup.readiness import passive_readiness
     from builder_ii.lifecycle.setup.setup_onboarding import run_onboarding_pipeline
     from builder_ii.lifecycle.setup.wizard_framework import WizardAborted, WizardEngine, run_typer_prompt_loop
+
+    try:
+        selected_preset = preset_artifact(preset)
+    except ValueError as exc:
+        console.print(f"[red]invalid preset:[/] {exc}")
+        raise typer.Exit(2) from exc
 
     resolution = resolve_config_sources(project_root=root, builder_config_file=config_file)
     if resolution.errors:
@@ -393,6 +402,12 @@ def init(
     console.out(f"  overlay plan:      {result.setup_overlay_path}\n", end="")
     console.out(f"  rollback snapshot: {result.rollback_snapshot_path}\n", end="")
     console.out(f"  intent report:     {result.onboarding_intent_path}\n", end="")
+    console.out(f"  preset:            {preset} (configuration only; {selected_preset['routing']})\n", end="")
+    console.out("\nPassive readiness (no install/login/start/mutation):\n", end="")
+    for check in passive_readiness():
+        console.out(f"  {check.name}: {check.status} — {check.detail}\n", end="")
+        if check.status != "ready":
+            console.out(f"    remediation: {check.remediation}\n", end="")
     console.out("\nDigests:\n", end="")
     console.out(f"  setup plan digest:   {result.setup_plan['plan_digest']}\n", end="")
     console.out(f"  overlay plan digest: {result.overlay_plan['overlay_plan_digest']}\n", end="")
