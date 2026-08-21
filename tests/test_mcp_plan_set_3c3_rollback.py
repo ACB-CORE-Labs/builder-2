@@ -10,6 +10,7 @@ import pytest
 
 import builder_ii.adapters.mcp.governed_services as services
 from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
+from builder_ii.adapters.mcp.server import GovernedMcpServer
 from builder_ii.governance.hitl.hitl_rollback_approval import (
     create_hitl_rollback_approval,
     write_hitl_rollback_approval,
@@ -126,3 +127,83 @@ def test_real_apply_then_rollback_and_rollback_only_goose_close(tmp_path: Path, 
     _, postflight = harness.close("launch-digest")
     assert postflight["unexplained_mutations"] == []
     assert str(target / "file.txt") in postflight["approved_mutations"]
+    assert postflight["mutation_mode"] == "approved_hitl_rollback"
+    assert postflight["approved_patch_evidence"] is None
+    assert postflight["approved_mutation_evidence"]["session_id"] == "rollback-session"
+
+
+def _real_rollback_server_inputs(tmp_path: Path) -> tuple[Path, Path, dict[str, str]]:
+    from test_mcp_plan_set_3c2_patch_apply import _real_mcp_inputs
+
+    builder, target, apply_args, _ = _real_mcp_inputs(tmp_path)
+    applied, _, _ = services.run_service(
+        tool_name="patch_apply", arguments=apply_args, session_id="rollback-server", builder_root=builder,
+        target_root=target, target_name="generic",
+    )
+    plan_path = Path(applied["result"]["rollback_plan_ref"]["path"])
+    reverse_path = Path(applied["result"]["rollback_patch_ref"]["path"])
+    plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    approval_path = builder / "rollback-approval.json"
+    write_hitl_rollback_approval(
+        create_hitl_rollback_approval(plan, confirmed_digest_prefix=services.canonical_digest(plan)[:4]), approval_path
+    )
+    return builder, target, {
+        "rollback_plan_path": str(plan_path),
+        "rollback_reverse_patch_path": str(reverse_path),
+        "rollback_approval_path": str(approval_path),
+    }
+
+
+def test_server_reports_expired_rollback_approval_as_denied_and_preserves_target(
+    tmp_path: Path,
+) -> None:
+    builder, target, args = _real_rollback_server_inputs(tmp_path)
+    approval_path = Path(args["rollback_approval_path"])
+    approval = json.loads(approval_path.read_text(encoding="utf-8"))
+    approval["expires_at"] = 0
+    approval_path.write_text(json.dumps(approval) + "\n", encoding="utf-8")
+    before = (target / "file.txt").read_text(encoding="utf-8")
+    response = GovernedMcpServer(
+        session_id="rollback-server", builder_root=builder, target_root=target, target_name="generic"
+    ).handle_request({"id": 1, "method": "tools/call", "params": {"name": "rollback", "arguments": args}})
+    assert response is not None
+    result = json.loads(response["result"]["content"][0]["text"])
+    assert response["result"]["_meta"]["status"] == "denied"
+    assert result["status"] == "denied"
+    assert result["mutation_state"] == "NO_MUTATION"
+    assert (target / "file.txt").read_text(encoding="utf-8") == before
+
+
+def test_server_reports_command_authority_refusal_as_denied(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    builder, target, args = _real_rollback_server_inputs(tmp_path)
+    monkeypatch.setattr(
+        services,
+        "rollback_hitl_patch",
+        lambda *a, **k: (_ for _ in ()).throw(services.ServiceDenied("command authority denied")),
+    )
+    response = GovernedMcpServer(
+        session_id="rollback-server", builder_root=builder, target_root=target, target_name="generic"
+    ).handle_request({"id": 2, "method": "tools/call", "params": {"name": "rollback", "arguments": args}})
+    assert response is not None
+    result = json.loads(response["result"]["content"][0]["text"])
+    assert response["result"]["_meta"]["status"] == "denied"
+    assert result["mutation_state"] == "NO_MUTATION"
+
+
+def test_malformed_rollback_target_is_invalid_close_not_attribute_error(tmp_path: Path) -> None:
+    from builder_ii.adapters.goose.goose_runtime_harness import _validated_rollback_close_evidence
+
+    result = {
+        key: {"path": str(tmp_path / f"{key}.json"), "sha256": "0" * 64}
+        for key in (
+            "rollback_receipt_ref", "rollback_ledger_ref", "rollback_plan_ref",
+            "rollback_approval_ref", "rollback_reverse_patch_ref",
+        )
+    }
+    (tmp_path / "rollback_plan_ref.json").write_text(json.dumps({"target": None}) + "\n", encoding="utf-8")
+    paths, summary, errors = _validated_rollback_close_evidence(
+        result, artifact_root=tmp_path, session_id="s", target_root=tmp_path, target_name="generic"
+    )
+    assert paths == set()
+    assert summary is None
+    assert errors

@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import stat
+import subprocess
 import time
 import uuid
 from pathlib import Path
@@ -131,6 +132,23 @@ def _canonical_size(value: Any) -> int:
 
 def _file_digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _target_state_fingerprint(target_root: Path) -> tuple[str, str] | None:
+    try:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=target_root, check=True, capture_output=True, text=True
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+            cwd=target_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        return head, hashlib.sha256(status.encode("utf-8")).hexdigest()
+    except (OSError, subprocess.SubprocessError):
+        return None
 
 
 def _service_policy(tool_name: str) -> dict[str, Any]:
@@ -1062,6 +1080,7 @@ def _rollback(
         return refs
 
     try:
+        pre_call_state = _target_state_fingerprint(target_root)
         rollback_hitl_patch(plan_path, reverse_patch_path, output_dir, approval_path=approval_path)
         receipt_path = output_dir / "rollback_receipt.json"
         ledger_path = output_dir / "rollback_ledger_record.json"
@@ -1130,6 +1149,19 @@ def _rollback(
                     "rollback_reverse_patch_ref": {"path": str(reverse_patch_path), "sha256": _file_digest(reverse_patch_path)},
                     **refs,
                 }
+        post_call_state = _target_state_fingerprint(target_root)
+        if pre_call_state is not None and post_call_state == pre_call_state:
+            return {
+                "kind": "builder_ii.mcp_rollback_result",
+                "status": "denied",
+                "mutation_state": "NO_MUTATION",
+                "canonical_executor": "builder_ii.governance.hitl.hitl_patch_apply.rollback_hitl_patch",
+                "error": str(exc)[:500],
+                "rollback_plan_ref": {"path": str(plan_path), "sha256": _file_digest(plan_path)},
+                "rollback_approval_ref": {"path": str(approval_path), "sha256": _file_digest(approval_path)},
+                "rollback_reverse_patch_ref": {"path": str(reverse_patch_path), "sha256": _file_digest(reverse_patch_path)},
+                **refs,
+            }
         return {
             "kind": "builder_ii.mcp_rollback_result",
             "status": "rollback_uncertain",
@@ -1460,7 +1492,9 @@ def run_service(
 
     if _canonical_size(result) > MAX_SERVICE_OUTPUT_BYTES:
         raise RuntimeError("service result exceeds the 4194304-byte output limit")
-    if tool_name in {"patch_apply", "rollback"} and isinstance(result, dict) and result.get("status") != "succeeded":
+    if tool_name == "rollback" and isinstance(result, dict) and result.get("status") == "denied":
+        status = "denied"
+    elif tool_name in {"patch_apply", "rollback"} and isinstance(result, dict) and result.get("status") != "succeeded":
         status = "failed"
     elif tool_name == "verification_execute" and isinstance(result, dict):
         status = "succeeded" if result.get("receipt_status") == "EXECUTED" and result.get("valid") is True else "denied"
@@ -1494,18 +1528,29 @@ def run_service(
                 for key, value in result.items()
                 if key.endswith("_ref") and isinstance(value, dict) and {"path", "sha256"} <= set(value)
             }
-            recovery_result = _mutation_uncertain_result(
-                error=f"MCP outer evidence persistence failed after canonical {tool_name}: {exc}",
-                evidence=evidence,
-                rollback=tool_name == "rollback",
-            )
+            if tool_name == "rollback" and result.get("status") == "denied":
+                recovery_result = {
+                    "kind": "builder_ii.mcp_rollback_result",
+                    "status": "denied",
+                    "mutation_state": "NO_MUTATION",
+                    "error": f"MCP outer evidence persistence failed after canonical rollback: {exc}"[:500],
+                    "canonical_executor": result.get("canonical_executor"),
+                    "additional_rollback_executed": False,
+                    **evidence,
+                }
+            else:
+                recovery_result = _mutation_uncertain_result(
+                    error=f"MCP outer evidence persistence failed after canonical {tool_name}: {exc}",
+                    evidence=evidence,
+                    rollback=tool_name == "rollback",
+                )
             recovery_receipt = {
                 "kind": "builder_ii.mcp_service_receipt",
                 "schema_version": 2,
                 "target_profile": target_name,
                 "session_id": session_id,
                 "service": tool_name,
-                "status": "failed",
+                "status": "denied" if recovery_result.get("status") == "denied" else "failed",
                 "arguments": arguments,
                 "result": recovery_result,
                 "governance": {

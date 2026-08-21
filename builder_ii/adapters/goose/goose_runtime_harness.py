@@ -61,6 +61,14 @@ def _file_sha256(path: Path) -> str | None:
         return None
 
 
+def _is_beneath(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
 def _get_target_files(target_root: Path) -> dict[str, str]:
     """Snapshot target files by content digest, not timestamp granularity."""
     snapshot: dict[str, str] = {}
@@ -315,8 +323,13 @@ def _discover_session_rollback_evidence(*, artifact_root: Path | None, session_i
     root = artifact_root.resolve() / "sessions" / session_id
     candidates: list[dict[str, Any]] = []
     errors: list[str] = []
-    for path in sorted((root / "mcp").glob("*_rollback_receipt.json")):
+    outer_root = root / "mcp"
+    events_root = root / "events"
+    for path in sorted(outer_root.glob("*_rollback_receipt.json")):
         try:
+            if path.is_symlink() or not path.is_file() or path.parent != outer_root:
+                errors.append("rollback outer receipt is missing, a symlink, or outside the session MCP namespace")
+                continue
             record = json.loads(path.read_text(encoding="utf-8"))
             errors_here = validate_mcp_service_receipt(record)
             if errors_here:
@@ -324,7 +337,11 @@ def _discover_session_rollback_evidence(*, artifact_root: Path | None, session_i
             if record.get("session_id") != session_id or record.get("target_profile") != target_name:
                 errors.append("rollback receipt identity does not match session"); continue
             prefix = path.name.split("_", 1)[0]
-            event = json.loads((root / "events" / f"{prefix}_mcp_service.json").read_text(encoding="utf-8"))
+            event_path = events_root / f"{prefix}_mcp_service.json"
+            if event_path.is_symlink() or not event_path.is_file() or event_path.parent != events_root:
+                errors.append("rollback outer event is missing, a symlink, or outside the session event namespace")
+                continue
+            event = json.loads(event_path.read_text(encoding="utf-8"))
             event_errors = validate_event_record(event)
             bound = any(
                 isinstance(ref, dict)
@@ -347,10 +364,14 @@ def _discover_session_rollback_evidence(*, artifact_root: Path | None, session_i
 
 
 def _validated_rollback_close_evidence(
-    result: dict[str, Any], *, target_root: Path, target_name: str
+    result: dict[str, Any], *, artifact_root: Path | None, session_id: str, target_root: Path, target_name: str
 ) -> tuple[set[str], dict[str, Any] | None, list[str]]:
     """Revalidate rollback bytes and derive close scope solely from its bound reverse patch."""
     errors: list[str] = []
+    if artifact_root is None:
+        errors.append("Goose session has no admitted Builder-II artifact root")
+    rollback_root = (artifact_root / "sessions" / session_id / "mcp" / "rollback").resolve() if artifact_root else None
+    session_root = (artifact_root / "sessions" / session_id).resolve() if artifact_root else None
     refs: dict[str, Path] = {}
     for key in ("rollback_receipt_ref", "rollback_ledger_ref", "rollback_plan_ref", "rollback_approval_ref", "rollback_reverse_patch_ref"):
         ref = result.get(key)
@@ -359,6 +380,14 @@ def _validated_rollback_close_evidence(
         else:
             path = Path(ref["path"])
             refs[key] = path
+            if key in {"rollback_receipt_ref", "rollback_ledger_ref"} and (
+                rollback_root is None or not _is_beneath(path, rollback_root)
+            ):
+                errors.append(f"rollback {key} is outside the session rollback namespace")
+            if key in {"rollback_plan_ref", "rollback_approval_ref", "rollback_reverse_patch_ref"} and (
+                session_root is None or not _is_beneath(path, artifact_root.resolve())
+            ):
+                errors.append(f"rollback {key} is outside the admitted Builder-II artifact root")
             if path.is_symlink() or not path.is_file():
                 errors.append(f"rollback {key} is missing or a symlink")
             elif _file_sha256(path) != ref["sha256"]:
@@ -387,7 +416,8 @@ def _validated_rollback_close_evidence(
     approval = loaded.get("rollback_approval_ref")
     target = {"name": target_name, "repo": str(target_root.resolve())}
     for label, artifact in (("receipt", receipt), ("ledger", ledger), ("plan", plan), ("approval", approval)):
-        if not isinstance(artifact, dict) or artifact.get("target", {}).get("name") != target["name"] or Path(str(artifact.get("target", {}).get("repo", ""))).resolve() != target_root.resolve():
+        artifact_target = artifact.get("target") if isinstance(artifact, dict) else None
+        if not isinstance(artifact_target, dict) or artifact_target.get("name") != target["name"] or Path(str(artifact_target.get("repo", ""))).resolve() != target_root.resolve():
             errors.append(f"rollback {label} target is not bound to Goose target")
     reverse = refs.get("rollback_reverse_patch_ref")
     plan_ref = plan.get("rollback_patch_ref") if isinstance(plan, dict) else None
@@ -439,7 +469,7 @@ def _validated_rollback_close_evidence(
             errors.append(f"rollback reverse patch is invalid: {exc}")
     if errors:
         return set(), None, list(dict.fromkeys(errors))
-    return approved_paths, {"session_id": result.get("session_id"), **{key: result[key] for key in result if key.endswith("_ref")}}, []
+    return approved_paths, {"session_id": session_id, **{key: result[key] for key in result if key.endswith("_ref")}}, []
 
 
 async def _get_target_files_async(target_root: Path) -> dict[str, str]:
@@ -754,6 +784,8 @@ class GooseRuntimeHarness:
             # changed-path scope. Revalidate the restored target before classifying deltas.
             approved_paths, evidence_summary, evidence_errors = _validated_rollback_close_evidence(
                 rollback_discovered,
+                artifact_root=self._admitted_artifact_root,
+                session_id=self.session_id,
                 target_root=self.target_root,
                 target_name=getattr(self.session_plan, "target_name", "builder"),
             )
@@ -777,7 +809,10 @@ class GooseRuntimeHarness:
             mutations_detected=mutations,
             approved_mutations=approved_mutations,
             unexplained_mutations=unexplained_mutations,
-            approved_patch_evidence=evidence_summary,
+            mutation_mode="approved_hitl_rollback" if rollback_discovered is not None else (
+                "approved_hitl_patch" if evidence_summary else "no_mutation"
+            ),
+            approved_mutation_evidence=evidence_summary,
         )
 
         # Export the actual transcript to a JSON log instead of timestamp guessing
@@ -889,6 +924,8 @@ class GooseRuntimeHarness:
         if rollback_discovered is not None:
             approved_paths, evidence_summary, evidence_errors = _validated_rollback_close_evidence(
                 rollback_discovered,
+                artifact_root=self._admitted_artifact_root,
+                session_id=self.session_id,
                 target_root=self.target_root,
                 target_name=getattr(self.session_plan, "target_name", "builder"),
             )
@@ -912,7 +949,10 @@ class GooseRuntimeHarness:
             mutations_detected=mutations,
             approved_mutations=approved_mutations,
             unexplained_mutations=unexplained_mutations,
-            approved_patch_evidence=evidence_summary,
+            mutation_mode="approved_hitl_rollback" if rollback_discovered is not None else (
+                "approved_hitl_patch" if evidence_summary else "no_mutation"
+            ),
+            approved_mutation_evidence=evidence_summary,
         )
 
         # Export the actual transcript to a JSON log instead of timestamp guessing
