@@ -3,6 +3,7 @@ use serde_json::Value;
 use std::env;
 use std::io::{self, Read};
 
+mod validation;
 
 
 fn main() {
@@ -48,7 +49,7 @@ fn main() {
         }
     };
 
-    let errors = validate_artifact(&kind, &json_data);
+    let errors = validation::validate_artifact_core(&kind, &json_data);
     let valid = errors.is_empty();
     
     println!("{}", serde_json::json!({
