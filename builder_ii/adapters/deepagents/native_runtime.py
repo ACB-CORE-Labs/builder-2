@@ -56,6 +56,7 @@ from builder_ii.core.orchestration_obligation import validate_orchestration_obli
 from builder_ii.core.tool_invocation_gateway import execute_tool_envelope
 from builder_ii.governance.ledger.workflow_records import canonical_digest
 from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+from builder_ii.routing.model_route_binding import ModelRouteBinding, advance_route_budget
 
 _NATIVE_ALLOWED_TOOLS = frozenset({"task", "builder_governed_echo", "builder_request_hitl"})
 _DENIED_NATIVE_CAPABILITIES = (
@@ -156,6 +157,8 @@ class GatewayBackedChatModel(BaseChatModel):
 
     gateway: ModelExecutionGateway = Field(exclude=True)
     model_id: str
+    route: ModelRouteBinding = Field(exclude=True)
+    budget: dict[str, Any] = Field(exclude=True)
     output_dir: Path = Field(exclude=True)
     session_id: str
     max_tokens: int = 256
@@ -170,6 +173,7 @@ class GatewayBackedChatModel(BaseChatModel):
     _counter: int = PrivateAttr(default=0)
     _counter_initialized: bool = PrivateAttr(default=False)
     _counter_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
+    _budget_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
     _bound_tool_names: tuple[str, ...] = PrivateAttr(default=())
 
     @property
@@ -208,17 +212,17 @@ class GatewayBackedChatModel(BaseChatModel):
         envelope_path = model_dir / f"model-call-{sequence:04d}-envelope.json"
         receipt_path = model_dir / f"model-call-{sequence:04d}-receipt.json"
         system_prompt, prompt = _messages_prompt(messages)
-        _envelope, receipt, _budget = self.gateway.run_model_call(
-            model_id=self.model_id,
-            prompt=prompt,
-            system_prompt=system_prompt,
-            max_tokens=self.max_tokens,
-            temperature=self.temperature,
-            envelope_path=envelope_path,
-            receipt_path=receipt_path,
-            approval_path=self.approval_path,
-            session_id=self.session_id,
-        )
+        if self.model_id != self.route.selected_candidate.model_id:
+            raise ValueError("Deep Agents runtime model does not equal WRP-selected model")
+        with self._budget_lock:
+            _envelope, receipt, debited = self.gateway.run_routed_model_call(
+                route=self.route, prompt=prompt, system_prompt=system_prompt,
+                envelope_path=envelope_path, receipt_path=receipt_path,
+                budget=self.budget, requested_model_id=self.model_id,
+            )
+            if debited is not None:
+                self.budget = debited
+                self.route = advance_route_budget(self.route, debited)
         if self.receipt_callback is not None:
             self.receipt_callback(receipt, receipt_path)
         response = self.response_strategy(receipt, messages)
@@ -712,7 +716,8 @@ class NativeDeepAgentsRuntime:
         self,
         *,
         gateway: ModelExecutionGateway,
-        model_id: str,
+        route: ModelRouteBinding,
+        budget: dict[str, Any],
         obligations: Sequence[dict[str, Any]],
         output_dir: Path,
         session_id: str,
@@ -722,7 +727,9 @@ class NativeDeepAgentsRuntime:
         model_approval_path: Path | None = None,
     ) -> None:
         self.gateway = gateway
-        self.model_id = model_id
+        self.model_id = route.selected_candidate.model_id
+        self.route = route
+        self.budget = budget
         self.obligations = [dict(obligation) for obligation in obligations]
         self.output_dir = output_dir
         self.session_id = session_id
@@ -753,7 +760,9 @@ class NativeDeepAgentsRuntime:
 
         self.model = GatewayBackedChatModel(
             gateway=gateway,
-            model_id=model_id,
+            model_id=self.model_id,
+            route=route,
+            budget=budget,
             output_dir=output_dir,
             session_id=session_id,
             max_tokens=self.limits.max_tokens_per_call,

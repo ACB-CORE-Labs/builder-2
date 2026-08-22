@@ -9,6 +9,7 @@ from builder_ii.adapters.goose.goose_wrapper_plan import create_goose_wrapper_pl
 from builder_ii.core.config import Settings
 from builder_ii.core.orchestration_plan import validate_orchestration_plan
 from builder_ii.core.session_config import create_session_configuration, validate_session_configuration
+from builder_ii.lifecycle.candidate.verification_profiles import VerificationProfileName
 
 ORCHESTRATION_DRY_RUN_KIND = "builder_ii.orchestration_dry_run"
 ORCHESTRATION_DRY_RUN_SCHEMA_VERSION = 1
@@ -19,7 +20,7 @@ def create_orchestration_dry_run(
     orchestration_plan: dict[str, Any],
     *,
     repo_path: str,
-    verification_profile_name: str = "generic_basic",
+    verification_profile_name: VerificationProfileName = "generic_basic",
     generic_repo: Path | None = None,
 ) -> dict[str, Any]:
     plan_errors = validate_orchestration_plan(orchestration_plan)

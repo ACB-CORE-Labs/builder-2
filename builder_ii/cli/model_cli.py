@@ -79,7 +79,7 @@ def _previous_event_ref(existing_records: list) -> dict | None:
 
 @model_app.command("call")
 def call_cmd(
-    model: str = typer.Option(..., "--model", help="Model ID (e.g. gpt-4o-stub) to call."),
+    model: str | None = typer.Option(None, "--model", help="Optional assertion; must equal WRP-selected model."),
     prompt: str | None = typer.Option(None, "--prompt", help="Text prompt to send to the model."),
     prompt_file: Path | None = typer.Option(None, "--prompt-file", help="Path to a file containing the prompt text."),
     system_prompt: str | None = typer.Option(None, "--system-prompt", help="System prompt to override defaults."),
@@ -89,6 +89,10 @@ def call_cmd(
     execution_policy_path: Path | None = typer.Option(
         None, "--execution-policy", help="Path to model execution policy JSON."
     ),
+    recommendation_path: Path = typer.Option(..., "--model-recommendation"),
+    assignment_path: Path = typer.Option(..., "--model-assignment"),
+    budget_path: Path = typer.Option(..., "--model-budget"),
+    cloud_approval_path: Path | None = typer.Option(None, "--cloud-approval"),
     output_envelope: Path = typer.Option(..., "--output-envelope", help="Path to write the generated envelope JSON."),
     output_receipt: Path = typer.Option(..., "--output-receipt", help="Path to write the execution receipt JSON."),
     session_id: str | None = typer.Option(None, "--session-id", help="Optional workflow session ID to log the event."),
@@ -123,9 +127,14 @@ def call_cmd(
     import json as json_lib
 
     execution_policy = json_lib.loads(execution_policy_path.read_text(encoding="utf-8"))
+    recommendation = _read_json(recommendation_path, lambda: {})
+    assignment = _read_json(assignment_path, lambda: {})
+    budget = _read_json(budget_path, lambda: {})
+    cloud_approval = _read_json(cloud_approval_path, lambda: {}) if cloud_approval_path is not None else None
 
     settings = load_settings()
-    gateway = ModelExecutionGateway(settings, registry, execution_policy)
+    from builder_ii.routing.gateway_invocation import governed_invocation_engine
+    from builder_ii.routing.model_route_binding import build_model_route_binding
 
     if not session_id:
         console.print(
@@ -133,16 +142,29 @@ def call_cmd(
         )
         raise typer.Exit(1)
 
+    route = build_model_route_binding(
+        recommendation=recommendation, assignment=assignment, execution_policy=execution_policy,
+        registry=registry, budget=budget, session_id=session_id, run_id=session_id,
+        obligation_id=str(((assignment.get("bindings") or {}).get("task") or {}).get("profile_entry_id") or session_id),
+        role=str(((assignment.get("bindings") or {}).get("agent") or {}).get("name") or "model_call"),
+        temperature=temperature, max_tokens=max_tokens, cloud_approval=cloud_approval,
+    )
+    gateway = ModelExecutionGateway(
+        settings, registry, execution_policy,
+        invocation_engine=governed_invocation_engine(settings),
+    )
+
     try:
-        envelope, receipt, _debited = gateway.run_model_call(
-            model_id=model,
+        envelope, receipt, _debited = gateway.run_routed_model_call(
+            route=route,
             prompt=actual_prompt,
-            system_prompt=system_prompt,
-            max_tokens=max_tokens,
-            temperature=temperature,
+            system_prompt=system_prompt or "Answer helpfully.",
             envelope_path=output_envelope,
             receipt_path=output_receipt,
             ledger_bound=True,
+            budget=budget,
+            budget_path=budget_path,
+            requested_model_id=model,
         )
     except Exception as exc:
         console.print(f"[red]Model execution failed: {exc}[/]")
@@ -210,7 +232,7 @@ def call_cmd(
             command_surface="builder-model call",
             policy_snapshot_ref=_artifact_ref(execution_policy, execution_policy_path, "model_execution_policy"),
             previous_event_ref=_previous_event_ref(existing_records),
-            message=f"Model call executed: {model}",
+            message=f"Model call executed: {route.selected_candidate.model_id}",
         )
         write_event_record(event_record, events_dir / f"{sequence:03d}_model_call_executed.json")
         console.print("Workflow event logged to ledger.")
@@ -300,6 +322,51 @@ def validate_receipt_cmd(
             console.print(f"[red]Validation error: {err}[/]")
         raise typer.Exit(1)
     console.print(f"[green]Receipt {path} is valid.[/]", soft_wrap=True)
+
+
+@model_app.command("benchmark")
+def benchmark_cmd(
+    profile: str = typer.Option("m1-v1", "--profile"),
+    output: Path = typer.Option(..., "--output"),
+    samples: Path = typer.Option(..., "--samples", help="Frozen raw M1 measurement samples JSON."),
+    route_digest: str = typer.Option(..., "--route-digest"),
+    policy_digest: str = typer.Option(..., "--policy-digest"),
+    budget_digest: str = typer.Option(..., "--budget-digest"),
+    backend: str = typer.Option(..., "--backend"),
+    provider: str = typer.Option(..., "--provider"),
+    client: str = typer.Option(..., "--client"),
+    model: str = typer.Option(..., "--model"),
+) -> None:
+    """Seal M1-v1 methodology and derive the benchmark report from raw samples."""
+    enforce_command_authority("builder-model benchmark", requested_effects=("artifact_write",))
+    if profile != "m1-v1":
+        console.print("[red]Only the frozen m1-v1 profile is supported.[/]")
+        raise typer.Exit(1)
+    if not samples.is_file():
+        console.print(f"[red]Samples file not found: {samples}[/]")
+        raise typer.Exit(1)
+    import subprocess
+
+    from builder_ii.benchmark.model_runtime import build_manifest, build_report, write_json
+
+    try:
+        raw_samples = json_lib.loads(samples.read_text(encoding="utf-8"))
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], capture_output=True, text=True, check=True).stdout.strip()
+        manifest = build_manifest(git_commit=commit, git_tree=tree, backend=backend, provider=provider,
+                                  client=client, model=model, route_digest=route_digest,
+                                  policy_digest=policy_digest, budget_digest=budget_digest)
+        report = build_report(manifest=manifest, samples=raw_samples)
+    except Exception as exc:
+        console.print(f"[red]Benchmark failed closed: {exc}[/]")
+        raise typer.Exit(1)
+    write_json(manifest, output / "model-runtime-benchmark-manifest.json")
+    write_json(report, output / "model-runtime-benchmark-report.json")
+    console.print(json_lib.dumps({"overall_state": report["overall_state"],
+                                  "manifest_digest": manifest["manifest_digest"],
+                                  "report_digest": report["report_digest"]}, sort_keys=True))
+    if report["overall_state"] != "PASS":
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

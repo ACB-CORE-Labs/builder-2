@@ -141,6 +141,11 @@ builder-II admits deepagents as an optional governed inner orchestration harness
 
 The bounded native lane uses the official `deepagents.create_deep_agent` factory. Every model call passes through `ModelExecutionGateway`; executable tools pass through Builder-II policy; subagents come from sealed WRP obligations; and HITL resume binds to a digest-verified persisted checkpoint. The default is two active workers, the hard cap is four, and the parent and subagents share one model adapter so multiple large local models are never loaded concurrently.
 
+Canonical model routing is WRP-bound for Deep Agents and Goose. Both runtimes use
+the sole `ModelExecutionGateway`, including streaming, cancellation, bounded retry,
+governed failover, warm reuse, cloud disclosure, and receipt/budget truth. See
+[`docs/MODEL_RUNTIME_GATEWAY.md`](docs/MODEL_RUNTIME_GATEWAY.md).
+
 Subagent output remains proposal/evidence unless a separate builder-II review and promotion path says otherwise.
 
 ### MCP

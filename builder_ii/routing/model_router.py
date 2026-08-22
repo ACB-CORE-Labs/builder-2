@@ -82,6 +82,8 @@ class SessionPlan:
     planner_same_as_execution: bool  # Always True on M1 16GB
     confidence: str  # 'high' | 'medium' | 'low'
     rationale: str
+    target_name: str = "builder"
+    agent_profile: str = "patch_planner"
 
 
 def recipe_for_mode(mode: str) -> str:

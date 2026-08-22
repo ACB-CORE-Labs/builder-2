@@ -4,12 +4,21 @@ import hashlib
 import json as json_lib
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from builder_ii.core.config import Settings
 from builder_ii.routing.direct_chat import run_direct_chat
+from builder_ii.routing.gateway_invocation import (
+    CancellationToken,
+    GatewayInvocationEngine,
+    InvocationResult,
+)
 from builder_ii.routing.model_client_registry import (
     validate_model_client_registry,
+)
+from builder_ii.routing.model_route_binding import (
+    ModelRouteBinding,
+    assert_route_runtime_request,
 )
 from builder_ii.routing.model_routing_policy import (
     validate_model_execution_policy,
@@ -228,8 +237,10 @@ def validate_model_call_receipt(data: Any) -> list[str]:
     if not isinstance(data.get("response_text"), str):
         errors.append("response_text must be a string")
 
-    if "status" in data and data.get("status") not in ("succeeded", "failed"):
-        errors.append("status must be succeeded or failed")
+    if "status" in data and data.get("status") not in ("succeeded", "failed", "cancelled"):
+        errors.append("status must be succeeded, failed, or cancelled")
+    if data.get("status") == "cancelled" and data.get("complete") is not False:
+        errors.append("cancelled receipt complete must be false")
 
     response_sha256 = data.get("response_sha256")
     if response_sha256 is not None and (not isinstance(response_sha256, str) or not _SHA256_RE.match(response_sha256)):
@@ -335,6 +346,7 @@ class ModelExecutionGateway:
         registry: dict[str, Any],
         execution_policy: dict[str, Any],
         price_book: dict[str, Any] | None = None,
+        invocation_engine: GatewayInvocationEngine | None = None,
     ):
         reg_errs = validate_model_client_registry(registry)
         if reg_errs:
@@ -346,6 +358,203 @@ class ModelExecutionGateway:
         self.registry = registry
         self.execution_policy = execution_policy
         self.price_book = _resolve_price_book(price_book)
+        self.invocation_engine = invocation_engine
+
+    def close(self) -> None:
+        if self.invocation_engine is not None:
+            self.invocation_engine.close()
+
+    def run_routed_model_call(
+        self,
+        *,
+        route: ModelRouteBinding,
+        prompt: str,
+        budget: dict[str, Any],
+        envelope_path: Path,
+        receipt_path: Path,
+        budget_path: Path | None = None,
+        system_prompt: str = "Answer helpfully.",
+        cancellation: CancellationToken | None = None,
+        requested_model_id: str | None = None,
+        ledger_bound: bool = False,
+        events_dir: Path | None = None,
+        on_public_chunk: Any | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any] | None]:
+        """Execute an immutable WRP route through the single governed gateway.
+
+        This is the canonical Plan Set 5 path.  It has no auto-budget, route
+        synthesis, policy widening, or caller-selected failover surface.
+        """
+        if self.invocation_engine is None:
+            raise ValueError("canonical routed execution requires a gateway invocation engine")
+        if not prompt.strip():
+            raise ValueError("Prompt must not be empty")
+        assert_route_runtime_request(
+            route,
+            model_id=requested_model_id,
+            budget=budget,
+            execution_policy=self.execution_policy,
+        )
+        if route.registry_digest != _digest({k: v for k, v in self.registry.items() if k != "digest"}):
+            raise ValueError("runtime registry does not equal WRP-bound registry")
+        if any(c.model_id not in self.execution_policy["allowed_models"] for c in route.ordered_candidates):
+            raise ValueError("execution policy excludes a WRP failover candidate")
+        if route.cloud_allowed and not self.settings.allow_cloud_models:
+            raise ValueError("cloud/external model calls are disabled by environment configuration")
+
+        from builder_ii.routing.model_budget import (
+            assert_budget_allows_call,
+            debit_budget,
+            project_call_cost,
+            write_model_budget,
+        )
+
+        clients = {(str(c.get("client_id")), str(c.get("model_id"))): c
+                   for c in self.registry.get("clients", []) if isinstance(c, dict)}
+        candidates = [
+            {
+                **clients[(c.client_id, c.model_id)],
+                "model_id": c.model_id,
+                "provider_id": c.provider_id,
+                "client_id": c.client_id,
+                "risk_classification": c.risk_classification,
+            }
+            for c in route.ordered_candidates
+        ]
+
+        reserved = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0,
+                    "estimated_usd_total": 0.0}
+
+        def before_attempt(candidate: Mapping[str, Any], _attempt: int) -> None:
+            if candidate["model_id"] not in self.execution_policy["allowed_models"]:
+                raise ValueError("failover candidate is excluded by execution policy")
+            if candidate["provider_id"] not in route.allowed_providers:
+                raise ValueError("failover provider is outside the WRP route")
+            if candidate["risk_classification"] == "cloud_external" and not route.cloud_allowed:
+                raise ValueError("local route cannot escalate to cloud")
+            projected = project_call_cost(prompt=prompt, max_output_tokens=route.max_tokens,
+                                          model_id=str(candidate["model_id"]), price_book=self.price_book)
+            for field in ("input_tokens", "output_tokens", "total_tokens"):
+                reserved[field] += int(projected[field])
+            reserved["estimated_usd_total"] += float(projected.get("estimated_usd_total") or 0.0)
+            assert_budget_allows_call(budget, reserved)
+
+        envelope = {
+            "kind": MODEL_CALL_ENVELOPE_KIND,
+            "schema_version": MODEL_CALL_ENVELOPE_SCHEMA_VERSION,
+            "session_id": route.session_id,
+            "run_id": route.run_id,
+            "obligation_id": route.obligation_id,
+            "role": route.role,
+            "route_digest": route.route_digest,
+            "routing_recommendation_digest": route.routing_recommendation_digest,
+            "assignment_digest": route.assignment_digest,
+            "budget_digest": route.budget_digest,
+            "model_id": route.selected_candidate.model_id,
+            "client_id": route.selected_candidate.client_id,
+            "provider_id": route.selected_candidate.provider_id,
+            "prompt_digest": hashlib.sha256(prompt.encode()).hexdigest(),
+            "max_tokens": route.max_tokens,
+            "temperature": route.temperature,
+            "executes_model": True, "executes_tools": False, "executes_shell": False,
+            "invokes_goose": False, "constructs_deepagents": False, "constructs_subagents": False,
+            "invokes_mcp": False, "performs_network_calls": True, "mutates_target_repo": False,
+            "mutates_memory": False, "grants_authority": False, "artifact_is_authority": False,
+            "requires_human_promotion_for_execution": True,
+            "authority_boundary": _default_authority_boundary("model_call", performs_network_calls=True),
+            "governance": _default_governance("model_call", network_calls_enabled=True),
+        }
+        envelope["digest"] = _digest(envelope)
+        env_errors = validate_model_call_envelope(envelope)
+        if env_errors:
+            raise ValueError(f"Generated envelope failed validation: {'; '.join(env_errors)}")
+        envelope_path.parent.mkdir(parents=True, exist_ok=True)
+        envelope_path.write_text(json_lib.dumps(envelope, indent=2, sort_keys=True), encoding="utf-8")
+
+        result: InvocationResult = self.invocation_engine.invoke(
+            candidates=candidates, prompt=prompt, system_prompt=system_prompt,
+            max_tokens=route.max_tokens, temperature=route.temperature,
+            cancellation=cancellation, before_attempt=before_attempt,
+            on_public_chunk=on_public_chunk,
+        )
+        actual = candidates[result.actual_candidate_index] if result.actual_candidate_index is not None else None
+        cost_model_id = str(actual["model_id"] if actual is not None else route.selected_candidate.model_id)
+        cost_report = _cost_report_for_call(prompt=prompt, response_text=result.content,
+                                            model_id=cost_model_id, price_book=self.price_book)
+        debited_budget: dict[str, Any] | None = None
+        if result.status == "succeeded":
+            assert_budget_allows_call(budget, cost_report)
+            debited_budget = debit_budget(budget, cost_report)
+            write_model_budget(debited_budget, budget_path or receipt_path.with_name("model_budget.json"))
+
+        receipt = {
+            "kind": MODEL_CALL_RECEIPT_KIND, "schema_version": MODEL_CALL_RECEIPT_SCHEMA_VERSION,
+            "status": result.status, "complete": result.status == "succeeded",
+            "envelope_ref": {"kind": MODEL_CALL_ENVELOPE_KIND, "path": str(envelope_path),
+                             "sha256": envelope["digest"], "role": "model_call_envelope", "required": True},
+            "route_digest": route.route_digest,
+            "planned_primary": route.selected_candidate.model_id,
+            "actual_model": actual["model_id"] if actual is not None else None,
+            "actual_provider": actual["provider_id"] if actual is not None else None,
+            "candidate_sequence": [c.model_id for c in route.ordered_candidates],
+            "attempt_count": len(result.attempts), "failover_count": result.failover_count,
+            "failover_reason": next((a.error for a in result.attempts if a.status == "failed"), None),
+            "attempt_history": [a.__dict__ for a in result.attempts],
+            "streaming": True, "first_token_latency_ms": result.first_token_latency_ms,
+            "total_latency_ms": result.total_latency_ms, "output_chunks": result.output_chunks,
+            "completion_state": result.completion_state,
+            "response_text": result.content[: int(self.execution_policy.get("max_response_chars", 4000))],
+            "response_sha256": hashlib.sha256(result.content.encode()).hexdigest(),
+            "response_storage_policy": "bounded_inline_response_text",
+            "cost_report": cost_report, "replay_declaration": "non-deterministic-llm-completion",
+            "executes_model": True, "executes_tools": False, "executes_shell": False,
+            "invokes_goose": False, "constructs_deepagents": False, "constructs_subagents": False,
+            "invokes_mcp": False, "mutates_target_repo": False, "mutates_memory": False,
+            "grants_authority": False, "artifact_is_authority": False,
+            "requires_human_promotion_for_execution": True, "ledger_bound": ledger_bound,
+            "authority_boundary": _default_authority_boundary("model_call", performs_network_calls=True),
+            "governance": _default_governance("model_call", network_calls_enabled=True),
+        }
+        if actual is not None and actual.get("risk_classification") == "cloud_external":
+            receipt["cloud_egress"] = {
+                "network": True,
+                "provider_id": actual["provider_id"],
+                "client_id": actual["client_id"],
+                "model_id": actual["model_id"],
+                "endpoint_kind": actual.get("endpoint_kind"),
+                "approval_ref": route.approval_ref,
+                "budget_ref": route.budget_digest,
+                "hard_cost_ceiling_usd": route.max_usd,
+                "actual_estimated_cost_usd": cost_report.get("estimated_usd_total", 0.0),
+                "secret_source_token_refs": list(route.secret_token_refs),
+            }
+        else:
+            receipt["cloud_egress"] = {
+                "network": False,
+                "provider_id": None,
+                "approval_ref": None,
+                "secret_source_token_refs": [],
+            }
+        if debited_budget is not None:
+            receipt["budget_ref"] = {"pre_debit_sha256": route.budget_digest,
+                                     "post_debit_sha256": debited_budget["digest"],
+                                     "budget_version": debited_budget["budget_version"]}
+        receipt = redact_receipt_for_storage(receipt)
+        receipt["digest"] = _digest(receipt)
+        errors = validate_model_call_receipt(receipt)
+        if errors:
+            raise ValueError(f"Generated receipt failed validation: {'; '.join(errors)}")
+        receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        receipt_path.write_text(json_lib.dumps(receipt, indent=2, sort_keys=True), encoding="utf-8")
+        if ledger_bound and events_dir is not None:
+            from builder_ii.lifecycle.candidate.runtime_event_append import append_model_call_event
+            append_model_call_event(events_dir=events_dir, session_id=route.session_id,
+                                    event_type="model_call_executed" if result.status == "succeeded" else "model_call_failed",
+                                    envelope=envelope, receipt=receipt, envelope_path=envelope_path,
+                                    receipt_path=receipt_path, command_surface="ModelExecutionGateway.run_routed_model_call",
+                                    message=(f"Routed model call {result.status}: "
+                                             f"{actual['model_id'] if actual is not None else route.selected_candidate.model_id}"))
+        return envelope, receipt, debited_budget
 
     def run_model_call(
         self,

@@ -85,6 +85,18 @@ from builder_ii.adapters.goose.goose_wrapper_plan import (
     GOOSE_WRAPPER_PLAN_KIND,
     validate_goose_wrapper_plan,
 )
+from builder_ii.benchmark.model_runtime import (
+    MANIFEST_KIND as MODEL_RUNTIME_BENCHMARK_MANIFEST_KIND,
+)
+from builder_ii.benchmark.model_runtime import (
+    REPORT_KIND as MODEL_RUNTIME_BENCHMARK_REPORT_KIND,
+)
+from builder_ii.benchmark.model_runtime import (
+    validate_manifest as validate_model_runtime_benchmark_manifest,
+)
+from builder_ii.benchmark.model_runtime import (
+    validate_report as validate_model_runtime_benchmark_report,
+)
 from builder_ii.core.artifact_memory import (
     MEMORY_ATOM_KIND,
     MEMORY_INDEX_KIND,
@@ -382,6 +394,7 @@ from builder_ii.routing.agent_profiles import (
     AGENT_PROFILE_RECORD_KIND,
     validate_agent_profile_record,
 )
+from builder_ii.routing.model_budget import MODEL_BUDGET_KIND, validate_model_budget
 from builder_ii.routing.model_capabilities import (
     MODEL_CAPABILITY_REGISTRY_KIND,
     validate_model_capability_registry,
@@ -540,6 +553,9 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     NATIVE_EVIDENCE_KIND: validate_native_evidence_bundle,
     MODEL_CALL_ENVELOPE_KIND: validate_model_call_envelope,
     MODEL_CALL_RECEIPT_KIND: validate_model_call_receipt,
+    MODEL_BUDGET_KIND: validate_model_budget,
+    MODEL_RUNTIME_BENCHMARK_MANIFEST_KIND: validate_model_runtime_benchmark_manifest,
+    MODEL_RUNTIME_BENCHMARK_REPORT_KIND: validate_model_runtime_benchmark_report,
     TOOL_POLICY_KIND: validate_mcp_policy,
     MCP_POLICY_KIND: validate_mcp_policy,
     TOOL_ENVELOPE_KIND: validate_mcp_envelope,

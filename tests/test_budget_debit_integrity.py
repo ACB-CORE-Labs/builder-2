@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -145,19 +146,22 @@ def test_multi_call_requires_debited_budget_not_original(tmp_path: Path) -> None
     assert debited["spent_total_tokens"] > budget["spent_total_tokens"]
 
 
-def test_seam_trajectory_surfaces_debited_budget_for_next_node(tmp_path: Path) -> None:
+def test_seam_trajectory_surfaces_debited_budget_for_next_node(tmp_path: Path, cloud_route_sources_factory) -> None:
     from builder_ii.wrp.gateway_nodes import run_gateway_node
 
-    registry = create_model_client_registry()
-    for client in registry["clients"]:
-        if client["model_id"] == "gpt-4o-stub":
-            client["enabled"] = True
-    budget = create_model_budget(
-        session_id="seam-chain",
-        max_input_tokens=5000,
-        max_output_tokens=256,
-        max_total_tokens=5000,
-        max_usd=5.0,
+    route_sources = cloud_route_sources_factory("seam-chain")
+    approval = tmp_path / "approval.json"
+    approval.write_text(
+        json.dumps(
+            {
+                "kind": "builder_ii.model_call_approval",
+                "valid": True,
+                "model_id": "gpt-4o-stub",
+                "prompt_digest": hashlib.sha256(b"step one").hexdigest(),
+                "expires_at": 20_000_000_000,
+            }
+        ),
+        encoding="utf-8",
     )
     _ev, state, traj, err = run_gateway_node(
         node_id="m1",
@@ -165,44 +169,54 @@ def test_seam_trajectory_surfaces_debited_budget_for_next_node(tmp_path: Path) -
         spec={
             "node_type": "model_gateway",
             "payload": {
-                "model_id": "gpt-4o-stub",
                 "prompt": "step one",
-                "budget": budget,
-                "registry": registry,
+                "route_sources": route_sources,
                 "artifact_dir": str(tmp_path / "s1"),
+                "approval_path": str(approval),
+                "hard_spend_cap_usd": 2.0,
                 "enable_stub_if_disabled": True,
-                "session_id": "seam-chain",
-                "max_tokens": 64,
             },
         },
         handoff_state={},
         plan_digest="1" * 64,
         approved_by="op",
-        gateway_mode="invoke_local",
+        gateway_mode="invoke_cloud",
     )
     assert err is None, err
     assert isinstance(state.get("last_debited_budget"), dict)
     assert traj["m1"]["debited_budget"]["digest"] == state["last_debited_budget"]["digest"]
-    # Second step chains budget from handoff without payload.budget
+    # Second step reconstructs the same route over the immutable debit successor.
+    next_route_sources = {**route_sources, "budget": state["last_debited_budget"]}
+    approval.write_text(
+        json.dumps(
+            {
+                "kind": "builder_ii.model_call_approval",
+                "valid": True,
+                "model_id": "gpt-4o-stub",
+                "prompt_digest": hashlib.sha256(b"step two").hexdigest(),
+                "expires_at": 20_000_000_000,
+            }
+        ),
+        encoding="utf-8",
+    )
     _ev2, state2, traj2, err2 = run_gateway_node(
         node_id="m2",
         node_type="model_gateway",
         spec={
             "node_type": "model_gateway",
             "payload": {
-                "model_id": "gpt-4o-stub",
                 "prompt": "step two",
-                "registry": registry,
+                "route_sources": next_route_sources,
                 "artifact_dir": str(tmp_path / "s2"),
+                "approval_path": str(approval),
+                "hard_spend_cap_usd": 2.0,
                 "enable_stub_if_disabled": True,
-                "session_id": "seam-chain",
-                "max_tokens": 64,
             },
         },
         handoff_state=state,
         plan_digest="1" * 64,
         approved_by="op",
-        gateway_mode="invoke_local",
+        gateway_mode="invoke_cloud",
     )
     assert err2 is None, err2
     assert state2["last_debited_budget"]["spent_total_tokens"] > state["last_debited_budget"]["spent_total_tokens"]

@@ -73,13 +73,12 @@ def test_one_chain_has_monotonic_sequence_and_no_unexecuted_claims(tmp_path: Pat
     assert receipt["grants_authority"] is False
 
 
-def test_wrp_adapter_is_the_existing_subagent_caller() -> None:
+def test_wrp_adapter_is_the_existing_subagent_caller(route_sources_factory) -> None:
     adapter = WrpSubagentRuntimeAdapter(
         role="code_reviewer",
-        model_id="stub-model",
+        route_sources=route_sources_factory("adapter"),
         plan_digest="1" * 64,
         approved_by="test-operator",
-        budget={"max_usd": 1.0},
     )
     assert adapter.name == "wrp-subagent"
     assert adapter.version == "1"

@@ -218,17 +218,28 @@ def test_model_execution_fails_on_unauthorized_model_in_policy(
     assert "not authorized by the execution policy" in str(exc.value)
 
 
-def test_cli_commands(mock_settings, standard_registry, standard_execution_policy, tmp_path) -> None:
+def test_cli_commands(mock_settings, standard_registry, standard_execution_policy, tmp_path, route_sources_factory) -> None:
     runner = CliRunner()
 
     for client in standard_registry["clients"]:
         if client["model_id"] == "gpt-4o-stub":
             client["enabled"] = True
 
+    route_sources = route_sources_factory("test-session")
     reg_path = tmp_path / "registry.json"
     pol_path = tmp_path / "policy.json"
-    reg_path.write_text(json_lib.dumps(standard_registry), encoding="utf-8")
-    pol_path.write_text(json_lib.dumps(standard_execution_policy), encoding="utf-8")
+    rec_path = tmp_path / "recommendation.json"
+    assignment_path = tmp_path / "assignment.json"
+    budget_path = tmp_path / "budget.json"
+    reg_path.write_text(json_lib.dumps(route_sources["registry"]), encoding="utf-8")
+    pol_path.write_text(json_lib.dumps(route_sources["execution_policy"]), encoding="utf-8")
+    rec_path.write_text(json_lib.dumps(route_sources["recommendation"]), encoding="utf-8")
+    assignment_path.write_text(json_lib.dumps(route_sources["assignment"]), encoding="utf-8")
+    budget_path.write_text(json_lib.dumps(route_sources["budget"]), encoding="utf-8")
+    standalone_reg_path = tmp_path / "standalone-registry.json"
+    standalone_policy_path = tmp_path / "standalone-policy.json"
+    standalone_reg_path.write_text(json_lib.dumps(standard_registry), encoding="utf-8")
+    standalone_policy_path.write_text(json_lib.dumps(standard_execution_policy), encoding="utf-8")
 
     envelope_path = tmp_path / "envelope.json"
     receipt_path = tmp_path / "receipt.json"
@@ -248,13 +259,16 @@ def test_cli_commands(mock_settings, standard_registry, standard_execution_polic
             [
                 "call",
                 "--model",
-                "gpt-4o-stub",
+                route_sources["recommendation"]["recommended_candidates"][0]["model_id"],
                 "--prompt",
                 "What is the capital of France?",
                 "--registry",
                 str(reg_path),
                 "--execution-policy",
                 str(pol_path),
+                "--model-recommendation", str(rec_path), "--model-assignment", str(assignment_path),
+                "--model-budget", str(budget_path),
+                "--max-tokens", "64",
                 "--output-envelope",
                 str(envelope_path),
                 "--output-receipt",
@@ -265,26 +279,23 @@ def test_cli_commands(mock_settings, standard_registry, standard_execution_polic
         assert "Must specify --session-id" in result_call_no_session.output
 
         # Call with session-id
-        result = runner.invoke(
-            model_app,
-            [
-                "call",
-                "--model",
-                "gpt-4o-stub",
-                "--prompt",
-                "What is the capital of France?",
-                "--registry",
-                str(reg_path),
-                "--execution-policy",
-                str(pol_path),
-                "--session-id",
-                "test-session",
-                "--output-envelope",
-                str(envelope_path),
-                "--output-receipt",
-                str(receipt_path),
-            ],
-        )
+        from builder_ii.routing.gateway_invocation import StreamChunk
+
+        class _Transport:
+            def stream(self, _request, _cancel):
+                yield StreamChunk("Paris")
+
+        with patch("builder_ii.routing.gateway_invocation.openai_transport_factory", return_value=lambda _c: _Transport()):
+            result = runner.invoke(
+                model_app,
+                ["call", "--model", route_sources["recommendation"]["recommended_candidates"][0]["model_id"],
+                 "--prompt", "What is the capital of France?", "--registry", str(reg_path),
+                 "--execution-policy", str(pol_path), "--model-recommendation", str(rec_path),
+                 "--model-assignment", str(assignment_path), "--model-budget", str(budget_path),
+                 "--max-tokens", "64",
+                 "--session-id", "test-session", "--output-envelope", str(envelope_path),
+                 "--output-receipt", str(receipt_path)],
+            )
         assert result.exit_code == 0, result.output
 
         # Standalone call
@@ -297,9 +308,9 @@ def test_cli_commands(mock_settings, standard_registry, standard_execution_polic
                 "--prompt",
                 "What is the capital of France?",
                 "--registry",
-                str(reg_path),
+                str(standalone_reg_path),
                 "--execution-policy",
-                str(pol_path),
+                str(standalone_policy_path),
                 "--output-envelope",
                 str(envelope_path),
                 "--output-receipt",

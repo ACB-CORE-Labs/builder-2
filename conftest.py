@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import json
 import os
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
+
+from builder_ii.routing.model_budget import create_model_budget
+from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_routing_policy import create_model_execution_policy
 
 ROOT = Path(__file__).resolve().parent
 TESTS = ROOT / "tests"
@@ -143,3 +149,143 @@ def isolate_config_environment() -> Iterator[None]:
     """
     with isolated_config_environment():
         yield
+
+
+@pytest.fixture
+def route_sources_factory():
+    """Construct mutually bound WRP route sources for canonical gateway tests."""
+
+    def build(session_id: str, *, max_tokens: int = 64):
+        root = TESTS / "fixtures" / "artifacts"
+        recommendation = json.loads((root / "model-recommendation.json").read_text())
+        assignment = json.loads((root / "agent-assignment-plan.json").read_text())
+        registry = create_model_client_registry()
+        budget = create_model_budget(
+            session_id=session_id,
+            max_usd=5.0,
+            max_total_tokens=100_000,
+            max_output_tokens=max_tokens * 8,
+        )
+        return {
+            "recommendation": recommendation,
+            "assignment": assignment,
+            "execution_policy": create_model_execution_policy(recommendation, max_tokens=max_tokens),
+            "registry": registry,
+            "budget": budget,
+            "session_id": session_id,
+            "run_id": f"run-{session_id}",
+            "obligation_id": f"obl-{session_id}",
+            "role": "code_reviewer",
+            "max_tokens": max_tokens,
+        }
+
+    return build
+
+
+@pytest.fixture
+def goose_gateway_context_factory(route_sources_factory):
+    """Build a route-bound loopback context without any live provider transport."""
+
+    def build(settings, artifact_dir: Path, session_id: str):
+        from builder_ii.adapters.goose.model_gateway_adapter import GooseGatewayContext
+        from builder_ii.routing.gateway_invocation import GatewayInvocationEngine
+        from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+        from builder_ii.routing.model_route_binding import build_model_route_binding
+
+        sources = route_sources_factory(session_id)
+        route = build_model_route_binding(**sources)
+
+        def provider_forbidden(_candidate):
+            raise AssertionError("test Goose boundary must not invoke a provider")
+
+        gateway = ModelExecutionGateway(
+            settings,
+            sources["registry"],
+            sources["execution_policy"],
+            invocation_engine=GatewayInvocationEngine(provider_forbidden),
+        )
+        return GooseGatewayContext(
+            gateway=gateway,
+            route=route,
+            budget=sources["budget"],
+            artifact_dir=artifact_dir,
+            local_credential="test-loopback-credential",
+        )
+
+    return build
+
+
+@pytest.fixture
+def cloud_route_sources_factory():
+    """Construct a WRP route whose sole primary is the offline OpenAI stub."""
+
+    def build(session_id: str, *, max_tokens: int = 64):
+        from builder_ii.core.orchestration_assignment import canonical_digest
+        from builder_ii.routing.model_routing_policy import (
+            create_model_execution_policy,
+            create_model_routing_policy,
+            create_model_routing_recommendation,
+        )
+
+        registry = create_model_client_registry()
+        for client in registry["clients"]:
+            client["enabled"] = client["model_id"] == "gpt-4o-stub"
+        policy = create_model_routing_policy()
+        policy["rules"][0]["max_risk_classification"] = "cloud_external"
+        recommendation = create_model_routing_recommendation(
+            policy,
+            registry,
+            request={
+                "task_intent": "coding",
+                "max_risk_classification": "cloud_external",
+                "requires_tool_use": True,
+                "required_model_id": "gpt-4o-stub",
+            },
+        )
+        assignment = deepcopy(json.loads((TESTS / "fixtures" / "artifacts" / "agent-assignment-plan.json").read_text()))
+        rec_digest = canonical_digest(recommendation)
+        registry_digest = canonical_digest(registry)
+        policy_digest = canonical_digest(policy)
+        assignment["bindings"]["model"]["selected_candidate"] = recommendation["recommended_candidates"][0]
+        assignment["model_routing"]["recommendation"] = recommendation
+        assignment["model_routing"]["recommendation_sha256"] = rec_digest
+        assignment["model_routing"]["registry_sha256"] = registry_digest
+        assignment["model_routing"]["policy_sha256"] = policy_digest
+        assignment["source_digests"]["model_recommendation"] = rec_digest
+        assignment["source_digests"]["model_registry"] = registry_digest
+        assignment["source_digests"]["model_policy"] = policy_digest
+        for ref in assignment["source_refs"]:
+            if ref["role"] == "model_recommendation":
+                ref["sha256"] = rec_digest
+            elif ref["role"] == "model_registry":
+                ref["sha256"] = registry_digest
+            elif ref["role"] == "model_policy":
+                ref["sha256"] = policy_digest
+        budget = create_model_budget(
+            session_id=session_id,
+            max_usd=2.0,
+            max_total_tokens=50_000,
+            max_output_tokens=max_tokens * 8,
+        )
+        approval = {
+            "valid": True,
+            "allowed_providers": ["openai_stub_provider"],
+            "max_usd": 2.0,
+            "expires_at": 20_000_000_000,
+        }
+        approval["digest"] = canonical_digest(approval)
+        return {
+            "recommendation": recommendation,
+            "assignment": assignment,
+            "execution_policy": create_model_execution_policy(recommendation, max_tokens=max_tokens),
+            "registry": registry,
+            "budget": budget,
+            "session_id": session_id,
+            "run_id": f"run-{session_id}",
+            "obligation_id": f"obl-{session_id}",
+            "role": "code_reviewer",
+            "max_tokens": max_tokens,
+            "cloud_approval": approval,
+        }
+
+    return build
