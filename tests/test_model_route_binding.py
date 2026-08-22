@@ -132,3 +132,59 @@ def test_cloud_route_refuses_expired_or_substituted_approval(cloud_route_sources
     substituted["max_usd"] = 100
     with pytest.raises(ValueError, match="canonical digest"):
         build_model_route_binding(**{**sources, "cloud_approval": substituted})
+
+
+def test_validate_model_call_receipt_enforces_wrp_reconstruction(tmp_path: Path) -> None:
+    from builder_ii.routing.gateway_invocation import StreamChunk
+    from builder_ii.routing.model_execution_gateway import (
+        reconstruct_and_validate_routed_receipt,
+        validate_model_call_receipt,
+    )
+
+    route, _recommendation, _assignment, registry, policy, budget = _route()
+
+    def transport_factory(_c):
+        class _T:
+            def stream(self, _req, _cancel):
+                yield StreamChunk("test output")
+        return _T()
+
+    gateway = ModelExecutionGateway(
+        load_settings(), registry, policy,
+        invocation_engine=GatewayInvocationEngine(transport_factory),
+    )
+    _env, receipt, _debited = gateway.run_routed_model_call(
+        route=route, prompt="test prompt", budget=budget,
+        envelope_path=tmp_path / "env.json", receipt_path=tmp_path / "rec.json",
+    )
+
+    # Valid receipt matches route
+    assert validate_model_call_receipt(receipt, route=route) == []
+    assert reconstruct_and_validate_routed_receipt(receipt, route) == []
+
+    # Substituted route_digest is rejected
+    tampered_route_digest = dict(receipt, route_digest="0" * 64)
+    errors = validate_model_call_receipt(tampered_route_digest, route=route)
+    assert any("does not equal bound route_digest" in e for e in errors)
+
+    # Substituted planned_primary is rejected
+    tampered_primary = dict(receipt, planned_primary="unauthorized-model")
+    errors = validate_model_call_receipt(tampered_primary, route=route)
+    assert any("does not equal route selected model" in e for e in errors)
+
+    # Substituted candidate sequence is rejected
+    tampered_seq = dict(receipt, candidate_sequence=["foreign-model-1", "foreign-model-2"])
+    errors = validate_model_call_receipt(tampered_seq, route=route)
+    assert any("does not equal route candidates" in e for e in errors)
+
+    # Invalid attempt history (e.g. attempt count mismatch or negative tokens)
+    tampered_history = dict(receipt, attempt_count=99)
+    errors = validate_model_call_receipt(tampered_history, route=route)
+    assert any("does not equal length of attempt_history" in e for e in errors)
+
+    tampered_tokens = dict(receipt, attempt_history=[
+        dict(receipt["attempt_history"][0], input_tokens=-5)
+    ])
+    errors = validate_model_call_receipt(tampered_tokens, route=route)
+    assert any("input_tokens must be a non-negative integer" in e for e in errors)
+

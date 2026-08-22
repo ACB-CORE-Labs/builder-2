@@ -10,7 +10,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, cast
 
-from builder_ii.routing.gateway_invocation import CancellationToken
+from builder_ii.routing.gateway_invocation import CancellationToken, InvocationCancelled
 from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
 from builder_ii.routing.model_route_binding import ModelRouteBinding, advance_route_budget
 
@@ -60,11 +60,14 @@ def make_goose_gateway_handler(context: GooseGatewayContext) -> type[BaseHTTPReq
 
         def _json_error(self, status: int, message: str) -> None:
             raw = json.dumps({"error": {"message": message, "type": "builder_ii_refusal"}}).encode()
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(raw)))
-            self.end_headers()
-            self.wfile.write(raw)
+            try:
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+            except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                pass
 
         def do_POST(self) -> None:  # noqa: N802
             if self.path not in {"/v1/chat/completions", "/chat/completions"}:
@@ -84,42 +87,76 @@ def make_goose_gateway_handler(context: GooseGatewayContext) -> type[BaseHTTPReq
                 self._json_error(400, str(exc))
                 return
 
+            request_cancellation = CancellationToken()
+            if context.cancellation.cancelled:
+                request_cancellation.cancel()
+
             streaming = payload.get("stream") is True
             with context._lock:
                 envelope_path, receipt_path, budget_path = context.next_paths()
                 if streaming:
-                    self.send_response(200)
-                    self.send_header("Content-Type", "text/event-stream")
-                    self.send_header("Cache-Control", "no-cache")
-                    self.end_headers()
+                    try:
+                        self.send_response(200)
+                        self.send_header("Content-Type", "text/event-stream")
+                        self.send_header("Cache-Control", "no-cache")
+                        self.end_headers()
+                    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                        request_cancellation.cancel()
+                        return
 
                 def emit(text: str) -> None:
                     if not streaming:
                         return
+                    if request_cancellation.cancelled or context.cancellation.cancelled:
+                        request_cancellation.cancel()
+                        raise InvocationCancelled("Goose client disconnected or cancelled")
                     data = {"id": f"builder-{context._sequence}", "object": "chat.completion.chunk",
                             "choices": [{"index": 0, "delta": {"content": text}, "finish_reason": None}]}
-                    self.wfile.write(("data: " + json.dumps(data) + "\n\n").encode())
-                    self.wfile.flush()
+                    try:
+                        self.wfile.write(("data: " + json.dumps(data) + "\n\n").encode())
+                        self.wfile.flush()
+                    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError) as exc:
+                        request_cancellation.cancel()
+                        raise InvocationCancelled(f"Goose client disconnected during streaming: {exc}") from exc
 
                 try:
                     _envelope, receipt, debited = context.gateway.run_routed_model_call(
                         route=context.route, prompt=prompt, budget=context.budget,
                         envelope_path=envelope_path, receipt_path=receipt_path, budget_path=budget_path,
-                        system_prompt=system, cancellation=context.cancellation,
+                        system_prompt=system, cancellation=request_cancellation,
                         requested_model_id=str(payload.get("model")), on_public_chunk=emit,
                     )
                     if debited is not None:
                         context.budget = debited
                         context.route = advance_route_budget(context.route, debited)
+                except InvocationCancelled:
+                    if streaming:
+                        try:
+                            if not request_cancellation.cancelled:
+                                self.wfile.write(b"data: [DONE]\n\n")
+                                self.wfile.flush()
+                        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                            pass
+                    return
                 except Exception as exc:  # response is already streaming when applicable
                     if streaming:
-                        self.wfile.write(("data: " + json.dumps({"error": {"message": str(exc)[:500]}}) + "\n\n").encode())
-                        self.wfile.write(b"data: [DONE]\n\n")
+                        try:
+                            if not request_cancellation.cancelled:
+                                self.wfile.write(("data: " + json.dumps({"error": {"message": str(exc)[:500]}}) + "\n\n").encode())
+                                self.wfile.write(b"data: [DONE]\n\n")
+                                self.wfile.flush()
+                        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                            pass
                         return
                     self._json_error(502, str(exc)[:500])
                     return
                 if streaming:
-                    self.wfile.write(b"data: [DONE]\n\n")
+                    try:
+                        if not request_cancellation.cancelled:
+                            self.wfile.write(b"data: [DONE]\n\n")
+                            self.wfile.flush()
+                    except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                        pass
                     return
                 content = str(receipt.get("response_text") or "")
                 body = {"id": f"builder-{context._sequence}", "object": "chat.completion",
@@ -127,11 +164,14 @@ def make_goose_gateway_handler(context: GooseGatewayContext) -> type[BaseHTTPReq
                         "choices": [{"index": 0, "message": {"role": "assistant", "content": content},
                                      "finish_reason": "stop"}]}
                 raw = json.dumps(body).encode()
-                self.send_response(200)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(raw)))
-                self.end_headers()
-                self.wfile.write(raw)
+                try:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(raw)))
+                    self.end_headers()
+                    self.wfile.write(raw)
+                except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError, OSError):
+                    pass
 
     return Handler
 

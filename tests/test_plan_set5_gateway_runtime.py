@@ -207,3 +207,135 @@ def test_transport_omits_null_temperature_for_strict_openai_servers() -> None:
         )
     )
     assert "temperature" not in seen
+
+
+def test_attempt_record_has_cost_accounting_fields() -> None:
+    def action(_request, _cancel):
+        yield StreamChunk("hello world")
+
+    engine = GatewayInvocationEngine(lambda _c: _Transport(action))
+    result = engine.invoke(
+        candidates=_CANDIDATES[:1],
+        prompt="say hi",
+        system_prompt="system",
+        max_tokens=10,
+        temperature=0.0,
+    )
+    assert result.status == "succeeded"
+    assert len(result.attempts) == 1
+    attempt = result.attempts[0]
+    assert attempt.input_tokens > 0
+    assert attempt.output_tokens > 0
+    assert attempt.total_tokens == attempt.input_tokens + attempt.output_tokens
+    assert attempt.token_accounting in ("measured", "estimated")
+
+
+def test_partial_failure_attempt_records_incurred_cost() -> None:
+    def action(_request, _cancel):
+        yield StreamChunk("partial text")
+        raise httpx.ReadTimeout("interrupted mid-stream")
+
+    engine = GatewayInvocationEngine(lambda _c: _Transport(action))
+    result = engine.invoke(
+        candidates=_CANDIDATES[:1],
+        prompt="prompt with some tokens",
+        system_prompt="system",
+        max_tokens=10,
+        temperature=0.0,
+    )
+    assert result.status == "failed"
+    assert len(result.attempts) == 1
+    attempt = result.attempts[0]
+    assert attempt.input_tokens > 0
+    assert attempt.output_tokens > 0
+    assert attempt.total_tokens == attempt.input_tokens + attempt.output_tokens
+    assert attempt.status == "failed"
+
+
+def test_pre_provider_failure_records_zero_cost() -> None:
+    def action(_request, _cancel):
+        raise httpx.ConnectError("connection refused before request sent")
+        yield
+
+    engine = GatewayInvocationEngine(lambda _c: _Transport(action))
+    result = engine.invoke(
+        candidates=_CANDIDATES[:1],
+        prompt="prompt",
+        system_prompt="system",
+        max_tokens=10,
+        temperature=0.0,
+    )
+    assert result.status == "failed"
+    for attempt in result.attempts:
+        assert attempt.input_tokens == 0
+        assert attempt.output_tokens == 0
+        assert attempt.total_tokens == 0
+        assert attempt.estimated_usd == 0.0
+
+
+def test_routed_model_call_debits_budget_on_partial_failure(tmp_path, route_sources_factory) -> None:
+    from builder_ii.core.config import Settings
+    from builder_ii.routing.model_execution_gateway import ModelExecutionGateway, validate_model_call_receipt
+    from builder_ii.routing.model_route_binding import build_model_route_binding
+
+    sources = route_sources_factory("partial-fail-route")
+    route = build_model_route_binding(
+        recommendation=sources["recommendation"],
+        assignment=sources["assignment"],
+        execution_policy=sources["execution_policy"],
+        registry=sources["registry"],
+        budget=sources["budget"],
+        session_id=sources["session_id"],
+        run_id=sources["run_id"],
+        obligation_id=sources["obligation_id"],
+        role=sources["role"],
+        max_tokens=sources["max_tokens"],
+    )
+
+    def partial_action(_request, _cancel):
+        yield StreamChunk("partial response tokens")
+        raise httpx.ReadTimeout("socket timed out")
+
+    settings = Settings(
+        target_repo=tmp_path, project_root=tmp_path, backend="mlx-lm", model_tier="primary",
+        model_alias="qwen-coder", model_primary="gemma-4-12b-4bit", model_fast="gemma-4-e4b-4bit",
+        mlx_model_primary="mlx-community/gemma-4-12B-it-4bit",
+        mlx_model_fast="mlx-community/gemma-4-e4b-it-4bit",
+        mlx_model_phi="mlx-community/Phi-4-mini-reasoning-4bit",
+        mlx_model_qwen="mlx-community/Qwen2.5-Coder-7B-Instruct-4bit",
+        mlx_model_deepseek="mlx-community/DeepSeek-Coder-V2-Lite-Instruct-4bit",
+        mlx_model_llama="mlx-community/Meta-Llama-3.1-8B-Instruct-4bit",
+        mlx_model_codegeex="mlx-community/codegeex4-all-9b-4bit",
+        mlx_model_qwen14="mlx-community/Qwen2.5-Coder-14B-Instruct-4bit",
+        mlx_model_qwen3_coder="mlx-community/Qwen3-Coder-30B-A3B-Instruct-4bit",
+        base_url="http://127.0.0.1:8080/v1", host="127.0.0.1", port=8080,
+        temperature=0.0, allow_cloud_models=False,
+    )
+    gateway = ModelExecutionGateway(
+        settings,
+        sources["registry"],
+        sources["execution_policy"],
+        invocation_engine=GatewayInvocationEngine(lambda _c: _Transport(partial_action)),
+    )
+    env_path = tmp_path / "env.json"
+    rec_path = tmp_path / "rec.json"
+    budget_path = tmp_path / "budget_succ.json"
+
+    _env, receipt, debited = gateway.run_routed_model_call(
+        route=route,
+        prompt="test prompt for partial failure",
+        budget=sources["budget"],
+        envelope_path=env_path,
+        receipt_path=rec_path,
+        budget_path=budget_path,
+    )
+
+    assert receipt["status"] == "failed"
+    assert receipt["complete"] is False
+    assert receipt["completion_state"] == "incomplete"
+    assert receipt["cost_report"]["total_tokens"] > 0
+    assert debited is not None
+    assert debited["spent_total_tokens"] > 0
+    assert debited["budget_version"] == sources["budget"]["budget_version"] + 1
+    assert validate_model_call_receipt(receipt, route=route) == []
+

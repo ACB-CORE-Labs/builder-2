@@ -71,6 +71,11 @@ class AttemptRecord:
     output_chunks: int
     error: str | None = None
     retryable: bool = False
+    input_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    estimated_usd: float = 0.0
+    token_accounting: str = "measured"
 
 
 @dataclass(frozen=True)
@@ -106,10 +111,12 @@ class GatewayInvocationEngine:
         *,
         clock: Callable[[], int] = time.monotonic_ns,
         health_for: Callable[[Mapping[str, Any]], tuple[bool, str]] | None = None,
+        price_book: dict[str, Any] | None = None,
     ):
         self._transport_for = transport_for
         self._clock = clock
         self._health_for = health_for
+        self._price_book = price_book
 
     def close(self) -> None:
         close = getattr(self._transport_for, "close", None)
@@ -118,6 +125,47 @@ class GatewayInvocationEngine:
         health_close = getattr(self._health_for, "close", None)
         if callable(health_close):
             health_close()
+
+    def _attempt_cost(
+        self,
+        *,
+        model_id: str,
+        prompt: str,
+        response_text: str,
+        reached_provider: bool,
+    ) -> dict[str, Any]:
+        if not reached_provider:
+            return {
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+                "estimated_usd": 0.0,
+                "token_accounting": "measured",
+            }
+        from builder_ii.routing.price_book import lookup_price_entry
+        from builder_ii.routing.token_accounting import count_tokens, estimate_usd
+
+        in_tc = count_tokens(prompt, model_id=model_id)
+        out_tc = count_tokens(response_text, model_id=model_id) if response_text else None
+        out_count = out_tc.token_count if out_tc is not None else 0
+        total_count = in_tc.token_count + out_count
+
+        entry = lookup_price_entry(self._price_book, model_id) if self._price_book else None
+        in_rate = float(entry.get("input_usd_per_1k") or 0.0) if entry else 0.0
+        out_rate = float(entry.get("output_usd_per_1k") or 0.0) if entry else 0.0
+        usd = estimate_usd(
+            input_tokens=in_tc.token_count,
+            output_tokens=out_count,
+            input_usd_per_1k=in_rate,
+            output_usd_per_1k=out_rate,
+        )
+        return {
+            "input_tokens": in_tc.token_count,
+            "output_tokens": out_count,
+            "total_tokens": total_count,
+            "estimated_usd": usd["estimated_usd_total"],
+            "token_accounting": in_tc.token_accounting,
+        }
 
     def invoke(
         self,
@@ -150,6 +198,12 @@ class GatewayInvocationEngine:
                 healthy, health_detail = self._health_for(candidate)
                 if not healthy:
                     completed = self._clock()
+                    cost = self._attempt_cost(
+                        model_id=str(candidate["model_id"]),
+                        prompt=prompt,
+                        response_text="",
+                        reached_provider=False,
+                    )
                     records.append(
                         AttemptRecord(
                             candidate_index,
@@ -164,6 +218,7 @@ class GatewayInvocationEngine:
                             0,
                             health_detail[:500],
                             False,
+                            **cost,
                         )
                     )
                     continue
@@ -192,28 +247,48 @@ class GatewayInvocationEngine:
                             on_public_chunk(chunk.text)
                     completed = self._clock()
                     content = "".join(chunks)
+                    cost = self._attempt_cost(
+                        model_id=request.model_id,
+                        prompt=prompt,
+                        response_text=content,
+                        reached_provider=True,
+                    )
                     records.append(AttemptRecord(candidate_index, attempt, request.model_id, request.provider_id,
                                                  request.client_id, "succeeded", attempt_started, first_ns, completed,
-                                                 len(chunks)))
+                                                 len(chunks), None, False, **cost))
                     return InvocationResult("succeeded", content, candidate_index, tuple(records),
                                             None if first_ns is None else (first_ns - started) / 1_000_000,
                                             (completed - started) / 1_000_000, len(chunks), candidate_index, "complete")
                 except InvocationCancelled:
                     completed = self._clock()
+                    reached = first_ns is not None or len(chunks) > 0
+                    cost = self._attempt_cost(
+                        model_id=str(candidate["model_id"]),
+                        prompt=prompt,
+                        response_text="".join(chunks),
+                        reached_provider=reached,
+                    )
                     records.append(AttemptRecord(candidate_index, attempt, str(candidate["model_id"]),
                                                  str(candidate["provider_id"]), str(candidate["client_id"]),
                                                  "cancelled", attempt_started, first_ns, completed, len(chunks),
-                                                 "cancelled", False))
+                                                 "cancelled", False, **cost))
                     return InvocationResult("cancelled", "".join(chunks), candidate_index, tuple(records),
                                             None if first_ns is None else (first_ns - started) / 1_000_000,
                                             (completed - started) / 1_000_000, len(chunks), candidate_index, "incomplete")
                 except Exception as exc:
                     completed = self._clock()
+                    reached = first_ns is not None or len(chunks) > 0
                     retryable = first_ns is None and _transient(exc)
+                    cost = self._attempt_cost(
+                        model_id=str(candidate["model_id"]),
+                        prompt=prompt,
+                        response_text="".join(chunks),
+                        reached_provider=reached,
+                    )
                     records.append(AttemptRecord(candidate_index, attempt, str(candidate["model_id"]),
                                                  str(candidate["provider_id"]), str(candidate["client_id"]),
                                                  "failed", attempt_started, first_ns, completed, len(chunks),
-                                                 str(exc)[:500], retryable))
+                                                 str(exc)[:500], retryable, **cost))
                     # Any public output forbids retry and failover.
                     if first_ns is not None:
                         return InvocationResult("failed", "".join(chunks), candidate_index, tuple(records),
