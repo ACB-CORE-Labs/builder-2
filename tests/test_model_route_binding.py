@@ -141,7 +141,7 @@ def test_validate_model_call_receipt_enforces_wrp_reconstruction(tmp_path: Path)
         validate_model_call_receipt,
     )
 
-    route, _recommendation, _assignment, registry, policy, budget = _route()
+    route, recommendation, assignment, registry, policy, budget = _route()
 
     def transport_factory(_c):
         class _T:
@@ -158,9 +158,23 @@ def test_validate_model_call_receipt_enforces_wrp_reconstruction(tmp_path: Path)
         envelope_path=tmp_path / "env.json", receipt_path=tmp_path / "rec.json",
     )
 
-    # Valid receipt matches route
+    sources = {
+        "recommendation": recommendation,
+        "assignment": assignment,
+        "execution_policy": policy,
+        "registry": registry,
+        "budget": budget,
+        "session_id": route.session_id,
+        "run_id": route.run_id,
+        "obligation_id": route.obligation_id,
+        "role": route.role,
+        "max_tokens": route.max_tokens,
+    }
+
+    # Valid receipt matches route and can be reconstructed from source artifacts
     assert validate_model_call_receipt(receipt, route=route) == []
-    assert reconstruct_and_validate_routed_receipt(receipt, route) == []
+    assert reconstruct_and_validate_routed_receipt(receipt, route=route) == []
+    assert reconstruct_and_validate_routed_receipt(receipt, sources=sources) == []
 
     # Substituted route_digest is rejected
     tampered_route_digest = dict(receipt, route_digest="0" * 64)

@@ -339,3 +339,61 @@ def test_routed_model_call_debits_budget_on_partial_failure(tmp_path, route_sour
     assert debited["budget_version"] == sources["budget"]["budget_version"] + 1
     assert validate_model_call_receipt(receipt, route=route) == []
 
+
+def test_provider_contacted_timeout_before_first_chunk_accounts_input_cost() -> None:
+    price_book = {
+        "entries": [{"model_id": "local-a", "input_usd_per_1k": 0.005, "output_usd_per_1k": 0.015, "currency": "USD"}]
+    }
+
+    def action(_request, _cancel):
+        # Provider contacted and accepted request, but timed out before yielding any chunk
+        raise httpx.ReadTimeout("read timeout before first token")
+        yield
+
+    engine = GatewayInvocationEngine(lambda _c: _Transport(action), price_book=price_book)
+    result = engine.invoke(
+        candidates=_CANDIDATES[:1],
+        prompt="prompt with some tokens",
+        system_prompt="system",
+        max_tokens=10,
+        temperature=0.0,
+    )
+    assert result.status == "failed"
+    assert len(result.attempts) >= 1
+    attempt = result.attempts[0]
+    assert attempt.provider_contacted is True
+    assert attempt.input_tokens > 0
+    assert attempt.output_tokens == 0
+    assert attempt.total_tokens == attempt.input_tokens
+    assert attempt.estimated_usd > 0.0
+
+
+def test_provider_contacted_http_500_accounts_input_cost() -> None:
+    price_book = {
+        "entries": [{"model_id": "local-a", "input_usd_per_1k": 0.005, "output_usd_per_1k": 0.015, "currency": "USD"}]
+    }
+
+    def action(_request, _cancel):
+        req = httpx.Request("POST", "http://provider")
+        res = httpx.Response(500, request=req)
+        raise httpx.HTTPStatusError("500 internal server error", request=req, response=res)
+        yield
+
+    engine = GatewayInvocationEngine(lambda _c: _Transport(action), price_book=price_book)
+    result = engine.invoke(
+        candidates=_CANDIDATES[:1],
+        prompt="prompt with some tokens",
+        system_prompt="system",
+        max_tokens=10,
+        temperature=0.0,
+    )
+    assert result.status == "failed"
+    assert len(result.attempts) >= 1
+    attempt = result.attempts[0]
+    assert attempt.provider_contacted is True
+    assert attempt.input_tokens > 0
+    assert attempt.output_tokens == 0
+    assert attempt.total_tokens == attempt.input_tokens
+    assert attempt.estimated_usd > 0.0
+
+

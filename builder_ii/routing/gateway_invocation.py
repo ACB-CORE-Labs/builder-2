@@ -71,6 +71,7 @@ class AttemptRecord:
     output_chunks: int
     error: str | None = None
     retryable: bool = False
+    provider_contacted: bool = False
     input_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
@@ -100,6 +101,18 @@ def _transient(exc: BaseException) -> bool:
     if isinstance(exc, httpx.HTTPStatusError):
         return exc.response.status_code == 429 or exc.response.status_code >= 500
     return bool(getattr(exc, "retryable", False))
+
+
+def _is_provider_contacted(exc: BaseException | None, first_ns: int | None, chunk_count: int) -> bool:
+    if first_ns is not None or chunk_count > 0:
+        return True
+    if exc is None:
+        return True
+    if isinstance(exc, (httpx.HTTPStatusError, httpx.ReadTimeout, httpx.ReadError, httpx.RemoteProtocolError)):
+        return True
+    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout)):
+        return False
+    return bool(getattr(exc, "provider_contacted", False))
 
 
 class GatewayInvocationEngine:
@@ -132,9 +145,9 @@ class GatewayInvocationEngine:
         model_id: str,
         prompt: str,
         response_text: str,
-        reached_provider: bool,
+        provider_contacted: bool,
     ) -> dict[str, Any]:
-        if not reached_provider:
+        if not provider_contacted:
             return {
                 "input_tokens": 0,
                 "output_tokens": 0,
@@ -202,7 +215,7 @@ class GatewayInvocationEngine:
                         model_id=str(candidate["model_id"]),
                         prompt=prompt,
                         response_text="",
-                        reached_provider=False,
+                        provider_contacted=False,
                     )
                     records.append(
                         AttemptRecord(
@@ -218,6 +231,7 @@ class GatewayInvocationEngine:
                             0,
                             health_detail[:500],
                             False,
+                            provider_contacted=False,
                             **cost,
                         )
                     )
@@ -251,44 +265,44 @@ class GatewayInvocationEngine:
                         model_id=request.model_id,
                         prompt=prompt,
                         response_text=content,
-                        reached_provider=True,
+                        provider_contacted=True,
                     )
                     records.append(AttemptRecord(candidate_index, attempt, request.model_id, request.provider_id,
                                                  request.client_id, "succeeded", attempt_started, first_ns, completed,
-                                                 len(chunks), None, False, **cost))
+                                                 len(chunks), None, False, provider_contacted=True, **cost))
                     return InvocationResult("succeeded", content, candidate_index, tuple(records),
                                             None if first_ns is None else (first_ns - started) / 1_000_000,
                                             (completed - started) / 1_000_000, len(chunks), candidate_index, "complete")
-                except InvocationCancelled:
+                except InvocationCancelled as exc:
                     completed = self._clock()
-                    reached = first_ns is not None or len(chunks) > 0
+                    contacted = _is_provider_contacted(exc, first_ns, len(chunks))
                     cost = self._attempt_cost(
                         model_id=str(candidate["model_id"]),
                         prompt=prompt,
                         response_text="".join(chunks),
-                        reached_provider=reached,
+                        provider_contacted=contacted,
                     )
                     records.append(AttemptRecord(candidate_index, attempt, str(candidate["model_id"]),
                                                  str(candidate["provider_id"]), str(candidate["client_id"]),
                                                  "cancelled", attempt_started, first_ns, completed, len(chunks),
-                                                 "cancelled", False, **cost))
+                                                 "cancelled", False, provider_contacted=contacted, **cost))
                     return InvocationResult("cancelled", "".join(chunks), candidate_index, tuple(records),
                                             None if first_ns is None else (first_ns - started) / 1_000_000,
                                             (completed - started) / 1_000_000, len(chunks), candidate_index, "incomplete")
                 except Exception as exc:
                     completed = self._clock()
-                    reached = first_ns is not None or len(chunks) > 0
+                    contacted = _is_provider_contacted(exc, first_ns, len(chunks))
                     retryable = first_ns is None and _transient(exc)
                     cost = self._attempt_cost(
                         model_id=str(candidate["model_id"]),
                         prompt=prompt,
                         response_text="".join(chunks),
-                        reached_provider=reached,
+                        provider_contacted=contacted,
                     )
                     records.append(AttemptRecord(candidate_index, attempt, str(candidate["model_id"]),
                                                  str(candidate["provider_id"]), str(candidate["client_id"]),
                                                  "failed", attempt_started, first_ns, completed, len(chunks),
-                                                 str(exc)[:500], retryable, **cost))
+                                                 str(exc)[:500], retryable, provider_contacted=contacted, **cost))
                     # Any public output forbids retry and failover.
                     if first_ns is not None:
                         return InvocationResult("failed", "".join(chunks), candidate_index, tuple(records),

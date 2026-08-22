@@ -156,9 +156,30 @@ def peak_model_memory(samples: Sequence[ModelMemorySample]) -> dict[str, Any]:
     }
 
 
-def _digest(value: dict[str, Any]) -> str:
-    body = {k: v for k, v in value.items() if k not in {"digest", "manifest_digest", "report_digest"}}
+RAW_SAMPLES_KIND = "builder_ii.model_runtime_benchmark_raw_samples"
+
+
+def manifest_digest(value: dict[str, Any]) -> str:
+    body = {k: v for k, v in value.items() if k not in {"digest", "manifest_digest"}}
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def report_digest(value: dict[str, Any]) -> str:
+    body = {k: v for k, v in value.items() if k not in {"digest", "report_digest"}}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def raw_samples_digest(value: dict[str, Any]) -> str:
+    body = {k: v for k, v in value.items() if k not in {"digest", "samples_digest"}}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def _digest(value: dict[str, Any]) -> str:
+    if value.get("kind") == REPORT_KIND:
+        return report_digest(value)
+    if value.get("kind") == RAW_SAMPLES_KIND:
+        return raw_samples_digest(value)
+    return manifest_digest(value)
 
 
 def percentile(values: Iterable[float], percentile_value: float) -> float:
@@ -206,13 +227,34 @@ def build_manifest(*, git_commit: str, git_tree: str, backend: str, provider: st
         "thresholds": dict(THRESHOLDS), "artifact_is_authority": False,
         "grants_authority": False, "promotes": False,
     }
-    content["manifest_digest"] = _digest(content)
+    content["manifest_digest"] = manifest_digest(content)
     return content
 
 
 def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[str, Any]:
-    if manifest.get("kind") != MANIFEST_KIND or manifest.get("manifest_digest") != _digest(manifest):
+    if manifest.get("kind") != MANIFEST_KIND or manifest.get("manifest_digest") != manifest_digest(manifest):
         raise ValueError("invalid benchmark manifest")
+    if not isinstance(samples, dict):
+        raise ValueError("samples must be an object")
+
+    samples_commit = samples.get("git_commit")
+    if not samples_commit or samples_commit != manifest.get("git_commit"):
+        raise ValueError(f"raw samples git_commit ({samples_commit}) does not equal manifest git_commit ({manifest.get('git_commit')})")
+
+    samples_tree = samples.get("git_tree")
+    if not samples_tree or samples_tree != manifest.get("git_tree"):
+        raise ValueError(f"raw samples git_tree ({samples_tree}) does not equal manifest git_tree ({manifest.get('git_tree')})")
+
+    samples_method = samples.get("method_correction_sha256")
+    if not samples_method or samples_method != METHOD_CORRECTION_SHA256:
+        raise ValueError(f"raw samples method_correction_sha256 ({samples_method}) does not match frozen M1 correction ({METHOD_CORRECTION_SHA256})")
+
+    if samples.get("model") and samples.get("model") != manifest.get("model"):
+        raise ValueError(f"raw samples model ({samples.get('model')}) does not match manifest model ({manifest.get('model')})")
+
+    if samples.get("samples_digest") and samples.get("samples_digest") != raw_samples_digest(samples):
+        raise ValueError("raw samples digest mismatch")
+
     direct = [float(v) for v in samples.get("warm_ttft_direct_ms", [])]
     governed = [float(v) for v in samples.get("warm_ttft_governed_ms", [])]
     dispatch = [float(v) for v in samples.get("non_model_dispatch_ms", [])]
@@ -262,7 +304,7 @@ def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[s
                "hard_threshold_results": checks, "overall_state": "PASS" if all(checks.values()) else "FAIL",
                "raw_samples": samples, "artifact_is_authority": False,
                "grants_authority": False, "promotes": False}
-    content["report_digest"] = _digest(content)
+    content["report_digest"] = report_digest(content)
     return content
 
 
@@ -282,7 +324,7 @@ def validate_manifest(value: Any) -> list[str]:
             or value.get("grants_authority") is not False
             or value.get("promotes") is not False):
         errors.append("benchmark evidence cannot grant authority or promote")
-    if value.get("manifest_digest") != _digest(value):
+    if value.get("manifest_digest") != manifest_digest(value):
         errors.append("manifest digest mismatch")
     return errors
 
@@ -297,13 +339,25 @@ def validate_report(value: Any, *, manifest: dict[str, Any] | None = None) -> li
             or value.get("grants_authority") is not False
             or value.get("promotes") is not False):
         errors.append("benchmark evidence cannot grant authority or promote")
-    if value.get("report_digest") != _digest(value):
+    if value.get("report_digest") != report_digest(value):
         errors.append("report digest mismatch")
     checks = value.get("hard_threshold_results")
     if not isinstance(checks, dict) or value.get("overall_state") != ("PASS" if checks and all(checks.values()) else "FAIL"):
         errors.append("overall_state does not derive from hard threshold results")
     if manifest is not None and value.get("manifest_digest") != manifest.get("manifest_digest"):
         errors.append("report does not bind manifest")
+
+    raw = value.get("raw_samples")
+    if isinstance(raw, dict):
+        if manifest is not None:
+            if raw.get("git_commit") != manifest.get("git_commit"):
+                errors.append("raw samples git_commit does not match manifest git_commit")
+            if raw.get("git_tree") != manifest.get("git_tree"):
+                errors.append("raw samples git_tree does not match manifest git_tree")
+        if raw.get("method_correction_sha256") != METHOD_CORRECTION_SHA256:
+            errors.append("raw samples method_correction_sha256 does not match frozen M1 correction")
+        if raw.get("samples_digest") and raw.get("samples_digest") != raw_samples_digest(raw):
+            errors.append("raw samples digest mismatch")
     return errors
 
 

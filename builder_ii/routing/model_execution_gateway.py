@@ -396,6 +396,11 @@ def validate_model_call_receipt(data: Any, route: ModelRouteBinding | None = Non
                         errors.append(f"attempt_history[{idx}].{s_field} must be a non-empty string")
                 if a.get("status") not in ("succeeded", "failed", "cancelled", "unhealthy"):
                     errors.append(f"attempt_history[{idx}].status must be succeeded, failed, cancelled, or unhealthy")
+                if "provider_contacted" in a and not isinstance(a.get("provider_contacted"), bool):
+                    errors.append(f"attempt_history[{idx}].provider_contacted must be a boolean")
+                if a.get("provider_contacted") is False:
+                    if a.get("input_tokens", 0) != 0 or a.get("output_tokens", 0) != 0 or a.get("total_tokens", 0) != 0 or a.get("estimated_usd", 0.0) != 0.0:
+                        errors.append(f"attempt_history[{idx}] has non-zero tokens or cost despite provider_contacted=False")
                 if not isinstance(a.get("retryable"), bool):
                     errors.append(f"attempt_history[{idx}].retryable must be a boolean")
                 if "estimated_usd" in a:
@@ -455,8 +460,37 @@ def validate_model_call_receipt_file(path: Path, route: ModelRouteBinding | None
     return validate_model_call_receipt(data, route=route)
 
 
-def reconstruct_and_validate_routed_receipt(receipt: dict[str, Any], route: ModelRouteBinding) -> list[str]:
-    """Reconstruct and strictly cross-validate a routed receipt against its WRP route."""
+def reconstruct_and_validate_routed_receipt(
+    receipt: dict[str, Any],
+    *,
+    route: ModelRouteBinding | None = None,
+    sources: Mapping[str, Any] | None = None,
+) -> list[str]:
+    """Reconstruct route binding from canonical sources when provided, and validate routed receipt."""
+    if route is None:
+        if sources is None:
+            return ["either route or sources must be provided to reconstruct_and_validate_routed_receipt"]
+        try:
+            from builder_ii.routing.model_route_binding import build_model_route_binding
+            exec_pol = sources["execution_policy"]
+            policy_max = exec_pol.get("max_tokens") if isinstance(exec_pol, dict) else None
+            max_toks = int(sources.get("max_tokens") or policy_max or 4096)
+            route = build_model_route_binding(
+                recommendation=sources["recommendation"],
+                assignment=sources["assignment"],
+                execution_policy=sources["execution_policy"],
+                registry=sources["registry"],
+                budget=sources["budget"],
+                session_id=str(sources.get("session_id") or receipt.get("session_id") or ""),
+                run_id=str(sources.get("run_id") or receipt.get("run_id") or ""),
+                obligation_id=str(sources.get("obligation_id") or receipt.get("obligation_id") or ""),
+                role=str(sources.get("role") or receipt.get("role") or "model_call"),
+                temperature=sources.get("temperature"),
+                max_tokens=max_toks,
+                cloud_approval=sources.get("cloud_approval"),
+            )
+        except Exception as exc:
+            return [f"failed to reconstruct route from sources: {exc}"]
     return validate_model_call_receipt(receipt, route=route)
 
 

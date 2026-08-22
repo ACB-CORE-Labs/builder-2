@@ -163,10 +163,20 @@ def test_goose_client_disconnect_propagates_into_cancellation(tmp_path, route_so
         # Abruptly close the socket so next write from loopback handler gets BrokenPipeError
         s.close()
 
-        # Allow time for server to detect broken pipe on next write and complete cancellation
-        time.sleep(0.25)
+        # Bounded polling for loopback handler to detect broken pipe and complete cancellation
+        deadline = time.monotonic() + 5.0
+        receipts: list[Path] = []
+        while time.monotonic() < deadline:
+            receipts = list((tmp_path / "goose-artifacts").glob("*-receipt.json"))
+            if receipts:
+                try:
+                    receipt = json.loads(receipts[0].read_text())
+                    if receipt.get("status") in ("cancelled", "failed", "succeeded"):
+                        break
+                except Exception:
+                    pass
+            time.sleep(0.02)
 
-        receipts = list((tmp_path / "goose-artifacts").glob("*-receipt.json"))
         assert len(receipts) == 1
         receipt = json.loads(receipts[0].read_text())
         assert receipt["status"] == "cancelled"

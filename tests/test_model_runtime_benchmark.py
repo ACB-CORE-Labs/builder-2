@@ -28,6 +28,31 @@ def _manifest():
                           policy_digest="d" * 64, budget_digest="e" * 64)
 
 
+def _samples(manifest, **overrides):
+    base = {
+        "git_commit": manifest["git_commit"],
+        "git_tree": manifest["git_tree"],
+        "method_correction_sha256": METHOD_CORRECTION_SHA256,
+        "warm_ttft_direct_ms": [100] * 10,
+        "warm_ttft_governed_ms": [119] * 10,
+        "non_model_dispatch_ms": [10] * 100,
+        "model_memory_acceptance_metric": "macos_physical_footprint",
+        "model_physical_footprint": {
+            "baseline_bytes": 2 * 1024**3,
+            "steady_warm_bytes": 3 * 1024**3,
+            "peak_bytes": 3 * 1024**3,
+            "acceptance_bytes": 3 * 1024**3,
+        },
+        "model_rss_diagnostic": {"peak_bytes": 700_000_000, "acceptance": False},
+        "graphics_memory_diagnostics": {"ioaccelerator_graphics_bytes": 2 * 1024**3},
+        "control_plane_rss_bytes": 500 * 1024**2,
+        "idle_stratum_rss_bytes": 200 * 1024**2,
+        "max_large_model_runtime_count": 1,
+    }
+    base.update(overrides)
+    return base
+
+
 def test_percentile_linear_interpolation() -> None:
     assert percentile([1, 2, 3, 4], 50) == 2.5
     assert percentile(range(1, 101), 95) == 95.05
@@ -53,16 +78,7 @@ def test_manifest_freezes_methodology_and_thresholds() -> None:
 
 def test_report_derives_all_hard_thresholds() -> None:
     manifest = _manifest()
-    samples = {"warm_ttft_direct_ms": [100] * 10, "warm_ttft_governed_ms": [119] * 10,
-               "non_model_dispatch_ms": [10] * 100,
-               "model_memory_acceptance_metric": "macos_physical_footprint",
-               "model_physical_footprint": {"baseline_bytes": 2 * 1024**3,
-                   "steady_warm_bytes": 3 * 1024**3, "peak_bytes": 3 * 1024**3,
-                   "acceptance_bytes": 3 * 1024**3},
-               "model_rss_diagnostic": {"peak_bytes": 700_000_000, "acceptance": False},
-               "graphics_memory_diagnostics": {"ioaccelerator_graphics_bytes": 2 * 1024**3},
-               "control_plane_rss_bytes": 500 * 1024**2, "idle_stratum_rss_bytes": 200 * 1024**2,
-               "max_large_model_runtime_count": 1}
+    samples = _samples(manifest)
     report = build_report(manifest=manifest, samples=samples)
     assert report["overall_state"] == "PASS"
     assert report["measurements"]["warm_ttft_overhead_percent"] == 19
@@ -73,12 +89,7 @@ def test_report_derives_all_hard_thresholds() -> None:
 
 def test_report_fails_without_changing_threshold() -> None:
     manifest = _manifest()
-    samples = {"warm_ttft_direct_ms": [100] * 10, "warm_ttft_governed_ms": [121] * 10,
-               "non_model_dispatch_ms": [10] * 100,
-               "model_memory_acceptance_metric": "macos_physical_footprint",
-               "model_physical_footprint": {"acceptance_bytes": 3 * 1024**3},
-               "control_plane_rss_bytes": 500 * 1024**2, "idle_stratum_rss_bytes": 200 * 1024**2,
-               "max_large_model_runtime_count": 1}
+    samples = _samples(manifest, warm_ttft_governed_ms=[121] * 10)
     report = build_report(manifest=manifest, samples=samples)
     assert report["overall_state"] == "FAIL"
     assert report["hard_threshold_results"]["warm_ttft_overhead"] is False
@@ -101,13 +112,10 @@ Owned physical footprint (unmapped) (graphics) 4,300,000,000
     (2 * 1024**3 - 1, False), (7 * 1024**3 + 1, False),
 ])
 def test_physical_footprint_boundaries(value: int, passes: bool) -> None:
-    samples = {"warm_ttft_direct_ms": [100] * 10, "warm_ttft_governed_ms": [100] * 10,
-               "non_model_dispatch_ms": [10] * 100,
-               "model_memory_acceptance_metric": "macos_physical_footprint",
-               "model_physical_footprint": {"acceptance_bytes": value},
-               "control_plane_rss_bytes": 1, "idle_stratum_rss_bytes": 1,
-               "max_large_model_runtime_count": 1}
-    assert build_report(manifest=_manifest(), samples=samples)["hard_threshold_results"]["model_footprint"] is passes
+    manifest = _manifest()
+    samples = _samples(manifest, model_physical_footprint={"acceptance_bytes": value},
+                       warm_ttft_governed_ms=[100] * 10)
+    assert build_report(manifest=manifest, samples=samples)["hard_threshold_results"]["model_footprint"] is passes
 
 
 def test_peak_model_memory_uses_physical_max_and_rss_only_as_diagnostic() -> None:
@@ -198,3 +206,64 @@ def test_collector_refuses_identity_drift_after_measurement(monkeypatch: pytest.
     with pytest.raises(ValueError, match="drifted"):
         collect_model_memory(123, identity_check=identity,
                              footprint_binary=Path("/usr/bin/footprint"), runner=runner)
+
+
+def test_report_digest_cryptographically_binds_manifest_digest() -> None:
+    manifest_a = _manifest()
+    manifest_b = build_manifest(
+        git_commit="f" * 40, git_tree="e" * 40, backend="mlx-lm", provider="local",
+        client="mlx", model="m", route_digest="c" * 64,
+        policy_digest="d" * 64, budget_digest="e" * 64,
+    )
+    samples_a = {
+        "git_commit": manifest_a["git_commit"],
+        "git_tree": manifest_a["git_tree"],
+        "method_correction_sha256": METHOD_CORRECTION_SHA256,
+        "warm_ttft_direct_ms": [100] * 10, "warm_ttft_governed_ms": [110] * 10,
+        "non_model_dispatch_ms": [10] * 100,
+        "model_memory_acceptance_metric": "macos_physical_footprint",
+        "model_physical_footprint": {"acceptance_bytes": 3 * 1024**3},
+        "control_plane_rss_bytes": 500 * 1024**2, "idle_stratum_rss_bytes": 200 * 1024**2,
+        "max_large_model_runtime_count": 1,
+    }
+    samples_b = dict(samples_a, git_commit=manifest_b["git_commit"], git_tree=manifest_b["git_tree"])
+
+    report_a = build_report(manifest=manifest_a, samples=samples_a)
+    report_b = build_report(manifest=manifest_b, samples=samples_b)
+
+    assert report_a["manifest_digest"] != report_b["manifest_digest"]
+    assert report_a["report_digest"] != report_b["report_digest"]
+
+    # Tampering manifest_digest invalidates report_digest
+    tampered = dict(report_a, manifest_digest=manifest_b["manifest_digest"])
+    errors = validate_report(tampered, manifest=manifest_a)
+    assert any("report digest mismatch" in e for e in errors)
+    assert any("report does not bind manifest" in e for e in errors)
+
+
+def test_build_report_refuses_samples_with_mismatched_provenance() -> None:
+    manifest = _manifest()
+    samples = {
+        "git_commit": "0" * 40,  # Mismatched commit
+        "git_tree": manifest["git_tree"],
+        "method_correction_sha256": METHOD_CORRECTION_SHA256,
+        "warm_ttft_direct_ms": [100] * 10, "warm_ttft_governed_ms": [110] * 10,
+        "non_model_dispatch_ms": [10] * 100,
+        "model_memory_acceptance_metric": "macos_physical_footprint",
+        "model_physical_footprint": {"acceptance_bytes": 3 * 1024**3},
+        "control_plane_rss_bytes": 500 * 1024**2, "idle_stratum_rss_bytes": 200 * 1024**2,
+        "max_large_model_runtime_count": 1,
+    }
+    with pytest.raises(ValueError, match="git_commit"):
+        build_report(manifest=manifest, samples=samples)
+
+    # Mismatched tree
+    samples_bad_tree = dict(samples, git_commit=manifest["git_commit"], git_tree="0" * 40)
+    with pytest.raises(ValueError, match="git_tree"):
+        build_report(manifest=manifest, samples=samples_bad_tree)
+
+    # Mismatched method correction
+    samples_bad_method = dict(samples, git_commit=manifest["git_commit"], method_correction_sha256="wrong")
+    with pytest.raises(ValueError, match="method_correction_sha256"):
+        build_report(manifest=manifest, samples=samples_bad_method)
+
