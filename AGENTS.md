@@ -53,3 +53,28 @@ LLM agents are not reliably intelligent by default; builder-II's governance exis
 7. **Commit with discipline — right branch, right invariant, right lane.** Confirm repo state and branch before every commit. GitHub-hosted source control: branch from `main`, open PRs with `gh`, never commit directly to `main`. State which invariant or promotion state the change protects, and run the relevant local `bash scripts/ci.sh` gate before declaring done.
 
 **Failure modes this prevents:** reasoning from file names instead of the code (wrong analysis); solving before finding the shape (solutions that recreate the same problem as a second artifact vocabulary or a parallel validator); doing the easy changes first (high-leverage work never ships); vague success criteria (regressions that pass "tests" but break a pinned truth claim or silently inflate a promotion state); changes that can't be tied to the governance model (drift away from the "artifact, not authority" boundary the whole platform enforces).
+
+## 7. Scientific & Governance Closure Protocol (Evidence Custody Standards)
+
+When closing an implementation plan set or sealing benchmark/runtime evidence:
+
+1. **Cryptographic Binding Invariant**: Derivative reports must cryptographically cover the manifests they evaluate. When computing `report_digest`, never exclude `manifest_digest` (`report_digest` must retain `manifest_digest`).
+2. **Exact-Tip Evidence Provenance**: Physical raw-sample measurements must bind exact collection metadata (`git_commit`, `git_tree`, methodology SHA, runtime identity). Never reuse or re-wrap previous raw samples under a new HEAD manifest; recollect physical evidence on the exact commit tip.
+3. **Provider Contact Telemetry & Pre-Output Cost Accounting**: Distinguish pre-provider connection failures (`provider_contacted=False`, zero tokens/cost) from post-contact timeouts or HTTP errors occurring before public token emission (`provider_contacted=True`). Debit budget successors conservatively with input token costs when the provider was reached.
+4. **Authentic Source Reconstruction**: Any validator named `reconstruct_and_validate_*` must perform genuine, independent reconstruction from raw canonical source artifacts rather than passively accepting already assembled route/state objects.
+5. **Deterministic Async Testing**: Forbid static sleeps in async, socket, or IPC cancellation tests. Use bounded polling on terminal states with deterministic timeouts to prevent race conditions and test flakiness.
+6. **Strict Closure Sequence**: Never self-certify closure without executing the full adversarial custody loop:
+   ```text
+   code settled
+   → commit
+   → exact-tip physical collection
+   → validate raw sample provenance
+   → build exact-tip manifest/report
+   → independently validate report
+   → exact-tip receipt CI
+   → validate CI receipt
+   → clean worktree
+   → push
+   → PR update
+   ```
+

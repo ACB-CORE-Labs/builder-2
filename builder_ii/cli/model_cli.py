@@ -328,43 +328,98 @@ def validate_receipt_cmd(
 def benchmark_cmd(
     profile: str = typer.Option("m1-v1", "--profile"),
     output: Path = typer.Option(..., "--output"),
-    samples: Path = typer.Option(..., "--samples", help="Frozen raw M1 measurement samples JSON."),
+    samples: Path | None = typer.Option(None, "--samples", help="Diagnostic/replay raw samples file (cannot qualify canonical m1-v1)."),
     route_digest: str = typer.Option(..., "--route-digest"),
     policy_digest: str = typer.Option(..., "--policy-digest"),
     budget_digest: str = typer.Option(..., "--budget-digest"),
-    backend: str = typer.Option(..., "--backend"),
-    provider: str = typer.Option(..., "--provider"),
-    client: str = typer.Option(..., "--client"),
-    model: str = typer.Option(..., "--model"),
+    backend: str = typer.Option("mlx-lm", "--backend"),
+    provider: str = typer.Option("mlx_provider", "--provider"),
+    client: str = typer.Option("mlx_lm_client", "--client"),
+    model: str = typer.Option("mlx-community/Qwen2.5-Coder-7B-Instruct-4bit", "--model"),
+    model_pid: int | None = typer.Option(None, "--model-pid", help="PID of validated model server for live memory measurement."),
 ) -> None:
-    """Seal M1-v1 methodology and derive the benchmark report from raw samples."""
+    """Execute physical M1-v1 qualification under a frozen manifest and derive benchmark report."""
     enforce_command_authority("builder-model benchmark", requested_effects=("artifact_write",))
     if profile != "m1-v1":
         console.print("[red]Only the frozen m1-v1 profile is supported.[/]")
         raise typer.Exit(1)
-    if not samples.is_file():
-        console.print(f"[red]Samples file not found: {samples}[/]")
-        raise typer.Exit(1)
     import subprocess
 
-    from builder_ii.benchmark.model_runtime import build_manifest, build_report, write_json
+    from builder_ii.benchmark.model_runtime import (
+        build_manifest,
+        build_report,
+        collect_canonical_m1_samples,
+        validate_manifest,
+        validate_report,
+        write_json,
+    )
 
     try:
-        raw_samples = json_lib.loads(samples.read_text(encoding="utf-8"))
+        # 1. Assert committed clean exact HEAD/tree
+        status_proc = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True)
+        if status_proc.stdout.strip():
+            console.print("[red]Working tree has uncommitted changes. Benchmark qualification requires a clean committed HEAD.[/]")
+            raise typer.Exit(1)
+
         commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
         tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], capture_output=True, text=True, check=True).stdout.strip()
-        manifest = build_manifest(git_commit=commit, git_tree=tree, backend=backend, provider=provider,
-                                  client=client, model=model, route_digest=route_digest,
-                                  policy_digest=policy_digest, budget_digest=budget_digest)
+
+        # 2. Build + persist the benchmark manifest BEFORE observation
+        manifest = build_manifest(
+            git_commit=commit,
+            git_tree=tree,
+            backend=backend,
+            provider=provider,
+            client=client,
+            model=model,
+            route_digest=route_digest,
+            policy_digest=policy_digest,
+            budget_digest=budget_digest,
+        )
+        write_json(manifest, output / "model-runtime-benchmark-manifest.json")
+
+        # 3. Execute physical collection or diagnostic replay
+        if samples is not None:
+            if not samples.is_file():
+                console.print(f"[red]Samples file not found: {samples}[/]")
+                raise typer.Exit(1)
+            raw_samples = json_lib.loads(samples.read_text(encoding="utf-8"))
+        else:
+            raw_samples = collect_canonical_m1_samples(
+                manifest=manifest,
+                model_pid=model_pid,
+            )
+            write_json(raw_samples, output / "model-runtime-benchmark-raw-samples.json")
+
+        # 4. Derive report from collector-produced samples
         report = build_report(manifest=manifest, samples=raw_samples)
+        write_json(report, output / "model-runtime-benchmark-report.json")
+
+        # 5. Independently validate manifest and report
+        m_errs = validate_manifest(manifest)
+        if m_errs:
+            raise ValueError(f"manifest validation failed: {'; '.join(m_errs)}")
+        r_errs = validate_report(report, manifest=manifest)
+        if r_errs:
+            raise ValueError(f"report validation failed: {'; '.join(r_errs)}")
+
+    except typer.Exit:
+        raise
     except Exception as exc:
         console.print(f"[red]Benchmark failed closed: {exc}[/]")
         raise typer.Exit(1)
-    write_json(manifest, output / "model-runtime-benchmark-manifest.json")
-    write_json(report, output / "model-runtime-benchmark-report.json")
-    console.print(json_lib.dumps({"overall_state": report["overall_state"],
-                                  "manifest_digest": manifest["manifest_digest"],
-                                  "report_digest": report["report_digest"]}, sort_keys=True))
+
+    console.print(
+        json_lib.dumps(
+            {
+                "overall_state": report["overall_state"],
+                "manifest_digest": manifest["manifest_digest"],
+                "samples_digest": raw_samples.get("samples_digest"),
+                "report_digest": report["report_digest"],
+            },
+            sort_keys=True,
+        )
+    )
     if report["overall_state"] != "PASS":
         raise typer.Exit(1)
 

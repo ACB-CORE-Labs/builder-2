@@ -8,15 +8,18 @@ import pytest
 
 from builder_ii.benchmark.model_runtime import (
     METHOD_CORRECTION_SHA256,
+    RAW_SAMPLES_KIND,
     THRESHOLDS,
     ModelMemorySample,
     build_manifest,
     build_report,
+    collect_canonical_m1_samples,
     collect_model_memory,
     nearest_rank_percentile,
     parse_footprint_bytes,
     peak_model_memory,
     percentile,
+    raw_samples_digest,
     validate_manifest,
     validate_report,
 )
@@ -30,6 +33,8 @@ def _manifest():
 
 def _samples(manifest, **overrides):
     base = {
+        "kind": RAW_SAMPLES_KIND,
+        "manifest_digest": manifest["manifest_digest"],
         "git_commit": manifest["git_commit"],
         "git_tree": manifest["git_tree"],
         "method_correction_sha256": METHOD_CORRECTION_SHA256,
@@ -50,6 +55,7 @@ def _samples(manifest, **overrides):
         "max_large_model_runtime_count": 1,
     }
     base.update(overrides)
+    base["samples_digest"] = raw_samples_digest(base)
     return base
 
 
@@ -215,18 +221,8 @@ def test_report_digest_cryptographically_binds_manifest_digest() -> None:
         client="mlx", model="m", route_digest="c" * 64,
         policy_digest="d" * 64, budget_digest="e" * 64,
     )
-    samples_a = {
-        "git_commit": manifest_a["git_commit"],
-        "git_tree": manifest_a["git_tree"],
-        "method_correction_sha256": METHOD_CORRECTION_SHA256,
-        "warm_ttft_direct_ms": [100] * 10, "warm_ttft_governed_ms": [110] * 10,
-        "non_model_dispatch_ms": [10] * 100,
-        "model_memory_acceptance_metric": "macos_physical_footprint",
-        "model_physical_footprint": {"acceptance_bytes": 3 * 1024**3},
-        "control_plane_rss_bytes": 500 * 1024**2, "idle_stratum_rss_bytes": 200 * 1024**2,
-        "max_large_model_runtime_count": 1,
-    }
-    samples_b = dict(samples_a, git_commit=manifest_b["git_commit"], git_tree=manifest_b["git_tree"])
+    samples_a = _samples(manifest_a)
+    samples_b = _samples(manifest_b)
 
     report_a = build_report(manifest=manifest_a, samples=samples_a)
     report_b = build_report(manifest=manifest_b, samples=samples_b)
@@ -243,27 +239,79 @@ def test_report_digest_cryptographically_binds_manifest_digest() -> None:
 
 def test_build_report_refuses_samples_with_mismatched_provenance() -> None:
     manifest = _manifest()
-    samples = {
-        "git_commit": "0" * 40,  # Mismatched commit
-        "git_tree": manifest["git_tree"],
-        "method_correction_sha256": METHOD_CORRECTION_SHA256,
-        "warm_ttft_direct_ms": [100] * 10, "warm_ttft_governed_ms": [110] * 10,
-        "non_model_dispatch_ms": [10] * 100,
-        "model_memory_acceptance_metric": "macos_physical_footprint",
-        "model_physical_footprint": {"acceptance_bytes": 3 * 1024**3},
-        "control_plane_rss_bytes": 500 * 1024**2, "idle_stratum_rss_bytes": 200 * 1024**2,
-        "max_large_model_runtime_count": 1,
-    }
+    samples = _samples(manifest)
+
+    # Mismatched commit
+    samples_bad_commit = dict(samples, git_commit="0" * 40)
+    samples_bad_commit["samples_digest"] = raw_samples_digest(samples_bad_commit)
     with pytest.raises(ValueError, match="git_commit"):
-        build_report(manifest=manifest, samples=samples)
+        build_report(manifest=manifest, samples=samples_bad_commit)
 
     # Mismatched tree
-    samples_bad_tree = dict(samples, git_commit=manifest["git_commit"], git_tree="0" * 40)
+    samples_bad_tree = dict(samples, git_tree="0" * 40)
+    samples_bad_tree["samples_digest"] = raw_samples_digest(samples_bad_tree)
     with pytest.raises(ValueError, match="git_tree"):
         build_report(manifest=manifest, samples=samples_bad_tree)
 
     # Mismatched method correction
-    samples_bad_method = dict(samples, git_commit=manifest["git_commit"], method_correction_sha256="wrong")
+    samples_bad_method = dict(samples, method_correction_sha256="wrong")
+    samples_bad_method["samples_digest"] = raw_samples_digest(samples_bad_method)
     with pytest.raises(ValueError, match="method_correction_sha256"):
         build_report(manifest=manifest, samples=samples_bad_method)
+
+    # Mismatched manifest digest
+    samples_bad_manifest_digest = dict(samples, manifest_digest="0" * 64)
+    samples_bad_manifest_digest["samples_digest"] = raw_samples_digest(samples_bad_manifest_digest)
+    with pytest.raises(ValueError, match="manifest_digest"):
+        build_report(manifest=manifest, samples=samples_bad_manifest_digest)
+
+
+def test_old_sample_restamp_lesion_refuses_qualification() -> None:
+    """Lesion: taking valid samples from commit A, re-stamping commit B into git_commit/tree,
+
+    and recomputing samples_digest MUST still be refused by canonical qualification.
+    """
+    manifest_a = _manifest()
+    manifest_b = build_manifest(
+        git_commit="b" * 40, git_tree="c" * 40, backend="mlx-lm", provider="local",
+        client="mlx", model="m", route_digest="c" * 64,
+        policy_digest="d" * 64, budget_digest="e" * 64,
+    )
+    # Valid physical sample collected under manifest A
+    samples_from_commit_a = _samples(manifest_a)
+    assert build_report(manifest=manifest_a, samples=samples_from_commit_a)["overall_state"] == "PASS"
+
+    # Attempt to restamp samples with commit B's git_commit and git_tree
+    restamped_samples = dict(
+        samples_from_commit_a,
+        git_commit=manifest_b["git_commit"],
+        git_tree=manifest_b["git_tree"],
+    )
+    restamped_samples["samples_digest"] = raw_samples_digest(restamped_samples)
+
+    # Candidate qualification under manifest B must fail closed because manifest_digest remains bound to A
+    with pytest.raises(ValueError, match="manifest_digest"):
+        build_report(manifest=manifest_b, samples=restamped_samples)
+
+
+def test_collect_canonical_m1_samples_emits_valid_raw_samples(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("builder_ii.benchmark.model_runtime.platform.system", lambda: "Darwin")
+    monkeypatch.setattr("builder_ii.benchmark.model_runtime.platform.machine", lambda: "arm64")
+
+    manifest = _manifest()
+    samples = collect_canonical_m1_samples(manifest=manifest)
+
+    assert samples["kind"] == RAW_SAMPLES_KIND
+    assert samples["manifest_digest"] == manifest["manifest_digest"]
+    assert samples["git_commit"] == manifest["git_commit"]
+    assert samples["git_tree"] == manifest["git_tree"]
+    assert samples["method_correction_sha256"] == METHOD_CORRECTION_SHA256
+    assert len(samples["warm_ttft_direct_ms"]) == 10
+    assert len(samples["warm_ttft_governed_ms"]) == 10
+    assert len(samples["non_model_dispatch_ms"]) == 100
+    assert samples["samples_digest"] == raw_samples_digest(samples)
+
+    report = build_report(manifest=manifest, samples=samples)
+    assert report["overall_state"] == "PASS"
+    assert validate_report(report, manifest=manifest) == []
 
