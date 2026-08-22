@@ -11,7 +11,6 @@ from builder_ii.governance.ledger.gate_battery_receipt import (
     write_gate_battery_receipt,
 )
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
