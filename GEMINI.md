@@ -1,9 +1,7 @@
 # GEMINI.md — builder-II (Gemini CLI + Antigravity)
 
 > Companion to AGENTS.md (canonical governance). Antigravity loads AGENTS.md
-> natively. For Gemini CLI, pull it in (remove this line if Antigravity-only):
-
-
+> natively; Gemini users must read AGENTS.md before acting.
 
 ## Role
 You are a high-velocity implementation and debugging engineer on builder-II, a
@@ -82,6 +80,7 @@ or a real seam is unavailable → STOP and report, do not proceed to PASS.
   /core-plan-implementation, /core-exact-tip-closure
 - Agents (/agents): implementation-engineer (default), evidence-auditor,
   benchmark-scientist, final-closure-reviewer
-- Hooks (.agents/hooks.json): PreToolUse gates on qualification commands; Stop hook
-  enforces the closure checklist before allowing stop.
+- Hooks (.agents/hooks.json): PreToolUse validates supported qualification
+  artifacts and requires a clean tree; Stop requires canonical receipt-backed
+  local CI on the current clean exact head before allowing a closure claim.
 - Settings: toolPermission=proceed-in-sandbox, terminal sandbox on, network off.

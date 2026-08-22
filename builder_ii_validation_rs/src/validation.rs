@@ -31,8 +31,7 @@ pub fn validate_artifact_core(kind: &str, data: &Value) -> Vec<String> {
             validate_readonly_runtime_audit(data, &mut errors);
         }
         _ => {
-            // Fallback: not fully implemented in Rust yet, or unsupported
-            // We just do basic kind verification in Rust and let Python handle the rest if parity is verified
+            errors.push(format!("unsupported artifact kind: {}", kind));
         }
     }
 

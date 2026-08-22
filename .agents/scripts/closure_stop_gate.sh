@@ -3,9 +3,14 @@
 # exists, force the agent back into the loop to run /core-exact-tip-closure.
 # STUB: replace receipt check with builder_ii_validation_rs validation.
 set -euo pipefail
+BUILDER_HOOK_INPUT="$(cat)"
+export BUILDER_HOOK_INPUT
 python3 - <<'PY'
 import json, os, sys, glob, subprocess
-raw = sys.stdin.read()
+from pathlib import Path
+
+from builder_ii.governance.ledger.gate_battery_receipt import validate_gate_battery_receipt
+raw = os.environ.get("BUILDER_HOOK_INPUT", "")
 try:
     data = json.loads(raw)
 except Exception:
@@ -21,29 +26,39 @@ except Exception:
     pass
 ws = ws or os.getcwd()
 
-receipts = glob.glob(os.path.join(ws, "artifacts", "**", "closure_receipt.json"), recursive=True)
+workspace = Path(ws).resolve()
+receipts = glob.glob(str(workspace / ".builder" / "**" / "*.json"), recursive=True)
 valid_receipt = False
-cargo_cmd = ["cargo", "run", "--quiet", "--manifest-path", os.path.join(ws, "builder_ii_validation_rs", "Cargo.toml"), "--", "--kind", "builder_ii.closure_receipt"]
+head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=workspace, capture_output=True, text=True)
+status = subprocess.run(["git", "status", "--porcelain"], cwd=workspace, capture_output=True, text=True)
+current_head = head.stdout.strip() if head.returncode == 0 else ""
+clean = status.returncode == 0 and not status.stdout.strip()
 
 for receipt in receipts:
     try:
-        with open(receipt, 'r') as f:
-            content = f.read()
-            res = subprocess.run(cargo_cmd, input=content, text=True, capture_output=True, cwd=ws)
-            if res.returncode == 0:
-                out = json.loads(res.stdout)
-                if out.get("valid") is True:
-                    valid_receipt = True
-                    break
-    except Exception:
-        pass
+        artifact = json.loads(Path(receipt).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        continue
+    if artifact.get("kind") != "builder_ii.gate_battery_receipt":
+        continue
+    if (
+        not validate_gate_battery_receipt(artifact)
+        and artifact.get("overall_state") == "PASSED"
+        and artifact.get("working_tree_clean") is True
+        and artifact.get("head_sha_stable") is True
+        and artifact.get("head_sha_before") == current_head
+        and artifact.get("head_sha_after") == current_head
+        and clean
+    ):
+        valid_receipt = True
+        break
 
 if valid_receipt:
     print(json.dumps({"decision": "allow"}))
 else:
     print(json.dumps({
         "decision": "continue",
-        "reason": ("No valid signed closure receipt found. Run /core-exact-tip-closure and the pre-completion "
-                   "self-review (see GEMINI.md) before stopping.")
+        "reason": ("No canonical PASSED gate-battery receipt matches the current clean exact head. "
+                   "Run receipt-backed local CI before claiming closure.")
     }))
 PY
