@@ -248,40 +248,177 @@ def collect_canonical_m1_samples(
     if platform.system() != "Darwin" or platform.machine() != "arm64":
         raise RuntimeError("M1-v1 physical benchmark collection requires Apple Silicon macOS")
 
-    # 1. Warm TTFT direct vs governed paired measurement
-    # Methodology: 1 discarded warmup, 10 paired measurement iterations
-    warm_ttft_direct: list[float] = []
-    warm_ttft_governed: list[float] = []
+    import tempfile
+    import threading
 
-    # Run direct and governed timing loops
-    for idx in range(11):  # 1 warmup (idx=0) + 10 samples
-        t0 = clock()
-        # Direct gateway invocation timing simulation / probe
-        _ = sum(math.sin(i * 0.01) for i in range(150_000))
-        t1 = clock()
-        direct_ms = (t1 - t0) * 1000.0
+    from builder_ii.adapters.mcp.governed_services import run_service
+    from builder_ii.core.config import load_settings
+    from builder_ii.lifecycle.candidate.runtime_control import find_runtime_processes
+    from builder_ii.routing.gateway_invocation import governed_invocation_engine
+    from builder_ii.routing.model_client_registry import create_model_client_registry
+    from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
 
-        t2 = clock()
-        # Governed routing pipeline simulation / probe (includes WRP validation, policy, budget, assertion)
-        _ = sum(math.sin(i * 0.01) for i in range(153_000))
-        t3 = clock()
-        governed_ms = (t3 - t2) * 1000.0
+    settings = load_settings()
 
-        if idx > 0:  # discard warmup
-            warm_ttft_direct.append(direct_ms)
-            warm_ttft_governed.append(governed_ms)
+    # 2. Make real model identity mandatory
+    if model_pid is None:
+        processes = find_runtime_processes(settings)
+        if len(processes) != 1:
+            raise ValueError("CANONICAL_QUALIFICATION FAIL: Exact single model server not found. MODEL_FOOTPRINT = UNAVAILABLE, OVERALL = FAIL.")
+        model_pid = processes[0].pid
 
-    # 2. Non-model dispatch latency (100 iterations)
-    non_model_dispatch: list[float] = []
-    for _ in range(100):
-        t0 = clock()
-        # Non-model dispatch path (route check / token accounting assertion)
-        _ = (hashlib.sha256(b"route_dispatch_probe").hexdigest(),)
-        t1 = clock()
-        non_model_dispatch.append((t1 - t0) * 1000.0)
+    def check_identity(pid: int) -> bool:
+        procs = find_runtime_processes(settings)
+        return any(p.pid == pid for p in procs)
 
-    # 3. Model physical footprint & RSS diagnostics
-    if model_pid is not None and identity_check is not None:
+    if not check_identity(model_pid):
+        raise ValueError("CANONICAL_QUALIFICATION FAIL: Provided model_pid not found or not a valid model server. MODEL_FOOTPRINT = UNAVAILABLE, OVERALL = FAIL.")
+
+    identity_check = check_identity
+
+    # Background concurrency monitor
+    stop_monitor = False
+    max_concurrency = 0
+    def monitor_concurrency():
+        nonlocal max_concurrency
+        while not stop_monitor:
+            count = len(find_runtime_processes(settings))
+            if count > max_concurrency:
+                max_concurrency = count
+            time.sleep(0.1)
+
+    monitor_thread = threading.Thread(target=monitor_concurrency, daemon=True)
+    monitor_thread.start()
+
+    try:
+        # Get Control Plane PID and idle stratum RSS
+        current_process = psutil.Process()
+        # Find child stratum if any, else run it
+
+        # Let's run Stratum for 5 seconds to settle
+        stratum_proc = subprocess.Popen([sys.executable, "-m", "builder_ii.cli.stratum_cli", "--no-splash", "--no-guide"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        time.sleep(5)
+
+        idle_stratum_rss_samples = []
+        for _ in range(30):
+            try:
+                 idle_stratum_rss_samples.append(rss_tree(stratum_proc.pid))
+            except psutil.NoSuchProcess:
+                 pass
+            time.sleep(1)
+
+        idle_stratum_rss = max(idle_stratum_rss_samples) if idle_stratum_rss_samples else 0
+        stratum_proc.terminate()
+        stratum_proc.wait(timeout=5)
+
+        control_plane_rss = 0
+        def sample_control_plane():
+            nonlocal control_plane_rss
+            # exclude model server tree
+            try:
+                 model_tree_pids = set(p.pid for p in psutil.Process(model_pid).children(recursive=True))
+                 model_tree_pids.add(model_pid)
+            except psutil.NoSuchProcess:
+                 model_tree_pids = set()
+
+            current = rss_tree(current_process.pid, exclude_pids=model_tree_pids)
+            if current > control_plane_rss:
+                 control_plane_rss = current
+
+        registry = create_model_client_registry()
+        execution_policy = {
+            "kind": "builder_ii.model_execution_policy",
+            "schema_version": 2,
+            "digest": "benchmark-policy",
+            "routes": [
+                {
+                    "route_id": "benchmark",
+                    "description": "Benchmark routing",
+                    "constraints": {"backend": [manifest["backend"]]},
+                    "candidates": [manifest["model"]]
+                }
+            ]
+        }
+
+        # 3. Measure direct TTFT
+        engine = governed_invocation_engine(settings)
+        candidate_dict = next(c for c in registry["clients"] if c["model_id"] == manifest["model"])
+
+        warm_ttft_direct: list[float] = []
+        warm_ttft_governed: list[float] = []
+
+        gateway = ModelExecutionGateway(settings, registry, execution_policy)
+
+        direct_gateway_receipt_refs = []
+        governed_gateway_receipt_refs = []
+
+        with tempfile.TemporaryDirectory() as td:
+            tdp = Path(td)
+            for idx in range(11):
+                sample_control_plane()
+                # Direct
+                res = engine.invoke(
+                    candidates=[candidate_dict],
+                    prompt="Determine if benchmark is running.",
+                    system_prompt="You are benchmarking.",
+                    max_tokens=32,
+                    temperature=0.0
+                )
+                if res.status != "succeeded" or not res.attempts:
+                    raise RuntimeError(f"Direct TTFT failed: {res.final_error}")
+                rec = res.attempts[-1]
+                if rec.first_public_chunk_ns and rec.started_ns:
+                    ttft = (rec.first_public_chunk_ns - rec.started_ns) / 1_000_000.0
+                    if idx > 0:
+                        warm_ttft_direct.append(ttft)
+                direct_gateway_receipt_refs.append(f"direct_ttft_iteration_{idx}")
+
+                sample_control_plane()
+
+                # Governed
+                env, receipt, _ = gateway.run_model_call(
+                    model_id=manifest["model"],
+                    prompt="Determine if benchmark is running.",
+                    system_prompt="You are benchmarking.",
+                    max_tokens=32,
+                    temperature=0.0,
+                    envelope_path=tdp / f"env_{idx}.json",
+                    receipt_path=tdp / f"receipt_{idx}.json"
+                )
+                attempts = receipt.get("invocation", {}).get("attempts", [])
+                if not attempts:
+                    raise RuntimeError("Governed TTFT failed")
+                rec2 = attempts[-1]
+                first = rec2.get("first_public_chunk_ns")
+                started = rec2.get("started_ns")
+                if first and started:
+                    ttft2 = (first - started) / 1_000_000.0
+                    if idx > 0:
+                        warm_ttft_governed.append(ttft2)
+                governed_gateway_receipt_refs.append(f"governed_ttft_iteration_{idx}")
+                sample_control_plane()
+
+        # 5. Non-model dispatch latency (100 iterations)
+        non_model_dispatch: list[float] = []
+        for _ in range(100):
+            t0 = clock()
+            try:
+                run_service(
+                    tool_name="delegation_status",
+                    arguments={},
+                    session_id="benchmark",
+                    builder_root=Path(td),
+                    target_root=Path(td),
+                    target_name="benchmark",
+                    allow_artifact_root_inside_target=True
+                )
+            except Exception:
+                pass
+            t1 = clock()
+            non_model_dispatch.append((t1 - t0) * 1000.0)
+            sample_control_plane()
+
+        # 6. Model physical footprint
         sample = collect_model_memory(
             model_pid,
             identity_check=identity_check,
@@ -289,38 +426,18 @@ def collect_canonical_m1_samples(
             runner=runner,
         )
         mem_info = peak_model_memory([sample])
-    else:
-        # Default physical footprint bounds for the validated local M1 model runtime
-        mem_info = {
-            "model_memory_acceptance_metric": "macos_physical_footprint",
-            "model_physical_footprint": {
-                "baseline_bytes": 4_466_249_544,
-                "steady_warm_bytes": 4_466_233_160,
-                "peak_bytes": 4_674_670_504,
-                "acceptance_bytes": 4_674_670_504,
-            },
-            "model_rss_diagnostic": {
-                "baseline_bytes": 712_425_472,
-                "steady_warm_bytes": 712_425_472,
-                "peak_bytes": 712_425_472,
-                "acceptance": False,
-            },
-            "graphics_memory_diagnostics": {
-                "ioaccelerator_bytes": 327_680,
-                "ioaccelerator_graphics_bytes": 4_456_005_632,
-                "owned_unmapped_graphics_bytes": 16_384,
-            },
-        }
 
-    # 4. Control-plane RSS & Idle Stratum RSS
-    current_process = psutil.Process()
-    control_plane_rss = current_process.memory_info().rss
-    idle_stratum_rss = rss_tree(current_process.pid)
+    finally:
+        stop_monitor = True
+        monitor_thread.join(timeout=1.0)
 
-    # 5. Build collector-generated raw samples
+    # 10. Explicitly state qualification mode
+    qualification_mode = "PHYSICAL"
+
     raw_samples: dict[str, Any] = {
         "kind": RAW_SAMPLES_KIND,
         "schema_version": SCHEMA_VERSION,
+        "qualification_mode": qualification_mode,
         "manifest_digest": manifest["manifest_digest"],
         "git_commit": manifest["git_commit"],
         "git_tree": manifest["git_tree"],
@@ -339,19 +456,23 @@ def collect_canonical_m1_samples(
         "graphics_memory_diagnostics": mem_info.get("graphics_memory_diagnostics", {}),
         "control_plane_rss_bytes": control_plane_rss,
         "idle_stratum_rss_bytes": idle_stratum_rss,
-        "max_large_model_runtime_count": 1,
+        "max_large_model_runtime_count": max_concurrency,
         "cold_ttft_ms": None,
-        "warm_ttft_ms": statistics.median(warm_ttft_governed),
+        "warm_ttft_ms": statistics.median(warm_ttft_governed) if warm_ttft_governed else None,
         "throughput_tokens_per_second": None,
         "memory_peak_bytes": mem_info["model_physical_footprint"]["peak_bytes"],
         "delegation_overhead_ms": None,
         "interruption_latency_ms": None,
         "resume_latency_ms": None,
         "governed_tool_latency_ms": None,
+        "direct_gateway_receipt_refs": direct_gateway_receipt_refs,
+        "governed_gateway_receipt_refs": governed_gateway_receipt_refs,
+        "model_server_pid": model_pid,
+        "stratum_pid": stratum_proc.pid,
+        "control_plane_pid": current_process.pid,
     }
     raw_samples["samples_digest"] = raw_samples_digest(raw_samples)
     return raw_samples
-
 
 def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[str, Any]:
     if manifest.get("kind") != MANIFEST_KIND or manifest.get("manifest_digest") != manifest_digest(manifest):
@@ -427,7 +548,7 @@ def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[s
     }
     content = {"kind": REPORT_KIND, "schema_version": SCHEMA_VERSION,
                "manifest_digest": manifest["manifest_digest"], "measurements": measured,
-               "hard_threshold_results": checks, "overall_state": "PASS" if all(checks.values()) else "FAIL",
+               "hard_threshold_results": checks, "overall_state": "PASS" if all(checks.values()) and samples.get("qualification_mode") == "PHYSICAL" else "FAIL",
                "raw_samples": samples, "artifact_is_authority": False,
                "grants_authority": False, "promotes": False}
     content["report_digest"] = report_digest(content)

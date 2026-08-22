@@ -384,6 +384,7 @@ def benchmark_cmd(
                 console.print(f"[red]Samples file not found: {samples}[/]")
                 raise typer.Exit(1)
             raw_samples = json_lib.loads(samples.read_text(encoding="utf-8"))
+            raw_samples["qualification_mode"] = "REPLAY"
         else:
             raw_samples = collect_canonical_m1_samples(
                 manifest=manifest,
