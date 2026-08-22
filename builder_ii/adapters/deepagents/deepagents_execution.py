@@ -860,6 +860,12 @@ def create_deepagents_execution_candidate(
     model_registry_path: Path | None = None,
     model_execution_policy: dict[str, Any] | None = None,
     model_execution_policy_path: Path | None = None,
+    model_routing_recommendation: dict[str, Any] | None = None,
+    model_routing_recommendation_path: Path | None = None,
+    model_assignment: dict[str, Any] | None = None,
+    model_assignment_path: Path | None = None,
+    model_budget: dict[str, Any] | None = None,
+    model_budget_path: Path | None = None,
     model_id: str = "",
     model_approval: dict[str, Any] | None = None,
     model_approval_path: Path | None = None,
@@ -919,9 +925,11 @@ def create_deepagents_execution_candidate(
         from builder_ii.routing.model_client_registry import validate_model_client_registry
         from builder_ii.routing.model_routing_policy import validate_model_execution_policy
 
-        if model_registry is None or model_execution_policy is None or not model_id.strip():
+        if any(value is None for value in (
+            model_registry, model_execution_policy, model_routing_recommendation, model_assignment, model_budget
+        )) or not model_id.strip():
             raise ValueError(
-                "optional_deepagents requires model_registry, model_execution_policy, and model_id"
+                "optional_deepagents requires WRP recommendation, assignment, model budget, registry, policy, and an exact matching model_id"
             )
         registry_errors = validate_model_client_registry(model_registry)
         if registry_errors:
@@ -929,6 +937,23 @@ def create_deepagents_execution_candidate(
         policy_errors = validate_model_execution_policy(model_execution_policy)
         if policy_errors:
             raise ValueError("invalid native model execution policy: " + "; ".join(policy_errors))
+        from builder_ii.routing.model_route_binding import build_model_route_binding
+
+        route = build_model_route_binding(
+            recommendation=model_routing_recommendation,
+            assignment=model_assignment,
+            execution_policy=model_execution_policy,
+            registry=model_registry,
+            budget=model_budget,
+            session_id=str(model_budget["session_id"]),
+            run_id="candidate-route-template",
+            obligation_id="candidate-route-template",
+            role="deepagents_parent",
+            max_tokens=min(int(model_execution_policy["max_tokens"]), int(model_budget["max_output_tokens"])),
+            cloud_approval=model_approval,
+        )
+        if model_id.strip() != route.selected_candidate.model_id:
+            raise ValueError("native model_id must exactly equal the WRP-selected model")
         if not 1 <= active_workers <= 4:
             raise ValueError("active_workers must be between 1 and 4")
         if max_model_calls <= 0 or max_tool_calls <= 0:
@@ -947,6 +972,18 @@ def create_deepagents_execution_candidate(
                 path=model_execution_policy_path,
                 name="native Deep Agents model execution policy",
             ),
+            "model_routing_recommendation_ref": _artifact_ref(
+                model_routing_recommendation, role="model_routing_recommendation",
+                path=model_routing_recommendation_path, name="WRP model routing recommendation",
+            ),
+            "model_assignment_ref": _artifact_ref(
+                model_assignment, role="model_assignment", path=model_assignment_path,
+                name="WRP orchestration assignment",
+            ),
+            "model_budget_ref": _artifact_ref(
+                model_budget, role="model_budget", path=model_budget_path, name="WRP model budget",
+            ),
+            "route_template_digest": route.route_digest,
             "model_approval_ref": (
                 _artifact_ref(
                     model_approval,
@@ -965,7 +1002,8 @@ def create_deepagents_execution_candidate(
         }
     elif any(
         value is not None
-        for value in (model_registry, model_execution_policy, model_approval)
+        for value in (model_registry, model_execution_policy, model_routing_recommendation,
+                      model_assignment, model_budget, model_approval)
     ) or model_id:
         raise ValueError("native model configuration is only valid for optional_deepagents")
 
@@ -1569,8 +1607,13 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
                 errors.extend(_ref_errors(ref, field=f"model_boundary.model_call_receipt_refs[{index}]"))
     native_runtime = data.get("native_runtime")
     if data.get("backend_mode") == OPTIONAL_DEEPAGENTS_BACKEND:
+        from builder_ii.core.orchestration_assignment import AGENT_ASSIGNMENT_PLAN_KIND
+        from builder_ii.routing.model_budget import MODEL_BUDGET_KIND
         from builder_ii.routing.model_client_registry import MODEL_CLIENT_REGISTRY_KIND
-        from builder_ii.routing.model_routing_policy import MODEL_EXECUTION_POLICY_KIND
+        from builder_ii.routing.model_routing_policy import (
+            MODEL_EXECUTION_POLICY_KIND,
+            MODEL_ROUTING_RECOMMENDATION_KIND,
+        )
 
         if not isinstance(native_runtime, dict):
             errors.append("native_runtime must be an object for optional_deepagents")
@@ -1585,6 +1628,15 @@ def validate_deepagents_execution_candidate(data: Any) -> list[str]:
                     role="model_registry",
                 )
             )
+            for field, kind, role in (
+                ("model_routing_recommendation_ref", MODEL_ROUTING_RECOMMENDATION_KIND, "model_routing_recommendation"),
+                ("model_assignment_ref", AGENT_ASSIGNMENT_PLAN_KIND, "model_assignment"),
+                ("model_budget_ref", MODEL_BUDGET_KIND, "model_budget"),
+            ):
+                errors.extend(_ref_errors(native_runtime.get(field), field=f"native_runtime.{field}",
+                                          kind=kind, role=role))
+            if not isinstance(native_runtime.get("route_template_digest"), str) or len(native_runtime["route_template_digest"]) != 64:
+                errors.append("native_runtime.route_template_digest must be a SHA-256 digest")
             errors.extend(
                 _ref_errors(
                     native_runtime.get("model_execution_policy_ref"),
@@ -2875,7 +2927,9 @@ def _native_runtime_for_candidate(
 ) -> Any:
     from builder_ii.adapters.deepagents.native_runtime import NativeDeepAgentsRuntime, NativeRuntimeLimits
     from builder_ii.core.config import load_settings
+    from builder_ii.routing.gateway_invocation import governed_invocation_engine
     from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+    from builder_ii.routing.model_route_binding import build_model_route_binding
 
     registry, _registry_path = _load_bound_native_ref(
         candidate, "model_registry_ref", label="native model registry"
@@ -2883,17 +2937,38 @@ def _native_runtime_for_candidate(
     policy, _policy_path = _load_bound_native_ref(
         candidate, "model_execution_policy_ref", label="native model execution policy"
     )
+    recommendation, _ = _load_bound_native_ref(
+        candidate, "model_routing_recommendation_ref", label="native WRP recommendation"
+    )
+    assignment, _ = _load_bound_native_ref(candidate, "model_assignment_ref", label="native WRP assignment")
+    budget, _ = _load_bound_native_ref(candidate, "model_budget_ref", label="native WRP model budget")
     runtime_config = candidate["native_runtime"]
     approval_ref = runtime_config.get("model_approval_ref")
     model_approval_path: Path | None = None
+    model_approval: dict[str, Any] | None = None
     if isinstance(approval_ref, dict):
-        _model_approval, model_approval_path = _load_bound_native_ref(
+        model_approval, model_approval_path = _load_bound_native_ref(
             candidate, "model_approval_ref", label="native model approval"
         )
-    gateway = ModelExecutionGateway(load_settings(), registry, policy)
+    settings = load_settings()
+    route = build_model_route_binding(
+        recommendation=recommendation, assignment=assignment, execution_policy=policy,
+        registry=registry, budget=budget, session_id=session_id,
+        run_id=str(candidate.get("candidate_digest") or session_id),
+        obligation_id=str(obligations[0]["obligation_id"]), role="deepagents_parent",
+        max_tokens=min(int(policy["max_tokens"]), int(budget["max_output_tokens"])),
+        cloud_approval=model_approval,
+    )
+    if str(runtime_config["model_id"]) != route.selected_candidate.model_id:
+        raise ValueError("native_runtime.model_id does not equal reconstructed WRP route")
+    gateway = ModelExecutionGateway(
+        settings, registry, policy,
+        invocation_engine=governed_invocation_engine(settings),
+    )
     return NativeDeepAgentsRuntime(
         gateway=gateway,
-        model_id=str(runtime_config["model_id"]),
+        route=route,
+        budget=budget,
         obligations=obligations,
         output_dir=output_dir,
         session_id=session_id,
@@ -2931,7 +3006,7 @@ def run_native_deepagents_approved_candidate(
         approval_path=approval_path,
         obligations=obligations,
         output_dir=output_dir,
-        session_id=_new_session_id(candidate),
+        session_id=str(_load_bound_native_ref(candidate, "model_budget_ref", label="native WRP model budget")[0]["session_id"]),
     )
     return runtime.start(str(candidate["task"]))
 

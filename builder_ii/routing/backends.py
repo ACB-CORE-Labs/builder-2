@@ -26,6 +26,14 @@ class ServedModelStatus:
     model_ids: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class WarmBackendResult:
+    state: str
+    pid: int | None
+    model_id: str
+    detail: str
+
+
 def _bin(name: str) -> str:
     found = shutil.which(name)
     if not found:
@@ -190,14 +198,19 @@ def _model_id_matches(expected: str, served: str) -> bool:
     return served == expected or served == expected.split("/")[-1]
 
 
-def served_models(settings: Settings, timeout: float = 3.0) -> ServedModelStatus:
+def served_models(
+    settings: Settings,
+    timeout: float = 3.0,
+    *,
+    client: httpx.Client | None = None,
+) -> ServedModelStatus:
     supported, reason = ensure_backend_supports_model(settings)
     if not supported:
         return ServedModelStatus(False, reason, ())
 
     url = health_url(settings, health_path_for_backend(settings))
     try:
-        response = httpx.get(url, timeout=timeout)
+        response = client.get(url, timeout=timeout) if client is not None else httpx.get(url, timeout=timeout)
     except httpx.HTTPError as exc:
         return ServedModelStatus(False, f"{url} unreachable: {exc}", ())
 
@@ -263,6 +276,32 @@ def start_backend_process(settings: Settings) -> subprocess.Popen[str] | None:
         text=True,
         env=env,
     )
+
+
+def ensure_warm_backend(settings: Settings) -> WarmBackendResult:
+    """Reuse the exact healthy model or refuse a second managed large runtime."""
+    from builder_ii.lifecycle.candidate.runtime_control import find_runtime_processes
+
+    processes = find_runtime_processes(settings)
+    if len(processes) > 1:
+        raise RuntimeError("more than one Builder-II-managed large model runtime is already resident")
+    health_ok, health_detail = check_health(settings)
+    if health_ok:
+        served_ok, served_detail = check_serves_active_model(settings)
+        if served_ok:
+            pid = processes[0].pid if processes else None
+            return WarmBackendResult("reused", pid, settings.active_model_id, served_detail)
+        raise RuntimeError(f"resident runtime cannot serve WRP-selected model: {served_detail}")
+    if processes:
+        raise RuntimeError(
+            f"managed model runtime pid={processes[0].pid} is resident but unhealthy; "
+            "perform an explicitly governed reset before starting another runtime"
+        )
+    process = start_backend_process(settings)
+    if process is None:
+        return WarmBackendResult("external", None, settings.active_model_id, health_detail)
+    write_backend_marker(settings)
+    return WarmBackendResult("started", process.pid, settings.active_model_id, health_detail)
 
 
 def backend_switch_hint(settings: Settings) -> str:

@@ -474,7 +474,14 @@ async def _get_target_files_async(target_root: Path) -> dict[str, str]:
 
 
 class GooseRuntimeHarness:
-    def __init__(self, settings: Settings, session_plan: SessionPlan, target_root: Path):
+    def __init__(
+        self,
+        settings: Settings,
+        session_plan: SessionPlan,
+        target_root: Path,
+        *,
+        model_gateway_context: Any | None = None,
+    ):
         self.settings = settings
         self.session_plan = session_plan
         self.target_root = target_root
@@ -487,6 +494,8 @@ class GooseRuntimeHarness:
         self._admitted_project_root: Path | None = None
         self._admitted_artifact_root: Path | None = None
         self._admitted_allow_artifact_root_inside_target = False
+        self._model_gateway_context = model_gateway_context
+        self._model_gateway_adapter: Any | None = None
 
     def _resolve_governed_identity(self) -> tuple[str, Path, bool]:
         """Resolve target and artifact identities through canonical config precedence."""
@@ -615,6 +624,10 @@ class GooseRuntimeHarness:
         classes arrives in G3; G2's exposed tools are read-only, so ``GOOSE_MODE`` stays
         ``auto`` and the governance boundary lives in the MCP tool, not in Goose's prompt.
         """
+        if self._model_gateway_context is None:
+            raise ValueError(
+                "canonical governed Goose launch requires a validated WRP ModelExecutionGateway context"
+            )
         recipe = self._governed_recipe_path()
         if self._governed_admission is None:
             self.admit_governed()
@@ -635,8 +648,28 @@ class GooseRuntimeHarness:
         if Path(self.settings.project_root).resolve() != project_root:
             raise ValueError("Builder-II project root changed after admission; refusing to spawn Goose.")
 
+        # Keep the final recipe check before starting the loopback model adapter,
+        # so a spawn-boundary refusal leaves no listening runtime behind.
+        current_recipe_digest = validate_governed_recipe(recipe)
+        if current_recipe_digest != recipe_digest:
+            raise ValueError(
+                "Governed Goose recipe changed after admission; refusing to spawn Goose. "
+                "Re-admit the unchanged recipe and retry."
+            )
+
         goose = compatibility.binary
-        env = goose_env(self.settings, session=self.session_plan)
+        from builder_ii.adapters.goose.goose_launcher import derive_goose_environment
+        from builder_ii.adapters.goose.model_gateway_adapter import GooseModelGatewayAdapter
+
+        self._model_gateway_adapter = GooseModelGatewayAdapter(self._model_gateway_context)
+        self._model_gateway_adapter.start()
+        env, gateway_report = derive_goose_environment(
+            self.settings,
+            session=self.session_plan,
+            model_gateway_url=self._model_gateway_adapter.base_url,
+            model_gateway_credential=self._model_gateway_context.local_credential,
+            route_model_id=self._model_gateway_context.route.selected_candidate.model_id,
+        )
         env["GOOSE_MODE"] = "auto"
         # Scope the MCP server's ledger and bind its target/config identities to this exact
         # admitted launch. The target repository itself remains Popen.cwd below.
@@ -652,19 +685,12 @@ class GooseRuntimeHarness:
         self._preflight_snapshot = _get_target_files(self.target_root)
 
         start_time = _current_time_utc()
-        # Keep the final inventory check adjacent to the process boundary: no
-        # further recipe-dependent work occurs between this check and Popen.
-        current_recipe_digest = validate_governed_recipe(recipe)
-        if current_recipe_digest != recipe_digest:
-            raise ValueError(
-                "Governed Goose recipe changed after admission; refusing to spawn Goose. "
-                "Re-admit the unchanged recipe and retry."
-            )
-        self._proc = subprocess.Popen(
-            argv,
-            cwd=self.target_root,
-            env=env,
-        )
+        try:
+            self._proc = subprocess.Popen(argv, cwd=self.target_root, env=env)
+        except Exception:
+            self._model_gateway_adapter.close()
+            self._model_gateway_adapter = None
+            raise
 
         receipt = create_goose_launch_receipt(
             session_id=self.session_id,
@@ -681,6 +707,8 @@ class GooseRuntimeHarness:
                     "policy": compatibility.policy,
                 },
                 "recipe_sha256": recipe_digest,
+                "model_gateway": gateway_report,
+                "route_digest": self._model_gateway_context.route.route_digest,
             },
         )
         return receipt
@@ -743,6 +771,9 @@ class GooseRuntimeHarness:
                     self._proc.kill()
                     self._proc.wait()
             exit_code = self._proc.returncode
+        if getattr(self, "_model_gateway_adapter", None) is not None:
+            self._model_gateway_adapter.close()
+            self._model_gateway_adapter = None
 
         post_snapshot = _get_target_files(self.target_root)
         mutations: list[str] = []

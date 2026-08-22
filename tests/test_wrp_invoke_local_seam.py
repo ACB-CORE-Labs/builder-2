@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from unittest.mock import patch
 
+from builder_ii.routing.gateway_invocation import GatewayInvocationEngine, StreamChunk
 from builder_ii.routing.model_budget import create_model_budget
 from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_routing_policy import create_model_execution_policy
 from builder_ii.wrp.gateway_nodes import run_gateway_node
 from builder_ii.wrp.live_lane import (
     build_live_run_approval,
@@ -13,6 +17,25 @@ from builder_ii.wrp.live_lane import (
     run_approved,
     validate_live_run_receipt,
 )
+
+
+class _Transport:
+    def stream(self, _request, _cancellation):
+        yield StreamChunk("governed local response")
+
+
+def _route_sources(session_id: str, *, max_tokens: int = 64) -> dict:
+    root = Path("tests/fixtures/artifacts")
+    recommendation = json.loads((root / "model-recommendation.json").read_text())
+    assignment = json.loads((root / "agent-assignment-plan.json").read_text())
+    registry = create_model_client_registry()
+    budget = create_model_budget(session_id=session_id, max_usd=5.0, max_total_tokens=50_000,
+                                 max_output_tokens=max_tokens * 8)
+    return {"recommendation": recommendation, "assignment": assignment,
+            "execution_policy": create_model_execution_policy(recommendation, max_tokens=max_tokens),
+            "registry": registry, "budget": budget, "session_id": session_id,
+            "run_id": f"run-{session_id}", "obligation_id": f"obl-{session_id}",
+            "role": "code_reviewer", "max_tokens": max_tokens}
 
 
 def test_default_record_mode_does_not_invoke() -> None:
@@ -35,12 +58,10 @@ def test_default_record_mode_does_not_invoke() -> None:
 
 
 def test_invoke_local_stub_produces_real_receipt(tmp_path: Path) -> None:
-    registry = create_model_client_registry()
-    for client in registry["clients"]:
-        if client["model_id"] == "gpt-4o-stub":
-            client["enabled"] = True
-    budget = create_model_budget(session_id="seam-1", max_usd=5.0, max_total_tokens=50_000)
-    event, _state, traj, err = run_gateway_node(
+    route_sources = _route_sources("seam-1")
+    engine = GatewayInvocationEngine(lambda _candidate: _Transport())
+    with patch("builder_ii.routing.gateway_invocation.governed_invocation_engine", return_value=engine):
+        event, _state, traj, err = run_gateway_node(
         node_id="m1",
         node_type="model_gateway",
         spec={
@@ -48,10 +69,9 @@ def test_invoke_local_stub_produces_real_receipt(tmp_path: Path) -> None:
             "cost_estimate": 0.0,
             "payload": {
                 "tool": "model_call",
-                "model_id": "gpt-4o-stub",
+                "model_id": route_sources["recommendation"]["recommended_candidates"][0]["model_id"],
                 "prompt": "Say hello from the seam",
-                "budget": budget,
-                "registry": registry,
+                "route_sources": route_sources,
                 "artifact_dir": str(tmp_path / "artifacts"),
                 "enable_stub_if_disabled": True,
                 "session_id": "seam-1",
@@ -62,7 +82,7 @@ def test_invoke_local_stub_produces_real_receipt(tmp_path: Path) -> None:
         plan_digest="b" * 64,
         approved_by="operator",
         gateway_mode="invoke_local",
-    )
+        )
     assert err is None, err
     assert event["status"] == "ok"
     result = traj["m1"]
@@ -96,7 +116,7 @@ def test_invoke_local_refuses_record_only_model_id() -> None:
         gateway_mode="invoke_local",
     )
     assert err is not None
-    assert "real registry model_id" in err
+    assert "forbids auto_budget" in err
 
 
 def test_invoke_local_requires_budget() -> None:
@@ -122,15 +142,11 @@ def test_invoke_local_requires_budget() -> None:
         gateway_mode="invoke_local",
     )
     assert err is not None
-    assert "budget" in err.lower()
+    assert "route_sources" in err
 
 
 def test_live_lane_invoke_local_plan_to_receipt(tmp_path: Path) -> None:
-    registry = create_model_client_registry()
-    for client in registry["clients"]:
-        if client["model_id"] == "gpt-4o-stub":
-            client["enabled"] = True
-    budget = create_model_budget(session_id="live-seam", max_usd=5.0)
+    route_sources = _route_sources("live-seam", max_tokens=32)
     plan = build_live_run_plan(
         task="seam live lane invoke_local",
         s2_version="v2",
@@ -144,10 +160,9 @@ def test_live_lane_invoke_local_plan_to_receipt(tmp_path: Path) -> None:
                     "tool": "model_call",
                     "data_domain": "local_workspace",
                     "risk": "local_network",
-                    "model_id": "gpt-4o-stub",
+                    "model_id": route_sources["recommendation"]["recommended_candidates"][0]["model_id"],
                     "prompt": "Live lane seam prompt",
-                    "budget": budget,
-                    "registry": registry,
+                    "route_sources": route_sources,
                     "artifact_dir": str(tmp_path / "live_artifacts"),
                     "enable_stub_if_disabled": True,
                     "session_id": "live-seam",
@@ -160,7 +175,9 @@ def test_live_lane_invoke_local_plan_to_receipt(tmp_path: Path) -> None:
     assert plan["cloud_provider_invoke"] is False
     assert plan.get("model_provider_invoke") is True
     approval = build_live_run_approval(plan=plan, approved_by="operator")
-    receipt = run_approved(plan=plan, approval=approval)
+    engine = GatewayInvocationEngine(lambda _candidate: _Transport())
+    with patch("builder_ii.routing.gateway_invocation.governed_invocation_engine", return_value=engine):
+        receipt = run_approved(plan=plan, approval=approval)
     assert validate_live_run_receipt(receipt) == []
     assert receipt["status"] == "success"
     assert receipt["gateway_mode"] == "invoke_local"

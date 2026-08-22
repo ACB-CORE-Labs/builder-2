@@ -193,9 +193,13 @@ def _optional_ladder4_candidate(monkeypatch, tmp_path: Path):
     policy_path = _write(tmp_path / "lane-policy.json", policy)
     gate = create_deepagents_backend_readiness_gate(capability_gates_passed=True)
     gate_path = _write(tmp_path / "gate.json", gate)
-    registry, model_policy = _native_model_config()
+    route = _native_model_config()
+    registry, model_policy = route["registry"], route["policy"]
     registry_path = _write(tmp_path / "model-registry.json", registry)
     model_policy_path = _write(tmp_path / "model-policy.json", model_policy)
+    recommendation_path = _write(tmp_path / "model-recommendation.json", route["recommendation"])
+    assignment_path = _write(tmp_path / "model-assignment.json", route["assignment"])
+    budget_path = _write(tmp_path / "model-budget.json", route["budget"])
     candidate = create_deepagents_execution_candidate(
         work_plan=work_plan,
         work_plan_path=work_plan_path,
@@ -212,7 +216,11 @@ def _optional_ladder4_candidate(monkeypatch, tmp_path: Path):
         model_registry_path=registry_path,
         model_execution_policy=model_policy,
         model_execution_policy_path=model_policy_path,
-        model_id="gpt-4o-stub",
+        model_routing_recommendation=route["recommendation"],
+        model_routing_recommendation_path=recommendation_path,
+        model_assignment=route["assignment"], model_assignment_path=assignment_path,
+        model_budget=route["budget"], model_budget_path=budget_path,
+        model_id=route["recommendation"]["recommended_candidates"][0]["model_id"],
     )
     return candidate
 

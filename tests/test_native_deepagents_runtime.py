@@ -22,8 +22,11 @@ from builder_ii.core.config import Settings
 from builder_ii.core.orchestration_lane_policy import create_orchestration_lane_policy_artifact
 from builder_ii.core.orchestration_obligation import create_orchestration_obligation
 from builder_ii.governance.ledger.artifact_index_records import create_artifact_index_record
+from builder_ii.routing.gateway_invocation import GatewayInvocationEngine, StreamChunk
+from builder_ii.routing.model_budget import create_model_budget
 from builder_ii.routing.model_client_registry import create_model_client_registry
 from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+from builder_ii.routing.model_route_binding import build_model_route_binding
 from builder_ii.routing.model_routing_policy import create_model_execution_policy
 
 
@@ -53,17 +56,26 @@ def _settings(tmp_path: Path) -> Settings:
     )
 
 
-def _gateway(tmp_path: Path) -> ModelExecutionGateway:
+class _Transport:
+    def stream(self, _request, _cancel):
+        yield StreamChunk("scripted")
+
+
+def _gateway(tmp_path: Path):
     registry = create_model_client_registry()
-    for client in registry["clients"]:
-        if client["model_id"] == "gpt-4o-stub":
-            client["enabled"] = True
-    recommendation = {
-        "kind": "builder_ii.model_routing_recommendation",
-        "recommended_candidates": [{"model_id": "gpt-4o-stub"}],
-    }
+    root = Path("tests/fixtures/artifacts")
+    recommendation = json_lib.loads((root / "model-recommendation.json").read_text())
+    assignment = json_lib.loads((root / "agent-assignment-plan.json").read_text())
     policy = create_model_execution_policy(recommendation, max_tokens=1024)
-    return ModelExecutionGateway(_settings(tmp_path), registry, policy)
+    budget = create_model_budget(session_id="native-plan-set-2-proof", max_output_tokens=16_384,
+                                 max_total_tokens=100_000, max_usd=5)
+    route = build_model_route_binding(recommendation=recommendation, assignment=assignment,
+                                      execution_policy=policy, registry=registry, budget=budget,
+                                      session_id="native-plan-set-2-proof", run_id="native-run",
+                                      obligation_id="native-parent", role="deepagents_parent", max_tokens=256)
+    gateway = ModelExecutionGateway(_settings(tmp_path), registry, policy,
+                                    invocation_engine=GatewayInvocationEngine(lambda _c: _Transport()))
+    return gateway, route, budget
 
 
 def _obligations() -> list[dict]:
@@ -171,9 +183,11 @@ def _scripted_response(_receipt: dict, messages: Sequence[BaseMessage]) -> AIMes
 
 
 def _runtime(tmp_path: Path) -> NativeDeepAgentsRuntime:
+    gateway, route, budget = _gateway(tmp_path)
     return NativeDeepAgentsRuntime(
-        gateway=_gateway(tmp_path),
-        model_id="gpt-4o-stub",
+        gateway=gateway,
+        route=route,
+        budget=budget,
         obligations=_obligations(),
         output_dir=tmp_path / "native-run",
         session_id="native-plan-set-2-proof",

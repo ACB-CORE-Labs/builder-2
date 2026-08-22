@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from typing import Any, Mapping
 
 from builder_ii.wrp.msda_preflight import MsdaPreflightDenied, assert_msda_preflight
@@ -121,15 +122,55 @@ def _invoke_local_model_gateway(
     from pathlib import Path
 
     from builder_ii.core.config import load_settings
-    from builder_ii.routing.model_budget import BudgetExceededError, create_model_budget
+    from builder_ii.routing.gateway_invocation import governed_invocation_engine
+    from builder_ii.routing.model_budget import BudgetExceededError
     from builder_ii.routing.model_client_registry import create_model_client_registry
     from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
-    from builder_ii.routing.model_routing_policy import create_model_execution_policy
     from builder_ii.routing.price_book import create_default_price_book
 
     payload = spec.get("payload")
     if not isinstance(payload, dict):
         payload = {}
+
+    if payload.get("auto_budget") is not None:
+        raise GatewayNodeError("canonical invoke_local forbids auto_budget")
+    route_sources = payload.get("route_sources")
+    if not isinstance(route_sources, dict):
+        raise GatewayNodeError("canonical invoke_local requires payload.route_sources from WRP")
+    from builder_ii.routing.model_route_binding import build_model_route_binding
+
+    try:
+        route = build_model_route_binding(
+            recommendation=dict(route_sources["recommendation"]),
+            assignment=dict(route_sources["assignment"]),
+            execution_policy=dict(route_sources["execution_policy"]),
+            registry=dict(route_sources["registry"]),
+            budget=dict(route_sources["budget"]),
+            session_id=str(route_sources["session_id"]),
+            run_id=str(route_sources["run_id"]),
+            obligation_id=str(route_sources["obligation_id"]),
+            role=str(route_sources["role"]),
+            temperature=route_sources.get("temperature"),
+            max_tokens=route_sources.get("max_tokens"),
+            cloud_approval=route_sources.get("cloud_approval"),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise GatewayNodeError(f"invalid WRP route_sources: {exc}") from exc
+    if route.selected_candidate.risk_classification == "cloud_external":
+        raise GatewayNodeError("invoke_local refuses a cloud WRP primary")
+    supplied_model = payload.get("model_id")
+    if supplied_model is not None and str(supplied_model) != route.selected_candidate.model_id:
+        raise GatewayNodeError("payload.model_id does not equal WRP-selected model")
+    payload = {
+        **payload,
+        "model_id": route.selected_candidate.model_id,
+        "registry": route_sources["registry"],
+        "execution_policy": route_sources["execution_policy"],
+        "budget": route_sources["budget"],
+        "session_id": route.session_id,
+        "max_tokens": route.max_tokens,
+        "temperature": route.temperature,
+    }
 
     model_id = str(payload.get("model_id") or "").strip()
     if not model_id or model_id.startswith("record:") or model_id == "record-only-local":
@@ -182,40 +223,24 @@ def _invoke_local_model_gateway(
         chained = handoff.get("last_debited_budget")
         if isinstance(chained, dict):
             budget = dict(chained)
-        elif payload.get("auto_budget") is True:
-            budget = create_model_budget(
-                session_id=str(payload.get("session_id") or f"wrp-{plan_digest[:12]}"),
-                task_id=str(payload.get("task_id") or node_id),
-                max_input_tokens=int(payload.get("max_input_tokens") or 50_000),
-                max_output_tokens=int(payload.get("max_tokens") or 256),
-                max_total_tokens=int(payload.get("max_total_tokens") or 50_000),
-                max_usd=float(payload.get("max_usd") or 1.0),
-            )
         else:
             raise GatewayNodeError(
-                "invoke_local requires payload.budget, handoff last_debited_budget, or auto_budget=true"
+                "invoke_local requires the WRP-bound budget or handoff last_debited_budget"
             )
     elif isinstance(budget_raw, dict):
         budget = dict(budget_raw)
     else:
         raise GatewayNodeError("payload.budget must be an object")
 
-    rec = {
-        "kind": "builder_ii.model_routing_recommendation",
-        "recommended_candidates": [{"model_id": model_id}],
-    }
     policy_raw = payload.get("execution_policy")
     execution_policy: dict[str, Any]
     if isinstance(policy_raw, dict):
         execution_policy = dict(policy_raw)
     else:
-        execution_policy = create_model_execution_policy(rec, max_tokens=int(payload.get("max_tokens") or 256))
+        raise GatewayNodeError("canonical invoke_local requires the WRP-bound execution policy")
     allowed = list(execution_policy.get("allowed_models") or [])
     if model_id not in allowed:
-        execution_policy = {
-            **execution_policy,
-            "allowed_models": list(dict.fromkeys([*allowed, model_id])),
-        }
+        raise GatewayNodeError("WRP-selected model is excluded by execution policy")
 
     settings = load_settings()
     # Stub cloud models need allow_cloud_models for risk gate even though they are stubs.
@@ -225,7 +250,10 @@ def _invoke_local_model_gateway(
 
     pb_raw = payload.get("price_book")
     price_book: dict[str, Any] = dict(pb_raw) if isinstance(pb_raw, dict) else create_default_price_book()
-    gateway = ModelExecutionGateway(settings, registry, execution_policy, price_book=price_book)
+    gateway = ModelExecutionGateway(
+        settings, registry, execution_policy, price_book=price_book,
+        invocation_engine=governed_invocation_engine(settings),
+    )
 
     base = Path(artifact_dir) if artifact_dir is not None else Path(".builder/artifacts/wrp_invoke_local")
     base = base / plan_digest[:16] / node_id
@@ -233,27 +261,23 @@ def _invoke_local_model_gateway(
     envelope_path = base / "envelope.json"
     receipt_path = base / "receipt.json"
     events_dir = base / "events"
-    session_id = str(payload.get("session_id") or f"wrp-{plan_digest[:12]}")
-
     budget_path = base / "budget.json"
-    approval_raw = payload.get("approval_path") or payload.get("cloud_call_approval_path")
-    approval_path = Path(str(approval_raw)) if approval_raw else None
     try:
-        envelope, receipt, debited_budget = gateway.run_model_call(
-            model_id=model_id,
+        envelope, receipt, debited_budget = gateway.run_routed_model_call(
+            route=route,
             prompt=prompt,
-            system_prompt=str(payload.get("system_prompt") or "Answer helpfully.") or None,
-            max_tokens=int(payload.get("max_tokens") or 256),
-            temperature=payload.get("temperature"),
+            system_prompt=str(payload.get("system_prompt") or "Answer helpfully."),
             envelope_path=envelope_path,
             receipt_path=receipt_path,
-            approval_path=approval_path,
             ledger_bound=True,
             budget=budget,
             budget_path=budget_path,
             events_dir=events_dir,
-            session_id=session_id,
         )
+        if receipt.get("status") != "succeeded" or debited_budget is None:
+            raise GatewayNodeError(
+                f"invoke_local provider execution did not succeed: {receipt.get('status')}"
+            )
     except BudgetExceededError as exc:
         raise GatewayNodeError(f"budget denied: {exc}") from exc
     except Exception as exc:
@@ -303,15 +327,43 @@ def _invoke_cloud_model_gateway(
     from pathlib import Path
 
     from builder_ii.core.config import load_settings
-    from builder_ii.routing.model_budget import BudgetExceededError, create_model_budget
+    from builder_ii.routing.gateway_invocation import governed_invocation_engine
+    from builder_ii.routing.model_budget import BudgetExceededError
     from builder_ii.routing.model_client_registry import create_model_client_registry
     from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
-    from builder_ii.routing.model_routing_policy import create_model_execution_policy
     from builder_ii.routing.price_book import create_default_price_book
 
     payload = spec.get("payload")
     if not isinstance(payload, dict):
         payload = {}
+
+    if payload.get("auto_budget") is not None:
+        raise GatewayNodeError("canonical invoke_cloud forbids auto_budget")
+    route_sources = payload.get("route_sources")
+    if not isinstance(route_sources, dict):
+        raise GatewayNodeError("canonical invoke_cloud requires payload.route_sources from WRP")
+    from builder_ii.routing.model_route_binding import build_model_route_binding
+
+    try:
+        route = build_model_route_binding(
+            recommendation=dict(route_sources["recommendation"]), assignment=dict(route_sources["assignment"]),
+            execution_policy=dict(route_sources["execution_policy"]), registry=dict(route_sources["registry"]),
+            budget=dict(route_sources["budget"]), session_id=str(route_sources["session_id"]),
+            run_id=str(route_sources["run_id"]), obligation_id=str(route_sources["obligation_id"]),
+            role=str(route_sources["role"]), temperature=route_sources.get("temperature"),
+            max_tokens=route_sources.get("max_tokens"), cloud_approval=route_sources.get("cloud_approval"),
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise GatewayNodeError(f"invalid WRP route_sources: {exc}") from exc
+    if route.selected_candidate.risk_classification != "cloud_external":
+        raise GatewayNodeError("invoke_cloud requires a cloud WRP primary")
+    supplied_model = payload.get("model_id")
+    if supplied_model is not None and str(supplied_model) != route.selected_candidate.model_id:
+        raise GatewayNodeError("payload.model_id does not equal WRP-selected model")
+    payload = {**payload, "model_id": route.selected_candidate.model_id,
+               "registry": route_sources["registry"], "execution_policy": route_sources["execution_policy"],
+               "budget": route_sources["budget"], "session_id": route.session_id,
+               "max_tokens": route.max_tokens, "temperature": route.temperature}
 
     if not str(approved_by or "").strip():
         raise GatewayNodeError("invoke_cloud requires approved_by (HITL)")
@@ -331,6 +383,21 @@ def _invoke_cloud_model_gateway(
     prompt = str(payload.get("prompt") or payload.get("prompt_snippet") or payload.get("task") or "")
     if not prompt.strip():
         raise GatewayNodeError("invoke_cloud requires payload.prompt")
+    try:
+        approval = json.loads(approval_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise GatewayNodeError(f"invoke_cloud approval_path is invalid JSON: {exc}") from exc
+    if not isinstance(approval, dict) or approval.get("kind") != "builder_ii.model_call_approval":
+        raise GatewayNodeError("invoke_cloud approval_path must contain builder_ii.model_call_approval")
+    if approval.get("valid") is not True:
+        raise GatewayNodeError("invoke_cloud approval is not valid")
+    if approval.get("model_id") != model_id:
+        raise GatewayNodeError("invoke_cloud approval model_id does not match WRP-selected model")
+    if approval.get("prompt_digest") != hashlib.sha256(prompt.encode("utf-8")).hexdigest():
+        raise GatewayNodeError("invoke_cloud approval prompt_digest does not match this call")
+    expires_at = approval.get("expires_at")
+    if not isinstance(expires_at, (int, float)) or expires_at <= time.time():
+        raise GatewayNodeError("invoke_cloud approval is missing expiry or has expired")
 
     hard_cap = payload.get("hard_spend_cap_usd")
     if hard_cap is None:
@@ -372,14 +439,7 @@ def _invoke_cloud_model_gateway(
         if isinstance(chained, dict):
             budget = dict(chained)
         else:
-            budget = create_model_budget(
-                session_id=str(payload.get("session_id") or f"wrp-cloud-{plan_digest[:12]}"),
-                task_id=str(payload.get("task_id") or node_id),
-                max_input_tokens=int(payload.get("max_input_tokens") or 50_000),
-                max_output_tokens=int(payload.get("max_tokens") or 256),
-                max_total_tokens=int(payload.get("max_total_tokens") or 50_000),
-                max_usd=float(hard_cap),
-            )
+            raise GatewayNodeError("invoke_cloud requires the WRP-bound budget")
     elif isinstance(budget_raw, dict):
         budget = dict(budget_raw)
     else:
@@ -391,21 +451,14 @@ def _invoke_cloud_model_gateway(
             f"invoke_cloud budget.max_usd {budget.get('max_usd')} exceeds hard_spend_cap_usd {hard_cap}"
         )
 
-    rec = {
-        "kind": "builder_ii.model_routing_recommendation",
-        "recommended_candidates": [{"model_id": model_id}],
-    }
     policy_raw = payload.get("execution_policy")
     if isinstance(policy_raw, dict):
         execution_policy = dict(policy_raw)
     else:
-        execution_policy = create_model_execution_policy(rec, max_tokens=int(payload.get("max_tokens") or 256))
+        raise GatewayNodeError("canonical invoke_cloud requires the WRP-bound execution policy")
     allowed = list(execution_policy.get("allowed_models") or [])
     if model_id not in allowed:
-        execution_policy = {
-            **execution_policy,
-            "allowed_models": list(dict.fromkeys([*allowed, model_id])),
-        }
+        raise GatewayNodeError("WRP-selected model is excluded by execution policy")
 
     settings = load_settings()
     if not getattr(settings, "allow_cloud_models", False):
@@ -421,7 +474,10 @@ def _invoke_cloud_model_gateway(
 
     pb_raw = payload.get("price_book")
     price_book: dict[str, Any] = dict(pb_raw) if isinstance(pb_raw, dict) else create_default_price_book()
-    gateway = ModelExecutionGateway(settings, registry, execution_policy, price_book=price_book)
+    gateway = ModelExecutionGateway(
+        settings, registry, execution_policy, price_book=price_book,
+        invocation_engine=governed_invocation_engine(settings),
+    )
 
     base = Path(artifact_dir) if artifact_dir is not None else Path(".builder/artifacts/wrp_invoke_cloud")
     base = base / plan_digest[:16] / node_id
@@ -430,24 +486,22 @@ def _invoke_cloud_model_gateway(
     receipt_path = base / "receipt.json"
     events_dir = base / "events"
     budget_path = base / "budget.json"
-    session_id = str(payload.get("session_id") or f"wrp-cloud-{plan_digest[:12]}")
-
     try:
-        envelope, receipt, debited_budget = gateway.run_model_call(
-            model_id=model_id,
+        envelope, receipt, debited_budget = gateway.run_routed_model_call(
+            route=route,
             prompt=prompt,
-            system_prompt=str(payload.get("system_prompt") or "Answer helpfully.") or None,
-            max_tokens=int(payload.get("max_tokens") or 256),
-            temperature=payload.get("temperature"),
+            system_prompt=str(payload.get("system_prompt") or "Answer helpfully."),
             envelope_path=envelope_path,
             receipt_path=receipt_path,
-            approval_path=approval_path,
             ledger_bound=True,
             budget=budget,
             budget_path=budget_path,
             events_dir=events_dir,
-            session_id=session_id,
         )
+        if receipt.get("status") != "succeeded" or debited_budget is None:
+            raise GatewayNodeError(
+                f"invoke_cloud provider execution did not succeed: {receipt.get('status')}"
+            )
     except BudgetExceededError as exc:
         raise GatewayNodeError(f"budget denied: {exc}") from exc
     except Exception as exc:

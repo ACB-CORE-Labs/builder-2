@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from builder_ii.routing.model_budget import create_model_budget
-from builder_ii.routing.model_client_registry import create_model_client_registry
 from builder_ii.wrp.gateway_nodes import GATEWAY_MODES, run_gateway_node
 
 
@@ -13,12 +11,8 @@ def test_invoke_cloud_in_modes() -> None:
     assert "invoke_cloud" in GATEWAY_MODES
 
 
-def test_invoke_cloud_requires_approval_path(tmp_path: Path) -> None:
-    registry = create_model_client_registry()
-    for c in registry["clients"]:
-        if c["model_id"] == "gpt-4o-stub":
-            c["enabled"] = True
-    budget = create_model_budget(session_id="c1", max_usd=1.0, max_total_tokens=20_000)
+def test_invoke_cloud_requires_approval_path(tmp_path: Path, cloud_route_sources_factory) -> None:
+    route_sources = cloud_route_sources_factory("c1")
     event, _s, _t, err = run_gateway_node(
         node_id="m1",
         node_type="model_gateway",
@@ -28,8 +22,7 @@ def test_invoke_cloud_requires_approval_path(tmp_path: Path) -> None:
             "payload": {
                 "model_id": "gpt-4o-stub",
                 "prompt": "cloud hello",
-                "budget": budget,
-                "registry": registry,
+                "route_sources": route_sources,
                 "hard_spend_cap_usd": 1.0,
                 "enable_stub_if_disabled": True,
                 "artifact_dir": str(tmp_path / "a"),
@@ -44,14 +37,10 @@ def test_invoke_cloud_requires_approval_path(tmp_path: Path) -> None:
     assert "approval_path" in err
 
 
-def test_invoke_cloud_stub_with_approval(tmp_path: Path) -> None:
-    registry = create_model_client_registry()
-    for c in registry["clients"]:
-        if c["model_id"] == "gpt-4o-stub":
-            c["enabled"] = True
+def test_invoke_cloud_stub_with_approval(tmp_path: Path, cloud_route_sources_factory) -> None:
     approval = tmp_path / "approval.json"
     approval.write_text('{"valid": true, "kind": "builder_ii.model_call_approval", "expires_at": 20000000000, "model_id": "gpt-4o-stub", "prompt_digest": "bac22c39560b7f4c50876c7733a9182d9d8704675c52082b187e7e9b03aee6a0"}\n', encoding="utf-8")
-    budget = create_model_budget(session_id="c2", max_usd=2.0, max_total_tokens=50_000)
+    route_sources = cloud_route_sources_factory("c2")
     event, state, traj, err = run_gateway_node(
         node_id="m1",
         node_type="model_gateway",
@@ -61,8 +50,7 @@ def test_invoke_cloud_stub_with_approval(tmp_path: Path) -> None:
             "payload": {
                 "model_id": "gpt-4o-stub",
                 "prompt": "cloud hello under gates",
-                "budget": budget,
-                "registry": registry,
+                "route_sources": route_sources,
                 "hard_spend_cap_usd": 2.0,
                 "approval_path": str(approval),
                 "enable_stub_if_disabled": True,
