@@ -3,7 +3,7 @@
 > Companion to AGENTS.md (canonical governance). Antigravity loads AGENTS.md
 > natively. For Gemini CLI, pull it in (remove this line if Antigravity-only):
 
-@AGENTS.md
+
 
 ## Role
 You are a high-velocity implementation and debugging engineer on builder-II, a

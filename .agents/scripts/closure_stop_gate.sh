@@ -4,7 +4,7 @@
 # STUB: replace receipt check with builder_ii_validation_rs validation.
 set -euo pipefail
 python3 - <<'PY'
-import json, os, sys, glob
+import json, os, sys, glob, subprocess
 raw = sys.stdin.read()
 try:
     data = json.loads(raw)
@@ -18,16 +18,32 @@ try:
     elif isinstance(w, str):
         ws = w
 except Exception:
-    ws = ""
+    pass
 ws = ws or os.getcwd()
-# TODO: replace with a builder_ii_validation_rs call that validates a signed closure receipt.
+
 receipts = glob.glob(os.path.join(ws, "artifacts", "**", "closure_receipt.json"), recursive=True)
-if receipts:
+valid_receipt = False
+cargo_cmd = ["cargo", "run", "--quiet", "--manifest-path", os.path.join(ws, "builder_ii_validation_rs", "Cargo.toml"), "--", "--kind", "builder_ii.closure_receipt"]
+
+for receipt in receipts:
+    try:
+        with open(receipt, 'r') as f:
+            content = f.read()
+            res = subprocess.run(cargo_cmd, input=content, text=True, capture_output=True, cwd=ws)
+            if res.returncode == 0:
+                out = json.loads(res.stdout)
+                if out.get("valid") is True:
+                    valid_receipt = True
+                    break
+    except Exception:
+        pass
+
+if valid_receipt:
     print(json.dumps({"decision": "allow"}))
 else:
     print(json.dumps({
         "decision": "continue",
-        "reason": ("No closure receipt found. Run /core-exact-tip-closure and the pre-completion "
-                   "self-review (see GEMINI.md) before stopping. (stub — wire to builder_ii_validation_rs)")
+        "reason": ("No valid signed closure receipt found. Run /core-exact-tip-closure and the pre-completion "
+                   "self-review (see GEMINI.md) before stopping.")
     }))
 PY
