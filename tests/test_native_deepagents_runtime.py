@@ -210,6 +210,33 @@ def test_default_response_strategy_accepts_qwen_fenced_json_terminator() -> None
     assert response.tool_calls[0]["args"] == {}
 
 
+def test_default_response_strategy_accepts_qwen_bare_json_terminator() -> None:
+    response = _default_response_strategy(
+        {
+            "response_text": (
+                '{"tool_calls":[{"name":"builder_governed_echo","args":{"text":"ready"}}],"content":""}'
+                "<|im_end|>"
+            )
+        },
+        [],
+    )
+    assert response.tool_calls[0]["name"] == "builder_governed_echo"
+    assert response.tool_calls[0]["args"] == {"text": "ready"}
+
+
+def test_default_response_strategy_does_not_repair_incomplete_json() -> None:
+    response = _default_response_strategy(
+        {
+            "response_text": (
+                '{"tool_calls":[{"name":"builder_governed_echo","args":{"text":"ready"}}]'
+                "<|im_end|>"
+            )
+        },
+        [],
+    )
+    assert response.tool_calls == []
+
+
 def test_messages_prompt_preserves_prior_tool_call_continuity() -> None:
     system, conversation = _messages_prompt(
         [

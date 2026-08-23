@@ -68,8 +68,9 @@ _DENIED_NATIVE_CAPABILITIES = (
     "direct provider calls",
     "unapproved external tools",
 )
-_FENCED_JSON_WITH_OPTIONAL_QWEN_TERMINATOR = re.compile(
-    r"^```(?:json)?\s*(?P<payload>\{.*\})\s*```(?:<\|im_end\|>)?$",
+_QWEN_MESSAGE_TERMINATOR = "<|im_end|>"
+_FENCED_JSON = re.compile(
+    r"^```(?:json)?\s*(?P<payload>\{.*\})\s*```$",
     re.DOTALL,
 )
 
@@ -144,7 +145,9 @@ def _default_response_strategy(receipt: dict[str, Any], _messages: Sequence[Base
 
     text = str(receipt.get("response_text", ""))
     stripped = text.strip()
-    fenced_json = _FENCED_JSON_WITH_OPTIONAL_QWEN_TERMINATOR.fullmatch(stripped)
+    if stripped.endswith(_QWEN_MESSAGE_TERMINATOR):
+        stripped = stripped.removesuffix(_QWEN_MESSAGE_TERMINATOR).rstrip()
+    fenced_json = _FENCED_JSON.fullmatch(stripped)
     if fenced_json is not None:
         stripped = fenced_json.group("payload")
     try:
@@ -254,7 +257,8 @@ class GatewayBackedChatModel(BaseChatModel):
                 "object of the form {\"tool_calls\":[{\"name\":\"TOOL\",\"args\":{}}],\"content\":\"\"}. "
                 f"Allowed tool names for this turn: {', '.join(self._bound_tool_names)}. "
                 f"Tool schemas: {json_lib.dumps(self._bound_tool_specs, sort_keys=True)}. "
-                "Use exact tool names and object arguments; do not emit Markdown or explanatory prose around JSON."
+                "Use exact tool names and object arguments; do not emit Markdown or explanatory prose around JSON. "
+                "Complete the outer JSON object with its closing brace before any model message terminator."
             )
         if self.model_id != self.route.selected_candidate.model_id:
             raise ValueError("Deep Agents runtime model does not equal WRP-selected model")
