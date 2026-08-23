@@ -40,11 +40,26 @@ def _load(path: Path) -> dict:
 def deliver(
     run: Optional[Path] = typer.Argument(None, help="RUN directory or delivery_plan artifact."),
     plan: Optional[Path] = typer.Option(None, "--plan", help="Exact delivery_plan artifact."),
-    action: Optional[str] = typer.Option(None, "--action", help="Current action: commit, push, pr_create, or pr_update."),
+    action: Optional[str] = typer.Option(
+        None, "--action", help="Current action: commit, push, pr_create, or pr_update."
+    ),
     request: Optional[Path] = typer.Option(None, "--request", help="Exact delivery_action_request artifact."),
     approval: Optional[Path] = typer.Option(None, "--approval", help="Exact human delivery_approval artifact."),
-    verification_receipt: Optional[Path] = typer.Option(None, "--verification-receipt", help="Exact successful receipt required before push."),
-    push_receipt: Optional[Path] = typer.Option(None, "--push-receipt", help="Exact successful push receipt required before PR."),
+    verification_receipt: Optional[Path] = typer.Option(
+        None, "--verification-receipt", help="Exact successful receipt required before push."
+    ),
+    verification_plan: Optional[Path] = typer.Option(
+        None, "--verification-plan", help="Exact verification plan referenced by the push receipt."
+    ),
+    verification_approval: Optional[Path] = typer.Option(
+        None, "--verification-approval", help="Exact verification approval referenced by the push receipt."
+    ),
+    commit_receipt: Optional[Path] = typer.Option(
+        None, "--commit-receipt", help="Exact successful commit receipt required before push."
+    ),
+    push_receipt: Optional[Path] = typer.Option(
+        None, "--push-receipt", help="Exact successful push receipt required before PR."
+    ),
     repo: Path = typer.Option(Path.cwd(), "--repo", help="Target repository path."),
     execute: bool = typer.Option(False, "--execute", help="Execute exactly the supplied approved current action."),
 ) -> None:
@@ -69,18 +84,27 @@ def deliver(
     plan_data = _load(plan_path)
     plan_errors = validate_delivery_plan(plan_data)
     if plan_errors:
-        echo_stdout(json.dumps({"status": "REFUSED", "kind": "builder_ii.delivery_boundary", "errors": plan_errors}, indent=2) + "\n")
+        echo_stdout(
+            json.dumps({"status": "REFUSED", "kind": "builder_ii.delivery_boundary", "errors": plan_errors}, indent=2)
+            + "\n"
+        )
         raise typer.Exit(1)
     if not execute:
-        echo_stdout(json.dumps({
-            "kind": "builder_ii.delivery_projection",
-            "status": "READY",
-            "plan_digest": plan_data["plan_digest"],
-            "current_stage": "PLAN" if request is None else "APPROVE",
-            "next_admissible_action": "materialize a digest-bound action request, then obtain its separate human approval",
-            "actions": list(DELIVERY_ACTIONS),
-            "artifact_is_authority": False,
-        }, indent=2) + "\n")
+        echo_stdout(
+            json.dumps(
+                {
+                    "kind": "builder_ii.delivery_projection",
+                    "status": "READY",
+                    "plan_digest": plan_data["plan_digest"],
+                    "current_stage": "PLAN" if request is None else "APPROVE",
+                    "next_admissible_action": "materialize a digest-bound action request, then obtain its separate human approval",
+                    "actions": list(DELIVERY_ACTIONS),
+                    "artifact_is_authority": False,
+                },
+                indent=2,
+            )
+            + "\n"
+        )
         return
     if request is None or approval is None or not action:
         raise typer.BadParameter("--execute requires --action, --request, and --approval")
@@ -91,22 +115,53 @@ def deliver(
     request_errors = validate_delivery_action_request(request_data, plan_data)
     approval_errors = validate_delivery_approval(approval_data, request_data)
     if request_errors or approval_errors:
-        echo_stdout(json.dumps({"status": "REFUSED", "request_errors": request_errors, "approval_errors": approval_errors}, indent=2) + "\n")
+        echo_stdout(
+            json.dumps(
+                {"status": "REFUSED", "request_errors": request_errors, "approval_errors": approval_errors}, indent=2
+            )
+            + "\n"
+        )
         raise typer.Exit(1)
     service = DeliveryService(repo)
     try:
         if action == "commit":
             receipt = service.execute_commit(plan_data, request_data, approval_data)
         elif action == "push":
-            if verification_receipt is None:
-                raise typer.BadParameter("push requires --verification-receipt")
-            receipt = service.execute_push(plan_data, request_data, approval_data, verified_receipt=_load(verification_receipt))
+            if (
+                verification_receipt is None
+                or verification_plan is None
+                or verification_approval is None
+                or commit_receipt is None
+            ):
+                raise typer.BadParameter(
+                    "push requires --commit-receipt, --verification-plan, --verification-approval, and --verification-receipt"
+                )
+            receipt = service.execute_push(
+                plan_data,
+                request_data,
+                approval_data,
+                commit_receipt=_load(commit_receipt),
+                verification_plan=_load(verification_plan),
+                verification_approval=_load(verification_approval),
+                verification_receipt=_load(verification_receipt),
+            )
         else:
             if push_receipt is None:
                 raise typer.BadParameter("PR action requires --push-receipt")
             receipt = service.execute_pr(plan_data, request_data, approval_data, push_receipt=_load(push_receipt))
     except DeliveryError as exc:
-        echo_stdout(json.dumps({"kind": "builder_ii.delivery_boundary", "status": "REFUSED", "error": str(exc), "artifact_is_authority": False}, indent=2) + "\n")
+        echo_stdout(
+            json.dumps(
+                {
+                    "kind": "builder_ii.delivery_boundary",
+                    "status": "REFUSED",
+                    "error": str(exc),
+                    "artifact_is_authority": False,
+                },
+                indent=2,
+            )
+            + "\n"
+        )
         raise typer.Exit(1) from exc
     echo_stdout(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
     if receipt.get("status") != "SUCCEEDED":
