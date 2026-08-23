@@ -22,6 +22,7 @@ class GooseGatewayContext:
     budget: dict[str, Any]
     artifact_dir: Path
     local_credential: str
+    close_gateway_on_close: bool = True
     cancellation: CancellationToken = field(default_factory=CancellationToken)
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
     _sequence: int = 0
@@ -205,7 +206,8 @@ class GooseModelGatewayAdapter:
         if self.thread is not None:
             self.thread.join(timeout=5)
             self.thread = None
-        context.gateway.close()
+        if context.close_gateway_on_close:
+            context.gateway.close()
 
 
 def generate_loopback_credential(route_digest: str) -> str:

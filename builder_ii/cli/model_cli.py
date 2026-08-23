@@ -143,14 +143,23 @@ def call_cmd(
         raise typer.Exit(1)
 
     route = build_model_route_binding(
-        recommendation=recommendation, assignment=assignment, execution_policy=execution_policy,
-        registry=registry, budget=budget, session_id=session_id, run_id=session_id,
+        recommendation=recommendation,
+        assignment=assignment,
+        execution_policy=execution_policy,
+        registry=registry,
+        budget=budget,
+        session_id=session_id,
+        run_id=session_id,
         obligation_id=str(((assignment.get("bindings") or {}).get("task") or {}).get("profile_entry_id") or session_id),
         role=str(((assignment.get("bindings") or {}).get("agent") or {}).get("name") or "model_call"),
-        temperature=temperature, max_tokens=max_tokens, cloud_approval=cloud_approval,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        cloud_approval=cloud_approval,
     )
     gateway = ModelExecutionGateway(
-        settings, registry, execution_policy,
+        settings,
+        registry,
+        execution_policy,
         invocation_engine=governed_invocation_engine(settings),
     )
 
@@ -328,7 +337,9 @@ def validate_receipt_cmd(
 def benchmark_cmd(
     profile: str = typer.Option("m1-v1", "--profile"),
     output: Path = typer.Option(..., "--output"),
-    samples: Path | None = typer.Option(None, "--samples", help="Diagnostic/replay raw samples file (cannot qualify canonical m1-v1)."),
+    samples: Path | None = typer.Option(
+        None, "--samples", help="Diagnostic/replay raw samples file (cannot qualify canonical m1-v1)."
+    ),
     route_digest: str = typer.Option(..., "--route-digest"),
     policy_digest: str = typer.Option(..., "--policy-digest"),
     budget_digest: str = typer.Option(..., "--budget-digest"),
@@ -336,10 +347,32 @@ def benchmark_cmd(
     provider: str = typer.Option("mlx_provider", "--provider"),
     client: str = typer.Option("mlx_lm_client", "--client"),
     model: str = typer.Option("mlx-community/Qwen2.5-Coder-7B-Instruct-4bit", "--model"),
-    model_pid: int | None = typer.Option(None, "--model-pid", help="PID of validated model server for live memory measurement."),
+    model_pid: int | None = typer.Option(
+        None, "--model-pid", help="PID of validated model server for live memory measurement."
+    ),
+    recommendation_path: Path = typer.Option(..., "--model-recommendation"),
+    assignment_path: Path = typer.Option(..., "--model-assignment"),
+    execution_policy_path: Path = typer.Option(..., "--execution-policy"),
+    registry_path: Path = typer.Option(..., "--registry"),
+    budget_path: Path = typer.Option(..., "--model-budget"),
+    deepagents_obligation: list[Path] = typer.Option(
+        ...,
+        "--deepagents-obligation",
+        help="Exactly two validated WRP Deep Agents obligation artifacts; repeat twice.",
+    ),
 ) -> None:
     """Execute physical M1-v1 qualification under a frozen manifest and derive benchmark report."""
-    enforce_command_authority("builder-model benchmark", requested_effects=("artifact_write",))
+    enforce_command_authority(
+        "builder-model benchmark",
+        requested_effects=(
+            "artifact_write",
+            "model_execution",
+            "runtime_start",
+            "process_control",
+            "readonly_subprocess",
+            "external_tool_invocation",
+        ),
+    )
     if profile != "m1-v1":
         console.print("[red]Only the frozen m1-v1 profile is supported.[/]")
         raise typer.Exit(1)
@@ -353,16 +386,54 @@ def benchmark_cmd(
         validate_report,
         write_json,
     )
+    from builder_ii.routing.model_route_binding import build_model_route_binding
 
     try:
         # 1. Assert committed clean exact HEAD/tree
         status_proc = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True)
         if status_proc.stdout.strip():
-            console.print("[red]Working tree has uncommitted changes. Benchmark qualification requires a clean committed HEAD.[/]")
+            console.print(
+                "[red]Working tree has uncommitted changes. Benchmark qualification requires a clean committed HEAD.[/]"
+            )
             raise typer.Exit(1)
 
         commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-        tree = subprocess.run(["git", "rev-parse", "HEAD^{tree}"], capture_output=True, text=True, check=True).stdout.strip()
+        tree = subprocess.run(
+            ["git", "rev-parse", "HEAD^{tree}"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+        recommendation = _read_json(recommendation_path, lambda: {})
+        assignment = _read_json(assignment_path, lambda: {})
+        execution_policy = _read_json(execution_policy_path, lambda: {})
+        registry = _read_json(registry_path, lambda: {})
+        budget = _read_json(budget_path, lambda: {})
+        if len(deepagents_obligation) != 2:
+            raise ValueError("--deepagents-obligation must be supplied exactly twice")
+        obligations = [_read_json(path, lambda: {}) for path in deepagents_obligation]
+        session_id = str(budget.get("session_id") or "")
+        obligation_id = str(
+            (((assignment.get("bindings") or {}).get("task") or {}).get("profile_entry_id")) or session_id
+        )
+        role = str((((assignment.get("bindings") or {}).get("agent") or {}).get("name")) or "benchmark")
+        route = build_model_route_binding(
+            recommendation=recommendation,
+            assignment=assignment,
+            execution_policy=execution_policy,
+            registry=registry,
+            budget=budget,
+            session_id=session_id,
+            run_id=session_id,
+            obligation_id=obligation_id,
+            role=role,
+            temperature=0.0,
+            max_tokens=32,
+        )
+        if route.route_digest != route_digest:
+            raise ValueError("--route-digest does not equal the reconstructed WRP route")
+        if route.policy_digest != policy_digest:
+            raise ValueError("--policy-digest does not equal the validated execution policy")
+        if route.budget_digest != budget_digest:
+            raise ValueError("--budget-digest does not equal the validated model budget")
 
         # 2. Build + persist the benchmark manifest BEFORE observation
         manifest = build_manifest(
@@ -389,6 +460,29 @@ def benchmark_cmd(
             raw_samples = collect_canonical_m1_samples(
                 manifest=manifest,
                 model_pid=model_pid,
+                output_dir=output,
+                route=route,
+                route_sources={
+                    "recommendation": recommendation,
+                    "assignment": assignment,
+                    "execution_policy": execution_policy,
+                    "registry": registry,
+                    "budget": budget,
+                    "session_id": session_id,
+                    "run_id": session_id,
+                    "obligation_id": obligation_id,
+                    "role": role,
+                    "temperature": 0.0,
+                    "max_tokens": 32,
+                    "source_paths": {
+                        "recommendation": str(recommendation_path),
+                        "assignment": str(assignment_path),
+                        "execution_policy": str(execution_policy_path),
+                        "registry": str(registry_path),
+                        "budget": str(budget_path),
+                    },
+                },
+                obligations=obligations,
             )
             write_json(raw_samples, output / "model-runtime-benchmark-raw-samples.json")
 

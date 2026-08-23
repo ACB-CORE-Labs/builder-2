@@ -10,7 +10,9 @@ import re
 import statistics
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Sequence
 
@@ -31,10 +33,13 @@ THRESHOLDS = {
     "max_large_model_runtimes": 1,
 }
 METHODOLOGY = {
-    "warm_ttft": {"discarded_warmups": 1, "paired_samples_min": 10,
-                  "statistic": "median", "formula": "(governed-direct)/direct*100"},
-    "non_model_dispatch": {"samples_min": 100, "statistics": ["p50", "p95", "max"],
-                           "p95_method": "nearest_rank"},
+    "warm_ttft": {
+        "discarded_warmups": 1,
+        "paired_samples_min": 10,
+        "statistic": "median",
+        "formula": "(governed-direct)/direct*100",
+    },
+    "non_model_dispatch": {"samples_min": 100, "statistics": ["p50", "p95", "max"], "p95_method": "nearest_rank"},
     "local_model_memory": {
         "acceptance_metric": "macos_physical_footprint",
         "process_set": "validated model-server root and descendants",
@@ -83,7 +88,7 @@ def parse_footprint_bytes(output: str) -> tuple[int, dict[str, int]]:
         normalized = " ".join(line.strip().split())
         for label, field in _CATEGORY_NAMES.items():
             if normalized.casefold().startswith(label.casefold()):
-                numbers = re.findall(r"(?<![A-Za-z])[0-9][0-9,]*(?![A-Za-z])", normalized[len(label):])
+                numbers = re.findall(r"(?<![A-Za-z])[0-9][0-9,]*(?![A-Za-z])", normalized[len(label) :])
                 if numbers:
                     diagnostics[field] = int(numbers[-1].replace(",", ""))
     return total, diagnostics
@@ -113,13 +118,17 @@ def collect_model_memory(
     """Measure a validated MLX server tree using footprint process-set de-duplication."""
     if platform.system() != "Darwin" or platform.machine() != "arm64":
         raise RuntimeError("M1-v1 model footprint requires Apple Silicon macOS")
+    if footprint_binary != Path("/usr/bin/footprint"):
+        raise ValueError("M1-v1 qualification permits only /usr/bin/footprint")
     if not footprint_binary.is_file():
         raise FileNotFoundError(f"macOS footprint binary not found: {footprint_binary}")
     pids = _validated_process_tree(pid, identity_check=identity_check)
-    argv: list[str] = [str(footprint_binary), "--format", "bytes", "--unmapped"]
+    argv: list[str] = ["sudo", str(footprint_binary), "--format", "bytes", "--unmapped"]
     for process_pid in pids:
         argv.extend(("--pid", str(process_pid)))
-    result = runner(argv, capture_output=True, text=True, check=False)
+    # sudo inherits the terminal. Python never requests, reads, pipes, or stores a
+    # credential; authentication occurs only in sudo's native visible prompt.
+    result = runner(argv, stdout=subprocess.PIPE, text=True, check=False, shell=False)
     if result.returncode != 0:
         detail = (result.stderr or result.stdout).strip()
         raise RuntimeError(f"macOS footprint failed closed: {detail}")
@@ -211,33 +220,54 @@ def rss_tree(pid: int, *, exclude_pids: Iterable[int] = ()) -> int:
     return sum(p.memory_info().rss for p in processes if p.pid not in excluded and p.is_running())
 
 
-def build_manifest(*, git_commit: str, git_tree: str, backend: str, provider: str,
-                   client: str, model: str, route_digest: str, policy_digest: str,
-                   budget_digest: str) -> dict[str, Any]:
+def build_manifest(
+    *,
+    git_commit: str,
+    git_tree: str,
+    backend: str,
+    provider: str,
+    client: str,
+    model: str,
+    route_digest: str,
+    policy_digest: str,
+    budget_digest: str,
+) -> dict[str, Any]:
     content = {
-        "kind": MANIFEST_KIND, "schema_version": SCHEMA_VERSION, "profile": PROFILE,
-        "git_commit": git_commit, "git_tree": git_tree,
-        "platform": platform.platform(), "architecture": platform.machine(),
+        "kind": MANIFEST_KIND,
+        "schema_version": SCHEMA_VERSION,
+        "profile": PROFILE,
+        "git_commit": git_commit,
+        "git_tree": git_tree,
+        "platform": platform.platform(),
+        "architecture": platform.machine(),
         "chip": platform.processor() or platform.machine(),
-        "physical_ram_bytes": psutil.virtual_memory().total, "os": platform.system(),
-        "python": sys.version.split()[0], "builder_ii_version": "0.1.0",
-        "backend": backend, "provider": provider, "client": client, "model": model,
-        "route_digest": route_digest, "policy_digest": policy_digest, "budget_digest": budget_digest,
+        "physical_ram_bytes": psutil.virtual_memory().total,
+        "os": platform.system(),
+        "python": sys.version.split()[0],
+        "builder_ii_version": "0.1.0",
+        "backend": backend,
+        "provider": provider,
+        "client": client,
+        "model": model,
+        "route_digest": route_digest,
+        "policy_digest": policy_digest,
+        "budget_digest": budget_digest,
         "methodology": json.loads(json.dumps(METHODOLOGY)),
-        "thresholds": dict(THRESHOLDS), "artifact_is_authority": False,
-        "grants_authority": False, "promotes": False,
+        "thresholds": dict(THRESHOLDS),
+        "artifact_is_authority": False,
+        "grants_authority": False,
+        "promotes": False,
     }
     content["manifest_digest"] = manifest_digest(content)
     return content
 
-
-import time
-from datetime import datetime, timezone
-
-
 def collect_canonical_m1_samples(
     *,
     manifest: dict[str, Any],
+    output_dir: Path = Path(".builder/benchmark"),
+    route: Any = None,
+    route_sources: dict[str, Any] | None = None,
+    obligations: Sequence[dict[str, Any]] | None = None,
     model_pid: int | None = None,
     identity_check: Callable[[int], bool] | None = None,
     footprint_binary: Path = Path("/usr/bin/footprint"),
@@ -248,15 +278,15 @@ def collect_canonical_m1_samples(
     if platform.system() != "Darwin" or platform.machine() != "arm64":
         raise RuntimeError("M1-v1 physical benchmark collection requires Apple Silicon macOS")
 
-    import tempfile
     import threading
 
     from builder_ii.adapters.mcp.governed_services import run_service
     from builder_ii.core.config import load_settings
+    from builder_ii.core.orchestration_obligation import validate_orchestration_obligation
     from builder_ii.lifecycle.candidate.runtime_control import find_runtime_processes
     from builder_ii.routing.gateway_invocation import governed_invocation_engine
-    from builder_ii.routing.model_client_registry import create_model_client_registry
     from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+    from builder_ii.routing.model_route_binding import advance_route_budget
 
     settings = load_settings()
 
@@ -264,7 +294,9 @@ def collect_canonical_m1_samples(
     if model_pid is None:
         processes = find_runtime_processes(settings)
         if len(processes) != 1:
-            raise ValueError("CANONICAL_QUALIFICATION FAIL: Exact single model server not found. MODEL_FOOTPRINT = UNAVAILABLE, OVERALL = FAIL.")
+            raise ValueError(
+                "CANONICAL_QUALIFICATION FAIL: Exact single model server not found. MODEL_FOOTPRINT = UNAVAILABLE, OVERALL = FAIL."
+            )
         model_pid = processes[0].pid
 
     def check_identity(pid: int) -> bool:
@@ -272,164 +304,347 @@ def collect_canonical_m1_samples(
         return any(p.pid == pid for p in procs)
 
     if not check_identity(model_pid):
-        raise ValueError("CANONICAL_QUALIFICATION FAIL: Provided model_pid not found or not a valid model server. MODEL_FOOTPRINT = UNAVAILABLE, OVERALL = FAIL.")
+        raise ValueError(
+            "CANONICAL_QUALIFICATION FAIL: Provided model_pid not found or not a valid model server. MODEL_FOOTPRINT = UNAVAILABLE, OVERALL = FAIL."
+        )
 
     identity_check = check_identity
+    if route is None or not isinstance(route_sources, dict):
+        raise ValueError("canonical qualification requires a prevalidated WRP route and source artifacts")
+    if not isinstance(obligations, Sequence) or len(obligations) != 2:
+        raise ValueError("canonical qualification requires exactly two Deep Agents obligations")
+    obligation_errors = [
+        f"obligation[{index}]: {error}"
+        for index, obligation in enumerate(obligations)
+        for error in validate_orchestration_obligation(obligation)
+    ]
+    if obligation_errors:
+        raise ValueError("invalid Deep Agents obligations: " + "; ".join(obligation_errors))
+    if any(obligation.get("lane") != "deepagents" for obligation in obligations):
+        raise ValueError("both benchmark obligations must bind the deepagents lane")
+    if len({str(obligation.get("obligation_id")) for obligation in obligations}) != 2:
+        raise ValueError("benchmark obligations must have distinct obligation_id values")
 
     # Background concurrency monitor
     stop_monitor = False
     max_concurrency = 0
+    process_observations: list[dict[str, Any]] = []
+    monitor_phase = "pre_workload"
+
     def monitor_concurrency():
         nonlocal max_concurrency
         while not stop_monitor:
-            count = len(find_runtime_processes(settings))
+            processes = find_runtime_processes(settings)
+            roots = sorted({int(process.pid) for process in processes})
+            count = len(roots)
+            process_observations.append({"phase": monitor_phase, "validated_root_pids": roots})
             if count > max_concurrency:
                 max_concurrency = count
             time.sleep(0.1)
 
     monitor_thread = threading.Thread(target=monitor_concurrency, daemon=True)
     monitor_thread.start()
+    stratum_proc: subprocess.Popen[bytes] | None = None
 
     try:
         # Get Control Plane PID and idle stratum RSS
         current_process = psutil.Process()
         # Find child stratum if any, else run it
 
-        # Let's run Stratum for 5 seconds to settle
-        stratum_proc = subprocess.Popen([sys.executable, "-m", "builder_ii.cli.stratum_cli", "--no-splash", "--no-guide"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        time.sleep(5)
-
+        # Five explicit one-second settle cycles, each with a liveness assertion.
+        stratum_proc = subprocess.Popen(
+            [sys.executable, "-m", "builder_ii.cli.stratum_cli", "--no-splash", "--no-guide"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        for _ in range(5):
+            time.sleep(1)
+            if stratum_proc.poll() is not None:
+                raise RuntimeError("STRATUM exited before its five settle cycles; idle RSS is UNAVAILABLE")
         idle_stratum_rss_samples = []
         for _ in range(30):
-            try:
-                 idle_stratum_rss_samples.append(rss_tree(stratum_proc.pid))
-            except psutil.NoSuchProcess:
-                 pass
+            if stratum_proc.poll() is not None:
+                raise RuntimeError("STRATUM exited before 30 settled samples; idle RSS is UNAVAILABLE")
+            idle_stratum_rss_samples.append(rss_tree(stratum_proc.pid))
             time.sleep(1)
-
-        idle_stratum_rss = max(idle_stratum_rss_samples) if idle_stratum_rss_samples else 0
+        if len(idle_stratum_rss_samples) != 30:
+            raise RuntimeError("STRATUM did not produce exactly 30 settled samples")
+        idle_stratum_rss = max(idle_stratum_rss_samples)
         stratum_proc.terminate()
         stratum_proc.wait(timeout=5)
 
         control_plane_rss = 0
+
         def sample_control_plane():
             nonlocal control_plane_rss
             # exclude model server tree
             try:
-                 model_tree_pids = set(p.pid for p in psutil.Process(model_pid).children(recursive=True))
-                 model_tree_pids.add(model_pid)
+                model_tree_pids = set(p.pid for p in psutil.Process(model_pid).children(recursive=True))
+                model_tree_pids.add(model_pid)
             except psutil.NoSuchProcess:
-                 model_tree_pids = set()
+                model_tree_pids = set()
 
             current = rss_tree(current_process.pid, exclude_pids=model_tree_pids)
             if current > control_plane_rss:
-                 control_plane_rss = current
+                control_plane_rss = current
 
-        registry = create_model_client_registry()
-        execution_policy = {
-            "kind": "builder_ii.model_execution_policy",
-            "schema_version": 2,
-            "digest": "benchmark-policy",
-            "routes": [
-                {
-                    "route_id": "benchmark",
-                    "description": "Benchmark routing",
-                    "constraints": {"backend": [manifest["backend"]]},
-                    "candidates": [manifest["model"]]
-                }
-            ]
-        }
+        registry = dict(route_sources["registry"])
+        execution_policy = dict(route_sources["execution_policy"])
+        budget_direct = dict(route_sources["budget"])
+        budget_governed = dict(route_sources["budget"])
 
         # 3. Measure direct TTFT
-        engine = governed_invocation_engine(settings)
-        candidate_dict = next(c for c in registry["clients"] if c["model_id"] == manifest["model"])
-
         warm_ttft_direct: list[float] = []
         warm_ttft_governed: list[float] = []
 
-        gateway = ModelExecutionGateway(settings, registry, execution_policy)
+        memory_samples: list[ModelMemorySample] = [
+            collect_model_memory(
+                model_pid, identity_check=identity_check, footprint_binary=footprint_binary, runner=runner
+            )
+        ]
+        gateway = ModelExecutionGateway(
+            settings,
+            registry,
+            execution_policy,
+            invocation_engine=governed_invocation_engine(settings),
+        )
+        memory_samples.append(
+            collect_model_memory(
+                model_pid, identity_check=identity_check, footprint_binary=footprint_binary, runner=runner
+            )
+        )
 
         direct_gateway_receipt_refs = []
         governed_gateway_receipt_refs = []
+        ttft_pair_order: list[list[str]] = []
+        direct_route = route
+        governed_route = route
 
-        with tempfile.TemporaryDirectory() as td:
-            tdp = Path(td)
-            for idx in range(11):
-                sample_control_plane()
-                # Direct
-                res = engine.invoke(
-                    candidates=[candidate_dict],
-                    prompt="Determine if benchmark is running.",
-                    system_prompt="You are benchmarking.",
-                    max_tokens=32,
-                    temperature=0.0
+        evidence_dir = output_dir / "model-call-evidence"
+        direct_dir = evidence_dir / "direct"
+        governed_dir = evidence_dir / "governed"
+        direct_dir.mkdir(parents=True, exist_ok=True)
+        governed_dir.mkdir(parents=True, exist_ok=True)
+
+        def evidence_ref(path: Path, *, role: str) -> dict[str, Any]:
+            data = json.loads(path.read_text(encoding="utf-8"))
+            return {
+                "kind": data.get("kind"),
+                "path": str(path),
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "role": role,
+                "required": True,
+            }
+
+        def measure_direct(idx: int) -> None:
+            nonlocal budget_direct, direct_route
+            sample_control_plane()
+            direct_env = direct_dir / f"envelope-{idx:02d}.json"
+            direct_receipt = direct_dir / f"receipt-{idx:02d}.json"
+            direct_budget = direct_dir / f"budget-{idx:02d}.json"
+            _env, receipt, debited = gateway.run_routed_model_call(
+                route=direct_route,
+                prompt="Determine if benchmark is running.",
+                system_prompt="You are benchmarking.",
+                budget=budget_direct,
+                envelope_path=direct_env,
+                receipt_path=direct_receipt,
+                budget_path=direct_budget,
+            )
+            attempts = receipt.get("attempt_history") or []
+            if receipt.get("status") != "succeeded" or not attempts or debited is None:
+                raise RuntimeError("direct gateway TTFT evidence is unavailable")
+            rec = attempts[-1]
+            first, started = rec.get("first_public_chunk_ns"), rec.get("started_ns")
+            if not isinstance(first, int) or not isinstance(started, int) or first < started:
+                raise RuntimeError("direct gateway TTFT timestamps are unavailable")
+            if idx > 0:
+                warm_ttft_direct.append((first - started) / 1_000_000.0)
+            direct_gateway_receipt_refs.append(evidence_ref(direct_receipt, role="direct_gateway_receipt"))
+            budget_direct = debited
+            direct_route = advance_route_budget(direct_route, budget_direct)
+
+        def measure_governed(idx: int) -> None:
+            nonlocal budget_governed, governed_route
+            sample_control_plane()
+            governed_sources = {**route_sources, "budget": budget_governed}
+            node = {
+                "payload": {
+                    "route_sources": governed_sources,
+                    "model_id": manifest["model"],
+                    "prompt": "Determine if benchmark is running.",
+                    "system_prompt": "You are benchmarking.",
+                }
+            }
+            from builder_ii.wrp.gateway_nodes import _invoke_local_model_gateway
+
+            governed_result = _invoke_local_model_gateway(
+                node_id=f"benchmark-{idx:02d}",
+                spec=node,
+                plan_digest=manifest["manifest_digest"],
+                approved_by="plan-set-5",
+                msda_decision={"digest": manifest["manifest_digest"]},
+                artifact_dir=governed_dir,
+                prevalidated_gateway=gateway,
+                prevalidated_route=governed_route,
+            )
+            receipt_path = governed_dir / manifest["manifest_digest"][:16] / f"benchmark-{idx:02d}" / "receipt.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            attempts = receipt.get("attempt_history") or []
+            if receipt.get("status") != "succeeded" or not attempts:
+                raise RuntimeError("governed WRP TTFT evidence is unavailable")
+            rec2 = attempts[-1]
+            first = rec2.get("first_public_chunk_ns")
+            started = rec2.get("started_ns")
+            if not isinstance(first, int) or not isinstance(started, int) or first < started:
+                raise RuntimeError("governed WRP TTFT timestamps are unavailable")
+            if idx > 0:
+                warm_ttft_governed.append((first - started) / 1_000_000.0)
+            governed_gateway_receipt_refs.append(evidence_ref(receipt_path, role="governed_gateway_receipt"))
+            debited_path = Path(str(governed_result["debited_budget_path"]))
+            budget_governed = json.loads(debited_path.read_text(encoding="utf-8"))
+            governed_route = advance_route_budget(governed_route, budget_governed)
+            sample_control_plane()
+            memory_samples.append(
+                collect_model_memory(
+                    model_pid, identity_check=identity_check, footprint_binary=footprint_binary, runner=runner
                 )
-                if res.status != "succeeded" or not res.attempts:
-                    raise RuntimeError(f"Direct TTFT failed: {res.final_error}")
-                rec = res.attempts[-1]
-                if rec.first_public_chunk_ns and rec.started_ns:
-                    ttft = (rec.first_public_chunk_ns - rec.started_ns) / 1_000_000.0
-                    if idx > 0:
-                        warm_ttft_direct.append(ttft)
-                direct_gateway_receipt_refs.append(f"direct_ttft_iteration_{idx}")
+            )
 
-                sample_control_plane()
+        for idx in range(11):
+            order = ["direct", "governed"] if idx % 2 == 0 else ["governed", "direct"]
+            ttft_pair_order.append(order)
+            for arm in order:
+                (measure_direct if arm == "direct" else measure_governed)(idx)
 
-                # Governed
-                env, receipt, _ = gateway.run_model_call(
-                    model_id=manifest["model"],
-                    prompt="Determine if benchmark is running.",
-                    system_prompt="You are benchmarking.",
-                    max_tokens=32,
-                    temperature=0.0,
-                    envelope_path=tdp / f"env_{idx}.json",
-                    receipt_path=tdp / f"receipt_{idx}.json"
-                )
-                attempts = receipt.get("invocation", {}).get("attempts", [])
-                if not attempts:
-                    raise RuntimeError("Governed TTFT failed")
-                rec2 = attempts[-1]
-                first = rec2.get("first_public_chunk_ns")
-                started = rec2.get("started_ns")
-                if first and started:
-                    ttft2 = (first - started) / 1_000_000.0
-                    if idx > 0:
-                        warm_ttft_governed.append(ttft2)
-                governed_gateway_receipt_refs.append(f"governed_ttft_iteration_{idx}")
-                sample_control_plane()
+        # 4. Execute the frozen two-worker Deep Agents + Goose shared-gateway workload.
+        import httpx
 
+        from builder_ii.adapters.deepagents.native_artifacts import validate_native_evidence_bundle
+        from builder_ii.adapters.deepagents.native_runtime import NativeDeepAgentsRuntime, NativeRuntimeLimits
+        from builder_ii.adapters.goose.model_gateway_adapter import (
+            GooseGatewayContext,
+            GooseModelGatewayAdapter,
+            generate_loopback_credential,
+        )
+
+        monitor_phase = "deepagents"
+        workload_dir = output_dir / "combined-runtime-evidence"
+        native_dir = workload_dir / "deepagents"
+
+        native = NativeDeepAgentsRuntime(
+            gateway=gateway,
+            route=governed_route,
+            budget=budget_governed,
+            obligations=obligations,
+            output_dir=native_dir,
+            session_id=f"{route.session_id}-benchmark-deepagents",
+            authority_refs=[
+                evidence_ref(Path(path), role=f"route_source_{name}")
+                for name, path in route_sources.get("source_paths", {}).items()
+            ],
+            limits=NativeRuntimeLimits(active_workers=2, max_model_calls=16, max_tool_calls=16),
+        )
+        native_evidence = native.start("Delegate and complete both frozen obligations, then request HITL.")
+        native_errors = validate_native_evidence_bundle(native_evidence)
+        if native_errors or native_evidence.get("active_workers") != 2:
+            raise RuntimeError("Deep Agents workload evidence failed: " + "; ".join(native_errors))
+        if native_evidence.get("completed_task_count") != 2 or not all(
+            item.get("delegated") and item.get("completed") for item in native_evidence.get("parent_child_chain", [])
+        ):
+            raise RuntimeError("Deep Agents workload did not complete exactly two obligations before HITL")
+        native_evidence_path = native_dir / "native-deepagents-evidence.json"
+
+        monitor_phase = "goose"
+        goose_dir = workload_dir / "goose"
+        goose_context = GooseGatewayContext(
+            gateway=gateway,
+            route=native.model.route,
+            budget=native.model.budget,
+            artifact_dir=goose_dir,
+            local_credential=generate_loopback_credential(native.model.route.route_digest),
+            close_gateway_on_close=False,
+        )
+        goose_pre_budget_digest = str(goose_context.budget.get("digest"))
+        goose = GooseModelGatewayAdapter(goose_context)
+        goose.start()
+        try:
+            response = httpx.post(
+                goose.base_url + "/v1/chat/completions",
+                headers={"Authorization": f"Bearer {goose_context.local_credential}"},
+                json={
+                    "model": goose_context.route.selected_candidate.model_id,
+                    "messages": [{"role": "user", "content": "Prove gateway reuse."}],
+                },
+                timeout=120.0,
+            )
+            if response.status_code != 200:
+                raise RuntimeError(f"Goose loopback traversal failed: HTTP {response.status_code}")
+        finally:
+            goose.close()
+        goose_receipts = sorted(goose_dir.glob("*-receipt.json"))
+        if len(goose_receipts) != 1:
+            raise RuntimeError("Goose loopback must emit exactly one model receipt")
+        goose_receipt = json.loads(goose_receipts[0].read_text(encoding="utf-8"))
+        if goose_receipt.get("status") != "succeeded":
+            raise RuntimeError("Goose loopback model receipt did not succeed")
+        if goose_receipt.get("route_digest") != native.model.route.route_digest:
+            raise RuntimeError("Goose and Deep Agents route lineage differ")
+        memory_samples.append(
+            collect_model_memory(
+                model_pid,
+                identity_check=identity_check,
+                footprint_binary=footprint_binary,
+                runner=runner,
+            )
+        )
+        monitor_phase = "post_workload"
         # 5. Non-model dispatch latency (100 iterations)
         non_model_dispatch: list[float] = []
-        for _ in range(100):
+        dispatch_receipt_refs: list[dict[str, Any]] = []
+        dispatch_event_refs: list[dict[str, Any]] = []
+        dispatch_dir = output_dir / "dispatch-evidence"
+        dispatch_dir.mkdir(parents=True, exist_ok=True)
+        for index in range(100):
             t0 = clock()
-            try:
-                run_service(
-                    tool_name="delegation_status",
-                    arguments={},
-                    session_id="benchmark",
-                    builder_root=Path(td),
-                    target_root=Path(td),
-                    target_name="benchmark",
-                    allow_artifact_root_inside_target=True
-                )
-            except Exception:
-                pass
+            receipt, receipt_path, event_path = run_service(
+                tool_name="git_status",
+                arguments={},
+                session_id=f"benchmark-{index:03d}",
+                builder_root=output_dir,
+                target_root=Path.cwd(),
+                target_name="builder",
+                allow_artifact_root_inside_target=False,
+            )
+            if (
+                not isinstance(receipt, dict)
+                or receipt.get("status") != "succeeded"
+                or receipt_path is None
+                or event_path is None
+            ):
+                raise RuntimeError("admitted non-model dispatch did not succeed")
             t1 = clock()
             non_model_dispatch.append((t1 - t0) * 1000.0)
+            dispatch_receipt_refs.append(evidence_ref(receipt_path, role="dispatch_receipt"))
+            dispatch_event_refs.append(evidence_ref(event_path, role="dispatch_event"))
             sample_control_plane()
 
-        # 6. Model physical footprint
-        sample = collect_model_memory(
-            model_pid,
-            identity_check=identity_check,
-            footprint_binary=footprint_binary,
-            runner=runner,
-        )
-        mem_info = peak_model_memory([sample])
+        mem_info = peak_model_memory(memory_samples)
+        workload_observations = [item for item in process_observations if item["phase"] in {"deepagents", "goose"}]
+        if not workload_observations or any(
+            item["validated_root_pids"] != [model_pid] for item in workload_observations
+        ):
+            raise RuntimeError("combined workload model-server identity is missing, ambiguous, or changed")
+        max_concurrency = max(len(item["validated_root_pids"]) for item in workload_observations)
 
     finally:
         stop_monitor = True
         monitor_thread.join(timeout=1.0)
+        if "gateway" in locals():
+            gateway.close()
+        if stratum_proc is not None and stratum_proc.poll() is None:
+            stratum_proc.terminate()
+            stratum_proc.wait(timeout=5)
 
     # 10. Explicitly state qualification mode
     qualification_mode = "PHYSICAL"
@@ -449,6 +664,7 @@ def collect_canonical_m1_samples(
         "collected_at": datetime.now(timezone.utc).isoformat(),
         "warm_ttft_direct_ms": warm_ttft_direct,
         "warm_ttft_governed_ms": warm_ttft_governed,
+        "ttft_pair_order": ttft_pair_order,
         "non_model_dispatch_ms": non_model_dispatch,
         "model_memory_acceptance_metric": "macos_physical_footprint",
         "model_physical_footprint": mem_info["model_physical_footprint"],
@@ -456,7 +672,27 @@ def collect_canonical_m1_samples(
         "graphics_memory_diagnostics": mem_info.get("graphics_memory_diagnostics", {}),
         "control_plane_rss_bytes": control_plane_rss,
         "idle_stratum_rss_bytes": idle_stratum_rss,
+        "idle_stratum_rss_samples": idle_stratum_rss_samples,
         "max_large_model_runtime_count": max_concurrency,
+        "process_monitor_coverage": ["deepagents", "goose"],
+        "model_process_observations": process_observations,
+        "deepagents_evidence_ref": evidence_ref(native_evidence_path, role="deepagents_workload"),
+        "goose_receipt_ref": evidence_ref(goose_receipts[0], role="goose_loopback_receipt"),
+        "combined_runtime": {
+            "deepagents_workload_executed": True,
+            "active_workers": 2,
+            "validated_obligations": 2,
+            "goose_loopback_traversed": True,
+            "gateway_instance_count": 1,
+            "route_lineage_match": goose_receipt.get("route_digest") == native.model.route.route_digest,
+            "route_lineage_root": manifest["route_digest"],
+            "goose_route_digest": goose_receipt.get("route_digest"),
+            "budget_lineage_match": (goose_receipt.get("budget_ref") or {}).get("pre_debit_sha256")
+            == goose_pre_budget_digest,
+            "model_server_identity_match": all(
+                item["validated_root_pids"] == [model_pid] for item in workload_observations
+            ),
+        },
         "cold_ttft_ms": None,
         "warm_ttft_ms": statistics.median(warm_ttft_governed) if warm_ttft_governed else None,
         "throughput_tokens_per_second": None,
@@ -467,12 +703,27 @@ def collect_canonical_m1_samples(
         "governed_tool_latency_ms": None,
         "direct_gateway_receipt_refs": direct_gateway_receipt_refs,
         "governed_gateway_receipt_refs": governed_gateway_receipt_refs,
+        "dispatch_receipt_refs": dispatch_receipt_refs,
+        "dispatch_event_refs": dispatch_event_refs,
+        "model_memory_samples": [
+            {
+                "phase": "baseline"
+                if index == 0
+                else ("load" if index == 1 else ("warm" if index == 2 else "inference")),
+                "physical_footprint_bytes": sample.physical_footprint_bytes,
+                "rss_bytes": sample.rss_bytes,
+                "graphics_memory_diagnostics": sample.graphics_memory_diagnostics,
+                "measured_pids": list(sample.measured_pids),
+            }
+            for index, sample in enumerate(memory_samples)
+        ],
         "model_server_pid": model_pid,
-        "stratum_pid": stratum_proc.pid,
+        "stratum_pid": stratum_proc.pid if stratum_proc is not None else None,
         "control_plane_pid": current_process.pid,
     }
     raw_samples["samples_digest"] = raw_samples_digest(raw_samples)
     return raw_samples
+
 
 def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[str, Any]:
     if manifest.get("kind") != MANIFEST_KIND or manifest.get("manifest_digest") != manifest_digest(manifest):
@@ -482,25 +733,119 @@ def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[s
 
     samples_manifest_digest = samples.get("manifest_digest")
     if not samples_manifest_digest or samples_manifest_digest != manifest.get("manifest_digest"):
-        raise ValueError(f"raw samples manifest_digest ({samples_manifest_digest}) does not equal manifest manifest_digest ({manifest.get('manifest_digest')})")
+        raise ValueError(
+            f"raw samples manifest_digest ({samples_manifest_digest}) does not equal manifest manifest_digest ({manifest.get('manifest_digest')})"
+        )
 
     samples_commit = samples.get("git_commit")
     if not samples_commit or samples_commit != manifest.get("git_commit"):
-        raise ValueError(f"raw samples git_commit ({samples_commit}) does not equal manifest git_commit ({manifest.get('git_commit')})")
+        raise ValueError(
+            f"raw samples git_commit ({samples_commit}) does not equal manifest git_commit ({manifest.get('git_commit')})"
+        )
 
     samples_tree = samples.get("git_tree")
     if not samples_tree or samples_tree != manifest.get("git_tree"):
-        raise ValueError(f"raw samples git_tree ({samples_tree}) does not equal manifest git_tree ({manifest.get('git_tree')})")
+        raise ValueError(
+            f"raw samples git_tree ({samples_tree}) does not equal manifest git_tree ({manifest.get('git_tree')})"
+        )
 
     samples_method = samples.get("method_correction_sha256")
     if not samples_method or samples_method != METHOD_CORRECTION_SHA256:
-        raise ValueError(f"raw samples method_correction_sha256 ({samples_method}) does not match frozen M1 correction ({METHOD_CORRECTION_SHA256})")
+        raise ValueError(
+            f"raw samples method_correction_sha256 ({samples_method}) does not match frozen M1 correction ({METHOD_CORRECTION_SHA256})"
+        )
 
     if samples.get("model") and samples.get("model") != manifest.get("model"):
-        raise ValueError(f"raw samples model ({samples.get('model')}) does not match manifest model ({manifest.get('model')})")
+        raise ValueError(
+            f"raw samples model ({samples.get('model')}) does not match manifest model ({manifest.get('model')})"
+        )
 
-    if samples.get("samples_digest") and samples.get("samples_digest") != raw_samples_digest(samples):
+    if not samples.get("samples_digest"):
+        raise ValueError("qualifying raw samples require samples_digest")
+    if samples.get("samples_digest") != raw_samples_digest(samples):
         raise ValueError("raw samples digest mismatch")
+
+    def load_ref(ref: Any, *, label: str) -> dict[str, Any]:
+        if not isinstance(ref, dict) or ref.get("required") is not True:
+            raise ValueError(f"{label} is required")
+        path = Path(str(ref.get("path") or ""))
+        if not path.is_file() or path.is_symlink():
+            raise ValueError(f"{label} is missing or substituted")
+        if hashlib.sha256(path.read_bytes()).hexdigest() != ref.get("sha256"):
+            raise ValueError(f"{label} digest mismatch")
+        value = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(value, dict):
+            raise ValueError(f"{label} must reference an object")
+        return value
+
+    def load_required_ref(field: str) -> dict[str, Any]:
+        return load_ref(samples.get(field), label=field)
+
+    for field, minimum in (
+        ("direct_gateway_receipt_refs", 11),
+        ("governed_gateway_receipt_refs", 11),
+        ("dispatch_receipt_refs", 100),
+        ("dispatch_event_refs", 100),
+    ):
+        refs = samples.get(field)
+        if not isinstance(refs, list) or len(refs) < minimum:
+            raise ValueError(f"{field} requires at least {minimum} durable references")
+        for index, ref in enumerate(refs):
+            evidence = load_ref(ref, label=f"{field}[{index}]")
+            if field != "dispatch_event_refs" and evidence.get("status") != "succeeded":
+                raise ValueError(f"{field}[{index}] does not prove a successful operation")
+
+    combined = samples.get("combined_runtime")
+    required_combined = {
+        "deepagents_workload_executed": True,
+        "active_workers": 2,
+        "validated_obligations": 2,
+        "goose_loopback_traversed": True,
+        "gateway_instance_count": 1,
+        "route_lineage_match": True,
+        "budget_lineage_match": True,
+        "model_server_identity_match": True,
+    }
+    if not isinstance(combined, dict) or any(combined.get(key) != value for key, value in required_combined.items()):
+        raise ValueError("combined Deep Agents and Goose workload evidence is incomplete")
+    from builder_ii.adapters.deepagents.native_artifacts import validate_native_evidence_bundle
+
+    native_evidence = load_required_ref("deepagents_evidence_ref")
+    native_errors = validate_native_evidence_bundle(native_evidence)
+    if native_errors or native_evidence.get("active_workers") != 2 or native_evidence.get("completed_task_count") != 2:
+        raise ValueError("invalid Deep Agents workload evidence: " + "; ".join(native_errors))
+    goose_receipt = load_required_ref("goose_receipt_ref")
+    if goose_receipt.get("status") != "succeeded":
+        raise ValueError("invalid Goose loopback evidence")
+    if combined.get("route_lineage_root") != manifest.get("route_digest") or combined.get(
+        "goose_route_digest"
+    ) != goose_receipt.get("route_digest"):
+        raise ValueError("Goose route evidence does not bind the frozen route lineage")
+    observations = samples.get("model_process_observations")
+    if samples.get("process_monitor_coverage") != ["deepagents", "goose"] or not isinstance(observations, list):
+        raise ValueError("process monitor did not span the combined workload")
+    workload_observations = [
+        item for item in observations if isinstance(item, dict) and item.get("phase") in {"deepagents", "goose"}
+    ]
+    expected_pid = samples.get("model_server_pid")
+    if not workload_observations or any(
+        item.get("validated_root_pids") != [expected_pid] for item in workload_observations
+    ):
+        raise ValueError("combined workload model-server identity is absent or ambiguous")
+    memory_samples = samples.get("model_memory_samples")
+    phases = [item.get("phase") for item in memory_samples] if isinstance(memory_samples, list) else []
+    if not {"baseline", "load", "warm", "inference"}.issubset(phases) or phases.count("inference") < 1:
+        raise ValueError("memory sampling must cover baseline, load, warm, and inference")
+    schedule = samples.get("ttft_pair_order")
+    if (
+        not isinstance(schedule, list)
+        or len(schedule) < 11
+        or any(
+            pair != (["direct", "governed"] if index % 2 == 0 else ["governed", "direct"])
+            for index, pair in enumerate(schedule)
+        )
+    ):
+        raise ValueError("TTFT pairs must alternate direct/governed order")
 
     direct = [float(v) for v in samples.get("warm_ttft_direct_ms", [])]
     governed = [float(v) for v in samples.get("warm_ttft_governed_ms", [])]
@@ -524,13 +869,15 @@ def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[s
         "graphics_memory_diagnostics": samples.get("graphics_memory_diagnostics", {}),
         "control_plane_rss_bytes": int(samples["control_plane_rss_bytes"]),
         "idle_stratum_rss_bytes": int(samples["idle_stratum_rss_bytes"]),
-        "warm_ttft_direct_ms": direct_median, "warm_ttft_governed_ms": governed_median,
+        "warm_ttft_direct_ms": direct_median,
+        "warm_ttft_governed_ms": governed_median,
         "warm_ttft_overhead_percent": overhead,
         "non_model_dispatch_p50_ms": nearest_rank_percentile(dispatch, 50),
         "non_model_dispatch_p95_ms": nearest_rank_percentile(dispatch, 95),
         "non_model_dispatch_max_ms": max(dispatch),
         "max_large_model_runtime_count": int(samples["max_large_model_runtime_count"]),
-        "cold_ttft_ms": samples.get("cold_ttft_ms"), "warm_ttft_ms": samples.get("warm_ttft_ms"),
+        "cold_ttft_ms": samples.get("cold_ttft_ms"),
+        "warm_ttft_ms": samples.get("warm_ttft_ms"),
         "throughput_tokens_per_second": samples.get("throughput_tokens_per_second"),
         "memory_peak_bytes": samples.get("memory_peak_bytes"),
         "delegation_overhead_ms": samples.get("delegation_overhead_ms"),
@@ -539,18 +886,29 @@ def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[s
         "governed_tool_latency_ms": samples.get("governed_tool_latency_ms"),
     }
     checks = {
-        "model_footprint": THRESHOLDS["default_local_model_footprint_min_bytes"] <= measured["model_footprint_bytes"] <= THRESHOLDS["default_local_model_footprint_max_bytes"],
+        "model_footprint": THRESHOLDS["default_local_model_footprint_min_bytes"]
+        <= measured["model_footprint_bytes"]
+        <= THRESHOLDS["default_local_model_footprint_max_bytes"],
         "control_plane_rss": measured["control_plane_rss_bytes"] < THRESHOLDS["control_plane_rss_max_bytes_exclusive"],
         "idle_stratum_rss": measured["idle_stratum_rss_bytes"] <= THRESHOLDS["idle_stratum_rss_max_bytes"],
         "warm_ttft_overhead": overhead <= THRESHOLDS["warm_ttft_overhead_max_percent"],
-        "non_model_dispatch_p95": measured["non_model_dispatch_p95_ms"] < THRESHOLDS["non_model_dispatch_p95_max_ms_exclusive"],
-        "large_model_runtime_count": measured["max_large_model_runtime_count"] <= THRESHOLDS["max_large_model_runtimes"],
+        "non_model_dispatch_p95": measured["non_model_dispatch_p95_ms"]
+        < THRESHOLDS["non_model_dispatch_p95_max_ms_exclusive"],
+        "large_model_runtime_count": measured["max_large_model_runtime_count"]
+        <= THRESHOLDS["max_large_model_runtimes"],
     }
-    content = {"kind": REPORT_KIND, "schema_version": SCHEMA_VERSION,
-               "manifest_digest": manifest["manifest_digest"], "measurements": measured,
-               "hard_threshold_results": checks, "overall_state": "PASS" if all(checks.values()) and samples.get("qualification_mode") == "PHYSICAL" else "FAIL",
-               "raw_samples": samples, "artifact_is_authority": False,
-               "grants_authority": False, "promotes": False}
+    content = {
+        "kind": REPORT_KIND,
+        "schema_version": SCHEMA_VERSION,
+        "manifest_digest": manifest["manifest_digest"],
+        "measurements": measured,
+        "hard_threshold_results": checks,
+        "overall_state": "PASS" if all(checks.values()) and samples.get("qualification_mode") == "PHYSICAL" else "FAIL",
+        "raw_samples": samples,
+        "artifact_is_authority": False,
+        "grants_authority": False,
+        "promotes": False,
+    }
     content["report_digest"] = report_digest(content)
     return content
 
@@ -567,9 +925,11 @@ def validate_manifest(value: Any) -> list[str]:
         errors.append("thresholds differ from frozen M1-v1 thresholds")
     if value.get("methodology") != METHODOLOGY:
         errors.append("methodology differs from frozen M1-v1 methodology")
-    if (value.get("artifact_is_authority") is not False
-            or value.get("grants_authority") is not False
-            or value.get("promotes") is not False):
+    if (
+        value.get("artifact_is_authority") is not False
+        or value.get("grants_authority") is not False
+        or value.get("promotes") is not False
+    ):
         errors.append("benchmark evidence cannot grant authority or promote")
     if value.get("manifest_digest") != manifest_digest(value):
         errors.append("manifest digest mismatch")
@@ -582,14 +942,18 @@ def validate_report(value: Any, *, manifest: dict[str, Any] | None = None) -> li
     errors = []
     if value.get("kind") != REPORT_KIND:
         errors.append(f"kind must be {REPORT_KIND}")
-    if (value.get("artifact_is_authority") is not False
-            or value.get("grants_authority") is not False
-            or value.get("promotes") is not False):
+    if (
+        value.get("artifact_is_authority") is not False
+        or value.get("grants_authority") is not False
+        or value.get("promotes") is not False
+    ):
         errors.append("benchmark evidence cannot grant authority or promote")
     if value.get("report_digest") != report_digest(value):
         errors.append("report digest mismatch")
     checks = value.get("hard_threshold_results")
-    if not isinstance(checks, dict) or value.get("overall_state") != ("PASS" if checks and all(checks.values()) else "FAIL"):
+    if not isinstance(checks, dict) or value.get("overall_state") != (
+        "PASS" if checks and all(checks.values()) else "FAIL"
+    ):
         errors.append("overall_state does not derive from hard threshold results")
     if manifest is not None and value.get("manifest_digest") != manifest.get("manifest_digest"):
         errors.append("report does not bind manifest")
@@ -605,12 +969,25 @@ def validate_report(value: Any, *, manifest: dict[str, Any] | None = None) -> li
                 errors.append("raw samples git_tree does not match manifest git_tree")
         if raw.get("method_correction_sha256") != METHOD_CORRECTION_SHA256:
             errors.append("raw samples method_correction_sha256 does not match frozen M1 correction")
-        if raw.get("samples_digest") and raw.get("samples_digest") != raw_samples_digest(raw):
+        if not raw.get("samples_digest"):
+            errors.append("raw samples digest is required")
+        elif raw.get("samples_digest") != raw_samples_digest(raw):
             errors.append("raw samples digest mismatch")
+        try:
+            recomputed = build_report(manifest=manifest, samples=raw) if manifest is not None else None
+        except (ValueError, OSError, json.JSONDecodeError) as exc:
+            errors.append(f"raw evidence recomputation failed: {exc}")
+        else:
+            if recomputed is not None:
+                if value.get("measurements") != recomputed.get("measurements"):
+                    errors.append("report measurements do not match raw-evidence recomputation")
+                if value.get("hard_threshold_results") != recomputed.get("hard_threshold_results"):
+                    errors.append("hard thresholds do not match raw-evidence recomputation")
+                if value.get("overall_state") != recomputed.get("overall_state"):
+                    errors.append("overall state does not match raw-evidence recomputation")
     return errors
 
 
 def write_json(value: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-

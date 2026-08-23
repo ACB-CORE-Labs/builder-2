@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from unittest.mock import Mock
 
 import httpx
 
@@ -105,6 +106,19 @@ def test_goose_environment_exposes_only_local_adapter_credential(monkeypatch, tm
     assert report["provider_credentials_exposed"] is False
 
 
+def test_shared_gateway_lifecycle_is_not_closed_by_goose_adapter(tmp_path, route_sources_factory) -> None:
+    context = _context(tmp_path, route_sources_factory)
+    context.close_gateway_on_close = False
+    close = Mock(wraps=context.gateway.close)
+    context.gateway.close = close
+    adapter = GooseModelGatewayAdapter(context)
+    adapter.start()
+    adapter.close()
+    close.assert_not_called()
+    context.gateway.close()
+    close.assert_called_once_with()
+
+
 def test_goose_client_disconnect_propagates_into_cancellation(tmp_path, route_sources_factory) -> None:
     import socket
     import time
@@ -190,4 +204,3 @@ def test_goose_client_disconnect_propagates_into_cancellation(tmp_path, route_so
         assert validate_model_call_receipt(receipt, route=route) == []
     finally:
         adapter.close()
-

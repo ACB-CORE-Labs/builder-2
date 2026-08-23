@@ -112,6 +112,8 @@ def _invoke_local_model_gateway(
     msda_decision: Mapping[str, Any],
     artifact_dir: Any = None,
     handoff_state: Mapping[str, Any] | None = None,
+    prevalidated_gateway: Any = None,
+    prevalidated_route: Any = None,
 ) -> dict[str, Any]:
     """Invoke ModelExecutionGateway for local/stub providers only (the seam).
 
@@ -250,10 +252,15 @@ def _invoke_local_model_gateway(
 
     pb_raw = payload.get("price_book")
     price_book: dict[str, Any] = dict(pb_raw) if isinstance(pb_raw, dict) else create_default_price_book()
-    gateway = ModelExecutionGateway(
+    if (prevalidated_gateway is None) != (prevalidated_route is None):
+        raise GatewayNodeError("prevalidated gateway and route must be supplied together")
+    if prevalidated_route is not None and prevalidated_route.route_digest != route.route_digest:
+        raise GatewayNodeError("prevalidated route does not equal reconstructed WRP route")
+    gateway = prevalidated_gateway or ModelExecutionGateway(
         settings, registry, execution_policy, price_book=price_book,
         invocation_engine=governed_invocation_engine(settings),
     )
+    route = prevalidated_route or route
 
     base = Path(artifact_dir) if artifact_dir is not None else Path(".builder/artifacts/wrp_invoke_local")
     base = base / plan_digest[:16] / node_id

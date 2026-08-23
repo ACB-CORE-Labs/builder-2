@@ -52,6 +52,23 @@ def test_registry_internal_invariants():
     assert not errors, f"Registry invariants violated: {errors}"
 
 
+def test_model_benchmark_authority_matches_physical_collector() -> None:
+    record = get_command_record("builder-model benchmark")
+    assert record is not None
+    assert record.allows_model_execution
+    assert record.allows_runtime_start
+    assert record.allows_process_control
+    assert record.allows_readonly_subprocess
+    assert record.allows_external_tool_invocation
+    assert record.allows_artifact_writes
+    assert not record.allows_shell_execution
+    assert not record.allows_source_writes
+    assert not record.allows_git_mutation
+    assert not record.allows_memory_mutation
+    assert "sudo /usr/bin/footprint" in record.runtime_boundary
+    assert "existing digest-bound WRP" in record.runtime_boundary
+
+
 def test_pyproject_scripts_fully_covered():
     """Ensure every script in pyproject.toml is represented in the registry."""
     root = _get_project_root()
@@ -584,8 +601,6 @@ def test_command_authority_compatibility_hitl_bound() -> None:
             requested_effects=("artifact_write", "readonly_subprocess"),
             hitl_bound=True,
         )
-
-
 
     # 5. Unknown commands still fail closed
     with pytest.raises(CommandAuthorityError) as exc:
