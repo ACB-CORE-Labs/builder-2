@@ -85,6 +85,9 @@ def _samples(manifest, **overrides):
             "required": True,
         }
 
+    footprint_path = evidence_dir / "footprint.txt"
+    footprint_path.write_text(f"{3 * 1024**3} B 0 B 0 B 1 TOTAL\n", encoding="utf-8")
+
     base = {
         "kind": RAW_SAMPLES_KIND,
         "manifest_digest": manifest["manifest_digest"],
@@ -111,7 +114,14 @@ def _samples(manifest, **overrides):
         "ttft_pair_order": [
             ["direct", "governed"] if index % 2 == 0 else ["governed", "direct"] for index in range(11)
         ],
-        "model_memory_samples": [{"phase": phase} for phase in ("baseline", "load", "warm", "inference")],
+        "model_memory_samples": [
+            {
+                "phase": phase,
+                "physical_footprint_bytes": 3 * 1024**3,
+                "footprint_evidence_ref": ref(footprint_path),
+            }
+            for phase in ("baseline", "load", "warm", "inference")
+        ],
         "process_monitor_coverage": ["deepagents", "goose"],
         "model_process_observations": [
             {"phase": "deepagents", "validated_root_pids": [123]},
@@ -199,6 +209,20 @@ Owned physical footprint (unmapped) (graphics) 4,300,000,000
     assert total != total + diagnostics["ioaccelerator_graphics_bytes"]
 
 
+def test_footprint_parser_accepts_current_macos_bytes_table() -> None:
+    output = """   163840 B           0 B           0 B          4    IOAccelerator
+    16384 B           0 B           0 B          1    Owned physical footprint (unmapped) (graphics)
+4513107808 B    14286848 B           0 B       3692    TOTAL
+
+Auxiliary data:
+    phys_footprint: 4513140576 B
+"""
+    total, diagnostics = parse_footprint_bytes(output)
+    assert total == 4_513_107_808
+    assert diagnostics["ioaccelerator_bytes"] == 163_840
+    assert diagnostics["owned_unmapped_graphics_bytes"] == 16_384
+
+
 @pytest.mark.parametrize(
     "value,passes",
     [
@@ -270,7 +294,7 @@ def test_collector_refuses_missing_footprint_binary(monkeypatch: pytest.MonkeyPa
 
 
 def test_collector_passes_root_and_children_in_one_deduplicated_process_set(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr("builder_ii.benchmark.model_runtime.platform.system", lambda: "Darwin")
     monkeypatch.setattr("builder_ii.benchmark.model_runtime.platform.machine", lambda: "arm64")
@@ -284,13 +308,23 @@ def test_collector_passes_root_and_children_in_one_deduplicated_process_set(
     monkeypatch.setattr("builder_ii.benchmark.model_runtime.rss_tree", lambda _pid: 700)
     runner = Mock(return_value=subprocess.CompletedProcess([], 0, "Physical footprint: 4,000 bytes\n", ""))
     sample = collect_model_memory(
-        123, identity_check=lambda _pid: True, footprint_binary=Path("/usr/bin/footprint"), runner=runner
+        123,
+        identity_check=lambda _pid: True,
+        footprint_binary=Path("/usr/bin/footprint"),
+        runner=runner,
+        evidence_path=tmp_path / "footprint.txt",
     )
     argv = runner.call_args.args[0]
     assert argv.count("--pid") == 2
     assert argv[-4:] == ["--pid", "123", "--pid", "124"]
     assert sample.measured_pids == (123, 124)
     assert sample.physical_footprint_bytes == 4_000
+    assert sample.footprint_evidence_ref == {
+        "path": str(tmp_path / "footprint.txt"),
+        "sha256": hashlib.sha256(b"Physical footprint: 4,000 bytes\n").hexdigest(),
+        "role": "macos_footprint_stdout",
+        "required": True,
+    }
 
 
 def test_collector_refuses_identity_drift_after_measurement(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -572,6 +606,15 @@ def test_memory_schedule_ttft_and_digest_lesions_fail() -> None:
     samples = _samples(manifest)
     samples.pop("samples_digest")
     with pytest.raises(ValueError, match="require samples_digest"):
+        build_report(manifest=manifest, samples=samples)
+
+
+def test_footprint_evidence_substitution_fails() -> None:
+    manifest = _manifest()
+    samples = _samples(manifest)
+    evidence_path = Path(samples["model_memory_samples"][0]["footprint_evidence_ref"]["path"])
+    evidence_path.write_text("4000 B 0 B 0 B 1 TOTAL\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="footprint_evidence_ref digest mismatch"):
         build_report(manifest=manifest, samples=samples)
 
 

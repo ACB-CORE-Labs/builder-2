@@ -22,7 +22,7 @@ MANIFEST_KIND = "builder_ii.model_runtime_benchmark_manifest"
 REPORT_KIND = "builder_ii.model_runtime_benchmark_report"
 SCHEMA_VERSION = 1
 PROFILE = "m1-v1"
-METHOD_CORRECTION_SHA256 = "13a7f09d2686c35d67227468e6be9883db81475bb287318686720c93e81d6453"
+METHOD_CORRECTION_SHA256 = "d2fbb444504f70f890f2fcc00451669880db98d2d76ed15936e006bb0276f0a5"
 THRESHOLDS = {
     "default_local_model_footprint_min_bytes": 2 * 1024**3,
     "default_local_model_footprint_max_bytes": 7 * 1024**3,
@@ -44,6 +44,7 @@ METHODOLOGY = {
         "acceptance_metric": "macos_physical_footprint",
         "process_set": "validated model-server root and descendants",
         "aggregation": "macOS footprint de-duplicated total; maximum sampled value",
+        "native_stdout_evidence": "persisted and SHA-256-bound for every sample",
         "rss": "diagnostic only",
         "graphics_categories": "diagnostic subcomponents; never added to physical footprint",
         "method_correction_sha256": METHOD_CORRECTION_SHA256,
@@ -60,11 +61,16 @@ class ModelMemorySample:
     rss_bytes: int
     graphics_memory_diagnostics: dict[str, int]
     measured_pids: tuple[int, ...]
+    footprint_evidence_ref: dict[str, Any] | None = None
 
 
 _TOTAL_PATTERNS = (
     re.compile(r"^\s*(?:TOTAL|Physical footprint)\s*[:=]?\s*([0-9][0-9,]*)\s*(?:bytes)?\s*$", re.I | re.M),
     re.compile(r"^\s*([0-9][0-9,]*)\s+TOTAL\s*$", re.I | re.M),
+    re.compile(
+        r"^\s*([0-9][0-9,]*)\s+B\s+[0-9][0-9,]*\s+B\s+[0-9][0-9,]*\s+B\s+[0-9][0-9,]*\s+TOTAL\s*$",
+        re.I | re.M,
+    ),
 )
 _CATEGORY_NAMES = {
     "ioaccelerator": "ioaccelerator_bytes",
@@ -87,7 +93,11 @@ def parse_footprint_bytes(output: str) -> tuple[int, dict[str, int]]:
     for line in output.splitlines():
         normalized = " ".join(line.strip().split())
         for label, field in _CATEGORY_NAMES.items():
-            if normalized.casefold().startswith(label.casefold()):
+            if normalized.casefold().endswith(label.casefold()):
+                numbers = re.findall(r"(?<![A-Za-z])[0-9][0-9,]*(?![A-Za-z])", normalized[: -len(label)])
+                if numbers:
+                    diagnostics[field] = int(numbers[0].replace(",", ""))
+            elif normalized.casefold().startswith(label.casefold()):
                 numbers = re.findall(r"(?<![A-Za-z])[0-9][0-9,]*(?![A-Za-z])", normalized[len(label) :])
                 if numbers:
                     diagnostics[field] = int(numbers[-1].replace(",", ""))
@@ -114,6 +124,7 @@ def collect_model_memory(
     identity_check: Callable[[int], bool],
     footprint_binary: Path = Path("/usr/bin/footprint"),
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    evidence_path: Path | None = None,
 ) -> ModelMemorySample:
     """Measure a validated MLX server tree using footprint process-set de-duplication."""
     if platform.system() != "Darwin" or platform.machine() != "arm64":
@@ -134,12 +145,23 @@ def collect_model_memory(
         raise RuntimeError(f"macOS footprint failed closed: {detail}")
     if not identity_check(pid):
         raise ValueError("model-server identity drifted during footprint collection")
+    evidence_ref: dict[str, Any] | None = None
+    if evidence_path is not None:
+        evidence_path.parent.mkdir(parents=True, exist_ok=True)
+        evidence_path.write_text(result.stdout, encoding="utf-8")
+        evidence_ref = {
+            "path": str(evidence_path),
+            "sha256": hashlib.sha256(evidence_path.read_bytes()).hexdigest(),
+            "role": "macos_footprint_stdout",
+            "required": True,
+        }
     physical, graphics = parse_footprint_bytes(result.stdout)
     return ModelMemorySample(
         physical_footprint_bytes=physical,
         rss_bytes=rss_tree(pid),
         graphics_memory_diagnostics=graphics,
         measured_pids=pids,
+        footprint_evidence_ref=evidence_ref,
     )
 
 
@@ -393,26 +415,33 @@ def collect_canonical_m1_samples(
         budget_direct = dict(route_sources["budget"])
         budget_governed = dict(route_sources["budget"])
 
+        footprint_dir = output_dir / "footprint-evidence"
+        footprint_sample_index = 0
+
+        def sample_model_memory() -> ModelMemorySample:
+            nonlocal footprint_sample_index
+            evidence_path = footprint_dir / f"sample-{footprint_sample_index:02d}.txt"
+            footprint_sample_index += 1
+            return collect_model_memory(
+                model_pid,
+                identity_check=identity_check,
+                footprint_binary=footprint_binary,
+                runner=runner,
+                evidence_path=evidence_path,
+            )
+
         # 3. Measure direct TTFT
         warm_ttft_direct: list[float] = []
         warm_ttft_governed: list[float] = []
 
-        memory_samples: list[ModelMemorySample] = [
-            collect_model_memory(
-                model_pid, identity_check=identity_check, footprint_binary=footprint_binary, runner=runner
-            )
-        ]
+        memory_samples: list[ModelMemorySample] = [sample_model_memory()]
         gateway = ModelExecutionGateway(
             settings,
             registry,
             execution_policy,
             invocation_engine=governed_invocation_engine(settings),
         )
-        memory_samples.append(
-            collect_model_memory(
-                model_pid, identity_check=identity_check, footprint_binary=footprint_binary, runner=runner
-            )
-        )
+        memory_samples.append(sample_model_memory())
 
         direct_gateway_receipt_refs = []
         governed_gateway_receipt_refs = []
@@ -505,11 +534,7 @@ def collect_canonical_m1_samples(
             budget_governed = json.loads(debited_path.read_text(encoding="utf-8"))
             governed_route = advance_route_budget(governed_route, budget_governed)
             sample_control_plane()
-            memory_samples.append(
-                collect_model_memory(
-                    model_pid, identity_check=identity_check, footprint_binary=footprint_binary, runner=runner
-                )
-            )
+            memory_samples.append(sample_model_memory())
 
         for idx in range(11):
             order = ["direct", "governed"] if idx % 2 == 0 else ["governed", "direct"]
@@ -590,14 +615,7 @@ def collect_canonical_m1_samples(
             raise RuntimeError("Goose loopback model receipt did not succeed")
         if goose_receipt.get("route_digest") != native.model.route.route_digest:
             raise RuntimeError("Goose and Deep Agents route lineage differ")
-        memory_samples.append(
-            collect_model_memory(
-                model_pid,
-                identity_check=identity_check,
-                footprint_binary=footprint_binary,
-                runner=runner,
-            )
-        )
+        memory_samples.append(sample_model_memory())
         monitor_phase = "post_workload"
         # 5. Non-model dispatch latency (100 iterations)
         non_model_dispatch: list[float] = []
@@ -714,6 +732,7 @@ def collect_canonical_m1_samples(
                 "rss_bytes": sample.rss_bytes,
                 "graphics_memory_diagnostics": sample.graphics_memory_diagnostics,
                 "measured_pids": list(sample.measured_pids),
+                "footprint_evidence_ref": sample.footprint_evidence_ref,
             }
             for index, sample in enumerate(memory_samples)
         ],
@@ -765,7 +784,7 @@ def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[s
     if samples.get("samples_digest") != raw_samples_digest(samples):
         raise ValueError("raw samples digest mismatch")
 
-    def load_ref(ref: Any, *, label: str) -> dict[str, Any]:
+    def verify_ref(ref: Any, *, label: str) -> Path:
         if not isinstance(ref, dict) or ref.get("required") is not True:
             raise ValueError(f"{label} is required")
         path = Path(str(ref.get("path") or ""))
@@ -773,6 +792,10 @@ def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[s
             raise ValueError(f"{label} is missing or substituted")
         if hashlib.sha256(path.read_bytes()).hexdigest() != ref.get("sha256"):
             raise ValueError(f"{label} digest mismatch")
+        return path
+
+    def load_ref(ref: Any, *, label: str) -> dict[str, Any]:
+        path = verify_ref(ref, label=label)
         value = json.loads(path.read_text(encoding="utf-8"))
         if not isinstance(value, dict):
             raise ValueError(f"{label} must reference an object")
@@ -836,6 +859,15 @@ def build_report(*, manifest: dict[str, Any], samples: dict[str, Any]) -> dict[s
     phases = [item.get("phase") for item in memory_samples] if isinstance(memory_samples, list) else []
     if not {"baseline", "load", "warm", "inference"}.issubset(phases) or phases.count("inference") < 1:
         raise ValueError("memory sampling must cover baseline, load, warm, and inference")
+    for index, sample in enumerate(memory_samples):
+        if not isinstance(sample, dict):
+            raise ValueError(f"model_memory_samples[{index}] must be an object")
+        footprint_path = verify_ref(
+            sample.get("footprint_evidence_ref"), label=f"model_memory_samples[{index}].footprint_evidence_ref"
+        )
+        parsed_bytes, _diagnostics = parse_footprint_bytes(footprint_path.read_text(encoding="utf-8"))
+        if parsed_bytes != sample.get("physical_footprint_bytes"):
+            raise ValueError(f"model_memory_samples[{index}] does not match its footprint evidence")
     schedule = samples.get("ttft_pair_order")
     if (
         not isinstance(schedule, list)
