@@ -360,8 +360,13 @@ APPLY_OUT="$WORKDIR/apply-out"
 ROLLBACK_APPROVAL="$WORKDIR/rollback-approval.json"
 ROLLBACK_OUT="$WORKDIR/rollback-out"
 
+step "builder-verify run-approved" run builder-verify run-approved --plan "$VPLAN" --approval "$VAPPROVAL" --output "$RECEIPT" --profile platform_status
+
+TARGET_HEAD_SHA="$(git -C "$FIXTURE_DIR" rev-parse HEAD)"
 step "propose-patch" run builder-hitl propose-patch --diff-file "$WORKDIR/diff.patch" --output "$PROPOSAL" \
-  --description "clean-clone smoke: append a line to README.md" --reason "prove the generic governed patch loop end to end"
+  --description "clean-clone smoke: append a line to README.md" \
+  --reason "prove the generic governed patch loop end to end" \
+  --target-head-sha "$TARGET_HEAD_SHA" --verification-receipt "$RECEIPT" --target-repo "$FIXTURE_DIR"
 
 PATCH_PREFIX=$(run_python -c "import json; print(json.load(open('$PROPOSAL'))['patch_digest'][:$PREFIX_LEN])")
 if [ -n "$CANDIDATE_WHEEL" ]; then
@@ -370,8 +375,6 @@ else
   approve_patch_cmd="printf '%s\n' $(quote "$PATCH_PREFIX") | uv run --project $(quote "$CLONE_DIR") builder-hitl approve-patch --proposal $(quote "$PROPOSAL") --output $(quote "$APPROVAL") --approved-by $(quote "Clean-Clone Smoke")"
 fi
 step_shell "approve-patch" "$approve_patch_cmd"
-
-step "builder-verify run-approved" run builder-verify run-approved --plan "$VPLAN" --approval "$VAPPROVAL" --output "$RECEIPT" --profile platform_status
 
 step "apply-patch" run builder-hitl apply-patch --proposal "$PROPOSAL" --approval "$APPROVAL" --verification-receipt "$RECEIPT" --output-dir "$APPLY_OUT"
 
