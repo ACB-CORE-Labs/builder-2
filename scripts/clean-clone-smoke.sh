@@ -248,6 +248,14 @@ run() {
   fi
 }
 
+run_python() {
+  if [ -n "$CANDIDATE_WHEEL" ]; then
+    "$UV_TOOL_DIR/builder-ii/bin/python" "$@"
+  else
+    uv run --project "$CLONE_DIR" python "$@"
+  fi
+}
+
 run_approval_shell() {
   local prefix="$1"; shift
   if [ -n "$CANDIDATE_WHEEL" ]; then
@@ -343,7 +351,7 @@ git -C "$FIXTURE_DIR" checkout -q -- README.md
 
 cd "$FIXTURE_DIR"
 
-PREFIX_LEN=$(run python -c "from builder_ii.governance.hitl.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH as n; print(n)")
+PREFIX_LEN=$(run_python -c "from builder_ii.governance.hitl.hitl_patch_approval import APPROVAL_CONFIRMATION_PREFIX_LENGTH as n; print(n)")
 
 PROPOSAL="$WORKDIR/proposal.json"
 APPROVAL="$WORKDIR/approval.json"
@@ -355,7 +363,7 @@ ROLLBACK_OUT="$WORKDIR/rollback-out"
 step "propose-patch" run builder-hitl propose-patch --diff-file "$WORKDIR/diff.patch" --output "$PROPOSAL" \
   --description "clean-clone smoke: append a line to README.md" --reason "prove the generic governed patch loop end to end"
 
-PATCH_PREFIX=$(run python -c "import json; print(json.load(open('$PROPOSAL'))['patch_digest'][:$PREFIX_LEN])")
+PATCH_PREFIX=$(run_python -c "import json; print(json.load(open('$PROPOSAL'))['patch_digest'][:$PREFIX_LEN])")
 if [ -n "$CANDIDATE_WHEEL" ]; then
   approve_patch_cmd="printf '%s\n' $(quote "$PATCH_PREFIX") | builder-hitl approve-patch --proposal $(quote "$PROPOSAL") --output $(quote "$APPROVAL") --approved-by $(quote "Clean-Clone Smoke")"
 else
@@ -368,7 +376,7 @@ step "builder-verify run-approved" run builder-verify run-approved --plan "$VPLA
 step "apply-patch" run builder-hitl apply-patch --proposal "$PROPOSAL" --approval "$APPROVAL" --verification-receipt "$RECEIPT" --output-dir "$APPLY_OUT"
 
 ROLLBACK_PLAN="$APPLY_OUT/rollback_plan.json"
-ROLLBACK_PREFIX=$(run python -c "
+ROLLBACK_PREFIX=$(run_python -c "
 import json
 from builder_ii.governance.hitl.hitl_rollback_approval import canonical_json_digest
 data = json.load(open('$ROLLBACK_PLAN'))
