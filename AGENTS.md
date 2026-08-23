@@ -26,12 +26,33 @@ Do not attempt to bypass the governed control plane. All actions must flow throu
 * **MCP Adapter:** Treat all external capabilities as inventory-first, deny-by-default. Do not invent tools.
 
 ## 4. Operational Workflow Requirements
-When tasked with a feature or bug fix:
+For governed changes to a separate target repository after builder-II has been
+independently qualified for that use:
 
 1. **Plan Phase:** Generate a passive read-only execution plan artifact (e.g., `builder_ii.verification_execution_plan`).
 2. **Halt for HITL:** You must stop and wait for a Human-In-The-Loop approval artifact before proceeding.
 3. **Execution:** Once approved, execute strictly within the bounds of the provided receipt.
 4. **Verification:** Generate an evidence bundle. Do not self-certify correctness.
+
+### Bootstrap boundary: builder-II does not govern its own development
+
+Until the complete product has been independently proven and explicitly admitted for
+self-hosting, the workflow above does **not** authorize builder-II to plan, approve,
+execute, or verify changes to builder-II itself. During builder-II development:
+
+* `builder-verify`, `builder-hitl`, proposals, approvals, receipts, ledgers, and related
+  artifacts may be exercised only as test subjects and diagnostic outputs.
+* Those artifacts are not development authority, merge evidence, or substitutes for
+  ordinary operator-supervised engineering review.
+* In-scope changes proceed through direct repository inspection, edits, focused tests,
+  final local CI, and normal Git/GitHub review under the active user mission.
+* Active worktrees and retained evidence belong in durable project-local development
+  storage. Host temporary directories such as `/private/tmp` are disposable scratch
+  space, not durable custody.
+
+Self-hosting requires a separate, explicit platform admission backed by independent
+end-to-end evidence. No individual passing artifact or capability promotes the system
+into that state.
 
 ## 5. Version Control & Repository Management
 **CRITICAL**: This repository uses GitHub for source control and pull requests, but

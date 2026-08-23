@@ -47,7 +47,6 @@ from builder_ii.governance.hitl.hitl_patch_approval import (
 )
 from builder_ii.governance.hitl.hitl_patch_ledger import validate_hitl_patch_ledger_record_file
 from builder_ii.governance.hitl.hitl_patch_proposal import (
-    MAX_UNIFIED_DIFF_BYTES,
     create_bound_hitl_patch_proposal,
     validate_hitl_patch_proposal,
     write_hitl_patch_proposal,
@@ -92,6 +91,7 @@ MAX_READ_BYTES = 256 * 1024
 MAX_TASK_BYTES = 4096
 MAX_SERVICE_INPUT_BYTES = 8 * 1024
 MAX_SERVICE_OUTPUT_BYTES = 4 * 1024 * 1024
+MAX_MCP_UNIFIED_DIFF_BYTES = 64 * 1024
 SERVICE_TOOLS = {
     "repo_map",
     "repo_search",
@@ -144,7 +144,9 @@ def _service_policy(tool_name: str) -> dict[str, Any]:
     """Reuse the canonical deny-by-default policy with truthful bounded service ceilings."""
     policy = build_read_only_policy()
     policy["max_input_bytes"] = (
-        MAX_UNIFIED_DIFF_BYTES + MAX_SERVICE_INPUT_BYTES if tool_name == "patch_proposal" else MAX_SERVICE_INPUT_BYTES
+        MAX_MCP_UNIFIED_DIFF_BYTES + MAX_SERVICE_INPUT_BYTES
+        if tool_name == "patch_proposal"
+        else MAX_SERVICE_INPUT_BYTES
     )
     policy["max_output_bytes"] = MAX_SERVICE_OUTPUT_BYTES
     if tool_name == "verification_execute":
@@ -850,8 +852,8 @@ def _patch_proposal(
         unified_diff_bytes = unified_diff.encode("utf-8")
     except UnicodeEncodeError as exc:
         raise ServiceDenied("unified_diff must be valid UTF-8 text") from exc
-    if len(unified_diff_bytes) > MAX_UNIFIED_DIFF_BYTES:
-        raise ServiceDenied(f"unified_diff exceeds the {MAX_UNIFIED_DIFF_BYTES}-byte limit")
+    if len(unified_diff_bytes) > MAX_MCP_UNIFIED_DIFF_BYTES:
+        raise ServiceDenied(f"unified_diff exceeds the {MAX_MCP_UNIFIED_DIFF_BYTES}-byte limit")
 
     _assert_mcp_ledger_extendable(builder_root=builder_root, session_id=session_id)
     receipt_bytes = _controlled_receipt_bytes(arguments.get("verification_receipt_path"), builder_root=builder_root)
@@ -1535,7 +1537,9 @@ def run_service(
     if not isinstance(arguments, dict):
         raise ServiceDenied("arguments must be an object")
     input_limit = (
-        MAX_UNIFIED_DIFF_BYTES + MAX_SERVICE_INPUT_BYTES if tool_name == "patch_proposal" else MAX_SERVICE_INPUT_BYTES
+        MAX_MCP_UNIFIED_DIFF_BYTES + MAX_SERVICE_INPUT_BYTES
+        if tool_name == "patch_proposal"
+        else MAX_SERVICE_INPUT_BYTES
     )
     if _canonical_size(arguments) > input_limit:
         raise ServiceDenied(f"service arguments exceed the {input_limit}-byte input limit")

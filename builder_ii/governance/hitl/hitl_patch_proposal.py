@@ -13,7 +13,7 @@ from builder_ii.lifecycle.setup.target_profiles import TargetName, target_names,
 HITL_PATCH_PROPOSAL_KIND = "builder_ii.hitl_patch_proposal"
 HITL_PATCH_PROPOSAL_SCHEMA_VERSION = 2
 HITL_PATCH_PROPOSAL_LEGACY_SCHEMA_VERSION = 1
-MAX_UNIFIED_DIFF_BYTES = 64 * 1024
+MAX_CANONICAL_UNIFIED_DIFF_BYTES = 128 * 1024
 _HEAD_SHA_RE = re.compile(r"^[0-9a-fA-F]{40}$")
 
 # ---------------------------------------------------------------------------
@@ -85,8 +85,8 @@ def exact_scope_from_unified_diff(unified_diff: str) -> dict[str, Any]:
         raw = unified_diff.encode("utf-8")
     except UnicodeEncodeError as exc:
         raise ValueError("unified_diff must be valid UTF-8 text") from exc
-    if len(raw) > MAX_UNIFIED_DIFF_BYTES:
-        raise ValueError(f"unified_diff exceeds the {MAX_UNIFIED_DIFF_BYTES}-byte limit")
+    if len(raw) > MAX_CANONICAL_UNIFIED_DIFF_BYTES:
+        raise ValueError(f"unified_diff exceeds the {MAX_CANONICAL_UNIFIED_DIFF_BYTES}-byte limit")
     forbidden = ("GIT binary patch", "Binary files ", "diff --cc ", "diff --combined ", "rename from ", "rename to ", "copy from ", "copy to ")
     if any(line.startswith(forbidden) for line in unified_diff.splitlines()):
         raise ValueError("unified_diff uses an unsupported binary, combined, rename, or copy form")

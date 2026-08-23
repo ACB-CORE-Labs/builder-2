@@ -12,16 +12,31 @@ import pytest
 from typer.testing import CliRunner
 
 import builder_ii.cli.mcp_cli as mcp_cli
-from builder_ii.adapters.mcp.governed_services import ServiceDenied, run_service, validate_mcp_service_receipt
+from builder_ii.adapters.mcp.governed_call import TOOL_SPECS
+from builder_ii.adapters.mcp.governed_services import (
+    MAX_MCP_UNIFIED_DIFF_BYTES,
+    ServiceDenied,
+    run_service,
+    validate_mcp_service_receipt,
+)
 from builder_ii.adapters.mcp.server import GovernedMcpServer
 from builder_ii.cli.mcp_cli import mcp_app
 from builder_ii.governance.hitl.hitl_patch_proposal import (
-    MAX_UNIFIED_DIFF_BYTES,
     create_bound_hitl_patch_proposal,
     validate_hitl_patch_proposal,
 )
 
 DIFF = "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n"
+
+
+def _valid_diff_with_size(size: int) -> str:
+    prefix = "--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+"
+    suffix = "\n"
+    filler_bytes = size - len(prefix.encode("utf-8")) - len(suffix.encode("utf-8"))
+    assert filler_bytes >= 1
+    diff = prefix + ("n" * filler_bytes) + suffix
+    assert len(diff.encode("utf-8")) == size
+    return diff
 
 
 def _receipt() -> dict[str, object]:
@@ -38,6 +53,11 @@ def _receipt() -> dict[str, object]:
             "core_workbench_coupling": "NONE",
         },
     }
+
+
+def test_patch_proposal_inventory_preserves_64_kib_mcp_boundary() -> None:
+    schema = TOOL_SPECS["patch_proposal"]["inputSchema"]
+    assert schema["properties"]["unified_diff"]["maxLength"] == MAX_MCP_UNIFIED_DIFF_BYTES
 
 
 def _setup(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -337,15 +357,20 @@ def test_receipt_path_and_size_fail_closed(tmp_path: Path) -> None:
                 target_root=target,
                 target_name="generic",
             )
-    with pytest.raises(ServiceDenied):
+    oversized_diff = _valid_diff_with_size(MAX_MCP_UNIFIED_DIFF_BYTES + 1)
+    with pytest.raises(
+        ServiceDenied,
+        match=f"unified_diff exceeds the {MAX_MCP_UNIFIED_DIFF_BYTES}-byte limit",
+    ):
         run_service(
             tool_name="patch_proposal",
-            arguments=_arguments(receipt_path, unified_diff="x" * (MAX_UNIFIED_DIFF_BYTES + 1)),
+            arguments=_arguments(receipt_path, unified_diff=oversized_diff),
             session_id="oversize",
             builder_root=builder_root,
             target_root=target,
             target_name="generic",
         )
+    assert not list(builder_root.rglob("hitl-patch-proposal.json"))
     with pytest.raises(ServiceDenied):
         run_service(
             tool_name="patch_proposal",
