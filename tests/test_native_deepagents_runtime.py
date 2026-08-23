@@ -194,6 +194,20 @@ def test_default_response_strategy_accepts_fenced_json_tool_calls() -> None:
     assert response.tool_calls[0]["args"] == {"reason": "pause"}
 
 
+def test_default_response_strategy_accepts_qwen_fenced_json_terminator() -> None:
+    response = _default_response_strategy(
+        {
+            "response_text": (
+                '```json\n{"tool_calls":[{"name":"builder_request_hitl","args":{}}],"content":""}\n```'
+                "<|im_end|>"
+            )
+        },
+        [],
+    )
+    assert response.tool_calls[0]["name"] == "builder_request_hitl"
+    assert response.tool_calls[0]["args"] == {}
+
+
 def _runtime(tmp_path: Path) -> NativeDeepAgentsRuntime:
     gateway, route, budget = _gateway(tmp_path)
     return NativeDeepAgentsRuntime(

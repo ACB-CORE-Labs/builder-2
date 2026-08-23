@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json as json_lib
+import re
 import threading
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
@@ -66,6 +67,10 @@ _DENIED_NATIVE_CAPABILITIES = (
     "git mutation",
     "direct provider calls",
     "unapproved external tools",
+)
+_FENCED_JSON_WITH_OPTIONAL_QWEN_TERMINATOR = re.compile(
+    r"^```(?:json)?\s*(?P<payload>\{.*\})\s*```(?:<\|im_end\|>)?$",
+    re.DOTALL,
 )
 
 
@@ -123,8 +128,9 @@ def _default_response_strategy(receipt: dict[str, Any], _messages: Sequence[Base
 
     text = str(receipt.get("response_text", ""))
     stripped = text.strip()
-    if stripped.startswith("```") and stripped.endswith("```"):
-        stripped = stripped.removeprefix("```").removeprefix("json").removesuffix("```").strip()
+    fenced_json = _FENCED_JSON_WITH_OPTIONAL_QWEN_TERMINATOR.fullmatch(stripped)
+    if fenced_json is not None:
+        stripped = fenced_json.group("payload")
     try:
         value = json_lib.loads(stripped)
     except json_lib.JSONDecodeError:
