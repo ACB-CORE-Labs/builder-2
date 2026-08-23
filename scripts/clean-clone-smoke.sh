@@ -346,7 +346,7 @@ git -C "$FIXTURE_DIR" add README.md
 step "commit fixture repo initial state" git -C "$FIXTURE_DIR" commit -q -m "initial commit"
 
 printf '# Fixture repo\n\nUsed by the clean-clone smoke gate.\n\nSmoke-test patch line.\n' >"$FIXTURE_DIR/README.md"
-step "capture patch diff" bash -c "git -C $(quote "$FIXTURE_DIR") diff > $(quote "$WORKDIR/diff.patch") && [ -s $(quote "$WORKDIR/diff.patch") ]"
+step "capture canonical patch diff" bash -c "git -C $(quote "$FIXTURE_DIR") diff | sed '/^index /d' > $(quote "$WORKDIR/diff.patch") && [ -s $(quote "$WORKDIR/diff.patch") ]"
 git -C "$FIXTURE_DIR" checkout -q -- README.md
 
 cd "$FIXTURE_DIR"
