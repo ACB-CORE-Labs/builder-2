@@ -588,8 +588,12 @@ def collect_canonical_m1_samples(
             ],
             limits=NativeRuntimeLimits(active_workers=2, max_model_calls=16, max_tool_calls=16),
         )
+        first_profile, second_profile = (str(obligation["subagent_profile"]) for obligation in obligations)
         native_evidence = native.start(
-            "Stage 1 only: delegate and complete both frozen obligations through the task tool. "
+            "Stage 1 only: make exactly two task calls and no other tool calls. "
+            f"The first task args must contain description and subagent_type={first_profile!r}; "
+            f"the second task args must contain description and subagent_type={second_profile!r}. "
+            "Do not use role, instructions, expected_output, or general-purpose as task arguments. "
             "Do not call the governed echo or request HITL until both task results are available."
         )
         native_errors = validate_native_evidence_bundle(native_evidence)
