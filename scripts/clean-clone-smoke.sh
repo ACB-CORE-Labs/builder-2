@@ -337,15 +337,11 @@ step "builder-session summarize-prepare-package" run builder-session summarize-p
 # throwaway fixture repo or the D7 execution-risk acknowledgment path.
 # ---------------------------------------------------------------------------
 section "Phase 4: generic governed patch loop"
-step "init fixture repo" git init "$FIXTURE_DIR"
+step "clone exact clean fixture repo" git clone "$CLONE_DIR" "$FIXTURE_DIR"
 git -C "$FIXTURE_DIR" config user.email "smoke@example.invalid"
 git -C "$FIXTURE_DIR" config user.name "Clean-Clone Smoke"
-git -C "$FIXTURE_DIR" checkout -q -b main
-printf '# Fixture repo\n\nUsed by the clean-clone smoke gate.\n' >"$FIXTURE_DIR/README.md"
-git -C "$FIXTURE_DIR" add README.md
-step "commit fixture repo initial state" git -C "$FIXTURE_DIR" commit -q -m "initial commit"
 
-printf '# Fixture repo\n\nUsed by the clean-clone smoke gate.\n\nSmoke-test patch line.\n' >"$FIXTURE_DIR/README.md"
+printf '\nSmoke-test patch line.\n' >>"$FIXTURE_DIR/README.md"
 step "capture canonical patch diff" bash -c "git -C $(quote "$FIXTURE_DIR") diff | sed '/^index /d' > $(quote "$WORKDIR/diff.patch") && [ -s $(quote "$WORKDIR/diff.patch") ]"
 git -C "$FIXTURE_DIR" checkout -q -- README.md
 
@@ -356,11 +352,17 @@ PREFIX_LEN=$(run_python -c "from builder_ii.governance.hitl.hitl_patch_approval 
 PROPOSAL="$WORKDIR/proposal.json"
 APPROVAL="$WORKDIR/approval.json"
 RECEIPT="$ART/verification/verification-execution-receipt.json"
+PATCH_VPLAN="$ART/verification/patch-verification-execution-plan.json"
+PATCH_VAPPROVAL="$ART/verification/patch-verification-execution-approval.json"
 APPLY_OUT="$WORKDIR/apply-out"
 ROLLBACK_APPROVAL="$WORKDIR/rollback-approval.json"
 ROLLBACK_OUT="$WORKDIR/rollback-out"
 
-step "builder-verify run-approved" run builder-verify run-approved --plan "$VPLAN" --approval "$VAPPROVAL" --output "$RECEIPT" --profile platform_status
+step "builder-verify patch plan" run builder-verify plan --target-profile builder --verification-profile builder_full \
+  --target-repo "$FIXTURE_DIR" --artifact-root "$ART/verification" --output "$PATCH_VPLAN"
+step "builder-verify patch approval" run builder-verify approve-plan "$PATCH_VPLAN" --profile platform_status \
+  --approval-actor "Clean-Clone Smoke" --approval-reason "release golden path patch verification" --output "$PATCH_VAPPROVAL"
+step "builder-verify run-approved" run builder-verify run-approved --plan "$PATCH_VPLAN" --approval "$PATCH_VAPPROVAL" --output "$RECEIPT" --profile platform_status
 
 TARGET_HEAD_SHA="$(git -C "$FIXTURE_DIR" rev-parse HEAD)"
 step "propose-patch" run builder-hitl propose-patch --diff-file "$WORKDIR/diff.patch" --output "$PROPOSAL" \
