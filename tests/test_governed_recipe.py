@@ -75,7 +75,10 @@ def test_governed_argv_omits_recipe_when_missing(mock_settings, tmp_path: Path) 
     assert "--recipe" not in argv
 
 
-@patch("builder_ii.adapters.goose.goose_runtime_harness.goose_env", return_value={})
+@patch(
+    "builder_ii.adapters.goose.goose_launcher.derive_goose_environment",
+    return_value=({}, {"real_provider_credentials_exposed": False, "route_bound": True}),
+)
 @patch("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary")
 @patch("builder_ii.adapters.goose.goose_runtime_harness.probe_goose")
 @patch("builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe")
@@ -88,6 +91,7 @@ def test_launch_governed_points_goose_at_the_governed_recipe(
     mock_goose_env: MagicMock,
     mock_settings: MagicMock,
     tmp_path: Path,
+    goose_gateway_context_factory,
 ) -> None:
     mock_find_goose.return_value = "/mock/bin/goose"
     mock_probe.return_value = MagicMock(binary="/mock/bin/goose", version="1.46.0", policy=">=1.45.0,<1.47.0")
@@ -101,19 +105,24 @@ def test_launch_governed_points_goose_at_the_governed_recipe(
     (tmp_path / "recipes").mkdir()
     (tmp_path / "recipes" / "governed-readonly.yaml").write_text("version: '1.0.0'\n", encoding="utf-8")
 
-    harness = GooseRuntimeHarness(mock_settings, _MockSessionPlan(), tmp_path)
+    harness = GooseRuntimeHarness(
+        mock_settings,
+        _MockSessionPlan(),
+        tmp_path,
+        model_gateway_context=goose_gateway_context_factory(mock_settings, tmp_path / "model-calls", "recipe-test"),
+    )
     receipt = harness.launch_governed()
     assert receipt["kind"] == "builder_ii.goose_launch_receipt"
     assert receipt["schema_version"] == 2
     assert receipt["pid"] == 999
-    assert receipt["evidence"] == {
-        "goose_compatibility": {
-            "binary": "/mock/bin/goose",
-            "version": "1.46.0",
-            "policy": ">=1.45.0,<1.47.0",
-        },
-        "recipe_sha256": "a" * 64,
+    assert receipt["evidence"]["goose_compatibility"] == {
+        "binary": "/mock/bin/goose",
+        "version": "1.46.0",
+        "policy": ">=1.45.0,<1.47.0",
     }
+    assert receipt["evidence"]["recipe_sha256"] == "a" * 64
+    assert receipt["evidence"]["route_digest"] == harness._model_gateway_context.route.route_digest
+    assert receipt["evidence"]["model_gateway"]["real_provider_credentials_exposed"] is False
     assert validate_goose_launch_receipt(receipt) == []
 
     mock_popen.assert_called_once()
@@ -125,20 +134,29 @@ def test_launch_governed_points_goose_at_the_governed_recipe(
     # The MCP server's ledger is scoped to this run; no shell mode enabled.
     assert kwargs["env"]["BUILDER_MCP_SESSION_ID"] == harness.session_id
     assert kwargs["env"]["GOOSE_MODE"] == "auto"
+    harness._model_gateway_adapter.close()
 
 
 @patch("builder_ii.adapters.goose.goose_runtime_harness.subprocess.Popen")
 def test_launch_governed_refuses_recipe_drift_at_spawn_boundary(
-    mock_popen: MagicMock, mock_settings: MagicMock, tmp_path: Path
+    mock_popen: MagicMock, mock_settings: MagicMock, tmp_path: Path, goose_gateway_context_factory
 ) -> None:
     recipe = tmp_path / "recipes" / "governed-readonly.yaml"
     recipe.parent.mkdir()
     recipe.write_text("version: '1.0.0'\n", encoding="utf-8")
-    harness = GooseRuntimeHarness(mock_settings, _MockSessionPlan(), tmp_path)
+    harness = GooseRuntimeHarness(
+        mock_settings,
+        _MockSessionPlan(),
+        tmp_path,
+        model_gateway_context=goose_gateway_context_factory(mock_settings, tmp_path / "model-calls", "drift-test"),
+    )
     with patch("builder_ii.adapters.goose.goose_runtime_harness.find_goose_binary", return_value="/mock/bin/goose"), patch(
         "builder_ii.adapters.goose.goose_runtime_harness.probe_goose",
         return_value=MagicMock(binary="/mock/bin/goose", version="1.46.0", policy=">=1.45.0,<1.47.0"),
-    ), patch("builder_ii.adapters.goose.goose_runtime_harness.goose_env", return_value={}), patch(
+    ), patch(
+        "builder_ii.adapters.goose.goose_launcher.derive_goose_environment",
+        return_value=({}, {"real_provider_credentials_exposed": False, "route_bound": True}),
+    ), patch(
         "builder_ii.adapters.goose.goose_runtime_harness.validate_governed_recipe", side_effect=["a" * 64, "b" * 64]
     ):
         with pytest.raises(ValueError, match="changed after admission"):

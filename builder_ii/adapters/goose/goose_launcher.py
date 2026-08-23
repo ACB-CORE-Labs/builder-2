@@ -122,6 +122,9 @@ def derive_goose_environment(
     settings: Settings | None = None,
     session: SessionPlan | None = None,
     cloud_approval_path: str | None = None,
+    model_gateway_url: str | None = None,
+    model_gateway_credential: str | None = None,
+    route_model_id: str | None = None,
 ) -> tuple[dict[str, str], dict[str, any]]:
     from builder_ii.core.config import load_settings
 
@@ -129,6 +132,38 @@ def derive_goose_environment(
         settings = load_settings()
 
     env = os.environ.copy()
+
+    if model_gateway_url is not None:
+        if not model_gateway_url.startswith(("http://127.0.0.1:", "http://localhost:")):
+            raise ValueError("canonical Goose model gateway must be loopback")
+        if not model_gateway_credential or not route_model_id:
+            raise ValueError("canonical Goose gateway requires local credential and WRP route model")
+        actual_env = {
+            key: value for key, value in env.items()
+            if key not in {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GROQ_API_KEY", "XAI_API_KEY",
+                           "GEMINI_API_KEY", "GOOGLE_ACCESS_TOKEN", "GOOGLE_OAUTH_TOKEN"}
+        }
+        actual_env.update({
+            "GOOSE_PROVIDER": "openai", "GOOSE_PROVIDER__TYPE": "openai",
+            "GOOSE_PROVIDER__HOST": _server_root_url(model_gateway_url),
+            "GOOSE_PROVIDER__API_KEY": model_gateway_credential,
+            "OPENAI_HOST": _server_root_url(model_gateway_url),
+            "OPENAI_API_KEY": model_gateway_credential,
+            "GOOSE_MODEL": route_model_id, "GOOSE_PLANNER_PROVIDER": "openai",
+            "GOOSE_PLANNER_MODEL": route_model_id, "GOOSE_MODE": "auto", "GOOSE_MAX_TURNS": "1000",
+        })
+        recipe = recipe_path(settings, session)
+        moim = write_moim_context(settings)
+        actual_env["GOOSE_RECIPE_PATH"] = str(recipe.parent)
+        actual_env["GOOSE_MOIM_MESSAGE_FILE"] = str(moim)
+        report = {
+            "selected_backend": "builder_ii_model_gateway", "selected_model": route_model_id,
+            "provider_host": _server_root_url(model_gateway_url), "launch_ready": bool(find_goose_binary()),
+            "provider_credentials_exposed": False,
+            "loopback_credential_ref": "token-ref:BUILDER_GOOSE_LOOPBACK_CREDENTIAL",
+            "model_gateway_binding": "ModelExecutionGateway", "wrp_route_bound": True,
+        }
+        return actual_env, report
 
     goose_provider = "openai"
     provider_host = ""

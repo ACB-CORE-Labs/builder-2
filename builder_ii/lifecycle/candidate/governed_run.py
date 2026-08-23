@@ -115,12 +115,11 @@ class WrpSubagentRuntimeAdapter:
     version = "1"
     executes_model = True
 
-    def __init__(self, *, role: str, model_id: str, plan_digest: str, approved_by: str, budget: dict[str, Any]):
+    def __init__(self, *, role: str, route_sources: dict[str, Any], plan_digest: str, approved_by: str):
         self.role = role
-        self.model_id = model_id
+        self.route_sources = route_sources
         self.plan_digest = plan_digest
         self.approved_by = approved_by
-        self.budget = budget
 
     def prepare(self, run: GovernedRun) -> AdapterResult:
         return AdapterResult("prepared", {"wrp": True, "role": self.role})
@@ -131,11 +130,10 @@ class WrpSubagentRuntimeAdapter:
         result = run_governed_subagent_step(
             role=self.role,
             task=f"{run.task} [step {step_index + 1}/{len(run.steps)}]",
-            model_id=self.model_id,
             prompt=run.steps[step_index],
             plan_digest=self.plan_digest,
             approved_by=self.approved_by,
-            budget=self.budget,
+            route_sources=self.route_sources,
             session_id=run.run_id,
             artifact_dir=run.output_dir / "artifacts",
         )

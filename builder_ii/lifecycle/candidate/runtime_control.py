@@ -4,7 +4,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Iterable
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 import typer
 from rich.console import Console
 from rich.table import Table

@@ -18,6 +18,37 @@ from builder_ii.cli.main import app
 from builder_ii.governance.authority import CommandAuthorityError
 from builder_ii.governance.hitl.hitl_patch_approval import create_hitl_patch_approval, write_hitl_patch_approval
 from builder_ii.governance.hitl.hitl_patch_proposal import create_hitl_patch_proposal, write_hitl_patch_proposal
+from builder_ii.routing.model_budget import create_model_budget
+from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_routing_policy import create_model_execution_policy
+
+SELECTED_MODEL = "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"
+
+
+def _route_argv(tmp_path: Path, session_id: str) -> list[str]:
+    fixture_root = Path(__file__).parent / "fixtures" / "artifacts"
+    recommendation = json.loads((fixture_root / "model-recommendation.json").read_text())
+    artifacts = {
+        "recommendation": recommendation,
+        "assignment": json.loads((fixture_root / "agent-assignment-plan.json").read_text()),
+        "registry": create_model_client_registry(),
+        "policy": create_model_execution_policy(recommendation, max_tokens=64),
+        "budget": create_model_budget(
+            session_id=session_id, max_usd=5.0, max_total_tokens=100_000, max_output_tokens=512
+        ),
+    }
+    paths: dict[str, Path] = {}
+    for name, artifact in artifacts.items():
+        path = tmp_path / f"{session_id}-{name}.json"
+        path.write_text(json.dumps(artifact), encoding="utf-8")
+        paths[name] = path
+    return [
+        "--model-recommendation", str(paths["recommendation"]),
+        "--model-assignment", str(paths["assignment"]),
+        "--model-registry", str(paths["registry"]),
+        "--model-execution-policy", str(paths["policy"]),
+        "--model-budget", str(paths["budget"]),
+    ]
 
 
 def test_primary_builder_start_uses_governed_lifecycle_and_persists_receipts(monkeypatch, tmp_path: Path) -> None:
@@ -29,7 +60,7 @@ def test_primary_builder_start_uses_governed_lifecycle_and_persists_receipts(mon
         target_repo=tmp_path,
         model_alias="alias",
         backend="openai",
-        active_model_id="model",
+        active_model_id=SELECTED_MODEL,
     )
     launch = create_goose_launch_receipt(
         "primary-test", "builder", "patch_planner", 42, "2026-01-01T00:00:00+00:00", {"runtime": "goose_governed"}
@@ -41,7 +72,7 @@ def test_primary_builder_start_uses_governed_lifecycle_and_persists_receipts(mon
     monkeypatch.setattr(main_cli, "enforce_command_authority", lambda *_args, **_kwargs: calls.append("authority"))
 
     class FakeHarness:
-        def __init__(self, *_args):
+        def __init__(self, *_args, **_kwargs):
             self.session_id = "primary-test"
 
         def admit_governed(self):
@@ -61,13 +92,15 @@ def test_primary_builder_start_uses_governed_lifecycle_and_persists_receipts(mon
             return close, postflight
 
     monkeypatch.setattr("builder_ii.core.config.load_settings", lambda: settings)
-    monkeypatch.setattr("builder_ii.core.config.normalize_model_alias", lambda alias, tier_fallback: alias)
+    monkeypatch.setattr("builder_ii.core.config.normalize_model_alias", lambda alias, *_args, **_kwargs: alias)
     monkeypatch.setattr("builder_ii.routing.model_router.plan_session", lambda mode, task: session)
     monkeypatch.setattr("builder_ii.routing.model_router.explain_plan", lambda session: "plan")
     monkeypatch.setattr(main_cli, "_ensure_backend", lambda *_args: calls.append("backend"))
     monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.GooseRuntimeHarness", FakeHarness)
 
-    result = CliRunner().invoke(app, ["start", "--task", "test", "--name", "primary-test"])
+    result = CliRunner().invoke(
+        app, ["start", "--task", "test", "--name", "primary-test", *_route_argv(tmp_path, "primary-test")]
+    )
 
     assert result.exit_code == 0, result.output
     assert calls == ["authority", "admit", "backend", "launch", "wait", f"close:{launch['digest']}"]
@@ -132,7 +165,7 @@ def test_primary_builder_start_closes_real_session_bound_mcp_patch(monkeypatch, 
         target_repo=target,
         model_alias="alias",
         backend="openai",
-        active_model_id="model",
+        active_model_id=SELECTED_MODEL,
     )
 
     class ProductHarness(GooseRuntimeHarness):
@@ -169,7 +202,7 @@ def test_primary_builder_start_closes_real_session_bound_mcp_patch(monkeypatch, 
 
     monkeypatch.setattr(main_cli, "enforce_command_authority", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("builder_ii.core.config.load_settings", lambda: settings)
-    monkeypatch.setattr("builder_ii.core.config.normalize_model_alias", lambda alias, tier_fallback: alias)
+    monkeypatch.setattr("builder_ii.core.config.normalize_model_alias", lambda alias, *_args, **_kwargs: alias)
     monkeypatch.setattr("builder_ii.routing.model_router.plan_session", lambda mode, task: session)
     monkeypatch.setattr("builder_ii.routing.model_router.explain_plan", lambda session: "plan")
     monkeypatch.setattr(main_cli, "_ensure_backend", lambda *_args: None)
@@ -182,7 +215,9 @@ def test_primary_builder_start_closes_real_session_bound_mcp_patch(monkeypatch, 
 
     monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", bounded_run)
 
-    result = CliRunner().invoke(app, ["start", "--task", "test", "--name", "primary-r2"])
+    result = CliRunner().invoke(
+        app, ["start", "--task", "test", "--name", "primary-r2", *_route_argv(tmp_path, "primary-r2")]
+    )
 
     assert result.exit_code == 0, result.output
     assert (target / "file.txt").read_text(encoding="utf-8") == "Line 1\nLine 2 modified\n"

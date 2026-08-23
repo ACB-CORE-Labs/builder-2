@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json as json_lib
+import re
 import threading
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import dataclass
@@ -56,6 +57,7 @@ from builder_ii.core.orchestration_obligation import validate_orchestration_obli
 from builder_ii.core.tool_invocation_gateway import execute_tool_envelope
 from builder_ii.governance.ledger.workflow_records import canonical_digest
 from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+from builder_ii.routing.model_route_binding import ModelRouteBinding, advance_route_budget
 
 _NATIVE_ALLOWED_TOOLS = frozenset({"task", "builder_governed_echo", "builder_request_hitl"})
 _DENIED_NATIVE_CAPABILITIES = (
@@ -65,6 +67,11 @@ _DENIED_NATIVE_CAPABILITIES = (
     "git mutation",
     "direct provider calls",
     "unapproved external tools",
+)
+_QWEN_MESSAGE_TERMINATOR = "<|im_end|>"
+_FENCED_JSON = re.compile(
+    r"^```(?:json)?\s*(?P<payload>\{.*\})\s*```$",
+    re.DOTALL,
 )
 
 
@@ -100,6 +107,22 @@ def _raw_file_ref(path: Path, *, role: str, kind: str = "") -> dict[str, Any]:
 
 def _message_text(message: BaseMessage) -> str:
     content = message.content
+    if isinstance(message, AIMessage) and message.tool_calls:
+        return json_lib.dumps(
+            {
+                "content": content,
+                "tool_calls": [
+                    {
+                        "name": call["name"],
+                        "args": call["args"],
+                        "id": call["id"],
+                    }
+                    for call in message.tool_calls
+                ],
+            },
+            sort_keys=True,
+            default=str,
+        )
     if isinstance(content, str):
         return content
     return json_lib.dumps(content, sort_keys=True, default=str)
@@ -121,8 +144,14 @@ def _default_response_strategy(receipt: dict[str, Any], _messages: Sequence[Base
     """Decode the narrow JSON tool-call contract or return plain gateway text."""
 
     text = str(receipt.get("response_text", ""))
+    stripped = text.strip()
+    if stripped.endswith(_QWEN_MESSAGE_TERMINATOR):
+        stripped = stripped.removesuffix(_QWEN_MESSAGE_TERMINATOR).rstrip()
+    fenced_json = _FENCED_JSON.fullmatch(stripped)
+    if fenced_json is not None:
+        stripped = fenced_json.group("payload")
     try:
-        value = json_lib.loads(text)
+        value = json_lib.loads(stripped)
     except json_lib.JSONDecodeError:
         return AIMessage(content=text)
     if not isinstance(value, dict):
@@ -149,6 +178,32 @@ def _default_response_strategy(receipt: dict[str, Any], _messages: Sequence[Base
     return AIMessage(content=str(value.get("content", "")), tool_calls=normalized)
 
 
+def _project_stage_tool_calls(
+    response: AIMessage,
+    stage: str,
+    denial_callback: Callable[[dict[str, Any], str], None] | None = None,
+) -> AIMessage:
+    """Project raw model proposals onto the single tool class admitted for this stage."""
+
+    admitted_name = {
+        "delegate_tasks": "task",
+        "governed_echo": "builder_governed_echo",
+        "request_hitl": "builder_request_hitl",
+        "complete": None,
+    }.get(stage)
+    if stage not in {"delegate_tasks", "governed_echo", "request_hitl", "complete"}:
+        raise ValueError(f"unknown native Deep Agents stage: {stage}")
+    admitted = [call for call in response.tool_calls if call["name"] == admitted_name]
+    if stage in {"governed_echo", "request_hitl"}:
+        admitted = admitted[:1]
+    admitted_ids = {call["id"] for call in admitted}
+    if denial_callback is not None:
+        for call in response.tool_calls:
+            if call["id"] not in admitted_ids:
+                denial_callback(call, stage)
+    return AIMessage(content=response.content, tool_calls=admitted)
+
+
 class GatewayBackedChatModel(BaseChatModel):
     """LangChain chat-model adapter that executes every call through Builder-II."""
 
@@ -156,6 +211,8 @@ class GatewayBackedChatModel(BaseChatModel):
 
     gateway: ModelExecutionGateway = Field(exclude=True)
     model_id: str
+    route: ModelRouteBinding = Field(exclude=True)
+    budget: dict[str, Any] = Field(exclude=True)
     output_dir: Path = Field(exclude=True)
     session_id: str
     max_tokens: int = 256
@@ -166,11 +223,15 @@ class GatewayBackedChatModel(BaseChatModel):
         exclude=True,
     )
     receipt_callback: Callable[[dict[str, Any], Path], None] | None = Field(default=None, exclude=True)
+    stage_provider: Callable[[], str] | None = Field(default=None, exclude=True)
+    stage_denial_callback: Callable[[dict[str, Any], str], None] | None = Field(default=None, exclude=True)
 
     _counter: int = PrivateAttr(default=0)
     _counter_initialized: bool = PrivateAttr(default=False)
     _counter_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
+    _budget_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
     _bound_tool_names: tuple[str, ...] = PrivateAttr(default=())
+    _bound_tool_specs: tuple[dict[str, Any], ...] = PrivateAttr(default=())
 
     @property
     def _llm_type(self) -> str:
@@ -181,12 +242,21 @@ class GatewayBackedChatModel(BaseChatModel):
         return {"model_id": self.model_id, "session_id": self.session_id}
 
     def bind_tools(self, tools: Sequence[Any], **_kwargs: Any) -> GatewayBackedChatModel:
-        names = []
+        specs: list[dict[str, Any]] = []
         for item in tools:
             name = getattr(item, "name", None)
-            if isinstance(name, str):
-                names.append(name)
-        self._bound_tool_names = tuple(names)
+            if not isinstance(name, str):
+                continue
+            input_schema = item.get_input_schema().model_json_schema()
+            specs.append(
+                {
+                    "name": name,
+                    "description": str(getattr(item, "description", "")),
+                    "parameters": input_schema,
+                }
+            )
+        self._bound_tool_specs = tuple(specs)
+        self._bound_tool_names = tuple(spec["name"] for spec in specs)
         return self
 
     def _generate(
@@ -208,20 +278,70 @@ class GatewayBackedChatModel(BaseChatModel):
         envelope_path = model_dir / f"model-call-{sequence:04d}-envelope.json"
         receipt_path = model_dir / f"model-call-{sequence:04d}-receipt.json"
         system_prompt, prompt = _messages_prompt(messages)
-        _envelope, receipt, _budget = self.gateway.run_model_call(
-            model_id=self.model_id,
-            prompt=prompt,
-            system_prompt=system_prompt,
-            max_tokens=self.max_tokens,
-            temperature=self.temperature,
-            envelope_path=envelope_path,
-            receipt_path=receipt_path,
-            approval_path=self.approval_path,
-            session_id=self.session_id,
-        )
+        is_bounded_child = "BUILDER_II_OBLIGATION=" in system_prompt
+        if self.stage_provider is not None and not is_bounded_child:
+            stage = self.stage_provider()
+            stage_instructions = {
+                "delegate_tasks": (
+                    "Call task exactly once for each still-incomplete required subagent profile. "
+                    "Do not call builder_governed_echo or builder_request_hitl yet."
+                ),
+                "governed_echo": (
+                    "Both required subagent tasks are complete. Do not call task again. "
+                    "Call builder_governed_echo exactly once with non-empty text."
+                ),
+                "request_hitl": (
+                    "Both required subagent tasks and the governed echo are complete. Do not call task or "
+                    "builder_governed_echo again. Call builder_request_hitl exactly once with a non-empty reason."
+                ),
+                "complete": "The approved HITL action is complete. Return a concise final response with no tool calls.",
+            }
+            if stage not in stage_instructions:
+                raise ValueError(f"unknown native Deep Agents stage: {stage}")
+            system_prompt = (
+                f"{system_prompt}\n\nBUILDER_II_CURRENT_STAGE={stage}. "
+                f"{stage_instructions[stage]} This stage is derived from Builder-II runtime evidence and "
+                "overrides any earlier conversational stage wording."
+            )
+        advertised_tool_names = self._bound_tool_names
+        advertised_tool_specs = self._bound_tool_specs
+        if self.stage_provider is not None and not is_bounded_child:
+            admitted_name = {
+                "delegate_tasks": "task",
+                "governed_echo": "builder_governed_echo",
+                "request_hitl": "builder_request_hitl",
+                "complete": None,
+            }[stage]
+            advertised_tool_names = tuple(name for name in self._bound_tool_names if name == admitted_name)
+            advertised_tool_specs = tuple(
+                spec for spec in self._bound_tool_specs if spec["name"] == admitted_name
+            )
+        if advertised_tool_names:
+            system_prompt = (
+                f"{system_prompt}\n\n"
+                "BUILDER_II_TOOL_CALL_PROTOCOL: If you need to call a governed tool, respond with ONLY one JSON "
+                "object of the form {\"tool_calls\":[{\"name\":\"TOOL\",\"args\":{}}],\"content\":\"\"}. "
+                f"Allowed tool names for this turn: {', '.join(advertised_tool_names)}. "
+                f"Tool schemas: {json_lib.dumps(advertised_tool_specs, sort_keys=True)}. "
+                "Use exact tool names and object arguments; do not emit Markdown or explanatory prose around JSON. "
+                "Complete the outer JSON object with its closing brace before any model message terminator."
+            )
+        if self.model_id != self.route.selected_candidate.model_id:
+            raise ValueError("Deep Agents runtime model does not equal WRP-selected model")
+        with self._budget_lock:
+            _envelope, receipt, debited = self.gateway.run_routed_model_call(
+                route=self.route, prompt=prompt, system_prompt=system_prompt,
+                envelope_path=envelope_path, receipt_path=receipt_path,
+                budget=self.budget, requested_model_id=self.model_id,
+            )
+            if debited is not None:
+                self.budget = debited
+                self.route = advance_route_budget(self.route, debited)
         if self.receipt_callback is not None:
             self.receipt_callback(receipt, receipt_path)
         response = self.response_strategy(receipt, messages)
+        if self.stage_provider is not None and not is_bounded_child:
+            response = _project_stage_tool_calls(response, stage, self.stage_denial_callback)
         return ChatResult(generations=[ChatGeneration(message=response)])
 
 
@@ -634,11 +754,13 @@ class GovernedEchoTool:
         return governed_echo
 
 
-def _hitl_tool() -> BaseTool:
+def _hitl_tool(prerequisites_complete: Callable[[], bool]) -> BaseTool:
     @tool("builder_request_hitl")
     def request_hitl(reason: str) -> str:
         """Record the operator-approved continuation after the native graph pauses."""
 
+        if not prerequisites_complete():
+            return "HITL request deferred: complete both obligations and the governed tool call first."
         return f"operator approved continuation: {reason}"
 
     return request_hitl
@@ -712,7 +834,8 @@ class NativeDeepAgentsRuntime:
         self,
         *,
         gateway: ModelExecutionGateway,
-        model_id: str,
+        route: ModelRouteBinding,
+        budget: dict[str, Any],
         obligations: Sequence[dict[str, Any]],
         output_dir: Path,
         session_id: str,
@@ -722,7 +845,9 @@ class NativeDeepAgentsRuntime:
         model_approval_path: Path | None = None,
     ) -> None:
         self.gateway = gateway
-        self.model_id = model_id
+        self.model_id = route.selected_candidate.model_id
+        self.route = route
+        self.budget = budget
         self.obligations = [dict(obligation) for obligation in obligations]
         self.output_dir = output_dir
         self.session_id = session_id
@@ -740,7 +865,7 @@ class NativeDeepAgentsRuntime:
             active_workers=self.limits.active_workers,
         )
         echo = GovernedEchoTool(output_dir, self.recorder).build()
-        self.tools = [echo, _hitl_tool()]
+        self.tools = [echo, _hitl_tool(self._hitl_prerequisites_complete)]
 
         def record_model_receipt(receipt: dict[str, Any], path: Path) -> None:
             self.recorder.append(
@@ -753,7 +878,9 @@ class NativeDeepAgentsRuntime:
 
         self.model = GatewayBackedChatModel(
             gateway=gateway,
-            model_id=model_id,
+            model_id=self.model_id,
+            route=route,
+            budget=budget,
             output_dir=output_dir,
             session_id=session_id,
             max_tokens=self.limits.max_tokens_per_call,
@@ -761,6 +888,8 @@ class NativeDeepAgentsRuntime:
             approval_path=model_approval_path,
             response_strategy=response_strategy,
             receipt_callback=record_model_receipt,
+            stage_provider=self._current_parent_stage,
+            stage_denial_callback=self._record_stage_denial,
         )
         subagents = wrp_subagents_from_obligations(self.obligations, governed_tools=[echo])
         deny_permissions = [FilesystemPermission(operations=["read", "write"], paths=["/**"], mode="deny")]
@@ -769,13 +898,21 @@ class NativeDeepAgentsRuntime:
             tools=self.tools,
             system_prompt=(
                 "Operate only inside the Builder-II approved obligation envelope. Delegate every listed "
-                "obligation through the upstream task tool. Use only Builder-governed tools. Pause at the "
-                "HITL tool before claiming completion."
+                "obligation through the upstream task tool. Use only Builder-governed tools. Execute exactly "
+                "three stages in order: first delegate both distinct obligations, then call the governed echo "
+                "tool, then request HITL. Emit tool calls for only the current stage; never combine a HITL "
+                "request with an earlier stage. A HITL request before both obligation completions and the "
+                "governed-tool receipt is deferred and cannot interrupt the run."
             ),
             middleware=[self.middleware],
             subagents=subagents,
             permissions=deny_permissions,
-            interrupt_on={"builder_request_hitl": True},
+            interrupt_on={
+                "builder_request_hitl": {
+                    "allowed_decisions": ["approve"],
+                    "when": lambda _request: self._hitl_prerequisites_complete(),
+                }
+            },
             checkpointer=self.checkpointer,
             name="builder-ii-native-deepagents",
         )
@@ -793,6 +930,50 @@ class NativeDeepAgentsRuntime:
             }
             for obligation in self.obligations
         ]
+
+    def _hitl_prerequisites_complete(self) -> bool:
+        """Permit the native interrupt only after the frozen workload completed."""
+
+        completed_profiles = {
+            str(event["payload"].get("args", {}).get("subagent_type"))
+            for event in self.recorder.events
+            if event.get("event_type") == "tool_completed" and event["payload"].get("tool") == "task"
+        }
+        required_profiles = {str(obligation["subagent_profile"]) for obligation in self.obligations}
+        has_governed_tool_receipt = any(
+            event.get("event_type") == "governed_tool_receipt_recorded" for event in self.recorder.events
+        )
+        return required_profiles.issubset(completed_profiles) and has_governed_tool_receipt
+
+    def _current_parent_stage(self) -> str:
+        """Derive the next parent action from recorded execution, never model inference."""
+
+        if any(event.get("event_type") == "hitl_resumed" for event in self.recorder.events):
+            return "complete"
+        completed_profiles = {
+            str(event["payload"].get("args", {}).get("subagent_type"))
+            for event in self.recorder.events
+            if event.get("event_type") == "tool_completed" and event["payload"].get("tool") == "task"
+        }
+        required_profiles = {str(obligation["subagent_profile"]) for obligation in self.obligations}
+        if not required_profiles.issubset(completed_profiles):
+            return "delegate_tasks"
+        if not any(
+            event.get("event_type") == "governed_tool_receipt_recorded" for event in self.recorder.events
+        ):
+            return "governed_echo"
+        return "request_hitl"
+
+    def _record_stage_denial(self, call: dict[str, Any], stage: str) -> None:
+        self.recorder.append(
+            "tool_denied",
+            {
+                "tool": str(call.get("name", "")),
+                "call_id": str(call.get("id", "")),
+                "reason": "not admitted in current Builder-II stage",
+                "stage": stage,
+            },
+        )
 
     def start(self, task: str) -> dict[str, Any]:
         if self.recorder.events:

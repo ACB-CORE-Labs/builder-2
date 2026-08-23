@@ -22,6 +22,7 @@ from builder_ii.governance.ledger.artifact_index_records import (
     create_artifact_index_record,
     validate_artifact_index_record,
 )
+from builder_ii.routing.model_budget import create_model_budget
 from builder_ii.routing.model_client_registry import create_model_client_registry
 from builder_ii.routing.model_routing_policy import create_model_execution_policy
 from tests.orchestration_assignment_fixtures import build_goal2_assignment_fixture
@@ -41,17 +42,16 @@ def _install_fake_deepagents(_monkeypatch):
     return deepagents
 
 
-def _native_model_config() -> tuple[dict, dict]:
+def _native_model_config() -> dict:
     registry = create_model_client_registry()
-    for client in registry["clients"]:
-        if client["model_id"] == "gpt-4o-stub":
-            client["enabled"] = True
-    recommendation = {
-        "kind": "builder_ii.model_routing_recommendation",
-        "recommended_candidates": [{"model_id": "gpt-4o-stub"}],
-    }
+    root = Path("tests/fixtures/artifacts")
+    recommendation = json_lib.loads((root / "model-recommendation.json").read_text())
+    assignment = json_lib.loads((root / "agent-assignment-plan.json").read_text())
     policy = create_model_execution_policy(recommendation, max_tokens=1024)
-    return registry, policy
+    budget = create_model_budget(session_id="native-route", max_output_tokens=4096,
+                                 max_total_tokens=100_000, max_usd=5)
+    return {"registry": registry, "policy": policy, "recommendation": recommendation,
+            "assignment": assignment, "budget": budget}
 
 
 def _work_plan_fixture(tmp_path: Path) -> tuple[dict, Path]:
@@ -122,9 +122,13 @@ def test_optional_candidate_binds_single_gateway_model_and_worker_cap(tmp_path: 
     work_plan, work_plan_path = _work_plan_fixture(tmp_path)
     gate = create_deepagents_backend_readiness_gate(capability_gates_passed=True)
     gate_path = _write(tmp_path / "gate.json", gate)
-    registry, model_policy = _native_model_config()
+    route = _native_model_config()
+    registry, model_policy = route["registry"], route["policy"]
     registry_path = _write(tmp_path / "model-registry.json", registry)
     model_policy_path = _write(tmp_path / "model-policy.json", model_policy)
+    recommendation_path = _write(tmp_path / "model-recommendation.json", route["recommendation"])
+    assignment_path = _write(tmp_path / "model-assignment.json", route["assignment"])
+    budget_path = _write(tmp_path / "model-budget.json", route["budget"])
 
     candidate = create_deepagents_execution_candidate(
         work_plan=work_plan,
@@ -138,11 +142,15 @@ def test_optional_candidate_binds_single_gateway_model_and_worker_cap(tmp_path: 
         model_registry_path=registry_path,
         model_execution_policy=model_policy,
         model_execution_policy_path=model_policy_path,
-        model_id="gpt-4o-stub",
+        model_routing_recommendation=route["recommendation"],
+        model_routing_recommendation_path=recommendation_path,
+        model_assignment=route["assignment"], model_assignment_path=assignment_path,
+        model_budget=route["budget"], model_budget_path=budget_path,
+        model_id=route["recommendation"]["recommended_candidates"][0]["model_id"],
         active_workers=2,
     )
 
-    assert candidate["native_runtime"]["model_id"] == "gpt-4o-stub"
+    assert candidate["native_runtime"]["model_id"] == route["recommendation"]["recommended_candidates"][0]["model_id"]
     assert candidate["native_runtime"]["active_workers"] == 2
     assert candidate["native_runtime"]["worker_cap"] == 4
     assert candidate["native_runtime"]["single_model_instance"] is True
@@ -168,7 +176,7 @@ def test_optional_candidate_requires_model_gateway_configuration(tmp_path: Path)
         )
         raise AssertionError("missing native model configuration must fail")
     except ValueError as exc:
-        assert "requires model_registry, model_execution_policy, and model_id" in str(exc)
+        assert "requires WRP recommendation" in str(exc)
 
 
 def test_backend_readiness_gate_is_indexable(tmp_path: Path) -> None:

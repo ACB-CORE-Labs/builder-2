@@ -104,22 +104,18 @@ def _ensure_backend(settings, no_backend: bool) -> None:
     if no_backend:
         return
 
-    from builder_ii.routing.backends import check_health, check_serves_active_model, list_start_command
+    from builder_ii.routing.backends import ensure_warm_backend
 
-    health_ok, health_msg = check_health(settings)
-    if health_ok:
-        model_ok, model_msg = check_serves_active_model(settings)
-        if model_ok:
-            console.print(f"[green]Backend ready[/] {health_msg}; {model_msg}")
-            return
-        console.print(f"[red]Backend model mismatch[/] {model_msg}")
+    try:
+        result = ensure_warm_backend(settings)
+    except RuntimeError as exc:
+        console.print(f"[red]Backend reuse refused[/] {exc}")
         raise typer.Exit(1)
-
-    console.print(f"[yellow]Starting backend[/] ({health_msg})")
-    cmd = list(list_start_command(settings))
-    console.print(f"  {' '.join(cmd)}")
-    subprocess.Popen(cmd)
-    last_msg = health_msg
+    if result.state in {"reused", "external"}:
+        console.print(f"[green]Backend {result.state}[/] {result.detail}")
+        return
+    console.print(f"[yellow]Started one managed model runtime[/] pid={result.pid}")
+    last_msg = result.detail
     for _ in range(90):
         time.sleep(2)
         ready, msg = _backend_ready_for_selected_model(settings)
@@ -508,8 +504,14 @@ def start(
         None, "--task", "--task-hint", help="Free-text task used to choose the M1-safe model alias for this session"
     ),
     model_alias: Optional[str] = typer.Option(
-        None, "--model", help="Explicit model alias override; see `builder models`"
+        None, "--model", help="Optional assertion; must equal the WRP-selected model alias"
     ),
+    model_recommendation: Optional[Path] = typer.Option(None, "--model-recommendation"),
+    model_assignment: Optional[Path] = typer.Option(None, "--model-assignment"),
+    model_registry: Optional[Path] = typer.Option(None, "--model-registry"),
+    model_execution_policy: Optional[Path] = typer.Option(None, "--model-execution-policy"),
+    model_budget: Optional[Path] = typer.Option(None, "--model-budget"),
+    cloud_approval: Optional[Path] = typer.Option(None, "--cloud-approval"),
     resume: bool = typer.Option(False, "--resume", "-r"),
     no_backend: bool = typer.Option(False, "--no-backend"),
     name: Optional[str] = typer.Option(None, "--name", "-n", help="Goose session name"),
@@ -518,8 +520,12 @@ def start(
 ) -> None:
     """Start MLX backend + Goose session with governed CORE recipes."""
     from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
+    from builder_ii.adapters.goose.model_gateway_adapter import GooseGatewayContext, generate_loopback_credential
     from builder_ii.core.config import load_settings, normalize_model_alias
-    from builder_ii.routing.model_router import SESSION_MODES, explain_plan, plan_session
+    from builder_ii.routing.gateway_invocation import governed_invocation_engine
+    from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+    from builder_ii.routing.model_route_binding import build_model_route_binding
+    from builder_ii.routing.model_router import SESSION_MODES, SessionPlan, recipe_for_mode, tier_for_alias
 
     if mode not in SESSION_MODES:
         console.print(f"mode must be one of {SESSION_MODES}")
@@ -534,27 +540,93 @@ def start(
         requested_effects=("runtime_start", "state_write", "external_tool"),
     )
 
-    session = plan_session(mode, task_hint or "")
-    selected_alias = normalize_model_alias(model_alias or session.model_alias, tier_fallback=session.model_tier)
+    required_route_paths = {
+        "--model-recommendation": model_recommendation,
+        "--model-assignment": model_assignment,
+        "--model-registry": model_registry,
+        "--model-execution-policy": model_execution_policy,
+        "--model-budget": model_budget,
+    }
+    missing_route_paths = [name for name, path in required_route_paths.items() if path is None]
+    if missing_route_paths:
+        raise ValueError(
+            "canonical builder start requires WRP-bound route inputs: " + ", ".join(missing_route_paths)
+        )
+    assert model_recommendation is not None
+    assert model_assignment is not None
+    assert model_registry is not None
+    assert model_execution_policy is not None
+    assert model_budget is not None
+
+    def load_bound(path: Path, label: str) -> dict:
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise ValueError(f"failed to load {label}: {exc}") from exc
+        if not isinstance(value, dict):
+            raise ValueError(f"{label} must be a JSON object")
+        return value
+
+    recommendation = load_bound(model_recommendation, "WRP model recommendation")
+    assignment = load_bound(model_assignment, "WRP model assignment")
+    registry = load_bound(model_registry, "model registry")
+    policy = load_bound(model_execution_policy, "model execution policy")
+    budget = load_bound(model_budget, "WRP model budget")
+    approval = load_bound(cloud_approval, "cloud approval") if cloud_approval is not None else None
+    primary = (recommendation.get("recommended_candidates") or [{}])[0]
+    selected_alias = normalize_model_alias(str(primary.get("model_alias") or ""))
+    if model_alias is not None and normalize_model_alias(model_alias) != selected_alias:
+        raise ValueError("--model does not equal the WRP-selected model alias")
+    assignment_bindings = assignment.get("bindings") or {}
+    session = SessionPlan(
+        mode=mode,
+        model_tier=tier_for_alias(selected_alias),
+        model_alias=selected_alias,
+        recipe_name=recipe_for_mode(mode),
+        planner_same_as_execution=True,
+        confidence="wrp-bound",
+        rationale="Model role/route/budget selected by WRP artifacts",
+        target_name=str((assignment_bindings.get("target") or {}).get("name") or "builder"),
+        agent_profile=str((assignment_bindings.get("agent") or {}).get("name") or "patch_planner"),
+    )
 
     os.environ["CORE_AGENT_MODEL_TIER"] = session.model_tier
     os.environ["CORE_AGENT_MODEL_ALIAS"] = selected_alias
     settings = load_settings()
 
     console.print("[bold]Builder routing[/]")
-    console.print(explain_plan(session))
-    if selected_alias != session.model_alias:
-        console.print(f"Model override : {selected_alias}")
+    console.print(session.rationale)
     console.print(
         f"[bold]Builder[/] mode={session.mode} alias={settings.model_alias} tier={session.model_tier} backend={settings.backend} model={settings.active_model_id}"
     )
     session_name = name or f"builder_{int(time.time())}"
-    harness = GooseRuntimeHarness(settings, session, settings.target_repo)
+    route = build_model_route_binding(
+        recommendation=recommendation, assignment=assignment, execution_policy=policy,
+        registry=registry, budget=budget, session_id=session_name, run_id=session_name,
+        obligation_id=str((assignment_bindings.get("task") or {}).get("profile_entry_id") or session_name),
+        role=session.agent_profile,
+        max_tokens=min(int(policy["max_tokens"]), int(budget["max_output_tokens"])),
+        cloud_approval=approval,
+    )
+    if settings.active_model_id != route.selected_candidate.model_id:
+        raise ValueError(
+            "configured runtime model does not equal the WRP-selected model; adjust governed config and retry"
+        )
+    gateway = ModelExecutionGateway(settings, registry, policy, invocation_engine=governed_invocation_engine(settings))
+    gateway_context = GooseGatewayContext(
+        gateway=gateway, route=route, budget=budget,
+        artifact_dir=settings.project_root / ".builder" / "goose-model-calls" / session_name,
+        local_credential=generate_loopback_credential(route.route_digest),
+    )
+    harness = GooseRuntimeHarness(
+        settings, session, settings.target_repo, model_gateway_context=gateway_context
+    )
     harness.session_id = session_name
     compatibility, recipe_digest = harness.admit_governed()
     console.print(f"Goose admitted: {compatibility.binary} {compatibility.version} ({compatibility.policy})")
     console.print(f"Governed recipe admitted: {recipe_digest}")
-    _ensure_backend(settings, no_backend)
+    if route.selected_candidate.risk_classification != "cloud_external":
+        _ensure_backend(settings, no_backend)
 
     console.print(f"CORE repo: {settings.target_repo}")
     console.print("Slash commands: /explore /implement /review /verify /handoff /plan /coding /platform")

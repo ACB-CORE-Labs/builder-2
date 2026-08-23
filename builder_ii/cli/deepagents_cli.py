@@ -660,7 +660,16 @@ def execution_candidate(
         "--model-execution-policy",
         help="Required model execution policy for optional_deepagents",
     ),
-    model_id: str = typer.Option("", "--model-id", help="Single model ID for parent and all native subagents"),
+    model_routing_recommendation: Path | None = typer.Option(
+        None, "--model-routing-recommendation", help="Required WRP recommendation for optional_deepagents"
+    ),
+    model_assignment: Path | None = typer.Option(
+        None, "--model-assignment", help="Required WRP assignment for optional_deepagents"
+    ),
+    model_budget: Path | None = typer.Option(
+        None, "--model-budget", help="Required WRP-bound model budget for optional_deepagents"
+    ),
+    model_id: str = typer.Option("", "--model-id", help="Must exactly match the WRP-selected model"),
     model_approval: Path | None = typer.Option(
         None,
         "--model-approval",
@@ -697,6 +706,9 @@ def execution_candidate(
     lane_policy_data = _load_json(lane_policy) if lane_policy is not None else None
     model_registry_data = _load_json(model_registry) if model_registry is not None else None
     model_policy_data = _load_json(model_execution_policy) if model_execution_policy is not None else None
+    model_recommendation_data = _load_json(model_routing_recommendation) if model_routing_recommendation is not None else None
+    model_assignment_data = _load_json(model_assignment) if model_assignment is not None else None
+    model_budget_data = _load_json(model_budget) if model_budget is not None else None
     model_approval_data = _load_json(model_approval) if model_approval is not None else None
     obligation_kwargs: dict[str, Any] = {}
     if lane_policy_data is not None:
@@ -728,6 +740,12 @@ def execution_candidate(
             model_registry_path=model_registry,
             model_execution_policy=model_policy_data,
             model_execution_policy_path=model_execution_policy,
+            model_routing_recommendation=model_recommendation_data,
+            model_routing_recommendation_path=model_routing_recommendation,
+            model_assignment=model_assignment_data,
+            model_assignment_path=model_assignment,
+            model_budget=model_budget_data,
+            model_budget_path=model_budget,
             model_id=model_id,
             model_approval=model_approval_data,
             model_approval_path=model_approval,

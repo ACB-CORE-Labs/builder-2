@@ -1,4 +1,5 @@
 """Command authority records, registry table, lookups, validation, and doc render."""
+
 from __future__ import annotations
 
 import functools
@@ -527,7 +528,6 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         failure_mode="Exits non-zero on failure or crash.",
         notes="Read-only TUI status/inspection surface.",
     ),
-
     CommandAuthorityRecord(
         name="builder-runtime",
         entrypoint="builder_ii.lifecycle.candidate.runtime_control:runtime_app",
@@ -3992,6 +3992,25 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
         allows_artifact_writes=True,
     ),
     CommandAuthorityRecord(
+        name="builder-model benchmark",
+        entrypoint="builder_ii.model_cli:model_app",
+        tier=TIER_3,
+        promotion_state=STATE_HITL_RUNTIME_CANDIDATE,
+        runtime_boundary="Executes the approved Plan Set 5 physical collector from existing digest-bound WRP recommendation, assignment, execution-policy, registry, budget, and exactly two Deep Agents obligation artifacts. One ModelExecutionGateway is reused by direct and WRP-routed TTFT, the two-worker NativeDeepAgentsRuntime, and the Goose loopback traversal while validated runtime roots are monitored. It also performs one admitted deterministic MCP service, bounded STRATUM activity, read-only Git custody probes, and exactly sudo /usr/bin/footprint with fixed flags and a validated PID set. It exposes no generic shell or argv and does not install, pull, login, select providers, widen budgets, approve its own Deep Agents checkpoint, or promote capability.",
+        write_boundary="Writes the benchmark manifest, raw samples, report, and invocation-scoped model/MCP/runtime evidence under the explicit --output directory only; it never writes target source, Git state, or memory authority.",
+        approval_mode=MODE_EXPLICIT_OPERATOR_INVOCATION,
+        approval_boundary="Explicit operator invocation under the approved Plan Set 5 physical qualification envelope.",
+        output_behavior="Writes digest-bound manifest/raw-sample/report JSON plus durable receipt refs and exits non-zero unless every frozen hard threshold passes.",
+        failure_mode="Fails closed on invalid samples, changed methodology/profile, digest errors, unavailable evidence, or any hard-threshold miss.",
+        notes="Performance evidence is not authority and never promotes capability.",
+        allows_runtime_start=True,
+        allows_process_control=True,
+        allows_model_execution=True,
+        allows_artifact_writes=True,
+        allows_readonly_subprocess=True,
+        allows_external_tool_invocation=True,
+    ),
+    CommandAuthorityRecord(
         name="builder-platform matrix",
         entrypoint="builder_ii.platform_status_cli:platform_app",
         tier=TIER_1,
@@ -4913,8 +4932,6 @@ COMMAND_AUTHORITY_REGISTRY: tuple[CommandAuthorityRecord, ...] = (
 _EXTRA_COMMAND_NAMES: tuple[str, ...] = (
     "builder-platform tui",
     "builder tui status",
-
-
     "builder tui roster",
     "builder tui gates",
     "builder tui hitl",
@@ -5041,6 +5058,7 @@ def _generate_extra_records(base_registry: tuple[CommandAuthorityRecord, ...]) -
 
 COMMAND_AUTHORITY_REGISTRY = COMMAND_AUTHORITY_REGISTRY + tuple(_generate_extra_records(COMMAND_AUTHORITY_REGISTRY))
 
+
 def _live_registry() -> tuple[CommandAuthorityRecord, ...]:
     """Prefer package-level binding so tests can monkeypatch the public package."""
     import sys
@@ -5053,8 +5071,6 @@ def _live_registry() -> tuple[CommandAuthorityRecord, ...]:
         if registry is not None:
             return registry  # type: ignore[return-value]
     return COMMAND_AUTHORITY_REGISTRY
-
-
 
 
 def get_all_records() -> tuple[CommandAuthorityRecord, ...]:
@@ -5209,6 +5225,7 @@ def _capabilities_cell(record: CommandAuthorityRecord) -> str:
 
 def _registry_row(record: CommandAuthorityRecord) -> str:
     from builder_ii.governance.authority.signet_verifier import explain_assurance_for_record
+
     derivation = explain_assurance_for_record(record)
     return (
         f"| `{record.name}` | {record.tier} | `{record.promotion_state}` | {record.runtime_boundary} "
@@ -5260,6 +5277,7 @@ def render_synthesized_markdown_table() -> str:
         if record is None:  # pragma: no cover - every synthesized name resolves to a parent today
             continue
         from builder_ii.governance.authority.signet_verifier import explain_assurance_for_record
+
         derivation = explain_assurance_for_record(record)
         parent = _SYNTHESIZED_PARENTS[name]
         group = " (command group)" if (p := get_command_record(parent)) is not None and p.is_command_group else ""
@@ -5276,6 +5294,7 @@ def render_command_authority_doc() -> str:
         ASSURANCE_DERIVING_FLAGS,
         ASSURANCE_INERT_FLAGS,
     )
+
     """Render `docs/COMMAND_AUTHORITY.md` in full.
 
     The doc is hashed into every governed workflow event as `policy_snapshot_ref`. Rendering the

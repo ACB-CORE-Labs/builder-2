@@ -22,6 +22,7 @@ from builder_ii.governance.ledger.event_ledger import (
     replay_events,
     write_event_record,
 )
+from builder_ii.routing.model_budget import create_model_budget
 from builder_ii.routing.model_routing_policy import create_model_execution_policy
 
 
@@ -51,33 +52,41 @@ def _settings(tmp_path: Path) -> Settings:
     )
 
 
-def _policy_path(tmp_path: Path) -> Path:
-    dummy_rec = {
-        "kind": "builder_ii.model_routing_recommendation",
-        "recommended_candidates": [
-            {"model_id": "mlx-community/Qwen2.5-Coder-7B-Instruct-4bit"},
-        ],
-    }
-    policy = create_model_execution_policy(dummy_rec, max_tokens=1024)
+def _route_paths(tmp_path: Path, session_id: str) -> dict[str, Path]:
+    root = Path(__file__).parent / "fixtures" / "artifacts"
+    recommendation = json_lib.loads((root / "model-recommendation.json").read_text())
+    assignment = json_lib.loads((root / "agent-assignment-plan.json").read_text())
+    policy = create_model_execution_policy(recommendation, max_tokens=1024)
+    budget = create_model_budget(session_id=session_id, max_output_tokens=4096,
+                                 max_total_tokens=100_000, max_usd=5)
     pol_path = tmp_path / "policy.json"
     pol_path.write_text(json_lib.dumps(policy), encoding="utf-8")
-    return pol_path
+    rec_path = tmp_path / "recommendation.json"
+    rec_path.write_text(json_lib.dumps(recommendation), encoding="utf-8")
+    assignment_path = tmp_path / "assignment.json"
+    assignment_path.write_text(json_lib.dumps(assignment), encoding="utf-8")
+    budget_path = tmp_path / "budget.json"
+    budget_path.write_text(json_lib.dumps(budget), encoding="utf-8")
+    return {"policy": pol_path, "recommendation": rec_path, "assignment": assignment_path,
+            "budget": budget_path}
 
 
-def _run_call_cmd(tmp_path: Path, session_id: str, pol_path: Path, settings: Settings, monkeypatch) -> dict:
+def _run_call_cmd(tmp_path: Path, session_id: str, paths: dict[str, Path], settings: Settings, monkeypatch) -> dict:
     """Invoke builder-model call in-process via CliRunner and return the last written ledger event."""
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
     env_path = tmp_path / f"envelope_{session_id}.json"
     rec_path = tmp_path / f"receipt_{session_id}.json"
 
-    from builder_ii.routing.direct_chat import DirectChatResult
+    from builder_ii.routing.gateway_invocation import StreamChunk
 
-    stub = DirectChatResult(ok=True, content="Paris", endpoint="http://x", model_id="m")
+    class _Transport:
+        def stream(self, _request, _cancel):
+            yield StreamChunk("Paris")
 
     with (
         patch("builder_ii.model_cli.load_settings", return_value=settings),
-        patch("builder_ii.model_execution_gateway.run_direct_chat", return_value=stub),
+        patch("builder_ii.routing.gateway_invocation.openai_transport_factory", return_value=lambda _c: _Transport()),
     ):
         result = runner.invoke(
             model_app,
@@ -88,7 +97,10 @@ def _run_call_cmd(tmp_path: Path, session_id: str, pol_path: Path, settings: Set
                 "--prompt",
                 "What is 2+2?",
                 "--execution-policy",
-                str(pol_path),
+                str(paths["policy"]),
+                "--model-recommendation", str(paths["recommendation"]),
+                "--model-assignment", str(paths["assignment"]),
+                "--model-budget", str(paths["budget"]),
                 "--output-envelope",
                 str(env_path),
                 "--output-receipt",
@@ -109,8 +121,8 @@ def _run_call_cmd(tmp_path: Path, session_id: str, pol_path: Path, settings: Set
 def test_model_event_as_first_in_session(tmp_path: Path, monkeypatch) -> None:
     """Event #1 in a fresh session must have previous_event_ref=None."""
     settings = _settings(tmp_path)
-    pol_path = _policy_path(tmp_path)
-    event = _run_call_cmd(tmp_path, "session-first", pol_path, settings, monkeypatch)
+    paths = _route_paths(tmp_path, "session-first")
+    event = _run_call_cmd(tmp_path, "session-first", paths, settings, monkeypatch)
 
     assert event["sequence"] == 1
     assert event["previous_event_ref"] is None, (
@@ -122,8 +134,8 @@ def test_model_event_as_first_in_session(tmp_path: Path, monkeypatch) -> None:
 def test_model_event_chains_to_prior_event(tmp_path: Path, monkeypatch) -> None:
     """Event #2 must have previous_event_ref.sha256 == prior event's payload_sha256."""
     settings = _settings(tmp_path)
-    pol_path = _policy_path(tmp_path)
     session_id = "session-chain"
+    paths = _route_paths(tmp_path, session_id)
 
     # Write a synthetic prior event manually
     events_dir = tmp_path / ".builder/sessions" / session_id / "events"
@@ -151,7 +163,7 @@ def test_model_event_chains_to_prior_event(tmp_path: Path, monkeypatch) -> None:
     write_event_record(prior_event, prior_path)
 
     # Now run the model call -- it should chain to the prior event
-    event = _run_call_cmd(tmp_path, session_id, pol_path, settings, monkeypatch)
+    event = _run_call_cmd(tmp_path, session_id, paths, settings, monkeypatch)
 
     from builder_ii.governance.ledger.event_ledger import validate_event_record
     from builder_ii.governance.ledger.workflow_records import canonical_digest

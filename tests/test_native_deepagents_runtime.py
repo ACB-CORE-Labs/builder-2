@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
 
 from builder_ii.adapters.deepagents.native_runtime import (
     MAX_ACTIVE_WORKERS,
@@ -14,6 +14,10 @@ from builder_ii.adapters.deepagents.native_runtime import (
     NativeDeepAgentsRuntime,
     NativeEventRecorder,
     NativeRuntimeLimits,
+    _default_response_strategy,
+    _hitl_tool,
+    _messages_prompt,
+    _project_stage_tool_calls,
     validate_native_evidence_bundle,
     wrp_subagents_from_obligations,
 )
@@ -22,8 +26,11 @@ from builder_ii.core.config import Settings
 from builder_ii.core.orchestration_lane_policy import create_orchestration_lane_policy_artifact
 from builder_ii.core.orchestration_obligation import create_orchestration_obligation
 from builder_ii.governance.ledger.artifact_index_records import create_artifact_index_record
+from builder_ii.routing.gateway_invocation import GatewayInvocationEngine, StreamChunk
+from builder_ii.routing.model_budget import create_model_budget
 from builder_ii.routing.model_client_registry import create_model_client_registry
 from builder_ii.routing.model_execution_gateway import ModelExecutionGateway
+from builder_ii.routing.model_route_binding import build_model_route_binding
 from builder_ii.routing.model_routing_policy import create_model_execution_policy
 
 
@@ -53,17 +60,26 @@ def _settings(tmp_path: Path) -> Settings:
     )
 
 
-def _gateway(tmp_path: Path) -> ModelExecutionGateway:
+class _Transport:
+    def stream(self, _request, _cancel):
+        yield StreamChunk("scripted")
+
+
+def _gateway(tmp_path: Path):
     registry = create_model_client_registry()
-    for client in registry["clients"]:
-        if client["model_id"] == "gpt-4o-stub":
-            client["enabled"] = True
-    recommendation = {
-        "kind": "builder_ii.model_routing_recommendation",
-        "recommended_candidates": [{"model_id": "gpt-4o-stub"}],
-    }
+    root = Path("tests/fixtures/artifacts")
+    recommendation = json_lib.loads((root / "model-recommendation.json").read_text())
+    assignment = json_lib.loads((root / "agent-assignment-plan.json").read_text())
     policy = create_model_execution_policy(recommendation, max_tokens=1024)
-    return ModelExecutionGateway(_settings(tmp_path), registry, policy)
+    budget = create_model_budget(session_id="native-plan-set-2-proof", max_output_tokens=16_384,
+                                 max_total_tokens=100_000, max_usd=5)
+    route = build_model_route_binding(recommendation=recommendation, assignment=assignment,
+                                      execution_policy=policy, registry=registry, budget=budget,
+                                      session_id="native-plan-set-2-proof", run_id="native-run",
+                                      obligation_id="native-parent", role="deepagents_parent", max_tokens=256)
+    gateway = ModelExecutionGateway(_settings(tmp_path), registry, policy,
+                                    invocation_engine=GatewayInvocationEngine(lambda _c: _Transport()))
+    return gateway, route, budget
 
 
 def _obligations() -> list[dict]:
@@ -131,7 +147,7 @@ def _scripted_response(_receipt: dict, messages: Sequence[BaseMessage]) -> AIMes
                 },
             ],
         )
-    if not any(call["name"] == "write_file" for call in prior_calls):
+    if not any(call["name"] == "builder_governed_echo" for call in prior_calls):
         return AIMessage(
             content="",
             tool_calls=[
@@ -140,13 +156,7 @@ def _scripted_response(_receipt: dict, messages: Sequence[BaseMessage]) -> AIMes
                     "args": {"file_path": "/tmp/forbidden", "content": "must not be written"},
                     "id": "forbidden-write",
                     "type": "tool_call",
-                }
-            ],
-        )
-    if not any(call["name"] == "builder_governed_echo" for call in prior_calls):
-        return AIMessage(
-            content="",
-            tool_calls=[
+                },
                 {
                     "name": "builder_governed_echo",
                     "args": {"text": "native governed tool proof"},
@@ -170,10 +180,176 @@ def _scripted_response(_receipt: dict, messages: Sequence[BaseMessage]) -> AIMes
     return AIMessage(content="native parent run completed after exact-checkpoint HITL resume")
 
 
+def test_default_response_strategy_accepts_fenced_json_tool_calls() -> None:
+    response = _default_response_strategy(
+        {
+            "response_text": '```json\n{"tool_calls":[{"name":"builder_request_hitl","args":{"reason":"pause"}}],"content":""}\n```'
+        },
+        [],
+    )
+    assert response.tool_calls[0]["name"] == "builder_request_hitl"
+    assert response.tool_calls[0]["args"] == {"reason": "pause"}
+
+
+def test_default_response_strategy_accepts_qwen_fenced_json_terminator() -> None:
+    response = _default_response_strategy(
+        {
+            "response_text": (
+                '```json\n{"tool_calls":[{"name":"builder_request_hitl","args":{}}],"content":""}\n```'
+                "<|im_end|>"
+            )
+        },
+        [],
+    )
+    assert response.tool_calls[0]["name"] == "builder_request_hitl"
+    assert response.tool_calls[0]["args"] == {}
+
+
+def test_stage_projection_refuses_cross_stage_model_proposals() -> None:
+    denied: list[tuple[str, str]] = []
+    response = AIMessage(
+        content="",
+        tool_calls=[
+            {"name": "write_file", "args": {"file_path": "/tmp/forbidden"}, "id": "write", "type": "tool_call"},
+            {"name": "builder_governed_echo", "args": {"text": "proof"}, "id": "echo", "type": "tool_call"},
+            {"name": "builder_request_hitl", "args": {"reason": "early"}, "id": "hitl", "type": "tool_call"},
+        ],
+    )
+
+    echo_stage = _project_stage_tool_calls(
+        response,
+        "governed_echo",
+        lambda call, stage: denied.append((call["name"], stage)),
+    )
+    assert [call["name"] for call in echo_stage.tool_calls] == ["builder_governed_echo"]
+    assert denied == [("write_file", "governed_echo"), ("builder_request_hitl", "governed_echo")]
+    assert _project_stage_tool_calls(response, "complete").tool_calls == []
+
+
+def test_default_response_strategy_accepts_qwen_bare_json_terminator() -> None:
+    response = _default_response_strategy(
+        {
+            "response_text": (
+                '{"tool_calls":[{"name":"builder_governed_echo","args":{"text":"ready"}}],"content":""}'
+                "<|im_end|>"
+            )
+        },
+        [],
+    )
+    assert response.tool_calls[0]["name"] == "builder_governed_echo"
+    assert response.tool_calls[0]["args"] == {"text": "ready"}
+
+
+def test_default_response_strategy_does_not_repair_incomplete_json() -> None:
+    response = _default_response_strategy(
+        {
+            "response_text": (
+                '{"tool_calls":[{"name":"builder_governed_echo","args":{"text":"ready"}}]'
+                "<|im_end|>"
+            )
+        },
+        [],
+    )
+    assert response.tool_calls == []
+
+
+def test_messages_prompt_preserves_prior_tool_call_continuity() -> None:
+    system, conversation = _messages_prompt(
+        [
+            SystemMessage(content="Use the staged protocol."),
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "task",
+                        "args": {"description": "alpha", "subagent_type": "native-alpha"},
+                        "id": "task-alpha",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            ToolMessage(content="bounded child complete", tool_call_id="task-alpha", name="task"),
+        ]
+    )
+
+    assert system == "Use the staged protocol."
+    assert '"name": "task"' in conversation
+    assert '"subagent_type": "native-alpha"' in conversation
+    assert "tool: bounded child complete" in conversation
+
+
+def test_hitl_tool_defers_until_the_native_workload_is_complete() -> None:
+    ready = False
+    hitl = _hitl_tool(lambda: ready)
+
+    assert hitl.invoke({"reason": "too early"}) == (
+        "HITL request deferred: complete both obligations and the governed tool call first."
+    )
+
+    ready = True
+    assert hitl.invoke({"reason": "workload complete"}) == "operator approved continuation: workload complete"
+
+
+def test_parent_stage_is_derived_from_completed_runtime_evidence(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    assert runtime._current_parent_stage() == "delegate_tasks"
+
+    for index, profile in enumerate(("native-alpha", "native-beta"), start=1):
+        runtime.recorder.append(
+            "tool_completed",
+            {"tool": "task", "tool_call": index, "call_id": f"task-{index}", "args": {"subagent_type": profile}},
+        )
+    assert runtime._current_parent_stage() == "governed_echo"
+
+    runtime.recorder.append("governed_tool_receipt_recorded", {"tool": "builtin.echo"})
+    assert runtime._current_parent_stage() == "request_hitl"
+
+    runtime.recorder.append("hitl_resumed", {"approved_checkpoint_digest": "a" * 64})
+    assert runtime._current_parent_stage() == "complete"
+
+
+def test_bound_tool_protocol_preserves_argument_schemas(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    runtime.model.bind_tools(runtime.tools)
+    specs = {spec["name"]: spec for spec in runtime.model._bound_tool_specs}
+
+    assert specs["builder_governed_echo"]["parameters"]["required"] == ["text"]
+    assert specs["builder_governed_echo"]["parameters"]["properties"]["text"]["type"] == "string"
+    assert specs["builder_request_hitl"]["parameters"]["required"] == ["reason"]
+
+
+def test_parent_model_advertises_only_the_evidence_derived_stage_tool(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    runtime.model.bind_tools(runtime.tools)
+    runtime.model.receipt_callback = None
+    captured: dict[str, str] = {}
+
+    def run_routed_model_call(**kwargs):  # type: ignore[no-untyped-def]
+        captured["system_prompt"] = kwargs["system_prompt"]
+        return {}, {"response_text": '{"tool_calls":[],"content":""}'}, None
+
+    runtime.model.gateway.run_routed_model_call = run_routed_model_call  # type: ignore[method-assign]
+    for index, profile in enumerate(("native-alpha", "native-beta"), start=1):
+        runtime.recorder.append(
+            "tool_completed",
+            {"tool": "task", "tool_call": index, "call_id": f"task-{index}", "args": {"subagent_type": profile}},
+        )
+
+    runtime.model._generate([SystemMessage(content="parent")])
+
+    protocol = captured["system_prompt"].split("BUILDER_II_TOOL_CALL_PROTOCOL:", maxsplit=1)[1]
+    assert "Allowed tool names for this turn: builder_governed_echo." in protocol
+    assert '"name": "builder_governed_echo"' in protocol
+    assert '"name": "task"' not in protocol
+    assert '"name": "builder_request_hitl"' not in protocol
+
+
 def _runtime(tmp_path: Path) -> NativeDeepAgentsRuntime:
+    gateway, route, budget = _gateway(tmp_path)
     return NativeDeepAgentsRuntime(
-        gateway=_gateway(tmp_path),
-        model_id="gpt-4o-stub",
+        gateway=gateway,
+        route=route,
+        budget=budget,
         obligations=_obligations(),
         output_dir=tmp_path / "native-run",
         session_id="native-plan-set-2-proof",

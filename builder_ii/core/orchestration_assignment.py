@@ -1094,15 +1094,15 @@ def _validate_required_source_refs(data: dict[str, Any]) -> list[str]:
     for role, ref in by_role.items():
         if role in _REQUIRED_ASSIGNMENT_REF_ROLES:
             continue
-        expected_kind = _OPTIONAL_ASSIGNMENT_REF_ROLES.get(role)
-        if expected_kind is None:
+        optional_expected_kind = _OPTIONAL_ASSIGNMENT_REF_ROLES.get(role)
+        if optional_expected_kind is None:
             errors.append(f"unknown source ref role: {role}")
             continue
         errors.extend(
             _validate_ref(
                 ref,
                 field=f"source_refs.{role}",
-                expected_kind=expected_kind,
+                expected_kind=optional_expected_kind,
                 expected_role=role,
             )
         )
