@@ -53,10 +53,16 @@ _VERIFIED_KINDS = {
     "builder_ii.verification_evidence_bundle",
     "builder_ii.deepagents_evidence_bundle",
 }
+_SET6_PLAN = "builder_ii.delivery_plan"
+_SET6_RECEIPT = "builder_ii.delivery_receipt"
 _DELIVERY_KINDS = {
     "builder_ii.handoff_artifact",
     "builder_ii.handoff_note",
     "builder_ii.handoff_bundle_record",
+    "builder_ii.delivery_plan",
+    "builder_ii.delivery_action_request",
+    "builder_ii.delivery_approval",
+    "builder_ii.delivery_receipt",
 }
 _MCP_RECEIPT = "builder_ii.mcp_service_receipt"
 _MODEL_KINDS = {"builder_ii.run_manifest", "builder_ii.model_call_receipt"}
@@ -454,6 +460,7 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
 
     has_prepare = _PREPARE in by_kind
     has_plan = bool(_PLAN_KINDS & set(by_kind))
+    has_set6_plan = _SET6_PLAN in by_kind
     has_approval = bool(approvals)
     has_refusal = bool(refusals)
     generic_execution = any(str(value.get("kind", "")) in _EXECUTED_KINDS and _executed(value) for _, value in records)
@@ -508,6 +515,8 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
     corrupt = bool(errors)
     promoted = False
     failed = any(_failed(value) for _, value in records)
+    set6_receipts = [value for _, value in by_kind.get(_SET6_RECEIPT, [])]
+    set6_successes = {value.get("action") for value in set6_receipts if value.get("status") == "SUCCEEDED"}
 
     if corrupt:
         stage, next_action = "PREPARE", "BLOCKED: repair corrupt or foreign canonical evidence"
@@ -523,6 +532,14 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         stage, next_action = "EXECUTE", "execute only through existing governed authority"
     elif not has_verification:
         stage, next_action = "VERIFY", "run approved verification and record its receipt"
+    elif has_verification and has_set6_plan and "pr_create" not in set6_successes and "pr_update" not in set6_successes and "push" not in set6_successes and "commit" not in set6_successes:
+        stage, next_action = "DELIVER/PROMOTE", "DELIVERY_COMMIT_APPROVAL_REQUIRED"
+    elif has_verification and has_set6_plan and "commit" in set6_successes and "push" not in set6_successes:
+        stage, next_action = "DELIVER/PROMOTE", "DELIVERY_PUSH_REQUIRES_EXACT_TIP_VERIFICATION_AND_APPROVAL"
+    elif has_verification and has_set6_plan and "push" in set6_successes and "pr_create" not in set6_successes and "pr_update" not in set6_successes:
+        stage, next_action = "DELIVER/PROMOTE", "DELIVERY_PR_APPROVAL_REQUIRED"
+    elif has_verification and has_set6_plan and ("pr_create" in set6_successes or "pr_update" in set6_successes):
+        stage, next_action = "DELIVER/PROMOTE", "DELIVERY_COMPLETE_REVIEW_REMAINS_SEPARATE"
     elif has_verification and not has_delivery_prepare:
         stage, next_action = "DELIVER/PROMOTE", "PLAN_SET_3_DELIVERY_PREPARE_REQUIRED"
     elif has_verification and has_delivery_prepare and not has_delivery_call:
@@ -558,7 +575,7 @@ def project_run(root: Path, *, task: str = "", session_id: str | None = None, ta
         else "PROMOTED"
         if promoted
         else "EXECUTED"
-        if has_delivery
+        if has_delivery or bool(set6_successes)
         else "PENDING"
         if has_verification
         else "ABSENT"

@@ -415,15 +415,15 @@ def _delivery_prepare(arguments: dict[str, Any], *, target_root: Path, target_na
         "evidence": evidence,
         "errors": errors,
         "delivery_execution": "NOT_ADMITTED",
-        "missing_authority": ["PLAN_SET_6_GIT_MUTATION"],
-        "next_admissible_action": "PLAN_SET_6_DELIVERY_AUTHORITY_REQUIRED",
+        "missing_authority": ["DELIVERY_ACTION_APPROVAL_REQUIRED"],
+        "next_admissible_action": "DELIVERY_ACTION_APPROVAL_REQUIRED",
     }
 
 
 def _delivery(arguments: dict[str, Any]) -> dict[str, Any]:
     if arguments:
         raise ServiceDenied("delivery accepts no execution arguments in Plan Set 3D")
-    return {"kind": "builder_ii.delivery_boundary", "status": "HUMAN_APPROVAL_REQUIRED", "reason": "DELIVERY_EXECUTION_NOT_ADMITTED until Plan Set 6 exists", "performed_actions": [], "unreachable": ["git commit", "git push", "gh", "PR create/update", "force-push", "history rewrite", "generic shell", "approval minting"]}
+    return {"kind": "builder_ii.delivery_boundary", "status": "HUMAN_APPROVAL_REQUIRED", "reason": "DELIVERY_EXECUTION_NOT_ADMITTED without an exact current delivery action and separate human approval", "performed_actions": [], "unreachable": ["git commit", "git push", "gh", "PR create/update", "force-push", "history rewrite", "generic shell", "approval minting"]}
 
 
 def _validate_identity(*, session_id: str, target_name: str, tool_name: str) -> None:
