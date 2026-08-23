@@ -15,6 +15,7 @@ from builder_ii.adapters.deepagents.native_runtime import (
     NativeEventRecorder,
     NativeRuntimeLimits,
     _default_response_strategy,
+    _hitl_tool,
     validate_native_evidence_bundle,
     wrp_subagents_from_obligations,
 )
@@ -206,6 +207,18 @@ def test_default_response_strategy_accepts_qwen_fenced_json_terminator() -> None
     )
     assert response.tool_calls[0]["name"] == "builder_request_hitl"
     assert response.tool_calls[0]["args"] == {}
+
+
+def test_hitl_tool_defers_until_the_native_workload_is_complete() -> None:
+    ready = False
+    hitl = _hitl_tool(lambda: ready)
+
+    assert hitl.invoke({"reason": "too early"}) == (
+        "HITL request deferred: complete both obligations and the governed tool call first."
+    )
+
+    ready = True
+    assert hitl.invoke({"reason": "workload complete"}) == "operator approved continuation: workload complete"
 
 
 def _runtime(tmp_path: Path) -> NativeDeepAgentsRuntime:

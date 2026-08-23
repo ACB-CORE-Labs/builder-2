@@ -588,7 +588,10 @@ def collect_canonical_m1_samples(
             ],
             limits=NativeRuntimeLimits(active_workers=2, max_model_calls=16, max_tool_calls=16),
         )
-        native_evidence = native.start("Delegate and complete both frozen obligations, then request HITL.")
+        native_evidence = native.start(
+            "Stage 1 only: delegate and complete both frozen obligations through the task tool. "
+            "Do not call the governed echo or request HITL until both task results are available."
+        )
         native_errors = validate_native_evidence_bundle(native_evidence)
         if native_errors or native_evidence.get("active_workers") != 2:
             raise RuntimeError("Deep Agents workload evidence failed: " + "; ".join(native_errors))

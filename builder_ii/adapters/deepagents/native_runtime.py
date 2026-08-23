@@ -655,11 +655,13 @@ class GovernedEchoTool:
         return governed_echo
 
 
-def _hitl_tool() -> BaseTool:
+def _hitl_tool(prerequisites_complete: Callable[[], bool]) -> BaseTool:
     @tool("builder_request_hitl")
     def request_hitl(reason: str) -> str:
         """Record the operator-approved continuation after the native graph pauses."""
 
+        if not prerequisites_complete():
+            return "HITL request deferred: complete both obligations and the governed tool call first."
         return f"operator approved continuation: {reason}"
 
     return request_hitl
@@ -764,7 +766,7 @@ class NativeDeepAgentsRuntime:
             active_workers=self.limits.active_workers,
         )
         echo = GovernedEchoTool(output_dir, self.recorder).build()
-        self.tools = [echo, _hitl_tool()]
+        self.tools = [echo, _hitl_tool(self._hitl_prerequisites_complete)]
 
         def record_model_receipt(receipt: dict[str, Any], path: Path) -> None:
             self.recorder.append(
@@ -795,13 +797,21 @@ class NativeDeepAgentsRuntime:
             tools=self.tools,
             system_prompt=(
                 "Operate only inside the Builder-II approved obligation envelope. Delegate every listed "
-                "obligation through the upstream task tool. Use only Builder-governed tools. Pause at the "
-                "HITL tool before claiming completion."
+                "obligation through the upstream task tool. Use only Builder-governed tools. Execute exactly "
+                "three stages in order: first delegate both distinct obligations, then call the governed echo "
+                "tool, then request HITL. Emit tool calls for only the current stage; never combine a HITL "
+                "request with an earlier stage. A HITL request before both obligation completions and the "
+                "governed-tool receipt is deferred and cannot interrupt the run."
             ),
             middleware=[self.middleware],
             subagents=subagents,
             permissions=deny_permissions,
-            interrupt_on={"builder_request_hitl": True},
+            interrupt_on={
+                "builder_request_hitl": {
+                    "allowed_decisions": ["approve"],
+                    "when": lambda _request: self._hitl_prerequisites_complete(),
+                }
+            },
             checkpointer=self.checkpointer,
             name="builder-ii-native-deepagents",
         )
@@ -819,6 +829,20 @@ class NativeDeepAgentsRuntime:
             }
             for obligation in self.obligations
         ]
+
+    def _hitl_prerequisites_complete(self) -> bool:
+        """Permit the native interrupt only after the frozen workload completed."""
+
+        completed_profiles = {
+            str(event["payload"].get("args", {}).get("subagent_type"))
+            for event in self.recorder.events
+            if event.get("event_type") == "tool_completed" and event["payload"].get("tool") == "task"
+        }
+        required_profiles = {str(obligation["subagent_profile"]) for obligation in self.obligations}
+        has_governed_tool_receipt = any(
+            event.get("event_type") == "governed_tool_receipt_recorded" for event in self.recorder.events
+        )
+        return required_profiles.issubset(completed_profiles) and has_governed_tool_receipt
 
     def start(self, task: str) -> dict[str, Any]:
         if self.recorder.events:
