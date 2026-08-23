@@ -14,6 +14,7 @@ from builder_ii.adapters.deepagents.native_runtime import (
     NativeDeepAgentsRuntime,
     NativeEventRecorder,
     NativeRuntimeLimits,
+    _default_response_strategy,
     validate_native_evidence_bundle,
     wrp_subagents_from_obligations,
 )
@@ -180,6 +181,17 @@ def _scripted_response(_receipt: dict, messages: Sequence[BaseMessage]) -> AIMes
             ],
         )
     return AIMessage(content="native parent run completed after exact-checkpoint HITL resume")
+
+
+def test_default_response_strategy_accepts_fenced_json_tool_calls() -> None:
+    response = _default_response_strategy(
+        {
+            "response_text": '```json\n{"tool_calls":[{"name":"builder_request_hitl","args":{"reason":"pause"}}],"content":""}\n```'
+        },
+        [],
+    )
+    assert response.tool_calls[0]["name"] == "builder_request_hitl"
+    assert response.tool_calls[0]["args"] == {"reason": "pause"}
 
 
 def _runtime(tmp_path: Path) -> NativeDeepAgentsRuntime:

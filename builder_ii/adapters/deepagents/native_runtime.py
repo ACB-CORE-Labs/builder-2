@@ -122,8 +122,11 @@ def _default_response_strategy(receipt: dict[str, Any], _messages: Sequence[Base
     """Decode the narrow JSON tool-call contract or return plain gateway text."""
 
     text = str(receipt.get("response_text", ""))
+    stripped = text.strip()
+    if stripped.startswith("```") and stripped.endswith("```"):
+        stripped = stripped.removeprefix("```").removeprefix("json").removesuffix("```").strip()
     try:
-        value = json_lib.loads(text)
+        value = json_lib.loads(stripped)
     except json_lib.JSONDecodeError:
         return AIMessage(content=text)
     if not isinstance(value, dict):
@@ -212,6 +215,14 @@ class GatewayBackedChatModel(BaseChatModel):
         envelope_path = model_dir / f"model-call-{sequence:04d}-envelope.json"
         receipt_path = model_dir / f"model-call-{sequence:04d}-receipt.json"
         system_prompt, prompt = _messages_prompt(messages)
+        if self._bound_tool_names:
+            system_prompt = (
+                f"{system_prompt}\n\n"
+                "BUILDER_II_TOOL_CALL_PROTOCOL: If you need to call a governed tool, respond with ONLY one JSON "
+                "object of the form {\"tool_calls\":[{\"name\":\"TOOL\",\"args\":{}}],\"content\":\"\"}. "
+                f"Allowed tool names for this turn: {', '.join(self._bound_tool_names)}. "
+                "Use exact tool names and object arguments; do not emit Markdown or explanatory prose around JSON."
+            )
         if self.model_id != self.route.selected_candidate.model_id:
             raise ValueError("Deep Agents runtime model does not equal WRP-selected model")
         with self._budget_lock:
