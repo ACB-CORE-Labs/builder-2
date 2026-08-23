@@ -178,6 +178,32 @@ def _default_response_strategy(receipt: dict[str, Any], _messages: Sequence[Base
     return AIMessage(content=str(value.get("content", "")), tool_calls=normalized)
 
 
+def _project_stage_tool_calls(
+    response: AIMessage,
+    stage: str,
+    denial_callback: Callable[[dict[str, Any], str], None] | None = None,
+) -> AIMessage:
+    """Project raw model proposals onto the single tool class admitted for this stage."""
+
+    admitted_name = {
+        "delegate_tasks": "task",
+        "governed_echo": "builder_governed_echo",
+        "request_hitl": "builder_request_hitl",
+        "complete": None,
+    }.get(stage)
+    if stage not in {"delegate_tasks", "governed_echo", "request_hitl", "complete"}:
+        raise ValueError(f"unknown native Deep Agents stage: {stage}")
+    admitted = [call for call in response.tool_calls if call["name"] == admitted_name]
+    if stage in {"governed_echo", "request_hitl"}:
+        admitted = admitted[:1]
+    admitted_ids = {call["id"] for call in admitted}
+    if denial_callback is not None:
+        for call in response.tool_calls:
+            if call["id"] not in admitted_ids:
+                denial_callback(call, stage)
+    return AIMessage(content=response.content, tool_calls=admitted)
+
+
 class GatewayBackedChatModel(BaseChatModel):
     """LangChain chat-model adapter that executes every call through Builder-II."""
 
@@ -198,6 +224,7 @@ class GatewayBackedChatModel(BaseChatModel):
     )
     receipt_callback: Callable[[dict[str, Any], Path], None] | None = Field(default=None, exclude=True)
     stage_provider: Callable[[], str] | None = Field(default=None, exclude=True)
+    stage_denial_callback: Callable[[dict[str, Any], str], None] | None = Field(default=None, exclude=True)
 
     _counter: int = PrivateAttr(default=0)
     _counter_initialized: bool = PrivateAttr(default=False)
@@ -267,6 +294,7 @@ class GatewayBackedChatModel(BaseChatModel):
                     "Both required subagent tasks and the governed echo are complete. Do not call task or "
                     "builder_governed_echo again. Call builder_request_hitl exactly once with a non-empty reason."
                 ),
+                "complete": "The approved HITL action is complete. Return a concise final response with no tool calls.",
             }
             if stage not in stage_instructions:
                 raise ValueError(f"unknown native Deep Agents stage: {stage}")
@@ -299,6 +327,8 @@ class GatewayBackedChatModel(BaseChatModel):
         if self.receipt_callback is not None:
             self.receipt_callback(receipt, receipt_path)
         response = self.response_strategy(receipt, messages)
+        if self.stage_provider is not None and not is_bounded_child:
+            response = _project_stage_tool_calls(response, stage, self.stage_denial_callback)
         return ChatResult(generations=[ChatGeneration(message=response)])
 
 
@@ -846,6 +876,7 @@ class NativeDeepAgentsRuntime:
             response_strategy=response_strategy,
             receipt_callback=record_model_receipt,
             stage_provider=self._current_parent_stage,
+            stage_denial_callback=self._record_stage_denial,
         )
         subagents = wrp_subagents_from_obligations(self.obligations, governed_tools=[echo])
         deny_permissions = [FilesystemPermission(operations=["read", "write"], paths=["/**"], mode="deny")]
@@ -904,6 +935,8 @@ class NativeDeepAgentsRuntime:
     def _current_parent_stage(self) -> str:
         """Derive the next parent action from recorded execution, never model inference."""
 
+        if any(event.get("event_type") == "hitl_resumed" for event in self.recorder.events):
+            return "complete"
         completed_profiles = {
             str(event["payload"].get("args", {}).get("subagent_type"))
             for event in self.recorder.events
@@ -917,6 +950,17 @@ class NativeDeepAgentsRuntime:
         ):
             return "governed_echo"
         return "request_hitl"
+
+    def _record_stage_denial(self, call: dict[str, Any], stage: str) -> None:
+        self.recorder.append(
+            "tool_denied",
+            {
+                "tool": str(call.get("name", "")),
+                "call_id": str(call.get("id", "")),
+                "reason": "not admitted in current Builder-II stage",
+                "stage": stage,
+            },
+        )
 
     def start(self, task: str) -> dict[str, Any]:
         if self.recorder.events:

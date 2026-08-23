@@ -17,6 +17,7 @@ from builder_ii.adapters.deepagents.native_runtime import (
     _default_response_strategy,
     _hitl_tool,
     _messages_prompt,
+    _project_stage_tool_calls,
     validate_native_evidence_bundle,
     wrp_subagents_from_obligations,
 )
@@ -146,7 +147,7 @@ def _scripted_response(_receipt: dict, messages: Sequence[BaseMessage]) -> AIMes
                 },
             ],
         )
-    if not any(call["name"] == "write_file" for call in prior_calls):
+    if not any(call["name"] == "builder_governed_echo" for call in prior_calls):
         return AIMessage(
             content="",
             tool_calls=[
@@ -155,13 +156,7 @@ def _scripted_response(_receipt: dict, messages: Sequence[BaseMessage]) -> AIMes
                     "args": {"file_path": "/tmp/forbidden", "content": "must not be written"},
                     "id": "forbidden-write",
                     "type": "tool_call",
-                }
-            ],
-        )
-    if not any(call["name"] == "builder_governed_echo" for call in prior_calls):
-        return AIMessage(
-            content="",
-            tool_calls=[
+                },
                 {
                     "name": "builder_governed_echo",
                     "args": {"text": "native governed tool proof"},
@@ -208,6 +203,27 @@ def test_default_response_strategy_accepts_qwen_fenced_json_terminator() -> None
     )
     assert response.tool_calls[0]["name"] == "builder_request_hitl"
     assert response.tool_calls[0]["args"] == {}
+
+
+def test_stage_projection_refuses_cross_stage_model_proposals() -> None:
+    denied: list[tuple[str, str]] = []
+    response = AIMessage(
+        content="",
+        tool_calls=[
+            {"name": "write_file", "args": {"file_path": "/tmp/forbidden"}, "id": "write", "type": "tool_call"},
+            {"name": "builder_governed_echo", "args": {"text": "proof"}, "id": "echo", "type": "tool_call"},
+            {"name": "builder_request_hitl", "args": {"reason": "early"}, "id": "hitl", "type": "tool_call"},
+        ],
+    )
+
+    echo_stage = _project_stage_tool_calls(
+        response,
+        "governed_echo",
+        lambda call, stage: denied.append((call["name"], stage)),
+    )
+    assert [call["name"] for call in echo_stage.tool_calls] == ["builder_governed_echo"]
+    assert denied == [("write_file", "governed_echo"), ("builder_request_hitl", "governed_echo")]
+    assert _project_stage_tool_calls(response, "complete").tool_calls == []
 
 
 def test_default_response_strategy_accepts_qwen_bare_json_terminator() -> None:
@@ -287,6 +303,9 @@ def test_parent_stage_is_derived_from_completed_runtime_evidence(tmp_path: Path)
 
     runtime.recorder.append("governed_tool_receipt_recorded", {"tool": "builtin.echo"})
     assert runtime._current_parent_stage() == "request_hitl"
+
+    runtime.recorder.append("hitl_resumed", {"approved_checkpoint_digest": "a" * 64})
+    assert runtime._current_parent_stage() == "complete"
 
 
 def test_bound_tool_protocol_preserves_argument_schemas(tmp_path: Path) -> None:
