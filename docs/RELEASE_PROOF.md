@@ -1,76 +1,69 @@
-# Builder-II V0 Release Proof Harness
+# Open-Source v1 Release Proof
 
-## Purpose
+The canonical release proof is one exact-candidate bundle of kind
+`builder_ii.release_proof_bundle`. It binds the proposed `1.0.0` package and
+`v1.0.0` tag identity to an exact commit/tree, `uv.lock`, built wheel and sdist,
+supported-host installation proofs, local CI, integrated sabotage outcomes,
+Plan Set 5 benchmark evidence, generated documentation truth, demo evidence,
+and hosted rehearsal custody.
 
-The **v0 release proof harness** (`scripts/verify_v0_release.py`) is an anti-handwave verification script that proves `builder-II` operates as a governed, passive, artifact-only platform spine. It proves that canonical session preparation, workflow planning, read-only inspection boundaries, platform spine composition, and chain verification can be executed end-to-end without granting runtime authority or altering target repository code.
+A valid bundle is evidence for human review. It is not capability promotion,
+tag authority, GitHub Release authority, or package-publication authority.
 
-## Canonical Release Identity
+## Supported v1 hosts
 
-- **Repository**: `AssetOverflow/builder-II`
-- **Lineage**: `v0 release lineage`
-- **Target Profile**: `generic`
-- **Primary Task**: `prove canonical governed session lane e2e`
+- macOS Apple Silicon: supported and the primary performance/MLX target.
+- Linux: supported governance/runtime lane, without MLX parity.
+- Windows and WSL2: unsupported for v1.
+- Python: `>=3.12.13,<3.13`.
 
-## 15-Step Proof Workflow
+The macOS and Linux lanes install the same wheel bytes and run the complete
+governed golden path. A development-checkout test cannot substitute for either
+installed-wheel proof.
 
-When invoked by an operator, `scripts/verify_v0_release.py` executes the following deterministic 15-step proof:
-
-1. Creates an isolated release output directory (default: `dist/v0-release-proof`).
-2. Creates an isolated fixture target repository (or targets a user-specified repo via `--repo-path`) and takes a cryptographic byte snapshot of all working tree files.
-3. Runs `create_governed_prepare_package` targeting the repository to generate the 8 canonical session artifacts:
-   - `prepare-package.json` (`builder_ii.governed_prepare_package`)
-   - `session-workflow.json` (`builder_ii.session_workflow_plan`)
-   - `goose-readonly-session.json` (`builder_ii.goose_readonly_session_plan`)
-   - `verification-profile-report.json` (`builder_ii.verification_profile_report`)
-   - `repo-map.json` (`builder_ii.repo_map`)
-   - `context-pack.json` (`builder_ii.context_pack`)
-   - `handoff-note.json` (`builder_ii.handoff_note`)
-   - `deepagents-bridge-readiness.json` (`builder_ii.deepagents_bridge_readiness_report`)
-4. Runs `ConventionKernel().prepare_platform_spine` targeting the repository to produce `platform-spine.json` (`builder_ii.convention_kernel_platform_bundle`).
-5. Validates the emitted prepare package directory and platform spine bundle against their native schema validators.
-6. Generates a prepare package summary (`prepare-package-summary.json`).
-7. Runs `verify_artifact_chain` across emitted files, validating all native schemas and internal reference integrity, writing the output to `chain-verification-report.json`.
-8. Computes cryptographic SHA256 digests for all prior stage artifacts.
-9. Generates `release-manifest.json` (`builder_ii.v0_release_manifest`), recording exact paths and digests for all session proof artifacts, the platform spine, and verification audits.
-10. Validates `release-manifest.json` against its fail-closed native validator.
-11. Runs `create_artifact_index_record` across all emitted files in the output directory and writes `artifact-index.json`.
-12. Re-runs `verify_artifact_chain` across all emitted files (including the manifest and index) to confirm 0 broken links and 0 native errors.
-13. Verifies that the target repository working tree and git state match the initial byte snapshot 100%.
-14. Asserts fail-closed governance invariants across all records.
-15. Prints an explicit proof summary to stdout.
-
-## Strict Governance Non-Negotiables
-
-The v0 release proof harness strictly enforces the following boundaries:
-
-- **No Goose runtime**: Goose execution loops and subprocess activations remain completely disabled.
-- **No deepagents runtime**: Deepagents delegation and autonomous agent authority remain disabled.
-- **No shell execution**: Autonomous terminal commands and bash scripts are forbidden.
-- **No model execution loops**: LLM execution loops are disabled.
-- **No source patch application**: Code edits and target repository modifications are disabled.
-- **No Deephaven touch**: Deephaven integrations are not triggered or modified.
-- **Proof-of-capability only**: The emitted `release-manifest.json` is a declarative capability proof, not an executable runtime trigger.
-
-## Operator Instructions
-
-To execute the release proof harness:
+## Candidate workflow
 
 ```bash
-uv run python scripts/verify_v0_release.py
+bash scripts/build-release-candidate.sh dist/release-candidate
+
+bash scripts/clean-clone-smoke.sh \
+  --candidate-wheel dist/release-candidate/builder_ii-1.0.0-py3-none-any.whl \
+  --candidate-wheel-sha256 <sha256> \
+  --candidate-extras deepagents,apple \
+  --host-proof .builder/release-evidence/macos.json
+
+bash scripts/release-linux-candidate.sh \
+  dist/release-candidate/builder_ii-1.0.0-py3-none-any.whl \
+  <sha256> .builder/release-evidence/linux.json
+
+bash scripts/release-sabotage-battery.sh \
+  dist/release-candidate/builder_ii-1.0.0-py3-none-any.whl \
+  <sha256> .builder/release-evidence/release-sabotage.json
+
+uv run builder-release build-bundle --repo . \
+  --dist-dir dist/release-candidate \
+  --evidence-dir .builder/release-evidence \
+  --output-dir dist/open-source-v1-proof
+
+uv run builder-release validate-bundle-directory \
+  dist/open-source-v1-proof --repo .
 ```
 
-To specify a custom output directory or run against a specific repository:
+The bundle builder refuses a dirty candidate, missing or failed required lane,
+duplicate lane, symlinked evidence, wrong distribution metadata, mismatched
+digest, moved source/lock identity, or an authorizing governance claim.
 
-```bash
-uv run python scripts/verify_v0_release.py --output-dir dist/my-release --repo-path /path/to/repo
-```
+## Required evidence lanes
 
-To run the automated verification test suite:
+The required results are exact-tip local CI, Linux golden path, macOS Apple
+Silicon golden path, integrated release sabotage, docs audit, platform matrix,
+Plan Set 5 benchmark readback, flagship demo/rehearsal, hosted custody of
+rehearsal PRs #1/#2, and artifact-chain validation. Required lanes must be
+`PASS`; `SKIP` and `NOT_RUN` are explicit non-green states.
 
-```bash
-uv run pytest tests/test_v0_release_proof_harness.py -q
-```
+## Historical V0 compatibility
 
-## Circular Index Reference Handling
-
-To prevent circular dependency issues during artifact index generation (since the `artifact-index.json` indexes `release-manifest.json`, while `release-manifest.json` references `artifact-index.json`), the `artifact_index_ref` reference's `sha256` field is modeled as intentionally empty. The release manifest validator explicitly permits an empty SHA-256 hash *only* for the `artifact_index_ref` key, while requiring non-empty SHA-256 hashes for all other session proof artifacts.
+`builder_ii.v0_release_manifest` and `scripts/verify_v0_release.py` remain
+readable so sealed historical evidence continues to validate. They prove only
+the former passive/no-runtime spine and are not a second current release truth
+system. New release qualification uses `builder-release` and the v1 bundle.

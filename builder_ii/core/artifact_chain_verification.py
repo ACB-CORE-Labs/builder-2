@@ -183,7 +183,11 @@ from builder_ii.core.readonly_inspection_reports import (
     validate_readonly_inspection_report,
 )
 from builder_ii.core.release_manifest import (
+    RELEASE_EVIDENCE_KIND,
+    RELEASE_PROOF_BUNDLE_KIND,
     V0_RELEASE_MANIFEST_KIND,
+    validate_release_evidence,
+    validate_release_proof_bundle,
     validate_v0_release_manifest,
 )
 from builder_ii.core.repo_map import REPO_MAP_KIND, validate_repo_map
@@ -536,6 +540,8 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     ORCHESTRATION_DRY_RUN_KIND: validate_orchestration_dry_run,
     RUNTIME_ACTIVATION_APPROVAL_SPEC_KIND: validate_runtime_activation_approval_spec,
     V0_RELEASE_MANIFEST_KIND: validate_v0_release_manifest,
+    RELEASE_PROOF_BUNDLE_KIND: validate_release_proof_bundle,
+    RELEASE_EVIDENCE_KIND: validate_release_evidence,
     MODEL_CAPABILITY_REGISTRY_KIND: validate_model_capability_registry,
     PROFILE_PACK_KIND: validate_profile_pack,
     PROFILE_PACK_MANIFEST_KIND: validate_profile_pack_manifest,

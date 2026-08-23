@@ -65,7 +65,8 @@ _STANDING_BOUNDARIES = """\
 
 These are not missing features; they are refusals the governance model depends on:
 
-- No commit or push automation, ever, in any lane.
+- No ambient Git authority: commit, push, and pull-request delivery exist only in separately
+  approved, digest-bound lanes; direct-main, force-push, and history rewrite remain forbidden.
 - No autonomous writes: every mutation lane requires an explicit digest-bound operator approval.
 - No hidden memory or vector stores; artifact memory is explicit, validated, and replayable.
 - Model output is never approval; a valid artifact is never authority; subagent output is never

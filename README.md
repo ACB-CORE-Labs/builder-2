@@ -278,7 +278,7 @@ tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](doc
 | [`docs/RUNTIME_PROMOTION.md`](docs/RUNTIME_PROMOTION.md) | Runtime-specific promotion gates for Goose, deepagents, commands, and patches. |
 | [`docs/ARTIFACT_INDEX.md`](docs/ARTIFACT_INDEX.md) | Index of all registered artifact kinds and non-authority boundaries. |
 | `builder_ii/cli/code_vault_cli.py` | CodeVault commercial plugin CLI seam (refuses execution in open core and guides upgrade). |
-| [`docs/RELEASE_PROOF.md`](docs/RELEASE_PROOF.md) | v0 release proof harness documentation and operator run instructions. |
+| [`docs/RELEASE_PROOF.md`](docs/RELEASE_PROOF.md) | Exact-candidate open-source-v1 release proof and authority boundaries. |
 | [`docs/BETA_CHARTER.md`](docs/BETA_CHARTER.md) | What the beta is for, what feedback is wanted, what's out of scope, and how to send it. |
 | [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
 | [`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) | Scope, non-goals, and near-term platform direction. |
@@ -319,13 +319,13 @@ Primary target: Apple Silicon MacBook Pro M1 with 16GB unified memory.
 
 The machine does not have 16GB free for weights. macOS, Goose, Python, terminal buffers, repository context, and KV cache all share the same memory pool. Productive coding sessions should prefer roughly 2GB to 7GB model footprints. Larger models are available as explicit opt-in experiments, not defaults.
 
-**Non-Mac boundary:** the governed artifact/HITL/verification spine (CLI, TUI, artifact kinds, HITL chain, verification lanes) has no Apple Silicon dependency and installs anywhere `uv sync` runs. The local-model backend (`mlx-lm`/`rapid-mlx`, gated behind the `mlx` extra — see "Install") is Mac-first for beta: MLX requires macOS on arm64, and no non-Mac local-model backend is promoted yet. A non-Mac operator can still exercise the full governance loop against a remote/OpenAI-compatible endpoint or without a live model backend; full Linux CI parity is post-beta ladder work.
+**Supported-host boundary:** macOS on Apple Silicon is the primary performance target and owns the optional MLX lane. Linux is a supported v1 governance/runtime host without an MLX-parity claim. Windows and WSL2 are unsupported for v1. Both supported hosts must install the same exact candidate wheel and complete the governed golden path before release review.
 
 ## What Is Present
 
-builder-II v0 includes an active governed artifact foundation. It supports governed local model ask, health-probe, and OpenAI-compatible chat-completion transport paths where validated, alongside Goose operator-session launch and recipe path wiring.
+The proposed open-source-v1 candidate includes the governed artifact foundation plus the scoped runtime, verification, patch, rollback, model gateway, Deep Agents, MCP, and delivery lanes qualified in Plan Sets 1–6.
 
-Note that operator-managed runtime helpers and manual verification workflows are distinct from promoted autonomous runtime authority, which remains unpromoted. The release proof harness (`scripts/verify_v0_release.py`) serves as a structural artifact/governance validation proof, rather than a live model autonomy or autonomous Goose tool-execution proof.
+Operator-managed runtime helpers and manual verification workflows remain distinct from promoted autonomous authority. `builder-release` constructs and independently validates exact-candidate evidence; a valid bundle grants no promotion, tag, release, or publication authority. `scripts/verify_v0_release.py` is retained only for historical V0 artifact compatibility.
 
 Legacy operator-managed helpers remain explicit and separate:
 
@@ -419,26 +419,31 @@ Validated on the M1 `mlx-lm` lane:
 - deepagents bridge readiness reports
 - bounded native Deep Agents delegation through `create_deep_agent`, with two WRP obligations, governed model/tool calls, digest-bound persistence, and HITL interrupt/resume evidence
 - Model/provider execution gateway with registry, policy, budget, envelope, and receipt enforcement
-- Artifact index and chain verification (all v0 kinds)
-- v0 release proof harness (`uv run python scripts/verify_v0_release.py`)
+- Artifact index and chain verification across the registered governed artifact vocabulary
+- Exact-candidate v1 release evidence and bundle validation (`builder-release`)
 
-Not yet promoted (requires capability promotion gate):
-
-- Actual read-only repository inspection at runtime
-- Fully autonomous Goose tool execution through the local `mlx-lm` provider
-- Goose process-backed runtime inspection
-- File-modifying sessions driven by a local MLX model
-- HITL command proposal → approved execution (candidate exists, execution not crossed)
-- Actual B1 verification execution; `builder-verify` only plans and validates passive artifacts
-- HITL patch proposal → approved application
-- ambient or unapproved deepagents runtime orchestration
-- direct provider execution outside `ModelExecutionGateway`
-- MCP inventory/policy/enforcement runtime
-- Production-quality multimodal sidecar support
+Not every matrix row becomes operational merely because the package is a v1 candidate. The
+generated [known-limitations document](docs/KNOWN_LIMITATIONS.md) is the current source-derived
+list. In particular, ambient or unapproved Deep Agents orchestration, direct provider execution
+outside `ModelExecutionGateway`, fully autonomous model-driven file mutation, and production
+multimodal sidecars remain unpromoted. Existing patch, verification, MCP, and Git delivery lanes
+retain their own explicit approval envelopes and assurance states.
 
 Until a dedicated promotion path proves otherwise, treat local MLX sessions as review/planning/reporting lanes. For code edits, require explicit human review and run deterministic verification before accepting changes.
 
 ## Install
+
+For an exact built candidate wheel, the supported public-tool shape is:
+
+```bash
+uv tool install --python 3.12.13 './builder_ii-1.0.0-py3-none-any.whl[deepagents]'
+builder-release --help
+```
+
+On Apple Silicon, use `[deepagents,apple]` for the MLX lane. Linux supports `[deepagents]`
+without an MLX-parity claim. Windows and WSL2 are unsupported for v1.
+
+For a source checkout on Apple Silicon:
 
 ```bash
 brew install block-goose-cli

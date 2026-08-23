@@ -65,7 +65,7 @@ In STRATUM, **HITL / promotion instruments** surface this as the Third Door grid
 | Pillar | What it means here | How you check |
 |--------|--------------------|---------------|
 | **Determinism** | Same inputs → same digests where the surface claims it (prepare packages, gate receipts) | Re-run validators; never trust wall-clock-only stories |
-| **Auditability** | Claims about the platform are matrix-backed; docs cannot over-claim | `builder-platform matrix`, `audit-docs`, `scripts/verify_v0_release.py` |
+| **Auditability** | Claims about the platform are matrix-backed; docs cannot over-claim | `builder-platform matrix`, `audit-docs`, `builder-release validate-bundle-directory` |
 | **Traceability** | Chain of kinds and refs on disk; spine is a view of that chain, not a fake progress bar | Spine + pin in STRATUM; `verify_artifact_chain`; `.builder/artifacts` |
 | **Governance** | Promotion states gate what may run; command authority tiers gate what may even be *attempted* | `builder-platform matrix` / **Z** in STRATUM; `?` palette tier inspector |
 
@@ -118,7 +118,7 @@ uv run builder-tools check --tier tier1
 Do **not** start agents yet. Ask for evidence:
 
 ```bash
-uv run python scripts/verify_v0_release.py
+uv run builder-release --help
 uv run builder-platform matrix
 uv run builder-platform status
 uv run builder-platform next
@@ -127,7 +127,7 @@ uv run builder-platform audit-docs
 
 | Command | Why |
 |---------|-----|
-| `verify_v0_release.py` | Structural/governance anti-handwave harness |
+| `builder-release` | Exact-candidate evidence and bundle construction/validation; grants no release authority |
 | `matrix` | Every capability row + promotion-ish state |
 | `status` / `next` | Operator summary + ordered safe next commands |
 | `audit-docs` | Docs that claim more than the matrix allows → fail |

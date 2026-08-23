@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "builder-ii"
-version = "0.1.0"
+version = "1.0.0"
 description = "Generic governed local agent/developer platform with Goose and MLX support"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.12.13,<3.13"
 dependencies = [
+    "click>=8.2.0",
     "numpy>=2.0.0",
     "httpx>=0.28.0",
     "pillow>=12.3.0",
@@ -88,6 +89,7 @@ builder-model = "builder_ii.cli.model_cli:model_app"
 builder-workflow = "builder_ii.cli.workflow_cli:workflow_app"
 builder-ledger = "builder_ii.cli.ledger_cli:ledger_app"
 builder-platform = "builder_ii.cli.platform_status_cli:platform_app"
+builder-release = "builder_ii.cli.release_cli:release_app"
 builder-memory = "builder_ii.cli.memory_cli:memory_app"
 builder-config = "builder_ii.cli.config_cli:config_app"
 builder-stratum = "builder_ii.cli.stratum_cli:stratum_app"
@@ -119,6 +121,9 @@ constraint-dependencies = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["builder_ii*"]
+
+[tool.setuptools.package-data]
+builder_ii = ["tui/*.tcss", "*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

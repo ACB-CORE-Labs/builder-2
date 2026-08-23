@@ -3,13 +3,101 @@ from __future__ import annotations
 from pathlib import Path
 
 from builder_ii.core.release_manifest import (
+    RELEASE_PROOF_BUNDLE_KIND,
+    REQUIRED_RELEASE_LANES,
     V0_RELEASE_MANIFEST_KIND,
     create_artifact_ref,
+    create_release_proof_bundle,
     create_v0_release_manifest,
+    validate_release_proof_bundle,
+    validate_release_proof_bundle_file,
     validate_v0_release_manifest,
     validate_v0_release_manifest_file,
+    write_release_proof_bundle,
     write_v0_release_manifest,
 )
+
+
+def _sample_release_bundle() -> dict:
+    evidence = {
+        lane: {
+            "result": "PASS",
+            "ref": create_artifact_ref(kind=f"builder_ii.release_evidence.{lane}", path=f"evidence/{lane}.json", sha256="a" * 64),
+        }
+        for lane in REQUIRED_RELEASE_LANES
+    }
+    return create_release_proof_bundle(
+        source={
+            "commit": "1" * 40,
+            "parents": ["2" * 40],
+            "tree": "3" * 40,
+            "clean": True,
+            "uv_lock_sha256": "4" * 64,
+            "source_archive_sha256": "5" * 64,
+        },
+        distributions=[
+            {"type": "sdist", "filename": "builder_ii-1.0.0.tar.gz", "size": 10, "sha256": "6" * 64},
+            {
+                "type": "wheel",
+                "filename": "builder_ii-1.0.0-py3-none-any.whl",
+                "size": 20,
+                "sha256": "7" * 64,
+                "record_inventory": ["builder_ii/__init__.py", "builder_ii/tui/stratum.tcss"],
+            },
+        ],
+        supported_runtime={
+            "python": ">=3.12.13,<3.13",
+            "macos_apple_silicon": "SUPPORTED_MLX_PRIMARY",
+            "linux": "SUPPORTED_NO_MLX_PARITY",
+            "windows": "UNSUPPORTED_V1",
+            "wsl2": "UNSUPPORTED_V1",
+        },
+        evidence=evidence,
+        artifact_index_ref=create_artifact_ref(
+            kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256="8" * 64
+        ),
+    )
+
+
+def test_release_proof_bundle_is_exact_candidate_evidence_not_authority(tmp_path: Path) -> None:
+    bundle = _sample_release_bundle()
+    assert bundle["kind"] == RELEASE_PROOF_BUNDLE_KIND
+    assert bundle["release_identity"]["package_version"] == "1.0.0"
+    assert bundle["authority"]["tag_creation"] == "NOT_AUTHORIZED"
+    assert bundle["governance"]["artifact_is_authority"] is False
+    assert validate_release_proof_bundle(bundle) == []
+
+    path = tmp_path / "release-proof-bundle.json"
+    write_release_proof_bundle(bundle, path)
+    assert validate_release_proof_bundle_file(path) == []
+
+
+def test_release_proof_bundle_rejects_missing_failed_or_authorizing_evidence() -> None:
+    bundle = _sample_release_bundle()
+    missing = dict(bundle)
+    missing["evidence"] = dict(bundle["evidence"])
+    missing["evidence"].pop("linux_golden_path")
+    assert any("evidence.linux_golden_path" in error for error in validate_release_proof_bundle(missing))
+
+    failed = dict(bundle)
+    failed["evidence"] = dict(bundle["evidence"])
+    failed["evidence"]["local_ci"] = dict(failed["evidence"]["local_ci"], result="FAIL")
+    assert any("evidence.local_ci.result" in error for error in validate_release_proof_bundle(failed))
+
+    promoted = dict(bundle)
+    promoted["authority"] = dict(bundle["authority"], capability_promotion="AUTHORIZED")
+    assert any("authority.capability_promotion" in error for error in validate_release_proof_bundle(promoted))
+
+
+def test_release_proof_bundle_rejects_wrong_candidate_and_incomplete_distributions() -> None:
+    bundle = _sample_release_bundle()
+    wrong_source = dict(bundle)
+    wrong_source["source"] = dict(bundle["source"], clean=False)
+    assert "source.clean must be true" in validate_release_proof_bundle(wrong_source)
+
+    wheel_only = dict(bundle)
+    wheel_only["distributions"] = [bundle["distributions"][1]]
+    assert any("missing required types: sdist" in error for error in validate_release_proof_bundle(wheel_only))
 
 
 def _sample_session_proof() -> dict:

@@ -30,6 +30,10 @@ WORKDIR=""
 KEEP=0
 BUDGET_SECONDS=1800
 SKIP_MLX=0
+CANDIDATE_WHEEL=""
+CANDIDATE_WHEEL_SHA256=""
+CANDIDATE_EXTRAS="deepagents"
+HOST_PROOF=""
 
 usage() {
   cat <<'USAGE'
@@ -42,6 +46,10 @@ Options:
   --budget-seconds N        Onboarding-claim ceiling in seconds (default: 1800 / 30 min).
   --skip-mlx                Skip the mlx optional-dependency extra even on Apple Silicon
                              (faster local iteration; the real onboarding path does not skip it).
+  --candidate-wheel PATH    Run installed commands from this wheel instead of the clone environment.
+  --candidate-wheel-sha256  Required expected SHA-256 for --candidate-wheel.
+  --candidate-extras LIST   Wheel extras for the isolated tool install (default: deepagents).
+  --host-proof PATH         Write and validate a release host-proof artifact on success.
   -h, --help                 Show this help.
 USAGE
 }
@@ -53,6 +61,10 @@ while [ $# -gt 0 ]; do
     --keep) KEEP=1; shift ;;
     --budget-seconds) BUDGET_SECONDS="$2"; shift 2 ;;
     --skip-mlx) SKIP_MLX=1; shift ;;
+    --candidate-wheel) CANDIDATE_WHEEL="$2"; shift 2 ;;
+    --candidate-wheel-sha256) CANDIDATE_WHEEL_SHA256="$2"; shift 2 ;;
+    --candidate-extras) CANDIDATE_EXTRAS="$2"; shift 2 ;;
+    --host-proof) HOST_PROOF="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -171,6 +183,21 @@ need() {
 need git
 need uv
 
+if [ -n "$CANDIDATE_WHEEL" ]; then
+  CANDIDATE_WHEEL="$(cd "$(dirname "$CANDIDATE_WHEEL")" && pwd)/$(basename "$CANDIDATE_WHEEL")"
+  [ -f "$CANDIDATE_WHEEL" ] || { echo "candidate wheel not found: $CANDIDATE_WHEEL" >&2; exit 2; }
+  [ -n "$CANDIDATE_WHEEL_SHA256" ] || { echo "--candidate-wheel-sha256 is required" >&2; exit 2; }
+  if command -v shasum >/dev/null 2>&1; then
+    ACTUAL_WHEEL_SHA256="$(shasum -a 256 "$CANDIDATE_WHEEL" | awk '{print $1}')"
+  else
+    ACTUAL_WHEEL_SHA256="$(sha256sum "$CANDIDATE_WHEEL" | awk '{print $1}')"
+  fi
+  [ "$ACTUAL_WHEEL_SHA256" = "$CANDIDATE_WHEEL_SHA256" ] || {
+    echo "candidate wheel digest mismatch: expected $CANDIDATE_WHEEL_SHA256, got $ACTUAL_WHEEL_SHA256" >&2
+    exit 1
+  }
+fi
+
 # ---------------------------------------------------------------------------
 # Phase 1: clean clone
 # ---------------------------------------------------------------------------
@@ -183,7 +210,17 @@ step "record clone HEAD" git rev-parse HEAD
 # Phase 2: install + env (README "Install" / first lines of "First run")
 # ---------------------------------------------------------------------------
 section "Phase 2: install"
-if [ "$SKIP_MLX" -eq 0 ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+if [ -n "$CANDIDATE_WHEEL" ]; then
+  export UV_TOOL_DIR="$WORKDIR/uv-tools"
+  export UV_TOOL_BIN_DIR="$WORKDIR/uv-tool-bin"
+  mkdir -p "$UV_TOOL_DIR" "$UV_TOOL_BIN_DIR"
+  CANDIDATE_SPEC="$CANDIDATE_WHEEL"
+  if [ -n "$CANDIDATE_EXTRAS" ]; then
+    CANDIDATE_SPEC="$CANDIDATE_WHEEL[$CANDIDATE_EXTRAS]"
+  fi
+  step "uv tool install exact candidate wheel" uv tool install --python 3.12.13 --force "$CANDIDATE_SPEC"
+  export PATH="$UV_TOOL_BIN_DIR:$PATH"
+elif [ "$SKIP_MLX" -eq 0 ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
   step "uv sync --extra mlx" uv sync --extra mlx
 else
   step "uv sync" uv sync
@@ -204,7 +241,20 @@ ENV_EOF
 echo "Rewrote .env for a self-contained target (no sibling 'core' checkout in a bare clone; see comment above)."
 
 run() {
-  uv run --project "$CLONE_DIR" "$@"
+  if [ -n "$CANDIDATE_WHEEL" ]; then
+    "$@"
+  else
+    uv run --project "$CLONE_DIR" "$@"
+  fi
+}
+
+run_approval_shell() {
+  local prefix="$1"; shift
+  if [ -n "$CANDIDATE_WHEEL" ]; then
+    printf '%s\n' "$prefix" | "$@"
+  else
+    printf '%s\n' "$prefix" | uv run --project "$CLONE_DIR" "$@"
+  fi
 }
 
 ART="$CLONE_DIR/.smoke-artifacts"
@@ -235,7 +285,11 @@ STATUS_LOG="$STEP_LOG_DIR/tool-status.log"
 run builder-tools check --tier tier1 >"$STATUS_LOG" 2>&1 || true
 echo "builder-tools check --tier tier1 (informational, non-fatal): $STATUS_LOG"
 
-step "verify_v0_release.py" run python scripts/verify_v0_release.py
+if [ -n "$CANDIDATE_WHEEL" ]; then
+  step "builder-release command surface" run builder-release --help
+else
+  step "historical verify_v0_release.py compatibility" run python scripts/verify_v0_release.py
+fi
 step "builder-platform matrix" run builder-platform matrix
 step "builder-platform status" run builder-platform status
 step "builder-platform audit-docs" run builder-platform audit-docs
@@ -302,7 +356,11 @@ step "propose-patch" run builder-hitl propose-patch --diff-file "$WORKDIR/diff.p
   --description "clean-clone smoke: append a line to README.md" --reason "prove the generic governed patch loop end to end"
 
 PATCH_PREFIX=$(run python -c "import json; print(json.load(open('$PROPOSAL'))['patch_digest'][:$PREFIX_LEN])")
-approve_patch_cmd="printf '%s\n' $(quote "$PATCH_PREFIX") | uv run --project $(quote "$CLONE_DIR") builder-hitl approve-patch --proposal $(quote "$PROPOSAL") --output $(quote "$APPROVAL") --approved-by $(quote "Clean-Clone Smoke")"
+if [ -n "$CANDIDATE_WHEEL" ]; then
+  approve_patch_cmd="printf '%s\n' $(quote "$PATCH_PREFIX") | builder-hitl approve-patch --proposal $(quote "$PROPOSAL") --output $(quote "$APPROVAL") --approved-by $(quote "Clean-Clone Smoke")"
+else
+  approve_patch_cmd="printf '%s\n' $(quote "$PATCH_PREFIX") | uv run --project $(quote "$CLONE_DIR") builder-hitl approve-patch --proposal $(quote "$PROPOSAL") --output $(quote "$APPROVAL") --approved-by $(quote "Clean-Clone Smoke")"
+fi
 step_shell "approve-patch" "$approve_patch_cmd"
 
 step "builder-verify run-approved" run builder-verify run-approved --plan "$VPLAN" --approval "$VAPPROVAL" --output "$RECEIPT" --profile platform_status
@@ -316,7 +374,11 @@ from builder_ii.governance.hitl.hitl_rollback_approval import canonical_json_dig
 data = json.load(open('$ROLLBACK_PLAN'))
 print(canonical_json_digest(data)[:$PREFIX_LEN])
 ")
-approve_rollback_cmd="printf '%s\n' $(quote "$ROLLBACK_PREFIX") | uv run --project $(quote "$CLONE_DIR") builder-hitl approve-rollback --rollback-plan $(quote "$ROLLBACK_PLAN") --output $(quote "$ROLLBACK_APPROVAL") --approved-by $(quote "Clean-Clone Smoke")"
+if [ -n "$CANDIDATE_WHEEL" ]; then
+  approve_rollback_cmd="printf '%s\n' $(quote "$ROLLBACK_PREFIX") | builder-hitl approve-rollback --rollback-plan $(quote "$ROLLBACK_PLAN") --output $(quote "$ROLLBACK_APPROVAL") --approved-by $(quote "Clean-Clone Smoke")"
+else
+  approve_rollback_cmd="printf '%s\n' $(quote "$ROLLBACK_PREFIX") | uv run --project $(quote "$CLONE_DIR") builder-hitl approve-rollback --rollback-plan $(quote "$ROLLBACK_PLAN") --output $(quote "$ROLLBACK_APPROVAL") --approved-by $(quote "Clean-Clone Smoke")"
+fi
 step_shell "approve-rollback" "$approve_rollback_cmd"
 
 step "rollback" run builder-hitl rollback --rollback-plan "$ROLLBACK_PLAN" --reverse-patch "$APPLY_OUT/forward_patch_for_reverse_apply.patch" --approval "$ROLLBACK_APPROVAL" --output-dir "$ROLLBACK_OUT"
@@ -341,6 +403,19 @@ if [ "$ELAPSED" -gt "$BUDGET_SECONDS" ]; then
   exit 1
 fi
 echo "PASS: clean clone through one complete governed patch loop (propose -> approve -> verify -> apply -> rollback), no Xcode/Swift toolchain dependency."
+if [ -n "$HOST_PROOF" ]; then
+  [ -n "$CANDIDATE_WHEEL" ] || { echo "--host-proof requires --candidate-wheel" >&2; exit 2; }
+  HOST_LANE="linux_golden_path"
+  if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+    HOST_LANE="macos_apple_silicon_golden_path"
+  fi
+  run builder-release host-proof --output "$HOST_PROOF" --lane "$HOST_LANE" \
+    --wheel "$(basename "$CANDIDATE_WHEEL")" --wheel-sha256 "$CANDIDATE_WHEEL_SHA256" \
+    --command "candidate wheel digest" --command "uv tool install" \
+    --command "platform audits" --command "governed patch apply rollback loop"
+  run builder-release validate-evidence "$HOST_PROOF"
+  echo "Validated host proof: $HOST_PROOF"
+fi
 if [ "$KEEP" -eq 1 ]; then
   echo "Next: read $STEP_LOG_DIR for full per-step logs ($WORKDIR was kept)."
 else
