@@ -237,9 +237,27 @@ def nearest_rank_percentile(values: Iterable[float], percentile_value: float) ->
 
 def rss_tree(pid: int, *, exclude_pids: Iterable[int] = ()) -> int:
     excluded = set(exclude_pids)
-    root = psutil.Process(pid)
-    processes = [root, *root.children(recursive=True)]
-    return sum(p.memory_info().rss for p in processes if p.pid not in excluded and p.is_running())
+    try:
+        root = psutil.Process(pid)
+        if not root.is_running() or root.status() == psutil.STATUS_ZOMBIE:
+            raise ValueError(f"RSS root process is not live: pid={pid}")
+        processes = [root, *root.children(recursive=True)]
+    except (psutil.NoSuchProcess, psutil.ZombieProcess) as exc:
+        raise ValueError(f"RSS root process is unavailable: pid={pid}") from exc
+
+    total = 0
+    for process in processes:
+        if process.pid in excluded:
+            continue
+        try:
+            if not process.is_running() or process.status() == psutil.STATUS_ZOMBIE:
+                continue
+            total += process.memory_info().rss
+        except (psutil.NoSuchProcess, psutil.ZombieProcess):
+            # A recursively discovered child may exit between enumeration and
+            # sampling. It contributes no live RSS; root loss still fails above.
+            continue
+    return total
 
 
 def build_manifest(

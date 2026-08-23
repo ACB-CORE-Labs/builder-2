@@ -5,6 +5,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock
 
+import psutil
 import pytest
 
 from builder_ii.benchmark.model_runtime import (
@@ -22,6 +23,7 @@ from builder_ii.benchmark.model_runtime import (
     percentile,
     raw_samples_digest,
     report_digest,
+    rss_tree,
     validate_manifest,
     validate_report,
 )
@@ -253,6 +255,37 @@ def test_peak_model_memory_uses_physical_max_and_rss_only_as_diagnostic() -> Non
         "acceptance": False,
     }
     assert result["graphics_memory_diagnostics"] == {"ioaccelerator_bytes": 4_000}
+
+
+def test_rss_tree_ignores_only_exited_or_zombie_children(monkeypatch: pytest.MonkeyPatch) -> None:
+    root = Mock(pid=100)
+    root.is_running.return_value = True
+    root.status.return_value = psutil.STATUS_RUNNING
+    root.memory_info.return_value = Mock(rss=1_000)
+    zombie = Mock(pid=101)
+    zombie.is_running.return_value = True
+    zombie.status.return_value = psutil.STATUS_ZOMBIE
+    zombie.memory_info.side_effect = psutil.ZombieProcess(101)
+    exited = Mock(pid=102)
+    exited.is_running.return_value = False
+    live = Mock(pid=103)
+    live.is_running.return_value = True
+    live.status.return_value = psutil.STATUS_SLEEPING
+    live.memory_info.return_value = Mock(rss=500)
+    root.children.return_value = [zombie, exited, live]
+    monkeypatch.setattr("builder_ii.benchmark.model_runtime.psutil.Process", lambda _pid: root)
+
+    assert rss_tree(100) == 1_500
+
+
+def test_rss_tree_refuses_zombie_root(monkeypatch: pytest.MonkeyPatch) -> None:
+    root = Mock(pid=100)
+    root.is_running.return_value = True
+    root.status.return_value = psutil.STATUS_ZOMBIE
+    monkeypatch.setattr("builder_ii.benchmark.model_runtime.psutil.Process", lambda _pid: root)
+
+    with pytest.raises(ValueError, match="root process is not live"):
+        rss_tree(100)
 
 
 def test_footprint_parser_rejects_malformed_output() -> None:
