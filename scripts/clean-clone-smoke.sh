@@ -351,15 +351,17 @@ PREFIX_LEN=$(run_python -c "from builder_ii.governance.hitl.hitl_patch_approval 
 
 PROPOSAL="$WORKDIR/proposal.json"
 APPROVAL="$WORKDIR/approval.json"
-RECEIPT="$ART/verification/verification-execution-receipt.json"
-PATCH_VPLAN="$ART/verification/patch-verification-execution-plan.json"
-PATCH_VAPPROVAL="$ART/verification/patch-verification-execution-approval.json"
+PATCH_VERIFY_ART="$FIXTURE_DIR/.builder/verification"
+mkdir -p "$PATCH_VERIFY_ART"
+RECEIPT="$PATCH_VERIFY_ART/verification-execution-receipt.json"
+PATCH_VPLAN="$PATCH_VERIFY_ART/patch-verification-execution-plan.json"
+PATCH_VAPPROVAL="$PATCH_VERIFY_ART/patch-verification-execution-approval.json"
 APPLY_OUT="$WORKDIR/apply-out"
 ROLLBACK_APPROVAL="$WORKDIR/rollback-approval.json"
 ROLLBACK_OUT="$WORKDIR/rollback-out"
 
 step "builder-verify patch plan" run builder-verify plan --target-profile builder --verification-profile builder_full \
-  --target-repo "$FIXTURE_DIR" --artifact-root "$ART/verification" --output "$PATCH_VPLAN"
+  --target-repo "$FIXTURE_DIR" --artifact-root "$PATCH_VERIFY_ART" --output "$PATCH_VPLAN"
 step "builder-verify patch approval" run builder-verify approve-plan "$PATCH_VPLAN" --profile platform_status \
   --approval-actor "Clean-Clone Smoke" --approval-reason "release golden path patch verification" --output "$PATCH_VAPPROVAL"
 step "builder-verify run-approved" run builder-verify run-approved --plan "$PATCH_VPLAN" --approval "$PATCH_VAPPROVAL" --output "$RECEIPT" --profile platform_status
