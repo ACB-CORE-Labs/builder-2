@@ -426,7 +426,7 @@ def benchmark_cmd(
             obligation_id=obligation_id,
             role=role,
             temperature=0.0,
-            max_tokens=32,
+            max_tokens=int(execution_policy["max_tokens"]),
         )
         if route.route_digest != route_digest:
             raise ValueError("--route-digest does not equal the reconstructed WRP route")
@@ -473,7 +473,7 @@ def benchmark_cmd(
                     "obligation_id": obligation_id,
                     "role": role,
                     "temperature": 0.0,
-                    "max_tokens": 32,
+                    "max_tokens": int(execution_policy["max_tokens"]),
                     "source_paths": {
                         "recommendation": str(recommendation_path),
                         "assignment": str(assignment_path),
