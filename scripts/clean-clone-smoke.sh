@@ -71,7 +71,7 @@ while [ $# -gt 0 ]; do
 done
 
 if [ -z "$WORKDIR" ]; then
-  WORKDIR="$(mktemp -d -t builder-ii-clean-clone-smoke)"
+  WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/builder-ii-clean-clone-smoke.XXXXXX")"
 fi
 mkdir -p "$WORKDIR"
 WORKDIR="$(cd "$WORKDIR" && pwd)"

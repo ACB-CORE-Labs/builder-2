@@ -46,7 +46,7 @@ with zipfile.ZipFile(wheel) as archive:
 print(wheel)
 PY
 
-SMOKE_ROOT="$(mktemp -d -t builder-ii-wheel-install)"
+SMOKE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/builder-ii-wheel-install.XXXXXX")"
 cleanup() { rm -rf "$SMOKE_ROOT"; }
 trap cleanup EXIT
 
