@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
-from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
 
 from builder_ii.adapters.deepagents.native_runtime import (
     MAX_ACTIVE_WORKERS,
@@ -16,6 +16,7 @@ from builder_ii.adapters.deepagents.native_runtime import (
     NativeRuntimeLimits,
     _default_response_strategy,
     _hitl_tool,
+    _messages_prompt,
     validate_native_evidence_bundle,
     wrp_subagents_from_obligations,
 )
@@ -207,6 +208,31 @@ def test_default_response_strategy_accepts_qwen_fenced_json_terminator() -> None
     )
     assert response.tool_calls[0]["name"] == "builder_request_hitl"
     assert response.tool_calls[0]["args"] == {}
+
+
+def test_messages_prompt_preserves_prior_tool_call_continuity() -> None:
+    system, conversation = _messages_prompt(
+        [
+            SystemMessage(content="Use the staged protocol."),
+            AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "task",
+                        "args": {"description": "alpha", "subagent_type": "native-alpha"},
+                        "id": "task-alpha",
+                        "type": "tool_call",
+                    }
+                ],
+            ),
+            ToolMessage(content="bounded child complete", tool_call_id="task-alpha", name="task"),
+        ]
+    )
+
+    assert system == "Use the staged protocol."
+    assert '"name": "task"' in conversation
+    assert '"subagent_type": "native-alpha"' in conversation
+    assert "tool: bounded child complete" in conversation
 
 
 def test_hitl_tool_defers_until_the_native_workload_is_complete() -> None:

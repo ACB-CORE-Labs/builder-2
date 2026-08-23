@@ -106,6 +106,22 @@ def _raw_file_ref(path: Path, *, role: str, kind: str = "") -> dict[str, Any]:
 
 def _message_text(message: BaseMessage) -> str:
     content = message.content
+    if isinstance(message, AIMessage) and message.tool_calls:
+        return json_lib.dumps(
+            {
+                "content": content,
+                "tool_calls": [
+                    {
+                        "name": call["name"],
+                        "args": call["args"],
+                        "id": call["id"],
+                    }
+                    for call in message.tool_calls
+                ],
+            },
+            sort_keys=True,
+            default=str,
+        )
     if isinstance(content, str):
         return content
     return json_lib.dumps(content, sort_keys=True, default=str)
