@@ -98,4 +98,3 @@ When closing an implementation plan set or sealing benchmark/runtime evidence:
    → push
    → PR update
    ```
-

@@ -201,4 +201,3 @@ def test_validate_model_call_receipt_enforces_wrp_reconstruction(tmp_path: Path)
     ])
     errors = validate_model_call_receipt(tampered_tokens, route=route)
     assert any("input_tokens must be a non-negative integer" in e for e in errors)
-

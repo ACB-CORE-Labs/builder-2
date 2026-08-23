@@ -367,7 +367,6 @@ def test_provider_contacted_timeout_before_first_chunk_accounts_input_cost() -> 
     assert attempt.total_tokens == attempt.input_tokens
     assert attempt.estimated_usd > 0.0
 
-
 def test_provider_contacted_http_500_accounts_input_cost() -> None:
     price_book = {
         "entries": [{"model_id": "local-a", "input_usd_per_1k": 0.005, "output_usd_per_1k": 0.015, "currency": "USD"}]
@@ -395,5 +394,4 @@ def test_provider_contacted_http_500_accounts_input_cost() -> None:
     assert attempt.output_tokens == 0
     assert attempt.total_tokens == attempt.input_tokens
     assert attempt.estimated_usd > 0.0
-
 
