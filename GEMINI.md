@@ -71,16 +71,16 @@ approval boundary, output artifact, rollback path, verification path. Missing an
 status is PLANNED, not PROMOTED. No capability claims without artifacts.
 
 ## Stop vs continue
-Stop only after the exact-tip sequence is complete and final-closure-reviewer emits
-CLOSURE: PASS. If asked to qualify/measure and code is still changing, or HEAD moved,
-or a real seam is unavailable → STOP and report, do not proceed to PASS.
+Before reporting a substantial change complete, use the exact-tip sequence and final
+closure review as an advisory checklist. If asked to qualify/measure and code is still
+changing, or HEAD moved, or a real seam is unavailable, report that state truthfully;
+do not claim PASS.
 
 ## .agents controls (Antigravity)
 - Skills (slash commands): /core-pre-edit-sweep, /core-verify-loop,
   /core-plan-implementation, /core-exact-tip-closure
 - Agents (/agents): implementation-engineer (default), evidence-auditor,
   benchmark-scientist, final-closure-reviewer
-- Hooks (.agents/hooks.json): PreToolUse validates supported qualification
-  artifacts and requires a clean tree; Stop requires canonical receipt-backed
-  local CI on the current clean exact head before allowing a closure claim.
+- Project hooks: intentionally absent while Builder-II is under bootstrap. They
+  must not create self-hosting approval or closure loops.
 - Settings: toolPermission=proceed-in-sandbox, terminal sandbox on, network off.
