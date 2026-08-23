@@ -590,7 +590,8 @@ def collect_canonical_m1_samples(
         )
         first_profile, second_profile = (str(obligation["subagent_profile"]) for obligation in obligations)
         native_evidence = native.start(
-            "Stage 1 only: make exactly two task calls and no other tool calls. "
+            "Complete the governed native workload in the stage selected by Builder-II runtime evidence. "
+            "Begin by making exactly two task calls and no other tool calls. "
             f"The first task args must contain description and subagent_type={json.dumps(first_profile)}; "
             f"the second task args must contain description and subagent_type={json.dumps(second_profile)}. "
             "Do not use role, instructions, expected_output, or general-purpose as task arguments. "

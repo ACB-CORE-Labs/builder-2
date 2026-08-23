@@ -274,6 +274,21 @@ def test_hitl_tool_defers_until_the_native_workload_is_complete() -> None:
     assert hitl.invoke({"reason": "workload complete"}) == "operator approved continuation: workload complete"
 
 
+def test_parent_stage_is_derived_from_completed_runtime_evidence(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    assert runtime._current_parent_stage() == "delegate_tasks"
+
+    for index, profile in enumerate(("native-alpha", "native-beta"), start=1):
+        runtime.recorder.append(
+            "tool_completed",
+            {"tool": "task", "tool_call": index, "call_id": f"task-{index}", "args": {"subagent_type": profile}},
+        )
+    assert runtime._current_parent_stage() == "governed_echo"
+
+    runtime.recorder.append("governed_tool_receipt_recorded", {"tool": "builtin.echo"})
+    assert runtime._current_parent_stage() == "request_hitl"
+
+
 def test_bound_tool_protocol_preserves_argument_schemas(tmp_path: Path) -> None:
     runtime = _runtime(tmp_path)
     runtime.model.bind_tools(runtime.tools)

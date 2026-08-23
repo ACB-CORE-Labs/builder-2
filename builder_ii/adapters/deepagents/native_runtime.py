@@ -197,6 +197,7 @@ class GatewayBackedChatModel(BaseChatModel):
         exclude=True,
     )
     receipt_callback: Callable[[dict[str, Any], Path], None] | None = Field(default=None, exclude=True)
+    stage_provider: Callable[[], str] | None = Field(default=None, exclude=True)
 
     _counter: int = PrivateAttr(default=0)
     _counter_initialized: bool = PrivateAttr(default=False)
@@ -250,6 +251,30 @@ class GatewayBackedChatModel(BaseChatModel):
         envelope_path = model_dir / f"model-call-{sequence:04d}-envelope.json"
         receipt_path = model_dir / f"model-call-{sequence:04d}-receipt.json"
         system_prompt, prompt = _messages_prompt(messages)
+        is_bounded_child = "BUILDER_II_OBLIGATION=" in system_prompt
+        if self.stage_provider is not None and not is_bounded_child:
+            stage = self.stage_provider()
+            stage_instructions = {
+                "delegate_tasks": (
+                    "Call task exactly once for each still-incomplete required subagent profile. "
+                    "Do not call builder_governed_echo or builder_request_hitl yet."
+                ),
+                "governed_echo": (
+                    "Both required subagent tasks are complete. Do not call task again. "
+                    "Call builder_governed_echo exactly once with non-empty text."
+                ),
+                "request_hitl": (
+                    "Both required subagent tasks and the governed echo are complete. Do not call task or "
+                    "builder_governed_echo again. Call builder_request_hitl exactly once with a non-empty reason."
+                ),
+            }
+            if stage not in stage_instructions:
+                raise ValueError(f"unknown native Deep Agents stage: {stage}")
+            system_prompt = (
+                f"{system_prompt}\n\nBUILDER_II_CURRENT_STAGE={stage}. "
+                f"{stage_instructions[stage]} This stage is derived from Builder-II runtime evidence and "
+                "overrides any earlier conversational stage wording."
+            )
         if self._bound_tool_names:
             system_prompt = (
                 f"{system_prompt}\n\n"
@@ -820,6 +845,7 @@ class NativeDeepAgentsRuntime:
             approval_path=model_approval_path,
             response_strategy=response_strategy,
             receipt_callback=record_model_receipt,
+            stage_provider=self._current_parent_stage,
         )
         subagents = wrp_subagents_from_obligations(self.obligations, governed_tools=[echo])
         deny_permissions = [FilesystemPermission(operations=["read", "write"], paths=["/**"], mode="deny")]
@@ -874,6 +900,23 @@ class NativeDeepAgentsRuntime:
             event.get("event_type") == "governed_tool_receipt_recorded" for event in self.recorder.events
         )
         return required_profiles.issubset(completed_profiles) and has_governed_tool_receipt
+
+    def _current_parent_stage(self) -> str:
+        """Derive the next parent action from recorded execution, never model inference."""
+
+        completed_profiles = {
+            str(event["payload"].get("args", {}).get("subagent_type"))
+            for event in self.recorder.events
+            if event.get("event_type") == "tool_completed" and event["payload"].get("tool") == "task"
+        }
+        required_profiles = {str(obligation["subagent_profile"]) for obligation in self.obligations}
+        if not required_profiles.issubset(completed_profiles):
+            return "delegate_tasks"
+        if not any(
+            event.get("event_type") == "governed_tool_receipt_recorded" for event in self.recorder.events
+        ):
+            return "governed_echo"
+        return "request_hitl"
 
     def start(self, task: str) -> dict[str, Any]:
         if self.recorder.events:
