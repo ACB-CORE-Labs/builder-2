@@ -34,6 +34,7 @@ class LazyGroup(TyperGroup):
         self.add_lazy_command("builder_ii.cli.tui_inspection_cli", "inspect_app", "inspect")
         self.add_lazy_command("builder_ii.cli.tui_cli", "tui_app", "tui")
         self.add_lazy_command("builder_ii.cli.orchestration_cli", "orchestration_app", "orchestration")
+        self.add_lazy_command("builder_ii.cli.delivery_cli", "delivery_app", "deliver")
 
     def add_lazy_command(self, module_path: str, attr_name: str, name: str):
         self._lazy_commands[name] = (module_path, attr_name)

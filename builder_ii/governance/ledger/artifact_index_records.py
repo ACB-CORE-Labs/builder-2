@@ -115,6 +115,16 @@ from builder_ii.core.context_packs import (
     CONTEXT_PACK_KIND,
     validate_context_pack,
 )
+from builder_ii.core.delivery import (
+    DELIVERY_ACTION_REQUEST_KIND,
+    DELIVERY_APPROVAL_KIND,
+    DELIVERY_PLAN_KIND,
+    DELIVERY_RECEIPT_KIND,
+    validate_delivery_action_request,
+    validate_delivery_approval,
+    validate_delivery_plan,
+    validate_delivery_receipt,
+)
 from builder_ii.core.demo_loop import (
     DEMO_PLANNER_KIND,
     DEMO_PREFLIGHT_KIND,
@@ -471,6 +481,10 @@ _VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     CONTEXT_PACK_RECORD_KIND: validate_context_pack_record,
     AGENT_PROFILE_RECORD_KIND: validate_agent_profile_record,
     GIT_STATE_RECORD_KIND: validate_git_state_record,
+    DELIVERY_PLAN_KIND: validate_delivery_plan,
+    DELIVERY_ACTION_REQUEST_KIND: validate_delivery_action_request,
+    DELIVERY_APPROVAL_KIND: validate_delivery_approval,
+    DELIVERY_RECEIPT_KIND: validate_delivery_receipt,
     RESEARCH_PLAN_KIND: validate_research_plan_artifact,
     RESEARCH_ADAPTER_KIND: validate_research_adapter_artifact,
     PERFORMANCE_MEASUREMENT_KIND: validate_performance_measurement_record,
