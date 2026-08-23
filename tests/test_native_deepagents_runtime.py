@@ -247,6 +247,16 @@ def test_hitl_tool_defers_until_the_native_workload_is_complete() -> None:
     assert hitl.invoke({"reason": "workload complete"}) == "operator approved continuation: workload complete"
 
 
+def test_bound_tool_protocol_preserves_argument_schemas(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    runtime.model.bind_tools(runtime.tools)
+    specs = {spec["name"]: spec for spec in runtime.model._bound_tool_specs}
+
+    assert specs["builder_governed_echo"]["parameters"]["required"] == ["text"]
+    assert specs["builder_governed_echo"]["parameters"]["properties"]["text"]["type"] == "string"
+    assert specs["builder_request_hitl"]["parameters"]["required"] == ["reason"]
+
+
 def _runtime(tmp_path: Path) -> NativeDeepAgentsRuntime:
     gateway, route, budget = _gateway(tmp_path)
     return NativeDeepAgentsRuntime(

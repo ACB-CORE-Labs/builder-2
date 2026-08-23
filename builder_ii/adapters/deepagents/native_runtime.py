@@ -200,6 +200,7 @@ class GatewayBackedChatModel(BaseChatModel):
     _counter_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
     _budget_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
     _bound_tool_names: tuple[str, ...] = PrivateAttr(default=())
+    _bound_tool_specs: tuple[dict[str, Any], ...] = PrivateAttr(default=())
 
     @property
     def _llm_type(self) -> str:
@@ -210,12 +211,21 @@ class GatewayBackedChatModel(BaseChatModel):
         return {"model_id": self.model_id, "session_id": self.session_id}
 
     def bind_tools(self, tools: Sequence[Any], **_kwargs: Any) -> GatewayBackedChatModel:
-        names = []
+        specs: list[dict[str, Any]] = []
         for item in tools:
             name = getattr(item, "name", None)
-            if isinstance(name, str):
-                names.append(name)
-        self._bound_tool_names = tuple(names)
+            if not isinstance(name, str):
+                continue
+            input_schema = item.get_input_schema().model_json_schema()
+            specs.append(
+                {
+                    "name": name,
+                    "description": str(getattr(item, "description", "")),
+                    "parameters": input_schema,
+                }
+            )
+        self._bound_tool_specs = tuple(specs)
+        self._bound_tool_names = tuple(spec["name"] for spec in specs)
         return self
 
     def _generate(
@@ -243,6 +253,7 @@ class GatewayBackedChatModel(BaseChatModel):
                 "BUILDER_II_TOOL_CALL_PROTOCOL: If you need to call a governed tool, respond with ONLY one JSON "
                 "object of the form {\"tool_calls\":[{\"name\":\"TOOL\",\"args\":{}}],\"content\":\"\"}. "
                 f"Allowed tool names for this turn: {', '.join(self._bound_tool_names)}. "
+                f"Tool schemas: {json_lib.dumps(self._bound_tool_specs, sort_keys=True)}. "
                 "Use exact tool names and object arguments; do not emit Markdown or explanatory prose around JSON."
             )
         if self.model_id != self.route.selected_candidate.model_id:
