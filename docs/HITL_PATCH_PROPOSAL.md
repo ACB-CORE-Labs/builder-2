@@ -70,6 +70,20 @@ Schema v1 is retained only for passive historical recognition. `apply-patch` ref
 proposals with recovery instructions to regenerate under v2 and obtain a fresh interactive
 approval. No approved v1 artifact is auto-upgraded.
 
+## Textual patch envelopes
+
+The operator-authored canonical proposal lane admits UTF-8 unified diffs up to and
+including 128 KiB (`131072` bytes). This is a bounded capacity limit on the existing
+inline `unified_diff` representation, not a new authority class or schema version.
+The exact diff bytes remain sealed by `patch_digest`, reparsed into `exact_scope`,
+bound into the interactive approval, applied only after the existing clean-tree and
+HEAD checks, and retained byte-for-byte for governed reverse application.
+
+The passive MCP `patch_proposal` ingress remains independently bounded to 64 KiB
+(`65536` bytes). MCP refuses a larger `unified_diff` before proposal creation even
+though the shared canonical binder can accept the larger operator envelope. Changing
+the operator ceiling therefore does not silently enlarge service ingress.
+
 ---
 
 ## Current Behavior Boundary
