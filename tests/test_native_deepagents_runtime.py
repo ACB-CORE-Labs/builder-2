@@ -318,6 +318,32 @@ def test_bound_tool_protocol_preserves_argument_schemas(tmp_path: Path) -> None:
     assert specs["builder_request_hitl"]["parameters"]["required"] == ["reason"]
 
 
+def test_parent_model_advertises_only_the_evidence_derived_stage_tool(tmp_path: Path) -> None:
+    runtime = _runtime(tmp_path)
+    runtime.model.bind_tools(runtime.tools)
+    runtime.model.receipt_callback = None
+    captured: dict[str, str] = {}
+
+    def run_routed_model_call(**kwargs):  # type: ignore[no-untyped-def]
+        captured["system_prompt"] = kwargs["system_prompt"]
+        return {}, {"response_text": '{"tool_calls":[],"content":""}'}, None
+
+    runtime.model.gateway.run_routed_model_call = run_routed_model_call  # type: ignore[method-assign]
+    for index, profile in enumerate(("native-alpha", "native-beta"), start=1):
+        runtime.recorder.append(
+            "tool_completed",
+            {"tool": "task", "tool_call": index, "call_id": f"task-{index}", "args": {"subagent_type": profile}},
+        )
+
+    runtime.model._generate([SystemMessage(content="parent")])
+
+    protocol = captured["system_prompt"].split("BUILDER_II_TOOL_CALL_PROTOCOL:", maxsplit=1)[1]
+    assert "Allowed tool names for this turn: builder_governed_echo." in protocol
+    assert '"name": "builder_governed_echo"' in protocol
+    assert '"name": "task"' not in protocol
+    assert '"name": "builder_request_hitl"' not in protocol
+
+
 def _runtime(tmp_path: Path) -> NativeDeepAgentsRuntime:
     gateway, route, budget = _gateway(tmp_path)
     return NativeDeepAgentsRuntime(

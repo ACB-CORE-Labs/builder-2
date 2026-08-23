@@ -303,13 +303,26 @@ class GatewayBackedChatModel(BaseChatModel):
                 f"{stage_instructions[stage]} This stage is derived from Builder-II runtime evidence and "
                 "overrides any earlier conversational stage wording."
             )
-        if self._bound_tool_names:
+        advertised_tool_names = self._bound_tool_names
+        advertised_tool_specs = self._bound_tool_specs
+        if self.stage_provider is not None and not is_bounded_child:
+            admitted_name = {
+                "delegate_tasks": "task",
+                "governed_echo": "builder_governed_echo",
+                "request_hitl": "builder_request_hitl",
+                "complete": None,
+            }[stage]
+            advertised_tool_names = tuple(name for name in self._bound_tool_names if name == admitted_name)
+            advertised_tool_specs = tuple(
+                spec for spec in self._bound_tool_specs if spec["name"] == admitted_name
+            )
+        if advertised_tool_names:
             system_prompt = (
                 f"{system_prompt}\n\n"
                 "BUILDER_II_TOOL_CALL_PROTOCOL: If you need to call a governed tool, respond with ONLY one JSON "
                 "object of the form {\"tool_calls\":[{\"name\":\"TOOL\",\"args\":{}}],\"content\":\"\"}. "
-                f"Allowed tool names for this turn: {', '.join(self._bound_tool_names)}. "
-                f"Tool schemas: {json_lib.dumps(self._bound_tool_specs, sort_keys=True)}. "
+                f"Allowed tool names for this turn: {', '.join(advertised_tool_names)}. "
+                f"Tool schemas: {json_lib.dumps(advertised_tool_specs, sort_keys=True)}. "
                 "Use exact tool names and object arguments; do not emit Markdown or explanatory prose around JSON. "
                 "Complete the outer JSON object with its closing brace before any model message terminator."
             )
