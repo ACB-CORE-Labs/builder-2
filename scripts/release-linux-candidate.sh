@@ -10,9 +10,18 @@ OUTPUT="${3:?usage: release-linux-candidate.sh WHEEL WHEEL_SHA256 OUTPUT}"
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 2; }
 WHEEL="$(cd "$(dirname "$WHEEL")" && pwd)/$(basename "$WHEEL")"
 OUTPUT="$(cd "$(dirname "$OUTPUT")" && pwd)/$(basename "$OUTPUT")"
+STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/builder-ii-linux-source.XXXXXX")"
+cleanup() { rm -rf "$STAGING_ROOT"; }
+trap cleanup EXIT
+LINUX_SOURCE="$STAGING_ROOT/source"
+git clone --quiet --no-local --depth 1 "file://$REPO_ROOT" "$LINUX_SOURCE"
+[ "$(git -C "$LINUX_SOURCE" rev-parse HEAD)" = "$(git -C "$REPO_ROOT" rev-parse HEAD)" ] || {
+  echo "isolated Linux source clone does not match the candidate tip" >&2
+  exit 1
+}
 
 docker run --rm \
-  -v "$REPO_ROOT:/workspace:ro" \
+  -v "$LINUX_SOURCE:/workspace:ro" \
   -v "$WHEEL:/candidate/$(basename "$WHEEL"):ro" \
   -v "$(dirname "$OUTPUT"):/proof" \
   -w /workspace \
