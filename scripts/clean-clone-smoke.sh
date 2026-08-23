@@ -385,9 +385,9 @@ step "apply-patch" run builder-hitl apply-patch --proposal "$PROPOSAL" --approva
 ROLLBACK_PLAN="$APPLY_OUT/rollback_plan.json"
 ROLLBACK_PREFIX=$(run_python -c "
 import json
-from builder_ii.governance.hitl.hitl_rollback_approval import canonical_json_digest
+from builder_ii.governance.hitl.hitl_rollback_approval import canonical_digest
 data = json.load(open('$ROLLBACK_PLAN'))
-print(canonical_json_digest(data)[:$PREFIX_LEN])
+print(canonical_digest(data)[:$PREFIX_LEN])
 ")
 if [ -n "$CANDIDATE_WHEEL" ]; then
   approve_rollback_cmd="printf '%s\n' $(quote "$ROLLBACK_PREFIX") | builder-hitl approve-rollback --rollback-plan $(quote "$ROLLBACK_PLAN") --output $(quote "$ROLLBACK_APPROVAL") --approved-by $(quote "Clean-Clone Smoke")"
