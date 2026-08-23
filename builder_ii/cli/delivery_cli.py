@@ -38,7 +38,8 @@ def _load(path: Path) -> dict:
 
 @delivery_app.callback(invoke_without_command=True)
 def deliver(
-    plan: Path = typer.Option(..., "--plan", help="Exact delivery_plan artifact."),
+    run: Optional[Path] = typer.Argument(None, help="RUN directory or delivery_plan artifact."),
+    plan: Optional[Path] = typer.Option(None, "--plan", help="Exact delivery_plan artifact."),
     action: Optional[str] = typer.Option(None, "--action", help="Current action: commit, push, pr_create, or pr_update."),
     request: Optional[Path] = typer.Option(None, "--request", help="Exact delivery_action_request artifact."),
     approval: Optional[Path] = typer.Option(None, "--approval", help="Exact human delivery_approval artifact."),
@@ -49,7 +50,23 @@ def deliver(
 ) -> None:
     """Show the next delivery boundary, or execute one approved current effect."""
     enforce_command_authority("builder deliver")
-    plan_data = _load(plan)
+    plan_path = plan or run
+    if plan_path is None:
+        raise typer.BadParameter("provide RUN or --plan")
+    if plan_path.is_dir():
+        candidates = sorted(plan_path.rglob("*.json"))
+        selected: Path | None = None
+        for candidate in candidates:
+            try:
+                if json.loads(candidate.read_text(encoding="utf-8")).get("kind") == "builder_ii.delivery_plan":
+                    selected = candidate
+                    break
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                continue
+        plan_path = selected
+        if plan_path is None:
+            raise typer.BadParameter(f"no delivery_plan artifact found under {run}")
+    plan_data = _load(plan_path)
     plan_errors = validate_delivery_plan(plan_data)
     if plan_errors:
         echo_stdout(json.dumps({"status": "REFUSED", "kind": "builder_ii.delivery_boundary", "errors": plan_errors}, indent=2) + "\n")
