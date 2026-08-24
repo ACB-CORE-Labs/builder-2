@@ -127,6 +127,11 @@ builder models
 
 `doctor` checks CORE path, Goose availability, backend reachability, recipe validation, compliance probes, and the active model cache.
 
+`status` projects the current governed run using `goal / now / needs-you / next / proof`.
+Pass an exact run id when needed, `--watch` for change-driven snapshots, or
+`--json` for the frontend-neutral payload. It launches no runtime and grants no
+authority. Use `doctor`, not `status`, for environment diagnostics.
+
 ## M1 proficiency rules
 
 1. Close memory-heavy apps before long sessions.

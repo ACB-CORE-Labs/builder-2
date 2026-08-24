@@ -32,6 +32,8 @@ Foundational philosophy, engineering pillars, and core system boundaries.
 
 | Document | Description |
 | :--- | :--- |
+| [`docs/plan/UNIFIED_OPERATOR_WORKSPACE_COMPLETION_PLAN.md`](plan/UNIFIED_OPERATOR_WORKSPACE_COMPLETION_PLAN.md) | Active successor plan for the calm conversational workspace; planned work is not promotion |
+| [`docs/plan/UNIFIED_OPERATOR_WORKSPACE_PROGRESS.md`](plan/UNIFIED_OPERATOR_WORKSPACE_PROGRESS.md) | Living plan-set dashboard, verification log, decisions, discoveries, blockers, and deferred opportunities |
 | [`docs/MANIFESTO.md`](MANIFESTO.md) | The Builder's Signet: Mechanical Sympathy, Semantic Rigor, The Third Door |
 | [`docs/PROJECT_OVERVIEW.md`](PROJECT_OVERVIEW.md) | Platform identity, subsystem boundaries, and architecture guardrails |
 | [`docs/GLOSSARY.md`](GLOSSARY.md) | Centralized definitions for kinds, spines, authority tiers, and assurance states |
@@ -64,6 +66,7 @@ Day-to-day operations, recipe execution, STRATUM navigation, and session package
 
 | Document | Description |
 | :--- | :--- |
+| [`docs/architecture/UNIFIED_OPERATOR_INTERACTION_CONTRACT.md`](architecture/UNIFIED_OPERATOR_INTERACTION_CONTRACT.md) | Five-command grammar, Run Lens hierarchy, contextual actions, recovery, and visual acceptance |
 | [`docs/OPERATOR_GUIDE.md`](OPERATOR_GUIDE.md) | Daily operator workflows, recipe structures, and validation boundaries |
 | [`docs/OPERATOR_QUICKSTART.md`](OPERATOR_QUICKSTART.md) | Operator golden path commands (`operator-status`, `next`, `golden-path`) |
 | [`docs/OPERATOR_PLAYBOOK.md`](OPERATOR_PLAYBOOK.md) | Playbook for session management and error recovery |
@@ -109,6 +112,7 @@ Model gateways, routing policy (WRP), agent profiles, Goose, Deep Agents, and MC
 | [`docs/GOOSE_SESSION.md`](GOOSE_SESSION.md) | Goose session manifest contracts |
 | [`docs/GOOSE_READONLY.md`](GOOSE_READONLY.md) | Governed Goose read-only runtime specification |
 | [`docs/GOOSE_RUNTIME.md`](GOOSE_RUNTIME.md) | Goose runtime promotion requirements and boundaries |
+| [`docs/architecture/GOOSE_CAPABILITY_ADOPTION_MATRIX.md`](architecture/GOOSE_CAPABILITY_ADOPTION_MATRIX.md) | Adopted, projected, qualified, deferred, and forbidden Goose capabilities |
 | [`docs/DEEPAGENTS_FORGE.md`](DEEPAGENTS_FORGE.md) | Deep Agents Forge: interactive agent specification wizard |
 | [`docs/DEEPAGENTS_POLICY.md`](DEEPAGENTS_POLICY.md) | Deep Agents governance policy and isolation envelopes |
 | [`docs/DEEPAGENTS_RUNTIME.md`](DEEPAGENTS_RUNTIME.md) | Deep Agents runtime harness and protocol_fake execution lane |
@@ -211,6 +215,7 @@ Detailed API specifications, personas, lane guides, and registries.
 - [`docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md`](BUILDER_II_COMPLETION_TRUTH_REPORT.md) — Master Completion Truth Report
 
 ### Historical RFCs & Design Plans
+- [`docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md`](plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md) — Historical open-source v1 completion plan and plan-set authority boundaries
 - [`docs/plan/MASTERPIECE_PLAN.md`](plan/MASTERPIECE_PLAN.md) — Masterpiece Implementation Plan
 - [`docs/plan/B8_B9_GOVERNED_EXECUTION_PLAN.md`](plan/B8_B9_GOVERNED_EXECUTION_PLAN.md) — B8/B9 Governed Execution Plan
 - [`docs/plan/MCP_POLICY_ARTIFACT_RFC.md`](plan/MCP_POLICY_ARTIFACT_RFC.md) — MCP Policy Artifact RFC

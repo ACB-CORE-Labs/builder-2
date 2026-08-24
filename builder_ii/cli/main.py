@@ -910,40 +910,55 @@ def doctor() -> None:
 
 
 @app.command("status")
-def status() -> None:
-    """Backend, Goose, compliance, recipe, and model status."""
-    from builder_ii.adapters.goose.goose_launcher import goose_status
-    from builder_ii.adapters.goose.goose_recipe_validation import validate_recipes
-    from builder_ii.core.config import load_settings
-    from builder_ii.core.models import model_status_report
-    from builder_ii.governance.authority import enforce_command_authority
-    from builder_ii.governance.authority.compliance import run_compliance_checks
-    from builder_ii.routing.backends import check_health, check_serves_active_model
+def status(
+    run: Optional[str] = typer.Argument(None, help="Exact run id; defaults deterministically to the most recent run."),
+    watch: bool = typer.Option(False, "--watch", "-w", help="Print a new snapshot whenever canonical run state changes."),
+    json_output: bool = typer.Option(False, "--json", help="Print the frontend-neutral status payload as JSON."),
+    artifact_root: Optional[Path] = typer.Option(
+        None,
+        "--artifact-root",
+        help="Expert override for the admitted platform artifact root.",
+    ),
+    interval: float = typer.Option(0.5, "--interval", min=0.1, help="Watch polling interval in seconds."),
+) -> None:
+    """Show one governed run; use ``builder doctor`` for environment health."""
+    from builder_ii.core.config_sources import resolve_config_sources
+    from builder_ii.core.run_status import RunSelectionError, project_run_status, render_run_status
 
-    enforce_command_authority("builder status", requested_effects=("readonly_subprocess", "external_tool"))
-    settings = load_settings()
-    ok, msg = check_health(settings)
-    served_ok, served_msg = check_serves_active_model(settings) if ok else (False, "backend down")
-    compliance = run_compliance_checks()
-    console.print(
-        f"backend={settings.backend} alias={settings.model_alias} tier={settings.model_tier} model={settings.active_model_id} url={settings.base_url}"
-    )
-    console.print(f"health: {'OK' if ok else 'DOWN'} — {msg}")
-    console.print(f"served-model: {'OK' if served_ok else 'WARN'} — {served_msg}")
-    console.print(goose_status())
-    console.print(
-        f"compliance: literals={'PASS' if compliance.init_literals_ok else 'FAIL'} refusal={'PASS' if compliance.refusal_probe_ok else 'FAIL'}"
-    )
-    validations = validate_recipes(settings)
-    ok_count = sum(1 for _p, ok, _m in validations if ok)
-    console.print(f"recipes: {ok_count}/{len(validations)} valid")
-    for m in model_status_report(settings):
-        flag = "COMPLETE" if m.likely_complete else ("PARTIAL" if m.cache_dir else "MISSING")
-        inc = " (resumable)" if m.has_incomplete else ""
-        active = " *active*" if m.alias == settings.model_alias else ""
-        console.print(f"model {m.alias}: {flag} {m.size_gb}GB / ~{m.expected_gb}GB{inc}{active}")
-        if not m.likely_complete:
-            console.print(f"  → {m.resume_hint}")
+    enforce_command_authority("builder status", requested_effects=())
+
+    if artifact_root is None:
+        resolution = resolve_config_sources(project_root=Path.cwd())
+        if resolution.errors:
+            console.print("[red]Cannot resolve the admitted artifact root.[/]")
+            for error in resolution.errors:
+                console.print(f"[red]FAIL[/] {error}")
+            console.print("Run [bold]builder doctor[/] or pass the expert --artifact-root override.")
+            raise typer.Exit(1)
+        resolved_root = Path(str(resolution.value("platform_artifact_root"))).resolve(strict=False)
+    else:
+        resolved_root = artifact_root.expanduser().resolve(strict=False)
+
+    prior_payload: str | None = None
+    while True:
+        try:
+            view = project_run_status(resolved_root, run)
+        except RunSelectionError as exc:
+            console.print(f"[red]{exc}[/]")
+            raise typer.Exit(1) from exc
+
+        payload = json.dumps(view.to_jsonable(), indent=None if watch else 2, sort_keys=True)
+        rendered = payload if json_output else render_run_status(view)
+        if rendered != prior_payload:
+            echo_stdout(rendered + ("\n" if not rendered.endswith("\n") else ""))
+            prior_payload = rendered
+
+        if not watch:
+            raise typer.Exit(1 if view.is_corrupt else 0)
+        try:
+            time.sleep(interval)
+        except KeyboardInterrupt:
+            raise typer.Exit(0)
 
 
 @app.command("next")

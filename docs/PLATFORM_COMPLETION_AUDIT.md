@@ -129,7 +129,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 ## Corrections
 
 - Passive model routing exists through `builder-model-policy`; model/provider execution is operationally verified only inside its registered live-provider envelope and remains non-authoritative evidence by itself.
-- Legacy operator-managed helpers such as `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
+- Legacy operator-managed helpers such as `builder start`, `builder ask`, and `builder doctor` are separate from canonical governed passive lanes; `builder status` is now a passive governed-run projection.
 - Legacy `builder setup` is no longer operator-managed setup execution; it is a fail-closed redirect to the governed `builder-setup` path.
 - Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-setup overlay-plan`, `builder-setup rollback-snapshot`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, `builder-platform`, and `builder-memory`.
 - Canonical governed demo execution is limited to `builder-platform demo-loop` and `builder-platform wow`, both of which operate on a temporary detached worktree of the operator-designated target repo (AssetOverflow/core remains a supported profile) and not the source checkout.
