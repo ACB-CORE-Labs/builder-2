@@ -543,3 +543,32 @@ def test_transcript_export_removes_destination_swapped_at_link_boundary(
 
     assert export.closed is True
     assert not canonical_transcript_path(artifact_root, session_id).exists()
+
+
+def test_transcript_export_refuses_destination_name_changed_after_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact_root = tmp_path / "artifacts"
+    session_id = "export-destination-swap"
+    export = prepare_transcript_export(artifact_root, session_id)
+    export.child_path.write_text("original\n", encoding="utf-8")
+    real_stat = os.stat
+
+    def swapping_stat(path, **kwargs):
+        if path != "transcript.json" or kwargs.get("dir_fd") != export.directory_fd:
+            return real_stat(path, **kwargs)
+        destination = canonical_transcript_path(artifact_root, session_id)
+        destination.rename(destination.with_name("transcript.json.moved"))
+        destination.write_text("replacement\n", encoding="utf-8")
+        return real_stat(path, **kwargs)
+
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_session_custody.os.stat", swapping_stat)
+    with pytest.raises(ValueError, match="canonical transcript name changed after installation"):
+        install_transcript_export(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            export=export,
+        )
+
+    assert export.closed is True
+    assert not canonical_transcript_path(artifact_root, session_id).exists()

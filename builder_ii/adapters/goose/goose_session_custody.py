@@ -175,6 +175,17 @@ def install_transcript_export(
             if (destination_info.st_dev, destination_info.st_ino) != (info.st_dev, info.st_ino):
                 os.unlink(destination.name, dir_fd=export.directory_fd)
                 raise ValueError("canonical transcript does not identify retained export inode")
+            named_destination_info = os.stat(
+                destination.name,
+                dir_fd=export.directory_fd,
+                follow_symlinks=False,
+            )
+            if (named_destination_info.st_dev, named_destination_info.st_ino) != (
+                info.st_dev,
+                info.st_ino,
+            ):
+                os.unlink(destination.name, dir_fd=export.directory_fd)
+                raise ValueError("canonical transcript name changed after installation")
         finally:
             os.close(destination_fd)
         os.unlink(export.name, dir_fd=export.directory_fd)
