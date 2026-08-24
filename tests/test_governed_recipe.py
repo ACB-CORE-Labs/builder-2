@@ -18,6 +18,7 @@ from builder_ii.adapters.goose.goose_compatibility import validate_governed_reci
 from builder_ii.adapters.goose.goose_receipts import validate_goose_launch_receipt
 from builder_ii.adapters.goose.goose_runtime_harness import GooseRuntimeHarness
 from builder_ii.core.config import Settings
+from builder_ii.governance.ledger.event_ledger import load_event_records, validate_event_chain_integrity
 
 _RECIPE_PATH = Path(__file__).resolve().parents[1] / "recipes" / "governed-readonly.yaml"
 
@@ -92,6 +93,7 @@ def test_launch_governed_points_goose_at_the_governed_recipe(
     mock_settings: MagicMock,
     tmp_path: Path,
     goose_gateway_context_factory,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     mock_find_goose.return_value = "/mock/bin/goose"
     mock_probe.return_value = MagicMock(binary="/mock/bin/goose", version="1.46.0", policy=">=1.45.0,<1.47.0")
@@ -134,7 +136,27 @@ def test_launch_governed_points_goose_at_the_governed_recipe(
     # The MCP server's ledger is scoped to this run; no shell mode enabled.
     assert kwargs["env"]["BUILDER_MCP_SESSION_ID"] == harness.session_id
     assert kwargs["env"]["GOOSE_MODE"] == "auto"
-    harness._model_gateway_adapter.close()
+    artifact_root = harness._admitted_artifact_root
+    assert artifact_root is not None
+    session_root = artifact_root / "sessions" / harness.session_id
+    assert (session_root / "goose" / "launch.json").is_file()
+
+    def export_transcript(argv, **_kwargs):
+        output = Path(argv[argv.index("--output") + 1])
+        output.write_text('{"messages": []}\n', encoding="utf-8")
+        return MagicMock(returncode=0)
+
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_runtime_harness.subprocess.run", export_transcript)
+    close, postflight = harness.close(receipt["digest"])
+    assert close["postflight_digest"] == postflight["digest"]
+    assert (session_root / "goose" / "postflight.json").is_file()
+    assert (session_root / "goose" / "close.json").is_file()
+    events = load_event_records(session_root / "events")
+    assert [event[0]["event_type"] for event in events] == [
+        "goose_session_started",
+        "goose_session_closed",
+    ]
+    assert validate_event_chain_integrity(session_root / "events")["valid"] is True
 
 
 @patch("builder_ii.adapters.goose.goose_runtime_harness.subprocess.Popen")

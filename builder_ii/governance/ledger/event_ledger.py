@@ -33,6 +33,8 @@ EVENT_TYPES = {
     "read_denied",
     "goose_readonly_started",
     "goose_readonly_closed",
+    "goose_session_started",
+    "goose_session_closed",
     "goose_mutation_prevented",
     "deepagents_runtime_executed",
     "deepagents_runtime_failed",

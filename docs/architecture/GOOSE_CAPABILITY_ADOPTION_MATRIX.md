@@ -31,6 +31,24 @@ reviewed. Builder-II never auto-updates or downgrades Goose.
 | ACP server/provider | RESEARCH LATER | no canonical nesting or second session owner |
 | Desktop-only activities | DEFER | terminal-first program |
 
+## Current lifecycle custody
+
+The canonical governed launch now targets one run namespace:
+
+```text
+<artifact-root>/sessions/<run>/goose/{launch,postflight,close}.json
+<artifact-root>/sessions/<run>/goose/transcript.json
+<artifact-root>/sessions/<run>/events/
+```
+
+Launch and close artifacts must pass their owning validators and be persisted
+before `goose_session_started` or `goose_session_closed` may bind them. The
+close receipt binds the launch receipt, postflight, and exact transcript digest.
+Target-local receipt mirrors remain compatibility projections and are not the
+run registry's authority source. This is implemented start/close custody, not
+resume, cancellation, orphan recovery, context retention qualification, or
+Goose-version promotion.
+
 ## Compatibility gate
 
 For each candidate Goose version:

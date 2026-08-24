@@ -405,6 +405,45 @@ def _mcp_event_binding_errors(
     return errors
 
 
+def _goose_event_binding_errors(
+    by_kind: dict[str, list[tuple[Path, dict[str, Any]]]],
+    events: list[tuple[Path, dict[str, Any]]],
+) -> list[str]:
+    """Require exact lifecycle events for canonical persisted Goose evidence."""
+    requirements = (
+        ("builder_ii.goose_launch_receipt", "goose_launch_receipt", "goose_session_started"),
+        ("builder_ii.no_mutation_postflight", "goose_postflight", "goose_session_closed"),
+        ("builder_ii.goose_close_receipt", "goose_close_receipt", "goose_session_closed"),
+    )
+    errors: list[str] = []
+    for kind, role, event_type in requirements:
+        for path, artifact in by_kind.get(kind, []):
+            matches = []
+            for _, event in events:
+                if event.get("event_type") != event_type:
+                    continue
+                for ref in event.get("subject_refs", []):
+                    if (
+                        isinstance(ref, dict)
+                        and ref.get("role") == role
+                        and isinstance(ref.get("path"), str)
+                        and Path(ref["path"]).resolve() == path.resolve()
+                    ):
+                        matches.append((event, ref))
+            if len(matches) != 1:
+                errors.append(f"{path}: Goose evidence must have exactly one canonical {event_type} binding")
+                continue
+            event, ref = matches[0]
+            if (
+                event.get("session_id") != artifact.get("session_id")
+                or ref.get("kind") != artifact.get("kind")
+                or ref.get("sha256") != canonical_digest(artifact)
+                or event.get("command_surface") != "builder start"
+            ):
+                errors.append(f"{path}: Goose lifecycle event binding does not match persisted custody")
+    return errors
+
+
 def _executed(value: dict[str, Any]) -> bool:
     tokens = {
         str(value.get(name, "")).upper()
@@ -492,6 +531,7 @@ def project_run_view(root: Path, *, task: str = "", session_id: str | None = Non
     mcp_events = by_kind.get("builder_ii.event_record", [])
     if mcp_receipts:
         errors.extend(_mcp_event_binding_errors(mcp_receipts, mcp_events, session_id))
+    errors.extend(_goose_event_binding_errors(by_kind, mcp_events))
 
     proposals = by_kind.get(_PROPOSAL, [])
     approvals = by_kind.get(_APPROVAL, [])

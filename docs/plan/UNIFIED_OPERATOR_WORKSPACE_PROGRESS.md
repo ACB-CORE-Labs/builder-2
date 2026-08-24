@@ -14,15 +14,15 @@ Last updated: 2026-08-24
 | --- | --- |
 | Canonical repository | `https://github.com/ACB-CORE-Labs/builder-2` |
 | Predecessor review | PR #21 remains open and mergeable; no merge was performed by this program |
-| Stacked base | `c12b832087cfe8d10c3949c0aa287c65c2eef842` (exact reviewed PR #21 head) |
-| Implementation branch | `feat/unified-operator-ps0` |
-| Worktree | `.builder/dev-worktrees/unified-operator-ps0` |
-| Delivery state | local committed implementation only; no push, PR, merge, tag, release, or promotion yet |
+| Stacked base | `53f968e357f4efaf2aeba7df5a04c48e65551a7c` (exact reviewed PR #22 head; PR #22 is itself stacked on PR #21) |
+| Implementation branch | `feat/unified-operator-ps1` |
+| Worktree | `.builder/dev-worktrees/unified-operator-ps1` |
+| Delivery state | Plan Set 0 is under review in stacked PR #22; Plan Set 1 lifecycle convergence is active on this exact PR-head child branch; no merge, tag, release, promotion, or self-hosting admission |
 
-The branch is intentionally stacked on PR #21 so the successor work includes its
-source-grounded documentation corrections without altering or merging that review.
-Before delivery, hosted PR #21 state and the eventual base strategy must be read
-back and reconciled.
+The branch is intentionally stacked on PR #22, which remains stacked on PR #21,
+so the successor work includes both reviewed foundations without altering or
+merging either review. Before delivery, hosted state and the eventual base
+strategy must be read back and reconciled.
 
 ## Program dashboard
 
@@ -55,7 +55,8 @@ dashboard advances only when the verification log below contains the exact gate.
 | UOW-102 | 1 | `FOCUSED_VERIFIED` | calm read-only aliases for goal/stage/activity/attention/recovery | core properties and focused tests added |
 | UOW-103 | 1 | `IN_PROGRESS` | durable run registry and deterministic selection | core registry now projects canonical session ledgers, exposes corrupt-only sessions, and selects exact/latest without fallback; subsystem lifecycle artifacts remain distributed |
 | UOW-104 | 1 | `FOCUSED_VERIFIED` | run-oriented `builder status`; environment health moves to doctor | human and JSON status plus change-only watch are implemented; doctor retains environment probes; authority/docs tests pass |
-| UOW-105 | 1 | `NOT_STARTED` | shared lifecycle truth for complete/fail/interrupt/resume/cancel/corrupt/orphan/close | current runtime families do not yet emit one converged lifecycle vocabulary/namespace |
+| UOW-105 | 1 | `IN_PROGRESS` | shared lifecycle truth for complete/fail/interrupt/resume/cancel/corrupt/orphan/close | first bounded unit migrates governed Goose start/close custody into `sessions/<run>/{goose,events}` with validator-backed, digest-bound events; remaining terminal states and runtime families stay open |
+| UOW-106 | 1 | `FOCUSED_VERIFIED` | canonical governed Goose start/close evidence and events | validator-backed custody persists exact artifacts before monotonic event append; focused lifecycle, RunView, harness, CLI, artifact-chain, and static selections pass; full local CI remains required |
 
 ## Verification log
 
@@ -74,6 +75,9 @@ dashboard advances only when the verification log below contains the exact gate.
 | 2026-08-24 | committed-tip local CI rerun | `bash scripts/ci.sh --receipt .builder/dev-evidence/unified-operator-ps0/gate-battery-a9e8530-rerun.json` | PASS | all blocking gates passed with no skips; full suite reported 3016 passed, 1 skipped, 4 warnings; receipt binds `a9e85303eef108ea9024b765c8c6b6185ea246b9` |
 | 2026-08-24 | committed-tip receipt validation | `uv run python -m builder_ii.governance.ledger.gate_battery_receipt --validate .builder/dev-evidence/unified-operator-ps0/gate-battery-a9e8530-rerun.json` | PASS | receipt schema/digest/cross-field validation passed; receipt remains recorded-only and non-independent |
 | 2026-08-24 | closure-review repairs | `uv run pytest -q tests/test_run_status.py tests/test_run_view.py tests/scenarios/test_run_cockpit.py tests/test_stratum_tui.py` | PASS | 42 tests passed, including deterministic watch suppression/interruption and corrupt-WAL-with-valid-mirror lesions; supersedes the focused UOW-104 gap |
+| 2026-08-24 | canonical Goose lifecycle custody | `uv run pytest -q tests/test_goose_session_custody.py tests/test_goose_runtime_harness.py tests/test_goose_primary_cli.py tests/test_goose_plan_set_3b1_identity.py tests/test_governed_recipe.py tests/test_run_view.py tests/test_run_status.py tests/test_artifact_chain_verification.py tests/test_runtime_event_ledger_spine.py` | PASS | 67 focused tests passed; new launch/close chain, transcript-drift refusal, orphan-close detection, and existing Goose/RunView paths are green; not full CI or lifecycle convergence |
+| 2026-08-24 | canonical Goose lifecycle static checks | `uv run ruff check builder_ii/adapters/goose/goose_receipts.py builder_ii/adapters/goose/goose_session_custody.py builder_ii/adapters/goose/goose_runtime_harness.py builder_ii/governance/ledger/event_ledger.py builder_ii/core/artifact_chain_verification.py builder_ii/core/run_view.py tests/test_goose_session_custody.py` | PASS | changed Python selection is lint-clean; not full CI |
+| 2026-08-24 | Plan Set 1 lifecycle documentation truth | `uv run builder-platform audit-docs`; `uv run builder-platform matrix`; `uv run pytest -q tests/test_docs_truth_enforcement.py tests/test_platform_completion_truth.py tests/test_known_limitations.py tests/test_command_authority.py` | PASS | docs audit reported zero violations, the matrix remained operationally incomplete, and 87 truth/authority tests passed; no capability state changed |
 
 The two `a9e8530` receipt rows above describe the pre-ledger-update commit. Updating
 this ledger creates a new tip, so those receipts are not final delivery evidence.
@@ -93,6 +97,8 @@ settled committed tip before push or PR creation.
 | D-005 | Keep self-hosting as a separate admission | builder-II currently does not govern its own development | independent end-to-end evidence and explicit ratification exist |
 | D-006 | Local models are default; cloud is approved fallback | preserves M1/local-first policy without hiding useful escalation | empirical role qualification supports a revised policy proposal |
 | D-007 | Move existing projection logic; do not invent another RunView interpreter | validators and lifecycle semantics already exist | never, unless the owning artifact contracts themselves change |
+| D-008 | Canonical lifecycle evidence is persisted before its event is appended | an event cannot truthfully bind an in-memory receipt or a not-yet-exported transcript | revisit only if the event store gains an atomic multi-artifact transaction with equivalent custody |
+| D-009 | Keep receipt mirrors for one compatibility interval, but derive run truth only from the admitted session namespace | avoids a flag-day CLI break without allowing target-local mirrors to compete with canonical evidence | remove mirrors after every supported consumer reads canonical refs |
 
 ## Implementation discoveries
 
@@ -109,8 +115,10 @@ These are observations, not automatically authorized scope changes.
 | F-007 | Native Deep Agents currently admits only task/echo/HITL tool classes | mechanism proof is real, but engineering-role mastery requires read-only governed tools | incorporated into Plan Set 5 |
 | F-008 | Current Textual tests include Pilot coverage and a PTY boot lane, but no visual verdict | add semantic fixed-size captures and supervised image review without making pixels governance evidence | incorporated into Plan Set 2 |
 | F-009 | The canonical event loader intentionally skips malformed/foreign event files | the core registry must inventory the event directory separately or corrupt-only sessions disappear | implemented: registry entries carry inventory errors and fail closed |
-| F-010 | Goose close currently writes a sequence-zero `goose_session_closed` event outside `sessions/<run>/events`, using an event type/ref shape the canonical ledger validator does not admit | Plan Set 4 must migrate close custody into the shared run namespace before Plan Set 1 can claim lifecycle convergence | open; do not reinterpret the legacy event as valid evidence |
+| F-010 | Goose close wrote a sequence-zero `goose_session_closed` event outside `sessions/<run>/events`, using an event type/ref shape the canonical ledger validator did not admit | migrate new close custody into the shared run namespace without reinterpreting old bytes | implemented in UOW-106; legacy files remain non-canonical rather than being wrapped into false validity |
 | F-011 | The canonical event loader falls back from an unreadable WAL to JSON mirrors | a corrupt WAL could disappear from status even when the mirror remained readable | implemented: registry performs an independent strict WAL inventory and fails closed |
+| F-012 | Goose close emitted before its caller persisted close/postflight artifacts | the harness could not bind the exact evidence it claimed to close; lifecycle custody must own persistence and append ordering | implemented in UOW-106 |
+| F-013 | Goose close/postflight artifacts had constructors but no owning validators | RunView could not distinguish intact close evidence from plausible JSON by kind alone | implemented in UOW-106 with paired validators and lesions |
 
 ## Deferred and optional opportunities
 
