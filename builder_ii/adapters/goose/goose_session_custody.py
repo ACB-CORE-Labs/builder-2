@@ -165,6 +165,18 @@ def install_transcript_export(
             dst_dir_fd=export.directory_fd,
             follow_symlinks=False,
         )
+        destination_fd = os.open(
+            destination.name,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=export.directory_fd,
+        )
+        try:
+            destination_info = os.fstat(destination_fd)
+            if (destination_info.st_dev, destination_info.st_ino) != (info.st_dev, info.st_ino):
+                os.unlink(destination.name, dir_fd=export.directory_fd)
+                raise ValueError("canonical transcript does not identify retained export inode")
+        finally:
+            os.close(destination_fd)
         os.unlink(export.name, dir_fd=export.directory_fd)
     finally:
         try:
@@ -193,24 +205,27 @@ def _approved_mutation_graph_errors(
         _validated_rollback_close_evidence,
     )
 
-    if mode == "approved_hitl_patch":
-        _, _, errors = _approved_patch_close_evidence(
-            evidence,
-            session_id=session_id,
-            target_root=target_root,
-            target_name=target_name,
-            artifact_root=artifact_root,
-        )
-    else:
-        if not isinstance(evidence, dict):
-            return ["approved rollback evidence must be an object"]
-        _, _, errors = _validated_rollback_close_evidence(
-            evidence,
-            artifact_root=artifact_root,
-            session_id=session_id,
-            target_root=target_root,
-            target_name=target_name,
-        )
+    try:
+        if mode == "approved_hitl_patch":
+            _, _, errors = _approved_patch_close_evidence(
+                evidence,
+                session_id=session_id,
+                target_root=target_root,
+                target_name=target_name,
+                artifact_root=artifact_root,
+            )
+        else:
+            if not isinstance(evidence, dict):
+                return ["approved rollback evidence must be an object"]
+            _, _, errors = _validated_rollback_close_evidence(
+                evidence,
+                artifact_root=artifact_root,
+                session_id=session_id,
+                target_root=target_root,
+                target_name=target_name,
+            )
+    except Exception as exc:
+        return [f"approved mutation evidence reconstruction failed closed: {type(exc).__name__}: {exc}"]
     return errors
 
 

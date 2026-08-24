@@ -878,7 +878,10 @@ class GooseRuntimeHarness:
         )
 
         # Export the actual transcript to a JSON log instead of timestamp guessing
-        canonical_close = self._admitted_artifact_root is not None and self._canonical_launch_receipt is not None
+        canonical_close = (
+            self._admitted_artifact_root is not None
+            and getattr(self, "_canonical_launch_receipt", None) is not None
+        )
         transcript_export = (
             prepare_transcript_export(self._admitted_artifact_root, self.session_id)
             if canonical_close and self._admitted_artifact_root is not None
@@ -893,7 +896,7 @@ class GooseRuntimeHarness:
         transcript_export_path = str(transcript_path_obj)
         export_binary = (
             self._governed_admission[0].binary
-            if self._governed_admission is not None
+            if getattr(self, "_governed_admission", None) is not None
             else "goose"
         )
         try:

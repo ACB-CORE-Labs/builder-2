@@ -503,3 +503,43 @@ def test_transcript_export_refuses_temporary_name_inode_swap(tmp_path: Path) -> 
 
     assert export.closed is True
     assert not canonical_transcript_path(artifact_root, session_id).exists()
+
+
+def test_transcript_export_removes_destination_swapped_at_link_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact_root = tmp_path / "artifacts"
+    session_id = "export-link-swap"
+    export = prepare_transcript_export(artifact_root, session_id)
+    export.child_path.write_text("original\n", encoding="utf-8")
+    real_link = os.link
+
+    def swapping_link(src, dst, **kwargs):
+        os.rename(
+            export.name,
+            f"{export.name}.moved",
+            src_dir_fd=export.directory_fd,
+            dst_dir_fd=export.directory_fd,
+        )
+        replacement_fd = os.open(
+            export.name,
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            0o600,
+            dir_fd=export.directory_fd,
+        )
+        try:
+            os.write(replacement_fd, b"replacement\n")
+        finally:
+            os.close(replacement_fd)
+        return real_link(src, dst, **kwargs)
+
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_session_custody.os.link", swapping_link)
+    with pytest.raises(ValueError, match="canonical transcript does not identify retained export inode"):
+        install_transcript_export(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            export=export,
+        )
+
+    assert export.closed is True
+    assert not canonical_transcript_path(artifact_root, session_id).exists()
