@@ -156,7 +156,7 @@ are not equivalent just because they share the legacy completion label.
 - **platform doctor/status/audit** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - R0 adds source-derived truth status.
   - R1.6 adds canonical R1 closure report and golden path proof commands.
-  - Legacy builder doctor/status remain operator-managed environment helpers.
+  - Builder doctor remains the operator-managed environment helper; builder status is a passive governed-run projection.
   - This row is a passive truth projection; operational lanes retain their own scoped assurance states.
 - **release proof/quality gates** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - The v1 bundle schema binds exact source, lock, distributions, supported-host proofs, CI, sabotage, benchmark, docs, and custody evidence.

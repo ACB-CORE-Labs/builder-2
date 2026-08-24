@@ -929,7 +929,7 @@ class StratumApp(App[None]):
         """
         import sys
 
-        from builder_ii.tui.projections.run_projection import project_run
+        from builder_ii.core.run_view import project_run_view
         from builder_ii.tui.stratum_commands import InvocationObservation, admit, bounded_stderr, write_observation
 
         try:
@@ -969,7 +969,7 @@ class StratumApp(App[None]):
             )
         validation = command.validator(command.output) if returncode == 0 else None
         errors = validation.errors if validation is not None else (f"command exited {returncode}",)
-        projection = project_run(
+        projection = project_run_view(
             self.artifacts_dir,
             session_id=self._current_session_id,
             target=self._target_profile,
