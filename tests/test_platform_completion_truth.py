@@ -287,8 +287,9 @@ def test_human_status_reports_operational_incompleteness() -> None:
     summary = render_human_summary()
     assert "passive-foundation-complete" in summary
     assert "operationally incomplete" in summary
-    assert "Plan Set 3 admitted; implementation pending" in summary
-    assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in summary
+    assert "exact-candidate review" in summary
+    assert "separate capability-promotion decision" in summary
+    assert "None of those later authority steps is implied" in summary
 
 
 def test_builder_platform_matrix_cli_outputs_json() -> None:
@@ -304,7 +305,8 @@ def test_builder_platform_status_cli_is_honest() -> None:
     assert result.exit_code == 0, result.output
     assert "passive-foundation-complete" in result.output
     assert "operationally incomplete" in result.output
-    assert "Plan Set 3 admitted; implementation pending" in result.output
+    assert "exact-candidate review" in result.output
+    assert "separate tag/publication authorization" in result.output
 
 
 def test_next_sequence_rejects_r0_b5() -> None:
