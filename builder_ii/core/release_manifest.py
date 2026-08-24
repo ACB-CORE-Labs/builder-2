@@ -677,7 +677,7 @@ def validate_release_evidence(
                         errors.extend(
                             _validate_sha(item.get(field), f"claims.pull_requests[{index}].{field}", _GIT_SHA_RE)
                         )
-                    if item.get("repository") != "ACB-CORE-Labs/builder-2-release-rehearsal":
+                    if item.get("repository") != "ACB-CORE-Labs/builder-2-delivery-rehearsal":
                         errors.append(f"claims.pull_requests[{index}].repository is not the rehearsal repository")
                     if not isinstance(item.get("url"), str) or not item["url"].startswith("https://github.com/"):
                         errors.append(f"claims.pull_requests[{index}].url must be a GitHub URL")
