@@ -82,6 +82,18 @@ from builder_ii.adapters.goose.goose_wrapper_plan import (
     GOOSE_WRAPPER_PLAN_KIND,
     validate_goose_wrapper_plan,
 )
+from builder_ii.benchmark.model_runtime import (
+    MANIFEST_KIND as MODEL_RUNTIME_BENCHMARK_MANIFEST_KIND,
+)
+from builder_ii.benchmark.model_runtime import (
+    REPORT_KIND as MODEL_RUNTIME_BENCHMARK_REPORT_KIND,
+)
+from builder_ii.benchmark.model_runtime import (
+    validate_manifest as validate_model_runtime_benchmark_manifest,
+)
+from builder_ii.benchmark.model_runtime import (
+    validate_report as validate_model_runtime_benchmark_report,
+)
 from builder_ii.core.artifact_memory import (
     MEMORY_ATOM_KIND,
     MEMORY_INDEX_KIND,
@@ -165,6 +177,11 @@ from builder_ii.core.orchestration_obligation import (
 from builder_ii.core.orchestration_plan import (
     ORCHESTRATION_PLAN_KIND,
     validate_orchestration_plan,
+)
+from builder_ii.core.platform_completion_audit import (
+    PLATFORM_COMPLETION_MATRIX_KIND,
+    PLATFORM_TRUTH_AUDIT_REPORT_KIND,
+    render_matrix_jsonable,
 )
 from builder_ii.core.readonly_founder_demo import (
     TARGET_INSPECTION_PLAN_KIND,
@@ -426,6 +443,27 @@ from builder_ii.validation.performance_measurements import (
 ARTIFACT_CHAIN_VERIFICATION_REPORT_KIND = "builder_ii.artifact_chain_verification_report"
 
 
+def _validate_platform_completion_matrix(record: Any) -> list[str]:
+    if not isinstance(record, dict):
+        return ["platform completion matrix must be a JSON object"]
+    return [] if record == render_matrix_jsonable() else ["platform completion matrix is not current generated truth"]
+
+
+def _validate_platform_truth_audit_report(record: Any) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(record, dict):
+        return ["platform truth audit report must be a JSON object"]
+    if record.get("kind") != PLATFORM_TRUTH_AUDIT_REPORT_KIND:
+        errors.append(f"kind must be {PLATFORM_TRUTH_AUDIT_REPORT_KIND}")
+    if record.get("source_matrix_kind") != PLATFORM_COMPLETION_MATRIX_KIND:
+        errors.append(f"source_matrix_kind must be {PLATFORM_COMPLETION_MATRIX_KIND}")
+    if record.get("valid") is not True or record.get("violations") != []:
+        errors.append("platform truth audit must be valid with zero violations")
+    if not isinstance(record.get("scanned_files"), list) or not record.get("scanned_files"):
+        errors.append("scanned_files must be a non-empty list")
+    return errors
+
+
 def validate_artifact_chain_verification_report(record: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(record, dict):
@@ -542,6 +580,10 @@ VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
     V0_RELEASE_MANIFEST_KIND: validate_v0_release_manifest,
     RELEASE_PROOF_BUNDLE_KIND: validate_release_proof_bundle,
     RELEASE_EVIDENCE_KIND: validate_release_evidence,
+    PLATFORM_COMPLETION_MATRIX_KIND: _validate_platform_completion_matrix,
+    PLATFORM_TRUTH_AUDIT_REPORT_KIND: _validate_platform_truth_audit_report,
+    MODEL_RUNTIME_BENCHMARK_MANIFEST_KIND: validate_model_runtime_benchmark_manifest,
+    MODEL_RUNTIME_BENCHMARK_REPORT_KIND: validate_model_runtime_benchmark_report,
     MODEL_CAPABILITY_REGISTRY_KIND: validate_model_capability_registry,
     PROFILE_PACK_KIND: validate_profile_pack,
     PROFILE_PACK_MANIFEST_KIND: validate_profile_pack_manifest,
