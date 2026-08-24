@@ -99,10 +99,23 @@ deepagents, apply patches, mutate git, or change source/target repositories.
 - `builder-agent`
 - `builder-bundle`
 - `builder-quality`
+- `builder-release` — exact-candidate release evidence and bundle construction/validation; grants no promotion, tag, release, or publication authority
 - `builder-research`
 - `builder-performance`
 - `builder-verification`
 - `builder-verify`
+
+Set 7 release-proof subcommands:
+
+- `builder-release host-proof`
+- `builder-release validate-evidence`
+- `builder-release validate-bundle`
+- `builder-release build-bundle`
+- `builder-release validate-bundle-directory`
+
+These surfaces write or validate candidate evidence only. A valid bundle remains
+an artifact for human review and does not authorize capability promotion, tag
+creation, GitHub Release creation, or package publication.
 
 ## Notes/Handoff/Intake
 - `builder-handoff`
