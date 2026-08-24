@@ -111,8 +111,8 @@ These are not slogans; they are deterministic system boundaries. Consider how a 
 ```
 
 ### What this buys an engineer:
-- **Reproducibility:** Every state transition is recorded as a typed, schema-validated JSON artifact.
-- **Recoverability:** Every mutation generates a digest-bound rollback plan and reverse patch before touching disk.
+- **Reproducibility:** Meaningful governed transitions emit typed evidence where the owning capability contract requires it.
+- **Recoverability:** The HITL patch-application lane creates digest-bound rollback and reverse-patch evidence; other mutation lanes use their own documented recovery models.
 - **Inspectable Intent:** Plans, context packs, and routing recommendations are reviewable before any action is executed.
 - **Attributable Decisions:** Standing ratification records prove exactly who approved what, when, and under which digest.
 - **Aggressive Automation:** Routine steps (repo mapping, context assembly, model routing, artifact validation) run automatically *because* consequential boundaries (mutation, shell, spend, Git) remain strictly guarded.
@@ -214,7 +214,7 @@ uv run builder-session summarize-prepare-package .builder/session/
 | **Goose Adapter** | Preferred local operator runtime for interactive, recipe-driven coding sessions | Pairing interactively with an AI coding partner |
 | **MCP / Tool Gateway** | Brings external tools and prompts into an inventory-first, deny-by-default policy | Integrating custom dev tools or domain APIs |
 | **HITL Approval Gates** | Binds human decisions to exact SHA-256 digests via interactive TTY prompts | Authorizing patches, rollbacks, or spend |
-| **Verification Runner** | Proves code correctness using fixed profiles (`platform_status`, `pytest_full`) | Testing before patch apply, commit, or push |
+| **Verification Runner** | Executes an exact approved verification profile and records what passed or failed; it does not prove general program correctness | Testing before patch apply, commit, or push |
 | **Rollback Engine** | Treats reversal as a first-class governed mutation with drift detection | Reverting an applied patch cleanly |
 | **Ratification Grants** | Relocates re-confirmation friction without delegating human approval authority | Streamlining repetitive operator commands |
 | **STRATUM Console** | TUI instrument console for observing artifact chains, matrices, and composing CLI lines | Navigating platform state from a central terminal UI |

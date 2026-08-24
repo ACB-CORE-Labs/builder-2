@@ -128,7 +128,7 @@ Every row has exactly one label. A valid artifact is not authority. Approval is 
 
 ## Corrections
 
-- Passive model routing exists through `builder-model-policy`; provider execution remains unpromoted.
+- Passive model routing exists through `builder-model-policy`; model/provider execution is operationally verified only inside its registered live-provider envelope and remains non-authoritative evidence by itself.
 - Legacy operator-managed helpers such as `builder start`, `builder ask`, `builder doctor`, and `builder status` are separate from canonical governed passive lanes.
 - Legacy `builder setup` is no longer operator-managed setup execution; it is a fail-closed redirect to the governed `builder-setup` path.
 - Canonical governed passive lanes include `builder-config`, `builder-setup plan`, `builder-setup overlay-plan`, `builder-setup rollback-snapshot`, `builder-session`, `builder-profile-pack`, `builder-model-policy`, `builder-orchestration`, `builder-workflow`, `builder-ledger`, `builder-platform`, and `builder-memory`.
@@ -143,7 +143,8 @@ Use:
 
 ```bash
 CORE_REPO_PATH=. uv run pytest -q
-CORE_REPO_PATH=. uv run python scripts/verify_v0_release.py --output-dir /tmp/builder-ii-v0-proof-r1-4
+uv run builder-release build-bundle --repo . --dist-dir <dist> --evidence-dir <exact-candidate-evidence> --output-dir <bundle>
+uv run builder-release validate-bundle-directory <bundle> --repo .
 uv run builder-platform matrix
 uv run builder-platform status
 uv run builder-platform audit-docs

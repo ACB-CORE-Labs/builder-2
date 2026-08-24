@@ -81,8 +81,10 @@ Authority tiers, human-in-the-loop gates, promotion ladders, and invariants.
 
 | Document | Description |
 | :--- | :--- |
-| [`docs/COMMAND_AUTHORITY.md`](COMMAND_AUTHORITY.md) | Authoritative command authority registry and tier definitions (Tiers 0–5) |
+| [`docs/COMMAND_AUTHORITY.md`](COMMAND_AUTHORITY.md) | Authoritative command authority registry and tier definitions (Tier 0 through Tier 4) |
 | [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) | Command/capability promotion states and the Eight Promotion Gates |
+| [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) | Current human mirror of `builder-platform matrix`, status, and docs truth |
+| [`docs/FOUNDATION_STATUS.md`](FOUNDATION_STATUS.md) | Current generated foundation-status projection |
 | [`docs/KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) | Verbatim non-operational capabilities and recorded blockers from the truth matrix |
 | [`docs/GOVERNANCE_INVARIANTS.md`](GOVERNANCE_INVARIANTS.md) | Cross-artifact governance invariants and fail-closed validation rules |
 | [`docs/PROMOTION_READINESS.md`](PROMOTION_READINESS.md) | Promotion readiness criteria and evidence verification |
@@ -206,9 +208,7 @@ Detailed API specifications, personas, lane guides, and registries.
 - [`docs/audits/B1_4C_PASSIVE_LEDGER_INTEGRITY.md`](audits/B1_4C_PASSIVE_LEDGER_INTEGRITY.md) — B1.4C Passive Ledger Integrity Audit
 - [`docs/audits/B1_4D_LEDGER_RECONSTRUCTION.md`](audits/B1_4D_LEDGER_RECONSTRUCTION.md) — B1.4D Ledger Reconstruction Audit
 - [`docs/audits/B1_B2_RUNTIME_GOVERNANCE_COMPLETION_MAP.md`](audits/B1_B2_RUNTIME_GOVERNANCE_COMPLETION_MAP.md) — B1/B2 Governance Map
-- [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) — Historical Completion Truth Matrix Mirror
 - [`docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md`](BUILDER_II_COMPLETION_TRUTH_REPORT.md) — Master Completion Truth Report
-- [`docs/FOUNDATION_STATUS.md`](FOUNDATION_STATUS.md) — Current Foundation Status and generated truth
 
 ### Historical RFCs & Design Plans
 - [`docs/plan/MASTERPIECE_PLAN.md`](plan/MASTERPIECE_PLAN.md) — Masterpiece Implementation Plan

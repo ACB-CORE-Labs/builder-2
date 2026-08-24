@@ -113,3 +113,31 @@ def test_public_docs_pin_current_authority_and_runtime_boundaries() -> None:
     assert "48 hours" not in security
     assert "immutable evidence" not in index
     assert "8-state capability promotion ladder" not in index
+
+
+def test_final_v1_docs_truth_residues_are_absent() -> None:
+    first = Path("FIRST_SESSION.md").read_text(encoding="utf-8")
+    readme = Path("README.md").read_text(encoding="utf-8")
+    goose = Path("docs/GOOSE_RUNTIME.md").read_text(encoding="utf-8")
+    deepagents = Path("docs/DEEPAGENTS_RUNTIME.md").read_text(encoding="utf-8")
+    overview = Path("docs/PROJECT_OVERVIEW.md").read_text(encoding="utf-8")
+    surface = Path("docs/OPERATOR_COMMAND_SURFACE.md").read_text(encoding="utf-8")
+    glossary = Path("docs/GLOSSARY.md").read_text(encoding="utf-8")
+    audit = Path("docs/PLATFORM_COMPLETION_AUDIT.md").read_text(encoding="utf-8")
+    index = Path("docs/README.md").read_text(encoding="utf-8")
+
+    assert "accepts any schema-valid receipt" not in first
+    assert "Every state transition is recorded" not in readme
+    assert "Every mutation generates" not in readme
+    assert "Proves code correctness" not in readme
+    assert "Candidate mode" not in goose
+    assert "no Goose process started" not in goose
+    assert "Native deepagents construction remains out of scope" not in deepagents
+    assert "model invocation, tool/MCP execution" not in overview
+    assert "model/Goose/deepagents runtime, commit/push automation" not in surface
+    assert "Tiers 0–5" not in index
+    assert "Historical Completion Truth Matrix Mirror" not in index
+    assert "sandbox" not in glossary.lower()
+    assert "Passive vs. Active Modes" not in glossary
+    assert "provider execution remains unpromoted" not in audit
+    assert "verify_v0_release.py" not in audit
