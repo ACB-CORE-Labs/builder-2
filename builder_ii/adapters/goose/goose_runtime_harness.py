@@ -19,9 +19,11 @@ from builder_ii.adapters.goose.goose_receipts import (
     create_no_mutation_postflight,
 )
 from builder_ii.adapters.goose.goose_session_custody import (
-    canonical_transcript_path,
+    discard_transcript_export,
+    install_transcript_export,
     persist_goose_close,
     persist_goose_launch,
+    prepare_transcript_export,
 )
 from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
 from builder_ii.core.config import Settings
@@ -715,6 +717,7 @@ class GooseRuntimeHarness:
                 "recipe_sha256": recipe_digest,
                 "model_gateway": gateway_report,
                 "route_digest": self._model_gateway_context.route.route_digest,
+                "target_root": str(self.target_root.resolve()),
             },
         )
         try:
@@ -852,7 +855,7 @@ class GooseRuntimeHarness:
 
         postflight = create_no_mutation_postflight(
             session_id=self.session_id,
-            target_root=str(self.target_root),
+            target_root=str(self.target_root.resolve()),
             start_time=end_time,  # approximate for schema
             end_time=end_time,
             files_checked=len(post_snapshot),
@@ -866,18 +869,14 @@ class GooseRuntimeHarness:
         )
 
         # Export the actual transcript to a JSON log instead of timestamp guessing
+        canonical_close = self._admitted_artifact_root is not None and self._canonical_launch_receipt is not None
         transcript_path_obj = (
-            canonical_transcript_path(self._admitted_artifact_root, self.session_id)
-            if self._admitted_artifact_root is not None and self._canonical_launch_receipt is not None
+            prepare_transcript_export(self._admitted_artifact_root, self.session_id)
+            if canonical_close and self._admitted_artifact_root is not None
             else self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
         )
-        canonical_close = self._admitted_artifact_root is not None and self._canonical_launch_receipt is not None
-        if canonical_close and transcript_path_obj.exists():
-            raise FileExistsError(
-                f"refusing to overwrite existing canonical Goose transcript: {transcript_path_obj}"
-            )
         transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
-        transcript_path = str(transcript_path_obj)
+        transcript_export_path = str(transcript_path_obj)
         export_binary = (
             self._governed_admission[0].binary
             if self._governed_admission is not None
@@ -893,14 +892,23 @@ class GooseRuntimeHarness:
                 "--format",
                 "json",
                 "--output",
-                transcript_path,
+                transcript_export_path,
             ],
             check=False,
         )
         if canonical_close and export_result.returncode != 0:
+            discard_transcript_export(transcript_path_obj)
             raise RuntimeError(
                 f"Goose transcript export failed with status {export_result.returncode}; close custody was not recorded"
             )
+        if canonical_close:
+            assert self._admitted_artifact_root is not None
+            transcript_path_obj = install_transcript_export(
+                artifact_root=self._admitted_artifact_root,
+                session_id=self.session_id,
+                export_path=transcript_path_obj,
+            )
+        transcript_path = str(transcript_path_obj)
         transcript_digest = _file_sha256(transcript_path_obj) or ""
 
         close_receipt = create_goose_close_receipt(

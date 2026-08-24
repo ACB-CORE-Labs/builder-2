@@ -141,6 +141,18 @@ def test_launch_governed_points_goose_at_the_governed_recipe(
     session_root = artifact_root / "sessions" / harness.session_id
     assert (session_root / "goose" / "launch.json").is_file()
 
+    monkeypatch.setattr(
+        "builder_ii.adapters.goose.goose_runtime_harness.subprocess.run",
+        lambda *_args, **_kwargs: MagicMock(returncode=9),
+    )
+    with pytest.raises(RuntimeError, match="transcript export failed"):
+        harness.close(receipt["digest"])
+    assert not (session_root / "goose" / "transcript.json").exists()
+    assert not (session_root / "goose" / "close.json").exists()
+    assert [event[0]["event_type"] for event in load_event_records(session_root / "events")] == [
+        "goose_session_started"
+    ]
+
     def export_transcript(argv, **_kwargs):
         output = Path(argv[argv.index("--output") + 1])
         output.write_text('{"messages": []}\n', encoding="utf-8")

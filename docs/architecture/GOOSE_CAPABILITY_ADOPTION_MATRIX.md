@@ -44,6 +44,12 @@ The canonical governed launch now targets one run namespace:
 Launch and close artifacts must pass their owning validators and be persisted
 before `goose_session_started` or `goose_session_closed` may bind them. The
 close receipt binds the launch receipt, postflight, and exact transcript digest.
+Custody validates path-safe session identity, rejects symlinked namespace
+components, creates evidence without replacement, exports transcripts through a
+protected temporary file, and independently reconstructs the complete binding
+from RunView. Runtime event allocation and append are serialized under a
+per-ledger OS lock so concurrent lifecycle/model/tool writers cannot silently
+reuse a sequence or overwrite an event.
 Target-local receipt mirrors remain compatibility projections and are not the
 run registry's authority source. This is implemented start/close custody, not
 resume, cancellation, orphan recovery, context retention qualification, or

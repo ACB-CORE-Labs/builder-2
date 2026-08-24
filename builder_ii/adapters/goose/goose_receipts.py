@@ -103,6 +103,33 @@ def validate_no_mutation_postflight(postflight: Any) -> list[str]:
     unexplained = postflight.get("unexplained_mutations")
     if isinstance(unexplained, list) and postflight.get("valid") is not (len(unexplained) == 0):
         errors.append("valid must equal whether unexplained_mutations is empty")
+    detected = postflight.get("mutations_detected")
+    approved = postflight.get("approved_mutations")
+    if all(isinstance(value, list) and all(isinstance(item, str) for item in value) for value in (detected, approved, unexplained)):
+        assert isinstance(detected, list)
+        assert isinstance(approved, list)
+        assert isinstance(unexplained, list)
+        if any(len(value) != len(set(value)) for value in (detected, approved, unexplained)):
+            errors.append("mutation lists must not contain duplicates")
+        if set(approved) & set(unexplained):
+            errors.append("approved_mutations and unexplained_mutations must be disjoint")
+        if set(detected) != set(approved) | set(unexplained):
+            errors.append("detected mutations must be exactly partitioned into approved and unexplained mutations")
+    mode = postflight.get("mutation_mode")
+    evidence = postflight.get("approved_mutation_evidence")
+    patch_evidence = postflight.get("approved_patch_evidence")
+    if mode == "no_mutation":
+        if approved:
+            errors.append("no_mutation mode must not contain approved mutations")
+        if evidence is not None or patch_evidence is not None:
+            errors.append("no_mutation mode must not contain approval evidence")
+    elif mode in {"approved_hitl_patch", "approved_hitl_rollback"}:
+        if not isinstance(evidence, dict) or not evidence:
+            errors.append("approved mutation mode requires approved_mutation_evidence")
+        if mode == "approved_hitl_patch" and patch_evidence != evidence:
+            errors.append("approved_hitl_patch mode must mirror approved evidence in approved_patch_evidence")
+        if mode == "approved_hitl_rollback" and patch_evidence is not None:
+            errors.append("approved_hitl_rollback mode must not claim approved_patch_evidence")
     supplied_digest = postflight.get("digest")
     if not isinstance(supplied_digest, str) or not _SHA256_RE.fullmatch(supplied_digest):
         errors.append("digest must be a SHA-256 hex digest")
