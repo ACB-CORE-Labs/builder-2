@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 import shutil
 import subprocess
@@ -94,7 +95,10 @@ def host_proof(
             "uv": version(["uv", "--version"]),
             "git": version(["git", "--version"]),
             "goose": version(["goose", "--version"]),
-            "container_runtime": version(["docker", "--version"], unavailable="NOT_APPLICABLE"),
+            "container_runtime": os.environ.get(
+                "RELEASE_CONTAINER_RUNTIME_VERSION",
+                version(["docker", "--version"], unavailable="NOT_APPLICABLE"),
+            ),
         },
         elapsed_seconds=elapsed_seconds,
         skips=skip,

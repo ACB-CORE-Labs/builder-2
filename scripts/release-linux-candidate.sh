@@ -22,6 +22,7 @@ git clone --quiet --no-local --depth 1 "file://$REPO_ROOT" "$LINUX_SOURCE"
 }
 
 docker run --rm \
+  -e RELEASE_CONTAINER_RUNTIME_VERSION="$(docker --version)" \
   -v "$LINUX_SOURCE:/workspace:ro" \
   -v "$WHEEL:/candidate/$(basename "$WHEEL"):ro" \
   -v "$(dirname "$OUTPUT"):/proof" \
