@@ -11,11 +11,14 @@ require an explicit versioning policy.
 
 ## [Unreleased]
 
-Over 100 merges landed on `main` between the `v0.1.0` tag (2026-07-08) and 2026-07-26 across
-several tracks. This is a curated summary, not a PR-by-PR list — see `git log v0.1.0..main` for
-full detail, per this changelog's pre-1.0 convention.
+### Documentation Architecture & Truth Reconciliation (v1.0.0 Preparation)
 
-### Added
+- **Comprehensive v1 Documentation Architecture & Truth Reconciliation Pass**:
+  - Rebuilt top-level `README.md` as the primary conceptual funnel for builder-II: clear definition, governing equations, the Builder's Signet, Mermaid architecture, 5-minute taste, capability table, exact trust/sandbox boundaries, model gateway, separated Git/release effects, supported environments (macOS Apple Silicon / Linux), status, and 4 documentation journeys.
+  - Rebuilt `docs/README.md` into 10 structured reader-oriented sections, classifying current operator docs from historical plans and closure audits.
+  - Removed all false "sandboxed" claims across documentation (`docs/GLOSSARY.md`, `docs/MAXIMIZING_PROFICIENCY.md`, `README.md`), clarifying that verification runners execute target repository code with operator privileges inside fixed invocation envelopes.
+  - Reconciled `SECURITY.md` and `CONTRIBUTING.md` with open-source MIT licensing, standard security disclosure guidance, and canonical local CI gates (`bash scripts/ci.sh`).
+  - Reconciled `QUICKSTART.md`, `FIRST_SESSION.md`, `docs/OPERATOR_GUIDE.md`, `docs/DEEPAGENTS_RUNTIME.md`, and `docs/GOOSE_RUNTIME.md` with current operational truth (promoted HITL patch lanes, model execution gateway, Goose readonly runtime, and bounded Deep Agents protocol lane).
 
 - **Standing ratification grants and policy**: `builder onboard` (interactive golden-path
   walkthrough) and `builder-govern` (grant/revoke/policy/trace/audit) let an operator delegate
@@ -40,11 +43,15 @@ full detail, per this changelog's pre-1.0 convention.
   promotion flip landed in this window).
 - HITL decision envelope artifact (an enterprise-style audit envelope: criteria, range, observed,
   assumptions, alternatives, consequences) — decision-support only, never an approval.
+- CodeVault's structural-field extraction lane (G1b/G2): five of six registered fact kinds
+  (signature, nesting, ownership, decorator, import) as structural-correspondence *candidates*,
+  never verified-correspondence claims.
 
 ### Changed
 
-- **CodeVault separated into its own commercial repository**. The open core retains only an
-  optional-plugin boundary and a fail-closed CLI seam.
+- **CodeVault separated into its own commercial repository** (`core-labs/builder-ii-code-vault`);
+  `builder_ii/code_vault/` is gone from this repo, replaced by a fail-closed CLI seam
+  (`builder-code-vault`) that refuses every invocation with an upgrade message and exit code 1.
 - Repaired `builder chain`: it previously enforced a command name no authority record declared, so
   it could not run at all; when it *could* run (pre-registration), it swallowed every failure after
   step 1 and reported success anyway. It is now a Tier 0 composing walkthrough that names each
@@ -56,12 +63,6 @@ full detail, per this changelog's pre-1.0 convention.
   in-process semantic TUI driver.
 
 ### Fixed
-
-- **HITL verification binding hardening**: target-code verification now refuses stale or
-  dirty plan subjects before spawning, and patch application requires a successful bounded
-  receipt reconstructed from its exact plan and approval, bound to the exact target HEAD and
-  repository. HITL patch proposals are schema v2; legacy v1 proposals are refused rather than
-  auto-upgraded.
 
 - Governance audit refactor (Stage 3 & 4 Synthesis): closed findings from four independent
   red-team/architecture review passes.

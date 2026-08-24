@@ -1,7 +1,10 @@
 # builder-II
 
-> **Verification:** `bash scripts/ci.sh` is the authoritative local merge gate. This repository does not use GitHub-hosted workflows or status checks.
+[![CI](https://github.com/ACB-CORE-Labs/builder-2/actions/workflows/ci.yml/badge.svg)](https://github.com/ACB-CORE-Labs/builder-2/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python: 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
 
+> **Trust signals:** `tests/scenarios/test_wrp_full_lane.py`, `tests/scenarios/test_hitl_patch_lane_unmocked.py`, and `tests/scenarios/test_hitl_orchestration.py` exercise live model gateway routing, unmocked patch apply/rollback, and full HITL orchestration. Canonical local CI truth: `bash scripts/ci.sh` (do not treat badges as a substitute for the local gate battery).
 
 <p align="center">
   <img src="images/builder-ii-splash-hero.jpeg" alt="builder-II opening splash artwork" width="960">
@@ -9,506 +12,381 @@
 
 <p align="center"><em>Opening splash artwork from the governed builder-II TUI.</em></p>
 
-`builder-II` is a generic governed platform for local agent-assisted software development.
+---
 
-It is CORE-born, Codename-Goose-reinforcing, generic-first, engineer-centered, and governed by the Builder's Signet. CORE is supported as a first-class target profile, but builder-II itself is not CORE, not the CORE runtime, not CORE Workbench/UI, and not a second CORE runtime.
+## 1. What is builder-II?
 
-builder-II exists to make powerful local agent-assisted engineering work safer, clearer, more reproducible, and more honest about authority. It brings the right repo context, target profile, agent profile, model lane, verification path, authority boundary, audit trail, and handoff structure to the operator before the operator has to reconstruct that state manually.
+> **builder-II is a local-first governed engineering control plane for agent-assisted software development. It lets models, subagents, runtimes, and external tools help aggressively without silently inheriting the authority to decide what is allowed, what is true, or what is finished.**
 
-The project is being built to be freely usable. It does not need hype to justify itself; the facts of the system are the pitch: explicit authority, durable artifacts, human approval where authority changes, verification before promotion, and rollback paths when work touches real code.
-
-See [`docs/MANIFESTO.md`](docs/MANIFESTO.md) for the product philosophy, [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) for the governing product decision, and [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) for the Codename Goose convention-layer decision.
-
-## The core architecture
-
-builder-II is the overarching governed control plane.
-
-Goose, deepagents, MCP, and model clients are not parallel sources of authority beside builder-II. They are pressed into builder-II through governed adapters, policy artifacts, event sinks, and approval boundaries.
+To understand builder-II, clarify the boundaries immediately:
 
 ```text
-Wrong shape:
-  Goose does some things.
-  deepagents does some things.
-  MCP tools do some things.
-  builder-II later audits whatever it can see.
+builder-II ≠ CORE (CORE is an originating design lineage and a first-class target profile)
+builder-II ≠ CORE Workbench (builder-II helps build target code, not drive UI workflows)
+builder-II ≠ An autonomous engineer (builder-II is a governed control plane, not an unchecked bot)
 
-Right shape:
-  builder-II defines the governed envelope.
-  Goose operates inside that envelope.
-  deepagents plans/delegates inside that envelope.
-  MCP capabilities are inventoried, gated, wrapped, and audited inside that envelope.
-  Model clients propose/review/plan inside that envelope.
-  Every authority-bearing action crosses builder-II policy, artifact, HITL, receipt, verification, and rollback boundaries.
+Goose       = Governed operator runtime adapter (local session mechanics & shell)
+Deep Agents = Governed orchestration adapter (bounded planning, graph decomposition, delegation)
+MCP         = Governed external capability seam (inventory-first, deny-by-default tools & prompts)
+Models      = Reasoning and proposal resources operating strictly behind policy
 ```
 
-Every layer may provide mechanics. Only builder-II provides authority.
+Every layer supplies mechanics. **Only builder-II provides authority.**
 
-```mermaid
-flowchart TD
-    A["builder-II<br/>Governance Kernel / Control Plane"]
+---
 
-    A --> B["Target Profiles<br/>generic · builder · core"]
-    A --> C["Agent Profiles<br/>repo_mapper · context_planner · code_reviewer · patch_planner · verification_planner · handoff_scribe"]
-    A --> D["Model / Client Policy<br/>capability registry · routing candidates · assignment boundaries"]
-    A --> E["Command Authority<br/>capability promotion · HITL gates"]
-    A --> F["Artifact & Event Ledger<br/>plans · receipts · evidence · handoffs"]
-    A --> G["Verification / Rollback Chain"]
+## 2. Why builder-II exists
 
-    A --> H["Goose Adapter<br/>operator runtime / session shell"]
-    A --> I["deepagents Adapter<br/>planning / delegation / interrupt-resume"]
-    A --> J["MCP Adapter<br/>external tools / resources / prompts"]
-    A --> K["Model Provider Adapters<br/>local + future remote model clients"]
+Today's AI coding assistants and agent systems are remarkably capable, but standard conversational loops collapse five fundamentally distinct concepts into one opaque step:
 
-    H --> F
-    I --> F
-    J --> F
-    K --> F
-
-    E --> H
-    E --> I
-    E --> J
-    E --> K
-    G --> F
+```text
+Ordinary Agent Loop (Collapsed):
+  Reason → Choose Tools → Act → Decide Action Was OK → Decide It Worked → Continue
 ```
 
-### How to read the diagram
+When things go wrong in a complex engineering task — across multiple files, long sessions, cloud model providers, external tool invocations, Git operations, and release workflows — this collapsed loop produces:
+- **Invisible Agent Authority:** Silent writes, uncontrolled shell executions, and unprompted commits.
+- **Context Fog:** Loss of intent and evidence across agent subtasks or multi-session handoffs.
+- **False Completion:** A model declaring a patch "done and verified" when tests never ran or failed silently.
+- **Unrecoverable State:** Code mutations without verifiable preflight snapshots, working-tree drift detection, or clean rollback paths.
 
-- **builder-II is the system.** It owns governance, authority boundaries, artifacts, promotion, verification, rollback, and handoff continuity.
-- **Goose is the operator runtime adapter.** Goose supplies local session/runtime mechanics inside a builder-II-defined envelope. Goose must not invent authority.
-- **deepagents is the planning/delegation adapter.** The bounded native lane provides graph planning, WRP-derived subagent decomposition, interrupt/resume, and governance middleware through the official factory. It must not bypass builder-II policy or treat subagent output as authority.
-- **MCP is the external capability adapter.** MCP can expose tools, resources, prompts, roots, elicitation, and sampling surfaces. builder-II must inventory, classify, gate, wrap, audit, and revoke those capabilities.
-- **Model clients are reasoning/proposal adapters.** Models may review, plan, summarize, propose, and explain. A model output is not approval, verification, promotion, or truth by itself.
+### Governed Engineering as the Solution
 
-builder-II knows what is happening across layers because capability-bearing actions must pass through builder-II-defined adapters, artifacts, policy checks, and event records. It does not rely on trust that a layer "probably did the right thing." It records what was requested, what policy applied, what was approved or blocked, what executed, what evidence came back, what verification followed, and what rollback path exists.
+builder-II explicitly separates understanding, intent, authorization, execution, evidence, verification, and delivery into discrete, auditable steps:
 
-## The governing distinctions
+```text
+Governed Engineering Loop:
+  Understand
+  → Plan
+  → Bind Exact Intent
+  → Validate
+  → Authorize (where authority changes)
+  → Execute (through a single bounded owner)
+  → Receipt (what actually occurred)
+  → Verify (against explicit profiles)
+  → Deliver (separately authorized Git effects)
+  → Promote / Release (only under later human decisions)
+```
 
-builder-II is designed around distinctions that agent systems often blur:
+---
 
-- **planned** is not **executed**;
-- **executed** is not **verified**;
-- **verified** is not **promoted**;
-- **artifact** is not **authority**;
-- **model output** is not **approval**;
-- **subagent output** is not **truth**;
-- **approval** is not **successful execution**;
-- **execution** is not **safe merge**.
+## 3. The Mental Model
 
-These are not philosophical decorations. They are implementation boundaries.
+The entire platform is built upon four load-bearing distinctions:
 
-The platform is meant to become powerful because it is governed: ambient and anticipatory where the work is context, preparation, planning, routing, verification planning, and handoff continuity; explicit and HITL-gated where authority changes.
+```text
+PLANNED ≠ EXECUTED
+EXECUTED ≠ VERIFIED
+VERIFIED ≠ PROMOTED
 
-## The Builder's Signet
+ARTIFACT ≠ AUTHORITY
+MODEL OUTPUT ≠ APPROVAL
+SUBAGENT OUTPUT ≠ TRUTH
 
-Every architectural decision in builder-II should reflect three engineering pillars inherited from CORE:
+LOCAL COMMIT ≠ PUSH
+PUSH ≠ PR CREATION
+PR CREATION ≠ REVIEW
+REVIEW ≠ PROMOTION
+PROMOTION ≠ RELEASE
+```
 
-1. **Mechanical Sympathy** — Respect the real substrate of engineering work: local repositories, Git, Codename Goose, tests, diffs, handoffs, PRs, failed checks, constrained hardware, and human judgment. Do not rebuild what already works. Reinforce it.
-2. **Semantic Rigor** — Preserve exact meaning across every artifact and claim. Planned is not executed. Executed is not verified. Verified is not promoted. A manifest is not runtime evidence. A handoff is not proof of correctness.
-3. **The Third Door** — Reject the false choice between weak safety theater and reckless automation. builder-II must become powerful because it is governed: every capability that changes authority needs docs, tests, command surface, failure mode, human approval boundary, output artifact, rollback path, and verification path.
+These are not slogans; they are deterministic system boundaries. Consider how a standard code modification flows through builder-II:
 
-These are not slogans. They are design constraints.
+```text
+1. A model proposes a patch artifact.
+   ↓ (That is not permission to apply it.)
 
-## Layer integration model
+2. A human operator approves the exact SHA-256 patch digest at an interactive TTY prompt.
+   ↓ (That is not proof the patch works.)
 
-### builder-II
+3. The patch is applied to a scratch repository or worktree, generating a preflight snapshot and reverse patch.
+   ↓ (That is not verification.)
 
-builder-II owns the platform contract:
+4. A verification runner executes fixed test commands on the exact resulting source code and emits an execution receipt.
+   ↓ (That is not permission to commit or push.)
 
-- target repositories and target profiles;
-- agent profiles and authority contracts;
-- model/client metadata and routing policy artifacts;
-- context packs and repo maps;
-- command authority tiers;
-- capability promotion records;
-- HITL gates;
-- execution requests and receipts;
-- evidence bundles and chain bindings;
-- verification records;
-- rollback artifacts;
-- handoff notes.
+5. The operator approves a local commit.
+   ↓ (A local commit is not a push to remote.)
 
-No integration layer gets to override this contract.
+6. Pushing to a remote branch and opening a Pull Request require separate, explicit human authorizations.
+```
 
-### Goose
+### What this buys an engineer:
+- **Reproducibility:** Every state transition is recorded as a typed, schema-validated JSON artifact.
+- **Recoverability:** Every mutation generates a digest-bound rollback plan and reverse patch before touching disk.
+- **Inspectable Intent:** Plans, context packs, and routing recommendations are reviewable before any action is executed.
+- **Attributable Decisions:** Standing ratification records prove exactly who approved what, when, and under which digest.
+- **Aggressive Automation:** Routine steps (repo mapping, context assembly, model routing, artifact validation) run automatically *because* consequential boundaries (mutation, shell, spend, Git) remain strictly guarded.
 
-builder-II wraps Goose as the approved operator runtime substrate.
+---
 
-Goose is valuable because it is already built for local operator-facing agent sessions. builder-II should reinforce that instead of rebuilding it. Goose may host runtime sessions, present gates, and carry operator interaction, but it should consume builder-II session manifests and linked policy artifacts rather than deciding authority on its own.
+## 4. The Builder's Signet
 
-### deepagents
+Every architectural decision in builder-II is governed by three foundational engineering pillars:
 
-builder-II admits deepagents as an optional governed inner orchestration harness.
+### I. Mechanical Sympathy
+Respect the physical and software substrate of engineering work. Target the developer's real machine (MacBook Pro Apple Silicon M1/M2/M3 with unified memory) with lean model footprints (2GB–7GB). Integrate with tools that already work (Git, Codename Goose, `uv`, `pytest`) rather than reinventing them. Never hide Git state or invent simulated verification.
 
-The bounded native lane uses the official `deepagents.create_deep_agent` factory. Every model call passes through `ModelExecutionGateway`; executable tools pass through Builder-II policy; subagents come from sealed WRP obligations; and HITL resume binds to a digest-verified persisted checkpoint. The default is two active workers, the hard cap is four, and the parent and subagents share one model adapter so multiple large local models are never loaded concurrently.
+### II. Semantic Rigor
+Preserve exact meaning across every artifact, profile, session, command, and claim. A plan is not execution. A valid schema is not proof of correct code. An unexecuted test must honestly state `NOT_RUN` or `BLOCKED`. Never permit ambiguous or unverified work to masquerade as completed engineering truth.
 
-Canonical model routing is WRP-bound for Deep Agents and Goose. Both runtimes use
-the sole `ModelExecutionGateway`, including streaming, cancellation, bounded retry,
-governed failover, warm reuse, cloud disclosure, and receipt/budget truth. See
-[`docs/MODEL_RUNTIME_GATEWAY.md`](docs/MODEL_RUNTIME_GATEWAY.md).
+### III. The Third Door
+Reject the false dichotomy of agent tooling:
+- **Door 1:** "Safe" tooling that is useless because the agent can barely do anything.
+- **Door 2:** Powerful autonomous tooling that recklessly blurs reasoning, permission, mutation, and verification.
+- **The Third Door:** **Powerful because governed.** Automate aggressively where authority does not change; place explicit, tamper-evident friction exactly where a consequential decision occurs; preserve verifiable evidence before and after every transition.
 
-Subagent output remains proposal/evidence unless a separate builder-II review and promotion path says otherwise.
+---
 
-### MCP
+## 5. System Architecture
 
-builder-II treats MCP as the external capability seam.
+```text
+                         HUMAN OPERATOR
+                               │
+                           builder-II
+                   Governed Engineering Plane
+                               │
+       ┌───────────────────────┼───────────────────────┐
+       │                       │                       │
+ Context & State      Authority & Evidence         Execution
+       │                       │                       │
+ Target Profiles         HITL Gates              Model Gateway
+ Repository Maps         Receipts Ledger         Goose Adapter
+ Context Packs           Verification Runner     Deep Agents
+ Handoff Notes           Rollback Engine         MCP Seam
+ Artifact Memory         Ratification Grants     Git Delivery
+```
 
-MCP can make tools and context easier to connect. That same convenience makes it a potential bypass if it is not governed. builder-II therefore treats MCP capabilities as inventory-first, deny-by-default surfaces: hash them, classify them, gate them, wrap them, audit them, and revoke them when needed.
+### The Recurring Platform Grammar
 
-MCP should make external capabilities easier to govern, not easier to hide.
+Across all subsystems, builder-II enforces a single, consistent verb grammar:
 
-### Models and providers
+$$\text{Artifact} \longrightarrow \text{Validate} \longrightarrow \text{Approve (HITL)} \longrightarrow \text{Execute} \longrightarrow \text{Receipt} \longrightarrow \text{Verify} \longrightarrow \text{Handoff / Delivery}$$
 
-builder-II treats local and future remote models as model/provider adapters.
+1. **Artifact:** A typed Pydantic/dataclass record (`kind`) with strict schema validation.
+2. **Validate:** Schema, digest, and cross-reference integrity checks that fail closed.
+3. **Approve:** Human-in-the-loop gate required for any authority-changing operation.
+4. **Execute:** Bounded execution via fixed argv (`shell=False`) or sealed adapters.
+5. **Receipt:** Cryptographically bound on-disk record of what actually executed and what output resulted.
+6. **Verify:** Exact-source check comparing preflight and postflight states.
+7. **Handoff / Delivery:** Explicit summary for session resumption or separately authorized Git publishing.
 
-Models may help reason, propose, review, plan, summarize, and explain. They must not silently become approvers, verifiers, command authorities, patch appliers, or promotion engines. Future model routing begins as policy and artifact metadata before it becomes execution behavior.
+---
 
-## deepagents Forge
+## 6. A Five-Minute Taste
 
-deepagents Forge is builder-II's interactive creation surface for defining new deepagents without hand-authoring raw YAML. It walks the operator through identity, persona, target profile, capabilities, HITL gates, context, governance, and preview — then emits a governed agent profile in one shot.
-
-Key properties:
-
-- Interactive Textual TUI and headless CLI mode (`--non-interactive`).
-- Governance-first: write and shell capabilities require explicit HITL gates before the governance check passes.
-- Dry-run safe: `--dry-run` previews the full spec, governance checklist, and profile diff without writing anything.
-- Generic-first design: works for any repo; CORE is a target profile, not platform identity.
-- Additive: wraps existing `deepagents_bridge` and `agent_profiles` surfaces without replacing them.
+Inspect what is true in your environment without starting agents or mutating source code:
 
 ```bash
-# Interactive TUI wizard
-builder-deepagents forge
+# 1. Ask the platform what is operationally verified vs passive foundation
+uv run builder-platform status
+uv run builder-platform matrix
 
-# Pre-seed name and target profile
-builder-deepagents forge --name pr_reviewer --profile core
+# 2. Inspect available target repository profiles
+uv run builder-targets list
 
-# Preview only — no writes
-builder-deepagents forge --dry-run
+# 3. Prepare a deterministic session package (repo map, context pack, workflow plan)
+uv run builder-session prepare-package generic \
+  --task "Audit auth module and draft verification plan" \
+  --output-dir .builder/session/
 
-# Headless / CI mode
-builder-deepagents forge \
-  --non-interactive \
-  --name test_writer \
-  --persona "You are an agent that writes tests." \
-  --output-artifact artifacts/test_writer/ \
-  --rollback-path rollback/test_writer/
+# 4. Validate the SHA-256 integrity of the emitted package
+uv run builder-session validate-prepare-package .builder/session/
+uv run builder-session summarize-prepare-package .builder/session/
 ```
 
-See [`docs/DEEPAGENTS_FORGE.md`](docs/DEEPAGENTS_FORGE.md) for the full guide.
+### Next Steps:
+- **Quick Mechanics:** [`QUICKSTART.md`](QUICKSTART.md) — 60-second setup and verification commands.
+- **Full Governed Loop:** [`FIRST_SESSION.md`](FIRST_SESSION.md) — 30-minute end-to-end patch proposal, interactive approval, application, verification, and rollback loop.
+- **Conceptual Deep-Dive:** [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) — Comprehensive operator walkthrough, STRATUM navigation, and mental model.
 
-## CodeVault (Paid Commercial Plugin Upgrade)
+---
 
-**CodeVault** is a separate, privately licensed commercial plugin. Its implementation, design
-records, and development history are not distributed in this repository.
+## 7. Major Capabilities Overview
 
-### The CLI Seam in Open Core
-The open-source core includes a **fail-closed optional-plugin seam**. When the commercial package
-is unavailable, `builder-code-vault` exits non-zero and points the operator to the upgrade boundary.
-When installed separately, the seam delegates to the plugin's own command surface.
+| Capability | Why It Exists | Use It When |
+|---|---|---|
+| **Target Profiles** | Makes repo-specific conventions, sensitive modules, and test commands explicit | Switching projects (`generic`, `builder`, `core`) |
+| **Repo Maps & Context Packs** | Provides high-signal, bounded file context subsets without token waste | Starting or resuming an engineering task |
+| **Agent Profiles** | Separates persona, prompt rules, and allowed tools from execution authority | Selecting mapper, reviewer, planner, or scribe roles |
+| **Model Routing & WRP** | Determines optimal model, tier, provider, and budget policy before invocation | Planning local vs frontier reasoning workloads |
+| **Model Execution Gateway** | Single governed gateway for local/cloud inference with receipts and cost tracking | Running text or code completions through policy |
+| **Deep Agents** | Structured task decomposition, work plans, and subagent obligations | Breaking down multi-step architectural changes |
+| **Goose Adapter** | Preferred local operator runtime for interactive, recipe-driven coding sessions | Pairing interactively with an AI coding partner |
+| **MCP / Tool Gateway** | Brings external tools and prompts into an inventory-first, deny-by-default policy | Integrating custom dev tools or domain APIs |
+| **HITL Approval Gates** | Binds human decisions to exact SHA-256 digests via interactive TTY prompts | Authorizing patches, rollbacks, or spend |
+| **Verification Runner** | Proves code correctness using fixed profiles (`platform_status`, `pytest_full`) | Testing before patch apply, commit, or push |
+| **Rollback Engine** | Treats reversal as a first-class governed mutation with drift detection | Reverting an applied patch cleanly |
+| **Ratification Grants** | Relocates re-confirmation friction without delegating human approval authority | Streamlining repetitive operator commands |
+| **STRATUM Console** | TUI instrument console for observing artifact chains, matrices, and composing CLI lines | Navigating platform state from a central terminal UI |
+| **Artifact Memory & Handoffs** | Content-addressed, reviewable memory atoms and handoffs across sessions | Preserving context across interruptions or handoffs |
+| **Release Proof Harness** | Binds release artifacts to exact byte snapshots and verifiable manifests | Qualifying a candidate release before tagging |
 
-If you are interested in CodeVault or would like to enquire about getting access to the commercial plugin, please **reach out to the core maintainers** to ask about it!
+---
 
-The optional upgrade URL can be overridden with `CODEVAULT_URL`.
+## 8. What "Governed" Does and Does NOT Mean
 
-## Supported Models & Execution Backends
+Maintaining semantic rigor requires being completely explicit about security and trust boundaries:
 
-`builder-II` stands out by deeply integrating a robust, native registry of over 25+ models across diverse local and cloud execution backends. Unlike generic AI coding tools, `builder-II` classifies, routes, and sandboxes these models through a strict governance gateway to ensure mechanical sympathy and predictable artifact outcomes.
+### Governed DOES mean:
+- **Policy-Bound:** Actions must conform to declared target, agent, tool, and model policies.
+- **Digest-Bound:** Approvals and receipts bind the cryptographic hash (SHA-256) of input artifacts.
+- **Explicit Authority Transitions:** Authority never transfers implicitly across an integration seam.
+- **Fail-Closed Behavior:** Malformed artifacts, digest mismatches, or missing gates immediately halt execution.
+- **Durable Audit Trails:** State transitions append to hash-chained event ledgers.
+- **Reversible Mutations:** Code edits generate working-tree snapshots and reverse patches.
 
-### Local Apple Silicon (M1) Execution
-- **MLX Framework (In-Memory)**: Seamless integration with `mlx_lm.server` for high-throughput, low-latency local execution directly on Apple unified memory. Includes natively supported lanes for `mlx-community/Phi-4-mini-reasoning-4bit`, `mlx-community/Qwen2.5-Coder-7B-Instruct-4bit`, and heavy candidate lanes like `Qwen3-Coder-30B` and `DeepSeek-Coder-V2`.
-- **Ollama (Local Network)**: Complete integration with the Ollama daemon for running lightweight candidates like `gemma4:e4b`, `qwen3.5:2b`, and `ibm/granite4.1:3b` entirely offline.
+### Governed does NOT automatically mean:
+- **A Sandbox:** The bounded verification runner executes target repository code with the operator's host privileges. It constrains *invocation* (fixed argv, environment allowlist, `shell=False`, timeout), **not what invoked code can do**. Never run verification on untrusted repositories.
+- **Autonomous Software Engineer:** builder-II will not independently invent tasks, approve its own diffs, or push code.
+- **Cryptographic Non-Repudiation:** Audit ledgers are tamper-evident under later inspection, not immutable blockchain ledgers.
+- **Safe for Untrusted Prompts:** Model output is always treated as unverified proposal text.
 
-### Cloud Egress & Enterprise Execution
-- **Google Vertex AI**: Governed integration with Google Cloud Vertex AI using `global` openapi routing. Supports `gemini-3.5-flash`, `gemini-3.1-pro-preview`, and the full Gemini reasoning stack through ADC (Application Default Credentials).
-- **Groq & xAI**: Out-of-the-box support for lightning-fast API endpoints routing ultra-heavy frontier models (`Llama-3.3-70b-specdec`, `Grok-4.3`, `gpt-oss-120b`).
+---
 
-Every single backend is automatically governed by `builder-II`'s policy engine, assigning explicit routing rules, `local_network` / `cloud_egress` isolation envelopes, and dynamic tool-use capabilities to each model.
+## 9. Human Authority Without Constant Friction
 
-## Canonical Goose references
+builder-II distinguishes between two types of confirmation:
 
-Keep the public Goose docs close during design and implementation:
+```text
+"This is the artifact I already authored/reviewed"  →  DELEGABLE via Standing Ratification Grant
+"Should this consequential action be approved?"     →  CAN NEVER BE DELEGATED (Human Decision)
+```
 
-- Goose docs: <https://goose-docs.ai/>
-- Agentic AI Foundation: <https://aaif.io/>
+- **Interactive HITL Prompts:** When approving a patch or rollback, the operator must type the first characters of the artifact's SHA-256 digest at a TTY prompt. There is no `--yes` flag on approval minting.
+- **Standing Ratification Grants (`builder onboard` / `builder-govern`):** An operator can delegate re-confirmation friction for routine setup applications to a revocable, ledgered standing grant.
+- **Tighten-Only Policy Ladder:** Policy can raise confirmation requirements (`delegable` $\rightarrow$ `always_prompt` $\rightarrow$ `require_approval_artifact`), but can never loosen an ungrantable HITL gate.
 
-The builder convention layer should track Goose's official docs as Goose evolves under AAIF and prefer Goose-native concepts over invented substitutes. Goose is Apache 2.0 licensed and is never bundled or redistributed by builder-II — it is installed separately by the operator; see [`NOTICE.md`](NOTICE.md) for the full third-party notice.
+See [`docs/RATIFICATION_GRANTS.md`](docs/RATIFICATION_GRANTS.md) for full doctrine.
 
-## Documentation map
+---
 
-The curated set below covers what most readers need first. For the full reference index of every
-tracked document under `docs/`, grouped by subsystem, see [`docs/README.md`](docs/README.md).
+## 10. Model & Runtime Architecture
 
-| Document | Purpose |
-| --- | --- |
-| [`FIRST_SESSION.md`](FIRST_SESSION.md) | The single validated path from a clean clone to one complete governed patch loop, in about 30 minutes. Start here. |
-| [`docs/MANIFESTO.md`](docs/MANIFESTO.md) | builder-II manifesto: signet, product ethos, Codename Goose relationship, and governed engineering promise. |
-| [`docs/HONESTY_PINS_VS_IMPLEMENTATION.md`](docs/HONESTY_PINS_VS_IMPLEMENTATION.md) | Honesty pins reject false claims; they are **not** a ban on implementing governed execution paths. |
-| [`docs/GOOSE_CONVENTION_LAYER.md`](docs/GOOSE_CONVENTION_LAYER.md) | Operational spec for the builder convention layer over Codename Goose. |
-| [`docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md`](docs/adrs/ADR-0001-core-builder-ii-governed-engineering-extension.md) | Architecture decision defining CORE builder-II as a governed engineering extension. |
-| [`docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md`](docs/adrs/ADR-0002-builder-convention-layer-over-codename-goose.md) | Architecture decision requiring builder-II abstractions to compile down to Codename-Goose-native surfaces. |
-| [`docs/PROJECT_OVERVIEW.md`](docs/PROJECT_OVERVIEW.md) | Plain-English overview of the CORE-born, generic-first governed platform and its components. |
-| [`docs/OPERATOR_GUIDE.md`](docs/OPERATOR_GUIDE.md) | Setup, daily workflow, Goose recipes, skills/extensions, and validation boundary. |
-| [`docs/OPERATOR_QUICKSTART.md`](docs/OPERATOR_QUICKSTART.md) | Governed operator golden path and governed demo loop entrypoint. |
-| [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) | Step-by-step walkthroughs of advanced setup, STRATUM navigation, model configurations, and deepagent orchestration. |
-| [`docs/GLOSSARY.md`](docs/GLOSSARY.md) | Centralized definitions for core terminology, harnesses, and operational modes. |
-| [`docs/CORE_DEMO_WALKTHROUGH.md`](docs/CORE_DEMO_WALKTHROUGH.md) | Demo recording flow (CORE profile + generic targets) with evidence artifacts, approval boundary, verification, and rollback. |
-| [`docs/OPERATOR_COMMAND_SURFACE.md`](docs/OPERATOR_COMMAND_SURFACE.md) | Canonical index of all operator-facing commands, authority tiers, and output artifacts. |
-| [`docs/TARGETS.md`](docs/TARGETS.md) | Explicit target profiles: generic, builder, and core. |
-| [`docs/architecture/CORE_WORKBENCH_BOUNDARY.md`](docs/architecture/CORE_WORKBENCH_BOUNDARY.md) | V.5: builder-II helps Workbench *code* as target work; is not Workbench (design-only). |
-| [`docs/RATIFICATION_GRANTS.md`](docs/RATIFICATION_GRANTS.md) | Standing ratification grants: delegate the confirmations you already decided, never the ones that *are* the decision. `builder onboard` / `builder-govern`. |
-| [`docs/AGENTS.md`](docs/AGENTS.md) | Generic agent profiles and authority contracts. |
-| [`docs/REPO_MAPS.md`](docs/REPO_MAPS.md) | Repo map artifact creation and validation. |
-| [`docs/CONTEXT_PACKS.md`](docs/CONTEXT_PACKS.md) | Context pack artifact creation and validation. |
-| [`docs/TARGET_BUNDLES.md`](docs/TARGET_BUNDLES.md) | Governed target bundle JSON artifact creation and validation. |
-| [`docs/VERIFICATION_PROFILES.md`](docs/VERIFICATION_PROFILES.md) | Target-scoped verification profile artifacts and validation. |
-| [`docs/PROFILE_PACKS.md`](docs/PROFILE_PACKS.md) | Passive profile-pack manifests, render plans, dry-runs, and validation reports for capability-factory composition. |
-| [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md) | Artifact-only quality gate planning and validation. |
-| [`docs/HANDOFF_ARTIFACTS.md`](docs/HANDOFF_ARTIFACTS.md) | Artifact-only handoff capture and validation. |
-| [`docs/RESEARCH_PLANS.md`](docs/RESEARCH_PLANS.md) | Artifact-only research planning and source-strategy boundaries. |
-| [`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) | R0 truth matrix mirror, platform status boundary, and docs truth audit entrypoint. |
-| [`docs/GOOSE_RUNTIME.md`](docs/GOOSE_RUNTIME.md) | Goose runtime design boundary and promotion requirements. |
-| [`docs/GOOSE_SESSION.md`](docs/GOOSE_SESSION.md) | Goose session manifest artifacts; no runtime activation. |
-| [`docs/GOOSE_READONLY.md`](docs/GOOSE_READONLY.md) | Goose read-only runtime candidate audit artifacts; no repository inspection yet. |
-| [`docs/GOOSE_INSPECTION.md`](docs/GOOSE_INSPECTION.md) | Bounded read-only inspection artifacts for explicit operator-requested files. |
-| [`docs/DEEPAGENTS_POLICY.md`](docs/DEEPAGENTS_POLICY.md) | Governed deepagents policy artifacts; no agent construction. |
-| [`docs/DEEPAGENTS_READINESS.md`](docs/DEEPAGENTS_READINESS.md) | Optional deepagents bridge readiness reports; no runtime authority. |
-| [`docs/architecture/NATIVE_DEEPAGENTS_RUNTIME.md`](docs/architecture/NATIVE_DEEPAGENTS_RUNTIME.md) | Official native Deep Agents adapter, WRP/model/tool/checkpoint boundaries, and executable evidence contract. |
-| [`docs/DEEPAGENTS_FORGE.md`](docs/DEEPAGENTS_FORGE.md) | Interactive deepagents Forge wizard: creation flow, governance model, CLI usage, and design boundaries. |
-| [`docs/GOOSE_RUNTIME.md`](docs/GOOSE_RUNTIME.md) | Design-only seam for Goose as operator runtime, deepagents as governed inner harness, and MCP as policy-gated external capability surface. |
-| [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) | Capability promotion states and non-authority rule. |
-| [`docs/RUNTIME_PROMOTION.md`](docs/RUNTIME_PROMOTION.md) | Runtime-specific promotion gates for Goose, deepagents, commands, and patches. |
-| [`docs/ARTIFACT_INDEX.md`](docs/ARTIFACT_INDEX.md) | Index of all registered artifact kinds and non-authority boundaries. |
-| `builder_ii/cli/code_vault_cli.py` | CodeVault commercial plugin CLI seam (refuses execution in open core and guides upgrade). |
-| [`docs/RELEASE_PROOF.md`](docs/RELEASE_PROOF.md) | Exact-candidate open-source-v1 release proof and authority boundaries. |
-| [`docs/BETA_CHARTER.md`](docs/BETA_CHARTER.md) | What the beta is for, what feedback is wanted, what's out of scope, and how to send it. |
-| [`docs/TOOLING.md`](docs/TOOLING.md) | Tier 1/Tier 2 external engineering tools and Markdown vault strategy. |
-| [`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) | Scope, non-goals, and near-term platform direction. |
-| [`docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md`](docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md) | End-to-end implementation vision. |
-| [`docs/PERFORMANCE_MEASUREMENTS.md`](docs/PERFORMANCE_MEASUREMENTS.md) | Performance, model routing, and integration amendment. |
-| [`docs/model_role_matrix.md`](docs/model_role_matrix.md) | Model aliases, runtime lanes, recommended use, and avoid boundaries. |
-| [`docs/lane_guides.md`](docs/lane_guides.md) | Reusable prompt lanes for direct ask and planning/review work. |
-| [`docs/personas.md`](docs/personas.md) | Read-only persona definitions. |
-| [`docs/role_gates.md`](docs/role_gates.md) | Capability boundaries for each persona. |
-| [`docs/lane_checks.md`](docs/lane_checks.md) | Offline consistency checks for role/lane/gate wiring. |
+builder-II does not hardcode static lists of models into documentation. Model backends and routing rules operate through a unified gateway:
 
-## Contributing
+```text
+Task Intent & Risk Budget
+  ↓
+Model Routing Recommendation (`builder-model-policy`)
+  ↓
+Immutable Route Binding
+  ↓
+Model Execution Gateway (`builder_ii.routing.model_execution_gateway`)
+  ↓
+Transport Adapter (Local MLX / Ollama / Cloud Vertex / OpenAI-Compatible)
+  ↓
+Receipt & Budget Successor Record
+```
 
-This repository is currently private and not yet open for external contribution — see
-[`CONTRIBUTING.md`](CONTRIBUTING.md) for the (draft) process, quality gates, and conventions, prepared
-ahead of open-sourcing. [`SECURITY.md`](SECURITY.md) covers vulnerability reporting and this project's
-threat-model boundaries. [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) applies to all project spaces.
-[`CHANGELOG.md`](CHANGELOG.md) tracks notable changes.
+- **Passive model client registry and routing policy via `builder-model-policy`**
+- **Model/provider execution gateway** with budget caps and cost tracking
+- **Live Model Discovery:** Run `builder models` or `builder-model-policy show` to inspect currently configured backends, served models, and routing recommendations.
 
-## License
+See [`docs/MODEL_COSTING.md`](docs/MODEL_COSTING.md) and [`docs/model_role_matrix.md`](docs/model_role_matrix.md).
 
-builder-II is licensed under the [MIT License](LICENSE). [`NOTICE.md`](NOTICE.md) documents
-third-party software builder-II integrates with (notably Codename Goose, Apache 2.0) and what is
-and is not distributed as part of this repository. The commercial [CodeVault](#codevault-paid-commercial-plugin-upgrade)
-plugin is a separate repository under its own license and is not covered here.
+---
 
-## Support this project
+## 11. Git Delivery & Release Workflow
 
-builder-II is part of the broader CORE research program. If you'd like to support that work
-financially:
+builder-II enforces strict separation between local modifications and remote publication:
 
-- [Sponsor on GitHub Sponsors](https://github.com/sponsors/AssetOverflow)
-- [Support via Open Collective](https://opencollective.com/assetoverflow-core)
+```text
+1. Propose Patch Artifact
+      ↓
+2. Approve Patch Digest (HITL)
+      ↓
+3. Apply Patch (Local Scratch / Worktree)
+      ↓
+4. Run Exact-Source Verification (`builder-verify run-approved`)
+      ↓
+5. Operator Approves Local Commit
+      ↓
+6. Execute Git Commit
+      ↓
+7. Re-Verify Exact Commit Tip
+      ↓
+8. Operator Approves Remote Push
+      ↓
+9. Execute Git Push to Feature Branch
+      ↓
+10. Operator Approves Pull Request Creation
+      ↓
+11. Pull Request Review & Quality Gates Passing
+      ↓
+12. Final Release Proof Qualification (`verify_v0_release.py`)
+```
 
-## Hardware target
+There is **no automated push to `main`**, no direct force-push happy path, and no unreviewed release promotion.
 
-Primary target: Apple Silicon MacBook Pro M1 with 16GB unified memory.
+---
 
-The machine does not have 16GB free for weights. macOS, Goose, Python, terminal buffers, repository context, and KV cache all share the same memory pool. Productive coding sessions should prefer roughly 2GB to 7GB model footprints. Larger models are available as explicit opt-in experiments, not defaults.
+## 12. Supported Environments
 
-**Supported-host boundary:** macOS on Apple Silicon is the primary performance target and owns the optional MLX lane. Linux is a supported v1 governance/runtime host without an MLX-parity claim. Windows and WSL2 are unsupported for v1. Both supported hosts must install the same exact candidate wheel and complete the governed golden path before release review.
+### Version 1.0.0 Platform Support Contract:
 
-## What Is Present
+- **Python Runtime:** `Python >=3.12.13, <3.13` (enforced via `.python-version` and `pyproject.toml`).
+- **macOS (Apple Silicon arm64):**
+  - **Supported & Primary Performance Target.**
+  - Native local model inference via `mlx-lm` (install with `uv sync --extra mlx`).
+  - Memory-sympathetic defaults tuned for 16GB unified memory (2GB–7GB models).
+- **Linux (x86_64 / aarch64):**
+  - **Supported Governance & Runtime Host.**
+  - Full CLI, TUI (STRATUM), artifact chain, verification runner, and remote model gateway support.
+  - Local model execution supported via Ollama or OpenAI-compatible endpoints (no Apple MLX support).
+- **Windows / Windows WSL2:**
+  - **Unsupported for v1.0.0.**
 
-The proposed open-source-v1 candidate includes the governed artifact foundation plus the scoped runtime, verification, patch, rollback, model gateway, Deep Agents, MCP, and delivery lanes qualified in Plan Sets 1–6.
+---
 
-Operator-managed runtime helpers and manual verification workflows remain distinct from promoted autonomous authority. `builder-release` constructs and independently validates exact-candidate evidence; a valid bundle grants no promotion, tag, release, or publication authority. `scripts/verify_v0_release.py` is retained only for historical V0 artifact compatibility.
+## 13. Current Platform Status & Verification
 
-Legacy operator-managed helpers remain explicit and separate:
-
-- CLI setup/doctor/status/model helpers through `builder`
-- MLX-LM backend startup and served-model checks through operator invocation
-- Direct local ask through an OpenAI-compatible local endpoint
-- Runtime marker and listener reset helpers
-- Passive Goose config overlay planning
-- Goose recipes for platform, coding, plan, explore, implement, review, verify, and handoff flows
-- Passive skill install planning via governed setup overlays
-
-Canonical governed passive lanes include:
-
-- Model aliases, runtime policy, and model capability registry artifact
-- Explicit target profiles (`generic`, `builder`, `core`) via `builder-targets`
-- Generic agent profiles via `builder-agent`
-- Profile resolution layer (target, agent, prompt, verification, context)
-- **Session preparation lane** via `builder-session`:
-  - `prepare-package` — composes all session artifacts into a governed package
-  - `validate-prepare-package` — SHA-256 integrity check on all artifact refs
-  - `summarize-prepare-package` — human-readable package summary
-  - `repo-map` — read-only filesystem scan artifact
-  - `context-pack` — high-signal context subset artifact
-  - `config` — session configuration spine artifact
-  - `goose-projection` — Goose-native projection artifact (PLANNED_ONLY)
-  - `goose-wrapper-plan` — operator-facing wrapper plan artifact
-  - `goose-readonly-plan` — read-only session plan rendering
-- **ConventionKernel platform spine** — governed composition of the full session artifact set
-- **Command authority tier registry** — explicit authority tier, write boundary, and approval requirement for every command
-- **Orchestration plan and dry-run** via `builder-orchestration`
-- **HITL governance chain** via `builder-hitl`:
-  - execution request/receipt records
-  - postflight/verification records
-  - evidence bundle
-  - chain binding (cryptographic lifecycle)
-  - approved verification execution candidate
-- Verification profile reports via `builder-verification`
-- B1.3B verification plan, approval binding, receipt contract, and bounded `platform_status` runner via `builder-verify`
-- Handoff note lifecycle via `builder-notes`
-- Artifact memory atoms, indexes, deterministic search, and reconstruction via `builder-memory`
-- Passive profile-pack lifecycle via `builder-profile-pack`
-- Passive model client registry and routing policy via `builder-model-policy`
-- Platform truth matrix, status, and docs audit via `builder-platform`
-- deepagents bridge readiness reports via `builder-deepagents`
-- Artifact index and chain verification (all v0 kinds registered, closure-tested)
-- **v0 release manifest and operator-run proof harness** (`scripts/verify_v0_release.py`)
-- Governed target bundle artifacts via `builder-bundle`
-- Quality gate artifacts via `builder-quality`
-- Research planning artifacts via `builder-research`
-- Lane guides, personas, and capability boundaries for prompt/task organization
-- External tool registry via `builder-tools`
-- Optional external tool installer via `scripts/install-tools.sh`
-- Repomix-backed context manifests via `builder-context`
-- **deepagents Forge** — interactive governed agent creation wizard via `builder-deepagents forge`
-
-## Recommended model lanes
-
-| Lane | Alias | Default repo | Purpose |
-|---|---|---|---|
-| Fast logic/review | `phi-reasoning` | `mlx-community/Phi-4-mini-reasoning-4bit` | Invariant checks, audits, explanations, proposal review. |
-| Implementation | `qwen-coder` | `mlx-community/Qwen2.5-Coder-7B-Instruct-4bit` | Targeted patches, tests, CLI wiring, bounded refactors. |
-
-Alternates: `gemma-fast`, `gemma-primary`, and `llama`.
-
-Explicit opt-in candidate lanes: `codegeex`, `qwen-coder-14b`, `qwen3-coder-heavy`, and `deepseek`.
-
-See [`docs/model_role_matrix.md`](docs/model_role_matrix.md) for the canonical operating matrix covering each alias, runtime, role, recommended use, and avoid boundary.
-
-Future hybrid local/frontier routing must begin as a governed policy artifact. It must not silently call external models or bypass target profiles, approvals, audit artifacts, or verification requirements.
-
-## Current validation boundary
-
-Validated on the M1 `mlx-lm` lane:
-
-- `builder doctor` configuration/compliance checks
-- MLX-LM backend startup
-- Health probe at `http://127.0.0.1:8080/v1/models`
-- OpenAI-compatible chat transport at `http://127.0.0.1:8080/v1/chat/completions`
-- Direct local ask through `builder ask`
-- Text-only audit/planning responses through `qwen-coder`
-- Runtime reset with `builder-runtime reset`
-- Goose recipe path wiring
-- Full `builder-session prepare-package` → `validate-prepare-package` → `summarize-prepare-package` lane
-- Repo map and context pack generation
-- Session configuration, Goose projection, wrapper plan, and read-only plan artifacts
-- ConventionKernel platform spine composition
-- HITL execution request/receipt, postflight, verification, evidence bundle, and chain binding artifacts
-- HITL approved verification execution candidate (candidate only — no execution performed)
-- B1.3A passive verification execution plan, approval, and receipt artifacts (`builder_ii.verification_execution_plan`, `builder_ii.verification_execution_approval`, `builder_ii.verification_execution_receipt`) with execution disabled
-- Handoff note lifecycle artifacts
-- deepagents bridge readiness reports
-- bounded native Deep Agents delegation through `create_deep_agent`, with two WRP obligations, governed model/tool calls, digest-bound persistence, and HITL interrupt/resume evidence
-- Model/provider execution gateway with registry, policy, budget, envelope, and receipt enforcement
-- Artifact index and chain verification across the registered governed artifact vocabulary
-- Exact-candidate v1 release evidence and bundle validation (`builder-release`)
-
-Not every matrix row becomes operational merely because the package is a v1 candidate. The
-generated [known-limitations document](docs/KNOWN_LIMITATIONS.md) is the current source-derived
-list. In particular, ambient or unapproved Deep Agents orchestration, direct provider execution
-outside `ModelExecutionGateway`, fully autonomous model-driven file mutation, and production
-multimodal sidecars remain unpromoted. Existing patch, verification, MCP, and Git delivery lanes
-retain their own explicit approval envelopes and assurance states.
-
-Until a dedicated promotion path proves otherwise, treat local MLX sessions as review/planning/reporting lanes. For code edits, require explicit human review and run deterministic verification before accepting changes.
-
-## Install
-
-For an exact built candidate wheel, the supported public-tool shape is:
+builder-II maintains a self-describing, machine-checked truth matrix. At any time, you can audit the operational state of every capability directly from the codebase:
 
 ```bash
-uv tool install --python 3.12.13 './builder_ii-1.0.0-py3-none-any.whl[deepagents]'
-builder-release --help
+# Display operational verification status and capability counts
+uv run builder-platform status
+
+# Display full completion truth matrix (JSON format)
+uv run builder-platform matrix
+
+# Audit documentation against false-completion claims
+uv run builder-platform audit-docs
 ```
 
-On Apple Silicon, use `[deepagents,apple]` for the MLX lane. Linux supports `[deepagents]`
-without an MLX-parity claim. Windows and WSL2 are unsupported for v1.
+- **`OPERATIONALLY_VERIFIED`:** Capability has cleared all eight promotion gates (docs, tests, command surface, failure mode, human boundary, output artifact, rollback path, verification path).
+- **`PASSIVE_FOUNDATION` / `ARTIFACT_ONLY`:** Capability produces valid schemas and passive plans, but does not possess runtime execution authority.
+- **Known Boundaries:** See [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) for an exact list of unpromoted capabilities and blockers generated directly from the matrix.
 
-For a source checkout on Apple Silicon:
+---
 
-```bash
-brew install block-goose-cli
-cd builder-II
-uv sync --extra mlx --extra deepagents
-cp .env.example .env
+## 14. Documentation Journeys
+
+Find the right path for your immediate goal:
+
+```text
+┌───────────────────────────────────────┐
+│ "I want to try it in 60 seconds"     │ ──► QUICKSTART.md
+└───────────────────────────────────────┘
+┌───────────────────────────────────────┐
+│ "I want to understand the paradigm"   │ ──► docs/MANIFESTO.md + docs/PROJECT_OVERVIEW.md
+└───────────────────────────────────────┘
+┌───────────────────────────────────────┐
+│ "I want to operate it day-to-day"     │ ──► docs/GETTING_STARTED.md + docs/OPERATOR_GUIDE.md
+└───────────────────────────────────────┘
+┌───────────────────────────────────────┐
+│ "I need exact technical truth"        │ ──► docs/README.md + docs/COMMAND_AUTHORITY.md
+└───────────────────────────────────────┘
 ```
 
-`mlx-lm` and `rapid-mlx` (the local Apple Silicon model backend) live in the `mlx` optional-dependency
-group, not the base install — MLX requires macOS on arm64. On Apple Silicon, install with
-`uv sync --extra mlx --extra deepagents` to get the recommended local-model and bounded native
-orchestration lanes. The `deepagents` extra is version-bounded and optional so the governance-only
-base stays lightweight. On any other platform, use `uv sync --extra deepagents`, or plain `uv sync` for the
-governed CLI/TUI and artifact/HITL/verification spine without native orchestration or MLX; the
-`mlx-lm`/local-model backend paths remain a Mac-first boundary until a non-Mac model backend is
-promoted (see "Hardware target" below).
+- **Contributing Guide:** [`CONTRIBUTING.md`](CONTRIBUTING.md) — Development setup, local CI gates, Forgejo workflow.
+- **Security Policy & Threat Model:** [`SECURITY.md`](SECURITY.md) — Vulnerability reporting and trust boundaries.
+- **Changelog & Version Provenance:** [`CHANGELOG.md`](CHANGELOG.md) — Version history and release notes.
+- **License:** [`LICENSE`](LICENSE) — Open source under the MIT License. Commercial extensions (such as CodeVault) operate under dedicated licensing.
 
-`.env.example` defaults to the self-contained `builder` profile (target repo = this clone), so a fresh clone works with zero edits. Point the pair at a real project when you have one — prefer generic `BUILDER_*` names; legacy `CORE_*` names remain compatibility aliases only. The CORE-born example:
+---
 
-```bash
-BUILDER_TARGET_REPO=../core
-BUILDER_TARGET_PROFILE=core
-BUILDER_ARTIFACT_ROOT=.builder/artifacts
-BUILDER_MODEL_BACKEND=mlx-lm
-BUILDER_MODEL_ALIAS=qwen-coder
-BUILDER_RUNTIME_MODE=passive
-```
-
-## Download models
-
-The governed downloader is resumable. Re-run the same command after Wi-Fi drops or Hugging Face throttling.
-
-```bash
-bash scripts/pull-roster.sh status
-bash scripts/pull-roster.sh recommended
-```
-
-Useful variants:
-
-```bash
-bash scripts/pull-roster.sh fast
-bash scripts/pull-roster.sh primary
-bash scripts/pull-roster.sh all-safe
-bash scripts/pull-roster.sh alias llama
-bash scripts/pull-roster.sh candidates
-```
-
-## First run
-
-See **[`FIRST_SESSION.md`](FIRST_SESSION.md)** for the single validated path from a clean clone
-to one complete governed patch loop (propose → approve → verify → apply → rollback), in about
-30 minutes — install, orient yourself against the platform's own truth state, then do one real
-patch loop by hand against a scratch repo, with a receipt and a real TTY approval at every
-mutating step.
-
-For a quick sanity check that the install itself is sound before diving into the full
-walkthrough:
-
-```bash
-builder doctor
-builder models
-builder-targets validate
-builder-agent validate
-builder-platform matrix
-builder-platform audit-docs
-```
-
-Legacy `builder setup` now fails closed and prints the governed R1 setup sequence. It does not write Goose config, `.goosehints`, skills, recipes, or runtime state.
+<p align="center">
+  <b>builder-II</b> — Governed Engineering for Agent-Assisted Development.<br>
+  <em>Because powerful AI tooling should make software more reliable, not more opaque.</em>
+</p>

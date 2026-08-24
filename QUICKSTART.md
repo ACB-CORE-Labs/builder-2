@@ -1,66 +1,73 @@
 # builder-II Quickstart
 
-Pure mechanics. v1 supports **Linux** and **macOS Apple Silicon**. Windows and WSL2
-are not v1 release-parity targets.
+Pure mechanics. Supported on **macOS (Apple Silicon arm64)** and **Linux (x86_64 / aarch64)**.
 
-## Prerequisites
+---
 
-- Python 3.12+
-- [`uv`](https://docs.astral.sh/uv/) (recommended) or pip
-- Optional for model-backed demos: [Ollama](https://ollama.com)
+## 1. Prerequisites
+
+- Python `>=3.12.13, <3.13`
+- [`uv`](https://docs.astral.sh/uv/) (recommended package manager)
 - Git
+- *(Optional - macOS Apple Silicon)* Local MLX models via `uv sync --extra mlx`
+- *(Optional - Linux / Remote)* [Ollama](https://ollama.com) or an OpenAI-compatible / Vertex endpoint
 
-## Install in 60 Seconds
+---
+
+## 2. Install in 60 Seconds
 
 ```bash
-git clone <this-repo-url> builder-II
-cd builder-II
-export BUILDER_MODEL_BACKEND=ollama   # recommended open-source / non-Apple path
+# 1. Clone repository
+git clone <repo-url> builder-2
+cd builder-2
+
+# 2. Install dependencies
 uv sync --all-groups
-# Full native-orchestration development lane:
-uv sync --all-groups --extra deepagents
-# Apple Silicon MLX (optional): uv sync --extra mlx   # or: pip install -e '.[apple]'
+
+# (Optional: Apple Silicon local MLX acceleration)
+# uv sync --extra mlx
+
+# 3. Initialize default configuration
 cp .env.example .env
 ```
 
-## Boot builder-II
+---
+
+## 3. Verify Platform Health & Truth State
 
 ```bash
+# Audit platform operational status
 uv run builder-platform status
+
+# Run system compliance checks
 uv run builder doctor
-# Optional TUI:
-uv run builder-platform tui
+
+# Inspect available target repository profiles
+uv run builder-targets list
 ```
 
-## Watch Governance Work
+---
 
-Closed loop: **propose → intercept → approve → commit**.
+## 4. Run the Governed Smoke Test
 
-Fastest proof (fixture repo, no live model required for the patch lane):
+Exercise the end-to-end closed loop (**propose $\rightarrow$ approve $\rightarrow$ verify $\rightarrow$ apply $\rightarrow$ rollback**) on a self-contained fixture repository:
 
 ```bash
 bash scripts/clean-clone-smoke.sh
 ```
 
-That smoke gate runs onboarding plus one full generic governed patch loop
-(propose → approve → verify → apply → rollback).
+This smoke gate validates:
+1. Target profile resolution.
+2. Digest-bound patch proposal generation.
+3. Interactive human-in-the-loop (HITL) approval boundary.
+4. Bounded verification runner execution.
+5. Preflight snapshot, patch application, and reverse-patch rollback.
 
-Scenario trust pins:
+---
 
-- `tests/scenarios/test_hitl_orchestration.py`
-- `tests/scenarios/test_wrp_full_lane.py`
-- `tests/scenarios/test_hitl_patch_lane_unmocked.py`
+## 5. Next Steps
 
-Longer walkthrough: [`FIRST_SESSION.md`](FIRST_SESSION.md).
+- **Full First Session Walkthrough:** [`FIRST_SESSION.md`](FIRST_SESSION.md) — 30-minute clone-to-patch guided walkthrough.
+- **Operator Concepts & Architecture:** [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) — The complete mental model and STRATUM TUI tour.
+- **Terminology & Definitions:** [`docs/GLOSSARY.md`](docs/GLOSSARY.md) and [`LEXICON.md`](LEXICON.md).
 
-## What Just Happened
-
-An agent may only **propose** mutations as digest-bound artifacts; builder-II intercepts
-unapproved writes, requires human approval bound to those digests, and only then executes —
-planned ≠ executed ≠ verified ≠ promoted.
-
-## Next Steps
-
-- [`LEXICON.md`](LEXICON.md) — vocabulary translation table  
-- [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md)  
-- [`docs/OPERATOR_QUICKSTART.md`](docs/OPERATOR_QUICKSTART.md)
