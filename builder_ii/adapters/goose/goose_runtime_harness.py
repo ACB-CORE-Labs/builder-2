@@ -246,6 +246,9 @@ def _approved_patch_close_evidence(
         "rollback_bundle_ref": evidence["rollback_bundle_ref"],
         "patch_ledger_ref": evidence["patch_ledger_ref"],
         "rollback_patch_ref": evidence["rollback_patch_ref"],
+        "proposal_ref": evidence["proposal_ref"],
+        "approval_ref": evidence["approval_ref"],
+        "verification_receipt_ref": evidence["verification_receipt_ref"],
     }
     return approved_paths, summary, []
 
@@ -471,7 +474,11 @@ def _validated_rollback_close_evidence(
             errors.append(f"rollback reverse patch is invalid: {exc}")
     if errors:
         return set(), None, list(dict.fromkeys(errors))
-    return approved_paths, {"session_id": session_id, **{key: result[key] for key in result if key.endswith("_ref")}}, []
+    return approved_paths, {
+        "session_id": session_id,
+        "target_root": str(target_root.resolve()),
+        **{key: result[key] for key in result if key.endswith("_ref")},
+    }, []
 
 
 async def _get_target_files_async(target_root: Path) -> dict[str, str]:
@@ -870,9 +877,14 @@ class GooseRuntimeHarness:
 
         # Export the actual transcript to a JSON log instead of timestamp guessing
         canonical_close = self._admitted_artifact_root is not None and self._canonical_launch_receipt is not None
-        transcript_path_obj = (
+        transcript_export = (
             prepare_transcript_export(self._admitted_artifact_root, self.session_id)
             if canonical_close and self._admitted_artifact_root is not None
+            else None
+        )
+        transcript_path_obj = (
+            transcript_export.child_path
+            if transcript_export is not None
             else self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
         )
         transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
@@ -882,22 +894,29 @@ class GooseRuntimeHarness:
             if self._governed_admission is not None
             else "goose"
         )
-        export_result = subprocess.run(
-            [
-                export_binary,
-                "session",
-                "export",
-                "--name",
-                self.session_id,
-                "--format",
-                "json",
-                "--output",
-                transcript_export_path,
-            ],
-            check=False,
-        )
+        try:
+            export_result = subprocess.run(
+                [
+                    export_binary,
+                    "session",
+                    "export",
+                    "--name",
+                    self.session_id,
+                    "--format",
+                    "json",
+                    "--output",
+                    transcript_export_path,
+                ],
+                check=False,
+                pass_fds=(transcript_export.file_fd,) if transcript_export is not None else (),
+            )
+        except Exception:
+            if transcript_export is not None:
+                discard_transcript_export(transcript_export)
+            raise
         if canonical_close and export_result.returncode != 0:
-            discard_transcript_export(transcript_path_obj)
+            assert transcript_export is not None
+            discard_transcript_export(transcript_export)
             raise RuntimeError(
                 f"Goose transcript export failed with status {export_result.returncode}; close custody was not recorded"
             )
@@ -906,7 +925,7 @@ class GooseRuntimeHarness:
             transcript_path_obj = install_transcript_export(
                 artifact_root=self._admitted_artifact_root,
                 session_id=self.session_id,
-                export_path=transcript_path_obj,
+                export=transcript_export,
             )
         transcript_path = str(transcript_path_obj)
         transcript_digest = _file_sha256(transcript_path_obj) or ""

@@ -24,6 +24,7 @@ from builder_ii.adapters.goose.goose_session_custody import (
     prepare_transcript_export,
     validate_goose_session_custody,
 )
+from builder_ii.core.run_registry import project_run_registry
 from builder_ii.core.run_view import project_run_view
 from builder_ii.governance.ledger.event_ledger import (
     load_event_records,
@@ -146,22 +147,22 @@ def test_failed_transcript_export_cleanup_allows_retry_without_overwrite(tmp_pat
     artifact_root = tmp_path / "artifacts"
     session_id = "goose-export-retry"
     first = prepare_transcript_export(artifact_root, session_id)
-    first.write_text("partial", encoding="utf-8")
+    first.child_path.write_text("partial", encoding="utf-8")
     discard_transcript_export(first)
-    assert not first.exists()
+    assert first.closed is True
     assert not canonical_transcript_path(artifact_root, session_id).exists()
 
     retry = prepare_transcript_export(artifact_root, session_id)
-    retry.write_text('{"messages": []}\n', encoding="utf-8")
+    retry.child_path.write_text('{"messages": []}\n', encoding="utf-8")
     installed = install_transcript_export(
         artifact_root=artifact_root,
         session_id=session_id,
-        export_path=retry,
+        export=retry,
     )
 
     assert installed == canonical_transcript_path(artifact_root, session_id)
     assert installed.read_text(encoding="utf-8") == '{"messages": []}\n'
-    assert not retry.exists()
+    assert retry.closed is True
 
 
 def test_goose_close_and_postflight_validators_reject_digest_tampering(tmp_path: Path) -> None:
@@ -269,11 +270,29 @@ def test_postflight_validator_rejects_unaccounted_mutation(tmp_path: Path) -> No
         ["changed.txt"],
         unexplained_mutations=[],
     )
-
     assert (
         "detected mutations must be exactly partitioned into approved and unexplained mutations"
         in validate_no_mutation_postflight(postflight)
     )
+
+
+def test_postflight_validator_rejects_opaque_approved_mutation_evidence(tmp_path: Path) -> None:
+    postflight = create_no_mutation_postflight(
+        "opaque-approval",
+        str(tmp_path / "target"),
+        "2026-08-24T00:00:00+00:00",
+        "2026-08-24T00:01:00+00:00",
+        1,
+        ["changed.txt"],
+        approved_mutations=["changed.txt"],
+        unexplained_mutations=[],
+        mutation_mode="approved_hitl_patch",
+        approved_mutation_evidence={"fake": True},
+    )
+
+    errors = validate_no_mutation_postflight(postflight)
+    assert "approved mutation evidence session_id does not match postflight" in errors
+    assert "approved mutation evidence requires patch_apply_receipt_ref" in errors
 
 
 @pytest.mark.parametrize(
@@ -307,3 +326,85 @@ def test_runtime_event_append_is_lossless_under_concurrency(
     loaded = load_event_records(events_dir)
     assert len(loaded) == 2
     assert validate_event_chain_integrity(events_dir)["valid"] is True
+
+
+def test_runtime_event_append_refuses_dangling_wal_symlink(tmp_path: Path) -> None:
+    events_dir = tmp_path / "events"
+    events_dir.mkdir()
+    outside = tmp_path / "outside.wal"
+    (events_dir / "events.wal").symlink_to(outside)
+
+    with pytest.raises(ValueError, match="must not be a symlink"):
+        append_runtime_event(
+            events_dir=events_dir,
+            session_id="wal-symlink",
+            event_type="goose_session_started",
+            message="must refuse",
+            command_surface="builder start",
+        )
+
+    assert not outside.exists()
+    assert not list(events_dir.glob("*.json"))
+
+
+def test_runtime_event_append_refuses_retained_legacy_wal(tmp_path: Path) -> None:
+    events_dir = tmp_path / "events"
+    events_dir.mkdir()
+    (events_dir / "events.wal").write_text("legacy\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must be reconciled and retired"):
+        append_runtime_event(
+            events_dir=events_dir,
+            session_id="wal-retained",
+            event_type="goose_session_started",
+            message="must refuse",
+            command_surface="builder start",
+        )
+
+    assert not list(events_dir.glob("*.json"))
+
+
+def test_registry_and_run_view_reject_divergent_legacy_wal(tmp_path: Path) -> None:
+    session_id = "wal-divergence"
+    artifact_root, launch, _, _, transcript = _evidence(tmp_path, session_id)
+    transcript.unlink()
+    persist_goose_launch(artifact_root=artifact_root, session_id=session_id, launch_receipt=launch)
+    events_dir = artifact_root / "sessions" / session_id / "events"
+    event_path = next(events_dir.glob("*.json"))
+    original = json.loads(event_path.read_text(encoding="utf-8"))
+    (events_dir / "events.wal").write_text(json.dumps(original) + "\n", encoding="utf-8")
+    changed = dict(original)
+    changed["message"] = "divergent mirror"
+    event_path.write_text(json.dumps(changed, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    registry = project_run_registry(artifact_root)
+    selected = registry.select(session_id)
+    assert selected is not None
+    assert selected.chain_valid is False
+    assert any("does not exactly mirror" in error for error in selected.errors)
+    view = project_run_view(artifact_root, session_id=session_id)
+    assert view.evidence_health == "CORRUPT"
+    assert any("does not exactly mirror" in error for error in view.errors)
+
+
+def test_transcript_export_refuses_directory_inode_swap(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "artifacts"
+    session_id = "export-inode-swap"
+    export = prepare_transcript_export(artifact_root, session_id)
+    export.child_path.write_text('{"messages": []}\n', encoding="utf-8")
+    original_dir = export.session_dir
+    moved_dir = original_dir.with_name("goose-moved")
+    original_dir.rename(moved_dir)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    original_dir.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="directory identity changed"):
+        install_transcript_export(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            export=export,
+        )
+
+    assert export.closed is True
+    assert list(outside.iterdir()) == []

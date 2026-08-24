@@ -126,6 +126,41 @@ def validate_no_mutation_postflight(postflight: Any) -> list[str]:
     elif mode in {"approved_hitl_patch", "approved_hitl_rollback"}:
         if not isinstance(evidence, dict) or not evidence:
             errors.append("approved mutation mode requires approved_mutation_evidence")
+        else:
+            if evidence.get("session_id") != postflight.get("session_id"):
+                errors.append("approved mutation evidence session_id does not match postflight")
+            if evidence.get("target_root") != postflight.get("target_root"):
+                errors.append("approved mutation evidence target_root does not match postflight")
+            required_refs = (
+                (
+                    "patch_apply_receipt_ref",
+                    "postflight_ref",
+                    "rollback_plan_ref",
+                    "rollback_bundle_ref",
+                    "patch_ledger_ref",
+                    "rollback_patch_ref",
+                    "proposal_ref",
+                    "approval_ref",
+                    "verification_receipt_ref",
+                )
+                if mode == "approved_hitl_patch"
+                else (
+                    "rollback_receipt_ref",
+                    "rollback_ledger_ref",
+                    "rollback_plan_ref",
+                    "rollback_approval_ref",
+                    "rollback_reverse_patch_ref",
+                )
+            )
+            for key in required_refs:
+                ref = evidence.get(key)
+                if not isinstance(ref, dict):
+                    errors.append(f"approved mutation evidence requires {key}")
+                    continue
+                if not isinstance(ref.get("path"), str) or not ref["path"]:
+                    errors.append(f"approved mutation evidence {key}.path must be non-empty")
+                if not isinstance(ref.get("sha256"), str) or not _SHA256_RE.fullmatch(ref["sha256"]):
+                    errors.append(f"approved mutation evidence {key}.sha256 must be a SHA-256 digest")
         if mode == "approved_hitl_patch" and patch_evidence != evidence:
             errors.append("approved_hitl_patch mode must mirror approved evidence in approved_patch_evidence")
         if mode == "approved_hitl_rollback" and patch_evidence is not None:

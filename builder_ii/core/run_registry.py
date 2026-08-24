@@ -18,6 +18,7 @@ from builder_ii.governance.ledger.event_ledger import (
     load_event_records,
     validate_event_chain_integrity,
 )
+from builder_ii.governance.ledger.workflow_records import canonical_digest
 
 
 @dataclass(frozen=True)
@@ -79,9 +80,10 @@ def _sequence(event: dict) -> int:
     return seq if isinstance(seq, int) else 10**9
 
 
-def _event_inventory_errors(events_dir: Path) -> tuple[str, ...]:
+def event_inventory_errors(events_dir: Path) -> tuple[str, ...]:
     """Expose files the canonical loader would otherwise skip silently."""
     errors: list[str] = []
+    json_records: list[dict] = []
     json_paths = sorted(events_dir.glob("*.json"))
     for path in json_paths:
         try:
@@ -91,20 +93,31 @@ def _event_inventory_errors(events_dir: Path) -> tuple[str, ...]:
             continue
         if not isinstance(value, dict) or value.get("kind") != EVENT_RECORD_KIND:
             errors.append(f"{path}: foreign artifact in canonical events directory")
+        else:
+            json_records.append(value)
     wal_path = events_dir / "events.wal"
-    if wal_path.exists():
+    if wal_path.is_symlink():
+        errors.append(f"{wal_path}: event WAL must not be a symlink")
+    elif wal_path.exists():
         try:
             payload = wal_path.read_bytes().rstrip(b"\x00")
             if not payload:
                 errors.append(f"{wal_path}: empty event WAL")
             else:
                 text = payload.decode("utf-8")
+                wal_records: list[dict] = []
                 for line_number, line in enumerate(text.splitlines(), start=1):
                     if not line.strip():
                         continue
                     value = json.loads(line)
                     if not isinstance(value, dict) or value.get("kind") != EVENT_RECORD_KIND:
                         errors.append(f"{wal_path}:{line_number}: foreign record in canonical event WAL")
+                    else:
+                        wal_records.append(value)
+                json_digests = [canonical_digest(value) for value in sorted(json_records, key=_sequence)]
+                wal_digests = [canonical_digest(value) for value in sorted(wal_records, key=_sequence)]
+                if wal_digests != json_digests:
+                    errors.append(f"{wal_path}: legacy WAL does not exactly mirror canonical JSON events")
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
             errors.append(f"{wal_path}: invalid event WAL: {exc}")
     return tuple(errors)
@@ -122,7 +135,7 @@ def project_run_registry(builder_root: Path | None) -> RunRegistryView:
         if not events_dir.is_dir():
             continue
         records = load_event_records(events_dir)
-        inventory_errors = _event_inventory_errors(events_dir)
+        inventory_errors = event_inventory_errors(events_dir)
         if not records and not inventory_errors:
             continue  # an empty directory is not yet a run
         ordered = sorted(records, key=lambda item: _sequence(item[0]))

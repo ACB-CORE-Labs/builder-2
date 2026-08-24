@@ -13,7 +13,8 @@ import json
 import os
 import re
 import stat
-import tempfile
+import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -78,52 +79,100 @@ def _validate_identity(value: dict[str, Any], session_id: str, label: str) -> No
         raise ValueError(f"{label} session_id does not match governed run")
 
 
-def prepare_transcript_export(artifact_root: Path, session_id: str) -> Path:
-    """Create a protected temporary transcript target inside the admitted session directory."""
+@dataclass
+class TranscriptExport:
+    directory_fd: int
+    file_fd: int
+    session_dir: Path
+    name: str
+    closed: bool = False
+
+    @property
+    def child_path(self) -> Path:
+        return Path(f"/dev/fd/{self.file_fd}")
+
+    def close(self) -> None:
+        if not self.closed:
+            os.close(self.file_fd)
+            os.close(self.directory_fd)
+            self.closed = True
+
+
+def _directory_fd_matches_path(directory_fd: int, path: Path) -> bool:
+    try:
+        path_info = path.lstat()
+    except OSError:
+        return False
+    fd_info = os.fstat(directory_fd)
+    return (
+        stat.S_ISDIR(path_info.st_mode)
+        and not stat.S_ISLNK(path_info.st_mode)
+        and path_info.st_dev == fd_info.st_dev
+        and path_info.st_ino == fd_info.st_ino
+    )
+
+
+def prepare_transcript_export(artifact_root: Path, session_id: str) -> TranscriptExport:
+    """Create a protected export target and retain directory-fd custody."""
     session_dir = goose_session_dir(artifact_root, session_id)
     directory_fd = open_directory_nofollow(session_dir)
     try:
-        fd, path = tempfile.mkstemp(prefix=".transcript-export-", suffix=".json", dir=session_dir)
-        os.fchmod(fd, 0o600)
-        os.close(fd)
-        return Path(path)
-    finally:
+        if not _directory_fd_matches_path(directory_fd, session_dir):
+            raise ValueError("canonical Goose session directory identity changed during export preparation")
+        name = f".transcript-export-{uuid.uuid4().hex}.json"
+        flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
+        export_fd = os.open(name, flags, 0o600, dir_fd=directory_fd)
+        return TranscriptExport(
+            directory_fd=directory_fd,
+            file_fd=export_fd,
+            session_dir=session_dir,
+            name=name,
+        )
+    except Exception:
         os.close(directory_fd)
+        raise
 
 
 def install_transcript_export(
-    *, artifact_root: Path, session_id: str, export_path: Path
+    *, artifact_root: Path, session_id: str, export: TranscriptExport
 ) -> Path:
-    """Install a regular temporary export at the canonical path without replacement."""
+    """Install a regular export without re-resolving the mutable directory path."""
     session_dir = goose_session_dir(artifact_root, session_id)
-    if export_path.parent != session_dir or not export_path.name.startswith(".transcript-export-"):
+    if export.closed or export.session_dir != session_dir or not export.name.startswith(".transcript-export-"):
         raise ValueError("Goose transcript export is outside the protected session directory")
-    info = export_path.lstat()
-    if not stat.S_ISREG(info.st_mode):
-        raise ValueError("Goose transcript export must be a regular file")
     destination = canonical_transcript_path(artifact_root, session_id)
-    directory_fd = open_directory_nofollow(session_dir)
     try:
+        if not _directory_fd_matches_path(export.directory_fd, session_dir):
+            raise ValueError("canonical Goose session directory identity changed during transcript export")
+        info = os.fstat(export.file_fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise ValueError("Goose transcript export must be a regular file")
         os.link(
-            export_path.name,
+            export.name,
             destination.name,
-            src_dir_fd=directory_fd,
-            dst_dir_fd=directory_fd,
+            src_dir_fd=export.directory_fd,
+            dst_dir_fd=export.directory_fd,
             follow_symlinks=False,
         )
-        os.unlink(export_path.name, dir_fd=directory_fd)
+        os.unlink(export.name, dir_fd=export.directory_fd)
     finally:
-        os.close(directory_fd)
+        try:
+            os.unlink(export.name, dir_fd=export.directory_fd)
+        except FileNotFoundError:
+            pass
+        export.close()
     return destination
 
 
-def discard_transcript_export(export_path: Path) -> None:
+def discard_transcript_export(export: TranscriptExport) -> None:
     """Remove only the protected temporary export produced by this adapter."""
-    if export_path.name.startswith(".transcript-export-"):
+    if not export.closed and export.name.startswith(".transcript-export-"):
         try:
-            export_path.unlink()
+            os.unlink(export.name, dir_fd=export.directory_fd)
         except FileNotFoundError:
             pass
+        finally:
+            export.close()
 
 
 def _load_json(path: Path, label: str) -> tuple[dict[str, Any] | None, list[str]]:
@@ -209,6 +258,22 @@ def validate_goose_session_custody(artifact_root: Path, session_id: str) -> list
         errors.append("Goose close receipt does not bind canonical launch receipt")
     if close.get("postflight_digest") != postflight.get("digest"):
         errors.append("Goose close receipt does not bind canonical postflight")
+    approved_evidence = postflight.get("approved_mutation_evidence")
+    if isinstance(approved_evidence, dict):
+        for key, ref in approved_evidence.items():
+            if not key.endswith("_ref"):
+                continue
+            if not isinstance(ref, dict) or not isinstance(ref.get("path"), str) or not isinstance(ref.get("sha256"), str):
+                errors.append(f"approved mutation evidence {key} is malformed")
+                continue
+            ref_path = Path(ref["path"])
+            try:
+                if ref_path.is_symlink() or not ref_path.is_file():
+                    errors.append(f"approved mutation evidence {key} is missing or is a symlink")
+                elif hashlib.sha256(ref_path.read_bytes()).hexdigest() != ref["sha256"]:
+                    errors.append(f"approved mutation evidence {key} digest does not match persisted bytes")
+            except OSError as exc:
+                errors.append(f"approved mutation evidence {key} is unreadable: {exc}")
     target_root = (launch.get("evidence") or {}).get("target_root")
     if not isinstance(target_root, str) or not target_root:
         errors.append("Goose launch receipt does not bind target_root")

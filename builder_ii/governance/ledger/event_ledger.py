@@ -308,24 +308,12 @@ def replay_events(
 
 
 def load_event_records(events_dir: Path) -> list[tuple[dict[str, Any], Path]]:
-    wal_path = events_dir / "events.wal"
-    if wal_path.exists():
-        try:
-            from builder_ii.governance.ledger.async_ledger_wal import AsyncLedgerWAL
+    """Load canonical JSON event records.
 
-            wal = AsyncLedgerWAL(wal_path)
-            wal_records = wal.read_records()
-            wal.close()
-            return [
-                (
-                    r,
-                    events_dir / f"{r.get('sequence', 0):04d}-{r.get('event_type', 'unknown')}.json",
-                )
-                for r in wal_records
-            ]
-        except Exception:
-            pass
-
+    ``events.wal`` is a legacy acceleration mirror, never an authority source.
+    Registry projection separately reconciles any retained WAL against these
+    exact JSON records and marks divergence corrupt.
+    """
     file_records: list[tuple[dict[str, Any], Path]] = []
     if not events_dir.exists():
         return file_records
@@ -351,29 +339,8 @@ def write_event_record(record: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(dumps_event_record(record), encoding="utf-8")
 
-    wal_path = output.parent / "events.wal"
-    try:
-        from builder_ii.governance.ledger.async_ledger_wal import AsyncLedgerWAL
-
-        wal = AsyncLedgerWAL(wal_path)
-        wal.write_record_sync(record)
-        wal.close()
-    except Exception:
-        pass
-
 
 async def write_event_record_async(record: dict[str, Any], output: Path) -> None:
-    wal_path = output.parent / "events.wal"
-    try:
-        from builder_ii.governance.ledger.async_ledger_wal import AsyncLedgerWAL
-
-        wal = AsyncLedgerWAL(wal_path)
-        await wal.write_record(record)
-        wal.close()
-    except Exception:
-        pass
-    # Write the JSON file only — do NOT call write_event_record which would
-    # double-append to WAL.
     output.parent.mkdir(parents=True, exist_ok=True)
     await asyncio.to_thread(output.write_text, dumps_event_record(record), "utf-8")
 

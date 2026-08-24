@@ -23,6 +23,7 @@ from builder_ii.core.governed_prepare_package import (
     GOVERNED_PREPARE_PACKAGE_KIND,
     validate_governed_prepare_package_directory,
 )
+from builder_ii.core.run_registry import event_inventory_errors
 from builder_ii.governance.hitl.hitl_patch_approval import approval_binding_errors, approval_is_expired
 from builder_ii.governance.hitl.hitl_patch_refusal import validate_hitl_patch_refusal
 from builder_ii.governance.ledger.event_ledger import replay_events
@@ -302,6 +303,15 @@ def _candidate_paths(root: Path, session_id: str | None) -> tuple[Path, ...]:
                 ref = value["result"].get(field)
                 if isinstance(ref, dict) and isinstance(ref.get("path"), str):
                     referenced.append(str(ref["path"]))
+        approved_evidence = value.get("approved_mutation_evidence")
+        if isinstance(approved_evidence, dict):
+            referenced.extend(
+                str(ref["path"])
+                for key, ref in approved_evidence.items()
+                if key.endswith("_ref")
+                and isinstance(ref, dict)
+                and isinstance(ref.get("path"), str)
+            )
         for key, item in value.items():
             if key.endswith("_ref") and isinstance(item, dict) and isinstance(item.get("path"), str):
                 referenced.append(str(item["path"]))
@@ -426,6 +436,10 @@ def _verified(value: dict[str, Any]) -> bool:
 def project_run_view(root: Path, *, task: str = "", session_id: str | None = None, target: str = "") -> RunView:
     root = root.resolve()
     errors: list[str] = []
+    if session_id:
+        events_dir = root / "sessions" / session_id / "events"
+        if events_dir.is_dir():
+            errors.extend(event_inventory_errors(events_dir))
     records: list[tuple[Path, dict[str, Any]]] = []
     evidence: list[Evidence] = []
     identities: dict[str, set[str]] = {"session": set(), "target": set(), "profile": set(), "task": set()}

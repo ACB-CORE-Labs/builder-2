@@ -97,18 +97,15 @@ def _locked_events_dir(events_dir: Path) -> Iterator[int]:
 def _write_event_exclusive(
     *, events_dir: Path, directory_fd: int, filename: str, record: dict[str, Any]
 ) -> None:
-    """Write WAL then the JSON mirror while the caller holds the append lock."""
+    """Write the sole canonical JSON event while the caller holds the append lock."""
     wal_path = events_dir / "events.wal"
-    if wal_path.exists() and stat.S_ISLNK(wal_path.lstat().st_mode):
+    if wal_path.is_symlink():
         raise ValueError(f"event WAL must not be a symlink: {wal_path}")
-    from builder_ii.governance.ledger.async_ledger_wal import AsyncLedgerWAL
     from builder_ii.governance.ledger.event_ledger import dumps_event_record
-
-    wal = AsyncLedgerWAL(wal_path)
-    try:
-        wal.write_record_sync(record)
-    finally:
-        wal.close()
+    if wal_path.exists():
+        raise ValueError(
+            f"legacy event WAL must be reconciled and retired before canonical append: {wal_path}"
+        )
     flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
     output_fd = os.open(filename, flags, 0o600, dir_fd=directory_fd)
     try:
