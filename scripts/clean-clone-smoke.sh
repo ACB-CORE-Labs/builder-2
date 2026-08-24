@@ -436,11 +436,16 @@ if [ -n "$HOST_PROOF" ]; then
     printf '%s\n' '{"golden_path_steps_passed":true,"installed_extras":["deepagents"],"mlx_installed":false}' >"$HOST_CLAIMS"
   fi
   tar -cf "$WORKDIR/host-step-logs.tar" -C "$STEP_LOG_DIR" .
+  HOST_SKIP_ARGS=()
+  for skipped_step in "${SKIPPED[@]}"; do
+    HOST_SKIP_ARGS+=(--skip "$skipped_step")
+  done
   run builder-release host-proof --output "$HOST_PROOF" --lane "$HOST_LANE" \
     --wheel "$(basename "$CANDIDATE_WHEEL")" --wheel-sha256 "$CANDIDATE_WHEEL_SHA256" \
     --source-commit "$(git -C "$CLONE_DIR" rev-parse HEAD)" \
     --source-tree "$(git -C "$CLONE_DIR" rev-parse HEAD^{tree})" \
     --elapsed-seconds "$ELAPSED" --log "$WORKDIR/host-step-logs.tar" --claims-json "$HOST_CLAIMS" \
+    "${HOST_SKIP_ARGS[@]}" \
     --command "candidate wheel digest" --command "uv tool install" \
     --command "platform audits" --command "governed patch apply rollback loop"
   run builder-release validate-evidence "$HOST_PROOF"
