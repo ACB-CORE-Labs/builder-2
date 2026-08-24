@@ -73,7 +73,7 @@ builder-II's central discipline is that every claim about itself is backed by a 
 artifact, not prose. Before doing anything else, ask it what's actually true:
 
 ```bash
-uv run python scripts/verify_v0_release.py   # anti-handwave structural/governance proof harness
+uv run builder-release --help  # current v1 release-proof command surface; use its exact-candidate bundle flow
 builder-platform matrix                      # every capability, state-labeled: OPERATIONALLY_VERIFIED or not
 builder-platform status
 builder-platform audit-docs                  # scans README + docs/ for claims the matrix doesn't back
@@ -103,7 +103,7 @@ builder-platform r1-closure --output-dir .builder/r1-closure
 builder-platform validate-r1-closure .builder/r1-closure/r1-closure-report.json
 ```
 
-Wiring your own Goose config and skills is a manual step for beta — see
+Wiring your own Goose config and skills remains an operator-managed setup step — see
 [`docs/CONFIG_ONBOARDING.md`](docs/CONFIG_ONBOARDING.md).
 
 ## 6. Prepare a verification plan and a session package

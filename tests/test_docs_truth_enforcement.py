@@ -95,3 +95,21 @@ def test_docs_state_corrected_sequence() -> None:
         assert "separate capability-promotion decision" in text
         assert "Release qualification authorizes none" in text
         assert "Plan Set 3 admitted; implementation pending" not in text
+
+
+def test_public_docs_pin_current_authority_and_runtime_boundaries() -> None:
+    readme = Path("README.md").read_text(encoding="utf-8")
+    goose = Path("docs/GOOSE_RUNTIME.md").read_text(encoding="utf-8")
+    deepagents = Path("docs/DEEPAGENTS_RUNTIME.md").read_text(encoding="utf-8")
+    security = Path("SECURITY.md").read_text(encoding="utf-8")
+    index = Path("docs/README.md").read_text(encoding="utf-8")
+
+    assert "actions/workflows" not in readme
+    assert "verify_v0_release.py`" not in readme
+    assert "disabled\nread_only" in goose
+    assert "verification_execution" not in goose
+    assert "never reruns backend, model, or tool work" in deepagents
+    assert "security@core-labs.dev" not in security
+    assert "48 hours" not in security
+    assert "immutable evidence" not in index
+    assert "8-state capability promotion ladder" not in index

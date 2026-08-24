@@ -82,7 +82,7 @@ Authority tiers, human-in-the-loop gates, promotion ladders, and invariants.
 | Document | Description |
 | :--- | :--- |
 | [`docs/COMMAND_AUTHORITY.md`](COMMAND_AUTHORITY.md) | Authoritative command authority registry and tier definitions (Tiers 0–5) |
-| [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) | 8-state capability promotion ladder and the Eight Promotion Gates |
+| [`docs/CAPABILITY_PROMOTION.md`](CAPABILITY_PROMOTION.md) | Command/capability promotion states and the Eight Promotion Gates |
 | [`docs/KNOWN_LIMITATIONS.md`](KNOWN_LIMITATIONS.md) | Verbatim non-operational capabilities and recorded blockers from the truth matrix |
 | [`docs/GOVERNANCE_INVARIANTS.md`](GOVERNANCE_INVARIANTS.md) | Cross-artifact governance invariants and fail-closed validation rules |
 | [`docs/PROMOTION_READINESS.md`](PROMOTION_READINESS.md) | Promotion readiness criteria and evidence verification |
@@ -188,7 +188,7 @@ Detailed API specifications, personas, lane guides, and registries.
 
 > [!NOTE]
 > **Historical Provenance Archive:**
-> The documents below are preserved historical milestones, closure audits, design RFCs, and transition runbooks. They provide immutable evidence of platform evolution and are retained for cryptographic provenance. For current operational guidance, refer to Sections 1–9.
+> The documents below are preserved historical milestones, closure audits, design RFCs, and transition runbooks. Their provenance is the Git history; ordinary Markdown files are not immutable or cryptographic evidence. For current operational guidance, refer to Sections 1–9.
 
 <details>
 <summary><b>Expand Historical Closure Audits & Evidence (Click to view)</b></summary>
@@ -208,7 +208,7 @@ Detailed API specifications, personas, lane guides, and registries.
 - [`docs/audits/B1_B2_RUNTIME_GOVERNANCE_COMPLETION_MAP.md`](audits/B1_B2_RUNTIME_GOVERNANCE_COMPLETION_MAP.md) — B1/B2 Governance Map
 - [`docs/PLATFORM_COMPLETION_AUDIT.md`](PLATFORM_COMPLETION_AUDIT.md) — Historical Completion Truth Matrix Mirror
 - [`docs/BUILDER_II_COMPLETION_TRUTH_REPORT.md`](BUILDER_II_COMPLETION_TRUTH_REPORT.md) — Master Completion Truth Report
-- [`docs/FOUNDATION_STATUS.md`](FOUNDATION_STATUS.md) — Foundation Status & R0->R1->B1 Sequence
+- [`docs/FOUNDATION_STATUS.md`](FOUNDATION_STATUS.md) — Current Foundation Status and generated truth
 
 ### Historical RFCs & Design Plans
 - [`docs/plan/MASTERPIECE_PLAN.md`](plan/MASTERPIECE_PLAN.md) — Masterpiece Implementation Plan
@@ -232,4 +232,3 @@ Detailed API specifications, personas, lane guides, and registries.
 - [`docs/promotions/vllm_backend.md`](promotions/vllm_backend.md) — vLLM Backend Promotion Runbook
 
 </details>
-

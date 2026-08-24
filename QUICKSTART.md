@@ -1,6 +1,6 @@
 # builder-II Quickstart
 
-Pure mechanics. Supported on **macOS (Apple Silicon arm64)** and **Linux (x86_64 / aarch64)**.
+Pure mechanics. The intended host contract is macOS Apple Silicon and Linux; Set 7 release rehearsal was qualified on macOS Apple Silicon and Debian Linux aarch64. Linux x86_64 support is not claimed as release-qualified by that rehearsal.
 
 ---
 
@@ -70,4 +70,3 @@ This smoke gate validates:
 - **Full First Session Walkthrough:** [`FIRST_SESSION.md`](FIRST_SESSION.md) — 30-minute clone-to-patch guided walkthrough.
 - **Operator Concepts & Architecture:** [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) — The complete mental model and STRATUM TUI tour.
 - **Terminology & Definitions:** [`docs/GLOSSARY.md`](docs/GLOSSARY.md) and [`LEXICON.md`](LEXICON.md).
-

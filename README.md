@@ -1,6 +1,5 @@
 # builder-II
 
-[![CI](https://github.com/ACB-CORE-Labs/builder-2/actions/workflows/ci.yml/badge.svg)](https://github.com/ACB-CORE-Labs/builder-2/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python: 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
 
@@ -31,7 +30,7 @@ MCP         = Governed external capability seam (inventory-first, deny-by-defaul
 Models      = Reasoning and proposal resources operating strictly behind policy
 ```
 
-Every layer supplies mechanics. **Only builder-II provides authority.**
+Every layer supplies mechanics. Builder-II represents, constrains, binds, and enforces authority; consequential human decisions originate with the operator.
 
 ---
 
@@ -314,7 +313,7 @@ builder-II enforces strict separation between local modifications and remote pub
       ↓
 11. Pull Request Review & Quality Gates Passing
       ↓
-12. Final Release Proof Qualification (`verify_v0_release.py`)
+12. Final v1 release-proof qualification (`builder-release` exact-candidate bundle)
 ```
 
 There is **no automated push to `main`**, no direct force-push happy path, and no unreviewed release promotion.

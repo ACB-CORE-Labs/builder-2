@@ -6,7 +6,7 @@
 
 | Version Line | Supported | Notes |
 | :--- | :--- | :--- |
-| `main` (v1.0.x / Release Candidates) | **Yes** | Active development and supported release line. |
+| `main` (unreleased development line) | **Yes** | Active development; no v1.0.0 tag has been made. |
 | `< 0.2.0` | No | Legacy milestone tags. Operators should track `main`. |
 
 The supported Python runtime contract is `Python >=3.12.13, <3.13`.
@@ -18,14 +18,14 @@ We appreciate responsible disclosure of security vulnerabilities.
 If you discover a security vulnerability in builder-II:
 
 1. **Do not** open a public issue describing an exploitable vulnerability.
-2. Submit a private security advisory through the repository's hosting platform (e.g. private vulnerability reporting / Forgejo security advisories) or email security concerns directly to `security@core-labs.dev`.
+2. If GitHub private vulnerability reporting is enabled for this repository, use that channel. Otherwise, contact the maintainers privately through an established repository-owner channel before disclosure; this repository does not publish a dedicated security email address.
 3. In your report, please include:
    - Affected component, command surface, or file path.
    - Exact steps or script to reproduce the issue.
    - Potential impact and risk evaluation.
    - Any suggested patch or remediation (if available).
 
-We aim to acknowledge receipt of vulnerability reports within 48 hours and coordinate a fix and disclosure timeline.
+No response-time SLA or disclosure deadline is promised here. The maintainers will coordinate remediation and disclosure with the reporter when a report is received.
 
 ## Threat Model & Governance Boundaries Specific to builder-II
 
@@ -41,4 +41,3 @@ If you observe an operational lane that violates these guarantees (e.g. an unpro
 ## Secret Management
 
 Never commit secrets, API keys, tokens, or credentials to any repository or artifact. builder-II local CI runs automated secret detection (`gitleaks` and regex pattern scans). If credentials are ever accidentally committed or exposed in an artifact, rotate them immediately.
-
