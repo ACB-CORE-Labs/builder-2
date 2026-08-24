@@ -35,7 +35,8 @@ designate.
 
 These are not missing features; they are refusals the governance model depends on:
 
-- No commit or push automation, ever, in any lane.
+- No ambient Git authority: commit, push, and pull-request delivery exist only in separately
+  approved, digest-bound lanes; direct-main, force-push, and history rewrite remain forbidden.
 - No autonomous writes: every mutation lane requires an explicit digest-bound operator approval.
 - No hidden memory or vector stores; artifact memory is explicit, validated, and replayable.
 - Model output is never approval; a valid artifact is never authority; subagent output is never
@@ -156,11 +157,14 @@ are not equivalent just because they share the legacy completion label.
   - R0 adds source-derived truth status.
   - R1.6 adds canonical R1 closure report and golden path proof commands.
   - Legacy builder doctor/status remain operator-managed environment helpers.
-  - Operational execution still waits for R1 then B1.
+  - This row is a passive truth projection; operational lanes retain their own scoped assurance states.
 - **release proof/quality gates** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
-  - Proof harness proves passive artifact chain and no target mutation.
-  - Quality gates are plans, not runners.
-  - Operational runtime proof waits for B1.
+  - The v1 bundle schema binds exact source, lock, distributions, supported-host proofs, CI, sabotage, benchmark, docs, and custody evidence.
+  - Release evidence is lane-specific: a generic PASS record cannot substitute for exact-tip CI, supported-host identity, exact wheel bytes, current benchmark/docs truth, rehearsal custody, or a valid canonical chain report.
+  - Whole-bundle payload custody covers every copied distribution, source archive, evidence artifact, constituent log/report, and artifact index; duplicate wheel/sdist types and unindexed extra bytes are refused.
+  - The bundle remains evidence rather than promotion, tag, release, or publication authority.
+  - The historical V0 passive manifest remains validation-compatible but is not current release authority.
+  - This row remains unpromoted until exact-candidate macOS and Linux proof is reviewed and ratified.
 - **docs truth enforcement** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - R0 adds docs truth scanning against the matrix.
   - No runtime authority is promoted by docs enforcement.

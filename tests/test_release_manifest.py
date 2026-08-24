@@ -3,13 +3,216 @@ from __future__ import annotations
 from pathlib import Path
 
 from builder_ii.core.release_manifest import (
+    RELEASE_PROOF_BUNDLE_KIND,
+    REQUIRED_RELEASE_LANES,
     V0_RELEASE_MANIFEST_KIND,
     create_artifact_ref,
+    create_release_evidence,
+    create_release_proof_bundle,
     create_v0_release_manifest,
+    validate_release_evidence,
+    validate_release_proof_bundle,
+    validate_release_proof_bundle_file,
     validate_v0_release_manifest,
     validate_v0_release_manifest_file,
+    write_release_proof_bundle,
     write_v0_release_manifest,
 )
+
+
+def _sample_release_bundle() -> dict:
+    evidence = {
+        lane: {
+            "result": "PASS",
+            "ref": create_artifact_ref(
+                kind=f"builder_ii.release_evidence.{lane}", path=f"evidence/{lane}.json", sha256="a" * 64
+            ),
+        }
+        for lane in REQUIRED_RELEASE_LANES
+    }
+    return create_release_proof_bundle(
+        source={
+            "commit": "1" * 40,
+            "parents": ["2" * 40],
+            "tree": "3" * 40,
+            "clean": True,
+            "uv_lock_sha256": "4" * 64,
+            "source_archive_sha256": "5" * 64,
+        },
+        distributions=[
+            {"type": "sdist", "filename": "builder_ii-1.0.0.tar.gz", "size": 10, "sha256": "6" * 64},
+            {
+                "type": "wheel",
+                "filename": "builder_ii-1.0.0-py3-none-any.whl",
+                "size": 20,
+                "sha256": "7" * 64,
+                "record_inventory": ["builder_ii/__init__.py", "builder_ii/tui/stratum.tcss"],
+            },
+        ],
+        supported_runtime={
+            "python": ">=3.12.13,<3.13",
+            "macos_apple_silicon": "SUPPORTED_MLX_PRIMARY",
+            "linux": "SUPPORTED_NO_MLX_PARITY",
+            "windows": "UNSUPPORTED_V1",
+            "wsl2": "UNSUPPORTED_V1",
+        },
+        evidence=evidence,
+        artifact_index_ref=create_artifact_ref(
+            kind="builder_ii.artifact_index_record", path="artifact-index.json", sha256="8" * 64
+        ),
+        payload_custody=[{"path": "source.tar", "size": 1, "sha256": "9" * 64}],
+    )
+
+
+def test_release_proof_bundle_is_exact_candidate_evidence_not_authority(tmp_path: Path) -> None:
+    bundle = _sample_release_bundle()
+    assert bundle["kind"] == RELEASE_PROOF_BUNDLE_KIND
+    assert bundle["release_identity"]["package_version"] == "1.0.0"
+    assert bundle["authority"]["tag_creation"] == "NOT_AUTHORIZED"
+    assert bundle["governance"]["artifact_is_authority"] is False
+    assert validate_release_proof_bundle(bundle) == []
+
+    path = tmp_path / "release-proof-bundle.json"
+    write_release_proof_bundle(bundle, path)
+    assert validate_release_proof_bundle_file(path) == []
+
+
+def test_release_proof_bundle_rejects_missing_failed_or_authorizing_evidence() -> None:
+    bundle = _sample_release_bundle()
+    missing = dict(bundle)
+    missing["evidence"] = dict(bundle["evidence"])
+    missing["evidence"].pop("linux_golden_path")
+    assert any("evidence.linux_golden_path" in error for error in validate_release_proof_bundle(missing))
+
+    failed = dict(bundle)
+    failed["evidence"] = dict(bundle["evidence"])
+    failed["evidence"]["local_ci"] = dict(failed["evidence"]["local_ci"], result="FAIL")
+    assert any("evidence.local_ci.result" in error for error in validate_release_proof_bundle(failed))
+
+    promoted = dict(bundle)
+    promoted["authority"] = dict(bundle["authority"], capability_promotion="AUTHORIZED")
+    assert any("authority.capability_promotion" in error for error in validate_release_proof_bundle(promoted))
+
+
+def test_release_proof_bundle_rejects_wrong_candidate_and_incomplete_distributions() -> None:
+    bundle = _sample_release_bundle()
+    wrong_source = dict(bundle)
+    wrong_source["source"] = dict(bundle["source"], clean=False)
+    assert "source.clean must be true" in validate_release_proof_bundle(wrong_source)
+
+    wheel_only = dict(bundle)
+    wheel_only["distributions"] = [bundle["distributions"][1]]
+    assert any("missing required types: sdist" in error for error in validate_release_proof_bundle(wheel_only))
+
+    duplicate_wheel = dict(bundle)
+    duplicate_wheel["distributions"] = [*bundle["distributions"], dict(bundle["distributions"][1])]
+    assert any("exactly one wheel" in error for error in validate_release_proof_bundle(duplicate_wheel))
+
+    duplicate_sdist = dict(bundle)
+    duplicate_sdist["distributions"] = [*bundle["distributions"], dict(bundle["distributions"][0])]
+    assert any("exactly one sdist" in error for error in validate_release_proof_bundle(duplicate_sdist))
+
+
+def _release_evidence(lane: str, *, system: str = "Darwin", machine: str = "arm64", wheel_sha: str = "7" * 64) -> dict:
+    claims: dict = {}
+    if lane == "macos_apple_silicon_golden_path":
+        claims = {"installed_extras": ["apple", "deepagents"], "golden_path_steps_passed": True, "mlx_ready": True}
+    elif lane == "linux_golden_path":
+        claims = {"installed_extras": ["deepagents"], "golden_path_steps_passed": True, "mlx_installed": False}
+    return create_release_evidence(
+        lane=lane,
+        result="PASS",
+        platform={"system": system, "machine": machine, "python": "3.12.13", "implementation": "CPython"},
+        candidate={"wheel": "builder_ii-1.0.0-py3-none-any.whl", "wheel_sha256": wheel_sha},
+        commands=[{"name": "golden path", "result": "PASS"}],
+        source={"commit": "1" * 40, "tree": "3" * 40},
+        runtime_versions={
+            "python": "3.12.13",
+            "uv": "uv 0.8",
+            "git": "git 2.50",
+            "goose": "goose 1.46",
+            "container_runtime": "NOT_APPLICABLE",
+        },
+        elapsed_seconds=1,
+        skips=[],
+        log_refs=[
+            create_artifact_ref(kind="builder_ii.release_log", path="evidence/constituents/run.log", sha256="a" * 64)
+        ],
+        claims=claims,
+    )
+
+
+def test_release_evidence_rejects_wrong_host_and_cross_candidate_wheel() -> None:
+    mac = _release_evidence("macos_apple_silicon_golden_path")
+    wrong_machine = dict(mac, platform=dict(mac["platform"], machine="x86_64"))
+    assert any("platform.machine" in error for error in validate_release_evidence(wrong_machine))
+
+    linux = _release_evidence("linux_golden_path", system="Linux", machine="aarch64")
+    wrong_system = dict(linux, platform=dict(linux["platform"], system="Darwin"))
+    assert any("platform.system" in error for error in validate_release_evidence(wrong_system))
+    assert any("bundle wheel" in error for error in validate_release_evidence(linux, expected_wheel_sha256="b" * 64))
+
+
+def test_release_evidence_rejects_forged_ci_benchmark_and_chain_claims() -> None:
+    base = {
+        "result": "PASS",
+        "platform": {"system": "Darwin", "machine": "arm64", "python": "3.12.13", "implementation": "CPython"},
+        "candidate": {"wheel": "builder_ii-1.0.0-py3-none-any.whl", "wheel_sha256": "7" * 64},
+        "commands": [{"name": "proof", "result": "PASS"}],
+        "source": {"commit": "1" * 40, "tree": "3" * 40},
+        "runtime_versions": {
+            "python": "3.12.13",
+            "uv": "uv",
+            "git": "git",
+            "goose": "goose",
+            "container_runtime": "docker",
+        },
+        "elapsed_seconds": 1,
+        "skips": [],
+        "log_refs": [
+            create_artifact_ref(kind="builder_ii.release_log", path="evidence/constituents/run.log", sha256="a" * 64)
+        ],
+    }
+    ci_ref = create_artifact_ref(
+        kind="builder_ii.gate_battery_receipt", path="evidence/constituents/ci.json", sha256="b" * 64
+    )
+    ci = create_release_evidence(
+        lane="local_ci",
+        claims={"ci_receipt_ref": ci_ref, "blocking_gate_skips": 0, "blocking_gate_failures": 0},
+        **base,
+    )
+    forged_ci = dict(ci, claims=dict(ci["claims"], blocking_gate_skips=1))
+    assert any("blocking_gate_skips" in error for error in validate_release_evidence(forged_ci))
+
+    benchmark_refs = {
+        "benchmark_manifest_ref": create_artifact_ref(
+            kind="builder_ii.model_runtime_benchmark_manifest",
+            path="evidence/constituents/benchmark-manifest.json",
+            sha256="c" * 64,
+        ),
+        "benchmark_report_ref": create_artifact_ref(
+            kind="builder_ii.model_runtime_benchmark_report",
+            path="evidence/constituents/benchmark-report.json",
+            sha256="d" * 64,
+        ),
+        "methodology_sha256": "e" * 64,
+        "physical_evidence_sha256": "f" * 64,
+        "current_validation_passed": True,
+    }
+    benchmark = create_release_evidence(lane="plan_set_5_benchmark", claims=benchmark_refs, **base)
+    stale = dict(benchmark, claims=dict(benchmark["claims"], current_validation_passed=False))
+    assert any("current_validation_passed" in error for error in validate_release_evidence(stale))
+
+    chain_ref = create_artifact_ref(
+        kind="builder_ii.artifact_chain_verification_report", path="evidence/constituents/chain.json", sha256="1" * 64
+    )
+    chain = create_release_evidence(
+        lane="artifact_chain",
+        claims={"chain_report_ref": chain_ref, "valid": True, "broken_links": 0, "native_invalid": 0},
+        **base,
+    )
+    forged_chain = dict(chain, claims=dict(chain["claims"], broken_links=1))
+    assert any("broken_links" in error for error in validate_release_evidence(forged_chain))
 
 
 def _sample_session_proof() -> dict:

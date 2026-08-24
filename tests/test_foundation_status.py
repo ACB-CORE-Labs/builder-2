@@ -60,8 +60,9 @@ def test_foundation_status_uses_exact_state_labels_and_sequence() -> None:
     text = _text()
 
     assert "Passive foundation state: `PASSIVE_FOUNDATION`" in text
-    assert "R0 -> R1 -> B1" in text
-    assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in text
+    assert "exact-candidate review" in text
+    assert "separate capability-promotion decision" in text
+    assert "Release qualification authorizes none" in text
 
 
 def test_foundation_status_denies_runtime_authority() -> None:

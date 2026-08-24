@@ -53,6 +53,7 @@ def test_d7_verification_scope_language_is_present() -> None:
 
 def test_standing_boundaries_are_stated() -> None:
     text = render_known_limitations_markdown()
-    assert "No commit or push automation" in text
+    assert "No ambient Git authority" in text
+    assert "direct-main, force-push, and history rewrite remain forbidden" in text
     assert "No autonomous writes" in text
     assert "not cryptographic proof" in text

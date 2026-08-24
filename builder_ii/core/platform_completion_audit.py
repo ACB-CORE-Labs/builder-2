@@ -25,7 +25,10 @@ SCHEMA_VERSION = "1.0.0"
 # the canonical plan and its per-plan-set evidence records, not by the historical
 # platform completion report or its retired B8/B9 sequence labels.
 SOURCE_REPORT = "docs/plan/OPEN_SOURCE_V1_COMPLETION_PLAN.md"
-NEXT_SEQUENCE = "Plan Set 3 admitted; implementation pending"
+NEXT_SEQUENCE = (
+    "exact-candidate review -> separate capability-promotion decision -> "
+    "separate tag/publication authorization -> hosted publication readback"
+)
 
 STALE_TRUTH_PHRASES: tuple[str, ...] = (
     "Setup apply, receipts, rollback, migration tooling, and runtime authority are still missing",
@@ -1143,7 +1146,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
             "R0 adds source-derived truth status.",
             "R1.6 adds canonical R1 closure report and golden path proof commands.",
             "Legacy builder doctor/status remain operator-managed environment helpers.",
-            "Operational execution still waits for R1 then B1.",
+            "This row is a passive truth projection; operational lanes retain their own scoped assurance states.",
         ),
         "R1 then B1",
     ),
@@ -1151,17 +1154,26 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         "release proof/quality gates",
         PASSIVE_FOUNDATION,
         (
-            "scripts/verify_v0_release.py",
+            "builder_ii/core/release_manifest.py",
+            "builder_ii/core/release_proof.py",
+            "builder_ii/cli/release_cli.py",
+            "scripts/build-release-candidate.sh",
+            "scripts/clean-clone-smoke.sh",
+            "scripts/release-linux-candidate.sh",
+            "scripts/release-sabotage-battery.sh",
             "docs/RELEASE_PROOF.md",
             "builder_ii/validation/quality_gates.py",
             "builder_ii/cli/quality_cli.py",
         ),
-        ("builder-quality",),
-        ("tests/test_v0_release_proof_harness.py", "tests/test_quality_gates.py"),
+        ("builder-quality", "builder-release"),
+        ("tests/test_release_manifest.py", "tests/test_release_proof.py", "tests/test_v0_release_proof_harness.py", "tests/test_quality_gates.py"),
         (
-            "Proof harness proves passive artifact chain and no target mutation.",
-            "Quality gates are plans, not runners.",
-            "Operational runtime proof waits for B1.",
+            "The v1 bundle schema binds exact source, lock, distributions, supported-host proofs, CI, sabotage, benchmark, docs, and custody evidence.",
+            "Release evidence is lane-specific: a generic PASS record cannot substitute for exact-tip CI, supported-host identity, exact wheel bytes, current benchmark/docs truth, rehearsal custody, or a valid canonical chain report.",
+            "Whole-bundle payload custody covers every copied distribution, source archive, evidence artifact, constituent log/report, and artifact index; duplicate wheel/sdist types and unindexed extra bytes are refused.",
+            "The bundle remains evidence rather than promotion, tag, release, or publication authority.",
+            "The historical V0 passive manifest remains validation-compatible but is not current release authority.",
+            "This row remains unpromoted until exact-candidate macOS and Linux proof is reviewed and ratified.",
         ),
         "B1",
     ),
@@ -1284,9 +1296,9 @@ def render_human_summary(rows: tuple[CapabilityRow, ...] = REQUIRED_CAPABILITY_R
         "builder-II platform truth state",
         "",
         f"builder-II is passive-foundation-complete and operationally incomplete: {counts[OPERATIONALLY_VERIFIED]} capabilities are operationally verified and {incomplete_count} remain incomplete.",
-        "Operational authority is capability-scoped by the matrix; commit/push automation, hidden memory, and source CORE checkout mutation remain unpromoted.",
+        "Operational authority is capability-scoped by the matrix; Git delivery is separately approved and digest-bound, while ambient Git authority, hidden memory, and source CORE checkout mutation remain unpromoted.",
         "The governed demo loop is promoted only for a temporary detached worktree of an operator-designated target repo (AssetOverflow/core remains a supported profile) with explicit approval, rollback, and final postflight.",
-        f"Next sequence: {NEXT_SEQUENCE}. R1 Config + Onboarding Kernel must precede B1 verification execution.",
+        f"Open-source-v1 completion sequence: {NEXT_SEQUENCE}. None of those later authority steps is implied by release qualification.",
         "",
         "Capability states:",
     ]
