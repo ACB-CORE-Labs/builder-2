@@ -38,9 +38,7 @@ def canonical_json_sha256(path: Path) -> str:
 
 
 def _git(repo: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", "-C", str(repo), *args], check=True, text=True, capture_output=True
-    ).stdout.strip()
+    return subprocess.run(["git", "-C", str(repo), *args], check=True, text=True, capture_output=True).stdout.strip()
 
 
 def _safe_files(directory: Path) -> list[Path]:
@@ -50,6 +48,50 @@ def _safe_files(directory: Path) -> list[Path]:
     if any(path.is_symlink() for path in files):
         raise ValueError(f"symlinked evidence is forbidden: {directory}")
     return files
+
+
+def _safe_relative_file(root: Path, relative: str) -> Path:
+    candidate = root / relative
+    if Path(relative).is_absolute() or ".." in Path(relative).parts:
+        raise ValueError(f"unsafe bundle-relative path: {relative}")
+    if candidate.is_symlink() or not candidate.is_file():
+        raise ValueError(f"bundle file is missing or symlinked: {relative}")
+    if not candidate.resolve().is_relative_to(root.resolve()):
+        raise ValueError(f"bundle path escapes root: {relative}")
+    return candidate
+
+
+def _payload_custody(output_dir: Path) -> list[dict[str, Any]]:
+    excluded = {"release-proof-bundle.json"}
+    records: list[dict[str, Any]] = []
+    for path in sorted(item for item in output_dir.rglob("*") if item.is_file()):
+        relative = path.relative_to(output_dir).as_posix()
+        if relative in excluded:
+            continue
+        if path.is_symlink():
+            raise ValueError(f"symlinked bundle payload is forbidden: {relative}")
+        records.append({"path": relative, "size": path.stat().st_size, "sha256": sha256_file(path)})
+    return records
+
+
+def _ci_receipt_errors(receipt: Any, source_commit: Any) -> list[str]:
+    if not isinstance(receipt, dict):
+        return ["canonical CI receipt must be an object"]
+    gates = receipt.get("gates", [])
+    if (
+        receipt.get("valid") is not True
+        or receipt.get("overall_state") != "PASSED"
+        or receipt.get("head_sha_stable") is not True
+        or receipt.get("working_tree_clean") is not True
+        or receipt.get("head_sha_before") != source_commit
+        or receipt.get("head_sha_after") != source_commit
+        or receipt.get("skipped") != []
+        or not isinstance(gates, list)
+        or not gates
+        or any(gate.get("status") != "PASSED" or gate.get("skip_reason") is not None for gate in gates)
+    ):
+        return ["canonical CI receipt is not exact-tip green with zero blocking skips"]
+    return []
 
 
 def _distribution_record(path: Path) -> dict[str, Any]:
@@ -71,9 +113,7 @@ def _distribution_record(path: Path) -> dict[str, Any]:
     raise ValueError(f"unsupported distribution: {path.name}")
 
 
-def build_release_proof_bundle_directory(
-    *, repo: Path, dist_dir: Path, evidence_dir: Path, output_dir: Path
-) -> Path:
+def build_release_proof_bundle_directory(*, repo: Path, dist_dir: Path, evidence_dir: Path, output_dir: Path) -> Path:
     repo = repo.resolve()
     output_dir = output_dir.resolve()
     if _git(repo, "status", "--porcelain"):
@@ -84,35 +124,46 @@ def build_release_proof_bundle_directory(
     (output_dir / "dist").mkdir()
 
     evidence_by_lane: dict[str, Path] = {}
-    for source in _safe_files(evidence_dir.resolve()):
-        if source.suffix != ".json":
+    for evidence_source in _safe_files(evidence_dir.resolve()):
+        if evidence_source.suffix != ".json":
             continue
-        data = json.loads(source.read_text(encoding="utf-8"))
+        data = json.loads(evidence_source.read_text(encoding="utf-8"))
         errors = validate_release_evidence(data)
         if errors:
-            raise ValueError(f"invalid release evidence {source}: {errors}")
+            raise ValueError(f"invalid release evidence {evidence_source}: {errors}")
         lane = data["lane"]
         if lane in evidence_by_lane:
             raise ValueError(f"duplicate release evidence lane: {lane}")
-        target = output_dir / "evidence" / source.name
-        shutil.copyfile(source, target)
+        target = output_dir / "evidence" / evidence_source.name
+        shutil.copyfile(evidence_source, target)
         evidence_by_lane[lane] = target
+    constituents = evidence_dir.resolve() / "constituents"
+    if constituents.exists():
+        if constituents.is_symlink() or not constituents.is_dir():
+            raise ValueError("evidence constituents directory is symlinked or invalid")
+        shutil.copytree(constituents, output_dir / "evidence" / "constituents", symlinks=False)
     missing = sorted(set(REQUIRED_RELEASE_LANES) - set(evidence_by_lane))
     if missing:
         raise ValueError(f"missing release evidence lanes: {', '.join(missing)}")
 
     distributions: list[dict[str, Any]] = []
-    for source in _safe_files(dist_dir.resolve()):
-        if source.suffix != ".whl" and not source.name.endswith(".tar.gz"):
+    for dist_source in _safe_files(dist_dir.resolve()):
+        if dist_source.suffix != ".whl" and not dist_source.name.endswith(".tar.gz"):
             continue
-        target = output_dir / "dist" / source.name
-        shutil.copyfile(source, target)
+        target = output_dir / "dist" / dist_source.name
+        shutil.copyfile(dist_source, target)
         distributions.append(_distribution_record(target))
+    distribution_counts = {kind: sum(item["type"] == kind for item in distributions) for kind in ("wheel", "sdist")}
+    for kind, count in distribution_counts.items():
+        if count != 1:
+            raise ValueError(f"candidate must contain exactly one {kind}; found {count}")
 
     archive_path = output_dir / "source.tar"
-    archive_path.write_bytes(subprocess.run(["git", "-C", str(repo), "archive", "HEAD"], check=True, capture_output=True).stdout)
+    archive_path.write_bytes(
+        subprocess.run(["git", "-C", str(repo), "archive", "HEAD"], check=True, capture_output=True).stdout
+    )
 
-    index = create_artifact_index_record(output_dir / "evidence")
+    index = create_artifact_index_record(output_dir / "evidence", recursive=True)
     index_errors = validate_artifact_index_record(index)
     if index_errors:
         raise ValueError(f"release evidence index is invalid: {index_errors}")
@@ -154,6 +205,7 @@ def build_release_proof_bundle_directory(
             path="artifact-index.json",
             sha256=canonical_json_sha256(index_path),
         ),
+        payload_custody=_payload_custody(output_dir),
     )
     bundle_path = output_dir / "release-proof-bundle.json"
     write_release_proof_bundle(bundle, bundle_path)
@@ -172,6 +224,10 @@ def validate_release_proof_bundle_directory(directory: Path, *, repo: Path | Non
         bundle_path = directory / "release-proof-bundle.json"
         bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
         errors.extend(validate_release_proof_bundle(bundle))
+        dist_files = [path for path in (directory / "dist").iterdir() if path.is_file()]
+        expected_dist_names = [record.get("filename") for record in bundle.get("distributions", [])]
+        if sorted(path.name for path in dist_files) != sorted(expected_dist_names):
+            errors.append("distribution directory does not exactly match the bundle manifest")
         for record in bundle.get("distributions", []):
             path = directory / "dist" / record.get("filename", "")
             if path.is_symlink() or not path.is_file():
@@ -180,8 +236,9 @@ def validate_release_proof_bundle_directory(directory: Path, *, repo: Path | Non
                 errors.append(f"distribution digest mismatch: {path.name}")
         for lane, record in bundle.get("evidence", {}).items():
             ref = record.get("ref", {})
-            path = directory / ref.get("path", "")
-            if path.is_symlink() or not path.is_file():
+            try:
+                path = _safe_relative_file(directory, ref.get("path", ""))
+            except ValueError:
                 errors.append(f"evidence missing or symlinked: {lane}")
                 continue
             if canonical_json_sha256(path) != ref.get("sha256"):
@@ -189,15 +246,80 @@ def validate_release_proof_bundle_directory(directory: Path, *, repo: Path | Non
             data = json.loads(path.read_text(encoding="utf-8"))
             if data.get("lane") != lane or data.get("result") != "PASS":
                 errors.append(f"evidence lane/result mismatch: {lane}")
-            errors.extend(f"{lane}: {error}" for error in validate_release_evidence(data))
+            wheel_records = [item for item in bundle.get("distributions", []) if item.get("type") == "wheel"]
+            wheel_sha = wheel_records[0].get("sha256") if len(wheel_records) == 1 else None
+            errors.extend(
+                f"{lane}: {error}"
+                for error in validate_release_evidence(
+                    data,
+                    expected_source=bundle.get("source", {}),
+                    expected_wheel_sha256=wheel_sha,
+                )
+            )
+            claims = data.get("claims", {})
+            refs = list(data.get("log_refs", []))
+            refs.extend(value for key, value in claims.items() if key.endswith("_ref") and isinstance(value, dict))
+            for ref_index, claim_ref in enumerate(refs):
+                try:
+                    claim_path = _safe_relative_file(directory, claim_ref.get("path", ""))
+                    actual = (
+                        canonical_json_sha256(claim_path) if claim_path.suffix == ".json" else sha256_file(claim_path)
+                    )
+                    if actual != claim_ref.get("sha256"):
+                        errors.append(f"{lane}: referenced evidence digest mismatch at ref {ref_index}")
+                    if claim_path.suffix == ".json" and claim_ref.get("kind"):
+                        claim_data = json.loads(claim_path.read_text(encoding="utf-8"))
+                        if claim_data.get("kind") != claim_ref.get("kind"):
+                            errors.append(f"{lane}: referenced evidence kind mismatch at ref {ref_index}")
+                        if lane == "local_ci" and claim_ref.get("kind") == "builder_ii.gate_battery_receipt":
+                            source = bundle.get("source", {})
+                            errors.extend(
+                                f"local_ci: {error}" for error in _ci_receipt_errors(claim_data, source.get("commit"))
+                            )
+                except (ValueError, OSError, json.JSONDecodeError):
+                    errors.append(f"{lane}: referenced evidence is missing or invalid at ref {ref_index}")
+            if lane == "artifact_chain" and isinstance(claims, dict):
+                chain_ref = claims.get("chain_report_ref", {})
+                try:
+                    chain_path = _safe_relative_file(directory, chain_ref.get("path", ""))
+                    chain = json.loads(chain_path.read_text(encoding="utf-8"))
+                    counts = chain.get("counts", {})
+                    if chain.get("valid") is not True or chain.get("status") != "valid":
+                        errors.append("artifact_chain: canonical chain report is not valid")
+                    if counts.get("broken_links") != 0 or counts.get("native_invalid") != 0:
+                        errors.append(
+                            "artifact_chain: canonical chain report contains broken or native-invalid artifacts"
+                        )
+                except (ValueError, OSError, json.JSONDecodeError):
+                    errors.append("artifact_chain: canonical chain report cannot be read")
         index_path = directory / bundle.get("artifact_index_ref", {}).get("path", "")
-        if not index_path.is_file() or canonical_json_sha256(index_path) != bundle.get("artifact_index_ref", {}).get("sha256"):
+        if not index_path.is_file() or canonical_json_sha256(index_path) != bundle.get("artifact_index_ref", {}).get(
+            "sha256"
+        ):
             errors.append("artifact index is missing or digest-mismatched")
         else:
             errors.extend(validate_artifact_index_record(json.loads(index_path.read_text(encoding="utf-8"))))
         archive = directory / "source.tar"
         if not archive.is_file() or sha256_file(archive) != bundle.get("source", {}).get("source_archive_sha256"):
             errors.append("source archive is missing or digest-mismatched")
+        custody = bundle.get("payload_custody", [])
+        expected_paths = {item.get("path") for item in custody if isinstance(item, dict)}
+        actual_paths = {
+            path.relative_to(directory).as_posix()
+            for path in directory.rglob("*")
+            if path.is_file() and path.name != "release-proof-bundle.json"
+        }
+        if expected_paths != actual_paths:
+            errors.append("payload custody does not exactly cover bundle constituent files")
+        for item in custody:
+            if not isinstance(item, dict):
+                continue
+            try:
+                payload = _safe_relative_file(directory, item.get("path", ""))
+                if payload.stat().st_size != item.get("size") or sha256_file(payload) != item.get("sha256"):
+                    errors.append(f"payload custody mismatch: {item.get('path')}")
+            except ValueError as exc:
+                errors.append(str(exc))
         if repo is not None:
             repo = repo.resolve()
             source = bundle.get("source", {})

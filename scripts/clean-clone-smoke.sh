@@ -220,6 +220,11 @@ if [ -n "$CANDIDATE_WHEEL" ]; then
   fi
   step "uv tool install exact candidate wheel" uv tool install --python 3.12.13 --force "$CANDIDATE_SPEC"
   export PATH="$UV_TOOL_BIN_DIR:$PATH"
+  if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
+    step "Apple candidate MLX readiness" "$UV_TOOL_DIR/builder-ii/bin/python" -c "import mlx.core; print('MLX_READY')"
+  elif [ "$(uname -s)" = "Linux" ]; then
+    step "Linux candidate excludes MLX" "$UV_TOOL_DIR/builder-ii/bin/python" -c "import importlib.util; assert importlib.util.find_spec('mlx') is None"
+  fi
 elif [ "$SKIP_MLX" -eq 0 ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
   step "uv sync --extra mlx" uv sync --extra mlx
 else
@@ -424,8 +429,18 @@ if [ -n "$HOST_PROOF" ]; then
   if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
     HOST_LANE="macos_apple_silicon_golden_path"
   fi
+  HOST_CLAIMS="$WORKDIR/host-claims.json"
+  if [ "$HOST_LANE" = "macos_apple_silicon_golden_path" ]; then
+    printf '%s\n' '{"golden_path_steps_passed":true,"installed_extras":["apple","deepagents"],"mlx_ready":true}' >"$HOST_CLAIMS"
+  else
+    printf '%s\n' '{"golden_path_steps_passed":true,"installed_extras":["deepagents"],"mlx_installed":false}' >"$HOST_CLAIMS"
+  fi
+  tar -cf "$WORKDIR/host-step-logs.tar" -C "$STEP_LOG_DIR" .
   run builder-release host-proof --output "$HOST_PROOF" --lane "$HOST_LANE" \
     --wheel "$(basename "$CANDIDATE_WHEEL")" --wheel-sha256 "$CANDIDATE_WHEEL_SHA256" \
+    --source-commit "$(git -C "$CLONE_DIR" rev-parse HEAD)" \
+    --source-tree "$(git -C "$CLONE_DIR" rev-parse HEAD^{tree})" \
+    --elapsed-seconds "$ELAPSED" --log "$WORKDIR/host-step-logs.tar" --claims-json "$HOST_CLAIMS" \
     --command "candidate wheel digest" --command "uv tool install" \
     --command "platform audits" --command "governed patch apply rollback loop"
   run builder-release validate-evidence "$HOST_PROOF"

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import platform
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -14,6 +16,7 @@ from builder_ii.core.release_manifest import (
 )
 from builder_ii.core.release_proof import (
     build_release_proof_bundle_directory,
+    canonical_json_sha256,
     validate_release_proof_bundle_directory,
 )
 
@@ -28,8 +31,52 @@ def host_proof(
     wheel_sha256: str = typer.Option(..., "--wheel-sha256"),
     command: list[str] = typer.Option(..., "--command"),
     limitation: list[str] = typer.Option([], "--limitation"),
+    source_commit: str = typer.Option(..., "--source-commit"),
+    source_tree: str = typer.Option(..., "--source-tree"),
+    elapsed_seconds: int = typer.Option(..., "--elapsed-seconds", min=0),
+    log: list[Path] = typer.Option(..., "--log"),
+    skip: list[str] = typer.Option([], "--skip"),
+    claims_json: Path = typer.Option(..., "--claims-json"),
 ) -> None:
     """Record a completed host lane; command results are supplied by the invoking harness."""
+
+    def version(command: list[str], *, unavailable: str = "UNAVAILABLE_RECORDED") -> str:
+        if shutil.which(command[0]) is None:
+            return unavailable
+        result = subprocess.run(command, text=True, capture_output=True, check=False)
+        value = (result.stdout or result.stderr).strip().splitlines()
+        return value[0] if value else unavailable
+
+    log_refs = []
+    constituent_dir = output.parent / "constituents"
+    constituent_dir.mkdir(parents=True, exist_ok=True)
+    for item in log:
+        raw = item.read_bytes()
+        import hashlib
+
+        target = constituent_dir / f"{lane}-{item.name}"
+        target.write_bytes(raw)
+        log_refs.append(
+            {
+                "kind": "builder_ii.release_log",
+                "path": f"evidence/constituents/{target.name}",
+                "sha256": hashlib.sha256(raw).hexdigest(),
+            }
+        )
+    claims = json.loads(claims_json.read_text(encoding="utf-8"))
+    for field, value in list(claims.items()):
+        if not field.endswith("_ref") or not isinstance(value, dict):
+            continue
+        source_path = Path(str(value.get("path", "")))
+        if not source_path.is_file() or source_path.is_symlink():
+            raise typer.BadParameter(f"claims.{field}.path must be a real local artifact file")
+        target = constituent_dir / f"{lane}-{field}-{source_path.name}"
+        target.write_bytes(source_path.read_bytes())
+        claims[field] = {
+            "kind": value.get("kind"),
+            "path": f"evidence/constituents/{target.name}",
+            "sha256": canonical_json_sha256(target),
+        }
     record = create_release_evidence(
         lane=lane,
         result="PASS",
@@ -41,6 +88,18 @@ def host_proof(
         },
         candidate={"wheel": wheel, "wheel_sha256": wheel_sha256},
         commands=[{"name": item, "result": "PASS"} for item in command],
+        source={"commit": source_commit, "tree": source_tree},
+        runtime_versions={
+            "python": platform.python_version(),
+            "uv": version(["uv", "--version"]),
+            "git": version(["git", "--version"]),
+            "goose": version(["goose", "--version"]),
+            "container_runtime": version(["docker", "--version"], unavailable="NOT_APPLICABLE"),
+        },
+        elapsed_seconds=elapsed_seconds,
+        skips=skip,
+        log_refs=log_refs,
+        claims=claims,
         limitations=limitation,
     )
     output.parent.mkdir(parents=True, exist_ok=True)

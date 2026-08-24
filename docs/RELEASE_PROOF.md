@@ -50,8 +50,15 @@ uv run builder-release validate-bundle-directory \
 ```
 
 The bundle builder refuses a dirty candidate, missing or failed required lane,
-duplicate lane, symlinked evidence, wrong distribution metadata, mismatched
-digest, moved source/lock identity, or an authorizing governance claim.
+duplicate lane or distribution type, symlinked evidence, wrong distribution
+metadata, mismatched digest, moved source/lock identity, or an authorizing
+governance claim. Every lane is schema-specific, binds the exact candidate
+commit/tree and wheel digest, and carries runtime versions, elapsed time,
+skips, logs, and typed predecessor references where a canonical receipt or
+report exists. `payload_custody` covers every copied constituent byte outside
+the self-describing bundle manifest; independent validation reconstructs that
+set, rehashes it, validates the canonical chain report, and refuses extra,
+missing, duplicate, or substituted files.
 
 ## Required evidence lanes
 
@@ -60,6 +67,14 @@ Silicon golden path, integrated release sabotage, docs audit, platform matrix,
 Plan Set 5 benchmark readback, flagship demo/rehearsal, hosted custody of
 rehearsal PRs #1/#2, and artifact-chain validation. Required lanes must be
 `PASS`; `SKIP` and `NOT_RUN` are explicit non-green states.
+
+The local-CI lane must resolve to the canonical gate-battery receipt at the
+bundle commit, with a stable clean tip and every blocking gate passed without a
+skip. Host lanes are not interchangeable: macOS requires Darwin arm64 plus the
+Deep Agents and Apple/MLX extras; Linux requires Linux plus Deep Agents and an
+explicit no-MLX result. Benchmark, docs/matrix, sabotage, demo, rehearsal
+custody, and artifact-chain lanes resolve their admitted reports or logs and
+are revalidated from the copied bytes.
 
 ## Historical V0 compatibility
 

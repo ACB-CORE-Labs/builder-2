@@ -73,10 +73,11 @@ def test_platform_completion_audit_splits_legacy_helpers_from_canonical_lanes() 
     assert "builder-platform" in text
 
 
-def test_platform_completion_audit_states_r1_before_b1() -> None:
+def test_platform_completion_audit_states_durable_release_authority_sequence() -> None:
     text = _text()
-    assert "R0 -> R1 -> B1" in text
-    assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in text
+    assert "exact-candidate review" in text
+    assert "separate capability-promotion decision" in text
+    assert "Release qualification authorizes none" in text
 
 
 def test_b9_operational_verification_requires_no_runtime_promotion() -> None:
@@ -97,7 +98,8 @@ def test_next_sequence_matches_incomplete_rows() -> None:
     # Open-source-v1 sequencing is separate from the capability matrix rows.
     from builder_ii.core.platform_completion_audit import NEXT_SEQUENCE
 
-    assert NEXT_SEQUENCE == "Plan Set 3 admitted; implementation pending"
+    assert NEXT_SEQUENCE.startswith("exact-candidate review")
+    assert "tag/publication authorization" in NEXT_SEQUENCE
 
 
 def test_live_truth_machinery_and_open_source_v1_sequencing_are_distinct() -> None:

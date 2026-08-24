@@ -1594,6 +1594,21 @@ def extract_references(record: dict[str, Any]) -> list[dict[str, Any]]:
         append_artifact_ref("target_profile_ref", record.get("target_profile_ref"), TARGET_PROFILE_ARTIFACT_KIND)
         append_artifact_ref("workflow_session_ref", record.get("workflow_session_ref"), WORKFLOW_SESSION_KIND)
 
+    elif kind == RELEASE_EVIDENCE_KIND:
+        claims = record.get("claims")
+        if isinstance(claims, dict):
+            for field, value in claims.items():
+                if field.endswith("_ref") and isinstance(value, dict):
+                    append_artifact_ref(f"claims.{field}", value, value.get("kind"))
+
+    elif kind == RELEASE_PROOF_BUNDLE_KIND:
+        append_artifact_ref("artifact_index_ref", record.get("artifact_index_ref"), "builder_ii.artifact_index_record")
+        evidence = record.get("evidence")
+        if isinstance(evidence, dict):
+            for lane, value in evidence.items():
+                if isinstance(value, dict):
+                    append_artifact_ref(f"evidence.{lane}.ref", value.get("ref"), RELEASE_EVIDENCE_KIND)
+
     return refs
 
 

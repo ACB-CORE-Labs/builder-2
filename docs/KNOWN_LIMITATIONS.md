@@ -160,6 +160,8 @@ are not equivalent just because they share the legacy completion label.
   - This row is a passive truth projection; operational lanes retain their own scoped assurance states.
 - **release proof/quality gates** — `PASSIVE_FOUNDATION` (assurance `PASSIVE_ARTIFACT_VERIFIED`)
   - The v1 bundle schema binds exact source, lock, distributions, supported-host proofs, CI, sabotage, benchmark, docs, and custody evidence.
+  - Release evidence is lane-specific: a generic PASS record cannot substitute for exact-tip CI, supported-host identity, exact wheel bytes, current benchmark/docs truth, rehearsal custody, or a valid canonical chain report.
+  - Whole-bundle payload custody covers every copied distribution, source archive, evidence artifact, constituent log/report, and artifact index; duplicate wheel/sdist types and unindexed extra bytes are refused.
   - The bundle remains evidence rather than promotion, tag, release, or publication authority.
   - The historical V0 passive manifest remains validation-compatible but is not current release authority.
   - This row remains unpromoted until exact-candidate macOS and Linux proof is reviewed and ratified.

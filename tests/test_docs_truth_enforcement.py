@@ -91,5 +91,7 @@ def test_docs_state_corrected_sequence() -> None:
         Path("docs/FOUNDATION_STATUS.md"),
     ):
         text = path.read_text(encoding="utf-8")
-        assert "R0 -> R1 -> B1" in text
-        assert "R1 Config + Onboarding Kernel must precede B1 verification execution" in text
+        assert "exact-candidate review" in text
+        assert "separate capability-promotion decision" in text
+        assert "Release qualification authorizes none" in text
+        assert "Plan Set 3 admitted; implementation pending" not in text

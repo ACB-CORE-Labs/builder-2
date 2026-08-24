@@ -36,4 +36,4 @@ The following remain denied, gated, or evidence-blocked until their own digest-b
 
 `R0 -> R1 -> B1`
 
-R1 Config + Onboarding Kernel must precede B1 verification execution. The setup/config rows are present in the truth matrix and remain non-operational until R1.
+Open-source-v1 completion proceeds through exact-candidate review, a separate capability-promotion decision, separate tag/publication authorization, and hosted publication readback. Release qualification authorizes none of those later steps.
