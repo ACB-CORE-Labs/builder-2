@@ -73,6 +73,10 @@ done
 if [ -z "$WORKDIR" ]; then
   WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/builder-ii-clean-clone-smoke.XXXXXX")"
 fi
+if [ -n "$HOST_PROOF" ]; then
+  mkdir -p "$(dirname "$HOST_PROOF")"
+  HOST_PROOF="$(cd "$(dirname "$HOST_PROOF")" && pwd)/$(basename "$HOST_PROOF")"
+fi
 mkdir -p "$WORKDIR"
 WORKDIR="$(cd "$WORKDIR" && pwd)"
 CLONE_DIR="$WORKDIR/clone"

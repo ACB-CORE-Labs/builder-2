@@ -9,6 +9,7 @@ OUTPUT="${3:?usage: release-linux-candidate.sh WHEEL WHEEL_SHA256 OUTPUT}"
 
 command -v docker >/dev/null 2>&1 || { echo "docker is required" >&2; exit 2; }
 WHEEL="$(cd "$(dirname "$WHEEL")" && pwd)/$(basename "$WHEEL")"
+mkdir -p "$(dirname "$OUTPUT")"
 OUTPUT="$(cd "$(dirname "$OUTPUT")" && pwd)/$(basename "$OUTPUT")"
 STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/builder-ii-linux-source.XXXXXX")"
 cleanup() { rm -rf "$STAGING_ROOT"; }
