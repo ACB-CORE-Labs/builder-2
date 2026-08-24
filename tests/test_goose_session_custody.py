@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from threading import Barrier
@@ -295,6 +296,67 @@ def test_postflight_validator_rejects_opaque_approved_mutation_evidence(tmp_path
     assert "approved mutation evidence requires patch_apply_receipt_ref" in errors
 
 
+def test_close_custody_rejects_digest_correct_foreign_approved_artifacts(tmp_path: Path) -> None:
+    session_id = "foreign-approved-evidence"
+    artifact_root, launch, _, _, transcript = _evidence(tmp_path, session_id)
+    target_root = tmp_path / "target"
+    target_root.mkdir()
+    foreign_root = tmp_path / "foreign"
+    foreign_root.mkdir()
+    evidence = {
+        "status": "succeeded",
+        "session_id": session_id,
+        "target_root": str(target_root),
+    }
+    for key in (
+        "patch_apply_receipt_ref",
+        "postflight_ref",
+        "rollback_plan_ref",
+        "rollback_bundle_ref",
+        "patch_ledger_ref",
+        "rollback_patch_ref",
+        "proposal_ref",
+        "approval_ref",
+        "verification_receipt_ref",
+    ):
+        path = foreign_root / f"{key}.json"
+        path.write_text("not a governed artifact\n", encoding="utf-8")
+        evidence[key] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+    postflight = create_no_mutation_postflight(
+        session_id,
+        str(target_root),
+        "2026-08-24T00:00:00+00:00",
+        "2026-08-24T00:01:00+00:00",
+        1,
+        [str(target_root / "changed.txt")],
+        approved_mutations=[str(target_root / "changed.txt")],
+        unexplained_mutations=[],
+        mutation_mode="approved_hitl_patch",
+        approved_mutation_evidence=evidence,
+    )
+    close = create_goose_close_receipt(
+        session_id,
+        launch["digest"],
+        postflight["digest"],
+        str(transcript),
+        hashlib.sha256(transcript.read_bytes()).hexdigest(),
+        "2026-08-24T00:01:00+00:00",
+        0,
+    )
+    persist_goose_launch(artifact_root=artifact_root, session_id=session_id, launch_receipt=launch)
+
+    with pytest.raises(ValueError, match="not bound to this Goose session artifact namespace"):
+        persist_goose_close(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            launch_receipt=launch,
+            close_receipt=close,
+            postflight=postflight,
+        )
+
+    assert not (artifact_root / "sessions" / session_id / "goose" / "close.json").exists()
+
+
 @pytest.mark.parametrize(
     "event_types",
     [
@@ -408,3 +470,36 @@ def test_transcript_export_refuses_directory_inode_swap(tmp_path: Path) -> None:
 
     assert export.closed is True
     assert list(outside.iterdir()) == []
+
+
+def test_transcript_export_refuses_temporary_name_inode_swap(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "artifacts"
+    session_id = "export-name-swap"
+    export = prepare_transcript_export(artifact_root, session_id)
+    export.child_path.write_text("original\n", encoding="utf-8")
+    os.rename(
+        export.name,
+        f"{export.name}.moved",
+        src_dir_fd=export.directory_fd,
+        dst_dir_fd=export.directory_fd,
+    )
+    replacement_fd = os.open(
+        export.name,
+        os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+        0o600,
+        dir_fd=export.directory_fd,
+    )
+    try:
+        os.write(replacement_fd, b"replacement\n")
+    finally:
+        os.close(replacement_fd)
+
+    with pytest.raises(ValueError, match="no longer identifies retained file inode"):
+        install_transcript_export(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            export=export,
+        )
+
+    assert export.closed is True
+    assert not canonical_transcript_path(artifact_root, session_id).exists()

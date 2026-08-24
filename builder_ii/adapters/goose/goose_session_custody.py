@@ -147,6 +147,17 @@ def install_transcript_export(
         info = os.fstat(export.file_fd)
         if not stat.S_ISREG(info.st_mode):
             raise ValueError("Goose transcript export must be a regular file")
+        named_fd = os.open(
+            export.name,
+            os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+            dir_fd=export.directory_fd,
+        )
+        try:
+            named_info = os.fstat(named_fd)
+            if (named_info.st_dev, named_info.st_ino) != (info.st_dev, info.st_ino):
+                raise ValueError("Goose transcript export name no longer identifies retained file inode")
+        finally:
+            os.close(named_fd)
         os.link(
             export.name,
             destination.name,
@@ -162,6 +173,45 @@ def install_transcript_export(
             pass
         export.close()
     return destination
+
+
+def _approved_mutation_graph_errors(
+    *,
+    artifact_root: Path,
+    session_id: str,
+    target_root: Path,
+    target_name: str,
+    postflight: dict[str, Any],
+) -> list[str]:
+    """Reconstruct approved mutation authority with the owning runtime validators."""
+    mode = postflight.get("mutation_mode")
+    evidence = postflight.get("approved_mutation_evidence")
+    if mode not in {"approved_hitl_patch", "approved_hitl_rollback"}:
+        return []
+    from builder_ii.adapters.goose.goose_runtime_harness import (
+        _approved_patch_close_evidence,
+        _validated_rollback_close_evidence,
+    )
+
+    if mode == "approved_hitl_patch":
+        _, _, errors = _approved_patch_close_evidence(
+            evidence,
+            session_id=session_id,
+            target_root=target_root,
+            target_name=target_name,
+            artifact_root=artifact_root,
+        )
+    else:
+        if not isinstance(evidence, dict):
+            return ["approved rollback evidence must be an object"]
+        _, _, errors = _validated_rollback_close_evidence(
+            evidence,
+            artifact_root=artifact_root,
+            session_id=session_id,
+            target_root=target_root,
+            target_name=target_name,
+        )
+    return errors
 
 
 def discard_transcript_export(export: TranscriptExport) -> None:
@@ -258,27 +308,21 @@ def validate_goose_session_custody(artifact_root: Path, session_id: str) -> list
         errors.append("Goose close receipt does not bind canonical launch receipt")
     if close.get("postflight_digest") != postflight.get("digest"):
         errors.append("Goose close receipt does not bind canonical postflight")
-    approved_evidence = postflight.get("approved_mutation_evidence")
-    if isinstance(approved_evidence, dict):
-        for key, ref in approved_evidence.items():
-            if not key.endswith("_ref"):
-                continue
-            if not isinstance(ref, dict) or not isinstance(ref.get("path"), str) or not isinstance(ref.get("sha256"), str):
-                errors.append(f"approved mutation evidence {key} is malformed")
-                continue
-            ref_path = Path(ref["path"])
-            try:
-                if ref_path.is_symlink() or not ref_path.is_file():
-                    errors.append(f"approved mutation evidence {key} is missing or is a symlink")
-                elif hashlib.sha256(ref_path.read_bytes()).hexdigest() != ref["sha256"]:
-                    errors.append(f"approved mutation evidence {key} digest does not match persisted bytes")
-            except OSError as exc:
-                errors.append(f"approved mutation evidence {key} is unreadable: {exc}")
     target_root = (launch.get("evidence") or {}).get("target_root")
     if not isinstance(target_root, str) or not target_root:
         errors.append("Goose launch receipt does not bind target_root")
     elif postflight.get("target_root") != target_root:
         errors.append("Goose postflight target_root does not match launch custody")
+    else:
+        errors.extend(
+            _approved_mutation_graph_errors(
+                artifact_root=artifact_root,
+                session_id=session_id,
+                target_root=Path(target_root),
+                target_name=launch.get("target_profile", ""),
+                postflight=postflight,
+            )
+        )
     if close.get("transcript_path") != str(transcript_path):
         errors.append("Goose close receipt does not name the canonical transcript")
     try:
@@ -381,6 +425,18 @@ def persist_goose_close(
         ("Goose postflight", postflight),
     ):
         _validate_identity(value, session_id, label)
+    target_root = (launch_receipt.get("evidence") or {}).get("target_root")
+    if not isinstance(target_root, str) or not target_root:
+        raise ValueError("canonical Goose launch receipt must bind target_root")
+    graph_errors = _approved_mutation_graph_errors(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        target_root=Path(target_root),
+        target_name=launch_receipt.get("target_profile", ""),
+        postflight=postflight,
+    )
+    if graph_errors:
+        raise ValueError("invalid approved mutation custody: " + "; ".join(graph_errors))
     if close_receipt.get("launch_receipt_digest") != launch_receipt.get("digest"):
         raise ValueError("Goose close receipt does not bind the canonical launch receipt")
     if close_receipt.get("postflight_digest") != postflight.get("digest"):

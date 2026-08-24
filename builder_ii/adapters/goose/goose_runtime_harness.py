@@ -238,6 +238,7 @@ def _approved_patch_close_evidence(
     if errors:
         return set(), None, list(dict.fromkeys(errors))
     summary = {
+        "status": "succeeded",
         "session_id": session_id,
         "target_root": str(target_root.resolve()),
         "patch_apply_receipt_ref": evidence["patch_apply_receipt_ref"],
@@ -475,6 +476,7 @@ def _validated_rollback_close_evidence(
     if errors:
         return set(), None, list(dict.fromkeys(errors))
     return approved_paths, {
+        "status": "succeeded",
         "session_id": session_id,
         "target_root": str(target_root.resolve()),
         **{key: result[key] for key in result if key.endswith("_ref")},
