@@ -1,59 +1,101 @@
-# Centralized Glossary of builder-II Terminology
+# Centralized glossary
 
-To help new operators navigate the builder-II architecture and codebase, this glossary compiles and defines core terms, concepts, and acronyms used throughout the documentation.
-
----
-
-## 1. Core Architecture & Artifact Pipeline
+## Artifact grammar
 
 ### Kind
-The structural identifier of a builder-II JSON artifact (represented by the `"kind"` field). A `kind` binds the JSON data to a specific Pydantic schema or dataclass structure (e.g., `builder_ii.patch_proposal` or `builder_ii.preflight_record`).
 
-### Spine
-The horizontal or vertical sequence of artifact files generated during a governed session, visualized inside the **STRATUM** console. It represents the living timeline of actions (Intake → Preflight → Proposal → Evidence → Receipt) from start to finish.
+The structural identifier in a builder-II artifact's `kind` field. A kind binds
+data to an explicit schema and validator.
 
-### Chain / Chain Integrity
-A security model where each generated artifact references the SHA-256 content digest of its predecessor in the spine. This creates a cryptographically linked ledger. Any manual editing or tampering with an artifact breaks the chain integrity (e.g. showing "Chain Valid: FALSE").
+### Spine and chain integrity
 
-### Digest-Bound
-Any process, structure, or reference that is anchored to a cryptographic content hash (SHA-256 digest) of its input files or artifacts. This ensures that the system works only with explicitly declared and unmutated assets.
+The ordered governed artifacts for a session or capability lane. Digest references
+bind predecessor bytes and let validators detect substitution or tampering.
 
-### Speculative vs. Promoted
-* **Speculative:** A capability, command, or role that is in design or prototype phase and has not cleared all automated gates.
-* **Promoted:** A capability that has cleared its verification gates, passed CI requirements, and is officially active in the runtime control plane. These states are defined in `docs/CAPABILITY_PROMOTION.md`.
+### Digest-bound
 
----
+Bound to byte identity relative to a recorded cryptographic digest. A digest does
+not prove that a human reviewed the bytes.
 
-## 2. Adapters & Harnesses
+### Human-in-the-loop (HITL)
 
-### deepagents
-A sandboxed subagent runtime environment. Unlike generic LLM chat windows, deepagents are defined by strict capability gates, system personas, human approval boundaries, and verification targets.
+An explicit operator decision required by a capability contract before a bounded
+effect may execute. Approval binds the exact artifact digest; model output is not
+approval.
 
-### deepagents Forge
-An interactive wizard (TUI or headless) used to generate new deepagent configuration manifests (`DeepAgentSpec`).
+## Three separate state vocabularies
 
-### The deepagents Bridge
-The interface layer bridging external model engines to local tool registries and sandboxes, ensuring that no agent can execute arbitrary shell commands without matching verification profiles.
+Builder-II has no global active/passive mode that summarizes all authority. State
+and authority are capability-scoped across three separate axes.
 
-### WRP (Workload-Router-Pool)
-The advanced workload-routing control plane under `builder_ii/cli/wrp_cli.py`. It uses mathematical modeling (adjoint/forward operators, experience stores, and MSDA gates) to distribute tasks efficiently across models while verifying security compliance.
+### Platform completion labels
 
-### Convention Layer
-The compilation substrate that translates builder-II high-level governed representations down into Codename-Goose-native runtime actions and manifests.
+The matrix uses eight lifecycle labels:
 
----
+`NOT_STARTED`, `DESIGN_ONLY`, `ARTIFACT_ONLY`, `PASSIVE_FOUNDATION`,
+`IMPLEMENTED_ON_BRANCH`, `PR_OPEN`, `MERGED_BUT_NOT_OPERATIONAL`, and
+`OPERATIONALLY_VERIFIED`.
 
-## 3. Execution & Philosophy
+These labels describe implementation/completion truth. They are not command
+promotion states and do not grant authority.
 
-### The Third Door
-The engineering pillar stating that *planned ≠ executed ≠ verified ≠ promoted*. No action or model output possesses inherent authority; every authority change requires separate docs, tests, validation gates, and human approval boundaries.
+### Command/capability promotion states
 
-### Builder's Signet
-The core design doctrine stating that builder-II is optimized for Apple Silicon (M1/M2/M3) unified memory footprints and maintains mechanical sympathy by sandbox-isolating external cloud egress.
+The authority registry uses Tier 0 through Tier 4 plus promotion states defined in
+`builder_ii/governance/authority/tier_definitions.py`, including `spec_only`,
+`artifact_only`, `operator_managed`, `hitl_runtime_candidate`, and `enabled`.
+Promotion state is command/capability metadata, not a matrix lifecycle label.
 
-### Passive vs. Active Modes
-* **Passive:** The control plane generates plans, checks configurations, and audits schemas, but does not execute modifying system commands or call external model runtimes directly.
-* **Active:** The control plane is fully enabled to route tasks, invoke agents, run test verification loops, and apply patches.
+### Assurance states
 
-### B9
-An internal reference code designating the Governed Operator Golden Path milestone (Phase 9 of the initial platform roadmap).
+Assurance semantics come from `builder_ii/governance/authority/assurance.py`.
+They distinguish passive artifact evidence, local-state mutation, read-only
+runtime, bounded execution, mutation with rollback, live-provider execution,
+demo-only evidence, blocked evidence, and safety-critical prohibition.
+
+`BOUNDED_EXECUTION_VERIFIED` attests the fixed approved invocation envelope; it
+does not attest all behavior of code inside that envelope. The verification runner
+executes target code with the operator's host privileges and is not containment.
+
+`SAFETY_CRITICAL_PROHIBITED` currently applies to `allows_memory_mutation`, which
+registry invariants reject regardless of evidence. It is not a general synonym for
+Git push or arbitrary shell.
+
+## Runtime and adapter terms
+
+### Goose
+
+The local operator runtime adapter. Its current manifest modes are `disabled` and
+`read_only`; separately governed verification, model, patch, Deep Agents, MCP, and
+delivery lanes do not become Goose modes.
+
+### Deep Agents
+
+An optional bounded delegation/runtime adapter. `protocol_fake` supplies
+deterministic structural evidence; `optional_deepagents` is a separately gated
+native path through the official factory, readiness checks, two-key acknowledgement,
+governed gateways, HITL interrupt, and exact-digest resume. Neither grants ambient
+write, shell, provider, or tool authority.
+
+### MCP
+
+An inventory-first, deny-by-default adapter seam. Admitted services delegate to
+canonical builder-II implementations; MCP does not mint approval or acquire ambient
+tool authority.
+
+### WRP
+
+The Workforce Reasoning Platform control plane for digest-bound model routing,
+budgeting, assignments, obligations, and governed execution inputs.
+
+### STRATUM
+
+The operator TUI for observing current projections and composing governed command
+lines. It does not convert display or composition into execution authority.
+
+## Core doctrine
+
+Planned is not executed. Executed is not verified. Verified is not promoted.
+Artifact is not authority. Replay reconstruction is not re-execution. Verification
+records the outcome of an exact approved path; it does not prove general program
+correctness.

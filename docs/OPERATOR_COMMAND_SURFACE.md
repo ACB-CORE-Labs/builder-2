@@ -70,8 +70,12 @@ approve, select arbitrary commands, supply environment or timeout overrides, cho
 or widen the approved profile/step. Plan and approval paths must resolve beneath the
 server-controlled Builder-II artifact root.
 
-Still gated: approval minting through MCP, arbitrary argv, broad shell execution, patch authority,
-model/Goose/deepagents runtime, commit/push automation, and model-driven file mutation.
+Still gated at this MCP seam: approval minting, arbitrary argv, broad shell
+execution, patch application authority, model-driven file mutation, and ambient
+runtime or Git authority. Separately registered lanes provide bounded model
+execution, Goose read-only runtime, bounded Deep Agents execution, and
+digest-approved commit/push/PR delivery; none makes those effects autonomous or
+callable through this MCP service.
 
 `patch_proposal(unified_diff, description, reason, target_head_sha,
 verification_receipt_path)` is the separate passive MCP patch surface. Builder-II computes the

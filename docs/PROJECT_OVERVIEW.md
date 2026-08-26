@@ -99,9 +99,13 @@ Deepagents support is **optional**. The approved protocol lane
 deepagents runtime promotion. See `docs/DEEPAGENTS_POLICY.md` for the
 full policy.
 
-Native deepagents construction, model invocation, tool/MCP execution,
-shell execution, and autonomous source writes remain **disabled** until
-explicit capability promotion.
+Authority is capability-scoped. The matrix records bounded model/provider
+execution, bounded Deep Agents runtime/subagents, low-risk tool invocation, and
+Goose read-only runtime as operationally verified inside their registered
+envelopes. General MCP invocation remains foundation-only. Separately admitted MCP
+services have their own bounded authority records. Generic shell, autonomous source writes, and ambient
+runtime/tool authority remain denied. Use `builder-platform matrix` and
+`docs/COMMAND_AUTHORITY.md` for current per-capability truth.
 
 ---
 

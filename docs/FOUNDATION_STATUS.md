@@ -10,7 +10,11 @@ Passive foundation state: `PASSIVE_FOUNDATION`.
 
 This means source-backed governed artifacts, validators, passive planners, and docs truth checks exist. It does not mean life-safety readiness, platform-wide runtime authority, or production-grade execution assurance.
 
-The following remain denied, gated, or evidence-blocked until their own digest-bound proof chains pass: runtime execution, patch application, model/provider execution, MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes, and commit/push automation.
+The following remain denied, gated, or evidence-scoped according to their own
+authority records: runtime execution, patch application, model/provider execution,
+MCP/tool invocation, Goose runtime promotion, deepagents runtime, autonomous writes,
+and commit/push automation. Read the current matrix and command registry for each
+lane; this document does not promote capabilities.
 
 ## Passive Foundation Areas
 
@@ -34,6 +38,7 @@ The following remain denied, gated, or evidence-blocked until their own digest-b
 
 ## Next Sequence
 
-`R0 -> R1 -> B1`
+The historical dependency spine is retained for context only; current status is
+the machine-backed platform completion matrix.
 
 Open-source-v1 completion proceeds through exact-candidate review, a separate capability-promotion decision, separate tag/publication authorization, and hosted publication readback. Release qualification authorizes none of those later steps.

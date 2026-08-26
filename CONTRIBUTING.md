@@ -1,115 +1,116 @@
 # Contributing to builder-II
 
-> **Status:** builder-II is now open source and accepting external contributions. See the sections
-> below for setup, quality gates, and the pull request process.
+Thank you for your interest in contributing to **builder-II** — a generic governed control plane for local agent-assisted software development.
 
-Thank you for your interest in builder-II — a generic governed control plane for local
-agent-assisted software development. See [`README.md`](README.md) and
-[`docs/MANIFESTO.md`](docs/MANIFESTO.md) for what the project is and why it's built the way it is
-before proposing a change; a lot of the design exists to preserve specific invariants (see "The
-governing distinctions" in the README), and changes that touch those invariants get more scrutiny
-than ordinary bug fixes.
+Before proposing a change, please read [`README.md`](README.md) and [`docs/MANIFESTO.md`](docs/MANIFESTO.md) to understand the governing architecture and invariants (see "The governing distinctions" in the README). Changes that touch authority boundaries, schema validation, or the completion matrix require rigorous evidence.
 
-## Before you start
+---
 
-- Read [`docs/README.md`](docs/README.md) for the full documentation index, and
-  [`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) /
-  [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md)
-  for what's currently promoted vs. speculative. A capability that isn't promoted yet is usually that
-  way on purpose — check before assuming it's just unfinished.
-- For anything non-trivial, open an issue or discussion first (see "Reporting issues" below) to
-  confirm the approach before investing in an implementation.
-- Small, focused changes are much easier to review than large ones. Prefer several small pull
-  requests over one large one when the work naturally splits.
+## 1. Before You Start
 
-## Development setup
+- **Check Capability Promotion State:** Read [`docs/CAPABILITY_PROMOTION.md`](docs/CAPABILITY_PROMOTION.md) and [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md) before implementing changes to unpromoted capabilities. An unpromoted capability is usually gated intentionally by evidence requirements.
+- **Discuss Non-Trivial Changes:** For architectural shifts, new artifact kinds, or authority modifications, open an issue or proposal first to align on the technical approach.
+- **Keep PRs Focused:** Small, single-purpose changes with clear tests and explicit documentation updates are reviewed and integrated much faster than broad refactors.
+
+---
+
+## 2. Development Setup
+
+builder-II requires `Python >=3.12.13, <3.13` and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync --all-groups --extra deepagents  # full development/native orchestration lane
-uv sync --extra mlx                 # add the local Apple Silicon model backend (optional, Mac-first)
+# Clone the repository
+git clone <repo-url>
+cd builder-2
+
+# Install dependencies and dev tools
+uv sync --all-groups
+
+# (Optional - macOS Apple Silicon) Install local MLX model backend
+uv sync --extra mlx
+
+# Initialize environment configuration
 cp .env.example .env
 ```
 
-Requires Python 3.12 (pinned via `.python-version` / `uv.lock`) and [`uv`](https://docs.astral.sh/uv/).
-See the "Install" section of [`README.md`](README.md) for the full setup, including Goose and model
-downloads if you need to exercise runtime-adjacent code paths.
+---
 
-The default model backend is **Ollama** — the recommended path for Linux, CI, and open-source
-contributors. Apple Silicon users can opt into the local MLX lane via `uv sync --extra mlx` and
-setting `BUILDER_MODEL_BACKEND=mlx-lm` in `.env`. See `.env.example` for the full backend menu
-and recommended defaults.
+## 3. Canonical Local Quality Gates
 
-## Quality gates
-
-Before opening a pull request, run the same checks CI runs:
+builder-II enforces a strict local CI gate battery. Run the local CI script before submitting commits or opening pull requests:
 
 ```bash
+# Run the canonical local CI gate battery
+bash scripts/ci.sh
+```
+
+You can also run individual verification steps:
+
+```bash
+# 1. Bytecode compilation
 uv run python -m compileall -q builder_ii tests
-uv run builder-platform audit-docs   # fails if docs claim capabilities the code doesn't back
+
+# 2. Documentation truth audit (detects unbacked capability claims)
+uv run builder-platform audit-docs
+
+# 3. Static analysis & linting
 uv run ruff check builder_ii tests
-uv run mypy                          # targeted: authority-sensitive modules only, see pyproject.toml
+uv run mypy
+
+# 4. Security checks
 uv run bandit -q -r builder_ii -s B101,B105,B106,B110,B112,B404,B603,B607
+
+# 5. Test suite execution
 uv run pytest -q
-cargo build --manifest-path builder_ii_validation_rs/Cargo.toml   # if you touched the Rust validator
+
+# 6. Rust acceleration engine (if builder_ii_validation_rs was modified)
+cargo test --manifest-path builder_ii_validation_rs/Cargo.toml
 ```
 
-All of these must pass. `docs/**` and `README.md` are scanned for false-completion language by
-`audit-docs` — if you change what a command does (especially promoting a capability from
-speculative/planned to operational), the corresponding doc must be updated in the same change, and
-any promotion claim must be backed by real evidence (tests, a closure audit) rather than asserted.
+All gates must pass. `docs/**` and `README.md` are scanned for false-completion language by `builder-platform audit-docs`. If you modify runtime behavior or capability state, the documentation and tests must be updated in the same change.
 
-## Code conventions
+---
 
-- **Artifact-first.** Most features in `builder_ii/` follow the same shape: build a governed artifact
-  (a Pydantic/dataclass model with a `kind` field) → write it as JSON → a paired `validate-*` command
-  re-checks it → downstream commands consume it as input. New features should follow this shape rather
-  than inventing a new one. See [`docs/ARTIFACT_INDEX.md`](docs/ARTIFACT_INDEX.md).
-- **Explicit authority.** A command that can change state (write files, execute code, call a model)
-  must go through the command-authority tier registry and, where authority changes, an explicit
-  human-in-the-loop approval boundary. See [`docs/COMMAND_AUTHORITY.md`](docs/COMMAND_AUTHORITY.md).
-- **Tests live at `tests/test_<module>.py`**, mirroring `builder_ii/` roughly 1:1, plus
-  `tests/scenarios/` for flows spanning multiple artifact stages. Add a scenario test when a change
-  spans more than one artifact stage.
-- Line length 120 (see `[tool.ruff]` in `pyproject.toml`); `ruff` handles import ordering.
+## 4. Engineering Conventions
 
-## Commit messages
+- **Artifact-First:** Features in `builder_ii/` follow the governed lifecycle: construct a typed artifact (Pydantic/dataclass with `kind`) $\rightarrow$ serialize to JSON $\rightarrow$ validate via a paired validator $\rightarrow$ consume downstream. See [`docs/ARTIFACT_INDEX.md`](docs/ARTIFACT_INDEX.md).
+- **Explicit Authority Tiers:** Any command capable of changing state, calling external APIs, or executing code must register in `COMMAND_AUTHORITY_REGISTRY` (`builder_ii/governance/authority/authority_registry.py`) and enforce the required human-in-the-loop (HITL) gate. See [`docs/COMMAND_AUTHORITY.md`](docs/COMMAND_AUTHORITY.md).
+- **Test Structure:** Unit tests live in `tests/test_<module>.py` mirroring `builder_ii/` 1:1. Cross-subsystem workflows and governance loops live in `tests/scenarios/`.
+- **Code Style:** Formatted with `ruff` (line-length 120, standard import sorting).
 
-```
-<type>: <description>
+---
 
-<optional body>
+## 5. Commit Messages & Workflow
+
+Use conventional commits with clear, descriptive rationale:
+
+```text
+<type>: <short summary>
+
+<detailed rationale explaining the invariant or capability preserved/tested>
 ```
 
-Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`. Keep the summary line
-imperative and under ~70 characters; use the body to explain *why*, not just *what*.
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`.
 
-## Opening a pull request
+### Pull Request Workflow:
+1. Create a feature branch from `main`.
+2. Implement changes with matching unit/scenario tests and doc updates.
+3. Run `bash scripts/ci.sh` locally to ensure all quality gates pass.
+4. Push your branch and open a Pull Request describing the change, the invariants preserved, and the verification commands executed.
 
-1. Branch from `main`.
-2. Make your change, keeping it focused, and ensure the quality gates above pass.
-3. Push your branch and open a pull request against `main` on [GitHub](https://github.com/AssetOverflow/builder-2), describing what changed and why, plus a test plan.
-4. Address review feedback. CRITICAL/HIGH-severity findings must be resolved before merge.
+---
 
-## Reporting issues
+## 6. Reporting Issues & Security Vulnerabilities
 
-Open an issue on the [GitHub issue tracker](https://github.com/ACB-CORE-Labs/builder-2/issues).
+- **Bugs & Feature Requests:** Open an issue on our tracker with detailed reproduction steps and system information.
+- **Security Vulnerabilities:** Do **not** post public issues for exploitable vulnerabilities. Refer to [`SECURITY.md`](SECURITY.md) for private disclosure instructions.
 
-For security vulnerabilities specifically, see [`SECURITY.md`](SECURITY.md) — do not open a public
-issue for those.
+---
 
-## License
+## 7. License & Attribution
 
-builder-II is licensed under the [MIT License](LICENSE). The current copyright holder
-(`Joshua Shay`) is provisional — the intent is to reassign copyright to a formal entity (CORE (AI))
-once one exists; this does not change the license terms. Contributions made once the project
-accepts them will be under this same license (standard inbound = outbound).
+builder-II is licensed under the [MIT License](LICENSE). Contributions submitted to this repository are accepted under the terms of the MIT License (inbound = outbound).
 
-CodeVault (`builder-ii-code-vault`) is a separate, commercially licensed plugin repository and is
-not covered by this license — see [`README.md`](README.md#codevault-paid-commercial-plugin-upgrade)
-for the boundary. Third-party software builder-II integrates with (notably Codename Goose, Apache
-2.0, invoked as a separately installed binary rather than bundled) is documented in
-[`NOTICE.md`](NOTICE.md).
+Third-party software integrated by builder-II (including Codename Goose, Apache 2.0) is documented in [`NOTICE.md`](NOTICE.md). CodeVault (`core-labs/builder-ii-code-vault`) is a separate commercial plugin not governed by this repository's license.
 
-## Code of Conduct
-
-This project follows [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+All contributors must adhere to [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).

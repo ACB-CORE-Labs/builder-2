@@ -73,17 +73,19 @@ builder-II's central discipline is that every claim about itself is backed by a 
 artifact, not prose. Before doing anything else, ask it what's actually true:
 
 ```bash
-uv run python scripts/verify_v0_release.py   # anti-handwave structural/governance proof harness
+uv run builder-release --help  # current v1 release-proof command surface; use its exact-candidate bundle flow
 builder-platform matrix                      # every capability, state-labeled: OPERATIONALLY_VERIFIED or not
 builder-platform status
 builder-platform audit-docs                  # scans README + docs/ for claims the matrix doesn't back
 ```
 
-## 5. Passive config/onboarding artifacts
+## 5. Capability-scoped config/onboarding artifacts
 
-These commands plan and validate. None of them write Goose config, mutate your environment,
-execute a rollback, start a runtime, or call a model — the config/onboarding capability rows
-behind them are intentionally not yet promoted to operational.
+The commands below are planning and validation surfaces; they do not themselves
+write Goose config, execute rollback, start a runtime, or call a model. Other setup
+surfaces, including the interactive wizard and digest-approved apply/rollback lanes,
+have their own capability-scoped states. Use `builder-platform matrix` and
+`docs/COMMAND_AUTHORITY.md` for the exact current state of each command.
 
 ```bash
 builder-config schema
@@ -103,7 +105,7 @@ builder-platform r1-closure --output-dir .builder/r1-closure
 builder-platform validate-r1-closure .builder/r1-closure/r1-closure-report.json
 ```
 
-Wiring your own Goose config and skills is a manual step for beta — see
+Wiring your own Goose config and skills remains an operator-managed setup step — see
 [`docs/CONFIG_ONBOARDING.md`](docs/CONFIG_ONBOARDING.md).
 
 ## 6. Prepare a verification plan and a session package
@@ -153,9 +155,30 @@ it does not change what gets patched.
 ```bash
 cd /tmp/builder-ii-scratch
 
+git rev-parse HEAD  # copy this exact value as <scratch-head-sha>
+
+uv run --project /path/to/your/builder-II/clone builder-verify plan \
+  --target-profile generic --verification-profile platform_status \
+  --target-repo . --artifact-root .builder/verification \
+  --output .builder/verification/verification-execution-plan.json
+
+uv run --project /path/to/your/builder-II/clone builder-verify approve-plan \
+  .builder/verification/verification-execution-plan.json \
+  --approval-actor "<your name>" --approval-reason "verify exact scratch target" \
+  --profile platform_status \
+  --output .builder/verification/verification-execution-approval.json
+
+uv run --project /path/to/your/builder-II/clone builder-verify run-approved \
+  --plan .builder/verification/verification-execution-plan.json \
+  --approval .builder/verification/verification-execution-approval.json \
+  --output .builder/verification/verification-execution-receipt.json \
+  --profile platform_status
+
 uv run --project /path/to/your/builder-II/clone builder-hitl propose-patch \
   --diff-file /tmp/diff.patch --output /tmp/proposal.json \
-  --description "append a line to scratch README" --reason "first session walkthrough"
+  --description "append a line to scratch README" --reason "first session walkthrough" \
+  --target-head-sha <scratch-head-sha> --target-repo . \
+  --verification-receipt .builder/verification/verification-execution-receipt.json
 ```
 
 ```bash
@@ -168,21 +191,18 @@ the first 4 characters of the digest it just showed you. There is no `--yes` fla
 typing the prefix, at the moment of decision, is the approval.
 
 ```bash
-uv run --project /path/to/your/builder-II/clone builder-verify run-approved \
-  --plan .builder/verification/verification-execution-plan.json \
-  --approval .builder/verification/verification-execution-approval.json \
-  --output /tmp/verification-execution-receipt.json --profile platform_status
-
 uv run --project /path/to/your/builder-II/clone builder-hitl apply-patch \
   --proposal /tmp/proposal.json --approval /tmp/approval.json \
-  --verification-receipt /tmp/verification-execution-receipt.json --output-dir /tmp/apply-out
+  --verification-receipt .builder/verification/verification-execution-receipt.json --output-dir /tmp/apply-out
 ```
 
-The receipt above comes from step 6 — a `platform_status` check of builder-II's own repo, not of
-the scratch repo. `apply-patch` accepts any schema-valid receipt without cross-checking its
-target against the patch's target (only the special-cased `builder_ii.demo_verification_receipt`
-kind does that binding today); it's the real artifact chain, just worth knowing precisely what it does and
-doesn't cross-check.
+`apply-patch` accepts only a valid, `EXECUTED`, bounded-approved verification
+receipt whose approved steps and process results succeeded. It reconstructs and
+validates the verification plan/approval/receipt chain, requires clean exact
+pre/post Git state, binds the receipt file digest into proposal schema v2, checks
+the receipt `target_repo` against the proposal target, and requires the receipt's
+target commit to match the target repository's current HEAD. Generate the
+verification chain for the scratch target before applying this example patch.
 
 Check `/tmp/builder-ii-scratch/README.md` — the line is there. `/tmp/apply-out/` now holds the
 patch-apply receipt, a rollback plan, and a reverse patch.

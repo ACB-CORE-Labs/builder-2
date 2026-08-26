@@ -1,71 +1,43 @@
 # Security Policy
 
-## Supported versions
+## Supported Versions
 
-builder-II is pre-1.0 (currently versioned `0.1.0`, unreleased/untagged). There is a single
-supported line: the tip of `main`. There is no long-term-support branch and no version support
-matrix yet; that will be established around the first tagged release (see
-[`CHANGELOG.md`](CHANGELOG.md)).
+`builder-II` is an open-source governed engineering control plane. Security fixes and vulnerability remediation are actively applied to the main development line:
 
-## Reporting a vulnerability
+| Version Line | Supported | Notes |
+| :--- | :--- | :--- |
+| `main` (unreleased development line) | **Yes** | Active development; no v1.0.0 tag has been made. |
+| `< 0.2.0` | No | Legacy milestone tags. Operators should track `main`. |
 
-`[host-specific — TBD]` This repository is currently private and not yet open for public
-contribution or disclosure. A dedicated security-contact channel (private advisory, security email
-alias, or equivalent) will be established when the project is made public — see
-[`docs/PLATFORM_COMPLETION_AUDIT.md`](docs/PLATFORM_COMPLETION_AUDIT.md) for open-sourcing status.
+The supported Python runtime contract is `Python >=3.12.13, <3.13`.
 
-Until that channel exists:
+## Reporting a Vulnerability
 
-- **Do not** open a public issue describing an exploitable vulnerability.
-- If you have access to this repository directly, report the issue to the maintainer through a
-  private channel you already have (this repo is not yet publicly accessible, so if you can read
-  this file you likely already have one).
+We appreciate responsible disclosure of security vulnerabilities.
 
-When the public channel is live, please include: affected component/file, reproduction steps,
-impact, and (if you have one) a suggested fix. We aim to acknowledge reports promptly and to credit
-reporters in the fix's changelog entry unless you request otherwise.
+If you discover a security vulnerability in builder-II:
 
-## Threat model notes specific to builder-II
+1. **Do not** open a public issue describing an exploitable vulnerability.
+2. If GitHub private vulnerability reporting is enabled for this repository, use that channel. Otherwise, contact the maintainers privately through an established repository-owner channel before disclosure; this repository does not publish a dedicated security email address.
+3. In your report, please include:
+   - Affected component, command surface, or file path.
+   - Exact steps or script to reproduce the issue.
+   - Potential impact and risk evaluation.
+   - Any suggested patch or remediation (if available).
 
-builder-II's design is explicit about what its governance boundaries do and don't protect against.
-Two things worth knowing before reporting or relying on a given surface:
+No response-time SLA or disclosure deadline is promised here. The maintainers will coordinate remediation and disclosure with the reporter when a report is received.
 
-- **The bounded verification runner is not a sandbox.** `pytest_full` / `builder_full` verification
-  profiles execute the target repository's own code (including transitive `conftest.py`/plugin code)
-  on the host, with the operator's own privileges. The runner bounds *invocation* (fixed argv,
-  env-allowlist, `shell=False`, a required timeout) — it never bounds *what invoked code can do*.
-  This is intentional and documented, not a gap to report; see
-  [`docs/RUNTIME_PROMOTION.md`](docs/RUNTIME_PROMOTION.md) and the "D7" decision in the project's
-  internal completion plan. Container/VM isolation for this lane is explicit future work, not a
-  current guarantee.
-- **Artifacts are evidence, not authority.** A JSON artifact (plan, approval, receipt) is a record of
-  what happened or was approved — it is not itself a security boundary. Authority is enforced by the
-  command-authority tier registry and the human-in-the-loop approval gates that consult it, not by
-  the mere existence of an artifact file. See
-  [`docs/COMMAND_AUTHORITY.md`](docs/COMMAND_AUTHORITY.md).
-- **MCP transports verification authority; it does not create it.** The sole MCP execution surface,
-  `verification_execute(plan_path, approval_path)`, accepts only controlled Builder-II artifact
-  paths and delegates to the canonical approved runner. Approval creation remains an out-of-band
-  human operation. Canonical approvals use timezone-aware expiry and are consumed once before the
-  subprocess boundary through a serialized, durable append; failed, timed-out, or mutation-detecting
-  runs remain consumed. The runner also pins the exact plan and approval digests validated by MCP,
-  then MCP reloads and binds the stored receipt/postflight bytes before advertising their refs. The
-  surface accepts no argv, shell text, environment, timeout, output path, patch, or Git operation.
-- **MCP patch proposal is passive evidence, not mutation authority.** `patch_proposal` accepts exact
-  UTF-8 unified-diff material plus a controlled verification-receipt path, derives both digests in
-  canonical Builder-II code, binds the server-configured target, persists the proposal beneath the
-  controlled artifact root, and returns `HUMAN_APPROVAL_REQUIRED`. MCP exposes no patch approval,
-  application, rollback, generic shell, or arbitrary-write tool. The retired
-  `BUILDER_MCP_GOVERNED_APPLY` side lane cannot reactivate those capabilities.
+## Threat Model & Governance Boundaries Specific to builder-II
 
-If you find a case where either of those boundaries is *violated* relative to what the docs claim
-(e.g. a mutation lane that bypasses the command-authority gate, or a verification runner that
-executes something outside its documented fixed argv), that is a real security bug — please report
-it through the channel above once it exists, or directly to the maintainer in the meantime.
+builder-II is explicit about what its governance boundaries protect against, and what they do not:
 
-## Secret management
+- **The bounded verification runner is NOT a sandbox.** The `pytest_full` and `builder_full` verification profiles execute the target repository's own code (including transitive `conftest.py`, dependencies, and test plugins) directly on the host with the operator's user privileges. The runner constrains *invocation* (fixed in-code argv, strict environment allowlist, `shell=False`, range-checked timeout), **never what invoked code can do**. Running verification on untrusted target repositories is unsafe.
+- **Artifacts are evidence, not authority.** A JSON artifact (such as a plan, receipt, or memory atom) is an auditable record of what was planned, approved, or executed — the file itself is not authority. Runtime authority is enforced fail-closed by the `command_authority` registry and the interactive human-in-the-loop (HITL) approval gates.
+- **Approvals bind exact artifact digests.** HITL approval artifacts bind the SHA-256 digest of the proposed mutation or plan. Any subsequent change to the artifact invalidates the approval token.
+- **Model outputs are unverified proposals.** Text or code emitted by a model or subagent is never treated as execution clearance or verification truth until validated and approved through a governed lane.
 
-Never commit secrets (API keys, tokens, credentials) to this repository. CI runs a high-confidence
-secret-pattern scan and Gitleaks on every push; if you accidentally commit a secret, rotate it
-immediately regardless of whether CI catches it, since it is present in git history the moment it's
-pushed.
+If you observe an operational lane that violates these guarantees (e.g. an unprompted file mutation, a subprocess execution that bypasses the command authority gate, or execution of arbitrary shell strings without explicit approval), that constitutes a high-priority defect.
+
+## Secret Management
+
+Never commit secrets, API keys, tokens, or credentials to any repository or artifact. builder-II local CI runs automated secret detection (`gitleaks` and regex pattern scans). If credentials are ever accidentally committed or exposed in an artifact, rotate them immediately.
