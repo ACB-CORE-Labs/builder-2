@@ -13,23 +13,21 @@ Last updated: 2026-08-24
 | Field | Current value |
 | --- | --- |
 | Canonical repository | `https://github.com/ACB-CORE-Labs/builder-2` |
-| Predecessor review | PR #21 remains open and mergeable; no merge was performed by this program |
-| Stacked base | `53f968e357f4efaf2aeba7df5a04c48e65551a7c` (exact reviewed PR #22 head; PR #22 is itself stacked on PR #21) |
-| Implementation branch | `feat/unified-operator-ps1` |
+| Predecessor review | PR #21 merged into `main` (`afaac2a`); PR #22 closed |
+| Base commit | `afaac2a3861ca0e5a9ee9115b0266ef61a943a41` (`main`) |
+| Implementation branch | `feat/unified-operator-ps1` (PR #23) |
 | Worktree | `.builder/dev-worktrees/unified-operator-ps1` |
-| Delivery state | Plan Set 0 is under review in stacked PR #22; Plan Set 1 lifecycle convergence is active on this exact PR-head child branch; no merge, tag, release, promotion, or self-hosting admission |
+| Delivery state | Plan Set 1 is active on PR #23 based directly on `main`; no merge, tag, release, promotion, or self-hosting admission |
 
-The branch is intentionally stacked on PR #22, which remains stacked on PR #21,
-so the successor work includes both reviewed foundations without altering or
-merging either review. Before delivery, hosted state and the eventual base
-strategy must be read back and reconciled.
+The branch PR #23 is based directly on canonical `main` (`afaac2a3861ca0e5a9ee9115b0266ef61a943a41`)
+following the merge of PR #21 and closure of PR #22.
 
 ## Program dashboard
 
 | Plan set | State | Current result | Next required proof |
 | --- | --- | --- | --- |
 | 0 - authority/adoption baseline | `LOCAL_CI_VERIFIED` | successor plan, interaction contract, Goose adoption matrix, and this ledger added | independent review and stacked-base delivery decision |
-| 1 - run registry and RunView | `IN_PROGRESS` | core registry, deterministic selection, RunView, and run-oriented status are focused-verified; cross-runtime lifecycle convergence remains | lifecycle state contract and complete/fail/interrupt/resume/cancel/orphan/close fixtures |
+| 1 - run registry and RunView | `IN_PROGRESS` | core registry, deterministic selection, RunView, run-oriented status, and cross-runtime lifecycle custody are focused-verified | full exact-tip local CI receipt and operator review |
 | 2 - Lens/Inspect/visual validation | `NOT_STARTED` | no implementation claim | Plan Set 1 stable core contract |
 | 3 - governed actions | `NOT_STARTED` | existing five-command seam remains the starting point | Plan Set 1 RunView plus current authority registry |
 | 4 - Goose lifecycle/context | `NOT_STARTED` | existing governed launch remains current | Goose compatibility qualification and run binding |
@@ -45,7 +43,7 @@ dashboard advances only when the verification log below contains the exact gate.
 ## Work-item ledger
 
 | ID | Plan set | State | Intended result | Current evidence or gap |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- | --- |
 | UOW-000 | 0 | `FOCUSED_VERIFIED` | canonical successor plan distinct from v1 history | plan document exists; docs truth audit and docs tests pass |
 | UOW-001 | 0 | `FOCUSED_VERIFIED` | fixed five-command normal-user grammar | interaction contract exists and docs gates pass; no CLI cutover |
 | UOW-002 | 0 | `FOCUSED_VERIFIED` | explicit Goose adopt/project/qualify/defer/forbid matrix | matrix exists and docs gates pass; runtime `1.47.0` remains unqualified |
@@ -55,13 +53,13 @@ dashboard advances only when the verification log below contains the exact gate.
 | UOW-102 | 1 | `FOCUSED_VERIFIED` | calm read-only aliases for goal/stage/activity/attention/recovery | core properties and focused tests added |
 | UOW-103 | 1 | `IN_PROGRESS` | durable run registry and deterministic selection | core registry now projects canonical session ledgers, exposes corrupt-only sessions, and selects exact/latest without fallback; subsystem lifecycle artifacts remain distributed |
 | UOW-104 | 1 | `FOCUSED_VERIFIED` | run-oriented `builder status`; environment health moves to doctor | human and JSON status plus change-only watch are implemented; doctor retains environment probes; authority/docs tests pass |
-| UOW-105 | 1 | `FOCUSED_VERIFIED` | shared lifecycle truth for complete/fail/interrupt/resume/cancel/corrupt/orphan/close | canonical lifecycle events and Deep Agents session custody implemented; 8 terminal/transitional scenarios verified in tests/test_run_lifecycle_scenarios.py |
+| UOW-105 | 1 | `FOCUSED_VERIFIED` | shared lifecycle truth for complete/fail/interrupt/resume/cancel/corrupt/orphan/close | Real Deep Agents execution custody bridged to monotonic lifecycle events with fail-closed anti-projection enforcement (prohibiting `PROJECTED_ONLY` promotion); 8 terminal/transitional scenarios verified in tests/test_run_lifecycle_scenarios.py across all frontends with adversarial lesions |
 | UOW-106 | 1 | `FOCUSED_VERIFIED` | canonical governed Goose start/close evidence and events | five rejected exact tips and their lesions are retained below; cumulative correctness review passed at `813aced3c3f665d066fed3e022773ce0c374381e`; full exact-tip local CI remains required and UOW-105 lifecycle convergence remains open |
 
 ## Verification log
 
 | Date | Scope | Command | Result | Meaning |
-| --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- | --- |
 | 2026-08-24 | RunView ownership and STRATUM compatibility | `uv run pytest -q tests/test_run_view.py tests/test_plan_set4_correction.py tests/test_stratum_tui.py` | PASS | focused implementation selection passed; not full CI or promotion |
 | 2026-08-24 | RunView, STRATUM, and docs truth | `uv run pytest -q tests/test_run_view.py tests/test_plan_set4_correction.py tests/test_stratum_tui.py tests/test_docs_truth_enforcement.py` | PASS | 57 focused tests passed; not full CI or promotion |
 | 2026-08-24 | documentation truth | `uv run builder-platform audit-docs` | PASS | report was valid with zero violations; no capability state changed |
@@ -90,6 +88,7 @@ dashboard advances only when the verification log below contains the exact gate.
 | 2026-08-24 | fifth independent lifecycle custody audit | read-only correctness review of exact commit `fe17f065628b30d945707697987735d7ee6dbcf8` | BLOCK | confirmed the prior three blockers closed, then reproduced replacement of the canonical transcript name after its fd was opened but before acceptance; exact tip rejected before full CI |
 | 2026-08-24 | sixth independent lifecycle custody audit | read-only cumulative review of exact commit `813aced3c3f665d066fed3e022773ce0c374381e` from base `53f968e357f4efaf2aeba7df5a04c48e65551a7c` | PASS | no remaining correctness blocker found; prior transcript, WAL, reconstruction, mutation, concurrency, malformed-evidence, and rollback lesions were rerun; changed-code lint, docs truth, matrix rendering, and the cumulative focused selection passed; full exact-tip local CI remains separate |
 | 2026-08-26 | cross-runtime lifecycle convergence and Deep Agents custody (UOW-105) | `uv run pytest -q tests/test_run_lifecycle_scenarios.py tests/test_run_view.py tests/test_run_status.py tests/test_goose_session_custody.py tests/test_deepagents_runtime.py` | PASS | 8 canonical lifecycle scenarios (complete, fail, interrupt, resume, cancel, corrupt, orphan, close) and Deep Agents custody passed cleanly; not full CI or promotion |
+| 2026-08-26 | Deep Agents execution custody and anti-projection correction (UOW-105 review response) | `uv run pytest -q tests/test_run_lifecycle_scenarios.py tests/test_run_view.py tests/test_run_status.py tests/test_goose_session_custody.py tests/test_native_deepagents_runtime.py` | PASS | real execution receipt (`COMPLETED`/`CHECKPOINTED`/`FAILED`) binding, `PROJECTED_ONLY` rejection, full cross-binding reconstruction, 8-scenario cross-frontend parity, and adversarial lesion battery passed |
 
 The two `a9e8530` receipt rows above describe the pre-ledger-update commit. Updating
 this ledger creates a new tip, so those receipts are not final delivery evidence.
