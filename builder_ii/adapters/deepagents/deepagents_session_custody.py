@@ -31,6 +31,7 @@ from builder_ii.adapters.deepagents.deepagents_execution import (
     DEEPAGENTS_REPLAY_REPORT_KIND,
     DEEPAGENTS_RUN_ENVELOPE_KIND,
     _digest_jsonable,
+    create_deepagents_replay_report,
     validate_deepagents_checkpoint,
     validate_deepagents_event_ledger,
     validate_deepagents_event_record,
@@ -161,6 +162,8 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
     approval_path = session_dir / "approval.json"
     receipt_path = session_dir / "receipt.json"
     checkpoint_path = session_dir / "checkpoint.json"
+    ledger_path = session_dir / "event_ledger.json"
+    replay_path = session_dir / "replay_report.json"
 
     plan, plan_errors = _load_json(plan_path, "canonical Deep Agents work plan")
     envelope, env_errors = _load_json(envelope_path, "canonical Deep Agents run envelope")
@@ -179,6 +182,105 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
     candidate_digest = ""
     approval_digest = ""
     envelope_digest = ""
+    ledger_digest = ""
+    replay_digest = ""
+    ledger_data: dict[str, Any] | None = None
+    replay_data: dict[str, Any] | None = None
+
+    if ledger_path.exists() or ledger_path.is_symlink():
+        ledger_data, ledger_errors = _load_json(ledger_path, "canonical event ledger")
+        errors.extend(ledger_errors)
+        if ledger_data is not None:
+            errors.extend(validate_deepagents_event_ledger(ledger_data))
+            ledger_digest = _digest_jsonable(ledger_data)
+
+    if replay_path.exists() or replay_path.is_symlink():
+        replay_data, replay_errors = _load_json(replay_path, "canonical replay report")
+        errors.extend(replay_errors)
+        if replay_data is not None:
+            errors.extend(validate_deepagents_replay_report(replay_data))
+            replay_digest = _digest_jsonable(replay_data)
+
+    if ledger_data is not None:
+        collected_events = []
+        event_refs = ledger_data.get("event_refs", [])
+        events_dir = session_dir / "events"
+
+        for ref in event_refs:
+            if not isinstance(ref, dict):
+                continue
+            ref_path_str = ref.get("path")
+            if not ref_path_str:
+                continue
+            try:
+                ref_path = Path(ref_path_str).resolve()
+            except OSError:
+                errors.append(f"could not resolve path {ref_path_str}")
+                continue
+
+            try:
+                if events_dir.resolve() not in ref_path.parents:
+                    errors.append(f"event path {ref_path} is not under {events_dir}")
+                    continue
+            except OSError:
+                pass
+
+            loaded_event, ev_errors = _load_json(ref_path, f"ledger event {ref_path.name}")
+            errors.extend(ev_errors)
+            if loaded_event is not None:
+                if loaded_event.get("kind") != DEEPAGENTS_EVENT_RECORD_KIND:
+                    errors.append(f"event {ref_path.name} kind must be {DEEPAGENTS_EVENT_RECORD_KIND}")
+                if loaded_event.get("session_id") != session_id:
+                    errors.append(f"event {ref_path.name} session_id does not match run")
+                if _digest_jsonable(loaded_event) != ref.get("sha256"):
+                    errors.append(f"event {ref_path.name} digest does not match ledger ref")
+
+                collected_events.append((loaded_event, ref_path))
+
+        for i in range(len(collected_events)):
+            ev = collected_events[i][0]
+            if i > 0:
+                prev_ev = collected_events[i - 1][0]
+                if ev.get("sequence", 0) <= prev_ev.get("sequence", 0):
+                    errors.append(f"event {collected_events[i][1].name} sequence is not strictly increasing")
+
+                prev_ref = ev.get("previous_event_ref")
+                if prev_ref and isinstance(prev_ref, dict):
+                    if prev_ref.get("sha256") != _digest_jsonable(prev_ev):
+                        errors.append(
+                            f"event {collected_events[i][1].name} previous_event_ref digest does not match actual previous event"
+                        )
+                else:
+                    errors.append(f"event {collected_events[i][1].name} missing or invalid previous_event_ref")
+
+        try:
+            actual_event_files = list(events_dir.glob("*.json")) if events_dir.exists() else []
+            if len(event_refs) != len(actual_event_files):
+                errors.append(
+                    f"ledger event_refs count ({len(event_refs)}) does not match actual event files on disk ({len(actual_event_files)})"
+                )
+        except OSError:
+            errors.append("could not read events directory")
+
+        if replay_data is not None:
+            recomputed_replay = create_deepagents_replay_report(session_id=session_id, event_records=collected_events)
+            if _digest_jsonable(recomputed_replay) != replay_digest:
+                errors.append("recomputed replay report digest does not match persisted replay report digest")
+
+            ledger_replay_ref = ledger_data.get("replay_report_ref")
+            if ledger_replay_ref:
+                errors.extend(
+                    _require_exact_ref(
+                        ledger_replay_ref,
+                        expected_role="replay_report",
+                        expected_kind=DEEPAGENTS_REPLAY_REPORT_KIND,
+                        expected_path=replay_path,
+                        expected_digest=replay_digest,
+                        label="ledger replay_report_ref",
+                    )
+                )
+            else:
+                errors.append("ledger replay_report_ref is missing")
 
     if envelope is not None:
         env_kind = envelope.get("kind")
@@ -249,44 +351,33 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
                     )
                 )
 
-            # Reconstruct and validate event_ledger_ref and replay_report_ref from envelope
             env_ledger_ref = envelope.get("event_ledger_ref")
-            if isinstance(env_ledger_ref, dict) and env_ledger_ref.get("path"):
-                target_ledger_path = Path(env_ledger_ref["path"])
-                ledger_data, ledger_errors = _load_json(target_ledger_path, "envelope event ledger")
-                errors.extend(ledger_errors)
-                if ledger_data is not None:
-                    errors.extend(validate_deepagents_event_ledger(ledger_data))
-                    errors.extend(
-                        _require_exact_ref(
-                            env_ledger_ref,
-                            expected_role="event_ledger",
-                            expected_kind=DEEPAGENTS_EVENT_LEDGER_KIND,
-                            expected_path=target_ledger_path,
-                            expected_digest=_digest_jsonable(ledger_data),
-                            label="envelope event_ledger_ref",
-                        )
+            if ledger_data is not None:
+                errors.extend(
+                    _require_exact_ref(
+                        env_ledger_ref,
+                        expected_role="event_ledger",
+                        expected_kind=DEEPAGENTS_EVENT_LEDGER_KIND,
+                        expected_path=ledger_path,
+                        expected_digest=ledger_digest,
+                        label="envelope event_ledger_ref",
                     )
+                )
             else:
                 errors.append("envelope event_ledger_ref is missing or invalid")
 
             env_replay_ref = envelope.get("replay_report_ref")
-            if isinstance(env_replay_ref, dict) and env_replay_ref.get("path"):
-                target_replay_path = Path(env_replay_ref["path"])
-                replay_data, replay_errors = _load_json(target_replay_path, "envelope replay report")
-                errors.extend(replay_errors)
-                if replay_data is not None:
-                    errors.extend(validate_deepagents_replay_report(replay_data))
-                    errors.extend(
-                        _require_exact_ref(
-                            env_replay_ref,
-                            expected_role="replay_report",
-                            expected_kind=DEEPAGENTS_REPLAY_REPORT_KIND,
-                            expected_path=target_replay_path,
-                            expected_digest=_digest_jsonable(replay_data),
-                            label="envelope replay_report_ref",
-                        )
+            if replay_data is not None:
+                errors.extend(
+                    _require_exact_ref(
+                        env_replay_ref,
+                        expected_role="replay_report",
+                        expected_kind=DEEPAGENTS_REPLAY_REPORT_KIND,
+                        expected_path=replay_path,
+                        expected_digest=replay_digest,
+                        label="envelope replay_report_ref",
                     )
+                )
             else:
                 errors.append("envelope replay_report_ref is missing or invalid")
 
@@ -465,44 +556,45 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
 
                 # Reconstruct and validate event_ledger_ref and replay_report_ref from receipt
                 rec_ledger_ref = receipt.get("event_ledger_ref")
-                if isinstance(rec_ledger_ref, dict) and rec_ledger_ref.get("path"):
-                    target_rec_ledger_path = Path(rec_ledger_ref["path"])
-                    rec_ledger_data, rec_ledger_errors = _load_json(target_rec_ledger_path, "receipt event ledger")
-                    errors.extend(rec_ledger_errors)
-                    if rec_ledger_data is not None:
-                        errors.extend(validate_deepagents_event_ledger(rec_ledger_data))
-                        errors.extend(
-                            _require_exact_ref(
-                                rec_ledger_ref,
-                                expected_role="event_ledger",
-                                expected_kind=DEEPAGENTS_EVENT_LEDGER_KIND,
-                                expected_path=target_rec_ledger_path,
-                                expected_digest=_digest_jsonable(rec_ledger_data),
-                                label="receipt event_ledger_ref",
-                            )
+                if ledger_data is not None:
+                    errors.extend(
+                        _require_exact_ref(
+                            rec_ledger_ref,
+                            expected_role="event_ledger",
+                            expected_kind=DEEPAGENTS_EVENT_LEDGER_KIND,
+                            expected_path=ledger_path,
+                            expected_digest=ledger_digest,
+                            label="receipt event_ledger_ref",
                         )
+                    )
                 else:
                     errors.append("receipt event_ledger_ref is missing or invalid")
 
                 rec_replay_ref = receipt.get("replay_report_ref")
-                if isinstance(rec_replay_ref, dict) and rec_replay_ref.get("path"):
-                    target_rec_replay_path = Path(rec_replay_ref["path"])
-                    rec_replay_data, rec_replay_errors = _load_json(target_rec_replay_path, "receipt replay report")
-                    errors.extend(rec_replay_errors)
-                    if rec_replay_data is not None:
-                        errors.extend(validate_deepagents_replay_report(rec_replay_data))
-                        errors.extend(
-                            _require_exact_ref(
-                                rec_replay_ref,
-                                expected_role="replay_report",
-                                expected_kind=DEEPAGENTS_REPLAY_REPORT_KIND,
-                                expected_path=target_rec_replay_path,
-                                expected_digest=_digest_jsonable(rec_replay_data),
-                                label="receipt replay_report_ref",
-                            )
+                if replay_data is not None:
+                    errors.extend(
+                        _require_exact_ref(
+                            rec_replay_ref,
+                            expected_role="replay_report",
+                            expected_kind=DEEPAGENTS_REPLAY_REPORT_KIND,
+                            expected_path=replay_path,
+                            expected_digest=replay_digest,
+                            label="receipt replay_report_ref",
                         )
+                    )
                 else:
                     errors.append("receipt replay_report_ref is missing or invalid")
+
+                if envelope is not None:
+                    env_l_ref = envelope.get("event_ledger_ref") or {}
+                    rec_l_ref = receipt.get("event_ledger_ref") or {}
+                    if env_l_ref.get("sha256") != rec_l_ref.get("sha256"):
+                        errors.append("envelope and receipt event_ledger_ref digests do not match")
+
+                    env_r_ref = envelope.get("replay_report_ref") or {}
+                    rec_r_ref = receipt.get("replay_report_ref") or {}
+                    if env_r_ref.get("sha256") != rec_r_ref.get("sha256"):
+                        errors.append("envelope and receipt replay_report_ref digests do not match")
 
                 receipt_digest = _digest_jsonable(receipt)
 

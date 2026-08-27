@@ -1022,6 +1022,256 @@ def test_lesion_namespace_symlink_rejected(tmp_path: Path) -> None:
     assert any("canonical Deep Agents session namespace is invalid" in e for e in errors)
 
 
+def test_lesion_tampered_non_tail_internal_event_rejected(tmp_path: Path) -> None:
+    """Lesion: Tampered non-tail internal event fails event graph reconstruction."""
+    session_id = "lesion-tampered-internal-001"
+    artifact_root = tmp_path / "artifacts"
+    session_dir = deepagents_session_dir(artifact_root, session_id)
+    internal_events_dir = session_dir / "events"
+    internal_events_dir.mkdir(parents=True, exist_ok=True)
+
+    fixture = _setup_deepagents_fixture(artifact_root, session_id)
+
+    persist_deepagents_start(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        work_plan=fixture["work_plan"],
+        envelope=fixture["envelope"],
+        candidate=fixture["candidate"],
+        approval=fixture["approval"],
+        event_ledger=fixture["event_ledger"],
+        replay_report=fixture["replay_report"],
+    )
+
+    # Tamper with the non-tail (only) internal event file on disk
+    event_1_path = internal_events_dir / "event-000001.json"
+    event_data = json.loads(event_1_path.read_text(encoding="utf-8"))
+    event_data["message"] = "TAMPERED MESSAGE"
+    event_1_path.write_text(json.dumps(event_data, indent=2, sort_keys=True), encoding="utf-8")
+
+    errors = validate_deepagents_session_custody(artifact_root, session_id)
+    assert any("digest does not match ledger ref" in e for e in errors)
+
+
+def test_lesion_event_ref_outside_events_dir_rejected(tmp_path: Path) -> None:
+    """Lesion: Event ref pointing outside deepagents/events/ is rejected."""
+    session_id = "lesion-escape-001"
+    artifact_root = tmp_path / "artifacts"
+    session_dir = deepagents_session_dir(artifact_root, session_id)
+    internal_events_dir = session_dir / "events"
+    internal_events_dir.mkdir(parents=True, exist_ok=True)
+
+    fixture = _setup_deepagents_fixture(artifact_root, session_id)
+
+    # Write the event to an external location
+    escape_dir = tmp_path / "escape"
+    escape_dir.mkdir(parents=True, exist_ok=True)
+    escape_path = escape_dir / "event-000001.json"
+    escape_path.write_text(json.dumps(fixture["event_1"], indent=2, sort_keys=True), encoding="utf-8")
+
+    # Mutate the ledger's event_ref to point outside the events directory
+    ledger = dict(fixture["event_ledger"])
+    ledger["event_refs"] = [
+        {
+            "role": "event",
+            "kind": DEEPAGENTS_EVENT_RECORD_KIND,
+            "path": str(escape_path),
+            "sha256": _digest_jsonable(fixture["event_1"]),
+            "name": "subagent_scheduled",
+            "required": True,
+        }
+    ]
+    ledger["ledger_digest"] = _digest_jsonable(ledger)
+
+    # Rewrite envelope, receipt, replay to bind the mutated ledger
+    # (We persist with valid artifacts then tamper the ledger on disk)
+    persist_deepagents_start(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        work_plan=fixture["work_plan"],
+        envelope=fixture["envelope"],
+        candidate=fixture["candidate"],
+        approval=fixture["approval"],
+        event_ledger=fixture["event_ledger"],
+        replay_report=fixture["replay_report"],
+    )
+
+    # Overwrite ledger on disk with the escape-pointing version
+    ledger_path = session_dir / "event_ledger.json"
+    ledger_path.write_text(json.dumps(ledger, indent=2, sort_keys=True), encoding="utf-8")
+
+    errors = validate_deepagents_session_custody(artifact_root, session_id)
+    assert any("is not under" in e for e in errors) or any("sha256" in e and "event_ledger_ref" in e for e in errors)
+
+
+def test_lesion_event_from_another_session_rejected(tmp_path: Path) -> None:
+    """Lesion: Event file from a different session is rejected during reconstruction."""
+    session_id = "lesion-foreign-session-001"
+    artifact_root = tmp_path / "artifacts"
+    session_dir = deepagents_session_dir(artifact_root, session_id)
+    internal_events_dir = session_dir / "events"
+    internal_events_dir.mkdir(parents=True, exist_ok=True)
+
+    fixture = _setup_deepagents_fixture(artifact_root, session_id)
+
+    persist_deepagents_start(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        work_plan=fixture["work_plan"],
+        envelope=fixture["envelope"],
+        candidate=fixture["candidate"],
+        approval=fixture["approval"],
+        event_ledger=fixture["event_ledger"],
+        replay_report=fixture["replay_report"],
+    )
+
+    # Overwrite the internal event with one from a different session
+    event_1_path = internal_events_dir / "event-000001.json"
+    foreign_event = create_deepagents_event_record(
+        session_id="foreign-session-999",
+        sequence=1,
+        event_type="subagent_scheduled",
+        subject_refs=[],
+        payload={"subagent_profile": "repo_mapper"},
+        message="Foreign session event",
+    )
+    event_1_path.write_text(json.dumps(foreign_event, indent=2, sort_keys=True), encoding="utf-8")
+
+    errors = validate_deepagents_session_custody(artifact_root, session_id)
+    assert any("session_id does not match run" in e for e in errors)
+
+
+def test_lesion_envelope_receipt_different_ledgers_rejected(tmp_path: Path) -> None:
+    """Lesion: Envelope and receipt pointing at different valid ledgers is rejected."""
+    session_id = "lesion-divergent-ledgers-001"
+    artifact_root = tmp_path / "artifacts"
+    session_dir = deepagents_session_dir(artifact_root, session_id)
+    internal_events_dir = session_dir / "events"
+    internal_events_dir.mkdir(parents=True, exist_ok=True)
+
+    fixture = _setup_deepagents_fixture(artifact_root, session_id)
+
+    persist_deepagents_start(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        work_plan=fixture["work_plan"],
+        envelope=fixture["envelope"],
+        candidate=fixture["candidate"],
+        approval=fixture["approval"],
+        event_ledger=fixture["event_ledger"],
+        replay_report=fixture["replay_report"],
+    )
+
+    # Create a different valid receipt that points to a mutated ledger digest
+    receipt_path = session_dir / "receipt.json"
+    receipt = dict(fixture["receipt"])
+    # Mutate the receipt's ledger ref to have a different digest
+    receipt["event_ledger_ref"] = dict(receipt.get("event_ledger_ref", {}))
+    receipt["event_ledger_ref"]["sha256"] = "b" * 64
+    receipt["receipt_digest"] = _digest_jsonable(receipt)
+    receipt_path.write_text(json.dumps(receipt, indent=2, sort_keys=True), encoding="utf-8")
+
+    # Append the terminal event for the receipt
+    events_dir = artifact_root / "sessions" / session_id / "events"
+    append_runtime_event(
+        events_dir=events_dir,
+        session_id=session_id,
+        event_type="deepagents_runtime_executed",
+        message="Governed Deep Agents delegation completed",
+        command_surface="builder delegate",
+        subject_refs=[
+            {
+                "role": "deepagents_execution_receipt",
+                "kind": DEEPAGENTS_EXECUTION_RECEIPT_KIND,
+                "path": str(receipt_path),
+                "sha256": _digest_jsonable(receipt),
+                "name": "receipt",
+                "required": True,
+            }
+        ],
+        decision_result="executed",
+    )
+
+    errors = validate_deepagents_session_custody(artifact_root, session_id)
+    assert any("envelope and receipt event_ledger_ref digests do not match" in e for e in errors)
+
+
+def test_lesion_ledger_replay_foreign_paths_rejected(tmp_path: Path) -> None:
+    """Lesion: Ledger/replay with digest-identical foreign paths is rejected."""
+    session_id = "lesion-foreign-paths-001"
+    artifact_root = tmp_path / "artifacts"
+    session_dir = deepagents_session_dir(artifact_root, session_id)
+    internal_events_dir = session_dir / "events"
+    internal_events_dir.mkdir(parents=True, exist_ok=True)
+
+    fixture = _setup_deepagents_fixture(artifact_root, session_id)
+
+    persist_deepagents_start(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        work_plan=fixture["work_plan"],
+        envelope=fixture["envelope"],
+        candidate=fixture["candidate"],
+        approval=fixture["approval"],
+        event_ledger=fixture["event_ledger"],
+        replay_report=fixture["replay_report"],
+    )
+
+    # Tamper the envelope to point its ledger ref at a foreign path
+    # (same digest, different path)
+    foreign_dir = tmp_path / "foreign_session" / "deepagents"
+    foreign_dir.mkdir(parents=True, exist_ok=True)
+    foreign_ledger_path = foreign_dir / "event_ledger.json"
+    foreign_ledger_path.write_text(json.dumps(fixture["event_ledger"], indent=2, sort_keys=True), encoding="utf-8")
+
+    envelope = json.loads((session_dir / "envelope.json").read_text(encoding="utf-8"))
+    envelope["event_ledger_ref"] = dict(envelope.get("event_ledger_ref", {}))
+    envelope["event_ledger_ref"]["path"] = str(foreign_ledger_path)
+    # Rewrite the digest to make it structurally valid
+    envelope["envelope_digest"] = _digest_jsonable(envelope)
+    (session_dir / "envelope.json").write_text(json.dumps(envelope, indent=2, sort_keys=True), encoding="utf-8")
+
+    errors = validate_deepagents_session_custody(artifact_root, session_id)
+    assert any("does not match expected canonical path" in e for e in errors)
+
+
+def test_lesion_ledger_replay_a_envelope_receipt_replay_b_rejected(tmp_path: Path) -> None:
+    """Lesion: Ledger bound to replay A while envelope/receipt bind replay B is rejected."""
+    session_id = "lesion-replay-split-001"
+    artifact_root = tmp_path / "artifacts"
+    session_dir = deepagents_session_dir(artifact_root, session_id)
+    internal_events_dir = session_dir / "events"
+    internal_events_dir.mkdir(parents=True, exist_ok=True)
+
+    fixture = _setup_deepagents_fixture(artifact_root, session_id)
+
+    persist_deepagents_start(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        work_plan=fixture["work_plan"],
+        envelope=fixture["envelope"],
+        candidate=fixture["candidate"],
+        approval=fixture["approval"],
+        event_ledger=fixture["event_ledger"],
+        replay_report=fixture["replay_report"],
+    )
+
+    # Tamper the persisted ledger to have a different replay_report_ref digest
+    # (simulating ledger bound to replay A while the canonical replay is B)
+    ledger_path = session_dir / "event_ledger.json"
+    ledger_data = json.loads(ledger_path.read_text(encoding="utf-8"))
+    ledger_data["replay_report_ref"] = dict(ledger_data.get("replay_report_ref", {}))
+    ledger_data["replay_report_ref"]["sha256"] = "c" * 64
+    ledger_data["ledger_digest"] = _digest_jsonable(ledger_data)
+    ledger_path.write_text(json.dumps(ledger_data, indent=2, sort_keys=True), encoding="utf-8")
+
+    errors = validate_deepagents_session_custody(artifact_root, session_id)
+    # Should detect both the ledger/envelope digest mismatch AND the ledger replay_report_ref mismatch
+    assert any("ledger replay_report_ref" in e and "sha256" in e for e in errors) or any(
+        "envelope event_ledger_ref" in e and "sha256" in e for e in errors
+    )
+
+
 # ---------------------------------------------------------------------------
 # Cross-Frontend Semantic Parity Across ALL 8 Scenarios
 # ---------------------------------------------------------------------------

@@ -14,12 +14,12 @@ Last updated: 2026-08-24
 | --- | --- |
 | Canonical repository | `https://github.com/ACB-CORE-Labs/builder-2` |
 | Predecessor review | PR #21 merged into `main` (`afaac2a`); PR #22 closed |
-| Base commit | `afaac2a3861ca0e5a9ee9115b0266ef61a943a41` (`main`) |
+| Base commit | `afaac2af3ba8ee93fd4b45ae81306fd88080831d` (`main`) |
 | Implementation branch | `feat/unified-operator-ps1` (PR #23) |
 | Worktree | `.builder/dev-worktrees/unified-operator-ps1` |
 | Delivery state | Plan Set 1 is active on PR #23 based directly on `main`; no merge, tag, release, promotion, or self-hosting admission |
 
-The branch PR #23 is based directly on canonical `main` (`afaac2a3861ca0e5a9ee9115b0266ef61a943a41`)
+The branch PR #23 is based directly on canonical `main` (`afaac2af3ba8ee93fd4b45ae81306fd88080831d`)
 following the merge of PR #21 and closure of PR #22.
 
 ## Program dashboard
@@ -88,6 +88,7 @@ dashboard advances only when the verification log below contains the exact gate.
 | 2026-08-26 | cross-runtime lifecycle convergence and Deep Agents custody (UOW-105) | `uv run pytest -q tests/test_run_lifecycle_scenarios.py tests/test_run_view.py tests/test_run_status.py tests/test_goose_session_custody.py tests/test_deepagents_runtime.py` | PASS | 8 canonical lifecycle scenarios (complete, fail, interrupt, resume, cancel, corrupt, orphan, close) and Deep Agents custody passed cleanly; not full CI or promotion |
 | 2026-08-26 | Deep Agents execution custody and anti-projection correction (UOW-105 review response) | `uv run pytest -q tests/test_run_lifecycle_scenarios.py tests/test_run_view.py tests/test_run_status.py tests/test_goose_session_custody.py tests/test_native_deepagents_runtime.py` | PASS | real execution receipt (`COMPLETED`/`CHECKPOINTED`/`FAILED`) binding, `PROJECTED_ONLY` rejection, full cross-binding reconstruction, 8-scenario cross-frontend parity, and adversarial lesion battery passed |
 | 2026-08-26 | Deep Agents exact ref verification, full graph cross-binding, and 8-scenario frontend parity | `uv run pytest -q tests/test_run_lifecycle_scenarios.py tests/test_deepagents_runtime.py tests/test_native_deepagents_runtime.py tests/test_run_view.py tests/test_run_status.py tests/test_goose_session_custody.py` | PASS | exact single-owning digest algorithm validation (_require_exact_ref), mandatory candidate/approval with Ladder-4/expiry checks, internal event ledger/replay report dereferencing, checkpoint event tail verification, and 8-scenario cross-frontend parity verified |
+| 2026-08-26 | exact-tip local CI receipt for review 2 corrections | `bash scripts/ci.sh --receipt .builder/dev-evidence/unified-operator-ps1/gate-battery-uow105-r3.json` on `f61c8fc5cb7cf074c38ad427e0628e21066ce5db` (base `afaac2af3ba8ee93fd4b45ae81306fd88080831d`) | PASS | 11/11 blocking gates, 0 gate skips; pytest 3,069 passed, 1 skipped, 0 failed; receipt digest `ea8f4f2f`; working tree clean |
 
 The two `a9e8530` receipt rows above describe the pre-ledger-update commit. Updating
 this ledger creates a new tip, so those receipts are not final delivery evidence.
