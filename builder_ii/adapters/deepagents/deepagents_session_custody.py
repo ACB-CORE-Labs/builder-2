@@ -9,6 +9,8 @@ Enforces strict builder-II epistemological invariants:
    work_plan ↔ candidate ↔ approval ↔ run_envelope ↔ receipt ↔ event ledger.
 3. Monotonic, hash-chained lifecycle events with exact subject references.
 4. Fail-closed no-follow directory traversal and exclusive file creation.
+5. Strict single-algorithm digest binding matching the owning artifact contracts.
+6. Immediate postflight custody validation before returning success on persist.
 """
 
 from __future__ import annotations
@@ -20,19 +22,28 @@ from pathlib import Path
 from typing import Any
 
 from builder_ii.adapters.deepagents.deepagents_execution import (
-    _DIGEST_KEYS,
+    DEEPAGENTS_CHECKPOINT_KIND,
+    DEEPAGENTS_EVENT_LEDGER_KIND,
+    DEEPAGENTS_EVENT_RECORD_KIND,
+    DEEPAGENTS_EXECUTION_APPROVAL_KIND,
+    DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
+    DEEPAGENTS_EXECUTION_RECEIPT_KIND,
+    DEEPAGENTS_REPLAY_REPORT_KIND,
     DEEPAGENTS_RUN_ENVELOPE_KIND,
     _digest_jsonable,
     validate_deepagents_checkpoint,
-    validate_deepagents_execution_approval,
-    validate_deepagents_execution_candidate,
+    validate_deepagents_event_ledger,
+    validate_deepagents_event_record,
+    validate_deepagents_execution_approval_against_candidate,
     validate_deepagents_execution_receipt,
+    validate_deepagents_replay_report,
     validate_deepagents_run_envelope,
 )
 from builder_ii.adapters.deepagents.deepagents_runtime import (
     DEEPAGENTS_RUNTIME_ENVELOPE_KIND,
 )
 from builder_ii.adapters.deepagents.deepagents_work_artifacts import (
+    DEEPAGENTS_WORK_PLAN_KIND,
     validate_deepagents_runtime_envelope,
     validate_deepagents_work_plan,
 )
@@ -103,49 +114,39 @@ def _validate_identity(value: dict[str, Any], session_id: str, label: str) -> No
         raise ValueError(f"{label} session_id does not match governed run")
 
 
-def _artifact_digest(value: dict[str, Any] | None) -> str:
-    if not isinstance(value, dict):
-        return ""
-    for k in _DIGEST_KEYS:
-        if k in value and isinstance(value[k], str) and len(value[k]) == 64:
-            return value[k]
-    return canonical_digest(value)
-
-
-def _custody_artifact_ref(
-    data: dict[str, Any],
+def _require_exact_ref(
+    ref: Any,
     *,
-    path: str | Path,
-    role: str,
-    name: str = "",
-    required: bool = True,
-) -> dict[str, Any]:
-    return {
-        "role": role,
-        "kind": str(data.get("kind", "")),
-        "path": str(path),
-        "sha256": _artifact_digest(data),
-        "name": name,
-        "required": required,
-    }
-
-
-def _ref_digest_matches(ref: Any, actual_value: dict[str, Any] | None) -> bool:
-    if not isinstance(ref, dict) or not isinstance(actual_value, dict):
-        return False
-    ref_sha = ref.get("sha256")
-    if not ref_sha:
-        return False
-    candidates = {
-        canonical_digest(actual_value),
-        _digest_jsonable(actual_value),
-        *(actual_value[k] for k in _DIGEST_KEYS if k in actual_value and isinstance(actual_value[k], str)),
-    }
-    return ref_sha in candidates
+    expected_role: str,
+    expected_kind: str,
+    expected_path: Path,
+    expected_digest: str,
+    label: str,
+) -> list[str]:
+    """Strictly verify expected role, kind, path, and single owning digest."""
+    errors: list[str] = []
+    if not isinstance(ref, dict):
+        return [f"{label}: reference must be a JSON object"]
+    if ref.get("role") != expected_role:
+        errors.append(f"{label}: role must be '{expected_role}', got '{ref.get('role')}'")
+    if ref.get("kind") != expected_kind:
+        errors.append(f"{label}: kind must be '{expected_kind}', got '{ref.get('kind')}'")
+    ref_path = ref.get("path")
+    if not isinstance(ref_path, str) or not ref_path:
+        errors.append(f"{label}: path must be a non-empty string")
+    else:
+        try:
+            if Path(ref_path).resolve() != expected_path.resolve():
+                errors.append(f"{label}: path '{ref_path}' does not match expected canonical path '{expected_path}'")
+        except OSError as exc:
+            errors.append(f"{label}: path '{ref_path}' resolution failed: {exc}")
+    if ref.get("sha256") != expected_digest:
+        errors.append(f"{label}: sha256 '{ref.get('sha256')}' does not match expected digest '{expected_digest}'")
+    return errors
 
 
 def validate_deepagents_session_custody(artifact_root: Path, session_id: str) -> list[str]:
-    """Independently reconstruct the exact canonical Deep Agents lifecycle artifacts and events."""
+    """Independently reconstruct the complete canonical Deep Agents lifecycle graph and events."""
     try:
         session_dir = deepagents_session_dir(artifact_root, session_id)
         directory_fd = open_directory_nofollow(session_dir, create=False)
@@ -166,45 +167,143 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
     errors.extend(plan_errors)
     errors.extend(env_errors)
 
+    plan_digest = canonical_digest(plan) if plan is not None else ""
+
     if plan is not None:
         errors.extend(validate_deepagents_work_plan(plan))
         if plan.get("session_id") and plan.get("session_id") != session_id:
             errors.append("canonical Deep Agents work plan session_id does not match run")
 
     candidate: dict[str, Any] | None = None
-    if candidate_path.exists() or candidate_path.is_symlink():
-        candidate, cand_errors = _load_json(candidate_path, "canonical Deep Agents candidate")
-        errors.extend(cand_errors)
-        if candidate is not None:
-            errors.extend(validate_deepagents_execution_candidate(candidate))
-            if candidate.get("session_id") and candidate.get("session_id") != session_id:
-                errors.append("canonical Deep Agents candidate session_id does not match run")
-            if plan is not None and not _ref_digest_matches(candidate.get("work_plan_ref"), plan):
-                errors.append("candidate work_plan_ref does not match canonical work_plan digest")
-
     approval: dict[str, Any] | None = None
-    if approval_path.exists() or approval_path.is_symlink():
-        approval, app_errors = _load_json(approval_path, "canonical Deep Agents approval")
-        errors.extend(app_errors)
-        if approval is not None:
-            errors.extend(validate_deepagents_execution_approval(approval))
-            if approval.get("session_id") and approval.get("session_id") != session_id:
-                errors.append("canonical Deep Agents approval session_id does not match run")
-            if candidate is not None and not _ref_digest_matches(approval.get("candidate_ref"), candidate):
-                errors.append("approval candidate_ref does not match canonical candidate digest")
+    candidate_digest = ""
+    approval_digest = ""
+    envelope_digest = ""
 
     if envelope is not None:
         env_kind = envelope.get("kind")
         if env_kind == DEEPAGENTS_RUN_ENVELOPE_KIND:
             errors.extend(validate_deepagents_run_envelope(envelope))
-            if candidate is not None and not _ref_digest_matches(envelope.get("candidate_ref"), candidate):
-                errors.append("envelope candidate_ref does not match canonical candidate digest")
-            if approval is not None and not _ref_digest_matches(envelope.get("approval_ref"), approval):
-                errors.append("envelope approval_ref does not match canonical approval digest")
+            envelope_digest = _digest_jsonable(envelope)
+
+            # For real run envelope, candidate and approval are mandatory
+            candidate, cand_errors = _load_json(candidate_path, "canonical Deep Agents candidate")
+            errors.extend(cand_errors)
+
+            approval, app_errors = _load_json(approval_path, "canonical Deep Agents approval")
+            errors.extend(app_errors)
+
+            if candidate is not None and approval is not None:
+                candidate_digest = _digest_jsonable(candidate)
+                approval_digest = _digest_jsonable(approval)
+
+                errors.extend(
+                    validate_deepagents_execution_approval_against_candidate(approval, candidate, check_expiry=True)
+                )
+                if candidate.get("session_id") and candidate.get("session_id") != session_id:
+                    errors.append("canonical Deep Agents candidate session_id does not match run")
+                if approval.get("session_id") and approval.get("session_id") != session_id:
+                    errors.append("canonical Deep Agents approval session_id does not match run")
+
+                if plan is not None:
+                    errors.extend(
+                        _require_exact_ref(
+                            candidate.get("work_plan_ref"),
+                            expected_role="work_plan",
+                            expected_kind=DEEPAGENTS_WORK_PLAN_KIND,
+                            expected_path=plan_path,
+                            expected_digest=plan_digest,
+                            label="candidate work_plan_ref",
+                        )
+                    )
+
+                errors.extend(
+                    _require_exact_ref(
+                        approval.get("candidate_ref"),
+                        expected_role="candidate",
+                        expected_kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
+                        expected_path=candidate_path,
+                        expected_digest=candidate_digest,
+                        label="approval candidate_ref",
+                    )
+                )
+
+                errors.extend(
+                    _require_exact_ref(
+                        envelope.get("candidate_ref"),
+                        expected_role="candidate",
+                        expected_kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
+                        expected_path=candidate_path,
+                        expected_digest=candidate_digest,
+                        label="envelope candidate_ref",
+                    )
+                )
+                errors.extend(
+                    _require_exact_ref(
+                        envelope.get("approval_ref"),
+                        expected_role="approval",
+                        expected_kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND,
+                        expected_path=approval_path,
+                        expected_digest=approval_digest,
+                        label="envelope approval_ref",
+                    )
+                )
+
+            # Reconstruct and validate event_ledger_ref and replay_report_ref from envelope
+            env_ledger_ref = envelope.get("event_ledger_ref")
+            if isinstance(env_ledger_ref, dict) and env_ledger_ref.get("path"):
+                target_ledger_path = Path(env_ledger_ref["path"])
+                ledger_data, ledger_errors = _load_json(target_ledger_path, "envelope event ledger")
+                errors.extend(ledger_errors)
+                if ledger_data is not None:
+                    errors.extend(validate_deepagents_event_ledger(ledger_data))
+                    errors.extend(
+                        _require_exact_ref(
+                            env_ledger_ref,
+                            expected_role="event_ledger",
+                            expected_kind=DEEPAGENTS_EVENT_LEDGER_KIND,
+                            expected_path=target_ledger_path,
+                            expected_digest=_digest_jsonable(ledger_data),
+                            label="envelope event_ledger_ref",
+                        )
+                    )
+            else:
+                errors.append("envelope event_ledger_ref is missing or invalid")
+
+            env_replay_ref = envelope.get("replay_report_ref")
+            if isinstance(env_replay_ref, dict) and env_replay_ref.get("path"):
+                target_replay_path = Path(env_replay_ref["path"])
+                replay_data, replay_errors = _load_json(target_replay_path, "envelope replay report")
+                errors.extend(replay_errors)
+                if replay_data is not None:
+                    errors.extend(validate_deepagents_replay_report(replay_data))
+                    errors.extend(
+                        _require_exact_ref(
+                            env_replay_ref,
+                            expected_role="replay_report",
+                            expected_kind=DEEPAGENTS_REPLAY_REPORT_KIND,
+                            expected_path=target_replay_path,
+                            expected_digest=_digest_jsonable(replay_data),
+                            label="envelope replay_report_ref",
+                        )
+                    )
+            else:
+                errors.append("envelope replay_report_ref is missing or invalid")
+
         elif env_kind == DEEPAGENTS_RUNTIME_ENVELOPE_KIND:
             errors.extend(validate_deepagents_runtime_envelope(envelope))
-            if plan is not None and not _ref_digest_matches(envelope.get("work_plan_ref"), plan):
-                errors.append("envelope work_plan_ref does not match canonical work_plan digest")
+            envelope_digest = canonical_digest(envelope)
+            if plan is not None:
+                errors.extend(
+                    _require_exact_ref(
+                        envelope.get("work_plan_ref"),
+                        expected_role="work_plan",
+                        expected_kind=DEEPAGENTS_WORK_PLAN_KIND,
+                        expected_path=plan_path,
+                        expected_digest=plan_digest,
+                        label="envelope work_plan_ref",
+                    )
+                )
         else:
             errors.append(f"unknown Deep Agents envelope kind: {env_kind}")
 
@@ -233,13 +332,20 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
             plan_refs = [
                 ref
                 for ref in subject_refs
-                if isinstance(ref, dict)
-                and ref.get("role") in ("deepagents_work_plan", "work_plan")
-                and ref.get("path") == str(plan_path)
+                if isinstance(ref, dict) and ref.get("role") in ("deepagents_work_plan", "work_plan")
             ]
-            if len(plan_refs) != 1 or not _ref_digest_matches(plan_refs[0], plan):
-                errors.append(
-                    f"{plan_path}: deepagents_runtime_started binding does not match canonical work plan digest"
+            if len(plan_refs) != 1:
+                errors.append("deepagents_runtime_started must contain exactly one work plan subject ref")
+            else:
+                errors.extend(
+                    _require_exact_ref(
+                        plan_refs[0],
+                        expected_role="deepagents_work_plan",
+                        expected_kind=DEEPAGENTS_WORK_PLAN_KIND,
+                        expected_path=plan_path,
+                        expected_digest=plan_digest,
+                        label="deepagents_runtime_started work plan binding",
+                    )
                 )
 
             env_refs = [
@@ -247,12 +353,65 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
                 for ref in subject_refs
                 if isinstance(ref, dict)
                 and ref.get("role") in ("deepagents_run_envelope", "deepagents_runtime_envelope", "run_envelope")
-                and ref.get("path") == str(envelope_path)
             ]
-            if len(env_refs) != 1 or not _ref_digest_matches(env_refs[0], envelope):
-                errors.append(
-                    f"{envelope_path}: deepagents_runtime_started binding does not match canonical envelope digest"
+            if len(env_refs) != 1:
+                errors.append("deepagents_runtime_started must contain exactly one envelope subject ref")
+            else:
+                env_role = (
+                    "deepagents_run_envelope"
+                    if envelope.get("kind") == DEEPAGENTS_RUN_ENVELOPE_KIND
+                    else "deepagents_runtime_envelope"
                 )
+                errors.extend(
+                    _require_exact_ref(
+                        env_refs[0],
+                        expected_role=env_role,
+                        expected_kind=str(envelope.get("kind")),
+                        expected_path=envelope_path,
+                        expected_digest=envelope_digest,
+                        label="deepagents_runtime_started envelope binding",
+                    )
+                )
+
+            if candidate is not None:
+                cand_refs = [
+                    ref
+                    for ref in subject_refs
+                    if isinstance(ref, dict) and ref.get("role") == "deepagents_execution_candidate"
+                ]
+                if len(cand_refs) != 1:
+                    errors.append("deepagents_runtime_started must bind execution candidate")
+                else:
+                    errors.extend(
+                        _require_exact_ref(
+                            cand_refs[0],
+                            expected_role="deepagents_execution_candidate",
+                            expected_kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
+                            expected_path=candidate_path,
+                            expected_digest=candidate_digest,
+                            label="deepagents_runtime_started candidate binding",
+                        )
+                    )
+
+            if approval is not None:
+                app_refs = [
+                    ref
+                    for ref in subject_refs
+                    if isinstance(ref, dict) and ref.get("role") == "deepagents_execution_approval"
+                ]
+                if len(app_refs) != 1:
+                    errors.append("deepagents_runtime_started must bind execution approval")
+                else:
+                    errors.extend(
+                        _require_exact_ref(
+                            app_refs[0],
+                            expected_role="deepagents_execution_approval",
+                            expected_kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND,
+                            expected_path=approval_path,
+                            expected_digest=approval_digest,
+                            label="deepagents_runtime_started approval binding",
+                        )
+                    )
 
     if receipt_path.exists() or receipt_path.is_symlink():
         receipt, rec_errors = _load_json(receipt_path, "canonical Deep Agents execution receipt")
@@ -268,19 +427,259 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
                 if receipt.get("session_id") != session_id:
                     errors.append("canonical Deep Agents receipt session_id does not match run")
 
-                if envelope is not None and not _ref_digest_matches(receipt.get("envelope_ref"), envelope):
-                    errors.append("receipt envelope_ref does not match canonical envelope digest")
+                if envelope is not None:
+                    errors.extend(
+                        _require_exact_ref(
+                            receipt.get("envelope_ref"),
+                            expected_role="run_envelope",
+                            expected_kind=str(envelope.get("kind")),
+                            expected_path=envelope_path,
+                            expected_digest=envelope_digest,
+                            label="receipt envelope_ref",
+                        )
+                    )
 
-                checkpoint: dict[str, Any] | None = None
-                if checkpoint_path.exists() or checkpoint_path.is_symlink():
-                    checkpoint, chk_errors = _load_json(checkpoint_path, "canonical Deep Agents checkpoint")
-                    errors.extend(chk_errors)
-                    if checkpoint is not None:
-                        errors.extend(validate_deepagents_checkpoint(checkpoint))
-                        if not _ref_digest_matches(receipt.get("checkpoint_ref"), checkpoint):
-                            errors.append("receipt checkpoint_ref does not match canonical checkpoint digest")
+                if candidate is not None:
+                    errors.extend(
+                        _require_exact_ref(
+                            receipt.get("candidate_ref"),
+                            expected_role="candidate",
+                            expected_kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
+                            expected_path=candidate_path,
+                            expected_digest=candidate_digest,
+                            label="receipt candidate_ref",
+                        )
+                    )
 
-                exec_events = [
+                if approval is not None:
+                    errors.extend(
+                        _require_exact_ref(
+                            receipt.get("approval_ref"),
+                            expected_role="approval",
+                            expected_kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND,
+                            expected_path=approval_path,
+                            expected_digest=approval_digest,
+                            label="receipt approval_ref",
+                        )
+                    )
+
+                # Reconstruct and validate event_ledger_ref and replay_report_ref from receipt
+                rec_ledger_ref = receipt.get("event_ledger_ref")
+                if isinstance(rec_ledger_ref, dict) and rec_ledger_ref.get("path"):
+                    target_rec_ledger_path = Path(rec_ledger_ref["path"])
+                    rec_ledger_data, rec_ledger_errors = _load_json(target_rec_ledger_path, "receipt event ledger")
+                    errors.extend(rec_ledger_errors)
+                    if rec_ledger_data is not None:
+                        errors.extend(validate_deepagents_event_ledger(rec_ledger_data))
+                        errors.extend(
+                            _require_exact_ref(
+                                rec_ledger_ref,
+                                expected_role="event_ledger",
+                                expected_kind=DEEPAGENTS_EVENT_LEDGER_KIND,
+                                expected_path=target_rec_ledger_path,
+                                expected_digest=_digest_jsonable(rec_ledger_data),
+                                label="receipt event_ledger_ref",
+                            )
+                        )
+                else:
+                    errors.append("receipt event_ledger_ref is missing or invalid")
+
+                rec_replay_ref = receipt.get("replay_report_ref")
+                if isinstance(rec_replay_ref, dict) and rec_replay_ref.get("path"):
+                    target_rec_replay_path = Path(rec_replay_ref["path"])
+                    rec_replay_data, rec_replay_errors = _load_json(target_rec_replay_path, "receipt replay report")
+                    errors.extend(rec_replay_errors)
+                    if rec_replay_data is not None:
+                        errors.extend(validate_deepagents_replay_report(rec_replay_data))
+                        errors.extend(
+                            _require_exact_ref(
+                                rec_replay_ref,
+                                expected_role="replay_report",
+                                expected_kind=DEEPAGENTS_REPLAY_REPORT_KIND,
+                                expected_path=target_rec_replay_path,
+                                expected_digest=_digest_jsonable(rec_replay_data),
+                                label="receipt replay_report_ref",
+                            )
+                        )
+                else:
+                    errors.append("receipt replay_report_ref is missing or invalid")
+
+                receipt_digest = _digest_jsonable(receipt)
+
+                if rec_state == "CHECKPOINTED":
+                    chk_ref = receipt.get("checkpoint_ref")
+                    if not isinstance(chk_ref, dict):
+                        errors.append("CHECKPOINTED receipt must contain checkpoint_ref")
+                    else:
+                        chk_path = Path(chk_ref.get("path", str(checkpoint_path)))
+                        checkpoint_data, chk_errors = _load_json(chk_path, "canonical Deep Agents checkpoint")
+                        errors.extend(chk_errors)
+                        if checkpoint_data is not None:
+                            errors.extend(validate_deepagents_checkpoint(checkpoint_data))
+                            checkpoint_digest = _digest_jsonable(checkpoint_data)
+                            errors.extend(
+                                _require_exact_ref(
+                                    chk_ref,
+                                    expected_role="checkpoint",
+                                    expected_kind=DEEPAGENTS_CHECKPOINT_KIND,
+                                    expected_path=chk_path,
+                                    expected_digest=checkpoint_digest,
+                                    label="receipt checkpoint_ref",
+                                )
+                            )
+                            if candidate is not None:
+                                errors.extend(
+                                    _require_exact_ref(
+                                        checkpoint_data.get("candidate_ref"),
+                                        expected_role="candidate",
+                                        expected_kind=DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
+                                        expected_path=candidate_path,
+                                        expected_digest=candidate_digest,
+                                        label="checkpoint candidate_ref",
+                                    )
+                                )
+                            if approval is not None:
+                                errors.extend(
+                                    _require_exact_ref(
+                                        checkpoint_data.get("approval_ref"),
+                                        expected_role="approval",
+                                        expected_kind=DEEPAGENTS_EXECUTION_APPROVAL_KIND,
+                                        expected_path=approval_path,
+                                        expected_digest=approval_digest,
+                                        label="checkpoint approval_ref",
+                                    )
+                                )
+                            chk_tail_ref = checkpoint_data.get("event_tail_ref")
+                            if isinstance(chk_tail_ref, dict) and chk_tail_ref.get("path"):
+                                tail_path = Path(chk_tail_ref["path"])
+                                tail_data, tail_errors = _load_json(tail_path, "checkpoint event tail")
+                                errors.extend(tail_errors)
+                                if tail_data is not None:
+                                    errors.extend(validate_deepagents_event_record(tail_data))
+                                    errors.extend(
+                                        _require_exact_ref(
+                                            chk_tail_ref,
+                                            expected_role="event",
+                                            expected_kind=DEEPAGENTS_EVENT_RECORD_KIND,
+                                            expected_path=tail_path,
+                                            expected_digest=_digest_jsonable(tail_data),
+                                            label="checkpoint event_tail_ref",
+                                        )
+                                    )
+                            else:
+                                errors.append("checkpoint event_tail_ref is missing or invalid")
+
+                    exec_events = [
+                        event for event in events if event.get("event_type") == "deepagents_runtime_interrupted"
+                    ]
+                    if len(exec_events) != 1:
+                        errors.append("CHECKPOINTED receipt requires exactly one deepagents_runtime_interrupted event")
+                    else:
+                        exec_event = exec_events[0]
+                        if exec_event.get("session_id") != session_id:
+                            errors.append("terminal execution event session_id does not match run")
+                        rec_matches = [
+                            ref
+                            for ref in exec_event.get("subject_refs", [])
+                            if isinstance(ref, dict)
+                            and ref.get("role") in ("deepagents_execution_receipt", "execution_receipt")
+                        ]
+                        if len(rec_matches) != 1:
+                            errors.append("terminal event must bind execution receipt")
+                        else:
+                            errors.extend(
+                                _require_exact_ref(
+                                    rec_matches[0],
+                                    expected_role="deepagents_execution_receipt",
+                                    expected_kind=DEEPAGENTS_EXECUTION_RECEIPT_KIND,
+                                    expected_path=receipt_path,
+                                    expected_digest=receipt_digest,
+                                    label="deepagents_runtime_interrupted receipt binding",
+                                )
+                            )
+
+                        chk_matches = [
+                            ref
+                            for ref in exec_event.get("subject_refs", [])
+                            if isinstance(ref, dict) and ref.get("role") in ("deepagents_checkpoint", "checkpoint")
+                        ]
+                        if len(chk_matches) != 1:
+                            errors.append("deepagents_runtime_interrupted must bind checkpoint")
+                        elif chk_ref and isinstance(chk_ref, dict):
+                            chk_path = Path(chk_ref.get("path", str(checkpoint_path)))
+                            checkpoint_data, _ = _load_json(chk_path, "checkpoint")
+                            if checkpoint_data is not None:
+                                errors.extend(
+                                    _require_exact_ref(
+                                        chk_matches[0],
+                                        expected_role="deepagents_checkpoint",
+                                        expected_kind=DEEPAGENTS_CHECKPOINT_KIND,
+                                        expected_path=chk_path,
+                                        expected_digest=_digest_jsonable(checkpoint_data),
+                                        label="deepagents_runtime_interrupted checkpoint binding",
+                                    )
+                                )
+
+                elif rec_state == "COMPLETED":
+                    exec_events = [
+                        event for event in events if event.get("event_type") == "deepagents_runtime_executed"
+                    ]
+                    if len(exec_events) != 1:
+                        errors.append("COMPLETED receipt requires exactly one deepagents_runtime_executed event")
+                    else:
+                        exec_event = exec_events[0]
+                        if exec_event.get("session_id") != session_id:
+                            errors.append("terminal execution event session_id does not match run")
+                        rec_matches = [
+                            ref
+                            for ref in exec_event.get("subject_refs", [])
+                            if isinstance(ref, dict)
+                            and ref.get("role") in ("deepagents_execution_receipt", "execution_receipt")
+                        ]
+                        if len(rec_matches) != 1:
+                            errors.append("terminal event must bind execution receipt")
+                        else:
+                            errors.extend(
+                                _require_exact_ref(
+                                    rec_matches[0],
+                                    expected_role="deepagents_execution_receipt",
+                                    expected_kind=DEEPAGENTS_EXECUTION_RECEIPT_KIND,
+                                    expected_path=receipt_path,
+                                    expected_digest=receipt_digest,
+                                    label="deepagents_runtime_executed receipt binding",
+                                )
+                            )
+
+                elif rec_state == "FAILED":
+                    exec_events = [event for event in events if event.get("event_type") == "deepagents_runtime_failed"]
+                    if len(exec_events) != 1:
+                        errors.append("FAILED receipt requires exactly one deepagents_runtime_failed event")
+                    else:
+                        exec_event = exec_events[0]
+                        if exec_event.get("session_id") != session_id:
+                            errors.append("terminal execution event session_id does not match run")
+                        rec_matches = [
+                            ref
+                            for ref in exec_event.get("subject_refs", [])
+                            if isinstance(ref, dict)
+                            and ref.get("role") in ("deepagents_execution_receipt", "execution_receipt")
+                        ]
+                        if len(rec_matches) != 1:
+                            errors.append("terminal event must bind execution receipt")
+                        else:
+                            errors.extend(
+                                _require_exact_ref(
+                                    rec_matches[0],
+                                    expected_role="deepagents_execution_receipt",
+                                    expected_kind=DEEPAGENTS_EXECUTION_RECEIPT_KIND,
+                                    expected_path=receipt_path,
+                                    expected_digest=receipt_digest,
+                                    label="deepagents_runtime_failed receipt binding",
+                                )
+                            )
+
+                # Refuse any other terminal execution events that contradict the receipt
+                all_exec_events = [
                     event
                     for event in events
                     if event.get("event_type")
@@ -290,21 +689,8 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
                         "deepagents_runtime_interrupted",
                     )
                 ]
-                if len(exec_events) != 1:
+                if len(all_exec_events) != 1:
                     errors.append("canonical Deep Agents custody requires exactly one terminal execution event")
-                else:
-                    exec_event = exec_events[0]
-                    if exec_event.get("session_id") != session_id:
-                        errors.append("terminal execution event session_id does not match run")
-                    rec_matches = [
-                        ref
-                        for ref in exec_event.get("subject_refs", [])
-                        if isinstance(ref, dict)
-                        and ref.get("role") in ("deepagents_execution_receipt", "execution_receipt")
-                        and ref.get("path") == str(receipt_path)
-                    ]
-                    if len(rec_matches) != 1 or not _ref_digest_matches(rec_matches[0], receipt):
-                        errors.append(f"{receipt_path}: terminal execution event does not bind exact receipt digest")
 
     return list(dict.fromkeys(errors))
 
@@ -317,6 +703,8 @@ def persist_deepagents_start(
     envelope: dict[str, Any],
     candidate: dict[str, Any] | None = None,
     approval: dict[str, Any] | None = None,
+    event_ledger: dict[str, Any] | None = None,
+    replay_report: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Persist and event-bind a governed Deep Agents delegation start."""
     plan_errors = validate_deepagents_work_plan(work_plan)
@@ -330,15 +718,13 @@ def persist_deepagents_start(
 
     errors = [*plan_errors, *env_errors]
 
-    cand_errors: list[str] = []
-    if candidate is not None:
-        cand_errors = validate_deepagents_execution_candidate(candidate)
-        errors.extend(cand_errors)
-
-    app_errors: list[str] = []
-    if approval is not None:
-        app_errors = validate_deepagents_execution_approval(approval)
-        errors.extend(app_errors)
+    if env_kind == DEEPAGENTS_RUN_ENVELOPE_KIND:
+        if candidate is None or approval is None:
+            errors.append("candidate and approval are required for DEEPAGENTS_RUN_ENVELOPE_KIND")
+        else:
+            errors.extend(
+                validate_deepagents_execution_approval_against_candidate(approval, candidate, check_expiry=True)
+            )
 
     if errors:
         raise ValueError("invalid Deep Agents start custody: " + "; ".join(errors))
@@ -350,53 +736,70 @@ def persist_deepagents_start(
     envelope_path = session_dir / "envelope.json"
     candidate_path = session_dir / "candidate.json"
     approval_path = session_dir / "approval.json"
+    ledger_path = session_dir / "event_ledger.json"
+    replay_path = session_dir / "replay_report.json"
 
-    to_persist = [(plan_path, work_plan), (envelope_path, envelope)]
+    to_persist: list[tuple[Path, dict[str, Any]]] = [(plan_path, work_plan), (envelope_path, envelope)]
     if candidate is not None:
         to_persist.append((candidate_path, candidate))
     if approval is not None:
         to_persist.append((approval_path, approval))
+    if event_ledger is not None:
+        to_persist.append((ledger_path, event_ledger))
+    if replay_report is not None:
+        to_persist.append((replay_path, replay_report))
 
     _require_new(tuple(p for p, _ in to_persist))
     for p, val in to_persist:
         _persist_new_json(p, val)
 
+    plan_digest = canonical_digest(work_plan)
+    env_digest = _digest_jsonable(envelope) if env_kind == DEEPAGENTS_RUN_ENVELOPE_KIND else canonical_digest(envelope)
+
     subject_refs = [
-        _custody_artifact_ref(
-            work_plan,
-            path=plan_path,
-            role="deepagents_work_plan",
-            name="governed work plan",
-        ),
-        _custody_artifact_ref(
-            envelope,
-            path=envelope_path,
-            role="deepagents_run_envelope"
+        {
+            "role": "deepagents_work_plan",
+            "kind": DEEPAGENTS_WORK_PLAN_KIND,
+            "path": str(plan_path),
+            "sha256": plan_digest,
+            "name": "governed work plan",
+            "required": True,
+        },
+        {
+            "role": "deepagents_run_envelope"
             if env_kind == DEEPAGENTS_RUN_ENVELOPE_KIND
             else "deepagents_runtime_envelope",
-            name="run envelope",
-        ),
+            "kind": str(env_kind),
+            "path": str(envelope_path),
+            "sha256": env_digest,
+            "name": "run envelope",
+            "required": True,
+        },
     ]
     if candidate is not None:
         subject_refs.append(
-            _custody_artifact_ref(
-                candidate,
-                path=candidate_path,
-                role="deepagents_execution_candidate",
-                name="execution candidate",
-            )
+            {
+                "role": "deepagents_execution_candidate",
+                "kind": DEEPAGENTS_EXECUTION_CANDIDATE_KIND,
+                "path": str(candidate_path),
+                "sha256": _digest_jsonable(candidate),
+                "name": "execution candidate",
+                "required": True,
+            }
         )
     if approval is not None:
         subject_refs.append(
-            _custody_artifact_ref(
-                approval,
-                path=approval_path,
-                role="deepagents_execution_approval",
-                name="execution approval",
-            )
+            {
+                "role": "deepagents_execution_approval",
+                "kind": DEEPAGENTS_EXECUTION_APPROVAL_KIND,
+                "path": str(approval_path),
+                "sha256": _digest_jsonable(approval),
+                "name": "execution approval",
+                "required": True,
+            }
         )
 
-    return append_runtime_event(
+    event = append_runtime_event(
         events_dir=session_dir.parent / "events",
         session_id=session_id,
         event_type="deepagents_runtime_started",
@@ -406,6 +809,12 @@ def persist_deepagents_start(
         decision_result="executed",
     )
 
+    postflight_errors = validate_deepagents_session_custody(artifact_root, session_id)
+    if postflight_errors:
+        raise ValueError("Deep Agents start custody failed postflight validation: " + "; ".join(postflight_errors))
+
+    return event
+
 
 def persist_deepagents_execution(
     *,
@@ -413,11 +822,11 @@ def persist_deepagents_execution(
     session_id: str,
     execution_receipt: dict[str, Any],
     checkpoint: dict[str, Any] | None = None,
-    success: bool = True,
 ) -> dict[str, Any]:
     """Persist and event-bind a governed Deep Agents delegation execution outcome.
 
     Refuses PROJECTED_ONLY subagent receipts.
+    Requires strict 1-to-1 matching between receipt status and lifecycle event.
     """
     rec_state = execution_receipt.get("receipt_state")
     rec_kind = execution_receipt.get("kind")
@@ -430,6 +839,9 @@ def persist_deepagents_execution(
 
     if execution_receipt.get("session_id") and execution_receipt.get("session_id") != session_id:
         raise ValueError("Deep Agents execution receipt session_id does not match governed run")
+
+    if rec_state == "CHECKPOINTED" and checkpoint is None:
+        raise ValueError("checkpoint is required when persisting a CHECKPOINTED receipt")
 
     chk_errors: list[str] = []
     if checkpoint is not None:
@@ -453,34 +865,40 @@ def persist_deepagents_execution(
         event_type = "deepagents_runtime_interrupted"
         decision_result = "interrupted"
         message = "Governed Deep Agents delegation checkpointed on interrupt"
-    elif rec_state == "FAILED" or not success:
+    elif rec_state == "FAILED":
         event_type = "deepagents_runtime_failed"
         decision_result = "failed"
         message = "Governed Deep Agents delegation failed"
-    else:
+    elif rec_state == "COMPLETED":
         event_type = "deepagents_runtime_executed"
         decision_result = "executed"
         message = "Governed Deep Agents delegation completed"
+    else:
+        raise ValueError(f"unsupported receipt_state for execution persistence: {rec_state}")
 
     subject_refs = [
-        _custody_artifact_ref(
-            execution_receipt,
-            path=receipt_path,
-            role="deepagents_execution_receipt",
-            name="execution receipt",
-        ),
+        {
+            "role": "deepagents_execution_receipt",
+            "kind": DEEPAGENTS_EXECUTION_RECEIPT_KIND,
+            "path": str(receipt_path),
+            "sha256": _digest_jsonable(execution_receipt),
+            "name": "execution receipt",
+            "required": True,
+        },
     ]
     if checkpoint is not None:
         subject_refs.append(
-            _custody_artifact_ref(
-                checkpoint,
-                path=checkpoint_path,
-                role="deepagents_checkpoint",
-                name="execution checkpoint",
-            )
+            {
+                "role": "deepagents_checkpoint",
+                "kind": DEEPAGENTS_CHECKPOINT_KIND,
+                "path": str(checkpoint_path),
+                "sha256": _digest_jsonable(checkpoint),
+                "name": "execution checkpoint",
+                "required": True,
+            }
         )
 
-    return append_runtime_event(
+    event = append_runtime_event(
         events_dir=session_dir.parent / "events",
         session_id=session_id,
         event_type=event_type,
@@ -489,3 +907,9 @@ def persist_deepagents_execution(
         subject_refs=subject_refs,
         decision_result=decision_result,
     )
+
+    postflight_errors = validate_deepagents_session_custody(artifact_root, session_id)
+    if postflight_errors:
+        raise ValueError("Deep Agents execution custody failed postflight validation: " + "; ".join(postflight_errors))
+
+    return event
