@@ -15,6 +15,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Literal
 
+from builder_ii.adapters.deepagents.deepagents_session_custody import validate_deepagents_session_custody
 from builder_ii.adapters.goose.goose_session_custody import validate_goose_session_custody
 from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
 from builder_ii.core.artifact_chain_verification import VALIDATORS
@@ -126,6 +127,12 @@ class RunView:
     @property
     def activity_label(self) -> str:
         """Calm operator language without weakening the canonical stage."""
+        if self.next_action.startswith("builder resume"):
+            return "resuming interrupted run"
+        if self.next_action == "RUN_CANCELLED":
+            return "run cancelled by operator"
+        if self.next_action == "ORPHAN_RUN_RECOVERY_REQUIRED":
+            return "orphaned run detected"
         return {
             "PREPARE": "orienting the run",
             "PLAN": "planning the work",
@@ -140,6 +147,12 @@ class RunView:
         """Ranked blocking/decision items derived only from validated state."""
         if self.errors:
             return tuple(self.errors)
+        if self.next_action.startswith("builder resume"):
+            return ("run was interrupted; resume with builder resume",)
+        if self.next_action == "RUN_CANCELLED":
+            return ("run was cancelled by operator",)
+        if self.next_action == "ORPHAN_RUN_RECOVERY_REQUIRED":
+            return ("process exited without writing close receipt",)
         if self.approvals == "PENDING":
             return ("review the pending exact proposal",)
         if self.verification == "FAILED":
@@ -175,6 +188,12 @@ class RunView:
     def recovery(self) -> str:
         if self.errors:
             return "repair or retire corrupt/foreign evidence before continuing"
+        if self.next_action.startswith("builder resume"):
+            return "run builder resume to continue execution"
+        if self.next_action == "RUN_CANCELLED":
+            return "create a new run to proceed with new tasks"
+        if self.next_action == "ORPHAN_RUN_RECOVERY_REQUIRED":
+            return "close orphan run or inspect diagnostic logs"
         if self.verification == "FAILED":
             return "inspect failed verification and create a revised plan"
         if self.approvals == "DENIED":
@@ -515,6 +534,9 @@ def project_run_view(root: Path, *, task: str = "", session_id: str | None = Non
     if session_id and any(kind in by_kind for kind in goose_kinds):
         errors.extend(validate_goose_session_custody(root, session_id))
 
+    if session_id and (root / "sessions" / session_id / "deepagents").is_dir():
+        errors.extend(validate_deepagents_session_custody(root, session_id))
+
     proposals = by_kind.get(_PROPOSAL, [])
     approvals = by_kind.get(_APPROVAL, [])
     refusals = by_kind.get(_REFUSAL, [])
@@ -647,8 +669,18 @@ def project_run_view(root: Path, *, task: str = "", session_id: str | None = Non
     set6_receipts = [value for _, value in by_kind.get(_SET6_RECEIPT, [])]
     set6_successes = {value.get("action") for value in set6_receipts if value.get("status") == "SUCCEEDED"}
 
+    events_ordered = sorted([val for val, _ in event_records], key=lambda e: int(e.get("sequence", 0)))
+    latest_event = events_ordered[-1] if events_ordered else None
+    latest_event_type = str(latest_event.get("event_type", "")) if latest_event else ""
+
     if corrupt:
         stage, next_action = "PREPARE", "BLOCKED: repair corrupt or foreign canonical evidence"
+    elif latest_event_type in ("run_interrupted", "deepagents_runtime_interrupted"):
+        stage, next_action = "EXECUTE", (f"builder resume {session_id}" if session_id else "builder resume")
+    elif latest_event_type == "run_cancelled":
+        stage, next_action = "EXECUTE", "RUN_CANCELLED"
+    elif latest_event_type == "run_orphaned":
+        stage, next_action = "EXECUTE", "ORPHAN_RUN_RECOVERY_REQUIRED"
     elif not has_prepare:
         stage, next_action = "PREPARE", "prepare-package"
     elif not has_plan:
