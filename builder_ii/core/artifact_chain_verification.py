@@ -74,6 +74,14 @@ from builder_ii.adapters.goose.goose_readonly_session import (
     GOOSE_READONLY_SESSION_PLAN_KIND,
     validate_goose_readonly_session_plan,
 )
+from builder_ii.adapters.goose.goose_receipts import (
+    GOOSE_CLOSE_RECEIPT_KIND,
+    GOOSE_LAUNCH_RECEIPT_KIND,
+    NO_MUTATION_POSTFLIGHT_KIND,
+    validate_goose_close_receipt,
+    validate_goose_launch_receipt,
+    validate_no_mutation_postflight,
+)
 from builder_ii.adapters.goose.goose_session import (
     GOOSE_SESSION_KIND,
     validate_goose_session_manifest,
@@ -504,6 +512,9 @@ def validate_artifact_chain_verification_report(record: Any) -> list[str]:
 
 
 VALIDATORS: dict[str, Callable[[Any], list[str]]] = {
+    GOOSE_LAUNCH_RECEIPT_KIND: validate_goose_launch_receipt,
+    GOOSE_CLOSE_RECEIPT_KIND: validate_goose_close_receipt,
+    NO_MUTATION_POSTFLIGHT_KIND: validate_no_mutation_postflight,
     GOOSE_COMMAND_PROPOSAL_KIND: validate_goose_command_proposal,
     APPROVAL_RECORD_KIND: validate_approval_record,
     PREFLIGHT_RECORD_KIND: validate_preflight_record,

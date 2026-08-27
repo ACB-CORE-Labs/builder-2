@@ -1,0 +1,574 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from threading import Barrier
+
+import pytest
+
+from builder_ii.adapters.goose.goose_receipts import (
+    create_goose_close_receipt,
+    create_goose_launch_receipt,
+    create_no_mutation_postflight,
+    validate_goose_close_receipt,
+    validate_no_mutation_postflight,
+)
+from builder_ii.adapters.goose.goose_session_custody import (
+    canonical_transcript_path,
+    discard_transcript_export,
+    install_transcript_export,
+    persist_goose_close,
+    persist_goose_launch,
+    prepare_transcript_export,
+    validate_goose_session_custody,
+)
+from builder_ii.core.run_registry import project_run_registry
+from builder_ii.core.run_view import project_run_view
+from builder_ii.governance.ledger.event_ledger import (
+    load_event_records,
+    validate_event_chain_integrity,
+    validate_event_record,
+)
+from builder_ii.lifecycle.candidate.runtime_event_append import append_runtime_event
+
+
+def _evidence(tmp_path: Path, session_id: str):
+    artifact_root = tmp_path / "artifacts"
+    launch = create_goose_launch_receipt(
+        session_id,
+        "builder",
+        "patch_planner",
+        42,
+        "2026-08-24T00:00:00+00:00",
+        {"runtime": "goose_governed", "target_root": str(tmp_path / "target")},
+    )
+    transcript = canonical_transcript_path(artifact_root, session_id)
+    transcript.parent.mkdir(parents=True, exist_ok=True)
+    transcript.write_text('{"messages": []}\n', encoding="utf-8")
+    transcript_digest = hashlib.sha256(transcript.read_bytes()).hexdigest()
+    postflight = create_no_mutation_postflight(
+        session_id,
+        str(tmp_path / "target"),
+        "2026-08-24T00:00:00+00:00",
+        "2026-08-24T00:01:00+00:00",
+        1,
+        [],
+    )
+    close = create_goose_close_receipt(
+        session_id,
+        launch["digest"],
+        postflight["digest"],
+        str(transcript),
+        transcript_digest,
+        "2026-08-24T00:01:00+00:00",
+        0,
+    )
+    return artifact_root, launch, close, postflight, transcript
+
+
+def test_goose_start_and_close_share_one_valid_run_event_chain(tmp_path: Path) -> None:
+    session_id = "goose-run-1"
+    artifact_root, launch, close, postflight, _ = _evidence(tmp_path, session_id)
+
+    started = persist_goose_launch(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        launch_receipt=launch,
+    )
+    closed = persist_goose_close(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        launch_receipt=launch,
+        close_receipt=close,
+        postflight=postflight,
+    )
+
+    events_dir = artifact_root / "sessions" / session_id / "events"
+    records = load_event_records(events_dir)
+    assert [record[0]["event_type"] for record in records] == [
+        "goose_session_started",
+        "goose_session_closed",
+    ]
+    assert started["sequence"] == 1
+    assert closed["sequence"] == 2
+    assert validate_event_record(started) == []
+    assert validate_event_record(closed) == []
+    assert validate_event_chain_integrity(events_dir)["valid"] is True
+    assert {ref["role"] for ref in closed["subject_refs"]} == {
+        "goose_launch_receipt",
+        "goose_postflight",
+        "goose_close_receipt",
+        "goose_transcript",
+    }
+    goose_dir = artifact_root / "sessions" / session_id / "goose"
+    assert (goose_dir / "launch.json").is_file()
+    assert (goose_dir / "postflight.json").is_file()
+    assert (goose_dir / "close.json").is_file()
+    view = project_run_view(artifact_root, session_id=session_id)
+    assert view.evidence_health == "VERIFIED"
+    assert not any("Goose evidence must have" in error for error in view.errors)
+
+
+def test_goose_close_refuses_transcript_drift_before_persisting_close_event(tmp_path: Path) -> None:
+    session_id = "goose-run-drift"
+    artifact_root, launch, close, postflight, transcript = _evidence(tmp_path, session_id)
+    persist_goose_launch(artifact_root=artifact_root, session_id=session_id, launch_receipt=launch)
+    transcript.write_text('{"messages": ["changed"]}\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="transcript digest"):
+        persist_goose_close(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            launch_receipt=launch,
+            close_receipt=close,
+            postflight=postflight,
+        )
+
+    goose_dir = artifact_root / "sessions" / session_id / "goose"
+    assert not (goose_dir / "postflight.json").exists()
+    assert not (goose_dir / "close.json").exists()
+    records = load_event_records(artifact_root / "sessions" / session_id / "events")
+    assert [record[0]["event_type"] for record in records] == ["goose_session_started"]
+
+
+def test_active_goose_launch_is_valid_before_close_material_exists(tmp_path: Path) -> None:
+    session_id = "goose-run-active"
+    artifact_root, launch, _, _, transcript = _evidence(tmp_path, session_id)
+    transcript.unlink()
+    persist_goose_launch(artifact_root=artifact_root, session_id=session_id, launch_receipt=launch)
+
+    assert validate_goose_session_custody(artifact_root, session_id) == []
+    assert project_run_view(artifact_root, session_id=session_id).evidence_health == "VERIFIED"
+
+
+def test_failed_transcript_export_cleanup_allows_retry_without_overwrite(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "artifacts"
+    session_id = "goose-export-retry"
+    first = prepare_transcript_export(artifact_root, session_id)
+    first.child_path.write_text("partial", encoding="utf-8")
+    discard_transcript_export(first)
+    assert first.closed is True
+    assert not canonical_transcript_path(artifact_root, session_id).exists()
+
+    retry = prepare_transcript_export(artifact_root, session_id)
+    retry.child_path.write_text('{"messages": []}\n', encoding="utf-8")
+    installed = install_transcript_export(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        export=retry,
+    )
+
+    assert installed == canonical_transcript_path(artifact_root, session_id)
+    assert installed.read_text(encoding="utf-8") == '{"messages": []}\n'
+    assert retry.closed is True
+
+
+def test_goose_close_and_postflight_validators_reject_digest_tampering(tmp_path: Path) -> None:
+    _, _, close, postflight, _ = _evidence(tmp_path, "goose-run-validators")
+    close["exit_code"] = 9
+    postflight["files_checked"] = 99
+
+    assert "digest does not match receipt content" in validate_goose_close_receipt(close)
+    assert "digest does not match postflight content" in validate_no_mutation_postflight(postflight)
+
+
+def test_run_view_rejects_unbound_goose_close_receipt(tmp_path: Path) -> None:
+    session_id = "goose-run-unbound"
+    artifact_root, _, close, _, _ = _evidence(tmp_path, session_id)
+    goose_dir = artifact_root / "sessions" / session_id / "goose"
+    (goose_dir / "close.json").write_text(
+        json.dumps(close, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    view = project_run_view(artifact_root, session_id=session_id)
+
+    assert view.evidence_health == "CORRUPT"
+    assert any("canonical Goose launch receipt" in error for error in view.errors)
+
+
+def test_goose_custody_refuses_symlinked_namespace_and_escaping_session_id(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "artifacts"
+    artifact_root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (artifact_root / "sessions").symlink_to(outside, target_is_directory=True)
+    launch = create_goose_launch_receipt(
+        "safe-session",
+        "builder",
+        "patch_planner",
+        42,
+        "2026-08-24T00:00:00+00:00",
+        {"runtime": "goose_governed", "target_root": str(tmp_path / "target")},
+    )
+
+    with pytest.raises(OSError):
+        persist_goose_launch(
+            artifact_root=artifact_root,
+            session_id="safe-session",
+            launch_receipt=launch,
+        )
+    assert list(outside.rglob("*")) == []
+
+    escaping_launch = create_goose_launch_receipt(
+        "../escape",
+        "builder",
+        "patch_planner",
+        42,
+        "2026-08-24T00:00:00+00:00",
+        {"runtime": "goose_governed", "target_root": str(tmp_path / "target")},
+    )
+    with pytest.raises(ValueError, match="session identity"):
+        persist_goose_launch(
+            artifact_root=tmp_path / "fresh-artifacts",
+            session_id="../escape",
+            launch_receipt=escaping_launch,
+        )
+
+
+def test_run_view_reconstructs_cross_artifact_goose_bindings(tmp_path: Path) -> None:
+    session_id = "goose-run-reconstruct"
+    artifact_root, launch, close, postflight, _ = _evidence(tmp_path, session_id)
+    persist_goose_launch(artifact_root=artifact_root, session_id=session_id, launch_receipt=launch)
+    persist_goose_close(
+        artifact_root=artifact_root,
+        session_id=session_id,
+        launch_receipt=launch,
+        close_receipt=close,
+        postflight=postflight,
+    )
+    close_path = artifact_root / "sessions" / session_id / "goose" / "close.json"
+    foreign_close = create_goose_close_receipt(
+        session_id,
+        "f" * 64,
+        postflight["digest"],
+        close["transcript_path"],
+        close["transcript_digest"],
+        close["end_time"],
+        0,
+    )
+    close_path.write_text(json.dumps(foreign_close, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    assert any(
+        "does not bind canonical launch receipt" in error
+        for error in validate_goose_session_custody(artifact_root, session_id)
+    )
+    view = project_run_view(artifact_root, session_id=session_id)
+    assert view.evidence_health == "CORRUPT"
+    assert any("does not bind canonical launch receipt" in error for error in view.errors)
+
+
+def test_postflight_validator_rejects_unaccounted_mutation(tmp_path: Path) -> None:
+    postflight = create_no_mutation_postflight(
+        "partition-test",
+        str(tmp_path / "target"),
+        "2026-08-24T00:00:00+00:00",
+        "2026-08-24T00:01:00+00:00",
+        1,
+        ["changed.txt"],
+        unexplained_mutations=[],
+    )
+    assert (
+        "detected mutations must be exactly partitioned into approved and unexplained mutations"
+        in validate_no_mutation_postflight(postflight)
+    )
+
+
+def test_postflight_validator_rejects_opaque_approved_mutation_evidence(tmp_path: Path) -> None:
+    postflight = create_no_mutation_postflight(
+        "opaque-approval",
+        str(tmp_path / "target"),
+        "2026-08-24T00:00:00+00:00",
+        "2026-08-24T00:01:00+00:00",
+        1,
+        ["changed.txt"],
+        approved_mutations=["changed.txt"],
+        unexplained_mutations=[],
+        mutation_mode="approved_hitl_patch",
+        approved_mutation_evidence={"fake": True},
+    )
+
+    errors = validate_no_mutation_postflight(postflight)
+    assert "approved mutation evidence session_id does not match postflight" in errors
+    assert "approved mutation evidence requires patch_apply_receipt_ref" in errors
+
+
+def test_close_custody_rejects_digest_correct_foreign_approved_artifacts(tmp_path: Path) -> None:
+    session_id = "foreign-approved-evidence"
+    artifact_root, launch, _, _, transcript = _evidence(tmp_path, session_id)
+    target_root = tmp_path / "target"
+    target_root.mkdir()
+    foreign_root = tmp_path / "foreign"
+    foreign_root.mkdir()
+    evidence = {
+        "status": "succeeded",
+        "session_id": session_id,
+        "target_root": str(target_root),
+    }
+    for key in (
+        "patch_apply_receipt_ref",
+        "postflight_ref",
+        "rollback_plan_ref",
+        "rollback_bundle_ref",
+        "patch_ledger_ref",
+        "rollback_patch_ref",
+        "proposal_ref",
+        "approval_ref",
+        "verification_receipt_ref",
+    ):
+        path = foreign_root / f"{key}.json"
+        path.write_text("not a governed artifact\n", encoding="utf-8")
+        evidence[key] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+    postflight = create_no_mutation_postflight(
+        session_id,
+        str(target_root),
+        "2026-08-24T00:00:00+00:00",
+        "2026-08-24T00:01:00+00:00",
+        1,
+        [str(target_root / "changed.txt")],
+        approved_mutations=[str(target_root / "changed.txt")],
+        unexplained_mutations=[],
+        mutation_mode="approved_hitl_patch",
+        approved_mutation_evidence=evidence,
+    )
+    close = create_goose_close_receipt(
+        session_id,
+        launch["digest"],
+        postflight["digest"],
+        str(transcript),
+        hashlib.sha256(transcript.read_bytes()).hexdigest(),
+        "2026-08-24T00:01:00+00:00",
+        0,
+    )
+    persist_goose_launch(artifact_root=artifact_root, session_id=session_id, launch_receipt=launch)
+
+    with pytest.raises(ValueError, match="not bound to this Goose session artifact namespace"):
+        persist_goose_close(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            launch_receipt=launch,
+            close_receipt=close,
+            postflight=postflight,
+        )
+
+    assert not (artifact_root / "sessions" / session_id / "goose" / "close.json").exists()
+
+
+@pytest.mark.parametrize(
+    "event_types",
+    [
+        ("goose_session_started", "goose_session_started"),
+        ("goose_session_started", "goose_session_closed"),
+    ],
+)
+def test_runtime_event_append_is_lossless_under_concurrency(
+    tmp_path: Path, event_types: tuple[str, str]
+) -> None:
+    events_dir = tmp_path / "events"
+    barrier = Barrier(2)
+
+    def append(event_type: str):
+        barrier.wait(timeout=5)
+        return append_runtime_event(
+            events_dir=events_dir,
+            session_id="concurrent-run",
+            event_type=event_type,
+            message="concurrent lesion",
+            command_surface="builder start",
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        records = list(pool.map(append, event_types))
+
+    assert {record["sequence"] for record in records} == {1, 2}
+    assert len({record["event_id"] for record in records}) == 2
+    loaded = load_event_records(events_dir)
+    assert len(loaded) == 2
+    assert validate_event_chain_integrity(events_dir)["valid"] is True
+
+
+def test_runtime_event_append_refuses_dangling_wal_symlink(tmp_path: Path) -> None:
+    events_dir = tmp_path / "events"
+    events_dir.mkdir()
+    outside = tmp_path / "outside.wal"
+    (events_dir / "events.wal").symlink_to(outside)
+
+    with pytest.raises(ValueError, match="must not be a symlink"):
+        append_runtime_event(
+            events_dir=events_dir,
+            session_id="wal-symlink",
+            event_type="goose_session_started",
+            message="must refuse",
+            command_surface="builder start",
+        )
+
+    assert not outside.exists()
+    assert not list(events_dir.glob("*.json"))
+
+
+def test_runtime_event_append_refuses_retained_legacy_wal(tmp_path: Path) -> None:
+    events_dir = tmp_path / "events"
+    events_dir.mkdir()
+    (events_dir / "events.wal").write_text("legacy\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="must be reconciled and retired"):
+        append_runtime_event(
+            events_dir=events_dir,
+            session_id="wal-retained",
+            event_type="goose_session_started",
+            message="must refuse",
+            command_surface="builder start",
+        )
+
+    assert not list(events_dir.glob("*.json"))
+
+
+def test_registry_and_run_view_reject_divergent_legacy_wal(tmp_path: Path) -> None:
+    session_id = "wal-divergence"
+    artifact_root, launch, _, _, transcript = _evidence(tmp_path, session_id)
+    transcript.unlink()
+    persist_goose_launch(artifact_root=artifact_root, session_id=session_id, launch_receipt=launch)
+    events_dir = artifact_root / "sessions" / session_id / "events"
+    event_path = next(events_dir.glob("*.json"))
+    original = json.loads(event_path.read_text(encoding="utf-8"))
+    (events_dir / "events.wal").write_text(json.dumps(original) + "\n", encoding="utf-8")
+    changed = dict(original)
+    changed["message"] = "divergent mirror"
+    event_path.write_text(json.dumps(changed, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    registry = project_run_registry(artifact_root)
+    selected = registry.select(session_id)
+    assert selected is not None
+    assert selected.chain_valid is False
+    assert any("does not exactly mirror" in error for error in selected.errors)
+    view = project_run_view(artifact_root, session_id=session_id)
+    assert view.evidence_health == "CORRUPT"
+    assert any("does not exactly mirror" in error for error in view.errors)
+
+
+def test_transcript_export_refuses_directory_inode_swap(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "artifacts"
+    session_id = "export-inode-swap"
+    export = prepare_transcript_export(artifact_root, session_id)
+    export.child_path.write_text('{"messages": []}\n', encoding="utf-8")
+    original_dir = export.session_dir
+    moved_dir = original_dir.with_name("goose-moved")
+    original_dir.rename(moved_dir)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    original_dir.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="directory identity changed"):
+        install_transcript_export(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            export=export,
+        )
+
+    assert export.closed is True
+    assert list(outside.iterdir()) == []
+
+
+def test_transcript_export_refuses_temporary_name_inode_swap(tmp_path: Path) -> None:
+    artifact_root = tmp_path / "artifacts"
+    session_id = "export-name-swap"
+    export = prepare_transcript_export(artifact_root, session_id)
+    export.child_path.write_text("original\n", encoding="utf-8")
+    os.rename(
+        export.name,
+        f"{export.name}.moved",
+        src_dir_fd=export.directory_fd,
+        dst_dir_fd=export.directory_fd,
+    )
+    replacement_fd = os.open(
+        export.name,
+        os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+        0o600,
+        dir_fd=export.directory_fd,
+    )
+    try:
+        os.write(replacement_fd, b"replacement\n")
+    finally:
+        os.close(replacement_fd)
+
+    with pytest.raises(ValueError, match="no longer identifies retained file inode"):
+        install_transcript_export(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            export=export,
+        )
+
+    assert export.closed is True
+    assert not canonical_transcript_path(artifact_root, session_id).exists()
+
+
+def test_transcript_export_removes_destination_swapped_at_link_boundary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact_root = tmp_path / "artifacts"
+    session_id = "export-link-swap"
+    export = prepare_transcript_export(artifact_root, session_id)
+    export.child_path.write_text("original\n", encoding="utf-8")
+    real_link = os.link
+
+    def swapping_link(src, dst, **kwargs):
+        os.rename(
+            export.name,
+            f"{export.name}.moved",
+            src_dir_fd=export.directory_fd,
+            dst_dir_fd=export.directory_fd,
+        )
+        replacement_fd = os.open(
+            export.name,
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+            0o600,
+            dir_fd=export.directory_fd,
+        )
+        try:
+            os.write(replacement_fd, b"replacement\n")
+        finally:
+            os.close(replacement_fd)
+        return real_link(src, dst, **kwargs)
+
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_session_custody.os.link", swapping_link)
+    with pytest.raises(ValueError, match="canonical transcript does not identify retained export inode"):
+        install_transcript_export(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            export=export,
+        )
+
+    assert export.closed is True
+    assert not canonical_transcript_path(artifact_root, session_id).exists()
+
+
+def test_transcript_export_refuses_destination_name_changed_after_open(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    artifact_root = tmp_path / "artifacts"
+    session_id = "export-destination-swap"
+    export = prepare_transcript_export(artifact_root, session_id)
+    export.child_path.write_text("original\n", encoding="utf-8")
+    real_stat = os.stat
+
+    def swapping_stat(path, **kwargs):
+        if path != "transcript.json" or kwargs.get("dir_fd") != export.directory_fd:
+            return real_stat(path, **kwargs)
+        destination = canonical_transcript_path(artifact_root, session_id)
+        destination.rename(destination.with_name("transcript.json.moved"))
+        destination.write_text("replacement\n", encoding="utf-8")
+        return real_stat(path, **kwargs)
+
+    monkeypatch.setattr("builder_ii.adapters.goose.goose_session_custody.os.stat", swapping_stat)
+    with pytest.raises(ValueError, match="canonical transcript name changed after installation"):
+        install_transcript_export(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            export=export,
+        )
+
+    assert export.closed is True
+    assert not canonical_transcript_path(artifact_root, session_id).exists()

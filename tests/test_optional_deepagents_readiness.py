@@ -3,6 +3,10 @@ from __future__ import annotations
 import json as json_lib
 from pathlib import Path
 
+import pytest
+
+pytest.importorskip("deepagents")
+
 from builder_ii.deepagents_cli import deepagents_app
 from typer.testing import CliRunner
 

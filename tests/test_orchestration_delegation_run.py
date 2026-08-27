@@ -17,7 +17,6 @@ from unittest.mock import patch
 import pytest
 from builder_ii.deepagents_cli import deepagents_app
 from test_deepagents_execution import _work_plan_fixture
-from test_optional_deepagents_readiness import _install_fake_deepagents, _native_model_config
 from typer.testing import CliRunner
 
 from builder_ii.adapters.deepagents.deepagents_bridge import DeepAgentsAvailability
@@ -45,6 +44,9 @@ from builder_ii.adapters.deepagents.deepagents_work_artifacts import create_deep
 from builder_ii.core.config import load_settings
 from builder_ii.core.orchestration_lane_policy import create_orchestration_lane_policy_artifact
 from builder_ii.core.orchestration_obligation import create_orchestration_obligation
+from builder_ii.routing.model_budget import create_model_budget
+from builder_ii.routing.model_client_registry import create_model_client_registry
+from builder_ii.routing.model_routing_policy import create_model_execution_policy
 from tests.orchestration_assignment_fixtures import build_goal2_assignment_fixture
 
 runner = CliRunner()
@@ -186,7 +188,25 @@ def test_legacy_approval_for_ladder4_candidate_mismatch(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _install_fake_deepagents(_monkeypatch):
+    import deepagents
+    return deepagents
+
+
+def _native_model_config() -> dict:
+    registry = create_model_client_registry()
+    root = Path("tests/fixtures/artifacts")
+    recommendation = json_lib.loads((root / "model-recommendation.json").read_text())
+    assignment = json_lib.loads((root / "agent-assignment-plan.json").read_text())
+    policy = create_model_execution_policy(recommendation, max_tokens=1024)
+    budget = create_model_budget(session_id="native-route", max_output_tokens=4096,
+                                 max_total_tokens=100_000, max_usd=5)
+    return {"registry": registry, "policy": policy, "recommendation": recommendation,
+            "assignment": assignment, "budget": budget}
+
+
 def _optional_ladder4_candidate(monkeypatch, tmp_path: Path):
+    pytest.importorskip("deepagents")
     _install_fake_deepagents(monkeypatch)
     work_plan, work_plan_path = _work_plan_fixture(tmp_path)
     policy = create_orchestration_lane_policy_artifact()

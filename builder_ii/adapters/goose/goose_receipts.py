@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json as json_lib
+import re
 from typing import Any
 
 GOOSE_LAUNCH_RECEIPT_KIND = "builder_ii.goose_launch_receipt"
@@ -9,6 +10,7 @@ GOOSE_CLOSE_RECEIPT_KIND = "builder_ii.goose_close_receipt"
 NO_MUTATION_POSTFLIGHT_KIND = "builder_ii.no_mutation_postflight"
 GOOSE_LAUNCH_RECEIPT_SCHEMA_VERSION = 2
 SCHEMA_VERSION = 1
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _digest(value: dict[str, Any]) -> str:
@@ -53,17 +55,124 @@ def validate_goose_launch_receipt(receipt: Any) -> list[str]:
     for key in required:
         if key not in receipt:
             errors.append(f"missing required field: {key}")
+    for key in ("session_id", "target_profile", "agent_profile", "start_time"):
+        if not isinstance(receipt.get(key), str) or not receipt[key]:
+            errors.append(f"{key} must be a non-empty string")
+    if not isinstance(receipt.get("pid"), int) or receipt["pid"] <= 0:
+        errors.append("pid must be a positive integer")
     evidence = receipt.get("evidence")
     if not isinstance(evidence, dict) or not evidence:
         errors.append("evidence must be a non-empty object")
     elif "runtime" not in evidence and "goose_compatibility" not in evidence:
         errors.append("evidence must identify the admitted runtime")
     supplied_digest = receipt.get("digest")
-    if isinstance(supplied_digest, str):
+    if not isinstance(supplied_digest, str) or not _SHA256_RE.fullmatch(supplied_digest):
+        errors.append("digest must be a SHA-256 hex digest")
+    else:
         content = dict(receipt)
         content.pop("digest", None)
         if _digest(content) != supplied_digest:
             errors.append("digest does not match receipt content")
+    return errors
+
+
+def validate_no_mutation_postflight(postflight: Any) -> list[str]:
+    """Validate Goose target-state evidence without treating it as authority."""
+    if not isinstance(postflight, dict):
+        return ["Goose postflight must be a JSON object"]
+    errors: list[str] = []
+    if postflight.get("kind") != NO_MUTATION_POSTFLIGHT_KIND:
+        errors.append(f"kind must be {NO_MUTATION_POSTFLIGHT_KIND}")
+    if postflight.get("schema_version") != SCHEMA_VERSION:
+        errors.append(f"schema_version must be {SCHEMA_VERSION}")
+    for key in ("session_id", "target_root", "start_time", "end_time"):
+        if not isinstance(postflight.get(key), str) or not postflight[key]:
+            errors.append(f"{key} must be a non-empty string")
+    if not isinstance(postflight.get("files_checked"), int) or postflight["files_checked"] < 0:
+        errors.append("files_checked must be a non-negative integer")
+    for key in ("mutations_detected", "approved_mutations", "unexplained_mutations"):
+        value = postflight.get(key)
+        if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+            errors.append(f"{key} must be a list of strings")
+    if postflight.get("mutation_mode") not in {
+        "no_mutation",
+        "approved_hitl_patch",
+        "approved_hitl_rollback",
+    }:
+        errors.append("mutation_mode is invalid")
+    unexplained = postflight.get("unexplained_mutations")
+    if isinstance(unexplained, list) and postflight.get("valid") is not (len(unexplained) == 0):
+        errors.append("valid must equal whether unexplained_mutations is empty")
+    detected = postflight.get("mutations_detected")
+    approved = postflight.get("approved_mutations")
+    if all(isinstance(value, list) and all(isinstance(item, str) for item in value) for value in (detected, approved, unexplained)):
+        assert isinstance(detected, list)
+        assert isinstance(approved, list)
+        assert isinstance(unexplained, list)
+        if any(len(value) != len(set(value)) for value in (detected, approved, unexplained)):
+            errors.append("mutation lists must not contain duplicates")
+        if set(approved) & set(unexplained):
+            errors.append("approved_mutations and unexplained_mutations must be disjoint")
+        if set(detected) != set(approved) | set(unexplained):
+            errors.append("detected mutations must be exactly partitioned into approved and unexplained mutations")
+    mode = postflight.get("mutation_mode")
+    evidence = postflight.get("approved_mutation_evidence")
+    patch_evidence = postflight.get("approved_patch_evidence")
+    if mode == "no_mutation":
+        if approved:
+            errors.append("no_mutation mode must not contain approved mutations")
+        if evidence is not None or patch_evidence is not None:
+            errors.append("no_mutation mode must not contain approval evidence")
+    elif mode in {"approved_hitl_patch", "approved_hitl_rollback"}:
+        if not isinstance(evidence, dict) or not evidence:
+            errors.append("approved mutation mode requires approved_mutation_evidence")
+        else:
+            if evidence.get("session_id") != postflight.get("session_id"):
+                errors.append("approved mutation evidence session_id does not match postflight")
+            if evidence.get("target_root") != postflight.get("target_root"):
+                errors.append("approved mutation evidence target_root does not match postflight")
+            required_refs = (
+                (
+                    "patch_apply_receipt_ref",
+                    "postflight_ref",
+                    "rollback_plan_ref",
+                    "rollback_bundle_ref",
+                    "patch_ledger_ref",
+                    "rollback_patch_ref",
+                    "proposal_ref",
+                    "approval_ref",
+                    "verification_receipt_ref",
+                )
+                if mode == "approved_hitl_patch"
+                else (
+                    "rollback_receipt_ref",
+                    "rollback_ledger_ref",
+                    "rollback_plan_ref",
+                    "rollback_approval_ref",
+                    "rollback_reverse_patch_ref",
+                )
+            )
+            for key in required_refs:
+                ref = evidence.get(key)
+                if not isinstance(ref, dict):
+                    errors.append(f"approved mutation evidence requires {key}")
+                    continue
+                if not isinstance(ref.get("path"), str) or not ref["path"]:
+                    errors.append(f"approved mutation evidence {key}.path must be non-empty")
+                if not isinstance(ref.get("sha256"), str) or not _SHA256_RE.fullmatch(ref["sha256"]):
+                    errors.append(f"approved mutation evidence {key}.sha256 must be a SHA-256 digest")
+        if mode == "approved_hitl_patch" and patch_evidence != evidence:
+            errors.append("approved_hitl_patch mode must mirror approved evidence in approved_patch_evidence")
+        if mode == "approved_hitl_rollback" and patch_evidence is not None:
+            errors.append("approved_hitl_rollback mode must not claim approved_patch_evidence")
+    supplied_digest = postflight.get("digest")
+    if not isinstance(supplied_digest, str) or not _SHA256_RE.fullmatch(supplied_digest):
+        errors.append("digest must be a SHA-256 hex digest")
+    else:
+        content = dict(postflight)
+        content.pop("digest", None)
+        if _digest(content) != supplied_digest:
+            errors.append("digest does not match postflight content")
     return errors
 
 
@@ -131,3 +240,32 @@ def create_goose_close_receipt(
     }
     content["digest"] = _digest(content)
     return content
+
+
+def validate_goose_close_receipt(receipt: Any) -> list[str]:
+    """Validate the digest-bound Goose close contract."""
+    if not isinstance(receipt, dict):
+        return ["Goose close receipt must be a JSON object"]
+    errors: list[str] = []
+    if receipt.get("kind") != GOOSE_CLOSE_RECEIPT_KIND:
+        errors.append(f"kind must be {GOOSE_CLOSE_RECEIPT_KIND}")
+    if receipt.get("schema_version") != SCHEMA_VERSION:
+        errors.append(f"schema_version must be {SCHEMA_VERSION}")
+    for key in ("session_id", "transcript_path", "end_time"):
+        if not isinstance(receipt.get(key), str) or not receipt[key]:
+            errors.append(f"{key} must be a non-empty string")
+    for key in ("launch_receipt_digest", "postflight_digest", "transcript_digest"):
+        value = receipt.get(key)
+        if not isinstance(value, str) or not _SHA256_RE.fullmatch(value):
+            errors.append(f"{key} must be a SHA-256 hex digest")
+    if not isinstance(receipt.get("exit_code"), int):
+        errors.append("exit_code must be an integer")
+    supplied_digest = receipt.get("digest")
+    if not isinstance(supplied_digest, str) or not _SHA256_RE.fullmatch(supplied_digest):
+        errors.append("digest must be a SHA-256 hex digest")
+    else:
+        content = dict(receipt)
+        content.pop("digest", None)
+        if _digest(content) != supplied_digest:
+            errors.append("digest does not match receipt content")
+    return errors

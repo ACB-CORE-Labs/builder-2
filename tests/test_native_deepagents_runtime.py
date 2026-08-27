@@ -5,6 +5,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
+
+pytest.importorskip("langchain_core")
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
 
 from builder_ii.adapters.deepagents.native_runtime import (

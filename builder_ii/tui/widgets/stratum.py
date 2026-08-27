@@ -12,6 +12,8 @@ from textual.containers import ScrollableContainer, Vertical
 from textual.reactive import reactive
 from textual.widgets import RichLog, Static
 
+from builder_ii.core.run_registry import project_run_registry
+from builder_ii.core.run_view import LIFECYCLE, RunView
 from builder_ii.tui.projections.agents import (
     compose_assign_command,
     compose_deepagents_commands,
@@ -23,8 +25,6 @@ from builder_ii.tui.projections.models import project_model_matrix
 from builder_ii.tui.projections.operator import chain_validity_display, project_operator_dashboard
 from builder_ii.tui.projections.orchestration import project_orchestration
 from builder_ii.tui.projections.render import bold_themed, kv, rule, section_title, status_glyph, themed
-from builder_ii.tui.projections.run_projection import LIFECYCLE, RunProjection
-from builder_ii.tui.projections.runs import project_run_roster
 from builder_ii.tui.projections.subagent_tree import SubagentNode, project_subagent_tree
 from builder_ii.tui.projections.workflow import project_workflow
 from builder_ii.tui.widgets.masterpiece import EpistemicMatrix, ThirdDoorGate
@@ -214,7 +214,7 @@ class ActiveStratum(Vertical):
 
     # ── Renderers ────────────────────────────────────────────────────
 
-    def _stage_axis_lines(self, run: RunProjection) -> list[str]:
+    def _stage_axis_lines(self, run: RunView) -> list[str]:
         """Render the one lifecycle grammar from the canonical run projection."""
         active_index = LIFECYCLE.index(run.stage)
         keys = ("P", "Y", "A", "L", "E", "S")
@@ -239,9 +239,9 @@ class ActiveStratum(Vertical):
 
     def _render_idle(self) -> None:
         info = self._platform_info
-        from builder_ii.tui.projections.run_projection import project_run
+        from builder_ii.core.run_view import project_run_view
 
-        run = project_run(
+        run = project_run_view(
             self.artifacts_dir or Path("."),
             session_id=info.get("session") or None,
             target=info.get("target") or self._target,
@@ -518,7 +518,7 @@ class ActiveStratum(Vertical):
 
     def _render_run_cockpit(self) -> None:
         """Roster of ledgered runs + a live transcript of the selected run. Observe-only."""
-        view = project_run_roster(self._builder_root())
+        view = project_run_registry(self._builder_root())
         lines = [
             section_title("RUN COCKPIT", "active"),
             f"  {themed('hint', 'live event ledgers on disk — observe only, no dispatch')}",

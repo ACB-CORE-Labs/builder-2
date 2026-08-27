@@ -18,6 +18,13 @@ from builder_ii.adapters.goose.goose_receipts import (
     create_goose_launch_receipt,
     create_no_mutation_postflight,
 )
+from builder_ii.adapters.goose.goose_session_custody import (
+    discard_transcript_export,
+    install_transcript_export,
+    persist_goose_close,
+    persist_goose_launch,
+    prepare_transcript_export,
+)
 from builder_ii.adapters.mcp.governed_services import validate_mcp_service_receipt
 from builder_ii.core.config import Settings
 from builder_ii.governance.hitl.hitl_patch_apply import (
@@ -231,6 +238,7 @@ def _approved_patch_close_evidence(
     if errors:
         return set(), None, list(dict.fromkeys(errors))
     summary = {
+        "status": "succeeded",
         "session_id": session_id,
         "target_root": str(target_root.resolve()),
         "patch_apply_receipt_ref": evidence["patch_apply_receipt_ref"],
@@ -239,6 +247,9 @@ def _approved_patch_close_evidence(
         "rollback_bundle_ref": evidence["rollback_bundle_ref"],
         "patch_ledger_ref": evidence["patch_ledger_ref"],
         "rollback_patch_ref": evidence["rollback_patch_ref"],
+        "proposal_ref": evidence["proposal_ref"],
+        "approval_ref": evidence["approval_ref"],
+        "verification_receipt_ref": evidence["verification_receipt_ref"],
     }
     return approved_paths, summary, []
 
@@ -464,7 +475,12 @@ def _validated_rollback_close_evidence(
             errors.append(f"rollback reverse patch is invalid: {exc}")
     if errors:
         return set(), None, list(dict.fromkeys(errors))
-    return approved_paths, {"session_id": session_id, **{key: result[key] for key in result if key.endswith("_ref")}}, []
+    return approved_paths, {
+        "status": "succeeded",
+        "session_id": session_id,
+        "target_root": str(target_root.resolve()),
+        **{key: result[key] for key in result if key.endswith("_ref")},
+    }, []
 
 
 async def _get_target_files_async(target_root: Path) -> dict[str, str]:
@@ -496,6 +512,7 @@ class GooseRuntimeHarness:
         self._admitted_allow_artifact_root_inside_target = False
         self._model_gateway_context = model_gateway_context
         self._model_gateway_adapter: Any | None = None
+        self._canonical_launch_receipt: dict[str, Any] | None = None
 
     def _resolve_governed_identity(self) -> tuple[str, Path, bool]:
         """Resolve target and artifact identities through canonical config precedence."""
@@ -709,8 +726,27 @@ class GooseRuntimeHarness:
                 "recipe_sha256": recipe_digest,
                 "model_gateway": gateway_report,
                 "route_digest": self._model_gateway_context.route.route_digest,
+                "target_root": str(self.target_root.resolve()),
             },
         )
+        try:
+            persist_goose_launch(
+                artifact_root=artifact_root,
+                session_id=self.session_id,
+                launch_receipt=receipt,
+            )
+        except Exception:
+            if self._proc.poll() is None:
+                self._proc.terminate()
+                try:
+                    self._proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    self._proc.kill()
+                    self._proc.wait()
+            self._model_gateway_adapter.close()
+            self._model_gateway_adapter = None
+            raise
+        self._canonical_launch_receipt = receipt
         return receipt
 
     def wait_for_exit(self) -> int:
@@ -828,7 +864,7 @@ class GooseRuntimeHarness:
 
         postflight = create_no_mutation_postflight(
             session_id=self.session_id,
-            target_root=str(self.target_root),
+            target_root=str(self.target_root.resolve()),
             start_time=end_time,  # approximate for schema
             end_time=end_time,
             files_checked=len(post_snapshot),
@@ -842,23 +878,61 @@ class GooseRuntimeHarness:
         )
 
         # Export the actual transcript to a JSON log instead of timestamp guessing
-        transcript_path_obj = self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
-        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
-        transcript_path = str(transcript_path_obj)
-        subprocess.run(
-            [
-                "goose",
-                "session",
-                "export",
-                "--name",
-                self.session_id,
-                "--format",
-                "json",
-                "--output",
-                transcript_path,
-            ],
-            check=False,
+        canonical_close = (
+            self._admitted_artifact_root is not None
+            and getattr(self, "_canonical_launch_receipt", None) is not None
         )
+        transcript_export = (
+            prepare_transcript_export(self._admitted_artifact_root, self.session_id)
+            if canonical_close and self._admitted_artifact_root is not None
+            else None
+        )
+        transcript_path_obj = (
+            transcript_export.child_path
+            if transcript_export is not None
+            else self.target_root / ".builder" / "artifacts" / f"{self.session_id}.jsonl"
+        )
+        transcript_path_obj.parent.mkdir(parents=True, exist_ok=True)
+        transcript_export_path = str(transcript_path_obj)
+        export_binary = (
+            self._governed_admission[0].binary
+            if getattr(self, "_governed_admission", None) is not None
+            else "goose"
+        )
+        try:
+            export_result = subprocess.run(
+                [
+                    export_binary,
+                    "session",
+                    "export",
+                    "--name",
+                    self.session_id,
+                    "--format",
+                    "json",
+                    "--output",
+                    transcript_export_path,
+                ],
+                check=False,
+                pass_fds=(transcript_export.file_fd,) if transcript_export is not None else (),
+            )
+        except Exception:
+            if transcript_export is not None:
+                discard_transcript_export(transcript_export)
+            raise
+        if canonical_close and export_result.returncode != 0:
+            assert transcript_export is not None
+            discard_transcript_export(transcript_export)
+            raise RuntimeError(
+                f"Goose transcript export failed with status {export_result.returncode}; close custody was not recorded"
+            )
+        if canonical_close:
+            assert self._admitted_artifact_root is not None
+            transcript_path_obj = install_transcript_export(
+                artifact_root=self._admitted_artifact_root,
+                session_id=self.session_id,
+                export=transcript_export,
+            )
+        transcript_path = str(transcript_path_obj)
         transcript_digest = _file_sha256(transcript_path_obj) or ""
 
         close_receipt = create_goose_close_receipt(
@@ -871,29 +945,16 @@ class GooseRuntimeHarness:
             exit_code=exit_code,
         )
 
-        # Record goose_session_closed in the event ledger
-        from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
-
-        event = create_event_record(
-            event_id=self.session_id + "_close",
-            session_id=self.session_id,
-            sequence=0,
-            event_type="goose_session_closed",
-            stage="verification",
-            subject_refs=[
-                {
-                    "kind": "builder_ii.goose_transcript",
-                    "path": transcript_path,
-                    "sha256": transcript_digest,
-                    "role": "transcript",
-                }
-            ],
-            command_surface="builder_ii",
-            policy_snapshot_ref={"kind": "null"},
-        )
-        ledger_dir = self.target_root / ".builder" / "artifacts" / "events"
-        ledger_dir.mkdir(parents=True, exist_ok=True)
-        write_event_record(event, ledger_dir / f"event_{event['sequence']:04d}_{event['event_id']}.json")
+        if canonical_close:
+            assert self._admitted_artifact_root is not None
+            assert self._canonical_launch_receipt is not None
+            persist_goose_close(
+                artifact_root=self._admitted_artifact_root,
+                session_id=self.session_id,
+                launch_receipt=self._canonical_launch_receipt,
+                close_receipt=close_receipt,
+                postflight=postflight,
+            )
 
         return close_receipt, postflight
 
@@ -1010,29 +1071,5 @@ class GooseRuntimeHarness:
             end_time=end_time,
             exit_code=exit_code,
         )
-
-        # Record goose_session_closed in the event ledger
-        from builder_ii.governance.ledger.event_ledger import create_event_record, write_event_record
-
-        event = create_event_record(
-            event_id=self.session_id + "_close",
-            session_id=self.session_id,
-            sequence=0,
-            event_type="goose_session_closed",
-            stage="verification",
-            subject_refs=[
-                {
-                    "kind": "builder_ii.goose_transcript",
-                    "path": transcript_path,
-                    "sha256": transcript_digest,
-                    "role": "transcript",
-                }
-            ],
-            command_surface="builder_ii",
-            policy_snapshot_ref={"kind": "null"},
-        )
-        ledger_dir = self.target_root / ".builder" / "artifacts" / "events"
-        ledger_dir.mkdir(parents=True, exist_ok=True)
-        write_event_record(event, ledger_dir / f"event_{event['sequence']:04d}_{event['event_id']}.json")
 
         return close_receipt, postflight

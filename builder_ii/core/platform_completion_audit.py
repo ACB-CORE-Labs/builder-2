@@ -1145,7 +1145,7 @@ REQUIRED_CAPABILITY_ROWS: tuple[CapabilityRow, ...] = (
         (
             "R0 adds source-derived truth status.",
             "R1.6 adds canonical R1 closure report and golden path proof commands.",
-            "Legacy builder doctor/status remain operator-managed environment helpers.",
+            "Builder doctor remains the operator-managed environment helper; builder status is a passive governed-run projection.",
             "This row is a passive truth projection; operational lanes retain their own scoped assurance states.",
         ),
         "R1 then B1",
