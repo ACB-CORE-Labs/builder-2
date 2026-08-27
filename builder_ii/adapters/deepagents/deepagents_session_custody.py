@@ -186,6 +186,7 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
     replay_digest = ""
     ledger_data: dict[str, Any] | None = None
     replay_data: dict[str, Any] | None = None
+    recomputed_replay: dict[str, Any] | None = None
 
     if ledger_path.exists() or ledger_path.is_symlink():
         ledger_data, ledger_errors = _load_json(ledger_path, "canonical event ledger")
@@ -204,6 +205,8 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
     if ledger_data is not None:
         collected_events = []
         event_refs = ledger_data.get("event_refs", [])
+        if not isinstance(event_refs, list):
+            event_refs = []
         events_dir = session_dir / "events"
 
         for ref in event_refs:
@@ -228,6 +231,7 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
             loaded_event, ev_errors = _load_json(ref_path, f"ledger event {ref_path.name}")
             errors.extend(ev_errors)
             if loaded_event is not None:
+                errors.extend(validate_deepagents_event_record(loaded_event))
                 if loaded_event.get("kind") != DEEPAGENTS_EVENT_RECORD_KIND:
                     errors.append(f"event {ref_path.name} kind must be {DEEPAGENTS_EVENT_RECORD_KIND}")
                 if loaded_event.get("session_id") != session_id:
@@ -241,8 +245,11 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
             ev = collected_events[i][0]
             if i > 0:
                 prev_ev = collected_events[i - 1][0]
-                if ev.get("sequence", 0) <= prev_ev.get("sequence", 0):
-                    errors.append(f"event {collected_events[i][1].name} sequence is not strictly increasing")
+                ev_seq = ev.get("sequence")
+                prev_seq = prev_ev.get("sequence")
+                if isinstance(ev_seq, int) and isinstance(prev_seq, int):
+                    if ev_seq <= prev_seq:
+                        errors.append(f"event {collected_events[i][1].name} sequence is not strictly increasing")
 
                 prev_ref = ev.get("previous_event_ref")
                 if prev_ref and isinstance(prev_ref, dict):
@@ -263,9 +270,25 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
             errors.append("could not read events directory")
 
         if replay_data is not None:
-            recomputed_replay = create_deepagents_replay_report(session_id=session_id, event_records=collected_events)
-            if _digest_jsonable(recomputed_replay) != replay_digest:
-                errors.append("recomputed replay report digest does not match persisted replay report digest")
+            try:
+                recomputed_replay = create_deepagents_replay_report(session_id=session_id, event_records=collected_events)
+            except Exception as exc:
+                errors.append(f"failed to recompute replay report: {exc}")
+
+            if recomputed_replay is not None:
+                if _digest_jsonable(recomputed_replay) != replay_digest:
+                    errors.append("recomputed replay report digest does not match persisted replay report digest")
+
+                if recomputed_replay.get("valid") is not True:
+                    errors.append("recomputed replay report is not valid")
+
+                reconstructed_status = ledger_data.get("reconstructed_status", {})
+                if reconstructed_status.get("valid") != recomputed_replay.get("valid"):
+                    errors.append("ledger reconstructed_status valid flag does not match recomputed replay")
+                if reconstructed_status.get("status") != recomputed_replay.get("status"):
+                    errors.append("ledger reconstructed_status status does not match recomputed replay")
+                if reconstructed_status.get("completed_subagents") != recomputed_replay.get("completed_subagents"):
+                    errors.append("ledger reconstructed_status completed_subagents does not match recomputed replay")
 
             ledger_replay_ref = ledger_data.get("replay_report_ref")
             if ledger_replay_ref:
@@ -283,6 +306,10 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
                 errors.append("ledger replay_report_ref is missing")
 
     if envelope is not None:
+        if recomputed_replay is not None:
+            if envelope.get("envelope_state") != recomputed_replay.get("status"):
+                errors.append("envelope envelope_state does not match recomputed replay status")
+
         env_kind = envelope.get("kind")
         if env_kind == DEEPAGENTS_RUN_ENVELOPE_KIND:
             errors.extend(validate_deepagents_run_envelope(envelope))
@@ -514,6 +541,10 @@ def validate_deepagents_session_custody(artifact_root: Path, session_id: str) ->
             if rec_state == "PROJECTED_ONLY" or rec_kind == "builder_ii.deepagents_subagent_execution_receipt":
                 errors.append("PROJECTED_ONLY subagent receipt must not be promoted to execution receipt")
             else:
+                if recomputed_replay is not None:
+                    if receipt.get("receipt_state") != recomputed_replay.get("status"):
+                        errors.append("receipt receipt_state does not match recomputed replay status")
+
                 errors.extend(validate_deepagents_execution_receipt(receipt))
                 if receipt.get("session_id") != session_id:
                     errors.append("canonical Deep Agents receipt session_id does not match run")

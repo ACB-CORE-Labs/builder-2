@@ -180,7 +180,27 @@ def _setup_deepagents_fixture(artifact_root: Path, session_id: str) -> dict[str,
     event_1_path = internal_events_dir / "event-000001.json"
     event_1_path.write_text(json.dumps(event_1, indent=2), encoding="utf-8")
 
-    event_records = [(event_1, event_1_path)]
+    from builder_ii.adapters.deepagents.deepagents_execution import _digest_jsonable
+    event_2 = create_deepagents_event_record(
+        session_id=session_id,
+        sequence=2,
+        event_type="run_completed",
+        subject_refs=[],
+        payload={},
+        message="Completed run",
+        previous_event_ref={
+            "role": "event",
+            "kind": "builder_ii.deepagents_event_record",
+            "path": str(event_1_path),
+            "sha256": _digest_jsonable(event_1),
+            "name": "subagent_scheduled",
+            "required": True,
+        }
+    )
+    event_2_path = internal_events_dir / "event-000002.json"
+    event_2_path.write_text(json.dumps(event_2, indent=2), encoding="utf-8")
+
+    event_records = [(event_1, event_1_path), (event_2, event_2_path)]
     replay_report = create_deepagents_replay_report(
         session_id=session_id,
         event_records=event_records,
@@ -237,6 +257,8 @@ def _setup_deepagents_fixture(artifact_root: Path, session_id: str) -> dict[str,
         "internal_events": event_records,
         "event_1": event_1,
         "event_1_path": event_1_path,
+        "event_2": event_2,
+        "event_2_path": event_2_path,
         "events_dir": internal_events_dir,
     }
 
@@ -500,6 +522,117 @@ def test_deepagents_interrupted_delegation_custody(tmp_path: Path) -> None:
     session_id = "deepagents-interrupt-001"
     artifact_root = tmp_path / "artifacts"
     fixture = _setup_deepagents_fixture(artifact_root, session_id)
+
+    # Mutate event 2 to be a checkpoint_recorded instead of run_completed
+    from builder_ii.adapters.deepagents.deepagents_execution import (
+        create_deepagents_event_record,
+        create_deepagents_replay_report,
+        create_deepagents_event_ledger,
+        create_deepagents_run_envelope
+    )
+    from builder_ii.adapters.deepagents.deepagents_execution import _digest_jsonable
+    
+    event_2 = create_deepagents_event_record(
+        session_id=session_id,
+        sequence=2,
+        event_type="checkpoint_recorded",
+        subject_refs=[],
+        payload={"completed_subagents": ["repo_mapper"]},
+        message="Checkpoint recorded",
+        previous_event_ref={
+            "role": "event",
+            "kind": "builder_ii.deepagents_event_record",
+            "path": str(fixture["event_1_path"]),
+            "sha256": _digest_jsonable(fixture["event_1"]),
+            "name": "subagent_scheduled",
+            "required": True,
+        }
+    )
+    fixture["event_2"] = event_2
+    import json
+    fixture["event_2_path"].write_text(json.dumps(event_2, indent=2), encoding="utf-8")
+    
+    event_records = [(fixture["event_1"], fixture["event_1_path"]), (fixture["event_2"], fixture["event_2_path"])]
+    fixture["internal_events"] = event_records
+    
+    fixture["replay_report"] = create_deepagents_replay_report(session_id=session_id, event_records=event_records)
+    fixture["event_ledger"] = create_deepagents_event_ledger(
+        session_id=session_id,
+        event_records=event_records,
+        replay_report=fixture["replay_report"],
+        replay_report_path=fixture.get("replay_report_path", artifact_root / "sessions" / session_id / "deepagents" / "replay_report.json")
+    )
+    
+    fixture["envelope"] = create_deepagents_run_envelope(
+        session_id=session_id,
+        candidate=fixture["candidate"],
+        approval=fixture["approval"],
+        candidate_path=artifact_root / "sessions" / session_id / "deepagents" / "candidate.json",
+        approval_path=artifact_root / "sessions" / session_id / "deepagents" / "approval.json",
+        event_ledger=fixture["event_ledger"],
+        event_ledger_path=artifact_root / "sessions" / session_id / "deepagents" / "event_ledger.json",
+        replay_report=fixture["replay_report"],
+        replay_report_path=artifact_root / "sessions" / session_id / "deepagents" / "replay_report.json",
+        checkpoint=None,
+        checkpoint_path=None,
+        output_dir=artifact_root / "sessions" / session_id / "deepagents",
+        status="CHECKPOINTED",
+    )
+
+    # Mutate event 2 to be a checkpoint_recorded instead of run_completed
+    from builder_ii.adapters.deepagents.deepagents_execution import (
+        create_deepagents_event_record,
+        create_deepagents_replay_report,
+        create_deepagents_event_ledger,
+        _digest_jsonable
+    )
+    
+    event_2 = create_deepagents_event_record(
+        session_id=session_id,
+        sequence=2,
+        event_type="checkpoint_recorded",
+        subject_refs=[],
+        payload={"completed_subagents": ["repo_mapper"]},
+        message="Checkpoint recorded",
+        previous_event_ref={
+            "role": "event",
+            "kind": "builder_ii.deepagents_event_record",
+            "path": str(fixture["event_1_path"]),
+            "sha256": _digest_jsonable(fixture["event_1"]),
+            "name": "subagent_scheduled",
+            "required": True,
+        }
+    )
+    fixture["event_2"] = event_2
+    import json
+    fixture["event_2_path"].write_text(json.dumps(event_2, indent=2), encoding="utf-8")
+    
+    event_records = [(fixture["event_1"], fixture["event_1_path"]), (fixture["event_2"], fixture["event_2_path"])]
+    fixture["internal_events"] = event_records
+    
+    fixture["replay_report"] = create_deepagents_replay_report(session_id=session_id, event_records=event_records)
+    fixture["event_ledger"] = create_deepagents_event_ledger(
+        session_id=session_id,
+        event_records=event_records,
+        replay_report=fixture["replay_report"],
+        replay_report_path=fixture.get("replay_report_path", artifact_root / "sessions" / session_id / "deepagents" / "replay_report.json")
+    )
+    
+    fixture["envelope"] = create_deepagents_run_envelope(
+        session_id=session_id,
+        candidate=fixture["candidate"],
+        approval=fixture["approval"],
+        candidate_path=artifact_root / "sessions" / session_id / "deepagents" / "candidate.json",
+        approval_path=artifact_root / "sessions" / session_id / "deepagents" / "approval.json",
+        event_ledger=fixture["event_ledger"],
+        event_ledger_path=artifact_root / "sessions" / session_id / "deepagents" / "event_ledger.json",
+        replay_report=fixture["replay_report"],
+        replay_report_path=artifact_root / "sessions" / session_id / "deepagents" / "replay_report.json",
+        checkpoint=None,
+        checkpoint_path=None,
+        output_dir=artifact_root / "sessions" / session_id / "deepagents",
+        status="CHECKPOINTED",
+    )
 
     session_dir = deepagents_session_dir(artifact_root, session_id)
     candidate_path = session_dir / "candidate.json"
@@ -1070,16 +1203,18 @@ def test_lesion_event_ref_outside_events_dir_rejected(tmp_path: Path) -> None:
     escape_path.write_text(json.dumps(fixture["event_1"], indent=2, sort_keys=True), encoding="utf-8")
 
     # Mutate the ledger's event_ref to point outside the events directory
+    from builder_ii.adapters.deepagents.deepagents_execution import _digest_jsonable
     ledger = dict(fixture["event_ledger"])
     ledger["event_refs"] = [
         {
             "role": "event",
-            "kind": DEEPAGENTS_EVENT_RECORD_KIND,
+            "kind": "builder_ii.deepagents_event_record",
             "path": str(escape_path),
             "sha256": _digest_jsonable(fixture["event_1"]),
             "name": "subagent_scheduled",
             "required": True,
-        }
+        },
+        fixture["event_ledger"]["event_refs"][1]
     ]
     ledger["ledger_digest"] = _digest_jsonable(ledger)
 
@@ -1517,3 +1652,55 @@ def test_cross_frontend_semantic_parity(
     roster_entry = roster.get(session_id)
     assert roster_entry is not None
     assert roster_entry.chain_valid == expected_chain_valid
+
+def test_lesion_running_replay_with_completed_envelope_rejected(tmp_path: Path) -> None:
+    from builder_ii.adapters.deepagents.deepagents_session_custody import deepagents_session_dir, persist_deepagents_start
+    from builder_ii.adapters.deepagents.deepagents_execution import create_deepagents_replay_report, create_deepagents_event_ledger, create_deepagents_run_envelope
+    import pytest
+    
+    session_id = "lesion-running-comp-env-001"
+    artifact_root = tmp_path / "artifacts"
+    session_dir = deepagents_session_dir(artifact_root, session_id)
+    internal_events_dir = session_dir / "events"
+    internal_events_dir.mkdir(parents=True, exist_ok=True)
+
+    fixture = _setup_deepagents_fixture(artifact_root, session_id)
+
+    # Use only event 1 for RUNNING state
+    event_records = [(fixture["event_1"], fixture["event_1_path"])]
+    replay_report = create_deepagents_replay_report(session_id=session_id, event_records=event_records)
+
+    event_ledger = create_deepagents_event_ledger(
+        session_id=session_id,
+        event_records=event_records,
+        replay_report=replay_report,
+        replay_report_path=fixture.get("replay_report_path", session_dir / "replay_report.json")
+    )
+
+    envelope = create_deepagents_run_envelope(
+        session_id=session_id,
+        candidate=fixture["candidate"],
+        approval=fixture["approval"],
+        candidate_path=artifact_root / "sessions" / session_id / "deepagents" / "candidate.json",
+        approval_path=artifact_root / "sessions" / session_id / "deepagents" / "approval.json",
+        event_ledger=event_ledger,
+        event_ledger_path=artifact_root / "sessions" / session_id / "deepagents" / "event_ledger.json",
+        replay_report=replay_report,
+        replay_report_path=artifact_root / "sessions" / session_id / "deepagents" / "replay_report.json",
+        checkpoint=None,
+        checkpoint_path=None,
+        output_dir=artifact_root / "sessions" / session_id / "deepagents",
+        status="COMPLETED",
+    )
+
+    with pytest.raises(ValueError, match="does not match recomputed replay status"):
+        persist_deepagents_start(
+            artifact_root=artifact_root,
+            session_id=session_id,
+            work_plan=fixture["work_plan"],
+            envelope=envelope,
+            candidate=fixture["candidate"],
+            approval=fixture["approval"],
+            event_ledger=event_ledger,
+            replay_report=replay_report,
+        )
